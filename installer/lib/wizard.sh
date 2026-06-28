@@ -102,8 +102,8 @@ wizard_section_admin() {
 
 wizard_section_storage() {
     _section_header "8" "Storage Paths"
-    _prompt BETA_STORAGE_PATH "Storage base path" "/opt/wooprice-beta/storage"
-    _prompt BETA_BACKUP_PATH  "Backup path"       "/opt/wooprice-beta/backups"
+    _prompt BETA_STORAGE_PATH "Storage base path" "/opt/flowhub/storage"
+    _prompt BETA_BACKUP_PATH  "Backup path"       "/opt/flowhub/backups"
 }
 
 wizard_section_confirm() {

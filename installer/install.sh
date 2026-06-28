@@ -33,7 +33,7 @@ source "${LIB_DIR}/docker_deploy.sh"
 source "${LIB_DIR}/db_init.sh"
 
 # ---- Defaults ----
-INSTALL_DIR="/opt/wooprice-beta"
+INSTALL_DIR="/opt/flowhub"
 DRY_RUN=0
 NON_INTERACTIVE=0
 INSTALLER_ENV_FILE=""
@@ -99,7 +99,7 @@ trap 'on_error $LINENO' ERR
 print_banner() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  WooPrice Beta Installer  v1.0.0-bu1"
+    echo "  FlowHub Beta Installer  v1.0.0-bu1"
     echo "  [BETA ENVIRONMENT — NOT PRODUCTION]"
     echo ""
     echo "  This installer sets up a completely isolated Beta environment."
@@ -256,8 +256,8 @@ step_storage() {
     echo "Step 5 — Storage Directory Setup"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  [DRY RUN] Would create:"
-        echo "  ${BETA_STORAGE_PATH:-/opt/wooprice-beta/storage}/{logs,config,plugins,uploads,diagnostics}"
-        echo "  ${BETA_BACKUP_PATH:-/opt/wooprice-beta/backups}"
+        echo "  ${BETA_STORAGE_PATH:-/opt/flowhub/storage}/{logs,config,plugins,uploads,diagnostics}"
+        echo "  ${BETA_BACKUP_PATH:-/opt/flowhub/backups}"
         echo "  ${INSTALL_DIR}/logs"
         return
     fi
@@ -271,7 +271,7 @@ step_toml_config() {
     echo ""
     echo "Step 6 — Managed Configuration File"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "  [DRY RUN] Would write: ${BETA_STORAGE_PATH:-/opt/wooprice-beta/storage}/config/wooprice-beta.toml"
+        echo "  [DRY RUN] Would write: ${BETA_STORAGE_PATH:-/opt/flowhub/storage}/config/flowhub-beta.toml"
         return
     fi
     python3 - <<PYEOF
@@ -286,12 +286,12 @@ config = InstallerConfig(
     ssl_mode="${BETA_SSL_MODE:-off}",
     postgres_db="${BETA_POSTGRES_DB:-wooprice_beta}",
     postgres_user="${BETA_POSTGRES_USER:-wooprice_beta}",
-    storage_path="${BETA_STORAGE_PATH:-/opt/wooprice-beta/storage}",
-    backup_path="${BETA_BACKUP_PATH:-/opt/wooprice-beta/backups}",
+    storage_path="${BETA_STORAGE_PATH:-/opt/flowhub/storage}",
+    backup_path="${BETA_BACKUP_PATH:-/opt/flowhub/backups}",
     log_level="INFO",
 )
 content = generate_toml_content(config)
-config_dir = Path("${BETA_STORAGE_PATH:-/opt/wooprice-beta/storage}/config")
+config_dir = Path("${BETA_STORAGE_PATH:-/opt/flowhub/storage}/config")
 config_dir.mkdir(parents=True, exist_ok=True)
 path = write_toml_config(content, config_dir)
 print(f"  Managed config written: {path}")
@@ -396,7 +396,7 @@ step_completion_report() {
         _load_env_for_docker
         local port="${BETA_PORT:-8085}"
         local domain="${BETA_DOMAIN:-localhost}"
-        echo "  WooPrice Beta — Installation Complete"
+        echo "  FlowHub Beta — Installation Complete"
         echo ""
         echo "  Application:     http://${domain}:${port}"
         echo "  Health endpoint: http://${domain}:${port}/api/health"

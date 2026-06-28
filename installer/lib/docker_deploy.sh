@@ -32,6 +32,7 @@ docker_compose_cmd() {
 build_and_start_services() {
     local install_dir="$1"
     local compose_file="${install_dir}/docker-compose.beta.yml"
+    local env_file="${install_dir}/.env.beta"
     local dc_cmd
     dc_cmd="$(docker_compose_cmd)"
 
@@ -40,11 +41,15 @@ build_and_start_services() {
         return 1
     fi
 
-    echo "  Building Docker images (this may take a few minutes)..."
-    ${dc_cmd} -f "$compose_file" build
+    echo "  Validating Docker Compose configuration..."
+    if ! ${dc_cmd} --env-file "$env_file" -f "$compose_file" config --quiet; then
+        echo "  ERROR: Compose config validation failed" >&2
+        return 1
+    fi
+    echo "  Compose config: VALID"
 
-    echo "  Starting Docker services..."
-    ${dc_cmd} -f "$compose_file" up -d
+    echo "  Building images and starting services (this may take a few minutes)..."
+    ${dc_cmd} --env-file "$env_file" -f "$compose_file" up -d --build
 
     echo "  Services started."
 }
