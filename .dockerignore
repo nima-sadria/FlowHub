@@ -1,0 +1,17 @@
+.env
+*.db
+data/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.git/
+.DS_Store
+.claude/
+.review/
+.vscode/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+static/assets/

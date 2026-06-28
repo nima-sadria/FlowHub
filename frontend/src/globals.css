@@ -1,0 +1,71 @@
+/* ── IRANYekanX variable font ── */
+@font-face {
+  font-family: 'IRANYekanX';
+  src: url('/static/fonts/IRANYekanXVF.woff2') format('woff2-variations'),
+       url('/static/fonts/IRANYekanXVF.woff') format('woff-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IRANYekanX';
+  src: url('/static/fonts/IRANYekanX-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IRANYekanX';
+  src: url('/static/fonts/IRANYekanX-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Light theme (default) ── */
+:root {
+  --color-accent: #4880FF;
+  --color-accent-hover: #3570E8;
+  --color-wp-green: #22c55e;
+  --color-wp-red: #ef4444;
+  --color-wp-yellow: #f59e0b;
+  --color-wp-orange: #f97316;
+  --color-wp-purple: #a855f7;
+  --color-wp-muted: #8E97A7;
+  --color-bg-base: #F5F6FA;
+  --color-bg-card: #ffffff;
+  --color-border: #E8EAED;
+  --color-text-base: #1C2434;
+}
+
+/* ── Dark theme — toggled by .dark on <html> ── */
+.dark {
+  --color-accent: #4880FF;
+  --color-accent-hover: #5590FF;
+  --color-wp-green: #34d399;
+  --color-wp-red: #f87171;
+  --color-wp-yellow: #fbbf24;
+  --color-wp-orange: #fb923c;
+  --color-wp-purple: #c084fc;
+  --color-wp-muted: #9ca3af;
+  --color-bg-base: #111827;
+  --color-bg-card: #1f2937;
+  --color-border: #374151;
+  --color-text-base: #f9fafb;
+}
+
+@layer base {
+  body {
+    @apply font-sans bg-bg-base text-text-base;
+    font-feature-settings: "locl" 0;
+  }
+  @supports (font-variation-settings: normal) {
+    body {
+      font-variation-settings: 'wght' 400;
+    }
+  }
+}

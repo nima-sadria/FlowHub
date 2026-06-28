@@ -1,0 +1,29 @@
+.env
+.env.beta
+*.db
+data/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.DS_Store
+
+.claude/settings*.json
+.claude/worktrees/
+
+adminator.zip
+adminator_theme/
+.review/
+
+# React frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+static/assets/
+
+# Local audit/test artifacts
+.postman/
+postman/
+screenshots/
+frontend/screenshots/

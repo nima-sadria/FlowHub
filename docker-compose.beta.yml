@@ -1,0 +1,64 @@
+# WooPrice Beta — Docker Compose stack
+#
+# Target host: /opt/wooprice-beta  (port 8085, profile: BETA)
+# External TLS/proxy: Nginx Proxy Manager (not managed here)
+# No Nginx container — NPM handles reverse proxy on the host
+# No Redis container — not required until B6 (cache/queue implementation)
+#
+# Usage:
+#   cp .env.beta.example .env.beta && vi .env.beta   # fill real secrets
+#   docker compose -f docker-compose.beta.yml config  # validate
+#   docker compose -f docker-compose.beta.yml up -d --build
+#
+# Verify:
+#   docker compose -f docker-compose.beta.yml ps
+#   curl -s http://localhost:8085/api/health | python3 -m json.tool
+#   wooprice diagnostics run  (if CLI installed)
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.beta
+    image: wooprice-beta:latest
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    env_file:
+      - .env.beta
+    volumes:
+      - ./storage:/data/storage
+      - ./backups:/data/backups
+      - ./logs:/data/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8085/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - .env.beta
+    environment:
+      # Map BETA_POSTGRES_* → standard PostgreSQL env vars
+      POSTGRES_DB: "${BETA_POSTGRES_DB}"
+      POSTGRES_USER: "${BETA_POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${BETA_POSTGRES_PASSWORD}"
+    volumes:
+      - beta_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  beta_pgdata:
+    driver: local
