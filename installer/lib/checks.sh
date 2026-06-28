@@ -13,9 +13,9 @@ _check_pass() { printf "  [PASS] %s\n" "$1"; }
 _check_fail() { printf "  [FAIL] %s\n  Fix: %s\n" "$1" "$2"; CHECKS_FAILED=1; }
 
 check_python_version() {
-    local required_major=3 required_minor=12
+    local required_major=3 required_minor=10
     if ! command -v python3 &>/dev/null; then
-        _check_fail "Python 3.12+ not found" "Install Python 3.12: https://www.python.org/downloads/"
+        _check_fail "Python 3.10+ not found" "Install Python 3.10: https://www.python.org/downloads/"
         return
     fi
     local version

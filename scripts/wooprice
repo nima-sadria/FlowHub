@@ -11,11 +11,11 @@
 #   wooprice diagnostics run   -- integration health check
 #   wooprice --help            -- full command list
 
-INSTALL_DIR="${WOOPRICE_INSTALL_DIR:-/opt/wooprice-beta}"
+INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-/opt/flowhub}"
 
 if [[ ! -d "$INSTALL_DIR" ]]; then
-    echo "ERROR: WooPrice installation directory not found: ${INSTALL_DIR}" >&2
-    echo "Set WOOPRICE_INSTALL_DIR if installed to a non-default path." >&2
+    echo "ERROR: FlowHub installation directory not found: ${INSTALL_DIR}" >&2
+    echo "Set FLOWHUB_INSTALL_DIR if installed to a non-default path." >&2
     exit 1
 fi
 

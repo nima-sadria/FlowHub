@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# WooPrice Beta — Main installer entry point (BU1)
+# FlowHub Beta — Main installer entry point
 #
-# Usage:
+# One-command install (clean server, run as root):
+#   bash <(curl -Ls https://raw.githubusercontent.com/nima-sadria/FlowHub/main/installer/install.sh)
+#
+# From a cloned repo:
 #   bash installer/install.sh [--install-dir <path>] [--dry-run] [--non-interactive]
 #
 # Idempotent: detects existing installations and offers upgrade/repair/reconfigure/exit.
@@ -10,6 +13,126 @@
 # [BETA ENVIRONMENT — NOT PRODUCTION]
 
 set -euo pipefail
+
+# ── Bootstrap ─────────────────────────────────────────────────────────────────
+# When invoked via  bash <(curl ...)  the script streams through a file
+# descriptor (/dev/fd/N).  dirname of that path does not contain lib/.
+# We detect this and enter bootstrap mode: install system deps, clone the
+# repo into INSTALL_DIR, then re-exec from there.
+
+_FLOWHUB_INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-/opt/flowhub}"
+_FLOWHUB_REPO_URL="https://github.com/nima-sadria/FlowHub.git"
+_FLOWHUB_BRANCH="main"
+
+_bs_require_root() {
+    if [[ "$(id -u)" -ne 0 ]]; then
+        echo "ERROR: Bootstrap must run as root." >&2
+        echo "  Run:  sudo bash <(curl -Ls <url>)" >&2
+        exit 1
+    fi
+}
+
+_bs_os_check() {
+    [[ -f /etc/os-release ]] || {
+        echo "ERROR: Cannot detect OS. Only Ubuntu and Debian are supported." >&2
+        exit 1
+    }
+    # shellcheck source=/dev/null
+    . /etc/os-release
+    case "${ID:-}" in
+        ubuntu|debian)
+            echo "  OS:   ${PRETTY_NAME:-${ID}}"
+            ;;
+        *)
+            echo "ERROR: Unsupported OS '${ID:-unknown}'. Only Ubuntu and Debian are supported." >&2
+            exit 1
+            ;;
+    esac
+}
+
+_bs_arch_check() {
+    local arch
+    arch="$(uname -m)"
+    case "$arch" in
+        x86_64)  echo "  Arch: amd64" ;;
+        aarch64) echo "  Arch: arm64" ;;
+        *)
+            echo "ERROR: Unsupported architecture '${arch}'. Only amd64 and arm64 are supported." >&2
+            exit 1
+            ;;
+    esac
+}
+
+_bs_install_system_deps() {
+    echo "  Installing system packages..."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq
+    apt-get install -y --no-install-recommends \
+        git curl ca-certificates gnupg lsb-release openssl python3 python3-pip
+    echo "  System packages installed."
+}
+
+_bs_install_docker() {
+    if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
+        echo "  Docker: already installed"
+        return 0
+    fi
+    echo "  Installing Docker Engine + Compose plugin..."
+    # shellcheck source=/dev/null
+    . /etc/os-release
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL "https://download.docker.com/linux/${ID}/gpg" \
+        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/${ID} $(lsb_release -cs) stable" \
+        > /etc/apt/sources.list.d/docker.list
+    apt-get update -qq
+    apt-get install -y --no-install-recommends \
+        docker-ce docker-ce-cli containerd.io \
+        docker-buildx-plugin docker-compose-plugin
+    echo "  Docker: installed"
+}
+
+_bs_clone_or_pull() {
+    if [[ -d "${_FLOWHUB_INSTALL_DIR}/.git" ]]; then
+        echo "  Updating ${_FLOWHUB_INSTALL_DIR}..."
+        git -C "$_FLOWHUB_INSTALL_DIR" fetch --quiet origin
+        git -C "$_FLOWHUB_INSTALL_DIR" reset --hard "origin/${_FLOWHUB_BRANCH}"
+        echo "  Repo updated."
+    else
+        echo "  Cloning FlowHub into ${_FLOWHUB_INSTALL_DIR}..."
+        mkdir -p "$(dirname "$_FLOWHUB_INSTALL_DIR")"
+        git clone --branch "$_FLOWHUB_BRANCH" --depth 1 \
+            "$_FLOWHUB_REPO_URL" "$_FLOWHUB_INSTALL_DIR"
+        echo "  Clone complete."
+    fi
+}
+
+# Bootstrap detection: when piped via bash <(curl ...), BASH_SOURCE[0] is
+# /dev/fd/N — its parent directory has no lib/checks.sh.
+if [[ ! -f "$(dirname "${BASH_SOURCE[0]:-NONE}")/lib/checks.sh" ]]; then
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  FlowHub Beta — Bootstrap (one-command install)"
+    echo "  Install directory: ${_FLOWHUB_INSTALL_DIR}"
+    echo "  [BETA ENVIRONMENT — NOT PRODUCTION]"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    _bs_require_root
+    _bs_os_check
+    _bs_arch_check
+    _bs_install_system_deps
+    _bs_install_docker
+    _bs_clone_or_pull
+    echo ""
+    echo "  Handing off to full installer at ${_FLOWHUB_INSTALL_DIR}..."
+    echo ""
+    exec bash "${_FLOWHUB_INSTALL_DIR}/installer/install.sh" \
+        --install-dir "${_FLOWHUB_INSTALL_DIR}" "$@"
+fi
+
+# ── Running from a proper repo checkout ───────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
@@ -122,7 +245,7 @@ detect_existing_installation() {
 handle_existing_installation() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  Existing WooPrice Beta installation detected."
+    echo "  Existing FlowHub Beta installation detected."
     echo "  Environment file: ${INSTALLER_ENV_FILE}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
@@ -274,7 +397,13 @@ step_toml_config() {
         echo "  [DRY RUN] Would write: ${BETA_STORAGE_PATH:-/opt/flowhub/storage}/config/flowhub-beta.toml"
         return
     fi
-    python3 - <<PYEOF
+    # installer_core imports app.beta.config which requires Python deps installed
+    # on the host. Skip gracefully if not available — Docker stack uses .env.beta.
+    python3 - 2>/dev/null <<PYEOF || {
+        echo "  NOTE: TOML config skipped (Python app dependencies not on host)."
+        echo "  Docker stack reads .env.beta directly — no impact on operation."
+        return 0
+    }
 import sys
 sys.path.insert(0, "${REPO_DIR}")
 from installer.installer_core import InstallerConfig, generate_toml_content, write_toml_config
@@ -324,7 +453,7 @@ step_docker_launch() {
     echo ""
     echo "Step 8 — Docker Stack Launch"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "  [DRY RUN] Would run: docker compose build && docker compose up -d"
+        echo "  [DRY RUN] Would run: docker compose up -d --build"
         return
     fi
     _load_env_for_docker
@@ -335,7 +464,7 @@ step_database_init() {
     echo ""
     echo "Step 9 — Database Initialization"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "  [DRY RUN] Would wait for PostgreSQL, then run: alembic upgrade head"
+        echo "  [DRY RUN] Would wait for PostgreSQL, then run: alembic -c alembic_beta.ini upgrade head"
         return
     fi
     _load_env_for_docker
@@ -345,13 +474,13 @@ step_database_init() {
 
 step_install_cli() {
     echo ""
-    echo "Step 10 — Install wooprice CLI"
+    echo "Step 10 — Install flowhub CLI"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "  [DRY RUN] Would install: /usr/local/bin/wooprice"
+        echo "  [DRY RUN] Would install: /usr/local/bin/flowhub"
         return
     fi
     local wrapper_src="${REPO_DIR}/scripts/wooprice"
-    local wrapper_dst="/usr/local/bin/wooprice"
+    local wrapper_dst="/usr/local/bin/flowhub"
     if [[ ! -f "$wrapper_src" ]]; then
         echo "  WARNING: CLI wrapper not found at ${wrapper_src} — skipping" >&2
         return
@@ -365,7 +494,7 @@ step_install_cli() {
             sudo chmod +x "$wrapper_dst"
         fi
         echo "  CLI installed: ${wrapper_dst}"
-        echo "  Test with: wooprice --help"
+        echo "  Test with: flowhub --help"
     else
         echo "  WARNING: Cannot write to $(dirname "$wrapper_dst") (no sudo) — CLI not installed"
         echo "  Manual install: cp ${wrapper_src} ${wrapper_dst} && chmod +x ${wrapper_dst}"
@@ -389,7 +518,7 @@ step_completion_report() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "  WooPrice Beta — Dry Run Complete"
+        echo "  FlowHub Beta — Dry Run Complete"
         echo "  No files were written. No Docker was started."
         echo "  Review the output above for a preview of what would happen."
     else
@@ -406,10 +535,10 @@ step_completion_report() {
         echo "  Logs:            ${INSTALL_DIR}/logs"
         echo ""
         echo "  Management:"
-        echo "    wooprice              — interactive management menu"
-        echo "    wooprice status       — configuration status"
-        echo "    wooprice health       — local health checks"
-        echo "    wooprice diagnostics run — full integration check"
+        echo "    flowhub              — interactive management menu"
+        echo "    flowhub status       — configuration status"
+        echo "    flowhub health       — local health checks"
+        echo "    flowhub diagnostics run — full integration check"
         echo ""
         echo "  Docker (if direct access needed):"
         echo "    docker compose -f ${INSTALL_DIR}/docker-compose.beta.yml ps"
