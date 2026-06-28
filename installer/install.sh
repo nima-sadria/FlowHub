@@ -436,7 +436,7 @@ step_compose_verify() {
         local dc_cmd
         dc_cmd="$(docker_compose_cmd)"
         if [[ "$DRY_RUN" -eq 0 ]]; then
-            ${dc_cmd} -f "$compose_file" --env-file "${INSTALLER_ENV_FILE}" config --quiet \
+            ${dc_cmd} --project-directory "$INSTALL_DIR" -f "$compose_file" --env-file "${INSTALLER_ENV_FILE}" config --quiet \
                 && echo "  Compose config: VALID" \
                 || { echo "  ERROR: Compose config validation failed" >&2; return 1; }
         else

@@ -30,7 +30,7 @@ run_alembic_migrations() {
     echo "  Running Alembic database migrations..."
     echo "  Command: alembic -c alembic_beta.ini upgrade head"
 
-    if ! ${dc_cmd} -f "$compose_file" exec -T app \
+    if ! ${dc_cmd} --project-directory "$install_dir" -f "$compose_file" exec -T app \
         alembic -c alembic_beta.ini upgrade head; then
         echo "" >&2
         echo "  ERROR: Alembic migration failed." >&2

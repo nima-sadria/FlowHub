@@ -42,14 +42,14 @@ build_and_start_services() {
     fi
 
     echo "  Validating Docker Compose configuration..."
-    if ! ${dc_cmd} --env-file "$env_file" -f "$compose_file" config --quiet; then
+    if ! ${dc_cmd} --project-directory "$install_dir" --env-file "$env_file" -f "$compose_file" config --quiet; then
         echo "  ERROR: Compose config validation failed" >&2
         return 1
     fi
     echo "  Compose config: VALID"
 
     echo "  Building images and starting services (this may take a few minutes)..."
-    ${dc_cmd} --env-file "$env_file" -f "$compose_file" up -d --build
+    ${dc_cmd} --project-directory "$install_dir" --env-file "$env_file" -f "$compose_file" up -d --build
 
     echo "  Services started."
 }
@@ -69,7 +69,7 @@ wait_for_postgres_ready() {
 
     echo "  Waiting for PostgreSQL to be ready (max ${max_wait}s)..."
     while [[ "$elapsed" -lt "$max_wait" ]]; do
-        if ${dc_cmd} -f "$compose_file" exec -T postgres \
+        if ${dc_cmd} --project-directory "$install_dir" -f "$compose_file" exec -T postgres \
             pg_isready -U "${BETA_POSTGRES_USER}" -d "${BETA_POSTGRES_DB}" \
             &>/dev/null 2>&1; then
             echo "  PostgreSQL: ready"
