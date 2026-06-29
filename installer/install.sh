@@ -154,6 +154,8 @@ source "${LIB_DIR}/storage.sh"
 source "${LIB_DIR}/docker_deploy.sh"
 # shellcheck source=installer/lib/db_init.sh
 source "${LIB_DIR}/db_init.sh"
+# shellcheck source=installer/lib/admin.sh
+source "${LIB_DIR}/admin.sh"
 
 # ---- Defaults ----
 INSTALL_DIR="/opt/flowhub"
@@ -319,6 +321,7 @@ step_upgrade() {
     _load_env_for_docker
     step_docker_launch
     step_database_init
+    step_create_admin
     step_health_check
     step_completion_report
 }
@@ -356,6 +359,7 @@ step_reconfigure() {
     step_storage
     step_docker_launch
     step_database_init
+    step_create_admin
     step_health_check
     step_completion_report
 }
@@ -511,6 +515,17 @@ step_database_init() {
     run_alembic_migrations "$INSTALL_DIR"
 }
 
+step_create_admin() {
+    echo ""
+    echo "Step 9b - Create Admin Account"
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+        echo "  [DRY RUN] Would run: python -m cli.main create-admin (auto-generated password)"
+        return
+    fi
+    _load_env_for_docker
+    create_admin_account "$INSTALL_DIR"
+}
+
 step_install_cli() {
     echo ""
     echo "Step 10 — Install flowhub CLI"
@@ -620,6 +635,7 @@ main() {
     step_compose_verify
     step_docker_launch
     step_database_init
+    step_create_admin
     step_install_cli
     step_health_check
     step_completion_report

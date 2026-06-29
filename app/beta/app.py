@@ -1,4 +1,4 @@
-"""WooPrice Beta — FastAPI application entry point (BU2).
+"""FlowHub Beta — FastAPI application entry point (BU2).
 
 Deployment: uvicorn app.beta.app:app --host 0.0.0.0 --port 8085
 
@@ -34,7 +34,7 @@ _LANDING_HTML = """\
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>WooPrice Beta</title>
+  <title>FlowHub Beta</title>
   <style>
     body {{ font-family: monospace; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }}
     h1 {{ font-size: 1.4rem; margin-bottom: 0.2em; }}
@@ -46,7 +46,7 @@ _LANDING_HTML = """\
   </style>
 </head>
 <body>
-  <h1>WooPrice Beta</h1>
+  <h1>FlowHub Beta</h1>
   <table>
     <tr><td>environment</td><td>beta</td></tr>
     <tr><td>version</td><td>{version}</td></tr>
@@ -62,7 +62,7 @@ _LANDING_HTML = """\
 """
 
 app = FastAPI(
-    title="WooPrice Beta",
+    title="FlowHub Beta",
     version=_VERSION,
     docs_url=None,
     redoc_url=None,
