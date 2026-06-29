@@ -26,7 +26,8 @@ class TestRootRoute:
 
     def test_root_contains_version(self):
         response = client.get("/")
-        assert "0.1.0-dev" in response.text
+        from app.beta.app import _VERSION
+        assert _VERSION in response.text
 
     def test_root_contains_health_path(self):
         response = client.get("/")

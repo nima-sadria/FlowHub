@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, RequirePermission, AccessState, useAuth } from './auth'
 import { DirectionProvider } from './direction'
@@ -22,7 +22,9 @@ import Activity from './pages/Activity'
 import Diagnostics from './pages/Diagnostics'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
+import Setup from './pages/Setup'
 import NotFound from './pages/NotFound'
+import type { SetupStatus } from './api/types'
 
 const mockServices = {
   health:    new MockHealthService(),
@@ -47,7 +49,7 @@ function MaintenanceOverlay({ message }: { message?: string }) {
         </div>
         <h2 className="text-[18px] font-bold text-text-base mb-2">Maintenance Mode</h2>
         <p className="text-[13px] text-wp-muted mb-6">
-          {message || 'WooPrice is temporarily in maintenance mode. Please try again later.'}
+          {message || 'FlowHub is temporarily in maintenance mode. Please try again later.'}
         </p>
         <button
           onClick={() => { clearAuth() }}
@@ -90,6 +92,63 @@ function GuestOnly({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+// ── Setup Gate ────────────────────────────────────────────────────────────────
+// Checks /api/v2/setup/status on first load. If setup is not complete, renders
+// only the /setup route and redirects everything else there. Once setup is
+// marked complete (or the endpoint is unreachable), normal routing is shown.
+
+function SetupGate() {
+  const [setupComplete, setSetupComplete] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    fetch('/api/v2/setup/status')
+      .then(r => (r.ok ? r.json() as Promise<SetupStatus> : Promise.resolve({ completed: true })))
+      .then(d => setSetupComplete(d.completed))
+      .catch(() => setSetupComplete(true))
+  }, [])
+
+  if (setupComplete === null) {
+    return (
+      <div className="min-h-screen bg-bg-base flex items-center justify-center">
+        <span className="text-[13px] text-wp-muted">Loading…</span>
+      </div>
+    )
+  }
+
+  if (!setupComplete) {
+    return (
+      <Routes>
+        <Route
+          path="/setup"
+          element={<Setup onComplete={() => setSetupComplete(true)} />}
+        />
+        <Route path="*" element={<Navigate to="/setup" replace />} />
+      </Routes>
+    )
+  }
+
+  return (
+    <Routes>
+      <Route path="/setup" element={<Navigate to="/login" replace />} />
+      <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
+      <Route path="/" element={<Navigate to="/home" replace />} />
+      <Route element={<AuthGuard><AppShell /></AuthGuard>}>
+        <Route path="/home" element={<RequirePermission permission="can_access_site"><BetaDashboard /></RequirePermission>} />
+        <Route path="/products" element={<RequirePermission permission="can_fetch"><Products /></RequirePermission>} />
+        <Route path="/sources" element={<RequirePermission permission="can_access_site"><Sources /></RequirePermission>} />
+        <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><SourceWizard /></RequirePermission>} />
+        <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
+        <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
+        <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
+        <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  )
+}
+
+// ── App root ──────────────────────────────────────────────────────────────────
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -99,21 +158,7 @@ export default function App() {
           <DirectionProvider>
             <AuthProvider>
               <ServiceProvider services={mockServices}>
-                <Routes>
-                  <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
-                  <Route path="/" element={<Navigate to="/home" replace />} />
-                  <Route element={<AuthGuard><AppShell /></AuthGuard>}>
-                    <Route path="/home" element={<RequirePermission permission="can_access_site"><BetaDashboard /></RequirePermission>} />
-                    <Route path="/products" element={<RequirePermission permission="can_fetch"><Products /></RequirePermission>} />
-                    <Route path="/sources" element={<RequirePermission permission="can_access_site"><Sources /></RequirePermission>} />
-                    <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><SourceWizard /></RequirePermission>} />
-                    <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
-                    <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
-                    <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
-                    <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
-                  </Route>
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
+                <SetupGate />
               </ServiceProvider>
             </AuthProvider>
           </DirectionProvider>
