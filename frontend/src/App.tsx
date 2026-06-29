@@ -12,6 +12,12 @@ import { MockSourceService } from './services/sources/MockSourceService'
 import { MockWorkspaceService } from './services/workspace/MockWorkspaceService'
 import { MockSettingsService } from './services/settings/MockSettingsService'
 import { MockActivityService } from './services/activity/MockActivityService'
+import { ApiHealthService } from './services/health/ApiHealthService'
+import { ApiProductService } from './services/products/ApiProductService'
+import { ApiSourceService } from './services/sources/ApiSourceService'
+import { ApiWorkspaceService } from './services/workspace/ApiWorkspaceService'
+import { ApiSettingsService } from './services/settings/ApiSettingsService'
+import { ApiActivityService } from './services/activity/ApiActivityService'
 import AppShell from './components/AppShell'
 import BetaDashboard from './pages/BetaDashboard'
 import Products from './pages/Products'
@@ -26,6 +32,10 @@ import Setup from './pages/Setup'
 import NotFound from './pages/NotFound'
 import type { SetupStatus } from './api/types'
 
+// Developer mock mode — only when VITE_DEV_MOCK=true.
+// Normal beta runtime uses real API services.
+const _useMock = import.meta.env.VITE_DEV_MOCK === 'true'
+
 const mockServices = {
   health:    new MockHealthService(),
   products:  new MockProductService(),
@@ -34,6 +44,17 @@ const mockServices = {
   settings:  new MockSettingsService(),
   activity:  new MockActivityService(),
 }
+
+const realServices = {
+  health:    new ApiHealthService(),
+  products:  new ApiProductService(),
+  sources:   new ApiSourceService(),
+  workspace: new ApiWorkspaceService(),
+  settings:  new ApiSettingsService(),
+  activity:  new ApiActivityService(),
+}
+
+const activeServices = _useMock ? mockServices : realServices
 
 function MaintenanceOverlay({ message }: { message?: string }) {
   const { clearAuth } = useAuth()
@@ -157,7 +178,7 @@ export default function App() {
           <NotificationContainer />
           <DirectionProvider>
             <AuthProvider>
-              <ServiceProvider services={mockServices}>
+              <ServiceProvider services={activeServices}>
                 <SetupGate />
               </ServiceProvider>
             </AuthProvider>

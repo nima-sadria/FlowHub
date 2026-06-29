@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useServices } from '../services/ServiceContext'
-import type { Source, WorkspacePreview, PriceChange } from '../services/types'
+import type { WorkspacePreview, PriceChange } from '../services/types'
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
@@ -34,6 +34,9 @@ function PriceChangeRow({ change }: { change: PriceChange }) {
       <td className="px-4 py-3">
         <ChangePct pct={change.changePct} />
       </td>
+      <td className="px-4 py-3 text-[11px] text-wp-muted">
+        {change.warning ?? '—'}
+      </td>
     </tr>
   )
 }
@@ -41,51 +44,52 @@ function PriceChangeRow({ change }: { change: PriceChange }) {
 type Phase = 'idle' | 'previewing' | 'preview_ready' | 'error'
 
 export default function Workspace() {
-  const { workspace, sources } = useServices()
+  const { workspace, settings } = useServices()
   const { info } = useNotification()
 
   const [phase, setPhase] = useState<Phase>('idle')
-  const [sourceList, setSources] = useState<Source[]>([])
-  const [selectedSourceId, setSelectedSourceId] = useState<string>('')
   const [preview, setPreview] = useState<WorkspacePreview | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const [sourcesLoading, setSourcesLoading] = useState(true)
+
+  // Check if both integrations are configured
+  const [wcConfigured, setWcConfigured] = useState<boolean | null>(null)
+  const [ncConfigured, setNcConfigured] = useState<boolean | null>(null)
+  const [configLoading, setConfigLoading] = useState(true)
 
   useEffect(() => {
-    sources.getSources().then(list => {
-      setSources(list)
-      if (list.length > 0) setSelectedSourceId(list[0].id)
-      setSourcesLoading(false)
-    })
-
-    workspace.getState().then(state => {
-      if (state === 'preview_ready') {
-        workspace.startPreview('').then(p => {
-          if (p) { setPreview(p); setPhase('preview_ready') }
-        }).catch(() => {})
-      }
-    })
-  }, [workspace, sources])
+    settings.getSettings()
+      .then(s => {
+        setWcConfigured(s.wcConfigured ?? false)
+        setNcConfigured(s.ncConfigured ?? false)
+      })
+      .catch(() => {
+        setWcConfigured(false)
+        setNcConfigured(false)
+      })
+      .finally(() => setConfigLoading(false))
+  }, [settings])
 
   const startPreview = useCallback(async () => {
     setPhase('previewing')
     setErrorMsg(null)
     try {
-      const p = await workspace.startPreview(selectedSourceId)
+      const p = await workspace.startPreview('')
       setPreview(p)
       setPhase('preview_ready')
-      info('Preview ready — 4 products with pending price changes')
+      info(`Preview ready — ${p.totalChanges} product${p.totalChanges !== 1 ? 's' : ''} with pending price changes`)
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : 'Failed to start preview')
       setPhase('error')
     }
-  }, [workspace, selectedSourceId, info])
+  }, [workspace, info])
 
   const cancelPreview = useCallback(async () => {
     if (preview) await workspace.cancelPreview(preview.id)
     setPreview(null)
     setPhase('idle')
   }, [workspace, preview])
+
+  const bothConfigured = wcConfigured === true && ncConfigured === true
 
   return (
     <div className="p-4 sm:p-7 flex flex-col gap-5 max-w-3xl">
@@ -94,42 +98,50 @@ export default function Workspace() {
         <p className="text-[13px] text-wp-muted mt-0.5">Preview price changes from your sources</p>
       </div>
 
-      {/* Idle — source selector + start button */}
-      {phase === 'idle' && (
-        <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex flex-col gap-5">
-          {sourcesLoading ? (
-            <div className="flex items-center gap-2 text-[13px] text-wp-muted">
-              <Spinner size="sm" />
-              Loading sources…
-            </div>
-          ) : sourceList.length === 0 ? (
+      {/* Config loading */}
+      {configLoading && (
+        <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex items-center gap-2 text-[13px] text-wp-muted">
+          <Spinner size="sm" />
+          Loading configuration…
+        </div>
+      )}
+
+      {/* Not configured */}
+      {!configLoading && !bothConfigured && phase === 'idle' && (
+        <div className="bg-bg-card border border-border rounded-card shadow-card">
+          {!wcConfigured && (
             <Empty
-              title="No sources configured"
-              description="Add a Nextcloud source to enable preview."
-              action={{ label: 'Add Source', onClick: () => { window.location.href = '/sources/new' } }}
+              title="WooCommerce not configured"
+              description="Connect your WooCommerce store in Settings to use Workspace."
+              action={{ label: 'Go to Settings', onClick: () => { window.location.href = '/settings' } }}
             />
-          ) : (
-            <>
-              <div>
-                <label className="block text-[12px] font-medium text-text-base mb-1.5">Source</label>
-                <select
-                  value={selectedSourceId}
-                  onChange={e => setSelectedSourceId(e.target.value)}
-                  className="w-full px-3 py-2 text-[13px] border border-border rounded-lg bg-bg-base text-text-base focus:outline-none focus:border-accent transition-colors"
-                >
-                  {sourceList.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-              <button
-                onClick={() => void startPreview()}
-                className="w-full py-3 bg-accent text-white text-[14px] font-semibold rounded-lg hover:bg-accent-hover transition-colors"
-              >
-                Start Preview
-              </button>
-            </>
           )}
+          {wcConfigured && !ncConfigured && (
+            <Empty
+              title="Nextcloud not configured"
+              description="Connect a Nextcloud spreadsheet in Settings to use Workspace."
+              action={{ label: 'Go to Settings', onClick: () => { window.location.href = '/settings' } }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Idle — start button */}
+      {!configLoading && bothConfigured && phase === 'idle' && (
+        <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex flex-col gap-5">
+          <div>
+            <p className="text-[13px] text-text-base font-medium mb-1">Ready</p>
+            <p className="text-[12px] text-wp-muted">
+              FlowHub will fetch all WooCommerce products and compare them against the configured
+              Nextcloud spreadsheet. No changes will be applied.
+            </p>
+          </div>
+          <button
+            onClick={() => void startPreview()}
+            className="w-full py-3 bg-accent text-white text-[14px] font-semibold rounded-lg hover:bg-accent-hover transition-colors"
+          >
+            Start Preview
+          </button>
         </div>
       )}
 
@@ -137,12 +149,12 @@ export default function Workspace() {
       {phase === 'previewing' && (
         <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex flex-col items-center gap-4 py-12">
           <Spinner size="lg" />
-          <p className="text-[14px] font-medium text-text-base">Fetching latest prices from source…</p>
-          <p className="text-[12px] text-wp-muted">Comparing source prices with current WooCommerce prices</p>
+          <p className="text-[14px] font-medium text-text-base">Fetching prices from WooCommerce and spreadsheet…</p>
+          <p className="text-[12px] text-wp-muted">This may take up to 30 seconds for large catalogues</p>
         </div>
       )}
 
-      {/* Preview ready — changes table */}
+      {/* Preview ready */}
       {phase === 'preview_ready' && preview && (
         <>
           <div className="bg-wp-yellow/10 border border-wp-yellow/30 rounded-card p-4 flex items-start gap-3">
@@ -155,10 +167,22 @@ export default function Workspace() {
                 {preview.totalChanges} product{preview.totalChanges !== 1 ? 's' : ''} with pending price changes
               </p>
               <p className="text-[12px] text-wp-muted mt-0.5">
-                Review the changes below. Apply functionality is coming in BU7.
+                Read-only preview. Apply functionality is coming in BU7.
               </p>
             </div>
           </div>
+
+          {/* Duplicate warnings */}
+          {(preview.duplicateWarnings ?? []).length > 0 && (
+            <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
+              <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">
+                Spreadsheet Warnings ({preview.duplicateWarnings!.length})
+              </p>
+              {preview.duplicateWarnings!.map((w, i) => (
+                <p key={i} className="text-[12px] text-wp-muted py-1 border-b border-border last:border-0">{w}</p>
+              ))}
+            </div>
+          )}
 
           <div className="bg-bg-card border border-border rounded-card shadow-card overflow-hidden">
             <div className="flex items-center justify-between px-[22px] py-4 border-b border-border">
@@ -172,7 +196,7 @@ export default function Workspace() {
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-border bg-bg-base">
-                    {['Product', 'Current Price', 'New Price', 'Change'].map(h => (
+                    {['Product', 'Current Price', 'New Price', 'Change', 'Warning'].map(h => (
                       <th key={h} className="px-4 py-2.5 text-start text-[11px] font-semibold text-wp-muted uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
@@ -194,7 +218,7 @@ export default function Workspace() {
                 onClick={() => void cancelPreview()}
                 className="px-4 py-2 text-[13px] border border-border rounded-lg text-wp-muted hover:text-wp-red hover:border-wp-red transition-colors"
               >
-                Cancel Preview
+                New Preview
               </button>
             </div>
           </div>

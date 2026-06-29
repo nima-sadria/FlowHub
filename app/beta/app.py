@@ -1,23 +1,35 @@
-"""FlowHub Beta — FastAPI application entry point (BU4).
+"""FlowHub Beta — FastAPI application entry point (BU5).
 
 Deployment: uvicorn app.beta.app:app --host 0.0.0.0 --port 8085
 
 Active routes:
-  GET  /api/health                        — public health probe
-  POST /api/auth/login                    — issue JWT access + refresh tokens
-  POST /api/auth/logout                   — revoke refresh token (requires access token)
-  POST /api/auth/refresh                  — rotate refresh token
-  GET  /api/auth/me                       — current user profile (requires access token)
-  GET  /api/v2/setup/status               — public setup completion check
-  POST /api/v2/setup/server-profile       — save server profile (wizard step 1)
-  POST /api/v2/setup/database             — verify DB + migration status (wizard step 2)
-  POST /api/v2/setup/admin               — create first administrator (wizard step 3)
-  POST /api/v2/setup/integrations/woocommerce — save + test WC (wizard step 4)
-  POST /api/v2/setup/integrations/nextcloud   — save + test NC (wizard step 4)
-  POST /api/v2/setup/complete             — lock wizard and finalize setup
-  GET  /                                  — landing page (always; version/health info)
-  *    /{any}                             — SPA fallback: serves frontend/dist/index.html
-                                            (or the minimal landing page if not yet built)
+  GET  /api/health                             — public health probe
+  POST /api/auth/login                         — issue JWT access + refresh tokens
+  POST /api/auth/logout                        — revoke refresh token
+  POST /api/auth/refresh                       — rotate refresh token
+  GET  /api/auth/me                            — current user profile
+  GET  /api/v2/setup/status                    — public setup completion check
+  POST /api/v2/setup/server-profile            — wizard step 1
+  POST /api/v2/setup/database                  — wizard step 2
+  POST /api/v2/setup/admin                     — wizard step 3
+  POST /api/v2/setup/integrations/woocommerce  — wizard step 4 (WC)
+  POST /api/v2/setup/integrations/nextcloud    — wizard step 4 (NC)
+  POST /api/v2/setup/complete                  — lock wizard
+  GET  /api/v2/products                        — paginated WC product browser  (BU5)
+  GET  /api/v2/products/categories             — WC category list              (BU5)
+  GET  /api/v2/sources                         — configured data sources       (BU5)
+  GET  /api/v2/workspace/state                 — workspace state               (BU5)
+  POST /api/v2/workspace/preview               — compute preview (stateless)   (BU5)
+  GET  /api/v2/settings                        — read runtime settings         (BU5)
+  POST /api/v2/settings                        — update non-credential settings(BU5)
+  POST /api/v2/settings/woocommerce            — replace WC credentials        (BU5)
+  POST /api/v2/settings/nextcloud              — replace NC credentials        (BU5)
+  GET  /api/v2/activity                        — paginated audit log           (BU5)
+  GET  /api/v2/diagnostics/status              — live system diagnostics       (BU5)
+  POST /api/v2/diagnostics/run                 — stub (B6)
+  GET  /api/v2/diagnostics/history             — stub (B6)
+  GET  /                                       — landing page
+  *    /{any}                                  — SPA fallback
 """
 
 from __future__ import annotations
@@ -31,8 +43,14 @@ from fastapi.staticfiles import StaticFiles
 from app.beta.api.health import router as health_router
 from app.beta.auth.router import router as auth_router
 from app.beta.api.v2.setup import router as setup_router
+from app.beta.api.v2.products import router as products_router
+from app.beta.api.v2.sources import router as sources_router
+from app.beta.api.v2.workspace import router as workspace_router
+from app.beta.api.v2.settings_routes import router as settings_router
+from app.beta.api.v2.activity import router as activity_router
+from app.beta.api.v2.diagnostics import router as diagnostics_router
 
-_VERSION = "0.2.0-bu4"
+_VERSION = "0.3.0-bu5"
 
 _FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
@@ -81,6 +99,12 @@ app = FastAPI(
 app.include_router(health_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(setup_router, prefix="/api/v2")
+app.include_router(products_router, prefix="/api/v2")
+app.include_router(sources_router, prefix="/api/v2")
+app.include_router(workspace_router, prefix="/api/v2")
+app.include_router(settings_router, prefix="/api/v2")
+app.include_router(activity_router, prefix="/api/v2")
+app.include_router(diagnostics_router, prefix="/api/v2")
 
 # Static assets (hashed filenames produced by Vite; only mounted if built)
 _assets_dir = _FRONTEND_DIST / "assets"

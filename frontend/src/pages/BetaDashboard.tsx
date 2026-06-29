@@ -152,9 +152,9 @@ export default function BetaDashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard label="Total Products" value={totalProducts !== null ? String(totalProducts) : '—'} sub="in mock catalogue" />
-          <StatCard label="Active Sources" value={String(activeSources.length)} sub={activeSources.length === 1 ? '1 connected' : `${activeSources.length} connected`} />
-          <StatCard label="Last Sync" value={lastSync ? relTime(lastSync) : '—'} />
+          <StatCard label="Total Products" value={totalProducts !== null ? String(totalProducts) : '—'} sub="in WooCommerce" />
+          <StatCard label="Active Sources" value={String(activeSources.length)} sub={activeSources.length === 1 ? '1 connected' : `${activeSources.length} configured`} />
+          <StatCard label="Last Preview" value={lastSync ? relTime(lastSync) : '—'} />
         </div>
       )}
 

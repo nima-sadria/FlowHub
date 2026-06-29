@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth'
 import { apiFetch, ApiError } from '../api/client'
+import { authFetch } from '../api/authFetch'
 import type { HealthResponse } from '../api/types'
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
@@ -51,10 +52,26 @@ function DiagRow({ card }: { card: DiagCard }) {
   )
 }
 
+interface IntegrationStatus {
+  status: 'ok' | 'error' | 'unconfigured'
+  latencyMs: number | null
+  productCount?: number | null
+  lastModified?: string | null
+  detail: string | null
+}
+
+interface DiagnosticsResponse {
+  database: { status: string; detail: string | null }
+  woocommerce: IntegrationStatus
+  nextcloud: IntegrationStatus & { lastModified: string | null }
+  checkedAt: string
+}
+
 export default function Diagnostics() {
-  const { authFetch } = useAuth()
+  const { authFetch: ctxAuthFetch } = useAuth()
   const { success, error: notifyError } = useNotification()
   const [health, setHealth] = useState<HealthResponse | null>(null)
+  const [diag, setDiag] = useState<DiagnosticsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [checkedAt, setCheckedAt] = useState<Date | null>(null)
@@ -63,8 +80,14 @@ export default function Diagnostics() {
     setLoading(true)
     setErr(null)
     try {
-      const data = await apiFetch<HealthResponse>('/api/health', authFetch)
-      setHealth(data)
+      const [healthData, diagResp] = await Promise.all([
+        apiFetch<HealthResponse>('/api/health', ctxAuthFetch),
+        authFetch('/api/v2/diagnostics/status'),
+      ])
+      setHealth(healthData)
+      if (diagResp.ok) {
+        setDiag(await diagResp.json() as DiagnosticsResponse)
+      }
       setCheckedAt(new Date())
       success('Diagnostics refreshed')
     } catch (e) {
@@ -74,13 +97,41 @@ export default function Diagnostics() {
     } finally {
       setLoading(false)
     }
-  }, [authFetch, success, notifyError])
+  }, [ctxAuthFetch, success, notifyError])
 
   useEffect(() => { void runCheck() }, [runCheck])
 
   const backendStatus = loading ? 'loading' : err ? 'error' : 'ok'
 
-  const cards: DiagCard[] = [
+  function integrationCard(
+    label: string,
+    data: IntegrationStatus | undefined,
+    extras?: { countLabel?: string },
+  ): DiagCard {
+    if (!data) return { label, value: '…', status: 'loading' }
+    if (data.status === 'unconfigured') {
+      return { label, value: 'Not configured', status: 'pending', detail: 'Configure in Settings' }
+    }
+    const latency = data.latencyMs != null ? `${data.latencyMs.toFixed(0)} ms` : null
+    let value = data.status === 'ok' ? 'Connected' : 'Error'
+    if (data.status === 'ok' && latency) value += ` — ${latency}`
+    const detailParts: string[] = []
+    if (data.detail) detailParts.push(data.detail)
+    if (extras?.countLabel && data.productCount != null) {
+      detailParts.push(`${data.productCount} ${extras.countLabel}`)
+    }
+    if (data.lastModified) {
+      detailParts.push(`Last modified: ${data.lastModified}`)
+    }
+    return {
+      label,
+      value,
+      status: data.status === 'ok' ? 'ok' : 'error',
+      detail: detailParts.join(' · ') || undefined,
+    }
+  }
+
+  const systemCards: DiagCard[] = [
     {
       label: 'Backend',
       value: health ? `v${health.version}` : loading ? '…' : 'Unavailable',
@@ -89,9 +140,10 @@ export default function Diagnostics() {
     },
     {
       label: 'Database',
-      value: backendStatus === 'ok' ? 'Connected' : backendStatus === 'loading' ? '…' : 'Unavailable',
-      status: backendStatus,
-      detail: 'PostgreSQL via beta schema',
+      value: !diag ? (loading ? '…' : 'Unavailable')
+        : diag.database.status === 'ok' ? 'Connected' : 'Error',
+      status: !diag ? backendStatus : diag.database.status === 'ok' ? 'ok' : 'error',
+      detail: diag?.database.detail ?? 'PostgreSQL via beta schema',
     },
     {
       label: 'Authentication',
@@ -99,24 +151,11 @@ export default function Diagnostics() {
       status: backendStatus,
       detail: 'JWT (HS256) + opaque refresh tokens',
     },
-    {
-      label: 'Control Plane',
-      value: 'Running',
-      status: 'ok',
-      detail: 'CP1.3 — diagnostics, runtime config, CLI/API',
-    },
-    {
-      label: 'WooCommerce Integration',
-      value: 'Not configured',
-      status: 'pending',
-      detail: 'Available in BU4+',
-    },
-    {
-      label: 'Nextcloud Integration',
-      value: 'Not configured',
-      status: 'pending',
-      detail: 'Available in BU4+',
-    },
+  ]
+
+  const integrationCards: DiagCard[] = [
+    integrationCard('WooCommerce', diag?.woocommerce, { countLabel: 'products' }),
+    integrationCard('Nextcloud', diag?.nextcloud),
   ]
 
   return (
@@ -151,8 +190,19 @@ export default function Diagnostics() {
       )}
 
       <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
-        <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">System Components</p>
-        {cards.map(card => <DiagRow key={card.label} card={card} />)}
+        <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">System</p>
+        {systemCards.map(card => <DiagRow key={card.label} card={card} />)}
+      </div>
+
+      <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
+        <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">Integrations</p>
+        {loading && !diag ? (
+          <div className="flex items-center gap-2 text-[13px] text-wp-muted py-2">
+            <Spinner size="sm" />Checking integrations…
+          </div>
+        ) : (
+          integrationCards.map(card => <DiagRow key={card.label} card={card} />)
+        )}
       </div>
 
       <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
@@ -169,6 +219,12 @@ export default function Diagnostics() {
           <span className="text-wp-muted">Health endpoint: </span>
           <span className="font-mono text-accent">GET /api/health</span>
         </p>
+        {diag?.checkedAt && (
+          <p className="text-[13px] text-text-base mt-1">
+            <span className="text-wp-muted">Checked at: </span>
+            <span className="font-mono text-[12px]">{diag.checkedAt}</span>
+          </p>
+        )}
       </div>
     </div>
   )

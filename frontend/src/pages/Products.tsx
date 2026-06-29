@@ -1,70 +1,63 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useServices } from '../services/ServiceContext'
-import type { Product, ProductSyncStatus } from '../services/types'
+import type { Product } from '../services/types'
+import type { Category } from '../services/products/ProductService'
 import Empty from '../components/Empty'
 
-type StatusFilter = ProductSyncStatus | 'all'
-
-const STATUS_TABS: { key: StatusFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'synced', label: 'Synced' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'stale', label: 'Stale' },
-  { key: 'error', label: 'Error' },
-]
-
-const STATUS_BADGE: Record<ProductSyncStatus, { cls: string; label: string }> = {
-  synced:  { cls: 'bg-wp-green/10 text-wp-green',   label: 'Synced' },
-  pending: { cls: 'bg-wp-yellow/10 text-wp-yellow', label: 'Pending' },
-  stale:   { cls: 'bg-wp-orange/10 text-wp-orange', label: 'Stale' },
-  error:   { cls: 'bg-wp-red/10 text-wp-red',       label: 'Error' },
-}
-
-const PAGE_SIZE = 10
+const PAGE_SIZE = 20
 
 function fmtPrice(p: number, currency: string): string {
   return `${currency} ${p.toFixed(2)}`
 }
 
-function relTime(d: Date | null): string {
-  if (!d) return '—'
-  const s = Math.floor((Date.now() - d.getTime()) / 1000)
-  if (s < 60) return 'just now'
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
-
 function ProductRow({ product }: { product: Product }) {
-  const badge = STATUS_BADGE[product.status]
   return (
     <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
-      <td className="px-4 py-3 min-w-0 max-w-[220px]">
-        <div className="text-[13px] font-medium text-text-base truncate">{product.name}</div>
-        <div className="text-[11px] font-mono text-wp-muted mt-0.5">{product.sku}</div>
+      {/* Image + Name */}
+      <td className="px-4 py-3 min-w-0 max-w-[260px]">
+        <div className="flex items-center gap-3 min-w-0">
+          {product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt=""
+              className="w-9 h-9 rounded object-cover border border-border flex-shrink-0 bg-bg-base"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded border border-border bg-bg-base flex-shrink-0 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="w-4 h-4 text-border" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="text-[13px] font-medium text-text-base truncate">{product.name}</div>
+            <div className="text-[11px] font-mono text-wp-muted mt-0.5">{product.sku || '—'}</div>
+          </div>
+        </div>
       </td>
+      {/* Type */}
       <td className="px-4 py-3">
-        <span className={['text-[11px] font-semibold px-2 py-0.5 rounded-full', badge.cls].join(' ')}>
-          {badge.label}
+        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full capitalize bg-bg-base border border-border text-wp-muted">
+          {product.productType ?? 'simple'}
         </span>
       </td>
-      <td className="px-4 py-3 text-[13px] font-medium text-text-base">
+      {/* Price */}
+      <td className="px-4 py-3 text-[13px] font-medium text-text-base font-mono">
         {fmtPrice(product.currentPrice, product.currency)}
       </td>
-      <td className="px-4 py-3 text-[13px] text-wp-muted">
-        {product.sourcePrice !== null ? fmtPrice(product.sourcePrice, product.currency) : '—'}
-      </td>
+      {/* Categories */}
       <td className="px-4 py-3">
-        {product.categoryNames.map(c => (
+        {(product.categoryNames ?? []).slice(0, 2).map(c => (
           <span key={c} className="me-1 text-[11px] px-1.5 py-0.5 bg-bg-base border border-border rounded text-wp-muted">
             {c}
           </span>
         ))}
-      </td>
-      <td className="px-4 py-3 text-[12px] text-wp-muted whitespace-nowrap">
-        {relTime(product.lastSynced)}
+        {(product.categoryNames ?? []).length > 2 && (
+          <span className="text-[11px] text-wp-muted">+{product.categoryNames.length - 2}</span>
+        )}
       </td>
     </tr>
   )
@@ -73,38 +66,64 @@ function ProductRow({ product }: { product: Product }) {
 function SkeletonRow() {
   return (
     <tr className="border-b border-border">
-      {[180, 80, 80, 80, 100, 80].map((w, i) => (
+      {[240, 70, 80, 120].map((w, i) => (
         <td key={i} className="px-4 py-3">
-          <div className={`h-3 bg-border/40 animate-pulse rounded w-[${w}px]`} />
+          <div className={`h-3 bg-border/40 animate-pulse rounded`} style={{ width: w }} />
         </td>
       ))}
     </tr>
   )
 }
 
+
 export default function Products() {
   const { products: productService } = useServices()
+
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [categoryId, setCategoryId] = useState<number | null>(null)
+  const [productType, setProductType] = useState<'all' | 'simple' | 'variable'>('all')
   const [page, setPage] = useState(1)
+
   const [items, setItems] = useState<Product[]>([])
   const [total, setTotal] = useState(0)
+  const [configured, setConfigured] = useState<boolean | undefined>(undefined)
   const [loading, setLoading] = useState(true)
 
+  const [categories, setCategories] = useState<Category[]>([])
+
+  // Load categories once
+  useEffect(() => {
+    if (productService.getCategories) {
+      productService.getCategories().then(setCategories).catch(() => {})
+    }
+  }, [productService])
+
+  // Debounce search
   useEffect(() => {
     const t = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 300)
     return () => clearTimeout(t)
   }, [search])
 
-  useEffect(() => { setPage(1) }, [statusFilter])
+  useEffect(() => { setPage(1) }, [categoryId, productType])
 
   const fetchProducts = useCallback(() => {
     setLoading(true)
-    productService.getProducts({ search: debouncedSearch, status: statusFilter, page, pageSize: PAGE_SIZE })
-      .then(r => { setItems(r.items); setTotal(r.total) })
+    productService.getProducts({
+      search: debouncedSearch,
+      status: 'all',
+      page,
+      pageSize: PAGE_SIZE,
+      categoryId: categoryId ?? undefined,
+      productType: productType === 'all' ? undefined : productType,
+    })
+      .then(r => {
+        setItems(r.items)
+        setTotal(r.total)
+        setConfigured(r.configured)
+      })
       .finally(() => setLoading(false))
-  }, [productService, debouncedSearch, statusFilter, page])
+  }, [productService, debouncedSearch, categoryId, productType, page])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
@@ -112,12 +131,33 @@ export default function Products() {
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const end = Math.min(page * PAGE_SIZE, total)
 
+  // Not configured
+  if (!loading && configured === false) {
+    return (
+      <div className="p-4 sm:p-7 flex flex-col gap-5 max-w-2xl">
+        <div>
+          <h1 className="text-[22px] font-bold text-text-base">Products</h1>
+          <p className="text-[13px] text-wp-muted mt-0.5">WooCommerce product catalogue</p>
+        </div>
+        <div className="bg-bg-card border border-border rounded-card shadow-card">
+          <Empty
+            title="WooCommerce not configured"
+            description="Connect your WooCommerce store in Settings to browse products."
+            action={{ label: 'Go to Settings', onClick: () => { window.location.href = '/settings' } }}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 sm:p-7 flex flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[22px] font-bold text-text-base">Products</h1>
-          <p className="text-[13px] text-wp-muted mt-0.5">Mock product catalogue — {total} items</p>
+          <p className="text-[13px] text-wp-muted mt-0.5">
+            {loading ? 'Loading…' : `${total} product${total !== 1 ? 's' : ''} in WooCommerce`}
+          </p>
         </div>
       </div>
 
@@ -137,20 +177,34 @@ export default function Products() {
           />
         </div>
 
-        {/* Status tabs */}
+        {/* Category filter */}
+        {categories.length > 0 && (
+          <select
+            value={categoryId ?? ''}
+            onChange={e => setCategoryId(e.target.value ? Number(e.target.value) : null)}
+            className="px-3 py-1.5 rounded-lg border border-border bg-bg-base text-[13px] text-text-base focus:outline-none focus:border-accent transition-colors"
+          >
+            <option value="">All Categories</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        )}
+
+        {/* Type filter */}
         <div className="flex items-center gap-1 bg-bg-base rounded-lg p-1 border border-border">
-          {STATUS_TABS.map(tab => (
+          {(['all', 'simple', 'variable'] as const).map(t => (
             <button
-              key={tab.key}
-              onClick={() => setStatusFilter(tab.key)}
+              key={t}
+              onClick={() => setProductType(t)}
               className={[
-                'px-2.5 py-1 text-[12px] font-medium rounded transition-colors',
-                statusFilter === tab.key
+                'px-2.5 py-1 text-[12px] font-medium rounded transition-colors capitalize',
+                productType === t
                   ? 'bg-bg-card text-text-base shadow-card'
                   : 'text-wp-muted hover:text-text-base',
               ].join(' ')}
             >
-              {tab.label}
+              {t === 'all' ? 'All Types' : t}
             </button>
           ))}
         </div>
@@ -164,19 +218,13 @@ export default function Products() {
           </span>
           {totalPages > 1 && (
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors"
-              >
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors">
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" /></svg>
               </button>
               <span className="text-[12px] text-wp-muted px-1">{page} / {totalPages}</span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors"
-              >
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors">
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6" /></svg>
               </button>
             </div>
@@ -184,10 +232,10 @@ export default function Products() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-[13px]">
+          <table className="w-full min-w-[560px] text-[13px]">
             <thead>
               <tr className="border-b border-border bg-bg-base">
-                {['Product', 'Status', 'Current Price', 'Source Price', 'Categories', 'Last Synced'].map(h => (
+                {['Product', 'Type', 'Price', 'Categories'].map(h => (
                   <th key={h} className="px-4 py-2.5 text-start text-[11px] font-semibold text-wp-muted uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -198,7 +246,7 @@ export default function Products() {
                 : items.length === 0
                   ? (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={4}>
                         <Empty title="No products match" description="Try adjusting the search or filter." />
                       </td>
                     </tr>

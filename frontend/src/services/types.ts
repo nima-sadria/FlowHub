@@ -21,6 +21,8 @@ export interface Product {
   status: ProductSyncStatus
   lastSynced: Date | null
   categoryNames: string[]
+  imageUrl?: string | null
+  productType?: 'simple' | 'variable'
 }
 
 export interface ProductFilter {
@@ -28,6 +30,8 @@ export interface ProductFilter {
   status: ProductSyncStatus | 'all'
   page: number
   pageSize: number
+  categoryId?: number | null
+  productType?: 'simple' | 'variable' | null
 }
 
 export interface PaginatedResult<T> {
@@ -35,6 +39,7 @@ export interface PaginatedResult<T> {
   total: number
   page: number
   pageSize: number
+  configured?: boolean
 }
 
 // ── Sources ───────────────────────────────────────────────────────────────────
@@ -77,8 +82,10 @@ export interface PriceChange {
   sku: string
   currentPrice: number
   proposedPrice: number
+  difference?: number
   changePct: number
   currency: string
+  warning?: string | null
 }
 
 export interface WorkspacePreview {
@@ -89,6 +96,7 @@ export interface WorkspacePreview {
   totalChanges: number
   changes: PriceChange[]
   startedAt: Date
+  duplicateWarnings?: string[]
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
@@ -100,6 +108,8 @@ export interface AppSettings {
   timezone: string
   currency: string
   environment: string
+  wcConfigured?: boolean
+  ncConfigured?: boolean
 }
 
 // ── Activity ──────────────────────────────────────────────────────────────────

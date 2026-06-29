@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth'
 import { useServices } from '../services/ServiceContext'
 import type { AppSettings } from '../services/types'
-import { apiFetch } from '../api/client'
+import { apiFetch, ApiError } from '../api/client'
+import { authFetch } from '../api/authFetch'
 import type { HealthResponse } from '../api/types'
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
@@ -75,8 +76,69 @@ function NumberField({ label, value, min, max, onChange }: {
   )
 }
 
+function TextField({ label, value, onChange, type = 'text', placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string
+}) {
+  return (
+    <div>
+      <label className="block text-[12px] font-medium text-text-base mb-1.5">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-3 py-2 text-[13px] border border-border rounded-lg bg-bg-base text-text-base focus:outline-none focus:border-accent transition-colors"
+      />
+    </div>
+  )
+}
+
+function ConfiguredBadge({ ok }: { ok: boolean }) {
+  return ok ? (
+    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-wp-green/10 text-wp-green">Configured</span>
+  ) : (
+    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-border/60 text-wp-muted">Not configured</span>
+  )
+}
+
+function IntegrationSection({
+  title, description, configured, url, children,
+}: {
+  title: string
+  description: string
+  configured: boolean
+  url: string
+  children: React.ReactNode
+}) {
+  const [expand, setExpand] = useState(false)
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[13px] font-semibold text-text-base">{title}</span>
+            <ConfiguredBadge ok={configured} />
+          </div>
+          <p className="text-[12px] text-wp-muted mt-0.5">{description}</p>
+          {configured && url && (
+            <p className="text-[11px] font-mono text-wp-muted mt-1 truncate">{url}</p>
+          )}
+        </div>
+        <button
+          onClick={() => setExpand(e => !e)}
+          className="flex-shrink-0 px-3 py-1.5 text-[12px] border border-border rounded-lg text-wp-muted hover:text-text-base hover:border-accent transition-colors"
+        >
+          {expand ? 'Cancel' : (configured ? 'Replace Credentials' : 'Configure')}
+        </button>
+      </div>
+      {expand && children}
+    </div>
+  )
+}
+
 export default function Settings() {
-  const { authFetch } = useAuth()
+  const { authFetch: ctxAuthFetch } = useAuth()
   const { settings } = useServices()
   const { success, error: notifyError } = useNotification()
 
@@ -89,27 +151,44 @@ export default function Settings() {
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
 
+  // WC credential form
+  const [wcUrl, setWcUrl] = useState('')
+  const [wcKey, setWcKey] = useState('')
+  const [wcSecret, setWcSecret] = useState('')
+  const [wcSaving, setWcSaving] = useState(false)
+  const [wcMsg, setWcMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  // NC credential form
+  const [ncUrl, setNcUrl] = useState('')
+  const [ncUser, setNcUser] = useState('')
+  const [ncPass, setNcPass] = useState('')
+  const [ncPath, setNcPath] = useState('')
+  const [ncSaving, setNcSaving] = useState(false)
+  const [ncMsg, setNcMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
   const fetchHealth = useCallback(async () => {
     setHealthLoading(true)
     setHealthErr(false)
     try {
-      const data = await apiFetch<HealthResponse>('/api/health', authFetch)
+      const data = await apiFetch<HealthResponse>('/api/health', ctxAuthFetch)
       setHealth(data)
     } catch {
       setHealthErr(true)
     } finally {
       setHealthLoading(false)
     }
-  }, [authFetch])
+  }, [ctxAuthFetch])
 
   useEffect(() => { void fetchHealth() }, [fetchHealth])
 
-  useEffect(() => {
+  const loadSettings = useCallback(() => {
     settings.getSettings().then(s => {
       setAppSettings(s)
       setDraft(s)
     })
   }, [settings])
+
+  useEffect(() => { loadSettings() }, [loadSettings])
 
   function updateDraft(patch: Partial<AppSettings>) {
     setDraft(d => d ? { ...d, ...patch } : d)
@@ -131,9 +210,44 @@ export default function Settings() {
     }
   }
 
-  function handleDiscard() {
-    setDraft(appSettings)
-    setDirty(false)
+  async function handleSaveWc() {
+    setWcSaving(true)
+    setWcMsg(null)
+    try {
+      const r = await authFetch('/api/v2/settings/woocommerce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: wcUrl, key: wcKey, secret: wcSecret }),
+      })
+      const data = await r.json() as { ok: boolean; message: string }
+      setWcMsg({ ok: data.ok, text: data.message })
+      if (data.ok) { loadSettings(); success('WooCommerce credentials saved') }
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : 'Request failed'
+      setWcMsg({ ok: false, text: msg })
+    } finally {
+      setWcSaving(false)
+    }
+  }
+
+  async function handleSaveNc() {
+    setNcSaving(true)
+    setNcMsg(null)
+    try {
+      const r = await authFetch('/api/v2/settings/nextcloud', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: ncUrl, username: ncUser, password: ncPass, spreadsheet_path: ncPath }),
+      })
+      const data = await r.json() as { ok: boolean; message: string }
+      setNcMsg({ ok: data.ok, text: data.message })
+      if (data.ok) { loadSettings(); success('Nextcloud credentials saved') }
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : 'Request failed'
+      setNcMsg({ ok: false, text: msg })
+    } finally {
+      setNcSaving(false)
+    }
   }
 
   return (
@@ -146,7 +260,7 @@ export default function Settings() {
         {dirty && (
           <div className="flex items-center gap-2">
             <button
-              onClick={handleDiscard}
+              onClick={() => { setDraft(appSettings); setDirty(false) }}
               className="px-4 py-2 text-[13px] border border-border rounded-lg text-wp-muted hover:text-text-base hover:border-accent transition-colors"
             >
               Discard
@@ -163,22 +277,14 @@ export default function Settings() {
         )}
       </div>
 
-      {/* About — real /api/health data */}
+      {/* About */}
       <Section title="About" description="System version and environment information">
         {healthLoading ? (
-          <div className="flex items-center gap-2 text-[13px] text-wp-muted">
-            <Spinner size="sm" />
-            Loading…
-          </div>
+          <div className="flex items-center gap-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading…</div>
         ) : healthErr ? (
           <div className="flex items-center justify-between">
             <p className="text-[13px] text-wp-red">Backend unavailable</p>
-            <button
-              onClick={() => void fetchHealth()}
-              className="text-[12px] text-accent hover:underline"
-            >
-              Retry
-            </button>
+            <button onClick={() => void fetchHealth()} className="text-[12px] text-accent hover:underline">Retry</button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -189,13 +295,10 @@ export default function Settings() {
         )}
       </Section>
 
-      {/* Sync Settings — mock, persisted to sessionStorage */}
-      <Section title="Sync Settings" description="Configure how WooPrice synchronises prices">
+      {/* Sync Settings */}
+      <Section title="Sync Settings" description="Configure how FlowHub synchronises prices">
         {!draft ? (
-          <div className="flex items-center gap-2 text-[13px] text-wp-muted">
-            <Spinner size="sm" />
-            Loading…
-          </div>
+          <div className="flex items-center gap-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading…</div>
         ) : (
           <>
             <NumberField
@@ -221,23 +324,71 @@ export default function Settings() {
         )}
       </Section>
 
-      {/* Connections — read-only */}
-      <Section title="Connections" description="Source connection settings are configured via environment or CLI">
-        <div className="p-4 bg-bg-base border border-border rounded-lg">
-          <div className="flex items-start gap-3">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-wp-muted flex-shrink-0 mt-0.5">
-              <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-            <p className="text-[12px] text-wp-muted leading-relaxed">
-              Nextcloud and WooCommerce connection credentials are configured via environment variables or the server configuration file.
-              Editing them here is not available in BU3.
-            </p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <ReadOnlyField label="Nextcloud" value="Configured via env" />
-          <ReadOnlyField label="WooCommerce" value="Configured via env" />
-        </div>
+      {/* WooCommerce Integration */}
+      <Section title="WooCommerce Integration" description="Connect your WooCommerce store">
+        {!draft ? (
+          <div className="flex items-center gap-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading…</div>
+        ) : (
+          <IntegrationSection
+            title="WooCommerce"
+            description="Products and current prices are read from WooCommerce."
+            configured={draft.wcConfigured ?? false}
+            url={draft.woocommerceUrl}
+          >
+            <div className="flex flex-col gap-3 pt-1 border-t border-border mt-1">
+              <TextField label="Store URL" value={wcUrl} onChange={setWcUrl} placeholder="https://mystore.example.com" />
+              <TextField label="Consumer Key" value={wcKey} onChange={setWcKey} placeholder="ck_…" />
+              <TextField label="Consumer Secret" value={wcSecret} onChange={setWcSecret} type="password" placeholder="cs_…" />
+              {wcMsg && (
+                <p className={['text-[12px] font-medium', wcMsg.ok ? 'text-wp-green' : 'text-wp-red'].join(' ')}>
+                  {wcMsg.text}
+                </p>
+              )}
+              <button
+                onClick={() => void handleSaveWc()}
+                disabled={wcSaving || !wcUrl || !wcKey || !wcSecret}
+                className="self-start px-4 py-2 text-[13px] bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {wcSaving && <Spinner size="sm" className="text-white" />}
+                {wcSaving ? 'Testing…' : 'Save & Test'}
+              </button>
+            </div>
+          </IntegrationSection>
+        )}
+      </Section>
+
+      {/* Nextcloud Integration */}
+      <Section title="Nextcloud Integration" description="Connect a Nextcloud XLSX spreadsheet as price source">
+        {!draft ? (
+          <div className="flex items-center gap-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading…</div>
+        ) : (
+          <IntegrationSection
+            title="Nextcloud"
+            description="Price lists are read from a Nextcloud XLSX spreadsheet."
+            configured={draft.ncConfigured ?? false}
+            url={draft.nextcloudUrl}
+          >
+            <div className="flex flex-col gap-3 pt-1 border-t border-border mt-1">
+              <TextField label="Nextcloud URL" value={ncUrl} onChange={setNcUrl} placeholder="https://cloud.example.com" />
+              <TextField label="Username" value={ncUser} onChange={setNcUser} placeholder="myuser" />
+              <TextField label="App Password" value={ncPass} onChange={setNcPass} type="password" placeholder="xxxx-xxxx-xxxx-xxxx" />
+              <TextField label="Spreadsheet Path" value={ncPath} onChange={setNcPath} placeholder="/prices/products.xlsx" />
+              {ncMsg && (
+                <p className={['text-[12px] font-medium', ncMsg.ok ? 'text-wp-green' : 'text-wp-red'].join(' ')}>
+                  {ncMsg.text}
+                </p>
+              )}
+              <button
+                onClick={() => void handleSaveNc()}
+                disabled={ncSaving || !ncUrl || !ncUser || !ncPass || !ncPath}
+                className="self-start px-4 py-2 text-[13px] bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {ncSaving && <Spinner size="sm" className="text-white" />}
+                {ncSaving ? 'Testing…' : 'Save & Test'}
+              </button>
+            </div>
+          </IntegrationSection>
+        )}
       </Section>
     </div>
   )
