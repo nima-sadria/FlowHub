@@ -1,10 +1,10 @@
-"""WooPrice Beta — create-admin CLI subcommand (BU2).
+"""FlowHub Beta — create-admin CLI subcommand (BU2).
 
 Creates the initial admin user in the Beta database.
 
 Usage (after install.sh):
-  wooprice create-admin
-  wooprice create-admin --username admin --env-file /opt/wooprice-beta/.env.beta
+  flowhub create-admin
+  flowhub create-admin --username admin --env-file /opt/flowhub/.env.beta
 
 This is a required post-install step for BU2.  The login endpoint returns 401
 until at least one admin user exists.  Run once; re-running with an existing
@@ -19,7 +19,7 @@ import typer
 
 app = typer.Typer(
     name="create-admin",
-    help="Create the initial WooPrice Beta admin user (required post-install step).",
+    help="Create the initial FlowHub Beta admin user (required post-install step).",
     add_completion=False,
 )
 
@@ -45,10 +45,10 @@ def create_admin(
     env_file: Optional[str] = typer.Option(
         None,
         "--env-file",
-        help="Path to .env.beta (default: /opt/wooprice-beta/.env.beta).",
+        help="Path to .env.beta (default: /opt/flowhub/.env.beta).",
     ),
 ) -> None:
-    """Create the initial WooPrice Beta admin user.
+    """Create the initial FlowHub Beta admin user.
 
     Run once after install.sh to create the admin account used to log in.
     """
@@ -56,7 +56,7 @@ def create_admin(
     from pathlib import Path
 
     # Load .env.beta so BETA_DATABASE_URL and BETA_JWT_SECRET are set
-    env_path = Path(env_file or "/opt/wooprice-beta/.env.beta")
+    env_path = Path(env_file or "/opt/flowhub/.env.beta")
     if env_path.exists():
         try:
             from dotenv import load_dotenv

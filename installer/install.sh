@@ -154,6 +154,8 @@ source "${LIB_DIR}/storage.sh"
 source "${LIB_DIR}/docker_deploy.sh"
 # shellcheck source=installer/lib/db_init.sh
 source "${LIB_DIR}/db_init.sh"
+# shellcheck source=installer/lib/admin.sh
+source "${LIB_DIR}/admin.sh"
 
 # ---- Defaults ----
 INSTALL_DIR="/opt/flowhub"
@@ -182,6 +184,43 @@ while [[ $# -gt 0 ]]; do
 done
 
 INSTALLER_ENV_FILE="${INSTALL_DIR}/.env.beta"
+
+# When invoked without an interactive terminal (e.g. piped through
+# `bash <(curl ...)` in an automated context, CI, or a provisioning script),
+# there is no TTY to drive the wizard prompts. Fall back to non-interactive
+# mode with sane defaults instead of blocking forever on `read`.
+if [[ "$NON_INTERACTIVE" -eq 0 && ! -t 0 ]]; then
+    echo "  No interactive terminal detected — running non-interactively with defaults."
+    NON_INTERACTIVE=1
+fi
+
+# Defaults applied when running non-interactively (wizard skipped). Secrets are
+# generated separately by generate_all_secrets. Only sets vars not already set,
+# so explicit FLOWHUB_*/BETA_* environment overrides are respected.
+apply_noninteractive_defaults() {
+    : "${BETA_DOMAIN:=localhost}"
+    : "${BETA_PORT:=8085}"
+    : "${BETA_SSL_MODE:=off}"
+    : "${BETA_POSTGRES_DB:=wooprice_beta}"
+    : "${BETA_POSTGRES_USER:=wooprice_beta}"
+    : "${BETA_NEXTCLOUD_URL:=}"
+    : "${BETA_NEXTCLOUD_FILE_PATH:=}"
+    : "${BETA_NEXTCLOUD_USERNAME:=}"
+    : "${BETA_NEXTCLOUD_PASSWORD:=}"
+    : "${BETA_WOOCOMMERCE_URL:=}"
+    : "${BETA_WOOCOMMERCE_KEY:=}"
+    : "${BETA_WOOCOMMERCE_SECRET:=}"
+    : "${BETA_TIMEZONE:=UTC}"
+    : "${BETA_CURRENCY:=USD}"
+    : "${BETA_ADMIN_EMAIL:=admin@example.com}"
+    : "${BETA_STORAGE_PATH:=${INSTALL_DIR}/storage}"
+    : "${BETA_BACKUP_PATH:=${INSTALL_DIR}/backups}"
+    export BETA_DOMAIN BETA_PORT BETA_SSL_MODE BETA_POSTGRES_DB BETA_POSTGRES_USER \
+        BETA_NEXTCLOUD_URL BETA_NEXTCLOUD_FILE_PATH BETA_NEXTCLOUD_USERNAME BETA_NEXTCLOUD_PASSWORD \
+        BETA_WOOCOMMERCE_URL BETA_WOOCOMMERCE_KEY BETA_WOOCOMMERCE_SECRET \
+        BETA_TIMEZONE BETA_CURRENCY BETA_ADMIN_EMAIL BETA_STORAGE_PATH BETA_BACKUP_PATH
+    echo "  Non-interactive defaults applied (domain=${BETA_DOMAIN}, port=${BETA_PORT}, db=${BETA_POSTGRES_DB})."
+}
 
 # ---- Rollback ----
 _track_file() { INSTALLER_CREATED_FILES="${INSTALLER_CREATED_FILES} $1"; }
@@ -282,6 +321,7 @@ step_upgrade() {
     _load_env_for_docker
     step_docker_launch
     step_database_init
+    step_create_admin
     step_health_check
     step_completion_report
 }
@@ -319,6 +359,7 @@ step_reconfigure() {
     step_storage
     step_docker_launch
     step_database_init
+    step_create_admin
     step_health_check
     step_completion_report
 }
@@ -350,7 +391,9 @@ step_wizard() {
         echo "Step 2 — Interactive Configuration Wizard"
         run_wizard
     else
-        echo "Step 2 — Skipped (--non-interactive)"
+        echo ""
+        echo "Step 2 — Non-interactive configuration (applying defaults)"
+        apply_noninteractive_defaults
     fi
 }
 
@@ -399,11 +442,7 @@ step_toml_config() {
     fi
     # installer_core imports app.beta.config which requires Python deps installed
     # on the host. Skip gracefully if not available — Docker stack uses .env.beta.
-    python3 - 2>/dev/null <<PYEOF || {
-        echo "  NOTE: TOML config skipped (Python app dependencies not on host)."
-        echo "  Docker stack reads .env.beta directly — no impact on operation."
-        return 0
-    }
+    if ! python3 - <<PYEOF 2>/dev/null
 import sys
 sys.path.insert(0, "${REPO_DIR}")
 from installer.installer_core import InstallerConfig, generate_toml_content, write_toml_config
@@ -425,6 +464,10 @@ config_dir.mkdir(parents=True, exist_ok=True)
 path = write_toml_config(content, config_dir)
 print(f"  Managed config written: {path}")
 PYEOF
+    then
+        echo "  NOTE: TOML config skipped (Python app dependencies not on host)."
+        echo "  Docker stack reads .env.beta directly — no impact on operation."
+    fi
 }
 
 step_compose_verify() {
@@ -470,6 +513,17 @@ step_database_init() {
     _load_env_for_docker
     wait_for_postgres_ready "$INSTALL_DIR" 90
     run_alembic_migrations "$INSTALL_DIR"
+}
+
+step_create_admin() {
+    echo ""
+    echo "Step 9b - Create Admin Account"
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+        echo "  [DRY RUN] Would run: python -m cli.main create-admin (auto-generated password)"
+        return
+    fi
+    _load_env_for_docker
+    create_admin_account "$INSTALL_DIR"
 }
 
 step_install_cli() {
@@ -586,6 +640,7 @@ main() {
     step_compose_verify
     step_docker_launch
     step_database_init
+    step_create_admin
     step_install_cli
     step_health_check
     step_completion_report

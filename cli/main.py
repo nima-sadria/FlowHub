@@ -1,4 +1,4 @@
-"""WooPrice Beta — wooprice CLI entry point.
+"""FlowHub Beta — wooprice CLI entry point.
 
 Registers all command groups.  Invoked with no arguments: shows the
 interactive management menu (BU1).  Invoked with a subcommand: runs it.
@@ -56,7 +56,7 @@ from cli.ai import app as ai_app
 
 app = typer.Typer(
     name="wooprice",
-    help="WooPrice Beta management CLI.  [BETA ENVIRONMENT]",
+    help="FlowHub Beta management CLI.  [BETA ENVIRONMENT]",
     no_args_is_help=False,
     invoke_without_command=True,
     add_completion=False,
