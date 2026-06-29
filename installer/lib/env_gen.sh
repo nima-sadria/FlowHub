@@ -49,13 +49,28 @@ ENVFILE
 validate_env_file() {
     local env_path="$1"
     echo "  Validating configuration using B3 Configuration Core..."
-    python3 - <<PYEOF
+    local repo_dir
+    repo_dir="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+    # The bootstrap installs python3 but NOT the application's Python
+    # dependencies on the host — those live inside the Docker image. When the
+    # app package can't be imported here, skip host-side validation gracefully;
+    # the same configuration is validated by the app at runtime. A genuine
+    # validation failure (importable app + invalid config) still aborts install.
+    python3 - "${env_path}" "${repo_dir}" <<'PYEOF'
 import sys
-sys.path.insert(0, "$(dirname "$(dirname "$(readlink -f "$0")")")")
-from app.beta.config import ConfigurationManager
 from pathlib import Path
 
-mgr = ConfigurationManager(env_file=Path("${env_path}"), check_paths=False)
+env_path = sys.argv[1]
+sys.path.insert(0, sys.argv[2])
+
+try:
+    from app.beta.config import ConfigurationManager
+except Exception as exc:  # noqa: BLE001 — app deps absent on host is expected
+    print(f"  NOTE: host-side config validation skipped ({type(exc).__name__}).")
+    print("  Configuration is validated by the application at runtime.")
+    sys.exit(0)
+
+mgr = ConfigurationManager(env_file=Path(env_path), check_paths=False)
 mgr.load()
 result = mgr.validate()
 if not result.is_valid:

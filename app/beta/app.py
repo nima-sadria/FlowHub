@@ -79,9 +79,12 @@ if _assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
 
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-async def root() -> HTMLResponse:
-    """Landing page — always served at root; shows version, environment, health endpoint."""
+@app.get("/", response_class=HTMLResponse, response_model=None, include_in_schema=False)
+async def root() -> HTMLResponse | FileResponse:
+    """Serve the React SPA at root when the frontend is built; otherwise the landing page."""
+    index = _FRONTEND_DIST / "index.html"
+    if index.exists():
+        return FileResponse(str(index))
     return HTMLResponse(content=_LANDING_HTML.format(version=_VERSION))
 
 

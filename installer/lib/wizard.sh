@@ -51,7 +51,7 @@ wizard_section_network() {
     _prompt BETA_DOMAIN \
         "Beta domain (e.g., beta.yourdomain.com)" ""
     _prompt BETA_PORT \
-        "Beta port" "8080"
+        "Beta port" "8085"
     echo "  SSL mode options: off / self-signed / letsencrypt / manual"
     _prompt BETA_SSL_MODE \
         "SSL mode" "off"

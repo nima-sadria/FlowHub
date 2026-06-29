@@ -23,7 +23,10 @@ services:
     image: flowhub-beta:latest
     restart: unless-stopped
     ports:
-      - "8085:8085"
+      # Host port is configurable via BETA_PORT; the app always listens on 8085
+      # inside the container. Health checks and the completion report use the
+      # same BETA_PORT, so these must stay in sync.
+      - "${BETA_PORT:-8085}:8085"
     env_file:
       - .env.beta
     volumes:
