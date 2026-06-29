@@ -319,7 +319,81 @@ log is mode `600`. The password is one-time and must be changed on first login.
 
 ---
 
-## 11. Reinstall / Update Behavior
+## 11. Uninstall (`lib/uninstall.sh`)
+
+The installer includes an interactive uninstaller reachable from the management menu
+(option 4) or via the `--uninstall` flag.
+
+### Entry points
+
+```bash
+# From the management menu (requires existing installation)
+sudo bash installer/install.sh          # → Select 4. Uninstall
+
+# Direct flag (works even if .env.beta is absent)
+sudo bash installer/install.sh --uninstall [--install-dir /opt/flowhub]
+```
+
+### Uninstall flow
+
+```
+run_uninstall(INSTALL_DIR)
+    │
+    ├── Step 1: Warning
+    │       Display scope (project name, install dir, CLI path)
+    │       Note: WooPrice NOT affected
+    │
+    ├── Step 2: Selection (y/N for each)
+    │       Docker: containers, images, volumes, network
+    │       Files:  project dir, CLI, systemd, config, logs, backups
+    │       Backups default to OFF; all others default to ON
+    │
+    ├── Step 3: Confirmation
+    │       Display summary of selected items
+    │       Require typing exactly: UNINSTALL
+    │
+    ├── Step 4: Execute (idempotent, || true on every step)
+    │       Containers  → docker compose down --remove-orphans
+    │                     (fallback: docker container rm by label)
+    │       Images      → docker compose images -q + label filter, docker image rm -f
+    │       Volumes     → docker volume ls --filter label=..., docker volume rm
+    │       Network     → docker network ls --filter label=..., docker network rm
+    │       CLI         → rm -f /usr/local/bin/flowhub
+    │       Systemd     → systemctl stop/disable, rm service file, daemon-reload
+    │       Config      → rm -f .env.beta + TOML config
+    │       Logs        → rm -rf INSTALL_DIR/logs
+    │       Backups     → rm -rf INSTALL_DIR/backups  (only if selected)
+    │       Project dir → rm -rf INSTALL_DIR  (last, after all other steps)
+    │
+    └── Step 5: Summary
+            Removed: bullet list of what was removed
+            Preserved: bullet list of what was intentionally kept
+```
+
+### WooPrice isolation
+
+Docker resources are detected exclusively via the `com.docker.compose.project` label
+equal to `basename(INSTALL_DIR)` (e.g. `flowhub`). This label is set by Docker Compose
+on all resources it creates. WooPrice uses a different project name and is never
+matched. The uninstaller never hardcodes container IDs, image tags, or volume names.
+
+### Idempotency
+
+Every removal command uses `2>/dev/null || true`. Missing resources (containers not
+running, volumes already gone, CLI not installed) produce no error and are silently
+skipped. The uninstaller returns success (exit 0) even if FlowHub was already absent.
+
+### Reinstall after uninstall
+
+After a full uninstall, a clean reinstall works immediately with no manual cleanup:
+
+```bash
+sudo bash installer/install.sh
+```
+
+---
+
+## 12. Reinstall / Update Behavior
 
 The installer detects if a previous installation exists at `$INSTALL_DIR`:
 

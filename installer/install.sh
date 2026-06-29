@@ -232,6 +232,8 @@ source "${LIB_DIR}/docker_deploy.sh"
 source "${LIB_DIR}/db_init.sh"
 # shellcheck source=installer/lib/admin.sh
 source "${LIB_DIR}/admin.sh"
+# shellcheck source=installer/lib/uninstall.sh
+source "${LIB_DIR}/uninstall.sh"
 
 # ── Docker auto-install (non-bootstrap path) ──────────────────────────────────
 # Called by step_prerequisites() before run_prerequisite_checks().
@@ -280,6 +282,7 @@ _ensure_docker_installed() {
 INSTALL_DIR="/opt/flowhub"
 DRY_RUN=0
 NON_INTERACTIVE=0
+ACTION_UNINSTALL=0
 INSTALLER_ENV_FILE=""
 INSTALLER_CREATED_FILES=""   # space-separated, for file rollback
 
@@ -288,10 +291,11 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run)           DRY_RUN=1 ;;
         --non-interactive)   NON_INTERACTIVE=1 ;;
+        --uninstall)         ACTION_UNINSTALL=1 ;;
         --install-dir)       INSTALL_DIR="$2"; shift ;;
         --install-dir=*)     INSTALL_DIR="${1#*=}" ;;
         -h|--help)
-            echo "Usage: bash installer/install.sh [--dry-run] [--install-dir DIR] [--non-interactive]"
+            echo "Usage: bash installer/install.sh [--dry-run] [--install-dir DIR] [--non-interactive] [--uninstall]"
             exit 0
             ;;
         *)
@@ -409,18 +413,20 @@ handle_existing_installation() {
     echo ""
     echo "  Select an action:"
     echo ""
-    echo "  1. Upgrade   — rebuild images and restart the stack (keeps .env.beta)"
-    echo "  2. Repair    — re-run prerequisite checks and health verification"
+    echo "  1. Upgrade    — rebuild images and restart the stack (keeps .env.beta)"
+    echo "  2. Repair     — re-run prerequisite checks and health verification"
     echo "  3. Reconfigure — re-run wizard, regenerate .env.beta, then upgrade"
-    echo "  4. Exit"
+    echo "  4. Uninstall  — remove FlowHub containers, images, volumes, and files"
+    echo "  5. Exit"
     echo ""
     local choice
-    read -r -p "  Enter choice [1-4]: " choice
+    read -r -p "  Enter choice [1-5]: " choice
     case "${choice:-}" in
         1) step_upgrade ;;
         2) step_repair ;;
         3) step_reconfigure ;;
-        4|"")
+        4) step_uninstall ;;
+        5|"")
             echo "  Exiting without changes."
             exit 0
             ;;
@@ -429,6 +435,11 @@ handle_existing_installation() {
             exit 1
             ;;
     esac
+}
+
+# ---- Uninstall path ----
+step_uninstall() {
+    run_uninstall "$INSTALL_DIR"
 }
 
 # ---- Upgrade path (keeps existing .env.beta) ----
@@ -737,6 +748,12 @@ step_completion_report() {
 
 main() {
     print_banner
+
+    # --uninstall flag: bypass the normal install flow regardless of state.
+    if [[ "$ACTION_UNINSTALL" -eq 1 ]]; then
+        step_uninstall
+        return
+    fi
 
     # Idempotency check — detect existing installation before starting.
     # Non-interactive mode with an existing .env.beta defaults to upgrade to

@@ -91,6 +91,50 @@ docker compose -f docker-compose.beta.yml --env-file .env.beta \
 
 ---
 
+## Uninstall
+
+Re-run the installer and select **4. Uninstall** from the management menu:
+
+```bash
+sudo bash /opt/flowhub/installer/install.sh
+# → Select 4. Uninstall
+```
+
+Or invoke directly with the `--uninstall` flag (works even without an active installation):
+
+```bash
+sudo bash installer/install.sh --uninstall
+```
+
+The interactive uninstaller lets you choose exactly what to remove:
+
+| Resource | Default |
+|---|---|
+| Docker containers | Yes |
+| Docker images | Yes |
+| Docker volumes (database) | Yes |
+| Docker network | Yes |
+| Project directory (`/opt/flowhub`) | Yes |
+| CLI (`/usr/local/bin/flowhub`) | Yes |
+| Systemd services (if any) | Yes |
+| Generated configuration (`.env.beta`) | Yes |
+| Logs | Yes |
+| Backups | **No** (off by default) |
+
+You must type `UNINSTALL` to confirm before anything is removed.
+
+The uninstaller removes only resources belonging to the `flowhub` Docker Compose
+project. WooPrice and all other Docker projects are not affected. All removal steps
+are idempotent — safe to run even if FlowHub is partially or fully absent.
+
+After uninstall, a clean reinstall can be run immediately:
+
+```bash
+sudo bash installer/install.sh
+```
+
+---
+
 ## Verify
 
 ```bash
