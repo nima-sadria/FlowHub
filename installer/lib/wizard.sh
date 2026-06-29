@@ -46,13 +46,47 @@ _section_header() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 }
 
+# Domain prompt with sanitization and validation.
+# Strips non-hostname bytes (handles invisible unicode, RTL marks, etc.),
+# then validates against RFC 1123 before accepting.
+_prompt_domain() {
+    local var_name="$1"
+    while true; do
+        local raw_input
+        read -r -p "  Beta domain (e.g., beta.yourdomain.com): " raw_input
+        # Keep only characters that are legal in a hostname.
+        # LC_ALL=C ensures tr operates on raw bytes, stripping any multibyte
+        # sequence (Arabic letters, zero-width joiners, RTL marks, etc.).
+        local sanitized
+        sanitized="$(printf '%s' "$raw_input" | LC_ALL=C tr -cd 'a-zA-Z0-9.-')"
+        if [[ -n "$raw_input" && "$sanitized" != "$raw_input" ]]; then
+            echo "  NOTE: non-hostname characters were removed. Using: '${sanitized}'" >&2
+        fi
+        if [[ -z "$sanitized" ]]; then
+            echo "  ERROR: Domain is required. Enter a valid hostname (e.g., beta.example.com)." >&2
+            continue
+        fi
+        # RFC 1123: each label is [a-zA-Z0-9] at start/end, hyphens in middle.
+        if [[ ! "$sanitized" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$ ]]; then
+            echo "  ERROR: '${sanitized}' is not a valid hostname." >&2
+            echo "  Allowed: letters, digits, hyphens, dots. Labels must not start or end with a hyphen." >&2
+            continue
+        fi
+        printf -v "$var_name" '%s' "$sanitized"
+        break
+    done
+}
+
 wizard_section_network() {
     _section_header "1" "Network"
-    _prompt BETA_DOMAIN \
-        "Beta domain (e.g., beta.yourdomain.com)" ""
+    _prompt_domain BETA_DOMAIN
     _prompt BETA_PORT \
-        "Beta port" "8085"
-    echo "  SSL mode options: off / self-signed / letsencrypt / manual"
+        "Beta port (internal Docker/NPM upstream port)" "8085"
+    echo "  SSL mode options:"
+    echo "    off         — HTTP direct (development / internal only)"
+    echo "    self-signed — HTTPS direct with self-signed cert"
+    echo "    letsencrypt — HTTPS via Let's Encrypt (reverse proxy)"
+    echo "    manual      — HTTPS via external reverse proxy (Nginx Proxy Manager, etc.)"
     _prompt BETA_SSL_MODE \
         "SSL mode" "off"
 }
@@ -115,9 +149,19 @@ wizard_section_confirm() {
     masked_pg="${BETA_POSTGRES_PASSWORD:+********${BETA_POSTGRES_PASSWORD: -4}}"
     masked_pg="${masked_pg:-[will be generated]}"
 
+    # Build the public URL using the same logic as the completion report:
+    # reverse-proxy modes (manual/letsencrypt) omit the port.
+    local _public_url
+    case "${BETA_SSL_MODE:-off}" in
+        letsencrypt|manual) _public_url="https://${BETA_DOMAIN}" ;;
+        self-signed)        _public_url="https://${BETA_DOMAIN}:${BETA_PORT}" ;;
+        *)                  _public_url="http://${BETA_DOMAIN}:${BETA_PORT}" ;;
+    esac
+
     echo ""
     echo "  Installation Summary:"
-    echo "  Domain:          ${BETA_DOMAIN}:${BETA_PORT}"
+    echo "  URL:             ${_public_url}"
+    echo "  Internal port:   ${BETA_PORT}  (Docker / NPM upstream)"
     echo "  SSL mode:        ${BETA_SSL_MODE}"
     echo "  Postgres DB:     ${BETA_POSTGRES_DB}"
     echo "  Postgres user:   ${BETA_POSTGRES_USER}"

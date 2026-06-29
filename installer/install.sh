@@ -699,6 +699,29 @@ step_health_check() {
     verify_health_endpoint "$port"
 }
 
+# Build the user-facing public URL from domain, port, and SSL mode.
+# Reverse-proxy modes (manual/letsencrypt) do NOT include the port —
+# the internal port is an NPM upstream detail, not part of the public URL.
+_build_public_url() {
+    local domain="${1:-localhost}"
+    local port="${2:-8085}"
+    local ssl_mode="${3:-off}"
+    case "$ssl_mode" in
+        letsencrypt|manual)
+            # External reverse proxy terminates TLS on 443.
+            echo "https://${domain}"
+            ;;
+        self-signed)
+            # Direct HTTPS access; port is part of the URL.
+            echo "https://${domain}:${port}"
+            ;;
+        off|*)
+            # Direct HTTP access; port is part of the URL.
+            echo "http://${domain}:${port}"
+            ;;
+    esac
+}
+
 step_completion_report() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -710,14 +733,15 @@ step_completion_report() {
         _load_env_for_docker
         local port="${BETA_PORT:-8085}"
         local domain="${BETA_DOMAIN:-localhost}"
-        local proto="http"
-        [[ "${BETA_SSL_MODE:-off}" != "off" ]] && proto="https"
+        local ssl_mode="${BETA_SSL_MODE:-off}"
+        local public_url
+        public_url="$(_build_public_url "$domain" "$port" "$ssl_mode")"
         echo "  FlowHub Beta — Installation Complete"
         echo ""
         echo "  ┌─────────────────────────────────────────────────────┐"
         echo "  │  Open your browser and complete setup:              │"
         echo "  │                                                     │"
-        echo "  │    ${proto}://${domain}:${port}/setup"
+        echo "  │    ${public_url}/setup"
         echo "  │                                                     │"
         echo "  │  The web wizard will guide you through:             │"
         echo "  │    • Server profile (timezone, currency)            │"
@@ -727,7 +751,7 @@ step_completion_report() {
         echo "  └─────────────────────────────────────────────────────┘"
         echo ""
         echo "  Environment file: ${INSTALLER_ENV_FILE}"
-        echo "  Health check:     ${proto}://${domain}:${port}/api/health"
+        echo "  Health check:     ${public_url}/api/health"
         echo ""
         echo "  Management:"
         echo "    flowhub              — interactive management menu"
