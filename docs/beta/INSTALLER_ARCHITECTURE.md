@@ -128,9 +128,28 @@ point to abort (no partial state is written until Section 5).
 ### Wizard sections
 
 **Section 1 — Network**
-- Beta domain (BETA_DOMAIN) — no default; user must enter
-- Beta port (BETA_PORT) — default: 8080
+- Beta domain (BETA_DOMAIN) — no default; user must enter.
+  Input is normalized before saving: whitespace is trimmed, protocol prefixes
+  (`http://`/`https://`) are stripped with a notice, path and port suffixes are
+  stripped, trailing dots removed, non-hostname bytes stripped (handles invisible
+  Unicode), and the result lowercased. RFC 1123 validation is then applied.
+- Beta port (BETA_PORT) — default: 8085 (internal Docker/NPM upstream port only)
 - SSL mode selection (BETA_SSL_MODE) — menu: off / self-signed / letsencrypt / manual
+
+**Public URL vs Internal Docker Port**
+
+The internal port (`BETA_PORT`) is the port Docker binds. The public URL depends on
+SSL mode:
+
+| SSL mode | Public URL | Port in URL |
+|---|---|---|
+| `off` | `http://domain:port` | yes |
+| `self-signed` | `https://domain:port` | yes |
+| `manual` | `https://domain` | no (reverse proxy) |
+| `letsencrypt` | `https://domain` | no (reverse proxy) |
+
+In `manual` and `letsencrypt` modes an external reverse proxy terminates TLS on port
+443; the internal port is an upstream detail, not part of the user-facing URL.
 
 **Section 2 — Database**
 - PostgreSQL database name (BETA_POSTGRES_DB) — default: wooprice_beta
@@ -412,22 +431,28 @@ always shows the existing values and asks for confirmation before overwriting.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  WooPrice Beta — Installation Complete  ✓
-  [BETA ENVIRONMENT]
+  FlowHub Beta — Installation Complete
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Application:  http(s)://BETA_DOMAIN:BETA_PORT
-  Admin email:  BETA_ADMIN_EMAIL
-  Install log:  BETA_STORAGE_PATH/install.log
-  Config:       BETA_STORAGE_PATH/config/wooprice-beta.toml
+  ┌─────────────────────────────────────────────────────┐
+  │  Open your browser and complete setup:              │
+  │                                                     │
+  │    https://beta.yourdomain.com/setup                │
+  │                                                     │
+  └─────────────────────────────────────────────────────┘
 
-  Next steps:
-  1. Log in at: http(s)://BETA_DOMAIN:BETA_PORT
-  2. Change your admin password immediately
-  3. Run: wooprice health all
-  4. Configure your source: wooprice sources add
-  5. Test your WooCommerce channel: wooprice channels test
+  Public URL:           https://beta.yourdomain.com
+  Internal Docker Port: 8085
+  Environment file:     /opt/flowhub/.env.beta
+  Health check:         https://beta.yourdomain.com/api/health
 
-  This is a [BETA] environment.
-  Do not use real customer data or the real WooCommerce store.
+  Management:
+    flowhub              — interactive management menu
+    flowhub status       — configuration status
+    flowhub health       — local health checks
+    flowhub diagnostics run — full integration check
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+The "Public URL" is always the user-facing URL (no port for `manual`/`letsencrypt`
+modes). The "Internal Docker Port" is always shown separately so operators know what
+to configure as the upstream target in Nginx Proxy Manager.

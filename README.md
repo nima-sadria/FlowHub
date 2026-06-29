@@ -91,6 +91,69 @@ docker compose -f docker-compose.beta.yml --env-file .env.beta \
 
 ---
 
+## Network and Domain
+
+### Public URL vs Internal Docker Port
+
+FlowHub binds internally on the port configured as `BETA_PORT` (default `8085`).
+This is the port Docker uses — it is the upstream target for Nginx Proxy Manager
+and is never exposed as part of the public-facing URL when a reverse proxy handles TLS.
+
+| SSL mode | Public URL | Internal Docker Port |
+|---|---|---|
+| `off` | `http://domain:8085` | `8085` |
+| `self-signed` | `https://domain:8085` | `8085` |
+| `manual` | `https://domain` | `8085` |
+| `letsencrypt` | `https://domain` | `8085` |
+
+In `manual` and `letsencrypt` modes the port is omitted from the public URL because
+an external reverse proxy (e.g., Nginx Proxy Manager) listens on port 443 and
+forwards traffic to `localhost:8085` on the same host.
+
+### Reverse Proxy Mode (`manual`)
+
+Select SSL mode `manual` when you already have Nginx Proxy Manager (or similar)
+running and want it to handle TLS termination. The installer will:
+- Set `BETA_SSL_MODE=manual` in `.env.beta`
+- Not configure any certificate itself
+- Print the public URL without a port (`https://your-domain.com`)
+
+Configure your proxy host to forward HTTPS → `http://localhost:8085` (or the
+container's internal address if running in the same Docker network).
+
+### Manual SSL Mode vs Let's Encrypt
+
+Both `manual` and `letsencrypt` produce `https://domain` public URLs.
+The difference is who manages the certificate:
+- `letsencrypt` — the installer provisions a certificate via Certbot automatically.
+  Requires DNS pointing to this server and port 80 open.
+- `manual` — you supply an existing certificate. The installer copies it into
+  `BETA_STORAGE_PATH/ssl/` and configures Nginx to use it.
+
+### Hostname Input Rules
+
+The wizard normalizes the domain you enter before saving it:
+
+1. Leading and trailing whitespace is stripped.
+2. If you paste a full URL (`https://beta.example.com`) the protocol is removed
+   automatically and the message *"Protocol removed automatically. Please enter the
+   hostname only."* is displayed.
+3. Any path (`/some/path`) and port (`:8085`) suffix are stripped.
+4. A trailing dot is removed.
+5. Non-hostname bytes (invisible Unicode characters, RTL marks, zero-width joiners)
+   are stripped.
+6. The hostname is converted to lowercase.
+
+Valid input examples:
+- `beta.example.com`
+- `https://beta.example.com/` → normalized to `beta.example.com`
+- `BETA.EXAMPLE.COM` → normalized to `beta.example.com`
+
+The normalized hostname must match RFC 1123: letters, digits, hyphens, and dots;
+each label must start and end with a letter or digit.
+
+---
+
 ## Uninstall
 
 Re-run the installer and select **4. Uninstall** from the management menu:

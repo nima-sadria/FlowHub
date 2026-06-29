@@ -46,32 +46,57 @@ _section_header() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 }
 
-# Domain prompt with sanitization and validation.
-# Strips non-hostname bytes (handles invisible unicode, RTL marks, etc.),
-# then validates against RFC 1123 before accepting.
+# Domain prompt with full normalization pipeline and RFC 1123 validation.
+# Normalization order: trim whitespace → strip protocol → strip path → strip port
+# → remove trailing dot → strip non-hostname bytes → lowercase.
 _prompt_domain() {
     local var_name="$1"
     while true; do
         local raw_input
         read -r -p "  Beta domain (e.g., beta.yourdomain.com): " raw_input
-        # Keep only characters that are legal in a hostname.
-        # LC_ALL=C ensures tr operates on raw bytes, stripping any multibyte
-        # sequence (Arabic letters, zero-width joiners, RTL marks, etc.).
+
+        # 1. Trim leading/trailing whitespace
+        local v
+        v="$(printf '%s' "$raw_input" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+        # 2. Strip protocol prefix (http:// or https://)
+        if [[ "$v" =~ ^[Hh][Tt][Tt][Pp][Ss]?:// ]]; then
+            v="${v#*://}"
+            echo "  Protocol removed automatically. Please enter the hostname only." >&2
+        fi
+
+        # 3. Strip path (anything at and after the first /)
+        v="${v%%/*}"
+
+        # 4. Strip port (anything at and after the first :)
+        v="${v%%:*}"
+
+        # 5. Remove trailing dot
+        v="${v%.}"
+
+        # 6. Strip non-hostname bytes — LC_ALL=C byte mode handles multibyte
+        #    sequences (Arabic RTL marks, zero-width joiners, etc.)
         local sanitized
-        sanitized="$(printf '%s' "$raw_input" | LC_ALL=C tr -cd 'a-zA-Z0-9.-')"
-        if [[ -n "$raw_input" && "$sanitized" != "$raw_input" ]]; then
+        sanitized="$(printf '%s' "$v" | LC_ALL=C tr -cd 'a-zA-Z0-9.-')"
+        if [[ -n "$v" && "$sanitized" != "$v" ]]; then
             echo "  NOTE: non-hostname characters were removed. Using: '${sanitized}'" >&2
         fi
+
+        # 7. Lowercase
+        sanitized="${sanitized,,}"
+
         if [[ -z "$sanitized" ]]; then
             echo "  ERROR: Domain is required. Enter a valid hostname (e.g., beta.example.com)." >&2
             continue
         fi
+
         # RFC 1123: each label is [a-zA-Z0-9] at start/end, hyphens in middle.
         if [[ ! "$sanitized" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$ ]]; then
             echo "  ERROR: '${sanitized}' is not a valid hostname." >&2
             echo "  Allowed: letters, digits, hyphens, dots. Labels must not start or end with a hyphen." >&2
             continue
         fi
+
         printf -v "$var_name" '%s' "$sanitized"
         break
     done
@@ -160,8 +185,8 @@ wizard_section_confirm() {
 
     echo ""
     echo "  Installation Summary:"
-    echo "  URL:             ${_public_url}"
-    echo "  Internal port:   ${BETA_PORT}  (Docker / NPM upstream)"
+    echo "  Public URL:           ${_public_url}"
+    echo "  Internal Docker Port: ${BETA_PORT}  (Docker / NPM upstream)"
     echo "  SSL mode:        ${BETA_SSL_MODE}"
     echo "  Postgres DB:     ${BETA_POSTGRES_DB}"
     echo "  Postgres user:   ${BETA_POSTGRES_USER}"
