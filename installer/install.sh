@@ -91,7 +91,9 @@ https://download.docker.com/linux/${ID} $(lsb_release -cs) stable" \
     apt-get install -y --no-install-recommends \
         docker-ce docker-ce-cli containerd.io \
         docker-buildx-plugin docker-compose-plugin
-    echo "  Docker: installed"
+    systemctl enable docker
+    systemctl start docker
+    echo "  Docker: installed and started"
 }
 
 _bs_clone_or_pull() {
@@ -156,6 +158,58 @@ source "${LIB_DIR}/docker_deploy.sh"
 source "${LIB_DIR}/db_init.sh"
 # shellcheck source=installer/lib/admin.sh
 source "${LIB_DIR}/admin.sh"
+
+# ── Docker auto-install (non-bootstrap path) ──────────────────────────────────
+# Called by step_prerequisites() before run_prerequisite_checks().
+# Installs Docker Engine + Compose plugin on Ubuntu/Debian when missing.
+# No-op if Docker is already present or if auto-install cannot run.
+_ensure_docker_installed() {
+    if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
+        return 0
+    fi
+
+    echo ""
+    echo "  Docker not found — auto-installing Docker Engine + Compose plugin..."
+
+    if [[ "$(id -u)" -ne 0 ]]; then
+        echo "  WARNING: Not running as root — cannot auto-install Docker." >&2
+        echo "  Install manually: https://docs.docker.com/engine/install/" >&2
+        return 0  # let run_prerequisite_checks() report the [FAIL]
+    fi
+
+    if [[ ! -f /etc/os-release ]]; then
+        echo "  WARNING: Cannot detect OS — skipping Docker auto-install." >&2
+        return 0
+    fi
+    # shellcheck source=/dev/null
+    . /etc/os-release
+    case "${ID:-}" in
+        ubuntu|debian) ;;
+        *)
+            echo "  WARNING: OS '${ID:-unknown}' not supported for auto-install — skipping." >&2
+            return 0
+            ;;
+    esac
+
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq
+    apt-get install -y --no-install-recommends \
+        curl ca-certificates gnupg lsb-release
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL "https://download.docker.com/linux/${ID}/gpg" \
+        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/${ID} $(lsb_release -cs) stable" \
+        > /etc/apt/sources.list.d/docker.list
+    apt-get update -qq
+    apt-get install -y --no-install-recommends \
+        docker-ce docker-ce-cli containerd.io \
+        docker-buildx-plugin docker-compose-plugin
+    systemctl enable docker
+    systemctl start docker
+    echo "  Docker: installed and started"
+}
 
 # ---- Defaults ----
 INSTALL_DIR="/opt/flowhub"
@@ -382,6 +436,7 @@ _load_env_for_docker() {
 step_prerequisites() {
     echo ""
     echo "Step 1 — Prerequisite Checks"
+    _ensure_docker_installed
     run_prerequisite_checks "$INSTALL_DIR"
 }
 
