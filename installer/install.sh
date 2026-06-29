@@ -72,17 +72,40 @@ _bs_install_system_deps() {
     echo "  System packages installed."
 }
 
-_bs_install_docker() {
-    if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
-        echo "  Docker: already installed"
-        return 0
-    fi
-    echo "  Installing Docker Engine + Compose plugin..."
+# ── Docker installation helpers ───────────────────────────────────────────────
+# Defined before the bootstrap detection so both paths can use them.
+
+# Method 1: official Docker apt repository.
+# Downloads the GPG key to a temp file and validates it before touching apt.
+# Returns 1 on any failure so callers can try the fallback.
+_docker_install_via_apt() {
     # shellcheck source=/dev/null
     . /etc/os-release
+    echo "  Trying Docker apt repository (download.docker.com)..."
+    local tmpkey
+    tmpkey="$(mktemp)"
+    local http_status
+    http_status=$(curl --connect-timeout 15 --max-time 30 \
+        -s -w "%{http_code}" \
+        -o "$tmpkey" \
+        "https://download.docker.com/linux/${ID}/gpg" 2>/dev/null || echo "000")
+    if [[ "$http_status" != "200" ]]; then
+        rm -f "$tmpkey"
+        echo "  Docker GPG key download failed (HTTP ${http_status})" >&2
+        return 1
+    fi
+    if [[ ! -s "$tmpkey" ]]; then
+        rm -f "$tmpkey"
+        echo "  Docker GPG key response was empty" >&2
+        return 1
+    fi
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL "https://download.docker.com/linux/${ID}/gpg" \
-        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    if ! gpg --dearmor < "$tmpkey" > /etc/apt/keyrings/docker.gpg 2>/dev/null; then
+        rm -f "$tmpkey" /etc/apt/keyrings/docker.gpg
+        echo "  Docker GPG key contained no valid OpenPGP data" >&2
+        return 1
+    fi
+    rm -f "$tmpkey"
     chmod a+r /etc/apt/keyrings/docker.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
 https://download.docker.com/linux/${ID} $(lsb_release -cs) stable" \
@@ -93,7 +116,58 @@ https://download.docker.com/linux/${ID} $(lsb_release -cs) stable" \
         docker-buildx-plugin docker-compose-plugin
     systemctl enable docker
     systemctl start docker
-    echo "  Docker: installed and started"
+    echo "  Docker: installed and started (apt repository)"
+}
+
+# Method 2: get.docker.com convenience script.
+# Used when the apt repository is unreachable or returns errors.
+_docker_install_via_get_script() {
+    echo "  Falling back to get.docker.com install script..."
+    local tmpscript
+    tmpscript="$(mktemp)"
+    if ! curl -fsSL --connect-timeout 15 --max-time 120 \
+            -o "$tmpscript" "https://get.docker.com" 2>/dev/null; then
+        rm -f "$tmpscript"
+        echo "  get.docker.com download failed" >&2
+        return 1
+    fi
+    if [[ ! -s "$tmpscript" ]]; then
+        rm -f "$tmpscript"
+        echo "  get.docker.com script was empty" >&2
+        return 1
+    fi
+    sh "$tmpscript"
+    rm -f "$tmpscript"
+    systemctl enable docker
+    systemctl start docker
+    echo "  Docker: installed and started (get.docker.com)"
+}
+
+# Final failure reporter — called when both methods fail.
+_docker_install_report_failure() {
+    echo "" >&2
+    echo "  ── Docker Installation Failed ──────────────────────────────────────" >&2
+    echo "  Both installation methods failed. Likely causes:" >&2
+    echo "    • download.docker.com returned HTTP 403/404 (CDN or geo block)" >&2
+    echo "    • Outbound HTTPS blocked by firewall or proxy" >&2
+    echo "    • OS codename not yet listed in Docker apt repository" >&2
+    echo "  Resolve connectivity, then manually install Docker:" >&2
+    echo "    curl -fsSL https://get.docker.com | sh" >&2
+    echo "    systemctl enable docker && systemctl start docker" >&2
+    echo "  Then re-run: bash installer/install.sh" >&2
+    echo "  ────────────────────────────────────────────────────────────────────" >&2
+    return 1
+}
+
+_bs_install_docker() {
+    if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
+        echo "  Docker: already installed"
+        return 0
+    fi
+    echo "  Installing Docker Engine + Compose plugin..."
+    _docker_install_via_apt && return 0
+    _docker_install_via_get_script && return 0
+    _docker_install_report_failure
 }
 
 _bs_clone_or_pull() {
@@ -162,7 +236,8 @@ source "${LIB_DIR}/admin.sh"
 # ── Docker auto-install (non-bootstrap path) ──────────────────────────────────
 # Called by step_prerequisites() before run_prerequisite_checks().
 # Installs Docker Engine + Compose plugin on Ubuntu/Debian when missing.
-# No-op if Docker is already present or if auto-install cannot run.
+# No-op (with warning) if auto-install cannot run; hard-fails if both
+# installation methods fail so the installer does not proceed without Docker.
 _ensure_docker_installed() {
     if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
         return 0
@@ -195,20 +270,10 @@ _ensure_docker_installed() {
     apt-get update -qq
     apt-get install -y --no-install-recommends \
         curl ca-certificates gnupg lsb-release
-    install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL "https://download.docker.com/linux/${ID}/gpg" \
-        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    chmod a+r /etc/apt/keyrings/docker.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-https://download.docker.com/linux/${ID} $(lsb_release -cs) stable" \
-        > /etc/apt/sources.list.d/docker.list
-    apt-get update -qq
-    apt-get install -y --no-install-recommends \
-        docker-ce docker-ce-cli containerd.io \
-        docker-buildx-plugin docker-compose-plugin
-    systemctl enable docker
-    systemctl start docker
-    echo "  Docker: installed and started"
+
+    _docker_install_via_apt && return 0
+    _docker_install_via_get_script && return 0
+    _docker_install_report_failure
 }
 
 # ---- Defaults ----
