@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WooPrice Beta — Docker deployment functions (BU1)
+# FlowHub Beta — Docker deployment functions
 #
 # Source from install.sh. Provides:
 #   docker_compose_cmd()       -- resolve the correct compose CLI

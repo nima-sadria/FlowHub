@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WooPrice Beta — Database initialization and migration runner (BU1)
+# FlowHub Beta — Database initialization and migration runner
 #
 # Source from install.sh. Requires:
 #   - PostgreSQL container healthy (call wait_for_postgres_ready first)

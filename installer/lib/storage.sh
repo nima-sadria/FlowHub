@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WooPrice Beta — Storage and backup directory setup (B4 Installer Foundation)
+# FlowHub Beta — Storage and backup directory setup
 #
 # Source from install.sh. Call setup_storage_dirs.
 # Creates BETA_STORAGE_PATH/{logs,config,plugins,uploads,diagnostics}

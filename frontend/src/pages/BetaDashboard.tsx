@@ -105,7 +105,7 @@ export default function BetaDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-[22px] font-bold text-text-base">Dashboard</h1>
-        <p className="text-[13px] text-wp-muted mt-0.5">WooPrice Beta — System Overview</p>
+        <p className="text-[13px] text-wp-muted mt-0.5">FlowHub Beta — System Overview</p>
       </div>
 
       {/* User card */}

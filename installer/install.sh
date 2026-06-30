@@ -390,7 +390,7 @@ print_banner() {
     echo "  [BETA ENVIRONMENT — NOT PRODUCTION]"
     echo ""
     echo "  This installer sets up a completely isolated Beta environment."
-    echo "  It will NOT modify any Production WooPrice installation."
+    echo "  Runs in complete isolation — no other installations are affected."
     echo ""
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  *** DRY-RUN MODE — No files will be written, no Docker started ***"

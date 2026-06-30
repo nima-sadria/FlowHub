@@ -1,6 +1,6 @@
-"""WooPrice Beta — interactive management menu (BU1).
+"""FlowHub Beta — interactive management menu.
 
-Displayed when `wooprice` is launched with no arguments.
+Displayed when `flowhub` is launched with no arguments.
 Each option dispatches to an existing CLI command or shows a placeholder
 for features not yet implemented.
 """
@@ -12,7 +12,7 @@ from typing import Callable
 _MENU_TEXT = """\
 
 --------------------------------------------------------
-  WooPrice Beta  [BETA ENVIRONMENT]
+  FlowHub Beta  [BETA ENVIRONMENT]
 --------------------------------------------------------
 
   1. Status

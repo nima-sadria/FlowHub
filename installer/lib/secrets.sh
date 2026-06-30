@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WooPrice Beta — Secret generation (B4 Installer Foundation)
+# FlowHub Beta — Secret generation
 #
 # Uses openssl rand. Secrets are held in shell variables only.
 # Written to .env once by env_gen.sh. Never echoed to terminal in plain text.

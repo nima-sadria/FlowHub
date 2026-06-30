@@ -1,4 +1,4 @@
-"""WooPrice Beta — CLI output utilities (Rich console)."""
+"""FlowHub Beta — CLI output utilities (Rich console)."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def print_banner(profile: ConfigProfile | None = None) -> None:
     """Print the environment banner. Called on every CLI invocation."""
     label = profile.banner() if profile else "[BETA ENVIRONMENT]"
     style = _BANNER_STYLES.get(profile, "bold cyan") if profile else "bold cyan"
-    console.print(f"\n  WooPrice  {label}\n", style=style)
+    console.print(f"\n  FlowHub  {label}\n", style=style)
 
 
 def print_production_warning() -> None:

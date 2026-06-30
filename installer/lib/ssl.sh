@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WooPrice Beta — SSL setup
+# FlowHub Beta — SSL setup
 #
 # Modes: off / self-signed / letsencrypt / manual
 # Writes certificates to BETA_STORAGE_PATH/ssl/.

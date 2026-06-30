@@ -257,10 +257,10 @@ class TestMenuText:
         for i in range(1, 8):
             assert str(i) in out
 
-    def test_menu_shows_wooprice_beta(self, capsys):
+    def test_menu_shows_flowhub_beta(self, capsys):
         show_menu(_input_fn=_input_sequence("7"))
         out = capsys.readouterr().out
-        assert "WooPrice Beta" in out
+        assert "FlowHub Beta" in out
 
     def test_menu_shows_status_option(self, capsys):
         show_menu(_input_fn=_input_sequence("7"))

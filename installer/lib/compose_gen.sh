@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WooPrice Beta — Docker Compose file generation (B4 Installer Foundation)
+# FlowHub Beta — Docker Compose file generation
 #
 # Generates docker-compose.beta.yml by substituting BETA_* placeholders in
 # installer/templates/docker-compose.template.yml using envsubst.

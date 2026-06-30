@@ -9,11 +9,27 @@ import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 
 const TIMEZONES = [
-  'UTC', 'Asia/Tehran', 'Asia/Dubai', 'Europe/London', 'Europe/Berlin',
-  'America/New_York', 'America/Los_Angeles',
+  'UTC',
+  'Africa/Cairo', 'Africa/Johannesburg', 'Africa/Lagos', 'Africa/Nairobi',
+  'America/Bogota', 'America/Buenos_Aires', 'America/Chicago', 'America/Denver',
+  'America/Los_Angeles', 'America/Mexico_City', 'America/New_York',
+  'America/Sao_Paulo', 'America/Toronto', 'America/Vancouver',
+  'Asia/Bangkok', 'Asia/Dubai', 'Asia/Hong_Kong', 'Asia/Jakarta',
+  'Asia/Karachi', 'Asia/Kolkata', 'Asia/Kuala_Lumpur', 'Asia/Manila',
+  'Asia/Riyadh', 'Asia/Seoul', 'Asia/Shanghai', 'Asia/Singapore',
+  'Asia/Taipei', 'Asia/Tehran', 'Asia/Tokyo',
+  'Atlantic/Reykjavik',
+  'Australia/Melbourne', 'Australia/Perth', 'Australia/Sydney',
+  'Europe/Amsterdam', 'Europe/Athens', 'Europe/Berlin', 'Europe/Brussels',
+  'Europe/Bucharest', 'Europe/Dublin', 'Europe/Helsinki', 'Europe/Istanbul',
+  'Europe/Kiev', 'Europe/Lisbon', 'Europe/London', 'Europe/Madrid',
+  'Europe/Moscow', 'Europe/Oslo', 'Europe/Paris', 'Europe/Prague',
+  'Europe/Rome', 'Europe/Stockholm', 'Europe/Vienna', 'Europe/Warsaw',
+  'Europe/Zurich',
+  'Pacific/Auckland', 'Pacific/Honolulu',
 ]
 
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'IRR', 'AED']
+const CURRENCIES = ['IRR', 'IRT', 'USD', 'EUR', 'AED', 'TRY', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF']
 
 function Section({ title, description, children }: {
   title: string; description?: string; children: React.ReactNode

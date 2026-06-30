@@ -53,8 +53,8 @@ export default function Login() {
     <div className="min-h-screen bg-bg-base flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-bg-card border border-border rounded-card shadow-card p-8">
         <div className="mb-7 text-center">
-          <h1 className="text-[22px] font-bold text-text-base">WooPrice</h1>
-          <p className="text-[13px] text-wp-muted mt-1">Sign in to WooPrice Beta</p>
+          <h1 className="text-[22px] font-bold text-text-base">FlowHub</h1>
+          <p className="text-[13px] text-wp-muted mt-1">Sign in to FlowHub Beta</p>
         </div>
 
         {error && (

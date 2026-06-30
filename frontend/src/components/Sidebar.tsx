@@ -71,8 +71,8 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <div className="font-bold text-sm text-text-base leading-tight">WooPrice</div>
-              <div className="text-[11px] text-wp-muted">Price Sync</div>
+              <div className="font-bold text-sm text-text-base leading-tight">FlowHub</div>
+              <div className="text-[11px] text-wp-muted">Beta</div>
             </div>
           )}
 
@@ -101,7 +101,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
         <nav className="flex-1 px-2 py-3 overflow-y-auto">
           {!collapsed && (
             <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-wider text-wp-muted select-none">
-              WooPrice
+              FlowHub
             </p>
           )}
 

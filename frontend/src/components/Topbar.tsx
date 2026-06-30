@@ -56,7 +56,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
-  const title = PAGE_TITLES[location.pathname] ?? 'WooPrice'
+  const title = PAGE_TITLES[location.pathname] ?? 'FlowHub'
 
   const healthDot =
     health === 'ok' ? 'bg-wp-green' :
@@ -90,7 +90,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-[13px]">
-        <span className="text-wp-muted">WooPrice</span>
+        <span className="text-wp-muted">FlowHub</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-wp-muted rtl:rotate-180">
           <path d="m9 18 6-6-6-6" />
         </svg>
