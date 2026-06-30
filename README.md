@@ -26,7 +26,8 @@ every change must be applied by a human.
 10. [API Layers](#api-layers)
 11. [Connector Framework](#connector-framework)
 12. [Database Tables](#database-tables)
-13. [What is Real Now vs Planned](#what-is-real-now-vs-planned)
+13. [FlowHub Data Layer](#flowhub-data-layer)
+14. [What is Real Now vs Planned](#what-is-real-now-vs-planned)
 14. [Management CLI](#management-cli)
 15. [Operations](#operations)
 16. [Documentation](#documentation)
@@ -275,6 +276,7 @@ until setup is complete.
 | `/sources/new` | Source Wizard | Yes | Add a new source |
 | `/workspace` | Workspace | Yes (`can_fetch`) | Run and view price preview |
 | `/activity` | Activity | Yes (`can_view_logs`) | Audit event log |
+| `/data-layer` | Data Layer | Yes (`can_view_settings`) | Data Layer status — all stores, health, telemetry |
 | `/diagnostics` | Diagnostics | Yes (`can_view_settings`) | Live system diagnostics |
 | `/settings` | Settings | Yes (`can_view_settings`) | Credentials and runtime config |
 
@@ -399,6 +401,56 @@ settings API returns only `wcConfigured: true/false` and `ncConfigured: true/fal
 
 ---
 
+## FlowHub Data Layer
+
+The **FlowHub Data Layer** is the persistent read model that sits between external systems
+(WooCommerce, Nextcloud) and the FlowHub UI. It provides a structured store for product
+data, connector health, telemetry, refresh job history, and invalidation events.
+
+> **Important:** "Cache" is one internal mechanism inside the Data Layer.
+> The canonical name is "FlowHub Data Layer" — not "Cache Architecture."
+
+### Data Layer UI Route
+
+A dedicated page is available at `/data-layer` in the web UI. It shows:
+- Product cache status (initialized / total / fresh / stale)
+- Source and destination snapshot status
+- Connector health (healthy / degraded / unhealthy per connector)
+- Connector telemetry (request counts, error counts, throughput)
+- Refresh queue status and recent job history
+- Invalidation event log
+- TTL policy status
+- Multi-channel readiness (current + future connectors)
+- Read-only safety confirmation
+
+### Data Layer Tables (DL1)
+
+| Table | Purpose |
+|---|---|
+| `dl_connector_health` | Per-connector health check results |
+| `dl_connector_telemetry` | Per-connector telemetry aggregates |
+| `dl_product_cache` | Product read model (name, price, stock, freshness) |
+| `dl_inventory_cache` | Inventory state (stock qty, status, backorders) |
+| `dl_source_snapshots` | Source file snapshot metadata (ETag, row count) |
+| `dl_destination_snapshots` | Destination product/price snapshot |
+| `dl_refresh_jobs` | Refresh job history and status |
+| `dl_invalidation_events` | Invalidation event audit log |
+
+### Current State (DL1)
+
+The Data Layer schema and service layer are implemented. All `dl_*` tables exist.
+In DL1, tables start empty because there is no background refresh yet. The UI shows
+"Not initialized yet" empty states — this is correct and expected. Data populates
+as products are browsed and connector interactions occur in future phases.
+
+### Reference
+
+See [`docs/architecture/DATA_LAYER_ARCHITECTURE.md`](docs/architecture/DATA_LAYER_ARCHITECTURE.md)
+for the complete architecture including all stores, TTL policy, invalidation policy,
+data flow diagrams, multi-channel readiness, and the full database model.
+
+---
+
 ## What is Real Now vs Planned
 
 ### Implemented and active
@@ -491,6 +543,7 @@ Detailed architecture, security, and deployment documents live under `docs/`.
 | Document | Purpose |
 |---|---|
 | [`docs/architecture/CURRENT_ARCHITECTURE.md`](docs/architecture/CURRENT_ARCHITECTURE.md) | Full technical architecture reference |
+| [`docs/architecture/DATA_LAYER_ARCHITECTURE.md`](docs/architecture/DATA_LAYER_ARCHITECTURE.md) | FlowHub Data Layer — stores, TTL, invalidation, data flows |
 | [`docs/beta/DEPLOYMENT_ARCHITECTURE.md`](docs/beta/DEPLOYMENT_ARCHITECTURE.md) | Docker deployment details |
 | [`docs/beta/SECURITY_ARCHITECTURE.md`](docs/beta/SECURITY_ARCHITECTURE.md) | Auth and security model |
 | [`docs/beta/INSTALLER_ARCHITECTURE.md`](docs/beta/INSTALLER_ARCHITECTURE.md) | Installer internals |

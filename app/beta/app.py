@@ -28,6 +28,12 @@ Active routes:
   GET  /api/v2/diagnostics/status              — live system diagnostics       (BU5)
   POST /api/v2/diagnostics/run                 — stub (B6)
   GET  /api/v2/diagnostics/history             — stub (B6)
+  GET  /api/v2/data-layer/status               — Data Layer overall status     (DL1)
+  GET  /api/v2/data-layer/products/status      — product cache status          (DL1)
+  GET  /api/v2/data-layer/sources/status       — snapshot status               (DL1)
+  GET  /api/v2/data-layer/connectors/status    — connector health + telemetry  (DL1)
+  GET  /api/v2/data-layer/refresh-jobs         — refresh job history           (DL1)
+  GET  /api/v2/data-layer/invalidation-events  — invalidation event log        (DL1)
   GET  /                                       — landing page
   *    /{any}                                  — SPA fallback
 """
@@ -49,6 +55,7 @@ from app.beta.api.v2.workspace import router as workspace_router
 from app.beta.api.v2.settings_routes import router as settings_router
 from app.beta.api.v2.activity import router as activity_router
 from app.beta.api.v2.diagnostics import router as diagnostics_router
+from app.beta.api.v2.data_layer_routes import router as data_layer_router
 
 _VERSION = "0.3.0-bu5"
 
@@ -105,6 +112,7 @@ app.include_router(workspace_router, prefix="/api/v2")
 app.include_router(settings_router, prefix="/api/v2")
 app.include_router(activity_router, prefix="/api/v2")
 app.include_router(diagnostics_router, prefix="/api/v2")
+app.include_router(data_layer_router, prefix="/api/v2")
 
 # Static assets (hashed filenames produced by Vite; only mounted if built)
 _assets_dir = _FRONTEND_DIST / "assets"
