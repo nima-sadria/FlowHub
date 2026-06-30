@@ -108,9 +108,8 @@ class ServerProfilePayload(BaseModel):
     @field_validator("environment")
     @classmethod
     def _validate_env(cls, v: str) -> str:
-        allowed = {"beta", "staging", "production"}
-        if v not in allowed:
-            raise ValueError(f"Environment must be one of: {', '.join(sorted(allowed))}")
+        if v != "beta":
+            raise ValueError("Environment must be 'beta' (this is a beta-only installation)")
         return v
 
 
@@ -177,9 +176,10 @@ class NextcloudPayload(BaseModel):
 
 @router.get("/status")
 async def setup_status(db: Session = Depends(get_db)) -> dict:
-    """Public endpoint: returns whether setup has been completed."""
+    """Public endpoint: returns whether setup has been completed and if an admin exists."""
     svc = AppConfigService(db)
-    return {"completed": svc.is_setup_completed()}
+    has_admin = db.query(BetaUser).filter(BetaUser.role == "admin").first() is not None
+    return {"completed": svc.is_setup_completed(), "has_admin": has_admin}
 
 
 @router.post("/server-profile")
@@ -192,7 +192,7 @@ async def setup_server_profile(
         {
             "server.domain": body.domain,
             "server.port": str(body.port),
-            "server.environment": body.environment,
+            "server.environment": "beta",
             "server.timezone": body.timezone,
             "server.currency": body.currency,
         },

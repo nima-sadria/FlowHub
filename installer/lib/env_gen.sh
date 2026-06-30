@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WooPrice Beta — .env file generation (B4 Installer Foundation)
+# FlowHub Beta — .env file generation
 #
 # Source from install.sh. Call generate_env_file ENV_PATH.
 # Writes all BETA_* variables to ENV_PATH with mode 600.
@@ -14,7 +14,7 @@ generate_env_file() {
     created_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
     cat > "$env_path" <<ENVFILE
-# WooPrice Beta — generated environment file
+# FlowHub Beta — generated environment file
 # Created: ${created_at}
 # DO NOT COMMIT THIS FILE
 
@@ -36,6 +36,7 @@ BETA_WOOCOMMERCE_KEY=${BETA_WOOCOMMERCE_KEY}
 BETA_WOOCOMMERCE_SECRET=${BETA_WOOCOMMERCE_SECRET}
 BETA_TIMEZONE=${BETA_TIMEZONE}
 BETA_CURRENCY=${BETA_CURRENCY}
+BETA_ADMIN_USERNAME=${BETA_ADMIN_USERNAME}
 BETA_ADMIN_EMAIL=${BETA_ADMIN_EMAIL}
 BETA_STORAGE_PATH=${BETA_STORAGE_PATH}
 BETA_BACKUP_PATH=${BETA_BACKUP_PATH}

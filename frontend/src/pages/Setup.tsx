@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, useEffect, type FormEvent, type ReactNode } from 'react'
 import type {
   ServerProfilePayload,
   AdminPayload,
@@ -7,6 +7,7 @@ import type {
   SetupAdminResponse,
   DatabaseStatusResponse,
   ConnectionTestResponse,
+  SetupStatus,
 } from '../api/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -22,11 +23,49 @@ const STEP_LABELS: Record<Step, string> = {
   complete: 'Complete',
 }
 
-const STEP_ORDER: Step[] = ['welcome', 'server-profile', 'database', 'admin', 'integrations', 'complete']
+const STEPS_WITH_ADMIN: Step[] = ['welcome', 'server-profile', 'database', 'admin', 'integrations', 'complete']
+const STEPS_NO_ADMIN: Step[] = ['welcome', 'server-profile', 'database', 'integrations', 'complete']
 
 interface SetupProps {
   onComplete: () => void
 }
+
+// ── Timezone & Currency data ──────────────────────────────────────────────────
+
+const ALL_TIMEZONES = [
+  'UTC',
+  'Africa/Cairo', 'Africa/Johannesburg', 'Africa/Lagos', 'Africa/Nairobi',
+  'America/Bogota', 'America/Buenos_Aires', 'America/Chicago', 'America/Denver',
+  'America/Los_Angeles', 'America/Mexico_City', 'America/New_York',
+  'America/Sao_Paulo', 'America/Toronto', 'America/Vancouver',
+  'Asia/Bangkok', 'Asia/Dubai', 'Asia/Hong_Kong', 'Asia/Jakarta',
+  'Asia/Karachi', 'Asia/Kolkata', 'Asia/Kuala_Lumpur', 'Asia/Manila',
+  'Asia/Riyadh', 'Asia/Seoul', 'Asia/Shanghai', 'Asia/Singapore',
+  'Asia/Taipei', 'Asia/Tehran', 'Asia/Tokyo',
+  'Atlantic/Reykjavik',
+  'Australia/Melbourne', 'Australia/Perth', 'Australia/Sydney',
+  'Europe/Amsterdam', 'Europe/Athens', 'Europe/Berlin', 'Europe/Brussels',
+  'Europe/Bucharest', 'Europe/Dublin', 'Europe/Helsinki', 'Europe/Istanbul',
+  'Europe/Kiev', 'Europe/Lisbon', 'Europe/London', 'Europe/Madrid',
+  'Europe/Moscow', 'Europe/Oslo', 'Europe/Paris', 'Europe/Prague',
+  'Europe/Rome', 'Europe/Stockholm', 'Europe/Vienna', 'Europe/Warsaw',
+  'Europe/Zurich',
+  'Pacific/Auckland', 'Pacific/Honolulu',
+]
+
+const CURRENCIES = [
+  { value: 'IRR', label: 'IRR — Iranian Rial' },
+  { value: 'IRT', label: 'IRT — Iranian Toman' },
+  { value: 'USD', label: 'USD — US Dollar' },
+  { value: 'EUR', label: 'EUR — Euro' },
+  { value: 'AED', label: 'AED — UAE Dirham' },
+  { value: 'TRY', label: 'TRY — Turkish Lira' },
+  { value: 'GBP', label: 'GBP — British Pound' },
+  { value: 'JPY', label: 'JPY — Japanese Yen' },
+  { value: 'CAD', label: 'CAD — Canadian Dollar' },
+  { value: 'AUD', label: 'AUD — Australian Dollar' },
+  { value: 'CHF', label: 'CHF — Swiss Franc' },
+]
 
 // ── Shared UI helpers ─────────────────────────────────────────────────────────
 
@@ -73,11 +112,12 @@ function SuccessBanner({ message }: { message: string }) {
   )
 }
 
-function StepDots({ current }: { current: Step }) {
-  const currentIdx = STEP_ORDER.indexOf(current)
+function StepDots({ current, steps }: { current: Step; steps: Step[] }) {
+  const currentIdx = steps.indexOf(current)
+  const visibleSteps = steps.filter(s => s !== 'complete')
   return (
     <div className="flex items-center gap-2 mb-8">
-      {STEP_ORDER.filter(s => s !== 'complete').map((s, idx) => (
+      {visibleSteps.map((s, idx) => (
         <div key={s} className="flex items-center gap-2">
           <div className={[
             'w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors',
@@ -87,7 +127,7 @@ function StepDots({ current }: { current: Step }) {
           ].join(' ')}>
             {idx < currentIdx ? '✓' : idx + 1}
           </div>
-          {idx < STEP_ORDER.length - 2 && (
+          {idx < visibleSteps.length - 1 && (
             <div className={['h-px w-8 transition-colors', idx < currentIdx ? 'bg-accent' : 'bg-border'].join(' ')} />
           )}
         </div>
@@ -138,19 +178,27 @@ function StepCard({ title, subtitle, children }: { title: string; subtitle?: str
 
 // ── Step: Welcome ─────────────────────────────────────────────────────────────
 
-function WelcomeStep({ onNext }: { onNext: () => void }) {
+function WelcomeStep({ onNext, hasAdmin }: { onNext: () => void; hasAdmin: boolean }) {
+  const steps = hasAdmin
+    ? [
+        ['Server Profile', 'Configure your domain, timezone, and currency.'],
+        ['Database', 'Verify your database connection.'],
+        ['Integrations', 'Optionally connect WooCommerce and Nextcloud.'],
+      ]
+    : [
+        ['Server Profile', 'Configure your domain, timezone, and currency.'],
+        ['Database', 'Verify your database connection.'],
+        ['Administrator', 'Create your administrator account.'],
+        ['Integrations', 'Optionally connect WooCommerce and Nextcloud.'],
+      ]
+
   return (
     <StepCard
       title="Welcome to FlowHub"
       subtitle="This wizard will guide you through the initial setup. It takes about 2 minutes."
     >
       <div className="space-y-3 mb-6">
-        {[
-          ['Server Profile', 'Configure your domain, timezone, and currency.'],
-          ['Database', 'Verify your database connection.'],
-          ['Administrator', 'Create your administrator account.'],
-          ['Integrations', 'Optionally connect WooCommerce and Nextcloud.'],
-        ].map(([label, desc]) => (
+        {steps.map(([label, desc]) => (
           <div key={label} className="flex gap-3 p-3 bg-bg-base rounded-lg border border-border">
             <span className="text-accent mt-0.5 flex-shrink-0">→</span>
             <div>
@@ -170,25 +218,19 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
 
 // ── Step: Server Profile ──────────────────────────────────────────────────────
 
-const TIMEZONES = [
-  'UTC', 'Europe/London', 'Europe/Amsterdam', 'Europe/Paris', 'Europe/Berlin',
-  'America/New_York', 'America/Chicago', 'America/Los_Angeles',
-  'Asia/Tehran', 'Asia/Dubai', 'Asia/Tokyo', 'Asia/Singapore',
-  'Australia/Sydney',
-]
-
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'IRR', 'AED', 'JPY', 'CAD', 'AUD', 'CHF']
-
 function ServerProfileStep({
   onNext, onBack,
 }: { onNext: () => void; onBack: () => void }) {
   const [domain, setDomain] = useState('')
-  const [port, setPort] = useState('8085')
-  const [environment, setEnvironment] = useState('beta')
   const [timezone, setTimezone] = useState('UTC')
+  const [tzSearch, setTzSearch] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const filteredTimezones = tzSearch.trim()
+    ? ALL_TIMEZONES.filter(tz => tz.toLowerCase().includes(tzSearch.toLowerCase()))
+    : ALL_TIMEZONES
 
   async function handleSubmit() {
     setError(null)
@@ -196,8 +238,6 @@ function ServerProfileStep({
     try {
       const body: ServerProfilePayload = {
         domain: domain.trim() || 'localhost',
-        port: parseInt(port, 10) || 8085,
-        environment,
         timezone,
         currency,
       }
@@ -231,44 +271,32 @@ function ServerProfileStep({
           placeholder="yourdomain.com or localhost"
           hint="The domain where FlowHub is accessible. Used in links and notifications."
         />
-        <Field
-          id="sp-port"
-          label="Port"
-          type="number"
-          value={port}
-          onChange={setPort}
-          placeholder="8085"
-          hint="The port FlowHub listens on (default: 8085)."
-        />
-        <div>
-          <label htmlFor="sp-env" className="block text-[13px] font-medium text-text-base mb-1.5">
-            Environment
-          </label>
-          <select
-            id="sp-env"
-            value={environment}
-            onChange={e => setEnvironment(e.target.value)}
-            disabled={loading}
-            className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent"
-          >
-            <option value="beta">Beta</option>
-            <option value="staging">Staging</option>
-            <option value="production">Production</option>
-          </select>
+        <div className="p-3 bg-bg-base border border-border rounded-lg text-[12px] text-wp-muted">
+          <span className="font-medium text-text-base">Environment:</span> Beta
         </div>
         <div>
           <label htmlFor="sp-tz" className="block text-[13px] font-medium text-text-base mb-1.5">
             Timezone
           </label>
+          <input
+            type="text"
+            placeholder="Search timezones…"
+            value={tzSearch}
+            onChange={e => setTzSearch(e.target.value)}
+            disabled={loading}
+            className="w-full mb-1.5 border border-border rounded-lg px-3 py-1.5 text-[13px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60"
+          />
           <select
             id="sp-tz"
             value={timezone}
             onChange={e => setTimezone(e.target.value)}
             disabled={loading}
+            size={5}
             className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent"
           >
-            {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+            {filteredTimezones.map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </select>
+          {timezone && <p className="mt-1 text-[11.5px] text-wp-muted">Selected: {timezone}</p>}
         </div>
         <div>
           <label htmlFor="sp-cur" className="block text-[13px] font-medium text-text-base mb-1.5">
@@ -281,7 +309,7 @@ function ServerProfileStep({
             disabled={loading}
             className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent"
           >
-            {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
       </div>
@@ -323,6 +351,10 @@ function DatabaseStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
       subtitle="Verify your database connection and migration status."
     >
       {error && <ErrorBanner message={error} />}
+
+      <div className="mb-4 p-3 bg-[#eff6ff] border border-[#4880FF]/20 rounded-lg text-[12px] text-[#1e40af]">
+        The database is configured and managed by the installer. This step only verifies the connection and migrations.
+      </div>
 
       {!checked && (
         <div className="mb-4 p-4 bg-bg-base border border-border rounded-lg text-[13px] text-wp-muted">
@@ -390,7 +422,7 @@ function StatusRow({
   )
 }
 
-// ── Step: Administrator ───────────────────────────────────────────────────────
+// ── Step: Administrator (recovery mode only) ──────────────────────────────────
 
 function AdminStep({
   onNext, onBack,
@@ -432,7 +464,7 @@ function AdminStep({
   return (
     <StepCard
       title="Administrator Account"
-      subtitle="Create the first administrator. You will use these credentials to sign in."
+      subtitle="No admin account was found. Create the first administrator to continue."
     >
       {error && <ErrorBanner message={error} />}
       <form onSubmit={e => { void handleSubmit(e) }} className="space-y-4">
@@ -492,10 +524,7 @@ function IntegrationsStep({
   const [ncResult, setNcResult] = useState<ConnectionTestResponse | null>(null)
   const [ncLoading, setNcLoading] = useState(false)
 
-  // Expand integrations forms
   const [configureNow, setConfigureNow] = useState(false)
-
-  // Finish Setup
   const [finishError, setFinishError] = useState<string | null>(null)
   const [finishLoading, setFinishLoading] = useState(false)
 
@@ -681,7 +710,7 @@ function CompleteStep({ onDone }: { onDone: () => void }) {
         </div>
         <h3 className="text-[16px] font-bold text-text-base mb-2">FlowHub is ready</h3>
         <p className="text-[13px] text-wp-muted mb-6">
-          Setup is complete. You can now sign in with your administrator account.
+          Setup is complete. Sign in with the administrator account created during installation.
           Integrations and additional settings can be configured from the Settings page.
         </p>
         <button
@@ -700,22 +729,49 @@ function CompleteStep({ onDone }: { onDone: () => void }) {
 
 export default function Setup({ onComplete }: SetupProps) {
   const [step, setStep] = useState<Step>('welcome')
-  // Admin token stored so integrations step can optionally use it later
-  const [, setAdminToken] = useState<string | null>(null)
+  const [hasAdmin, setHasAdmin] = useState(true)
+  const [statusChecked, setStatusChecked] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/v2/setup/status')
+      .then(r => r.json() as Promise<SetupStatus>)
+      .then(d => {
+        setHasAdmin(d.has_admin)
+        setStatusChecked(true)
+      })
+      .catch(() => {
+        setHasAdmin(false)
+        setStatusChecked(true)
+      })
+  }, [])
+
+  const stepOrder = hasAdmin ? STEPS_NO_ADMIN : STEPS_WITH_ADMIN
+
+  function goNext() {
+    const idx = stepOrder.indexOf(step)
+    if (idx < stepOrder.length - 1) setStep(stepOrder[idx + 1])
+  }
+
+  function goBack() {
+    const idx = stepOrder.indexOf(step)
+    if (idx > 0) setStep(stepOrder[idx - 1])
+  }
 
   function handleAdminCreated(token: string, refreshToken: string) {
-    setAdminToken(token)
-    // Store tokens so the user is logged in after completing setup
     localStorage.setItem('wp_token', token)
     localStorage.setItem('wp_refresh_token', refreshToken)
-    setStep('integrations')
+    goNext()
   }
 
-  function handleSetupComplete() {
-    onComplete()
-  }
+  const stepIndex = stepOrder.indexOf(step)
 
-  const stepIndex = STEP_ORDER.indexOf(step)
+  if (!statusChecked) {
+    return (
+      <div className="min-h-screen bg-bg-base flex items-center justify-center">
+        <p className="text-[13px] text-wp-muted">Loading…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-bg-base flex items-center justify-center p-4">
@@ -724,42 +780,30 @@ export default function Setup({ onComplete }: SetupProps) {
         <div className="mb-6 text-center">
           <h1 className="text-[24px] font-bold text-text-base">FlowHub</h1>
           <p className="text-[13px] text-wp-muted mt-0.5">
-            {step === 'complete' ? 'Setup complete' : `Step ${stepIndex + 1} of ${STEP_ORDER.length - 1} — ${STEP_LABELS[step]}`}
+            {step === 'complete' ? 'Setup complete' : `Step ${stepIndex + 1} of ${stepOrder.length - 1} — ${STEP_LABELS[step]}`}
           </p>
         </div>
 
-        {step !== 'complete' && <StepDots current={step} />}
+        {step !== 'complete' && <StepDots current={step} steps={stepOrder} />}
 
         <div className="bg-bg-card border border-border rounded-card shadow-card p-7">
           {step === 'welcome' && (
-            <WelcomeStep onNext={() => setStep('server-profile')} />
+            <WelcomeStep onNext={goNext} hasAdmin={hasAdmin} />
           )}
           {step === 'server-profile' && (
-            <ServerProfileStep
-              onNext={() => setStep('database')}
-              onBack={() => setStep('welcome')}
-            />
+            <ServerProfileStep onNext={goNext} onBack={goBack} />
           )}
           {step === 'database' && (
-            <DatabaseStep
-              onNext={() => setStep('admin')}
-              onBack={() => setStep('server-profile')}
-            />
+            <DatabaseStep onNext={goNext} onBack={goBack} />
           )}
           {step === 'admin' && (
-            <AdminStep
-              onNext={handleAdminCreated}
-              onBack={() => setStep('database')}
-            />
+            <AdminStep onNext={handleAdminCreated} onBack={goBack} />
           )}
           {step === 'integrations' && (
-            <IntegrationsStep
-              onNext={() => setStep('complete')}
-              onBack={() => setStep('admin')}
-            />
+            <IntegrationsStep onNext={goNext} onBack={goBack} />
           )}
           {step === 'complete' && (
-            <CompleteStep onDone={handleSetupComplete} />
+            <CompleteStep onDone={onComplete} />
           )}
         </div>
       </div>

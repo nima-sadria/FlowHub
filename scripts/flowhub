@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# FlowHub Beta — management CLI wrapper
+#
+# Installed to /usr/local/bin/flowhub by installer/install.sh
+# Source: scripts/flowhub  (tracked in git)
+#
+# Usage:
+#   flowhub                   -- interactive management menu
+#   flowhub status            -- configuration status
+#   flowhub health            -- local health checks
+#   flowhub diagnostics run   -- integration health check
+#   flowhub --help            -- full command list
+
+INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-/opt/flowhub}"
+
+if [[ ! -d "$INSTALL_DIR" ]]; then
+    echo "ERROR: FlowHub installation directory not found: ${INSTALL_DIR}" >&2
+    echo "Set FLOWHUB_INSTALL_DIR if installed to a non-default path." >&2
+    exit 1
+fi
+
+cd "$INSTALL_DIR"
+exec python3 -m cli.main "$@"

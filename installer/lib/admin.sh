@@ -6,9 +6,9 @@
 #     (call after wait_for_postgres_ready + run_alembic_migrations)
 #   - BETA_* env exported (call _load_env_for_docker first)
 #
-# Creates the initial admin user by invoking the create-admin CLI inside the
-# running app container. The password is auto-generated, printed once to the
-# terminal, and written to logs/admin-credentials.txt (mode 600).
+# Uses BETA_ADMIN_USERNAME, BETA_ADMIN_EMAIL, BETA_ADMIN_PASSWORD from the
+# installer wizard. In non-interactive mode, the password is auto-generated
+# and saved to logs/admin-credentials.txt (mode 600).
 #
 # Idempotent: if the admin user already exists the CLI exits non-zero and this
 # function reports that without failing the install.
@@ -19,7 +19,7 @@ create_admin_account() {
     local install_dir="$1"
     local compose_file="${install_dir}/docker-compose.beta.yml"
     local env_file="${install_dir}/.env.beta"
-    local username="${FLOWHUB_ADMIN_USERNAME:-admin}"
+    local username="${BETA_ADMIN_USERNAME:-admin}"
     local dc_cmd
 
     if docker compose version &>/dev/null 2>&1; then
@@ -31,30 +31,40 @@ create_admin_account() {
         return 1
     fi
 
-    # Generate a strong, shell-safe random password (160-bit hex).
-    local password
-    password="$(openssl rand -hex 20 2>/dev/null \
-        || python3 -c 'import secrets; print(secrets.token_hex(20))')"
+    # Use password from wizard if available; otherwise auto-generate.
+    local password auto_generated=0
+    if [[ -n "${BETA_ADMIN_PASSWORD:-}" ]]; then
+        password="$BETA_ADMIN_PASSWORD"
+    else
+        password="$(openssl rand -hex 20 2>/dev/null \
+            || python3 -c 'import secrets; print(secrets.token_hex(20))')"
+        auto_generated=1
+    fi
 
-    echo "  Creating initial admin user '${username}'..."
+    echo "  Creating admin user '${username}'..."
 
     # The create-admin CLI reads BETA_DATABASE_URL from the container env.
     if ${dc_cmd} --project-directory "$install_dir" -f "$compose_file" --env-file "$env_file" \
             exec -T app python -m cli.main create-admin \
             --username "$username" --password "$password"; then
-        echo ""
-        echo "  ===================================================================="
-        echo "  Admin account created."
-        echo "    Username: ${username}"
-        echo "    Password: ${password}"
-        echo "  Store this password now — it is shown only once."
-        echo "  ===================================================================="
 
-        # Best-effort: persist credentials to a 0600 file for the operator.
-        local logf="${install_dir}/logs/admin-credentials.txt"
-        if printf 'username=%s\npassword=%s\n' "$username" "$password" > "$logf" 2>/dev/null; then
-            chmod 600 "$logf" 2>/dev/null || true
-            echo "  Saved to: ${logf} (mode 600)"
+        if [[ "$auto_generated" -eq 1 ]]; then
+            echo ""
+            echo "  ===================================================================="
+            echo "  Admin account created (auto-generated password)."
+            echo "    Username: ${username}"
+            echo "    Password: ${password}"
+            echo "  Store this password now — it is shown only once."
+            echo "  ===================================================================="
+            local logf="${install_dir}/logs/admin-credentials.txt"
+            if printf 'username=%s\npassword=%s\n' "$username" "$password" > "$logf" 2>/dev/null; then
+                chmod 600 "$logf" 2>/dev/null || true
+                echo "  Saved to: ${logf} (mode 600)"
+            fi
+        else
+            echo "  Admin account created."
+            echo "    Username : ${username}"
+            echo "    Email    : ${BETA_ADMIN_EMAIL:-}"
         fi
         return 0
     fi

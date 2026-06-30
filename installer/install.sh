@@ -324,8 +324,8 @@ apply_noninteractive_defaults() {
     : "${BETA_DOMAIN:=localhost}"
     : "${BETA_PORT:=8085}"
     : "${BETA_SSL_MODE:=off}"
-    : "${BETA_POSTGRES_DB:=wooprice_beta}"
-    : "${BETA_POSTGRES_USER:=wooprice_beta}"
+    : "${BETA_POSTGRES_DB:=flowhub}"
+    : "${BETA_POSTGRES_USER:=flowhub}"
     : "${BETA_NEXTCLOUD_URL:=}"
     : "${BETA_NEXTCLOUD_FILE_PATH:=}"
     : "${BETA_NEXTCLOUD_USERNAME:=}"
@@ -335,13 +335,15 @@ apply_noninteractive_defaults() {
     : "${BETA_WOOCOMMERCE_SECRET:=}"
     : "${BETA_TIMEZONE:=UTC}"
     : "${BETA_CURRENCY:=USD}"
+    : "${BETA_ADMIN_USERNAME:=admin}"
     : "${BETA_ADMIN_EMAIL:=admin@example.com}"
     : "${BETA_STORAGE_PATH:=${INSTALL_DIR}/storage}"
     : "${BETA_BACKUP_PATH:=${INSTALL_DIR}/backups}"
     export BETA_DOMAIN BETA_PORT BETA_SSL_MODE BETA_POSTGRES_DB BETA_POSTGRES_USER \
         BETA_NEXTCLOUD_URL BETA_NEXTCLOUD_FILE_PATH BETA_NEXTCLOUD_USERNAME BETA_NEXTCLOUD_PASSWORD \
         BETA_WOOCOMMERCE_URL BETA_WOOCOMMERCE_KEY BETA_WOOCOMMERCE_SECRET \
-        BETA_TIMEZONE BETA_CURRENCY BETA_ADMIN_EMAIL BETA_STORAGE_PATH BETA_BACKUP_PATH
+        BETA_TIMEZONE BETA_CURRENCY BETA_ADMIN_USERNAME BETA_ADMIN_EMAIL \
+        BETA_STORAGE_PATH BETA_BACKUP_PATH
     echo "  Non-interactive defaults applied (domain=${BETA_DOMAIN}, port=${BETA_PORT}, db=${BETA_POSTGRES_DB})."
 }
 
@@ -413,20 +415,16 @@ handle_existing_installation() {
     echo ""
     echo "  Select an action:"
     echo ""
-    echo "  1. Upgrade    — rebuild images and restart the stack (keeps .env.beta)"
-    echo "  2. Repair     — re-run prerequisite checks and health verification"
-    echo "  3. Reconfigure — re-run wizard, regenerate .env.beta, then upgrade"
-    echo "  4. Uninstall  — remove FlowHub containers, images, volumes, and files"
-    echo "  5. Exit"
+    echo "  1. Repair     — re-run prerequisite checks and health verification"
+    echo "  2. Uninstall  — remove FlowHub containers, images, volumes, and files"
+    echo "  3. Exit"
     echo ""
     local choice
-    read -r -p "  Enter choice [1-5]: " choice
+    read -r -p "  Enter choice [1-3]: " choice
     case "${choice:-}" in
-        1) step_upgrade ;;
-        2) step_repair ;;
-        3) step_reconfigure ;;
-        4) step_uninstall ;;
-        5|"")
+        1) step_repair ;;
+        2) step_uninstall ;;
+        3|"")
             echo "  Exiting without changes."
             exit 0
             ;;
@@ -463,11 +461,45 @@ step_repair() {
     echo "  Repair: re-checking prerequisites and health"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     _load_env_for_docker
+
+    # Verify .env.beta exists
+    if [[ ! -f "${INSTALLER_ENV_FILE}" ]]; then
+        echo "  ERROR: ${INSTALLER_ENV_FILE} not found. Cannot repair without environment file." >&2
+        echo "  Run a fresh install instead: bash installer/install.sh" >&2
+        return 1
+    fi
+    echo "  Environment file: ${INSTALLER_ENV_FILE} [OK]"
+
     step_prerequisites
-    step_storage
+
+    # Verify Docker Compose stack is reachable
+    local compose_file="${INSTALL_DIR}/docker-compose.beta.yml"
+    if [[ -f "$compose_file" ]]; then
+        local dc_cmd
+        if docker compose version &>/dev/null 2>&1; then dc_cmd="docker compose"
+        else dc_cmd="docker-compose"; fi
+        echo ""
+        echo "  Checking container status..."
+        ${dc_cmd} --project-directory "$INSTALL_DIR" -f "$compose_file" --env-file "${INSTALLER_ENV_FILE}" ps 2>/dev/null || true
+    fi
+
+    step_database_init
     step_health_check
+
     echo ""
+    _load_env_for_docker
+    local port="${BETA_PORT:-8085}"
+    local domain="${BETA_DOMAIN:-localhost}"
+    local ssl_mode="${BETA_SSL_MODE:-off}"
+    local public_url
+    public_url="$(_build_public_url "$domain" "$port" "$ssl_mode")"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  Repair complete."
+    echo ""
+    echo "  FlowHub is available at: ${public_url}"
+    echo "  Setup wizard:            ${public_url}/setup"
+    echo "  Sign in:                 ${public_url}/login"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 }
 
 # ---- Reconfigure path ----
@@ -519,8 +551,10 @@ step_prerequisites() {
 step_wizard() {
     if [[ "$NON_INTERACTIVE" -eq 0 ]]; then
         echo ""
-        echo "Step 2 — Interactive Configuration Wizard"
+        echo "Step 2 — Admin Account Setup"
         run_wizard
+        # Fill remaining BETA_* defaults not asked by the wizard
+        apply_noninteractive_defaults
     else
         echo ""
         echo "Step 2 — Non-interactive configuration (applying defaults)"
@@ -664,7 +698,7 @@ step_install_cli() {
         echo "  [DRY RUN] Would install: /usr/local/bin/flowhub"
         return
     fi
-    local wrapper_src="${REPO_DIR}/scripts/wooprice"
+    local wrapper_src="${REPO_DIR}/scripts/flowhub"
     local wrapper_dst="/usr/local/bin/flowhub"
     if [[ ! -f "$wrapper_src" ]]; then
         echo "  WARNING: CLI wrapper not found at ${wrapper_src} — skipping" >&2
@@ -744,10 +778,12 @@ step_completion_report() {
         echo "  │    ${public_url}/setup"
         echo "  │                                                     │"
         echo "  │  The web wizard will guide you through:             │"
-        echo "  │    • Server profile (timezone, currency)            │"
+        echo "  │    • Server profile (domain, timezone, currency)    │"
         echo "  │    • Database verification                          │"
-        echo "  │    • Administrator account creation                 │"
         echo "  │    • WooCommerce and Nextcloud connections          │"
+        echo "  │                                                     │"
+        echo "  │  Admin username: ${BETA_ADMIN_USERNAME:-admin}"
+        echo "  │  Sign in at:     ${public_url}/login"
         echo "  └─────────────────────────────────────────────────────┘"
         echo ""
         echo "  Public URL:           ${public_url}"
@@ -786,8 +822,8 @@ main() {
     # avoid silently overwriting secrets without confirmation.
     if detect_existing_installation && [[ "$DRY_RUN" -eq 0 ]]; then
         if [[ "$NON_INTERACTIVE" -eq 1 ]]; then
-            echo "  Existing installation detected. Running upgrade (non-interactive mode)."
-            step_upgrade
+            echo "  Existing installation detected. Running repair (non-interactive mode)."
+            step_repair
             return
         fi
         handle_existing_installation

@@ -16,12 +16,13 @@ export interface AuthMeResponse {
 
 export interface SetupStatus {
   completed: boolean
+  has_admin: boolean
 }
 
 export interface ServerProfilePayload {
   domain: string
-  port: number
-  environment: string
+  port?: number
+  environment?: string
   timezone: string
   currency: string
 }

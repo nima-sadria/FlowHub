@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WooPrice Beta — Prerequisite checks (B4 Installer Foundation)
+# FlowHub Beta — Prerequisite checks
 #
 # Source this file from install.sh. Call run_prerequisite_checks().
 # Prints PASS/FAIL for each check. Returns 1 if any check fails.
