@@ -10,7 +10,6 @@ Routes:
 
 from __future__ import annotations
 
-import httpx
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import text

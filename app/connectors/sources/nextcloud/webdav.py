@@ -196,8 +196,32 @@ async def get_file(creds: NextcloudCredentials, path: str) -> tuple[bytes, dict]
         "etag": r.headers.get("etag", "").strip('"'),
         "last_modified": r.headers.get("last-modified", ""),
         "content_type": r.headers.get("content-type", ""),
+        "content_length": r.headers.get("content-length", ""),
     }
     return r.content, meta
+
+
+async def head_file(creds: NextcloudCredentials, path: str) -> dict:
+    """HEAD request for lightweight file metadata.
+
+    Returns dict with etag/last_modified/content_length keys.
+    Never raises — returns dict of None values on any error.
+    """
+    url = _dav_base(creds) + path
+    try:
+        async with httpx.AsyncClient(auth=_auth(creds), follow_redirects=True) as client:
+            r = await client.head(url, timeout=_TIMEOUT)
+    except (httpx.TimeoutException, httpx.ConnectError):
+        return {"etag": None, "last_modified": None, "content_length": None}
+
+    if r.status_code != 200:
+        return {"etag": None, "last_modified": None, "content_length": None}
+
+    return {
+        "etag": r.headers.get("etag", "").strip('"') or None,
+        "last_modified": r.headers.get("last-modified") or None,
+        "content_length": r.headers.get("content-length") or None,
+    }
 
 
 async def get_metadata(creds: NextcloudCredentials, path: str) -> dict:

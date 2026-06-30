@@ -22,7 +22,6 @@ from __future__ import annotations
 import re
 from datetime import datetime, timedelta, timezone
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from sqlalchemy import text
@@ -35,6 +34,9 @@ from app.beta.auth.refresh_token import generate_refresh_token, hash_refresh_tok
 from app.beta.auth.repository import create_audit_event, store_refresh_token
 from app.beta.database import get_db
 from app.beta.setup.service import AppConfigService
+from app.connectors.common.auth import AuthConfig
+from app.connectors.destinations.woocommerce.connector import WooCommerceConnector
+from app.connectors.sources.nextcloud.connector import NextcloudConnector
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 
@@ -339,49 +341,20 @@ async def setup_complete(db: Session = Depends(get_db)) -> dict:
 # ── Connection test helpers ───────────────────────────────────────────────────
 
 async def _test_woocommerce(url: str, key: str, secret: str) -> dict:
-    try:
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            r = await client.get(
-                f"{url}/wp-json/wc/v3/products",
-                params={"per_page": "1"},
-                auth=(key, secret),
-            )
-        if r.status_code == 200:
-            return {"ok": True, "message": "Connected successfully"}
-        if r.status_code == 401:
-            return {"ok": False, "message": "Authentication failed — check your consumer key and secret"}
-        if r.status_code == 403:
-            return {"ok": False, "message": "Access denied — ensure the API key has read permissions"}
-        if r.status_code == 404:
-            return {"ok": False, "message": "WooCommerce REST API not found — verify the store URL and that WooCommerce is installed"}
-        return {"ok": False, "message": f"Unexpected response: HTTP {r.status_code}"}
-    except httpx.ConnectError:
-        return {"ok": False, "message": "Could not connect — check the URL and that the store is reachable"}
-    except httpx.TimeoutException:
-        return {"ok": False, "message": "Connection timed out — the store may be slow or unreachable"}
-    except Exception as exc:
-        return {"ok": False, "message": f"Connection error: {str(exc)[:200]}"}
+    auth = AuthConfig(
+        auth_type="api_key",
+        credentials={"url": url, "key": key, "secret": secret},
+    )
+    connector = WooCommerceConnector()
+    result = await connector.test_connection(auth)
+    return {"ok": result.ok, "message": result.message}
 
 
 async def _test_nextcloud(url: str, username: str, password: str) -> dict:
-    try:
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            r = await client.request(
-                "PROPFIND",
-                f"{url}/remote.php/dav/files/{username}/",
-                auth=(username, password),
-                headers={"Depth": "0"},
-            )
-        if r.status_code in (200, 207):
-            return {"ok": True, "message": "Connected successfully"}
-        if r.status_code == 401:
-            return {"ok": False, "message": "Authentication failed — check your username and app password"}
-        if r.status_code == 404:
-            return {"ok": False, "message": "User not found or WebDAV is disabled on this Nextcloud instance"}
-        return {"ok": False, "message": f"Unexpected response: HTTP {r.status_code}"}
-    except httpx.ConnectError:
-        return {"ok": False, "message": "Could not connect — check the URL and that Nextcloud is reachable"}
-    except httpx.TimeoutException:
-        return {"ok": False, "message": "Connection timed out — Nextcloud may be slow or unreachable"}
-    except Exception as exc:
-        return {"ok": False, "message": f"Connection error: {str(exc)[:200]}"}
+    auth = AuthConfig(
+        auth_type="basic",
+        credentials={"url": url, "username": username, "password": password},
+    )
+    connector = NextcloudConnector()
+    result = await connector.test_connection(auth)
+    return {"ok": result.ok, "message": result.message}

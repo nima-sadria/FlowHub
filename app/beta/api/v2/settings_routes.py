@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import re
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
@@ -28,6 +27,9 @@ from app.beta.auth.models import BetaUser
 from app.beta.auth.repository import create_audit_event
 from app.beta.database import get_db
 from app.beta.setup.service import AppConfigService
+from app.connectors.common.auth import AuthConfig
+from app.connectors.destinations.woocommerce.connector import WooCommerceConnector
+from app.connectors.sources.nextcloud.connector import NextcloudConnector
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -238,49 +240,20 @@ async def update_nextcloud(
 # ── Connection test helpers ───────────────────────────────────────────────────
 
 async def _test_woocommerce_connection(url: str, key: str, secret: str) -> dict:
-    try:
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            r = await client.get(
-                f"{url}/wp-json/wc/v3/products",
-                params={"per_page": "1"},
-                auth=(key, secret),
-            )
-        if r.status_code == 200:
-            return {"ok": True, "message": "Connected successfully"}
-        if r.status_code == 401:
-            return {"ok": False, "message": "Authentication failed — check consumer key and secret"}
-        if r.status_code == 403:
-            return {"ok": False, "message": "Access denied — ensure the API key has read permissions"}
-        if r.status_code == 404:
-            return {"ok": False, "message": "WooCommerce REST API not found — verify the store URL"}
-        return {"ok": False, "message": f"Unexpected HTTP {r.status_code}"}
-    except httpx.ConnectError:
-        return {"ok": False, "message": "Could not connect — check the URL"}
-    except httpx.TimeoutException:
-        return {"ok": False, "message": "Connection timed out"}
-    except Exception as exc:
-        return {"ok": False, "message": f"Error: {str(exc)[:200]}"}
+    auth = AuthConfig(
+        auth_type="api_key",
+        credentials={"url": url, "key": key, "secret": secret},
+    )
+    connector = WooCommerceConnector()
+    result = await connector.test_connection(auth)
+    return {"ok": result.ok, "message": result.message}
 
 
 async def _test_nextcloud_connection(url: str, username: str, password: str) -> dict:
-    try:
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            r = await client.request(
-                "PROPFIND",
-                f"{url}/remote.php/dav/files/{username}/",
-                auth=(username, password),
-                headers={"Depth": "0"},
-            )
-        if r.status_code in (200, 207):
-            return {"ok": True, "message": "Connected successfully"}
-        if r.status_code == 401:
-            return {"ok": False, "message": "Authentication failed — check username and app password"}
-        if r.status_code == 404:
-            return {"ok": False, "message": "User not found or WebDAV is disabled"}
-        return {"ok": False, "message": f"Unexpected HTTP {r.status_code}"}
-    except httpx.ConnectError:
-        return {"ok": False, "message": "Could not connect — check the URL"}
-    except httpx.TimeoutException:
-        return {"ok": False, "message": "Connection timed out"}
-    except Exception as exc:
-        return {"ok": False, "message": f"Error: {str(exc)[:200]}"}
+    auth = AuthConfig(
+        auth_type="basic",
+        credentials={"url": url, "username": username, "password": password},
+    )
+    connector = NextcloudConnector()
+    result = await connector.test_connection(auth)
+    return {"ok": result.ok, "message": result.message}
