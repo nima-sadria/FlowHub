@@ -28,6 +28,12 @@ export default {
       boxShadow: {
         card: '0 1px 4px rgba(0,0,0,.06)',
       },
+      transitionTimingFunction: {
+        DEFAULT: 'cubic-bezier(0.4, 0, 0.6, 1)',
+      },
+      transitionDuration: {
+        DEFAULT: '320ms',
+      },
     },
   },
   plugins: [],

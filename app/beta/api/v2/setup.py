@@ -220,10 +220,18 @@ async def setup_database(db: Session = Depends(get_db)) -> dict:
     except Exception:
         pass
 
+    database_name: str | None = None
+    try:
+        row = db.execute(text("SELECT current_database()")).fetchone()
+        database_name = row[0] if row else None
+    except Exception:
+        pass
+
     return {
         "connected": connected,
         "migration_version": migration_version,
         "migrations_current": migration_version == "beta_004",
+        "database_name": database_name,
         "error": error,
     }
 

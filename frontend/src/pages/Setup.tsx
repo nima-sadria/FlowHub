@@ -67,7 +67,104 @@ const CURRENCIES = [
   { value: 'CHF', label: 'CHF — Swiss Franc' },
 ]
 
+const TZ_OPTIONS = ALL_TIMEZONES.map(tz => ({ value: tz, label: tz }))
+
 // ── Shared UI helpers ─────────────────────────────────────────────────────────
+
+function AppleSpinner({ size = 18 }: { size?: number }) {
+  const half = size / 2
+  const spokeH = Math.max(4, Math.round(size * 0.33))
+  const spokeW = Math.max(2, Math.round(size * 0.11))
+  return (
+    <span
+      aria-hidden="true"
+      style={{ position: 'relative', display: 'inline-block', width: size, height: size, flexShrink: 0 }}
+    >
+      {Array.from({ length: 12 }, (_, i) => (
+        <span
+          key={i}
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            width: spokeW,
+            height: spokeH,
+            marginLeft: -spokeW / 2,
+            marginTop: -half,
+            borderRadius: spokeW / 2,
+            background: 'currentColor',
+            transformOrigin: `${spokeW / 2}px ${half}px`,
+            transform: `rotate(${i * 30}deg)`,
+            animation: 'apple-spoke 1.2s linear infinite',
+            animationDelay: `${(i * 0.1 - 1.2).toFixed(1)}s`,
+          }}
+        />
+      ))}
+    </span>
+  )
+}
+
+function SearchableListbox({
+  id, label, options, value, onChange, disabled, placeholder,
+}: {
+  id?: string
+  label: string
+  options: { value: string; label: string }[]
+  value: string
+  onChange: (v: string) => void
+  disabled?: boolean
+  placeholder?: string
+}) {
+  const [search, setSearch] = useState('')
+  const q = search.trim().toLowerCase()
+  const filtered = q
+    ? options.filter(o => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q))
+    : options
+  const selectedLabel = options.find(o => o.value === value)?.label ?? value
+
+  return (
+    <div>
+      <label className="block text-[13px] font-medium text-text-base mb-1.5">{label}</label>
+      <input
+        type="text"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder={placeholder ?? `Search ${label.toLowerCase()}…`}
+        disabled={disabled}
+        autoComplete="off"
+        className="w-full mb-1.5 border border-border rounded-lg px-3 py-1.5 text-[13px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60"
+      />
+      <div
+        id={id}
+        role="listbox"
+        aria-label={label}
+        className="max-h-40 overflow-y-auto border border-border rounded-lg"
+      >
+        {filtered.length === 0 ? (
+          <div className="px-3 py-2 text-[13px] text-wp-muted">No matches</div>
+        ) : filtered.map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            role="option"
+            aria-selected={opt.value === value}
+            onClick={() => { onChange(opt.value); setSearch('') }}
+            disabled={disabled}
+            className={[
+              'w-full text-left px-3 py-2 text-[13px] leading-snug',
+              opt.value === value
+                ? 'bg-accent text-white font-medium'
+                : 'bg-bg-base text-text-base hover:bg-border',
+            ].join(' ')}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1 text-[11.5px] text-wp-muted">Selected: {selectedLabel}</p>
+    </div>
+  )
+}
 
 function Field({
   id, label, type = 'text', value, onChange, placeholder, required = false, disabled = false, hint,
@@ -158,9 +255,9 @@ function NavButtons({
         type={onNext ? 'button' : 'submit'}
         onClick={onNext}
         disabled={loading || nextDisabled}
-        className="flex-1 bg-accent text-white py-2 rounded-lg text-[14px] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex-1 bg-accent text-white py-2 rounded-lg text-[14px] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
-        {loading ? 'Please wait…' : nextLabel}
+        {loading ? <><AppleSpinner size={16} /> Please wait</> : nextLabel}
       </button>
     </div>
   )
@@ -223,14 +320,9 @@ function ServerProfileStep({
 }: { onNext: () => void; onBack: () => void }) {
   const [domain, setDomain] = useState('')
   const [timezone, setTimezone] = useState('UTC')
-  const [tzSearch, setTzSearch] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-
-  const filteredTimezones = tzSearch.trim()
-    ? ALL_TIMEZONES.filter(tz => tz.toLowerCase().includes(tzSearch.toLowerCase()))
-    : ALL_TIMEZONES
 
   async function handleSubmit() {
     setError(null)
@@ -270,48 +362,26 @@ function ServerProfileStep({
           onChange={setDomain}
           placeholder="yourdomain.com or localhost"
           hint="The domain where FlowHub is accessible. Used in links and notifications."
+          disabled={loading}
         />
-        <div className="p-3 bg-bg-base border border-border rounded-lg text-[12px] text-wp-muted">
-          <span className="font-medium text-text-base">Environment:</span> Beta
-        </div>
-        <div>
-          <label htmlFor="sp-tz" className="block text-[13px] font-medium text-text-base mb-1.5">
-            Timezone
-          </label>
-          <input
-            type="text"
-            placeholder="Search timezones…"
-            value={tzSearch}
-            onChange={e => setTzSearch(e.target.value)}
-            disabled={loading}
-            className="w-full mb-1.5 border border-border rounded-lg px-3 py-1.5 text-[13px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60"
-          />
-          <select
-            id="sp-tz"
-            value={timezone}
-            onChange={e => setTimezone(e.target.value)}
-            disabled={loading}
-            size={5}
-            className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent"
-          >
-            {filteredTimezones.map(tz => <option key={tz} value={tz}>{tz}</option>)}
-          </select>
-          {timezone && <p className="mt-1 text-[11.5px] text-wp-muted">Selected: {timezone}</p>}
-        </div>
-        <div>
-          <label htmlFor="sp-cur" className="block text-[13px] font-medium text-text-base mb-1.5">
-            Currency
-          </label>
-          <select
-            id="sp-cur"
-            value={currency}
-            onChange={e => setCurrency(e.target.value)}
-            disabled={loading}
-            className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent"
-          >
-            {CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
-        </div>
+        <SearchableListbox
+          id="sp-tz"
+          label="Timezone"
+          options={TZ_OPTIONS}
+          value={timezone}
+          onChange={setTimezone}
+          disabled={loading}
+          placeholder="Search timezones… (e.g. Tehran, London, UTC)"
+        />
+        <SearchableListbox
+          id="sp-cur"
+          label="Currency"
+          options={CURRENCIES}
+          value={currency}
+          onChange={setCurrency}
+          disabled={loading}
+          placeholder="Search currencies… (e.g. USD, IRR)"
+        />
       </div>
       <NavButtons onBack={onBack} onNext={handleSubmit} loading={loading} />
     </StepCard>
@@ -364,24 +434,33 @@ function DatabaseStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
 
       {status && (
         <div className="space-y-2 mb-4">
+          {status.database_name && (
+            <div className="flex items-center justify-between p-3 bg-bg-base border border-border rounded-lg">
+              <span className="text-[13px] text-text-base">Database</span>
+              <span className="text-[12px] font-medium text-wp-muted font-mono">{status.database_name}</span>
+            </div>
+          )}
           <StatusRow
             label="Connection"
+            hint="Verifies the app can reach the database."
             ok={status.connected}
             okText="Connected"
             failText={status.error ?? 'Failed'}
           />
           <StatusRow
-            label="Migration version"
+            label="Schema version"
+            hint="The current database schema version."
             ok={!!status.migration_version}
             okText={status.migration_version ?? '—'}
             failText="Not available"
             neutral
           />
           <StatusRow
-            label="Migrations current"
+            label="Schema status"
+            hint="Confirms all schema updates have been applied."
             ok={status.migrations_current}
             okText="Up to date"
-            failText="Out of date"
+            failText="Needs update — re-run installer"
           />
         </div>
       )}
@@ -407,13 +486,16 @@ function DatabaseStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
 }
 
 function StatusRow({
-  label, ok, okText, failText, neutral = false,
-}: { label: string; ok: boolean; okText: string; failText: string; neutral?: boolean }) {
+  label, hint, ok, okText, failText, neutral = false,
+}: { label: string; hint?: string; ok: boolean; okText: string; failText: string; neutral?: boolean }) {
   return (
-    <div className="flex items-center justify-between p-3 bg-bg-base border border-border rounded-lg">
-      <span className="text-[13px] text-text-base">{label}</span>
+    <div className="flex items-start justify-between p-3 bg-bg-base border border-border rounded-lg gap-3">
+      <div>
+        <p className="text-[13px] text-text-base leading-tight">{label}</p>
+        {hint && <p className="text-[11px] text-wp-muted mt-0.5">{hint}</p>}
+      </div>
       <span className={[
-        'text-[12px] font-medium',
+        'text-[12px] font-medium flex-shrink-0 mt-0.5',
         neutral ? 'text-wp-muted' : ok ? 'text-wp-green' : 'text-wp-red',
       ].join(' ')}>
         {ok ? okText : failText}

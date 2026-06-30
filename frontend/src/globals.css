@@ -69,3 +69,31 @@
     }
   }
 }
+
+/* ── Apple-feel transitions ── */
+@keyframes apple-spoke {
+  0%   { opacity: 1; }
+  100% { opacity: 0.25; }
+}
+
+a,
+button,
+[role="option"],
+[role="button"] {
+  transition:
+    color 0.32s cubic-bezier(0.4, 0, 0.6, 1),
+    opacity 0.32s cubic-bezier(0.4, 0, 0.6, 1),
+    background-color 0.32s cubic-bezier(0.4, 0, 0.6, 1),
+    border-color 0.32s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+/* ── Reduced-motion override ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
