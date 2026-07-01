@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth'
-import { apiFetch, ApiError } from '../api/client'
+import { ApiError } from '../api/client'
 import { authFetch } from '../api/authFetch'
 import type { HealthResponse } from '../api/types'
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
+
+const REQUEST_TIMEOUT_MS = 10_000
 
 function relTime(d: Date): string {
   const s = Math.floor((Date.now() - d.getTime()) / 1000)
@@ -36,7 +38,7 @@ interface DiagnosticsStatusResponse {
 interface StatusRowData {
   label: string
   value: string
-  status: 'ok' | 'error' | 'loading' | 'pending'
+  status: 'ok' | 'warning' | 'error' | 'loading' | 'pending'
   detail?: string
 }
 
@@ -44,6 +46,7 @@ function normalizeStatus(status: string | undefined): StatusRowData['status'] {
   if (!status) return 'pending'
   const s = status.toLowerCase()
   if (['healthy', 'ok', 'connected', 'active'].includes(s)) return 'ok'
+  if (['warning', 'degraded', 'rate_limited'].includes(s)) return 'warning'
   if (['error', 'failed', 'authentication_failed', 'timeout'].includes(s)) return 'error'
   if (['disabled', 'unconfigured'].includes(s)) return 'pending'
   return 'pending'
@@ -57,15 +60,17 @@ function connectorHealth(connector: ConnectorStatus): string | undefined {
 function Row({ row }: { row: StatusRowData }) {
   const dot =
     row.status === 'ok'      ? 'bg-wp-green' :
+    row.status === 'warning' ? 'bg-wp-yellow' :
     row.status === 'error'   ? 'bg-wp-red' :
     row.status === 'loading' ? 'bg-wp-yellow animate-pulse' :
     'bg-border'
 
   const label =
-    row.status === 'ok'      ? 'OK' :
-    row.status === 'error'   ? 'Needs attention' :
-    row.status === 'loading' ? 'Checking...' :
-    'Not configured'
+    row.status === 'ok'      ? 'Operational' :
+    row.status === 'warning' ? 'Warning' :
+    row.status === 'error'   ? 'Error' :
+    row.status === 'loading' ? 'Loading' :
+    'Unable to check'
 
   return (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-border last:border-0">
@@ -84,6 +89,26 @@ function Row({ row }: { row: StatusRowData }) {
   )
 }
 
+async function fetchJsonWithTimeout<T>(
+  url: string,
+  fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
+): Promise<T> {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    const response = await fetchFn(url, { signal: controller.signal })
+    if (!response.ok) throw new ApiError(response.status, await response.text())
+    return await response.json() as T
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('request_timeout')
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 export default function Diagnostics() {
   const { authFetch: ctxAuthFetch } = useAuth()
   const { success, error: notifyError } = useNotification()
@@ -97,17 +122,20 @@ export default function Diagnostics() {
     setLoading(true)
     setErr(null)
     try {
-      const [healthData, diagResp] = await Promise.all([
-        apiFetch<HealthResponse>('/api/health', ctxAuthFetch),
-        authFetch('/api/v2/diagnostics/status'),
+      const [healthData, diagnosticsData] = await Promise.all([
+        fetchJsonWithTimeout<HealthResponse>('/api/health', ctxAuthFetch),
+        fetchJsonWithTimeout<DiagnosticsStatusResponse>('/api/v2/diagnostics/status', authFetch),
       ])
-      if (!diagResp.ok) throw new ApiError(diagResp.status, await diagResp.text())
       setHealth(healthData)
-      setDiag(await diagResp.json() as DiagnosticsStatusResponse)
+      setDiag(diagnosticsData)
       setCheckedAt(new Date())
       success('Diagnostics refreshed')
     } catch (e) {
-      const msg = e instanceof ApiError ? `Diagnostics unavailable (HTTP ${e.status})` : 'Failed to reach diagnostics'
+      const msg = e instanceof ApiError
+        ? `Diagnostics unavailable (HTTP ${e.status})`
+        : e instanceof Error && e.message === 'request_timeout'
+          ? 'Unable to check diagnostics. Request timed out.'
+          : 'Unable to check diagnostics.'
       setErr(msg)
       notifyError(msg)
     } finally {
@@ -122,13 +150,13 @@ export default function Diagnostics() {
   const systemRows: StatusRowData[] = [
     {
       label: 'Backend',
-      value: loading ? 'Checking...' : health ? 'Online' : 'Unavailable',
+      value: loading ? 'Loading' : health ? 'Online' : 'Unavailable',
       status: backendStatus,
       detail: health ? 'Application service is responding' : undefined,
     },
     {
       label: 'Diagnostics',
-      value: loading ? 'Checking...' : diag?.overall_status === 'error' ? 'Attention needed' : 'Ready',
+      value: loading ? 'Loading' : err ? 'Unable to check' : diag?.overall_status === 'error' ? 'Error' : 'Operational',
       status: loading ? 'loading' : normalizeStatus(diag?.overall_status ?? (err ? 'error' : 'ok')),
       detail: diag?.checkedAt ? `Last checked ${new Date(diag.checkedAt).toLocaleString()}` : undefined,
     },
@@ -140,7 +168,7 @@ export default function Diagnostics() {
         <div>
           <h1 className="text-[22px] font-bold text-text-base">Diagnostics</h1>
           <p className="text-[13px] text-wp-muted mt-0.5">
-            {checkedAt ? `Last checked ${relTime(checkedAt)}` : 'Checking...'}
+            {checkedAt ? `Last checked ${relTime(checkedAt)}` : loading ? 'Loading' : 'Unable to check'}
           </p>
         </div>
         <button
@@ -155,7 +183,7 @@ export default function Diagnostics() {
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
             </svg>
           )}
-          {loading ? 'Checking...' : 'Re-check'}
+          {loading ? 'Loading' : 'Re-check'}
         </button>
       </div>
 
@@ -174,7 +202,7 @@ export default function Diagnostics() {
         <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">Connectors</p>
         {loading && !diag ? (
           <div className="flex items-center gap-2 text-[13px] text-wp-muted py-2">
-            <Spinner size="sm" />Checking connectors...
+            <Spinner size="sm" />Loading connectors
           </div>
         ) : connectors.length === 0 ? (
           <Empty
@@ -199,10 +227,6 @@ export default function Diagnostics() {
 
       <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
         <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-2">About</p>
-        <p className="text-[13px] text-text-base">
-          <span className="text-wp-muted">Version: </span>
-          <span className="font-mono">{health?.version ?? '-'}</span>
-        </p>
         <p className="text-[13px] text-text-base mt-1">
           <span className="text-wp-muted">Status: </span>
           <span className="font-medium">{health?.status ?? '-'}</span>

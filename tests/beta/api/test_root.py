@@ -1,4 +1,6 @@
-"""Tests for the Beta root route GET /."""
+"""Tests for the FlowHub root route GET /."""
+
+import re
 
 from fastapi.testclient import TestClient
 
@@ -16,18 +18,16 @@ class TestRootRoute:
         response = client.get("/")
         assert "text/html" in response.headers["content-type"]
 
-    def test_root_contains_wooprice_beta(self):
+    def test_root_contains_flowhub(self):
         response = client.get("/")
-        assert "WooPrice Beta" in response.text
+        assert "FlowHub" in response.text
 
-    def test_root_contains_environment(self):
+    def test_root_does_not_show_release_stage_or_version(self):
         response = client.get("/")
-        assert "beta" in response.text
-
-    def test_root_contains_version(self):
-        response = client.get("/")
-        from app.beta.app import _VERSION
-        assert _VERSION in response.text
+        text = response.text.lower()
+        assert "beta" not in text
+        assert re.search(r"\bdev\b", text) is None
+        assert "version" not in text
 
     def test_root_contains_health_path(self):
         response = client.get("/")
@@ -55,4 +55,5 @@ class TestRootRoute:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
-        assert data["env"] == "beta"
+        assert data["env"] == "production"
+        assert data["version"] == "1.0.0"

@@ -184,7 +184,7 @@ export function AccessState({
   status: Exclude<AuthStatus, 'authenticated'>
   message?: string
 }) {
-  const title = status === 'permission_denied' ? 'Access Denied' : status === 'loading' ? 'Checking Access' : 'Login Required'
+  const title = status === 'permission_denied' ? 'Access Denied' : status === 'loading' ? 'Verifying Access' : 'Login Required'
   const body =
     message ??
     (status === 'permission_denied'

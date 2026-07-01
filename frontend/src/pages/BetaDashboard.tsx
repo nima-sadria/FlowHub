@@ -126,17 +126,17 @@ export default function BetaDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           label="Backend"
-          value={health ? 'Online' : healthLoading ? 'Checking...' : 'Unavailable'}
+          value={health ? 'Online' : healthLoading ? 'Loading' : 'Unavailable'}
           indicator={backendInd}
         />
         <StatCard
           label="Database"
-          value={backendInd === 'ok' ? 'Connected' : backendInd === 'loading' ? 'Checking…' : 'Unavailable'}
+          value={backendInd === 'ok' ? 'Connected' : backendInd === 'loading' ? 'Loading' : 'Unavailable'}
           indicator={backendInd}
         />
         <StatCard
           label="Application"
-          value={backendInd === 'ok' ? 'Running' : backendInd === 'loading' ? 'Checking…' : 'Unavailable'}
+          value={backendInd === 'ok' ? 'Running' : backendInd === 'loading' ? 'Loading' : 'Unavailable'}
           indicator={backendInd}
         />
       </div>

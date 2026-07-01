@@ -223,9 +223,8 @@ export default function Settings() {
             <button onClick={() => void fetchHealth()} className="text-[12px] text-accent hover:underline">Retry</button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <ReadOnlyField label="Version" value={`v${health?.version ?? '-'}`} />
-            <ReadOnlyField label="Environment" value={health?.env ?? '-'} />
             <ReadOnlyField label="Status" value={health?.status ?? '-'} />
           </div>
         )}

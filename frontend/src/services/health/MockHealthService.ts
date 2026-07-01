@@ -9,7 +9,7 @@ export class MockHealthService implements HealthService {
     return {
       status: 'ok',
       version: '1.0.0',
-      environment: 'beta',
+      environment: 'production',
       checkedAt: new Date(),
     }
   }

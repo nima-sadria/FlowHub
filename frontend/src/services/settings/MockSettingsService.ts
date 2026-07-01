@@ -10,7 +10,7 @@ const DEFAULTS: AppSettings = {
   syncIntervalMinutes: 60,
   timezone: 'UTC',
   currency: 'EUR',
-  environment: 'beta',
+  environment: 'production',
 }
 
 function loadSettings(): AppSettings {

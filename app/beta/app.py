@@ -1,4 +1,4 @@
-"""FlowHub Beta — FastAPI application entry point (BU5).
+"""FlowHub FastAPI application entry point.
 
 Deployment: uvicorn app.beta.app:app --host 0.0.0.0 --port 8085
 
@@ -40,6 +40,7 @@ Active routes:
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -61,7 +62,7 @@ from app.beta.api.v2.integrations import router as integrations_router
 from app.beta.api.v2.integration_platform import router as integration_platform_router
 from app.beta.api.v2.logging import router as logging_router
 
-_VERSION = "0.3.0-bu5"
+_VERSION = os.getenv("FLOWHUB_VERSION", "1.0.0")
 
 _FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
@@ -71,7 +72,7 @@ _LANDING_HTML = """\
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>WooPrice Beta</title>
+  <title>FlowHub</title>
   <style>
     body {{ font-family: monospace; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }}
     h1 {{ font-size: 1.4rem; margin-bottom: 0.2em; }}
@@ -83,15 +84,13 @@ _LANDING_HTML = """\
   </style>
 </head>
 <body>
-  <h1>WooPrice Beta</h1>
+  <h1>FlowHub</h1>
   <table>
-    <tr><td>environment</td><td>beta</td></tr>
-    <tr><td>version</td><td>{version}</td></tr>
     <tr><td>health endpoint</td><td><a href="/api/health">/api/health</a></td></tr>
     <tr><td>status</td><td>running</td></tr>
   </table>
   <div class="note">
-    Frontend not yet built. Run <code>npm run build</code> inside <code>frontend/</code>
+    Frontend assets are not available. Run <code>npm run build</code> inside <code>frontend/</code>
     then restart the server to activate the full UI.
   </div>
 </body>
@@ -99,7 +98,7 @@ _LANDING_HTML = """\
 """
 
 app = FastAPI(
-    title="WooPrice Beta",
+    title="FlowHub",
     version=_VERSION,
     docs_url=None,
     redoc_url=None,

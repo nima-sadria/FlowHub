@@ -4,7 +4,7 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name = "wooprice-beta"
-version = "0.1.0-dev"
+version = "1.0.0"
 description = "WooPrice Beta — built on the A2 Platform Core"
 requires-python = ">=3.12"
 # Dependencies pinned in requirements.txt
