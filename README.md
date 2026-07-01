@@ -12,6 +12,17 @@ every change must be applied by a human.
 
 ---
 
+## Architecture Contracts
+
+- [Integration Platform](docs/architecture/INTEGRATION_PLATFORM.md) documents
+  the connector registry, connector lifecycle, diagnostics, telemetry,
+  webhook, polling, and Beta write guard API contracts.
+- [Unified Logging Platform](docs/architecture/UNIFIED_LOGGING_PLATFORM.md)
+  documents application logging, search, correlation, export, retention,
+  redaction, and future Live Tail API contracts.
+
+---
+
 ## Table of Contents
 
 1. [What FlowHub Does](#what-flowhub-does)
