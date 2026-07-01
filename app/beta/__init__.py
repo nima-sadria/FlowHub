@@ -1,4 +1,4 @@
-"""WooPrice Beta — Beta-specific extensions package.
+"""FlowHub â€” Beta-specific extensions package.
 
 Builds on the frozen A2 Platform Core (app/a2/) without modifying it.
 All Beta-only functionality lives in this package.

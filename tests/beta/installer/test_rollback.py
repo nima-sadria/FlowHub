@@ -49,7 +49,7 @@ class TestInstallerRollback:
         preexisting = tmp_path / "preexisting.txt"
         preexisting.write_text("keep me")
         rollback = InstallerRollback()
-        # Not tracked → not removed
+        # Not tracked â†’ not removed
         rollback.rollback()
         assert preexisting.exists()
 

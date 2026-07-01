@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FlowHub Beta — Prerequisite checks
+# FlowHub â€” Prerequisite checks
 #
 # Source this file from install.sh. Call run_prerequisite_checks().
 # Prints PASS/FAIL for each check. Returns 1 if any check fails.
@@ -60,6 +60,39 @@ check_openssl_command() {
     fi
 }
 
+check_system_requirements() {
+    local install_dir="${1:-/}"
+    local arch cpu_count mem_kb disk_kb
+    arch="$(uname -m)"
+    case "$arch" in
+        x86_64|aarch64) _check_pass "Architecture supported: ${arch}" ;;
+        *) _check_fail "Unsupported architecture: ${arch}" "Use an amd64 or arm64 Linux host." ;;
+    esac
+
+    cpu_count="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 0)"
+    if [[ "$cpu_count" -ge 2 ]]; then
+        _check_pass "CPU cores: ${cpu_count}"
+    else
+        _check_fail "At least 2 CPU cores recommended" "Resize the server before installing FlowHub."
+    fi
+
+    mem_kb="$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)"
+    if [[ "$mem_kb" -ge 3900000 ]]; then
+        _check_pass "Memory: $((mem_kb / 1024)) MB"
+    else
+        _check_fail "At least 4 GB RAM recommended" "Resize the server before installing FlowHub."
+    fi
+
+    local disk_target="$install_dir"
+    [[ -e "$disk_target" ]] || disk_target="$(dirname "$install_dir")"
+    disk_kb="$(df -Pk "$disk_target" 2>/dev/null | awk 'NR==2 {print $4}')"
+    if [[ "${disk_kb:-0}" -ge 20000000 ]]; then
+        _check_pass "Free disk: $((disk_kb / 1024)) MB"
+    else
+        _check_fail "At least 20 GB free disk required" "Free disk space or use a larger server volume."
+    fi
+}
+
 check_write_permission() {
     local target_dir="$1"
     local check_dir="$target_dir"
@@ -78,9 +111,10 @@ run_prerequisite_checks() {
     local install_dir="${1:-}"
     CHECKS_FAILED=0
 
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
     echo "  Prerequisite Checks"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    check_system_requirements "${install_dir:-/}"
     check_python_version
     check_docker_command
     check_docker_compose_command
@@ -88,7 +122,7 @@ run_prerequisite_checks() {
     if [[ -n "$install_dir" ]]; then
         check_write_permission "$install_dir"
     fi
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
 
     if [[ "$CHECKS_FAILED" -ne 0 ]]; then
         echo "  ERROR: One or more prerequisite checks failed."

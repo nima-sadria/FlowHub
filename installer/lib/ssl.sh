@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FlowHub Beta — SSL setup
+# FlowHub â€” SSL setup
 #
 # Modes: off / self-signed / letsencrypt / manual
 # Writes certificates to BETA_STORAGE_PATH/ssl/.
@@ -9,6 +9,6 @@
 # Implementation begins in B6 (Docker Runtime Foundation).
 # Requires: Nginx container config (B6), domain DNS resolution (operational).
 
-echo "lib/ssl.sh — NOT IMPLEMENTED IN B4."
+echo "lib/ssl.sh â€” NOT IMPLEMENTED IN B4."
 echo "Implementation begins in B6 (Docker Runtime Foundation)."
 exit 1

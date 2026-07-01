@@ -1,4 +1,4 @@
-"""WooPrice Beta — Plugin Loader.
+"""FlowHub â€” Plugin Loader.
 
 Discovers, validates, and loads plugin packages from the plugin directory.
 Registers loaded plugins with the Plugin Registry.

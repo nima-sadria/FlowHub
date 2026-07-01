@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FlowHub Beta — Docker deployment functions
+# FlowHub â€” Docker deployment functions
 #
 # Source from install.sh. Provides:
 #   docker_compose_cmd()       -- resolve the correct compose CLI
@@ -103,7 +103,7 @@ wait_for_app_healthy() {
             return 0
         fi
         sleep "$interval"
-        echo "  Attempt ${attempt}/${max_attempts} — not yet responding..."
+        echo "  Attempt ${attempt}/${max_attempts} â€” not yet responding..."
         attempt=$((attempt + 1))
     done
 
@@ -112,7 +112,7 @@ wait_for_app_healthy() {
 }
 
 # ---------------------------------------------------------------------------
-# Final health assertion — prints response and fails loudly on error
+# Final health assertion â€” prints response and fails loudly on error
 # ---------------------------------------------------------------------------
 
 verify_health_endpoint() {

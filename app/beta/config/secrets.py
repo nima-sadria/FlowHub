@@ -1,4 +1,4 @@
-"""WooPrice Beta — Secret provider abstraction.
+"""FlowHub â€” Secret provider abstraction.
 
 Secrets flow exclusively through environment variables. This abstraction
 decouples callers from the secret source, enabling future migration to

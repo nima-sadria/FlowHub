@@ -1,4 +1,4 @@
-# WooPrice Beta — Configuration Core
+# FlowHub â€” Configuration Core
 
 **Phase:** B3 Configuration Foundation  
 **Architecture:** Framework-independent. No FastAPI, Typer, or HTTP imports.
@@ -19,7 +19,7 @@ if not result:
     raise SystemExit(1)
 config = manager.get()
 print(config.domain)
-print(config.jwt_secret.get_secret_value())  # SecretStr — use .get_secret_value()
+print(config.jwt_secret.get_secret_value())  # SecretStr â€” use .get_secret_value()
 ```
 
 ---
@@ -32,7 +32,7 @@ print(config.jwt_secret.get_secret_value())  # SecretStr — use .get_secret_val
 |---|---|---|
 | `BETA_ENV` | `dev` \| `beta` \| `production` | Enum membership |
 | `BETA_DOMAIN` | string | Non-empty |
-| `BETA_PORT` | integer | 1024–65535 |
+| `BETA_PORT` | integer | 1024â€“65535 |
 | `BETA_DATABASE_URL` | string | `postgresql://` prefix |
 | `BETA_POSTGRES_DB` | string | Non-empty |
 | `BETA_POSTGRES_USER` | string | Non-empty |
@@ -72,7 +72,7 @@ print(config.jwt_secret.get_secret_value())  # SecretStr — use .get_secret_val
 
 Secrets live **only** in environment variables (`.env` file, mode 600).  
 They are **never** stored in:
-- The managed TOML config file (`$BETA_STORAGE_PATH/config/wooprice-beta.toml`)
+- The managed TOML config file (`$BETA_STORAGE_PATH/config/flowhub.toml`)
 - The database
 - Log files
 - API responses
@@ -90,7 +90,7 @@ and `str()`. To access the raw value: `config.jwt_secret.get_secret_value()`.
 
 | Profile | `BETA_ENV` value | CLI banner | Behavior |
 |---|---|---|---|
-| `ConfigProfile.BETA` | `"beta"` | `[BETA ENVIRONMENT]` | Normal Beta operation |
+| `ConfigProfile.BETA` | `"beta"` | `[FLOWHUB]` | Normal FlowHub operation |
 | `ConfigProfile.DEV` | `"dev"` | `[DEVELOPMENT ENVIRONMENT]` | Debug output; relaxed guards |
 | `ConfigProfile.PRODUCTION` | `"production"` | `[PRODUCTION]` | All guards active; destructive CLI ops blocked |
 
@@ -108,7 +108,7 @@ if result.warnings:
     print(result.format_warnings())
 ```
 
-Errors list all problems at once — no fail-fast. Callers decide whether to abort.
+Errors list all problems at once â€” no fail-fast. Callers decide whether to abort.
 
 Path existence and writability checks (`BETA_STORAGE_PATH`, `BETA_BACKUP_PATH`)
 can be disabled with `ConfigValidator(check_paths=False)` for unit tests.
@@ -117,7 +117,7 @@ can be disabled with `ConfigValidator(check_paths=False)` for unit tests.
 
 ## Managed TOML Config File
 
-The installer (B4) writes `$BETA_STORAGE_PATH/config/wooprice-beta.toml`.
+The installer writes `$BETA_STORAGE_PATH/config/flowhub.toml`.
 
 The config file may contain `${VAR}` placeholders referencing env vars.
 These are expanded at read time by `expand_placeholders()`. Expanded values
@@ -153,13 +153,13 @@ manager.load()
 drifts = manager.verify()
 ```
 
-(or: `wooprice configure --verify` once CLI is implemented in B5)
+(or: `flowhub configure --verify` once CLI is implemented in B5)
 
 ---
 
 ## Config Migration
 
-When upgrading WooPrice Beta between versions, `manager.migrate()` applies any
+When upgrading FlowHub between versions, `manager.migrate()` applies any
 necessary schema changes to the TOML config dict:
 
 ```python

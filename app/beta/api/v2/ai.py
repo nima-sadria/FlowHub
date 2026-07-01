@@ -1,4 +1,4 @@
-"""WooPrice Beta — /api/v2/ai router.
+"""FlowHub â€” /api/v2/ai router.
 
 AI Foundation advisory endpoints. Gated by FEATURE_AI.
 No AI endpoint triggers execution.

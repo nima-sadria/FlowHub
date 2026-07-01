@@ -1,4 +1,4 @@
-"""FlowHub Beta /api/v2/sources router.
+"""FlowHub /api/v2/sources router.
 
 Read-only source list backed by Integration Platform/Data Layer records.
 This router never calls source systems directly.

@@ -1,26 +1,122 @@
 #!/usr/bin/env bash
-# FlowHub Beta — management CLI wrapper
+# FlowHub management CLI wrapper.
 #
-# Installed to /usr/local/bin/flowhub by installer/install.sh
-# Source: scripts/flowhub  (tracked in git)
-#
-# Usage:
-#   flowhub                   -- interactive management menu
-#   flowhub status            -- configuration status
-#   flowhub health            -- local health checks
-#   flowhub diagnostics run   -- integration health check
-#   flowhub --help            -- full command list
+# Installed to /usr/local/bin/flowhub by installer/install.sh.
 
-INSTALL_DIR="/opt/FlowHub"
+set -euo pipefail
 
-if [[ ! -d "$INSTALL_DIR" ]]; then
+INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-/opt/FlowHub}"
+LEGACY_INSTALL_DIR="/opt/flowhub" # Legacy Compatibility
+ENV_FILE="${INSTALL_DIR}/.env.beta"
+COMPOSE_FILE="${INSTALL_DIR}/docker-compose.beta.yml"
+
+fail_missing_install() {
     echo "ERROR: FlowHub installation directory not found: ${INSTALL_DIR}" >&2
-    if [[ -d "/opt/flowhub" ]]; then
-        echo "Legacy installation detected at /opt/flowhub." >&2
-        echo "Run the installer to migrate it to /opt/FlowHub." >&2
+    if [[ -d "$LEGACY_INSTALL_DIR" ]]; then
+        echo "Legacy Compatibility: installation detected at ${LEGACY_INSTALL_DIR}." >&2
+        echo "Run the installer to migrate it to ${INSTALL_DIR}." >&2
     fi
     exit 1
-fi
+}
 
+compose_cmd() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose"
+    else
+        echo "ERROR: Docker Compose is not available." >&2
+        exit 1
+    fi
+}
+
+run_compose() {
+    local dc
+    dc="$(compose_cmd)"
+    ${dc} --project-directory "$INSTALL_DIR" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+}
+
+usage() {
+    cat <<'EOF'
+FlowHub management commands:
+
+  flowhub install       Run the installer
+  flowhub upgrade       Pull latest code, rebuild, migrate, restart
+  flowhub repair        Re-run migrations and health checks
+  flowhub status        Show service status
+  flowhub health        Run health checks
+  flowhub logs [svc]    Follow service logs
+  flowhub restart       Restart services
+  flowhub stop          Stop services
+  flowhub uninstall     Run the uninstaller
+  flowhub backup        Create a local backup archive
+  flowhub restore FILE  Restore a local backup archive
+
+App CLI commands are also available, for example:
+  flowhub diagnostics run
+EOF
+}
+
+[[ -d "$INSTALL_DIR" ]] || fail_missing_install
 cd "$INSTALL_DIR"
-exec python3 -m cli.main "$@"
+
+cmd="${1:-}"
+case "$cmd" in
+    ""|-h|--help|help)
+        usage
+        ;;
+    install)
+        shift
+        bash installer/install.sh "$@"
+        ;;
+    upgrade)
+        shift
+        git pull origin main
+        bash installer/install.sh --upgrade "$@"
+        ;;
+    repair)
+        shift
+        bash installer/install.sh --repair "$@"
+        ;;
+    uninstall)
+        shift
+        bash installer/install.sh --uninstall "$@"
+        ;;
+    status)
+        run_compose ps
+        ;;
+    health)
+        python3 -m cli.main health "${@:2}"
+        ;;
+    logs)
+        shift
+        service="${1:-app}"
+        run_compose logs -f "$service"
+        ;;
+    restart)
+        run_compose restart
+        ;;
+    stop)
+        run_compose stop
+        ;;
+    backup)
+        mkdir -p backups
+        stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+        archive="backups/flowhub-${stamp}.tar.gz"
+        tar -czf "$archive" .env.beta storage logs 2>/dev/null || tar -czf "$archive" .env.beta storage
+        echo "Backup created: ${INSTALL_DIR}/${archive}"
+        ;;
+    restore)
+        shift
+        archive="${1:-}"
+        if [[ -z "$archive" || ! -f "$archive" ]]; then
+            echo "ERROR: restore requires a backup archive path." >&2
+            exit 1
+        fi
+        tar -xzf "$archive" -C "$INSTALL_DIR"
+        echo "Backup restored. Run: flowhub repair"
+        ;;
+    *)
+        python3 -m cli.main "$@"
+        ;;
+esac

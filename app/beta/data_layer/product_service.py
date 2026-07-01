@@ -1,4 +1,4 @@
-"""Product read model service — reads and writes dl_product_cache."""
+"""Product read model service â€” reads and writes dl_product_cache."""
 
 from __future__ import annotations
 

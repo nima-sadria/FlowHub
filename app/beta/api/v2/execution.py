@@ -1,4 +1,4 @@
-"""WooPrice Beta — /api/v2/execution router.
+"""FlowHub â€” /api/v2/execution router.
 
 Execution Engine endpoints. Gated by FEATURE_EXECUTION.
 

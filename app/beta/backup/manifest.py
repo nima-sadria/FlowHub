@@ -1,4 +1,4 @@
-"""WooPrice Beta — Backup manifest schema.
+"""FlowHub â€” Backup manifest schema.
 
 Defines the structure of backup_manifest.json written into each archive.
 

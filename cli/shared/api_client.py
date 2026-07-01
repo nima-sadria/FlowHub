@@ -1,4 +1,4 @@
-"""WooPrice Beta — CLI API client.
+"""FlowHub â€” CLI API client.
 
 HTTP client to the running Beta application. Used by operational CLI
 commands (connected mode). Reads the JWT token from the local session store.

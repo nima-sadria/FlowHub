@@ -1,4 +1,4 @@
-"""FlowHub Beta /api/v2/workspace router.
+"""FlowHub /api/v2/workspace router.
 
 Workspace reads are served from Integration Platform/Data Layer records. No
 Apply, Scheduler execution, automatic pricing, WooCommerce writes, Nextcloud

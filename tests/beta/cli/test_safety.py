@@ -1,4 +1,4 @@
-"""Safety tests for CLI — no secrets, no network, no Docker, no production hardcoding."""
+"""Safety tests for CLI â€” no secrets, no network, no Docker, no production hardcoding."""
 
 import ast
 from pathlib import Path
@@ -126,7 +126,7 @@ class TestProductionProfileBlocks:
 
     def test_production_health_still_works(self, production_env_file: Path):
         result = runner.invoke(app, ["health", "--env-file", str(production_env_file)])
-        # Health is read-only — exit code can be 0 or 1 depending on storage path
+        # Health is read-only â€” exit code can be 0 or 1 depending on storage path
         # but must not error out on the profile check itself
         assert result.exit_code in (0, 1)
 

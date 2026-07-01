@@ -1,4 +1,4 @@
-"""WooPrice Beta — wooprice install command.
+"""FlowHub â€” flowhub install command.
 
 Wraps B4 Installer Foundation. In B5: dry-run mode only.
 No Docker execution. No network calls. No production deployment.
@@ -113,7 +113,7 @@ def install_dry_run(
 
     print_section("Prerequisite Checks")
     for pre in result.prerequisites:
-        icon = "[green]✓[/green]" if pre.passed else "[red]✗[/red]"
+        icon = "[green]âœ“[/green]" if pre.passed else "[red]âœ—[/red]"
         console.print(f"  {icon}  {pre.name}: {pre.message}")
         if not pre.passed and pre.fix:
             console.print(f"     [dim]Fix: {pre.fix}[/dim]")
@@ -129,7 +129,7 @@ def install_dry_run(
     print_section("Secrets")
     if result.secrets_would_be_generated:
         console.print("  [dim]Secrets would be auto-generated (masked below):[/dim]")
-    # Show masked summary — never plain text
+    # Show masked summary â€” never plain text
     from installer.installer_core import InstallerSecrets
     masked = InstallerSecrets(
         jwt_secret=config.jwt_secret,
@@ -145,11 +145,11 @@ def install_dry_run(
     if validation.is_valid:
         print_success("Generated configuration is valid.")
     else:
-        console.print(f"  [bold red]✗ {len(validation.errors)} validation error(s):[/bold red]")
+        console.print(f"  [bold red]âœ— {len(validation.errors)} validation error(s):[/bold red]")
         from app.beta.config import SECRET_FIELDS
         for err in validation.errors:
             display = "[REDACTED]" if err.field in SECRET_FIELDS else repr(err.value)
-            console.print(f"    [red]✗[/red] {err.field}={display}: {err.message}")
+            console.print(f"    [red]âœ—[/red] {err.field}={display}: {err.message}")
 
     console.print()
     console.print("[bold cyan]  Dry-run complete. Nothing was written to disk.[/bold cyan]\n")

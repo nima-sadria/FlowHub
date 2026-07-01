@@ -1,4 +1,4 @@
-"""FlowHub Beta /api/v2/diagnostics router.
+"""FlowHub /api/v2/diagnostics router.
 
 Diagnostics read Integration Platform contracts and Data Layer records only.
 No live WooCommerce, Nextcloud, or direct httpx call is performed here.

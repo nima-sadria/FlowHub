@@ -1,4 +1,4 @@
-"""WooPrice Beta — Configuration profiles (DEV / BETA / PRODUCTION)."""
+"""FlowHub â€” Configuration profiles (DEV / BETA / PRODUCTION)."""
 
 from enum import Enum
 
@@ -26,8 +26,8 @@ class ConfigProfile(str, Enum):
 
     def banner(self) -> str:
         banners = {
-            ConfigProfile.DEV: "[DEVELOPMENT ENVIRONMENT]",
-            ConfigProfile.BETA: "[BETA ENVIRONMENT]",
+            ConfigProfile.DEV: "[LOCAL DEVELOPMENT]",
+            ConfigProfile.BETA: "[FLOWHUB]",
             ConfigProfile.PRODUCTION: "[PRODUCTION]",
         }
         return banners[self]

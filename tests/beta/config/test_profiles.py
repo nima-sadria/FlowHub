@@ -44,10 +44,10 @@ class TestConfigProfileMethods:
         assert ConfigProfile.PRODUCTION.is_dev() is False
 
     def test_banner_beta(self):
-        assert ConfigProfile.BETA.banner() == "[BETA ENVIRONMENT]"
+        assert ConfigProfile.BETA.banner() == "[FLOWHUB]"
 
     def test_banner_dev(self):
-        assert ConfigProfile.DEV.banner() == "[DEVELOPMENT ENVIRONMENT]"
+        assert ConfigProfile.DEV.banner() == "[LOCAL DEVELOPMENT]"
 
     def test_banner_production(self):
         assert "[PRODUCTION]" in ConfigProfile.PRODUCTION.banner()

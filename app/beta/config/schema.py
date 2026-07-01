@@ -1,7 +1,7 @@
-"""WooPrice Beta — Configuration schema (Pydantic v2).
+"""FlowHub â€” Configuration schema (Pydantic v2).
 
 BetaConfig is the typed, immutable configuration object returned by
-ConfigurationManager.get(). All consumers receive this object — never
+ConfigurationManager.get(). All consumers receive this object â€” never
 raw env vars or dicts.
 
 Secrets are stored as pydantic.SecretStr so they are redacted in repr()
@@ -81,7 +81,7 @@ class BetaConfig(BaseModel):
         default=int(DEFAULTS["BETA_BACKUP_RETAIN_DAYS"]), ge=1
     )
 
-    # ── Validators ──────────────────────────────────────────────────────────
+    # â”€â”€ Validators â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     @field_validator("ssl_mode")
     @classmethod
@@ -165,7 +165,7 @@ class BetaConfig(BaseModel):
                 data["plugin_dir"] = f"{data['storage_path']}/plugins"
         return data
 
-    # ── Convenience ─────────────────────────────────────────────────────────
+    # â”€â”€ Convenience â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def is_production(self) -> bool:
         return self.env.is_production()
@@ -176,7 +176,7 @@ class BetaConfig(BaseModel):
     def banner(self) -> str:
         return self.env.banner()
 
-    # ── Factory ─────────────────────────────────────────────────────────────
+    # â”€â”€ Factory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     @classmethod
     def from_env(cls, env: dict[str, str]) -> "BetaConfig":

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security policy
+    url: https://github.com/nima-sadria/FlowHub/blob/main/SECURITY.md
+    about: Report security issues privately.

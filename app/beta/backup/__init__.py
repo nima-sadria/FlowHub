@@ -1,4 +1,4 @@
-"""WooPrice Beta — Backup and Restore package.
+"""FlowHub â€” Backup and Restore package.
 
 Implementation begins in B13.
 """

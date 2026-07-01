@@ -1,7 +1,7 @@
-"""FlowHub Beta /api/v2/config router.
+"""FlowHub /api/v2/config router.
 
 Read-only configuration view backed by Integration Platform connector settings.
-Runtime writes through this generic config endpoint are blocked in Beta.
+Runtime writes through this generic config endpoint are blocked in this release.
 """
 
 from __future__ import annotations
@@ -86,5 +86,5 @@ async def set_config_field(
 ) -> ConfigSetResponse:
     raise HTTPException(
         status.HTTP_403_FORBIDDEN,
-        "Runtime connector settings writes are disabled in FlowHub Beta.",
+        "Runtime connector settings writes are disabled in FlowHub.",
     )

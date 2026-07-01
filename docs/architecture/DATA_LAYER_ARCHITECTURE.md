@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Phase:** Data Layer Foundation (DL1)  
 **Date:** 2026-07-01  
-**Status:** Partially implemented — stores exist, population is manual (no background refresh yet)
+**Status:** Partially implemented â€” stores exist, population is manual (no background refresh yet)
 
 ---
 
@@ -33,26 +33,26 @@ Q. [Relationship to Existing FlowHub](#q-relationship-to-existing-flowhub)
 
 The **FlowHub Data Layer** is the persistent read model that sits between external systems (WooCommerce, Nextcloud) and the FlowHub UI.
 
-**Key point:** "Cache" is one internal mechanism inside the Data Layer. The Data Layer is the broader concept — it includes caches, snapshots, health records, telemetry, job queues, and invalidation events.
+**Key point:** "Cache" is one internal mechanism inside the Data Layer. The Data Layer is the broader concept â€” it includes caches, snapshots, health records, telemetry, job queues, and invalidation events.
 
 ```
 External Systems
   WooCommerce REST API
   Nextcloud WebDAV
 
-       │ read only (no writes)
-       ▼
+       â”‚ read only (no writes)
+       â–¼
 
-  ┌─────────────────────────────────────────────────────┐
-  │              FlowHub Data Layer                      │
-  │                                                     │
-  │  Product Cache    │  Source Snapshot Store          │
-  │  Inventory Cache  │  Destination Snapshot Store     │
-  │  Connector Health │  Connector Telemetry            │
-  │  Refresh Queue    │  Invalidation Events            │
-  └─────────────────────────────────────────────────────┘
-       │
-       ▼
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”گ
+  â”‚              FlowHub Data Layer                      â”‚
+  â”‚                                                     â”‚
+  â”‚  Product Cache    â”‚  Source Snapshot Store          â”‚
+  â”‚  Inventory Cache  â”‚  Destination Snapshot Store     â”‚
+  â”‚  Connector Health â”‚  Connector Telemetry            â”‚
+  â”‚  Refresh Queue    â”‚  Invalidation Events            â”‚
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”ک
+       â”‚
+       â–¼
   FlowHub UI
   /products  /workspace  /data-layer  /diagnostics
 ```
@@ -72,10 +72,10 @@ External Systems
 
 **Identity:**
 - Primary key: `(connector_id, product_id)`
-- `connector_id` — fully qualified connector instance ID (e.g. `woocommerce:primary`)
-- `product_id` — connector-native product identifier (WC product ID as string)
-- `external_id` — integer WC product ID when connector is WooCommerce
-- `channel_id` — future multi-channel slot (NULL for current Beta)
+- `connector_id` â€” fully qualified connector instance ID (e.g. `woocommerce:primary`)
+- `product_id` â€” connector-native product identifier (WC product ID as string)
+- `external_id` â€” integer WC product ID when connector is WooCommerce
+- `channel_id` â€” future multi-channel slot (NULL for current Beta)
 
 **Fields per product:**
 
@@ -101,9 +101,9 @@ External Systems
 | raw_data | JSON | Full connector response for debugging |
 
 **Freshness states:**
-- `fresh` — data is within TTL, usable by UI
-- `stale` — TTL expired or invalidated, refresh needed
-- `error` — last fetch attempt failed; previous data preserved but flagged
+- `fresh` â€” data is within TTL, usable by UI
+- `stale` â€” TTL expired or invalidated, refresh needed
+- `error` â€” last fetch attempt failed; previous data preserved but flagged
 
 **Current state (IP foundation):** Products are served from `dl_product_cache`
 through the Integration Platform. The table may be empty until a refresh or
@@ -116,7 +116,7 @@ read-only state instead of making a live WooCommerce call.
 
 **Purpose:** Inventory state per product per connector, separated from the product read model to allow independent refresh cadences.
 
-**Identity:** `(connector_id, product_id)` — mirrors Product Cache keys.
+**Identity:** `(connector_id, product_id)` â€” mirrors Product Cache keys.
 
 **Fields:**
 
@@ -145,7 +145,7 @@ WooCommerce inventory call is made from active Beta v2 routes.
 
 **Purpose:** Track the last-known state of source files (Nextcloud spreadsheets, CSVs, Google Sheets, etc.) without storing the full file content.
 
-**Identity:** `(connector_id, file_path)` — one snapshot per file per connector instance.
+**Identity:** `(connector_id, file_path)` â€” one snapshot per file per connector instance.
 
 **Fields:**
 
@@ -165,14 +165,14 @@ WooCommerce inventory call is made from active Beta v2 routes.
 - Column A: product name
 - Column B: product_id (integer)
 - Column C: price
-- Rows start at row 3 (rows 1–2 are headers)
+- Rows start at row 3 (rows 1â€“2 are headers)
 - Last-sheet-wins on duplicate product IDs
 - 30 consecutive empty rows stops parsing
 - Maximum 1000 rows
 - Persian/Arabic-Indic digits are normalized to ASCII
-- Out-of-stock markers → price = None
+- Out-of-stock markers â†’ price = None
 
-**Invalidation trigger:** ETag or Last-Modified change on next fetch → snapshot version_seq increments → dependent product cache entries marked stale.
+**Invalidation trigger:** ETag or Last-Modified change on next fetch â†’ snapshot version_seq increments â†’ dependent product cache entries marked stale.
 
 **Current state (IP foundation):** Source snapshot table exists and is read by
 the Integration Platform Sources route. Active Workspace preview no longer
@@ -186,7 +186,7 @@ phase.
 
 **Purpose:** Track the last-known state of products at the destination (WooCommerce) for change detection and conflict resolution.
 
-**Identity:** `(connector_id, product_id)` — one snapshot per product per destination connector.
+**Identity:** `(connector_id, product_id)` â€” one snapshot per product per destination connector.
 
 **Fields:**
 
@@ -211,7 +211,7 @@ phase.
 
 ## E. Connector Metadata Store
 
-**Purpose:** Describe the configured connector instances — their type, capabilities, and operational parameters.
+**Purpose:** Describe the configured connector instances â€” their type, capabilities, and operational parameters.
 
 **Current state (IP foundation):** Connector metadata is owned by the Integration
 Platform. Registry declarations live in `app/beta/integration_platform/registry.py`
@@ -225,23 +225,23 @@ telemetry.
 |-------|-------------|
 | connector_id | Fully qualified instance ID (e.g. `woocommerce:primary`) |
 | connector_type | source \| destination |
-| provider | woocommerce \| nextcloud \| snappshop \| … |
+| provider | woocommerce \| nextcloud \| snappshop \| â€¦ |
 | display_name | Human-readable name |
-| capabilities | JSON — serialized ConnectorCapabilities |
+| capabilities | JSON â€” serialized ConnectorCapabilities |
 | can_read | boolean |
-| can_write | boolean — always false in Beta |
-| rate_limit_rps | float — requests per second limit |
+| can_write | boolean â€” always false in Beta |
+| rate_limit_rps | float â€” requests per second limit |
 | supports_pagination | boolean |
 | supports_webhooks | boolean |
 | supports_etag | boolean |
-| entity_types | JSON — list: products, inventory, categories, files, … |
+| entity_types | JSON â€” list: products, inventory, categories, files, â€¦ |
 | credentials_ref | Key name in beta_app_config where credentials live |
 | enabled | boolean |
 | created_at | datetime |
 
 **Active connectors in Beta:**
-- `woocommerce:primary` — destination, read-only, WC REST API v3
-- `nextcloud:primary` — source, read-only, WebDAV + OCS APIs
+- `woocommerce:primary` â€” destination, read-only, WC REST API v3
+- `nextcloud:primary` â€” source, read-only, WebDAV + OCS APIs
 
 ---
 
@@ -272,7 +272,7 @@ telemetry.
 |--------|---------|
 | healthy | Check passed, latency within normal range |
 | degraded | Check passed but latency elevated or partial response |
-| unhealthy | Check failed — connector not reachable or auth failed |
+| unhealthy | Check failed â€” connector not reachable or auth failed |
 | unknown | No check has been performed yet |
 
 **Current state (IP foundation):** Table exists. Populated by
@@ -284,7 +284,7 @@ WooCommerce or Nextcloud checks.
 
 ## G. Connector Telemetry Store
 
-**Purpose:** Aggregate operational metrics per connector — request counts, error rates, latency, throughput.
+**Purpose:** Aggregate operational metrics per connector â€” request counts, error rates, latency, throughput.
 
 **Table:** `dl_connector_telemetry`  
 **Identity:** `connector_id` (unique)
@@ -318,27 +318,27 @@ and aggregate views through `/api/v2/integrations/telemetry`.
 
 ## H. Refresh Queue
 
-**Purpose:** Track refresh jobs — their type, target, status, and outcome.
+**Purpose:** Track refresh jobs â€” their type, target, status, and outcome.
 
 **Table:** `dl_refresh_jobs`
 
 **Job types:**
-- `manual` — triggered by user action (e.g. clicking Refresh in UI)
-- `webhook` — triggered by a WC/NC webhook event
-- `etag` — triggered because ETag changed on source file check
-- `scheduled` — triggered by background scheduler *(future phase)*
+- `manual` â€” triggered by user action (e.g. clicking Refresh in UI)
+- `webhook` â€” triggered by a WC/NC webhook event
+- `etag` â€” triggered because ETag changed on source file check
+- `scheduled` â€” triggered by background scheduler *(future phase)*
 
 **Entity types:**
-- `products` — refresh product cache from destination
-- `source` — re-snapshot source file
-- `destination` — snapshot destination product state
-- `connectors` — health check all connectors
+- `products` â€” refresh product cache from destination
+- `source` â€” re-snapshot source file
+- `destination` â€” snapshot destination product state
+- `connectors` â€” health check all connectors
 
 **Status lifecycle:**
 ```
-pending → running → completed
-                 ↘ failed → (retry → running)
-                 ↘ cancelled
+pending â†’ running â†’ completed
+                 â†ک failed â†’ (retry â†’ running)
+                 â†ک cancelled
 ```
 
 **Fields:**
@@ -369,7 +369,7 @@ pending → running → completed
 - Same connector_id + entity_type cannot have two `running` jobs simultaneously
 - New manual trigger for a running job returns the existing job ID
 
-**Current state (DL1):** Table and service exist. No automated job creation yet — manual creation only via `RefreshJobService.create()`. Scheduler is strictly forbidden in Beta.
+**Current state (DL1):** Table and service exist. No automated job creation yet â€” manual creation only via `RefreshJobService.create()`. Scheduler is strictly forbidden in Beta.
 
 ---
 
@@ -443,7 +443,7 @@ Future: environment variable `FLOWHUB_TTL_PRODUCTS_MINUTES=N` overrides global d
 
 ### Stale Data Surfacing
 
-When `expires_at` is past, `freshness` is set to `stale`. The UI reads `freshness` and shows a staleness indicator. Users can trigger a manual refresh. The UI never blocks on stale data — it shows what it has with a warning.
+When `expires_at` is past, `freshness` is set to `stale`. The UI reads `freshness` and shows a staleness indicator. Users can trigger a manual refresh. The UI never blocks on stale data â€” it shows what it has with a warning.
 
 **Current state (DL1):** TTL columns (`expires_at`) exist in schema. No background process enforces TTL yet. Stale marking is available via `ProductReadModelService.mark_stale()`.
 
@@ -461,8 +461,8 @@ back to live WooCommerce.
 
 ```
 GET /api/v2/products
-  → ProductReadModelService.list(connector_id, page, page_size)
-    → dl_product_cache WHERE connector_id = 'woocommerce:primary'
+  â†’ ProductReadModelService.list(connector_id, page, page_size)
+    â†’ dl_product_cache WHERE connector_id = 'woocommerce:primary'
       AND freshness = 'fresh'
       ORDER BY id DESC
 ```
@@ -523,13 +523,13 @@ refresh phase.
 
 ### Data Layer Diagnostics (added in DL1)
 
-`GET /api/v2/data-layer/status` reads from `dl_*` tables only — no live HTTP calls.
+`GET /api/v2/data-layer/status` reads from `dl_*` tables only â€” no live HTTP calls.
 
 This is correct: the Data Layer status endpoint shows the state of the Data Layer itself, not of the external connectors.
 
 ### Avoiding Slow Blocking
 
-- Data Layer status endpoint: no external HTTP → always fast
+- Data Layer status endpoint: no external HTTP â†’ always fast
 - Diagnostics status endpoint: record-backed, no direct external HTTP
 - Future: a Health Monitor may update `dl_connector_health` using approved read-only probes
 
@@ -539,7 +539,7 @@ This is correct: the Data Layer status endpoint shows the state of the Data Laye
 
 ### Connector Degradation Display
 
-`dl_connector_health.consecutive_failures` > 0 → show degradation warning in Data Layer page connector health section.
+`dl_connector_health.consecutive_failures` > 0 â†’ show degradation warning in Data Layer page connector health section.
 
 ---
 
@@ -570,7 +570,7 @@ Examples:
 1. Add connector implementation under `app/connectors/sources/<provider>/` or `app/connectors/destinations/<provider>/`
 2. Register connector instance in Integration Platform `ip_connector_instances`
 3. Wire connector to Data Layer services: call `ProductReadModelService.upsert()` and `ConnectorHealthService.upsert()` after each fetch
-4. No changes needed to `dl_product_cache`, `dl_inventory_cache`, `dl_refresh_jobs`, or `dl_invalidation_events` — they already accept any `connector_id`
+4. No changes needed to `dl_product_cache`, `dl_inventory_cache`, `dl_refresh_jobs`, or `dl_invalidation_events` â€” they already accept any `connector_id`
 
 ### Planned Future Connectors
 
@@ -599,7 +599,7 @@ When multiple destination connectors are active, the Products page reads from `d
 
 ### Beta Read-Only Guarantee
 
-The FlowHub Beta Data Layer is permanently read-only with respect to external systems:
+The FlowHub Data Layer is read-only with respect to external systems in the first release:
 
 | Operation | Status | Enforcement |
 |-----------|--------|-------------|
@@ -612,7 +612,7 @@ The FlowHub Beta Data Layer is permanently read-only with respect to external sy
 | Scheduler | **Blocked** | Not implemented |
 | Automatic pricing | **Blocked** | Not implemented |
 
-### Read Cache ≠ Apply Permission
+### Read Cache â‰  Apply Permission
 
 The existence of a product cache does not imply permission to write. The Data Layer is a read model. A cached product record carries no apply authorization. Future Apply requires:
 1. Explicit Apply architecture (separate design phase)
@@ -622,7 +622,7 @@ The existence of a product cache does not imply permission to write. The Data La
 
 ### Write Guard
 
-The `data_layer_routes.py` router contains **zero** write endpoints to external systems. All API endpoints in the Data Layer router are `GET` methods. The router never imports `httpx` directly — verified by `TestNoWritePaths.test_router_does_not_import_httpx_directly`.
+The `data_layer_routes.py` router contains **zero** write endpoints to external systems. All API endpoints in the Data Layer router are `GET` methods. The router never imports `httpx` directly â€” verified by `TestNoWritePaths.test_router_does_not_import_httpx_directly`.
 
 ### API Safety Flags
 
@@ -634,7 +634,7 @@ Every `/api/v2/data-layer/status` response always includes:
 }
 ```
 
-These are static — not computed from any state. They cannot be false.
+These are static â€” not computed from any state. They cannot be false.
 
 ---
 
@@ -674,7 +674,7 @@ These are static — not computed from any state. They cannot be false.
 
 ### Table Ownership
 
-All `dl_*` tables are owned by the FlowHub Beta runtime (`app/beta/`). They are never read or written by the legacy WooPrice runtime (`app/main.py`).
+All `dl_*` tables are owned by the FlowHub runtime (`app/beta/`). Legacy Compatibility: they are never read or written by the legacy app runtime (`app/main.py`).
 
 ---
 
@@ -684,41 +684,41 @@ All `dl_*` tables are owned by the FlowHub Beta runtime (`app/beta/`). They are 
 
 ```
 User opens /products
-        │
-        ▼
+        â”‚
+        â–¼
 GET /api/v2/products
-        │
-        ▼
+        â”‚
+        â–¼
 ProductsRouter
-        │
-        ▼
+        â”‚
+        â–¼
 IntegrationPlatformService.list_products()
-        │
-        ▼ (reads from DB)
+        â”‚
+        â–¼ (reads from DB)
 dl_product_cache
-        │
-        ▼
-Response mapped → products list → JSON response → UI
+        â”‚
+        â–¼
+Response mapped â†’ products list â†’ JSON response â†’ UI
 ```
 
 ### Diagram 2: Product Refresh Flow (Future)
 
 ```
 User opens /products
-        │
-        ▼
+        â”‚
+        â–¼
 GET /api/v2/products
-        │
-        ▼
+        â”‚
+        â–¼
 ProductsRouter
-        │
-        ▼
+        â”‚
+        â–¼
 Approved refresh worker
-        │
-        ▼ (read-only external fetch)
+        â”‚
+        â–¼ (read-only external fetch)
 WooCommerce REST API / future connector transport
-        │
-        ▼
+        â”‚
+        â–¼
 ProductReadModelService.upsert()
 ```
 
@@ -726,42 +726,42 @@ ProductReadModelService.upsert()
 
 ```
 User clicks Preview in /workspace
-        │
-        ▼
+        â”‚
+        â–¼
 POST /api/v2/workspace/preview
-        │
-        ▼
+        â”‚
+        â–¼
 IntegrationPlatformService.workspace_preview()
-        │
-        ▼
+        â”‚
+        â–¼
 Read local connector records and Data Layer state
-        │
-        ▼
-Return read-only preview shell → JSON → UI
+        â”‚
+        â–¼
+Return read-only preview shell â†’ JSON â†’ UI
 ```
 
 ### Diagram 4: Source File Refresh Flow (Future)
 
 ```
 Trigger: manual / ETag change / scheduled
-        │
-        ▼
+        â”‚
+        â–¼
 RefreshJobService.create(job_type, entity_type='source')
-        │
-        ▼ (job runner — future)
-NextcloudConnector.list_files() → check ETag
-        │
-        ├─ ETag unchanged → job marked completed (no-op)
-        │
-        └─ ETag changed → download file → parse
-                │
-                ▼
+        â”‚
+        â–¼ (job runner â€” future)
+NextcloudConnector.list_files() â†’ check ETag
+        â”‚
+        â”œâ”€ ETag unchanged â†’ job marked completed (no-op)
+        â”‚
+        â””â”€ ETag changed â†’ download file â†’ parse
+                â”‚
+                â–¼
         SourceSnapshotService.upsert(connector_id, file_path, etag=..., parsed_row_count=...)
-                │
-                ▼
+                â”‚
+                â–¼
         InvalidationService.record('etag', 'source_snapshot', ...)
-                │
-                ▼
+                â”‚
+                â–¼
         ProductReadModelService.mark_stale(connector_id=source_connector_id)
 ```
 
@@ -769,18 +769,18 @@ NextcloudConnector.list_files() → check ETag
 
 ```
 Trigger: manual / scheduled / webhook
-        │
-        ▼
+        â”‚
+        â–¼
 RefreshJobService.create(job_type, entity_type='products')
-        │
-        ▼ (job runner — future)
-WooCommerceConnector.list_products() → paginated WC REST calls
-        │
-        ▼ (for each product)
+        â”‚
+        â–¼ (job runner â€” future)
+WooCommerceConnector.list_products() â†’ paginated WC REST calls
+        â”‚
+        â–¼ (for each product)
 ProductReadModelService.upsert(connector_id, product_id, data, freshness='fresh')
 ConnectorTelemetryService.increment(connector_id, products_fetched=1)
-        │
-        ▼
+        â”‚
+        â–¼
 RefreshJobService.update_status(job_id, 'completed')
 ```
 
@@ -788,16 +788,16 @@ RefreshJobService.update_status(job_id, 'completed')
 
 ```
 User opens /diagnostics
-        │
-        ▼
+        â”‚
+        â–¼
 GET /api/v2/diagnostics/status
-        │
-        ├─ local DB status
-        ├─ Integration Platform connector records
-        └─ Data Layer health/telemetry records
-                │
-                ▼
-        Aggregated status → JSON → UI
+        â”‚
+        â”œâ”€ local DB status
+        â”œâ”€ Integration Platform connector records
+        â””â”€ Data Layer health/telemetry records
+                â”‚
+                â–¼
+        Aggregated status â†’ JSON â†’ UI
         (does not perform external HTTP)
 ```
 
@@ -805,18 +805,18 @@ GET /api/v2/diagnostics/status
 
 ```
 User opens /products?channel=snappshop
-        │
-        ▼
+        â”‚
+        â–¼
 GET /api/v2/products?channelId=snappshop:main
-        │
-        ▼
+        â”‚
+        â–¼
 ProductReadModelService.list(connector_id='snappshop:main', ...)
-        │
-        ▼
+        â”‚
+        â–¼
 dl_product_cache WHERE connector_id = 'snappshop:main'
-        │
-        ▼
-Products from SnappShop → UI (same Products page, different channel tab)
+        â”‚
+        â–¼
+Products from SnappShop â†’ UI (same Products page, different channel tab)
 ```
 
 ---
@@ -825,7 +825,7 @@ Products from SnappShop → UI (same Products page, different channel tab)
 
 **Purpose:** Map every Data Layer component to what is currently implemented vs. what is planned.
 
-### app/connectors/ — Connector Layer
+### app/connectors/ â€” Connector Layer
 
 | Component | Current status | Data Layer relationship |
 |-----------|---------------|------------------------|
@@ -834,15 +834,15 @@ Products from SnappShop → UI (same Products page, different channel tab)
 | `app/connectors/common/health.py` | Active | `HealthResult` returned by `check_health()`. Future: written to `dl_connector_health` |
 | `app/connectors/common/types.py` | Legacy connector framework | Integration Platform uses the canonical capability schema in `app/beta/integration_platform/contracts.py` |
 
-### app/beta/integrations/ — Integration Layer
+### app/beta/integrations/ â€” Integration Layer
 
 | Component | Current status | Data Layer relationship |
 |-----------|---------------|------------------------|
 | `WooCommerceClient` | Legacy compatibility wrapper | Not imported by active Beta v2 API routes |
 | `NextcloudClient` | Legacy compatibility wrapper | Not imported by active Beta v2 API routes |
-| `parse_price_list()` | Active — stateless parse | Future: result row counts written to `dl_source_snapshots` |
+| `parse_price_list()` | Active â€” stateless parse | Future: result row counts written to `dl_source_snapshots` |
 
-### app/beta/api/v2/ — API Routes
+### app/beta/api/v2/ â€” API Routes
 
 | Route file | Current status | Data Layer relationship |
 |------------|---------------|------------------------|
@@ -850,7 +850,7 @@ Products from SnappShop → UI (same Products page, different channel tab)
 | `workspace.py` | Active - Integration Platform | Record-backed preview shell; future enrichment from `dl_product_cache` + `dl_source_snapshots` |
 | `sources.py` | Active - Integration Platform | Connector instances plus `dl_source_snapshots` |
 | `diagnostics.py` | Active - Integration Platform | Reads connector records and `dl_connector_health`; no live external checks |
-| `data_layer_routes.py` | **NEW (DL1)** — reads `dl_*` tables | Current. Shows empty states until stores are populated |
+| `data_layer_routes.py` | **NEW (DL1)** â€” reads `dl_*` tables | Current. Shows empty states until stores are populated |
 
 ### Database Tables
 
@@ -892,7 +892,7 @@ Products from SnappShop → UI (same Products page, different channel tab)
 | Sources | /sources | Active - Integration Platform | Shows connector/source snapshot metadata |
 | SourceWizard | /sources/new | Active | No Data Layer dependency |
 | Workspace | /workspace | Active - Integration Platform | Record-backed preview shell; no external calls |
-| Activity | /activity | Active — audit log | No Data Layer dependency |
+| Activity | /activity | Active â€” audit log | No Data Layer dependency |
 | **DataLayer** | **/data-layer** | **NEW (DL1)** | Reads all `dl_*` stores via API |
 | Diagnostics | /diagnostics | Active - Integration Platform | Record-backed connector diagnostics |
 | Settings | /settings | Active - Integration Platform | Local settings; secrets masked |
@@ -925,5 +925,5 @@ Products from SnappShop → UI (same Products page, different channel tab)
 - ETag-triggered source snapshot refresh
 - Background product cache refresh (requires scheduler design review)
 - Destination snapshot population
-- Webhook ingestion → invalidation → refresh pipeline
+- Webhook ingestion â†’ invalidation â†’ refresh pipeline
 - Multi-channel connector registration

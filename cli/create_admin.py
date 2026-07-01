@@ -1,4 +1,4 @@
-"""FlowHub Beta — create-admin CLI subcommand (BU2).
+"""FlowHub â€” create-admin CLI subcommand (BU2).
 
 Creates the initial admin user in the Beta database.
 
@@ -19,7 +19,7 @@ import typer
 
 app = typer.Typer(
     name="create-admin",
-    help="Create the initial FlowHub Beta admin user (required post-install step).",
+    help="Create the initial FlowHub admin user (required post-install step).",
     add_completion=False,
 )
 
@@ -48,7 +48,7 @@ def create_admin(
         help="Path to .env.beta (default: /opt/FlowHub/.env.beta).",
     ),
 ) -> None:
-    """Create the initial FlowHub Beta admin user.
+    """Create the initial FlowHub admin user.
 
     Run once after install.sh to create the admin account used to log in.
     """

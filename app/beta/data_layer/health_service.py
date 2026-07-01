@@ -1,4 +1,4 @@
-"""Connector health data service — reads and writes dl_connector_health."""
+"""Connector health data service â€” reads and writes dl_connector_health."""
 
 from __future__ import annotations
 

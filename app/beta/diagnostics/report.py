@@ -1,7 +1,7 @@
-"""CP1.3 — Diagnostic report models.
+"""CP1.3 â€” Diagnostic report models.
 
 DiagnosticReport, DiagnosticCheckResult, DiagnosticCategory, RepairStep.
-All output is secrets-safe — no credential values, no raw passwords.
+All output is secrets-safe â€” no credential values, no raw passwords.
 """
 
 from __future__ import annotations

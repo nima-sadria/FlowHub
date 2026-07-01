@@ -1,4 +1,4 @@
-"""WooPrice Beta — JWT access token service (BU2).
+"""FlowHub â€” JWT access token service (BU2).
 
 Access tokens are short-lived JWTs (15 min) signed with BETA_JWT_SECRET.
 Refresh tokens are opaque random bytes stored hashed in the DB (see refresh_token.py).

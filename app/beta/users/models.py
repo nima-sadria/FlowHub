@@ -1,4 +1,4 @@
-"""WooPrice Beta — BetaUser and Permission ORM models.
+"""FlowHub â€” BetaUser and Permission ORM models.
 
 Defines beta_users and beta_permissions tables in the Beta database.
 
@@ -20,7 +20,7 @@ class BetaUser:
 class Permission:
     """ORM model for the beta_user_permissions table.
 
-    Fields: user_id (FK → beta_users.id), permission (named string).
+    Fields: user_id (FK â†’ beta_users.id), permission (named string).
 
     Implementation begins in B10.
     """

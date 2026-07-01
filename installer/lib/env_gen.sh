@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# FlowHub Beta — .env file generation
+# FlowHub â€” .env file generation
 #
 # Source from install.sh. Call generate_env_file ENV_PATH.
 # Writes all BETA_* variables to ENV_PATH with mode 600.
 # Validates the generated config using B3 ConfigValidator via Python.
-# Never commits the .env file — ensure .gitignore excludes it.
+# Never commits the .env file â€” ensure .gitignore excludes it.
 
 set -euo pipefail
 
@@ -14,7 +14,7 @@ generate_env_file() {
     created_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
     cat > "$env_path" <<ENVFILE
-# FlowHub Beta — generated environment file
+# FlowHub â€” generated environment file
 # Created: ${created_at}
 # DO NOT COMMIT THIS FILE
 
@@ -53,7 +53,7 @@ validate_env_file() {
     local repo_dir
     repo_dir="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
     # The bootstrap installs python3 but NOT the application's Python
-    # dependencies on the host — those live inside the Docker image. When the
+    # dependencies on the host â€” those live inside the Docker image. When the
     # app package can't be imported here, skip host-side validation gracefully;
     # the same configuration is validated by the app at runtime. A genuine
     # validation failure (importable app + invalid config) still aborts install.
@@ -66,7 +66,7 @@ sys.path.insert(0, sys.argv[2])
 
 try:
     from app.beta.config import ConfigurationManager
-except Exception as exc:  # noqa: BLE001 — app deps absent on host is expected
+except Exception as exc:  # noqa: BLE001 â€” app deps absent on host is expected
     print(f"  NOTE: host-side config validation skipped ({type(exc).__name__}).")
     print("  Configuration is validated by the application at runtime.")
     sys.exit(0)

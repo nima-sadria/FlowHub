@@ -1,4 +1,4 @@
-"""Tests for wooprice integrations command group (CP1.3)."""
+"""Tests for flowhub integrations command group (CP1.3)."""
 
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ class TestIntegrationsList:
 
     def test_list_shows_help_hint(self):
         result = runner.invoke(app, ["integrations", "list"])
-        assert "test" in result.output.lower() or "wooprice" in result.output
+        assert "test" in result.output.lower() or "flowhub" in result.output
 
 
 class TestIntegrationsTest:

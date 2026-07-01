@@ -1,4 +1,4 @@
-"""WooPrice Beta — FastAPI auth dependency (BU2).
+"""FlowHub â€” FastAPI auth dependency (BU2).
 
 get_current_user() extracts and validates the Bearer access token from the
 Authorization header and returns the corresponding BetaUser.  Raises 401

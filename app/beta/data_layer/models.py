@@ -1,17 +1,17 @@
-"""FlowHub Beta — Data Layer ORM models.
+"""FlowHub â€” Data Layer ORM models.
 
 All Data Layer tables use the 'dl_' prefix to distinguish them from
 core Beta tables (beta_users, beta_app_config, etc.).
 
 Tables:
-  dl_product_cache           — product read model, per connector + product ID
-  dl_inventory_cache         — inventory state, per connector + product ID
-  dl_source_snapshots        — source file snapshot metadata (ETag, rows, etc.)
-  dl_destination_snapshots   — destination (WC) product/price snapshot
-  dl_connector_health        — per-connector last health check result
-  dl_connector_telemetry     — per-connector telemetry aggregates
-  dl_refresh_jobs            — refresh job history and status
-  dl_invalidation_events     — invalidation event log
+  dl_product_cache           â€” product read model, per connector + product ID
+  dl_inventory_cache         â€” inventory state, per connector + product ID
+  dl_source_snapshots        â€” source file snapshot metadata (ETag, rows, etc.)
+  dl_destination_snapshots   â€” destination (WC) product/price snapshot
+  dl_connector_health        â€” per-connector last health check result
+  dl_connector_telemetry     â€” per-connector telemetry aggregates
+  dl_refresh_jobs            â€” refresh job history and status
+  dl_invalidation_events     â€” invalidation event log
 
 Multi-channel readiness: connector_id and channel_id columns are present
 on cache tables so that future connectors (SnappShop, Digikala, Shopify,

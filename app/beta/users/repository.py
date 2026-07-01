@@ -1,4 +1,4 @@
-"""WooPrice Beta — UserRepository.
+"""FlowHub â€” UserRepository.
 
 Persistence layer for BetaUser and Permission records.
 

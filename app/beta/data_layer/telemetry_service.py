@@ -1,4 +1,4 @@
-"""Connector telemetry data service — reads and writes dl_connector_telemetry."""
+"""Connector telemetry data service â€” reads and writes dl_connector_telemetry."""
 
 from __future__ import annotations
 

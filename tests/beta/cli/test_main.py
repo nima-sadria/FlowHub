@@ -1,4 +1,4 @@
-"""Tests for cli/main.py — registration, help, and command groups."""
+"""Tests for cli/main.py â€” registration, help, and command groups."""
 
 from typer.testing import CliRunner
 from cli.main import app
@@ -11,9 +11,9 @@ class TestMainHelp:
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
 
-    def test_help_contains_wooprice(self):
+    def test_help_contains_flowhub(self):
         result = runner.invoke(app, ["--help"])
-        assert "wooprice" in result.output.lower() or "WooPrice" in result.output
+        assert "flowhub" in result.output.lower() or "FlowHub" in result.output
 
     def test_help_shows_install(self):
         result = runner.invoke(app, ["--help"])

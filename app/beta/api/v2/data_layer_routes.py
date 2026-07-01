@@ -1,15 +1,15 @@
-"""FlowHub Beta — /api/v2/data-layer router.
+"""FlowHub â€” /api/v2/data-layer router.
 
 Read-only endpoints exposing Data Layer status for the /data-layer UI page.
 No write paths to WooCommerce or Nextcloud are present or possible.
 
 Routes:
-  GET /api/v2/data-layer/status              — overall Data Layer status summary
-  GET /api/v2/data-layer/products/status     — product cache status
-  GET /api/v2/data-layer/sources/status      — source + destination snapshot status
-  GET /api/v2/data-layer/connectors/status   — connector health + telemetry
-  GET /api/v2/data-layer/refresh-jobs        — recent refresh job history
-  GET /api/v2/data-layer/invalidation-events — recent invalidation events
+  GET /api/v2/data-layer/status              â€” overall Data Layer status summary
+  GET /api/v2/data-layer/products/status     â€” product cache status
+  GET /api/v2/data-layer/sources/status      â€” source + destination snapshot status
+  GET /api/v2/data-layer/connectors/status   â€” connector health + telemetry
+  GET /api/v2/data-layer/refresh-jobs        â€” recent refresh job history
+  GET /api/v2/data-layer/invalidation-events â€” recent invalidation events
 """
 
 from __future__ import annotations

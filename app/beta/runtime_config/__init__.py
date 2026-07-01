@@ -1,4 +1,4 @@
-"""WooPrice Beta — Runtime Configuration package (CP1.3).
+"""FlowHub â€” Runtime Configuration package (CP1.3).
 
 RuntimeConfigService is the write path for editable non-secret fields.
 Separate from B3 ConfigurationManager (read-only immutable schema).

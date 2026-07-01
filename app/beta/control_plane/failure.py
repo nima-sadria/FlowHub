@@ -1,4 +1,4 @@
-"""Control Plane failure taxonomy — FailureClass enum and Severity levels.
+"""Control Plane failure taxonomy â€” FailureClass enum and Severity levels.
 
 Every integration check returns exactly one FailureClass. Collapsing DNS or TLS
 failures into generic messages is prohibited at every layer.
@@ -124,7 +124,7 @@ class FailureClass(str, Enum):
         return self.meta.security_sensitive
 
 
-# Metadata table — keyed by string value to avoid forward-reference issues.
+# Metadata table â€” keyed by string value to avoid forward-reference issues.
 _FAILURE_METADATA: dict[str, FailureClassMeta] = {
     "none": FailureClassMeta(
         code="none",
@@ -143,7 +143,7 @@ _FAILURE_METADATA: dict[str, FailureClassMeta] = {
         operator_hint=(
             "DNS resolution failed for the integration hostname. "
             "Verify the service URL is correct and that DNS resolves on this server. "
-            "Run: nslookup <hostname>. Update the URL via 'wooprice configure set'."
+            "Run: nslookup <hostname>. Update the URL via 'flowhub configure set'."
         ),
         retryable=False,
         security_sensitive=False,
@@ -245,8 +245,8 @@ _FAILURE_METADATA: dict[str, FailureClassMeta] = {
         user_message="The application configuration is invalid or incomplete.",
         operator_hint=(
             "A required configuration value is missing, malformed, or invalid. "
-            "Run 'wooprice configure verify' to identify the problem, "
-            "then correct the value in .env or via 'wooprice configure set'."
+            "Run 'flowhub configure verify' to identify the problem, "
+            "then correct the value in .env or via 'flowhub configure set'."
         ),
         retryable=False,
         security_sensitive=False,
@@ -321,7 +321,7 @@ _FAILURE_METADATA: dict[str, FailureClassMeta] = {
         operator_hint=(
             "An unclassified error occurred. "
             "Check the application logs for details. "
-            "If the error persists, run 'wooprice diagnostics run'."
+            "If the error persists, run 'flowhub diagnostics run'."
         ),
         retryable=False,
         security_sensitive=False,

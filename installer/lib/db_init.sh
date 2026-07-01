@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FlowHub Beta — Database initialization and migration runner
+# FlowHub â€” Database initialization and migration runner
 #
 # Source from install.sh. Requires:
 #   - PostgreSQL container healthy (call wait_for_postgres_ready first)
@@ -34,7 +34,7 @@ run_alembic_migrations() {
         alembic -c alembic_beta.ini upgrade head; then
         echo "" >&2
         echo "  ERROR: Alembic migration failed." >&2
-        echo "  This is a fatal error — installation cannot continue." >&2
+        echo "  This is a fatal error â€” installation cannot continue." >&2
         echo "" >&2
         echo "  Diagnostics:" >&2
         echo "    docker compose -f ${compose_file} logs app" >&2

@@ -1,4 +1,4 @@
-"""FlowHub Beta — interactive management menu.
+"""FlowHub â€” interactive management menu.
 
 Displayed when `flowhub` is launched with no arguments.
 Each option dispatches to an existing CLI command or shows a placeholder
@@ -11,8 +11,7 @@ from typing import Callable
 
 _MENU_TEXT = """\
 
---------------------------------------------------------
-  FlowHub Beta  [BETA ENVIRONMENT]
+  FlowHub
 --------------------------------------------------------
 
   1. Status
@@ -30,9 +29,9 @@ _COMING_SOON = "  Coming in future phase."
 
 
 def _run_subcommand(*args: str) -> None:
-    """Invoke an existing wooprice CLI subcommand in-process via the Typer app.
+    """Invoke an existing FlowHub CLI subcommand in-process via the Typer app.
 
-    Deferred import breaks the cli.main → cli.menu → cli.main circular chain.
+    Deferred import breaks the cli.main â†’ cli.menu â†’ cli.main circular chain.
     SystemExit(0) is swallowed; non-zero exits are also suppressed so a failing
     subcommand returns the user to the menu rather than killing the process.
     """

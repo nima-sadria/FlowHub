@@ -1,4 +1,4 @@
-"""WooPrice Beta — Control Plane package.
+"""FlowHub â€” Control Plane package.
 
 Exports the public surface for CP1.1: core models, failure taxonomy,
 feature availability, and status aggregation.

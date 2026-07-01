@@ -48,18 +48,18 @@ class IntegrationState:
     """Point-in-time health snapshot for one integration.
 
     Fields:
-        name             — logical identifier (e.g. "nextcloud", "woocommerce")
-        integration_type — category for plane logic
-        enabled          — operator has enabled this integration in config
-        configured       — required config values are present and valid
-        reachable        — TCP/TLS check passed; None = not yet checked
-        authenticated    — auth check passed; None = not attempted
-        last_success_at  — UTC timestamp of last successful health check
-        last_checked_at  — UTC timestamp of most recent check attempt
-        failure_class    — typed failure; NONE when healthy
-        severity         — derived from failure_class or overridden by checker
-        message          — operator-safe description; never contains secrets
-        repair_hint      — actionable repair guidance; never contains secrets
+        name             â€” logical identifier (e.g. "nextcloud", "woocommerce")
+        integration_type â€” category for plane logic
+        enabled          â€” operator has enabled this integration in config
+        configured       â€” required config values are present and valid
+        reachable        â€” TCP/TLS check passed; None = not yet checked
+        authenticated    â€” auth check passed; None = not attempted
+        last_success_at  â€” UTC timestamp of last successful health check
+        last_checked_at  â€” UTC timestamp of most recent check attempt
+        failure_class    â€” typed failure; NONE when healthy
+        severity         â€” derived from failure_class or overridden by checker
+        message          â€” operator-safe description; never contains secrets
+        repair_hint      â€” actionable repair guidance; never contains secrets
     """
 
     name: str
@@ -193,7 +193,7 @@ class IntegrationState:
         }
         reachable = None if failure_class not in network_failures else False
         if failure_class == FailureClass.TLS_FAILURE:
-            reachable = None  # TCP worked; TLS layer failed — ambiguous
+            reachable = None  # TCP worked; TLS layer failed â€” ambiguous
         if failure_class in (FailureClass.UNAUTHORIZED, FailureClass.FORBIDDEN):
             reachable = True
 

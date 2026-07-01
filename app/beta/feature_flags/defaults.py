@@ -1,4 +1,4 @@
-"""WooPrice Beta — Feature flag boot-time defaults.
+"""FlowHub â€” Feature flag boot-time defaults.
 
 Used before the Beta database is initialized (first boot before migrations).
 After first migration, flag state is read from beta_feature_flags table.

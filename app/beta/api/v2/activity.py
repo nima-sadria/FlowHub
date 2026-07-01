@@ -1,10 +1,10 @@
-"""FlowHub Beta — /api/v2/activity router (BU5).
+"""FlowHub â€” /api/v2/activity router (BU5).
 
 Paginated audit event log.  Backed by the beta_login_audit table.
 Maps audit events to the ActivityEvent shape expected by the frontend.
 
 Routes:
-  GET /api/v2/activity?page=1&pageSize=20  — paginated audit log
+  GET /api/v2/activity?page=1&pageSize=20  â€” paginated audit log
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from app.beta.database import get_db
 
 router = APIRouter(prefix="/activity", tags=["activity"])
 
-# Event → (kind, level) mapping
+# Event â†’ (kind, level) mapping
 _EVENT_MAP: dict[str, tuple[str, str]] = {
     "login_success": ("user_action", "success"),
     "login_failed": ("user_action", "error"),

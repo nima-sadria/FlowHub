@@ -1,4 +1,4 @@
-"""WooPrice Beta — Configuration validation.
+"""FlowHub â€” Configuration validation.
 
 Validates a flat dict[str, str] of environment variables and returns a
 structured ValidationResult. Never raises, never terminates the process.
@@ -90,12 +90,12 @@ class ValidationResult:
     def format_errors(self) -> str:
         if not self.errors:
             return "No errors."
-        return "\n".join(f"  • {e}" for e in self.errors)
+        return "\n".join(f"  â€¢ {e}" for e in self.errors)
 
     def format_warnings(self) -> str:
         if not self.warnings:
             return "No warnings."
-        return "\n".join(f"  • {w}" for w in self.warnings)
+        return "\n".join(f"  â€¢ {w}" for w in self.warnings)
 
 
 class ConfigValidator:

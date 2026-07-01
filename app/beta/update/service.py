@@ -1,4 +1,4 @@
-"""WooPrice Beta — UpdateService.
+"""FlowHub â€” UpdateService.
 
 Checks for available updates, auto-backs-up before applying, applies the
 update, runs migrations, restarts services, and rolls back on failure.
@@ -21,7 +21,7 @@ class UpdateService:
         raise NotImplementedError("Implementation begins in B13.")
 
     def apply(self, version: str | None = None, *, dry_run: bool = False) -> None:
-        """Apply an update: backup → pull → migrate → restart → health check.
+        """Apply an update: backup â†’ pull â†’ migrate â†’ restart â†’ health check.
 
         Implementation begins in B13.
         """

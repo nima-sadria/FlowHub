@@ -1,4 +1,4 @@
-"""FlowHub Beta — integration error types (BU5).
+"""FlowHub â€” integration error types (BU5).
 
 All external integration clients raise IntegrationError instead of leaking
 httpx or stdlib exceptions into routers.  Routers map IntegrationError to

@@ -139,4 +139,3 @@ class IntegrationPollingPolicy(BetaBase):
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     next_run_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
-

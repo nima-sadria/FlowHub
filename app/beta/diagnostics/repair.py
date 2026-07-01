@@ -1,4 +1,4 @@
-"""CP1.3 — Repair playbook: probable cause inference and repair step generation."""
+"""CP1.3 â€” Repair playbook: probable cause inference and repair step generation."""
 
 from __future__ import annotations
 
@@ -11,11 +11,11 @@ _PLAYBOOKS: dict[str, list[dict]] = {
     "dns_failure": [
         {
             "description": "Verify the service URL is correctly configured",
-            "command": "wooprice configure show",
+            "command": "flowhub configure show",
         },
         {
             "description": "Correct the URL if wrong",
-            "command": "wooprice configure set BETA_NEXTCLOUD_URL https://correct-host.example.com",
+            "command": "flowhub configure set BETA_NEXTCLOUD_URL https://correct-host.example.com",
         },
         {
             "description": "Test DNS from the server",
@@ -24,7 +24,7 @@ _PLAYBOOKS: dict[str, list[dict]] = {
         },
         {
             "description": "Retest after changes",
-            "command": "wooprice integrations test <service>",
+            "command": "flowhub integrations test <service>",
         },
     ],
     "tls_failure": [
@@ -40,7 +40,7 @@ _PLAYBOOKS: dict[str, list[dict]] = {
         },
         {
             "description": "Retest after resolving the certificate issue",
-            "command": "wooprice integrations test <service>",
+            "command": "flowhub integrations test <service>",
         },
     ],
     "timeout": [
@@ -53,17 +53,17 @@ _PLAYBOOKS: dict[str, list[dict]] = {
         },
         {
             "description": "Consider increasing the connection timeout",
-            "command": "wooprice configure set BETA_NEXTCLOUD_URL <url>",
+            "command": "flowhub configure set BETA_NEXTCLOUD_URL <url>",
         },
         {
             "description": "Retest after resolving the network issue",
-            "command": "wooprice integrations test <service>",
+            "command": "flowhub integrations test <service>",
         },
     ],
     "unauthorized": [
         {
             "description": "Verify credentials in configuration (values are redacted in output)",
-            "command": "wooprice configure show",
+            "command": "flowhub configure show",
             "detail": "Check the actual .env file to confirm the credential values are correct.",
         },
         {
@@ -71,7 +71,7 @@ _PLAYBOOKS: dict[str, list[dict]] = {
         },
         {
             "description": "Retest after correcting credentials",
-            "command": "wooprice integrations test <service>",
+            "command": "flowhub integrations test <service>",
         },
     ],
     "forbidden": [
@@ -83,7 +83,7 @@ _PLAYBOOKS: dict[str, list[dict]] = {
         },
         {
             "description": "Retest after permission changes",
-            "command": "wooprice integrations test <service>",
+            "command": "flowhub integrations test <service>",
         },
     ],
     "unreachable": [
@@ -99,7 +99,7 @@ _PLAYBOOKS: dict[str, list[dict]] = {
         },
         {
             "description": "Retest after resolving the network issue",
-            "command": "wooprice integrations test <service>",
+            "command": "flowhub integrations test <service>",
         },
     ],
     "tcp_failure": [
@@ -111,38 +111,38 @@ _PLAYBOOKS: dict[str, list[dict]] = {
         },
         {
             "description": "Retest after resolving the port/firewall issue",
-            "command": "wooprice integrations test <service>",
+            "command": "flowhub integrations test <service>",
         },
     ],
     "invalid_response": [
         {
             "description": "Verify the service URL and path are correct",
-            "command": "wooprice configure show",
+            "command": "flowhub configure show",
         },
         {
             "description": "Test the URL manually",
             "command": "curl -v <url>",
         },
         {
-            "description": "The API endpoint may have changed — check service documentation",
+            "description": "The API endpoint may have changed â€” check service documentation",
         },
         {
             "description": "Retest after correction",
-            "command": "wooprice integrations test <service>",
+            "command": "flowhub integrations test <service>",
         },
     ],
     "configuration_error": [
         {
             "description": "Validate the full configuration",
-            "command": "wooprice configure verify",
+            "command": "flowhub configure verify",
         },
         {
             "description": "Correct missing or invalid fields",
-            "command": "wooprice configure set <FIELD> <value>",
+            "command": "flowhub configure set <FIELD> <value>",
         },
         {
             "description": "Retest after correction",
-            "command": "wooprice diagnostics run",
+            "command": "flowhub diagnostics run",
         },
     ],
     "permission_error": [
@@ -180,7 +180,7 @@ _PLAYBOOKS: dict[str, list[dict]] = {
         },
         {
             "description": "Verify BETA_DATABASE_URL is correct",
-            "command": "wooprice configure show",
+            "command": "flowhub configure show",
         },
     ],
     "docker_error": [
@@ -196,11 +196,11 @@ _PLAYBOOKS: dict[str, list[dict]] = {
     "unknown_error": [
         {
             "description": "Check application logs for error details",
-            "command": "wooprice logs",
+            "command": "flowhub logs",
         },
         {
             "description": "Run full diagnostics for more information",
-            "command": "wooprice diagnostics run",
+            "command": "flowhub diagnostics run",
         },
     ],
 }
@@ -210,7 +210,7 @@ class ProbableCauseInferrer:
     """Infers a human-readable probable cause from a FailureClass."""
 
     _CAUSES: dict[str, str] = {
-        "none": "No failure — the service is operating normally.",
+        "none": "No failure â€” the service is operating normally.",
         "dns_failure": (
             "The hostname does not resolve. Either the configured URL is incorrect "
             "or DNS is not working for this hostname from this server."

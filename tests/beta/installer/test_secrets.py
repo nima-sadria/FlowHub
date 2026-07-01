@@ -21,12 +21,12 @@ class TestGenerateSecrets:
 
     def test_jwt_secret_minimum_length(self):
         sec = generate_secrets()
-        # token_urlsafe(64) → ~86 base64url chars
+        # token_urlsafe(64) â†’ ~86 base64url chars
         assert len(sec.jwt_secret) >= _JWT_SECRET_MIN_BYTES
 
     def test_rest_api_secret_is_64_char_hex(self):
         sec = generate_secrets()
-        # token_hex(32) → 64 hex chars
+        # token_hex(32) â†’ 64 hex chars
         assert len(sec.rest_api_secret) == _REST_SECRET_HEX_BYTES * 2
         assert re.fullmatch(r"[0-9a-f]+", sec.rest_api_secret)
 

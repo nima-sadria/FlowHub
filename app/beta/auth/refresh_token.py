@@ -1,4 +1,4 @@
-"""WooPrice Beta — opaque refresh token utilities (BU2).
+"""FlowHub â€” opaque refresh token utilities (BU2).
 
 Refresh tokens are random URL-safe strings.  Only the SHA-256 hash is
 stored in the database; the raw token is returned to the client and never

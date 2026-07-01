@@ -1,4 +1,4 @@
-"""FlowHub Beta — permanent write guard (BU5).
+"""FlowHub â€” permanent write guard (BU5).
 
 Any code path that would attempt a write operation must call raise_write_blocked()
 instead of proceeding.  This is intentional and permanent for the Beta phase.
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 
-BETA_WRITE_BLOCKED = "Write operations are disabled in FlowHub Beta."
+BETA_WRITE_BLOCKED = "Write operations are disabled in FlowHub."
 
 
 def raise_write_blocked() -> None:

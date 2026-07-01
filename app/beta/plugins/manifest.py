@@ -1,4 +1,4 @@
-"""WooPrice Beta — Plugin Manifest validator.
+"""FlowHub â€” Plugin Manifest validator.
 
 Validates plugin.json manifests against the JSON Schema before installation.
 Checks version compatibility with the running platform version.

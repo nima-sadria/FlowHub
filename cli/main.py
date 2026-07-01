@@ -1,4 +1,4 @@
-"""FlowHub Beta — wooprice CLI entry point.
+"""FlowHub CLI entry point.
 
 Registers all command groups.  Invoked with no arguments: shows the
 interactive management menu (BU1).  Invoked with a subcommand: runs it.
@@ -7,7 +7,7 @@ Local invocation:
     python -m cli.main [command] [options]
 
 System-installed (after install.sh):
-    wooprice [command] [options]
+    flowhub [command] [options]
 
 Available commands:
     install dry-run       -- dry-run smoke path (writes nothing)
@@ -55,8 +55,8 @@ from cli.scheduler import app as scheduler_app
 from cli.ai import app as ai_app
 
 app = typer.Typer(
-    name="wooprice",
-    help="FlowHub Beta management CLI.  [BETA ENVIRONMENT]",
+    name="flowhub",
+    help="FlowHub management CLI.",
     no_args_is_help=False,
     invoke_without_command=True,
     add_completion=False,

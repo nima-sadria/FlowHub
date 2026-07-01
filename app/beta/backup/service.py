@@ -1,4 +1,4 @@
-"""WooPrice Beta — BackupService.
+"""FlowHub â€” BackupService.
 
 Creates timestamped backup archives containing pg_dump, SQLite dump,
 and BETA_STORAGE_PATH files. Supports restore from archive.

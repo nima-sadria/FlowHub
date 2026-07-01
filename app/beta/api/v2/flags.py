@@ -1,4 +1,4 @@
-"""WooPrice Beta — /api/v2/flags router.
+"""FlowHub â€” /api/v2/flags router.
 
 Feature flag management endpoints. Admin permission required.
 

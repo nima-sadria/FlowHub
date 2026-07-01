@@ -211,4 +211,3 @@ class ConnectorTelemetryResponse(BaseModel):
     total: int
     aggregate: dict = Field(default_factory=dict)
     runtime_write_blocked: bool = True
-

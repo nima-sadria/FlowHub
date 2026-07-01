@@ -1,4 +1,4 @@
-"""CP1.2 — Exception-to-FailureClass classifier.
+"""CP1.2 â€” Exception-to-FailureClass classifier.
 
 All exception classification within CP1 routes through this module.
 No other module may independently classify network exceptions (per spec).
@@ -25,7 +25,7 @@ from .adapters import (
     TLSHandshakeError,
 )
 
-# Retryable failure classes (from spec §5.1)
+# Retryable failure classes (from spec آ§5.1)
 RETRYABLE_FAILURE_CLASSES: frozenset[FailureClass] = frozenset(
     {
         FailureClass.TIMEOUT,

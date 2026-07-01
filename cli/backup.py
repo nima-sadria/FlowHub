@@ -1,4 +1,4 @@
-"""WooPrice Beta — wooprice backup command group. Stub — B15."""
+"""FlowHub â€” flowhub backup command group. Stub â€” B15."""
 
 import typer
 
@@ -9,17 +9,17 @@ _NOT_IMPLEMENTED = "Not implemented in this phase. Backup/restore begins in B15 
 
 @app.command("create")
 def backup_create() -> None:
-    """Create a backup. [NOT IMPLEMENTED — B15]"""
+    """Create a backup. [NOT IMPLEMENTED â€” B15]"""
     typer.echo(_NOT_IMPLEMENTED)
 
 
 @app.command("list")
 def backup_list() -> None:
-    """List available backups. [NOT IMPLEMENTED — B15]"""
+    """List available backups. [NOT IMPLEMENTED â€” B15]"""
     typer.echo(_NOT_IMPLEMENTED)
 
 
 @app.command("restore")
 def backup_restore() -> None:
-    """Restore from a backup. [NOT IMPLEMENTED — B15]"""
+    """Restore from a backup. [NOT IMPLEMENTED â€” B15]"""
     typer.echo(_NOT_IMPLEMENTED)

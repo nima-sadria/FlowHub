@@ -1,13 +1,13 @@
-"""FlowHub Beta — AppConfigService (BU4).
+"""FlowHub â€” AppConfigService (BU4).
 
 DB-backed runtime configuration store. Reads and writes key-value pairs to
 the beta_app_config table. Secret values are masked in safe read methods.
 
 Key namespace conventions:
-  setup.*          — wizard completion state
-  server.*         — domain, port, environment, timezone, currency
-  woocommerce.*    — URL, consumer key/secret
-  nextcloud.*      — URL, username, password, spreadsheet path
+  setup.*          â€” wizard completion state
+  server.*         â€” domain, port, environment, timezone, currency
+  woocommerce.*    â€” URL, consumer key/secret
+  nextcloud.*      â€” URL, username, password, spreadsheet path
 """
 
 from __future__ import annotations

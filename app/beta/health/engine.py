@@ -1,7 +1,7 @@
-"""CP1.2 — Health Engine.
+"""CP1.2 â€” Health Engine.
 
 Orchestrates health checks and delegates to individual check implementations.
-Framework-independent — no FastAPI, no Typer, no CLI imports.
+Framework-independent â€” no FastAPI, no Typer, no CLI imports.
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ class HealthEngine:
         auth_username: Optional[str] = None,
         auth_password: Optional[str] = None,
     ) -> list[HealthCheckResult]:
-        """Run DNS → TCP → TLS → HTTP → Auth chain for an integration service.
+        """Run DNS â†’ TCP â†’ TLS â†’ HTTP â†’ Auth chain for an integration service.
 
         Returns the individual step results (not a summary).
         """

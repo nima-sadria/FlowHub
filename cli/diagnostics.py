@@ -1,7 +1,7 @@
-"""WooPrice Beta — wooprice diagnostics command group (CP1.3).
+"""FlowHub â€” flowhub diagnostics command group (CP1.3).
 
-diagnostics (default)  — env info, config validation, prerequisites (no network)
-diagnostics run        — full integration health check via DiagnosticRunner
+diagnostics (default)  â€” env info, config validation, prerequisites (no network)
+diagnostics run        â€” full integration health check via DiagnosticRunner
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ def diagnostics(
     # --- Missing required fields ---
     missing = [f for f in REQUIRED_FIELDS if f not in env_dict]
 
-    # --- Secret status (set / not set — never values) ---
+    # --- Secret status (set / not set â€” never values) ---
     sec_status = secret_status(env_dict)
 
     # --- Prerequisites ---
@@ -94,28 +94,28 @@ def diagnostics(
 
     print_section("Validation Summary")
     if validation.is_valid:
-        console.print("  [green]✓[/green]  All 22 required fields pass validation.")
+        console.print("  [green]âœ“[/green]  All 22 required fields pass validation.")
     else:
-        console.print(f"  [red]✗[/red]  {len(validation.errors)} error(s) found:")
+        console.print(f"  [red]âœ—[/red]  {len(validation.errors)} error(s) found:")
         for err in validation.errors[:10]:
             display = "[REDACTED]" if err.field in SECRET_FIELDS else repr(err.value)
-            console.print(f"      [red]•[/red] {err.field}={display}: {err.message}")
+            console.print(f"      [red]â€¢[/red] {err.field}={display}: {err.message}")
         if len(validation.errors) > 10:
             console.print(f"      [dim]... and {len(validation.errors) - 10} more[/dim]")
 
     if missing:
         print_section("Missing Required Variables")
         for field in missing:
-            console.print(f"  [red]✗[/red]  {field}")
+            console.print(f"  [red]âœ—[/red]  {field}")
 
     print_section("Secret Status (values never shown)")
     for field, status in sec_status.items():
-        icon = "[green]✓[/green]" if status == "set" else "[red]✗[/red]"
+        icon = "[green]âœ“[/green]" if status == "set" else "[red]âœ—[/red]"
         console.print(f"  {icon}  {field:<36} {status}")
 
     print_section("Installer Prerequisites")
     for pre in prereqs:
-        icon = "[green]✓[/green]" if pre.passed else "[red]✗[/red]"
+        icon = "[green]âœ“[/green]" if pre.passed else "[red]âœ—[/red]"
         console.print(f"  {icon}  {pre.name}: {pre.message}")
 
     console.print()
@@ -184,12 +184,12 @@ def diagnostics_run(
             raise typer.Exit(code=1)
         return
 
-    print_section(f"Diagnostic Run — {report.target}")
+    print_section(f"Diagnostic Run â€” {report.target}")
 
     _STATUS_ICON = {
-        "pass": "[green]✓[/green]",
-        "warn": "[yellow]⚠[/yellow]",
-        "fail": "[red]✗[/red]",
+        "pass": "[green]âœ“[/green]",
+        "warn": "[yellow]âڑ [/yellow]",
+        "fail": "[red]âœ—[/red]",
         "skip": "[dim]-[/dim]",
         "unknown": "[dim]?[/dim]",
     }
@@ -203,7 +203,7 @@ def diagnostics_run(
         )
         ms_note = f"  ({check.duration_ms:.0f}ms)" if check.duration_ms > 0 else ""
         skip_note = (
-            f"  (skipped — {check.skipped_because} failed)"
+            f"  (skipped â€” {check.skipped_because} failed)"
             if check.skipped_because
             else ""
         )

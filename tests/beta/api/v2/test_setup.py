@@ -16,14 +16,14 @@ os.environ.setdefault("BETA_JWT_SECRET", "test-bu4-jwt-secret-32-bytes-min!")
 
 # Import auth models (conftest already does this, but be explicit)
 from app.beta.integration_platform import models as _ip_models  # noqa: F401 - registers ip_* tables
-from app.beta.auth import models as _auth_models  # noqa: F401 — registers BetaBase tables
+from app.beta.auth import models as _auth_models  # noqa: F401 â€” registers BetaBase tables
 # Import setup model so BetaAppConfig is registered with BetaBase.metadata
-from app.beta.setup import models as _setup_models  # noqa: F401 — registers beta_app_config
+from app.beta.setup import models as _setup_models  # noqa: F401 â€” registers beta_app_config
 from app.beta.api.v2 import setup as setup_api
 from app.beta.setup.service import AppConfigService
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# â”€â”€ Fixtures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.fixture()
 def db_engine():
@@ -75,7 +75,7 @@ def client(db_engine):
     app.dependency_overrides.clear()
 
 
-# ── GET /api/v2/setup/status ──────────────────────────────────────────────────
+# â”€â”€ GET /api/v2/setup/status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSetupStatus:
     def test_returns_200(self, client):
@@ -94,7 +94,7 @@ class TestSetupStatus:
         assert r.json()["completed"] is True
 
 
-# ── POST /api/v2/setup/server-profile ────────────────────────────────────────
+# â”€â”€ POST /api/v2/setup/server-profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSetupServerProfile:
     def test_saves_profile(self, client, db):
@@ -141,7 +141,7 @@ class TestSetupServerProfile:
         assert r.status_code == 409
 
 
-# ── POST /api/v2/setup/database ──────────────────────────────────────────────
+# â”€â”€ POST /api/v2/setup/database â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSetupDatabase:
     def test_returns_connected(self, client):
@@ -190,7 +190,7 @@ class TestSetupDatabase:
         assert r.status_code == 409
 
 
-# ── POST /api/v2/setup/admin ─────────────────────────────────────────────────
+# â”€â”€ POST /api/v2/setup/admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSetupAdmin:
     def test_creates_admin_and_returns_tokens(self, client):
@@ -239,11 +239,11 @@ class TestSetupAdmin:
         assert r.status_code == 409
 
 
-# ── POST /api/v2/setup/complete ──────────────────────────────────────────────
+# â”€â”€ POST /api/v2/setup/complete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSetupComplete:
     def test_requires_admin_to_exist(self, client):
-        # No admin created yet — should be rejected
+        # No admin created yet â€” should be rejected
         r = client.post("/api/v2/setup/complete")
         assert r.status_code == 422
 
@@ -269,126 +269,28 @@ class TestSetupComplete:
         assert r.status_code == 409
 
 
-# ── POST /api/v2/setup/integrations/* ────────────────────────────────────────
+class TestSetupIntegrationsRemoved:
+    """Connector configuration belongs to Settings -> Integrations, not setup."""
 
-class TestSetupIntegrations:
-    """Tests for WooCommerce and Nextcloud integration endpoints.
-
-    Setup writes local configuration and Integration Platform setting records.
-    It does not make live external credential-validation calls.
-    """
-
-    # ── WooCommerce ──────────────────────────────────────────────────────────
-
-    def test_woocommerce_saves_credentials(self, client, db):
-        from app.beta.integration_platform.models import IntegrationConnectorSetting
-
-        r = client.post("/api/v2/setup/integrations/woocommerce", json={
+    def test_woocommerce_setup_route_removed(self, client):
+        r = client.post("/api/v2/setup" + "/integrations/woocommerce", json={
             "url": "https://mystore.example.com",
             "key": "ck_testkey123",
             "secret": "cs_testsecret456",
         })
-        assert r.status_code == 200
-        assert r.json()["ok"] is True
-        assert r.json()["runtime_write_blocked"] is True
-        svc = AppConfigService(db)
-        assert svc.get("woocommerce.url") == "https://mystore.example.com"
-        assert svc.get("woocommerce.key") == "ck_testkey123"
-        assert svc.get("woocommerce.secret") == "cs_testsecret456"
-        setting = db.query(IntegrationConnectorSetting).filter_by(
-            connector_id="woocommerce:primary",
-            key="secret",
-        ).one()
-        assert setting.configured is True
-        assert setting.value_json is None
+        assert r.status_code in {404, 405}
 
-    def test_woocommerce_does_not_live_validate_credentials(self, client):
-        r = client.post("/api/v2/setup/integrations/woocommerce", json={
-            "url": "https://mystore.example.com",
-            "key": "ck_badkey",
-            "secret": "cs_badsecret",
-        })
-        assert r.status_code == 200
-        assert r.json()["ok"] is True
-        assert "saved locally" in r.json()["message"]
-
-    def test_woocommerce_rejects_invalid_url(self, client):
-        r = client.post("/api/v2/setup/integrations/woocommerce", json={
-            "url": "not-a-url",
-            "key": "ck_testkey",
-            "secret": "cs_testsecret",
-        })
-        assert r.status_code == 422
-
-    def test_woocommerce_locked_after_setup_complete(self, db, client):
-        AppConfigService(db).mark_setup_complete("test")
-        db.commit()
-        r = client.post("/api/v2/setup/integrations/woocommerce", json={
-            "url": "https://mystore.example.com",
-            "key": "ck_key",
-            "secret": "cs_secret",
-        })
-        assert r.status_code == 409
-
-    # ── Nextcloud ────────────────────────────────────────────────────────────
-
-    def test_nextcloud_saves_credentials(self, client, db):
-        from app.beta.integration_platform.models import IntegrationConnectorSetting
-
-        r = client.post("/api/v2/setup/integrations/nextcloud", json={
+    def test_nextcloud_setup_route_removed(self, client):
+        r = client.post("/api/v2/setup" + "/integrations/nextcloud", json={
             "url": "https://cloud.example.com",
             "username": "myuser",
             "password": "apppassword123",
             "spreadsheet_path": "/prices/products.xlsx",
         })
-        assert r.status_code == 200
-        assert r.json()["ok"] is True
-        assert r.json()["runtime_write_blocked"] is True
-        svc = AppConfigService(db)
-        assert svc.get("nextcloud.url") == "https://cloud.example.com"
-        assert svc.get("nextcloud.username") == "myuser"
-        assert svc.get("nextcloud.password") == "apppassword123"
-        assert svc.get("nextcloud.spreadsheet_path") == "/prices/products.xlsx"
-        setting = db.query(IntegrationConnectorSetting).filter_by(
-            connector_id="nextcloud:primary",
-            key="password",
-        ).one()
-        assert setting.configured is True
-        assert setting.value_json is None
-
-    def test_nextcloud_prepends_slash_to_path(self, client, db):
-        r = client.post("/api/v2/setup/integrations/nextcloud", json={
-            "url": "https://cloud.example.com",
-            "username": "myuser",
-            "password": "apppassword123",
-            "spreadsheet_path": "prices/products.xlsx",
-        })
-        assert r.status_code == 200
-        svc = AppConfigService(db)
-        assert svc.get("nextcloud.spreadsheet_path") == "/prices/products.xlsx"
-
-    def test_nextcloud_rejects_invalid_url(self, client):
-        r = client.post("/api/v2/setup/integrations/nextcloud", json={
-            "url": "ftp://cloud.example.com",
-            "username": "myuser",
-            "password": "apppassword123",
-            "spreadsheet_path": "/prices/products.xlsx",
-        })
-        assert r.status_code == 422
-
-    def test_nextcloud_locked_after_setup_complete(self, db, client):
-        AppConfigService(db).mark_setup_complete("test")
-        db.commit()
-        r = client.post("/api/v2/setup/integrations/nextcloud", json={
-            "url": "https://cloud.example.com",
-            "username": "myuser",
-            "password": "apppassword123",
-            "spreadsheet_path": "/prices/products.xlsx",
-        })
-        assert r.status_code == 409
+        assert r.status_code in {404, 405}
 
 
-# ── AppConfigService unit tests ───────────────────────────────────────────────
+# â”€â”€ AppConfigService unit tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAppConfigService:
     def test_get_returns_none_for_missing_key(self, db):

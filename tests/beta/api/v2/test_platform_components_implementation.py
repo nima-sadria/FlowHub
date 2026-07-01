@@ -165,7 +165,7 @@ def test_integration_platform_canonical_contracts_and_write_guard(client, auth_h
         "allowed": False,
         "status": "blocked",
         "error_code": "write_blocked_beta",
-        "message": "Write operations are disabled in FlowHub Beta.",
+        "message": "Write operations are disabled in FlowHub.",
         "capability_advertised": True,
         "authorization_granted": False,
         "execution_attempted": False,

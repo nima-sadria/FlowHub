@@ -3,17 +3,21 @@ import type {
   ServerProfilePayload,
   DatabaseStatusResponse,
   SetupStatus,
+  AdminPayload,
+  SetupAdminResponse,
 } from '../api/types'
 
-type Step = 'welcome' | 'server-profile' | 'database'
+type Step = 'welcome' | 'server-profile' | 'database' | 'admin' | 'finish'
 
 const STEP_LABELS: Record<Step, string> = {
   welcome: 'Welcome',
   'server-profile': 'Server Profile',
   database: 'Database',
+  admin: 'Admin Account',
+  finish: 'Finish',
 }
 
-const SETUP_STEPS: Step[] = ['welcome', 'server-profile', 'database']
+const SETUP_STEPS: Step[] = ['welcome', 'server-profile', 'database', 'admin', 'finish']
 
 interface SetupProps {
   onComplete: () => void
@@ -41,17 +45,17 @@ const ALL_TIMEZONES = [
 ]
 
 const CURRENCIES = [
-  { value: 'IRR', label: 'IRR — Iranian Rial' },
-  { value: 'IRT', label: 'IRT — Iranian Toman' },
-  { value: 'USD', label: 'USD — US Dollar' },
-  { value: 'EUR', label: 'EUR — Euro' },
-  { value: 'AED', label: 'AED — UAE Dirham' },
-  { value: 'TRY', label: 'TRY — Turkish Lira' },
-  { value: 'GBP', label: 'GBP — British Pound' },
-  { value: 'JPY', label: 'JPY — Japanese Yen' },
-  { value: 'CAD', label: 'CAD — Canadian Dollar' },
-  { value: 'AUD', label: 'AUD — Australian Dollar' },
-  { value: 'CHF', label: 'CHF — Swiss Franc' },
+  { value: 'IRR', label: 'IRR â€” Iranian Rial' },
+  { value: 'IRT', label: 'IRT â€” Iranian Toman' },
+  { value: 'USD', label: 'USD â€” US Dollar' },
+  { value: 'EUR', label: 'EUR â€” Euro' },
+  { value: 'AED', label: 'AED â€” UAE Dirham' },
+  { value: 'TRY', label: 'TRY â€” Turkish Lira' },
+  { value: 'GBP', label: 'GBP â€” British Pound' },
+  { value: 'JPY', label: 'JPY â€” Japanese Yen' },
+  { value: 'CAD', label: 'CAD â€” Canadian Dollar' },
+  { value: 'AUD', label: 'AUD â€” Australian Dollar' },
+  { value: 'CHF', label: 'CHF â€” Swiss Franc' },
 ]
 
 const TZ_OPTIONS = ALL_TIMEZONES.map(tz => ({ value: tz, label: tz }))
@@ -201,7 +205,7 @@ function StepDots({ current, steps }: { current: Step; steps: Step[] }) {
             idx === currentIdx ? 'bg-accent text-white ring-2 ring-accent/30' :
             'bg-border text-wp-muted',
           ].join(' ')}>
-            {idx < currentIdx ? '✓' : idx + 1}
+            {idx < currentIdx ? 'âœ“' : idx + 1}
           </div>
           {idx < steps.length - 1 && (
             <div className={['h-px w-8 transition-colors', idx < currentIdx ? 'bg-accent' : 'bg-border'].join(' ')} />
@@ -280,6 +284,8 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
   const steps = [
     ['Server Profile', 'Configure your domain, timezone, and currency.'],
     ['Database', 'Verify your database connection.'],
+    ['Admin Account', 'Create the first administrator account.'],
+    ['Finish', 'Lock setup and continue to FlowHub.'],
   ]
 
   return (
@@ -290,7 +296,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
       <div className="space-y-3 mb-6">
         {steps.map(([label, desc]) => (
           <div key={label} className="flex gap-3 p-3 bg-bg-base rounded-lg border border-border">
-            <span className="text-accent mt-0.5 flex-shrink-0">→</span>
+            <span className="text-accent mt-0.5 flex-shrink-0">â†’</span>
             <div>
               <p className="text-[13px] font-semibold text-text-base">{label}</p>
               <p className="text-[12px] text-wp-muted">{desc}</p>
@@ -376,10 +382,9 @@ function ServerProfileStep({
   )
 }
 
-function DatabaseStep({ onComplete, onBack }: { onComplete: () => void; onBack: () => void }) {
+function DatabaseStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [status, setStatus] = useState<DatabaseStatusResponse | null>(null)
   const [loading, setLoading] = useState(false)
-  const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [checked, setChecked] = useState(false)
 
@@ -399,24 +404,6 @@ function DatabaseStep({ onComplete, onBack }: { onComplete: () => void; onBack: 
       setError('Network error while checking database.')
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function finishSetup() {
-    setError(null)
-    setFinishing(true)
-    try {
-      const r = await fetch('/api/v2/setup/complete', { method: 'POST' })
-      if (!r.ok) {
-        const d = await r.json().catch(() => ({})) as { detail?: string }
-        setError(d.detail ?? `Could not finish setup (HTTP ${r.status}).`)
-        return
-      }
-      onComplete()
-    } catch {
-      setError('Network error while finishing setup.')
-    } finally {
-      setFinishing(false)
     }
   }
 
@@ -455,7 +442,7 @@ function DatabaseStep({ onComplete, onBack }: { onComplete: () => void; onBack: 
             hint="Compares the installed database schema with the version required by this FlowHub release."
             ok={status.is_current === true}
             okText="Up to date"
-            failText={status.is_current === false ? 'Needs update — run repair' : 'Unable to verify'}
+            failText={status.is_current === false ? 'Needs update â€” run repair' : 'Unable to verify'}
             neutral={status.is_current !== false && status.is_current !== true}
           />
         </div>
@@ -471,9 +458,9 @@ function DatabaseStep({ onComplete, onBack }: { onComplete: () => void; onBack: 
       ) : (
         <NavButtons
           onBack={onBack}
-          onNext={status?.connected ? finishSetup : checkDatabase}
-          nextLabel={status?.connected ? 'Finish Setup' : 'Retry'}
-          loading={loading || finishing}
+          onNext={status?.connected ? onNext : checkDatabase}
+          nextLabel={status?.connected ? 'Continue' : 'Retry'}
+          loading={loading}
           nextDisabled={!status?.connected || status.is_current !== true}
         />
       )}
@@ -481,14 +468,151 @@ function DatabaseStep({ onComplete, onBack }: { onComplete: () => void; onBack: 
   )
 }
 
+function AdminStep({
+  hasAdmin, onAdminCreated, onNext, onBack,
+}: {
+  hasAdmin: boolean
+  onAdminCreated: () => void
+  onNext: () => void
+  onBack: () => void
+}) {
+  const [username, setUsername] = useState('admin')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function createAdmin() {
+    if (hasAdmin) {
+      onNext()
+      return
+    }
+    if (password !== confirm) {
+      setError('Passwords do not match.')
+      return
+    }
+    setError(null)
+    setLoading(true)
+    try {
+      const body: AdminPayload = { username: username.trim(), password }
+      const r = await fetch('/api/v2/setup/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const d = await r.json().catch(() => ({})) as Partial<SetupAdminResponse> & { detail?: string }
+      if (!r.ok) {
+        setError(d.detail ?? `Could not create administrator (HTTP ${r.status}).`)
+        return
+      }
+      if (d.token) localStorage.setItem('wp_token', d.token)
+      if (d.refresh_token) localStorage.setItem('wp_refresh_token', d.refresh_token)
+      onAdminCreated()
+      onNext()
+    } catch {
+      setError('Network error while creating administrator.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <StepCard
+      title="Admin Account"
+      subtitle={hasAdmin ? 'An administrator account already exists.' : 'Create the first administrator account.'}
+    >
+      {error && <ErrorBanner message={error} />}
+      {hasAdmin ? (
+        <div className="mb-4 p-4 bg-bg-base border border-border rounded-lg text-[13px] text-wp-muted">
+          FlowHub already has an administrator account. Continue to finish setup.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <Field
+            id="admin-username"
+            label="Username"
+            value={username}
+            onChange={setUsername}
+            placeholder="admin"
+            disabled={loading}
+          />
+          <Field
+            id="admin-password"
+            label="Password"
+            type="password"
+            value={password}
+            onChange={setPassword}
+            placeholder="At least 8 characters"
+            disabled={loading}
+          />
+          <Field
+            id="admin-confirm"
+            label="Confirm password"
+            type="password"
+            value={confirm}
+            onChange={setConfirm}
+            placeholder="Repeat password"
+            disabled={loading}
+          />
+        </div>
+      )}
+      <NavButtons
+        onBack={onBack}
+        onNext={createAdmin}
+        loading={loading}
+        nextLabel={hasAdmin ? 'Continue' : 'Create Admin'}
+        nextDisabled={!hasAdmin && (!username.trim() || password.length < 8 || confirm.length < 8)}
+      />
+    </StepCard>
+  )
+}
+
+function FinishStep({ onComplete, onBack }: { onComplete: () => void; onBack: () => void }) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function finishSetup() {
+    setError(null)
+    setLoading(true)
+    try {
+      const r = await fetch('/api/v2/setup/complete', { method: 'POST' })
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({})) as { detail?: string }
+        setError(d.detail ?? `Could not finish setup (HTTP ${r.status}).`)
+        return
+      }
+      onComplete()
+      window.location.assign(localStorage.getItem('wp_token') ? '/home' : '/login')
+    } catch {
+      setError('Network error while finishing setup.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <StepCard title="Finish" subtitle="Complete setup and start using FlowHub.">
+      {error && <ErrorBanner message={error} />}
+      <div className="mb-4 p-4 bg-bg-base border border-border rounded-lg text-[13px] text-wp-muted">
+        Setup is ready to be finalized. Connector configuration is available from Settings &gt; Integrations after sign-in.
+      </div>
+      <NavButtons onBack={onBack} onNext={finishSetup} loading={loading} nextLabel="Finish Setup" />
+    </StepCard>
+  )
+}
+
 export default function Setup({ onComplete }: SetupProps) {
   const [step, setStep] = useState<Step>('welcome')
   const [statusChecked, setStatusChecked] = useState(false)
+  const [hasAdmin, setHasAdmin] = useState(false)
 
   useEffect(() => {
     fetch('/api/v2/setup/status')
       .then(r => r.json() as Promise<SetupStatus>)
-      .then(() => setStatusChecked(true))
+      .then(d => {
+        setHasAdmin(d.has_admin)
+        setStatusChecked(true)
+      })
       .catch(() => setStatusChecked(true))
   }, [])
 
@@ -518,7 +642,7 @@ export default function Setup({ onComplete }: SetupProps) {
         <div className="mb-6 text-center">
           <h1 className="text-[24px] font-bold text-text-base">FlowHub</h1>
           <p className="text-[13px] text-wp-muted mt-0.5">
-            Step {stepIndex + 1} of {SETUP_STEPS.length} — {STEP_LABELS[step]}
+            Step {stepIndex + 1} of {SETUP_STEPS.length} â€” {STEP_LABELS[step]}
           </p>
         </div>
 
@@ -527,7 +651,9 @@ export default function Setup({ onComplete }: SetupProps) {
         <div className="bg-bg-card border border-border rounded-card shadow-card p-7">
           {step === 'welcome' && <WelcomeStep onNext={goNext} />}
           {step === 'server-profile' && <ServerProfileStep onNext={goNext} onBack={goBack} />}
-          {step === 'database' && <DatabaseStep onComplete={onComplete} onBack={goBack} />}
+          {step === 'database' && <DatabaseStep onNext={goNext} onBack={goBack} />}
+          {step === 'admin' && <AdminStep hasAdmin={hasAdmin} onAdminCreated={() => setHasAdmin(true)} onNext={goNext} onBack={goBack} />}
+          {step === 'finish' && <FinishStep onComplete={onComplete} onBack={goBack} />}
         </div>
       </div>
     </div>

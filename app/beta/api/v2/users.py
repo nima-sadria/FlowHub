@@ -1,4 +1,4 @@
-"""WooPrice Beta — /api/v2/users router.
+"""FlowHub â€” /api/v2/users router.
 
 User management endpoints (CRUD, roles, deactivation, password reset).
 

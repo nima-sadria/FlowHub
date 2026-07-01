@@ -1,4 +1,4 @@
-"""WooPrice Beta — Argon2 password hashing (BU2)."""
+"""FlowHub â€” Argon2 password hashing (BU2)."""
 
 from __future__ import annotations
 

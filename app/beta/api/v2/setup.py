@@ -1,17 +1,15 @@
-"""FlowHub Beta — /api/v2/setup router (BU4).
+"""FlowHub setup API.
 
 Web Setup Wizard API. All endpoints are unauthenticated while setup is
 incomplete. Once setup is marked complete every endpoint returns 409 so
 that the wizard cannot be re-run through the API without a DB reset.
 
 Routes:
-  GET  /api/v2/setup/status                      — public, always available
-  POST /api/v2/setup/server-profile              — save server profile
-  POST /api/v2/setup/database                    — verify DB + migration status
-  POST /api/v2/setup/admin                       — create first administrator
-  POST /api/v2/setup/integrations/woocommerce    — save + test WC credentials
-  POST /api/v2/setup/integrations/nextcloud      — save + test NC credentials
-  POST /api/v2/setup/complete                    — finalize and lock wizard
+  GET  /api/v2/setup/status                      â€” public, always available
+  POST /api/v2/setup/server-profile              â€” save server profile
+  POST /api/v2/setup/database                    â€” verify DB + migration status
+  POST /api/v2/setup/admin                       â€” create first administrator
+  POST /api/v2/setup/complete                    â€” finalize and lock wizard
 
 Security: after POST /setup/complete all setup endpoints return 409.
           POST /setup/admin additionally checks that no admin user exists yet.
@@ -36,7 +34,6 @@ from app.beta.auth.password import hash_password
 from app.beta.auth.refresh_token import generate_refresh_token, hash_refresh_token
 from app.beta.auth.repository import create_audit_event, store_refresh_token
 from app.beta.database import get_db
-from app.beta.integration_platform.service import IntegrationPlatformService
 from app.beta.setup.service import AppConfigService
 
 router = APIRouter(prefix="/setup", tags=["setup"])
@@ -50,7 +47,7 @@ def _utcnow() -> datetime:
     return datetime.now(_UTC).replace(tzinfo=None)
 
 
-# ── Guard helpers ─────────────────────────────────────────────────────────────
+# â”€â”€ Guard helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _require_setup_not_complete(db: Session) -> AppConfigService:
     """Raise 409 if setup has already been completed."""
@@ -90,7 +87,7 @@ def _get_latest_beta_revision() -> str | None:
         return None
 
 
-# ── Request / Response models ─────────────────────────────────────────────────
+# â”€â”€ Request / Response models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class ServerProfilePayload(BaseModel):
     domain: str
@@ -161,44 +158,7 @@ class AdminPayload(BaseModel):
         return v
 
 
-class WooCommercePayload(BaseModel):
-    url: str
-    key: str
-    secret: str
-
-    @field_validator("url")
-    @classmethod
-    def _validate_url(cls, v: str) -> str:
-        v = v.strip().rstrip("/")
-        if not re.match(r"^https?://", v, re.IGNORECASE):
-            raise ValueError("URL must start with http:// or https://")
-        return v
-
-
-class NextcloudPayload(BaseModel):
-    url: str
-    username: str
-    password: str
-    spreadsheet_path: str
-
-    @field_validator("url")
-    @classmethod
-    def _validate_url(cls, v: str) -> str:
-        v = v.strip().rstrip("/")
-        if not re.match(r"^https?://", v, re.IGNORECASE):
-            raise ValueError("URL must start with http:// or https://")
-        return v
-
-    @field_validator("spreadsheet_path")
-    @classmethod
-    def _validate_path(cls, v: str) -> str:
-        v = v.strip()
-        if not v.startswith("/"):
-            v = "/" + v
-        return v
-
-
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+# â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get("/status")
 async def setup_status(db: Session = Depends(get_db)) -> dict:
@@ -303,72 +263,6 @@ async def setup_admin(
     return {"token": access, "refresh_token": raw_refresh, "username": user.username}
 
 
-@router.post("/integrations/woocommerce")
-async def setup_woocommerce(
-    body: WooCommercePayload,
-    db: Session = Depends(get_db),
-) -> dict:
-    svc = _require_setup_not_complete(db)
-
-    # Save credentials first (regardless of connection test result)
-    svc.set_many(
-        {
-            "woocommerce.url": body.url,
-            "woocommerce.key": body.key,
-            "woocommerce.secret": body.secret,
-        },
-        updated_by="setup_wizard",
-    )
-
-    IntegrationPlatformService(db).ensure_connector_from_settings(
-        connector_type="woocommerce",
-        connector_id="woocommerce:primary",
-        name="WooCommerce",
-        values={"url": body.url, "key": body.key, "secret": body.secret},
-    )
-    return {
-        "ok": True,
-        "message": "WooCommerce settings saved locally. Live validation is handled by diagnostics.",
-        "runtime_write_blocked": True,
-    }
-
-
-@router.post("/integrations/nextcloud")
-async def setup_nextcloud(
-    body: NextcloudPayload,
-    db: Session = Depends(get_db),
-) -> dict:
-    svc = _require_setup_not_complete(db)
-
-    # Save credentials first (regardless of connection test result)
-    svc.set_many(
-        {
-            "nextcloud.url": body.url,
-            "nextcloud.username": body.username,
-            "nextcloud.password": body.password,
-            "nextcloud.spreadsheet_path": body.spreadsheet_path,
-        },
-        updated_by="setup_wizard",
-    )
-
-    IntegrationPlatformService(db).ensure_connector_from_settings(
-        connector_type="nextcloud",
-        connector_id="nextcloud:primary",
-        name="Nextcloud Spreadsheet",
-        values={
-            "url": body.url,
-            "username": body.username,
-            "password": body.password,
-            "spreadsheet_path": body.spreadsheet_path,
-        },
-    )
-    return {
-        "ok": True,
-        "message": "Nextcloud settings saved locally. Live validation is handled by diagnostics.",
-        "runtime_write_blocked": True,
-    }
-
-
 @router.post("/complete")
 async def setup_complete(db: Session = Depends(get_db)) -> dict:
     svc = _require_setup_not_complete(db)
@@ -386,4 +280,4 @@ async def setup_complete(db: Session = Depends(get_db)) -> dict:
     return {"ok": True, "message": "Setup complete. You can now sign in."}
 
 
-# ── Connection test helpers ───────────────────────────────────────────────────
+# â”€â”€ Connection test helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

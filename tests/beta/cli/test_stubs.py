@@ -1,4 +1,4 @@
-"""Tests for all stub commands — must exit safely with 'Not implemented' message."""
+"""Tests for all stub commands â€” must exit safely with 'Not implemented' message."""
 
 import pytest
 from typer.testing import CliRunner

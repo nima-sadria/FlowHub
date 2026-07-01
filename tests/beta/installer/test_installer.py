@@ -93,7 +93,7 @@ class TestWriteTomlConfig:
         config_dir.mkdir()
         path = write_toml_config(content, config_dir)
         assert path.exists()
-        assert path.name == "wooprice-beta.toml"
+        assert path.name == "flowhub.toml"
 
     def test_content_correct(self, valid_config_with_paths: InstallerConfig, tmp_path: Path):
         content = generate_toml_content(valid_config_with_paths)
@@ -113,7 +113,7 @@ class TestWriteTomlConfig:
     def test_does_not_track_preexisting_toml_in_rollback(self, valid_config_with_paths: InstallerConfig, tmp_path: Path):
         config_dir = tmp_path / "config"
         config_dir.mkdir()
-        existing = config_dir / "wooprice-beta.toml"
+        existing = config_dir / "flowhub.toml"
         existing.write_text("old content")
         content = generate_toml_content(valid_config_with_paths)
         rollback = InstallerRollback()

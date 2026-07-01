@@ -1,4 +1,4 @@
-"""WooPrice Beta — wooprice sources command group. Stub — B8."""
+"""FlowHub â€” flowhub sources command group. Stub â€” B8."""
 
 import typer
 
@@ -9,23 +9,23 @@ _NOT_IMPLEMENTED = "Not implemented in this phase. Source configuration begins i
 
 @app.command("list")
 def sources_list() -> None:
-    """List configured sources. [NOT IMPLEMENTED — B8]"""
+    """List configured sources. [NOT IMPLEMENTED â€” B8]"""
     typer.echo(_NOT_IMPLEMENTED)
 
 
 @app.command("add")
 def sources_add() -> None:
-    """Add a source. [NOT IMPLEMENTED — B8]"""
+    """Add a source. [NOT IMPLEMENTED â€” B8]"""
     typer.echo(_NOT_IMPLEMENTED)
 
 
 @app.command("test")
 def sources_test() -> None:
-    """Test source connectivity. [NOT IMPLEMENTED — B8]"""
+    """Test source connectivity. [NOT IMPLEMENTED â€” B8]"""
     typer.echo(_NOT_IMPLEMENTED)
 
 
 @app.command("remove")
 def sources_remove() -> None:
-    """Remove a source. [NOT IMPLEMENTED — B8]"""
+    """Remove a source. [NOT IMPLEMENTED â€” B8]"""
     typer.echo(_NOT_IMPLEMENTED)

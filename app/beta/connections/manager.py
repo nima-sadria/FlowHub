@@ -1,4 +1,4 @@
-"""CP1.2 — Connection Manager.
+"""CP1.2 â€” Connection Manager.
 
 Orchestrates retry, circuit breaker, cache, and failure classification for
 all outbound connection probes.  Credentials are never stored here.
@@ -123,7 +123,7 @@ class ConnectionManager:
     def check_bypass_circuit(self, name: str) -> ConnectionResult:
         """Check a connection, bypassing the circuit breaker.
 
-        Used by the diagnostic runner and CLI on-demand tests (per spec §7.3).
+        Used by the diagnostic runner and CLI on-demand tests (per spec آ§7.3).
         The cache is also bypassed; the result is written back to cache.
         """
         definition = self._require_definition(name)
@@ -316,7 +316,7 @@ def _exception_message(exc: Exception, fc: FailureClass, host: str) -> str:
 
 
 def _backoff_delay(base_s: float, attempt: int) -> float:
-    """Exponential backoff with ±25% jitter."""
+    """Exponential backoff with آ±25% jitter."""
     delay = base_s * (2 ** (attempt - 1))
     jitter = delay * 0.25 * (random.random() * 2 - 1)
     return max(0.0, delay + jitter)

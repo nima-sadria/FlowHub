@@ -1,4 +1,4 @@
-"""WooPrice Beta — REST API package.
+"""FlowHub â€” REST API package.
 
 Implementation begins in B5.
 """

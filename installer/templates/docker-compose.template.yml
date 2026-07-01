@@ -1,4 +1,4 @@
-# WooPrice Beta — Docker Compose template
+# FlowHub â€” Docker Compose template
 # Generated output: docker-compose.beta.yml
 # Substitution via envsubst from installer/lib/compose_gen.sh
 #
@@ -14,7 +14,7 @@ services:
     # Configuration implemented in B6.
 
   app:
-    image: wooprice-beta:latest
+    image: flowhub-beta:latest
     environment:
       - BETA_ENV=${BETA_ENV}
       - BETA_DOMAIN=${BETA_DOMAIN}
@@ -25,7 +25,7 @@ services:
     # Full configuration implemented in B6.
 
   worker:
-    image: wooprice-beta:latest
+    image: flowhub-beta:latest
     # Full configuration implemented in B6.
 
   postgres:

@@ -1,8 +1,8 @@
-"""WooPrice Beta — wooprice integrations command group (CP1.3).
+"""FlowHub â€” flowhub integrations command group (CP1.3).
 
-list    — show all registered integration services
-test    — run a live check chain for a specific service
-status  — run checks for all services and show a summary
+list    â€” show all registered integration services
+test    â€” run a live check chain for a specific service
+status  â€” run checks for all services and show a summary
 
 Uses CP1.2 HealthEngine through DiagnosticRunner.
 Secrets are never printed. Network adapter is injected so tests can pass
@@ -53,11 +53,11 @@ def integrations_list() -> None:
     print_section("Integration Services")
 
     for name in KNOWN_SERVICES:
-        console.print(f"  [cyan]•[/cyan]  {name}")
+        console.print(f"  [cyan]â€¢[/cyan]  {name}")
 
     console.print()
     console.print(
-        "  Run [bold]wooprice integrations test <service>[/bold] to run a live check."
+        "  Run [bold]flowhub integrations test <service>[/bold] to run a live check."
     )
     console.print()
 
@@ -103,7 +103,7 @@ def integrations_test(
             raise typer.Exit(code=1)
         return
 
-    print_section(f"Integration Test — {service}")
+    print_section(f"Integration Test â€” {service}")
 
     _STATUS_ICON = {
         "pass": "[green]PASS[/green]",
@@ -116,7 +116,7 @@ def integrations_test(
     for check in report.checks:
         icon = _STATUS_ICON.get(check.status.value, check.status.value.upper())
         fc_note = (
-            f" · {check.failure_class.value}"
+            f" آ· {check.failure_class.value}"
             if check.failure_class.value != "none"
             else ""
         )
@@ -139,7 +139,7 @@ def integrations_test(
     style = _OVERALL_STYLE.get(report.overall_status.value, "[bold]")
     console.print(
         f"  Result: {style}{report.overall_status.value.upper()}[/]"
-        f"  ·  {report.overall_failure_class.value}"
+        f"  آ·  {report.overall_failure_class.value}"
     )
 
     if report.repair_steps:
@@ -188,9 +188,9 @@ def integrations_status(
     print_section("Integration Status")
 
     _STATUS_ICON = {
-        "pass": "[green]✓[/green]",
-        "warn": "[yellow]⚠[/yellow]",
-        "fail": "[red]✗[/red]",
+        "pass": "[green]âœ“[/green]",
+        "warn": "[yellow]âڑ [/yellow]",
+        "fail": "[red]âœ—[/red]",
         "skip": "[dim]-[/dim]",
         "unknown": "[dim]?[/dim]",
     }

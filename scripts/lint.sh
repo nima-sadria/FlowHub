@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WooPrice Beta — Run all linters
+# FlowHub â€” Run all linters
 #
 # Python: ruff check + ruff format + mypy
 # TypeScript: eslint + prettier check
@@ -8,6 +8,6 @@
 
 set -euo pipefail
 
-echo "scripts/lint.sh — PLACEHOLDER. Implementation begins in B2."
+echo "scripts/lint.sh â€” PLACEHOLDER. Implementation begins in B2."
 echo "See: docs/beta/DEVELOPMENT_GUIDE.md"
 exit 1

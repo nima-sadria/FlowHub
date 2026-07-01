@@ -11,9 +11,9 @@ _VALID_ENV_CONTENT = """\
 BETA_ENV=beta
 BETA_DOMAIN=test.example.com
 BETA_PORT=8080
-BETA_DATABASE_URL=postgresql://wooprice_test:test_pg_pass_secure@postgres:5432/wooprice_test
-BETA_POSTGRES_DB=wooprice_test
-BETA_POSTGRES_USER=wooprice_test
+BETA_DATABASE_URL=postgresql://flowhub_test:test_pg_pass_secure@postgres:5432/flowhub_test
+BETA_POSTGRES_DB=flowhub_test
+BETA_POSTGRES_USER=flowhub_test
 BETA_POSTGRES_PASSWORD=test_pg_pass_secure_abc123xyz
 BETA_JWT_SECRET={}
 BETA_REST_API_SECRET={}
@@ -27,8 +27,8 @@ BETA_WOOCOMMERCE_SECRET=cs_test_secret_secure_cafebabe_xyz
 BETA_TIMEZONE=UTC
 BETA_CURRENCY=USD
 BETA_ADMIN_EMAIL=admin@example.com
-BETA_STORAGE_PATH=/tmp/wooprice-beta-test/storage
-BETA_BACKUP_PATH=/tmp/wooprice-beta-test/backups
+BETA_STORAGE_PATH=/tmp/flowhub-test-test/storage
+BETA_BACKUP_PATH=/tmp/flowhub-test-test/backups
 BETA_SSL_MODE=off
 """.format("a" * 86, "b" * 64)
 
@@ -52,8 +52,8 @@ BETA_WOOCOMMERCE_SECRET=cs_test_secret_secure_cafebabe_xyz
 BETA_TIMEZONE=UTC
 BETA_CURRENCY=USD
 BETA_ADMIN_EMAIL=admin@example.com
-BETA_STORAGE_PATH=/tmp/wooprice-prod-test/storage
-BETA_BACKUP_PATH=/tmp/wooprice-prod-test/backups
+BETA_STORAGE_PATH=/tmp/flowhub-prod-test/storage
+BETA_BACKUP_PATH=/tmp/flowhub-prod-test/backups
 BETA_SSL_MODE=off
 """.format("a" * 86, "b" * 64)
 

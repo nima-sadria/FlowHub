@@ -60,7 +60,7 @@ class TestGenerateEnvContent:
 
     def test_has_header_comment(self, valid_config_with_paths: InstallerConfig):
         content = generate_env_content(valid_config_with_paths)
-        assert "WooPrice Beta" in content
+        assert "FlowHub" in content
         assert "generated environment file" in content
 
     def test_has_do_not_commit_warning(self, valid_config_with_paths: InstallerConfig):

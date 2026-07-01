@@ -60,7 +60,7 @@ class TestBetaConfigFromEnvValid:
 
     def test_banner_returns_string(self, valid_env):
         config = BetaConfig.from_env(valid_env)
-        assert "BETA" in config.banner()
+        assert "FLOWHUB" in config.banner()
 
     def test_frozen_model_cannot_be_mutated(self, valid_env):
         config = BetaConfig.from_env(valid_env)

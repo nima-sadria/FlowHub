@@ -1,4 +1,4 @@
-"""WooPrice Beta — Environment safety guard."""
+"""FlowHub â€” Environment safety guard."""
 
 from __future__ import annotations
 

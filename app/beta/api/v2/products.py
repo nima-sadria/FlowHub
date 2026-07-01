@@ -1,4 +1,4 @@
-"""FlowHub Beta /api/v2/products router.
+"""FlowHub /api/v2/products router.
 
 Read-only product browser backed by Integration Platform/Data Layer records.
 This router never calls WooCommerce, Nextcloud, or httpx directly.

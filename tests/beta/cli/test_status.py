@@ -1,4 +1,4 @@
-"""Tests for wooprice status command."""
+"""Tests for flowhub status command."""
 
 from pathlib import Path
 

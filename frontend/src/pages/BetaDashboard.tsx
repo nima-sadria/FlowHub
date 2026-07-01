@@ -11,7 +11,7 @@ import Empty from '../components/Empty'
 type Indicator = 'ok' | 'error' | 'loading'
 
 function relTime(d: Date | null): string {
-  if (!d) return '—'
+  if (!d) return 'â€”'
   const s = Math.floor((Date.now() - d.getTime()) / 1000)
   if (s < 60) return 'just now'
   const m = Math.floor(s / 60)
@@ -116,13 +116,13 @@ export default function BetaDashboard() {
             <span className="text-accent font-bold text-[14px]">{initial}</span>
           </div>
           <div>
-            <div className="text-[15px] font-semibold text-text-base">{user?.username ?? '—'}</div>
-            <div className="text-[12px] text-wp-muted capitalize">{user?.role ?? '—'}</div>
+            <div className="text-[15px] font-semibold text-text-base">{user?.username ?? 'â€”'}</div>
+            <div className="text-[12px] text-wp-muted capitalize">{user?.role ?? 'â€”'}</div>
           </div>
         </div>
       </div>
 
-      {/* System status — uses real /api/health */}
+      {/* System status â€” uses real /api/health */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           label="Backend"
@@ -150,9 +150,9 @@ export default function BetaDashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard label="Total Products" value={totalProducts !== null ? String(totalProducts) : '—'} sub="in WooCommerce" />
+          <StatCard label="Total Products" value={totalProducts !== null ? String(totalProducts) : 'â€”'} sub="across connected channels" />
           <StatCard label="Active Sources" value={String(activeSources.length)} sub={activeSources.length === 1 ? '1 connected' : `${activeSources.length} configured`} />
-          <StatCard label="Last Preview" value={lastSync ? relTime(lastSync) : '—'} />
+          <StatCard label="Last Preview" value={lastSync ? relTime(lastSync) : 'â€”'} />
         </div>
       )}
 
@@ -181,7 +181,7 @@ export default function BetaDashboard() {
                 <div key={s.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
                   <div>
                     <p className="text-[13px] font-medium text-text-base">{s.name}</p>
-                    <p className="text-[11px] text-wp-muted">{relTime(s.lastSynced)} · {s.productCount} products</p>
+                    <p className="text-[11px] text-wp-muted">{relTime(s.lastSynced)} آ· {s.productCount} products</p>
                   </div>
                   <span className={[
                     'text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase',

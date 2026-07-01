@@ -1,4 +1,4 @@
-"""WooPrice Beta — database session factory (BU2).
+"""FlowHub â€” database session factory (BU2).
 
 Reads BETA_DATABASE_URL from the environment.  Provides BetaBase (the
 declarative base shared by all Beta ORM models) and a get_db() FastAPI

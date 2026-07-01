@@ -1,10 +1,10 @@
-"""FlowHub Beta — XLSX spreadsheet parser (BU5).
+"""FlowHub â€” XLSX spreadsheet parser (BU5).
 
-Adapted from the production-proven WooPrice nextcloud.py parser.
-Preserves all WooPrice behaviour:
+Adapted from the legacy spreadsheet parser.
+Preserves legacy spreadsheet behavior:
   - ALL worksheets are read; last sheet wins on duplicate product IDs.
   - Columns: A = Product Name, B = Product ID (int), C = Price.
-  - Row 3 onward (rows 1–2 are headers).
+  - Row 3 onward (rows 1â€“2 are headers).
   - Stops after 30 consecutive empty rows or row 1002 (max 1000 data rows).
   - Persian / Arabic-Indic digits are normalised to ASCII.
   - Out-of-stock markers are treated as price=None (not an error).
@@ -29,37 +29,37 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# ── Constants ─────────────────────────────────────────────────────────────────
+# â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _OUT_OF_STOCK_MARKERS: frozenset[str] = frozenset({
     "0", "0.00", "-",
     # Persian
-    "ناموجود",
-    "ناموجود شد",
-    "تماس بگیرید",
+    "ظ†ط§ظ…ظˆط¬ظˆط¯",
+    "ظ†ط§ظ…ظˆط¬ظˆط¯ ط´ط¯",
+    "طھظ…ط§ط³ ط¨ع¯غŒط±غŒط¯",
     # English
     "out of stock", "oos", "n/a", "na",
     # Symbols
-    "x", "❌", "✗", "×",
+    "x", "â‌Œ", "âœ—", "أ—",
 })
 
-# Persian (U+06F0–U+06F9) and Arabic-Indic (U+0660–U+0669) → ASCII
+# Persian (U+06F0â€“U+06F9) and Arabic-Indic (U+0660â€“U+0669) â†’ ASCII
 _DIGIT_TRANSLATION = str.maketrans({
-    "۰": "0", "۱": "1", "۲": "2", "۳": "3", "۴": "4",
-    "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9",
-    "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4",
-    "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
+    "غ°": "0", "غ±": "1", "غ²": "2", "غ³": "3", "غ´": "4",
+    "غµ": "5", "غ¶": "6", "غ·": "7", "غ¸": "8", "غ¹": "9",
+    "ظ ": "0", "ظ،": "1", "ظ¢": "2", "ظ£": "3", "ظ¤": "4",
+    "ظ¥": "5", "ظ¦": "6", "ظ§": "7", "ظ¨": "8", "ظ©": "9",
 })
 
 
-# ── Internal helpers ──────────────────────────────────────────────────────────
+# â”€â”€ Internal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _normalize_price_text(raw: str) -> str:
     """Translate Persian/Arabic digits, remove Arabic thousands sep and commas."""
     return (
         raw
         .translate(_DIGIT_TRANSLATION)
-        .replace("٬", "")   # U+066C ARABIC THOUSANDS SEPARATOR
+        .replace("ظ¬", "")   # U+066C ARABIC THOUSANDS SEPARATOR
         .replace(",", "")
         .strip()
     )
@@ -68,7 +68,7 @@ def _normalize_price_text(raw: str) -> str:
 def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict]:
     """Parse one worksheet.  Returns a list of parsed row dicts.
 
-    Matches WooPrice _parse_sheet_rows: row 3+, 30-consecutive-empty stop,
+    Matches the legacy row parser: row 3+, 30-consecutive-empty stop,
     1000-row max, Persian digits, OOS markers, error flags.
     """
     items: list[dict] = []
@@ -84,7 +84,7 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
             consecutive_empty += 1
             if consecutive_empty >= 30:
                 logger.debug(
-                    "spreadsheet _parse_sheet_rows sheet=%r stopping — "
+                    "spreadsheet _parse_sheet_rows sheet=%r stopping â€” "
                     "30 consecutive empty rows in column B",
                     ws.title,
                 )
@@ -100,7 +100,7 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
         except (ValueError, TypeError):
             skipped_bad_id += 1
             logger.debug(
-                "spreadsheet _parse_sheet_rows sheet=%r skipped — non-int product_id=%r",
+                "spreadsheet _parse_sheet_rows sheet=%r skipped â€” non-int product_id=%r",
                 ws.title, b_val,
             )
             continue
@@ -126,7 +126,7 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
             price_str = str(c_val).strip()
             normalized = _normalize_price_text(price_str)
             if normalized.lower() in _OUT_OF_STOCK_MARKERS:
-                price = None  # intentional OOS — not an error
+                price = None  # intentional OOS â€” not an error
             else:
                 try:
                     candidate = float(normalized)
@@ -135,7 +135,7 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
                         warning = f"Negative price ignored: {price_str!r}"
                         logger.warning(
                             "spreadsheet _parse_sheet_rows sheet=%r product_id=%d "
-                            "negative price %r — flagged invalid",
+                            "negative price %r â€” flagged invalid",
                             ws.title, pid, price_str,
                         )
                     else:
@@ -145,7 +145,7 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
                     warning = f"Unparseable price: {price_str!r}"
                     logger.warning(
                         "spreadsheet _parse_sheet_rows sheet=%r product_id=%d "
-                        "non-numeric price %r — flagged invalid",
+                        "non-numeric price %r â€” flagged invalid",
                         ws.title, pid, price_str,
                     )
 
@@ -167,7 +167,7 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
     return items
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+# â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def parse_price_list(
     wb: "openpyxl.Workbook",

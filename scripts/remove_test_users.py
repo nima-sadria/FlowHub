@@ -5,13 +5,13 @@ These usernames were seeded by unit-test helpers in tests/test_project71.py and
 should never exist in the production app_users table.
 
 Run inside the container:
-    docker exec -it wooprice python scripts/remove_test_users.py
+    docker exec -it flowhub-app python scripts/remove_test_users.py
 
 Or locally (point DATABASE_URL at the real database):
-    DATABASE_URL=sqlite:////app/data/wooprice.db python scripts/remove_test_users.py
+    DATABASE_URL=sqlite:////app/data/flowhub.db python scripts/remove_test_users.py
 
 Nextcloud accounts (dbadmin71, dbadmin72, etc.) must be removed separately by
-a Nextcloud administrator — this script only removes WooPrice permission records.
+a Nextcloud administrator â€” this script only removes FlowHub permission records.
 """
 import os
 import sys
@@ -60,7 +60,7 @@ def main() -> None:
             db.commit()
             print(f"Removed {len(removed)} test user(s): {', '.join(removed)}")
         else:
-            print("No test users found — database is already clean.")
+            print("No test users found â€” database is already clean.")
 
         if not_found:
             print(f"Not present (skipped): {', '.join(not_found)}")
@@ -71,9 +71,9 @@ def main() -> None:
         inactive = [u.username for u in remaining if not u.is_active]
 
         print(f"\nPost-cleanup state:")
-        print(f"  Active admins  ({len(admins)}): {', '.join(admins) or '—'}")
-        print(f"  Active users   ({len(active_users)}): {', '.join(active_users) or '—'}")
-        print(f"  Inactive users ({len(inactive)}): {', '.join(inactive) or '—'}")
+        print(f"  Active admins  ({len(admins)}): {', '.join(admins) or 'â€”'}")
+        print(f"  Active users   ({len(active_users)}): {', '.join(active_users) or 'â€”'}")
+        print(f"  Inactive users ({len(inactive)}): {', '.join(inactive) or 'â€”'}")
         print("\nNextcloud accounts must be removed separately by a Nextcloud administrator.")
     finally:
         db.close()

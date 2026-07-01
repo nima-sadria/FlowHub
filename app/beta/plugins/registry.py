@@ -1,4 +1,4 @@
-"""WooPrice Beta — Plugin Registry.
+"""FlowHub â€” Plugin Registry.
 
 Maintains the runtime set of active plugins. Provides lookup interface
 for all plugin categories. Persists plugin state to beta_plugins table.

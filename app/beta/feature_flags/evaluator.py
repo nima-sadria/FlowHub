@@ -1,4 +1,4 @@
-"""WooPrice Beta — Feature Flag Evaluator.
+"""FlowHub â€” Feature Flag Evaluator.
 
 Evaluates feature flags from the Beta database. Caches values in memory
 and refreshes every 30 seconds. Enforces the TEP flag dependency chain.

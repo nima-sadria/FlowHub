@@ -825,7 +825,7 @@ class IntegrationPlatformService:
         self.record_event(
             connector_id=connector_id,
             event_name="write_guard_denied",
-            message="Write operations are disabled in FlowHub Beta.",
+            message="Write operations are disabled in FlowHub.",
             severity="warning",
             metadata={"operation": operation, "execution_attempted": False},
         )
@@ -833,7 +833,7 @@ class IntegrationPlatformService:
             "allowed": False,
             "status": "blocked",
             "error_code": "write_blocked_beta",
-            "message": "Write operations are disabled in FlowHub Beta.",
+            "message": "Write operations are disabled in FlowHub.",
             "capability_advertised": bool(capabilities.get(operation, False)),
             "authorization_granted": False,
             "execution_attempted": False,
@@ -914,7 +914,7 @@ class IntegrationPlatformService:
                     "polling_defaults": {"enabled": False, "interval_seconds": 900, "scheduler_implemented": False},
                     "rate_limit_policy": {"local_api_limit": "standard", "connector_limits_honored": True},
                     "data_layer_mappings": ["products", "inventory", "sources"],
-                    "known_limitations": ["FlowHub Beta blocks write execution."],
+                    "known_limitations": ["FlowHub blocks write execution."],
                 }
             )
         return body

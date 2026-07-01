@@ -1,4 +1,4 @@
-"""Tests for wooprice install dry-run command."""
+"""Tests for flowhub install dry-run command."""
 
 from pathlib import Path
 from unittest.mock import patch

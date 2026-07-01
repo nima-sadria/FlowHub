@@ -106,4 +106,3 @@ class ConnectorRegistry:
 
 
 registry = ConnectorRegistry()
-

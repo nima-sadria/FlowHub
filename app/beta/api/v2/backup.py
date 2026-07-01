@@ -1,4 +1,4 @@
-"""WooPrice Beta — /api/v2/backup router.
+"""FlowHub â€” /api/v2/backup router.
 
 Backup create/list/restore endpoints. Admin permission required.
 

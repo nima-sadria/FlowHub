@@ -2,7 +2,7 @@
 
 **Version:** 1.0
 **Date:** 2026-07-01
-**Status:** Architecture and API contract. Runtime changes require separate Owner approval.
+**Status:** Current architecture and API contract for the implemented platform component.
 
 ## Purpose
 
@@ -12,9 +12,9 @@ correlation, telemetry, storage, search, filtering, export, retention, viewer
 UI, dashboard, log explorer, correlation viewer, severity colors, time
 filtering, and future-ready live tail.
 
-This is application logging, not console logging. This document is
-architecture-only. It does not implement ingestion, storage, runtime routers,
-migrations, frontend runtime changes, or live tail.
+This is application logging, not console logging. The first-release implementation
+includes ingestion, storage, runtime routers, frontend UI, redaction, and search.
+Live Tail remains future-ready and is not required in the first release.
 
 ## Architecture Rules
 

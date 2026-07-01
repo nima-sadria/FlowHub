@@ -1,7 +1,7 @@
-"""WooPrice Beta — Configuration defaults and constants.
+"""FlowHub â€” Configuration defaults and constants.
 
 Default values applied when optional environment variables are absent.
-Required variables have no defaults — absence causes startup failure.
+Required variables have no defaults â€” absence causes startup failure.
 """
 
 DEFAULTS: dict[str, str | int | bool] = {

@@ -58,7 +58,7 @@ class TestValidateGeneratedConfig:
         assert any(e.field == "BETA_NEXTCLOUD_URL" for e in result.errors)
 
     def test_bad_currency_produces_error(self, valid_env_dict: dict[str, str]):
-        valid_env_dict["BETA_CURRENCY"] = "usd"  # lowercase → invalid
+        valid_env_dict["BETA_CURRENCY"] = "usd"  # lowercase â†’ invalid
         result = validate_generated_config(env_dict=valid_env_dict)
         assert not result.is_valid
         assert any(e.field == "BETA_CURRENCY" for e in result.errors)

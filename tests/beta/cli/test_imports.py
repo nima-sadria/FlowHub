@@ -1,4 +1,4 @@
-"""CLI module import tests — verifies all modules are importable."""
+"""CLI module import tests â€” verifies all modules are importable."""
 
 import importlib
 

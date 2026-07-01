@@ -1,4 +1,4 @@
-"""FlowHub Beta Unified Logging Platform API."""
+"""FlowHub Unified Logging Platform API."""
 
 from __future__ import annotations
 

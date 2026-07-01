@@ -1,4 +1,4 @@
-const KEY = 'wooprice.products.page_size'
+const KEY = 'flowhub.products.page_size'
 const ALLOWED: readonly number[] = [10, 20, 30, 40, 50]
 const DEFAULT = 10
 

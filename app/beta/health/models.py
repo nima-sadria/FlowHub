@@ -1,4 +1,4 @@
-"""CP1.2 — Health Engine models.
+"""CP1.2 â€” Health Engine models.
 
 HealthStatus, CheckCategory, HealthCheckResult.
 """
@@ -34,7 +34,7 @@ class CheckCategory(str, Enum):
     INTEGRATION = "integration"
 
 
-# Maps HealthStatus → worst-case Severity for aggregation
+# Maps HealthStatus â†’ worst-case Severity for aggregation
 _STATUS_SEVERITY: dict[HealthStatus, Severity] = {
     HealthStatus.PASS: Severity.INFO,
     HealthStatus.WARN: Severity.WARNING,
@@ -174,7 +174,7 @@ class HealthCheckResult:
             status=HealthStatus.SKIP,
             severity=Severity.INFO,
             failure_class=FailureClass.NONE,
-            message=message or f"Skipped — prerequisite '{skipped_because}' did not pass.",
+            message=message or f"Skipped â€” prerequisite '{skipped_because}' did not pass.",
             repair_hint="",
             duration_ms=0.0,
             checked_at=datetime.now(tz=timezone.utc),
@@ -213,7 +213,7 @@ class HealthCheckResult:
     def is_blocking(self) -> bool:
         """True if this result should cause downstream checks to be skipped.
 
-        Both FAIL and SKIP are blocking — a skipped prerequisite means the
+        Both FAIL and SKIP are blocking â€” a skipped prerequisite means the
         downstream check cannot proceed either.
         """
         return self.status in (HealthStatus.FAIL, HealthStatus.SKIP)

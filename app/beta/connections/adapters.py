@@ -1,4 +1,4 @@
-"""CP1.2 — Network adapter interface and custom exception hierarchy.
+"""CP1.2 â€” Network adapter interface and custom exception hierarchy.
 
 All outbound network activity goes through NetworkAdapter so that unit tests
 can inject a FakeNetworkAdapter without real network calls.
@@ -44,7 +44,7 @@ class AuthenticationError(NetworkAdapterError):
 
 
 class AccessForbiddenError(NetworkAdapterError):
-    """Access denied — account valid but permission denied (HTTP 403)."""
+    """Access denied â€” account valid but permission denied (HTTP 403)."""
 
 
 class InvalidResponseError(NetworkAdapterError):
@@ -170,7 +170,7 @@ class NetworkAdapter(ABC):
 class RealNetworkAdapter(NetworkAdapter):
     """Production adapter that issues actual OS-level and HTTP calls.
 
-    SYNCHRONOUS BLOCKING IMPLEMENTATION — all methods block the calling thread.
+    SYNCHRONOUS BLOCKING IMPLEMENTATION â€” all methods block the calling thread.
     Safe for CLI use.  Must NOT be called from async FastAPI route handlers
     until replaced by an async adapter in B6 (AsyncNetworkAdapter / asyncpg).
 
@@ -312,7 +312,7 @@ class RealNetworkAdapter(NetworkAdapter):
             raise StorageAdapterError(str(exc)) from exc
 
     def check_database(self, url: str, timeout: float) -> dict:
-        # Synchronous psycopg2 — blocks the event loop.  Replace with asyncpg in B6.
+        # Synchronous psycopg2 â€” blocks the event loop.  Replace with asyncpg in B6.
         import time
         t0 = time.monotonic()
         try:
@@ -335,7 +335,7 @@ class RealNetworkAdapter(NetworkAdapter):
     def check_docker(self) -> dict:
         # Linux-only assumption: /var/run/docker.sock.
         # B6 replacement note: make socket_path configurable or use docker-py SDK
-        # so this works on macOS (~/Library/Containers/…) and Windows (named pipe).
+        # so this works on macOS (~/Library/Containers/â€¦) and Windows (named pipe).
         import os
         socket_path = "/var/run/docker.sock"
         if not os.path.exists(socket_path):

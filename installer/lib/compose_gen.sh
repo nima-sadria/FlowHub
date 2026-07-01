@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# FlowHub Beta — Docker Compose file generation
+# FlowHub â€” Docker Compose file generation
 #
 # Generates docker-compose.beta.yml by substituting BETA_* placeholders in
 # installer/templates/docker-compose.template.yml using envsubst.
-# Does NOT start any Docker services — that is B6 (Docker Runtime Foundation).
+# Does NOT start any Docker services â€” that is B6 (Docker Runtime Foundation).
 
 set -euo pipefail
 

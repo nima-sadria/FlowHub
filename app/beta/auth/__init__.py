@@ -1,1 +1,1 @@
-"""WooPrice Beta — authentication package (BU2)."""
+"""FlowHub â€” authentication package (BU2)."""

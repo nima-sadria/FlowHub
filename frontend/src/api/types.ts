@@ -32,19 +32,6 @@ export interface AdminPayload {
   password: string
 }
 
-export interface WooCommercePayload {
-  url: string
-  key: string
-  secret: string
-}
-
-export interface NextcloudPayload {
-  url: string
-  username: string
-  password: string
-  spreadsheet_path: string
-}
-
 export interface SetupAdminResponse {
   token: string
   refresh_token: string

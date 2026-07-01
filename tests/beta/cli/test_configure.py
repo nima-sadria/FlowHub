@@ -1,4 +1,4 @@
-"""Tests for wooprice configure show and verify commands."""
+"""Tests for flowhub configure show and verify commands."""
 
 from pathlib import Path
 
@@ -86,7 +86,7 @@ class TestConfigureVerify:
 
     def test_verify_empty_config_shows_errors(self, empty_env_file: Path):
         result = runner.invoke(app, ["configure", "verify", "--env-file", str(empty_env_file)])
-        assert "error" in result.output.lower() or "✗" in result.output
+        assert "error" in result.output.lower() or "âœ—" in result.output
 
     def test_verify_never_prints_secret_values(self, valid_env_file: Path):
         result = runner.invoke(app, ["configure", "verify", "--env-file", str(valid_env_file)])

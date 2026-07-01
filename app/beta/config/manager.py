@@ -1,17 +1,17 @@
-"""WooPrice Beta — Configuration Manager.
+"""FlowHub â€” Configuration Manager.
 
 Framework-independent orchestrator for all configuration concerns.
 Usable from backend, CLI, installer, tests, and future services
 without any FastAPI, Typer, or other framework dependency.
 
 Public API:
-    load()      — load env vars and optional TOML config file
-    validate()  — run all validators; return ValidationResult (never raises)
-    get()       — return typed BetaConfig; raise if not loaded or invalid
-    set()       — update a single value in-memory (file write: B4)
-    verify()    — compare live env with TOML config file; return drift list
-    profile()   — return the current ConfigProfile
-    migrate()   — apply config file schema migration; return change list
+    load()      â€” load env vars and optional TOML config file
+    validate()  â€” run all validators; return ValidationResult (never raises)
+    get()       â€” return typed BetaConfig; raise if not loaded or invalid
+    set()       â€” update a single value in-memory (file write: B4)
+    verify()    â€” compare live env with TOML config file; return drift list
+    profile()   â€” return the current ConfigProfile
+    migrate()   â€” apply config file schema migration; return change list
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ class NotValidError(ConfigurationError):
 
 
 class ConfigurationManager:
-    """Framework-independent configuration manager for WooPrice Beta."""
+    """Framework-independent configuration manager for FlowHub."""
 
     def __init__(
         self,
@@ -78,13 +78,13 @@ class ConfigurationManager:
         self._loaded = False
         self._validation_result: ValidationResult | None = None
 
-    # ── Core API ────────────────────────────────────────────────────────────
+    # â”€â”€ Core API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def load(self, env_file: Path | None = None) -> None:
         """Load environment variables and the optional managed TOML config file.
 
         If env_file is provided here, it overrides the one passed at construction.
-        Safe to call multiple times — re-loading resets cached state.
+        Safe to call multiple times â€” re-loading resets cached state.
         """
         effective_env_file = env_file or self._env_file
         self._env = self._loader.load(effective_env_file)
@@ -101,7 +101,7 @@ class ConfigurationManager:
         self._validation_result = None
 
     def validate(self) -> ValidationResult:
-        """Validate all configuration values. Never raises — returns ValidationResult.
+        """Validate all configuration values. Never raises â€” returns ValidationResult.
 
         Callers interpret the result and decide whether to abort, warn, or proceed.
         Successful validation is a precondition for get().
@@ -150,7 +150,7 @@ class ConfigurationManager:
         """Compare the live env with the managed TOML config file.
 
         Returns a list of drift descriptions. Empty list means no drift.
-        Secrets are never included in drift output — only "value differs" is noted.
+        Secrets are never included in drift output â€” only "value differs" is noted.
         """
         if not self._loaded:
             self.load()
@@ -170,7 +170,7 @@ class ConfigurationManager:
             env_val = self._env.get(env_name, "")
             if str(toml_val) != env_val:
                 if env_name in SECRET_FIELDS:
-                    drifts.append(f"{env_name}: value differs (secret — not shown)")
+                    drifts.append(f"{env_name}: value differs (secret â€” not shown)")
                 else:
                     drifts.append(
                         f"{env_name}: env={env_val!r}, config_file={str(toml_val)!r}"
@@ -189,7 +189,7 @@ class ConfigurationManager:
         """Apply config file schema migration if needed.
 
         Returns a list of applied change descriptions. Empty list if no migration
-        was needed. Does not write the migrated config to disk in B3 — file
+        was needed. Does not write the migrated config to disk in B3 â€” file
         persistence is implemented in B4 (Installer Foundation).
         """
         if not self._loaded:
@@ -203,7 +203,7 @@ class ConfigurationManager:
             self._config_dict = updated
         return changes
 
-    # ── Private helpers ──────────────────────────────────────────────────────
+    # â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _apply_defaults(self) -> None:
         for key, default in DEFAULTS.items():

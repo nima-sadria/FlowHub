@@ -1,4 +1,4 @@
-"""FlowHub Beta /api/v2/settings router.
+"""FlowHub /api/v2/settings router.
 
 Settings are local configuration and Integration Platform connector settings.
 Secrets are never returned. Credential writes update local records only; live

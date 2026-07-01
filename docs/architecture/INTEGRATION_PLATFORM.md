@@ -2,7 +2,7 @@
 
 **Version:** 2.0
 **Date:** 2026-07-01
-**Status:** Architecture and API contract. Runtime changes require separate Owner approval.
+**Status:** Current architecture and API contract for the implemented platform component.
 
 ## Purpose
 
@@ -10,9 +10,9 @@ The Integration Platform is the permanent FlowHub boundary for connector
 registry metadata, connector instances, connector settings, connector health,
 diagnostics, telemetry, webhooks, polling policy, and future transport support.
 
-This document is architecture-only. It does not authorize runtime
-implementation, migrations, router changes, scheduler execution, Apply,
-automatic pricing, WooCommerce writes, or Nextcloud writes.
+This document describes the approved architecture and the implemented first-release
+runtime surface. It does not authorize Scheduler execution, Apply, automatic
+pricing, WooCommerce writes, or Nextcloud writes.
 
 ## Supported Connector Scope
 
@@ -58,7 +58,7 @@ Supported transport families:
   Guard.
 - Execution is a third separate concern and is never granted by capability
   detection.
-- In FlowHub Beta, all write operations remain blocked, even when a connector
+- In FlowHub, all write operations remain blocked, even when a connector
   advertises `write_prices` or `write_inventory`.
 - Webhooks must not directly mutate products. They may validate, record, and
   enqueue an invalidation or refresh event after Owner-approved runtime work.
@@ -156,7 +156,7 @@ Permission requirements:
 - Diagnostic read probes require `integration:diagnose`.
 - Webhook receiver endpoints require valid connector webhook credentials when
   configured.
-- No permission grants write execution in FlowHub Beta.
+- No permission grants write execution in FlowHub.
 
 Correlation propagation:
 
@@ -978,7 +978,7 @@ start background jobs unless explicitly approved.
 `POST /api/v2/integration-platform/connectors/{connector_id}/write-test`
 
 Purpose: Document write guard behavior and verify that write-capable operations
-remain blocked in FlowHub Beta.
+remain blocked in FlowHub.
 
 Auth: Required.
 
@@ -999,7 +999,7 @@ Response:
   "allowed": false,
   "status": "blocked",
   "error_code": "write_blocked_beta",
-  "message": "Write operations are disabled in FlowHub Beta.",
+  "message": "Write operations are disabled in FlowHub.",
   "capability_advertised": true,
   "authorization_granted": false,
   "execution_attempted": false,

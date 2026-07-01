@@ -35,7 +35,7 @@ function PriceChangeRow({ change }: { change: PriceChange }) {
         <ChangePct pct={change.changePct} />
       </td>
       <td className="px-4 py-3 text-[11px] text-wp-muted">
-        {change.warning ?? '—'}
+        {change.warning ?? 'â€”'}
       </td>
     </tr>
   )
@@ -76,7 +76,7 @@ export default function Workspace() {
       const p = await workspace.startPreview('')
       setPreview(p)
       setPhase('preview_ready')
-      info(`Preview ready — ${p.totalChanges} product${p.totalChanges !== 1 ? 's' : ''} with pending price changes`)
+      info(`Preview ready â€” ${p.totalChanges} product${p.totalChanges !== 1 ? 's' : ''} with pending price changes`)
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : 'Failed to start preview')
       setPhase('error')
@@ -102,7 +102,7 @@ export default function Workspace() {
       {configLoading && (
         <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex items-center gap-2 text-[13px] text-wp-muted">
           <Spinner size="sm" />
-          Loading configuration…
+          Loading configurationâ€¦
         </div>
       )}
 
@@ -126,14 +126,14 @@ export default function Workspace() {
         </div>
       )}
 
-      {/* Idle — start button */}
+      {/* Idle â€” start button */}
       {!configLoading && bothConfigured && phase === 'idle' && (
         <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex flex-col gap-5">
           <div>
             <p className="text-[13px] text-text-base font-medium mb-1">Ready</p>
             <p className="text-[12px] text-wp-muted">
-              FlowHub will fetch all WooCommerce products and compare them against the configured
-              Nextcloud spreadsheet. No changes will be applied.
+              FlowHub will fetch products from the connected channel and compare them against the
+              configured source data. No changes will be applied.
             </p>
           </div>
           <button
@@ -145,11 +145,11 @@ export default function Workspace() {
         </div>
       )}
 
-      {/* Previewing — loading state */}
+      {/* Previewing â€” loading state */}
       {phase === 'previewing' && (
         <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex flex-col items-center gap-4 py-12">
           <Spinner size="lg" />
-          <p className="text-[14px] font-medium text-text-base">Fetching prices from WooCommerce and spreadsheet…</p>
+          <p className="text-[14px] font-medium text-text-base">Fetching products and source dataâ€¦</p>
           <p className="text-[12px] text-wp-muted">This may take up to 30 seconds for large catalogues</p>
         </div>
       )}
@@ -187,7 +187,7 @@ export default function Workspace() {
           <div className="bg-bg-card border border-border rounded-card shadow-card overflow-hidden">
             <div className="flex items-center justify-between px-[22px] py-4 border-b border-border">
               <span className="text-[13px] font-semibold text-text-base">
-                Preview — {preview.totalChanges} changes
+                Preview â€” {preview.totalChanges} changes
               </span>
               <span className="text-[11px] font-mono text-wp-muted">Source: {preview.sourceName}</span>
             </div>

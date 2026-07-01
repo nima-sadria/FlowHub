@@ -1,4 +1,4 @@
-"""WooPrice Beta — Diagnostics package (CP1.3).
+"""FlowHub â€” Diagnostics package (CP1.3).
 
 DiagnosticRunner orchestrates health checks through CP1.2 safe abstractions.
 """

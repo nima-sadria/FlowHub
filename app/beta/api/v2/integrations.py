@@ -1,4 +1,4 @@
-"""FlowHub Beta Integration Platform API.
+"""FlowHub Integration Platform API.
 
 These endpoints expose connector registry, connector instances, settings,
 status, and telemetry. They are read-only with respect to external systems.
@@ -110,4 +110,3 @@ async def list_connector_telemetry(
     service: IntegrationPlatformService = Depends(_service),
 ) -> ConnectorTelemetryResponse:
     return service.telemetry(connector_id=connector_id, limit=limit)
-

@@ -1,7 +1,7 @@
 """FlowHub /api/health router.
 
 Public health probe used by load balancers, Nginx Proxy Manager, and the CLI.
-No authentication required.  Returns minimal status — no internal details exposed.
+No authentication required.  Returns minimal status â€” no internal details exposed.
 """
 
 import os

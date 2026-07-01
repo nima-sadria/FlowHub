@@ -1,12 +1,12 @@
-"""WooPrice Beta — auth API router (BU2).
+"""FlowHub â€” auth API router (BU2).
 
 Public routes  (no auth required):
-  POST /api/auth/login    — issue access + refresh tokens
-  POST /api/auth/refresh  — rotate refresh token, issue new access token
+  POST /api/auth/login    â€” issue access + refresh tokens
+  POST /api/auth/refresh  â€” rotate refresh token, issue new access token
 
 Protected routes (Bearer access token required):
-  POST /api/auth/logout   — revoke refresh token, audit
-  GET  /api/auth/me       — return current user profile
+  POST /api/auth/logout   â€” revoke refresh token, audit
+  GET  /api/auth/me       â€” return current user profile
 
 Security properties:
   - Argon2 password verification
@@ -66,7 +66,7 @@ _ROLE_PERMISSIONS: dict[str, dict[str, bool]] = {
 }
 
 
-# ── Request / Response schemas ────────────────────────────────────────────────
+# â”€â”€ Request / Response schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class LoginRequest(BaseModel):
     username: str
@@ -91,7 +91,7 @@ class MeResponse(BaseModel):
     permissions: dict[str, bool]
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _client_ip(request: Request) -> str:
     xff = request.headers.get("X-Forwarded-For", "")
@@ -108,7 +108,7 @@ def _issue_tokens(db: Session, user: BetaUser) -> TokenResponse:
     return TokenResponse(token=access, refresh_token=raw_refresh)
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# â”€â”€ Routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.post("/auth/login", response_model=TokenResponse)
 async def login(

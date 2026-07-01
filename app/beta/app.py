@@ -3,39 +3,37 @@
 Deployment: uvicorn app.beta.app:app --host 0.0.0.0 --port 8085
 
 Active routes:
-  GET  /api/health                             — public health probe
-  POST /api/auth/login                         — issue JWT access + refresh tokens
-  POST /api/auth/logout                        — revoke refresh token
-  POST /api/auth/refresh                       — rotate refresh token
-  GET  /api/auth/me                            — current user profile
-  GET  /api/v2/setup/status                    — public setup completion check
-  POST /api/v2/setup/server-profile            — wizard step 1
-  POST /api/v2/setup/database                  — wizard step 2
-  POST /api/v2/setup/admin                     — wizard step 3
-  POST /api/v2/setup/integrations/woocommerce  — wizard step 4 (WC)
-  POST /api/v2/setup/integrations/nextcloud    — wizard step 4 (NC)
-  POST /api/v2/setup/complete                  — lock wizard
-  GET  /api/v2/products                        — paginated WC product browser  (BU5)
-  GET  /api/v2/products/categories             — WC category list              (BU5)
-  GET  /api/v2/sources                         — configured data sources       (BU5)
-  GET  /api/v2/workspace/state                 — workspace state               (BU5)
-  POST /api/v2/workspace/preview               — compute preview (stateless)   (BU5)
-  GET  /api/v2/settings                        — read runtime settings         (BU5)
-  POST /api/v2/settings                        — update non-credential settings(BU5)
-  POST /api/v2/settings/woocommerce            — replace WC credentials        (BU5)
-  POST /api/v2/settings/nextcloud              — replace NC credentials        (BU5)
-  GET  /api/v2/activity                        — paginated audit log           (BU5)
-  GET  /api/v2/diagnostics/status              — live system diagnostics       (BU5)
-  POST /api/v2/diagnostics/run                 — stub (B6)
-  GET  /api/v2/diagnostics/history             — stub (B6)
-  GET  /api/v2/data-layer/status               — Data Layer overall status     (DL1)
-  GET  /api/v2/data-layer/products/status      — product cache status          (DL1)
-  GET  /api/v2/data-layer/sources/status       — snapshot status               (DL1)
-  GET  /api/v2/data-layer/connectors/status    — connector health + telemetry  (DL1)
-  GET  /api/v2/data-layer/refresh-jobs         — refresh job history           (DL1)
-  GET  /api/v2/data-layer/invalidation-events  — invalidation event log        (DL1)
-  GET  /                                       — landing page
-  *    /{any}                                  — SPA fallback
+  GET  /api/health                             â€” public health probe
+  POST /api/auth/login                         â€” issue JWT access + refresh tokens
+  POST /api/auth/logout                        â€” revoke refresh token
+  POST /api/auth/refresh                       â€” rotate refresh token
+  GET  /api/auth/me                            â€” current user profile
+  GET  /api/v2/setup/status                    â€” public setup completion check
+  POST /api/v2/setup/server-profile            â€” wizard step 1
+  POST /api/v2/setup/database                  â€” wizard step 2
+  POST /api/v2/setup/admin                     â€” wizard step 3
+  POST /api/v2/setup/complete                  â€” lock wizard
+  GET  /api/v2/products                        â€” paginated WC product browser  (BU5)
+  GET  /api/v2/products/categories             â€” WC category list              (BU5)
+  GET  /api/v2/sources                         â€” configured data sources       (BU5)
+  GET  /api/v2/workspace/state                 â€” workspace state               (BU5)
+  POST /api/v2/workspace/preview               â€” compute preview (stateless)   (BU5)
+  GET  /api/v2/settings                        â€” read runtime settings         (BU5)
+  POST /api/v2/settings                        â€” update non-credential settings(BU5)
+  POST /api/v2/settings/woocommerce            â€” replace WC credentials        (BU5)
+  POST /api/v2/settings/nextcloud              â€” replace NC credentials        (BU5)
+  GET  /api/v2/activity                        â€” paginated audit log           (BU5)
+  GET  /api/v2/diagnostics/status              â€” live system diagnostics       (BU5)
+  POST /api/v2/diagnostics/run                 â€” stub (B6)
+  GET  /api/v2/diagnostics/history             â€” stub (B6)
+  GET  /api/v2/data-layer/status               â€” Data Layer overall status     (DL1)
+  GET  /api/v2/data-layer/products/status      â€” product cache status          (DL1)
+  GET  /api/v2/data-layer/sources/status       â€” snapshot status               (DL1)
+  GET  /api/v2/data-layer/connectors/status    â€” connector health + telemetry  (DL1)
+  GET  /api/v2/data-layer/refresh-jobs         â€” refresh job history           (DL1)
+  GET  /api/v2/data-layer/invalidation-events  â€” invalidation event log        (DL1)
+  GET  /                                       â€” landing page
+  *    /{any}                                  â€” SPA fallback
 """
 
 from __future__ import annotations
@@ -105,7 +103,7 @@ app = FastAPI(
     openapi_url=None,
 )
 
-# API routers — registered before the SPA catch-all so they take priority
+# API routers â€” registered before the SPA catch-all so they take priority
 app.include_router(health_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(setup_router, prefix="/api/v2")
@@ -129,7 +127,7 @@ if _assets_dir.exists():
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def root() -> HTMLResponse:
-    """Landing page — always served at root; shows version, environment, health endpoint."""
+    """Landing page â€” always served at root; shows version, environment, health endpoint."""
     return HTMLResponse(content=_LANDING_HTML.format(version=_VERSION))
 
 

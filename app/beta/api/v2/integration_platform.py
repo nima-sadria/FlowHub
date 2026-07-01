@@ -1,4 +1,4 @@
-"""Canonical FlowHub Beta Integration Platform API."""
+"""Canonical FlowHub Integration Platform API."""
 
 from __future__ import annotations
 

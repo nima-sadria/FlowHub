@@ -1,4 +1,4 @@
-"""FlowHub Beta — Nextcloud client (BU5).
+"""FlowHub â€” Nextcloud client (BU5).
 
 All HTTP calls are delegated to app/connectors/sources/nextcloud/.
 No direct httpx usage in this module.
@@ -28,27 +28,27 @@ logger = logging.getLogger(__name__)
 _PROVIDER = "Nextcloud"
 
 
-# ── Error mapping ─────────────────────────────────────────────────────────────
+# â”€â”€ Error mapping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _to_integration_error(exc: ConnectorError, endpoint: str) -> IntegrationError:
     """Map ConnectorError to IntegrationError for the API layer."""
     code = exc.code
     if code == ConnectorErrorCode.AUTH_FAILED:
-        msg = "Authentication failed — check username and app password"
+        msg = "Authentication failed â€” check username and app password"
     elif code == ConnectorErrorCode.PERMISSION:
-        msg = "Access denied — check WebDAV permissions"
+        msg = "Access denied â€” check WebDAV permissions"
     elif code == ConnectorErrorCode.NOT_FOUND:
         msg = f"File not found: {endpoint}"
     elif code == ConnectorErrorCode.TIMEOUT:
         msg = "Connection timed out"
     elif code == ConnectorErrorCode.NETWORK:
-        msg = "Could not connect to Nextcloud — check URL and network"
+        msg = "Could not connect to Nextcloud â€” check URL and network"
     else:
         msg = exc.message or f"Nextcloud error: {code.value}"
     return IntegrationError(_PROVIDER, endpoint, msg, status_code=exc.http_status)
 
 
-# ── Client ────────────────────────────────────────────────────────────────────
+# â”€â”€ Client â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class NextcloudClient:
     """Async read-only Nextcloud / WebDAV client backed by the connector framework."""
@@ -118,18 +118,18 @@ class NextcloudClient:
     async def get_file_meta(self, path: str) -> dict[str, str | None]:
         """Fetch file metadata via HEAD, falling back to PROPFIND.
 
-        Never raises — returns empty dict on failure (used for optional checks).
+        Never raises â€” returns empty dict on failure (used for optional checks).
         """
         clean_path = self._clean_path(path)
 
-        # HEAD first — lightweight
+        # HEAD first â€” lightweight
         meta = await head_file(self._creds, clean_path)
         if any(v for v in meta.values()):
             return meta
 
         # PROPFIND fallback
         logger.debug(
-            "nc get_file_meta HEAD provider=%s path=%s — etag absent, trying PROPFIND",
+            "nc get_file_meta HEAD provider=%s path=%s â€” etag absent, trying PROPFIND",
             _PROVIDER, path,
         )
         try:

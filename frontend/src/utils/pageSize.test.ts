@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { readPageSize, writePageSize } from './pageSize'
 
-const KEY = 'wooprice.products.page_size'
+const KEY = 'flowhub.products.page_size'
 
 describe('readPageSize', () => {
   beforeEach(() => sessionStorage.clear())

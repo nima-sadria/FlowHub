@@ -1,7 +1,7 @@
-"""CP1.3 — Runtime configuration field definitions and audit models.
+"""CP1.3 â€” Runtime configuration field definitions and audit models.
 
 EDITABLE_FIELDS: non-secret, non-identity fields that an operator can change
-                 via 'wooprice configure set' without a reinstall.
+                 via 'flowhub configure set' without a reinstall.
 
 INSTALLER_ONLY_FIELDS: set once during install; cannot be changed at runtime.
 
@@ -61,7 +61,7 @@ SECRET_RUNTIME_FIELDS: frozenset[str] = frozenset(
 
 @dataclass
 class ConfigRecord:
-    """Snapshot of a single configuration field — safe to display."""
+    """Snapshot of a single configuration field â€” safe to display."""
 
     field_name: str
     current_value: str

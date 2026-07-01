@@ -1,4 +1,4 @@
-"""WooPrice Beta — auth data access layer (BU2)."""
+"""FlowHub â€” auth data access layer (BU2)."""
 
 from __future__ import annotations
 

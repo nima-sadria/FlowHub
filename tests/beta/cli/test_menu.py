@@ -1,4 +1,4 @@
-"""Tests for cli/menu.py — interactive management menu (BU1)."""
+"""Tests for cli/menu.py â€” interactive management menu (BU1)."""
 
 from __future__ import annotations
 
@@ -257,10 +257,10 @@ class TestMenuText:
         for i in range(1, 8):
             assert str(i) in out
 
-    def test_menu_shows_flowhub_beta(self, capsys):
+    def test_menu_shows_flowhub(self, capsys):
         show_menu(_input_fn=_input_sequence("7"))
         out = capsys.readouterr().out
-        assert "FlowHub Beta" in out
+        assert "FlowHub" in out
 
     def test_menu_shows_status_option(self, capsys):
         show_menu(_input_fn=_input_sequence("7"))
@@ -279,7 +279,7 @@ class TestMenuText:
 
 
 # ---------------------------------------------------------------------------
-# cli/main.py integration — no-args invokes menu (not help)
+# cli/main.py integration â€” no-args invokes menu (not help)
 # ---------------------------------------------------------------------------
 
 

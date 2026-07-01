@@ -1,4 +1,4 @@
-"""WooPrice Beta — User Management package.
+"""FlowHub â€” User Management package.
 
 Implementation begins in B10.
 """

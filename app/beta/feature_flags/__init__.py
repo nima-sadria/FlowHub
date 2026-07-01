@@ -1,4 +1,4 @@
-"""WooPrice Beta — Feature Flag Evaluator package.
+"""FlowHub â€” Feature Flag Evaluator package.
 
 Implementation begins in B11.
 """

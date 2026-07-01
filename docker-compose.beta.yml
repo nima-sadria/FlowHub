@@ -1,9 +1,9 @@
-# FlowHub Beta — Docker Compose stack
+# FlowHub â€” Docker Compose stack
 #
 # Target host: /opt/FlowHub  (port 8085, profile: BETA)
 # External TLS/proxy: Nginx Proxy Manager (not managed here)
-# No Nginx container — NPM handles reverse proxy on the host
-# No Redis container — not required until B6 (cache/queue implementation)
+# No Nginx container â€” NPM handles reverse proxy on the host
+# No Redis container â€” not required until B6 (cache/queue implementation)
 #
 # Usage:
 #   cp .env.beta.example .env.beta && nano .env.beta   # fill real secrets
@@ -51,7 +51,7 @@ services:
     env_file:
       - .env.beta
     environment:
-      # Map BETA_POSTGRES_* → standard PostgreSQL env vars
+      # Map BETA_POSTGRES_* â†’ standard PostgreSQL env vars
       POSTGRES_DB: "${BETA_POSTGRES_DB}"
       POSTGRES_USER: "${BETA_POSTGRES_USER}"
       POSTGRES_PASSWORD: "${BETA_POSTGRES_PASSWORD}"

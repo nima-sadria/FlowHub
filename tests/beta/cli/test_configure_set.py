@@ -1,4 +1,4 @@
-"""Tests for wooprice configure get/set commands (CP1.3)."""
+"""Tests for flowhub configure get/set commands (CP1.3)."""
 
 from __future__ import annotations
 
