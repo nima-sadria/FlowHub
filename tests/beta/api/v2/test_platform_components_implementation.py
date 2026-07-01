@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import pathlib
+import hmac
+from hashlib import sha256
 
 import pytest
 
@@ -79,6 +81,19 @@ def auth_headers(client, db):
     db.add(user)
     db.commit()
     response = client.post("/api/auth/login", json={"username": "platformadmin", "password": "password123"})
+    assert response.status_code == 200
+    return {"Authorization": f"Bearer {response.json()['token']}"}
+
+
+@pytest.fixture()
+def viewer_headers(client, db):
+    from app.beta.auth.models import BetaUser
+    from app.beta.auth.password import hash_password
+
+    user = BetaUser(username="platformviewer", hashed_password=hash_password("password123"), role="viewer")
+    db.add(user)
+    db.commit()
+    response = client.post("/api/auth/login", json={"username": "platformviewer", "password": "password123"})
     assert response.status_code == 200
     return {"Authorization": f"Bearer {response.json()['token']}"}
 
@@ -162,7 +177,12 @@ def test_integration_platform_diagnostics_polling_webhook_are_safe(client, auth_
     client.post(
         "/api/v2/integration-platform/connectors",
         headers=auth_headers,
-        json={"connector_type": "nextcloud", "id": "nextcloud:test", "name": "Test Nextcloud"},
+        json={
+            "connector_type": "nextcloud",
+            "id": "nextcloud:test",
+            "name": "Test Nextcloud",
+            "settings": {"webhook_secret": "hook-secret"},
+        },
     )
 
     diagnostics = client.post(
@@ -181,12 +201,92 @@ def test_integration_platform_diagnostics_polling_webhook_are_safe(client, auth_
     assert polling.json()["enabled"] is True
     assert polling.json()["scheduler_implemented"] is False
 
+    payload = b'{"event":"changed","token":"must-redact"}'
+    signature = hmac.new(b"hook-secret", payload, sha256).hexdigest()
     webhook = client.post(
         "/api/v2/integration-platform/webhooks/nextcloud/nextcloud:test",
-        json={"event": "changed", "token": "must-redact"},
+        content=payload,
+        headers={"X-FlowHub-Signature": f"sha256={signature}"},
     )
     assert webhook.status_code == 200
     assert webhook.json()["accepted"] is True
+
+
+def test_protected_platform_endpoints_reject_viewers(client, auth_headers, viewer_headers):
+    client.post(
+        "/api/v2/integration-platform/connectors",
+        headers=auth_headers,
+        json={"connector_type": "woocommerce", "id": "woocommerce:protected", "name": "Protected"},
+    )
+
+    protected_calls = [
+        ("post", "/api/v2/integration-platform/connectors", {"connector_type": "nextcloud", "id": "nextcloud:viewer", "name": "Viewer"}),
+        ("put", "/api/v2/integration-platform/connectors/woocommerce:protected/settings", {"settings": {"url": "https://example.com"}}),
+        ("post", "/api/v2/integration-platform/connectors/woocommerce:protected/diagnostics/run", {}),
+        ("put", "/api/v2/integration-platform/connectors/woocommerce:protected/polling", {"enabled": True}),
+        ("post", "/api/v2/integration-platform/connectors/woocommerce:protected/write-test", {"operation": "write_prices"}),
+        ("get", "/api/v2/logging/export", None),
+        ("put", "/api/v2/logging/retention", {"policies": [{"category": "operational", "retention_days": 30}]}),
+    ]
+    for method, url, body in protected_calls:
+        response = getattr(client, method)(url, headers=viewer_headers, json=body) if body is not None else getattr(client, method)(url, headers=viewer_headers)
+        assert response.status_code == 403
+
+
+def test_secret_like_settings_keys_are_always_masked(client, auth_headers):
+    client.post(
+        "/api/v2/integration-platform/connectors",
+        headers=auth_headers,
+        json={"connector_type": "woocommerce", "id": "woocommerce:secrets", "name": "Secrets"},
+    )
+    secret_values = {
+        "password": "pw-value",
+        "secret": "secret-value",
+        "token": "token-value",
+        "api_key": "api-key-value",
+        "consumer_key": "consumer-key-value",
+        "consumer_secret": "consumer-secret-value",
+        "webhook_secret": "webhook-secret-value",
+        "bearer": "bearer-value",
+        "authorization": "authorization-value",
+    }
+    response = client.put(
+        "/api/v2/integration-platform/connectors/woocommerce:secrets/settings",
+        headers=auth_headers,
+        json={"settings": secret_values},
+    )
+    assert response.status_code == 200
+    settings = client.get("/api/v2/integration-platform/connectors/woocommerce:secrets/settings", headers=auth_headers)
+    body = settings.json()
+    assert body["settings"] == {}
+    assert set(secret_values).issubset(body["secrets"])
+    for value in secret_values.values():
+        assert value not in str(body)
+
+
+def test_webhook_rejects_when_secret_missing_or_signature_invalid(client, auth_headers):
+    client.post(
+        "/api/v2/integration-platform/connectors",
+        headers=auth_headers,
+        json={"connector_type": "woocommerce", "id": "woocommerce:webhook", "name": "Webhook"},
+    )
+    missing = client.post(
+        "/api/v2/integration-platform/webhooks/woocommerce/woocommerce:webhook",
+        json={"event": "changed"},
+    )
+    assert missing.status_code == 403
+
+    client.put(
+        "/api/v2/integration-platform/connectors/woocommerce:webhook/settings",
+        headers=auth_headers,
+        json={"settings": {"webhook_secret": "hook-secret"}},
+    )
+    invalid = client.post(
+        "/api/v2/integration-platform/webhooks/woocommerce/woocommerce:webhook",
+        json={"event": "changed"},
+        headers={"X-FlowHub-Signature": "sha256=bad"},
+    )
+    assert invalid.status_code == 403
 
 
 def test_logging_platform_ingestion_search_redaction_retention(client, auth_headers):
@@ -230,6 +330,48 @@ def test_logging_platform_ingestion_search_redaction_retention(client, auth_head
     assert policies["operational"] == 30
     assert policies["connector_telemetry"] == 90
     assert policies["audit_security"] == 365
+
+
+def test_logging_redacts_secret_like_message_and_exception_strings(client, auth_headers):
+    secret_messages = [
+        "password=pw-value",
+        "token token-value",
+        "api_key=api-key-value",
+        "secret=secret-value",
+        "consumer_secret=consumer-secret-value",
+    ]
+    response = client.post(
+        "/api/v2/logging/frontend",
+        headers=auth_headers,
+        json={
+            "logs": [
+                {
+                    "severity": "error",
+                    "category": "Unexpected Exceptions",
+                    "component": "Settings",
+                    "message": message,
+                    "exception_summary": message,
+                    "correlation_id": f"corr_redact_{index}",
+                }
+                for index, message in enumerate(secret_messages)
+            ]
+        },
+    )
+    assert response.status_code == 200
+    logs = client.get("/api/v2/logging/logs?severity=error&page_size=20", headers=auth_headers)
+    body = logs.json()
+    assert "[REDACTED]" in str(body)
+    for message in secret_messages:
+        assert message not in str(body)
+
+
+def test_backend_log_ingestion_is_disabled_until_internal_auth_exists(client, auth_headers):
+    response = client.post(
+        "/api/v2/logging/backend",
+        headers=auth_headers,
+        json={"logs": [{"severity": "info", "message": "internal"}]},
+    )
+    assert response.status_code == 403
 
 
 def test_direct_call_and_write_safety_audit_for_beta_v2_routes():

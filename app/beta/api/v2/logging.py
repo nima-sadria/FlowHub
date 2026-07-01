@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.beta.auth.dependencies import get_current_user
@@ -15,6 +15,11 @@ router = APIRouter(prefix="/logging", tags=["logging"])
 
 def _service(db: Session = Depends(get_db)) -> LoggingPlatformService:
     return LoggingPlatformService(db)
+
+
+def _require_admin(user: BetaUser) -> None:
+    if user.role != "admin":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin permission required.")
 
 
 def _filters(
@@ -116,10 +121,9 @@ async def frontend_ingest(
 @router.post("/backend")
 async def backend_ingest(
     body: dict,
-    user: BetaUser = Depends(get_current_user),
     service: LoggingPlatformService = Depends(_service),
 ) -> dict:
-    return service.ingest_backend(body, username=user.username)
+    raise HTTPException(status.HTTP_403_FORBIDDEN, "Backend log ingestion is internal-only and is disabled until internal auth exists.")
 
 
 @router.get("/export")
@@ -129,6 +133,7 @@ async def export(
     user: BetaUser = Depends(get_current_user),
     service: LoggingPlatformService = Depends(_service),
 ) -> Response:
+    _require_admin(user)
     content_type, content = service.export({**filters, "format": format}, requested_by=user.username)
     return Response(content=content, media_type=content_type)
 
@@ -147,6 +152,7 @@ async def update_retention(
     user: BetaUser = Depends(get_current_user),
     service: LoggingPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     return service.update_retention(body, username=user.username)
 
 

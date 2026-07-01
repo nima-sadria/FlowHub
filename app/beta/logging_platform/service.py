@@ -47,6 +47,8 @@ SECRET_MARKERS = {
     "signature",
     "consumer_key",
     "consumer_secret",
+    "webhook_secret",
+    "bearer",
 }
 
 
@@ -385,7 +387,7 @@ class LoggingPlatformService:
         if value is None:
             return None
         text = str(value)
-        if any(marker in text.lower() for marker in ["authorization:", "bearer ", "consumer_secret"]):
+        if any(marker in text.lower() for marker in SECRET_MARKERS):
             return "[REDACTED]"
         return value
 

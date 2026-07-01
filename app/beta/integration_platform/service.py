@@ -7,8 +7,10 @@ pricing automation.
 
 from __future__ import annotations
 
+import hmac
 import uuid
 from datetime import datetime
+from hashlib import sha256
 from typing import Iterable
 
 from fastapi import HTTPException, status
@@ -58,7 +60,17 @@ from app.beta.integration_platform.registry import registry
 from app.beta.setup.service import AppConfigService
 
 
-_SECRET_KEYS = {"key", "secret", "password", "token", "consumer_key", "consumer_secret"}
+_SECRET_KEYS = {
+    "password",
+    "secret",
+    "token",
+    "api_key",
+    "consumer_key",
+    "consumer_secret",
+    "webhook_secret",
+    "bearer",
+    "authorization",
+}
 
 
 class IntegrationPlatformService:
@@ -160,13 +172,14 @@ class IntegrationPlatformService:
         self.db.flush()
         settings = body.get("settings")
         if isinstance(settings, dict):
+            secret_keys = self._definition_secret_keys(definition)
             self._upsert_settings(
                 row,
                 [
                     ConnectorSettingValue(
                         key=key,
                         value=value,
-                        secret=key in _SECRET_KEYS,
+                        secret=_is_secret_key(key) or key in secret_keys,
                         configured=value not in (None, ""),
                     )
                     for key, value in settings.items()
@@ -195,13 +208,14 @@ class IntegrationPlatformService:
         row.read_only = True
         settings = body.get("settings")
         if isinstance(settings, dict):
+            secret_keys = self._definition_secret_keys(self.get_registry_definition(row.connector_type))
             self._upsert_settings(
                 row,
                 [
                     ConnectorSettingValue(
                         key=key,
                         value=value,
-                        secret=key in _SECRET_KEYS,
+                        secret=_is_secret_key(key) or key in secret_keys,
                         configured=value not in (None, ""),
                     )
                     for key, value in settings.items()
@@ -292,8 +306,14 @@ class IntegrationPlatformService:
         settings = body.get("settings") if isinstance(body, dict) else None
         secrets = body.get("secrets") if isinstance(body, dict) else None
         if isinstance(settings, dict):
+            secret_keys = self._definition_secret_keys(self.get_registry_definition(row.connector_type))
             entries.extend(
-                ConnectorSettingValue(key=key, value=value, secret=False, configured=value not in (None, ""))
+                ConnectorSettingValue(
+                    key=key,
+                    value=value,
+                    secret=_is_secret_key(key) or key in secret_keys,
+                    configured=value not in (None, ""),
+                )
                 for key, value in settings.items()
             )
         if isinstance(secrets, dict):
@@ -394,7 +414,7 @@ class IntegrationPlatformService:
                 ConnectorSettingValue(
                     key=key,
                     value=value,
-                    secret=key in _SECRET_KEYS,
+                    secret=_is_secret_key(key) or key in self._definition_secret_keys(definition),
                     configured=value not in (None, ""),
                 )
                 for key, value in values.items()
@@ -722,9 +742,24 @@ class IntegrationPlatformService:
             "correlation_id": self._correlation_id(),
         }
 
-    def receive_webhook_contract(self, connector_type: str, connector_id: str, payload: dict | list | None) -> dict:
-        accepted = self.db.get(IntegrationConnectorInstance, connector_id) is not None
-        reason = None if accepted else "connector_not_found"
+    def receive_webhook_contract(
+        self,
+        connector_type: str,
+        connector_id: str,
+        payload: dict | list | None,
+        raw_body: bytes,
+        signature: str | None,
+    ) -> dict:
+        instance = self.db.get(IntegrationConnectorInstance, connector_id)
+        if instance is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        webhook_secret = self._secret_configured(instance, "webhook_secret")
+        if not webhook_secret:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Webhook signature verifier is not configured.")
+        if not signature or not _verify_webhook_signature(webhook_secret, raw_body, signature):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Webhook signature verification failed.")
+        accepted = True
+        reason = None
         event = IntegrationWebhookEvent(
             connector_type=connector_type,
             connector_id=connector_id,
@@ -920,9 +955,9 @@ class IntegrationPlatformService:
         existing = {item.key: item for item in row.settings}
         now = datetime.utcnow()
         for item in settings:
-            secret = item.secret or item.key in _SECRET_KEYS
+            secret = item.secret or _is_secret_key(item.key)
             configured = item.configured or item.value not in (None, "")
-            value = None if secret else item.value
+            value = item.value if secret and item.key == "webhook_secret" else None if secret else item.value
             setting = existing.get(item.key)
             if setting is None:
                 setting = IntegrationConnectorSetting(
@@ -1018,6 +1053,9 @@ class IntegrationPlatformService:
             transports.append("polling")
         return transports
 
+    def _definition_secret_keys(self, definition: ConnectorDefinition) -> set[str]:
+        return {item.key for item in definition.settings_schema if item.secret}
+
     def _diagnostic_status(self, status_value: str) -> str:
         if status_value == "ok":
             return ConnectorHealthStatus.HEALTHY.value
@@ -1074,6 +1112,12 @@ class IntegrationPlatformService:
         base = str(url.value_json or "") if url and not url.secret else ""
         suffix = str(path.value_json or "") if path and not path.secret else ""
         return f"{base}{suffix}" if base else row.id
+
+    def _secret_configured(self, row: IntegrationConnectorInstance, key: str) -> str | None:
+        for item in row.settings:
+            if item.key == key and item.secret and item.configured:
+                return str(item.value_json or "")
+        return None
 
     def _source_status(self, row: IntegrationConnectorInstance, snapshot: DlSourceSnapshot | None) -> str:
         if not row.enabled:
@@ -1140,6 +1184,17 @@ def _product_has_category(row: DlProductCache, category_id: int) -> bool:
         if isinstance(category, dict) and str(category.get("id")) == str(category_id):
             return True
     return False
+
+
+def _is_secret_key(key: str) -> bool:
+    normalized = key.strip().lower()
+    return normalized in _SECRET_KEYS
+
+
+def _verify_webhook_signature(secret: str, raw_body: bytes, signature: str) -> bool:
+    expected = hmac.new(secret.encode("utf-8"), raw_body, sha256).hexdigest()
+    candidates = {expected, f"sha256={expected}"}
+    return any(hmac.compare_digest(signature.strip(), candidate) for candidate in candidates)
 
 
 def _iso(value: datetime | None) -> str | None:

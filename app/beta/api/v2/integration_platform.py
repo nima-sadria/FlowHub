@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+import json
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.beta.auth.dependencies import get_current_user
@@ -15,6 +17,11 @@ router = APIRouter(prefix="/integration-platform", tags=["integration-platform"]
 
 def _service(db: Session = Depends(get_db)) -> IntegrationPlatformService:
     return IntegrationPlatformService(db)
+
+
+def _require_admin(user: BetaUser) -> None:
+    if user.role != "admin":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin permission required.")
 
 
 @router.get("/registry")
@@ -47,9 +54,10 @@ async def list_connectors(
 @router.post("/connectors", status_code=201)
 async def create_connector(
     body: dict,
-    _: BetaUser = Depends(get_current_user),
+    user: BetaUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     return service.create_instance_contract(body)
 
 
@@ -57,36 +65,40 @@ async def create_connector(
 async def update_connector(
     connector_id: str,
     body: dict,
-    _: BetaUser = Depends(get_current_user),
+    user: BetaUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     return service.update_instance_contract(connector_id, body)
 
 
 @router.patch("/connectors/{connector_id}/enable")
 async def enable_connector(
     connector_id: str,
-    _: BetaUser = Depends(get_current_user),
+    user: BetaUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     return service.set_enabled_contract(connector_id, True)
 
 
 @router.patch("/connectors/{connector_id}/disable")
 async def disable_connector(
     connector_id: str,
-    _: BetaUser = Depends(get_current_user),
+    user: BetaUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     return service.set_enabled_contract(connector_id, False)
 
 
 @router.delete("/connectors/{connector_id}")
 async def delete_connector(
     connector_id: str,
-    _: BetaUser = Depends(get_current_user),
+    user: BetaUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     return service.delete_instance_contract(connector_id)
 
 
@@ -103,18 +115,20 @@ async def get_settings(
 async def update_settings(
     connector_id: str,
     body: dict,
-    _: BetaUser = Depends(get_current_user),
+    user: BetaUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     return service.update_settings_contract(connector_id, body)
 
 
 @router.post("/connectors/{connector_id}/test")
 async def test_connection(
     connector_id: str,
-    _: BetaUser = Depends(get_current_user),
+    user: BetaUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     instance = service.get_instance(connector_id)
     status_value = instance.connector.status.value
     return {
@@ -133,9 +147,10 @@ async def test_connection(
 @router.post("/connectors/{connector_id}/detect-capabilities")
 async def detect_capabilities(
     connector_id: str,
-    _: BetaUser = Depends(get_current_user),
+    user: BetaUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     instance = service.get_instance(connector_id)
     return {
         "canonical_capabilities": instance.connector.capabilities.model_dump(),
@@ -167,17 +182,19 @@ async def get_health(
 @router.post("/connectors/{connector_id}/diagnostics/run")
 async def run_connector_diagnostics(
     connector_id: str,
-    _: BetaUser = Depends(get_current_user),
+    user: BetaUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     return service.diagnostics_contract(connector_id)
 
 
 @router.post("/diagnostics/run")
 async def run_all_diagnostics(
-    _: BetaUser = Depends(get_current_user),
+    user: BetaUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     return service.diagnostics_contract()
 
 
@@ -212,10 +229,12 @@ async def receive_webhook(
     connector_type: str,
     connector_id: str,
     request: Request,
+    x_flowhub_signature: str | None = Header(default=None),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
-    payload = await request.json()
-    return service.receive_webhook_contract(connector_type, connector_id, payload)
+    raw_body = await request.body()
+    payload = json.loads(raw_body.decode("utf-8") or "{}")
+    return service.receive_webhook_contract(connector_type, connector_id, payload, raw_body, x_flowhub_signature)
 
 
 @router.get("/connectors/{connector_id}/polling")
@@ -231,9 +250,10 @@ async def get_polling(
 async def update_polling(
     connector_id: str,
     body: dict,
-    _: BetaUser = Depends(get_current_user),
+    user: BetaUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     return service.update_polling_contract(connector_id, body)
 
 
@@ -241,7 +261,8 @@ async def update_polling(
 async def write_test(
     connector_id: str,
     body: dict,
-    _: BetaUser = Depends(get_current_user),
+    user: BetaUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
+    _require_admin(user)
     return service.write_guard_contract(connector_id, str(body.get("operation") or "write_prices"))
