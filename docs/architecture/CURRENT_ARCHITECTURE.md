@@ -14,7 +14,7 @@ as implemented behavior.
 - [D. Database Schema](#d-database-schema)
 - [E. Deployment Model](#e-deployment-model)
 - [F. Connector Framework](#f-connector-framework)
-- [G. Integration Layer](#g-integration-layer)
+- [G. Integration Platform](#g-integration-platform)
 - [H. Frontend Architecture](#h-frontend-architecture)
 - [I. Authentication Model](#i-authentication-model)
 - [J. Future Architecture Direction](#j-future-architecture-direction)
@@ -58,11 +58,11 @@ as implemented behavior.
 │  │  /api/v2/diagnostics/*  diagnostics.router(system status)       │  │
 │  └───────────────────────────┬─────────────────────────────────────┘  │
 │                              │                                        │
-│  ┌─── Integration Layer ─────▼─────────────────────────────────────┐  │
-│  │  app/beta/integrations/                                         │  │
-│  │  WooCommerceClient    — thin wrapper, error translation         │  │
-│  │  NextcloudClient      — thin wrapper, error translation         │  │
-│  │  IntegrationError     — maps ConnectorError → HTTP 502          │  │
+│  ┌─── Integration Platform ──▼─────────────────────────────────────┐  │
+│  │  app/beta/integration_platform/                                 │  │
+│  │  Registry, instances, settings, diagnostics, telemetry          │  │
+│  │  Data Layer-backed read facade for active Beta v2 routes        │  │
+│  │  Capability metadata does not authorize writes                  │  │
 │  └───────────────────────────┬─────────────────────────────────────┘  │
 │                              │                                        │
 │  ┌─── Connector Framework ───▼─────────────────────────────────────┐  │
@@ -220,7 +220,7 @@ Nextcloud.
 
 ## D. Database Schema
 
-**Alembic chain:** `beta_001` → `beta_002` → `beta_003` → `beta_004` (current head)
+**Alembic chain:** `beta_001` → `beta_002` → `beta_003` → `beta_004` → `beta_005` → `beta_006` (current head)
 
 ### `beta_users`  (beta_001)
 
@@ -295,7 +295,7 @@ Indexes: `ix_beta_login_audit_id`, `ix_beta_login_audit_username`
 
 ### `alembic_version`  (Alembic built-in)
 
-Single row: `version_num = "beta_004"` on a fresh or fully migrated install.
+Single row: `version_num = "beta_006"` on a fresh or fully migrated install.
 
 ---
 
@@ -503,46 +503,30 @@ imports them (verified by `tests/beta/test_no_direct_httpx.py:test_legacy_servic
 
 ---
 
-## G. Integration Layer
+## G. Integration Platform
 
-`app/beta/integrations/` provides the boundary between route handlers and the
-connector framework.
+`app/beta/integration_platform/` is the current boundary for active Beta v2
+connector metadata, connector settings, diagnostics, telemetry, and Data
+Layer-backed read paths.
 
 ```
-app/beta/integrations/
-├── woocommerce.py   WooCommerceClient — wraps rest_client functions
-├── nextcloud.py     NextcloudClient  — wraps webdav/ocs functions
-├── spreadsheet.py   load_workbook_bytes(), parse_price_list()
-└── errors.py        IntegrationError(message, detail)
-                       → caught by routers → HTTP 502
+app/beta/integration_platform/
+├── contracts.py   Canonical capability, status, settings, product/source,
+│                  workspace, diagnostics, and telemetry contracts
+├── registry.py    WooCommerce and Nextcloud registry definitions
+├── models.py      ip_connector_instances, ip_connector_settings,
+│                  ip_connector_health_snapshots, ip_connector_events
+└── service.py     Record-backed facade used by active Beta v2 routes
 ```
 
-**`WooCommerceClient`** is constructed with `(url, key, secret)` and exposes:
-- `get_products_page(page, per_page, search, category_id, product_type)` → `(list, total)`
-- `get_all_products_for_preview()` → `list`
-- `get_categories()` → `list`
-- `count_products()` → `int`
-- `test_connection()` → `(bool, str, float)`
-- `from_config(cfg)` — class method, returns `None` if not configured
+Active Products, Sources, Workspace, Diagnostics, Settings, Setup, and
+Integration Platform routes use `IntegrationPlatformService` and Data Layer
+records. They do not import the legacy WooCommerce/Nextcloud client wrappers
+and do not perform direct external `httpx` calls.
 
-**`NextcloudClient`** is constructed with `(url, username, password)` and exposes:
-- `download_file(path)` → `(bytes, meta_dict)`
-- `get_file_meta(path)` → `meta_dict` — never raises
-- `test_connection()` → `(bool, str, float)`
-- `from_config(cfg)` — class method, returns `None` if not configured
-
-**Error translation** (`_to_integration_error`):
-
-| `ConnectorErrorCode` | `IntegrationError.message` |
-|---|---|
-| `AUTH_FAILED` | `Authentication failed — check credentials` |
-| `PERMISSION` | `Access denied — check permissions` |
-| `NOT_FOUND` | `Not found: {endpoint}` |
-| `TIMEOUT` | `Connection timed out` |
-| `NETWORK` | `Could not connect to {provider}` |
-| `RATE_LIMITED` | `Rate limited — retry budget exhausted` |
-| `PROVIDER_ERROR` | `Provider error` |
-| `UNKNOWN` | `Unexpected error` |
+`app/beta/integrations/` remains as a legacy compatibility wrapper layer for
+older tests and non-active paths. It is not the active Beta v2 API route
+boundary for Integration Platform wiring.
 
 ---
 

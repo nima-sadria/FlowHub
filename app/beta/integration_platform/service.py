@@ -212,7 +212,14 @@ class IntegrationPlatformService:
         return row
 
     # Data Layer read surfaces
-    def list_products(self, search: str = "", page: int = 1, page_size: int = 50) -> ConnectorProductListResponse:
+    def list_products(
+        self,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 50,
+        category_id: int | None = None,
+        product_type: str | None = None,
+    ) -> ConnectorProductListResponse:
         self.bootstrap_from_app_config()
         page = max(page, 1)
         page_size = min(max(page_size, 1), 200)
@@ -226,13 +233,24 @@ class IntegrationPlatformService:
                     DlProductCache.product_id.ilike(pattern),
                 )
             )
-        total = q.count()
-        rows = (
-            q.order_by(DlProductCache.name.asc(), DlProductCache.id.asc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-            .all()
-        )
+        if product_type in {"simple", "variable", "variation"}:
+            q = q.filter(DlProductCache.product_type == product_type)
+        if category_id is not None:
+            filtered_rows = [
+                row
+                for row in q.order_by(DlProductCache.name.asc(), DlProductCache.id.asc()).all()
+                if _product_has_category(row, category_id)
+            ]
+            total = len(filtered_rows)
+            rows = filtered_rows[(page - 1) * page_size : page * page_size]
+        else:
+            total = q.count()
+            rows = (
+                q.order_by(DlProductCache.name.asc(), DlProductCache.id.asc())
+                .offset((page - 1) * page_size)
+                .limit(page_size)
+                .all()
+            )
         currency = self.config.get("server.currency") or "EUR"
         return ConnectorProductListResponse(
             items=[self._product_to_shape(row, currency) for row in rows],
@@ -636,8 +654,14 @@ def _float_or_zero(value: object) -> float:
         return 0.0
 
 
+def _product_has_category(row: DlProductCache, category_id: int) -> bool:
+    for category in row.categories or []:
+        if isinstance(category, dict) and str(category.get("id")) == str(category_id):
+            return True
+    return False
+
+
 def _iso(value: datetime | None) -> str | None:
     if value is None:
         return None
     return value.isoformat() + "Z"
-

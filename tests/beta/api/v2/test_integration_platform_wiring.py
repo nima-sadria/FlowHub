@@ -191,6 +191,155 @@ def test_products_route_reads_data_layer_records(client, auth_headers, db):
     assert data["runtime_write_blocked"] is True
 
 
+def _seed_product(
+    db,
+    *,
+    product_id: str,
+    name: str,
+    sku: str,
+    category_id: int,
+    category_name: str,
+    product_type: str,
+) -> None:
+    from app.beta.data_layer.product_service import ProductReadModelService
+
+    ProductReadModelService(db).upsert(
+        "woocommerce:primary",
+        product_id,
+        {
+            "external_id": int(product_id),
+            "name": name,
+            "sku": sku,
+            "price": "10.00",
+            "categories": [{"id": category_id, "name": category_name}],
+            "product_type": product_type,
+            "status": "publish",
+        },
+    )
+
+
+def _configure_woocommerce(db) -> None:
+    from app.beta.setup.service import AppConfigService
+
+    AppConfigService(db).set_many(
+        {
+            "woocommerce.url": "https://store.example.com",
+            "woocommerce.key": "ck",
+            "woocommerce.secret": "cs",
+        }
+    )
+
+
+def test_products_route_filters_by_category_id(client, auth_headers, db):
+    _configure_woocommerce(db)
+    _seed_product(
+        db,
+        product_id="101",
+        name="Hammer",
+        sku="HAM-1",
+        category_id=7,
+        category_name="Tools",
+        product_type="simple",
+    )
+    _seed_product(
+        db,
+        product_id="102",
+        name="Notebook",
+        sku="N-1",
+        category_id=8,
+        category_name="Stationery",
+        product_type="simple",
+    )
+
+    response = client.get("/api/v2/products?categoryId=7", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["name"] == "Hammer"
+
+
+def test_products_route_filters_by_product_type(client, auth_headers, db):
+    _configure_woocommerce(db)
+    _seed_product(
+        db,
+        product_id="201",
+        name="Simple mug",
+        sku="MUG-S",
+        category_id=4,
+        category_name="Home",
+        product_type="simple",
+    )
+    _seed_product(
+        db,
+        product_id="202",
+        name="Variable hoodie",
+        sku="HOOD-V",
+        category_id=4,
+        category_name="Home",
+        product_type="variable",
+    )
+
+    response = client.get("/api/v2/products?productType=variable", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["productType"] == "variable"
+
+
+def test_products_route_preserves_search_filter(client, auth_headers, db):
+    _configure_woocommerce(db)
+    _seed_product(
+        db,
+        product_id="301",
+        name="Blue Bottle",
+        sku="BOT-BLUE",
+        category_id=5,
+        category_name="Drinkware",
+        product_type="simple",
+    )
+    _seed_product(
+        db,
+        product_id="302",
+        name="Red Cup",
+        sku="CUP-RED",
+        category_id=5,
+        category_name="Drinkware",
+        product_type="simple",
+    )
+
+    response = client.get("/api/v2/products?search=BLUE", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["sku"] == "BOT-BLUE"
+
+
+def test_products_route_preserves_pagination(client, auth_headers, db):
+    _configure_woocommerce(db)
+    for product_id, name in [("401", "Alpha"), ("402", "Bravo"), ("403", "Charlie")]:
+        _seed_product(
+            db,
+            product_id=product_id,
+            name=name,
+            sku=f"SKU-{product_id}",
+            category_id=6,
+            category_name="Sorted",
+            product_type="simple",
+        )
+
+    response = client.get("/api/v2/products?page=2&pageSize=1", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 3
+    assert data["page"] == 2
+    assert data["pageSize"] == 1
+    assert [item["name"] for item in data["items"]] == ["Bravo"]
+
+
 def test_sources_route_reads_integration_platform_and_data_layer(client, auth_headers, db):
     from app.beta.data_layer.snapshot_service import SourceSnapshotService
     from app.beta.setup.service import AppConfigService

@@ -31,10 +31,13 @@ async def list_products(
     _: BetaUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ConnectorProductListResponse:
-    # categoryId and productType are accepted for frontend compatibility. The
-    # current Data Layer read model keeps filtering server-side to search/page.
-    _ = (categoryId, productType)
-    return IntegrationPlatformService(db).list_products(search=search, page=page, page_size=pageSize)
+    return IntegrationPlatformService(db).list_products(
+        search=search,
+        page=page,
+        page_size=pageSize,
+        category_id=categoryId,
+        product_type=productType,
+    )
 
 
 @router.get("/categories", response_model=ConnectorCategoryListResponse)

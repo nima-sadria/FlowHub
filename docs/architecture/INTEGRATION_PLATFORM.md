@@ -25,7 +25,7 @@ FlowHub Beta v2 routes read from Integration Platform and Data Layer records:
 | Sources | `GET /api/v2/sources` | Connector instances and `dl_source_snapshots` |
 | Workspace | `GET /api/v2/workspace`, `POST /api/v2/workspace/preview` | Local connector records and Data Layer preview shell |
 | Diagnostics | `GET /api/v2/diagnostics/status`, `POST /api/v2/diagnostics/run` | Connector records, Data Layer health, Integration Platform diagnostics contracts |
-| Settings | `GET/PATCH /api/v2/config/*`, `GET/PATCH /api/v2/integrations/*/settings` | Local configuration and masked Integration Platform settings |
+| Settings | `GET /api/v2/config/*`, blocked `PUT /api/v2/config/*`, `GET/PATCH /api/v2/integrations/*/settings` | Local configuration and masked Integration Platform settings |
 | Telemetry | `GET /api/v2/integrations/telemetry` | Integration Platform events and Data Layer telemetry aggregates |
 
 Active Beta v2 API routes do not import the legacy WooCommerce or Nextcloud

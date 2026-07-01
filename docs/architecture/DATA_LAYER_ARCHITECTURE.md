@@ -132,7 +132,10 @@ read-only state instead of making a live WooCommerce call.
 
 **Design rationale:** Inventory can change more frequently than product metadata (name, images, categories). Separating it allows a faster inventory refresh cycle without re-fetching full product data.
 
-**Current state (DL1):** Empty. WC inventory is read live from product response. Inventory Cache population is a future refresh phase.
+**Current state (IP foundation):** Inventory table exists but is not populated
+by active Beta v2 routes yet. Product Browser reads product-level inventory
+fields from `dl_product_cache` through the Integration Platform. No live
+WooCommerce inventory call is made from active Beta v2 routes.
 
 **Future multi-location support:** `channel_id` is reserved for warehouse/location segmentation. Schema does not need to change when multi-location inventory is added.
 
@@ -171,7 +174,11 @@ read-only state instead of making a live WooCommerce call.
 
 **Invalidation trigger:** ETag or Last-Modified change on next fetch → snapshot version_seq increments → dependent product cache entries marked stale.
 
-**Current state (DL1):** Empty. Source snapshots are captured during Workspace Preview in-memory but not persisted. Persistent snapshot store is DL1 infrastructure, population is a future phase.
+**Current state (IP foundation):** Source snapshot table exists and is read by
+the Integration Platform Sources route. Active Workspace preview no longer
+downloads or parses source files; it returns a read-only Data Layer preview
+shell. Source snapshot population remains a future approved refresh/import
+phase.
 
 ---
 
@@ -428,7 +435,7 @@ pending → running → completed
 
 ### Connector Overrides
 
-Future: connector-specific TTL overrides via `dl_connector_instances.ttl_overrides` JSON.
+Future: connector-specific TTL overrides via Integration Platform connector instance metadata.
 
 ### Environment Overrides
 
@@ -561,7 +568,7 @@ Examples:
 ### How New Connectors Plug In
 
 1. Add connector implementation under `app/connectors/sources/<provider>/` or `app/connectors/destinations/<provider>/`
-2. Register connector instance in `dl_connector_instances` (future table)
+2. Register connector instance in Integration Platform `ip_connector_instances`
 3. Wire connector to Data Layer services: call `ProductReadModelService.upsert()` and `ConnectorHealthService.upsert()` after each fetch
 4. No changes needed to `dl_product_cache`, `dl_inventory_cache`, `dl_refresh_jobs`, or `dl_invalidation_events` — they already accept any `connector_id`
 
@@ -825,7 +832,7 @@ Products from SnappShop → UI (same Products page, different channel tab)
 | `app/connectors/destinations/woocommerce/` | Active | WC REST client. Future: called by refresh jobs, writes to `dl_product_cache` |
 | `app/connectors/sources/nextcloud/` | Active | NC WebDAV client. Future: called by refresh jobs, writes to `dl_source_snapshots` |
 | `app/connectors/common/health.py` | Active | `HealthResult` returned by `check_health()`. Future: written to `dl_connector_health` |
-| `app/connectors/common/types.py` | Active | `ConnectorCapabilities` dataclass. Future: serialized to `dl_connector_instances` |
+| `app/connectors/common/types.py` | Legacy connector framework | Integration Platform uses the canonical capability schema in `app/beta/integration_platform/contracts.py` |
 
 ### app/beta/integrations/ — Integration Layer
 
