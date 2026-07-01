@@ -14,7 +14,7 @@ from app.beta.setup import models as _setup_models  # noqa: F401
 from app.beta.integration_platform import models as _ip_models  # noqa: F401
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 @pytest.fixture()
 def db_engine():
@@ -80,7 +80,7 @@ def auth_headers(client, db):
     return {"Authorization": f"Bearer {r.json()['token']}"}
 
 
-# ── GET /api/v2/settings ──────────────────────────────────────────────────────
+# -- GET /api/v2/settings ------------------------------------------------------
 
 class TestGetSettings:
     def test_requires_auth(self, client):
@@ -131,7 +131,7 @@ class TestGetSettings:
         assert r.json()["ncConfigured"] is False
 
 
-# ── POST /api/v2/settings ─────────────────────────────────────────────────────
+# -- POST /api/v2/settings -----------------------------------------------------
 
 class TestUpdateSettings:
     def test_update_timezone(self, client, auth_headers, db):
@@ -164,7 +164,7 @@ class TestUpdateSettings:
         assert r.status_code == 400
 
 
-# ── POST /api/v2/settings/woocommerce ────────────────────────────────────────
+# -- POST /api/v2/settings/woocommerce ----------------------------------------
 
 class TestUpdateWooCommerce:
     def test_saves_credentials(self, client, auth_headers, db):
@@ -190,7 +190,7 @@ class TestUpdateWooCommerce:
         assert r.status_code == 422
 
 
-# ── POST /api/v2/settings/nextcloud ──────────────────────────────────────────
+# -- POST /api/v2/settings/nextcloud ------------------------------------------
 
 class TestUpdateNextcloud:
     def test_saves_credentials(self, client, auth_headers, db):

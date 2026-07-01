@@ -1,4 +1,4 @@
-"""FlowHub â€” User Management package.
+"""FlowHub - User Management package.
 
 Implementation begins in B10.
 """

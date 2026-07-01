@@ -57,7 +57,7 @@ def test_aggregate_all_pass():
 
 
 # ---------------------------------------------------------------------------
-# Any warn → WARN overall
+# Any warn -> WARN overall
 # ---------------------------------------------------------------------------
 
 
@@ -72,7 +72,7 @@ def test_aggregate_warn_count():
 
 
 # ---------------------------------------------------------------------------
-# Any fail → FAIL overall
+# Any fail -> FAIL overall
 # ---------------------------------------------------------------------------
 
 
@@ -92,7 +92,7 @@ def test_aggregate_fail_count():
 
 
 def test_aggregate_all_skip_gives_pass():
-    # All skipped — no failures — treated as PASS
+    # All skipped - no failures - treated as PASS
     summary = aggregate_results([_skip("a"), _skip("b")])
     assert summary.overall_status == HealthStatus.PASS
 

@@ -1,4 +1,4 @@
-"""Tests for app.beta.control_plane.availability — FeatureAvailability."""
+"""Tests for app.beta.control_plane.availability - FeatureAvailability."""
 
 import json
 
@@ -136,7 +136,7 @@ class TestIntegrationPlaneFeatureGating:
         integrations = {
             "nextcloud": _ok("nextcloud", IntegrationType.NEXTCLOUD),
         }
-        # woocommerce absent — can't check it → feature is available (required dep not present)
+        # woocommerce absent - can't check it -> feature is available (required dep not present)
         result = compute_feature_availability(FeatureName.DRY_RUN, integrations)
         # woocommerce not in integrations dict, so not considered failing
         assert result.available is True

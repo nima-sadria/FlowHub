@@ -5,15 +5,15 @@ Revises: 004
 Create Date: 2026-06-17
 
 Adds four indexes to eliminate full-table scans on analytics endpoints:
-  - products_cache(stock_status)     → "out of stock" card
-  - products_cache(last_synced_at)   → staleness report
-  - change_history(source, changed_at) composite → "today's applies", top movements
-  - sync_jobs(status, created_at) composite       → apply count today
+  - products_cache(stock_status)     -> "out of stock" card
+  - products_cache(last_synced_at)   -> staleness report
+  - change_history(source, changed_at) composite -> "today's applies", top movements
+  - sync_jobs(status, created_at) composite       -> apply count today
 
 Also adds two future-analytics columns to change_history so velocity metrics
 can be built later without a second migration:
-  - brand_id       INTEGER  — brand active at the time of the change
-  - price_delta_pct REAL   — pre-computed (new-old)/old*100, NULL when prices non-numeric
+  - brand_id       INTEGER  - brand active at the time of the change
+  - price_delta_pct REAL   - pre-computed (new-old)/old*100, NULL when prices non-numeric
 """
 from typing import Sequence, Union
 
@@ -39,7 +39,7 @@ def upgrade() -> None:
     inspector = inspect(bind)
     existing_tables = set(inspector.get_table_names())
 
-    # ── Indexes ───────────────────────────────────────────────────────────────
+    # -- Indexes ---------------------------------------------------------------
     for idx_name, table, cols in _INDEXES:
         if table not in existing_tables:
             continue
@@ -47,9 +47,9 @@ def upgrade() -> None:
         if idx_name not in existing:
             op.create_index(idx_name, table, cols)
 
-    # ── Future-analytics fields on change_history ─────────────────────────────
+    # -- Future-analytics fields on change_history -----------------------------
     if "change_history" not in existing_tables:
-        return  # fresh install — Base.metadata.create_all() creates with these columns
+        return  # fresh install - Base.metadata.create_all() creates with these columns
 
     existing_cols = {c["name"] for c in inspector.get_columns("change_history")}
     to_add = []

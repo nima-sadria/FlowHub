@@ -5,7 +5,7 @@ Scope boundary (A2.7 only):
 - Does NOT call WooCommerce write APIs, Apply, or any external system.
 - Does NOT replace the existing Workspace or existing Apply workflow.
 - IDs referencing prior-phase entities (Change Set, Dry Run, Confirmation) are
-  stored as plain strings — no foreign keys to prior-phase tables (phase independence).
+  stored as plain strings - no foreign keys to prior-phase tables (phase independence).
 """
 from __future__ import annotations
 

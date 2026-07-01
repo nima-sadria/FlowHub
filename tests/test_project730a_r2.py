@@ -1,21 +1,21 @@
-"""Project 7.3A Remediation 2 — Parent-managed stock, image removal, capability guard.
+"""Project 7.3A Remediation 2 - Parent-managed stock, image removal, capability guard.
 
 Coverage:
-  S1 — parent manage_stock=true propagates stock_status + stock_quantity to inherited children
-  S2 — parent manage_stock=false does NOT overwrite child's own stock
-  S3 — child with manage_stock=true is not overwritten by parent stock
-  S4 — parent stock change is reflected for inherited children
-  I1 — parent image changed → inherited child image updates (regression: covered in r1)
-  I2 — parent image removed → inherited child image clears to None/none
-  I3 — child with own variation image is not cleared when parent image removed
-  C1 — no variable parent → probe skipped, result not cached, function returns True
-  C2 — empty variable parent → no false positive (OPTIONS schema checked, not empty-result heuristic)
-  C3 — OPTIONS schema without modified_after → capability = False
-  C4 — OPTIONS schema with modified_after → capability = True
-  C5 — incapable result is cached; capable result is cached
-  C6 — unsupported mode: fetch_light_stream returns SSE error when guard returns False
-  M1 — telemetry includes propagated_children after light fetch propagation
-  M2 — telemetry includes capability_probe_requests after probe
+  S1 - parent manage_stock=true propagates stock_status + stock_quantity to inherited children
+  S2 - parent manage_stock=false does NOT overwrite child's own stock
+  S3 - child with manage_stock=true is not overwritten by parent stock
+  S4 - parent stock change is reflected for inherited children
+  I1 - parent image changed -> inherited child image updates (regression: covered in r1)
+  I2 - parent image removed -> inherited child image clears to None/none
+  I3 - child with own variation image is not cleared when parent image removed
+  C1 - no variable parent -> probe skipped, result not cached, function returns True
+  C2 - empty variable parent -> no false positive (OPTIONS schema checked, not empty-result heuristic)
+  C3 - OPTIONS schema without modified_after -> capability = False
+  C4 - OPTIONS schema with modified_after -> capability = True
+  C5 - incapable result is cached; capable result is cached
+  C6 - unsupported mode: fetch_light_stream returns SSE error when guard returns False
+  M1 - telemetry includes propagated_children after light fetch propagation
+  M2 - telemetry includes capability_probe_requests after probe
 """
 import asyncio
 import inspect
@@ -27,7 +27,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-# ── Minimal env ───────────────────────────────────────────────────────────────
+# -- Minimal env ---------------------------------------------------------------
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("NEXTCLOUD_URL", "http://example.invalid")
 os.environ.setdefault("NEXTCLOUD_USER", "x")
@@ -53,7 +53,7 @@ from app.services.woocommerce import (  # noqa: E402
 Base.metadata.create_all(bind=engine)
 
 
-# ── DB helpers ────────────────────────────────────────────────────────────────
+# -- DB helpers ----------------------------------------------------------------
 
 def _now():
     return datetime.utcnow()
@@ -96,7 +96,7 @@ def _cleanup(db, *wc_ids):
     db.commit()
 
 
-# ── S1: parent manage_stock=true propagates stock ────────────────────────────
+# -- S1: parent manage_stock=true propagates stock ----------------------------
 
 def test_propagate_stock_when_parent_manages():
     db = SessionLocal()
@@ -120,7 +120,7 @@ def test_propagate_stock_when_parent_manages():
         db.close()
 
 
-# ── S2: parent manage_stock=false does not overwrite child stock ──────────────
+# -- S2: parent manage_stock=false does not overwrite child stock --------------
 
 def test_no_stock_propagation_when_parent_does_not_manage():
     db = SessionLocal()
@@ -143,7 +143,7 @@ def test_no_stock_propagation_when_parent_does_not_manage():
         db.close()
 
 
-# ── S3: child with own manage_stock is NOT touched ───────────────────────────
+# -- S3: child with own manage_stock is NOT touched ---------------------------
 
 def test_child_own_manage_stock_not_overwritten():
     db = SessionLocal()
@@ -165,7 +165,7 @@ def test_child_own_manage_stock_not_overwritten():
         db.close()
 
 
-# ── S4: parent stock change reflected in children ────────────────────────────
+# -- S4: parent stock change reflected in children ----------------------------
 
 def test_parent_stock_status_change_reflected_in_children():
     db = SessionLocal()
@@ -191,7 +191,7 @@ def test_parent_stock_status_change_reflected_in_children():
         db.close()
 
 
-# ── I2: parent image removed clears inherited child image ────────────────────
+# -- I2: parent image removed clears inherited child image --------------------
 
 def test_parent_image_removal_clears_inherited_child_image():
     db = SessionLocal()
@@ -215,7 +215,7 @@ def test_parent_image_removal_clears_inherited_child_image():
         db.close()
 
 
-# ── I3: child with own image not cleared when parent image removed ────────────
+# -- I3: child with own image not cleared when parent image removed ------------
 
 def test_child_own_image_not_cleared_when_parent_image_removed():
     db = SessionLocal()
@@ -236,7 +236,7 @@ def test_child_own_image_not_cleared_when_parent_image_removed():
         db.close()
 
 
-# ── C1: no variable parent → probe skipped, result NOT cached ────────────────
+# -- C1: no variable parent -> probe skipped, result NOT cached ----------------
 
 def test_capability_no_variable_parent_not_cached():
     reset_wc_capability_cache()
@@ -255,7 +255,7 @@ def test_capability_no_variable_parent_not_cached():
         result = asyncio.run(run())
         assert result is True, "Should return True (no variations to filter)"
 
-        # The global should NOT have been set — stays None so next call re-checks
+        # The global should NOT have been set - stays None so next call re-checks
         import app.services.woocommerce as wc_mod
         assert wc_mod._wc_variation_filter_capable is None, (
             "Capability must NOT be cached when no variable parent exists"
@@ -265,7 +265,7 @@ def test_capability_no_variable_parent_not_cached():
         reset_wc_capability_cache()
 
 
-# ── C2: empty variable parent does not mark capability supported ──────────────
+# -- C2: empty variable parent does not mark capability supported --------------
 
 def test_capability_empty_variable_parent_uses_options_not_empty_result():
     """A variable parent with no variations should not trigger a false positive.
@@ -321,7 +321,7 @@ def test_capability_empty_variable_parent_uses_options_not_empty_result():
         reset_wc_capability_cache()
 
 
-# ── C3: OPTIONS schema without modified_after → False ────────────────────────
+# -- C3: OPTIONS schema without modified_after -> False ------------------------
 
 def test_capability_guard_returns_false_when_schema_missing_modified_after():
     reset_wc_capability_cache()
@@ -364,7 +364,7 @@ def test_capability_guard_returns_false_when_schema_missing_modified_after():
         reset_wc_capability_cache()
 
 
-# ── C4: OPTIONS schema with modified_after → True ────────────────────────────
+# -- C4: OPTIONS schema with modified_after -> True ----------------------------
 
 def test_capability_guard_returns_true_when_schema_includes_modified_after():
     reset_wc_capability_cache()
@@ -416,7 +416,7 @@ def test_capability_guard_returns_true_when_schema_includes_modified_after():
         reset_wc_capability_cache()
 
 
-# ── C5: result is cached after first probe ────────────────────────────────────
+# -- C5: result is cached after first probe ------------------------------------
 
 def test_capability_guard_result_cached_after_probe():
     reset_wc_capability_cache()
@@ -471,7 +471,7 @@ def test_capability_guard_result_cached_after_probe():
         reset_wc_capability_cache()
 
 
-# ── C6: unsupported mode surfaces error, not silent optimized fetch ───────────
+# -- C6: unsupported mode surfaces error, not silent optimized fetch -----------
 
 def test_fetch_light_stream_returns_error_when_capability_guard_false():
     """When check_variation_filter_capability returns False, fetch_light_stream
@@ -487,7 +487,7 @@ def test_fetch_light_stream_returns_error_when_capability_guard_false():
     )
 
 
-# ── M1: telemetry includes propagated_children ────────────────────────────────
+# -- M1: telemetry includes propagated_children --------------------------------
 
 def test_telemetry_has_propagated_children_field():
     t = FetchTelemetry()
@@ -495,7 +495,7 @@ def test_telemetry_has_propagated_children_field():
     assert t.propagated_children == 0
 
 
-# ── M2: telemetry includes capability_probe_requests ─────────────────────────
+# -- M2: telemetry includes capability_probe_requests -------------------------
 
 def test_telemetry_capability_probe_requests_incremented():
     reset_wc_capability_cache()
@@ -542,7 +542,7 @@ def test_telemetry_capability_probe_requests_incremented():
         reset_wc_capability_cache()
 
 
-# ── Unit: _schema_supports_modified_after ────────────────────────────────────
+# -- Unit: _schema_supports_modified_after ------------------------------------
 
 def test_schema_supports_modified_after_true():
     data = {

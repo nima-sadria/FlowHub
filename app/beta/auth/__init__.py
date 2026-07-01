@@ -1,1 +1,1 @@
-"""FlowHub â€” authentication package (BU2)."""
+"""FlowHub - authentication package (BU2)."""

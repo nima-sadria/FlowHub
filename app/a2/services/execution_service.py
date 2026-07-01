@@ -1,4 +1,4 @@
-"""A2.7 Execution Engine Service — controlled execution of confirmed, immutable Change Sets.
+"""A2.7 Execution Engine Service - controlled execution of confirmed, immutable Change Sets.
 
 SCOPE BOUNDARY (A2.7 only):
 - Does NOT connect to real WooCommerce write APIs. Uses DummyExecutionAdapter only.
@@ -34,7 +34,7 @@ from ..models.execution import Execution
 from ..repositories.execution_repository import ExecutionRepository
 
 
-# ── Input / Result dataclasses ─────────────────────────────────────────────────
+# -- Input / Result dataclasses -------------------------------------------------
 
 
 @dataclass
@@ -106,14 +106,14 @@ class ExecutionReport:
     items: list = field(default_factory=list)
 
 
-# ── Adapter interface ──────────────────────────────────────────────────────────
+# -- Adapter interface ----------------------------------------------------------
 
 
 class ChannelExecutionAdapter(ABC):
     """Abstract interface for destination channel adapters.
 
     Each implementation targets one destination channel (WooCommerce, Shopify, etc.).
-    A2.7 ships only DummyExecutionAdapter — no real write adapters in this phase.
+    A2.7 ships only DummyExecutionAdapter - no real write adapters in this phase.
     """
 
     @abstractmethod
@@ -133,7 +133,7 @@ class ChannelExecutionAdapter(ABC):
         """
 
 
-# ── Dummy adapter (test/simulation only — no network calls) ───────────────────
+# -- Dummy adapter (test/simulation only - no network calls) -------------------
 
 
 class DummyExecutionAdapter(ChannelExecutionAdapter):
@@ -175,7 +175,7 @@ class DummyExecutionAdapter(ChannelExecutionAdapter):
 
         # Idempotency: already succeeded for this product
         if self._succeeded_products.get(product_id):
-            return ExecuteItemResult(success=True, reason="Idempotent retry — already succeeded")
+            return ExecuteItemResult(success=True, reason="Idempotent retry - already succeeded")
 
         if self._permanent_failure:
             return ExecuteItemResult(
@@ -201,7 +201,7 @@ class DummyExecutionAdapter(ChannelExecutionAdapter):
         return ExecuteItemResult(success=True)
 
 
-# ── Execution Service ──────────────────────────────────────────────────────────
+# -- Execution Service ----------------------------------------------------------
 
 
 class ExecutionService:
@@ -244,12 +244,12 @@ class ExecutionService:
         If idempotency_key matches an existing Execution, that Execution is returned
         immediately without creating a new record or re-executing any items.
         """
-        # ── 1. Idempotency check ───────────────────────────────────────────
+        # -- 1. Idempotency check -------------------------------------------
         existing = self._repo.find_by_idempotency_key(idempotency_key)
         if existing is not None:
             return existing
 
-        # ── 2. Create execution in PENDING ─────────────────────────────────
+        # -- 2. Create execution in PENDING ---------------------------------
         execution = self._repo.create_execution(
             change_set_id=change_set_id,
             change_set_revision_id=change_set_revision_id,
@@ -262,7 +262,7 @@ class ExecutionService:
             idempotency_key=idempotency_key,
         )
 
-        # ── 3. Validate prerequisites ──────────────────────────────────────
+        # -- 3. Validate prerequisites --------------------------------------
         block_reason = self._validate_prerequisites(
             change_set_digest=change_set_digest,
             items=items,
@@ -280,13 +280,13 @@ class ExecutionService:
             )
             return self._repo.get_execution(execution.id)  # type: ignore[return-value]
 
-        # ── 4. Transition to RUNNING ───────────────────────────────────────
+        # -- 4. Transition to RUNNING ---------------------------------------
         self._repo.transition_execution(execution.id, "RUNNING")
 
-        # ── 5. Create batch ────────────────────────────────────────────────
+        # -- 5. Create batch ------------------------------------------------
         batch = self._repo.create_batch(execution_id=execution.id, batch_number=1)
 
-        # ── 6. Process items ───────────────────────────────────────────────
+        # -- 6. Process items -----------------------------------------------
         adapter_name = type(adapter).__name__
 
         for item_input in items:
@@ -316,7 +316,7 @@ class ExecutionService:
                 confirmation_digest=confirmation_digest,
             )
 
-            # ── Freshness verification (hard block on failure) ─────────────
+            # -- Freshness verification (hard block on failure) -------------
             freshness_result = adapter.verify_freshness(freshness_ctx)
             if not freshness_result.verified:
                 self._repo.record_attempt(
@@ -331,10 +331,10 @@ class ExecutionService:
                 )
                 continue
 
-            # Freshness passed — mark the flag directly (item remains RUNNING)
+            # Freshness passed - mark the flag directly (item remains RUNNING)
             self._repo.mark_item_freshness_verified(item.id)
 
-            # ── Execute with retry ─────────────────────────────────────────
+            # -- Execute with retry -----------------------------------------
             item_final_state = "FAILED"
             item_error: Optional[str] = f"Max attempts ({max_attempts}) exhausted"
 
@@ -356,11 +356,11 @@ class ExecutionService:
                     item_final_state = "FAILED"
                     item_error = result.reason
                     break
-                # Transient failure — retry
+                # Transient failure - retry
 
             self._repo.transition_item(item.id, item_final_state, error_message=item_error)
 
-        # ── 7. Determine overall execution final state ─────────────────────
+        # -- 7. Determine overall execution final state ---------------------
         finished_items = self._repo.list_items(execution.id)
         if any(i.status == "BLOCKED" for i in finished_items):
             final_execution_state = "BLOCKED"
@@ -402,7 +402,7 @@ class ExecutionService:
             items=items,
         )
 
-    # ── Private helpers ────────────────────────────────────────────────────
+    # -- Private helpers ----------------------------------------------------
 
     def _validate_prerequisites(
         self,
@@ -421,7 +421,7 @@ class ExecutionService:
 
         if not confirmation_is_valid:
             return (
-                "SellerConfirmation is invalid — the Change Set may have changed since "
+                "SellerConfirmation is invalid - the Change Set may have changed since "
                 "confirmation was recorded. A new Dry Run and confirmation are required."
             )
 
@@ -434,7 +434,7 @@ class ExecutionService:
 
         if dry_run_result == "BLOCK":
             return (
-                "Dry Run validation result is BLOCK — execution is not permitted. "
+                "Dry Run validation result is BLOCK - execution is not permitted. "
                 "Resolve all blocking issues and re-run the Dry Run."
             )
 
@@ -447,7 +447,7 @@ class ExecutionService:
 
         # Independent digest re-verification using A2.5's compute_change_set_digest
         computed = compute_change_set_digest(
-            items,  # type: ignore[arg-type]  — duck-type compatible
+            items,  # type: ignore[arg-type]  - duck-type compatible
             destination_channel,
             scope,
             source_snapshot_id,

@@ -1,4 +1,4 @@
-"""A2.8 Scheduling Engine Service — deferred dispatch for confirmed Change Sets.
+"""A2.8 Scheduling Engine Service - deferred dispatch for confirmed Change Sets.
 
 SCOPE BOUNDARY (A2.8 only):
 - Does NOT connect to real WooCommerce write APIs.
@@ -11,7 +11,7 @@ SCOPE BOUNDARY (A2.8 only):
 SCHEDULING SAFETY:
 - Scheduling never authorizes execution by itself.
 - A scheduled run dispatches execution only after lease and schedule-level validation.
-- Dispatch calls A2.7 ExecutionService.execute() — scheduling never bypasses A2.7 validation.
+- Dispatch calls A2.7 ExecutionService.execute() - scheduling never bypasses A2.7 validation.
 - A2.7 independently validates: confirmation digest, Change Set digest, Dry Run state,
   item freshness, and idempotency. Scheduling cannot override these checks.
 """
@@ -24,8 +24,8 @@ from sqlalchemy.orm import Session
 
 from ..models.schedule import Schedule, ScheduleLease, ScheduleRun
 from ..repositories.scheduler_repository import (
-    LeaseAlreadyHeldError,  # noqa: F401 — re-exported for callers
-    LeaseTokenMismatchError,  # noqa: F401 — re-exported for callers
+    LeaseAlreadyHeldError,  # noqa: F401 - re-exported for callers
+    LeaseTokenMismatchError,  # noqa: F401 - re-exported for callers
     SchedulerRepository,
 )
 
@@ -119,12 +119,12 @@ class SchedulerService:
         """Dispatch execution for a claimed run via A2.7 ExecutionService.
 
         Validates the lease token before dispatch.
-        Calls A2.7 ExecutionService.execute() — scheduling never bypasses A2.7 validation.
+        Calls A2.7 ExecutionService.execute() - scheduling never bypasses A2.7 validation.
         A2.7 independently validates: confirmation digest, Change Set digest, Dry Run state,
         freshness, and idempotency. This service has no authority to skip those checks.
         Records execution_id and final run state after dispatch.
         """
-        # ── Validate lease ─────────────────────────────────────────────────
+        # -- Validate lease -------------------------------------------------
         lease = self._repo.get_lease(run_id)
         if lease is None:
             raise ValueError(f"No lease found for run {run_id!r}")
@@ -141,13 +141,13 @@ class SchedulerService:
         if schedule is None:
             raise ValueError(f"Schedule not found: {run.schedule_id!r}")
 
-        # ── Transition CLAIMED → DISPATCHED ────────────────────────────────
+        # -- Transition CLAIMED -> DISPATCHED --------------------------------
         self._repo.transition_run(run_id, "DISPATCHED")
 
-        # ── Build idempotency key unique to this schedule/run pair ─────────
+        # -- Build idempotency key unique to this schedule/run pair ---------
         idempotency_key = f"schedule:{schedule.id}:run:{run.id}"
 
-        # ── Call A2.7 ExecutionService — scheduling never bypasses A2.7 ───
+        # -- Call A2.7 ExecutionService - scheduling never bypasses A2.7 ---
         # A2.7 will independently validate: confirmation digest == change_set_digest,
         # dry_run_result, dry_run_digest_verified, digest recomputation, freshness.
         try:
@@ -173,14 +173,14 @@ class SchedulerService:
             self._repo.transition_run(run_id, "FAILED", error_message=error_msg)
             return self._repo.get_run(run_id)  # type: ignore[return-value]
 
-        # ── Record dispatch result ─────────────────────────────────────────
+        # -- Record dispatch result -----------------------------------------
         self._repo.record_dispatch_result(
             run_id,
             execution_id=execution.id,
             error_message=execution.error_message,
         )
 
-        # ── Determine run and schedule final state ─────────────────────────
+        # -- Determine run and schedule final state -------------------------
         now = datetime.now(tz=timezone.utc)
         fresh_schedule = self._repo.get_schedule(schedule.id)
         if execution.status == "SUCCEEDED":

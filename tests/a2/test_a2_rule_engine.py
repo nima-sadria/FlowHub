@@ -1,5 +1,5 @@
 """
-A2.3-R2 — Rule Engine tests.
+A2.3-R2 - Rule Engine tests.
 
 Covers:
   - All 5 rule types (cost_plus, fx_based, fee_based, formula, competition)
@@ -7,7 +7,7 @@ Covers:
   - Missing-input skip behaviour
   - propose() / propose_all()
   - ProposalEnvelope structure (proposal + 3 trace steps)
-  - Determinism: same inputs → same proposal_hash
+  - Determinism: same inputs -> same proposal_hash
   - Determinism: hash excludes UUID and timestamp
   - Equal-priority rule stable secondary ordering (rule_id as tiebreaker)
   - Proposal provenance persistence
@@ -82,7 +82,7 @@ def _rule(
     )
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 @pytest.fixture()
 def db_engine():
@@ -115,7 +115,7 @@ def proposal_repo(db):
     return ProposalRepository(db)
 
 
-# ── Rule types ────────────────────────────────────────────────────────────────
+# -- Rule types ----------------------------------------------------------------
 
 def test_propose_cost_plus():
     rule = _rule(formula="cost * 1.20", required_inputs=["cost"])
@@ -205,7 +205,7 @@ def test_propose_formula_type():
     assert env.proposal.proposed_price == Decimal("10") * Decimal("15000") + Decimal("500")
 
 
-# ── ProposalEnvelope structure ─────────────────────────────────────────────────
+# -- ProposalEnvelope structure -------------------------------------------------
 
 def test_propose_returns_envelope():
     rule = _rule()
@@ -341,7 +341,7 @@ def test_proposal_input_values_stored_as_strings():
     assert isinstance(env.proposal.input_values["fx_rate"], str)
 
 
-# ── Rule precedence ────────────────────────────────────────────────────────────
+# -- Rule precedence ------------------------------------------------------------
 
 def test_highest_priority_wins():
     low = _rule(rule_id="low", priority=20, formula="cost * 1.10", required_inputs=["cost"])
@@ -454,7 +454,7 @@ def test_empty_rules_raises():
         )
 
 
-# ── propose_all ────────────────────────────────────────────────────────────────
+# -- propose_all ----------------------------------------------------------------
 
 def test_propose_all_returns_all_applicable():
     r1 = _rule(rule_id="r1", priority=1, formula="cost * 1.10", required_inputs=["cost"])
@@ -504,7 +504,7 @@ def test_propose_all_each_envelope_has_trace():
         assert len(env.trace) == 3
 
 
-# ── Determinism ────────────────────────────────────────────────────────────────
+# -- Determinism ----------------------------------------------------------------
 
 def test_same_inputs_produce_same_hash():
     rule = _rule()
@@ -627,7 +627,7 @@ def test_different_rule_version_id_different_hash():
     assert env1.proposal.proposal_hash != env2.proposal.proposal_hash
 
 
-# ── Repository persistence (provenance + trace) ───────────────────────────────
+# -- Repository persistence (provenance + trace) -------------------------------
 
 def test_save_persists_proposal(rule_repo, proposal_repo, db):
     rule = rule_repo.create_rule(rule_name="Cost+20%", rule_type="cost_plus", priority=10)
@@ -742,7 +742,7 @@ def test_find_by_hash_deduplication(rule_repo, proposal_repo, db):
     proposal_repo.save(env)
     db.commit()
 
-    # Same inputs → same hash → find_by_hash returns existing
+    # Same inputs -> same hash -> find_by_hash returns existing
     cached = proposal_repo.find_by_hash(env.proposal.proposal_hash)
     assert cached is not None
     assert cached.proposal_hash == env.proposal.proposal_hash
@@ -784,7 +784,7 @@ def test_reproducibility_from_stored_provenance(rule_repo, proposal_repo, db):
     assert rederived == env.proposal.proposed_price
 
 
-# ── Alembic migration a2_002_r2 ───────────────────────────────────────────────
+# -- Alembic migration a2_002_r2 -----------------------------------------------
 
 class TestAlembicMigrationA2002R2:
     def test_upgrade_creates_all_r2_tables(self, tmp_path):
@@ -869,12 +869,12 @@ class TestAlembicMigrationA2002R2:
         tables = set(inspect(eng).get_table_names())
         eng.dispose()
 
-        # These were LOCAL a2_002 table names — must NOT exist in R2
+        # These were LOCAL a2_002 table names - must NOT exist in R2
         assert "a2_rule_definitions" not in tables
         assert "a2_rule_versions" not in tables
 
 
-# ── Remediation tests (IR-R2-004, IR-R2-006) ─────────────────────────────────
+# -- Remediation tests (IR-R2-004, IR-R2-006) ---------------------------------
 
 def test_propose_all_empty_rules_returns_empty_list():
     """propose_all() with an empty rules list must return [] (IR-R2-004)."""

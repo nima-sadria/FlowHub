@@ -1,12 +1,12 @@
-"""CP1.2 â€” Connection Manager package.
+"""CP1.2 - Connection Manager package.
 
 Public API:
-    ConnectionManager   â€” orchestrates checks, circuit breaker, cache
-    ConnectionDefinition â€” configuration for a registered connection
-    ConnectionResult    â€” structured result of a connection probe
-    ConnectionType      â€” enum of known connection service types
-    ConnectionStatus    â€” enum of connection health states
-    CircuitState        â€” enum of circuit breaker states
+    ConnectionManager   - orchestrates checks, circuit breaker, cache
+    ConnectionDefinition - configuration for a registered connection
+    ConnectionResult    - structured result of a connection probe
+    ConnectionType      - enum of known connection service types
+    ConnectionStatus    - enum of connection health states
+    CircuitState        - enum of circuit breaker states
 """
 
 from .cache import ConnectionCache

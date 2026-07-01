@@ -1,4 +1,4 @@
-"""Tests for app.beta.control_plane.models — IntegrationState."""
+"""Tests for app.beta.control_plane.models - IntegrationState."""
 
 import json
 from datetime import datetime, timezone
@@ -65,7 +65,7 @@ class TestIntegrationStateCreateFailing:
             "nextcloud", IntegrationType.NEXTCLOUD, FailureClass.TLS_FAILURE
         )
         assert state.is_failing() is True
-        # TLS: TCP connected but handshake failed — reachability is ambiguous
+        # TLS: TCP connected but handshake failed - reachability is ambiguous
         assert state.reachable is None
         assert state.failure_class == FailureClass.TLS_FAILURE
 

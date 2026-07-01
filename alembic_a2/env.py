@@ -15,13 +15,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.a2.database import A2Base  # noqa: E402
 from app.a2.models import canonical_product, source, snapshot, provenance, checkpoint  # noqa: F401,E402
-from app.a2.models import pricing_rule, pricing_rule_version, price_proposal  # noqa: F401,E402  — A2.3-R2 models
-from app.a2.models import safety  # noqa: F401,E402  — A2.4 models
-from app.a2.models import change_set  # noqa: F401,E402  — A2.5 models
-from app.a2.models import dry_run  # noqa: F401,E402  — A2.6 models
-from app.a2.models import execution  # noqa: F401,E402  — A2.7 models
-from app.a2.models import schedule  # noqa: F401,E402  — A2.8 models
-from app.a2.ai import models as advisory_models  # noqa: F401,E402  — A2.9 models
+from app.a2.models import pricing_rule, pricing_rule_version, price_proposal  # noqa: F401,E402  - A2.3-R2 models
+from app.a2.models import safety  # noqa: F401,E402  - A2.4 models
+from app.a2.models import change_set  # noqa: F401,E402  - A2.5 models
+from app.a2.models import dry_run  # noqa: F401,E402  - A2.6 models
+from app.a2.models import execution  # noqa: F401,E402  - A2.7 models
+from app.a2.models import schedule  # noqa: F401,E402  - A2.8 models
+from app.a2.ai import models as advisory_models  # noqa: F401,E402  - A2.9 models
 
 target_metadata = A2Base.metadata
 

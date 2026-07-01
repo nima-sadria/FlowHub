@@ -31,18 +31,18 @@ from app.beta.connections.models import (
 
 
 class FakeNetworkAdapter(NetworkAdapter):
-    """Controllable fake adapter for unit tests — no real network calls."""
+    """Controllable fake adapter for unit tests - no real network calls."""
 
     def __init__(self) -> None:
-        # DNS: hostname → list[str] IPs, or Exception to raise
+        # DNS: hostname -> list[str] IPs, or Exception to raise
         self.dns_responses: dict[str, list[str] | Exception] = {}
         self.dns_default: list[str] | Exception = ["127.0.0.1"]
 
-        # TCP: (host, port) → float latency_ms, or Exception
+        # TCP: (host, port) -> float latency_ms, or Exception
         self.tcp_responses: dict[tuple[str, int], float | Exception] = {}
         self.tcp_default: float | Exception = 5.0
 
-        # TLS: (host, port) → dict cert_info, or Exception
+        # TLS: (host, port) -> dict cert_info, or Exception
         self.tls_responses: dict[tuple[str, int], dict | Exception] = {}
         self.tls_default: dict | Exception = {
             "cert_subject": "example.com",
@@ -52,15 +52,15 @@ class FakeNetworkAdapter(NetworkAdapter):
             "latency_ms": 3.0,
         }
 
-        # HTTP: url → (status_code, body), or Exception
+        # HTTP: url -> (status_code, body), or Exception
         self.http_responses: dict[str, tuple[int, bytes] | Exception] = {}
         self.http_default: tuple[int, bytes] | Exception = (200, b"ok")
 
-        # Auth: url → (bool authenticated, int status_code), or Exception
+        # Auth: url -> (bool authenticated, int status_code), or Exception
         self.auth_responses: dict[str, tuple[bool, int] | Exception] = {}
         self.auth_default: tuple[bool, int] | Exception = (True, 200)
 
-        # Path: path → dict, or Exception
+        # Path: path -> dict, or Exception
         self.path_responses: dict[str, dict | Exception] = {}
         self.path_default: dict | Exception = {
             "exists": True,
@@ -70,7 +70,7 @@ class FakeNetworkAdapter(NetworkAdapter):
             "total_gb": 100.0,
         }
 
-        # DB: url → dict, or Exception
+        # DB: url -> dict, or Exception
         self.db_responses: dict[str, dict | Exception] = {}
         self.db_default: dict | Exception = {
             "connected": True,

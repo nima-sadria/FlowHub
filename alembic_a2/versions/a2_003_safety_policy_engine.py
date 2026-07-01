@@ -1,4 +1,4 @@
-"""A2.4 safety policy engine — policies, versions, safety results, override logs
+"""A2.4 safety policy engine - policies, versions, safety results, override logs
 
 Revision ID: a2_003
 Revises: a2_002_r2

@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.backends.legacy:build"
 
 [project]
-name = "wooprice-beta"
+name = "flowhub"
 version = "1.0.0"
-description = "WooPrice Beta — built on the A2 Platform Core"
+description = "FlowHub - multi-source commerce operations platform"
 requires-python = ">=3.12"
 # Dependencies pinned in requirements.txt
 

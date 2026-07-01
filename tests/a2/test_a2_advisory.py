@@ -1,16 +1,16 @@
 """
-A2.9 — AI Foundation tests.
+A2.9 - AI Foundation tests.
 
 Covers:
   - AdvisoryInsight creation: fields, generated_at, session link
   - Explanation generation: EXPLANATION category, confidence, summary
-  - Anomaly detection: ANOMALY category; zero/negative price → CRITICAL; large change → HIGH
-  - Stale price detection: STALE_PRICE category; age thresholds → INFO/MEDIUM/HIGH
+  - Anomaly detection: ANOMALY category; zero/negative price -> CRITICAL; large change -> HIGH
+  - Stale price detection: STALE_PRICE category; age thresholds -> INFO/MEDIUM/HIGH
   - Review priority generation: REVIEW_PRIORITY category; score logic
   - Recommendation traceability: recommendation_trace stored and retrievable
   - Confidence persistence: float confidence stored and retrieved correctly
   - Immutable insight records: insights cannot be modified after creation
-  - Risk summary generation: RISK_SUMMARY category; BLOCK → HIGH severity
+  - Risk summary generation: RISK_SUMMARY category; BLOCK -> HIGH severity
   - Rule recommendation: RULE_RECOMMENDATION; non-binding, advisory only
   - Session lifecycle: create, archive, list_insights filtering
   - Migration a2_008: revision/down_revision, upgrade/downgrade, lineage from a2_007
@@ -44,7 +44,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.a2.database import A2Base
 
-# Register all models with A2Base metadata (order: A2.1 → A2.9)
+# Register all models with A2Base metadata (order: A2.1 -> A2.9)
 import app.a2.models.canonical_product    # noqa: F401
 import app.a2.models.source               # noqa: F401
 import app.a2.models.snapshot             # noqa: F401
@@ -58,14 +58,14 @@ import app.a2.models.change_set           # noqa: F401
 import app.a2.models.dry_run              # noqa: F401
 import app.a2.models.execution            # noqa: F401
 import app.a2.models.schedule             # noqa: F401
-import app.a2.ai.models                   # noqa: F401  — A2.9
+import app.a2.ai.models                   # noqa: F401  - A2.9
 
 from app.a2.ai.models import AdvisoryInsight, AdvisorySession
 from app.a2.ai.repository import AdvisoryRepository, SessionNotFoundError
 from app.a2.ai.service import AdvisoryContext, AdvisoryService
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -107,7 +107,7 @@ def _ctx(
     return AdvisoryContext(subject_type=subject_type, subject_id=subject_id, data=data)
 
 
-# ── TestAdvisoryInsightCreation ───────────────────────────────────────────────
+# -- TestAdvisoryInsightCreation -----------------------------------------------
 
 
 class TestAdvisoryInsightCreation:
@@ -187,7 +187,7 @@ class TestAdvisoryInsightCreation:
         assert recovered == evidence_data
 
 
-# ── TestExplanationGeneration ─────────────────────────────────────────────────
+# -- TestExplanationGeneration -------------------------------------------------
 
 
 class TestExplanationGeneration:
@@ -226,7 +226,7 @@ class TestExplanationGeneration:
         assert session.subject_id == "prop-001"
 
 
-# ── TestAnomalyDetection ──────────────────────────────────────────────────────
+# -- TestAnomalyDetection ------------------------------------------------------
 
 
 class TestAnomalyDetection:
@@ -257,7 +257,7 @@ class TestAnomalyDetection:
         assert insight.severity == "CRITICAL"
 
 
-# ── TestStalePriceDetection ───────────────────────────────────────────────────
+# -- TestStalePriceDetection ---------------------------------------------------
 
 
 class TestStalePriceDetection:
@@ -279,7 +279,7 @@ class TestStalePriceDetection:
         assert "72.0 hours" in insight.explanation
 
 
-# ── TestReviewPriorityGeneration ──────────────────────────────────────────────
+# -- TestReviewPriorityGeneration ----------------------------------------------
 
 
 class TestReviewPriorityGeneration:
@@ -310,7 +310,7 @@ class TestReviewPriorityGeneration:
         assert evidence["score"] >= 20
 
 
-# ── TestRecommendationTraceability ────────────────────────────────────────────
+# -- TestRecommendationTraceability --------------------------------------------
 
 
 class TestRecommendationTraceability:
@@ -352,7 +352,7 @@ class TestRecommendationTraceability:
         assert insights[0].recommendation_trace == "custom-trace-value"
 
 
-# ── TestConfidencePersistence ─────────────────────────────────────────────────
+# -- TestConfidencePersistence -------------------------------------------------
 
 
 class TestConfidencePersistence:
@@ -398,7 +398,7 @@ class TestConfidencePersistence:
             assert abs(loaded.confidence - confidence) < 1e-6
 
 
-# ── TestImmutableInsights ─────────────────────────────────────────────────────
+# -- TestImmutableInsights -----------------------------------------------------
 
 
 class TestImmutableInsights:
@@ -444,7 +444,7 @@ class TestImmutableInsights:
         assert loaded.closed_at is not None
 
 
-# ── TestRiskSummary ───────────────────────────────────────────────────────────
+# -- TestRiskSummary -----------------------------------------------------------
 
 
 class TestRiskSummary:
@@ -466,7 +466,7 @@ class TestRiskSummary:
         assert insight.severity == "INFO"
 
 
-# ── TestRuleRecommendation ────────────────────────────────────────────────────
+# -- TestRuleRecommendation ----------------------------------------------------
 
 
 class TestRuleRecommendation:
@@ -496,7 +496,7 @@ class TestRuleRecommendation:
         assert not hasattr(insight, "rule_type")
 
 
-# ── TestSessionLifecycle ──────────────────────────────────────────────────────
+# -- TestSessionLifecycle ------------------------------------------------------
 
 
 class TestSessionLifecycle:
@@ -566,7 +566,7 @@ class TestSessionLifecycle:
         assert all(i.category == "EXPLANATION" for i in explanations)
 
 
-# ── TestMigration ─────────────────────────────────────────────────────────────
+# -- TestMigration -------------------------------------------------------------
 
 
 class TestMigration:
@@ -619,7 +619,7 @@ class TestMigration:
         assert module.down_revision == "a2_007"
 
 
-# ── TestIsolation ─────────────────────────────────────────────────────────────
+# -- TestIsolation -------------------------------------------------------------
 
 
 class TestIsolation:

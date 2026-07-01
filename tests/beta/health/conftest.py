@@ -1,7 +1,7 @@
 """Shared fixtures for health engine tests.
 
 Imports FakeNetworkAdapter from the connection tests conftest so there is one
-canonical fake — no duplication.
+canonical fake - no duplication.
 """
 
 from __future__ import annotations

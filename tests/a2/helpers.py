@@ -6,10 +6,10 @@ from openpyxl import Workbook
 
 def _make_xlsx(rows: list[tuple]) -> bytes:
     """
-    Build a minimal WooPrice-format XLSX in memory.
+    Build a minimal FlowHub-compatible XLSX in memory.
 
     rows: list of (col_a, col_b, col_c) tuples, inserted starting at row 3.
-    Rows 1–2 are left as header placeholders.
+    Rows 1-2 are left as header placeholders.
     """
     wb = Workbook()
     ws = wb.active
@@ -27,7 +27,7 @@ def _make_xlsx(rows: list[tuple]) -> bytes:
 
 def _make_xlsx_multisheet(sheets: list[list[tuple]]) -> bytes:
     """
-    Build a WooPrice-format XLSX with multiple worksheets.
+    Build a FlowHub-compatible XLSX with multiple worksheets.
 
     sheets: list of row-lists, one per sheet.
     Each sheet row is (col_a, col_b, col_c), inserted at data rows starting from row 3.

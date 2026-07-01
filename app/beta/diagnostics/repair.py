@@ -1,4 +1,4 @@
-"""CP1.3 â€” Repair playbook: probable cause inference and repair step generation."""
+"""CP1.3 - Repair playbook: probable cause inference and repair step generation."""
 
 from __future__ import annotations
 
@@ -124,7 +124,7 @@ _PLAYBOOKS: dict[str, list[dict]] = {
             "command": "curl -v <url>",
         },
         {
-            "description": "The API endpoint may have changed â€” check service documentation",
+            "description": "The API endpoint may have changed - check service documentation",
         },
         {
             "description": "Retest after correction",
@@ -210,7 +210,7 @@ class ProbableCauseInferrer:
     """Infers a human-readable probable cause from a FailureClass."""
 
     _CAUSES: dict[str, str] = {
-        "none": "No failure â€” the service is operating normally.",
+        "none": "No failure - the service is operating normally.",
         "dns_failure": (
             "The hostname does not resolve. Either the configured URL is incorrect "
             "or DNS is not working for this hostname from this server."

@@ -5,7 +5,7 @@ Coverage:
   1. _default_database_url() returns local path on Windows.
   2. _default_database_url() raises RuntimeError on non-Windows (fail-fast).
   3. DATABASE_URL env var overrides the default (pydantic-settings framework
-     behaviour — verified by confirming the factory is NOT called when the env
+     behaviour - verified by confirming the factory is NOT called when the env
      var is present).
   4. _ensure_local_db_dir() creates data/ on Windows with the local fallback URL.
   5. _ensure_local_db_dir() is a no-op on non-Windows regardless of URL.
@@ -40,11 +40,11 @@ from app.config import _default_database_url, Settings  # noqa: E402
 from app.database import _ensure_local_db_dir, _WIN_LOCAL_URL  # noqa: E402
 
 
-# ── _default_database_url ─────────────────────────────────────────────────────
+# -- _default_database_url -----------------------------------------------------
 
 def test_windows_returns_local_db_path():
     with mock.patch.object(sys, "platform", "win32"):
-        assert _default_database_url() == "sqlite:///./data/wooprice-local.db"
+        assert _default_database_url() == "sqlite:///./data/flowhub-local.db"
 
 
 def test_linux_raises_without_database_url():
@@ -78,7 +78,7 @@ def test_database_url_env_overrides_default_factory(monkeypatch):
     assert settings.database_url == explicit_url
 
 
-# ── _ensure_local_db_dir ──────────────────────────────────────────────────────
+# -- _ensure_local_db_dir ------------------------------------------------------
 
 def test_windows_local_url_creates_data_dir():
     with tempfile.TemporaryDirectory() as tmp:
@@ -122,7 +122,7 @@ def test_windows_docker_absolute_url_does_not_create_dir():
         try:
             os.chdir(tmp)
             with mock.patch.object(sys, "platform", "win32"):
-                _ensure_local_db_dir("sqlite:////app/data/wooprice.db")
+                _ensure_local_db_dir("sqlite:////app/data/flowhub.db")
             assert not Path(tmp, "data").exists()
         finally:
             os.chdir(original_cwd)

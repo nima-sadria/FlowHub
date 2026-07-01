@@ -20,7 +20,7 @@ function makeUser(overrides: Partial<PermissionsUser> & { permissions?: Record<s
   }
 }
 
-describe('effectiveHasPerm — can_access_site gate', () => {
+describe('effectiveHasPerm - can_access_site gate', () => {
   it('denies can_fetch when can_access_site=false even if can_fetch=true', () => {
     const user = makeUser({ permissions: { can_access_site: false, can_fetch: true } })
     expect(effectiveHasPerm(user, 'can_fetch')).toBe(false)
@@ -52,7 +52,7 @@ describe('effectiveHasPerm — can_access_site gate', () => {
   })
 })
 
-describe('effectiveHasPerm — admin bypass', () => {
+describe('effectiveHasPerm - admin bypass', () => {
   it('allows any permission when is_admin=true regardless of can_access_site', () => {
     const user = makeUser({ is_admin: true, permissions: { can_access_site: false, can_fetch: false } })
     expect(effectiveHasPerm(user, 'can_fetch')).toBe(true)
@@ -68,7 +68,7 @@ describe('effectiveHasPerm — admin bypass', () => {
   })
 })
 
-describe('effectiveHasPerm — null user', () => {
+describe('effectiveHasPerm - null user', () => {
   it('returns false for null user regardless of permission', () => {
     expect(effectiveHasPerm(null, 'can_fetch')).toBe(false)
     expect(effectiveHasPerm(null, 'can_access_site')).toBe(false)
@@ -76,7 +76,7 @@ describe('effectiveHasPerm — null user', () => {
   })
 })
 
-describe('effectiveHasPerm — sidebar visibility', () => {
+describe('effectiveHasPerm - sidebar visibility', () => {
   it('Dashboard link hidden when can_access_site=false', () => {
     const user = makeUser({ permissions: { can_access_site: false } })
     expect(effectiveHasPerm(user, 'can_access_site')).toBe(false)
@@ -98,7 +98,7 @@ describe('effectiveHasPerm — sidebar visibility', () => {
   })
 })
 
-describe('effectiveHasPerm — route guard scenarios', () => {
+describe('effectiveHasPerm - route guard scenarios', () => {
   it('Products route denied when can_access_site=false + can_fetch=true', () => {
     const user = makeUser({ permissions: { can_access_site: false, can_fetch: true } })
     expect(effectiveHasPerm(user, 'can_fetch')).toBe(false)
@@ -120,7 +120,7 @@ describe('effectiveHasPerm — route guard scenarios', () => {
   })
 
   it('Admin route bypasses gate for is_admin users', () => {
-    // Admin route uses adminOnly prop — effectiveHasPerm not involved, but
+    // Admin route uses adminOnly prop - effectiveHasPerm not involved, but
     // verify admin bypass holds for all other perms too
     const user = makeUser({ is_admin: true, permissions: { can_access_site: false } })
     expect(effectiveHasPerm(user, 'can_view_logs')).toBe(true)

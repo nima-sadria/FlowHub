@@ -1,7 +1,7 @@
-"""CP1.2 â€” Connection Manager models.
+"""CP1.2 - Connection Manager models.
 
 ConnectionType, ConnectionStatus, CircuitState enums and ConnectionDefinition,
-ConnectionResult dataclasses.  No credentials are stored here â€” transport only.
+ConnectionResult dataclasses.  No credentials are stored here - transport only.
 """
 
 from __future__ import annotations
@@ -153,7 +153,7 @@ class ConnectionResult:
             latency_ms=None,
             failure_class=last_failure_class,
             severity=Severity.ERROR,
-            message="Circuit breaker is OPEN â€” connection suspended after repeated failures.",
+            message="Circuit breaker is OPEN - connection suspended after repeated failures.",
             repair_hint=meta.operator_hint,
             checked_at=datetime.now(tz=timezone.utc),
             retryable=False,

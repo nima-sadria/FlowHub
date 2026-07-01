@@ -61,7 +61,7 @@ export default function AppShell() {
     void check()
     intervalId = setInterval(() => {
       // Only start a fresh check if no retry cycle is currently active.
-      // If retryRef is set, a retry timeout is pending — leave it alone so
+      // If retryRef is set, a retry timeout is pending - leave it alone so
       // consecutive failures accumulate and eventually reach Offline threshold.
       // Counter is reset only by a successful response (inside `check`).
       if (retryRef.current === null) {

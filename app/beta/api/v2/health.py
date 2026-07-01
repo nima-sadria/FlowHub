@@ -1,9 +1,9 @@
-"""FlowHub â€” /api/v2/health router (CP1.3 contract stubs).
+"""FlowHub - /api/v2/health router (CP1.3 contract stubs).
 
 OD3 split (CHAT2 decision 2026-06-28):
-  GET /api/health        â€” public minimal (load balancers, uptime monitors)
-  GET /api/v2/health     â€” authenticated full ControlPlaneStatus
-  POST /api/v2/health/check â€” admin: trigger on-demand check
+  GET /api/health        - public minimal (load balancers, uptime monitors)
+  GET /api/v2/health     - authenticated full ControlPlaneStatus
+  POST /api/v2/health/check - admin: trigger on-demand check
 
 The public endpoint is in app/beta/api/health.py.
 This file defines the authenticated v2 contract.

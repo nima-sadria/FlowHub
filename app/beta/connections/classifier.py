@@ -1,4 +1,4 @@
-"""CP1.2 â€” Exception-to-FailureClass classifier.
+"""CP1.2 - Exception-to-FailureClass classifier.
 
 All exception classification within CP1 routes through this module.
 No other module may independently classify network exceptions (per spec).

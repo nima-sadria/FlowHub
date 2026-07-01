@@ -1,4 +1,4 @@
-"""FlowHub â€” Environment loader.
+"""FlowHub - Environment loader.
 
 Loads environment variables from .env files and the process environment.
 Process environment always takes priority over .env file values.

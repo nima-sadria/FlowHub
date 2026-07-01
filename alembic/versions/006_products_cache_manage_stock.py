@@ -17,7 +17,7 @@ whether to propagate stock_status/stock_quantity from the parent row down
 to cached variation rows.
 
 If products_cache does not exist (fresh install), Base.metadata.create_all()
-creates it with manage_stock already present via the model — this migration
+creates it with manage_stock already present via the model - this migration
 is a no-op in that case.
 """
 from typing import Sequence, Union
@@ -36,7 +36,7 @@ def upgrade() -> None:
     bind = op.get_bind()
     inspector = inspect(bind)
     if "products_cache" not in inspector.get_table_names():
-        return  # fresh DB — create_all() handles it
+        return  # fresh DB - create_all() handles it
 
     existing_cols = {c["name"] for c in inspector.get_columns("products_cache")}
     if "manage_stock" not in existing_cols:

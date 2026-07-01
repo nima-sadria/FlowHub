@@ -1,4 +1,4 @@
-"""A2.9 AI Foundation — advisory sessions and insights
+"""A2.9 AI Foundation - advisory sessions and insights
 
 Revision ID: a2_008
 Revises: a2_007

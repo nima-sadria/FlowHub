@@ -1,13 +1,13 @@
-"""A2.8 Scheduler Repository — persistence and state machine for scheduling records.
+"""A2.8 Scheduler Repository - persistence and state machine for scheduling records.
 
 State machines:
-  Schedule: SCHEDULED → PAUSED | CANCELLED | COMPLETED | FAILED
-            PAUSED    → SCHEDULED | CANCELLED
+  Schedule: SCHEDULED -> PAUSED | CANCELLED | COMPLETED | FAILED
+            PAUSED    -> SCHEDULED | CANCELLED
             Terminal: CANCELLED, COMPLETED, FAILED
 
-  ScheduleRun: PENDING    → CLAIMED | CANCELLED | EXPIRED
-               CLAIMED    → DISPATCHED | FAILED | CANCELLED | EXPIRED
-               DISPATCHED → SUCCEEDED | FAILED
+  ScheduleRun: PENDING    -> CLAIMED | CANCELLED | EXPIRED
+               CLAIMED    -> DISPATCHED | FAILED | CANCELLED | EXPIRED
+               DISPATCHED -> SUCCEEDED | FAILED
                Terminal: SUCCEEDED, FAILED, CANCELLED, EXPIRED
 """
 from __future__ import annotations
@@ -59,7 +59,7 @@ class SchedulerRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
-    # ── Schedule ───────────────────────────────────────────────────────────
+    # -- Schedule -----------------------------------------------------------
 
     def create_schedule(
         self,
@@ -136,7 +136,7 @@ class SchedulerRepository:
             raise InvalidScheduleStateTransitionError(
                 f"Cannot transition Schedule {schedule_id!r} from {schedule.status!r} "
                 f"to {new_state!r}. "
-                f"Allowed: {sorted(allowed) if allowed else 'none — terminal state'}."
+                f"Allowed: {sorted(allowed) if allowed else 'none - terminal state'}."
             )
         schedule.status = new_state
         schedule.updated_at = datetime.now(tz=timezone.utc)
@@ -169,7 +169,7 @@ class SchedulerRepository:
         self._db.flush()
         return schedule
 
-    # ── ScheduleRun ────────────────────────────────────────────────────────
+    # -- ScheduleRun --------------------------------------------------------
 
     def create_run(self, schedule_id: str) -> ScheduleRun:
         now = datetime.now(tz=timezone.utc)
@@ -202,7 +202,7 @@ class SchedulerRepository:
             raise InvalidScheduleStateTransitionError(
                 f"Cannot transition ScheduleRun {run_id!r} from {run.status!r} "
                 f"to {new_state!r}. "
-                f"Allowed: {sorted(allowed) if allowed else 'none — terminal state'}."
+                f"Allowed: {sorted(allowed) if allowed else 'none - terminal state'}."
             )
         run.status = new_state
         run.updated_at = datetime.now(tz=timezone.utc)
@@ -229,7 +229,7 @@ class SchedulerRepository:
         self._db.flush()
         return run
 
-    # ── ScheduleLease ──────────────────────────────────────────────────────
+    # -- ScheduleLease ------------------------------------------------------
 
     def claim_run(
         self,
@@ -242,7 +242,7 @@ class SchedulerRepository:
 
         Reclaims an expired lease (updates the existing record with a new owner/token).
         Raises LeaseAlreadyHeldError if an active (non-expired) lease exists.
-        Transitions run PENDING → CLAIMED on first acquisition.
+        Transitions run PENDING -> CLAIMED on first acquisition.
         """
         now = datetime.now(tz=timezone.utc)
         lease_token = str(uuid.uuid4())
@@ -269,7 +269,7 @@ class SchedulerRepository:
             self._db.flush()
             return existing
 
-        # No existing lease: create new and transition run PENDING → CLAIMED
+        # No existing lease: create new and transition run PENDING -> CLAIMED
         lease = ScheduleLease(
             id=str(uuid.uuid4()),
             run_id=run_id,

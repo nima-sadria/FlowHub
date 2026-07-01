@@ -13,7 +13,7 @@ from app.beta.auth import models as _auth_models  # noqa: F401
 from app.beta.setup import models as _setup_models  # noqa: F401
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 @pytest.fixture()
 def db_engine():
@@ -79,7 +79,7 @@ def auth_headers(client, db):
     return {"Authorization": f"Bearer {r.json()['token']}"}
 
 
-# ── Tests ─────────────────────────────────────────────────────────────────────
+# -- Tests ---------------------------------------------------------------------
 
 class TestActivityEndpoint:
     def test_requires_auth(self, client):

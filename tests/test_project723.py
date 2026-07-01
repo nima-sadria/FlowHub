@@ -1,11 +1,11 @@
-"""Project 7.2.3 — Security & Production Hardening regression tests.
+"""Project 7.2.3 - Security & Production Hardening regression tests.
 
 Coverage:
-  P1 — test-username names are not in BOOTSTRAP_APP_ADMINS / BOOTSTRAP_APP_USERS
-  P2 — login rate limiting: per-IP and per-username 429 + Retry-After
-  P3 — DISABLE_DOCS setting controls docs_url / openapi_url
-  P4 — alarm threshold block_enabled=False is warning-only (not blocking)
-  P5 — access log middleware records method/path/status/duration without auth header
+  P1 - test-username names are not in BOOTSTRAP_APP_ADMINS / BOOTSTRAP_APP_USERS
+  P2 - login rate limiting: per-IP and per-username 429 + Retry-After
+  P3 - DISABLE_DOCS setting controls docs_url / openapi_url
+  P4 - alarm threshold block_enabled=False is warning-only (not blocking)
+  P5 - access log middleware records method/path/status/duration without auth header
 """
 import logging
 import os
@@ -48,7 +48,7 @@ def client():
         yield c
 
 
-# ── P1: Regression — test usernames must not be in bootstrap config ───────────
+# -- P1: Regression - test usernames must not be in bootstrap config -----------
 
 _TEST_USERNAMES = {
     "dbadmin71", "dbadmin72",
@@ -71,7 +71,7 @@ def test_test_usernames_not_in_bootstrap_users():
     assert not leaked, f"Test usernames in BOOTSTRAP_APP_USERS: {leaked}"
 
 
-# ── P2: Login rate limiting ───────────────────────────────────────────────────
+# -- P2: Login rate limiting ---------------------------------------------------
 
 @pytest.fixture(autouse=True)
 def clear_rate_state():
@@ -100,7 +100,7 @@ def test_rate_limit_check_blocks_when_at_limit():
 
 def test_rate_limit_check_prunes_expired_entries():
     import time
-    # All entries are older than window — should be pruned, not block
+    # All entries are older than window - should be pruned, not block
     store: dict = {"192.0.2.1": [time.time() - 1000] * 10}
     exceeded, _ = _rate_limit_check(store, "192.0.2.1", 5, 900)
     assert not exceeded
@@ -183,7 +183,7 @@ def test_different_ip_not_blocked_by_another_ip_limit(client: TestClient, monkey
     assert r.status_code != 429
 
 
-# ── P3: Swagger docs configuration ───────────────────────────────────────────
+# -- P3: Swagger docs configuration -------------------------------------------
 
 def test_disable_docs_false_by_default():
     s = get_settings()
@@ -217,7 +217,7 @@ def test_disable_docs_true_hides_both_endpoints():
     assert openapi == "/openapi.json"
 
 
-# ── P4: Alarm threshold — block_enabled=False is always warning-only ──────────
+# -- P4: Alarm threshold - block_enabled=False is always warning-only ----------
 
 def _make_item(**kw):
     defaults = dict(
@@ -257,7 +257,7 @@ def test_no_thresholds_configured_is_always_safe():
     assert summary["critical_errors"] == []
 
 
-# ── P5: Access logging ───────────────────────────────────────────────────────
+# -- P5: Access logging -------------------------------------------------------
 
 class _ListHandler(logging.Handler):
     """In-test handler: attaches directly to app.main logger to capture async logs."""
@@ -319,7 +319,7 @@ def test_access_log_does_not_contain_auth_header():
 
 
 def test_access_log_does_not_log_query_params():
-    """The log records request.url.path only — query strings are not in any other field."""
+    """The log records request.url.path only - query strings are not in any other field."""
     secret_token = "ssetoken456"
     # Simulate a path that contains the token (as would come from url.path in some impls)
     req = _make_mock_request(path="/api/health")

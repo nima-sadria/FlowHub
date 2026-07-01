@@ -1,51 +1,53 @@
-# FlowHub â€” Docker Compose template
-# Generated output: docker-compose.beta.yml
-# Substitution via envsubst from installer/lib/compose_gen.sh
-#
-# This is a TEMPLATE with placeholders only. No real values here.
-# Template generation: B4 (Installer Foundation). Service definitions: B6 (Docker Runtime Foundation).
-# See: docs/beta/DEPLOYMENT_ARCHITECTURE.md
+# FlowHub Docker Compose template
+# Generated output, when used by tooling: docker-compose.beta.yml
+# Current runtime stack: app + PostgreSQL. No nginx, worker, or redis service is
+# active in the first release.
 
-version: "3.9"
+name: flowhub
 
 services:
-  nginx:
-    image: nginx:1.25-alpine
-    # Configuration implemented in B6.
-
   app:
+    build:
+      context: .
+      dockerfile: Dockerfile.beta
     image: flowhub-beta:latest
-    environment:
-      - BETA_ENV=${BETA_ENV}
-      - BETA_DOMAIN=${BETA_DOMAIN}
-      - BETA_PORT=${BETA_PORT}
-      - BETA_DATABASE_URL=${BETA_DATABASE_URL}
-      - BETA_JWT_SECRET=${BETA_JWT_SECRET}
-      - BETA_REST_API_SECRET=${BETA_REST_API_SECRET}
-    # Full configuration implemented in B6.
-
-  worker:
-    image: flowhub-beta:latest
-    # Full configuration implemented in B6.
+    restart: unless-stopped
+    ports:
+      - "${BETA_PORT:-8085}:8085"
+    env_file:
+      - .env.beta
+    volumes:
+      - ./storage:/data/storage
+      - ./backups:/data/backups
+      - ./logs:/data/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8085/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - .env.beta
     environment:
-      - POSTGRES_DB=${BETA_POSTGRES_DB}
-      - POSTGRES_USER=${BETA_POSTGRES_USER}
-      - POSTGRES_PASSWORD=${BETA_POSTGRES_PASSWORD}
+      POSTGRES_DB: "${BETA_POSTGRES_DB}"
+      POSTGRES_USER: "${BETA_POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${BETA_POSTGRES_PASSWORD}"
     volumes:
       - beta_pgdata:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - beta_redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   beta_pgdata:
-  beta_redisdata:
-
-networks:
-  beta_net:
-    driver: bridge
+    driver: local

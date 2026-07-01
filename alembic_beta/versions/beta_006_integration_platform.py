@@ -79,4 +79,3 @@ def downgrade() -> None:
     op.drop_table("ip_connector_health_snapshots")
     op.drop_table("ip_connector_settings")
     op.drop_table("ip_connector_instances")
-

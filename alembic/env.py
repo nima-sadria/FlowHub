@@ -23,7 +23,7 @@ target_metadata = Base.metadata
 def get_url() -> str:
     # Allow runtime override (set in main.py _run_alembic_migrations)
     url = config.get_main_option("sqlalchemy.url")
-    if url and url != "sqlite:///./wooprice.db":
+    if url and url != "sqlite:///./flowhub.db":
         return url
     return get_settings().database_url
 

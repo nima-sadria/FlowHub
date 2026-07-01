@@ -1,6 +1,6 @@
 """Tests for individual health check implementations.
 
-No real network calls — FakeNetworkAdapter is used throughout.
+No real network calls - FakeNetworkAdapter is used throughout.
 """
 
 from __future__ import annotations
@@ -264,7 +264,7 @@ def test_auth_check_fail_on_forbidden(fake_adapter):
 
 
 def test_auth_check_maps_non_auth_errors_to_invalid_response(fake_adapter):
-    """Auth check must never return DNS/TLS/timeout — maps to INVALID_RESPONSE."""
+    """Auth check must never return DNS/TLS/timeout - maps to INVALID_RESPONSE."""
     fake_adapter.auth_default = DNSResolutionError("unexpected")
     r = AuthCheck("auth", "https://host/api", "user", "pass", 10.0, fake_adapter).run()
     assert r.failure_class == FailureClass.INVALID_RESPONSE
@@ -339,7 +339,7 @@ def test_storage_check_pass_when_readable_writable(fake_adapter):
         "exists": True, "readable": True, "writable": True,
         "free_gb": 50.0, "total_gb": 100.0
     }
-    r = StorageCheck("storage", "/data/wooprice", fake_adapter).run()
+    r = StorageCheck("storage", "/data/flowhub", fake_adapter).run()
     assert r.status == HealthStatus.PASS
 
 
@@ -348,7 +348,7 @@ def test_storage_check_fail_when_path_missing(fake_adapter):
         "exists": False, "readable": False, "writable": False,
         "free_gb": 0.0, "total_gb": 0.0
     }
-    r = StorageCheck("storage", "/data/wooprice", fake_adapter).run()
+    r = StorageCheck("storage", "/data/flowhub", fake_adapter).run()
     assert r.status == HealthStatus.FAIL
     assert r.failure_class == FailureClass.STORAGE_ERROR
 
@@ -358,7 +358,7 @@ def test_storage_check_warn_when_not_writable(fake_adapter):
         "exists": True, "readable": True, "writable": False,
         "free_gb": 50.0, "total_gb": 100.0
     }
-    r = StorageCheck("storage", "/data/wooprice", fake_adapter).run()
+    r = StorageCheck("storage", "/data/flowhub", fake_adapter).run()
     assert r.status == HealthStatus.WARN
 
 
@@ -367,7 +367,7 @@ def test_storage_check_warn_when_low_disk_space(fake_adapter):
         "exists": True, "readable": True, "writable": True,
         "free_gb": 0.5, "total_gb": 100.0
     }
-    r = StorageCheck("storage", "/data/wooprice", fake_adapter).run()
+    r = StorageCheck("storage", "/data/flowhub", fake_adapter).run()
     assert r.status == HealthStatus.WARN
 
 
@@ -376,19 +376,19 @@ def test_storage_check_fail_when_critically_low_disk(fake_adapter):
         "exists": True, "readable": True, "writable": True,
         "free_gb": 0.05, "total_gb": 100.0
     }
-    r = StorageCheck("storage", "/data/wooprice", fake_adapter).run()
+    r = StorageCheck("storage", "/data/flowhub", fake_adapter).run()
     assert r.status == HealthStatus.FAIL
 
 
 def test_storage_check_fail_on_adapter_error(fake_adapter):
     fake_adapter.path_default = StorageAdapterError("OS error")
-    r = StorageCheck("storage", "/data/wooprice", fake_adapter).run()
+    r = StorageCheck("storage", "/data/flowhub", fake_adapter).run()
     assert r.status == HealthStatus.FAIL
     assert r.failure_class == FailureClass.STORAGE_ERROR
 
 
 def test_storage_check_category(fake_adapter):
-    r = StorageCheck("storage", "/data/wooprice", fake_adapter).run()
+    r = StorageCheck("storage", "/data/flowhub", fake_adapter).run()
     assert r.category == CheckCategory.STORAGE
 
 
@@ -463,7 +463,7 @@ def test_docker_check_category(fake_adapter):
 
 
 # ============================================================
-# 10. Integration Check (chain DNS → TCP → TLS → HTTP → Auth)
+# 10. Integration Check (chain DNS -> TCP -> TLS -> HTTP -> Auth)
 # ============================================================
 
 
@@ -478,7 +478,7 @@ def test_integration_check_chain_length_without_auth(fake_adapter):
     chain = IntegrationCheck(
         "nc:integration", "nextcloud", "https://nextcloud.example.com", 10.0, fake_adapter
     ).run_chain()
-    # DNS, TCP, TLS, HTTP (no auth — credentials not provided)
+    # DNS, TCP, TLS, HTTP (no auth - credentials not provided)
     assert len(chain) == 4
 
 
@@ -505,7 +505,7 @@ def test_integration_chain_skips_downstream_on_dns_failure(fake_adapter):
     chain = IntegrationCheck(
         "nc:integration", "nextcloud", "https://nextcloud.example.com", 10.0, fake_adapter
     ).run_chain()
-    # DNS fails → TCP, TLS, HTTP are all SKIP
+    # DNS fails -> TCP, TLS, HTTP are all SKIP
     tcp = next(r for r in chain if "tcp" in r.check_name)
     tls = next(r for r in chain if "tls" in r.check_name)
     http = next(r for r in chain if "http" in r.check_name)

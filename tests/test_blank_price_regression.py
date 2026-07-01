@@ -156,7 +156,7 @@ def test_parser_out_of_stock_markers_not_invalid():
         ("Cat", 209, "0.00"),
         ("Cat", 210, "x"),
         ("Cat", 211, "❌"),
-        ("Cat", 212, "✗"),
+        ("Cat", 212, "X"),
         ("Cat", 213, "×"),
     ])
     items = {i["product_id"]: i for i in _parse_sheet_rows(ws)}
@@ -195,7 +195,7 @@ def test_parser_true_garbage_still_invalid():
 
 def test_classify_row_out_of_stock_marker_strings_not_invalid():
     wc = {"price": "50.00", "stock_status": "instock"}
-    for marker_text in ("-", "ناموجود", "تماس بگیرید", "out of stock", "n/a", "x", "❌", "✗", "×"):
+    for marker_text in ("-", "ناموجود", "تماس بگیرید", "out of stock", "n/a", "x", "❌", "X", "×"):
         ws = build_ws([("Cat", 1, marker_text)])
         parsed = _parse_sheet_rows(ws)[0]
         clf = _classify_row(1, parsed["new_price"], wc, last_price_updated="2024-01-01",

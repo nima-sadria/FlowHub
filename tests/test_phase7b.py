@@ -1,20 +1,20 @@
-"""Phase 7B — Emergency Price Engine + Audit/Undo tests.
+"""Phase 7B - Emergency Price Engine + Audit/Undo tests.
 
 Covers Codex audit remediation Rounds 1 and 2:
-  BLOCKER 1   — Emergency endpoints admin-gated (non-admin gets 401/403)
-  HIGH 1 R1   — Per-item pre-write checkpoint ('applying' before WC write)
-  HIGH 1 R2   — Atomic batch claim: UPDATE WHERE status='pending' + rowcount==1 → 409 on conflict
-  HIGH 2 R1   — Stale detection (price-drifted items skipped)
-  HIGH 2 R2   — wc_succeeded intermediate status; wc_success_at timestamp;
+  BLOCKER 1   - Emergency endpoints admin-gated (non-admin gets 401/403)
+  HIGH 1 R1   - Per-item pre-write checkpoint ('applying' before WC write)
+  HIGH 1 R2   - Atomic batch claim: UPDATE WHERE status='pending' + rowcount==1 -> 409 on conflict
+  HIGH 2 R1   - Stale detection (price-drifted items skipped)
+  HIGH 2 R2   - wc_succeeded intermediate status; wc_success_at timestamp;
                  needs_reconcile if DB finalization fails after successful WC write
-  MEDIUM 1 R1 — Batch final status reflects item outcomes (applied/partially_failed/failed)
-  MEDIUM 1 R2 — Concurrency test uses real sequential double HTTP apply (not pre-set status)
-                 WC success + DB failure → needs_reconcile; normal success → cache + history
-  MEDIUM 2 R2 — Non-finite values (NaN, Infinity) rejected
-  MEDIUM 3    — Percentage bounds validated (0 < pct ≤ 100; fixed > 0)
-  MEDIUM 4    — Integration tests real (no unconditional skip)
-  LOW 1       — Rounding matches Excel MROUND (round-half-away-from-zero)
-  LOW R2      — Numeric price comparison; applying/needs_reconcile visible in pending list
+  MEDIUM 1 R1 - Batch final status reflects item outcomes (applied/partially_failed/failed)
+  MEDIUM 1 R2 - Concurrency test uses real sequential double HTTP apply (not pre-set status)
+                 WC success + DB failure -> needs_reconcile; normal success -> cache + history
+  MEDIUM 2 R2 - Non-finite values (NaN, Infinity) rejected
+  MEDIUM 3    - Percentage bounds validated (0 < pct <= 100; fixed > 0)
+  MEDIUM 4    - Integration tests real (no unconditional skip)
+  LOW 1       - Rounding matches Excel MROUND (round-half-away-from-zero)
+  LOW R2      - Numeric price comparison; applying/needs_reconcile visible in pending list
 """
 
 import os
@@ -45,7 +45,7 @@ from app.database import SessionLocal  # noqa: E402
 from app.models import ChangeHistory, EmergencyBatch, EmergencyItem, ProductCache  # noqa: E402
 
 
-# ── Unit: rounding formula ─────────────────────────────────────────────────────
+# -- Unit: rounding formula -----------------------------------------------------
 # LOW 1: Backend uses math.floor(price/unit + 0.5) = round-half-away-from-zero,
 # matching Excel MROUND and JS Math.round for positive prices.
 
@@ -60,7 +60,7 @@ class TestEmergencyRound:
         assert _emergency_round(15_004_000) == 15_000_000
 
     def test_midpoint_below_20m_rounds_away_from_zero(self):
-        # 15_005_000 / 10_000 = 1500.5 → Excel MROUND rounds up → 15_010_000
+        # 15_005_000 / 10_000 = 1500.5 -> Excel MROUND rounds up -> 15_010_000
         assert _emergency_round(15_005_000) == 15_010_000
 
     def test_above_20m_uses_50k_unit(self):
@@ -70,7 +70,7 @@ class TestEmergencyRound:
         assert _emergency_round(25_024_000) == 25_000_000
 
     def test_midpoint_above_20m_rounds_away_from_zero(self):
-        # 25_025_000 / 50_000 = 500.5 → rounds up → 25_050_000
+        # 25_025_000 / 50_000 = 500.5 -> rounds up -> 25_050_000
         assert _emergency_round(25_025_000) == 25_050_000
 
     def test_zero_returns_zero(self):
@@ -89,7 +89,7 @@ class TestEmergencyRound:
         assert _emergency_round(20_026_000) == 20_050_000
 
 
-# ── Fixtures ───────────────────────────────────────────────────────────────────
+# -- Fixtures -------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
 def client():
@@ -98,13 +98,13 @@ def client():
 
 
 def _admin_headers() -> dict:
-    """JWT for testadmin — super admin, bypasses all DB permission checks."""
+    """JWT for testadmin - super admin, bypasses all DB permission checks."""
     token = create_token("testadmin", permission_version=0, role="admin")
     return {"Authorization": f"Bearer {token}"}
 
 
 def _nonadmin_headers() -> dict:
-    """JWT for a user that is neither super admin nor in the DB → 401/403 on protected routes."""
+    """JWT for a user that is neither super admin nor in the DB -> 401/403 on protected routes."""
     token = create_token("noadmin_user", permission_version=0, role="user")
     return {"Authorization": f"Bearer {token}"}
 
@@ -152,7 +152,7 @@ def _get_batch_status(batch_id: int) -> str | None:
 
 
 def _force_batch_status(batch_id: int, status: str) -> None:
-    """Set batch to an arbitrary status directly in DB — for testing edge cases."""
+    """Set batch to an arbitrary status directly in DB - for testing edge cases."""
     db = SessionLocal()
     try:
         b = db.get(EmergencyBatch, batch_id)
@@ -163,7 +163,7 @@ def _force_batch_status(batch_id: int, status: str) -> None:
         db.close()
 
 
-# ── BLOCKER 1: Admin gate ──────────────────────────────────────────────────────
+# -- BLOCKER 1: Admin gate ------------------------------------------------------
 
 class TestEmergencyAdminGate:
     """Non-admin tokens must be rejected (401/403) for all emergency endpoints."""
@@ -189,7 +189,7 @@ class TestEmergencyAdminGate:
         assert r.status_code in (401, 403)
 
 
-# ── MEDIUM 3 + MEDIUM 2 R2: Input bounds + non-finite rejection ───────────────
+# -- MEDIUM 3 + MEDIUM 2 R2: Input bounds + non-finite rejection ---------------
 
 class TestEmergencyInputBounds:
     def test_pct_above_100_rejected(self, client: TestClient):
@@ -231,7 +231,7 @@ class TestEmergencyInputBounds:
         assert r.status_code in (400, 422)
 
     def test_nonfinite_value_nan_rejected(self, client: TestClient):
-        """MEDIUM 2 R2: NaN is not valid JSON — parser rejects with 422; math.isfinite check gives 400."""
+        """MEDIUM 2 R2: NaN is not valid JSON - parser rejects with 422; math.isfinite check gives 400."""
         r = client.post(
             "/api/emergency/preview",
             content=b'{"operation":"pct_increase","value":NaN}',
@@ -240,7 +240,7 @@ class TestEmergencyInputBounds:
         assert r.status_code in (400, 422)
 
     def test_nonfinite_value_infinity_rejected(self, client: TestClient):
-        """MEDIUM 2 R2: Infinity is not valid JSON — parser rejects with 422; math.isfinite check gives 400."""
+        """MEDIUM 2 R2: Infinity is not valid JSON - parser rejects with 422; math.isfinite check gives 400."""
         r = client.post(
             "/api/emergency/preview",
             content=b'{"operation":"pct_increase","value":Infinity}',
@@ -249,7 +249,7 @@ class TestEmergencyInputBounds:
         assert r.status_code in (400, 422)
 
 
-# ── Preview safety ─────────────────────────────────────────────────────────────
+# -- Preview safety -------------------------------------------------------------
 
 class TestEmergencyPreviewSafety:
     def test_preview_creates_batch_no_wc_write(self, client: TestClient):
@@ -268,7 +268,7 @@ class TestEmergencyPreviewSafety:
         client.delete(f"/api/emergency/{data['batch_id']}", headers=_admin_headers())
 
 
-# ── Apply safety ───────────────────────────────────────────────────────────────
+# -- Apply safety ---------------------------------------------------------------
 
 class TestEmergencyApplySafety:
     def test_apply_requires_confirm_true(self, client: TestClient):
@@ -304,8 +304,8 @@ class TestEmergencyApplySafety:
 
     def test_atomic_claim_sequential_double_apply(self, client: TestClient):
         """HIGH 1 R2: Atomic batch claim via UPDATE WHERE status='pending'.
-        First apply claims the batch (WC unreachable → items fail → batch ends as 'failed').
-        Second apply finds status != 'pending' → UPDATE WHERE rowcount == 0 → HTTP 409."""
+        First apply claims the batch (WC unreachable -> items fail -> batch ends as 'failed').
+        Second apply finds status != 'pending' -> UPDATE WHERE rowcount == 0 -> HTTP 409."""
         _seed_product(9004, "100000")
         preview = client.post(
             "/api/emergency/preview",
@@ -320,7 +320,7 @@ class TestEmergencyApplySafety:
                          json={"confirm": True}, headers=_admin_headers())
         assert r1.status_code == 200
 
-        # Second apply: batch is no longer 'pending' → atomic UPDATE → rowcount 0 → 409.
+        # Second apply: batch is no longer 'pending' -> atomic UPDATE -> rowcount 0 -> 409.
         r2 = client.post(f"/api/emergency/{batch_id}/apply",
                          json={"confirm": True}, headers=_admin_headers())
         assert r2.status_code == 409
@@ -398,7 +398,7 @@ class TestEmergencyApplySafety:
         _force_batch_status(batch_id, "cancelled")
 
     def test_concurrent_claim_two_sessions(self, client: TestClient):
-        """HIGH 1 R2: Two independent DB sessions racing to claim — exactly one wins.
+        """HIGH 1 R2: Two independent DB sessions racing to claim - exactly one wins.
         Directly verifies the atomic UPDATE WHERE status='pending' mechanism at the DB layer."""
         _seed_product(9030, "100000")
         preview = client.post(
@@ -421,7 +421,7 @@ class TestEmergencyApplySafety:
             db1.commit()
             assert r1.rowcount == 1, "First session must win the atomic claim"
 
-            # Session 2 attempts to claim the same batch — it is now 'applying'
+            # Session 2 attempts to claim the same batch - it is now 'applying'
             r2 = db2.execute(
                 sa_update_direct(EmergencyBatch)
                 .where(EmergencyBatch.id == batch_id, EmergencyBatch.status == "pending")
@@ -434,7 +434,7 @@ class TestEmergencyApplySafety:
             db2.close()
 
     def test_stale_check_price_normalized_equal(self, client: TestClient):
-        """LOW R2 / MEDIUM 1 R2: '100000' and '100000.00' are numerically equal — must not be stale."""
+        """LOW R2 / MEDIUM 1 R2: '100000' and '100000.00' are numerically equal - must not be stale."""
         _seed_product(9031, "100000")
         preview = client.post(
             "/api/emergency/preview",
@@ -443,7 +443,7 @@ class TestEmergencyApplySafety:
         )
         assert preview.status_code == 200
         batch_id = preview.json()["batch_id"]
-        # item.old_price = "100000"; update cache to "100000.00" — numerically same, different string
+        # item.old_price = "100000"; update cache to "100000.00" - numerically same, different string
         _update_cached_price(9031, "100000.00")
         r = client.post(f"/api/emergency/{batch_id}/apply",
                         json={"confirm": True}, headers=_admin_headers())
@@ -452,19 +452,19 @@ class TestEmergencyApplySafety:
         assert data["stale"] == 0, f"'100000' and '100000.00' must not be stale; got {data}"
 
 
-# ── HIGH 2 R2 + MEDIUM 1 R2: WC success durability ───────────────────────────
+# -- HIGH 2 R2 + MEDIUM 1 R2: WC success durability ---------------------------
 
 class TestEmergencyDurability:
     """Verifies the three-checkpoint durability contract for emergency_apply.
 
-    Checkpoint A (item=applying)     — committed BEFORE WC write
-    Checkpoint B (item=wc_succeeded) — committed immediately AFTER WC write
-    Checkpoint C (item=applied)      — committed after cache + ChangeHistory finalized
-    If B exists but C fails: item → needs_reconcile (WC updated; DB needs manual reconciliation)
+    Checkpoint A (item=applying)     - committed BEFORE WC write
+    Checkpoint B (item=wc_succeeded) - committed immediately AFTER WC write
+    Checkpoint C (item=applied)      - committed after cache + ChangeHistory finalized
+    If B exists but C fails: item -> needs_reconcile (WC updated; DB needs manual reconciliation)
     """
 
     def test_normal_success_creates_history_and_updates_cache(self, client: TestClient):
-        """MEDIUM 1 R2: Successful WC write → ProductCache updated + ChangeHistory record created."""
+        """MEDIUM 1 R2: Successful WC write -> ProductCache updated + ChangeHistory record created."""
         wc_id = 9011
         _seed_product(wc_id, "100000")
         preview = client.post(
@@ -523,10 +523,10 @@ class TestEmergencyDurability:
             call_count["n"] += 1
             # For one item, no stale items:
             #   commit #1 = atomic claim
-            #   commit #2 = _audit("emergency_apply_started") — own session, still patched
+            #   commit #2 = _audit("emergency_apply_started") - own session, still patched
             #   commit #3 = checkpoint A
-            #   commit #4 = checkpoint B ← fail this
-            #   commit #5 = recovery (needs_reconcile) — must succeed
+            #   commit #4 = checkpoint B <- fail this
+            #   commit #5 = recovery (needs_reconcile) - must succeed
             if call_count["n"] == 4:
                 raise Exception("simulated checkpoint B commit failure")
             return original_commit(self_session)
@@ -541,7 +541,7 @@ class TestEmergencyDurability:
         assert r.status_code == 200
         data = r.json()
         assert data.get("reconcile", 0) >= 1, f"Expected reconcile>=1 (not failed); got {data}"
-        assert data["failed"] == 0, f"WC write succeeded — must not be 'failed'; got {data}"
+        assert data["failed"] == 0, f"WC write succeeded - must not be 'failed'; got {data}"
 
         db = SessionLocal()
         try:
@@ -589,7 +589,7 @@ class TestEmergencyDurability:
             db.close()
 
 
-# ── Audit history ──────────────────────────────────────────────────────────────
+# -- Audit history --------------------------------------------------------------
 
 class TestAuditHistory:
     def test_audit_history_returns_changes_key(self, client: TestClient):

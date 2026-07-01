@@ -1,5 +1,5 @@
 """
-Unit tests — A2.3-R2 AST formula engine.
+Unit tests - A2.3-R2 AST formula engine.
 
 Verifies determinism, sandboxing, and correct arithmetic.
 No database required; all tests are pure computation.
@@ -15,7 +15,7 @@ import pytest
 from app.a2.rules.formula import evaluate_formula, extract_variables
 
 
-# ── Basic arithmetic ───────────────────────────────────────────────────────────
+# -- Basic arithmetic -----------------------------------------------------------
 
 def test_multiply_constant():
     result = evaluate_formula("cost * 1.20", {"cost": Decimal("100000")})
@@ -100,7 +100,7 @@ def test_multi_variable_formula():
     assert result == Decimal("10") * Decimal("15000") + Decimal("500")
 
 
-# ── Sandboxing — forbidden constructs ─────────────────────────────────────────
+# -- Sandboxing - forbidden constructs -----------------------------------------
 
 def test_reject_function_call():
     with pytest.raises(ValueError, match="forbidden"):
@@ -163,7 +163,7 @@ def test_does_not_use_eval_internally():
         assert "exec(" not in line, f"formula.py must not call exec(): {line!r}"
 
 
-# ── Error cases ────────────────────────────────────────────────────────────────
+# -- Error cases ----------------------------------------------------------------
 
 def test_unknown_variable_raises_key_error():
     with pytest.raises(KeyError, match="unknown_var"):
@@ -190,7 +190,7 @@ def test_whitespace_only_formula_raises():
         evaluate_formula("   ", {})
 
 
-# ── extract_variables ──────────────────────────────────────────────────────────
+# -- extract_variables ----------------------------------------------------------
 
 def test_extract_single_variable():
     assert extract_variables("cost * 1.20") == ["cost"]

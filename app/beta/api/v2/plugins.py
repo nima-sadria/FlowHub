@@ -1,4 +1,4 @@
-"""FlowHub â€” /api/v2/plugins router.
+"""FlowHub - /api/v2/plugins router.
 
 Plugin management endpoints. Gated by FEATURE_PLUGIN_SYSTEM.
 Admin permission required for all operations.

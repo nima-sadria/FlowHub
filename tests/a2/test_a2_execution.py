@@ -1,18 +1,18 @@
 """
-A2.7 — Execution Engine tests.
+A2.7 - Execution Engine tests.
 
 Covers:
   - Prerequisite validation: invalid confirmation, digest mismatch, BLOCK dry run,
     unverified digest, Change Set digest recompute mismatch
   - Freshness verification: success permits execution, failure blocks item (BLOCKED),
     freshness_verified flag set on success
-  - Execution outcomes: all-succeed → SUCCEEDED, any-blocked → BLOCKED,
-    any-failed → FAILED, mixed worst-outcome
+  - Execution outcomes: all-succeed -> SUCCEEDED, any-blocked -> BLOCKED,
+    any-failed -> FAILED, mixed worst-outcome
   - Idempotency: duplicate execution key returns existing record, no re-execution
   - Retry: transient failure then success, permanent failure no retry,
-    max_attempts exhausted → FAILED, attempt records created per try
+    max_attempts exhausted -> FAILED, attempt records created per try
   - State machine: valid transitions, invalid transitions raise, terminal immutability
-  - Cancel: PENDING → CANCELLED, RUNNING → CANCELLED, terminal cannot cancel
+  - Cancel: PENDING -> CANCELLED, RUNNING -> CANCELLED, terminal cannot cancel
   - Recovery: stale RUNNING executions detected, fresh RUNNING not stale;
     stale RUNNING items detected, fresh RUNNING items not stale
   - Repository: create/get/list operations, find_by_idempotency_key
@@ -53,13 +53,13 @@ import app.a2.models.source               # noqa: F401
 import app.a2.models.snapshot             # noqa: F401
 import app.a2.models.provenance           # noqa: F401
 import app.a2.models.checkpoint           # noqa: F401
-import app.a2.models.pricing_rule          # noqa: F401 — A2.3-R2
-import app.a2.models.pricing_rule_version  # noqa: F401 — A2.3-R2
-import app.a2.models.price_proposal        # noqa: F401 — A2.3-R2
-import app.a2.models.safety               # noqa: F401 — A2.4
-import app.a2.models.change_set           # noqa: F401 — A2.5
-import app.a2.models.dry_run              # noqa: F401 — A2.6
-import app.a2.models.execution            # noqa: F401 — A2.7
+import app.a2.models.pricing_rule          # noqa: F401 - A2.3-R2
+import app.a2.models.pricing_rule_version  # noqa: F401 - A2.3-R2
+import app.a2.models.price_proposal        # noqa: F401 - A2.3-R2
+import app.a2.models.safety               # noqa: F401 - A2.4
+import app.a2.models.change_set           # noqa: F401 - A2.5
+import app.a2.models.dry_run              # noqa: F401 - A2.6
+import app.a2.models.execution            # noqa: F401 - A2.7
 
 from app.a2.models.execution import Execution, ExecutionItem
 from app.a2.repositories.execution_repository import (
@@ -79,7 +79,7 @@ from app.a2.services.execution_service import (
 )
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -113,7 +113,7 @@ def svc(db):
     return ExecutionService(db)
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# -- Helpers -------------------------------------------------------------------
 
 _CHANNEL = "WC"
 _SCOPE = "all"
@@ -199,7 +199,7 @@ def _exec_args(
     )
 
 
-# ── TestPrerequisiteValidation ────────────────────────────────────────────────
+# -- TestPrerequisiteValidation ------------------------------------------------
 
 
 class TestPrerequisiteValidation:
@@ -256,7 +256,7 @@ class TestPrerequisiteValidation:
         assert execution.status == "SUCCEEDED"
 
 
-# ── TestFreshnessVerification ─────────────────────────────────────────────────
+# -- TestFreshnessVerification -------------------------------------------------
 
 
 class TestFreshnessVerification:
@@ -300,7 +300,7 @@ class TestFreshnessVerification:
         assert items[0].freshness_verified is False
 
 
-# ── TestExecutionOutcomes ─────────────────────────────────────────────────────
+# -- TestExecutionOutcomes -----------------------------------------------------
 
 
 class TestExecutionOutcomes:
@@ -347,7 +347,7 @@ class TestExecutionOutcomes:
         assert execution.started_at is not None
 
 
-# ── TestIdempotency ───────────────────────────────────────────────────────────
+# -- TestIdempotency -----------------------------------------------------------
 
 
 class TestIdempotency:
@@ -396,7 +396,7 @@ class TestIdempotency:
         assert result2.success is True
 
 
-# ── TestRetry ─────────────────────────────────────────────────────────────────
+# -- TestRetry -----------------------------------------------------------------
 
 
 class TestRetry:
@@ -420,7 +420,7 @@ class TestRetry:
         assert len(items[0].attempts) == 1  # no retry on permanent failure
 
     def test_max_attempts_exhausted_marks_item_failed(self, svc, db):
-        # 4 transient failures, max_attempts=3 → FAILED after 3 attempts
+        # 4 transient failures, max_attempts=3 -> FAILED after 3 attempts
         adapter = DummyExecutionAdapter(transient_fail_times=4)
         execution = svc.execute(**_exec_args(svc, adapter=adapter, max_attempts=3))
         assert execution.status == "FAILED"
@@ -455,7 +455,7 @@ class TestRetry:
         assert items[0].attempts[0].error_message is not None
 
 
-# ── TestStateMachine ──────────────────────────────────────────────────────────
+# -- TestStateMachine ----------------------------------------------------------
 
 
 class TestStateMachine:
@@ -490,7 +490,7 @@ class TestStateMachine:
             scope=_SCOPE, source_snapshot_id=_SNAPSHOT, idempotency_key="sm-003",
         )
         with pytest.raises(InvalidExecutionStateTransitionError):
-            repo.transition_execution(exec_.id, "SUCCEEDED")  # PENDING → SUCCEEDED invalid
+            repo.transition_execution(exec_.id, "SUCCEEDED")  # PENDING -> SUCCEEDED invalid
 
     def test_item_pending_to_running_valid(self, repo, db):
         exec_ = repo.create_execution(
@@ -526,10 +526,10 @@ class TestStateMachine:
             proposed_price=Decimal("9.99"),
         )
         with pytest.raises(InvalidExecutionStateTransitionError):
-            repo.transition_item(item.id, "SUCCEEDED")  # PENDING → SUCCEEDED invalid
+            repo.transition_item(item.id, "SUCCEEDED")  # PENDING -> SUCCEEDED invalid
 
 
-# ── TestTerminalStatesImmutable ───────────────────────────────────────────────
+# -- TestTerminalStatesImmutable -----------------------------------------------
 
 
 class TestTerminalStatesImmutable:
@@ -584,7 +584,7 @@ class TestTerminalStatesImmutable:
             repo.transition_item(item.id, "FAILED")
 
 
-# ── TestCancel ────────────────────────────────────────────────────────────────
+# -- TestCancel ----------------------------------------------------------------
 
 
 class TestCancel:
@@ -626,7 +626,7 @@ class TestCancel:
             svc.cancel(exec_.id)
 
 
-# ── TestRecovery ──────────────────────────────────────────────────────────────
+# -- TestRecovery --------------------------------------------------------------
 
 
 class TestRecovery:
@@ -699,7 +699,7 @@ class TestRecovery:
         assert not any(i.id == item.id for i in stale)
 
 
-# ── TestRepository ────────────────────────────────────────────────────────────
+# -- TestRepository ------------------------------------------------------------
 
 
 class TestRepository:
@@ -804,7 +804,7 @@ class TestRepository:
         assert attempt.adapter_name == "DummyExecutionAdapter"
 
 
-# ── TestExecutionReport ───────────────────────────────────────────────────────
+# -- TestExecutionReport -------------------------------------------------------
 
 
 class TestExecutionReport:
@@ -837,7 +837,7 @@ class TestExecutionReport:
             svc.get_report("nonexistent-execution-id")
 
 
-# ── TestMigration ─────────────────────────────────────────────────────────────
+# -- TestMigration -------------------------------------------------------------
 
 
 class TestMigration:
@@ -915,7 +915,7 @@ class TestMigration:
         }
 
 
-# ── TestIsolation ─────────────────────────────────────────────────────────────
+# -- TestIsolation -------------------------------------------------------------
 
 
 class TestIsolation:
@@ -940,14 +940,14 @@ class TestIsolation:
         # Check import-level only; comments may reference WooCommerce for documentation
         for forbidden in ["import woocommerce", "from woocommerce", "wc_api", "wcapi"]:
             assert forbidden not in src.lower(), (
-                f"Found {forbidden!r} in execution_service — real WooCommerce imports prohibited in A2.7"
+                f"Found {forbidden!r} in execution_service - real WooCommerce imports prohibited in A2.7"
             )
 
     def test_no_apply_workflow_in_execution_service(self):
         src = self._service_source()
         for forbidden in ["apply_workflow", "workspace_apply", "ApplyWorkflow", "do_apply"]:
             assert forbidden not in src, (
-                f"Found {forbidden!r} in execution_service — Apply Workflow must not be modified"
+                f"Found {forbidden!r} in execution_service - Apply Workflow must not be modified"
             )
 
     def test_no_scheduling_engine_imports(self):
@@ -975,7 +975,7 @@ class TestIsolation:
         src = self._service_source()
         for forbidden in ["import requests", "import httpx", "import aiohttp", "urllib.request"]:
             assert forbidden not in src, (
-                f"Found {forbidden!r} in execution_service — network calls prohibited in A2.7"
+                f"Found {forbidden!r} in execution_service - network calls prohibited in A2.7"
             )
 
     def test_dummy_adapter_has_no_network_calls(self):

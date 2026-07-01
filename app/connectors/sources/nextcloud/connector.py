@@ -1,7 +1,7 @@
-"""NextcloudConnector — concrete SourceConnector for Nextcloud via WebDAV + OCS.
+"""NextcloudConnector - concrete SourceConnector for Nextcloud via WebDAV + OCS.
 
 The only concrete class in this package. Business logic (adapters, rule engine)
-must import only this class — never webdav.py or ocs.py directly.
+must import only this class - never webdav.py or ocs.py directly.
 
 Capabilities:
   can_list_folders    = True
@@ -31,14 +31,14 @@ class NextcloudConnector(SourceConnector):
     """Read-only Nextcloud source connector.
 
     Lifecycle:
-      1. test_connection(auth)  — probe without storing state (safe to call any time)
-      2. connect(auth)          — store credentials for subsequent calls
-      3. health()               — lightweight OCS ping
-      4. list_folders(path)     — PROPFIND depth=1, collections only
-      5. list_files(path)       — PROPFIND depth=1, non-collections only
-      6. get_metadata(path)     — PROPFIND depth=0
-      7. read_file(path)        — WebDAV GET (returns raw bytes + meta)
-      8. disconnect()           — clears stored credentials
+      1. test_connection(auth)  - probe without storing state (safe to call any time)
+      2. connect(auth)          - store credentials for subsequent calls
+      3. health()               - lightweight OCS ping
+      4. list_folders(path)     - PROPFIND depth=1, collections only
+      5. list_files(path)       - PROPFIND depth=1, non-collections only
+      6. get_metadata(path)     - PROPFIND depth=0
+      7. read_file(path)        - WebDAV GET (returns raw bytes + meta)
+      8. disconnect()           - clears stored credentials
     """
 
     connector_id: ConnectorID = "nextcloud"
@@ -56,7 +56,7 @@ class NextcloudConnector(SourceConnector):
             can_watch_changes=False,
         )
 
-    # ── Lifecycle ─────────────────────────────────────────────────────────────
+    # -- Lifecycle -------------------------------------------------------------
 
     async def connect(self, auth: AuthConfig) -> None:
         """Store credentials and verify the server is reachable."""
@@ -67,13 +67,13 @@ class NextcloudConnector(SourceConnector):
     async def disconnect(self) -> None:
         self._creds = None
 
-    # ── Health ────────────────────────────────────────────────────────────────
+    # -- Health ----------------------------------------------------------------
 
     async def health(self) -> HealthResult:
         if self._creds is None:
             return HealthResult(
                 status=HealthStatus.UNHEALTHY,
-                detail="Not connected — call connect() first",
+                detail="Not connected - call connect() first",
             )
         t0 = time.monotonic()
         try:
@@ -89,7 +89,7 @@ class NextcloudConnector(SourceConnector):
                 detail=str(exc),
             )
 
-    # ── Connection test ───────────────────────────────────────────────────────
+    # -- Connection test -------------------------------------------------------
 
     async def test_connection(self, auth: AuthConfig) -> ConnectionTestResult:
         """Probe the Nextcloud server without storing state."""
@@ -119,13 +119,13 @@ class NextcloudConnector(SourceConnector):
                 latency_ms=round(latency, 1),
             )
 
-    # ── Source operations ─────────────────────────────────────────────────────
+    # -- Source operations -----------------------------------------------------
 
     def _require_connected(self) -> NextcloudCredentials:
         if self._creds is None:
             raise ConnectorError(
                 code=ConnectorErrorCode.UNKNOWN,
-                message="NextcloudConnector is not connected — call connect() first",
+                message="NextcloudConnector is not connected - call connect() first",
                 provider="nextcloud",
             )
         return self._creds

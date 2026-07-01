@@ -1,5 +1,5 @@
 """
-Isolation tests — verify that A2.2 does not import into or affect production code.
+Isolation tests - verify that A2.2 does not import into or affect production code.
 
 These tests inspect module import graphs without executing any application logic.
 """
@@ -77,7 +77,7 @@ def test_nextcloud_adapter_does_not_implement_change_logic():
     ]
     for term in forbidden:
         assert term not in src.lower(), (
-            f"Forbidden term '{term}' found in nextcloud adapter — "
+            f"Forbidden term '{term}' found in nextcloud adapter - "
             "A2.2 must not implement change detection or execution logic."
         )
 

@@ -1,4 +1,4 @@
-"""A2.5 Change Set Service — builds and manages immutable Change Sets.
+"""A2.5 Change Set Service - builds and manages immutable Change Sets.
 
 Computes deterministic SHA-256 digests from proposal bindings, safety bindings,
 rule version bindings, and destination metadata. All revisions are immutable;
@@ -183,9 +183,9 @@ class ChangeSetService:
         """Transition a ChangeSet to a new state via the state machine.
 
         Valid transitions (exactly three; per A2.5 architecture spec):
-          DRAFT  → READY
-          READY  → SUPERSEDED
-          READY  → ARCHIVED
+          DRAFT  -> READY
+          READY  -> SUPERSEDED
+          READY  -> ARCHIVED
         SUPERSEDED and ARCHIVED are both terminal states.
 
         Raises InvalidStateTransitionError for any other transition.
@@ -209,7 +209,7 @@ class ChangeSetService:
         )
         return computed == revision.digest
 
-    # ── Internal helpers ─────────────────────────────────────────────────────
+    # -- Internal helpers -----------------------------------------------------
 
     def _persist_items(
         self,

@@ -1,4 +1,4 @@
-"""beta_005 — create Data Layer tables (dl_*)
+"""beta_005 - create Data Layer tables (dl_*)
 
 Establishes the FlowHub Data Layer persistence foundation.
 All tables use the 'dl_' prefix to distinguish them from core Beta tables.
@@ -8,14 +8,14 @@ incrementally by future refresh operations (manual trigger, webhook,
 background refresh). The UI shows empty/uninitialized states until then.
 
 Tables created:
-  dl_connector_health        — per-connector health check results
-  dl_connector_telemetry     — per-connector telemetry aggregates
-  dl_product_cache           — product read model
-  dl_inventory_cache         — inventory state
-  dl_source_snapshots        — source file snapshot metadata
-  dl_destination_snapshots   — destination product/price snapshot
-  dl_refresh_jobs            — refresh job history
-  dl_invalidation_events     — invalidation event log
+  dl_connector_health        - per-connector health check results
+  dl_connector_telemetry     - per-connector telemetry aggregates
+  dl_product_cache           - product read model
+  dl_inventory_cache         - inventory state
+  dl_source_snapshots        - source file snapshot metadata
+  dl_destination_snapshots   - destination product/price snapshot
+  dl_refresh_jobs            - refresh job history
+  dl_invalidation_events     - invalidation event log
 
 Safety: no WooCommerce or Nextcloud write paths are introduced.
         These tables are populated by FlowHub Beta read operations only.

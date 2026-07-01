@@ -1,4 +1,4 @@
-"""FlowHub â€” /api/v2/rules router.
+"""FlowHub - /api/v2/rules router.
 
 Rule Engine management endpoints. Gated by FEATURE_RULE_ENGINE.
 

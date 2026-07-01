@@ -1,7 +1,7 @@
-"""CP1.3 â€” Diagnostic Runner.
+"""CP1.3 - Diagnostic Runner.
 
 Orchestrates integration health checks through CP1.2 safe abstractions.
-Never blocks the Control Plane â€” all exceptions are caught and converted
+Never blocks the Control Plane - all exceptions are caught and converted
 to structured UNKNOWN_ERROR results.  Secrets are never stored in reports.
 """
 
@@ -18,7 +18,7 @@ from app.beta.health.models import CheckCategory, HealthCheckResult, HealthStatu
 from .repair import ProbableCauseInferrer, RepairPlaybook
 from .report import DiagnosticCategory, DiagnosticCheckResult, DiagnosticReport
 
-# Maps service name â†’ env var keys for URL / credentials.
+# Maps service name -> env var keys for URL / credentials.
 # Credentials are resolved at call time from config dict, never stored.
 _SERVICE_CONFIG: dict[str, dict[str, str]] = {
     "nextcloud": {

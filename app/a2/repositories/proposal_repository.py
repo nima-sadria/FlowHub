@@ -1,5 +1,5 @@
 """
-A2.3-R2 ProposalRepository — persist and retrieve PriceProposal records.
+A2.3-R2 ProposalRepository - persist and retrieve PriceProposal records.
 
 save() persists the proposal, its provenance record, and its execution
 trace in a single flush. find_by_hash() enables deduplication: callers
@@ -128,7 +128,7 @@ class ProposalRepository:
         )
         return [self._record_to_proposal(r) for r in records]
 
-    # ── Internal helpers ──────────────────────────────────────────────────────
+    # -- Internal helpers ------------------------------------------------------
 
     @staticmethod
     def _record_to_proposal(record: PriceProposalRecord) -> PriceProposal:

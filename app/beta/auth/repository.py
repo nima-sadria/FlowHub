@@ -1,4 +1,4 @@
-"""FlowHub â€” auth data access layer (BU2)."""
+"""FlowHub - auth data access layer (BU2)."""
 
 from __future__ import annotations
 

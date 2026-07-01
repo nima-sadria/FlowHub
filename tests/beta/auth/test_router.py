@@ -13,7 +13,7 @@ def reset_rate_limiter():
     clear_all()
 
 
-# ── Login ─────────────────────────────────────────────────────────────────────
+# -- Login ---------------------------------------------------------------------
 
 class TestLogin:
     def test_success_returns_tokens(self, client, admin_user):
@@ -57,7 +57,7 @@ class TestLogin:
         assert len(events) == 1
 
 
-# ── /me ───────────────────────────────────────────────────────────────────────
+# -- /me -----------------------------------------------------------------------
 
 class TestMe:
     def _login(self, client, admin_user):
@@ -99,7 +99,7 @@ class TestMe:
         assert "password" not in body
 
 
-# ── Refresh ───────────────────────────────────────────────────────────────────
+# -- Refresh -------------------------------------------------------------------
 
 class TestRefresh:
     def _login_tokens(self, client, admin_user):
@@ -140,7 +140,7 @@ class TestRefresh:
         assert len(events) == 1
 
 
-# ── Logout ────────────────────────────────────────────────────────────────────
+# -- Logout --------------------------------------------------------------------
 
 class TestLogout:
     def _login_tokens(self, client, admin_user):
@@ -184,7 +184,7 @@ class TestLogout:
         assert len(events) == 1
 
 
-# ── Viewer role ───────────────────────────────────────────────────────────────
+# -- Viewer role ---------------------------------------------------------------
 
 class TestViewerRole:
     def test_viewer_permissions_are_limited(self, client, db):

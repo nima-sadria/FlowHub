@@ -1,4 +1,4 @@
-"""beta_004 — create beta_app_config table
+"""beta_004 - create beta_app_config table
 
 Runtime configuration key-value store for all settings collected by the
 Setup Wizard. Bootstrap-only values (database URL, secrets) remain in

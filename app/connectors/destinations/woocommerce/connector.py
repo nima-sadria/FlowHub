@@ -1,7 +1,7 @@
-"""WooCommerceConnector — concrete DestinationConnector for WooCommerce REST API.
+"""WooCommerceConnector - concrete DestinationConnector for WooCommerce REST API.
 
 The only concrete class in this package. Business logic (adapters, rule engine)
-must import only this class — never rest_client.py directly.
+must import only this class - never rest_client.py directly.
 
 All operations are READ-ONLY. No write path (PUT/POST/PATCH/DELETE) is
 implemented. FlowHub Beta is a read-only system.
@@ -29,12 +29,12 @@ class WooCommerceConnector(DestinationConnector):
     """Read-only WooCommerce destination connector.
 
     Lifecycle:
-      1. test_connection(auth)  — probe without storing state
-      2. connect(auth)          — store credentials + verify connectivity
-      3. health()               — lightweight ping
-      4. list_products(page, per_page)  — paginated product list
-      5. read_inventory(product_id)     — stock data for one product
-      6. disconnect()           — clears stored credentials
+      1. test_connection(auth)  - probe without storing state
+      2. connect(auth)          - store credentials + verify connectivity
+      3. health()               - lightweight ping
+      4. list_products(page, per_page)  - paginated product list
+      5. read_inventory(product_id)     - stock data for one product
+      6. disconnect()           - clears stored credentials
     """
 
     connector_id: ConnectorID = "woocommerce"
@@ -48,7 +48,7 @@ class WooCommerceConnector(DestinationConnector):
             can_read_inventory=True,
         )
 
-    # ── Lifecycle ─────────────────────────────────────────────────────────────
+    # -- Lifecycle -------------------------------------------------------------
 
     async def connect(self, auth: AuthConfig) -> None:
         """Store credentials and verify the WooCommerce API is reachable."""
@@ -59,13 +59,13 @@ class WooCommerceConnector(DestinationConnector):
     async def disconnect(self) -> None:
         self._creds = None
 
-    # ── Health ────────────────────────────────────────────────────────────────
+    # -- Health ----------------------------------------------------------------
 
     async def health(self) -> HealthResult:
         if self._creds is None:
             return HealthResult(
                 status=HealthStatus.UNHEALTHY,
-                detail="Not connected — call connect() first",
+                detail="Not connected - call connect() first",
             )
         t0 = time.monotonic()
         try:
@@ -80,7 +80,7 @@ class WooCommerceConnector(DestinationConnector):
                 detail=str(exc),
             )
 
-    # ── Connection test ───────────────────────────────────────────────────────
+    # -- Connection test -------------------------------------------------------
 
     async def test_connection(self, auth: AuthConfig) -> ConnectionTestResult:
         """Probe the WooCommerce REST API without storing state."""
@@ -110,13 +110,13 @@ class WooCommerceConnector(DestinationConnector):
                 latency_ms=round(latency, 1),
             )
 
-    # ── Destination operations (read-only) ────────────────────────────────────
+    # -- Destination operations (read-only) ------------------------------------
 
     def _require_connected(self) -> WooCommerceCredentials:
         if self._creds is None:
             raise ConnectorError(
                 code=ConnectorErrorCode.UNKNOWN,
-                message="WooCommerceConnector is not connected — call connect() first",
+                message="WooCommerceConnector is not connected - call connect() first",
                 provider="woocommerce",
             )
         return self._creds

@@ -1,5 +1,5 @@
 """
-A2.3 PriceProposal — immutable output of the rule engine.
+A2.3 PriceProposal - immutable output of the rule engine.
 
 proposal_hash is a deterministic SHA-256 of proposal content fields.
 It explicitly EXCLUDES proposal_id (UUID) and generated_at (timestamp)
@@ -51,7 +51,7 @@ def compute_proposal_hash(
     Compute a deterministic SHA-256 hash of a proposal's logical content.
 
     Deliberately excludes proposal_id (UUID) and generated_at (timestamp)
-    so that the same inputs always produce the same hash — enabling
+    so that the same inputs always produce the same hash - enabling
     deduplication and reproducibility verification across calls and time.
     """
     payload: dict[str, Any] = {

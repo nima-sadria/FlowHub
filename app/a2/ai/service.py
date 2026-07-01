@@ -1,4 +1,4 @@
-"""A2.9 AI Foundation — AdvisoryService.
+"""A2.9 AI Foundation - AdvisoryService.
 
 Isolation boundary:
 - Never triggers execution, scheduling, dry run, confirmation, or any destination write.
@@ -54,7 +54,7 @@ class AdvisoryService:
         self._db = db
         self._repo = AdvisoryRepository(db)
 
-    # ── Public API ─────────────────────────────────────────────────────────────
+    # -- Public API -------------------------------------------------------------
 
     def generate_explanation(self, context: AdvisoryContext) -> AdvisoryInsight:
         """Explain a pricing proposal, rule outcome, or safety result."""
@@ -158,7 +158,7 @@ class AdvisoryService:
                 pp = float(proposed_price)
                 if pp <= 0:
                     anomaly_signals.append(
-                        f"Proposed price {proposed_price} is zero or negative — likely an error."
+                        f"Proposed price {proposed_price} is zero or negative - likely an error."
                     )
                     severity = "CRITICAL"
                     confidence = 0.99
@@ -218,14 +218,14 @@ class AdvisoryService:
                 age = float(source_age_hours)
                 if age > _STALE_PRICE_HIGH_HOURS:
                     staleness_desc = (
-                        f"Source data is {age:.1f} hours old — exceeds "
+                        f"Source data is {age:.1f} hours old - exceeds "
                         f"{_STALE_PRICE_HIGH_HOURS}h threshold. Price may be stale."
                     )
                     severity = "HIGH"
                     confidence = 0.90
                 elif age > _STALE_PRICE_MEDIUM_HOURS:
                     staleness_desc = (
-                        f"Source data is {age:.1f} hours old — exceeds "
+                        f"Source data is {age:.1f} hours old - exceeds "
                         f"{_STALE_PRICE_MEDIUM_HOURS}h threshold. Review recommended."
                     )
                     severity = "MEDIUM"
@@ -362,7 +362,7 @@ class AdvisoryService:
             recommendation_trace=trace,
         )
 
-    # ── Internal helpers ───────────────────────────────────────────────────────
+    # -- Internal helpers -------------------------------------------------------
 
     def _create_insight(
         self,

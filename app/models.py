@@ -37,7 +37,7 @@ class SyncJob(Base):
     failed_count = Column(Integer, default=0)
     skipped_count = Column(Integer, default=0)
     sheet_hash = Column(String, nullable=True)
-    # Phase B — change detection summary counts
+    # Phase B - change detection summary counts
     changed_count = Column(Integer, nullable=True)
     unchanged_count = Column(Integer, nullable=True)
     new_count = Column(Integer, nullable=True)
@@ -45,7 +45,7 @@ class SyncJob(Base):
     price_changed_count = Column(Integer, nullable=True)
     stock_changed_count = Column(Integer, nullable=True)
     missing_image_count = Column(Integer, nullable=True)
-    # Phase B — dry run
+    # Phase B - dry run
     dry_run_summary = Column(Text, nullable=True)       # JSON blob
     dry_run_status = Column(String, nullable=True)      # passed | warnings | blocked
     dry_run_completed_at = Column(DateTime, nullable=True)
@@ -71,7 +71,7 @@ class SyncItem(Base):
     categories = Column(String, nullable=True)  # JSON: [{"id":1,"name":"..."}]
     row_color = Column(String, nullable=True)
     status = Column(SAEnum(ItemStatus), default=ItemStatus.pending)
-    # Phase B — granular change flags
+    # Phase B - granular change flags
     change_status = Column(String, nullable=True)       # changed | unchanged | new | missing_from_wc_cache | invalid
     price_changed = Column(Integer, nullable=True)      # 0/1
     stock_changed = Column(Integer, nullable=True)      # 0/1
@@ -83,7 +83,7 @@ class SyncItem(Base):
     synced_at = Column(DateTime, nullable=True)
     last_price_updated = Column(DateTime, nullable=True)
     wc_date_modified = Column(DateTime, nullable=True)
-    # Phase C — validation + precise change detection
+    # Phase C - validation + precise change detection
     validation_level = Column(String, nullable=True)      # info | warning | error | critical
     wc_price_at_preview = Column(String, nullable=True)   # WC price at preview time (from cache)
     wc_stock_at_preview = Column(String, nullable=True)   # WC stock_status at preview time
@@ -148,7 +148,7 @@ class AppUser(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=True)
-    # Granular permissions — defaults mirror safe non-admin baseline
+    # Granular permissions - defaults mirror safe non-admin baseline
     can_access_site   = Column(Boolean, nullable=False, default=True)
     can_fetch         = Column(Boolean, nullable=False, default=True)
     can_apply         = Column(Boolean, nullable=False, default=True)
@@ -172,7 +172,7 @@ class AuditLog(Base):
 
 
 class ChangeHistory(Base):
-    """Phase C — immutable record of every WooCommerce price/stock change, enabling rollback.
+    """Phase C - immutable record of every WooCommerce price/stock change, enabling rollback.
     One row is written immediately BEFORE each WC update, capturing the prior state."""
     __tablename__ = "change_history"
     __table_args__ = (
@@ -208,7 +208,7 @@ class EmergencyBatch(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String, nullable=False)
     operation = Column(String, nullable=False)   # pct_increase | pct_decrease | fixed_increase | fixed_decrease
-    value = Column(Float, nullable=False)        # percent (0–100] or fixed amount (>0)
+    value = Column(Float, nullable=False)        # percent (0-100] or fixed amount (>0)
     status = Column(String, nullable=False, default="pending")
     # batch statuses: pending | applying | applied | partially_failed | failed | needs_reconcile | cancelled
     applied_at = Column(DateTime, nullable=True)
@@ -252,7 +252,7 @@ class AppSetting(Base):
 
 
 class ChangeTracking(Base):
-    """Phase C — field-level audit of every detected value drift, from either the sheet
+    """Phase C - field-level audit of every detected value drift, from either the sheet
     (preview) or a WooCommerce fetch. Distinct from ChangeHistory (which is rollback-oriented)."""
     __tablename__ = "change_tracking"
 
@@ -267,7 +267,7 @@ class ChangeTracking(Base):
 
 
 class DailyMetrics(Base):
-    """Phase C — analytics foundation. One row per calendar day (UTC), upserted as events occur."""
+    """Phase C - analytics foundation. One row per calendar day (UTC), upserted as events occur."""
     __tablename__ = "daily_metrics"
 
     id = Column(Integer, primary_key=True)

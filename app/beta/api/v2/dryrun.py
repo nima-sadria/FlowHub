@@ -1,4 +1,4 @@
-"""FlowHub â€” /api/v2/dryrun router.
+"""FlowHub - /api/v2/dryrun router.
 
 Dry Run Engine endpoints. Gated by FEATURE_DRY_RUN.
 

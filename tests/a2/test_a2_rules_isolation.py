@@ -1,5 +1,5 @@
 """
-Isolation tests — verify A2.3-R2 rule engine does not import forbidden modules.
+Isolation tests - verify A2.3-R2 rule engine does not import forbidden modules.
 
 Tests inspect module source code without executing application logic.
 """
@@ -45,7 +45,7 @@ _RULE_MODULES = [
 ]
 
 
-# ── No WooCommerce / external service imports ─────────────────────────────────
+# -- No WooCommerce / external service imports ---------------------------------
 
 def test_rule_modules_do_not_import_woocommerce():
     for module_name in _RULE_MODULES:
@@ -58,7 +58,7 @@ def test_rule_modules_do_not_import_woocommerce():
         )
 
 
-# ── No Apply / Execute / DryRun imports ───────────────────────────────────────
+# -- No Apply / Execute / DryRun imports ---------------------------------------
 
 def test_rule_modules_do_not_import_apply():
     for module_name in _RULE_MODULES:
@@ -74,7 +74,7 @@ def test_rule_modules_do_not_import_apply():
         )
 
 
-# ── No Safety Engine imports ──────────────────────────────────────────────────
+# -- No Safety Engine imports --------------------------------------------------
 
 def test_rule_modules_do_not_import_safety():
     for module_name in _RULE_MODULES:
@@ -87,7 +87,7 @@ def test_rule_modules_do_not_import_safety():
         )
 
 
-# ── No Change Set imports ─────────────────────────────────────────────────────
+# -- No Change Set imports -----------------------------------------------------
 
 def test_rule_modules_do_not_import_change_set():
     for module_name in _RULE_MODULES:
@@ -100,7 +100,7 @@ def test_rule_modules_do_not_import_change_set():
         )
 
 
-# ── No production app imports ─────────────────────────────────────────────────
+# -- No production app imports -------------------------------------------------
 
 def test_rule_modules_do_not_import_production_models():
     for module_name in _RULE_MODULES:
@@ -118,7 +118,7 @@ def test_rule_modules_do_not_import_production_database():
         )
 
 
-# ── No eval() or exec() calls in formula module ───────────────────────────────
+# -- No eval() or exec() calls in formula module -------------------------------
 
 def test_formula_module_does_not_use_eval():
     src = _source("app.a2.rules.formula")
@@ -138,7 +138,7 @@ def test_formula_module_does_not_use_exec():
         assert "exec(" not in line, f"formula.py must not call exec(): {line!r}"
 
 
-# ── Importable in isolation ────────────────────────────────────────────────────
+# -- Importable in isolation ----------------------------------------------------
 
 def test_rule_engine_importable():
     import app.a2.rules.formula    # noqa: F401
@@ -152,7 +152,7 @@ def test_repositories_importable():
     import app.a2.repositories.proposal_repository  # noqa: F401
 
 
-# ── Engine does not call external APIs ────────────────────────────────────────
+# -- Engine does not call external APIs ----------------------------------------
 
 def test_engine_does_not_call_nextcloud():
     src = _source("app.a2.rules.engine")
@@ -171,7 +171,7 @@ def test_engine_does_not_use_random():
     assert "import random" not in src, "RuleEngine must be deterministic (no random module)"
 
 
-# ── A2.3 must not reach forward into A2.4+ ───────────────────────────────────
+# -- A2.3 must not reach forward into A2.4+ -----------------------------------
 
 def test_rule_modules_do_not_import_safety_models():
     for module_name in _RULE_MODULES:

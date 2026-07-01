@@ -1,4 +1,4 @@
-// ── Health ────────────────────────────────────────────────────────────────────
+// -- Health --------------------------------------------------------------------
 
 export interface SystemHealth {
   status: 'ok' | 'degraded' | 'error'
@@ -7,7 +7,7 @@ export interface SystemHealth {
   checkedAt: Date
 }
 
-// ── Products ──────────────────────────────────────────────────────────────────
+// -- Products ------------------------------------------------------------------
 
 export type ProductSyncStatus = 'synced' | 'pending' | 'stale' | 'error'
 
@@ -42,7 +42,7 @@ export interface PaginatedResult<T> {
   configured?: boolean
 }
 
-// ── Sources ───────────────────────────────────────────────────────────────────
+// -- Sources -------------------------------------------------------------------
 
 export type SourceType = 'nextcloud_excel'
 export type SourceStatus = 'active' | 'error' | 'unconfigured'
@@ -72,7 +72,7 @@ export interface ConnectionTestResult {
   discoveredProductCount?: number
 }
 
-// ── Workspace ─────────────────────────────────────────────────────────────────
+// -- Workspace -----------------------------------------------------------------
 
 export type WorkspaceState = 'idle' | 'previewing' | 'preview_ready' | 'error'
 
@@ -99,7 +99,7 @@ export interface WorkspacePreview {
   duplicateWarnings?: string[]
 }
 
-// ── Settings ──────────────────────────────────────────────────────────────────
+// -- Settings ------------------------------------------------------------------
 
 export interface AppSettings {
   woocommerceUrl: string
@@ -112,7 +112,7 @@ export interface AppSettings {
   ncConfigured?: boolean
 }
 
-// ── Activity ──────────────────────────────────────────────────────────────────
+// -- Activity ------------------------------------------------------------------
 
 export type ActivityEventKind = 'user_action' | 'system_log'
 export type ActivityLevel = 'info' | 'success' | 'warning' | 'error'

@@ -125,7 +125,7 @@ export default function SourceWizard() {
 
       <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
 
-        {/* Step 1 — Select type */}
+        {/* Step 1 - Select type */}
         {step === 1 && (
           <div className="flex flex-col gap-4">
             <p className="text-[13px] text-wp-muted">Select the type of data source to connect.</p>
@@ -151,7 +151,7 @@ export default function SourceWizard() {
           </div>
         )}
 
-        {/* Step 2 — Configure */}
+        {/* Step 2 - Configure */}
         {step === 2 && (
           <div className="flex flex-col gap-4">
             {field('name', 'Source name', 'text', 'My Price List')}
@@ -172,13 +172,13 @@ export default function SourceWizard() {
                 className="flex-1 py-2 text-[13px] bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {testing && <Spinner size="sm" className="text-white" />}
-                {testing ? 'Testing…' : 'Test Connection'}
+                {testing ? 'Testing...' : 'Test Connection'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 3 — Test result / save */}
+        {/* Step 3 - Test result / save */}
         {step === 3 && (
           <div className="flex flex-col gap-4">
             {testResult?.success ? (
@@ -214,7 +214,7 @@ export default function SourceWizard() {
                   className="flex-1 py-2 text-[13px] bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {saving && <Spinner size="sm" className="text-white" />}
-                  {saving ? 'Saving…' : 'Save Source'}
+                  {saving ? 'Saving...' : 'Save Source'}
                 </button>
               )}
               {testResult && !testResult.success && (
@@ -230,7 +230,7 @@ export default function SourceWizard() {
           </div>
         )}
 
-        {/* Step 4 — Done */}
+        {/* Step 4 - Done */}
         {step === 4 && (
           <div className="flex flex-col items-center gap-5 py-4 text-center">
             <div className="w-14 h-14 rounded-full bg-wp-green/10 flex items-center justify-center">

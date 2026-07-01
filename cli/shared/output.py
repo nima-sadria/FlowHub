@@ -1,4 +1,4 @@
-"""FlowHub â€” CLI output utilities (Rich console)."""
+"""FlowHub - CLI output utilities (Rich console)."""
 
 from __future__ import annotations
 
@@ -27,28 +27,28 @@ def print_banner(profile: ConfigProfile | None = None) -> None:
 
 def print_production_warning() -> None:
     """Print strong PRODUCTION warning block."""
-    console.print("\n[bold red]" + "â”پ" * 56 + "[/bold red]")
-    console.print("[bold red]  âڑ   PRODUCTION PROFILE DETECTED  âڑ [/bold red]")
-    console.print("[bold red]" + "â”پ" * 56 + "[/bold red]")
+    console.print("\n[bold red]" + "=" * 56 + "[/bold red]")
+    console.print("[bold red]  ڑ   PRODUCTION PROFILE DETECTED  ڑ [/bold red]")
+    console.print("[bold red]" + "=" * 56 + "[/bold red]")
     console.print("[red]  Write operations are BLOCKED in the PRODUCTION profile.")
     console.print("  Only read-only diagnostics are permitted.[/red]\n")
 
 
 def print_error(message: str, suggestion: str | None = None) -> None:
     """Print a formatted error message with optional recovery suggestion."""
-    err_console.print(f"[bold red]âœ— Error:[/bold red] {message}")
+    err_console.print(f"[bold red]X Error:[/bold red] {message}")
     if suggestion:
         err_console.print(f"  [dim]{suggestion}[/dim]")
 
 
 def print_success(message: str) -> None:
     """Print a formatted success message."""
-    console.print(f"[bold green]âœ“[/bold green] {message}")
+    console.print(f"[bold green]OK[/bold green] {message}")
 
 
 def print_warning(message: str) -> None:
     """Print a formatted warning."""
-    console.print(f"[bold yellow]âڑ [/bold yellow]  {message}")
+    console.print(f"[bold yellow]ڑ [/bold yellow]  {message}")
 
 
 def print_info(message: str) -> None:
@@ -59,7 +59,7 @@ def print_info(message: str) -> None:
 def print_section(title: str) -> None:
     """Print a section divider."""
     console.print(f"\n[bold]{title}[/bold]")
-    console.print("  " + "â”€" * (len(title) + 2))
+    console.print("  " + "-" * (len(title) + 2))
 
 
 def make_table(title: str | None = None) -> Table:

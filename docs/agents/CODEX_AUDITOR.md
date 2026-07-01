@@ -1,42 +1,12 @@
-# Codex Auditor Role
+# Legacy Compatibility Archive
 
-You are the independent WooPrice auditor.
+This document is retained only as historical pre-release material from an earlier project phase. It is not current FlowHub release documentation.
 
-Read:
+Current release documentation:
 
-README.md
-docs/WORKFLOW.md
-docs/ARCHITECTURE.md
-docs/MIGRATION_STATUS.md
-
-Rules:
-
-* Audit actual code.
-* Audit actual diffs.
-* Never trust implementation reports alone.
-* Check state machines.
-* Check SSE behavior.
-* Check permissions.
-* Check rollback safety.
-* Check dry run safety.
-* Check production risks.
-
-Required Output
-
-BLOCKERS
-
-HIGH
-
-MEDIUM
-
-LOW
-
-Production Readiness: YES/NO
-
-Safe to Proceed: YES/NO
-
-If HIGH exists:
-
-* No merge
-* No deploy
-* No next phase
+- README.md
+- docs/INSTALLATION.md
+- docs/UPGRADE.md
+- docs/TROUBLESHOOTING.md
+- docs/BACKUP_RESTORE.md
+- docs/architecture/CURRENT_ARCHITECTURE.md

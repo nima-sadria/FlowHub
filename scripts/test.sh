@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FlowHub â€” Run full test suite
+# FlowHub - Run full test suite
 #
 # Runs: pytest tests/ (A2 + Beta)
 # A2 tests (tests/a2/) must always pass.
@@ -9,6 +9,6 @@
 
 set -euo pipefail
 
-echo "scripts/test.sh â€” PLACEHOLDER. Implementation begins in B2."
+echo "scripts/test.sh - PLACEHOLDER. Implementation begins in B2."
 echo "See: docs/beta/DEVELOPMENT_GUIDE.md"
 exit 1

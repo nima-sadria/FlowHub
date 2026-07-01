@@ -1,6 +1,6 @@
 """Tests for NextcloudConnector (connector.py + auth.py).
 
-All HTTP calls are mocked — no real Nextcloud required.
+All HTTP calls are mocked - no real Nextcloud required.
 """
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -20,7 +20,7 @@ _AUTH = AuthConfig(
     credentials={"url": "https://cloud.example.com", "username": "alice", "password": "s3cr3t"},
 )
 
-# ── auth.py tests ─────────────────────────────────────────────────────────────
+# -- auth.py tests -------------------------------------------------------------
 
 def test_extract_credentials_basic():
     creds = extract_credentials(_AUTH)
@@ -59,7 +59,7 @@ def test_extract_credentials_wrong_auth_type_raises():
     assert exc_info.value.code == ConnectorErrorCode.AUTH_FAILED
 
 
-# ── NextcloudConnector instantiation ─────────────────────────────────────────
+# -- NextcloudConnector instantiation -----------------------------------------
 
 def test_connector_id_and_type():
     nc = NextcloudConnector()
@@ -78,7 +78,7 @@ def test_capabilities():
     assert caps.can_watch_changes is False
 
 
-# ── connect / disconnect ──────────────────────────────────────────────────────
+# -- connect / disconnect ------------------------------------------------------
 
 def test_connect_stores_credentials():
     nc = NextcloudConnector()
@@ -112,7 +112,7 @@ def test_disconnect_clears_credentials():
     assert nc._creds is None
 
 
-# ── health ────────────────────────────────────────────────────────────────────
+# -- health --------------------------------------------------------------------
 
 def test_health_not_connected_returns_unhealthy():
     nc = NextcloudConnector()
@@ -163,7 +163,7 @@ def test_health_on_error_returns_unhealthy():
     assert result.status == HealthStatus.UNHEALTHY
 
 
-# ── test_connection ───────────────────────────────────────────────────────────
+# -- test_connection -----------------------------------------------------------
 
 def test_test_connection_ok():
     mock_info = OCSServerInfo(version="28.0.1", edition="", ocs_status_code=100)
@@ -201,7 +201,7 @@ def test_test_connection_auth_failure():
     assert "bad credentials" in result.message
 
 
-# ── list_folders / list_files ─────────────────────────────────────────────────
+# -- list_folders / list_files -------------------------------------------------
 
 _PROPFIND_RESOURCES = [
     MagicMock(href="/remote.php/dav/files/alice/docs/", is_collection=True),
@@ -260,7 +260,7 @@ def test_list_folders_not_connected_raises():
     assert exc_info.value.code == ConnectorErrorCode.UNKNOWN
 
 
-# ── get_metadata ──────────────────────────────────────────────────────────────
+# -- get_metadata --------------------------------------------------------------
 
 def test_get_metadata_delegates_to_webdav():
     nc = NextcloudConnector()
@@ -284,10 +284,10 @@ def test_get_metadata_delegates_to_webdav():
     assert meta["content_length"] == 1234
 
 
-# ── Isolation check ───────────────────────────────────────────────────────────
+# -- Isolation check -----------------------------------------------------------
 
 def test_no_direct_httpx_import_in_connector():
-    """connector.py must not import httpx — only webdav.py and ocs.py may do so."""
+    """connector.py must not import httpx - only webdav.py and ocs.py may do so."""
     import ast
     import pathlib
 
@@ -304,5 +304,5 @@ def test_no_direct_httpx_import_in_connector():
             )
             for name in names:
                 assert "httpx" not in (name or ""), (
-                    "connector.py must not import httpx directly — use webdav.py/ocs.py"
+                    "connector.py must not import httpx directly - use webdav.py/ocs.py"
                 )

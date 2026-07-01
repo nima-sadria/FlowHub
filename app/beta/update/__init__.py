@@ -1,4 +1,4 @@
-"""FlowHub â€” Version and Update Manager package.
+"""FlowHub - Version and Update Manager package.
 
 Implementation begins in B13.
 """

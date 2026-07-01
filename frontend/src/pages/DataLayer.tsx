@@ -3,7 +3,7 @@ import { useAuth } from '../auth'
 import { authFetch } from '../api/authFetch'
 import Spinner from '../components/loading/Spinner'
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Types ---------------------------------------------------------------------
 
 interface CacheStatus {
   initialized: boolean
@@ -84,10 +84,10 @@ interface ConnectorHealth {
   checked_at: string | null
 }
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Helpers -------------------------------------------------------------------
 
 function relTime(iso: string | null): string {
-  if (!iso) return 'â€”'
+  if (!iso) return '-'
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
   if (s < 5) return 'just now'
   if (s < 60) return `${s}s ago`
@@ -113,7 +113,7 @@ function statusDot(status: string) {
   return map[status] ?? 'bg-border'
 }
 
-// â”€â”€ Section components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Section components --------------------------------------------------------
 
 function SectionHeader({ title }: { title: string }) {
   return (
@@ -152,7 +152,7 @@ function Card({ children }: { children: React.ReactNode }) {
   )
 }
 
-// â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Main page -----------------------------------------------------------------
 
 export default function DataLayer() {
   const { authFetch: ctxAuthFetch } = useAuth()
@@ -192,7 +192,7 @@ export default function DataLayer() {
 
   useEffect(() => { void load() }, [load])
 
-  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Render ------------------------------------------------------------------
 
   const initialized = status?.initialized ?? false
 
@@ -204,7 +204,7 @@ export default function DataLayer() {
         <div>
           <h1 className="text-[22px] font-bold text-text-base">Data Layer</h1>
           <p className="text-[13px] text-wp-muted mt-0.5">
-            {checkedAt ? `Last checked ${relTime(checkedAt.toISOString())}` : 'Loadingâ€¦'}
+            {checkedAt ? `Last checked ${relTime(checkedAt.toISOString())}` : 'Loading...'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -224,7 +224,7 @@ export default function DataLayer() {
                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
               </svg>
             )}
-            {loading ? 'Loadingâ€¦' : 'Refresh'}
+            {loading ? 'Loading...' : 'Refresh'}
           </button>
         </div>
       </div>
@@ -252,14 +252,14 @@ export default function DataLayer() {
         <Row label="Mode" value="Read-only" dot="bg-wp-green" sub="FlowHub does not write to external connectors from this release" />
         <Row label="Apply" value="Blocked" dot="bg-border" sub="Price changes cannot be applied from this release" />
         <Row label="Scheduler" value="Not implemented" dot="bg-border" sub="Automatic background refresh is a future phase" />
-        <Row label="Data Layer version" value={status?.data_layer_version ?? 'â€”'} />
+        <Row label="Data Layer version" value={status?.data_layer_version ?? '-'} />
       </Card>
 
       {/* Product Cache */}
       <Card>
         <SectionHeader title="Product Cache" />
         {loading && !status ? (
-          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loadingâ€¦</div>
+          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading...</div>
         ) : status?.product_cache.initialized ? (
           <>
             <Row label="Total products" value={String(status.product_cache.total)} />
@@ -269,7 +269,7 @@ export default function DataLayer() {
             <Row label="Last fetched" value={relTime(status.product_cache.last_fetched_at)} />
           </>
         ) : (
-          <EmptyState message="Not initialized â€” browse Products to populate" />
+          <EmptyState message="Not initialized - browse Products to populate" />
         )}
       </Card>
 
@@ -277,14 +277,14 @@ export default function DataLayer() {
       <Card>
         <SectionHeader title="Source Snapshots" />
         {loading && !status ? (
-          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loadingâ€¦</div>
+          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading...</div>
         ) : status?.source_snapshots.initialized ? (
           <>
             <Row label="Snapshots" value={String(status.source_snapshots.total)} />
             <Row label="Last snapshot" value={relTime(status.source_snapshots.last_snapshot_at ?? null)} />
           </>
         ) : (
-          <EmptyState message="Not initialized â€” run a Workspace preview to populate" />
+          <EmptyState message="Not initialized - run a Workspace preview to populate" />
         )}
       </Card>
 
@@ -292,14 +292,14 @@ export default function DataLayer() {
       <Card>
         <SectionHeader title="Destination Snapshots" />
         {loading && !status ? (
-          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loadingâ€¦</div>
+          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading...</div>
         ) : status?.destination_snapshots.initialized ? (
           <>
             <Row label="Snapshots" value={String(status.destination_snapshots.total)} />
             <Row label="Last snapshot" value={relTime(status.destination_snapshots.last_snapshot_at ?? null)} />
           </>
         ) : (
-          <EmptyState message="Not initialized â€” destination snapshots populate with refresh jobs" />
+          <EmptyState message="Not initialized - destination snapshots populate with refresh jobs" />
         )}
       </Card>
 
@@ -307,7 +307,7 @@ export default function DataLayer() {
       <Card>
         <SectionHeader title="Connector Health" />
         {loading && connectorHealth.length === 0 ? (
-          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loadingâ€¦</div>
+          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading...</div>
         ) : connectorHealth.length > 0 ? (
           <>
             {status?.connector_health && (
@@ -332,7 +332,7 @@ export default function DataLayer() {
             ))}
           </>
         ) : (
-          <EmptyState message="Not initialized â€” connector health is recorded on first connection check" />
+          <EmptyState message="Not initialized - connector health is recorded on first connection check" />
         )}
       </Card>
 
@@ -340,7 +340,7 @@ export default function DataLayer() {
       <Card>
         <SectionHeader title="Connector Telemetry" />
         {loading && !status ? (
-          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loadingâ€¦</div>
+          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading...</div>
         ) : status?.connector_telemetry.initialized ? (
           <>
             <Row label="Connectors tracked" value={String(status.connector_telemetry.connectors_tracked ?? 0)} />
@@ -350,7 +350,7 @@ export default function DataLayer() {
             <Row label="Rows parsed" value={String(status.connector_telemetry.total_rows_parsed ?? 0)} />
           </>
         ) : (
-          <EmptyState message="Not initialized â€” telemetry accumulates as connectors are used" />
+          <EmptyState message="Not initialized - telemetry accumulates as connectors are used" />
         )}
       </Card>
 
@@ -358,7 +358,7 @@ export default function DataLayer() {
       <Card>
         <SectionHeader title="Refresh Queue" />
         {loading && jobs.length === 0 ? (
-          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loadingâ€¦</div>
+          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading...</div>
         ) : jobs.length > 0 ? (
           <>
             {status?.refresh_jobs && (
@@ -391,7 +391,7 @@ export default function DataLayer() {
             </div>
           </>
         ) : (
-          <EmptyState message="No refresh jobs â€” refresh queue is empty" />
+          <EmptyState message="No refresh jobs - refresh queue is empty" />
         )}
       </Card>
 
@@ -399,7 +399,7 @@ export default function DataLayer() {
       <Card>
         <SectionHeader title="Invalidation Events" />
         {loading && !status ? (
-          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loadingâ€¦</div>
+          <div className="flex items-center gap-2 py-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading...</div>
         ) : status?.invalidation_events.initialized ? (
           <Row
             label="Total events"
@@ -425,7 +425,7 @@ export default function DataLayer() {
         <SectionHeader title="Multi-Channel Readiness" />
         <p className="text-[12px] text-wp-muted mb-3">
           The Data Layer schema supports multiple connector types. Adding a new connector does not
-          require schema changes â€” it populates the same tables under a different connector_id.
+          require schema changes - it populates the same tables under a different connector_id.
         </p>
         {[
           ['WooCommerce', 'Destination connector', 'Current'],

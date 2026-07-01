@@ -24,7 +24,7 @@ export function useSSEStream(
     const source = new EventSource(url)
 
     source.onmessage = (e: MessageEvent) => {
-      if (gen !== genRef.current) return  // stale — superseded or already closed
+      if (gen !== genRef.current) return  // stale - superseded or already closed
       let data: unknown
       try {
         data = JSON.parse(String(e.data))

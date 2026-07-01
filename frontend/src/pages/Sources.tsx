@@ -7,7 +7,7 @@ import Empty from '../components/Empty'
 import { useNotification } from '../notifications/NotificationProvider'
 
 function relTime(d: Date | null): string {
-  if (!d) return '—'
+  if (!d) return '-'
   const s = Math.floor((Date.now() - d.getTime()) / 1000)
   if (s < 60) return 'just now'
   const m = Math.floor(s / 60)

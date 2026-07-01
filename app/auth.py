@@ -1,4 +1,4 @@
-"""WooPrice Beta — Authentication and authorization.
+"""FlowHub - Authentication and authorization.
 
 JWT-based authentication for all /api/v2/ and /api/beta/ endpoints.
 
@@ -12,12 +12,12 @@ Design:
 
 Auth flow:
     Request
-      → Auth Middleware (extract + validate JWT from Authorization: Bearer)
-      → Permission Guard (per-endpoint named permission check)
-      → Feature Flag Gate (per-endpoint flag check)
-      → Handler
+      -> Auth Middleware (extract + validate JWT from Authorization: Bearer)
+      -> Permission Guard (per-endpoint named permission check)
+      -> Feature Flag Gate (per-endpoint flag check)
+      -> Handler
 
-Implementation begins in B7 — Authentication Foundation.
+Implementation begins in B7 - Authentication Foundation.
 """
 
-# Implementation begins in B7 — Authentication Foundation.
+# Implementation begins in B7 - Authentication Foundation.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FlowHub â€” Main installer entry point
+# FlowHub - Main installer entry point
 #
 # One-command install (clean server, run as root):
 #   bash <(curl -Ls https://raw.githubusercontent.com/nima-sadria/FlowHub/main/installer/install.sh)
@@ -7,14 +7,13 @@
 # From a cloned repo:
 #   bash installer/install.sh [--install-dir <path>] [--dry-run] [--non-interactive]
 #
-# Idempotent: detects existing installations and offers upgrade/repair/reconfigure/exit.
+# Idempotent: detects existing installations and offers upgrade/repair/reinstall/exit.
 # Never overwrites an existing .env.beta without explicit confirmation.
 #
-    echo "  First public release"
 
 set -euo pipefail
 
-# â”€â”€ Bootstrap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Bootstrap -----------------------------------------------------------------
 # When invoked via  bash <(curl ...)  the script streams through a file
 # descriptor (/dev/fd/N).  dirname of that path does not contain lib/.
 # We detect this and enter bootstrap mode: install system deps, clone the
@@ -153,7 +152,7 @@ _bs_install_system_deps() {
     echo "  System packages installed."
 }
 
-# â”€â”€ Docker installation helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Docker installation helpers -----------------------------------------------
 # Defined before the bootstrap detection so both paths can use them.
 
 # Method 1: official Docker apt repository.
@@ -224,19 +223,19 @@ _docker_install_via_get_script() {
     echo "  Docker: installed and started (get.docker.com)"
 }
 
-# Final failure reporter â€” called when both methods fail.
+# Final failure reporter - called when both methods fail.
 _docker_install_report_failure() {
     echo "" >&2
-    echo "  â”€â”€ Docker Installation Failed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€" >&2
+    echo "  -- Docker Installation Failed --------------------------------------" >&2
     echo "  Both installation methods failed. Likely causes:" >&2
-    echo "    â€¢ download.docker.com returned HTTP 403/404 (CDN or geo block)" >&2
-    echo "    â€¢ Outbound HTTPS blocked by firewall or proxy" >&2
-    echo "    â€¢ OS codename not yet listed in Docker apt repository" >&2
+    echo "    - download.docker.com returned HTTP 403/404 (CDN or geo block)" >&2
+    echo "    - Outbound HTTPS blocked by firewall or proxy" >&2
+    echo "    - OS codename not yet listed in Docker apt repository" >&2
     echo "  Resolve connectivity, then manually install Docker:" >&2
     echo "    curl -fsSL https://get.docker.com | sh" >&2
     echo "    systemctl enable docker && systemctl start docker" >&2
     echo "  Then re-run: bash installer/install.sh" >&2
-    echo "  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€" >&2
+    echo "  --------------------------------------------------------------------" >&2
     return 1
 }
 
@@ -254,10 +253,8 @@ _bs_install_docker() {
 _bs_clone_or_pull() {
     _bs_migrate_legacy_install
     if [[ -d "${_FLOWHUB_INSTALL_DIR}/.git" ]]; then
-        echo "  Updating ${_FLOWHUB_INSTALL_DIR}..."
-        git -C "$_FLOWHUB_INSTALL_DIR" fetch --quiet origin
-        git -C "$_FLOWHUB_INSTALL_DIR" reset --hard "origin/${_FLOWHUB_BRANCH}"
-        echo "  Repo updated."
+        echo "  Existing FlowHub repository detected at ${_FLOWHUB_INSTALL_DIR}."
+        echo "  Handing off without changing files; the full installer will ask what to do."
     else
         echo "  Cloning FlowHub into ${_FLOWHUB_INSTALL_DIR}..."
         mkdir -p "$(dirname "$_FLOWHUB_INSTALL_DIR")"
@@ -268,14 +265,13 @@ _bs_clone_or_pull() {
 }
 
 # Bootstrap detection: when piped via bash <(curl ...), BASH_SOURCE[0] is
-# /dev/fd/N â€” its parent directory has no lib/checks.sh.
+# /dev/fd/N - its parent directory has no lib/checks.sh.
 if [[ ! -f "$(dirname "${BASH_SOURCE[0]:-NONE}")/lib/checks.sh" ]]; then
     echo ""
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
-    echo "  FlowHub â€” Bootstrap (one-command install)"
+    echo "========================================================"
+    echo "  FlowHub - Bootstrap (one-command install)"
     echo "  Install directory: ${_FLOWHUB_INSTALL_DIR}"
-    echo "  First public release"
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     echo ""
     _bs_require_root
     _bs_os_check
@@ -290,7 +286,7 @@ if [[ ! -f "$(dirname "${BASH_SOURCE[0]:-NONE}")/lib/checks.sh" ]]; then
         --install-dir "${_FLOWHUB_INSTALL_DIR}" "$@"
 fi
 
-# â”€â”€ Running from a proper repo checkout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Running from a proper repo checkout ---------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
@@ -317,7 +313,7 @@ source "${LIB_DIR}/admin.sh"
 # shellcheck source=installer/lib/uninstall.sh
 source "${LIB_DIR}/uninstall.sh"
 
-# â”€â”€ Docker auto-install (non-bootstrap path) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Docker auto-install (non-bootstrap path) ----------------------------------
 # Called by step_prerequisites() before run_prerequisite_checks().
 # Installs Docker Engine + Compose plugin on Ubuntu/Debian when missing.
 # No-op (with warning) if auto-install cannot run; hard-fails if both
@@ -328,16 +324,16 @@ _ensure_docker_installed() {
     fi
 
     echo ""
-    echo "  Docker not found â€” auto-installing Docker Engine + Compose plugin..."
+    echo "  Docker not found - auto-installing Docker Engine + Compose plugin..."
 
     if [[ "$(id -u)" -ne 0 ]]; then
-        echo "  WARNING: Not running as root â€” cannot auto-install Docker." >&2
+        echo "  WARNING: Not running as root - cannot auto-install Docker." >&2
         echo "  Install manually: https://docs.docker.com/engine/install/" >&2
         return 0  # let run_prerequisite_checks() report the [FAIL]
     fi
 
     if [[ ! -f /etc/os-release ]]; then
-        echo "  WARNING: Cannot detect OS â€” skipping Docker auto-install." >&2
+        echo "  WARNING: Cannot detect OS - skipping Docker auto-install." >&2
         return 0
     fi
     # shellcheck source=/dev/null
@@ -345,7 +341,7 @@ _ensure_docker_installed() {
     case "${ID:-}" in
         ubuntu|debian) ;;
         *)
-            echo "  WARNING: OS '${ID:-unknown}' not supported for auto-install â€” skipping." >&2
+            echo "  WARNING: OS '${ID:-unknown}' not supported for auto-install - skipping." >&2
             return 0
             ;;
     esac
@@ -411,7 +407,7 @@ INSTALLER_ENV_FILE="${INSTALL_DIR}/.env.beta"
 # there is no TTY to drive the wizard prompts. Fall back to non-interactive
 # mode with sane defaults instead of blocking forever on `read`.
 if [[ "$NON_INTERACTIVE" -eq 0 && ! -t 0 ]]; then
-    echo "  No interactive terminal detected â€” running non-interactively with defaults."
+    echo "  No interactive terminal detected - running non-interactively with defaults."
     NON_INTERACTIVE=1
 fi
 
@@ -558,21 +554,19 @@ trap 'on_error $LINENO' ERR
 
 print_banner() {
     echo ""
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     echo "  FlowHub Installer  v1.0.0-bu1"
-    echo "  First public release"
     echo ""
-    echo "  First public release"
-    echo "  Runs in complete isolation â€” no other installations are affected."
+    echo "  Runs in complete isolation - no other installations are affected."
     echo ""
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "  *** DRY-RUN MODE â€” No files will be written, no Docker started ***"
+        echo "  *** DRY-RUN MODE - No files will be written, no Docker started ***"
     fi
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
 }
 
 # ---------------------------------------------------------------------------
-# Idempotency â€” detect existing installation
+# Idempotency - detect existing installation
 # ---------------------------------------------------------------------------
 
 detect_existing_installation() {
@@ -589,17 +583,15 @@ handle_existing_installation() {
     echo "  1. Upgrade    - rebuild images, run migrations, restart services"
     echo "  2. Repair     - re-run prerequisite checks, migrations, and health verification"
     echo "  3. Reinstall  - regenerate configuration, rebuild, migrate, and restart"
-    echo "  4. Uninstall  - remove FlowHub containers, images, volumes, and files"
-    echo "  5. Exit"
+    echo "  4. Exit"
     echo ""
     local choice
-    read -r -p "  Enter choice [1-5]: " choice
+    read -r -p "  Enter choice [1-4]: " choice
     case "${choice:-}" in
         1) step_upgrade ;;
         2) step_repair ;;
         3) step_reconfigure ;;
-        4) step_uninstall ;;
-        5|"")
+        4|"")
             echo "  Exiting without changes."
             exit 0
             ;;
@@ -616,12 +608,21 @@ step_uninstall() {
     run_uninstall "$INSTALL_DIR"
 }
 
+step_update_repository() {
+    if [[ -d "${INSTALL_DIR}/.git" ]]; then
+        echo ""
+        echo "  Updating repository..."
+        git -C "$INSTALL_DIR" pull --ff-only origin main
+    fi
+}
+
 # ---- Upgrade path (keeps existing .env.beta) ----
 step_upgrade() {
     echo ""
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     echo "  Upgrade: rebuilding images and restarting services"
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
+    step_update_repository
     _load_env_for_docker
     step_docker_launch
     step_database_init
@@ -633,9 +634,9 @@ step_upgrade() {
 # ---- Repair path ----
 step_repair() {
     echo ""
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     echo "  Repair: re-checking prerequisites and health"
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     _load_env_for_docker
 
     # Verify .env.beta exists
@@ -669,22 +670,22 @@ step_repair() {
     local ssl_mode="${BETA_SSL_MODE:-off}"
     local public_url
     public_url="$(_build_public_url "$domain" "$port" "$ssl_mode")"
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     echo "  Repair complete."
     echo ""
     echo "  FlowHub is available at: ${public_url}"
     echo "  Setup wizard:            ${public_url}/setup"
     echo "  Sign in:                 ${public_url}/login"
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
 }
 
 # ---- Reconfigure path ----
 step_reconfigure() {
     echo ""
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     echo "  Reconfigure: wizard will regenerate .env.beta"
     echo "  EXISTING .env.beta WILL BE OVERWRITTEN after confirmation."
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     if [[ "$ACTION_REINSTALL" -ne 1 && "$NON_INTERACTIVE" -ne 1 && "${FLOWHUB_ASSUME_YES:-}" != "1" ]]; then
         local confirm
         read -r -p "  Continue? Secrets will be regenerated. [y/N]: " confirm
@@ -721,7 +722,7 @@ _load_env_for_docker() {
 
 step_prerequisites() {
     echo ""
-    echo "Step 1 â€” Prerequisite Checks"
+    echo "Step 1 - Prerequisite Checks"
     _ensure_docker_installed
     run_prerequisite_checks "$INSTALL_DIR"
 }
@@ -729,26 +730,26 @@ step_prerequisites() {
 step_wizard() {
     if [[ "$NON_INTERACTIVE" -eq 0 ]]; then
         echo ""
-        echo "Step 2 â€” Admin Account Setup"
+        echo "Step 2 - Admin Account Setup"
         run_wizard
         # Fill remaining BETA_* defaults not asked by the wizard
         apply_noninteractive_defaults
     else
         echo ""
-        echo "Step 2 â€” Non-interactive configuration (applying defaults)"
+        echo "Step 2 - Non-interactive configuration (applying defaults)"
         apply_noninteractive_defaults
     fi
 }
 
 step_secrets() {
     echo ""
-    echo "Step 3 â€” Secret Generation"
+    echo "Step 3 - Secret Generation"
     generate_all_secrets
 }
 
 step_env_file() {
     echo ""
-    echo "Step 4 â€” Environment File Generation"
+    echo "Step 4 - Environment File Generation"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  [DRY RUN] Would write: ${INSTALLER_ENV_FILE}"
         echo "  [DRY RUN] Would validate configuration using B3 ConfigValidator"
@@ -762,7 +763,7 @@ step_env_file() {
 
 step_storage() {
     echo ""
-    echo "Step 5 â€” Storage Directory Setup"
+    echo "Step 5 - Storage Directory Setup"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  [DRY RUN] Would create:"
         echo "  ${BETA_STORAGE_PATH:-/opt/FlowHub/storage}/{logs,config,plugins,uploads,diagnostics}"
@@ -778,13 +779,13 @@ step_storage() {
 
 step_toml_config() {
     echo ""
-    echo "Step 6 â€” Managed Configuration File"
+    echo "Step 6 - Managed Configuration File"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  [DRY RUN] Would write: ${BETA_STORAGE_PATH:-/opt/FlowHub/storage}/config/flowhub.toml"
         return
     fi
     # installer_core imports app.beta.config which requires Python deps installed
-    # on the host. Skip gracefully if not available â€” Docker stack uses .env.beta.
+    # on the host. Skip gracefully if not available - Docker stack uses .env.beta.
     if ! python3 - <<PYEOF 2>/dev/null
 import sys
 sys.path.insert(0, "${REPO_DIR}")
@@ -809,13 +810,13 @@ print(f"  Managed config written: {path}")
 PYEOF
     then
         echo "  NOTE: TOML config skipped (Python app dependencies not on host)."
-        echo "  Docker stack reads .env.beta directly â€” no impact on operation."
+        echo "  Docker stack reads .env.beta directly - no impact on operation."
     fi
 }
 
 step_compose_verify() {
     echo ""
-    echo "Step 7 â€” Docker Compose Verification"
+    echo "Step 7 - Docker Compose Verification"
     local compose_file="${INSTALL_DIR}/docker-compose.beta.yml"
     if [[ -f "$compose_file" ]]; then
         echo "  Compose file: ${compose_file}"
@@ -837,7 +838,7 @@ step_compose_verify() {
 
 step_docker_launch() {
     echo ""
-    echo "Step 8 â€” Docker Stack Launch"
+    echo "Step 8 - Docker Stack Launch"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  [DRY RUN] Would run: docker compose up -d --build"
         return
@@ -848,7 +849,7 @@ step_docker_launch() {
 
 step_database_init() {
     echo ""
-    echo "Step 9 â€” Database Initialization"
+    echo "Step 9 - Database Initialization"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  [DRY RUN] Would wait for PostgreSQL, then run: alembic -c alembic_beta.ini upgrade head"
         return
@@ -871,7 +872,7 @@ step_create_admin() {
 
 step_install_cli() {
     echo ""
-    echo "Step 10 â€” Install flowhub CLI"
+    echo "Step 10 - Install flowhub CLI"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  [DRY RUN] Would install: /usr/local/bin/flowhub"
         return
@@ -879,7 +880,7 @@ step_install_cli() {
     local wrapper_src="${REPO_DIR}/scripts/flowhub"
     local wrapper_dst="/usr/local/bin/flowhub"
     if [[ ! -f "$wrapper_src" ]]; then
-        echo "  WARNING: CLI wrapper not found at ${wrapper_src} â€” skipping" >&2
+        echo "  WARNING: CLI wrapper not found at ${wrapper_src} - skipping" >&2
         return
     fi
     if [[ -w "$(dirname "$wrapper_dst")" ]] || command -v sudo &>/dev/null; then
@@ -893,14 +894,14 @@ step_install_cli() {
         echo "  CLI installed: ${wrapper_dst}"
         echo "  Test with: flowhub --help"
     else
-        echo "  WARNING: Cannot write to $(dirname "$wrapper_dst") (no sudo) â€” CLI not installed"
+        echo "  WARNING: Cannot write to $(dirname "$wrapper_dst") (no sudo) - CLI not installed"
         echo "  Manual install: cp ${wrapper_src} ${wrapper_dst} && chmod +x ${wrapper_dst}"
     fi
 }
 
 step_health_check() {
     echo ""
-    echo "Step 11 â€” Health Verification"
+    echo "Step 11 - Health Verification"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  [DRY RUN] Would verify: http://localhost:${BETA_PORT:-8085}/api/health"
         return
@@ -912,7 +913,7 @@ step_health_check() {
 }
 
 # Build the user-facing public URL from domain, port, and SSL mode.
-# Reverse-proxy modes (manual/letsencrypt) do NOT include the port â€”
+# Reverse-proxy modes (manual/letsencrypt) do NOT include the port -
 # the internal port is an NPM upstream detail, not part of the public URL.
 _build_public_url() {
     local domain="${1:-localhost}"
@@ -936,9 +937,9 @@ _build_public_url() {
 
 step_completion_report() {
     echo ""
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "  FlowHub â€” Dry Run Complete"
+        echo "  FlowHub - Dry Run Complete"
         echo "  No files were written. No Docker was started."
         echo "  Review the output above for a preview of what would happen."
     else
@@ -948,21 +949,21 @@ step_completion_report() {
         local ssl_mode="${BETA_SSL_MODE:-off}"
         local public_url
         public_url="$(_build_public_url "$domain" "$port" "$ssl_mode")"
-        echo "  FlowHub â€” Installation Complete"
+        echo "  FlowHub - Installation Complete"
         echo ""
-        echo "  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”گ"
-        echo "  â”‚  Open your browser and complete setup:              â”‚"
-        echo "  â”‚                                                     â”‚"
-        echo "  â”‚    ${public_url}/setup"
-        echo "  â”‚                                                     â”‚"
-        echo "  â”‚  The web wizard will guide you through:             â”‚"
-        echo "  â”‚    â€¢ Server profile (domain, timezone, currency)    â”‚"
-        echo "  â”‚    â€¢ Database verification                          â”‚"
+        echo "  +-----------------------------------------------------+"
+        echo "  |  Open your browser and complete setup:              |"
+        echo "  |                                                     |"
+        echo "  |    ${public_url}/setup"
+        echo "  |                                                     |"
+        echo "  |  The web wizard will guide you through:             |"
+        echo "  |    - Server profile (domain, timezone, currency)    |"
+        echo "  |    - Database verification                          |"
         echo "  |    * Admin account and finish                       |"
-        echo "  â”‚                                                     â”‚"
-        echo "  â”‚  Admin username: ${BETA_ADMIN_USERNAME:-admin}"
-        echo "  â”‚  Sign in at:     ${public_url}/login"
-        echo "  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”ک"
+        echo "  |                                                     |"
+        echo "  |  Admin username: ${BETA_ADMIN_USERNAME:-admin}"
+        echo "  |  Sign in at:     ${public_url}/login"
+        echo "  +-----------------------------------------------------+"
         echo ""
         echo "  Public URL:           ${public_url}"
         echo "  Internal Docker Port: ${port}"
@@ -970,16 +971,16 @@ step_completion_report() {
         echo "  Health check:         ${public_url}/api/health"
         echo ""
         echo "  Management:"
-        echo "    flowhub              â€” interactive management menu"
-        echo "    flowhub status       â€” configuration status"
-        echo "    flowhub health       â€” local health checks"
-        echo "    flowhub diagnostics run â€” full integration check"
+        echo "    flowhub              - interactive management menu"
+        echo "    flowhub status       - configuration status"
+        echo "    flowhub health       - local health checks"
+        echo "    flowhub diagnostics run - full integration check"
         echo ""
         echo "  Docker:"
         echo "    docker compose -f ${INSTALL_DIR}/docker-compose.beta.yml ps"
         echo "    docker compose -f ${INSTALL_DIR}/docker-compose.beta.yml logs -f app"
     fi
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
 }
 
 # ---------------------------------------------------------------------------
@@ -1007,7 +1008,7 @@ main() {
         return
     fi
 
-    # Idempotency check â€” detect existing installation before starting.
+    # Idempotency check - detect existing installation before starting.
     # Non-interactive mode with an existing .env.beta defaults to upgrade to
     # avoid silently overwriting secrets without confirmation.
     if detect_existing_installation && [[ "$DRY_RUN" -eq 0 ]]; then

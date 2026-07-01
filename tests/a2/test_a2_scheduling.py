@@ -1,15 +1,15 @@
 """
-A2.8 — Scheduling Engine tests.
+A2.8 - Scheduling Engine tests.
 
 Covers:
   - Schedule creation: fields, initial state, max_attempts
   - Due schedule detection: SCHEDULED+due returns, PAUSED excluded, CANCELLED excluded
   - Lease acquisition: atomic claim, token mismatch fails, expired lease reclaim,
     heartbeat extends lease
-  - Run state transitions: PENDING → CLAIMED on claim
-  - Cancellation: schedule → CANCELLED, PENDING runs → CANCELLED
+  - Run state transitions: PENDING -> CLAIMED on claim
+  - Cancellation: schedule -> CANCELLED, PENDING runs -> CANCELLED
   - Retry/backoff: next_run_at set after failure, attempt_count incremented
-  - Max attempts: schedule → FAILED when attempt_count >= max_attempts
+  - Max attempts: schedule -> FAILED when attempt_count >= max_attempts
   - Dispatch: calls A2.7 ExecutionService, never bypasses A2.7, records execution_id,
     records error on failure
   - Stale lease detection: find_expired_leases returns past-expired leases
@@ -43,7 +43,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.a2.database import A2Base
 
-# Register all models with A2Base metadata (order: A2.1 → A2.8)
+# Register all models with A2Base metadata (order: A2.1 -> A2.8)
 import app.a2.models.canonical_product    # noqa: F401
 import app.a2.models.source               # noqa: F401
 import app.a2.models.snapshot             # noqa: F401
@@ -74,7 +74,7 @@ from app.a2.services.execution_service import (
 from app.a2.services.scheduler_service import SchedulerService
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -113,7 +113,7 @@ def execution_svc(db):
     return ExecutionService(db)
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# -- Helpers -------------------------------------------------------------------
 
 
 _CHANNEL = "WC"
@@ -193,7 +193,7 @@ def _make_schedule(
     )
 
 
-# ── TestScheduleCreation ──────────────────────────────────────────────────────
+# -- TestScheduleCreation ------------------------------------------------------
 
 
 class TestScheduleCreation:
@@ -209,7 +209,7 @@ class TestScheduleCreation:
         assert sched.next_run_at is None
 
 
-# ── TestDueScheduleDetection ──────────────────────────────────────────────────
+# -- TestDueScheduleDetection --------------------------------------------------
 
 
 class TestDueScheduleDetection:
@@ -244,7 +244,7 @@ class TestDueScheduleDetection:
         assert any(s.id == sched.id for s in due)
 
 
-# ── TestLeaseAcquisition ──────────────────────────────────────────────────────
+# -- TestLeaseAcquisition ------------------------------------------------------
 
 
 class TestLeaseAcquisition:
@@ -293,7 +293,7 @@ class TestLeaseAcquisition:
         assert updated.heartbeat_at >= original_expires - timedelta(seconds=60)
 
 
-# ── TestRunStateTransitions ───────────────────────────────────────────────────
+# -- TestRunStateTransitions ---------------------------------------------------
 
 
 class TestRunStateTransitions:
@@ -306,7 +306,7 @@ class TestRunStateTransitions:
         assert fresh_run.status == "CLAIMED"
 
 
-# ── TestCancellation ──────────────────────────────────────────────────────────
+# -- TestCancellation ----------------------------------------------------------
 
 
 class TestCancellation:
@@ -338,12 +338,12 @@ class TestCancellation:
         assert fresh_run.status == "SUCCEEDED"
 
 
-# ── TestRetryBackoff ──────────────────────────────────────────────────────────
+# -- TestRetryBackoff ----------------------------------------------------------
 
 
 class TestRetryBackoff:
     def test_retry_backoff_calculation(self, scheduler, execution_svc, db):
-        # BLOCK dry run → execution BLOCKED → dispatch FAILED → retry scheduled
+        # BLOCK dry run -> execution BLOCKED -> dispatch FAILED -> retry scheduled
         items = [_item()]
         sched = _make_schedule(
             scheduler, dry_run_result="BLOCK", dry_run_digest_verified=True,
@@ -366,7 +366,7 @@ class TestRetryBackoff:
         assert fresh.attempt_count == 1
 
     def test_max_attempts_failure(self, scheduler, execution_svc, db):
-        # max_attempts=1 → first failure immediately fails the schedule
+        # max_attempts=1 -> first failure immediately fails the schedule
         items = [_item()]
         sched = _make_schedule(
             scheduler, dry_run_result="BLOCK", dry_run_digest_verified=True,
@@ -385,12 +385,12 @@ class TestRetryBackoff:
         assert fresh.status == "FAILED"
 
 
-# ── TestDispatch ──────────────────────────────────────────────────────────────
+# -- TestDispatch --------------------------------------------------------------
 
 
 class TestDispatch:
     def test_dispatch_calls_execution_service(self, scheduler, execution_svc, db):
-        # Dispatch with valid inputs → execution is called and run.execution_id is set
+        # Dispatch with valid inputs -> execution is called and run.execution_id is set
         items = [_item()]
         sched = _make_schedule(scheduler, items=items)
         run = scheduler.create_run(sched.id)
@@ -402,13 +402,13 @@ class TestDispatch:
             adapter=DummyExecutionAdapter(),
             items=items,
         )
-        # execution_id is set — proves execution_service.execute() was called
+        # execution_id is set - proves execution_service.execute() was called
         assert result.execution_id is not None
         assert result.status == "SUCCEEDED"
 
     def test_dispatch_never_bypasses_a27(self, scheduler, execution_svc, db):
-        # BLOCK dry run → A2.7 validates and returns BLOCKED → dispatch records FAILED
-        # If scheduling bypassed A2.7, this would succeed — the FAILED proves A2.7 ran
+        # BLOCK dry run -> A2.7 validates and returns BLOCKED -> dispatch records FAILED
+        # If scheduling bypassed A2.7, this would succeed - the FAILED proves A2.7 ran
         items = [_item()]
         sched = _make_schedule(
             scheduler, dry_run_result="BLOCK", items=items, max_attempts=3
@@ -422,7 +422,7 @@ class TestDispatch:
             adapter=DummyExecutionAdapter(),
             items=items,
         )
-        # A2.7 blocked the execution — scheduling did not bypass it
+        # A2.7 blocked the execution - scheduling did not bypass it
         assert result.status == "FAILED"
 
     def test_dispatch_records_execution_id(self, scheduler, execution_svc, db):
@@ -461,7 +461,7 @@ class TestDispatch:
         assert len(fresh_run.error_message) > 0
 
 
-# ── TestStaleLeaseDetection ───────────────────────────────────────────────────
+# -- TestStaleLeaseDetection ---------------------------------------------------
 
 
 class TestStaleLeaseDetection:
@@ -497,7 +497,7 @@ class TestStaleLeaseDetection:
         assert fresh_run.status == "EXPIRED"
 
 
-# ── TestStateMachine ──────────────────────────────────────────────────────────
+# -- TestStateMachine ----------------------------------------------------------
 
 
 class TestStateMachine:
@@ -510,7 +510,7 @@ class TestStateMachine:
         sched = _make_schedule(scheduler)
         run = scheduler.create_run(sched.id)
         with pytest.raises(InvalidScheduleStateTransitionError):
-            repo.transition_run(run.id, "SUCCEEDED")  # PENDING → SUCCEEDED not allowed
+            repo.transition_run(run.id, "SUCCEEDED")  # PENDING -> SUCCEEDED not allowed
 
     def test_terminal_schedule_states_immutable(self, scheduler, repo):
         sched = _make_schedule(scheduler)
@@ -536,7 +536,7 @@ class TestStateMachine:
         assert repo.get_run(run.id).status == "SUCCEEDED"
 
 
-# ── TestMigration ─────────────────────────────────────────────────────────────
+# -- TestMigration -------------------------------------------------------------
 
 
 class TestMigration:
@@ -607,7 +607,7 @@ class TestMigration:
         assert new_tables == {"a2_schedules", "a2_schedule_runs", "a2_schedule_leases"}
 
 
-# ── TestIsolation ─────────────────────────────────────────────────────────────
+# -- TestIsolation -------------------------------------------------------------
 
 
 class TestIsolation:
@@ -631,21 +631,21 @@ class TestIsolation:
         for src in [self._service_src(), self._model_src(), self._repo_src()]:
             for forbidden in ["import woocommerce", "from woocommerce", "wc_api", "wcapi"]:
                 assert forbidden not in src.lower(), (
-                    f"Found {forbidden!r} — real WooCommerce imports prohibited in A2.8"
+                    f"Found {forbidden!r} - real WooCommerce imports prohibited in A2.8"
                 )
 
     def test_no_apply_imports(self):
         for src in [self._service_src(), self._model_src(), self._repo_src()]:
             for forbidden in ["apply_workflow", "workspace_apply", "ApplyWorkflow", "do_apply"]:
                 assert forbidden not in src, (
-                    f"Found {forbidden!r} — Apply Workflow must not be modified in A2.8"
+                    f"Found {forbidden!r} - Apply Workflow must not be modified in A2.8"
                 )
 
     def test_no_ui_imports(self):
         for src in [self._service_src(), self._model_src(), self._repo_src()]:
             for forbidden in ["from app.ui", "from app.frontend", "import React", "import Vue"]:
                 assert forbidden not in src, (
-                    f"Found {forbidden!r} — UI imports prohibited in A2.8"
+                    f"Found {forbidden!r} - UI imports prohibited in A2.8"
                 )
 
     def test_no_external_cron_or_background_daemon(self):
@@ -662,7 +662,7 @@ class TestIsolation:
                 "asyncio.create_task",
             ]:
                 assert forbidden not in src, (
-                    f"Found {forbidden!r} — external cron/daemon prohibited in A2.8"
+                    f"Found {forbidden!r} - external cron/daemon prohibited in A2.8"
                 )
 
     def test_no_a29_imports(self):
@@ -676,5 +676,5 @@ class TestIsolation:
                 "a2.9",
             ]:
                 assert forbidden not in src, (
-                    f"Found {forbidden!r} — A2.9 imports prohibited in A2.8"
+                    f"Found {forbidden!r} - A2.9 imports prohibited in A2.8"
                 )

@@ -2,26 +2,26 @@
 
 Two independent checks that enforce connector isolation for the FlowHub Beta runtime.
 
-──────────────────────────────────────────────────────────────────────────────
-TEST 1 — test_no_direct_httpx_in_beta_runtime()
+------------------------------------------------------------------------------
+TEST 1 - test_no_direct_httpx_in_beta_runtime()
   Scans the entire app/beta/ tree for any `import httpx` / `from httpx` statement.
   The only permitted file is app/beta/connections/adapters.py (generic transport
-  adapter for the installer / diagnostics B6 layer — not a WC/NC API client).
+  adapter for the installer / diagnostics B6 layer - not a WC/NC API client).
   All other Beta files that need HTTP go through app/connectors/.
 
-TEST 2 — test_legacy_services_not_imported_by_beta()
-  Confirms that the LEGACY WooPrice service layer (app/services/woocommerce.py,
+TEST 2 - test_legacy_services_not_imported_by_beta()
+  Confirms that the Legacy Compatibility service layer (app/services/woocommerce.py,
   app/services/nextcloud.py, app/services/auth.py) is NOT imported by any file
   in app/beta/. These legacy files make direct WC/NC httpx calls and are used
-  only by app/main.py (legacy WooPrice app on port 8000).
+  only by app/main.py (legacy compatibility app on legacy port 8000).
 
-──────────────────────────────────────────────────────────────────────────────
+------------------------------------------------------------------------------
 Out-of-scope (legitimately use httpx for non-Beta purposes):
-  app/connectors/         — the connector layer itself (httpx is expected here)
-  app/beta/connections/adapters.py — generic installer/B6 transport adapter
-  app/a2/                 — A2 source adapter phase (separate migration phase)
-  app/services/           — LEGACY WooPrice layer (not used by Beta runtime)
-  app/main.py             — LEGACY WooPrice app bootstrap
+  app/connectors/         - the connector layer itself (httpx is expected here)
+  app/beta/connections/adapters.py - generic installer/B6 transport adapter
+  app/a2/                 - A2 source adapter phase (separate migration phase)
+  app/services/           - Legacy Compatibility layer (not used by Beta runtime)
+  app/main.py             - Legacy Compatibility app bootstrap
 """
 import ast
 import pathlib
@@ -32,8 +32,8 @@ _BETA_DIR = _REPO_ROOT / "app" / "beta"
 # Permitted Beta file that uses httpx for non-WC/NC transport (installer / B6 diagnostics)
 _ADAPTERS_FILE = _BETA_DIR / "connections" / "adapters.py"
 
-# Legacy WooPrice service modules that make direct WC/NC HTTP calls.
-# These must remain isolated from app/beta/ — verified by TEST 2.
+# Legacy Compatibility service modules that make direct WC/NC HTTP calls.
+# These must remain isolated from app/beta/ - verified by TEST 2.
 _LEGACY_SERVICES = [
     "app.services.woocommerce",
     "app.services.nextcloud",
@@ -88,7 +88,7 @@ def _imported_modules(path: pathlib.Path) -> set[str]:
     return modules
 
 
-# ── TEST 1 ────────────────────────────────────────────────────────────────────
+# -- TEST 1 --------------------------------------------------------------------
 
 def test_no_direct_httpx_in_beta_runtime():
     """All of app/beta/ must be httpx-free, except the generic transport adapter.
@@ -100,7 +100,7 @@ def test_no_direct_httpx_in_beta_runtime():
     violations: list[str] = []
 
     for py_file in _collect_python_files(_BETA_DIR):
-        # Permitted exception — generic transport adapter, not a WC/NC API client
+        # Permitted exception - generic transport adapter, not a WC/NC API client
         if py_file.resolve() == _ADAPTERS_FILE.resolve():
             continue
         if _has_httpx_import(py_file):
@@ -111,20 +111,20 @@ def test_no_direct_httpx_in_beta_runtime():
         "The following app/beta/ files import httpx directly.\n"
         "All WC/NC HTTP calls must go through app/connectors/.\n"
         "The only permitted Beta httpx user is app/beta/connections/adapters.py "
-        "(generic installer transport — not a WC/NC client).\n"
+        "(generic installer transport - not a WC/NC client).\n"
         "Violations:\n"
         + "\n".join(f"  {v}" for v in sorted(violations))
     )
 
 
-# ── TEST 2 ────────────────────────────────────────────────────────────────────
+# -- TEST 2 --------------------------------------------------------------------
 
 def test_legacy_services_not_imported_by_beta():
-    """app/beta/ must not import any LEGACY WooPrice service module.
+    """app/beta/ must not import any Legacy Compatibility service module.
 
     app/services/woocommerce.py, app/services/nextcloud.py, and app/services/auth.py
     make direct httpx WC/NC calls and are used only by the legacy app/main.py
-    (WooPrice on port 8000).  They must never be imported by the FlowHub Beta
+    (FlowHub on legacy port 8000).  They must never be imported by the FlowHub Beta
     runtime (app/beta/app.py on port 8085).
     """
     violations: list[str] = []
@@ -137,7 +137,7 @@ def test_legacy_services_not_imported_by_beta():
                 violations.append(f"{rel} imports {legacy_module}")
 
     assert violations == [], (
-        "The following app/beta/ files import LEGACY WooPrice service modules.\n"
+        "The following app/beta/ files import Legacy Compatibility service modules.\n"
         "These modules make direct httpx WC/NC calls and must remain isolated to app/main.py.\n"
         "FlowHub Beta must use app/connectors/ or app/beta/integrations/ instead.\n"
         "Violations:\n"

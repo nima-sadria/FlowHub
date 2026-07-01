@@ -1,4 +1,4 @@
-"""FlowHub â€” flowhub adapters command group. Stub â€” B14."""
+"""FlowHub - flowhub adapters command group. Stub - B14."""
 
 import typer
 
@@ -9,29 +9,29 @@ _NOT_IMPLEMENTED = "Not implemented in this phase. Adapter management begins in 
 
 @app.command("list")
 def adapters_list() -> None:
-    """List installed adapters. [NOT IMPLEMENTED â€” B14]"""
+    """List installed adapters. [NOT IMPLEMENTED - B14]"""
     typer.echo(_NOT_IMPLEMENTED)
 
 
 @app.command("install")
 def adapters_install() -> None:
-    """Install an adapter plugin. [NOT IMPLEMENTED â€” B14]"""
+    """Install an adapter plugin. [NOT IMPLEMENTED - B14]"""
     typer.echo(_NOT_IMPLEMENTED)
 
 
 @app.command("enable")
 def adapters_enable() -> None:
-    """Enable an installed adapter. [NOT IMPLEMENTED â€” B14]"""
+    """Enable an installed adapter. [NOT IMPLEMENTED - B14]"""
     typer.echo(_NOT_IMPLEMENTED)
 
 
 @app.command("disable")
 def adapters_disable() -> None:
-    """Disable an active adapter. [NOT IMPLEMENTED â€” B14]"""
+    """Disable an active adapter. [NOT IMPLEMENTED - B14]"""
     typer.echo(_NOT_IMPLEMENTED)
 
 
 @app.command("remove")
 def adapters_remove() -> None:
-    """Uninstall an adapter. [NOT IMPLEMENTED â€” B14]"""
+    """Uninstall an adapter. [NOT IMPLEMENTED - B14]"""
     typer.echo(_NOT_IMPLEMENTED)

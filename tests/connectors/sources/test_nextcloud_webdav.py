@@ -1,6 +1,6 @@
 """Tests for the Nextcloud WebDAV client (webdav.py).
 
-All HTTP calls are mocked — no real Nextcloud required.
+All HTTP calls are mocked - no real Nextcloud required.
 """
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -23,7 +23,7 @@ _CREDS = NextcloudCredentials(
     password="secret",
 )
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# -- Helpers -------------------------------------------------------------------
 
 def _mock_response(status: int, text: str = "", content: bytes = b"") -> MagicMock:
     r = MagicMock()
@@ -64,7 +64,7 @@ _PROPFIND_207 = """\
 </d:multistatus>
 """
 
-# ── propfind_path tests ───────────────────────────────────────────────────────
+# -- propfind_path tests -------------------------------------------------------
 
 def test_propfind_returns_resources():
     mock_resp = _mock_response(207, text=_PROPFIND_207)
@@ -152,7 +152,7 @@ def test_propfind_connect_error_raises_network():
     assert exc_info.value.retryable is True
 
 
-# ── get_file tests ────────────────────────────────────────────────────────────
+# -- get_file tests ------------------------------------------------------------
 
 def test_get_file_returns_bytes_and_meta():
     content = b"PK fake xlsx bytes"
@@ -193,7 +193,7 @@ def test_get_file_403_raises_permission():
     assert exc_info.value.code == ConnectorErrorCode.PERMISSION
 
 
-# ── get_metadata tests ────────────────────────────────────────────────────────
+# -- get_metadata tests --------------------------------------------------------
 
 _PROPFIND_SINGLE = """\
 <?xml version="1.0"?>

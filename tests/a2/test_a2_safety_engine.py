@@ -1,5 +1,5 @@
 """
-A2.4 — Safety Policy Engine tests.
+A2.4 - Safety Policy Engine tests.
 
 Covers:
   - All policy types: percentage_change, missing_zero, extra_zero, historical_anomaly
@@ -44,16 +44,16 @@ import app.a2.models.source  # noqa: F401
 import app.a2.models.snapshot  # noqa: F401
 import app.a2.models.provenance  # noqa: F401
 import app.a2.models.checkpoint  # noqa: F401
-import app.a2.models.pricing_rule          # noqa: F401 — A2.3-R2
-import app.a2.models.pricing_rule_version  # noqa: F401 — A2.3-R2
-import app.a2.models.price_proposal        # noqa: F401 — A2.3-R2
+import app.a2.models.pricing_rule          # noqa: F401 - A2.3-R2
+import app.a2.models.pricing_rule_version  # noqa: F401 - A2.3-R2
+import app.a2.models.price_proposal        # noqa: F401 - A2.3-R2
 import app.a2.models.safety                # noqa: F401
 
 from app.a2.engines.safety_engine import EvaluationContext, SafetyEngine
 from app.a2.repositories.safety_repository import SafetyRepository
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -114,7 +114,7 @@ def _make_published_version(repo, db, policy_type: str, params: dict, mode: str 
     return policy, repo.get_published_version(version.id)
 
 
-# ── Default mode is WARN ──────────────────────────────────────────────────────
+# -- Default mode is WARN ------------------------------------------------------
 
 
 class TestDefaultPolicyMode:
@@ -129,14 +129,14 @@ class TestDefaultPolicyMode:
         _, version = _make_published_version(
             repo, db, "percentage_change", {"max_margin_pct": 10.0}, mode="WARN"
         )
-        ctx = _make_context(cost="100", proposed="500")  # 400% margin — exceeds limit
+        ctx = _make_context(cost="100", proposed="500")  # 400% margin - exceeds limit
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         assert report.results[0].outcome == "WARN"
         assert not report.is_blocked
 
 
-# ── Policy type: percentage_change ────────────────────────────────────────────
+# -- Policy type: percentage_change --------------------------------------------
 
 
 class TestPercentageChangePolicy:
@@ -144,7 +144,7 @@ class TestPercentageChangePolicy:
         _, version = _make_published_version(
             repo, db, "percentage_change", {"min_margin_pct": 10.0, "max_margin_pct": 200.0}
         )
-        ctx = _make_context(cost="100", proposed="150")  # 50% margin — within bounds
+        ctx = _make_context(cost="100", proposed="150")  # 50% margin - within bounds
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         assert report.results[0].outcome == "PASS"
@@ -153,7 +153,7 @@ class TestPercentageChangePolicy:
         _, version = _make_published_version(
             repo, db, "percentage_change", {"max_margin_pct": 100.0}, mode="WARN"
         )
-        ctx = _make_context(cost="100", proposed="500")  # 400% — exceeds 100%
+        ctx = _make_context(cost="100", proposed="500")  # 400% - exceeds 100%
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         result = report.results[0]
@@ -164,7 +164,7 @@ class TestPercentageChangePolicy:
         _, version = _make_published_version(
             repo, db, "percentage_change", {"min_margin_pct": 20.0}, mode="BLOCK"
         )
-        ctx = _make_context(cost="100", proposed="105")  # 5% margin — below 20%
+        ctx = _make_context(cost="100", proposed="105")  # 5% margin - below 20%
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         result = report.results[0]
@@ -191,7 +191,7 @@ class TestPercentageChangePolicy:
         assert "margin_pct" in report.results[0].evaluated_value
 
 
-# ── Policy type: missing_zero ─────────────────────────────────────────────────
+# -- Policy type: missing_zero -------------------------------------------------
 
 
 class TestMissingZeroPolicy:
@@ -199,7 +199,7 @@ class TestMissingZeroPolicy:
         _, version = _make_published_version(
             repo, db, "missing_zero", {"min_price_to_cost_ratio": 0.5}
         )
-        ctx = _make_context(cost="100", proposed="90")  # 0.9 ratio — above 0.5
+        ctx = _make_context(cost="100", proposed="90")  # 0.9 ratio - above 0.5
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         assert report.results[0].outcome == "PASS"
@@ -208,7 +208,7 @@ class TestMissingZeroPolicy:
         _, version = _make_published_version(
             repo, db, "missing_zero", {"min_price_to_cost_ratio": 0.5}, mode="BLOCK"
         )
-        ctx = _make_context(cost="100", proposed="10")  # 0.1 ratio — below 0.5
+        ctx = _make_context(cost="100", proposed="10")  # 0.1 ratio - below 0.5
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         result = report.results[0]
@@ -235,7 +235,7 @@ class TestMissingZeroPolicy:
         assert "price_to_cost_ratio" in report.results[0].evaluated_value
 
 
-# ── Policy type: extra_zero ───────────────────────────────────────────────────
+# -- Policy type: extra_zero ---------------------------------------------------
 
 
 class TestExtraZeroPolicy:
@@ -243,7 +243,7 @@ class TestExtraZeroPolicy:
         _, version = _make_published_version(
             repo, db, "extra_zero", {"max_price_to_cost_ratio": 10.0}
         )
-        ctx = _make_context(cost="100", proposed="150")  # 1.5 ratio — below 10
+        ctx = _make_context(cost="100", proposed="150")  # 1.5 ratio - below 10
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         assert report.results[0].outcome == "PASS"
@@ -252,7 +252,7 @@ class TestExtraZeroPolicy:
         _, version = _make_published_version(
             repo, db, "extra_zero", {"max_price_to_cost_ratio": 10.0}, mode="REQUIRE_OVERRIDE"
         )
-        ctx = _make_context(cost="100", proposed="2000")  # 20x ratio — above 10
+        ctx = _make_context(cost="100", proposed="2000")  # 20x ratio - above 10
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         result = report.results[0]
@@ -270,7 +270,7 @@ class TestExtraZeroPolicy:
         assert report.results[0].outcome == "PASS"
 
 
-# ── Policy type: historical_anomaly ──────────────────────────────────────────
+# -- Policy type: historical_anomaly ------------------------------------------
 
 
 class TestHistoricalAnomalyPolicy:
@@ -279,7 +279,7 @@ class TestHistoricalAnomalyPolicy:
             repo, db, "historical_anomaly",
             {"reference_price": 100.0, "max_deviation_pct": 30.0}
         )
-        ctx = _make_context(cost="80", proposed="120")  # 20% deviation from 100 — within 30%
+        ctx = _make_context(cost="80", proposed="120")  # 20% deviation from 100 - within 30%
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         assert report.results[0].outcome == "PASS"
@@ -290,7 +290,7 @@ class TestHistoricalAnomalyPolicy:
             {"reference_price": 100.0, "max_deviation_pct": 30.0},
             mode="WARN",
         )
-        ctx = _make_context(cost="80", proposed="200")  # 100% deviation from 100 — exceeds 30%
+        ctx = _make_context(cost="80", proposed="200")  # 100% deviation from 100 - exceeds 30%
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         result = report.results[0]
@@ -319,7 +319,7 @@ class TestHistoricalAnomalyPolicy:
         assert "deviation_pct" in report.results[0].evaluated_value
 
 
-# ── SafetyResult structure ─────────────────────────────────────────────────────
+# -- SafetyResult structure -----------------------------------------------------
 
 
 class TestSafetyResultStructure:
@@ -344,7 +344,7 @@ class TestSafetyResultStructure:
         _, version = _make_published_version(
             repo, db, "percentage_change", {"max_margin_pct": 200.0}
         )
-        ctx = _make_context(cost="100", proposed="150")  # 50% — within limit
+        ctx = _make_context(cost="100", proposed="150")  # 50% - within limit
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         result = report.results[0]
@@ -355,7 +355,7 @@ class TestSafetyResultStructure:
         _, version = _make_published_version(
             repo, db, "percentage_change", {"max_margin_pct": 20.0}
         )
-        ctx = _make_context(cost="100", proposed="500")  # 400% — exceeds 20%
+        ctx = _make_context(cost="100", proposed="500")  # 400% - exceeds 20%
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         result = report.results[0]
@@ -363,7 +363,7 @@ class TestSafetyResultStructure:
         assert result.evaluated_value is not None
 
 
-# ── Override framework ────────────────────────────────────────────────────────
+# -- Override framework --------------------------------------------------------
 
 
 class TestOverrideFramework:
@@ -381,7 +381,7 @@ class TestOverrideFramework:
         log = safety_engine.record_override(
             result.id,
             authorizing_user="manager@example.com",
-            justification="Confirmed correct — premium product launch price.",
+            justification="Confirmed correct - premium product launch price.",
         )
         db.commit()
 
@@ -430,7 +430,7 @@ class TestOverrideFramework:
         assert fetched.override_log[0].authorizing_user == "user-X"
 
 
-# ── EvaluationReport properties ───────────────────────────────────────────────
+# -- EvaluationReport properties -----------------------------------------------
 
 
 class TestEvaluationReport:
@@ -458,7 +458,7 @@ class TestEvaluationReport:
         _, version = _make_published_version(
             repo, db, "missing_zero", {"min_price_to_cost_ratio": 0.8}, mode="REQUIRE_OVERRIDE"
         )
-        ctx = _make_context(cost="100", proposed="10")  # 0.1 — below 0.8
+        ctx = _make_context(cost="100", proposed="10")  # 0.1 - below 0.8
         report = safety_engine.evaluate(ctx, [version])
         db.commit()
         assert report.requires_override
@@ -474,7 +474,7 @@ class TestEvaluationReport:
         assert len(report.results) == 3
 
 
-# ── Policy versioning ─────────────────────────────────────────────────────────
+# -- Policy versioning ---------------------------------------------------------
 
 
 class TestPolicyVersioning:
@@ -530,7 +530,7 @@ class TestPolicyVersioning:
         assert p2["max_margin_pct"] == 50.0
 
 
-# ── Scoping support ───────────────────────────────────────────────────────────
+# -- Scoping support -----------------------------------------------------------
 
 
 class TestScopingSupport:
@@ -619,7 +619,7 @@ class TestScopingSupport:
         assert len(versions) == 3
 
 
-# ── Repository safety result queries ─────────────────────────────────────────
+# -- Repository safety result queries -----------------------------------------
 
 
 class TestSafetyResultRepository:
@@ -684,7 +684,7 @@ class TestSafetyResultRepository:
         assert len(fetched.override_log) == 1
 
 
-# ── Alembic migration a2_003 ──────────────────────────────────────────────────
+# -- Alembic migration a2_003 --------------------------------------------------
 
 
 class TestAlembicMigrationA2003:
@@ -740,7 +740,7 @@ class TestAlembicMigrationA2003:
         assert "a2_safety_policies" not in tables
 
 
-# ── Isolation ─────────────────────────────────────────────────────────────────
+# -- Isolation -----------------------------------------------------------------
 
 
 class TestIsolation:

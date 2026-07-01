@@ -1,4 +1,4 @@
-"""A2.2 source adapter framework — initial schema
+"""A2.2 source adapter framework - initial schema
 
 Revision ID: a2_001
 Revises: a2_000

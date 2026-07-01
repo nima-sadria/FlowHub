@@ -1,10 +1,10 @@
 """Phase 7A regression tests.
 
 Covers remediation of:
-  HIGH 1   — Sheet coverage formula (numerator/denominator mismatch → >100%)
-  HIGH 2   — Daily chart counts failed Apply attempts (pre-write ChangeHistory rows)
-  MEDIUM 1 — Stock transition filter semantics, including NULL old-status/quantity
-  MEDIUM 2 — Tests call the actual functions used by the endpoints, not duplicate predicates
+  HIGH 1   - Sheet coverage formula (numerator/denominator mismatch -> >100%)
+  HIGH 2   - Daily chart counts failed Apply attempts (pre-write ChangeHistory rows)
+  MEDIUM 1 - Stock transition filter semantics, including NULL old-status/quantity
+  MEDIUM 2 - Tests call the actual functions used by the endpoints, not duplicate predicates
 
 Run directly (no pytest dependency):
     python tests/test_phase7a.py
@@ -39,7 +39,7 @@ from app.models import (  # noqa: E402
 )
 
 
-# ── Test-local DB (fresh in-memory instance per test) ─────────────────────────
+# -- Test-local DB (fresh in-memory instance per test) -------------------------
 
 def _make_db():
     eng = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
@@ -47,7 +47,7 @@ def _make_db():
     return sessionmaker(bind=eng)()
 
 
-# ── Test-data helpers ─────────────────────────────────────────────────────────
+# -- Test-data helpers ---------------------------------------------------------
 
 def _pc(db, wc_id: int, parent_id: int = 0) -> ProductCache:
     p = ProductCache(wc_id=wc_id, parent_id=parent_id, name=f"P{wc_id}", sku=f"SKU{wc_id}", product_type="simple")
@@ -87,10 +87,10 @@ def _ch(db, job, product_id: int, old_s=None, new_s: str = "instock",
     return row
 
 
-# ── HIGH 1: Sheet coverage formula — uses _compute_sheet_coverage ─────────────
+# -- HIGH 1: Sheet coverage formula - uses _compute_sheet_coverage -------------
 
 def test_coverage_normal_partial():
-    """3 of 5 top-level products covered → 60%."""
+    """3 of 5 top-level products covered -> 60%."""
     db = _make_db()
     for wc_id in range(1, 6):
         _pc(db, wc_id)
@@ -106,7 +106,7 @@ def test_coverage_normal_partial():
 
 
 def test_coverage_duplicate_sheet_ids_counted_once():
-    """Same product_id twice in SyncItems → counted once (DISTINCT)."""
+    """Same product_id twice in SyncItems -> counted once (DISTINCT)."""
     db = _make_db()
     _pc(db, 10)
     _pc(db, 11)
@@ -154,7 +154,7 @@ def test_coverage_never_exceeds_100():
     _pc(db, 40)
     job = _job(db)
     _item(db, job, 40)
-    _item(db, job, 41)  # not in cache — would push > 100 if counted
+    _item(db, job, 41)  # not in cache - would push > 100 if counted
     _item(db, job, 42)  # not in cache
     r = _compute_sheet_coverage(db, job)
     assert r["coverage_pct"] <= 100.0
@@ -173,13 +173,13 @@ def test_coverage_no_job_is_zero():
     print("test_coverage_no_job_is_zero: PASS")
 
 
-# ── HIGH 2: Daily chart success filtering — uses _query_confirmed_apply_rows ──
+# -- HIGH 2: Daily chart success filtering - uses _query_confirmed_apply_rows --
 
 _EPOCH = datetime(2000, 1, 1)   # start_dt older than any test row
 
 
 def test_successful_apply_included_in_chart():
-    """ChangeHistory + SyncItem(status=updated) → included by _query_confirmed_apply_rows."""
+    """ChangeHistory + SyncItem(status=updated) -> included by _query_confirmed_apply_rows."""
     db = _make_db()
     job = _job(db)
     _ch(db, job, 100)
@@ -190,7 +190,7 @@ def test_successful_apply_included_in_chart():
 
 
 def test_failed_apply_excluded_from_chart():
-    """Pre-write ChangeHistory row + SyncItem(status=failed) → excluded."""
+    """Pre-write ChangeHistory row + SyncItem(status=failed) -> excluded."""
     db = _make_db()
     job = _job(db)
     _ch(db, job, 101)
@@ -201,7 +201,7 @@ def test_failed_apply_excluded_from_chart():
 
 
 def test_no_syncitem_excluded_from_chart():
-    """ChangeHistory with no matching SyncItem at all → excluded."""
+    """ChangeHistory with no matching SyncItem at all -> excluded."""
     db = _make_db()
     job = _job(db)
     _ch(db, job, 102)
@@ -211,7 +211,7 @@ def test_no_syncitem_excluded_from_chart():
     print("test_no_syncitem_excluded_from_chart: PASS")
 
 
-# ── MEDIUM 1: Stock transition filters — use _apply_change_type_filter ─────────
+# -- MEDIUM 1: Stock transition filters - use _apply_change_type_filter ---------
 # Tests call the actual filter function used by /api/analytics/change-log.
 
 def _count(db, change_type: str) -> int:
@@ -223,7 +223,7 @@ def _count(db, change_type: str) -> int:
 # stock_in tests
 
 def test_null_to_instock_is_stock_in():
-    """NULL → instock must appear in stock_in (previously missed by != filter)."""
+    """NULL -> instock must appear in stock_in (previously missed by != filter)."""
     db = _make_db()
     job = _job(db)
     _ch(db, job, 200, old_s=None, new_s="instock")
@@ -232,7 +232,7 @@ def test_null_to_instock_is_stock_in():
 
 
 def test_outofstock_to_instock_is_stock_in():
-    """outofstock → instock must match stock_in."""
+    """outofstock -> instock must match stock_in."""
     db = _make_db()
     job = _job(db)
     _ch(db, job, 201, old_s="outofstock", new_s="instock")
@@ -252,7 +252,7 @@ def test_instock_price_update_not_stock_in():
 # stock_out tests
 
 def test_null_to_outofstock_is_stock_out():
-    """NULL → outofstock must appear in stock_out (previously missed by != filter)."""
+    """NULL -> outofstock must appear in stock_out (previously missed by != filter)."""
     db = _make_db()
     job = _job(db)
     _ch(db, job, 210, old_s=None, new_s="outofstock")
@@ -261,7 +261,7 @@ def test_null_to_outofstock_is_stock_out():
 
 
 def test_instock_to_outofstock_is_stock_out():
-    """instock → outofstock must match stock_out."""
+    """instock -> outofstock must match stock_out."""
     db = _make_db()
     job = _job(db)
     _ch(db, job, 211, old_s="instock", new_s="outofstock")
@@ -279,7 +279,7 @@ def test_outofstock_price_update_not_stock_out():
 
 
 def test_became_outofstock_not_counted_as_stock_in():
-    """instock → outofstock matches stock_out but NOT stock_in."""
+    """instock -> outofstock matches stock_out but NOT stock_in."""
     db = _make_db()
     job = _job(db)
     _ch(db, job, 213, old_s="instock", new_s="outofstock")
@@ -291,7 +291,7 @@ def test_became_outofstock_not_counted_as_stock_in():
 # stock_updated tests
 
 def test_null_qty_to_value_is_stock_updated():
-    """NULL quantity → 5 must appear in stock_updated (previously missed by != filter)."""
+    """NULL quantity -> 5 must appear in stock_updated (previously missed by != filter)."""
     db = _make_db()
     job = _job(db)
     _ch(db, job, 220, old_s="instock", new_s="instock", old_q=None, new_q=5)
@@ -300,7 +300,7 @@ def test_null_qty_to_value_is_stock_updated():
 
 
 def test_quantity_only_change_is_stock_updated():
-    """Same status, different quantity → must match stock_updated."""
+    """Same status, different quantity -> must match stock_updated."""
     db = _make_db()
     job = _job(db)
     _ch(db, job, 221, old_s="instock", new_s="instock", old_q=10, new_q=5)
@@ -309,7 +309,7 @@ def test_quantity_only_change_is_stock_updated():
 
 
 def test_price_only_change_not_stock_updated():
-    """Same status, same quantity → must NOT match stock_updated."""
+    """Same status, same quantity -> must NOT match stock_updated."""
     db = _make_db()
     job = _job(db)
     _ch(db, job, 222, old_s="instock", new_s="instock", old_q=10, new_q=10)
@@ -326,7 +326,7 @@ def test_status_change_is_stock_updated():
     print("test_status_change_is_stock_updated: PASS")
 
 
-# ── Entry point for direct execution ─────────────────────────────────────────
+# -- Entry point for direct execution -----------------------------------------
 
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
@@ -336,5 +336,5 @@ if __name__ == "__main__":
             fn()
             passed += 1
         except Exception as exc:
-            print(f"{fn.__name__}: FAIL — {exc}")
+            print(f"{fn.__name__}: FAIL - {exc}")
     print(f"\n{passed}/{len(fns)} passed")

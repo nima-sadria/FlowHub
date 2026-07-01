@@ -12,4 +12,4 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=sqlite:////app/data/wooprice.db
+      - DATABASE_URL=sqlite:////app/data/flowhub.db

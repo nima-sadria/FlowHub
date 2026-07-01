@@ -1,6 +1,6 @@
 """Tests for the WooCommerce REST client (rest_client.py).
 
-All HTTP calls are mocked — no real WooCommerce store required.
+All HTTP calls are mocked - no real WooCommerce store required.
 """
 import asyncio
 import json
@@ -45,7 +45,7 @@ _SAMPLE_PRODUCT = {
 }
 
 
-# ── list_products ─────────────────────────────────────────────────────────────
+# -- list_products -------------------------------------------------------------
 
 def test_list_products_returns_list():
     mock_resp = _mock_json_response(200, [_SAMPLE_PRODUCT])
@@ -127,7 +127,7 @@ def test_list_products_connect_error_raises_network():
     assert exc_info.value.retryable is True
 
 
-# ── get_product ───────────────────────────────────────────────────────────────
+# -- get_product ---------------------------------------------------------------
 
 def test_get_product_returns_dict():
     mock_resp = _mock_json_response(200, _SAMPLE_PRODUCT)
@@ -161,7 +161,7 @@ def test_get_product_404_raises_not_found():
     assert exc_info.value.code == ConnectorErrorCode.NOT_FOUND
 
 
-# ── ping ──────────────────────────────────────────────────────────────────────
+# -- ping ----------------------------------------------------------------------
 
 def test_ping_returns_reachable():
     mock_resp = _mock_json_response(200, [_SAMPLE_PRODUCT])

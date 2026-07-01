@@ -1,4 +1,4 @@
-"""FlowHub â€” flowhub update command group. Stub â€” B15."""
+"""FlowHub - flowhub update command group. Stub - B15."""
 
 import typer
 
@@ -9,11 +9,11 @@ _NOT_IMPLEMENTED = "Not implemented in this phase. Update system begins in B15 (
 
 @app.command("check")
 def update_check() -> None:
-    """Check for available updates. [NOT IMPLEMENTED â€” B15]"""
+    """Check for available updates. [NOT IMPLEMENTED - B15]"""
     typer.echo(_NOT_IMPLEMENTED)
 
 
 @app.command("apply")
 def update_apply() -> None:
-    """Apply an update. [NOT IMPLEMENTED â€” B15]"""
+    """Apply an update. [NOT IMPLEMENTED - B15]"""
     typer.echo(_NOT_IMPLEMENTED)

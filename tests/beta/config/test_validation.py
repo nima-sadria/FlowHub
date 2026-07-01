@@ -204,6 +204,21 @@ class TestConfigValidatorFull:
         result = validator.validate(valid_env)
         assert result.is_valid, result.format_errors()
 
+    def test_connector_credentials_are_optional_at_startup(self, valid_env):
+        for key in [
+            "BETA_NEXTCLOUD_URL",
+            "BETA_NEXTCLOUD_FILE_PATH",
+            "BETA_NEXTCLOUD_USERNAME",
+            "BETA_NEXTCLOUD_PASSWORD",
+            "BETA_WOOCOMMERCE_URL",
+            "BETA_WOOCOMMERCE_KEY",
+            "BETA_WOOCOMMERCE_SECRET",
+        ]:
+            valid_env[key] = ""
+        validator = ConfigValidator(check_paths=False)
+        result = validator.validate(valid_env)
+        assert result.is_valid, result.format_errors()
+
     def test_missing_required_field_adds_error(self, valid_env):
         del valid_env["BETA_DOMAIN"]
         validator = ConfigValidator(check_paths=False)

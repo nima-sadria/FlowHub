@@ -25,7 +25,7 @@ from app.beta.setup import models as _setup_models  # noqa: F401
 from app.beta.data_layer import models as _dl_models  # noqa: F401
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 @pytest.fixture()
 def db_engine():
@@ -91,7 +91,7 @@ def auth_headers(client, db):
     return {"Authorization": f"Bearer {r.json()['token']}"}
 
 
-# ── Auth guard tests ──────────────────────────────────────────────────────────
+# -- Auth guard tests ----------------------------------------------------------
 
 class TestDataLayerAuth:
     def test_status_requires_auth(self, client):
@@ -113,7 +113,7 @@ class TestDataLayerAuth:
         assert client.get("/api/v2/data-layer/invalidation-events").status_code == 401
 
 
-# ── Empty-state responses ─────────────────────────────────────────────────────
+# -- Empty-state responses -----------------------------------------------------
 
 class TestDataLayerEmptyState:
     def test_status_returns_200(self, client, auth_headers):
@@ -177,7 +177,7 @@ class TestDataLayerEmptyState:
         assert data["items"] == []
 
 
-# ── Service layer tests ───────────────────────────────────────────────────────
+# -- Service layer tests -------------------------------------------------------
 
 class TestProductReadModelService:
     def test_empty_status(self, db):
@@ -362,7 +362,7 @@ class TestInvalidationService:
         assert items[0]["entity_type"] == "product"
 
 
-# ── No write paths to external systems ───────────────────────────────────────
+# -- No write paths to external systems ---------------------------------------
 
 class TestNoWritePaths:
     """Verify the data-layer router never imports or calls WC/NC write methods."""

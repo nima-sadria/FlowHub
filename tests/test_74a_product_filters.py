@@ -1,42 +1,42 @@
-"""Project 7.4A — Tests for new /api/products filter parameters.
+"""Project 7.4A - Tests for new /api/products filter parameters.
 
 Covers the get_page() additions:
-  F1  — stock_status filter: instock only
-  F2  — stock_status filter: outofstock only
-  F3  — price_status has_price: filters out empty-price products
-  F4  — price_status no_price: returns only empty-price products
-  F5  — category_ids OR filter: returns products in any of the given categories
-  F6  — category_ids OR filter: does NOT return products outside the given categories
-  F7  — quality_filter missing_sku
-  F8  — quality_filter missing_image
-  F9  — sort newest: last_synced_at DESC
-  F10 — sort name_asc: alphabetical
-  F11 — /api/products endpoint accepts new query params (HTTP integration)
-  F12 — category_ids with multiple IDs uses OR logic
+  F1  - stock_status filter: instock only
+  F2  - stock_status filter: outofstock only
+  F3  - price_status has_price: filters out empty-price products
+  F4  - price_status no_price: returns only empty-price products
+  F5  - category_ids OR filter: returns products in any of the given categories
+  F6  - category_ids OR filter: does NOT return products outside the given categories
+  F7  - quality_filter missing_sku
+  F8  - quality_filter missing_image
+  F9  - sort newest: last_synced_at DESC
+  F10 - sort name_asc: alphabetical
+  F11 - /api/products endpoint accepts new query params (HTTP integration)
+  F12 - category_ids with multiple IDs uses OR logic
 
 R1 (7.4A R1 remediation):
-  V1  — stock_status=all returns all products (no filter)
-  V2  — price_status=all returns all products (no filter)
-  V3  — stock_status=all is safe in get_page() (no spurious DB predicate)
-  V4  — price_status=all is safe in get_page() (no spurious DB predicate)
-  V5  — invalid stock_status returns HTTP 422
-  V6  — invalid price_status returns HTTP 422
-  V7  — invalid sort returns HTTP 422
-  V8  — invalid quality_filter returns HTTP 422
-  V9  — invalid product_type returns HTTP 422
+  V1  - stock_status=all returns all products (no filter)
+  V2  - price_status=all returns all products (no filter)
+  V3  - stock_status=all is safe in get_page() (no spurious DB predicate)
+  V4  - price_status=all is safe in get_page() (no spurious DB predicate)
+  V5  - invalid stock_status returns HTTP 422
+  V6  - invalid price_status returns HTTP 422
+  V7  - invalid sort returns HTTP 422
+  V8  - invalid quality_filter returns HTTP 422
+  V9  - invalid product_type returns HTTP 422
 
-R2 (7.4A R2 remediation) — MEDIUM 3: price filter matches displayed price (final_price || regular_price):
-  M1  — final_price only → has_price
-  M2  — regular_price only → has_price
-  M3  — both populated → has_price
-  M4  — both missing → no_price
-  M5  — stock + price combination filter works correctly
-  M6  — pagination total counts are correct across both filter values
+R2 (7.4A R2 remediation) - MEDIUM 3: price filter matches displayed price (final_price || regular_price):
+  M1  - final_price only -> has_price
+  M2  - regular_price only -> has_price
+  M3  - both populated -> has_price
+  M4  - both missing -> no_price
+  M5  - stock + price combination filter works correctly
+  M6  - pagination total counts are correct across both filter values
 
-R2 (7.4A R2 remediation) — LOW: deterministic sort secondary key:
-  L1  — identical last_synced_at: secondary wc_id DESC breaks ties for newest
-  L2  — identical names: secondary wc_id ASC breaks ties for name_asc
-  L3  — page boundaries are stable with deterministic sort
+R2 (7.4A R2 remediation) - LOW: deterministic sort secondary key:
+  L1  - identical last_synced_at: secondary wc_id DESC breaks ties for newest
+  L2  - identical names: secondary wc_id ASC breaks ties for name_asc
+  L3  - page boundaries are stable with deterministic sort
 """
 import json
 import os
@@ -66,7 +66,7 @@ from app.services.product_cache import get_page
 
 Base.metadata.create_all(bind=engine)
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 WC_IDS = [97001, 97002, 97003, 97004, 97005]
 _HTTP_USER = "http_user_74a"
@@ -95,7 +95,7 @@ def seed(db):
     db.query(ProductCache).filter(ProductCache.wc_id.in_(WC_IDS)).delete()
     db.commit()
 
-    # AppUser for HTTP integration tests — permission_version=0 matches token pv=0
+    # AppUser for HTTP integration tests - permission_version=0 matches token pv=0
     db.query(AppUser).filter(AppUser.username == _HTTP_USER).delete()
     db.commit()
     http_user = AppUser(
@@ -168,13 +168,13 @@ def seed(db):
     db.commit()
 
 
-# ── Helper ────────────────────────────────────────────────────────────────────
+# -- Helper --------------------------------------------------------------------
 
 def ids(items) -> set:
     return {it["wc_id"] for it in items}
 
 
-# ── F1: stock_status instock ──────────────────────────────────────────────────
+# -- F1: stock_status instock --------------------------------------------------
 
 def test_filter_stock_instock(db):
     items, total = get_page(db, limit=100, stock_status="instock")
@@ -186,7 +186,7 @@ def test_filter_stock_instock(db):
     assert 97004 not in result, "Beta-Red (outofstock) must NOT be returned"
 
 
-# ── F2: stock_status outofstock ───────────────────────────────────────────────
+# -- F2: stock_status outofstock -----------------------------------------------
 
 def test_filter_stock_outofstock(db):
     items, _ = get_page(db, limit=100, stock_status="outofstock")
@@ -196,7 +196,7 @@ def test_filter_stock_outofstock(db):
     assert 97001 not in result
 
 
-# ── F3: price_status has_price ────────────────────────────────────────────────
+# -- F3: price_status has_price ------------------------------------------------
 
 def test_filter_price_has_price(db):
     items, _ = get_page(db, limit=100, price_status="has_price")
@@ -205,10 +205,10 @@ def test_filter_price_has_price(db):
     assert 97002 in result, "Beta has price"
     assert 97004 in result, "Beta-Red has price"
     assert 97005 in result, "Delta has price"
-    assert 97003 not in result, "Gamma has empty price — must be excluded"
+    assert 97003 not in result, "Gamma has empty price - must be excluded"
 
 
-# ── F4: price_status no_price ─────────────────────────────────────────────────
+# -- F4: price_status no_price -------------------------------------------------
 
 def test_filter_price_no_price(db):
     items, _ = get_page(db, limit=100, price_status="no_price")
@@ -218,7 +218,7 @@ def test_filter_price_no_price(db):
     assert 97002 not in result
 
 
-# ── F5: category_ids OR — returns products in given categories ────────────────
+# -- F5: category_ids OR - returns products in given categories ----------------
 
 def test_filter_category_ids_returns_matching(db):
     items, _ = get_page(db, limit=100, category_ids=[10])
@@ -227,7 +227,7 @@ def test_filter_category_ids_returns_matching(db):
     assert 97003 in result, "Gamma is in categories 10 and 30"
 
 
-# ── F6: category_ids OR — excludes products outside the categories ────────────
+# -- F6: category_ids OR - excludes products outside the categories ------------
 
 def test_filter_category_ids_excludes_others(db):
     items, _ = get_page(db, limit=100, category_ids=[20])
@@ -238,7 +238,7 @@ def test_filter_category_ids_excludes_others(db):
     assert 97005 not in result, "Delta has no categories"
 
 
-# ── F12: category_ids OR — multiple IDs use OR logic ─────────────────────────
+# -- F12: category_ids OR - multiple IDs use OR logic -------------------------
 
 def test_filter_category_ids_or_logic(db):
     items, _ = get_page(db, limit=100, category_ids=[10, 20])
@@ -247,10 +247,10 @@ def test_filter_category_ids_or_logic(db):
     assert 97002 in result, "Beta (cat 20)"
     assert 97003 in result, "Gamma (cat 10 and 30)"
     assert 97004 in result, "Beta-Red (cat 20)"
-    assert 97005 not in result, "Delta has no categories → excluded"
+    assert 97005 not in result, "Delta has no categories -> excluded"
 
 
-# ── F7: quality_filter missing_sku ───────────────────────────────────────────
+# -- F7: quality_filter missing_sku -------------------------------------------
 
 def test_filter_quality_missing_sku(db):
     items, _ = get_page(db, limit=100, quality_filter="missing_sku")
@@ -261,7 +261,7 @@ def test_filter_quality_missing_sku(db):
     assert 97003 not in result, "Gamma has SKU-G"
 
 
-# ── F8: quality_filter missing_image ─────────────────────────────────────────
+# -- F8: quality_filter missing_image -----------------------------------------
 
 def test_filter_quality_missing_image(db):
     items, _ = get_page(db, limit=100, quality_filter="missing_image")
@@ -272,7 +272,7 @@ def test_filter_quality_missing_image(db):
     assert 97003 not in result, "Gamma has image"
 
 
-# ── F9: sort newest ───────────────────────────────────────────────────────────
+# -- F9: sort newest -----------------------------------------------------------
 
 def test_sort_newest_first(db):
     items, _ = get_page(db, limit=10, sort="newest")
@@ -283,15 +283,15 @@ def test_sort_newest_first(db):
     )
 
 
-# ── F10: sort name_asc ────────────────────────────────────────────────────────
+# -- F10: sort name_asc --------------------------------------------------------
 
 def test_sort_name_asc(db):
     items, _ = get_page(db, limit=100, sort="name_asc")
     names = [it["name"] for it in items if it["wc_id"] in WC_IDS]
-    assert names == sorted(names), f"Expected A→Z order, got: {names}"
+    assert names == sorted(names), f"Expected A->Z order, got: {names}"
 
 
-# ── F11: HTTP integration — /api/products accepts new params ─────────────────
+# -- F11: HTTP integration - /api/products accepts new params -----------------
 
 def test_api_products_new_params(client):
     # Use a DB user with can_fetch=True (seeded in the module fixture).
@@ -332,7 +332,7 @@ def test_api_products_new_params(client):
     assert 97002 in wc_ids
 
 
-# ── V1: stock_status=all returns all products (no filter) ─────────────────────
+# -- V1: stock_status=all returns all products (no filter) ---------------------
 
 def test_stock_all_returns_all_products(db):
     items_all, total_all = get_page(db, limit=1000, stock_status="all")
@@ -343,7 +343,7 @@ def test_stock_all_returns_all_products(db):
     )
 
 
-# ── V2: price_status=all returns all products (no filter) ─────────────────────
+# -- V2: price_status=all returns all products (no filter) ---------------------
 
 def test_price_all_returns_all_products(db):
     items_all, total_all = get_page(db, limit=1000, price_status="all")
@@ -354,7 +354,7 @@ def test_price_all_returns_all_products(db):
     )
 
 
-# ── V3: stock_status=all never creates a spurious DB predicate ────────────────
+# -- V3: stock_status=all never creates a spurious DB predicate ----------------
 
 def test_stock_all_not_spurious_predicate(db):
     """stock_status='all' must not search for a literal stock_status='all' value."""
@@ -363,11 +363,11 @@ def test_stock_all_not_spurious_predicate(db):
     # All seeded products must appear (they have instock/outofstock, never 'all')
     for wc_id in WC_IDS:
         assert wc_id in ids_result, (
-            f"wc_id={wc_id} was excluded by stock_status='all' — spurious predicate suspected"
+            f"wc_id={wc_id} was excluded by stock_status='all' - spurious predicate suspected"
         )
 
 
-# ── V4: price_status=all never creates a spurious DB predicate ───────────────
+# -- V4: price_status=all never creates a spurious DB predicate ---------------
 
 def test_price_all_not_spurious_predicate(db):
     """price_status='all' must not filter; all products must be returned."""
@@ -378,7 +378,7 @@ def test_price_all_not_spurious_predicate(db):
     )
 
 
-# ── V5: invalid stock_status → HTTP 422 ───────────────────────────────────────
+# -- V5: invalid stock_status -> HTTP 422 ---------------------------------------
 
 def test_invalid_stock_status_returns_422(client):
     tok = create_token(_HTTP_USER, permission_version=0, role="user")
@@ -389,7 +389,7 @@ def test_invalid_stock_status_returns_422(client):
     )
 
 
-# ── V6: invalid price_status → HTTP 422 ───────────────────────────────────────
+# -- V6: invalid price_status -> HTTP 422 ---------------------------------------
 
 def test_invalid_price_status_returns_422(client):
     tok = create_token(_HTTP_USER, permission_version=0, role="user")
@@ -400,7 +400,7 @@ def test_invalid_price_status_returns_422(client):
     )
 
 
-# ── V7: invalid sort → HTTP 422 ───────────────────────────────────────────────
+# -- V7: invalid sort -> HTTP 422 -----------------------------------------------
 
 def test_invalid_sort_returns_422(client):
     tok = create_token(_HTTP_USER, permission_version=0, role="user")
@@ -411,7 +411,7 @@ def test_invalid_sort_returns_422(client):
     )
 
 
-# ── V8: invalid quality_filter → HTTP 422 ────────────────────────────────────
+# -- V8: invalid quality_filter -> HTTP 422 ------------------------------------
 
 def test_invalid_quality_filter_returns_422(client):
     tok = create_token(_HTTP_USER, permission_version=0, role="user")
@@ -422,7 +422,7 @@ def test_invalid_quality_filter_returns_422(client):
     )
 
 
-# ── V9: invalid product_type → HTTP 422 ──────────────────────────────────────
+# -- V9: invalid product_type -> HTTP 422 --------------------------------------
 
 def test_invalid_product_type_returns_422(client):
     tok = create_token(_HTTP_USER, permission_version=0, role="user")
@@ -433,7 +433,7 @@ def test_invalid_product_type_returns_422(client):
     )
 
 
-# ── MEDIUM 3 fixtures ─────────────────────────────────────────────────────────
+# -- MEDIUM 3 fixtures ---------------------------------------------------------
 
 M3_WC_IDS = [97011, 97012, 97013, 97014, 97015]
 
@@ -444,7 +444,7 @@ def m3_db(db):
     db.query(ProductCache).filter(ProductCache.wc_id.in_(M3_WC_IDS)).delete()
     db.commit()
     rows = [
-        # 97011: final_price only (regular_price empty) → has_price via final_price
+        # 97011: final_price only (regular_price empty) -> has_price via final_price
         ProductCache(
             wc_id=97011, parent_id=0, product_type="simple",
             name="M3 Final Only", sku="M3-A",
@@ -452,7 +452,7 @@ def m3_db(db):
             regular_price="", final_price="100000",
             categories="[]", last_synced_at=_now(), last_seen_at=_now(), cache_version=1,
         ),
-        # 97012: regular_price only (final_price empty) → has_price via regular_price
+        # 97012: regular_price only (final_price empty) -> has_price via regular_price
         ProductCache(
             wc_id=97012, parent_id=0, product_type="simple",
             name="M3 Regular Only", sku="M3-B",
@@ -460,7 +460,7 @@ def m3_db(db):
             regular_price="200000", final_price="",
             categories="[]", last_synced_at=_now(), last_seen_at=_now(), cache_version=1,
         ),
-        # 97013: both populated → has_price
+        # 97013: both populated -> has_price
         ProductCache(
             wc_id=97013, parent_id=0, product_type="simple",
             name="M3 Both Prices", sku="M3-C",
@@ -468,7 +468,7 @@ def m3_db(db):
             regular_price="90000", final_price="85000",
             categories="[]", last_synced_at=_now(), last_seen_at=_now(), cache_version=1,
         ),
-        # 97014: both missing → no_price
+        # 97014: both missing -> no_price
         ProductCache(
             wc_id=97014, parent_id=0, product_type="simple",
             name="M3 No Price", sku="M3-D",
@@ -493,7 +493,7 @@ def m3_db(db):
     db.commit()
 
 
-# ── M1: final_price only → has_price ─────────────────────────────────────────
+# -- M1: final_price only -> has_price -----------------------------------------
 
 def test_m3_final_price_only_is_has_price(db, m3_db):
     items, _ = get_page(db, limit=1000, price_status="has_price")
@@ -503,7 +503,7 @@ def test_m3_final_price_only_is_has_price(db, m3_db):
     assert 97015 not in result, "final=None, regular='' must NOT be in has_price"
 
 
-# ── M2: regular_price only → has_price ───────────────────────────────────────
+# -- M2: regular_price only -> has_price ---------------------------------------
 
 def test_m3_regular_price_only_is_has_price(db, m3_db):
     items, _ = get_page(db, limit=1000, price_status="has_price")
@@ -511,7 +511,7 @@ def test_m3_regular_price_only_is_has_price(db, m3_db):
     assert 97012 in result, "regular_price only must be included in has_price"
 
 
-# ── M3: both populated → has_price ───────────────────────────────────────────
+# -- M3: both populated -> has_price -------------------------------------------
 
 def test_m3_both_populated_is_has_price(db, m3_db):
     items, _ = get_page(db, limit=1000, price_status="has_price")
@@ -519,7 +519,7 @@ def test_m3_both_populated_is_has_price(db, m3_db):
     assert 97013 in result, "both prices populated must be in has_price"
 
 
-# ── M4: both missing → no_price ──────────────────────────────────────────────
+# -- M4: both missing -> no_price ----------------------------------------------
 
 def test_m3_both_missing_is_no_price(db, m3_db):
     items, _ = get_page(db, limit=1000, price_status="no_price")
@@ -531,7 +531,7 @@ def test_m3_both_missing_is_no_price(db, m3_db):
     assert 97013 not in result, "both prices present must NOT be in no_price"
 
 
-# ── M5: stock + price combination filter ─────────────────────────────────────
+# -- M5: stock + price combination filter -------------------------------------
 
 def test_m3_stock_and_price_combination(db, m3_db):
     # instock products that have no price
@@ -549,7 +549,7 @@ def test_m3_stock_and_price_combination(db, m3_db):
     assert 97014 not in result2, "no_price must be excluded"
 
 
-# ── M6: pagination totals remain correct with new price logic ─────────────────
+# -- M6: pagination totals remain correct with new price logic -----------------
 
 def test_m3_pagination_total_consistent(db, m3_db):
     _, total_has = get_page(db, limit=1000, price_status="has_price")
@@ -560,7 +560,7 @@ def test_m3_pagination_total_consistent(db, m3_db):
     )
 
 
-# ── LOW: deterministic sort fixtures ─────────────────────────────────────────
+# -- LOW: deterministic sort fixtures -----------------------------------------
 
 L_WC_IDS = [97021, 97022, 97023, 97024]
 _SHARED_TS = _now() - timedelta(hours=10)
@@ -572,7 +572,7 @@ def l_db(db):
     db.query(ProductCache).filter(ProductCache.wc_id.in_(L_WC_IDS)).delete()
     db.commit()
     rows = [
-        # 97021 and 97022 share the same last_synced_at — tie must break by wc_id DESC for newest
+        # 97021 and 97022 share the same last_synced_at - tie must break by wc_id DESC for newest
         ProductCache(
             wc_id=97021, parent_id=0, product_type="simple",
             name="L TieBreak Name", sku="L-A",
@@ -611,7 +611,7 @@ def l_db(db):
     db.commit()
 
 
-# ── L1: identical timestamps — wc_id DESC breaks tie for newest sort ──────────
+# -- L1: identical timestamps - wc_id DESC breaks tie for newest sort ----------
 
 def test_low_identical_ts_newest_tie_break(db, l_db):
     items, _ = get_page(db, limit=1000, sort="newest")
@@ -624,7 +624,7 @@ def test_low_identical_ts_newest_tie_break(db, l_db):
     )
 
 
-# ── L2: identical names — wc_id ASC breaks tie for name_asc sort ─────────────
+# -- L2: identical names - wc_id ASC breaks tie for name_asc sort -------------
 
 def test_low_identical_names_name_asc_tie_break(db, l_db):
     items, _ = get_page(db, limit=1000, sort="name_asc")
@@ -637,7 +637,7 @@ def test_low_identical_names_name_asc_tie_break(db, l_db):
     )
 
 
-# ── L3: page boundaries stable with deterministic sort ────────────────────────
+# -- L3: page boundaries stable with deterministic sort ------------------------
 
 def test_low_page_boundaries_stable(db, l_db):
     # Fetch two pages of size 2 and verify no wc_id appears on both pages

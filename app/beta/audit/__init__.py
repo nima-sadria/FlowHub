@@ -1,4 +1,4 @@
-"""FlowHub â€” Audit Logger package.
+"""FlowHub - Audit Logger package.
 
 Implementation begins in B10.
 """

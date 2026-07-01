@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FlowHub â€” Prerequisite checks
+# FlowHub - Prerequisite checks
 #
 # Source this file from install.sh. Call run_prerequisite_checks().
 # Prints PASS/FAIL for each check. Returns 1 if any check fails.
@@ -111,9 +111,9 @@ run_prerequisite_checks() {
     local install_dir="${1:-}"
     CHECKS_FAILED=0
 
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     echo "  Prerequisite Checks"
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     check_system_requirements "${install_dir:-/}"
     check_python_version
     check_docker_command
@@ -122,7 +122,7 @@ run_prerequisite_checks() {
     if [[ -n "$install_dir" ]]; then
         check_write_permission "$install_dir"
     fi
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
 
     if [[ "$CHECKS_FAILED" -ne 0 ]]; then
         echo "  ERROR: One or more prerequisite checks failed."

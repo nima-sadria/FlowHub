@@ -1,4 +1,4 @@
-"""Project 7.3B — Capability limitation vs connectivity failure tests.
+"""Project 7.3B - Capability limitation vs connectivity failure tests.
 
 Verifies that a WooCommerce API capability limitation (modified_after unsupported)
 is clearly distinguished from a real connectivity/runtime failure in both the
@@ -27,7 +27,7 @@ import app.main as main_module  # noqa: E402
 _SRC = inspect.getsource(main_module.fetch_light_stream)
 
 
-# ── Payload semantics ──────────────────────────────────────────────────────────
+# -- Payload semantics ----------------------------------------------------------
 
 def test_capability_guard_emits_capability_error_field():
     """The capability-limited SSE payload must include the `capability_error` JSON key.
@@ -61,7 +61,7 @@ def test_capability_guard_clarifies_not_connectivity_issue():
     )
 
 
-# ── Admin override ─────────────────────────────────────────────────────────────
+# -- Admin override -------------------------------------------------------------
 
 def test_admin_override_requires_explicit_admin_check():
     """force_capability must check is_admin before allowing the override path.
@@ -98,7 +98,7 @@ def test_admin_override_logs_warning():
     )
 
 
-# ── Fallthrough: true failures remain failures ─────────────────────────────────
+# -- Fallthrough: true failures remain failures ---------------------------------
 
 def test_true_runtime_failure_path_exists_separately_from_capability_error():
     """CACHE_ERROR / generic error handling must exist independently of the
@@ -120,7 +120,7 @@ def test_capability_error_field_is_true_not_a_generic_flag():
     )
 
 
-# ── Health endpoint service separation ─────────────────────────────────────────
+# -- Health endpoint service separation -----------------------------------------
 
 def test_health_endpoint_returns_services_dict():
     """The /api/health endpoint must return a 'services' dict with at minimum

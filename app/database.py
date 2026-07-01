@@ -7,13 +7,13 @@ from sqlalchemy.pool import StaticPool
 from .config import get_settings
 
 # The exact URL produced by _default_database_url() on Windows.
-_WIN_LOCAL_URL = "sqlite:///./data/wooprice-local.db"
+_WIN_LOCAL_URL = "sqlite:///./data/flowhub-local.db"
 
 
 def _ensure_local_db_dir(db_url: str) -> None:
     """Create data/ only for the Windows local-dev fallback URL.
 
-    All other URLs — Docker absolute paths, Linux defaults, :memory: — must
+    All other URLs - Docker absolute paths, Linux defaults, :memory: - must
     not trigger automatic directory creation; those environments either manage
     their own directories or should fail fast if misconfigured.
     """

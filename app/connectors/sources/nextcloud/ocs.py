@@ -4,8 +4,8 @@ THIS IS THE ONLY MODULE PERMITTED TO MAKE OCS API CALLS.
 No other FlowHub module may call /ocs/ endpoints directly.
 
 Supported operations (read-only):
-  - check_server_info()  — verify OCS API is reachable and get server version
-  - check_user_quota()   — confirm the authenticated user exists and is active
+  - check_server_info()  - verify OCS API is reachable and get server version
+  - check_user_quota()   - confirm the authenticated user exists and is active
 
 OCS API reference: https://docs.nextcloud.com/server/latest/developer_manual/client_apis/OCS/
 """

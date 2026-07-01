@@ -22,7 +22,7 @@ Defaults for EXISTING operator rows (backfilled at migration time via server_def
         -- and bump permission_version to invalidate live tokens.
 
 Public-by-design route: /api/products/{wc_id}/thumb
-    This route has no authentication. It exposes only JPEG thumbnails — no
+    This route has no authentication. It exposes only JPEG thumbnails - no
     price, stock, or catalogue data. Marked public so the browser workspace
     table can load images without token forwarding. Rate limiting may be
     added in a future deployment if abuse is detected.

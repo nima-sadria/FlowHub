@@ -1,4 +1,4 @@
-"""FlowHub â€” Configuration Core public API.
+"""FlowHub - Configuration Core public API.
 
 All consumers (backend, CLI, installer, tests, worker) import from here.
 No web framework, database, or external service dependency anywhere in this package.

@@ -1,4 +1,4 @@
-"""Project 7.1 — Admin Permissions + Maintenance Break Mode tests.
+"""Project 7.1 - Admin Permissions + Maintenance Break Mode tests.
 
 Coverage:
   1.  SUPER_ADMIN_USERS=woo,admin gives both users super admin access
@@ -17,7 +17,7 @@ import os
 import sys
 from datetime import datetime
 
-# Set env vars before any app import — get_settings() is @lru_cache'd.
+# Set env vars before any app import - get_settings() is @lru_cache'd.
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("NEXTCLOUD_URL", "http://example.invalid")
 os.environ.setdefault("NEXTCLOUD_USER", "x")
@@ -39,7 +39,7 @@ from app.database import SessionLocal  # noqa: E402
 from app.models import AppSetting, AppUser, AuditLog  # noqa: E402
 
 
-# ── Fixtures & helpers ────────────────────────────────────────────────────────
+# -- Fixtures & helpers --------------------------------------------------------
 
 @pytest.fixture(scope="module")
 def client():
@@ -48,7 +48,7 @@ def client():
 
 
 def _super_headers() -> dict:
-    """JWT for testadmin — listed in SUPER_ADMIN_USERS, bypasses all DB checks."""
+    """JWT for testadmin - listed in SUPER_ADMIN_USERS, bypasses all DB checks."""
     token = create_token("testadmin", permission_version=0, role="admin")
     return {"Authorization": f"Bearer {token}"}
 
@@ -110,7 +110,7 @@ def _get_maintenance_enabled() -> bool:
         db.close()
 
 
-# ── 1. SUPER_ADMIN_USERS config ───────────────────────────────────────────────
+# -- 1. SUPER_ADMIN_USERS config -----------------------------------------------
 
 class TestSuperAdminConfig:
     def test_super_admin_env_configures_multiple_users(self):
@@ -149,7 +149,7 @@ class TestSuperAdminConfig:
         assert "admin" in parsed
 
 
-# ── 2. Existing permissions preserved ────────────────────────────────────────
+# -- 2. Existing permissions preserved ----------------------------------------
 
 class TestExistingPermissions:
     def test_existing_user_permissions_preserved_on_patch(self, client: TestClient):
@@ -163,7 +163,7 @@ class TestExistingPermissions:
         finally:
             db.close()
 
-        # Patch only notes — no permission fields supplied
+        # Patch only notes - no permission fields supplied
         r = client.patch(
             "/api/admin/app-users/permtest71",
             json={"notes": "updated by test"},
@@ -215,7 +215,7 @@ class TestExistingPermissions:
         assert "listtest71" in usernames
 
 
-# ── 3–4. Maintenance mode toggle ─────────────────────────────────────────────
+# -- 3-4. Maintenance mode toggle ---------------------------------------------
 
 class TestMaintenanceModeToggle:
     def test_super_admin_can_enable_maintenance(self, client: TestClient):
@@ -258,11 +258,11 @@ class TestMaintenanceModeToggle:
         token = create_token("dbadmin_user", permission_version=0, role="admin")
         headers = {"Authorization": f"Bearer {token}"}
         r = client.get("/api/admin/maintenance", headers=headers)
-        # This user is not a super admin — gets 403
+        # This user is not a super admin - gets 403
         assert r.status_code == 403
 
 
-# ── 5–6. Maintenance blocking ─────────────────────────────────────────────────
+# -- 5-6. Maintenance blocking -------------------------------------------------
 
 class TestMaintenanceBlocking:
     def test_normal_user_blocked_during_maintenance(self, client: TestClient):
@@ -305,7 +305,7 @@ class TestMaintenanceBlocking:
             _set_maintenance(False)
 
 
-# ── 9. Maintenance message ────────────────────────────────────────────────────
+# -- 9. Maintenance message ----------------------------------------------------
 
 class TestMaintenanceMessage:
     def test_maintenance_message_in_503_body(self, client: TestClient):
@@ -356,7 +356,7 @@ class TestMaintenanceMessage:
             _set_maintenance(False)
 
 
-# ── 10. Existing auth flow ────────────────────────────────────────────────────
+# -- 10. Existing auth flow ----------------------------------------------------
 
 class TestAuthFlowUnaffected:
     def test_auth_me_accessible_during_maintenance(self, client: TestClient):
@@ -373,7 +373,7 @@ class TestAuthFlowUnaffected:
         """/api/auth/login is exempt from maintenance blocking (POST with any body reaches the handler)."""
         _set_maintenance(True)
         try:
-            # POST reaches the handler; Nextcloud returns 503/error — but that's the Nextcloud error,
+            # POST reaches the handler; Nextcloud returns 503/error - but that's the Nextcloud error,
             # not the maintenance block. A maintenance block would return our custom 503 with
             # maintenance=True; a Nextcloud error has a different body.
             r = client.post(
@@ -393,7 +393,7 @@ class TestAuthFlowUnaffected:
         assert r.status_code == 200
 
 
-# ── Maintenance audit logging ─────────────────────────────────────────────────
+# -- Maintenance audit logging -------------------------------------------------
 
 class TestMaintenanceAuditLog:
     def test_enable_maintenance_creates_audit_record(self, client: TestClient):
@@ -438,7 +438,7 @@ class TestMaintenanceAuditLog:
             db.close()
 
 
-# ── M1: Explicit is_super_admin field ────────────────────────────────────────
+# -- M1: Explicit is_super_admin field ----------------------------------------
 
 def _seed_db_admin(username: str = "dbadmin71") -> None:
     """Create a DB admin user who is NOT in SUPER_ADMIN_USERS (idempotent)."""
@@ -526,7 +526,7 @@ class TestIsSuperAdminField:
             _set_maintenance(False)
 
 
-# ── M2: Live maintenance activation response shape ────────────────────────────
+# -- M2: Live maintenance activation response shape ----------------------------
 
 class TestLiveMaintenanceActivation:
     def test_503_maintenance_block_has_maintenance_true_field(self, client: TestClient):
@@ -544,7 +544,7 @@ class TestLiveMaintenanceActivation:
 
     def test_503_maintenance_block_has_detail_message(self, client: TestClient):
         """M2: The 503 body includes detail so authFetch can update user.maintenance.message."""
-        msg = "Deployment in progress — back in 10 minutes."
+        msg = "Deployment in progress - back in 10 minutes."
         _set_maintenance(True, msg)
         try:
             r = client.get("/api/alarm-settings", headers=_user_headers())
@@ -566,10 +566,10 @@ class TestLiveMaintenanceActivation:
                 "A non-maintenance 503 must not have maintenance=true"
             )
         except Exception:
-            pass  # non-JSON response is also fine — no maintenance flag is present
+            pass  # non-JSON response is also fine - no maintenance flag is present
 
     def test_super_admin_503_not_triggered_during_maintenance(self, client: TestClient):
-        """M2: Super admin never receives a maintenance 503 — authFetch on super admin is unaffected."""
+        """M2: Super admin never receives a maintenance 503 - authFetch on super admin is unaffected."""
         _set_maintenance(True, "Only normal users should see this")
         try:
             r = client.get("/api/admin/app-users", headers=_super_headers())
@@ -578,19 +578,19 @@ class TestLiveMaintenanceActivation:
             _set_maintenance(False)
 
 
-# ── Part A (7.2): Query param token bypass ────────────────────────────────────
+# -- Part A (7.2): Query param token bypass ------------------------------------
 
 class TestQueryParamBypass:
     """Project 7.2 Part A: maintenance bypass must work via ?token= query param.
     SSE endpoints (EventSource API) cannot set custom headers, so they pass the
-    JWT as a query parameter — the middleware must honour this for super admins."""
+    JWT as a query parameter - the middleware must honour this for super admins."""
 
     def test_super_admin_with_token_query_param_bypasses_maintenance(self, client: TestClient):
         """Super admin JWT passed as ?token= must bypass the maintenance block."""
         _set_maintenance(True, "Blocked for normal users")
         try:
             token = create_token("testadmin", permission_version=0, role="admin")
-            # No Authorization header — token via query param only
+            # No Authorization header - token via query param only
             r = client.get("/api/alarm-settings", params={"token": token})
             assert r.status_code != 503, (
                 f"Super admin with ?token= query param must bypass maintenance; got {r.status_code}"

@@ -1,4 +1,4 @@
-"""A2.1 canonical product models — preserved from approved A2.1 baseline."""
+"""A2.1 canonical product models - preserved from approved A2.1 baseline."""
 import uuid
 from datetime import datetime
 

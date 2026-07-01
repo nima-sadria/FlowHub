@@ -1,4 +1,4 @@
-"""Tests for app.beta.control_plane.status — ControlPlaneStatus."""
+"""Tests for app.beta.control_plane.status - ControlPlaneStatus."""
 
 import json
 from datetime import datetime, timezone
@@ -152,7 +152,7 @@ class TestOfflineMode:
             "db": _failing("db", IntegrationType.DATABASE, FailureClass.DATABASE_ERROR),
         }
         status = ControlPlaneStatus.compute(integrations, generated_at=FIXED_TS)
-        # Only nextcloud is external; it's failing → offline_mode=True
+        # Only nextcloud is external; it's failing -> offline_mode=True
         assert status.offline_mode is True
 
 
@@ -233,7 +233,7 @@ class TestSummaryText:
         assert "operational" in status.summary.lower()
 
     def test_summary_mentions_degraded_integration(self):
-        # Two external integrations: one ok, one failing → degraded (not offline)
+        # Two external integrations: one ok, one failing -> degraded (not offline)
         integrations = {
             "nextcloud": _failing("nextcloud", IntegrationType.NEXTCLOUD, FailureClass.DNS_FAILURE),
             "woocommerce": _ok("woocommerce", IntegrationType.WOOCOMMERCE),

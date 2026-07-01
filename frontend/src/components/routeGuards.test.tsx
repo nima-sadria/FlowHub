@@ -8,7 +8,7 @@ import { AuthContext, RequirePermission } from '../auth'
 import type { AuthContextValue, AuthUser } from '../auth'
 import Sidebar from './Sidebar'
 
-// ─── Test infrastructure ─────────────────────────────────────────────────────
+// --- Test infrastructure -----------------------------------------------------
 
 function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
   return {
@@ -85,7 +85,7 @@ function renderAuth(ui: React.ReactElement, authValue: AuthContextValue) {
   return container
 }
 
-// ─── Mini-app: route guard matrix ────────────────────────────────────────────
+// --- Mini-app: route guard matrix --------------------------------------------
 
 function RouteMatrix({ initialPath }: { initialPath: string }) {
   return (
@@ -104,9 +104,9 @@ function RouteMatrix({ initialPath }: { initialPath: string }) {
   )
 }
 
-// ─── RequirePermission — direct render ───────────────────────────────────────
+// --- RequirePermission - direct render ---------------------------------------
 
-describe('RequirePermission — direct render', () => {
+describe('RequirePermission - direct render', () => {
   it('renders children when permission is granted', () => {
     const c = renderAuth(
       <MemoryRouter>
@@ -195,9 +195,9 @@ describe('RequirePermission — direct render', () => {
   })
 })
 
-// ─── Router — /home ───────────────────────────────────────────────────────────
+// --- Router - /home -----------------------------------------------------------
 
-describe('Router — /home', () => {
+describe('Router - /home', () => {
   it('renders Home for allowed user (can_access_site=true)', () => {
     const c = renderAuth(<RouteMatrix initialPath="/home" />, makeAuth(allowedUser))
     expect(c.textContent).toContain('home-page')
@@ -220,9 +220,9 @@ describe('Router — /home', () => {
   })
 })
 
-// ─── Router — /workspace ──────────────────────────────────────────────────────
+// --- Router - /workspace ------------------------------------------------------
 
-describe('Router — /workspace', () => {
+describe('Router - /workspace', () => {
   it('renders Workspace for user with can_access_site=true and can_fetch=true', () => {
     const c = renderAuth(<RouteMatrix initialPath="/workspace" />, makeAuth(allowedUser))
     expect(c.textContent).toContain('workspace-page')
@@ -246,9 +246,9 @@ describe('Router — /workspace', () => {
   })
 })
 
-// ─── Router — /products ───────────────────────────────────────────────────────
+// --- Router - /products -------------------------------------------------------
 
-describe('Router — /products', () => {
+describe('Router - /products', () => {
   it('renders Products for allowed user', () => {
     const c = renderAuth(<RouteMatrix initialPath="/products" />, makeAuth(allowedUser))
     expect(c.textContent).toContain('products-page')
@@ -266,9 +266,9 @@ describe('Router — /products', () => {
   })
 })
 
-// ─── Router — /settings ───────────────────────────────────────────────────────
+// --- Router - /settings -------------------------------------------------------
 
-describe('Router — /settings', () => {
+describe('Router - /settings', () => {
   it('renders Settings for user with can_view_settings=true', () => {
     const c = renderAuth(<RouteMatrix initialPath="/settings" />, makeAuth(settingsUser))
     expect(c.textContent).toContain('settings-page')
@@ -293,9 +293,9 @@ describe('Router — /settings', () => {
   })
 })
 
-// ─── Router — /activity ───────────────────────────────────────────────────────
+// --- Router - /activity -------------------------------------------------------
 
-describe('Router — /activity', () => {
+describe('Router - /activity', () => {
   it('renders Activity for user with can_view_logs=true', () => {
     const c = renderAuth(<RouteMatrix initialPath="/activity" />, makeAuth(logsUser))
     expect(c.textContent).toContain('activity-page')
@@ -313,7 +313,7 @@ describe('Router — /activity', () => {
   })
 })
 
-// ─── Sidebar — nav visibility ─────────────────────────────────────────────────
+// --- Sidebar - nav visibility -------------------------------------------------
 
 function renderSidebar(user: AuthUser | null) {
   return renderAuth(
@@ -324,7 +324,7 @@ function renderSidebar(user: AuthUser | null) {
   )
 }
 
-describe('Sidebar — denied user (can_access_site=false)', () => {
+describe('Sidebar - denied user (can_access_site=false)', () => {
   it('hides Dashboard link', () => {
     const c = renderSidebar(deniedUser)
     expect(c.querySelector('a[href="/home"]')).toBeNull()
@@ -366,7 +366,7 @@ describe('Sidebar — denied user (can_access_site=false)', () => {
   })
 })
 
-describe('Sidebar — allowed user (can_access_site=true, can_fetch=true)', () => {
+describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => {
   it('shows Dashboard link', () => {
     const c = renderSidebar(allowedUser)
     expect(c.querySelector('a[href="/home"]')).not.toBeNull()
@@ -408,7 +408,7 @@ describe('Sidebar — allowed user (can_access_site=true, can_fetch=true)', () =
   })
 })
 
-describe('Sidebar — admin user (is_admin=true)', () => {
+describe('Sidebar - admin user (is_admin=true)', () => {
   it('shows all nav links', () => {
     const c = renderSidebar(adminUser)
     expect(c.querySelector('a[href="/home"]')).not.toBeNull()
@@ -422,7 +422,7 @@ describe('Sidebar — admin user (is_admin=true)', () => {
   })
 })
 
-describe('Sidebar — super admin (is_super_admin=true, is_admin=false)', () => {
+describe('Sidebar - super admin (is_super_admin=true, is_admin=false)', () => {
   it('shows all permission-gated links', () => {
     const c = renderSidebar(superUser)
     expect(c.querySelector('a[href="/home"]')).not.toBeNull()
@@ -436,7 +436,7 @@ describe('Sidebar — super admin (is_super_admin=true, is_admin=false)', () => 
   })
 })
 
-describe('Sidebar — settings user (can_view_settings=true)', () => {
+describe('Sidebar - settings user (can_view_settings=true)', () => {
   it('shows Diagnostics and Settings links', () => {
     const c = renderSidebar(settingsUser)
     expect(c.querySelector('a[href="/integrations"]')).not.toBeNull()
@@ -445,7 +445,7 @@ describe('Sidebar — settings user (can_view_settings=true)', () => {
   })
 })
 
-describe('Sidebar — logs user (can_view_logs=true)', () => {
+describe('Sidebar - logs user (can_view_logs=true)', () => {
   it('shows Activity link', () => {
     const c = renderSidebar(logsUser)
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()

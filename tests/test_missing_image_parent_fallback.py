@@ -2,7 +2,7 @@
 
 Business rule: a WooCommerce variation commonly has no image of its own and
 visually inherits its parent product's gallery image. _classify_row's
-missing_image flag must not warn in that case — only when neither the
+missing_image flag must not warn in that case - only when neither the
 variation nor its parent has an image.
 
 Run directly (no pytest dependency):

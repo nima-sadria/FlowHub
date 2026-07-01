@@ -1,4 +1,4 @@
-"""FlowHub â€” flowhub configure command group.
+"""FlowHub - flowhub configure command group.
 
 Configuration management: show, verify.
 Uses B3 ConfigurationManager and ConfigValidator.
@@ -129,19 +129,19 @@ def configure_verify(
     print_section("Configuration Verification")
 
     if result.is_valid:
-        print_success("Configuration is valid â€” all 22 required fields pass validation.")
+        print_success("Configuration is valid - core startup fields pass validation.")
     else:
-        console.print(f"  [bold red]âœ— {len(result.errors)} validation error(s):[/bold red]")
+        console.print(f"  [bold red]X {len(result.errors)} validation error(s):[/bold red]")
         for err in result.errors:
             field = err.field
             msg = err.message
             # Never print raw secret values
             display = "[REDACTED]" if field in SECRET_FIELDS else repr(err.value)
-            console.print(f"    [red]âœ—[/red] {field}={display}: {msg}")
+            console.print(f"    [red]X[/red] {field}={display}: {msg}")
 
     if result.warnings:
         for w in result.warnings:
-            console.print(f"  [yellow]âڑ [/yellow]  {w}")
+            console.print(f"  [yellow]ڑ [/yellow]  {w}")
 
     console.print()
     if not result.is_valid:
@@ -236,7 +236,7 @@ def configure_set(
         raise typer.Exit(code=1)
 
     print_section("Configuration Updated")
-    console.print(f"  [green]âœ“[/green]  {result.field_name} = {result.new_value}")
+    console.print(f"  [green]OK[/green]  {result.field_name} = {result.new_value}")
     if result.old_value is not None and result.old_value != result.new_value:
         console.print(f"      [dim](was: {result.old_value})[/dim]")
     console.print()

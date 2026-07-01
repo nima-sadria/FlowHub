@@ -1,11 +1,11 @@
 """
-NextcloudSourceAdapter — A2.2 initial adapter implementation.
+NextcloudSourceAdapter - A2.2 initial adapter implementation.
 
-Reads a WooPrice-format XLSX file from a Nextcloud / OnlyOffice WebDAV source,
+Reads a FlowHub-compatible XLSX file from a Nextcloud / OnlyOffice WebDAV source,
 validates structural integrity, generates a SourceSnapshot, produces per-row
 SourceRowProvenance, and streams SourceRow objects.
 
-Adapter responsibility ends at: Source → Validation → Snapshot → Provenance → Row Streaming.
+Adapter responsibility ends at: Source -> Validation -> Snapshot -> Provenance -> Row Streaming.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from ..snapshot import SourceSnapshot
 
 logger = logging.getLogger(__name__)
 
-# Column layout for the WooPrice spreadsheet format.
+# Column layout for the FlowHub spreadsheet format.
 # Row 1: header row (used for schema_hash computation across all sheets).
 # Row 2: reserved (formatting / sub-header). Data starts at row 3.
 # Column A: descriptive label / sheet name echo
@@ -38,21 +38,21 @@ logger = logging.getLogger(__name__)
 # Column C: price (raw, may be empty or non-numeric)
 _DATA_START_ROW = 3
 _COL_LABEL = 1   # A
-_COL_ID = 2      # B — stable row identity
+_COL_ID = 2      # B - stable row identity
 _COL_PRICE = 3   # C
 
 
 class NextcloudSourceAdapter(SourceAdapter):
     """
-    Reads a WooPrice XLSX spreadsheet from Nextcloud / OnlyOffice via WebDAV.
+    Reads a FlowHub XLSX spreadsheet from Nextcloud / OnlyOffice via WebDAV.
 
     Lifecycle:
-        1. connect()           — download file + capture metadata
-        2. validate_source()   — structural validation (no duplicates, valid IDs)
-        3. fetch_snapshot()    — create immutable snapshot descriptor; binds streaming context
-        4. stream_rows()       — yield rows with provenance tied to the generated snapshot
-        5. get_checkpoint()    — return ETag-based checkpoint
-        6. advance_checkpoint(cp, db) — persist checkpoint durably (requires db session)
+        1. connect()           - download file + capture metadata
+        2. validate_source()   - structural validation (no duplicates, valid IDs)
+        3. fetch_snapshot()    - create immutable snapshot descriptor; binds streaming context
+        4. stream_rows()       - yield rows with provenance tied to the generated snapshot
+        5. get_checkpoint()    - return ETag-based checkpoint
+        6. advance_checkpoint(cp, db) - persist checkpoint durably (requires db session)
 
     Configuration is injected at construction time so the adapter is independently
     testable without global settings.
@@ -78,7 +78,7 @@ class NextcloudSourceAdapter(SourceAdapter):
         self._meta: dict = {}
         self._current_snapshot: Optional[SourceSnapshot] = None
 
-    # ── Internal helpers ──────────────────────────────────────────────────────
+    # -- Internal helpers ------------------------------------------------------
 
     def _webdav_url(self) -> str:
         return self._url + self._file_path
@@ -136,7 +136,7 @@ class NextcloudSourceAdapter(SourceAdapter):
             r.raise_for_status()
             return _parse_propfind_meta(r.text)
 
-    # ── Static row parsing ────────────────────────────────────────────────────
+    # -- Static row parsing ----------------------------------------------------
 
     @staticmethod
     def _parse_xlsx_rows(xlsx_bytes: bytes) -> tuple[list[dict], list[str], str]:
@@ -147,7 +147,7 @@ class NextcloudSourceAdapter(SourceAdapter):
         errors: list of validation error messages (duplicates, missing IDs)
         schema_hash: SHA-256 over header rows of ALL worksheets
 
-        All rows in all sheets are inspected — there is no silent row cap.
+        All rows in all sheets are inspected - there is no silent row cap.
         Consecutive-empty-row early-exit is applied per-sheet only to skip
         trailing whitespace, but does not hide any rows with data following gaps.
         """
@@ -224,7 +224,7 @@ class NextcloudSourceAdapter(SourceAdapter):
         wb.close()
         return all_rows, errors, schema_hash
 
-    # ── SourceAdapter interface ───────────────────────────────────────────────
+    # -- SourceAdapter interface -----------------------------------------------
 
     async def connect(self) -> None:
         """Download the source file and capture metadata."""
@@ -394,7 +394,7 @@ class NextcloudSourceAdapter(SourceAdapter):
             )
 
 
-# ── Utilities ─────────────────────────────────────────────────────────────────
+# -- Utilities -----------------------------------------------------------------
 
 def _parse_propfind_meta(xml_text: str) -> dict:
     try:

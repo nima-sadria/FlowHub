@@ -1,4 +1,4 @@
-"""Tests for cli/main.py â€” registration, help, and command groups."""
+"""Tests for cli/main.py - registration, help, and command groups."""
 
 from typer.testing import CliRunner
 from cli.main import app

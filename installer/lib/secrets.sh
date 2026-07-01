@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FlowHub â€” Secret generation
+# FlowHub - Secret generation
 #
 # Uses openssl rand. Secrets are held in shell variables only.
 # Written to .env once by env_gen.sh. Never echoed to terminal in plain text.
@@ -9,17 +9,17 @@
 set -euo pipefail
 
 generate_jwt_secret() {
-    # 64 bytes of base64url â†’ ~88 chars; always >= 64 chars minimum
+    # 64 bytes of base64url -> ~88 chars; always >= 64 chars minimum
     openssl rand -base64 64 | tr -d '\n/+=' | head -c 86
 }
 
 generate_rest_api_secret() {
-    # 32 bytes hex â†’ 64 chars
+    # 32 bytes hex -> 64 chars
     openssl rand -hex 32
 }
 
 generate_postgres_password() {
-    # 24 bytes base64url â†’ ~32 chars; strip special chars safe for .env
+    # 24 bytes base64url -> ~32 chars; strip special chars safe for .env
     openssl rand -base64 24 | tr -d '\n/+='
 }
 
@@ -34,7 +34,7 @@ _mask_secret() {
 }
 
 generate_all_secrets() {
-    # Populate variables in calling scope â€” only generate if not already set
+    # Populate variables in calling scope - only generate if not already set
     if [[ -z "${BETA_JWT_SECRET:-}" ]]; then
         BETA_JWT_SECRET="$(generate_jwt_secret)"
     fi

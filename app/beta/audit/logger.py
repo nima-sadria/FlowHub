@@ -1,4 +1,4 @@
-"""FlowHub â€” Audit Logger.
+"""FlowHub - Audit Logger.
 
 Writes structured audit events to BETA_STORAGE_PATH/logs/audit.log.
 Every security-relevant event is recorded. Audit log is never purged.

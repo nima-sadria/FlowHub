@@ -61,7 +61,7 @@ class TestDryRunInstall:
     def test_flags_missing_secrets(self, tmp_path: Path):
         config = InstallerConfig(
             domain="test.example.com",
-            jwt_secret="",      # empty â†’ would need generation
+            jwt_secret="",      # empty -> would need generation
             rest_api_secret="", # empty
             postgres_password="", # empty
             storage_path=str(tmp_path / "storage"),

@@ -1,4 +1,4 @@
-"""A2.6 Dry Run Repository — persistence for DryRun, DryRunResult, SellerConfirmation."""
+"""A2.6 Dry Run Repository - persistence for DryRun, DryRunResult, SellerConfirmation."""
 from __future__ import annotations
 
 import uuid
@@ -18,7 +18,7 @@ class DryRunRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
-    # ── DryRun ────────────────────────────────────────────────────────────────
+    # -- DryRun ----------------------------------------------------------------
 
     def create(
         self,
@@ -61,7 +61,7 @@ class DryRunRepository:
             q = q.filter(DryRun.change_set_id == change_set_id)
         return q.order_by(DryRun.created_at.desc()).all()
 
-    # ── DryRunResult ─────────────────────────────────────────────────────────
+    # -- DryRunResult ---------------------------------------------------------
 
     def add_result(
         self,
@@ -94,7 +94,7 @@ class DryRunRepository:
             .all()
         )
 
-    # ── SellerConfirmation ───────────────────────────────────────────────────
+    # -- SellerConfirmation ---------------------------------------------------
 
     def record_confirmation(
         self,

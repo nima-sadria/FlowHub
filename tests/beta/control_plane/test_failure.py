@@ -1,4 +1,4 @@
-"""Tests for app.beta.control_plane.failure — FailureClass and Severity."""
+"""Tests for app.beta.control_plane.failure - FailureClass and Severity."""
 
 import json
 
@@ -146,7 +146,7 @@ class TestFailureClassSeverity:
         assert FailureClass.TLS_FAILURE.severity_default == Severity.ERROR
 
     def test_timeout_is_warning(self):
-        # Timeout may be transient — starts as WARNING
+        # Timeout may be transient - starts as WARNING
         assert FailureClass.TIMEOUT.severity_default == Severity.WARNING
 
     def test_unauthorized_is_error(self):

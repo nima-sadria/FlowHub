@@ -1,5 +1,5 @@
 """
-A2 database layer — completely isolated from the production SQLite stack.
+A2 database layer - completely isolated from the production SQLite stack.
 
 Uses A2_DATABASE_URL environment variable.  Defaults to sqlite:///:memory:
 so unit tests run without a PostgreSQL instance.

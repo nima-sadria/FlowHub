@@ -1,4 +1,4 @@
-"""FlowHub â€” WooCommerce client (BU5).
+"""FlowHub - WooCommerce client (BU5).
 
 All HTTP calls are delegated to app/connectors/destinations/woocommerce/.
 No direct httpx usage in this module.
@@ -33,29 +33,29 @@ logger = logging.getLogger(__name__)
 _PROVIDER = "WooCommerce"
 
 
-# â”€â”€ Error mapping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Error mapping -------------------------------------------------------------
 
 def _to_integration_error(exc: ConnectorError, endpoint: str) -> IntegrationError:
     """Map ConnectorError to IntegrationError for the API layer."""
     code = exc.code
     if code == ConnectorErrorCode.AUTH_FAILED:
-        msg = "Authentication failed â€” check consumer key and secret"
+        msg = "Authentication failed - check consumer key and secret"
     elif code == ConnectorErrorCode.PERMISSION:
-        msg = "Access denied â€” ensure the API key has read permissions"
+        msg = "Access denied - ensure the API key has read permissions"
     elif code == ConnectorErrorCode.NOT_FOUND:
-        msg = "WooCommerce REST API not found â€” check store URL"
+        msg = "WooCommerce REST API not found - check store URL"
     elif code == ConnectorErrorCode.TIMEOUT:
         msg = "Connection timed out"
     elif code == ConnectorErrorCode.NETWORK:
-        msg = "Could not connect to WooCommerce â€” check the store URL and network"
+        msg = "Could not connect to WooCommerce - check the store URL and network"
     elif code == ConnectorErrorCode.RATE_LIMITED:
-        msg = "WooCommerce retry budget exhausted â€” store may be rate-limiting"
+        msg = "WooCommerce retry budget exhausted - store may be rate-limiting"
     else:
         msg = exc.message or f"WooCommerce error: {code.value}"
     return IntegrationError(_PROVIDER, endpoint, msg, status_code=exc.http_status)
 
 
-# â”€â”€ Product parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Product parser ------------------------------------------------------------
 
 def _parse_wc_product(raw: dict) -> dict | None:
     """Parse a raw WC product dict.  Returns None for non-published or invalid items."""
@@ -65,7 +65,7 @@ def _parse_wc_product(raw: dict) -> dict | None:
     if raw.get("status") != "publish":
         return None
 
-    # Price â€” prefer regular_price, fall back to price
+    # Price - prefer regular_price, fall back to price
     price_str = raw.get("regular_price") or raw.get("price") or "0"
     try:
         current_price = float(price_str) if price_str else 0.0
@@ -99,7 +99,7 @@ def _parse_wc_product(raw: dict) -> dict | None:
     }
 
 
-# â”€â”€ Client â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Client --------------------------------------------------------------------
 
 class WooCommerceClient:
     """Async read-only WooCommerce REST v3 client backed by the connector framework."""
@@ -221,7 +221,7 @@ class WooCommerceClient:
             logger.info(
                 "wc test_connection provider=%s ok=true latency_ms=%.0f", _PROVIDER, latency_ms,
             )
-            return True, f"Connected â€” {total} products", latency_ms
+            return True, f"Connected - {total} products", latency_ms
         except ConnectorError as exc:
             latency_ms = (time.monotonic() - t0) * 1000
             logger.warning(

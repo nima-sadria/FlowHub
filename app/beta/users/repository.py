@@ -1,4 +1,4 @@
-"""FlowHub â€” UserRepository.
+"""FlowHub - UserRepository.
 
 Persistence layer for BetaUser and Permission records.
 

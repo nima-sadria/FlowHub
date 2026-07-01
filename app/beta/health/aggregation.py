@@ -1,4 +1,4 @@
-"""CP1.2 â€” Health check aggregation logic.
+"""CP1.2 - Health check aggregation logic.
 
 Aggregates a list of HealthCheckResult into a SystemHealthSummary.
 """

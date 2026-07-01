@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FlowHub â€” initial admin account creation
+# FlowHub - initial admin account creation
 #
 # Source from install.sh. Requires:
 #   - App container running and database migrated
@@ -8,7 +8,7 @@
 #
 # Uses BETA_ADMIN_USERNAME, BETA_ADMIN_EMAIL, BETA_ADMIN_PASSWORD from the
 # installer wizard. In non-interactive mode, the password is auto-generated
-# and saved to logs/admin-credentials.txt (mode 600).
+# and printed once. It is never persisted to disk.
 #
 # Idempotent: if the admin user already exists the CLI exits non-zero and this
 # function reports that without failing the install.
@@ -54,13 +54,8 @@ create_admin_account() {
             echo "  Admin account created (auto-generated password)."
             echo "    Username: ${username}"
             echo "    Password: ${password}"
-            echo "  Store this password now â€” it is shown only once."
+            echo "  Store this password now - it is shown only once."
             echo "  ===================================================================="
-            local logf="${install_dir}/logs/admin-credentials.txt"
-            if printf 'username=%s\npassword=%s\n' "$username" "$password" > "$logf" 2>/dev/null; then
-                chmod 600 "$logf" 2>/dev/null || true
-                echo "  Saved to: ${logf} (mode 600)"
-            fi
         else
             echo "  Admin account created."
             echo "    Username : ${username}"

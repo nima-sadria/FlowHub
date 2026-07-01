@@ -15,7 +15,7 @@ os.environ.setdefault("BETA_DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("BETA_JWT_SECRET", "test-bu2-jwt-secret-32-bytes-min!")
 
 from app.beta.database import BetaBase, _get_engine  # noqa: E402
-from app.beta.auth import models as _models  # noqa: E402, F401  — registers tables
+from app.beta.auth import models as _models  # noqa: E402, F401  - registers tables
 
 _SQLITE_URL = "sqlite:///:memory:"
 

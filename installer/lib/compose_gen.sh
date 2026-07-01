@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# FlowHub â€” Docker Compose file generation
+# FlowHub Docker Compose file generation.
 #
 # Generates docker-compose.beta.yml by substituting BETA_* placeholders in
 # installer/templates/docker-compose.template.yml using envsubst.
-# Does NOT start any Docker services â€” that is B6 (Docker Runtime Foundation).
+# Does not start Docker services; launch is handled by docker_deploy.sh.
 
 set -euo pipefail
 
@@ -21,7 +21,7 @@ generate_compose_file() {
         return 1
     fi
 
-    # Substitute only BETA_* variables from environment
+    # Substitute only BETA_* variables from environment.
     # shellcheck disable=SC2016
     envsubst '${BETA_ENV} ${BETA_DOMAIN} ${BETA_PORT} ${BETA_DATABASE_URL}
               ${BETA_POSTGRES_DB} ${BETA_POSTGRES_USER} ${BETA_POSTGRES_PASSWORD}
@@ -29,6 +29,6 @@ generate_compose_file() {
         < "$template_path" > "$output_path"
 
     echo "  Docker Compose file generated: ${output_path}"
-    echo "  NOTE: Docker stack launch is implemented in B6 (Docker Runtime Foundation)."
+    echo "  NOTE: Docker stack launch is handled by docker_deploy.sh."
     echo "  To launch manually: docker compose -f ${output_path} up -d"
 }

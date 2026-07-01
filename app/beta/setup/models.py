@@ -1,4 +1,4 @@
-"""FlowHub â€” AppConfig ORM model (BU4).
+"""FlowHub - AppConfig ORM model (BU4).
 
 Stores runtime configuration as key-value pairs in the beta_app_config table.
 Bootstrap values (database URL, JWT secret, REST secret) remain in .env.beta

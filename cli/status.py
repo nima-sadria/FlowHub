@@ -1,4 +1,4 @@
-"""FlowHub â€” flowhub status command.
+"""FlowHub - flowhub status command.
 
 Local-only status: environment profile, config loaded/valid, storage paths.
 No external network calls. No production service connections.
@@ -42,11 +42,11 @@ def status(
     config_loaded = profile is not None
     config_valid = False
     config_errors: list[str] = []
-    storage_path: str = "â€”"
-    backup_path: str = "â€”"
-    domain: str = "â€”"
-    port: str = "â€”"
-    env_label: str = "â€”"
+    storage_path: str = "-"
+    backup_path: str = "-"
+    domain: str = "-"
+    port: str = "-"
+    env_label: str = "-"
 
     if config_loaded:
         from app.beta.config import ConfigValidator
@@ -66,11 +66,11 @@ def status(
         result = validator.validate(env_dict)
         config_valid = result.is_valid
         config_errors = [str(e) for e in result.errors]
-        storage_path = env_dict.get("BETA_STORAGE_PATH", "â€”")
-        backup_path = env_dict.get("BETA_BACKUP_PATH", "â€”")
-        domain = env_dict.get("BETA_DOMAIN", "â€”")
-        port = env_dict.get("BETA_PORT", "â€”")
-        env_label = env_dict.get("BETA_ENV", "â€”")
+        storage_path = env_dict.get("BETA_STORAGE_PATH", "-")
+        backup_path = env_dict.get("BETA_BACKUP_PATH", "-")
+        domain = env_dict.get("BETA_DOMAIN", "-")
+        port = env_dict.get("BETA_PORT", "-")
+        env_label = env_dict.get("BETA_ENV", "-")
 
     data = {
         "profile": profile.value if profile else "unknown",
@@ -92,23 +92,23 @@ def status(
 
     print_section("Configuration")
     loaded_str = "[green]LOADED[/green]" if config_loaded else "[red]NOT LOADED[/red]"
-    valid_str = "[green]VALID[/green]" if config_valid else ("[red]INVALID[/red]" if config_loaded else "[dim]â€”[/dim]")
+    valid_str = "[green]VALID[/green]" if config_valid else ("[red]INVALID[/red]" if config_loaded else "[dim]-[/dim]")
     console.print(f"  Config:          {loaded_str}")
     console.print(f"  Validation:      {valid_str}")
     if config_errors:
         for err in config_errors[:5]:
-            console.print(f"  [red]  âœ— {err}[/red]")
+            console.print(f"  [red]  X {err}[/red]")
         if len(config_errors) > 5:
             console.print(f"  [dim]  ... and {len(config_errors) - 5} more[/dim]")
 
     print_section("Environment")
     console.print(f"  Profile:         {profile.value if profile else 'unknown'}")
     console.print(f"  BETA_ENV:        {env_label}")
-    console.print(f"  Domain:          {domain}:{port}" if domain != "â€”" else "  Domain:          â€”")
+    console.print(f"  Domain:          {domain}:{port}" if domain != "-" else "  Domain:          -")
 
     print_section("Paths")
-    storage_exists = Path(storage_path).exists() if storage_path != "â€”" else False
-    backup_exists = Path(backup_path).exists() if backup_path != "â€”" else False
+    storage_exists = Path(storage_path).exists() if storage_path != "-" else False
+    backup_exists = Path(backup_path).exists() if backup_path != "-" else False
     console.print(f"  Storage path:    {storage_path}  {'[green][exists][/green]' if storage_exists else '[dim][not created][/dim]'}")
     console.print(f"  Backup path:     {backup_path}  {'[green][exists][/green]' if backup_exists else '[dim][not created][/dim]'}")
     console.print()

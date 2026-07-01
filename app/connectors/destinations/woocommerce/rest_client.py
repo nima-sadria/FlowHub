@@ -7,14 +7,14 @@ All operations are READ-ONLY. No write path (PUT/POST/PATCH/DELETE products)
 is implemented. FlowHub Beta is a read-only system.
 
 Supported operations:
-  - list_products()      — paginated GET /wp-json/wc/v3/products (connector ABC)
-  - get_product()        — GET /wp-json/wc/v3/products/{id}
-  - list_variations()    — GET /wp-json/wc/v3/products/{id}/variations
-  - ping()               — lightweight connectivity probe
-  - list_products_paged()— paginated product fetch returning (products, total, total_pages)
-  - list_all_products()  — all pages of products
-  - list_categories_all()— all product categories
-  - count_products()     — total product count from X-WP-Total header
+  - list_products()      - paginated GET /wp-json/wc/v3/products (connector ABC)
+  - get_product()        - GET /wp-json/wc/v3/products/{id}
+  - list_variations()    - GET /wp-json/wc/v3/products/{id}/variations
+  - ping()               - lightweight connectivity probe
+  - list_products_paged()- paginated product fetch returning (products, total, total_pages)
+  - list_all_products()  - all pages of products
+  - list_categories_all()- all product categories
+  - count_products()     - total product count from X-WP-Total header
 """
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ _PRODUCT_FIELDS = (
 )
 _CATEGORY_FIELDS = "id,name,parent,count"
 
-# Retry constants (adapted from WooPrice)
+# Retry constants (adapted from the original connector prototype)
 _RETRY_STATUSES: frozenset[int] = frozenset({429, 500, 502, 503, 504})
 _MAX_RETRIES = 3
 _MAX_RETRY_SLEEP = 30.0
@@ -54,21 +54,21 @@ def _map_http_error(status: int, provider: str = "woocommerce") -> ConnectorErro
     if status == 401:
         return ConnectorError(
             code=ConnectorErrorCode.AUTH_FAILED,
-            message="WooCommerce authentication failed — check consumer key and secret",
+            message="WooCommerce authentication failed - check consumer key and secret",
             provider=provider,
             http_status=status,
         )
     if status == 403:
         return ConnectorError(
             code=ConnectorErrorCode.PERMISSION,
-            message="WooCommerce access denied — ensure the API key has read permissions",
+            message="WooCommerce access denied - ensure the API key has read permissions",
             provider=provider,
             http_status=status,
         )
     if status == 404:
         return ConnectorError(
             code=ConnectorErrorCode.NOT_FOUND,
-            message="WooCommerce REST API not found — verify the store URL",
+            message="WooCommerce REST API not found - verify the store URL",
             provider=provider,
             http_status=status,
         )
@@ -163,7 +163,7 @@ async def _get_raw(
             if total_slept + sleep_for > _MAX_TOTAL_RETRY_SLEEP:
                 raise ConnectorError(
                     code=ConnectorErrorCode.TIMEOUT,
-                    message="WooCommerce request timed out — retry budget exhausted",
+                    message="WooCommerce request timed out - retry budget exhausted",
                     provider="woocommerce",
                     retryable=True,
                 ) from exc
@@ -182,7 +182,7 @@ async def _get_raw(
             if total_slept + sleep_for > _MAX_TOTAL_RETRY_SLEEP:
                 raise ConnectorError(
                     code=ConnectorErrorCode.NETWORK,
-                    message="WooCommerce connection failed — retry budget exhausted",
+                    message="WooCommerce connection failed - retry budget exhausted",
                     provider="woocommerce",
                     retryable=True,
                 ) from exc
@@ -251,7 +251,7 @@ async def list_variations(
 
 
 async def ping(creds: WooCommerceCredentials) -> dict:
-    """Lightweight connectivity probe — fetch one product to verify API access."""
+    """Lightweight connectivity probe - fetch one product to verify API access."""
     result = await _get(creds, "/products", params={"per_page": 1})
     return {"reachable": True, "sample_count": len(result) if isinstance(result, list) else 0}
 

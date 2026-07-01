@@ -1,4 +1,4 @@
-"""WooCommerce destination connector — REST API, isolated from FlowHub business logic."""
+"""WooCommerce destination connector - REST API, isolated from FlowHub business logic."""
 
 from .connector import WooCommerceConnector
 

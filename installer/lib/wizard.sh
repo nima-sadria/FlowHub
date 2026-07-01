@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FlowHub â€” Installer wizard
+# FlowHub - Installer wizard
 #
 # Source from install.sh. Call run_wizard to populate admin credential variables.
 # Asks only what the installer cannot default: admin username, email, password.
@@ -32,9 +32,9 @@ _prompt_password() {
 
 _section() {
     echo ""
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     echo "  $1"
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
 }
 
 wizard_section_admin() {
@@ -78,7 +78,7 @@ wizard_section_confirm() {
     echo "  The following admin account will be created:"
     echo "    Username : ${BETA_ADMIN_USERNAME}"
     echo "    Email    : ${BETA_ADMIN_EMAIL}"
-    echo "    Password : â—ڈâ—ڈâ—ڈâ—ڈâ—ڈâ—ڈâ—ڈâ—ڈ"
+    echo "    Password : -ڈ-ڈ-ڈ-ڈ-ڈ-ڈ-ڈ-ڈ"
     echo ""
     echo "  All other settings use defaults and can be changed in the web Setup Wizard."
     echo "    Install directory : ${INSTALL_DIR:-/opt/FlowHub}"
@@ -96,12 +96,12 @@ wizard_section_confirm() {
 
 run_wizard() {
     echo ""
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
-    echo "  FlowHub â€” Installer"
+    echo "========================================================"
+    echo "  FlowHub - Installer"
     echo "  First public release"
     echo "  Press Ctrl+C at any time to abort. No files will be written until"
     echo "  you confirm at the end."
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
 
     wizard_section_admin
     wizard_section_confirm

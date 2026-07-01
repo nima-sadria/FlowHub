@@ -23,6 +23,10 @@ flowchart LR
     LOG --> DB
 ```
 
+The active first-release backend entrypoint is `app.beta.app`. Legacy
+`app/main.py` and `app/services/*` modules are retained only for historical
+compatibility and are not imported by the active FlowHub Docker runtime.
+
 ## Setup Wizard
 
 Current setup steps:
@@ -35,6 +39,9 @@ Current setup steps:
 
 Connector configuration is not part of setup. WooCommerce, Nextcloud, and future
 connectors are configured only in Settings -> Integrations.
+
+Startup does not require WooCommerce or Nextcloud credentials. Connector
+credentials may be absent until an administrator configures them after sign-in.
 
 Setup API:
 
@@ -92,6 +99,27 @@ Disabled in the first release:
 Connector communication for WooCommerce and Nextcloud is isolated to connector
 and integration layers. Active Beta v2 API routes must not directly call external
 WooCommerce, WebDAV, OCS, `httpx`, or `requests` clients.
+
+`FEATURE_SCHEDULER` defaults to disabled. Scheduler files may exist as inactive
+stubs, but the scheduler router is not mounted by `app.beta.app` and no
+background scheduler execution is started.
+
+## CLI
+
+The installed `flowhub` wrapper is Docker-backed for runtime operations:
+
+- `flowhub start`
+- `flowhub stop`
+- `flowhub restart`
+- `flowhub status`
+- `flowhub health`
+- `flowhub logs`
+- `flowhub upgrade`
+- `flowhub update` (alias for upgrade)
+- `flowhub uninstall`
+
+Host-side Python package dependencies are not required for normal runtime CLI
+commands.
 
 ## Deployment
 

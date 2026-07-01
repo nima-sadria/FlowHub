@@ -1,4 +1,4 @@
-"""CP1.2 â€” In-memory connection result cache.
+"""CP1.2 - In-memory connection result cache.
 
 OD1 (CHAT2 2026-06-28): CP1 uses in-memory cache only.
 No Redis, no file, no database.  Cache is lost on process restart.

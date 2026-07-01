@@ -1,4 +1,4 @@
-"""A2.5 change set engine — change sets, revisions, and items
+"""A2.5 change set engine - change sets, revisions, and items
 
 Revision ID: a2_004
 Revises: a2_003

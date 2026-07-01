@@ -1,4 +1,4 @@
-"""FlowHub â€” flowhub CLI package.
+"""FlowHub - flowhub CLI package.
 
 The flowhub CLI is the first-class management tool for FlowHub.
 Covers installation, configuration, operations, and administration.

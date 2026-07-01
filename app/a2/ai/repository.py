@@ -1,4 +1,4 @@
-"""A2.9 AI Foundation — AdvisoryRepository.
+"""A2.9 AI Foundation - AdvisoryRepository.
 
 Isolation boundary:
 - Never imported by Rule Engine, Safety Engine, Change Set Engine, Dry Run Engine,
@@ -25,7 +25,7 @@ class AdvisoryRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
-    # ── Session operations ─────────────────────────────────────────────────────
+    # -- Session operations -----------------------------------------------------
 
     def create_session(
         self,
@@ -62,7 +62,7 @@ class AdvisoryRepository:
         self._db.flush()
         return s
 
-    # ── Insight operations ─────────────────────────────────────────────────────
+    # -- Insight operations -----------------------------------------------------
 
     def store_insight(
         self,

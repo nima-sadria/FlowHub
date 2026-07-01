@@ -34,7 +34,7 @@ function ProductRow({ product }: { product: Product }) {
           )}
           <div className="min-w-0">
             <div className="text-[13px] font-medium text-text-base truncate">{product.name}</div>
-            <div className="text-[11px] font-mono text-wp-muted mt-0.5">{product.sku || '—'}</div>
+            <div className="text-[11px] font-mono text-wp-muted mt-0.5">{product.sku || '-'}</div>
           </div>
         </div>
       </td>
@@ -172,7 +172,7 @@ export default function Products() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search name or SKU…"
+            placeholder="Search name or SKU..."
             className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-bg-base text-[13px] placeholder:text-wp-muted focus:outline-none focus:border-accent transition-colors"
           />
         </div>
@@ -214,7 +214,7 @@ export default function Products() {
       <div className="bg-bg-card border border-border rounded-card shadow-card overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <span className="text-[13px] font-semibold text-text-base">
-            {loading ? 'Loading…' : total === 0 ? 'No products found' : `Showing ${start}–${end} of ${total}`}
+            {loading ? 'Loading...' : total === 0 ? 'No products found' : `Showing ${start}-${end} of ${total}`}
           </span>
           {totalPages > 1 && (
             <div className="flex items-center gap-1">
@@ -259,7 +259,7 @@ export default function Products() {
 
         {!loading && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <span className="text-[12px] text-wp-muted">{start}–{end} of {total}</span>
+            <span className="text-[12px] text-wp-muted">{start}-{end} of {total}</span>
             <div className="flex items-center gap-1">
               <button onClick={() => setPage(1)} disabled={page === 1} className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors text-[12px]">«</button>
               <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors">

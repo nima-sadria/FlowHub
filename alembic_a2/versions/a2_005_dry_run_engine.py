@@ -1,4 +1,4 @@
-"""A2.6 Dry Run Engine — dry runs, per-item results, and seller confirmations
+"""A2.6 Dry Run Engine - dry runs, per-item results, and seller confirmations
 
 Revision ID: a2_005
 Revises: a2_004

@@ -1,4 +1,4 @@
-"""A2.6 Dry Run Engine Service — validates an immutable Change Set without writing.
+"""A2.6 Dry Run Engine Service - validates an immutable Change Set without writing.
 
 The Dry Run Engine is completely read-only with respect to destination systems.
 It consumes a Change Set, verifies the digest, validates each item, and produces
@@ -28,7 +28,7 @@ class DryRunItemInput:
 
     Mirrors the fields of ChangeSetItemInput (A2.5) so that
     compute_change_set_digest can be called with DryRunItemInput objects
-    via duck typing — both types expose the same attribute names.
+    via duck typing - both types expose the same attribute names.
     """
 
     product_id: str
@@ -45,7 +45,7 @@ class DryRunReport:
     """Advisory report produced by a DryRun execution.
 
     This report is informational only. It does not trigger execution.
-    execution_eligible is advisory — the Execution Engine (A2.7) must perform
+    execution_eligible is advisory - the Execution Engine (A2.7) must perform
     its own independent digest verification before applying any changes.
     """
 
@@ -101,7 +101,7 @@ class DryRunService:
         """Execute a dry run against the given Change Set revision.
 
         Verifies the digest, validates all items, and persists the results.
-        Returns the DryRun record. Advisory only — does not trigger execution.
+        Returns the DryRun record. Advisory only - does not trigger execution.
 
         Raises ValueError if items is empty.
         """
@@ -262,7 +262,7 @@ class DryRunService:
             ),
         )
 
-    # ── Internal helpers ─────────────────────────────────────────────────────
+    # -- Internal helpers -----------------------------------------------------
 
     def _validate_items(
         self, items: list[DryRunItemInput]
@@ -273,18 +273,18 @@ class DryRunService:
         for item in items:
             if not item.proposal_hash:
                 outcome = "BLOCK"
-                reason = "Proposal hash is missing — proposal integrity cannot be verified"
+                reason = "Proposal hash is missing - proposal integrity cannot be verified"
             elif not item.safety_result_id:
                 outcome = "WARN"
-                reason = "Safety result is not bound — safety evaluation cannot be confirmed"
+                reason = "Safety result is not bound - safety evaluation cannot be confirmed"
             elif not item.rule_version_id:
                 outcome = "WARN"
-                reason = "Rule version is not bound — rule provenance cannot be confirmed"
+                reason = "Rule version is not bound - rule provenance cannot be confirmed"
             elif item.product_id in seen:
                 outcome = "WARN"
                 reason = (
                     f"Duplicate product ID {item.product_id!r} "
-                    "— consistency check failed"
+                    "- consistency check failed"
                 )
             else:
                 outcome = "PASS"

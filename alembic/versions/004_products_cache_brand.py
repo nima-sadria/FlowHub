@@ -6,11 +6,11 @@ Create Date: 2026-06-16
 
 Brand source confirmed via live WooCommerce audit (softpple.com):
 WooCommerce's native "Brands" feature (taxonomy `product_brand`), exposed on
-every product payload as a top-level `brands: [{id, name, slug}]` array —
+every product payload as a top-level `brands: [{id, name, slug}]` array -
 structured exactly like `categories`. Variations never carry their own
 `brands` key; they always inherit the parent's brand (see woocommerce.py).
 
-NULL means "no brand assigned in WooCommerce" — never guessed from the
+NULL means "no brand assigned in WooCommerce" - never guessed from the
 product name or any other field.
 
 products_cache is NOT an Alembic-managed table elsewhere (it's created by
@@ -38,7 +38,7 @@ def upgrade() -> None:
     bind = op.get_bind()
     inspector = inspect(bind)
     if "products_cache" not in inspector.get_table_names():
-        return  # fresh DB — create_all() creates the table with these columns
+        return  # fresh DB - create_all() creates the table with these columns
 
     existing_cols = {c["name"] for c in inspector.get_columns("products_cache")}
     existing_indexes = {ix["name"] for ix in inspector.get_indexes("products_cache")}

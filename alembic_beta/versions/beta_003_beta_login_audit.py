@@ -1,4 +1,4 @@
-"""beta_003 — create beta_login_audit table
+"""beta_003 - create beta_login_audit table
 
 Revision ID: beta_003
 Revises: beta_002

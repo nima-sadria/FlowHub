@@ -1,4 +1,4 @@
-"""Tests for cli/menu.py â€” interactive management menu (BU1)."""
+"""Tests for cli/menu.py - interactive management menu (BU1)."""
 
 from __future__ import annotations
 
@@ -279,7 +279,7 @@ class TestMenuText:
 
 
 # ---------------------------------------------------------------------------
-# cli/main.py integration â€” no-args invokes menu (not help)
+# cli/main.py integration - no-args invokes menu (not help)
 # ---------------------------------------------------------------------------
 
 

@@ -1,3 +1,10 @@
+"""Legacy Compatibility runtime.
+
+This original root application is retained for historical compatibility only.
+The active FlowHub first-release Docker runtime is `app.beta.app` on port 8085.
+Do not import this module from active FlowHub API routes.
+"""
+
 import asyncio
 import hashlib
 import io as _io
@@ -120,7 +127,7 @@ def _run_column_migrations():
                 ("row_color", "TEXT"),
                 ("last_price_updated", "TIMESTAMP"),
                 ("wc_date_modified", "TIMESTAMP"),
-                # Phase B — granular change flags
+                # Phase B - granular change flags
                 ("change_status",    "TEXT"),
                 ("price_changed",    "INTEGER DEFAULT 0"),
                 ("stock_changed",    "INTEGER DEFAULT 0"),
@@ -128,7 +135,7 @@ def _run_column_migrations():
                 ("category_changed", "INTEGER DEFAULT 0"),
                 ("missing_cost",     "INTEGER DEFAULT 0"),
                 ("missing_image",    "INTEGER DEFAULT 0"),
-                # Phase C — validation + precise change detection
+                # Phase C - validation + precise change detection
                 ("validation_level",    "TEXT"),
                 ("wc_price_at_preview", "TEXT"),
                 ("wc_stock_at_preview", "TEXT"),
@@ -145,7 +152,7 @@ def _run_column_migrations():
             existing_cols = {c["name"] for c in inspector.get_columns("sync_jobs")}
             for col_name, col_type in [
                 ("sheet_hash",           "TEXT"),
-                # Phase B — change detection summary counts
+                # Phase B - change detection summary counts
                 ("changed_count",        "INTEGER DEFAULT 0"),
                 ("unchanged_count",      "INTEGER DEFAULT 0"),
                 ("new_count",            "INTEGER DEFAULT 0"),
@@ -153,7 +160,7 @@ def _run_column_migrations():
                 ("price_changed_count",  "INTEGER DEFAULT 0"),
                 ("stock_changed_count",  "INTEGER DEFAULT 0"),
                 ("missing_image_count",  "INTEGER DEFAULT 0"),
-                # Phase B — dry run
+                # Phase B - dry run
                 ("dry_run_summary",      "TEXT"),
                 ("dry_run_status",       "TEXT"),
                 ("dry_run_completed_at", "TIMESTAMP"),
@@ -181,7 +188,7 @@ def _run_column_migrations():
                 if col_name not in existing_cols:
                     conn.execute(text(f"ALTER TABLE products_cache ADD COLUMN {col_name} {col_type}"))
 
-        # ── Phase C — new tables (idempotent CREATE TABLE IF NOT EXISTS) ──────
+        # -- Phase C - new tables (idempotent CREATE TABLE IF NOT EXISTS) ------
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS change_history (
                 id INTEGER PRIMARY KEY,
@@ -206,7 +213,7 @@ def _run_column_migrations():
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_change_history_job_id ON change_history(job_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_change_history_changed_at ON change_history(changed_at)"))
 
-        # Phase 7B — batch_id column for emergency tracking
+        # Phase 7B - batch_id column for emergency tracking
         if "change_history" in existing_tables:
             existing_ch_cols = {c["name"] for c in inspector.get_columns("change_history")}
             if "batch_id" not in existing_ch_cols:
@@ -356,7 +363,7 @@ def _check_jwt_secret() -> None:
     length = len(secret.encode())
     if length < 32:
         raise RuntimeError(
-            f"JWT_SECRET is only {length} bytes — minimum is 32, recommended 64+. "
+            f"JWT_SECRET is only {length} bytes - minimum is 32, recommended 64+. "
             "Set a strong value in .env and restart."
         )
     logger.info("startup: JWT_SECRET OK (%d bytes)", length)
@@ -364,7 +371,7 @@ def _check_jwt_secret() -> None:
 
 _check_jwt_secret()
 
-# ── Login rate limiting ───────────────────────────────────────────────────────
+# -- Login rate limiting -------------------------------------------------------
 # In-memory buckets; reset on restart. Tracks failed attempts only.
 # Successful login clears both buckets for that IP + identifier.
 _LOGIN_RATE_LOCK = threading.Lock()
@@ -399,14 +406,14 @@ def _rate_limit_clear(ip: str, identifier: str) -> None:
         _LOGIN_USER_ATTEMPTS.pop(identifier, None)
 
 
-# ── FastAPI app ───────────────────────────────────────────────────────────────
+# -- FastAPI app ---------------------------------------------------------------
 _s = get_settings()
 _docs_url = None if _s.disable_docs else "/docs"
 _openapi_url = None if _s.disable_docs else "/openapi.json"
-app = FastAPI(title="WooPrice Sync", docs_url=_docs_url, openapi_url=_openapi_url)
+app = FastAPI(title="FlowHub Legacy Sync", docs_url=_docs_url, openapi_url=_openapi_url)
 
 
-# ── Maintenance mode middleware ────────────────────────────────────────────────
+# -- Maintenance mode middleware ------------------------------------------------
 
 def _get_maintenance_state(db: Session) -> dict:
     """Return current maintenance mode state from DB. Safe default: disabled."""
@@ -442,7 +449,7 @@ async def maintenance_mode_middleware(request: Request, call_next):
     if not state["enabled"]:
         return await call_next(request)
 
-    # Maintenance is ON — super admins bypass.
+    # Maintenance is ON - super admins bypass.
     # Also check the `token` query param: SSE endpoints (EventSource API) cannot
     # set custom headers, so they pass the JWT as ?token=<jwt> instead.
     auth_header = request.headers.get("Authorization", "")
@@ -457,7 +464,7 @@ async def maintenance_mode_middleware(request: Request, call_next):
         except Exception:
             pass
 
-    msg = state["message"] or "WooPrice is temporarily in maintenance mode. Please try again later."
+    msg = state["message"] or "FlowHub is temporarily in maintenance mode. Please try again later."
     return JSONResponse(status_code=503, content={"detail": msg, "maintenance": True})
 
 
@@ -468,7 +475,7 @@ async def _unhandled(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
-# ── Access logging middleware ─────────────────────────────────────────────────
+# -- Access logging middleware -------------------------------------------------
 # Added after maintenance_mode_middleware so it is outermost and sees the final
 # status code (including 503 from maintenance mode).
 # Deliberately omits: Authorization header, token query param, request body.
@@ -489,7 +496,7 @@ async def _access_log(request: Request, call_next):
     return response
 
 
-# ── Auto-fetch background task ────────────────────────────────────────────────
+# -- Auto-fetch background task ------------------------------------------------
 
 async def _auto_fetch_loop(interval_secs: int) -> None:
     while True:
@@ -554,7 +561,7 @@ if _assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="react-assets")
 
 
-# ── Pydantic models ───────────────────────────────────────────────────────────
+# -- Pydantic models -----------------------------------------------------------
 
 class LoginRequest(BaseModel):
     username: str
@@ -587,12 +594,12 @@ class AppUserCreate(BaseModel):
     email: str | None = None
     is_admin: bool = False
     notes: str | None = None
-    can_access_site: bool | None = None    # None = use smart default (admin → True, user → True)
+    can_access_site: bool | None = None    # None = use smart default (admin -> True, user -> True)
     can_fetch: bool | None = None
     can_apply: bool | None = None
     can_edit_price: bool | None = None
     can_edit_stock: bool | None = None
-    can_view_logs: bool | None = None      # None = use smart default (admin → True, user → False)
+    can_view_logs: bool | None = None      # None = use smart default (admin -> True, user -> False)
     can_view_settings: bool | None = None
 
 
@@ -616,7 +623,7 @@ class MaintenanceModeUpdate(BaseModel):
     message: str = ""
 
 
-# ── Thumbnail helpers ─────────────────────────────────────────────────────────
+# -- Thumbnail helpers ---------------------------------------------------------
 
 def _get_thumb_dir() -> Path:
     db_path_str = get_settings().database_url.removeprefix("sqlite:///")
@@ -639,7 +646,7 @@ _EMPTY_THUMB = bytes([
     0x42, 0x60, 0x82,
 ])
 
-# Max 4 concurrent image downloads — avoids hammering the CDN
+# Max 4 concurrent image downloads - avoids hammering the CDN
 _THUMB_SEM = asyncio.Semaphore(4)
 
 _THUMB_SIZES = {96, 128, 256}
@@ -689,7 +696,7 @@ def _invalidate_thumbs(changed_ids: set[int], db: Session) -> None:
         _delete_all_thumbs(thumb_dir, wc_id)
 
 
-# ── Auth helpers ──────────────────────────────────────────────────────────────
+# -- Auth helpers --------------------------------------------------------------
 
 async def get_current_user(
     authorization: str | None = Header(None),
@@ -716,13 +723,13 @@ def _validate_active_user_sync(user_data: dict, db: Session) -> None:
         return
     app_user = db.query(AppUser).filter(AppUser.username == username).first()
     if app_user is None or not app_user.is_active:
-        raise HTTPException(403, "Access denied — contact your administrator")
+        raise HTTPException(403, "Access denied - contact your administrator")
     if user_data.get("pv", -1) != app_user.permission_version:
-        raise HTTPException(401, "Token has been revoked — please log in again")
+        raise HTTPException(401, "Token has been revoked - please log in again")
 
 
 def validate_sse_token(token: str | None, db: Session) -> dict:
-    """Validate a query-param SSE token: decode JWT → is_active → permission_version.
+    """Validate a query-param SSE token: decode JWT -> is_active -> permission_version.
     Raises HTTPException on any failure. All SSE routes must call this instead of
     decode_token() directly so revoked/inactive users are rejected consistently."""
     if not token:
@@ -840,7 +847,7 @@ def _resolve_login_identifier(identifier: str, db: Session) -> str | None:
     return app_user.username if app_user else None
 
 
-# ── Audit logging ─────────────────────────────────────────────────────────────
+# -- Audit logging -------------------------------------------------------------
 
 def _audit(
     username: str,
@@ -880,7 +887,7 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-# ── Phase C: change history + analytics helpers ───────────────────────────────
+# -- Phase C: change history + analytics helpers -------------------------------
 
 def _record_change_history(
     db: Session,
@@ -979,7 +986,7 @@ def _record_change_tracking(
     ))
 
 
-# ── Price helpers ─────────────────────────────────────────────────────────────
+# -- Price helpers -------------------------------------------------------------
 
 def _price_differs(old: str | None, new: str) -> bool:
     old_empty = not old or old == ""
@@ -1016,7 +1023,7 @@ def _parse_wc_dt(s: str | None) -> datetime | None:
         return None
 
 
-# ── Phase B: Change classification helpers ────────────────────────────────────
+# -- Phase B: Change classification helpers ------------------------------------
 
 def _is_valid_price(price: str | None) -> bool:
     """True for any numeric string (including '0'). False for None/empty/non-numeric."""
@@ -1040,7 +1047,7 @@ def _row_has_image(cache_row, parent_cache_row=None) -> bool:
     """True if the row's own product/variation has an image, or its parent does.
 
     A WooCommerce variation commonly has no image of its own and visually inherits
-    the parent product's gallery image — that is not a real "missing image" problem,
+    the parent product's gallery image - that is not a real "missing image" problem,
     so the warning must only fire when neither the row nor its parent has an image.
     """
     if cache_row and getattr(cache_row, "image_url", None):
@@ -1062,19 +1069,19 @@ def _classify_row(
     """Classify one preview row. Returns change_status + boolean flags.
 
     change_status values:
-      'invalid'              — price failed to parse as a number, or product_id missing
-      'missing_from_wc_cache'— product not found in WooCommerce
-      'new'                  — found in WC, has changes, never synced by WooPrice
-      'changed'              — found in WC, has changes, previously synced
-      'unchanged'            — found in WC, price and stock match exactly
+      'invalid'              - price failed to parse as a number, or product_id missing
+      'missing_from_wc_cache'- product not found in WooCommerce
+      'new'                  - found in WC, has changes, never synced by FlowHub
+      'changed'              - found in WC, has changes, previously synced
+      'unchanged'            - found in WC, price and stock match exactly
 
-    Business rule: a BLANK sheet price is NOT invalid — it is an explicit signal that
+    Business rule: a BLANK sheet price is NOT invalid - it is an explicit signal that
     the product should be marked out of stock (see _stock_from_price/_is_zero_price).
     Only a genuine parse failure (non-numeric garbage caught by the sheet parser and
     flagged via price_parse_error) is classified as 'invalid'.
 
     `parent_cache_row` (optional) is the ProductCache row for cache_row.parent_id, used
-    as an image fallback — see _row_has_image().
+    as an image fallback - see _row_has_image().
     """
     if not pid or pid <= 0 or price_parse_error:
         return {
@@ -1150,10 +1157,10 @@ def _normalize_scope(
     """Return an explicit product-id set for the apply/dry-run scope.
 
     Priority:
-    1. selected_ids if not None — caller supplied an explicit selection.
-    2. items if provided — dry_run_sync path; all item product_ids.
-    3. job.dry_run_scope if stored — apply path; reuse scope that was analysed.
-    4. empty set — fallback (should not happen in normal flow).
+    1. selected_ids if not None - caller supplied an explicit selection.
+    2. items if provided - dry_run_sync path; all item product_ids.
+    3. job.dry_run_scope if stored - apply path; reuse scope that was analysed.
+    4. empty set - fallback (should not happen in normal flow).
     """
     if selected_ids is not None:
         return set(selected_ids)
@@ -1187,7 +1194,7 @@ def _check_dry_run_guards(
         return False, "error", (
             f"dry_run_required: Dry run status '{dr_status}' is not applyable. Re-run dry run."
         ), 409
-    # Scope check (selected_ids is already normalised — compares set vs set).
+    # Scope check (selected_ids is already normalised - compares set vs set).
     scope_raw = getattr(job, "dry_run_scope", None)
     if scope_raw is not None:
         dr_scope = set(json.loads(scope_raw))
@@ -1293,14 +1300,14 @@ def _resolve_alarm_threshold(
     global row (or the bare `alarm_threshold` float, for backward-compatible callers
     that don't pass category_thresholds at all) applies.
 
-    Blocking semantics (Priority 4 audit decision — warning-only is the safe default):
+    Blocking semantics (Priority 4 audit decision - warning-only is the safe default):
       block_enabled=False (default): critical_threshold_percent has NO effect on Apply.
         Price changes that exceed warning threshold produce a "warnings" dry-run status
         but never produce "blocked". Admins must explicitly opt in to blocking via
         PUT /api/alarm-settings with block_enabled=true.
       block_enabled=True: changes exceeding critical_threshold_percent produce a
         "blocked" dry-run status, which prevents Apply until re-evaluated.
-    This is intentional — a misconfigured critical threshold can never accidentally
+    This is intentional - a misconfigured critical threshold can never accidentally
     freeze Apply without an admin explicitly setting block_enabled=True.
     """
     default = {"warning": alarm_threshold, "critical": None, "block_enabled": False}
@@ -1324,13 +1331,13 @@ def _compute_dry_run_summary(
     cache_map: dict | None = None,
     category_thresholds: dict | None = None,
 ) -> dict:
-    """Pure computation — no WooCommerce calls. Returns dry-run summary dict.
+    """Pure computation - no WooCommerce calls. Returns dry-run summary dict.
 
     Critical errors are detected across ALL items (invalid + missing_from_wc_cache rows
     are blockers regardless of selection). products_to_update is scoped to selected_ids.
 
     `category_thresholds` (optional) maps category_id (None = global) -> a dict of
-    {warning, critical, block_enabled} — see _resolve_alarm_threshold. When omitted,
+    {warning, critical, block_enabled} - see _resolve_alarm_threshold. When omitted,
     every item just uses the flat `alarm_threshold` as its warning threshold with no
     critical/blocking behavior (legacy callers keep working unchanged).
 
@@ -1341,7 +1348,7 @@ def _compute_dry_run_summary(
     """
     critical_errors: list[dict] = []
 
-    # Step 1: scan every item for blockers — selection does not exempt invalid/missing rows
+    # Step 1: scan every item for blockers - selection does not exempt invalid/missing rows
     for item in items:
         cs = getattr(item, "change_status", None)
         pid = item.product_id
@@ -1465,7 +1472,7 @@ def _compute_dry_run_summary(
     }
 
 
-# ── Serialisers ───────────────────────────────────────────────────────────────
+# -- Serialisers ---------------------------------------------------------------
 
 def _job_out(job: SyncJob) -> dict:
     dr_raw = getattr(job, "dry_run_summary", None)
@@ -1478,7 +1485,7 @@ def _job_out(job: SyncJob) -> dict:
         "updated_count": job.updated_count,
         "failed_count": job.failed_count,
         "skipped_count": job.skipped_count,
-        # Phase B — change detection counts
+        # Phase B - change detection counts
         "changed_count":       getattr(job, "changed_count", 0) or 0,
         "unchanged_count":     getattr(job, "unchanged_count", 0) or 0,
         "new_count":           getattr(job, "new_count", 0) or 0,
@@ -1486,7 +1493,7 @@ def _job_out(job: SyncJob) -> dict:
         "price_changed_count": getattr(job, "price_changed_count", 0) or 0,
         "stock_changed_count": getattr(job, "stock_changed_count", 0) or 0,
         "missing_image_count": getattr(job, "missing_image_count", 0) or 0,
-        # Phase B — dry run
+        # Phase B - dry run
         "dry_run_status":       getattr(job, "dry_run_status", None),
         "dry_run_completed_at": getattr(job, "dry_run_completed_at", None),
         "dry_run_summary":      json.loads(dr_raw) if dr_raw else None,
@@ -1516,7 +1523,7 @@ def _item_out(item: SyncItem) -> dict:
         "synced_at": item.synced_at,
         "last_price_updated": item.last_price_updated,
         "wc_date_modified": item.wc_date_modified,
-        # Phase B — granular change fields
+        # Phase B - granular change fields
         "change_status":    cs,
         "price_changed":    bool(getattr(item, "price_changed", 0)),
         "stock_changed":    bool(getattr(item, "stock_changed", 0)),
@@ -1612,14 +1619,14 @@ def _get_last_synced(db: Session, product_ids: list[int]) -> dict[int, datetime 
     return {r.product_id: r.last_synced for r in rows}
 
 
-# ── Static dashboard ──────────────────────────────────────────────────────────
+# -- Static dashboard ----------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
     return (static_dir / "index.html").read_text(encoding="utf-8")
 
 
-# ── Health ────────────────────────────────────────────────────────────────────
+# -- Health --------------------------------------------------------------------
 
 @app.get("/api/health")
 async def health():
@@ -1629,14 +1636,14 @@ async def health():
     s = get_settings()
     _now = _time.time()
 
-    # Currency: derive from in-memory cache — no live probe to keep latency low.
+    # Currency: derive from in-memory cache - no live probe to keep latency low.
     _cur = _currency_cache
     if _cur["data"] is not None:
         currency_status = "ok" if (_now - _cur["ts"]) < 300 else "stale"
     else:
         currency_status = "unavailable"
 
-    # WooCommerce — 5-level precedence using recorded health state timestamps.
+    # WooCommerce - 5-level precedence using recorded health state timestamps.
     # No live probes; the timestamps are updated by fetch operations in woocommerce.py.
     _wc_ok = _wc_svc._wc_last_success_ts
     _wc_fail = _wc_svc._wc_last_failure_ts
@@ -1651,7 +1658,7 @@ async def health():
     else:
         wc_status = "ok"
 
-    # Nextcloud — same precedence pattern using _XLSX_CACHE_TTL as freshness threshold.
+    # Nextcloud - same precedence pattern using _XLSX_CACHE_TTL as freshness threshold.
     _nc_ok = _nc_svc._nc_last_success_ts
     _nc_fail = _nc_svc._nc_last_failure_ts
     _nc_ttl = _nc_svc._XLSX_CACHE_TTL
@@ -1686,7 +1693,7 @@ async def health():
     }
 
 
-# ── Cache management ──────────────────────────────────────────────────────────
+# -- Cache management ----------------------------------------------------------
 
 @app.get("/api/cache/status")
 async def cache_status(user: dict = Depends(require_permission("can_fetch"))):
@@ -1705,7 +1712,7 @@ async def cache_clear(user: dict = Depends(require_admin)):
     return {"message": "Product cache cleared"}
 
 
-# ── DB product cache endpoints ────────────────────────────────────────────────
+# -- DB product cache endpoints ------------------------------------------------
 
 @app.get("/api/products")
 async def list_cached_products(
@@ -1772,7 +1779,7 @@ async def product_thumb(
     """Return a JPEG thumbnail for a product (96×96 by default; also 128, 256).
     Served from disk cache; generated lazily on first request using Pillow.
 
-    PUBLIC BY DESIGN — no authentication required. Exposes only image data;
+    PUBLIC BY DESIGN - no authentication required. Exposes only image data;
     no price, stock, or catalogue information is returned. The browser workspace
     table loads thumbnails without token forwarding. Consider rate limiting if
     abuse is detected in production.
@@ -1795,7 +1802,7 @@ async def product_thumb(
         row.parent_id if row else "N/A",
     )
 
-    # Case 1: known variation with no own image → fall back to parent image
+    # Case 1: known variation with no own image -> fall back to parent image
     if row and not row.image_url and row.parent_id:
         parent = db.query(ProductCache).filter(ProductCache.wc_id == row.parent_id).first()
         logger.warning(
@@ -1811,7 +1818,7 @@ async def product_thumb(
             )
             row = parent
 
-    # Case 2: unknown ID (not in products_cache) → resolve parent via SyncItem then WC API
+    # Case 2: unknown ID (not in products_cache) -> resolve parent via SyncItem then WC API
     elif not row:
         parent_id: int | None = None
         sync_row = (
@@ -1903,9 +1910,9 @@ async def fetch_full_stream(request: Request, token: str | None = Query(None)):
 
         _t0 = time.monotonic()
         _telemetry = FetchTelemetry(mode="full")
-        yield ev({"step": "start", "status": "running", "msg": "Starting fast product cache refresh (top-level products + images, no variation sub-requests)…"})
+        yield ev({"step": "start", "status": "running", "msg": "Starting fast product cache refresh (top-level products + images, no variation sub-requests)..."})
         try:
-            yield ev({"step": "fetch", "status": "running", "msg": "Fetching product catalog from WooCommerce (~24 pages, images included)…"})
+            yield ev({"step": "fetch", "status": "running", "msg": "Fetching product catalog from WooCommerce (~24 pages, images included)..."})
             fetch_task = asyncio.create_task(fetch_all_products_fast(telemetry=_telemetry))
             while not fetch_task.done():
                 yield ": keepalive\n\n"
@@ -1918,14 +1925,14 @@ async def fetch_full_stream(request: Request, token: str | None = Query(None)):
             yield ev({
                 "step": "fetch",
                 "status": "done",
-                "msg": f"Fetched {len(products)} products from WooCommerce — {simple_count} simple, {variable_count} variable parents, {with_img_fetch} with images",
+                "msg": f"Fetched {len(products)} products from WooCommerce - {simple_count} simple, {variable_count} variable parents, {with_img_fetch} with images",
                 "count": len(products),
                 "simple_count": simple_count,
                 "variable_count": variable_count,
                 "with_image": with_img_fetch,
             })
 
-            yield ev({"step": "upsert", "status": "running", "msg": f"Saving {len(products)} products to local cache…"})
+            yield ev({"step": "upsert", "status": "running", "msg": f"Saving {len(products)} products to local cache..."})
             _db = SessionLocal()
             try:
                 inserted, updated, img_changed = upsert_products(_db, products, image_sync_authoritative=True)
@@ -1958,7 +1965,7 @@ async def fetch_full_stream(request: Request, token: str | None = Query(None)):
                     f"Product cache refreshed: {inserted} new, {updated} updated "
                     f"({with_img_fetch} with images, {without_img} without) in {_elapsed:.0f}s. "
                     f"Variation thumbnails fall back to parent image automatically."
-                    + (" (WC retries detected — check logs)" if _degraded_full else "")
+                    + (" (WC retries detected - check logs)" if _degraded_full else "")
                 ),
                 "inserted": inserted,
                 "updated": updated,
@@ -2014,7 +2021,7 @@ async def fetch_deep_variations_stream(request: Request, token: str | None = Que
         _telemetry_deep = FetchTelemetry(mode="deep")
         yield ev({"step": "start", "status": "running", "msg": "Deep Sync started. This can take a while for large catalogs. You can keep this page open and monitor progress."})
         try:
-            yield ev({"step": "fetch", "status": "running", "msg": "Fetching all products and all variation pages from WooCommerce…"})
+            yield ev({"step": "fetch", "status": "running", "msg": "Fetching all products and all variation pages from WooCommerce..."})
             fetch_task = asyncio.create_task(fetch_all_products_full(telemetry=_telemetry_deep))
             while not fetch_task.done():
                 yield ": keepalive\n\n"
@@ -2034,7 +2041,7 @@ async def fetch_deep_variations_stream(request: Request, token: str | None = Que
                 "warnings": len(var_warnings),
             })
 
-            yield ev({"step": "upsert", "status": "running", "msg": f"Saving {len(products)} records to local cache…"})
+            yield ev({"step": "upsert", "status": "running", "msg": f"Saving {len(products)} records to local cache..."})
             _db = SessionLocal()
             try:
                 inserted, updated, img_changed = upsert_products(_db, products, image_sync_authoritative=True)
@@ -2058,7 +2065,7 @@ async def fetch_deep_variations_stream(request: Request, token: str | None = Que
                 "step": "done",
                 "status": "ok",
                 "msg": f"Deep sync complete: {inserted} new, {updated} updated ({len(products)} total) in {_elapsed_deep:.0f}s"
-                       + (" (WC retries detected — check logs)" if _degraded_deep else ""),
+                       + (" (WC retries detected - check logs)" if _degraded_deep else ""),
                 "inserted": inserted,
                 "updated": updated,
                 "total": len(products),
@@ -2126,12 +2133,12 @@ async def fetch_light_stream(
     _req_user = creds.get("sub", "unknown")
 
     if _capable is None:
-        # Connectivity or probe failure — capability is indeterminate.
+        # Connectivity or probe failure - capability is indeterminate.
         # Admin override is NOT permitted: we cannot confirm the feature exists.
         return StreamingResponse(
             iter([
                 'data: {"error":"Light Refresh probe failed: WooCommerce API probe encountered a'
-                ' connectivity, authentication, or rate-limit error. Capability is indeterminate —'
+                ' connectivity, authentication, or rate-limit error. Capability is indeterminate -'
                 ' try again or run a Full Sync."}\n\n'
             ]),
             media_type="text/event-stream",
@@ -2148,7 +2155,7 @@ async def fetch_light_stream(
                     media_type="text/event-stream",
                 )
             logger.warning(
-                "light_fetch: ADMIN CAPABILITY OVERRIDE by user=%s ip=%s — "
+                "light_fetch: ADMIN CAPABILITY OVERRIDE by user=%s ip=%s - "
                 "capability probe returned unsupported; proceeding at admin's request",
                 _req_user, _client_ip(request),
             )
@@ -2163,7 +2170,7 @@ async def fetch_light_stream(
                 iter([
                     'data: {"error":"Light Refresh unavailable: this WooCommerce install does not support'
                     ' incremental variation filtering (modified_after). This is a WooCommerce API capability'
-                    ' limitation — not a connectivity issue. Use Deep Sync to refresh the full catalog."'
+                    ' limitation - not a connectivity issue. Use Deep Sync to refresh the full catalog."'
                     ',"capability_error":true}\n\n'
                 ]),
                 media_type="text/event-stream",
@@ -2192,10 +2199,10 @@ async def fetch_light_stream(
         _telemetry_light = FetchTelemetry()
         yield ev({
             "step": "start", "status": "running",
-            "msg": f"Light Refresh: window [{modified_after}, {modified_before}] (overlap={_LIGHT_OVERLAP_SECONDS}s)…",
+            "msg": f"Light Refresh: window [{modified_after}, {modified_before}] (overlap={_LIGHT_OVERLAP_SECONDS}s)...",
         })
         try:
-            yield ev({"step": "fetch", "status": "running", "msg": "Fetching modified products from WooCommerce…"})
+            yield ev({"step": "fetch", "status": "running", "msg": "Fetching modified products from WooCommerce..."})
             fetch_task = asyncio.create_task(
                 fetch_products_light(modified_after, modified_before, telemetry=_telemetry_light)
             )
@@ -2213,14 +2220,14 @@ async def fetch_light_stream(
             yield ev({
                 "step": "fetch",
                 "status": "done",
-                "msg": f"Fetched {len(products)} modified record(s) — {parent_count} top-level, {var_count} variation(s)",
+                "msg": f"Fetched {len(products)} modified record(s) - {parent_count} top-level, {var_count} variation(s)",
                 "count": len(products),
                 "parent_count": parent_count,
                 "variation_count": var_count,
                 "warnings": len(var_warnings),
             })
 
-            yield ev({"step": "upsert", "status": "running", "msg": f"Updating {len(products)} record(s) in local cache…"})
+            yield ev({"step": "upsert", "status": "running", "msg": f"Updating {len(products)} record(s) in local cache..."})
             _db = SessionLocal()
             try:
                 inserted, updated, img_changed = upsert_products(_db, products, image_sync_authoritative=True)
@@ -2259,7 +2266,7 @@ async def fetch_light_stream(
                 "step": "done",
                 "status": "ok",
                 "msg": f"Light sync complete: {inserted} new, {updated} updated in {_elapsed_light:.0f}s"
-                       + (" (WC retries detected — check logs)" if _degraded else ""),
+                       + (" (WC retries detected - check logs)" if _degraded else ""),
                 "inserted": inserted,
                 "updated": updated,
                 "total": len(products),
@@ -2289,7 +2296,7 @@ async def fetch_light_stream(
     return StreamingResponse(_gen(), media_type="text/event-stream", headers=_SSE_HEADERS)
 
 
-# ── Sheet debug (admin) ───────────────────────────────────────────────────────
+# -- Sheet debug (admin) -------------------------------------------------------
 
 @app.get("/api/debug/sheet")
 async def debug_sheet(user: dict = Depends(require_admin)):
@@ -2309,7 +2316,7 @@ async def debug_sheet(user: dict = Depends(require_admin)):
     return {"sheet_name": ws.title, "rows": rows}
 
 
-# ── Auth ──────────────────────────────────────────────────────────────────────
+# -- Auth ----------------------------------------------------------------------
 
 @app.post("/api/auth/login")
 async def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
@@ -2323,7 +2330,7 @@ async def login(body: LoginRequest, request: Request, db: Session = Depends(get_
     if ip_exceeded:
         raise HTTPException(
             status_code=429,
-            detail="Too many login attempts — try again later",
+            detail="Too many login attempts - try again later",
             headers={"Retry-After": str(ip_retry)},
         )
 
@@ -2334,16 +2341,16 @@ async def login(body: LoginRequest, request: Request, db: Session = Depends(get_
     if user_exceeded:
         raise HTTPException(
             status_code=429,
-            detail="Too many login attempts — try again later",
+            detail="Too many login attempts - try again later",
             headers={"Retry-After": str(user_retry)},
         )
 
-    # Resolve email → canonical username (non-email identifiers pass through unchanged)
+    # Resolve email -> canonical username (non-email identifiers pass through unchanged)
     canonical_username = _resolve_login_identifier(login_identifier, db)
     if canonical_username is None:
         _rate_limit_record(ip, login_identifier)
         _audit("unknown", "login_denied_unknown_email", ip, detail={"login_identifier": login_identifier})
-        raise HTTPException(403, "Access not granted — contact your administrator")
+        raise HTTPException(403, "Access not granted - contact your administrator")
 
     id_detail = {"login_identifier": login_identifier} if login_identifier != canonical_username else None
 
@@ -2368,7 +2375,7 @@ async def login(body: LoginRequest, request: Request, db: Session = Depends(get_
     if app_user is None or not app_user.is_active:
         _rate_limit_record(ip, login_identifier)
         _audit(canonical_username, "login_denied_not_in_access_list", ip, detail=id_detail)
-        raise HTTPException(403, "Access not granted — contact your administrator")
+        raise HTTPException(403, "Access not granted - contact your administrator")
 
     _rate_limit_clear(ip, login_identifier)
     role = "admin" if app_user.is_admin else "user"
@@ -2396,7 +2403,7 @@ async def me(
         }
     app_user = db.query(AppUser).filter(AppUser.username == username).first()
     if app_user is None:
-        raise HTTPException(403, "User not found in access list — contact your administrator")
+        raise HTTPException(403, "User not found in access list - contact your administrator")
     perms = {p: bool(getattr(app_user, p, False)) for p in _ALL_PERM_FIELDS}
     if app_user.is_admin:
         perms = {p: True for p in _ALL_PERM_FIELDS}
@@ -2410,7 +2417,7 @@ async def me(
     }
 
 
-# ── App Users (admin) ─────────────────────────────────────────────────────────
+# -- App Users (admin) ---------------------------------------------------------
 
 def _app_user_dict(row: AppUser) -> dict:
     return {
@@ -2512,7 +2519,7 @@ async def update_app_user(
     # Lockout guards: prevent accidental self-lockout
     if username == caller:
         if body.is_active is False:
-            raise HTTPException(400, "Cannot deactivate your own account — ask another admin")
+            raise HTTPException(400, "Cannot deactivate your own account - ask another admin")
         if body.is_admin is False:
             active_admin_count = (
                 db.query(AppUser)
@@ -2521,7 +2528,7 @@ async def update_app_user(
             )
             if active_admin_count <= 1:
                 raise HTTPException(
-                    400, "Cannot remove admin from the last active DB admin — add another admin first"
+                    400, "Cannot remove admin from the last active DB admin - add another admin first"
                 )
     if body.display_name is not None:
         row.display_name = body.display_name
@@ -2584,7 +2591,7 @@ async def delete_app_user(
         )
         if active_admin_count <= 1:
             raise HTTPException(
-                400, "Cannot delete the last active DB admin — add another admin first"
+                400, "Cannot delete the last active DB admin - add another admin first"
             )
     db.delete(row)
     db.commit()
@@ -2601,7 +2608,7 @@ async def revoke_user_tokens(
 ):
     caller = user.get("sub", "")
     if username == caller:
-        raise HTTPException(400, "Cannot revoke your own tokens — log out instead")
+        raise HTTPException(400, "Cannot revoke your own tokens - log out instead")
     row = db.query(AppUser).filter(AppUser.username == username).first()
     if row is None:
         raise HTTPException(404, "User not found")
@@ -2613,7 +2620,7 @@ async def revoke_user_tokens(
     return {"username": username, "permission_version": row.permission_version}
 
 
-# ── Maintenance mode (super admin only) ───────────────────────────────────────
+# -- Maintenance mode (super admin only) ---------------------------------------
 
 @app.get("/api/admin/maintenance")
 async def get_maintenance_mode(
@@ -2646,7 +2653,7 @@ async def set_maintenance_mode(
     return {"enabled": body.enabled, "message": body.message}
 
 
-# ── Settings (admin) ──────────────────────────────────────────────────────────
+# -- Settings (admin) ----------------------------------------------------------
 
 @app.get("/api/settings")
 async def get_app_settings(user: dict = Depends(require_permission("can_view_settings"))):
@@ -2666,7 +2673,7 @@ async def get_app_settings(user: dict = Depends(require_permission("can_view_set
     }
 
 
-# ── Alarm thresholds ──────────────────────────────────────────────────────────
+# -- Alarm thresholds ----------------------------------------------------------
 
 @app.get("/api/alarm-settings")
 async def get_alarm_settings(user: dict = Depends(require_permission("can_view_settings")), db: Session = Depends(get_db)):
@@ -2698,7 +2705,7 @@ async def set_alarm_settings(
     return {"message": "Alarm thresholds saved"}
 
 
-# ── Audit logs ────────────────────────────────────────────────────────────────
+# -- Audit logs ----------------------------------------------------------------
 
 @app.get("/api/audit-logs")
 async def get_audit_logs(
@@ -2746,7 +2753,7 @@ async def get_audit_logs(
     return result
 
 
-# ── Categories (cached 5 min) ─────────────────────────────────────────────────
+# -- Categories (cached 5 min) -------------------------------------------------
 
 _cat_cache: dict = {"data": None, "ts": 0.0}
 
@@ -2770,7 +2777,7 @@ async def get_cached_product_categories(
     user: dict = Depends(require_permission("can_access_site")),
     db: Session = Depends(get_db),
 ):
-    """Return distinct categories derived from the product cache — no live WC call.
+    """Return distinct categories derived from the product cache - no live WC call.
     Returns empty list when the cache is unpopulated."""
     rows = (
         db.query(ProductCache.categories)
@@ -2789,7 +2796,7 @@ async def get_cached_product_categories(
     return [{"id": cid, "name": cname} for cid, cname in sorted(seen.items(), key=lambda x: x[1])]
 
 
-# ── Currency proxy ───────────────────────────────────────────────────────────
+# -- Currency proxy -----------------------------------------------------------
 
 _currency_cache: dict = {"data": None, "ts": 0.0}
 
@@ -2861,7 +2868,7 @@ async def get_currency():
         raise HTTPException(503, "Currency service unavailable")
 
 
-# ── Dashboard ─────────────────────────────────────────────────────────────────
+# -- Dashboard -----------------------------------------------------------------
 
 def _compute_sheet_coverage(db: Session, latest_job) -> dict:
     """Coverage: denominator = top-level ProductCache (parent_id=0).
@@ -2974,7 +2981,7 @@ async def get_dashboard(user: dict = Depends(require_permission("can_access_site
     }
 
 
-# ── Analytics ─────────────────────────────────────────────────────────────────
+# -- Analytics -----------------------------------------------------------------
 
 @app.get("/api/analytics")
 async def get_analytics(user: dict = Depends(require_permission("can_access_site")), db: Session = Depends(get_db)):
@@ -3021,12 +3028,12 @@ async def get_analytics(user: dict = Depends(require_permission("can_access_site
 
 
 def _compute_brand_coverage(rows: list[tuple]) -> dict:
-    """Pure aggregation step for brand coverage — kept separate from the route
+    """Pure aggregation step for brand coverage - kept separate from the route
     so it's directly testable without a DB.
 
     rows: [(brand_id, brand_name, product_count), ...] already grouped by brand.
     brand_id is None means WooCommerce has no brand assigned for those
-    products — surfaced explicitly as 'unknown_brand', never guessed.
+    products - surfaced explicitly as 'unknown_brand', never guessed.
     """
     total = sum(count for _, _, count in rows)
     brands = []
@@ -3050,7 +3057,7 @@ def _compute_brand_coverage(rows: list[tuple]) -> dict:
 async def get_brand_coverage(user: dict = Depends(require_permission("can_access_site")), db: Session = Depends(get_db)):
     """Read-only brand coverage report computed from the local products_cache.
 
-    Counts top-level products only (parent_id == 0) — variations always
+    Counts top-level products only (parent_id == 0) - variations always
     inherit their parent's brand (see services/woocommerce.py), so including
     them too would double-count the same brand assignment.
     """
@@ -3063,7 +3070,7 @@ async def get_brand_coverage(user: dict = Depends(require_permission("can_access
     return _compute_brand_coverage(rows)
 
 
-# ── Analytics Dashboard v1 ────────────────────────────────────────────────────
+# -- Analytics Dashboard v1 ----------------------------------------------------
 
 def _today_utc_start() -> datetime:
     n = datetime.utcnow()
@@ -3113,7 +3120,7 @@ async def analytics_admin_overview(
         db.query(func.count()).select_from(ProductCache)
         .filter(ProductCache.stock_status == "outofstock").scalar() or 0
     )
-    # HIGH 2: missing image — top-level products only (parent_id=0); variations inherit from parent
+    # HIGH 2: missing image - top-level products only (parent_id=0); variations inherit from parent
     missing_image = (
         db.query(func.count()).select_from(ProductCache)
         .filter(ProductCache.parent_id == 0, ProductCache.image_url.is_(None)).scalar() or 0
@@ -3158,7 +3165,7 @@ async def analytics_admin_top_movements(
         ChangeHistory.new_price.isnot(None),
     ]
 
-    # SQL path: rows with price_delta_pct already computed — bounded by LIMIT
+    # SQL path: rows with price_delta_pct already computed - bounded by LIMIT
     sql_rows = (
         db.query(ChangeHistory)
         .filter(*base_filter, ChangeHistory.price_delta_pct.isnot(None))
@@ -3173,7 +3180,7 @@ async def analytics_admin_top_movements(
         .all()
     )
 
-    seen: dict[int, dict] = {}  # product_id → best movement (largest abs delta)
+    seen: dict[int, dict] = {}  # product_id -> best movement (largest abs delta)
 
     def _add(row: ChangeHistory, delta_pct: float) -> None:
         if abs(delta_pct) < 0.01:
@@ -3223,7 +3230,7 @@ async def analytics_admin_trend(
     user: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Daily metrics for the last N days (1–30), with zero-fill for missing days."""
+    """Daily metrics for the last N days (1-30), with zero-fill for missing days."""
     end = datetime.utcnow().date()
     start_str = str(end - timedelta(days=days - 1))
     rows = (
@@ -3293,7 +3300,7 @@ async def analytics_seller_categories(
     for r in result:
         r["update_pct"] = round(r["updated_today"] / r["total"] * 100, 1) if r["total"] else 0.0
 
-    return {"categories": result, "scale_note": "Python JSON parsing — refactor to junction table if catalog exceeds 10k products"}
+    return {"categories": result, "scale_note": "Python JSON parsing - refactor to junction table if catalog exceeds 10k products"}
 
 
 @app.get("/api/analytics/seller/brands")
@@ -3408,7 +3415,7 @@ async def analytics_seller_staleness(
     }
 
 
-# ── Analytics Phase 7A ────────────────────────────────────────────────────────
+# -- Analytics Phase 7A --------------------------------------------------------
 
 def _query_confirmed_apply_rows(db: Session, start_dt: datetime) -> list:
     """ChangeHistory rows for confirmed successful Apply operations since start_dt.
@@ -3442,7 +3449,7 @@ def _apply_change_type_filter(q, change_type):
             ChangeHistory.old_price != ChangeHistory.new_price,
         )
     if change_type == "stock_in":
-        # NULL → instock counts as a stock_in transition
+        # NULL -> instock counts as a stock_in transition
         return q.filter(
             ChangeHistory.new_stock_status == "instock",
             or_(
@@ -3451,7 +3458,7 @@ def _apply_change_type_filter(q, change_type):
             ),
         )
     if change_type == "stock_out":
-        # NULL → outofstock counts as a stock_out transition
+        # NULL -> outofstock counts as a stock_out transition
         return q.filter(
             ChangeHistory.new_stock_status == "outofstock",
             or_(
@@ -3598,7 +3605,7 @@ async def analytics_change_log(
     return {"changes": result, "total": len(result)}
 
 
-# ── Live price/stock update ───────────────────────────────────────────────────
+# -- Live price/stock update ---------------------------------------------------
 
 @app.get("/api/products/{product_id}/lookup")
 async def lookup_product(
@@ -3694,7 +3701,7 @@ async def update_price(
     # WooCommerce state has changed. Commit cache patch + dry-run invalidation atomically
     # BEFORE the Excel writeback so that even if writeback raises, the dry run is already
     # invalidated and apply cannot proceed on stale analysis.
-    # Invalidation is unconditional — does not require job_id from the caller.
+    # Invalidation is unconditional - does not require job_id from the caller.
     cache_hit = patch_cached_product(db, product_id, {
         "regular_price": body.new_price,
         "final_price": body.new_price,
@@ -3787,7 +3794,7 @@ async def update_stock(
         raise HTTPException(502, f"WooCommerce update failed: {exc}")
 
     # Commit cache patch + dry-run invalidation atomically before Excel writeback
-    # (same fail-safe pattern as update_price; unconditional — no job_id needed).
+    # (same fail-safe pattern as update_price; unconditional - no job_id needed).
     cache_fields: dict = {"stock_status": body.stock_status}
     if body.stock_quantity is not None:
         cache_fields["stock_quantity"] = body.stock_quantity
@@ -3823,7 +3830,7 @@ async def update_stock(
     return result
 
 
-# ── System diagnostics ────────────────────────────────────────────────────────
+# -- System diagnostics --------------------------------------------------------
 
 @app.get("/api/system/diagnostics")
 async def system_diagnostics(user: dict = Depends(get_current_active_user), db: Session = Depends(get_db)):
@@ -3836,7 +3843,7 @@ async def system_diagnostics(user: dict = Depends(get_current_active_user), db: 
     last_fetch = get_last_sync_time(db)
 
     secret_bytes = len(settings.jwt_secret.encode())
-    jwt_status = f"ok ({secret_bytes} bytes)" if secret_bytes >= 32 else f"INSECURE — only {secret_bytes} bytes, need 32+"
+    jwt_status = f"ok ({secret_bytes} bytes)" if secret_bytes >= 32 else f"INSECURE - only {secret_bytes} bytes, need 32+"
 
     try:
         git_hash = subprocess.check_output(
@@ -3858,7 +3865,7 @@ async def system_diagnostics(user: dict = Depends(get_current_active_user), db: 
     }
 
 
-# ── 1. Create preview ─────────────────────────────────────────────────────────
+# -- 1. Create preview ---------------------------------------------------------
 
 @app.post("/api/preview")
 async def create_preview(user: dict = Depends(require_permission("can_fetch")), db: Session = Depends(get_db)):
@@ -3897,7 +3904,7 @@ async def create_preview(user: dict = Depends(require_permission("can_fetch")), 
     last_synced = _get_last_synced(db, product_ids)
     cache_by_id = {r.wc_id: r for r in db.query(ProductCache).filter(ProductCache.wc_id.in_(product_ids)).all()}
 
-    # Parent rows for image fallback — a variation missing its own image_url should
+    # Parent rows for image fallback - a variation missing its own image_url should
     # not warn missing_image if its parent has one (see _row_has_image).
     _parent_ids_for_image = {
         r.parent_id for r in cache_by_id.values()
@@ -4004,7 +4011,7 @@ async def create_preview(user: dict = Depends(require_permission("can_fetch")), 
     }
 
 
-# ── 2. Confirm sync ───────────────────────────────────────────────────────────
+# -- 2. Confirm sync -----------------------------------------------------------
 
 @app.post("/api/sync/{job_id}/confirm")
 async def confirm_sync(
@@ -4103,7 +4110,7 @@ async def confirm_sync(
                 if _is_zero_price(item.new_price):
                     logger.info(
                         "confirm outofstock: pid=%d name=%r parent=%d "
-                        "blank/zero price → stock_status=outofstock",
+                        "blank/zero price -> stock_status=outofstock",
                         item.product_id, item.product_name or "", item.parent_id or 0,
                     )
                 _ch = patch_cached_product(db, item.product_id, {
@@ -4151,7 +4158,7 @@ async def confirm_sync(
             "updated": job.updated_count, "failed": job.failed_count, "skipped": job.skipped_count}
 
 
-# ── 3. Cancel preview ─────────────────────────────────────────────────────────
+# -- 3. Cancel preview ---------------------------------------------------------
 
 @app.delete("/api/sync/{job_id}")
 async def cancel_sync(job_id: int, user: dict = Depends(require_permission("can_apply")), db: Session = Depends(get_db)):
@@ -4165,7 +4172,7 @@ async def cancel_sync(job_id: int, user: dict = Depends(require_permission("can_
     return {"job_id": job_id, "status": "cancelled"}
 
 
-# ── 3b. Dry run ───────────────────────────────────────────────────────────────
+# -- 3b. Dry run ---------------------------------------------------------------
 
 @app.post("/api/sync/{job_id}/dry-run")
 async def dry_run_sync(
@@ -4241,7 +4248,7 @@ async def dry_run_sync(
         raise HTTPException(500, f"Dry run computation failed: {exc}")
 
 
-# ── 4. List jobs ──────────────────────────────────────────────────────────────
+# -- 4. List jobs --------------------------------------------------------------
 
 @app.get("/api/jobs")
 async def list_jobs(limit: int = 30, user: dict = Depends(require_permission("can_view_logs")), db: Session = Depends(get_db)):
@@ -4249,7 +4256,7 @@ async def list_jobs(limit: int = 30, user: dict = Depends(require_permission("ca
     return [_job_out(j) for j in jobs]
 
 
-# ── 5. Job detail ─────────────────────────────────────────────────────────────
+# -- 5. Job detail -------------------------------------------------------------
 
 @app.get("/api/jobs/{job_id}")
 async def get_job(job_id: int, user: dict = Depends(require_permission("can_view_logs")), db: Session = Depends(get_db)):
@@ -4260,7 +4267,7 @@ async def get_job(job_id: int, user: dict = Depends(require_permission("can_view
     return {**_job_out(job), "items": [_item_out(i) for i in items]}
 
 
-# ── 6. Spreadsheet metadata (HEAD only — no download) ────────────────────────
+# -- 6. Spreadsheet metadata (HEAD only - no download) ------------------------
 
 @app.get("/api/spreadsheet/meta")
 async def spreadsheet_meta_endpoint(user: dict = Depends(require_permission("can_fetch"))):
@@ -4277,7 +4284,7 @@ async def spreadsheet_meta_endpoint(user: dict = Depends(require_permission("can
     }
 
 
-# ── 7. Preview stream (SSE) ───────────────────────────────────────────────────
+# -- 7. Preview stream (SSE) ---------------------------------------------------
 
 def _matches_any_selected_category(categories: list, selected_ids: set[int]) -> bool:
     """OR semantics for Pre-Fetch: match any exact selected category ID."""
@@ -4325,7 +4332,7 @@ async def preview_stream(
             _audit(user_data["sub"], "fetch_started", ip, None,
                    {"pre_search": _pre_search or None, "pre_cat": sorted(_pre_cat_ids) or None})
 
-            yield ev({"step": "excel", "status": "running", "msg": "Downloading price list from Nextcloud…"})
+            yield ev({"step": "excel", "status": "running", "msg": "Downloading price list from Nextcloud..."})
             try:
                 xlsx = await download_xlsx(force=True)
             except Exception as exc:
@@ -4343,7 +4350,7 @@ async def preview_stream(
             if not sheet_items:
                 yield ev({"step": "excel", "status": "error", "msg": "No valid rows found (IDs in col B, prices in col C from row 3)"}); return
 
-            # ── Pre-fetch filters ─────────────────────────────────────────────
+            # -- Pre-fetch filters ---------------------------------------------
             total_in_sheet = len(sheet_items)
             filter_mode = "full"
             _filter_skipped = 0
@@ -4396,7 +4403,7 @@ async def preview_stream(
             if dup_warnings:
                 yield ev({
                     "step": "excel", "status": "warning",
-                    "msg": f"{len(dup_warnings)} duplicate product ID(s) detected across worksheets — last sheet wins",
+                    "msg": f"{len(dup_warnings)} duplicate product ID(s) detected across worksheets - last sheet wins",
                     "duplicate_warnings": dup_warnings,
                 })
 
@@ -4406,7 +4413,7 @@ async def preview_stream(
             freshly_fetched_ids: set[int] = set(missing_ids)
 
             if missing_ids:
-                yield ev({"step": "wc", "status": "running", "msg": f"{len(cached_data)} products from cache, fetching {len(missing_ids)} from WooCommerce…"})
+                yield ev({"step": "wc", "status": "running", "msg": f"{len(cached_data)} products from cache, fetching {len(missing_ids)} from WooCommerce..."})
                 try:
                     fetch_task = asyncio.create_task(fetch_product_prices(missing_ids, force=True))
                     while not fetch_task.done():
@@ -4420,10 +4427,10 @@ async def preview_stream(
                 upsert_products(db, cache_rows)  # image_url absent in cache_rows; discard return value
                 db.commit()
                 # Re-read from DB so wc_data uses _to_dict format (final_price or regular_price)
-                # — same derivation the NEXT preview will use, preventing false "changed" rows.
+                # - same derivation the NEXT preview will use, preventing false "changed" rows.
                 cached_data.update(get_cached_by_ids(db, list(fresh_data.keys())))
             else:
-                yield ev({"step": "wc", "status": "running", "msg": f"Loading {len(cached_data)} products from local cache…"})
+                yield ev({"step": "wc", "status": "running", "msg": f"Loading {len(cached_data)} products from local cache..."})
 
             wc_data = cached_data
 
@@ -4436,7 +4443,7 @@ async def preview_stream(
                 _cmeta[_cr.wc_id] = (_cr.cache_version, _cr.last_synced_at)
                 cache_by_id[_cr.wc_id] = _cr
 
-            # Parent rows for image fallback — a variation missing its own image_url
+            # Parent rows for image fallback - a variation missing its own image_url
             # should not warn missing_image if its parent has one (see _row_has_image).
             _parent_ids_for_image = {
                 _cr.parent_id for _cr in cache_by_id.values()
@@ -4447,7 +4454,7 @@ async def preview_stream(
                 for _pr in db.query(ProductCache).filter(ProductCache.wc_id.in_(_parent_ids_for_image)).all():
                     parent_cache_by_id[_pr.wc_id] = _pr
 
-            yield ev({"step": "calc", "status": "running", "msg": "Calculating price differences…"})
+            yield ev({"step": "calc", "status": "running", "msg": "Calculating price differences..."})
 
             last_synced = _get_last_synced(db, product_ids)
 
@@ -4586,7 +4593,7 @@ async def preview_stream(
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-# ── 7. Apply stream (SSE) ─────────────────────────────────────────────────────
+# -- 7. Apply stream (SSE) -----------------------------------------------------
 
 @app.get("/api/sync/{job_id}/apply-stream")
 async def apply_stream(
@@ -4638,7 +4645,7 @@ async def apply_stream(
 
             items = db.query(SyncItem).filter(SyncItem.job_id == job_id).all()
 
-            # selected_ids is already normalised; pass None when empty (→ apply-all)
+            # selected_ids is already normalised; pass None when empty (-> apply-all)
             to_update, to_skip = _split_items_for_apply(items, selected_ids or None)
 
             _audit(user_data["sub"], "apply_started", ip, job_id,
@@ -4731,7 +4738,7 @@ async def apply_stream(
                             if _is_zero_price(item.new_price):
                                 logger.info(
                                     "apply outofstock: pid=%d name=%r parent=%d "
-                                    "blank/zero price → stock_status=outofstock",
+                                    "blank/zero price -> stock_status=outofstock",
                                     item.product_id, item.product_name or "", item.parent_id or 0,
                                 )
                             _ch = patch_cached_product(db, item.product_id, {
@@ -4805,7 +4812,7 @@ async def apply_stream(
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-# ── 8. Write back to sheet ────────────────────────────────────────────────────
+# -- 8. Write back to sheet ----------------------------------------------------
 
 @app.post("/api/jobs/{job_id}/writeback")
 async def writeback(job_id: int, user: dict = Depends(require_permission("can_apply")), db: Session = Depends(get_db)):
@@ -4827,7 +4834,7 @@ async def writeback(job_id: int, user: dict = Depends(require_permission("can_ap
     return {"message": "Results written back to spreadsheet (columns E, F, G)"}
 
 
-# ── 9. Rollback (Phase C — admin only) ────────────────────────────────────────
+# -- 9. Rollback (Phase C - admin only) ----------------------------------------
 
 async def _rollback_one(db: Session, entry: ChangeHistory, username: str, undo_source: str = "rollback") -> dict:
     """Restore the prior state captured in a single change_history entry via WooCommerce.
@@ -4851,7 +4858,7 @@ async def _rollback_one(db: Session, entry: ChangeHistory, username: str, undo_s
 
     if not payload:
         return {"product_id": pid, "success": False,
-                "error_message": "Nothing to restore — recorded prior state was empty."}
+                "error_message": "Nothing to restore - recorded prior state was empty."}
 
     # Capture current cache state to record as the 'old' of the rollback row.
     cache_row = db.query(ProductCache).filter(ProductCache.wc_id == pid).first()
@@ -4889,7 +4896,7 @@ async def _rollback_one(db: Session, entry: ChangeHistory, username: str, undo_s
         rollback_of_id=entry.id,
     )
 
-    # WC state changed — invalidate any active dry runs for this product.
+    # WC state changed - invalidate any active dry runs for this product.
     _invalidate_dry_runs_for_product(db, pid)
 
     return {"product_id": pid, "success": True,
@@ -4916,7 +4923,7 @@ async def rollback_product(
         .first()
     )
     if entry is None:
-        raise HTTPException(404, "No change history found for this product — nothing to roll back.")
+        raise HTTPException(404, "No change history found for this product - nothing to roll back.")
 
     _audit(username, "rollback_started", ip, entry.job_id,
            {"product_id": product_id, "change_history_id": entry.id, "scope": "product"})
@@ -4962,9 +4969,9 @@ async def rollback_job(
         .all()
     )
     if not entries:
-        raise HTTPException(404, "No applied changes found for this job — nothing to roll back.")
+        raise HTTPException(404, "No applied changes found for this job - nothing to roll back.")
     if len(entries) > 500:
-        raise HTTPException(400, f"Job has {len(entries)} changes — rollback is limited to 500 products.")
+        raise HTTPException(400, f"Job has {len(entries)} changes - rollback is limited to 500 products.")
 
     _audit(username, "rollback_started", ip, job_id, {"scope": "job", "count": len(entries)})
 
@@ -5005,10 +5012,10 @@ async def rollback_job(
             "succeeded": succeeded, "failed": failed, "results": results}
 
 
-# ── Phase 7B: Emergency Price Engine ─────────────────────────────────────────
+# -- Phase 7B: Emergency Price Engine -----------------------------------------
 
 def _emergency_round(price: float) -> int:
-    """MROUND equivalent: round to nearest 10,000 if price ≤ 20,000,000 else 50,000.
+    """MROUND equivalent: round to nearest 10,000 if price <= 20,000,000 else 50,000.
     Uses round-half-away-from-zero (Excel MROUND / JS Math.round behavior), not banker's rounding."""
     unit = 50_000 if price > 20_000_000 else 10_000
     return int(math.floor(price / unit + 0.5)) * unit
@@ -5028,7 +5035,7 @@ def _prices_equal(a: str | None, b: str | None) -> bool:
 
 class EmergencyPreviewRequest(BaseModel):
     operation: str               # pct_increase | pct_decrease | fixed_increase | fixed_decrease
-    value: float                 # percent (0–100, exclusive–inclusive) or fixed amount (>0)
+    value: float                 # percent (0-100, exclusive-inclusive) or fixed amount (>0)
     brand_name: str | None = None
     category_id: int | None = None
     sku: str | None = None
@@ -5036,7 +5043,7 @@ class EmergencyPreviewRequest(BaseModel):
 
 
 class EmergencyApplyRequest(BaseModel):
-    confirm: bool = False        # must be True — explicit guard against accidental apply
+    confirm: bool = False        # must be True - explicit guard against accidental apply
 
 
 class UndoRequest(BaseModel):
@@ -5083,7 +5090,7 @@ async def emergency_preview(
     user: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Create an emergency price update batch — preview only, no WC writes.
+    """Create an emergency price update batch - preview only, no WC writes.
     Returns batch_id + computed new prices. Caller must POST to /apply to confirm."""
     valid_ops = {"pct_increase", "pct_decrease", "fixed_increase", "fixed_decrease"}
     if body.operation not in valid_ops:
@@ -5092,12 +5099,12 @@ async def emergency_preview(
         raise HTTPException(400, "value must be a finite number (not NaN or Infinity)")
     if body.operation in ("pct_increase", "pct_decrease"):
         if body.value <= 0 or body.value > 100:
-            raise HTTPException(400, "value must be > 0 and ≤ 100 for percentage operations")
+            raise HTTPException(400, "value must be > 0 and <= 100 for percentage operations")
     else:
         if body.value <= 0:
             raise HTTPException(400, "value must be greater than 0 for fixed operations")
 
-    # Build product query — top-level products only (parent_id=0)
+    # Build product query - top-level products only (parent_id=0)
     q = db.query(ProductCache).filter(ProductCache.parent_id == 0)
     if body.brand_name:
         q = q.filter(ProductCache.brand_name.ilike(f"%{body.brand_name}%"))
@@ -5176,10 +5183,10 @@ async def emergency_list_pending(
     db: Session = Depends(get_db),
 ):
     """List batches requiring operator attention:
-      pending       — awaiting apply
-      applying      — interrupted mid-apply; needs investigation
-      needs_reconcile — WC wrote but DB finalization failed; needs manual reconciliation
-      partially_failed — some items applied, some failed; review recommended"""
+      pending       - awaiting apply
+      applying      - interrupted mid-apply; needs investigation
+      needs_reconcile - WC wrote but DB finalization failed; needs manual reconciliation
+      partially_failed - some items applied, some failed; review recommended"""
     batches = (
         db.query(EmergencyBatch)
         .filter(EmergencyBatch.status.in_(["pending", "applying", "needs_reconcile", "partially_failed"]))
@@ -5214,21 +5221,21 @@ async def emergency_apply(
 ):
     """Apply a pending emergency batch to WooCommerce. Requires confirm=True. Admin-only.
     Durability contract:
-      checkpoint A (item=applying)   — committed BEFORE the WC write
-      checkpoint B (item=wc_succeeded) — committed immediately AFTER WC write, before cache/history
-      checkpoint C (item=applied)    — committed after cache + ChangeHistory finalized
+      checkpoint A (item=applying)   - committed BEFORE the WC write
+      checkpoint B (item=wc_succeeded) - committed immediately AFTER WC write, before cache/history
+      checkpoint C (item=applied)    - committed after cache + ChangeHistory finalized
       If checkpoint B exists but C fails: item becomes needs_reconcile (WC wrote; DB needs manual fix)
       If WC write fails: item becomes failed (no external side-effect)
     Freshness: items whose cached price changed since preview are marked stale and never written."""
     if not body.confirm:
-        raise HTTPException(400, "confirm must be true — this prevents accidental mass price changes")
+        raise HTTPException(400, "confirm must be true - this prevents accidental mass price changes")
 
     # Check batch exists before attempting claim
     batch = db.get(EmergencyBatch, batch_id)
     if batch is None:
         raise HTTPException(404, "Emergency batch not found")
 
-    # HIGH 1: Atomic claim — single conditional UPDATE WHERE status='pending'.
+    # HIGH 1: Atomic claim - single conditional UPDATE WHERE status='pending'.
     # rowcount == 1 guarantees exclusive ownership; rowcount == 0 means another request already claimed it.
     claim = db.execute(
         sa_update(EmergencyBatch)
@@ -5238,7 +5245,7 @@ async def emergency_apply(
     db.commit()
     if claim.rowcount != 1:
         db.refresh(batch)
-        raise HTTPException(409, f"Batch already claimed: status is '{batch.status}' — only 'pending' batches can be applied")
+        raise HTTPException(409, f"Batch already claimed: status is '{batch.status}' - only 'pending' batches can be applied")
 
     db.refresh(batch)
     ip = _client_ip(request)
@@ -5256,7 +5263,7 @@ async def emergency_apply(
     for item in pending_items:
         cache_row = db.query(ProductCache).filter(ProductCache.wc_id == item.product_id).first()
 
-        # HIGH 2: Staleness guard — compare numerically so '100000' == '100000.00'.
+        # HIGH 2: Staleness guard - compare numerically so '100000' == '100000.00'.
         current_price = (cache_row.final_price or cache_row.regular_price) if cache_row else None
         if current_price is None:
             item.status = "stale"
@@ -5273,11 +5280,11 @@ async def emergency_apply(
 
         parent_id = (cache_row.parent_id or 0) if cache_row else 0
 
-        # Checkpoint A: commit 'applying' before WC write — process is auditable if it crashes here.
+        # Checkpoint A: commit 'applying' before WC write - process is auditable if it crashes here.
         item.status = "applying"
         db.commit()
 
-        wc_write_succeeded = False  # in-memory flag — tracks whether WC call returned OK
+        wc_write_succeeded = False  # in-memory flag - tracks whether WC call returned OK
         try:
             await update_single_product(item.product_id, {"regular_price": item.new_price}, parent_id)
             wc_write_succeeded = True  # set immediately after WC returns; survives any later DB failure
@@ -5324,7 +5331,7 @@ async def emergency_apply(
             db.rollback()
             if wc_write_succeeded:
                 # WC returned success but checkpoint B commit itself failed.
-                # Must NOT mark as failed — WC was already written; needs operator reconciliation.
+                # Must NOT mark as failed - WC was already written; needs operator reconciliation.
                 item.status = "needs_reconcile"
                 item.wc_success_at = datetime.utcnow()  # best-effort: WC succeeded at approximately this time
                 item.error = f"WC write succeeded but checkpoint commit failed: {exc}"
@@ -5332,7 +5339,7 @@ async def emergency_apply(
                 reconcile_count += 1
                 logger.error("emergency_apply: checkpoint B failed after WC success: product_id=%d error=%s", item.product_id, exc)
             else:
-                # WC write itself failed — no external side-effect; safe to mark failed.
+                # WC write itself failed - no external side-effect; safe to mark failed.
                 item.status = "failed"
                 item.error = str(exc)
                 db.commit()
@@ -5378,7 +5385,7 @@ async def emergency_cancel(
     return {"batch_id": batch_id, "status": "cancelled"}
 
 
-# ── Phase 7B: Audit History + Undo ────────────────────────────────────────────
+# -- Phase 7B: Audit History + Undo --------------------------------------------
 
 @app.get("/api/audit/history")
 async def audit_history(
@@ -5522,7 +5529,7 @@ async def audit_undo(
     return {"undone": undone, "failed": failed, "results": results}
 
 
-# ── SPA catch-all ─────────────────────────────────────────────────────────────
+# -- SPA catch-all -------------------------------------------------------------
 
 @app.get("/{full_path:path}", response_class=HTMLResponse)
 async def spa_fallback(full_path: str):

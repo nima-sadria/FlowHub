@@ -1,4 +1,4 @@
-"""Control Plane failure taxonomy â€” FailureClass enum and Severity levels.
+"""Control Plane failure taxonomy - FailureClass enum and Severity levels.
 
 Every integration check returns exactly one FailureClass. Collapsing DNS or TLS
 failures into generic messages is prohibited at every layer.
@@ -124,7 +124,7 @@ class FailureClass(str, Enum):
         return self.meta.security_sensitive
 
 
-# Metadata table â€” keyed by string value to avoid forward-reference issues.
+# Metadata table - keyed by string value to avoid forward-reference issues.
 _FAILURE_METADATA: dict[str, FailureClassMeta] = {
     "none": FailureClassMeta(
         code="none",

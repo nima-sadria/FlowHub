@@ -1,6 +1,6 @@
 """Tests for the BU5 XLSX spreadsheet parser.
 
-All tests use in-memory openpyxl workbooks — no file I/O needed.
+All tests use in-memory openpyxl workbooks - no file I/O needed.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import openpyxl
 from app.beta.integrations.spreadsheet import parse_price_list, _normalize_price_text
 
 
-# ── _normalize_price_text ─────────────────────────────────────────────────────
+# -- _normalize_price_text -----------------------------------------------------
 
 class TestNormalizePriceText:
     def test_ascii_digits_unchanged(self):
@@ -33,12 +33,12 @@ class TestNormalizePriceText:
         assert _normalize_price_text("  99.9  ") == "99.9"
 
 
-# ── parse_price_list ──────────────────────────────────────────────────────────
+# -- parse_price_list ----------------------------------------------------------
 
 def _make_wb(*sheets: list[tuple]) -> openpyxl.Workbook:
     """Helper: build a workbook from a list of (sheet_name, rows) pairs.
 
-    Each row is (name, product_id, price). Rows start at row 3 (rows 1–2 = header).
+    Each row is (name, product_id, price). Rows start at row 3 (rows 1-2 = header).
     """
     wb = openpyxl.Workbook()
     # Remove default sheet
@@ -48,7 +48,7 @@ def _make_wb(*sheets: list[tuple]) -> openpyxl.Workbook:
 
     for sheet_name, rows in sheets:
         ws = wb.create_sheet(title=sheet_name)
-        # rows 1–2 are header rows (left blank)
+        # rows 1-2 are header rows (left blank)
         ws.append(["Product Name", "Product ID", "Price"])  # row 1
         ws.append([])                                         # row 2
         for row in rows:

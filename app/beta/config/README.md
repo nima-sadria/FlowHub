@@ -1,6 +1,6 @@
-# FlowHub â€” Configuration Core
+# FlowHub - Configuration Core
 
-**Phase:** B3 Configuration Foundation  
+**Phase:** B3 Configuration Foundation
 **Architecture:** Framework-independent. No FastAPI, Typer, or HTTP imports.
 
 ---
@@ -19,7 +19,7 @@ if not result:
     raise SystemExit(1)
 config = manager.get()
 print(config.domain)
-print(config.jwt_secret.get_secret_value())  # SecretStr â€” use .get_secret_value()
+print(config.jwt_secret.get_secret_value())  # SecretStr - use .get_secret_value()
 ```
 
 ---
@@ -32,7 +32,7 @@ print(config.jwt_secret.get_secret_value())  # SecretStr â€” use .get_secre
 |---|---|---|
 | `BETA_ENV` | `dev` \| `beta` \| `production` | Enum membership |
 | `BETA_DOMAIN` | string | Non-empty |
-| `BETA_PORT` | integer | 1024â€“65535 |
+| `BETA_PORT` | integer | 1024-65535 |
 | `BETA_DATABASE_URL` | string | `postgresql://` prefix |
 | `BETA_POSTGRES_DB` | string | Non-empty |
 | `BETA_POSTGRES_USER` | string | Non-empty |
@@ -70,7 +70,7 @@ print(config.jwt_secret.get_secret_value())  # SecretStr â€” use .get_secre
 
 ## Secret Separation Model
 
-Secrets live **only** in environment variables (`.env` file, mode 600).  
+Secrets live **only** in environment variables (`.env` file, mode 600).
 They are **never** stored in:
 - The managed TOML config file (`$BETA_STORAGE_PATH/config/flowhub.toml`)
 - The database
@@ -108,7 +108,7 @@ if result.warnings:
     print(result.format_warnings())
 ```
 
-Errors list all problems at once â€” no fail-fast. Callers decide whether to abort.
+Errors list all problems at once - no fail-fast. Callers decide whether to abort.
 
 Path existence and writability checks (`BETA_STORAGE_PATH`, `BETA_BACKUP_PATH`)
 can be disabled with `ConfigValidator(check_paths=False)` for unit tests.

@@ -1,17 +1,17 @@
-"""Project 7.3B R2 — Behavioral tests for capability handling and health endpoint.
+"""Project 7.3B R2 - Behavioral tests for capability handling and health endpoint.
 
 These tests exercise actual HTTP responses and backend state transitions, not
 just source inspection. Source-inspection tests in test_730b_capability.py
 remain as secondary structural guards.
 
 Covers:
-  B1 — /api/health returns correct shape and backward-compatible fields
-  B2 — /api/health.services.woocommerce is not permanently "unknown"
-  B3 — /api/health.services.currency reflects in-memory cache state
-  B4 — /api/fetch/light capability guard rejects non-admin override (live HTTP)
-  B5 — /api/fetch/light capability guard SSE payload contains capability_error (live HTTP)
-  B6 — /api/health backward compat: old fields (status, wc_url, nextcloud_url) still present
-  B7 — Shutdown handler cancels background tasks (structural)
+  B1 - /api/health returns correct shape and backward-compatible fields
+  B2 - /api/health.services.woocommerce is not permanently "unknown"
+  B3 - /api/health.services.currency reflects in-memory cache state
+  B4 - /api/fetch/light capability guard rejects non-admin override (live HTTP)
+  B5 - /api/fetch/light capability guard SSE payload contains capability_error (live HTTP)
+  B6 - /api/health backward compat: old fields (status, wc_url, nextcloud_url) still present
+  B7 - Shutdown handler cancels background tasks (structural)
 """
 import asyncio
 import os
@@ -68,7 +68,7 @@ def _user_tok():
     return {"Authorization": f"Bearer {create_token('plain_user_b', permission_version=0, role='user')}"}
 
 
-# ── B1/B6: Health endpoint shape and backward compatibility ───────────────────
+# -- B1/B6: Health endpoint shape and backward compatibility -------------------
 
 def test_health_returns_200(client: TestClient):
     r = client.get("/api/health")
@@ -107,7 +107,7 @@ def test_health_cache_field_has_expected_shape(client: TestClient):
     assert isinstance(cache["size"], int)
 
 
-# ── B2: WooCommerce status is not hardcoded "unknown" ─────────────────────────
+# -- B2: WooCommerce status is not hardcoded "unknown" -------------------------
 
 def test_health_wc_status_reflects_recent_success(client: TestClient):
     """After a successful WC fetch, status must be 'ok' (not permanently 'unknown')."""
@@ -119,7 +119,7 @@ def test_health_wc_status_reflects_recent_success(client: TestClient):
 
 
 def test_health_wc_status_is_limited_when_capability_false(client: TestClient):
-    """When capability probe returned False AND a fresh success is recorded → 'limited'."""
+    """When capability probe returned False AND a fresh success is recorded -> 'limited'."""
     _wc_svc.record_wc_success()
     _wc_svc._wc_variation_filter_capable = False
     status = client.get("/api/health").json()["services"]["woocommerce"]
@@ -136,7 +136,7 @@ def test_health_wc_status_is_unknown_before_any_fetch(client: TestClient):
     )
 
 
-# ── B3: Currency status reflects in-memory cache state ───────────────────────
+# -- B3: Currency status reflects in-memory cache state -----------------------
 
 def test_health_currency_is_unavailable_when_no_cache(client: TestClient):
     import app.main as m
@@ -176,7 +176,7 @@ def test_health_currency_is_stale_when_cache_old(client: TestClient):
         m._currency_cache.update(original)
 
 
-# ── B4: capability guard rejects non-admin override via live HTTP ─────────────
+# -- B4: capability guard rejects non-admin override via live HTTP -------------
 
 def test_light_refresh_capability_override_rejected_for_nonadmin(client: TestClient):
     """Non-admin must not bypass capability guard via force_capability=true.
@@ -190,7 +190,7 @@ def test_light_refresh_capability_override_rejected_for_nonadmin(client: TestCli
         with patch("app.main._enforce_permission"):  # bypass can_fetch check
             # Return a real datetime so the watermark arithmetic at line 2138 doesn't crash.
             with patch("app.main.get_last_sync_time", return_value=datetime(2024, 1, 1)):
-                # Patch in main's namespace — main.py holds a local `from ... import` reference.
+                # Patch in main's namespace - main.py holds a local `from ... import` reference.
                 with patch("app.main.check_variation_filter_capability",
                            new=AsyncMock(return_value=False)):
                     r = client.get("/api/fetch/light?force_capability=true", headers=_user_tok())
@@ -200,7 +200,7 @@ def test_light_refresh_capability_override_rejected_for_nonadmin(client: TestCli
     )
 
 
-# ── B5: capability guard SSE payload contains capability_error ────────────────
+# -- B5: capability guard SSE payload contains capability_error ----------------
 
 def test_light_refresh_capability_guard_sse_contains_capability_error(client: TestClient):
     """When capability guard fires (no override), SSE payload must include capability_error.
@@ -213,7 +213,7 @@ def test_light_refresh_capability_guard_sse_contains_capability_error(client: Te
     with patch("app.main.validate_sse_token", return_value=fake_creds):
         with patch("app.main._enforce_permission"):  # bypass DB/permission check
             with patch("app.main.get_last_sync_time", return_value=datetime(2024, 1, 1)):
-                # Patch in main's namespace — main.py holds a local `from ... import` reference.
+                # Patch in main's namespace - main.py holds a local `from ... import` reference.
                 with patch("app.main.check_variation_filter_capability",
                            new=AsyncMock(return_value=False)):
                     r = client.get("/api/fetch/light", headers=_admin_tok())
@@ -223,7 +223,7 @@ def test_light_refresh_capability_guard_sse_contains_capability_error(client: Te
     )
 
 
-# ── B7: Shutdown handler is registered ───────────────────────────────────────
+# -- B7: Shutdown handler is registered ---------------------------------------
 
 def test_shutdown_handler_registered_in_app():
     """The app must have a shutdown handler that can cancel background tasks."""

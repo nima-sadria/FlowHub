@@ -1,4 +1,4 @@
-"""Tests for failure classifier — exception → FailureClass mapping."""
+"""Tests for failure classifier - exception -> FailureClass mapping."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from app.beta.control_plane.failure import FailureClass
 
 
 # ---------------------------------------------------------------------------
-# classify_exception — custom exception hierarchy
+# classify_exception - custom exception hierarchy
 # ---------------------------------------------------------------------------
 
 
@@ -78,7 +78,7 @@ def test_classify_docker_adapter_error():
 
 
 # ---------------------------------------------------------------------------
-# classify_exception — standard Python exceptions
+# classify_exception - standard Python exceptions
 # ---------------------------------------------------------------------------
 
 

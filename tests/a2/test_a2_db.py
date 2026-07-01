@@ -1,5 +1,5 @@
 """
-Database tests — A2.2 migration and repository persistence.
+Database tests - A2.2 migration and repository persistence.
 
 All tests use an in-memory SQLite database; no PostgreSQL required.
 Real Alembic upgrade/downgrade tests use a file-based SQLite (tmp_path fixture).
@@ -26,7 +26,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.a2.database import A2Base
-import app.a2.models.canonical_product  # noqa: F401 — registers with A2Base
+import app.a2.models.canonical_product  # noqa: F401 - registers with A2Base
 from app.a2.models.checkpoint import SourceCheckpointRecord  # noqa: F401
 from app.a2.models.provenance import SourceRowProvenanceRecord  # noqa: F401
 from app.a2.models.snapshot import SourceSnapshotRecord  # noqa: F401
@@ -39,7 +39,7 @@ from app.a2.sources.provenance import SourceRowProvenance
 from app.a2.sources.snapshot import SourceSnapshot
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 @pytest.fixture()
 def engine():
@@ -91,7 +91,7 @@ def seeded_source(source_repo, db):
     return record
 
 
-# ── Alembic real migration tests (HIGH 2) ─────────────────────────────────────
+# -- Alembic real migration tests (HIGH 2) -------------------------------------
 
 def test_alembic_upgrade_creates_all_expected_tables(tmp_path):
     """
@@ -160,7 +160,7 @@ def test_alembic_migration_lineage_is_chained(tmp_path):
     assert "source_definitions" not in tables  # belongs to a2_001, not yet applied
 
 
-# ── SQLAlchemy metadata smoke tests ──────────────────────────────────────────
+# -- SQLAlchemy metadata smoke tests ------------------------------------------
 
 def test_metadata_create_all_creates_tables():
     """A2Base.metadata.create_all must create all registered tables."""
@@ -214,7 +214,7 @@ def test_source_definitions_has_expected_columns():
     eng.dispose()
 
 
-# ── SourceRepository persistence tests ────────────────────────────────────────
+# -- SourceRepository persistence tests ----------------------------------------
 
 def test_source_create_and_get(source_repo, db):
     record = source_repo.create(
@@ -261,7 +261,7 @@ def test_source_deactivate_missing_returns_false(source_repo):
     assert source_repo.deactivate("does-not-exist") is False
 
 
-# ── SnapshotRepository persistence tests ──────────────────────────────────────
+# -- SnapshotRepository persistence tests --------------------------------------
 
 def test_snapshot_save_and_get(snapshot_repo, seeded_source, db):
     snap = SourceSnapshot(
@@ -331,7 +331,7 @@ def test_provenance_list_empty_for_unknown_snapshot(snapshot_repo):
     assert snapshot_repo.list_provenance("nonexistent") == []
 
 
-# ── CheckpointRepository persistence tests ────────────────────────────────────
+# -- CheckpointRepository persistence tests ------------------------------------
 
 def test_checkpoint_save_and_get(checkpoint_repo, seeded_source, db):
     cp = SourceCheckpoint(

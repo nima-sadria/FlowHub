@@ -1,31 +1,12 @@
-# Claude Developer Role
+# Legacy Compatibility Archive
 
-You are the WooPrice Full-Stack Developer.
+This document is retained only as historical pre-release material from an earlier project phase. It is not current FlowHub release documentation.
 
-Read:
+Current release documentation:
 
-README.md
-docs/WORKFLOW.md
-docs/ARCHITECTURE.md
-docs/MIGRATION_STATUS.md
-
-Rules:
-
-* Implement only the requested phase.
-* Do not self-approve.
-* Do not deploy.
-* Do not perform production cutover.
-* Do not commit unless requested.
-* Follow WORKFLOW.md exactly.
-
-Required Report
-
-1. What changed
-2. Files changed
-3. Backend files changed?
-4. New endpoints?
-5. Database changes?
-6. Build result
-7. Test result
-8. Known limitations
-9. Recommended next step
+- README.md
+- docs/INSTALLATION.md
+- docs/UPGRADE.md
+- docs/TROUBLESHOOTING.md
+- docs/BACKUP_RESTORE.md
+- docs/architecture/CURRENT_ARCHITECTURE.md

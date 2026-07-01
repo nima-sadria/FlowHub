@@ -1,4 +1,4 @@
-"""FlowHub â€” Configuration profiles (DEV / BETA / PRODUCTION)."""
+"""FlowHub - Configuration profiles (DEV / BETA / PRODUCTION)."""
 
 from enum import Enum
 

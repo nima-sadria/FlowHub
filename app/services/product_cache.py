@@ -61,7 +61,7 @@ def upsert_products(
     image_changed_ids: wc_ids of existing rows whose image_url changed.
     image_sync_authoritative: when True, allow clearing an existing image_url to NULL
     if the incoming dict has image_url=None.  When False (default), a None incoming
-    image never overwrites a non-NULL stored value — protects against accidental erasure
+    image never overwrites a non-NULL stored value - protects against accidental erasure
     by callers that don't carry image data (e.g. preview cache rows).
     """
     now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -81,7 +81,7 @@ def upsert_products(
         if wc_id in existing:
             row = existing[wc_id]
             _prev_seen = row.last_seen_at
-            # Phase C — capture prior values for change_tracking before overwrite
+            # Phase C - capture prior values for change_tracking before overwrite
             _old_price = row.final_price or row.regular_price
             _old_stock_status = row.stock_status
             _old_stock_qty = row.stock_quantity
@@ -97,7 +97,7 @@ def upsert_products(
             row.regular_price = p.get("regular_price", "") or row.regular_price
             row.sale_price = p.get("sale_price", "") or ""
             row.final_price = p.get("final_price", "") or row.final_price
-            # Phase C — emit field-level change_tracking rows for any WC-side drift
+            # Phase C - emit field-level change_tracking rows for any WC-side drift
             try:
                 _new_price = row.final_price or row.regular_price
                 if (_old_price or "") != (_new_price or ""):
@@ -123,9 +123,9 @@ def upsert_products(
             except Exception:
                 pass
             row.categories = cats or row.categories
-            # Brand: key presence is the signal — not value truthiness.
-            # key absent  → non-authoritative caller; preserve existing cache value.
-            # key present (even None) → authoritative caller; use exactly what WC returned.
+            # Brand: key presence is the signal - not value truthiness.
+            # key absent  -> non-authoritative caller; preserve existing cache value.
+            # key present (even None) -> authoritative caller; use exactly what WC returned.
             if "brand_id" in p:
                 row.brand_id = p["brand_id"]
                 row.brand_name = p.get("brand_name")
@@ -144,11 +144,11 @@ def upsert_products(
                     row.image_url = None
                     row.image_source = "none"
                     row.image_last_synced_at = now
-                # else: new_img is None and not authoritative — preserve existing image_url
+                # else: new_img is None and not authoritative - preserve existing image_url
             logger.debug(
                 "product_image: wc_id=%s parent_id=%s product_type=%s image_source=%s image_url=%s last_seen_at=%s",
                 wc_id, p.get("parent_id", 0), p.get("product_type", "?"),
-                p.get("image_source", "—"), new_img or "NULL",
+                p.get("image_source", "-"), new_img or "NULL",
                 _prev_seen.isoformat() if _prev_seen else "NULL",
             )
             row.last_synced_at = now
@@ -184,7 +184,7 @@ def upsert_products(
             logger.debug(
                 "product_image: wc_id=%s parent_id=%s product_type=%s image_source=%s image_url=%s last_seen_at=NULL",
                 wc_id, p.get("parent_id", 0), p.get("product_type", "?"),
-                p.get("image_source", "—"), p.get("image_url") or "NULL",
+                p.get("image_source", "-"), p.get("image_url") or "NULL",
             )
             inserted += 1
     return inserted, updated, image_changed_ids
@@ -339,7 +339,7 @@ def get_last_sync_time(db: Session) -> datetime | None:
 def get_last_wc_modified_time(db: Session) -> datetime | None:
     """Return the latest date_modified_gmt across all top-level cached products.
 
-    Use this as the light-refresh watermark — it reflects WC's own modification
+    Use this as the light-refresh watermark - it reflects WC's own modification
     time, not the local cache upsert time, so we never advance past what WC
     actually told us."""
     from sqlalchemy import func
@@ -406,17 +406,17 @@ def propagate_parent_metadata_to_children(
             child.brand_name = parent.brand_name
             changed = True
 
-        # Image — only when child has no own variation-level image
+        # Image - only when child has no own variation-level image
         if child.image_source not in ("variation",):
             if parent.image_url:
-                # Parent has image — propagate it
+                # Parent has image - propagate it
                 if child.image_url != parent.image_url:
                     child.image_url = parent.image_url
                     child.image_source = "parent"
                     changed = True
                     image_changed = True
             else:
-                # Parent image removed — clear stale inherited image
+                # Parent image removed - clear stale inherited image
                 if child.image_url is not None or child.image_source not in ("none", None):
                     child.image_url = None
                     child.image_source = "none"
@@ -424,7 +424,7 @@ def propagate_parent_metadata_to_children(
                     changed = True
                     image_changed = True
 
-        # Stock — propagate only when parent manages stock AND child explicitly inherits.
+        # Stock - propagate only when parent manages stock AND child explicitly inherits.
         # manage_stock=NULL means the field was not fetched yet (pre-migration legacy row);
         # do NOT overwrite its stock value until we have confirmed inheritance status.
         parent_manages_stock = (parent.manage_stock == "true")
@@ -469,5 +469,5 @@ def wc_response_to_cache_dict(pid: int, data: dict) -> dict:
         "brand_id": data.get("brand_id"),
         "brand_name": data.get("brand_name"),
         "date_modified_gmt": data.get("wc_date_modified") or "",
-        # image_url intentionally absent — do not overwrite existing thumbnail cache
+        # image_url intentionally absent - do not overwrite existing thumbnail cache
     }

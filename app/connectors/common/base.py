@@ -45,7 +45,7 @@ class SourceConnector(ABC):
         """Perform a lightweight connectivity probe without storing state."""
         ...
 
-    # ── Optional methods — raise NotImplementedError when cap is False ─────────
+    # -- Optional methods - raise NotImplementedError when cap is False ---------
 
     async def list_folders(self, path: str = "/") -> list[str]:
         raise NotImplementedError(f"{type(self).__name__} does not support list_folders")
@@ -105,7 +105,7 @@ class DestinationConnector(ABC):
         """Perform a lightweight connectivity probe without storing state."""
         ...
 
-    # ── Optional methods — raise NotImplementedError when cap is False ─────────
+    # -- Optional methods - raise NotImplementedError when cap is False ---------
 
     async def list_products(self, page: int = 1, per_page: int = 100) -> list[dict]:
         raise NotImplementedError(f"{type(self).__name__} does not support list_products")

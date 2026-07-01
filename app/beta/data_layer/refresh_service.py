@@ -1,4 +1,4 @@
-"""Refresh job status model and service â€” reads and writes dl_refresh_jobs."""
+"""Refresh job status model and service - reads and writes dl_refresh_jobs."""
 
 from __future__ import annotations
 

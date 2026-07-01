@@ -1,7 +1,7 @@
-"""CP1.2 â€” Circuit breaker state machine.
+"""CP1.2 - Circuit breaker state machine.
 
-Per the spec: CLOSED â†’ OPEN (after failure_threshold consecutive failures)
-â†’ HALF_OPEN (after recovery_window_s) â†’ CLOSED (on success) or OPEN (on failure).
+Per the spec: CLOSED -> OPEN (after failure_threshold consecutive failures)
+-> HALF_OPEN (after recovery_window_s) -> CLOSED (on success) or OPEN (on failure).
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ class CircuitBreaker:
         self._last_failure_class: Optional[str] = None
 
     # ------------------------------------------------------------------
-    # State property (transitions OPEN â†’ HALF_OPEN automatically)
+    # State property (transitions OPEN -> HALF_OPEN automatically)
     # ------------------------------------------------------------------
 
     @property
@@ -56,7 +56,7 @@ class CircuitBreaker:
 
     def allow_request(self) -> bool:
         """Return True if a request should be allowed through."""
-        s = self.state  # triggers automatic OPEN â†’ HALF_OPEN transition
+        s = self.state  # triggers automatic OPEN -> HALF_OPEN transition
         if s == CircuitState.CLOSED:
             return True
         if s == CircuitState.OPEN:
@@ -84,7 +84,7 @@ class CircuitBreaker:
         if failure_class is not None:
             self._last_failure_class = failure_class
         if s == CircuitState.HALF_OPEN:
-            # Probe failed â€” revert to OPEN
+            # Probe failed - revert to OPEN
             self._state = CircuitState.OPEN
             self._consecutive_failures = self._config.failure_threshold
         else:
@@ -93,7 +93,7 @@ class CircuitBreaker:
                 self._state = CircuitState.OPEN
 
     def force_reset(self) -> None:
-        """Force the circuit to CLOSED â€” used after a service recovers."""
+        """Force the circuit to CLOSED - used after a service recovers."""
         self._state = CircuitState.CLOSED
         self._consecutive_failures = 0
         self._consecutive_successes = 0

@@ -1,4 +1,4 @@
-"""Tests for RuntimeConfigService — write path for editable runtime fields."""
+"""Tests for RuntimeConfigService - write path for editable runtime fields."""
 
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
-"""Phase C — reusable validation engine.
+"""Phase C - reusable validation engine.
 
-Pure logic with no I/O. MUST NOT import from app.main to avoid circular imports —
+Pure logic with no I/O. MUST NOT import from app.main to avoid circular imports -
 import only from app.models and the standard library.
 
 Severity ladder:
@@ -31,7 +31,7 @@ _LEVEL_RANK = {
 
 # Hard numeric bounds for price sanity checks.
 # Unit: Iranian Rial (IRR). USD/IRR ≈ 1,200,000 at time of writing.
-# A $8,000 product costs ~9.6 billion IRR — well within normal range.
+# A $8,000 product costs ~9.6 billion IRR - well within normal range.
 # 10 trillion IRR (≈ $8.3M USD) is genuinely unreachable for any legitimate product price.
 # Integer constant avoids float representation drift near the boundary.
 PRICE_EXTREMELY_LOW = 0.001
@@ -113,21 +113,21 @@ def validate_price(
     """Validate a single price value.
 
     Rules:
-      non-numeric  → critical (invalid_price)
-      negative     → critical (negative_price)
-      < 0.001                 → critical (extremely_low)
-      > 10_000_000_000_000 IRR → warning  (extremely_high) — advisory only, does not block apply
-      zero         → warning  (out_of_stock_marker)
-      > 10x old    → warning  (large_increase)
+      non-numeric  -> critical (invalid_price)
+      negative     -> critical (negative_price)
+      < 0.001                 -> critical (extremely_low)
+      > 10_000_000_000_000 IRR -> warning  (extremely_high) - advisory only, does not block apply
+      zero         -> warning  (out_of_stock_marker)
+      > 10x old    -> warning  (large_increase)
     """
     out: list[ValidationResult] = []
 
     # Empty / blank price is treated as zero (intentional "out of stock" signal),
-    # not as a non-numeric error — matches existing _stock_from_price semantics.
+    # not as a non-numeric error - matches existing _stock_from_price semantics.
     if new_price is None or str(new_price).strip() == "":
         out.append(ValidationResult(
             ValidationLevel.warning, "out_of_stock_marker", product_id, "new_price", new_price,
-            "Price is blank — product will be marked out of stock.",
+            "Price is blank - product will be marked out of stock.",
         ))
         return out
 
@@ -149,7 +149,7 @@ def validate_price(
     if new_f == 0:
         out.append(ValidationResult(
             ValidationLevel.warning, "out_of_stock_marker", product_id, "new_price", new_price,
-            "Price is zero — product will be marked out of stock.",
+            "Price is zero - product will be marked out of stock.",
         ))
         return out
 
@@ -159,10 +159,10 @@ def validate_price(
             f"Price {new_f} is below the minimum allowed ({PRICE_EXTREMELY_LOW}).",
         ))
     if new_f > PRICE_EXTREMELY_HIGH:
-        # Advisory only — does not block apply.
+        # Advisory only - does not block apply.
         out.append(ValidationResult(
             ValidationLevel.warning, "extremely_high", product_id, "new_price", new_price,
-            f"Price {new_f:,.0f} is unusually high — please double-check this is correct.",
+            f"Price {new_f:,.0f} is unusually high - please double-check this is correct.",
         ))
 
     old_f = _to_float(old_price)
@@ -183,8 +183,8 @@ def validate_stock(
     """Validate stock status and (optional) quantity.
 
     Rules:
-      invalid stock_status → critical (invalid_stock_status)
-      negative quantity    → error    (negative_stock_quantity)
+      invalid stock_status -> critical (invalid_stock_status)
+      negative quantity    -> error    (negative_stock_quantity)
     """
     out: list[ValidationResult] = []
 
@@ -217,8 +217,8 @@ def validate_product(product_id: int | None, cache_row: Any) -> list[ValidationR
     """Validate product-level invariants.
 
     Rules:
-      missing wc_id          → critical (missing_wc_id)
-      missing cache entry    → warning  (missing_cache_entry)
+      missing wc_id          -> critical (missing_wc_id)
+      missing cache entry    -> warning  (missing_cache_entry)
     """
     out: list[ValidationResult] = []
 
@@ -241,7 +241,7 @@ def validate_product(product_id: int | None, cache_row: Any) -> list[ValidationR
 def validate_items(items: list, cache_map: dict) -> list[ValidationResult]:
     """Run the full validation suite over a list of SyncItem-like objects.
 
-    `cache_map` maps product_id → ProductCache row (or any object / None).
+    `cache_map` maps product_id -> ProductCache row (or any object / None).
     Each item is accessed with getattr() so rows created before Phase C columns
     existed validate without raising.
     """

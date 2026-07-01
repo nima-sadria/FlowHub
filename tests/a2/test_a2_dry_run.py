@@ -1,14 +1,14 @@
 """
-A2.6 — Dry Run Engine tests.
+A2.6 - Dry Run Engine tests.
 
 Covers:
   - DryRun creation: execute() persists DryRun and one DryRunResult per item
-  - Digest verification: matching digest → digest_verified=True; mismatch → False + BLOCK
+  - Digest verification: matching digest -> digest_verified=True; mismatch -> False + BLOCK
   - Determinism: identical inputs always produce the same DryRunReport
-  - Item validation: missing proposal_hash → BLOCK; missing safety/rule → WARN
+  - Item validation: missing proposal_hash -> BLOCK; missing safety/rule -> WARN
   - Overall result: worst outcome across all items; BLOCK blocks execution
   - Execution eligibility: requires PASS/WARN AND digest_verified=True
-  - Empty destination_channel → BLOCK
+  - Empty destination_channel -> BLOCK
   - DryRunReport: all required fields; advisory only
   - Seller confirmation: bound to Change Set digest; VALID by default
   - Explicit invalidation: marks is_valid=False with reason
@@ -48,12 +48,12 @@ import app.a2.models.source              # noqa: F401
 import app.a2.models.snapshot            # noqa: F401
 import app.a2.models.provenance          # noqa: F401
 import app.a2.models.checkpoint          # noqa: F401
-import app.a2.models.pricing_rule         # noqa: F401 — A2.3-R2
-import app.a2.models.pricing_rule_version  # noqa: F401 — A2.3-R2
-import app.a2.models.price_proposal        # noqa: F401 — A2.3-R2
-import app.a2.models.safety               # noqa: F401 — A2.4
-import app.a2.models.change_set           # noqa: F401 — A2.5
-import app.a2.models.dry_run              # noqa: F401 — A2.6
+import app.a2.models.pricing_rule         # noqa: F401 - A2.3-R2
+import app.a2.models.pricing_rule_version  # noqa: F401 - A2.3-R2
+import app.a2.models.price_proposal        # noqa: F401 - A2.3-R2
+import app.a2.models.safety               # noqa: F401 - A2.4
+import app.a2.models.change_set           # noqa: F401 - A2.5
+import app.a2.models.dry_run              # noqa: F401 - A2.6
 
 from app.a2.repositories.dry_run_repository import (
     ConfirmationNotFoundError,
@@ -67,7 +67,7 @@ from app.a2.services.dry_run_service import (
 )
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -101,7 +101,7 @@ def svc(db):
     return DryRunService(db)
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# -- Helpers -------------------------------------------------------------------
 
 
 def _item(
@@ -158,7 +158,7 @@ def _run(
     )
 
 
-# ── TestDryRunCreation ────────────────────────────────────────────────────────
+# -- TestDryRunCreation --------------------------------------------------------
 
 
 class TestDryRunCreation:
@@ -185,7 +185,7 @@ class TestDryRunCreation:
         assert dr.created_at is not None
 
 
-# ── TestDigestVerification ────────────────────────────────────────────────────
+# -- TestDigestVerification ----------------------------------------------------
 
 
 class TestDigestVerification:
@@ -241,7 +241,7 @@ class TestDigestVerification:
         assert dr1.validation_result == dr2.validation_result
 
 
-# ── TestEmptyDestination ──────────────────────────────────────────────────────
+# -- TestEmptyDestination ------------------------------------------------------
 
 
 class TestEmptyDestination:
@@ -276,7 +276,7 @@ class TestEmptyDestination:
         assert dr.blocked_count >= 1
 
 
-# ── TestItemValidation ────────────────────────────────────────────────────────
+# -- TestItemValidation --------------------------------------------------------
 
 
 class TestItemValidation:
@@ -366,7 +366,7 @@ class TestItemValidation:
         assert "WARN" in outcomes
 
 
-# ── TestOverallResult ─────────────────────────────────────────────────────────
+# -- TestOverallResult ---------------------------------------------------------
 
 
 class TestOverallResult:
@@ -420,7 +420,7 @@ class TestOverallResult:
         assert dr.validation_result == "BLOCK"
 
 
-# ── TestExecutionEligibility ──────────────────────────────────────────────────
+# -- TestExecutionEligibility --------------------------------------------------
 
 
 class TestExecutionEligibility:
@@ -461,7 +461,7 @@ class TestExecutionEligibility:
         assert dr.execution_eligible is False
 
 
-# ── TestDryRunReport ──────────────────────────────────────────────────────────
+# -- TestDryRunReport ----------------------------------------------------------
 
 
 class TestDryRunReport:
@@ -507,7 +507,7 @@ class TestDryRunReport:
             svc.generate_report("no-such-id")
 
 
-# ── TestSellerConfirmation ────────────────────────────────────────────────────
+# -- TestSellerConfirmation ----------------------------------------------------
 
 
 class TestSellerConfirmation:
@@ -549,7 +549,7 @@ class TestSellerConfirmation:
             svc.invalidate_confirmation("no-such-id", reason="test")
 
 
-# ── TestConfirmationDigestBinding ─────────────────────────────────────────────
+# -- TestConfirmationDigestBinding ---------------------------------------------
 
 
 class TestConfirmationDigestBinding:
@@ -589,7 +589,7 @@ class TestConfirmationDigestBinding:
         assert report.confirmation_status == "INVALID"
 
 
-# ── TestConfirmationInvalidationScenarios ─────────────────────────────────────
+# -- TestConfirmationInvalidationScenarios -------------------------------------
 
 
 class TestConfirmationInvalidationScenarios:
@@ -694,7 +694,7 @@ class TestConfirmationInvalidationScenarios:
         assert result.is_valid is False
 
 
-# ── TestDryRunRepository ──────────────────────────────────────────────────────
+# -- TestDryRunRepository ------------------------------------------------------
 
 
 class TestDryRunRepository:
@@ -899,7 +899,7 @@ class TestDryRunRepository:
         assert repo.latest_confirmation(dr.id) is None
 
 
-# ── TestMigration ─────────────────────────────────────────────────────────────
+# -- TestMigration -------------------------------------------------------------
 
 
 class TestMigration:
@@ -997,7 +997,7 @@ class TestMigration:
         assert new_tables == {"a2_dry_runs", "a2_dry_run_results", "a2_seller_confirmations"}
 
 
-# ── TestIsolation ─────────────────────────────────────────────────────────────
+# -- TestIsolation -------------------------------------------------------------
 
 
 class TestIsolation:
@@ -1054,7 +1054,7 @@ class TestIsolation:
         ):
             assert not hasattr(DryRunService, method_name), (
                 f"DryRunService must not expose {method_name!r} "
-                "— dry runs are read-only with respect to destinations"
+                "- dry runs are read-only with respect to destinations"
             )
 
     def test_dry_run_repository_does_not_import_future_phases(self):

@@ -1,4 +1,4 @@
-"""FlowHub â€” Feature Flag Evaluator package.
+"""FlowHub - Feature Flag Evaluator package.
 
 Implementation begins in B11.
 """

@@ -1,4 +1,4 @@
-"""CP1.3 â€” Runtime Configuration Service.
+"""CP1.3 - Runtime Configuration Service.
 
 Write path for editable runtime configuration fields.
 Completely separate from B3 ConfigurationManager (read-only, immutable schema).
@@ -204,7 +204,7 @@ class RuntimeConfigService:
 
 
 # ---------------------------------------------------------------------------
-# Per-field validators â€” return error string or None
+# Per-field validators - return error string or None
 # ---------------------------------------------------------------------------
 
 def _validate_log_level(value: str) -> Optional[str]:

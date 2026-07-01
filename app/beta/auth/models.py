@@ -1,4 +1,4 @@
-"""FlowHub â€” auth ORM models (BU2).
+"""FlowHub - auth ORM models (BU2).
 
 Tables: beta_users, beta_refresh_tokens, beta_login_audit.
 All tables are Beta-only; production schema is never touched.

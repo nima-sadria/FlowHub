@@ -1,4 +1,4 @@
-"""FlowHub â€” Beta-specific extensions package.
+"""FlowHub - Beta-specific extensions package.
 
 Builds on the frozen A2 Platform Core (app/a2/) without modifying it.
 All Beta-only functionality lives in this package.

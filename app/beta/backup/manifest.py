@@ -1,4 +1,4 @@
-"""FlowHub â€” Backup manifest schema.
+"""FlowHub - Backup manifest schema.
 
 Defines the structure of backup_manifest.json written into each archive.
 

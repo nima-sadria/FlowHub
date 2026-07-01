@@ -1,4 +1,4 @@
-"""FlowHub â€” flowhub migrate command group. Stub â€” B6."""
+"""FlowHub - flowhub migrate command group. Stub - B6."""
 
 import typer
 
@@ -9,17 +9,17 @@ _NOT_IMPLEMENTED = "Not implemented in this phase. Database migrations begin in 
 
 @app.command("status")
 def migrate_status() -> None:
-    """Show current and pending migrations. [NOT IMPLEMENTED â€” B6]"""
+    """Show current and pending migrations. [NOT IMPLEMENTED - B6]"""
     typer.echo(_NOT_IMPLEMENTED)
 
 
 @app.command("up")
 def migrate_up() -> None:
-    """Run pending migrations. [NOT IMPLEMENTED â€” B6]"""
+    """Run pending migrations. [NOT IMPLEMENTED - B6]"""
     typer.echo(_NOT_IMPLEMENTED)
 
 
 @app.command("history")
 def migrate_history() -> None:
-    """Show migration history. [NOT IMPLEMENTED â€” B6]"""
+    """Show migration history. [NOT IMPLEMENTED - B6]"""
     typer.echo(_NOT_IMPLEMENTED)

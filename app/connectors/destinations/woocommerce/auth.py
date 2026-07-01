@@ -1,7 +1,7 @@
 """WooCommerce authentication helpers.
 
 All credential extraction is isolated here. Connector and REST client modules
-import from this file — they never receive raw credential dicts.
+import from this file - they never receive raw credential dicts.
 """
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""FlowHub â€” permanent write guard (BU5).
+"""FlowHub - permanent write guard (BU5).
 
 Any code path that would attempt a write operation must call raise_write_blocked()
 instead of proceeding.  This is intentional and permanent for the Beta phase.

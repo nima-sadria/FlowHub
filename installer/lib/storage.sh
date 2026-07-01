@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FlowHub â€” Storage and backup directory setup
+# FlowHub - Storage and backup directory setup
 #
 # Source from install.sh. Call setup_storage_dirs.
 # Creates BETA_STORAGE_PATH/{logs,config,plugins,uploads,diagnostics}

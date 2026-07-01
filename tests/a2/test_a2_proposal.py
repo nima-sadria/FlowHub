@@ -1,5 +1,5 @@
 """
-Unit tests — A2.3-R2 PriceProposal model and proposal_hash.
+Unit tests - A2.3-R2 PriceProposal model and proposal_hash.
 
 Key reconciliation: compute_proposal_hash excludes proposal_id (UUID)
 and generated_at (timestamp) to be fully deterministic for same logical
@@ -38,7 +38,7 @@ def _proposal(**overrides) -> PriceProposal:
     return PriceProposal(**defaults)
 
 
-# ── Model completeness ─────────────────────────────────────────────────────────
+# -- Model completeness ---------------------------------------------------------
 
 def test_all_required_fields_present():
     p = _proposal()
@@ -67,7 +67,7 @@ def test_proposal_id_can_be_uuid_string():
     assert p.proposal_id == "00000000-0000-0000-0000-000000000001"
 
 
-# ── Hash determinism ───────────────────────────────────────────────────────────
+# -- Hash determinism -----------------------------------------------------------
 
 def test_hash_is_sha256_hex():
     h = compute_proposal_hash(
@@ -109,7 +109,7 @@ def test_hash_excludes_proposal_id():
     )
     h1 = compute_proposal_hash(**base)
     h2 = compute_proposal_hash(**base)
-    assert h1 == h2  # same content → same hash regardless of UUID
+    assert h1 == h2  # same content -> same hash regardless of UUID
 
 
 def test_hash_excludes_timestamp():

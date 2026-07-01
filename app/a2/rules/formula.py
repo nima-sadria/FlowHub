@@ -17,7 +17,7 @@ _ALLOWED_NODES = frozenset({
     ast.UnaryOp, ast.USub, ast.UAdd,
     ast.Constant,
     ast.Name,
-    ast.Load,   # context node on ast.Name — appears in every variable reference
+    ast.Load,   # context node on ast.Name - appears in every variable reference
 })
 
 
@@ -39,7 +39,7 @@ def evaluate_formula(formula: str, variables: dict[str, Decimal]) -> Decimal:
     Args:
         formula:   Arithmetic expression using +, -, *, / and variable names.
                    Examples: "cost * 1.20", "(cost + fee) * fx_rate"
-        variables: Mapping of variable name → Decimal value.
+        variables: Mapping of variable name -> Decimal value.
 
     Returns:
         Decimal result of the formula.
@@ -77,7 +77,7 @@ def extract_variables(formula: str) -> list[str]:
     return sorted(names)
 
 
-# ── Internal AST evaluator ─────────────────────────────────────────────────────
+# -- Internal AST evaluator -----------------------------------------------------
 
 def _eval_node(node: ast.expr, variables: dict[str, Decimal]) -> Decimal:
     if isinstance(node, ast.Constant):

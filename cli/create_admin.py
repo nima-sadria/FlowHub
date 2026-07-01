@@ -1,4 +1,4 @@
-"""FlowHub â€” create-admin CLI subcommand (BU2).
+"""FlowHub - create-admin CLI subcommand (BU2).
 
 Creates the initial admin user in the Beta database.
 

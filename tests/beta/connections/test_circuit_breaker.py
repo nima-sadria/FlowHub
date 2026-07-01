@@ -34,7 +34,7 @@ def test_initial_failure_count_is_zero(cb):
 
 
 # ---------------------------------------------------------------------------
-# CLOSED → OPEN transition
+# CLOSED -> OPEN transition
 # ---------------------------------------------------------------------------
 
 
@@ -64,7 +64,7 @@ def test_success_resets_failure_count_in_closed(cb):
 
 
 # ---------------------------------------------------------------------------
-# OPEN → HALF_OPEN transition (time-based)
+# OPEN -> HALF_OPEN transition (time-based)
 # ---------------------------------------------------------------------------
 
 
@@ -86,7 +86,7 @@ def test_half_open_allows_one_request():
 
 
 # ---------------------------------------------------------------------------
-# HALF_OPEN → CLOSED (success)
+# HALF_OPEN -> CLOSED (success)
 # ---------------------------------------------------------------------------
 
 
@@ -110,7 +110,7 @@ def test_failure_count_resets_after_close():
 
 
 # ---------------------------------------------------------------------------
-# HALF_OPEN → OPEN (failure)
+# HALF_OPEN -> OPEN (failure)
 # ---------------------------------------------------------------------------
 
 

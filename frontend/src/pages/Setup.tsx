@@ -45,17 +45,17 @@ const ALL_TIMEZONES = [
 ]
 
 const CURRENCIES = [
-  { value: 'IRR', label: 'IRR â€” Iranian Rial' },
-  { value: 'IRT', label: 'IRT â€” Iranian Toman' },
-  { value: 'USD', label: 'USD â€” US Dollar' },
-  { value: 'EUR', label: 'EUR â€” Euro' },
-  { value: 'AED', label: 'AED â€” UAE Dirham' },
-  { value: 'TRY', label: 'TRY â€” Turkish Lira' },
-  { value: 'GBP', label: 'GBP â€” British Pound' },
-  { value: 'JPY', label: 'JPY â€” Japanese Yen' },
-  { value: 'CAD', label: 'CAD â€” Canadian Dollar' },
-  { value: 'AUD', label: 'AUD â€” Australian Dollar' },
-  { value: 'CHF', label: 'CHF â€” Swiss Franc' },
+  { value: 'IRR', label: 'IRR - Iranian Rial' },
+  { value: 'IRT', label: 'IRT - Iranian Toman' },
+  { value: 'USD', label: 'USD - US Dollar' },
+  { value: 'EUR', label: 'EUR - Euro' },
+  { value: 'AED', label: 'AED - UAE Dirham' },
+  { value: 'TRY', label: 'TRY - Turkish Lira' },
+  { value: 'GBP', label: 'GBP - British Pound' },
+  { value: 'JPY', label: 'JPY - Japanese Yen' },
+  { value: 'CAD', label: 'CAD - Canadian Dollar' },
+  { value: 'AUD', label: 'AUD - Australian Dollar' },
+  { value: 'CHF', label: 'CHF - Swiss Franc' },
 ]
 
 const TZ_OPTIONS = ALL_TIMEZONES.map(tz => ({ value: tz, label: tz }))
@@ -205,7 +205,7 @@ function StepDots({ current, steps }: { current: Step; steps: Step[] }) {
             idx === currentIdx ? 'bg-accent text-white ring-2 ring-accent/30' :
             'bg-border text-wp-muted',
           ].join(' ')}>
-            {idx < currentIdx ? 'âœ“' : idx + 1}
+            {idx < currentIdx ? 'OK' : idx + 1}
           </div>
           {idx < steps.length - 1 && (
             <div className={['h-px w-8 transition-colors', idx < currentIdx ? 'bg-accent' : 'bg-border'].join(' ')} />
@@ -296,7 +296,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
       <div className="space-y-3 mb-6">
         {steps.map(([label, desc]) => (
           <div key={label} className="flex gap-3 p-3 bg-bg-base rounded-lg border border-border">
-            <span className="text-accent mt-0.5 flex-shrink-0">â†’</span>
+            <span className="text-accent mt-0.5 flex-shrink-0">{'->'}</span>
             <div>
               <p className="text-[13px] font-semibold text-text-base">{label}</p>
               <p className="text-[12px] text-wp-muted">{desc}</p>
@@ -442,7 +442,7 @@ function DatabaseStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
             hint="Compares the installed database schema with the version required by this FlowHub release."
             ok={status.is_current === true}
             okText="Up to date"
-            failText={status.is_current === false ? 'Needs update â€” run repair' : 'Unable to verify'}
+            failText={status.is_current === false ? 'Needs update - run repair' : 'Unable to verify'}
             neutral={status.is_current !== false && status.is_current !== true}
           />
         </div>
@@ -642,7 +642,7 @@ export default function Setup({ onComplete }: SetupProps) {
         <div className="mb-6 text-center">
           <h1 className="text-[24px] font-bold text-text-base">FlowHub</h1>
           <p className="text-[13px] text-wp-muted mt-0.5">
-            Step {stepIndex + 1} of {SETUP_STEPS.length} â€” {STEP_LABELS[step]}
+            Step {stepIndex + 1} of {SETUP_STEPS.length} - {STEP_LABELS[step]}
           </p>
         </div>
 

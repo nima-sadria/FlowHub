@@ -1,17 +1,17 @@
 """Gate 8 regression tests.
 
 Coverage:
-  A1 — admin with force_capability=True proceeds past failed capability guard
-  A2 — non-admin with force_capability=True is rejected
-  A3 — admin without force_capability gets the normal capability-unsupported error
-  A4 — capability override is audited in source (structural)
-  R1 — OPTIONS 429 then 200 (retry success) → capability True, retries counted
-  R2 — OPTIONS all-429 (budget exhausted) → capability False, cached, retries counted
-  R3 — OPTIONS transient exception → capability False for call, result NOT cached
-  L1 — legacy child with manage_stock=NULL is NOT overwritten during parent stock propagation
-  S1 — _schema_supports_modified_after: top-level endpoints structure
-  S2 — _schema_supports_modified_after: POST-only endpoint ignored, GET endpoint matched
-  S3 — _schema_supports_modified_after: multiple routes, only one has modified_after
+  A1 - admin with force_capability=True proceeds past failed capability guard
+  A2 - non-admin with force_capability=True is rejected
+  A3 - admin without force_capability gets the normal capability-unsupported error
+  A4 - capability override is audited in source (structural)
+  R1 - OPTIONS 429 then 200 (retry success) -> capability True, retries counted
+  R2 - OPTIONS all-429 (budget exhausted) -> capability False, cached, retries counted
+  R3 - OPTIONS transient exception -> capability False for call, result NOT cached
+  L1 - legacy child with manage_stock=NULL is NOT overwritten during parent stock propagation
+  S1 - _schema_supports_modified_after: top-level endpoints structure
+  S2 - _schema_supports_modified_after: POST-only endpoint ignored, GET endpoint matched
+  S3 - _schema_supports_modified_after: multiple routes, only one has modified_after
 """
 import asyncio
 import inspect
@@ -23,7 +23,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-# ── Minimal env ───────────────────────────────────────────────────────────────
+# -- Minimal env ---------------------------------------------------------------
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("NEXTCLOUD_URL", "http://example.invalid")
 os.environ.setdefault("NEXTCLOUD_USER", "x")
@@ -50,7 +50,7 @@ from app.services.woocommerce import (  # noqa: E402
 Base.metadata.create_all(bind=engine)
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# -- Helpers -------------------------------------------------------------------
 
 def _now():
     return datetime.utcnow()
@@ -119,7 +119,7 @@ def _mock_options_client(schema: dict, status: int = 200) -> MagicMock:
     return client
 
 
-# ── A1: Admin with force_capability proceeds ──────────────────────────────────
+# -- A1: Admin with force_capability proceeds ----------------------------------
 
 def test_admin_override_flag_and_audit_present_in_source():
     """fetch_light_stream must accept force_capability parameter and audit overrides."""
@@ -137,7 +137,7 @@ def test_admin_override_flag_and_audit_present_in_source():
     )
 
 
-# ── A2: Non-admin with force_capability is rejected ───────────────────────────
+# -- A2: Non-admin with force_capability is rejected ---------------------------
 
 def test_admin_override_requires_admin_check_in_source():
     """The override path must explicitly refuse non-admin users."""
@@ -149,7 +149,7 @@ def test_admin_override_requires_admin_check_in_source():
     )
 
 
-# ── A3: Normal users still get capability error without override ───────────────
+# -- A3: Normal users still get capability error without override ---------------
 
 def test_capability_error_message_still_present_for_normal_path():
     """The non-override path must emit a capability-guard SSE error."""
@@ -162,10 +162,10 @@ def test_capability_error_message_still_present_for_normal_path():
     )
 
 
-# ── A4: Override logs warning (structural check) ─────────────────────────────
+# -- A4: Override logs warning (structural check) -----------------------------
 
 def test_capability_override_logs_admin_warning_in_source():
-    """Admin override must emit a WARNING-level log — not silently bypass."""
+    """Admin override must emit a WARNING-level log - not silently bypass."""
     import app.main as main_module
 
     src = inspect.getsource(main_module.fetch_light_stream)
@@ -174,10 +174,10 @@ def test_capability_override_logs_admin_warning_in_source():
     )
 
 
-# ── R1: OPTIONS 429 → retry → 200 with valid schema → True ──────────────────
+# -- R1: OPTIONS 429 -> retry -> 200 with valid schema -> True ------------------
 
 def test_options_retry_success_after_transient_429():
-    """A single 429 from OPTIONS should be retried; success on retry → capable=True."""
+    """A single 429 from OPTIONS should be retried; success on retry -> capable=True."""
     reset_wc_capability_cache()
     db = SessionLocal()
     try:
@@ -222,7 +222,7 @@ def test_options_retry_success_after_transient_429():
             f"Expected at least 1 retry counted, got {telem.capability_probe_retries}"
         )
         assert telem.capability_probe_requests >= 2, (
-            f"Expected ≥2 probe requests (429 + 200), got {telem.capability_probe_requests}"
+            f"Expected >=2 probe requests (429 + 200), got {telem.capability_probe_requests}"
         )
     finally:
         _cleanup(db, 9100)
@@ -230,7 +230,7 @@ def test_options_retry_success_after_transient_429():
         reset_wc_capability_cache()
 
 
-# ── R2: OPTIONS all-429 exhausts budget → None, NOT cached ──────────────────
+# -- R2: OPTIONS all-429 exhausts budget -> None, NOT cached ------------------
 
 def test_options_retry_exhaustion_returns_none_not_cached():
     """Retry budget exhaustion is a connectivity failure, not a schema determination.
@@ -268,7 +268,7 @@ def test_options_retry_exhaustion_returns_none_not_cached():
         )
         assert telem.capability_probe_retries >= 1
 
-        # Must NOT be cached — stays None so next call can re-probe when API recovers.
+        # Must NOT be cached - stays None so next call can re-probe when API recovers.
         import app.services.woocommerce as wc_mod
         assert wc_mod._wc_variation_filter_capable is None, (
             "After budget exhaustion, capability must NOT be cached "
@@ -280,7 +280,7 @@ def test_options_retry_exhaustion_returns_none_not_cached():
         reset_wc_capability_cache()
 
 
-# ── R3: Transient exception → None, NOT cached ───────────────────────────────
+# -- R3: Transient exception -> None, NOT cached -------------------------------
 
 def test_options_transient_exception_returns_none_not_cached():
     """A transient network error must return None (indeterminate) without caching."""
@@ -304,7 +304,7 @@ def test_options_transient_exception_returns_none_not_cached():
             f"Transient error must return None (indeterminate), got {result!r}"
         )
 
-        # Must NOT be cached — stays None so next call can re-probe
+        # Must NOT be cached - stays None so next call can re-probe
         import app.services.woocommerce as wc_mod
         assert wc_mod._wc_variation_filter_capable is None, (
             "Transient error must not cache the result; "
@@ -316,7 +316,7 @@ def test_options_transient_exception_returns_none_not_cached():
         reset_wc_capability_cache()
 
 
-# ── L1: Legacy manage_stock=NULL child not overwritten ───────────────────────
+# -- L1: Legacy manage_stock=NULL child not overwritten -----------------------
 
 def test_legacy_null_manage_stock_child_stock_not_overwritten():
     """A child with manage_stock=NULL (pre-migration legacy row) must NOT have
@@ -343,7 +343,7 @@ def test_legacy_null_manage_stock_child_stock_not_overwritten():
         db.close()
 
 
-# ── S1: top-level endpoints structure ────────────────────────────────────────
+# -- S1: top-level endpoints structure ----------------------------------------
 
 def test_schema_supports_top_level_endpoints():
     """_schema_supports_modified_after must find modified_after in the top-level
@@ -368,7 +368,7 @@ def test_schema_supports_top_level_endpoints():
     assert _schema_supports_modified_after(data) is True
 
 
-# ── S2: POST-only endpoint doesn't match; GET endpoint does ──────────────────
+# -- S2: POST-only endpoint doesn't match; GET endpoint does ------------------
 
 def test_schema_ignores_post_only_endpoint():
     """modified_after in a POST-only endpoint must NOT be counted as GET support."""
@@ -383,7 +383,7 @@ def test_schema_ignores_post_only_endpoint():
     assert _schema_supports_modified_after(data) is False
 
 
-# ── S3: multiple routes, only one carries modified_after ─────────────────────
+# -- S3: multiple routes, only one carries modified_after ---------------------
 
 def test_schema_finds_modified_after_in_one_of_many_routes():
     """If any GET endpoint in any route declares modified_after, should return True."""
@@ -404,10 +404,10 @@ def test_schema_finds_modified_after_in_one_of_many_routes():
     assert _schema_supports_modified_after(data) is True
 
 
-# ── S4: mixed nested-route + top-level endpoints ──────────────────────────────
+# -- S4: mixed nested-route + top-level endpoints ------------------------------
 
 def test_schema_missing_in_both_paths_returns_false():
-    """When neither routes nor top-level endpoints contain modified_after → False."""
+    """When neither routes nor top-level endpoints contain modified_after -> False."""
     data = {
         "routes": {
             "/wc/v3/products/(?P<id>[\\d]+)/variations": {

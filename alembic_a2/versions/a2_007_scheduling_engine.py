@@ -1,4 +1,4 @@
-"""A2.8 Scheduling Engine — schedules, runs, leases
+"""A2.8 Scheduling Engine - schedules, runs, leases
 
 Revision ID: a2_007
 Revises: a2_006

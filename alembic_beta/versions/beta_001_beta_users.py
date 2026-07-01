@@ -1,4 +1,4 @@
-"""beta_001 — create beta_users table
+"""beta_001 - create beta_users table
 
 Revision ID: beta_001
 Revises:

@@ -1,4 +1,4 @@
-"""Unit tests — SourceCheckpoint."""
+"""Unit tests - SourceCheckpoint."""
 import os
 os.environ.setdefault("A2_DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")

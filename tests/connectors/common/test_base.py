@@ -9,7 +9,7 @@ from app.connectors.common.test_result import ConnectionTestResult
 from app.connectors.common.types import ConnectorCapabilities, ConnectorType
 
 
-# ── Minimal concrete implementations for contract verification ────────────────
+# -- Minimal concrete implementations for contract verification ----------------
 
 class _MinimalSource(SourceConnector):
     connector_id = "test-source"
@@ -49,7 +49,7 @@ class _MinimalDestination(DestinationConnector):
         return ConnectionTestResult(ok=True, message="ok")
 
 
-# ── ABC instantiation guard ───────────────────────────────────────────────────
+# -- ABC instantiation guard ---------------------------------------------------
 
 def test_source_connector_cannot_be_instantiated_directly():
     with pytest.raises(TypeError):
@@ -61,7 +61,7 @@ def test_destination_connector_cannot_be_instantiated_directly():
         DestinationConnector()  # type: ignore[abstract]
 
 
-# ── Concrete implementations satisfy the contract ────────────────────────────
+# -- Concrete implementations satisfy the contract ----------------------------
 
 def test_minimal_source_instantiates():
     s = _MinimalSource()
@@ -115,7 +115,7 @@ def test_destination_test_connection():
     assert result.message == "ok"
 
 
-# ── Public __init__ re-exports ────────────────────────────────────────────────
+# -- Public __init__ re-exports ------------------------------------------------
 
 def test_common_package_exports():
     from app.connectors.common import (  # noqa: F401

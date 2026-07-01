@@ -3,33 +3,33 @@
 Verifies WooCommerce and Nextcloud health state via actual HTTP calls to /api/health,
 plus unit-level checks for fetch instrumentation and capability tri-state.
 
-WC1  — WC status 'unknown' before any fetch
-WC2  — WC status 'ok' after fresh success
-WC3  — WC status 'stale' after success older than 300 s threshold
-WC4  — WC status 'limited' when capability confirmed False
-WC5  — WC status 'unavailable' when failure is newer than success
-WC6  — WC status recovers to 'ok' after failure then success
-WC7  — Full refresh success records WC success
-WC8  — Deep refresh success records WC success
-WC9  — Light refresh success records WC success
-WC10 — Empty successful fetch still records WC success
-WC11 — DB failure after successful WC fetch does NOT mark WC unavailable
-WC12 — Retry budget exhaustion returns None, not cached as False
-WC13 — force_capability rejected when capability is indeterminate (None)
-WC14 — Retry exhaustion after prior success → WC becomes 'unavailable' (failure recorded)
-WC15 — Valid unsupported schema → records WC success; health is 'limited'
-WC16 — Malformed JSON response → returns None, not cached; records WC success
+WC1  - WC status 'unknown' before any fetch
+WC2  - WC status 'ok' after fresh success
+WC3  - WC status 'stale' after success older than 300 s threshold
+WC4  - WC status 'limited' when capability confirmed False
+WC5  - WC status 'unavailable' when failure is newer than success
+WC6  - WC status recovers to 'ok' after failure then success
+WC7  - Full refresh success records WC success
+WC8  - Deep refresh success records WC success
+WC9  - Light refresh success records WC success
+WC10 - Empty successful fetch still records WC success
+WC11 - DB failure after successful WC fetch does NOT mark WC unavailable
+WC12 - Retry budget exhaustion returns None, not cached as False
+WC13 - force_capability rejected when capability is indeterminate (None)
+WC14 - Retry exhaustion after prior success -> WC becomes 'unavailable' (failure recorded)
+WC15 - Valid unsupported schema -> records WC success; health is 'limited'
+WC16 - Malformed JSON response -> returns None, not cached; records WC success
 
-NC1  — NC status 'unknown' before any download
-NC2  — NC status 'ok' after fresh successful download
-NC3  — NC status 'stale' after success older than _XLSX_CACHE_TTL
-NC4  — NC status 'unavailable' when failure is newer than success
-NC5  — NC status recovers to 'ok' after failure then success
-NC6  — Cache hit does NOT update verification timestamp
-NC7  — Failed download records NC failure
-NC8  — Successful upload clears data, ts, etag, last_modified
-NC9  — NC status is 'unknown' after upload invalidation (before new download)
-NC10 — Failed upload records NC failure
+NC1  - NC status 'unknown' before any download
+NC2  - NC status 'ok' after fresh successful download
+NC3  - NC status 'stale' after success older than _XLSX_CACHE_TTL
+NC4  - NC status 'unavailable' when failure is newer than success
+NC5  - NC status recovers to 'ok' after failure then success
+NC6  - Cache hit does NOT update verification timestamp
+NC7  - Failed download records NC failure
+NC8  - Successful upload clears data, ts, etag, last_modified
+NC9  - NC status is 'unknown' after upload invalidation (before new download)
+NC10 - Failed upload records NC failure
 """
 import asyncio
 import io
@@ -64,7 +64,7 @@ import app.services.nextcloud as nc_svc
 Base.metadata.create_all(bind=engine)
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
 def client():
@@ -95,27 +95,27 @@ def _svc(client) -> dict:
     return r.json()["services"]
 
 
-# ── WC1: unknown before any fetch ────────────────────────────────────────────
+# -- WC1: unknown before any fetch --------------------------------------------
 
 def test_wc_status_unknown_before_any_fetch(client):
     assert _svc(client)["woocommerce"] == "unknown"
 
 
-# ── WC2: ok after fresh success ──────────────────────────────────────────────
+# -- WC2: ok after fresh success ----------------------------------------------
 
 def test_wc_status_ok_after_fresh_success(client):
     wc_svc.record_wc_success()
     assert _svc(client)["woocommerce"] == "ok"
 
 
-# ── WC3: stale after success older than 300 s ────────────────────────────────
+# -- WC3: stale after success older than 300 s --------------------------------
 
 def test_wc_status_stale_after_old_success(client):
     wc_svc._wc_last_success_ts = time.time() - 400  # 400 s > 300 s threshold
     assert _svc(client)["woocommerce"] == "stale"
 
 
-# ── WC4: limited when capability is False ────────────────────────────────────
+# -- WC4: limited when capability is False ------------------------------------
 
 def test_wc_status_limited_when_capability_false(client):
     wc_svc.record_wc_success()
@@ -123,7 +123,7 @@ def test_wc_status_limited_when_capability_false(client):
     assert _svc(client)["woocommerce"] == "limited"
 
 
-# ── WC5: unavailable when failure is newer than success ──────────────────────
+# -- WC5: unavailable when failure is newer than success ----------------------
 
 def test_wc_status_unavailable_when_failure_newer_than_success(client):
     wc_svc._wc_last_success_ts = time.time() - 20
@@ -131,7 +131,7 @@ def test_wc_status_unavailable_when_failure_newer_than_success(client):
     assert _svc(client)["woocommerce"] == "unavailable"
 
 
-# ── WC6: recovery from failure ───────────────────────────────────────────────
+# -- WC6: recovery from failure -----------------------------------------------
 
 def test_wc_status_recovers_to_ok_after_failure_then_success(client):
     wc_svc._wc_last_failure_ts = time.time() - 20
@@ -139,7 +139,7 @@ def test_wc_status_recovers_to_ok_after_failure_then_success(client):
     assert _svc(client)["woocommerce"] == "ok"
 
 
-# ── WC7: full refresh success records WC success ─────────────────────────────
+# -- WC7: full refresh success records WC success -----------------------------
 
 def test_full_refresh_success_records_wc_success():
     from app.services.woocommerce import fetch_all_products_fast
@@ -147,7 +147,7 @@ def test_full_refresh_success_records_wc_success():
     mock_resp = MagicMock(spec=httpx.Response)
     mock_resp.status_code = 200
     mock_resp.headers = httpx.Headers({})
-    mock_resp.json.return_value = []  # empty page → stop paging
+    mock_resp.json.return_value = []  # empty page -> stop paging
     mock_resp.raise_for_status = MagicMock()
 
     mock_client = MagicMock()
@@ -165,7 +165,7 @@ def test_full_refresh_success_records_wc_success():
     assert wc_svc._wc_last_success_ts > 0, "Full refresh success must record WC success"
 
 
-# ── WC8: deep refresh success records WC success ─────────────────────────────
+# -- WC8: deep refresh success records WC success -----------------------------
 
 def test_deep_refresh_success_records_wc_success():
     from app.services.woocommerce import fetch_all_products_full
@@ -191,7 +191,7 @@ def test_deep_refresh_success_records_wc_success():
     assert wc_svc._wc_last_success_ts > 0, "Deep refresh success must record WC success"
 
 
-# ── WC9: light refresh success records WC success ────────────────────────────
+# -- WC9: light refresh success records WC success ----------------------------
 
 def test_light_refresh_success_records_wc_success():
     from app.services.woocommerce import fetch_products_light
@@ -217,7 +217,7 @@ def test_light_refresh_success_records_wc_success():
     assert wc_svc._wc_last_success_ts > 0, "Light refresh success must record WC success"
 
 
-# ── WC10: empty successful fetch records success ──────────────────────────────
+# -- WC10: empty successful fetch records success ------------------------------
 
 def test_empty_successful_fetch_records_wc_success():
     from app.services.woocommerce import fetch_all_products_fast
@@ -245,11 +245,11 @@ def test_empty_successful_fetch_records_wc_success():
     )
 
 
-# ── WC11: DB failure after WC fetch does NOT mark WC unavailable ─────────────
+# -- WC11: DB failure after WC fetch does NOT mark WC unavailable -------------
 
 def test_db_failure_after_successful_wc_fetch_does_not_mark_wc_unavailable(client):
     """The WC fetch succeeds (success recorded), then DB upsert raises.
-    _wc_last_failure_ts must remain 0 — it's a DB problem, not a WC problem."""
+    _wc_last_failure_ts must remain 0 - it's a DB problem, not a WC problem."""
     from app.services.woocommerce import fetch_all_products_fast
 
     mock_resp = MagicMock(spec=httpx.Response)
@@ -275,11 +275,11 @@ def test_db_failure_after_successful_wc_fetch_does_not_mark_wc_unavailable(clien
     assert wc_svc._wc_last_success_ts > 0, "WC success must be recorded when fetch completes"
     # WC failure must NOT be recorded (DB upsert is separate)
     assert wc_svc._wc_last_failure_ts == 0.0, (
-        "DB failure must NOT record WC failure — these are different failure domains"
+        "DB failure must NOT record WC failure - these are different failure domains"
     )
 
 
-# ── WC12: retry budget exhaustion → None, not cached ─────────────────────────
+# -- WC12: retry budget exhaustion -> None, not cached -------------------------
 
 def test_capability_retry_exhaustion_returns_none_not_cached():
     """Retry budget exhaustion is connectivity failure, not schema determination.
@@ -328,7 +328,7 @@ def test_capability_retry_exhaustion_returns_none_not_cached():
             f"Retry budget exhaustion must return None (indeterminate), got {result!r}"
         )
         assert wc_svc._wc_variation_filter_capable is None, (
-            "Budget exhaustion must NOT cache the result — "
+            "Budget exhaustion must NOT cache the result - "
             f"got {wc_svc._wc_variation_filter_capable!r}"
         )
     finally:
@@ -338,11 +338,11 @@ def test_capability_retry_exhaustion_returns_none_not_cached():
         reset_wc_capability_cache()
 
 
-# ── WC13: force_capability rejected when capability is indeterminate ──────────
+# -- WC13: force_capability rejected when capability is indeterminate ----------
 
 def test_force_capability_rejected_when_capability_indeterminate(client):
     """When check_variation_filter_capability returns None (connectivity failure),
-    force_capability=true must be rejected — we cannot confirm WC supports the feature."""
+    force_capability=true must be rejected - we cannot confirm WC supports the feature."""
     with patch("app.main.validate_sse_token", return_value={"sub": "testadmin_hb", "role": "admin"}):
         with patch("app.main._enforce_permission"):
             with patch("app.main.get_last_sync_time", return_value=datetime(2024, 1, 1)):
@@ -359,7 +359,7 @@ def test_force_capability_rejected_when_capability_indeterminate(client):
     )
 
 
-# ── WC14: Retry exhaustion after prior success → WC becomes 'unavailable' ────
+# -- WC14: Retry exhaustion after prior success -> WC becomes 'unavailable' ----
 
 def test_capability_retry_exhaustion_records_wc_failure(client):
     """After retry budget exhaustion, record_wc_failure() must be called, so
@@ -407,7 +407,7 @@ def test_capability_retry_exhaustion_records_wc_failure(client):
         result = asyncio.run(run())
         assert result is None
         assert wc_svc._wc_last_failure_ts > wc_svc._wc_last_success_ts, (
-            "Retry budget exhaustion must call record_wc_failure() — "
+            "Retry budget exhaustion must call record_wc_failure() - "
             f"failure_ts={wc_svc._wc_last_failure_ts} success_ts={wc_svc._wc_last_success_ts}"
         )
         assert _svc(client)["woocommerce"] == "unavailable", (
@@ -420,7 +420,7 @@ def test_capability_retry_exhaustion_records_wc_failure(client):
         reset_wc_capability_cache()
 
 
-# ── WC15: Valid unsupported schema → records success, health is 'limited' ─────
+# -- WC15: Valid unsupported schema -> records success, health is 'limited' -----
 
 def test_capability_unsupported_schema_records_wc_success(client):
     """When OPTIONS returns a valid schema without modified_after, record_wc_success()
@@ -481,11 +481,11 @@ def test_capability_unsupported_schema_records_wc_success(client):
         reset_wc_capability_cache()
 
 
-# ── WC16: Malformed JSON → returns None, not cached, records success ──────────
+# -- WC16: Malformed JSON -> returns None, not cached, records success ----------
 
 def test_capability_malformed_json_returns_none_not_cached(client):
     """OPTIONS 200 with malformed JSON body: WC is reachable (record_wc_success),
-    but capability is indeterminate — must return None and NOT cache False."""
+    but capability is indeterminate - must return None and NOT cache False."""
     from app.services.woocommerce import (
         check_variation_filter_capability, reset_wc_capability_cache,
     )
@@ -524,10 +524,10 @@ def test_capability_malformed_json_returns_none_not_cached(client):
             f"Malformed JSON must return None (indeterminate), got {result!r}"
         )
         assert wc_svc._wc_variation_filter_capable is None, (
-            f"Malformed JSON must NOT cache the result — got {wc_svc._wc_variation_filter_capable!r}"
+            f"Malformed JSON must NOT cache the result - got {wc_svc._wc_variation_filter_capable!r}"
         )
         assert wc_svc._wc_last_success_ts > 0, (
-            "OPTIONS 200 (even with bad body) means WC responded — must call record_wc_success()"
+            "OPTIONS 200 (even with bad body) means WC responded - must call record_wc_success()"
         )
     finally:
         db.query(ProductCache).filter(ProductCache.wc_id == 9312).delete()
@@ -536,27 +536,27 @@ def test_capability_malformed_json_returns_none_not_cached(client):
         reset_wc_capability_cache()
 
 
-# ── NC1: unknown before any download ─────────────────────────────────────────
+# -- NC1: unknown before any download -----------------------------------------
 
 def test_nc_status_unknown_before_any_download(client):
     assert _svc(client)["nextcloud"] == "unknown"
 
 
-# ── NC2: ok after fresh successful download ───────────────────────────────────
+# -- NC2: ok after fresh successful download -----------------------------------
 
 def test_nc_status_ok_after_fresh_successful_download(client):
     nc_svc.record_nc_success()
     assert _svc(client)["nextcloud"] == "ok"
 
 
-# ── NC3: stale after success older than _XLSX_CACHE_TTL ──────────────────────
+# -- NC3: stale after success older than _XLSX_CACHE_TTL ----------------------
 
 def test_nc_status_stale_after_old_success(client):
     nc_svc._nc_last_success_ts = time.time() - (nc_svc._XLSX_CACHE_TTL + 10)
     assert _svc(client)["nextcloud"] == "stale"
 
 
-# ── NC4: unavailable when failure is newer than success ──────────────────────
+# -- NC4: unavailable when failure is newer than success ----------------------
 
 def test_nc_status_unavailable_when_failure_newer_than_success(client):
     nc_svc._nc_last_success_ts = time.time() - 20
@@ -564,7 +564,7 @@ def test_nc_status_unavailable_when_failure_newer_than_success(client):
     assert _svc(client)["nextcloud"] == "unavailable"
 
 
-# ── NC5: recovery from failure ───────────────────────────────────────────────
+# -- NC5: recovery from failure -----------------------------------------------
 
 def test_nc_status_recovers_to_ok_after_failure_then_success(client):
     nc_svc._nc_last_failure_ts = time.time() - 20
@@ -572,7 +572,7 @@ def test_nc_status_recovers_to_ok_after_failure_then_success(client):
     assert _svc(client)["nextcloud"] == "ok"
 
 
-# ── NC6: cache hit does NOT update verification timestamp ────────────────────
+# -- NC6: cache hit does NOT update verification timestamp --------------------
 
 def test_nc_cache_hit_does_not_update_verification_timestamp():
     from app.services.nextcloud import download_xlsx
@@ -593,11 +593,11 @@ def test_nc_cache_hit_does_not_update_verification_timestamp():
     data = asyncio.run(run())
     assert data == b"fakexlsxdata", "Cache hit must return cached data"
     assert nc_svc._nc_last_success_ts == recorded_ts, (
-        "Cache hit must NOT update _nc_last_success_ts — no network access occurred"
+        "Cache hit must NOT update _nc_last_success_ts - no network access occurred"
     )
 
 
-# ── NC7: failed download records NC failure ───────────────────────────────────
+# -- NC7: failed download records NC failure -----------------------------------
 
 def test_failed_download_records_nc_failure():
     from app.services.nextcloud import download_xlsx
@@ -619,7 +619,7 @@ def test_failed_download_records_nc_failure():
     assert nc_svc._nc_last_success_ts == 0.0, "Failed download must NOT record NC success"
 
 
-# ── NC8: successful upload clears all cache fields ────────────────────────────
+# -- NC8: successful upload clears all cache fields ----------------------------
 
 def test_successful_upload_clears_all_cache_fields():
     from app.services.nextcloud import _upload_wb
@@ -655,7 +655,7 @@ def test_successful_upload_clears_all_cache_fields():
     assert nc_svc._xlsx_cache["last_modified"] == "", "Upload must clear last_modified"
 
 
-# ── NC9: status is 'unknown' after upload invalidation ───────────────────────
+# -- NC9: status is 'unknown' after upload invalidation -----------------------
 
 def test_nc_status_unknown_after_upload_invalidation(client):
     """_upload_wb must reset both health timestamps so /api/health reports 'unknown'
@@ -695,7 +695,7 @@ def test_nc_status_unknown_after_upload_invalidation(client):
     )
 
 
-# ── NC10: failed upload records NC failure ────────────────────────────────────
+# -- NC10: failed upload records NC failure ------------------------------------
 
 def test_failed_upload_records_nc_failure():
     from app.services.nextcloud import _upload_wb

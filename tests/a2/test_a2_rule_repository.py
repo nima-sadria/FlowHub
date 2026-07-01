@@ -1,5 +1,5 @@
 """
-Integration tests — A2.3-R2 RuleRepository and ProposalRepository.
+Integration tests - A2.3-R2 RuleRepository and ProposalRepository.
 
 Uses in-memory SQLite. No PostgreSQL required.
 """
@@ -71,7 +71,7 @@ def proposal_repo(db):
     return ProposalRepository(db)
 
 
-# ── RuleRepository — create and get ───────────────────────────────────────────
+# -- RuleRepository - create and get -------------------------------------------
 
 def test_create_and_get_rule(rule_repo, db):
     rule = rule_repo.create_rule(
@@ -97,7 +97,7 @@ def test_create_rule_invalid_type_raises(rule_repo):
         rule_repo.create_rule(rule_name="Bad", rule_type="unknown_type", priority=1)
 
 
-# ── RuleRepository — deactivate ───────────────────────────────────────────────
+# -- RuleRepository - deactivate -----------------------------------------------
 
 def test_deactivate_rule(rule_repo, db):
     rule = rule_repo.create_rule(rule_name="R", rule_type="cost_plus", priority=1)
@@ -135,7 +135,7 @@ def test_list_active_sorted_by_priority(rule_repo, db):
     assert priorities == sorted(priorities)
 
 
-# ── RuleRepository — versions ─────────────────────────────────────────────────
+# -- RuleRepository - versions -------------------------------------------------
 
 def test_create_version_auto_increments(rule_repo, db):
     rule = rule_repo.create_rule(rule_name="R", rule_type="cost_plus", priority=1)
@@ -280,7 +280,7 @@ def test_list_versions(rule_repo, db):
     assert versions[0].version_number < versions[1].version_number
 
 
-# ── RuleRepository — load_active_definitions ──────────────────────────────────
+# -- RuleRepository - load_active_definitions ----------------------------------
 
 def test_load_active_definitions(rule_repo, db):
     rule = rule_repo.create_rule(rule_name="Cost+20%", rule_type="cost_plus", priority=10)
@@ -307,7 +307,7 @@ def test_load_active_definitions_excludes_no_current_version(rule_repo, db):
     db.commit()
     rule_repo.create_version(rule_id=rule.rule_id, formula="cost * 1.20", required_inputs=["cost"])
     db.commit()
-    # no publish_version called → no current version
+    # no publish_version called -> no current version
 
     assert rule_repo.load_active_definitions() == []
 
@@ -340,10 +340,10 @@ def test_load_active_definitions_required_inputs_stored(rule_repo, db):
     assert defs[0].required_inputs == ["cost", "fx_rate"]
 
 
-# ── End-to-end: Engine → Repository ───────────────────────────────────────────
+# -- End-to-end: Engine -> Repository -------------------------------------------
 
 def test_engine_proposal_round_trips(rule_repo, proposal_repo, db):
-    """Full A2.3-R2 integration: create rule → generate proposal → persist → retrieve."""
+    """Full A2.3-R2 integration: create rule -> generate proposal -> persist -> retrieve."""
     rule = rule_repo.create_rule(rule_name="Cost+20%", rule_type="cost_plus", priority=10)
     db.commit()
     v = rule_repo.create_version(rule_id=rule.rule_id, formula="cost * 1.20", required_inputs=["cost"])

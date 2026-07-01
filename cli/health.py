@@ -1,4 +1,4 @@
-"""FlowHub â€” flowhub health command group.
+"""FlowHub - flowhub health command group.
 
 Local-only health checks. No external network calls.
 Docker runtime health checks (db, sources, channels) require B6.
@@ -103,7 +103,7 @@ def health(
         checks.append({
             "name": "Storage path",
             "passed": True,
-            "detail": str(sp) + (" [exists]" if sp.exists() else " [not created â€” run install first]"),
+            "detail": str(sp) + (" [exists]" if sp.exists() else " [not created - run install first]"),
         })
 
     all_passed = all(c["passed"] for c in checks)  # type: ignore[arg-type]
@@ -120,7 +120,7 @@ def health(
 
     for c in checks:
         passed = c["passed"]
-        icon = "[green]âœ“[/green]" if passed else "[red]âœ—[/red]"
+        icon = "[green]OK[/green]" if passed else "[red]X[/red]"
         name = c["name"]
         detail = c["detail"]
         console.print(f"  {icon}  {name}  [dim]{detail}[/dim]")

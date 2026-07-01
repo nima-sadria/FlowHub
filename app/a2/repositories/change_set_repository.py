@@ -1,4 +1,4 @@
-"""A2.5 Change Set Repository — persistence for ChangeSet, ChangeSetRevision, ChangeSetItem."""
+"""A2.5 Change Set Repository - persistence for ChangeSet, ChangeSetRevision, ChangeSetItem."""
 from __future__ import annotations
 
 import uuid
@@ -12,9 +12,9 @@ from ..models.change_set import ChangeSet, ChangeSetItem, ChangeSetRevision
 
 # Valid state transitions for the ChangeSet state machine.
 # Exactly three transitions are permitted (per A2.5 architecture spec):
-#   DRAFT → READY
-#   READY → SUPERSEDED
-#   READY → ARCHIVED
+#   DRAFT -> READY
+#   READY -> SUPERSEDED
+#   READY -> ARCHIVED
 # SUPERSEDED and ARCHIVED are both terminal states.
 _VALID_TRANSITIONS: dict[str, set[str]] = {
     "DRAFT": {"READY"},
@@ -32,7 +32,7 @@ class ChangeSetRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
-    # ── ChangeSet ─────────────────────────────────────────────────────────────
+    # -- ChangeSet -------------------------------------------------------------
 
     def create(
         self,
@@ -96,7 +96,7 @@ class ChangeSetRepository:
         self._db.flush()
         return cs
 
-    # ── ChangeSetRevision ────────────────────────────────────────────────────
+    # -- ChangeSetRevision ----------------------------------------------------
 
     def create_revision(
         self,
@@ -149,7 +149,7 @@ class ChangeSetRepository:
             .all()
         )
 
-    # ── ChangeSetItem ────────────────────────────────────────────────────────
+    # -- ChangeSetItem --------------------------------------------------------
 
     def add_item(
         self,

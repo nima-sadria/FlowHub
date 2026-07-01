@@ -10,7 +10,7 @@ from app.beta.health.models import CheckCategory, HealthStatus
 
 
 # ---------------------------------------------------------------------------
-# run() — single check delegation
+# run() - single check delegation
 # ---------------------------------------------------------------------------
 
 
@@ -94,7 +94,7 @@ def test_engine_run_dns_check_fail(engine, fake_adapter):
 
 
 def test_engine_run_storage_check_pass(engine, fake_adapter):
-    r = engine.run_storage_check("/data/wooprice")
+    r = engine.run_storage_check("/data/flowhub")
     assert r.status == HealthStatus.PASS
 
 
@@ -162,7 +162,7 @@ def test_engine_summarize_counts_skips(engine, fake_adapter):
     fake_adapter.dns_default = DNSResolutionError("NXDOMAIN")
     results = engine.run_integration_chain("nextcloud", "https://nc.example.com")
     summary = engine.summarize(results)
-    # DNS fail → TCP, TLS, HTTP all skipped
+    # DNS fail -> TCP, TLS, HTTP all skipped
     assert summary.skipped >= 3
 
 
@@ -172,7 +172,7 @@ def test_engine_summarize_counts_skips(engine, fake_adapter):
 
 
 def test_no_real_network_in_integration_chain(engine, fake_adapter):
-    """FakeNetworkAdapter must have been called — not a real adapter."""
+    """FakeNetworkAdapter must have been called - not a real adapter."""
     # If a real network call happened, the test environment would fail or be slow.
     # We verify it didn't by checking the adapter is our fake.
     from tests.beta.connections.conftest import FakeNetworkAdapter

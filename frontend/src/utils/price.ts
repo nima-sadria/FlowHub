@@ -1,14 +1,14 @@
 /** Format price as integer with thousands separators and no decimals.
- *  "150000.00" → "150,000"  |  "100000" → "100,000"  |  null/empty → "—" */
+ *  "150000.00" -> "150,000"  |  "100000" -> "100,000"  |  null/empty -> "-" */
 export function fmtPrice(p: string | null | undefined): string {
-  if (!p || p.trim() === '') return '—'
+  if (!p || p.trim() === '') return '-'
   const n = parseFloat(p)
   if (isNaN(n)) return p
   return Math.trunc(n).toLocaleString('en')
 }
 
 /** Round per emergency price formula:
- *  price ≤ 20,000,000 → nearest 10,000; price > 20,000,000 → nearest 50,000 */
+ *  price <= 20,000,000 -> nearest 10,000; price > 20,000,000 -> nearest 50,000 */
 export function emergencyRound(price: number): number {
   const unit = price > 20_000_000 ? 50_000 : 10_000
   return Math.round(price / unit) * unit

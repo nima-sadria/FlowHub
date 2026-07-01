@@ -1,4 +1,4 @@
-"""beta_002 — create beta_refresh_tokens table
+"""beta_002 - create beta_refresh_tokens table
 
 Revision ID: beta_002
 Revises: beta_001

@@ -1,16 +1,16 @@
-"""Project 7.3A — Light Refresh optimization + watermark safety regression tests.
+"""Project 7.3A - Light Refresh optimization + watermark safety regression tests.
 
 Coverage:
-  L1 — fetch_products_light does NOT crawl all variations; only modified ones
-  L2 — modified_after is passed to variation fetch call
-  L3 — dates_are_gmt=true is passed to variation fetch call
-  L4 — Deep Sync still crawls all variations via fetch_all_products_full
-  L5 — FetchTelemetry retry_count / retry_sleep_s are populated on retry
-  L6 — Degraded warning logged when retries happen in light fetch
-  L7 — No Apply / Dry Run / Emergency write-path changes
-  W1 — get_last_wc_modified_time returns max(date_modified_gmt) from top-level rows
-  W2 — get_last_wc_modified_time ignores variation rows (parent_id > 0)
-  W3 — get_last_wc_modified_time returns None when cache is empty
+  L1 - fetch_products_light does NOT crawl all variations; only modified ones
+  L2 - modified_after is passed to variation fetch call
+  L3 - dates_are_gmt=true is passed to variation fetch call
+  L4 - Deep Sync still crawls all variations via fetch_all_products_full
+  L5 - FetchTelemetry retry_count / retry_sleep_s are populated on retry
+  L6 - Degraded warning logged when retries happen in light fetch
+  L7 - No Apply / Dry Run / Emergency write-path changes
+  W1 - get_last_wc_modified_time returns max(date_modified_gmt) from top-level rows
+  W2 - get_last_wc_modified_time ignores variation rows (parent_id > 0)
+  W3 - get_last_wc_modified_time returns None when cache is empty
 """
 import asyncio
 import inspect
@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, call
 import httpx
 import pytest
 
-# ── Minimal env ───────────────────────────────────────────────────────────────
+# -- Minimal env ---------------------------------------------------------------
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("NEXTCLOUD_URL", "http://example.invalid")
 os.environ.setdefault("NEXTCLOUD_USER", "x")
@@ -44,7 +44,7 @@ from app.services.woocommerce import (  # noqa: E402
 )
 
 
-# ── Mock helpers ──────────────────────────────────────────────────────────────
+# -- Mock helpers --------------------------------------------------------------
 
 def _ok_resp(body: list) -> MagicMock:
     r = MagicMock(spec=httpx.Response)
@@ -87,7 +87,7 @@ def _make_variation(vid: int, parent_id: int) -> dict:
     }
 
 
-# ── L1: Light Refresh does NOT crawl all variations ──────────────────────────
+# -- L1: Light Refresh does NOT crawl all variations --------------------------
 
 def test_light_fetch_uses_modified_after_filter_on_variations():
     """fetch_products_light must pass modified_after to the variation endpoint,
@@ -130,7 +130,7 @@ def test_light_fetch_uses_modified_after_filter_on_variations():
         )
 
 
-# ── L2: modified_after passed to variation fetch ──────────────────────────────
+# -- L2: modified_after passed to variation fetch ------------------------------
 
 def test_light_fetch_passes_modified_after_to_variations():
     """The modified_after parameter sent to /variations must match the one passed to fetch_products_light."""
@@ -164,7 +164,7 @@ def test_light_fetch_passes_modified_after_to_variations():
     )
 
 
-# ── L3: dates_are_gmt=true passed ────────────────────────────────────────────
+# -- L3: dates_are_gmt=true passed --------------------------------------------
 
 def test_light_fetch_passes_dates_are_gmt_to_all_calls():
     """Both top-level and variation WC calls must include dates_are_gmt=true."""
@@ -195,7 +195,7 @@ def test_light_fetch_passes_dates_are_gmt_to_all_calls():
         )
 
 
-# ── L4: Deep Sync still crawls all variations ─────────────────────────────────
+# -- L4: Deep Sync still crawls all variations ---------------------------------
 
 def test_deep_sync_crawls_all_variations_without_modified_filter():
     """fetch_all_products_full must NOT pass modified_after to variation calls."""
@@ -231,7 +231,7 @@ def test_deep_sync_crawls_all_variations_without_modified_filter():
     )
 
 
-# ── L5: Telemetry retry_count / retry_sleep_s populated on retry ─────────────
+# -- L5: Telemetry retry_count / retry_sleep_s populated on retry -------------
 
 def test_telemetry_retry_count_incremented():
     """_get_with_retry must increment telemetry.retry_count and retry_sleep_s on a retry."""
@@ -268,7 +268,7 @@ def test_telemetry_retry_count_incremented():
     assert telem.retry_sleep_s > 0, f"Expected retry_sleep_s > 0, got {telem.retry_sleep_s}"
 
 
-# ── L6: Degraded warning emitted when light fetch retried ────────────────────
+# -- L6: Degraded warning emitted when light fetch retried --------------------
 
 def test_light_stream_logs_degraded_event_on_retries():
     """The light SSE route must emit event=wc_fetch_degraded to the log when
@@ -278,7 +278,7 @@ def test_light_stream_logs_degraded_event_on_retries():
     # Verify the structured warning is in the route source
     src = inspect.getsource(main_module.fetch_light_stream)
     assert "wc_fetch_degraded" in src, (
-        "fetch_light_stream does not emit event=wc_fetch_degraded — "
+        "fetch_light_stream does not emit event=wc_fetch_degraded - "
         "degraded logging was not added"
     )
     assert "mode=light" in src, (
@@ -286,7 +286,7 @@ def test_light_stream_logs_degraded_event_on_retries():
     )
 
 
-# ── L7: No write-path changes ─────────────────────────────────────────────────
+# -- L7: No write-path changes -------------------------------------------------
 
 def test_no_write_path_changes_in_light_route():
     """Light sync must not touch Apply, Dry Run, or Emergency paths."""
@@ -299,7 +299,7 @@ def test_no_write_path_changes_in_light_route():
     assert "emergency" not in light_src.lower(), "Light route must not reference emergency"
 
 
-# ── W1: get_last_wc_modified_time returns max(date_modified_gmt) ──────────────
+# -- W1: get_last_wc_modified_time returns max(date_modified_gmt) --------------
 
 def test_get_last_wc_modified_time_returns_max():
     """get_last_wc_modified_time must return the maximum date_modified_gmt from
@@ -332,7 +332,7 @@ def test_get_last_wc_modified_time_returns_max():
         db.close()
 
 
-# ── W2: get_last_wc_modified_time ignores variation rows ──────────────────────
+# -- W2: get_last_wc_modified_time ignores variation rows ----------------------
 
 def test_get_last_wc_modified_time_ignores_variations():
     """Variation rows (parent_id > 0) must not affect the watermark."""
@@ -343,13 +343,13 @@ def test_get_last_wc_modified_time_ignores_variations():
     db = SessionLocal()
     try:
         db.query(ProductCache).delete()
-        # Variation with a NEWER date — must be ignored
+        # Variation with a NEWER date - must be ignored
         db.add(ProductCache(
             wc_id=2001, parent_id=999, product_type="variation",
             date_modified_gmt="2024-12-31T23:59:59",
             last_synced_at=datetime.utcnow(), last_seen_at=datetime.utcnow(),
         ))
-        # Top-level parent with an OLDER date — this is what should be returned
+        # Top-level parent with an OLDER date - this is what should be returned
         db.add(ProductCache(
             wc_id=2002, parent_id=0, product_type="variable",
             date_modified_gmt="2024-06-01T08:00:00",
@@ -369,7 +369,7 @@ def test_get_last_wc_modified_time_ignores_variations():
         db.close()
 
 
-# ── W3: get_last_wc_modified_time returns None for empty cache ────────────────
+# -- W3: get_last_wc_modified_time returns None for empty cache ----------------
 
 def test_get_last_wc_modified_time_returns_none_when_empty():
     from app.services.product_cache import get_last_wc_modified_time

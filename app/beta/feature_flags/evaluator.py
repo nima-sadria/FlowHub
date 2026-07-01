@@ -1,4 +1,4 @@
-"""FlowHub â€” Feature Flag Evaluator.
+"""FlowHub - Feature Flag Evaluator.
 
 Evaluates feature flags from the Beta database. Caches values in memory
 and refreshes every 30 seconds. Enforces the TEP flag dependency chain.

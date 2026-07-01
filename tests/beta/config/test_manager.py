@@ -78,7 +78,7 @@ class TestManagerValidate:
         for k, v in valid_env.items():
             monkeypatch.setenv(k, v)
         manager = ConfigurationManager(check_paths=False)
-        # Don't call load() — validate() should auto-load
+        # Don't call load() - validate() should auto-load
         result = manager.validate()
         assert manager._loaded is True
 
@@ -119,7 +119,7 @@ class TestManagerGet:
             monkeypatch.setenv(k, v)
         manager = ConfigurationManager(check_paths=False)
         manager.load()
-        # No validate() call — get() should auto-validate
+        # No validate() call - get() should auto-validate
         config = manager.get()
         assert config is not None
 

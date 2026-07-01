@@ -3,7 +3,7 @@
 Isolation boundary:
 - These models are NEVER imported by Rule Engine, Safety Engine, Change Set Engine,
   Dry Run Engine, Execution Engine, or Scheduling Engine.
-- subject_id and related_object_id are plain strings — no FK to prior-phase tables
+- subject_id and related_object_id are plain strings - no FK to prior-phase tables
   (phase independence).
 """
 from __future__ import annotations
@@ -47,7 +47,7 @@ class AdvisorySession(A2Base):
     )
     category: Mapped[str] = mapped_column(String(50), nullable=False)
     subject_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    # Plain string — no FK to prior-phase tables (phase independence)
+    # Plain string - no FK to prior-phase tables (phase independence)
     subject_id: Mapped[str] = mapped_column(String(36), nullable=False)
     prompt_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     response_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -69,7 +69,7 @@ class AdvisorySession(A2Base):
 class AdvisoryInsight(A2Base):
     """Single advisory finding produced by the AI Foundation.
 
-    Insights are immutable once created. They are advisory only — they cannot
+    Insights are immutable once created. They are advisory only - they cannot
     be used as executable input to any component in the Trusted Execution Path.
     """
 
@@ -99,7 +99,7 @@ class AdvisoryInsight(A2Base):
     summary: Mapped[str] = mapped_column(String(512), nullable=False)
     explanation: Mapped[str] = mapped_column(Text, nullable=False)
     evidence: Mapped[str] = mapped_column(Text, nullable=False)
-    # Plain strings — no FK to prior-phase tables
+    # Plain strings - no FK to prior-phase tables
     related_object_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     related_object_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     recommendation_trace: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

@@ -1,16 +1,16 @@
-"""Project 7.3A Remediation 1 — Parent metadata propagation + WC capability guard.
+"""Project 7.3A Remediation 1 - Parent metadata propagation + WC capability guard.
 
 Coverage:
-  P1 — propagate_parent_metadata_to_children updates child name when parent name changed
-  P2 — propagate_parent_metadata_to_children updates child categories when parent changed
-  P3 — propagate_parent_metadata_to_children updates child brand when parent changed
-  P4 — propagate_parent_metadata_to_children updates inherited image when parent changed
-  P5 — propagate_parent_metadata_to_children does NOT overwrite child's own variation image
-  P6 — propagate_parent_metadata_to_children makes no WooCommerce (httpx.AsyncClient) call
-  P7 — propagate_parent_metadata_to_children returns count of actually-changed rows
-  C1 — check_variation_filter_capability returns True when endpoint returns empty list
-  C2 — check_variation_filter_capability returns False when endpoint ignores the filter
-  C3 — check_variation_filter_capability result is cached after first call
+  P1 - propagate_parent_metadata_to_children updates child name when parent name changed
+  P2 - propagate_parent_metadata_to_children updates child categories when parent changed
+  P3 - propagate_parent_metadata_to_children updates child brand when parent changed
+  P4 - propagate_parent_metadata_to_children updates inherited image when parent changed
+  P5 - propagate_parent_metadata_to_children does NOT overwrite child's own variation image
+  P6 - propagate_parent_metadata_to_children makes no WooCommerce (httpx.AsyncClient) call
+  P7 - propagate_parent_metadata_to_children returns count of actually-changed rows
+  C1 - check_variation_filter_capability returns True when endpoint returns empty list
+  C2 - check_variation_filter_capability returns False when endpoint ignores the filter
+  C3 - check_variation_filter_capability result is cached after first call
 """
 import asyncio
 import os
@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-# ── Minimal env ───────────────────────────────────────────────────────────────
+# -- Minimal env ---------------------------------------------------------------
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("NEXTCLOUD_URL", "http://example.invalid")
 os.environ.setdefault("NEXTCLOUD_USER", "x")
@@ -46,7 +46,7 @@ from app.services.woocommerce import (  # noqa: E402
 )
 
 
-# ── DB helpers ────────────────────────────────────────────────────────────────
+# -- DB helpers ----------------------------------------------------------------
 
 def _now():
     return datetime.utcnow()
@@ -87,7 +87,7 @@ def _cleanup(db, *wc_ids):
     db.commit()
 
 
-# ── P1: Name propagation ──────────────────────────────────────────────────────
+# -- P1: Name propagation ------------------------------------------------------
 
 def test_propagate_updates_name_on_children():
     db = SessionLocal()
@@ -106,7 +106,7 @@ def test_propagate_updates_name_on_children():
         db.close()
 
 
-# ── P2: Categories propagation ────────────────────────────────────────────────
+# -- P2: Categories propagation ------------------------------------------------
 
 def test_propagate_updates_categories_on_children():
     db = SessionLocal()
@@ -126,7 +126,7 @@ def test_propagate_updates_categories_on_children():
         db.close()
 
 
-# ── P3: Brand propagation ─────────────────────────────────────────────────────
+# -- P3: Brand propagation -----------------------------------------------------
 
 def test_propagate_updates_brand_on_children():
     db = SessionLocal()
@@ -146,7 +146,7 @@ def test_propagate_updates_brand_on_children():
         db.close()
 
 
-# ── P4: Inherited image propagation ──────────────────────────────────────────
+# -- P4: Inherited image propagation ------------------------------------------
 
 def test_propagate_updates_inherited_image_on_children():
     db = SessionLocal()
@@ -169,7 +169,7 @@ def test_propagate_updates_inherited_image_on_children():
         db.close()
 
 
-# ── P5: Own variation image is NOT overwritten ────────────────────────────────
+# -- P5: Own variation image is NOT overwritten --------------------------------
 
 def test_propagate_does_not_overwrite_own_variation_image():
     db = SessionLocal()
@@ -191,7 +191,7 @@ def test_propagate_does_not_overwrite_own_variation_image():
         db.close()
 
 
-# ── P6: No WooCommerce call ───────────────────────────────────────────────────
+# -- P6: No WooCommerce call ---------------------------------------------------
 
 def test_propagate_makes_no_wc_call():
     db = SessionLocal()
@@ -210,15 +210,15 @@ def test_propagate_makes_no_wc_call():
         db.close()
 
 
-# ── P7: Returns count of changed rows ────────────────────────────────────────
+# -- P7: Returns count of changed rows ----------------------------------------
 
 def test_propagate_returns_count_of_changed_rows():
     db = SessionLocal()
     try:
         _make_parent_row(db, wc_id=5013, name="Parent X", brand_id=7, brand_name="Brand7")
-        # Child 1 — different name → will change
+        # Child 1 - different name -> will change
         _make_child_row(db, wc_id=5014, parent_id=5013, name="Stale Name", brand_id=7, brand_name="Brand7")
-        # Child 2 — already in sync → no change
+        # Child 2 - already in sync -> no change
         _make_child_row(db, wc_id=5015, parent_id=5013, name="Parent X", brand_id=7, brand_name="Brand7",
                         image_url="http://img/p.jpg", image_source="parent")
 
@@ -231,7 +231,7 @@ def test_propagate_returns_count_of_changed_rows():
         db.close()
 
 
-# ── C1: Capability guard — schema confirms filter supported ──────────────────
+# -- C1: Capability guard - schema confirms filter supported ------------------
 
 def test_capability_guard_returns_true_when_filter_works():
     """Guard returns True when OPTIONS schema declares modified_after as a GET arg."""
@@ -276,7 +276,7 @@ def test_capability_guard_returns_true_when_filter_works():
         reset_wc_capability_cache()
 
 
-# ── C2: Capability guard — schema missing modified_after → False ──────────────
+# -- C2: Capability guard - schema missing modified_after -> False --------------
 
 def test_capability_guard_returns_false_when_filter_ignored():
     """Guard returns False when OPTIONS schema does not list modified_after."""
@@ -322,7 +322,7 @@ def test_capability_guard_returns_false_when_filter_ignored():
         reset_wc_capability_cache()
 
 
-# ── C3: Capability result is cached ──────────────────────────────────────────
+# -- C3: Capability result is cached ------------------------------------------
 
 def test_capability_guard_cached_after_first_check():
     """OPTIONS probe is made only once; subsequent calls use the cached result."""

@@ -1,4 +1,4 @@
-"""FlowHub â€” /api/v2/changesets router.
+"""FlowHub - /api/v2/changesets router.
 
 Change Set Engine endpoints. Gated by FEATURE_CHANGE_SETS.
 

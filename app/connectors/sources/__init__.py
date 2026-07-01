@@ -1,1 +1,1 @@
-"""Source connectors — provider-isolated read access to external data sources."""
+"""Source connectors - provider-isolated read access to external data sources."""

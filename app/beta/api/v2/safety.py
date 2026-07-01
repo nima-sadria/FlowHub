@@ -1,4 +1,4 @@
-"""FlowHub â€” /api/v2/safety router.
+"""FlowHub - /api/v2/safety router.
 
 Safety Policy Engine endpoints. Gated by FEATURE_SAFETY_ENGINE.
 

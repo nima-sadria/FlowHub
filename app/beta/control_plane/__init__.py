@@ -1,4 +1,4 @@
-"""FlowHub â€” Control Plane package.
+"""FlowHub - Control Plane package.
 
 Exports the public surface for CP1.1: core models, failure taxonomy,
 feature availability, and status aggregation.

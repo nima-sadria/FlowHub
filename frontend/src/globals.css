@@ -1,4 +1,4 @@
-/* ── IRANYekanX variable font ── */
+/* -- IRANYekanX variable font -- */
 @font-face {
   font-family: 'IRANYekanX';
   src: url('/static/fonts/IRANYekanXVF.woff2') format('woff2-variations'),
@@ -26,7 +26,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Light theme (default) ── */
+/* -- Light theme (default) -- */
 :root {
   --color-accent: #4880FF;
   --color-accent-hover: #3570E8;
@@ -42,7 +42,7 @@
   --color-text-base: #1C2434;
 }
 
-/* ── Dark theme — toggled by .dark on <html> ── */
+/* -- Dark theme - toggled by .dark on <html> -- */
 .dark {
   --color-accent: #4880FF;
   --color-accent-hover: #5590FF;
@@ -70,7 +70,7 @@
   }
 }
 
-/* ── Apple-feel transitions ── */
+/* -- Apple-feel transitions -- */
 @keyframes apple-spoke {
   0%   { opacity: 1; }
   100% { opacity: 0.25; }
@@ -87,7 +87,7 @@ button,
     border-color 0.32s cubic-bezier(0.4, 0, 0.6, 1);
 }
 
-/* ── Reduced-motion override ── */
+/* -- Reduced-motion override -- */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -1,4 +1,4 @@
-"""Unit tests — SourceCapabilities."""
+"""Unit tests - SourceCapabilities."""
 import os
 os.environ.setdefault("A2_DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
@@ -35,6 +35,6 @@ def test_explicit_flags():
 def test_pydantic_validation_rejects_non_bool():
     try:
         SourceCapabilities(supports_streaming="yes")  # type: ignore[arg-type]
-        # Pydantic v2 coerces "yes" → True; accept either behaviour
+        # Pydantic v2 coerces "yes" -> True; accept either behaviour
     except Exception:
         pass  # strict mode would reject it

@@ -18,7 +18,7 @@ from .models import IntegrationState
 class FeatureName(str, Enum):
     """All features known to the Control Plane availability system."""
 
-    # Control Plane â€” must remain available at all times
+    # Control Plane - must remain available at all times
     LOGIN = "login"
     SETTINGS = "settings"
     RUNTIME_CONFIG = "runtime_config"
@@ -31,7 +31,7 @@ class FeatureName(str, Enum):
     BACKUP_RESTORE = "backup_restore"
     UPDATE_CONTROLS = "update_controls"
 
-    # Integration Plane â€” may be disabled when dependencies are unavailable
+    # Integration Plane - may be disabled when dependencies are unavailable
     PRODUCT_EXPLORER = "product_explorer"
     SOURCE_EXPLORER = "source_explorer"
     CHANGE_SETS = "change_sets"
@@ -74,13 +74,13 @@ class FeatureAvailability:
     """Availability state for one application feature.
 
     Fields:
-        feature_name          â€” which feature this describes
-        available             â€” feature can be used (may be degraded)
-        degraded              â€” feature is available but with reduced functionality
-        disabled_reason       â€” human-readable explanation when not available
-        required_integrations â€” integration names this feature depends on
-        failure_class         â€” cause of unavailability; NONE when available
-        severity              â€” severity of the unavailability; INFO when ok
+        feature_name          - which feature this describes
+        available             - feature can be used (may be degraded)
+        degraded              - feature is available but with reduced functionality
+        disabled_reason       - human-readable explanation when not available
+        required_integrations - integration names this feature depends on
+        failure_class         - cause of unavailability; NONE when available
+        severity              - severity of the unavailability; INFO when ok
     """
 
     feature_name: FeatureName

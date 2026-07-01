@@ -107,6 +107,14 @@ sudo ./installer/install.sh --reinstall
 sudo ./installer/install.sh --uninstall
 ```
 
+If `/opt/FlowHub` already exists, the installer does not overwrite it blindly.
+It offers Upgrade, Repair, Reinstall, or Exit. Upgrade and Repair preserve
+configuration, generated secrets, database data, uploads, backups, logs, and
+Docker volumes. Reinstall warns before destructive actions.
+
+Generated administrator passwords are printed once during installation and are
+not stored in plaintext logs or backups.
+
 ## Update
 
 ```bash
@@ -128,16 +136,22 @@ After installation, the `flowhub` command is available:
 ```bash
 flowhub install
 flowhub upgrade
+flowhub update
 flowhub repair
 flowhub status
 flowhub health
 flowhub logs
+flowhub start
 flowhub restart
 flowhub stop
 flowhub uninstall
 flowhub backup
 flowhub restore backups/flowhub-YYYYMMDDTHHMMSSZ.tar.gz
 ```
+
+The installed `flowhub` wrapper is Docker-backed. Runtime commands use the
+running containers and do not require Python application dependencies on the
+host.
 
 ## Verification
 

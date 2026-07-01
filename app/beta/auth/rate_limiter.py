@@ -1,4 +1,4 @@
-"""FlowHub â€” in-memory per-IP login rate limiter (BU2).
+"""FlowHub - in-memory per-IP login rate limiter (BU2).
 
 Sliding-window counter: max 5 login attempts per IP per 60 seconds.
 No Redis dependency; state is per-process and lost on restart (acceptable

@@ -32,7 +32,7 @@ class DryRun(A2Base):
     """Header record for one dry-run execution against a Change Set revision.
 
     Records all validation outcomes and whether execution is eligible.
-    Advisory only — does not trigger execution.
+    Advisory only - does not trigger execution.
     """
 
     __tablename__ = "a2_dry_runs"
@@ -103,7 +103,7 @@ class SellerConfirmation(A2Base):
     """Seller confirmation bound to a specific Change Set digest.
 
     Becomes invalid (is_valid=False) if the Change Set digest changes after
-    confirmation — i.e., any change to proposals, safety results, rule
+    confirmation - i.e., any change to proposals, safety results, rule
     versions, destination channel, scope, or source snapshot.
     """
 

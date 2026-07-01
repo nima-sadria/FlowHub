@@ -1,4 +1,4 @@
-"""A2.7 Execution Engine — executions, batches, items, and attempts
+"""A2.7 Execution Engine - executions, batches, items, and attempts
 
 Revision ID: a2_006
 Revises: a2_005

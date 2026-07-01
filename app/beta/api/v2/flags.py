@@ -1,4 +1,4 @@
-"""FlowHub â€” /api/v2/flags router.
+"""FlowHub - /api/v2/flags router.
 
 Feature flag management endpoints. Admin permission required.
 

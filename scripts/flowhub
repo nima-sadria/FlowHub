@@ -10,6 +10,30 @@ LEGACY_INSTALL_DIR="/opt/flowhub" # Legacy Compatibility
 ENV_FILE="${INSTALL_DIR}/.env.beta"
 COMPOSE_FILE="${INSTALL_DIR}/docker-compose.beta.yml"
 
+usage() {
+    cat <<'EOF'
+FlowHub management commands:
+
+  flowhub help             Show this help
+  flowhub install          Run the installer
+  flowhub upgrade          Pull latest code, rebuild, migrate, restart
+  flowhub update           Alias for upgrade
+  flowhub repair           Re-run migrations and health checks
+  flowhub status           Show Docker service status
+  flowhub health           Check the running application health endpoint
+  flowhub logs [service]   Follow service logs
+  flowhub start            Start the Docker stack
+  flowhub restart          Restart services
+  flowhub stop             Stop services
+  flowhub uninstall        Run the uninstaller
+  flowhub backup           Create a local backup archive
+  flowhub restore FILE     Restore a local backup archive
+
+App CLI commands are executed inside the app container, for example:
+  flowhub diagnostics run
+EOF
+}
+
 fail_missing_install() {
     echo "ERROR: FlowHub installation directory not found: ${INSTALL_DIR}" >&2
     if [[ -d "$LEGACY_INSTALL_DIR" ]]; then
@@ -17,6 +41,23 @@ fail_missing_install() {
         echo "Run the installer to migrate it to ${INSTALL_DIR}." >&2
     fi
     exit 1
+}
+
+ensure_install() {
+    [[ -d "$INSTALL_DIR" ]] || fail_missing_install
+    [[ -f "$COMPOSE_FILE" ]] || {
+        echo "ERROR: Docker Compose file not found: ${COMPOSE_FILE}" >&2
+        exit 1
+    }
+    [[ -f "$ENV_FILE" ]] || {
+        echo "ERROR: Environment file not found: ${ENV_FILE}" >&2
+        exit 1
+    }
+    cd "$INSTALL_DIR"
+    set -a
+    # shellcheck source=/dev/null
+    . "$ENV_FILE"
+    set +a
 }
 
 compose_cmd() {
@@ -36,78 +77,86 @@ run_compose() {
     ${dc} --project-directory "$INSTALL_DIR" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
 }
 
-usage() {
-    cat <<'EOF'
-FlowHub management commands:
-
-  flowhub install       Run the installer
-  flowhub upgrade       Pull latest code, rebuild, migrate, restart
-  flowhub repair        Re-run migrations and health checks
-  flowhub status        Show service status
-  flowhub health        Run health checks
-  flowhub logs [svc]    Follow service logs
-  flowhub restart       Restart services
-  flowhub stop          Stop services
-  flowhub uninstall     Run the uninstaller
-  flowhub backup        Create a local backup archive
-  flowhub restore FILE  Restore a local backup archive
-
-App CLI commands are also available, for example:
-  flowhub diagnostics run
-EOF
+run_app_cli() {
+    run_compose exec -T app python -m cli.main "$@"
 }
 
-[[ -d "$INSTALL_DIR" ]] || fail_missing_install
-cd "$INSTALL_DIR"
-
-cmd="${1:-}"
+cmd="${1:-help}"
 case "$cmd" in
     ""|-h|--help|help)
         usage
         ;;
     install)
         shift
+        ensure_install
         bash installer/install.sh "$@"
         ;;
-    upgrade)
+    upgrade|update)
         shift
+        ensure_install
         git pull origin main
         bash installer/install.sh --upgrade "$@"
         ;;
     repair)
         shift
+        ensure_install
         bash installer/install.sh --repair "$@"
         ;;
     uninstall)
         shift
+        ensure_install
         bash installer/install.sh --uninstall "$@"
         ;;
     status)
-        run_compose ps
+        shift
+        ensure_install
+        run_compose ps "$@"
         ;;
     health)
-        python3 -m cli.main health "${@:2}"
+        shift
+        ensure_install
+        if command -v curl >/dev/null 2>&1; then
+            curl -fsS "http://localhost:${BETA_PORT:-8085}/api/health"
+            echo
+        else
+            run_compose exec -T app curl -fsS http://localhost:8085/api/health
+            echo
+        fi
         ;;
     logs)
         shift
+        ensure_install
         service="${1:-app}"
         run_compose logs -f "$service"
         ;;
+    start)
+        shift
+        ensure_install
+        run_compose up -d "$@"
+        ;;
     restart)
-        run_compose restart
+        shift
+        ensure_install
+        run_compose restart "$@"
         ;;
     stop)
-        run_compose stop
+        shift
+        ensure_install
+        run_compose stop "$@"
         ;;
     backup)
+        shift
+        ensure_install
         mkdir -p backups
         stamp="$(date -u +%Y%m%dT%H%M%SZ)"
         archive="backups/flowhub-${stamp}.tar.gz"
-        tar -czf "$archive" .env.beta storage logs 2>/dev/null || tar -czf "$archive" .env.beta storage
+        tar --exclude='logs/admin-credentials.txt' -czf "$archive" .env.beta storage logs 2>/dev/null \
+            || tar -czf "$archive" .env.beta storage
         echo "Backup created: ${INSTALL_DIR}/${archive}"
         ;;
     restore)
         shift
+        ensure_install
         archive="${1:-}"
         if [[ -z "$archive" || ! -f "$archive" ]]; then
             echo "ERROR: restore requires a backup archive path." >&2
@@ -117,6 +166,7 @@ case "$cmd" in
         echo "Backup restored. Run: flowhub repair"
         ;;
     *)
-        python3 -m cli.main "$@"
+        ensure_install
+        run_app_cli "$@"
         ;;
 esac

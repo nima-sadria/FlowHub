@@ -1,4 +1,4 @@
-"""FlowHub â€” FeatureFlag ORM model.
+"""FlowHub - FeatureFlag ORM model.
 
 Defines the beta_feature_flags table in the Beta database.
 

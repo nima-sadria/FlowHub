@@ -2,7 +2,7 @@
 
 Brand source confirmed via live WooCommerce audit (softpple.com): the native
 WooCommerce "Brands" feature (taxonomy `product_brand`), exposed on every
-product payload as a top-level `brands: [{id, name, slug}]` array — structured
+product payload as a top-level `brands: [{id, name, slug}]` array - structured
 exactly like `categories`. Variations never carry their own `brands` key and
 always inherit the parent's brand. No brand assigned -> (None, None); this
 must never be guessed from the product name or any other field.
@@ -39,7 +39,7 @@ from app.services.woocommerce import (  # noqa: E402
 Base.metadata.create_all(engine)
 
 
-# ── _extract_brand ──────────────────────────────────────────────────────────
+# -- _extract_brand ----------------------------------------------------------
 
 def test_extract_brand_with_brand():
     p = {"brands": [{"id": 942, "name": "اپل", "slug": "apple"}]}
@@ -103,7 +103,7 @@ def test_extract_brand_pa_brand_filter_stable_id():
     print("test_extract_brand_pa_brand_filter_stable_id: PASS")
 
 
-# ── _parse_product (light/legacy fetch path) ────────────────────────────────
+# -- _parse_product (light/legacy fetch path) --------------------------------
 
 def test_parse_product_includes_brand():
     p = {
@@ -124,7 +124,7 @@ def test_parse_product_no_brand_is_none_not_guessed():
     print("test_parse_product_no_brand_is_none_not_guessed: PASS")
 
 
-# ── _parse_full_product (fast/full/light sync path) ─────────────────────────
+# -- _parse_full_product (fast/full/light sync path) -------------------------
 
 def test_parse_full_product_parent_uses_own_brand():
     p = {"id": 1, "name": "iPad", "type": "variable", "brands": [{"id": 942, "name": "Apple"}]}
@@ -134,7 +134,7 @@ def test_parse_full_product_parent_uses_own_brand():
 
 
 def test_parse_full_product_variation_inherits_parent_brand():
-    # Variations never carry their own `brands` key (confirmed via audit) —
+    # Variations never carry their own `brands` key (confirmed via audit) -
     # even if one were present, parent_id > 0 must always win.
     v = {"id": 2, "brands": [{"id": 999, "name": "WRONG"}]}
     out = _parse_full_product(v, parent_id=1, parent_cats=[], parent_brand=(942, "Apple"))
@@ -149,7 +149,7 @@ def test_parse_full_product_variation_no_parent_brand_is_unknown():
     print("test_parse_full_product_variation_no_parent_brand_is_unknown: PASS")
 
 
-# ── _compute_brand_coverage ──────────────────────────────────────────────────
+# -- _compute_brand_coverage --------------------------------------------------
 
 def test_compute_brand_coverage_basic():
     rows = [(942, "Apple", 10), (5758, "Whoop", 3), (None, None, 2)]
@@ -179,7 +179,7 @@ def test_compute_brand_coverage_all_unknown():
     print("test_compute_brand_coverage_all_unknown: PASS")
 
 
-# ── upsert_products / _to_dict round trip ────────────────────────────────────
+# -- upsert_products / _to_dict round trip ------------------------------------
 
 def test_upsert_products_stores_and_reads_brand():
     db = SessionLocal()
@@ -219,7 +219,7 @@ def test_upsert_products_unknown_brand_stays_none():
 
 def test_upsert_brand_preserved_when_keys_absent():
     # A partial-update dict that contains NO brand keys must leave the cached
-    # brand untouched — the absent key signals a non-authoritative caller.
+    # brand untouched - the absent key signals a non-authoritative caller.
     db = SessionLocal()
     try:
         upsert_products(db, [{
@@ -227,7 +227,7 @@ def test_upsert_brand_preserved_when_keys_absent():
             "name": "Branded Product", "brand_id": 5758, "brand_name": "Whoop",
         }])
         db.commit()
-        # Second upsert omits brand keys entirely — non-authoritative caller
+        # Second upsert omits brand keys entirely - non-authoritative caller
         upsert_products(db, [{
             "wc_id": 90003, "parent_id": 0, "product_type": "simple",
             "name": "Branded Product",
@@ -268,7 +268,7 @@ def test_upsert_brand_updated_when_value_present():
 
 def test_upsert_brand_cleared_when_key_present_with_none():
     # An authoritative update where brand_id key IS present but value is None
-    # must clear the cached brand — this is how full-sync expresses
+    # must clear the cached brand - this is how full-sync expresses
     # "brand removed in WooCommerce".
     db = SessionLocal()
     try:
@@ -296,7 +296,7 @@ def test_full_sync_clears_stale_brand_after_wc_brand_removal():
     # 1. Product in cache with brand_id=942 ("Apple")
     # 2. Brand removed from product in WooCommerce (brands: [])
     # 3. Full-sync parser (_parse_full_product) emits brand_id=None (key present)
-    # 4. upsert_products must clear the stale brand — not preserve it
+    # 4. upsert_products must clear the stale brand - not preserve it
     db = SessionLocal()
     try:
         upsert_products(db, [{
@@ -340,7 +340,7 @@ def test_unknown_brand_bucket_increases_after_explicit_clear():
         ).all()
         before = _compute_brand_coverage(rows_before)
         assert before["unknown_brand"]["product_count"] == 0
-        # Authoritative clear — brand removed in WC
+        # Authoritative clear - brand removed in WC
         upsert_products(db, [{
             "wc_id": 90007, "parent_id": 0, "product_type": "simple",
             "name": "MacBook", "brand_id": None, "brand_name": None,

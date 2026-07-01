@@ -33,7 +33,7 @@ _SAMPLE_PRODUCT = {
     "backorders": "no",
 }
 
-# ── auth.py tests ─────────────────────────────────────────────────────────────
+# -- auth.py tests -------------------------------------------------------------
 
 def test_extract_credentials_api_key():
     creds = extract_credentials(_AUTH)
@@ -79,7 +79,7 @@ def test_extract_credentials_wrong_auth_type_raises():
     assert exc_info.value.code == ConnectorErrorCode.AUTH_FAILED
 
 
-# ── connector basics ──────────────────────────────────────────────────────────
+# -- connector basics ----------------------------------------------------------
 
 def test_connector_id_and_type():
     wc = WooCommerceConnector()
@@ -96,7 +96,7 @@ def test_capabilities():
     assert caps.can_list_files is False
 
 
-# ── connect / disconnect ──────────────────────────────────────────────────────
+# -- connect / disconnect ------------------------------------------------------
 
 def test_connect_stores_credentials():
     wc = WooCommerceConnector()
@@ -128,7 +128,7 @@ def test_disconnect_clears_credentials():
     assert wc._creds is None
 
 
-# ── health ────────────────────────────────────────────────────────────────────
+# -- health --------------------------------------------------------------------
 
 def test_health_not_connected_returns_unhealthy():
     wc = WooCommerceConnector()
@@ -176,7 +176,7 @@ def test_health_on_error_returns_unhealthy():
     assert result.status == HealthStatus.UNHEALTHY
 
 
-# ── test_connection ───────────────────────────────────────────────────────────
+# -- test_connection -----------------------------------------------------------
 
 def test_test_connection_ok():
     async def _run():
@@ -211,7 +211,7 @@ def test_test_connection_auth_failure():
     assert "invalid key" in result.message
 
 
-# ── list_products / read_inventory ────────────────────────────────────────────
+# -- list_products / read_inventory --------------------------------------------
 
 def test_list_products_delegates():
     wc = WooCommerceConnector()
@@ -270,10 +270,10 @@ def test_read_inventory_not_connected_raises():
     assert exc_info.value.code == ConnectorErrorCode.UNKNOWN
 
 
-# ── Isolation check ───────────────────────────────────────────────────────────
+# -- Isolation check -----------------------------------------------------------
 
 def test_no_direct_httpx_import_in_connector():
-    """connector.py must not import httpx — only rest_client.py may do so."""
+    """connector.py must not import httpx - only rest_client.py may do so."""
     import ast
     import pathlib
 
@@ -290,5 +290,5 @@ def test_no_direct_httpx_import_in_connector():
             )
             for name in names:
                 assert "httpx" not in (name or ""), (
-                    "connector.py must not import httpx directly — use rest_client.py"
+                    "connector.py must not import httpx directly - use rest_client.py"
                 )

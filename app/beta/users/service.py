@@ -1,4 +1,4 @@
-"""FlowHub â€” UserService.
+"""FlowHub - UserService.
 
 Business logic for user management: create, authenticate, deactivate,
 reset password, assign permissions.

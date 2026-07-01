@@ -1,4 +1,4 @@
-"""FlowHub â€” /api/v2/users router.
+"""FlowHub - /api/v2/users router.
 
 User management endpoints (CRUD, roles, deactivation, password reset).
 

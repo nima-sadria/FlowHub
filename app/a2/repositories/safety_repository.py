@@ -1,4 +1,4 @@
-"""A2.4 Safety Repository — policy definition, version, and result persistence."""
+"""A2.4 Safety Repository - policy definition, version, and result persistence."""
 from __future__ import annotations
 
 import uuid
@@ -14,7 +14,7 @@ class SafetyRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
-    # ── SafetyPolicy ──────────────────────────────────────────────────────────
+    # -- SafetyPolicy ----------------------------------------------------------
 
     def create_policy(
         self,
@@ -49,7 +49,7 @@ class SafetyRepository:
             .all()
         )
 
-    # ── PolicyVersion ─────────────────────────────────────────────────────────
+    # -- PolicyVersion ---------------------------------------------------------
 
     def create_version(
         self,
@@ -145,7 +145,7 @@ class SafetyRepository:
             .all()
         )
 
-    # ── SafetyResult ──────────────────────────────────────────────────────────
+    # -- SafetyResult ----------------------------------------------------------
 
     def get_result(self, result_id: str) -> Optional[SafetyResult]:
         return (

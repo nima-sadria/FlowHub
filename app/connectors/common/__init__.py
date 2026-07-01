@@ -1,4 +1,4 @@
-"""Shared connector contract — types, ABCs, and models used by all connectors."""
+"""Shared connector contract - types, ABCs, and models used by all connectors."""
 
 from .auth import AuthConfig
 from .base import DestinationConnector, SourceConnector

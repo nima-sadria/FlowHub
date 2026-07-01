@@ -1,7 +1,7 @@
 """Control Plane status aggregator.
 
 ControlPlaneStatus is the top-level view of system health. The Control Plane
-is always marked available=True regardless of integration health â€” that is the
+is always marked available=True regardless of integration health - that is the
 core architectural invariant established by the production incident post-mortem.
 """
 
@@ -24,21 +24,21 @@ class ControlPlaneStatus:
     """Aggregated Control Plane health view.
 
     Invariants (enforced by compute()):
-        available  â€” always True; Control Plane never depends on Integration Plane
-        degraded   â€” True iff at least one enabled integration is failing
-        offline_mode â€” True iff all enabled external integrations are unreachable
-        safe_mode  â€” True only when set explicitly by the caller; never inferred
+        available  - always True; Control Plane never depends on Integration Plane
+        degraded   - True iff at least one enabled integration is failing
+        offline_mode - True iff all enabled external integrations are unreachable
+        safe_mode  - True only when set explicitly by the caller; never inferred
 
     Fields:
-        available        â€” Control Plane surfaces are accessible (always True)
-        degraded         â€” at least one enabled integration is failing
-        safe_mode        â€” operator-initiated safe mode (explicit only)
-        offline_mode     â€” all external integrations are unreachable
-        integrations     â€” map of integration name â†’ IntegrationState
-        features         â€” map of feature name â†’ FeatureAvailability
-        highest_severity â€” worst severity across all integrations and features
-        summary          â€” human-readable one-line status
-        generated_at     â€” UTC timestamp of this snapshot
+        available        - Control Plane surfaces are accessible (always True)
+        degraded         - at least one enabled integration is failing
+        safe_mode        - operator-initiated safe mode (explicit only)
+        offline_mode     - all external integrations are unreachable
+        integrations     - map of integration name -> IntegrationState
+        features         - map of feature name -> FeatureAvailability
+        highest_severity - worst severity across all integrations and features
+        summary          - human-readable one-line status
+        generated_at     - UTC timestamp of this snapshot
     """
 
     available: bool
@@ -101,10 +101,10 @@ class ControlPlaneStatus:
         """Compute ControlPlaneStatus from current integration snapshots.
 
         Args:
-            integrations  â€” current state for each integration (name â†’ state)
-            features      â€” pre-computed features; computed from integrations if None
-            safe_mode     â€” explicit operator flag; never inferred from health state
-            generated_at  â€” override snapshot timestamp (useful in tests)
+            integrations  - current state for each integration (name -> state)
+            features      - pre-computed features; computed from integrations if None
+            safe_mode     - explicit operator flag; never inferred from health state
+            generated_at  - override snapshot timestamp (useful in tests)
         """
         now = generated_at or datetime.now(tz=timezone.utc)
 

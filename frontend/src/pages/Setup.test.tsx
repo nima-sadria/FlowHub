@@ -25,8 +25,8 @@ describe('SearchableListbox', () => {
         <SearchableListbox
           label="Currency"
           options={[
-            { value: 'IRR', label: 'IRR — Iranian Rial' },
-            { value: 'IRT', label: 'IRT — Iranian Toman' },
+            { value: 'IRR', label: 'IRR - Iranian Rial' },
+            { value: 'IRT', label: 'IRT - Iranian Toman' },
           ]}
           value="IRR"
           onChange={() => {}}
@@ -35,7 +35,7 @@ describe('SearchableListbox', () => {
     })
 
     const input = container.querySelector('input')
-    expect(input?.value).toBe('IRR — Iranian Rial')
+    expect(input?.value).toBe('IRR - Iranian Rial')
     expect(container.textContent).not.toContain('Selected:')
   })
 })

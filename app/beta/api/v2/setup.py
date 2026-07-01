@@ -5,11 +5,11 @@ incomplete. Once setup is marked complete every endpoint returns 409 so
 that the wizard cannot be re-run through the API without a DB reset.
 
 Routes:
-  GET  /api/v2/setup/status                      â€” public, always available
-  POST /api/v2/setup/server-profile              â€” save server profile
-  POST /api/v2/setup/database                    â€” verify DB + migration status
-  POST /api/v2/setup/admin                       â€” create first administrator
-  POST /api/v2/setup/complete                    â€” finalize and lock wizard
+  GET  /api/v2/setup/status                      - public, always available
+  POST /api/v2/setup/server-profile              - save server profile
+  POST /api/v2/setup/database                    - verify DB + migration status
+  POST /api/v2/setup/admin                       - create first administrator
+  POST /api/v2/setup/complete                    - finalize and lock wizard
 
 Security: after POST /setup/complete all setup endpoints return 409.
           POST /setup/admin additionally checks that no admin user exists yet.
@@ -47,7 +47,7 @@ def _utcnow() -> datetime:
     return datetime.now(_UTC).replace(tzinfo=None)
 
 
-# â”€â”€ Guard helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Guard helpers -------------------------------------------------------------
 
 def _require_setup_not_complete(db: Session) -> AppConfigService:
     """Raise 409 if setup has already been completed."""
@@ -87,7 +87,7 @@ def _get_latest_beta_revision() -> str | None:
         return None
 
 
-# â”€â”€ Request / Response models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Request / Response models -------------------------------------------------
 
 class ServerProfilePayload(BaseModel):
     domain: str
@@ -158,7 +158,7 @@ class AdminPayload(BaseModel):
         return v
 
 
-# â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Endpoints -----------------------------------------------------------------
 
 @router.get("/status")
 async def setup_status(db: Session = Depends(get_db)) -> dict:
@@ -280,4 +280,4 @@ async def setup_complete(db: Session = Depends(get_db)) -> dict:
     return {"ok": True, "message": "Setup complete. You can now sign in."}
 
 
-# â”€â”€ Connection test helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Connection test helpers ---------------------------------------------------

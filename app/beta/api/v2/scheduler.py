@@ -1,4 +1,4 @@
-"""FlowHub â€” /api/v2/scheduler router.
+"""FlowHub - /api/v2/scheduler router.
 
 Scheduling Engine endpoints. Gated by FEATURE_SCHEDULER.
 

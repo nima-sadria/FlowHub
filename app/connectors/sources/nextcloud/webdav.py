@@ -5,9 +5,9 @@ No other FlowHub module may call PROPFIND, GET on DAV URLs, or
 access remote.php/dav directly.
 
 Supported operations (read-only):
-  - propfind_path()   — list a folder or get single-resource metadata
-  - get_file()        — download file bytes
-  - get_metadata()    — ETag + last-modified for a single resource
+  - propfind_path()   - list a folder or get single-resource metadata
+  - get_file()        - download file bytes
+  - get_metadata()    - ETag + last-modified for a single resource
 """
 from __future__ import annotations
 
@@ -205,7 +205,7 @@ async def head_file(creds: NextcloudCredentials, path: str) -> dict:
     """HEAD request for lightweight file metadata.
 
     Returns dict with etag/last_modified/content_length keys.
-    Never raises — returns dict of None values on any error.
+    Never raises - returns dict of None values on any error.
     """
     url = _dav_base(creds) + path
     try:

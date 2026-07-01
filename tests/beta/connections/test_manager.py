@@ -1,6 +1,6 @@
 """Tests for ConnectionManager.
 
-All tests use FakeNetworkAdapter — no real network calls.
+All tests use FakeNetworkAdapter - no real network calls.
 """
 
 from __future__ import annotations
@@ -154,7 +154,7 @@ def test_dns_failure_not_retryable(fake_adapter, nextcloud_def):
     manager = _make_manager(fake_adapter)
     manager.register(nextcloud_def)
     result = manager.check("nextcloud")
-    # DNS failure is non-retryable — attempt_number stays at 1
+    # DNS failure is non-retryable - attempt_number stays at 1
     assert result.attempt_number == 1
 
 
@@ -295,7 +295,7 @@ def test_circuit_open_returns_failed_without_network_call(fake_adapter, nextclou
     manager.register(nextcloud_def)
     manager.check("nextcloud")
     manager.check("nextcloud")
-    # Reset adapter to success — circuit should block it
+    # Reset adapter to success - circuit should block it
     fake_adapter.dns_default = ["127.0.0.1"]
     result = manager.check("nextcloud")
     # Circuit still OPEN from prior failures

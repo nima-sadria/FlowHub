@@ -1,4 +1,4 @@
-"""Invalidation event recording service â€” reads and writes dl_invalidation_events."""
+"""Invalidation event recording service - reads and writes dl_invalidation_events."""
 
 from __future__ import annotations
 

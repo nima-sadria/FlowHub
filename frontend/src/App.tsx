@@ -35,7 +35,7 @@ import LoggingPlatform from './pages/LoggingPlatform'
 import NotFound from './pages/NotFound'
 import type { SetupStatus } from './api/types'
 
-// Developer mock mode — only when VITE_DEV_MOCK=true.
+// Developer mock mode - only when VITE_DEV_MOCK=true.
 // Normal beta runtime uses real API services.
 const _useMock = import.meta.env.VITE_DEV_MOCK === 'true'
 
@@ -91,7 +91,7 @@ function AuthGuard({ children }: { children: ReactNode }) {
   if (status === 'loading') {
     return (
       <div className="min-h-screen bg-bg-base flex items-center justify-center">
-        <span className="text-[13px] text-wp-muted">Loading…</span>
+        <span className="text-[13px] text-wp-muted">Loading...</span>
       </div>
     )
   }
@@ -108,7 +108,7 @@ function GuestOnly({ children }: { children: ReactNode }) {
   if (status === 'loading') {
     return (
       <div className="min-h-screen bg-bg-base flex items-center justify-center">
-        <span className="text-[13px] text-wp-muted">Loading…</span>
+        <span className="text-[13px] text-wp-muted">Loading...</span>
       </div>
     )
   }
@@ -116,7 +116,7 @@ function GuestOnly({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
-// ── Setup Gate ────────────────────────────────────────────────────────────────
+// -- Setup Gate ----------------------------------------------------------------
 // Checks /api/v2/setup/status on first load. If setup is not complete, renders
 // only the /setup route and redirects everything else there. Once setup is
 // marked complete (or the endpoint is unreachable), normal routing is shown.
@@ -134,7 +134,7 @@ function SetupGate() {
   if (setupComplete === null) {
     return (
       <div className="min-h-screen bg-bg-base flex items-center justify-center">
-        <span className="text-[13px] text-wp-muted">Loading…</span>
+        <span className="text-[13px] text-wp-muted">Loading...</span>
       </div>
     )
   }
@@ -174,7 +174,7 @@ function SetupGate() {
   )
 }
 
-// ── App root ──────────────────────────────────────────────────────────────────
+// -- App root ------------------------------------------------------------------
 
 export default function App() {
   return (

@@ -1,15 +1,15 @@
-"""A2.7 Execution Repository — persistence and state machine for execution records.
+"""A2.7 Execution Repository - persistence and state machine for execution records.
 
 State machines:
-  Execution: PENDING → RUNNING → SUCCEEDED | FAILED | BLOCKED | CANCELLED
-             PENDING → BLOCKED (prerequisites failed before RUNNING)
-             PENDING → CANCELLED
-             RUNNING → BLOCKED (hard block during execution, e.g. freshness failure)
-             RUNNING → CANCELLED
+  Execution: PENDING -> RUNNING -> SUCCEEDED | FAILED | BLOCKED | CANCELLED
+             PENDING -> BLOCKED (prerequisites failed before RUNNING)
+             PENDING -> CANCELLED
+             RUNNING -> BLOCKED (hard block during execution, e.g. freshness failure)
+             RUNNING -> CANCELLED
              Terminal: SUCCEEDED, FAILED, BLOCKED, CANCELLED
 
-  ExecutionItem: PENDING → RUNNING → SUCCEEDED | FAILED | BLOCKED
-                 PENDING → SKIPPED
+  ExecutionItem: PENDING -> RUNNING -> SUCCEEDED | FAILED | BLOCKED
+                 PENDING -> SKIPPED
                  Terminal: SUCCEEDED, FAILED, BLOCKED, SKIPPED
 """
 from __future__ import annotations
@@ -53,7 +53,7 @@ class ExecutionRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
-    # ── Execution ──────────────────────────────────────────────────────────
+    # -- Execution ----------------------------------------------------------
 
     def create_execution(
         self,
@@ -105,7 +105,7 @@ class ExecutionRepository:
             raise InvalidExecutionStateTransitionError(
                 f"Cannot transition Execution {execution_id!r} from {execution.status!r} "
                 f"to {new_state!r}. "
-                f"Allowed: {sorted(allowed) if allowed else 'none — terminal state'}."
+                f"Allowed: {sorted(allowed) if allowed else 'none - terminal state'}."
             )
         now = datetime.now(tz=timezone.utc)
         execution.status = new_state
@@ -135,7 +135,7 @@ class ExecutionRepository:
             .all()
         )
 
-    # ── ExecutionBatch ─────────────────────────────────────────────────────
+    # -- ExecutionBatch -----------------------------------------------------
 
     def create_batch(self, *, execution_id: str, batch_number: int) -> ExecutionBatch:
         batch = ExecutionBatch(
@@ -155,7 +155,7 @@ class ExecutionRepository:
             batch.status = status
             self._db.flush()
 
-    # ── ExecutionItem ──────────────────────────────────────────────────────
+    # -- ExecutionItem ------------------------------------------------------
 
     def create_item(
         self,
@@ -219,7 +219,7 @@ class ExecutionRepository:
             raise InvalidExecutionStateTransitionError(
                 f"Cannot transition ExecutionItem {item_id!r} from {item.status!r} "
                 f"to {new_state!r}. "
-                f"Allowed: {sorted(allowed) if allowed else 'none — terminal state'}."
+                f"Allowed: {sorted(allowed) if allowed else 'none - terminal state'}."
             )
         item.status = new_state
         item.updated_at = datetime.now(tz=timezone.utc)
@@ -245,7 +245,7 @@ class ExecutionRepository:
             .all()
         )
 
-    # ── ExecutionAttempt ───────────────────────────────────────────────────
+    # -- ExecutionAttempt ---------------------------------------------------
 
     def create_attempt(
         self,

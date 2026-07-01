@@ -5,7 +5,7 @@ Scope boundary (A2.8 only):
 - Does NOT connect to real WooCommerce write APIs.
 - Does NOT replace the existing Workspace or existing Apply workflow.
 - IDs referencing prior-phase entities (Change Set, Confirmation, Dry Run) are
-  stored as plain strings — no foreign keys to prior-phase tables (phase independence).
+  stored as plain strings - no foreign keys to prior-phase tables (phase independence).
 """
 from __future__ import annotations
 
@@ -86,7 +86,7 @@ class ScheduleRun(A2Base):
         String(36), ForeignKey("a2_schedules.id", ondelete="RESTRICT"), nullable=False
     )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING")
-    # Plain string — no FK to a2_executions (phase independence)
+    # Plain string - no FK to a2_executions (phase independence)
     execution_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

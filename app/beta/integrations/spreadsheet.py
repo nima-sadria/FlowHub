@@ -1,10 +1,10 @@
-"""FlowHub â€” XLSX spreadsheet parser (BU5).
+"""FlowHub - XLSX spreadsheet parser (BU5).
 
 Adapted from the legacy spreadsheet parser.
 Preserves legacy spreadsheet behavior:
   - ALL worksheets are read; last sheet wins on duplicate product IDs.
   - Columns: A = Product Name, B = Product ID (int), C = Price.
-  - Row 3 onward (rows 1â€“2 are headers).
+  - Row 3 onward (rows 1-2 are headers).
   - Stops after 30 consecutive empty rows or row 1002 (max 1000 data rows).
   - Persian / Arabic-Indic digits are normalised to ASCII.
   - Out-of-stock markers are treated as price=None (not an error).
@@ -29,37 +29,37 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Constants -----------------------------------------------------------------
 
 _OUT_OF_STOCK_MARKERS: frozenset[str] = frozenset({
     "0", "0.00", "-",
     # Persian
-    "ظ†ط§ظ…ظˆط¬ظˆط¯",
-    "ظ†ط§ظ…ظˆط¬ظˆط¯ ط´ط¯",
-    "طھظ…ط§ط³ ط¨ع¯غŒط±غŒط¯",
+    "\u0646\u0627\u0645\u0648\u062c\u0648\u062f",
+    "\u0646\u0627\u0645\u0648\u062c\u0648\u062f \u0634\u062f",
+    "\u062a\u0645\u0627\u0633 \u0628\u06af\u06cc\u0631\u06cc\u062f",
     # English
     "out of stock", "oos", "n/a", "na",
     # Symbols
-    "x", "â‌Œ", "âœ—", "أ—",
+    "x", "\u274c", "X", "\u00d7",
 })
 
-# Persian (U+06F0â€“U+06F9) and Arabic-Indic (U+0660â€“U+0669) â†’ ASCII
+# Persian (U+06F0-U+06F9) and Arabic-Indic (U+0660-U+0669) -> ASCII
 _DIGIT_TRANSLATION = str.maketrans({
-    "غ°": "0", "غ±": "1", "غ²": "2", "غ³": "3", "غ´": "4",
-    "غµ": "5", "غ¶": "6", "غ·": "7", "غ¸": "8", "غ¹": "9",
-    "ظ ": "0", "ظ،": "1", "ظ¢": "2", "ظ£": "3", "ظ¤": "4",
-    "ظ¥": "5", "ظ¦": "6", "ظ§": "7", "ظ¨": "8", "ظ©": "9",
+    "\u06f0": "0", "\u06f1": "1", "\u06f2": "2", "\u06f3": "3", "\u06f4": "4",
+    "\u06f5": "5", "\u06f6": "6", "\u06f7": "7", "\u06f8": "8", "\u06f9": "9",
+    "\u0660": "0", "\u0661": "1", "\u0662": "2", "\u0663": "3", "\u0664": "4",
+    "\u0665": "5", "\u0666": "6", "\u0667": "7", "\u0668": "8", "\u0669": "9",
 })
 
 
-# â”€â”€ Internal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Internal helpers ----------------------------------------------------------
 
 def _normalize_price_text(raw: str) -> str:
     """Translate Persian/Arabic digits, remove Arabic thousands sep and commas."""
     return (
         raw
         .translate(_DIGIT_TRANSLATION)
-        .replace("ظ¬", "")   # U+066C ARABIC THOUSANDS SEPARATOR
+        .replace("\u066c", "")   # U+066C ARABIC THOUSANDS SEPARATOR
         .replace(",", "")
         .strip()
     )
@@ -84,7 +84,7 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
             consecutive_empty += 1
             if consecutive_empty >= 30:
                 logger.debug(
-                    "spreadsheet _parse_sheet_rows sheet=%r stopping â€” "
+                    "spreadsheet _parse_sheet_rows sheet=%r stopping - "
                     "30 consecutive empty rows in column B",
                     ws.title,
                 )
@@ -100,7 +100,7 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
         except (ValueError, TypeError):
             skipped_bad_id += 1
             logger.debug(
-                "spreadsheet _parse_sheet_rows sheet=%r skipped â€” non-int product_id=%r",
+                "spreadsheet _parse_sheet_rows sheet=%r skipped - non-int product_id=%r",
                 ws.title, b_val,
             )
             continue
@@ -126,7 +126,7 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
             price_str = str(c_val).strip()
             normalized = _normalize_price_text(price_str)
             if normalized.lower() in _OUT_OF_STOCK_MARKERS:
-                price = None  # intentional OOS â€” not an error
+                price = None  # intentional OOS - not an error
             else:
                 try:
                     candidate = float(normalized)
@@ -135,7 +135,7 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
                         warning = f"Negative price ignored: {price_str!r}"
                         logger.warning(
                             "spreadsheet _parse_sheet_rows sheet=%r product_id=%d "
-                            "negative price %r â€” flagged invalid",
+                            "negative price %r - flagged invalid",
                             ws.title, pid, price_str,
                         )
                     else:
@@ -145,7 +145,7 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
                     warning = f"Unparseable price: {price_str!r}"
                     logger.warning(
                         "spreadsheet _parse_sheet_rows sheet=%r product_id=%d "
-                        "non-numeric price %r â€” flagged invalid",
+                        "non-numeric price %r - flagged invalid",
                         ws.title, pid, price_str,
                     )
 
@@ -167,7 +167,7 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
     return items
 
 
-# â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Public API ----------------------------------------------------------------
 
 def parse_price_list(
     wb: "openpyxl.Workbook",

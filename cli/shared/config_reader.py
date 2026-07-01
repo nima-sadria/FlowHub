@@ -1,4 +1,4 @@
-"""FlowHub â€” CLI config loader helper.
+"""FlowHub - CLI config loader helper.
 
 Thin wrapper around B3 ConfigurationManager for CLI commands that run
 in pre-server mode (before the application stack is running).
@@ -54,7 +54,7 @@ def validate_env_file(env_file: Path | None) -> ValidationResult:
     return validator.validate(env_dict)
 
 
-# BETA_DATABASE_URL embeds BETA_POSTGRES_PASSWORD â€” redact it alongside secrets
+# BETA_DATABASE_URL embeds BETA_POSTGRES_PASSWORD - redact it alongside secrets
 _ALL_SENSITIVE: frozenset[str] = SECRET_FIELDS | frozenset({"BETA_DATABASE_URL"})
 
 

@@ -1,4 +1,4 @@
-"""FlowHub â€” Backup and Restore package.
+"""FlowHub - Backup and Restore package.
 
 Implementation begins in B13.
 """

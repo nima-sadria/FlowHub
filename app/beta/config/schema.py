@@ -1,7 +1,7 @@
-"""FlowHub â€” Configuration schema (Pydantic v2).
+"""FlowHub - Configuration schema (Pydantic v2).
 
 BetaConfig is the typed, immutable configuration object returned by
-ConfigurationManager.get(). All consumers receive this object â€” never
+ConfigurationManager.get(). All consumers receive this object - never
 raw env vars or dicts.
 
 Secrets are stored as pydantic.SecretStr so they are redacted in repr()
@@ -39,16 +39,16 @@ class BetaConfig(BaseModel):
     jwt_secret: SecretStr
     rest_api_secret: SecretStr
 
-    # Nextcloud source
-    nextcloud_url: str = Field(min_length=1)
-    nextcloud_file_path: str = Field(min_length=1)
-    nextcloud_username: str = Field(min_length=1)
-    nextcloud_password: SecretStr
+    # Connector settings are optional at startup. They are configured after
+    # setup through Settings -> Integrations.
+    nextcloud_url: str = ""
+    nextcloud_file_path: str = ""
+    nextcloud_username: str = ""
+    nextcloud_password: SecretStr = SecretStr("")
 
-    # WooCommerce channel
-    woocommerce_url: str = Field(min_length=1)
-    woocommerce_key: SecretStr
-    woocommerce_secret: SecretStr
+    woocommerce_url: str = ""
+    woocommerce_key: SecretStr = SecretStr("")
+    woocommerce_secret: SecretStr = SecretStr("")
 
     # Locale
     timezone: str = Field(min_length=1)
@@ -81,7 +81,7 @@ class BetaConfig(BaseModel):
         default=int(DEFAULTS["BETA_BACKUP_RETAIN_DAYS"]), ge=1
     )
 
-    # â”€â”€ Validators â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Validators ----------------------------------------------------------
 
     @field_validator("ssl_mode")
     @classmethod
@@ -132,6 +132,8 @@ class BetaConfig(BaseModel):
     @field_validator("nextcloud_url", "woocommerce_url")
     @classmethod
     def validate_url(cls, v: str) -> str:
+        if not v:
+            return v
         if not re.match(r"^https?://", v, re.IGNORECASE):
             raise ValueError("Must be a valid URL with http:// or https:// scheme")
         return v
@@ -150,7 +152,7 @@ class BetaConfig(BaseModel):
             raise ValueError("Must be at least 32 characters")
         return v
 
-    @field_validator("postgres_password", "nextcloud_password", "woocommerce_key", "woocommerce_secret")
+    @field_validator("postgres_password")
     @classmethod
     def validate_non_empty_secret(cls, v: SecretStr) -> SecretStr:
         if not v.get_secret_value():
@@ -165,7 +167,7 @@ class BetaConfig(BaseModel):
                 data["plugin_dir"] = f"{data['storage_path']}/plugins"
         return data
 
-    # â”€â”€ Convenience â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Convenience ---------------------------------------------------------
 
     def is_production(self) -> bool:
         return self.env.is_production()
@@ -176,7 +178,7 @@ class BetaConfig(BaseModel):
     def banner(self) -> str:
         return self.env.banner()
 
-    # â”€â”€ Factory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Factory -------------------------------------------------------------
 
     @classmethod
     def from_env(cls, env: dict[str, str]) -> "BetaConfig":

@@ -53,6 +53,21 @@ class TestBetaConfigFromEnvValid:
         assert config.scheduler_poll_seconds == 30
         assert config.backup_retain_days == 30
 
+    def test_connector_credentials_are_optional_at_startup(self, valid_env):
+        for key in [
+            "BETA_NEXTCLOUD_URL",
+            "BETA_NEXTCLOUD_FILE_PATH",
+            "BETA_NEXTCLOUD_USERNAME",
+            "BETA_NEXTCLOUD_PASSWORD",
+            "BETA_WOOCOMMERCE_URL",
+            "BETA_WOOCOMMERCE_KEY",
+            "BETA_WOOCOMMERCE_SECRET",
+        ]:
+            valid_env[key] = ""
+        config = BetaConfig.from_env(valid_env)
+        assert config.nextcloud_url == ""
+        assert config.woocommerce_url == ""
+
     def test_log_level_uppercased(self, valid_env):
         valid_env["BETA_LOG_LEVEL"] = "debug"
         config = BetaConfig.from_env(valid_env)

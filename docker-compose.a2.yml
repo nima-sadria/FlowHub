@@ -3,8 +3,8 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: wooprice_a2
-      POSTGRES_USER: wooprice_a2
+      POSTGRES_DB: flowhub_a2
+      POSTGRES_USER: flowhub_a2
       POSTGRES_PASSWORD: ${A2_POSTGRES_PASSWORD:-changeme}
     volumes:
       - a2_pgdata:/var/lib/postgresql/data
@@ -13,7 +13,7 @@ services:
 
   app:
     environment:
-      - A2_DATABASE_URL=postgresql://wooprice_a2:${A2_POSTGRES_PASSWORD:-changeme}@postgres:5432/wooprice_a2
+      - A2_DATABASE_URL=postgresql://flowhub_a2:${A2_POSTGRES_PASSWORD:-changeme}@postgres:5432/flowhub_a2
     depends_on:
       - postgres
 

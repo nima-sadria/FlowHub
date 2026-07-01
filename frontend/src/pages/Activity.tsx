@@ -94,7 +94,7 @@ export default function Activity() {
       <div className="bg-bg-card border border-border rounded-card shadow-card">
         <div className="flex items-center justify-between px-[22px] py-4 border-b border-border">
           <span className="text-[13px] font-semibold text-text-base">
-            {loading ? 'Loading…' : `${total} events`}
+            {loading ? 'Loading...' : `${total} events`}
           </span>
         </div>
 
@@ -118,7 +118,7 @@ export default function Activity() {
               disabled={loadingMore}
               className="w-full py-2 text-[13px] text-wp-muted border border-border rounded-lg hover:text-text-base hover:border-accent transition-colors disabled:opacity-50"
             >
-              {loadingMore ? 'Loading…' : `Load more (${total - events.length} remaining)`}
+              {loadingMore ? 'Loading...' : `Load more (${total - events.length} remaining)`}
             </button>
           </div>
         )}

@@ -1,4 +1,4 @@
-"""FlowHub â€” Configuration validation.
+"""FlowHub - Configuration validation.
 
 Validates a flat dict[str, str] of environment variables and returns a
 structured ValidationResult. Never raises, never terminates the process.
@@ -31,13 +31,6 @@ REQUIRED_FIELDS: tuple[str, ...] = (
     "BETA_POSTGRES_PASSWORD",
     "BETA_JWT_SECRET",
     "BETA_REST_API_SECRET",
-    "BETA_NEXTCLOUD_URL",
-    "BETA_NEXTCLOUD_FILE_PATH",
-    "BETA_NEXTCLOUD_USERNAME",
-    "BETA_NEXTCLOUD_PASSWORD",
-    "BETA_WOOCOMMERCE_URL",
-    "BETA_WOOCOMMERCE_KEY",
-    "BETA_WOOCOMMERCE_SECRET",
     "BETA_TIMEZONE",
     "BETA_CURRENCY",
     "BETA_ADMIN_EMAIL",
@@ -55,6 +48,13 @@ OPTIONAL_FIELDS: tuple[str, ...] = (
     "BETA_WORKER_CONCURRENCY",
     "BETA_SCHEDULER_POLL_SECONDS",
     "BETA_BACKUP_RETAIN_DAYS",
+    "BETA_NEXTCLOUD_URL",
+    "BETA_NEXTCLOUD_FILE_PATH",
+    "BETA_NEXTCLOUD_USERNAME",
+    "BETA_NEXTCLOUD_PASSWORD",
+    "BETA_WOOCOMMERCE_URL",
+    "BETA_WOOCOMMERCE_KEY",
+    "BETA_WOOCOMMERCE_SECRET",
 )
 
 
@@ -90,12 +90,12 @@ class ValidationResult:
     def format_errors(self) -> str:
         if not self.errors:
             return "No errors."
-        return "\n".join(f"  â€¢ {e}" for e in self.errors)
+        return "\n".join(f"  - {e}" for e in self.errors)
 
     def format_warnings(self) -> str:
         if not self.warnings:
             return "No warnings."
-        return "\n".join(f"  â€¢ {w}" for w in self.warnings)
+        return "\n".join(f"  - {w}" for w in self.warnings)
 
 
 class ConfigValidator:

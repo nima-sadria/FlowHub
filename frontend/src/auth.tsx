@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     const token = localStorage.getItem('wp_token') ?? ''
     if (!token) {
-      // No access token — try refresh before giving up
+      // No access token - try refresh before giving up
       const refreshed = await attemptTokenRefresh()
       if (!refreshed) {
         setUser(null)
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const r = await fetch('/api/auth/me', { headers: authHeaders() })
       if (r.status === 401) {
-        // Access token rejected — attempt silent refresh once
+        // Access token rejected - attempt silent refresh once
         const refreshed = await attemptTokenRefresh()
         if (refreshed) {
           const r2 = await fetch('/api/auth/me', { headers: authHeaders() })
@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             prev ? { ...prev, maintenance: { enabled: true, message: typeof body.detail === 'string' ? body.detail : '' } } : prev
           )
         }
-      } catch { /* not a JSON maintenance response — ignore */ }
+      } catch { /* not a JSON maintenance response - ignore */ }
     }
     return r
   }, [clearAuth])

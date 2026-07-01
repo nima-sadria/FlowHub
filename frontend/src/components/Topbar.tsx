@@ -66,7 +66,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
   const healthLabel =
     health === 'ok' ? 'Connected' :
     health === 'error' ? 'Offline' :
-    '—'
+    '-'
 
   function handleLogout() {
     setMenuOpen(false)
@@ -75,7 +75,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
 
   return (
     <header className="h-16 bg-bg-card border-b border-border flex items-center px-4 gap-4 flex-shrink-0">
-      {/* Hamburger — mobile only */}
+      {/* Hamburger - mobile only */}
       <button
         onClick={onMenuClick}
         className="md:hidden flex items-center justify-center w-8 h-8 rounded text-wp-muted hover:text-text-base hover:bg-bg-base transition-colors"
@@ -113,7 +113,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>
 
-        {/* Avatar — click opens user menu */}
+        {/* Avatar - click opens user menu */}
         {user && (
           <div
             className="relative"

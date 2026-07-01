@@ -1,4 +1,4 @@
-"""CP1.2 â€” Health check implementations (10 types).
+"""CP1.2 - Health check implementations (10 types).
 
 All checks are adapter-based: no real network calls at construction time.
 Tests inject FakeNetworkAdapter; production injects a real adapter.
@@ -53,7 +53,7 @@ class DNSCheck:
                 self.check_name,
                 CheckCategory.DNS,
                 self.hostname,
-                message=f"{self.hostname} â†’ {', '.join(ips)}",
+                message=f"{self.hostname} -> {', '.join(ips)}",
                 duration_ms=ms,
                 details={"hostname": self.hostname, "resolved_ips": ips},
             )
@@ -254,14 +254,14 @@ class HTTPCheck:
             if status_code == self.expected_status:
                 return HealthCheckResult.ok(
                     self.check_name, CheckCategory.HTTP, self.url,
-                    message=f"{self.method} {self.url} â†’ {status_code} ({ms:.0f}ms)",
+                    message=f"{self.method} {self.url} -> {status_code} ({ms:.0f}ms)",
                     duration_ms=ms,
                     details=details,
                 )
             fc = classify_http_response(status_code)
             return HealthCheckResult.fail(
                 self.check_name, CheckCategory.HTTP, self.url, fc,
-                message=f"{self.method} {self.url} â†’ {status_code} (expected {self.expected_status})",
+                message=f"{self.method} {self.url} -> {status_code} (expected {self.expected_status})",
                 duration_ms=ms,
                 details=details,
             )
@@ -346,12 +346,12 @@ class AuthCheck:
             return HealthCheckResult.fail(
                 self.check_name, CheckCategory.AUTH, self.url,
                 FailureClass.FORBIDDEN,
-                message="Access denied â€” account exists but permission denied.",
+                message="Access denied - account exists but permission denied.",
                 duration_ms=ms,
             )
         except Exception as exc:
             ms = (time.monotonic() - start) * 1000
-            # Auth check must only return UNAUTHORIZED or FORBIDDEN â€” never DNS/TLS/timeout.
+            # Auth check must only return UNAUTHORIZED or FORBIDDEN - never DNS/TLS/timeout.
             # Any other exception maps to INVALID_RESPONSE so the caller knows the
             # auth endpoint itself misbehaved, not the credentials.
             return HealthCheckResult.fail(
@@ -528,7 +528,7 @@ class DatabaseCheck:
             if pending:
                 return HealthCheckResult.warn(
                     self.check_name, CheckCategory.DATABASE, display_url,
-                    message=f"Database: connected ({latency_ms:.0f}ms) â€” pending migrations detected",
+                    message=f"Database: connected ({latency_ms:.0f}ms) - pending migrations detected",
                     repair_hint="Run: flowhub db migrate",
                     duration_ms=ms,
                     details=details,
@@ -558,7 +558,7 @@ class DatabaseCheck:
 
 
 # ---------------------------------------------------------------------------
-# 9. Docker Check (stub in CP1 â€” implemented in B6)
+# 9. Docker Check (stub in CP1 - implemented in B6)
 # ---------------------------------------------------------------------------
 
 
@@ -577,7 +577,7 @@ class DockerCheck:
 
 
 # ---------------------------------------------------------------------------
-# 10. Integration Check (orchestrates DNS â†’ TCP â†’ TLS â†’ HTTP â†’ Auth chain)
+# 10. Integration Check (orchestrates DNS -> TCP -> TLS -> HTTP -> Auth chain)
 # ---------------------------------------------------------------------------
 
 
@@ -597,7 +597,7 @@ class IntegrationCheck:
     auth_password: Optional[str] = None
 
     def run_chain(self) -> list[HealthCheckResult]:
-        """Run DNS â†’ TCP â†’ TLS â†’ HTTP â†’ Auth chain; return all results."""
+        """Run DNS -> TCP -> TLS -> HTTP -> Auth chain; return all results."""
         from urllib.parse import urlparse
 
         parsed = urlparse(self.url)

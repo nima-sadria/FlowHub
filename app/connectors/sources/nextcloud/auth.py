@@ -1,7 +1,7 @@
 """Nextcloud authentication helpers.
 
 All credential extraction is isolated here. The connector and WebDAV/OCS
-modules import from this file — they never receive raw credential dicts.
+modules import from this file - they never receive raw credential dicts.
 """
 from __future__ import annotations
 

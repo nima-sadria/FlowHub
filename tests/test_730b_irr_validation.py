@@ -1,4 +1,4 @@
-"""Project 7.3B — IRR price validation tests.
+"""Project 7.3B - IRR price validation tests.
 
 Verifies that normal Iranian Rial prices (5M / 50M / 500M IRR) do not trigger
 the validation_extremely_high advisory warning, that the threshold is exactly
@@ -25,7 +25,7 @@ from app.validation import PRICE_EXTREMELY_HIGH, ValidationLevel, validate_price
 from app.main import _compute_dry_run_summary  # noqa: E402
 
 
-# ── Threshold contract ─────────────────────────────────────────────────────────
+# -- Threshold contract ---------------------------------------------------------
 
 def test_threshold_is_exactly_10_trillion_irr():
     """The constant must equal exactly 10,000,000,000,000 (10 trillion IRR)."""
@@ -34,7 +34,7 @@ def test_threshold_is_exactly_10_trillion_irr():
     )
 
 
-# ── Normal IRR prices — no warning expected ────────────────────────────────────
+# -- Normal IRR prices - no warning expected ------------------------------------
 
 def test_5_million_irr_no_extremely_high_warning():
     """5,000,000 IRR (≈ $4 USD) must not trigger validation_extremely_high."""
@@ -68,7 +68,7 @@ def test_9_billion_irr_no_extremely_high_warning():
     )
 
 
-# ── Boundary tests ─────────────────────────────────────────────────────────────
+# -- Boundary tests -------------------------------------------------------------
 
 def test_exactly_10_trillion_irr_no_warning():
     """Exactly 10,000,000,000,000 IRR must NOT trigger extremely_high (boundary is exclusive)."""
@@ -95,7 +95,7 @@ def test_20_trillion_irr_triggers_advisory_warning():
     )
 
 
-# ── Advisory warning is non-blocking ──────────────────────────────────────────
+# -- Advisory warning is non-blocking ------------------------------------------
 
 def test_extremely_high_warning_is_not_critical():
     """The extremely_high rule must fire as WARNING, never CRITICAL."""

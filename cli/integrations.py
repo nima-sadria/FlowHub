@@ -1,8 +1,8 @@
-"""FlowHub â€” flowhub integrations command group (CP1.3).
+"""FlowHub - flowhub integrations command group (CP1.3).
 
-list    â€” show all registered integration services
-test    â€” run a live check chain for a specific service
-status  â€” run checks for all services and show a summary
+list    - show all registered integration services
+test    - run a live check chain for a specific service
+status  - run checks for all services and show a summary
 
 Uses CP1.2 HealthEngine through DiagnosticRunner.
 Secrets are never printed. Network adapter is injected so tests can pass
@@ -53,7 +53,7 @@ def integrations_list() -> None:
     print_section("Integration Services")
 
     for name in KNOWN_SERVICES:
-        console.print(f"  [cyan]â€¢[/cyan]  {name}")
+        console.print(f"  [cyan]-[/cyan]  {name}")
 
     console.print()
     console.print(
@@ -103,7 +103,7 @@ def integrations_test(
             raise typer.Exit(code=1)
         return
 
-    print_section(f"Integration Test â€” {service}")
+    print_section(f"Integration Test - {service}")
 
     _STATUS_ICON = {
         "pass": "[green]PASS[/green]",
@@ -188,9 +188,9 @@ def integrations_status(
     print_section("Integration Status")
 
     _STATUS_ICON = {
-        "pass": "[green]âœ“[/green]",
-        "warn": "[yellow]âڑ [/yellow]",
-        "fail": "[red]âœ—[/red]",
+        "pass": "[green]OK[/green]",
+        "warn": "[yellow]ڑ [/yellow]",
+        "fail": "[red]X[/red]",
         "skip": "[dim]-[/dim]",
         "unknown": "[dim]?[/dim]",
     }

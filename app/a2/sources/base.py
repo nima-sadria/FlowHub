@@ -41,7 +41,7 @@ class SourceAdapter(ABC):
     Implementations must be source-agnostic at the interface boundary:
     compatible with spreadsheet, database, and API sources.
 
-    Adapter responsibility ends at: Source → Validation → Snapshot → Provenance → Row Streaming.
+    Adapter responsibility ends at: Source -> Validation -> Snapshot -> Provenance -> Row Streaming.
     Nothing beyond that boundary belongs in A2.2.
     """
 

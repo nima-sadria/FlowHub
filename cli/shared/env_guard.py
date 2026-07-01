@@ -1,4 +1,4 @@
-"""FlowHub â€” Environment safety guard."""
+"""FlowHub - Environment safety guard."""
 
 from __future__ import annotations
 

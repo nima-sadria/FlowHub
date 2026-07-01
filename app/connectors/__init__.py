@@ -1,1 +1,1 @@
-"""FlowHub connector framework — provider-isolated external communication layer."""
+"""FlowHub connector framework - provider-isolated external communication layer."""

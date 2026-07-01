@@ -1,7 +1,7 @@
-"""FlowHub â€” Placeholder expansion for managed config files.
+"""FlowHub - Placeholder expansion for managed config files.
 
 Resolves ${VAR} placeholders in TOML config text at read time.
-Expansion is never written back to disk â€” config files always retain
+Expansion is never written back to disk - config files always retain
 the ${VAR} form so they remain environment-portable.
 """
 

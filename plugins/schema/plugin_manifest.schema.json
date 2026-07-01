@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "wooprice-beta-plugin-manifest",
-  "title": "WooPrice Beta Plugin Manifest",
-  "description": "JSON Schema for WooPrice Beta plugin.json manifests. Implementation begins in B12.",
+  "$id": "flowhub-plugin-manifest",
+  "title": "FlowHub Plugin Manifest",
+  "description": "JSON Schema for FlowHub plugin.json manifests. Implementation begins after first release.",
   "type": "object",
   "required": [
     "id",
@@ -11,7 +11,7 @@
     "category",
     "author",
     "description",
-    "min_wooprice_version",
+    "min_flowhub_version",
     "entry_point",
     "class_name",
     "permissions"
@@ -49,10 +49,10 @@
       "type": "string",
       "maxLength": 200
     },
-    "min_wooprice_version": {
+    "min_flowhub_version": {
       "type": "string"
     },
-    "max_wooprice_version": {
+    "max_flowhub_version": {
       "type": ["string", "null"],
       "default": null
     },

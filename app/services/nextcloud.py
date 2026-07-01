@@ -1,5 +1,5 @@
-# LEGACY — WooPrice original service layer.
-# Used exclusively by app/main.py (legacy WooPrice app, port 8000).
+# Legacy Compatibility - original service layer.
+# Used exclusively by app/main.py (legacy compatibility app, legacy port 8000).
 # NOT imported by FlowHub Beta runtime (app/beta/app.py, port 8085).
 # FlowHub Beta uses app/connectors/sources/nextcloud/ for all Nextcloud HTTP calls.
 # Do not migrate or refactor this file as part of any FlowHub Beta phase.
@@ -31,7 +31,7 @@ def _webdav_url() -> str:
 _xlsx_cache: dict = {"data": None, "ts": 0.0, "etag": "", "last_modified": ""}
 _XLSX_CACHE_TTL = 60  # seconds
 
-# ── Nextcloud connectivity health state ───────────────────────────────────────
+# -- Nextcloud connectivity health state ---------------------------------------
 # Records the epoch of the most recent successful/failed NC network access.
 # Used by /api/health to derive status without live probes.
 _nc_last_success_ts: float = 0.0
@@ -60,7 +60,7 @@ async def download_xlsx(force: bool = False) -> bytes:
         and _xlsx_cache["data"] is not None
         and time.time() - _xlsx_cache["ts"] < _XLSX_CACHE_TTL
     ):
-        # Cache hit: do NOT update verification timestamp — no network access occurred.
+        # Cache hit: do NOT update verification timestamp - no network access occurred.
         logger.info("download_xlsx: returning cached xlsx (%d bytes, age=%.0fs)",
                     len(_xlsx_cache["data"]), time.time() - _xlsx_cache["ts"])
         return _xlsx_cache["data"]
@@ -112,7 +112,7 @@ async def fetch_spreadsheet_meta() -> dict:
     url = _webdav_url()
     auth = _auth()
     async with httpx.AsyncClient(auth=auth, follow_redirects=True) as client:
-        # ── HEAD (preferred: no response body) ──────────────────────────────
+        # -- HEAD (preferred: no response body) ------------------------------
         try:
             r = await client.head(url, timeout=httpx.Timeout(10.0))
             r.raise_for_status()
@@ -123,11 +123,11 @@ async def fetch_spreadsheet_meta() -> dict:
                     "last_modified": r.headers.get("last-modified", ""),
                     "content_length": int(r.headers.get("content-length") or 0),
                 }
-            logger.debug("fetch_spreadsheet_meta: HEAD response missing etag — trying PROPFIND")
+            logger.debug("fetch_spreadsheet_meta: HEAD response missing etag - trying PROPFIND")
         except Exception as exc:
-            logger.debug("fetch_spreadsheet_meta: HEAD failed (%s) — trying PROPFIND", exc)
+            logger.debug("fetch_spreadsheet_meta: HEAD failed (%s) - trying PROPFIND", exc)
 
-        # ── PROPFIND fallback (standard WebDAV property query) ───────────────
+        # -- PROPFIND fallback (standard WebDAV property query) ---------------
         body = (
             '<?xml version="1.0" encoding="utf-8"?>'
             '<d:propfind xmlns:d="DAV:"><d:prop>'
@@ -178,12 +178,12 @@ def _extract_row_color(ws, row_idx: int) -> str | None:
 
 # Known textual out-of-stock markers operators write into the price column instead of
 # leaving it blank. Matched case-insensitively (Persian/Arabic text is unaffected by
-# .lower()). These are a business signal — not parse errors.
+# .lower()). These are a business signal - not parse errors.
 _OUT_OF_STOCK_MARKERS = frozenset({
     "0", "0.00", "-",
     "ناموجود", "ناموجود شد", "تماس بگیرید",
     "out of stock", "oos", "n/a", "na",
-    "x", "❌", "✗", "×",
+    "x", "❌", "X", "×",
 })
 
 # Persian and Arabic-Indic digits -> ASCII digits, so localized numbers parse correctly.
@@ -237,7 +237,7 @@ def _parse_sheet_rows(ws) -> list[dict]:
             pid = int(str(col_b).replace(",", "").strip())
         except (ValueError, TypeError):
             skipped_bad_id += 1
-            logger.debug("_parse_sheet_rows: sheet='%s' row %d skipped — col B not an int: %r",
+            logger.debug("_parse_sheet_rows: sheet='%s' row %d skipped - col B not an int: %r",
                          ws.title, row_idx, col_b)
             continue
         if pid <= 0:
@@ -246,7 +246,7 @@ def _parse_sheet_rows(ws) -> list[dict]:
 
         # Blank price and known out-of-stock markers are a valid business signal
         # ("out of stock" intent), not an error. Non-numeric garbage is a true parse
-        # failure and must stay distinguishable — the raw text is preserved in
+        # failure and must stay distinguishable - the raw text is preserved in
         # new_price (instead of being collapsed to "") so downstream classification
         # can flag it as invalid with its original value.
         raw_text = "" if col_c is None else str(col_c).strip()
@@ -262,7 +262,7 @@ def _parse_sheet_rows(ws) -> list[dict]:
                 new_price = raw_text
                 price_parse_error = True
                 logger.warning("_parse_sheet_rows: sheet='%s' row %d product_id=%d "
-                                "non-numeric price %r — flagged invalid",
+                                "non-numeric price %r - flagged invalid",
                                 ws.title, row_idx, pid, col_c)
 
         row_color = _extract_row_color(ws, row_idx)
@@ -419,7 +419,7 @@ async def _upload_wb(wb) -> None:
     except Exception:
         record_nc_failure()
         raise
-    # Invalidate ALL cache fields and health timestamps — status becomes "unknown" until
+    # Invalidate ALL cache fields and health timestamps - status becomes "unknown" until
     # a fresh download is completed and record_nc_success() is called.
     _xlsx_cache["data"] = None
     _xlsx_cache["ts"] = 0.0

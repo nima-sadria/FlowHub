@@ -1,1 +1,1 @@
-"""Tests for app/beta/users/ — implemented in B10."""
+"""Tests for app/beta/users/ - implemented in B10."""

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FlowHub â€” Interactive uninstaller (lib/uninstall.sh)
+# FlowHub - Interactive uninstaller (lib/uninstall.sh)
 #
 # Source from install.sh. Provides:
 #   run_uninstall INSTALL_DIR
@@ -43,11 +43,11 @@ run_uninstall() {
     local project_name
     project_name="flowhub"
 
-    # â”€â”€ Step 1: Warning â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Step 1: Warning ------------------------------------------------------
     echo ""
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
-    echo "  UNINSTALL â€” FlowHub"
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
+    echo "  UNINSTALL - FlowHub"
+    echo "========================================================"
     echo ""
     echo "  WARNING: FlowHub and all selected resources will be removed."
     echo ""
@@ -59,7 +59,7 @@ run_uninstall() {
     echo "  flowhub and all other Docker projects are NOT affected."
     echo ""
 
-    # â”€â”€ Step 2: Selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Step 2: Selection ----------------------------------------------------
     echo "  What should be removed? Answer y/N for each item."
     echo ""
     echo "  Docker resources:"
@@ -87,25 +87,25 @@ run_uninstall() {
     done
     if [[ "$any_selected" -eq 0 ]]; then
         echo ""
-        echo "  Nothing selected â€” exiting without changes."
+        echo "  Nothing selected - exiting without changes."
         return 0
     fi
 
-    # â”€â”€ Step 3: Confirmation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Step 3: Confirmation -------------------------------------------------
     echo ""
-    echo "  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€"
+    echo "  ----------------------------------------------------------"
     echo "  The following will be permanently removed:"
-    [[ "$rm_containers"  == "y" ]] && echo "    â€¢ Docker containers (project: ${project_name})"
-    [[ "$rm_images"      == "y" ]] && echo "    â€¢ Docker images (project: ${project_name})"
-    [[ "$rm_volumes"     == "y" ]] && echo "    â€¢ Docker volumes â€” ALL database data will be lost"
-    [[ "$rm_network"     == "y" ]] && echo "    â€¢ Docker network (project: ${project_name})"
-    [[ "$rm_project_dir" == "y" ]] && echo "    â€¢ Project directory: ${install_dir}"
-    [[ "$rm_cli"         == "y" ]] && echo "    â€¢ CLI: ${cli_path}"
-    [[ "$rm_systemd"     == "y" ]] && echo "    â€¢ Systemd services (flowhub*)"
-    [[ "$rm_config"      == "y" ]] && echo "    â€¢ Configuration: .env.beta + TOML"
-    [[ "$rm_logs"        == "y" ]] && echo "    â€¢ Logs: ${install_dir}/logs"
-    [[ "$rm_backups"     == "y" ]] && echo "    â€¢ Backups: ${install_dir}/backups"
-    echo "  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€"
+    [[ "$rm_containers"  == "y" ]] && echo "    - Docker containers (project: ${project_name})"
+    [[ "$rm_images"      == "y" ]] && echo "    - Docker images (project: ${project_name})"
+    [[ "$rm_volumes"     == "y" ]] && echo "    - Docker volumes - ALL database data will be lost"
+    [[ "$rm_network"     == "y" ]] && echo "    - Docker network (project: ${project_name})"
+    [[ "$rm_project_dir" == "y" ]] && echo "    - Project directory: ${install_dir}"
+    [[ "$rm_cli"         == "y" ]] && echo "    - CLI: ${cli_path}"
+    [[ "$rm_systemd"     == "y" ]] && echo "    - Systemd services (flowhub*)"
+    [[ "$rm_config"      == "y" ]] && echo "    - Configuration: .env.beta + TOML"
+    [[ "$rm_logs"        == "y" ]] && echo "    - Logs: ${install_dir}/logs"
+    [[ "$rm_backups"     == "y" ]] && echo "    - Backups: ${install_dir}/backups"
+    echo "  ----------------------------------------------------------"
     echo ""
     echo "  This action CANNOT be undone."
     echo "  To confirm, type exactly:  UNINSTALL"
@@ -114,15 +114,15 @@ run_uninstall() {
     read -r -p "  > " confirm
     if [[ "$confirm" != "UNINSTALL" ]]; then
         echo ""
-        echo "  Confirmation not received â€” uninstall cancelled."
+        echo "  Confirmation not received - uninstall cancelled."
         return 0
     fi
 
-    # â”€â”€ Step 4: Execute â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Step 4: Execute ------------------------------------------------------
     echo ""
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     echo "  Removing FlowHub resources..."
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     echo ""
 
     local -a removed=()
@@ -140,7 +140,7 @@ run_uninstall() {
         fi
     fi
 
-    # â”€â”€ Containers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Containers -----------------------------------------------------------
     if [[ "$rm_containers" == "y" ]]; then
         printf "  Stopping and removing containers..."
         if [[ "$docker_ok" -eq 1 ]]; then
@@ -165,7 +165,7 @@ run_uninstall() {
         echo " done"
     else
         # If containers are kept but volumes will be removed, stop the stack
-        # first so the volumes are not in use (stop â‰  remove).
+        # first so the volumes are not in use (stop ‰  remove).
         if [[ "$rm_volumes" == "y" && "$docker_ok" -eq 1 && -n "$dc_cmd" && -f "$compose_file" ]]; then
             printf "  Stopping stack (needed before volume removal)..."
             ${dc_cmd} --project-directory "$install_dir" -f "$compose_file" \
@@ -182,7 +182,7 @@ run_uninstall() {
         fi
     fi
 
-    # â”€â”€ Images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Images ---------------------------------------------------------------
     if [[ "$rm_images" == "y" ]]; then
         printf "  Removing Docker images..."
         if [[ "$docker_ok" -eq 1 ]]; then
@@ -210,7 +210,7 @@ run_uninstall() {
         echo " done"
     fi
 
-    # â”€â”€ Volumes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Volumes ---------------------------------------------------------------
     if [[ "$rm_volumes" == "y" ]]; then
         printf "  Removing Docker volumes..."
         if [[ "$docker_ok" -eq 1 ]]; then
@@ -227,7 +227,7 @@ run_uninstall() {
         echo " done"
     fi
 
-    # â”€â”€ Network â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Network ---------------------------------------------------------------
     if [[ "$rm_network" == "y" ]]; then
         printf "  Removing Docker network..."
         if [[ "$docker_ok" -eq 1 ]]; then
@@ -244,7 +244,7 @@ run_uninstall() {
         echo " done"
     fi
 
-    # â”€â”€ CLI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- CLI -------------------------------------------------------------------
     if [[ "$rm_cli" == "y" ]]; then
         if [[ -f "$cli_path" ]]; then
             printf "  Removing CLI (%s)..." "$cli_path"
@@ -256,7 +256,7 @@ run_uninstall() {
         [[ -f "$cli_path" ]] && preserved+=("CLI (${cli_path})")
     fi
 
-    # â”€â”€ Systemd services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Systemd services ------------------------------------------------------
     if [[ "$rm_systemd" == "y" ]]; then
         local _found_svc=0
         local _svc
@@ -275,7 +275,7 @@ run_uninstall() {
         [[ "$_found_svc" -eq 1 ]] && systemctl daemon-reload 2>/dev/null || true
     fi
 
-    # â”€â”€ Generated configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Generated configuration -----------------------------------------------
     if [[ "$rm_config" == "y" ]]; then
         printf "  Removing configuration..."
         rm -f "$env_file" 2>/dev/null || true
@@ -287,7 +287,7 @@ run_uninstall() {
         [[ -f "$env_file" ]] && preserved+=("configuration (${env_file})")
     fi
 
-    # â”€â”€ Logs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Logs ------------------------------------------------------------------
     if [[ "$rm_logs" == "y" ]]; then
         if [[ -d "${install_dir}/logs" ]]; then
             printf "  Removing logs..."
@@ -299,7 +299,7 @@ run_uninstall() {
         [[ -d "${install_dir}/logs" ]] && preserved+=("logs (${install_dir}/logs)")
     fi
 
-    # â”€â”€ Backups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Backups ---------------------------------------------------------------
     if [[ "$rm_backups" == "y" ]]; then
         if [[ -d "${install_dir}/backups" ]]; then
             printf "  Removing backups..."
@@ -311,7 +311,7 @@ run_uninstall() {
         [[ -d "${install_dir}/backups" ]] && preserved+=("backups (${install_dir}/backups)")
     fi
 
-    # â”€â”€ Project directory (last â€” compose file lives here) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Project directory (last - compose file lives here) --------------------
     if [[ "$rm_project_dir" == "y" ]]; then
         if [[ -d "$install_dir" ]]; then
             printf "  Removing project directory (%s)..." "$install_dir"
@@ -323,17 +323,17 @@ run_uninstall() {
         [[ -d "$install_dir" ]] && preserved+=("project directory (${install_dir})")
     fi
 
-    # â”€â”€ Step 5: Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # -- Step 5: Summary ------------------------------------------------------
     echo ""
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     echo "  Uninstall Complete"
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
     echo ""
     if [[ "${#removed[@]}" -gt 0 ]]; then
         echo "  Removed:"
         local _item
         for _item in "${removed[@]}"; do
-            echo "    â€¢ ${_item}"
+            echo "    - ${_item}"
         done
     else
         echo "  Nothing was removed (resources were already absent)."
@@ -342,11 +342,11 @@ run_uninstall() {
         echo ""
         echo "  Preserved:"
         for _item in "${preserved[@]}"; do
-            echo "    â€¢ ${_item}"
+            echo "    - ${_item}"
         done
     fi
     echo ""
     echo "  To reinstall FlowHub:"
     echo "    bash installer/install.sh"
-    echo "â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ"
+    echo "========================================================"
 }

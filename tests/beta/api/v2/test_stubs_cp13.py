@@ -1,4 +1,4 @@
-"""Tests for CP1.3 REST API contract stubs — shape and importability."""
+"""Tests for CP1.3 REST API contract stubs - shape and importability."""
 
 from __future__ import annotations
 

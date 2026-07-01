@@ -1,4 +1,4 @@
-"""FlowHub â€” Configuration file migration.
+"""FlowHub - Configuration file migration.
 
 Detects when a managed TOML config file is from an older Beta version
 and applies schema changes in-place, preserving existing values.
@@ -23,7 +23,7 @@ class MigrationStep:
 
     def apply(self, config: dict[str, Any]) -> dict[str, Any]:
         raise NotImplementedError(
-            f"Migration step {self.from_version} â†’ {self.to_version} not implemented"
+            f"Migration step {self.from_version} -> {self.to_version} not implemented"
         )
 
 
@@ -60,7 +60,7 @@ class ConfigMigration:
         """Apply all required migration steps to the config dict.
 
         Returns the updated config dict and a list of applied change descriptions.
-        The input dict is never modified in-place â€” a copy is returned.
+        The input dict is never modified in-place - a copy is returned.
         """
         version = self.detect_version(config)
         changes: list[str] = []
@@ -84,13 +84,13 @@ class ConfigMigration:
         if not applicable:
             changes.append(
                 f"No migration path from version {version!r}. "
-                "Config preserved as-is â€” manual review may be needed."
+                "Config preserved as-is - manual review may be needed."
             )
             return config, changes
 
         for step in applicable:
             config = step.apply(config)
-            changes.append(f"{step.from_version} â†’ {step.to_version}: {step.description}")
+            changes.append(f"{step.from_version} -> {step.to_version}: {step.description}")
             version = step.to_version
 
         return config, changes

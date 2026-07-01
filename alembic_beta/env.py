@@ -1,4 +1,4 @@
-"""WooPrice Beta — Alembic migration environment (BU2).
+"""FlowHub - Alembic migration environment (BU2).
 
 Reads BETA_DATABASE_URL from the environment (set in .env.beta).
 target_metadata is wired to BetaBase so that `alembic --autogenerate`
@@ -28,7 +28,7 @@ if database_url:
     config.set_main_option("sqlalchemy.url", database_url)
 
 # Import models so their tables are registered on BetaBase.metadata before
-# Alembic inspects it.  The import chain is: models → database (BetaBase).
+# Alembic inspects it.  The import chain is: models -> database (BetaBase).
 # The database module is safe to import without a live connection.
 from app.beta.database import BetaBase  # noqa: E402
 from app.beta.auth import models as _auth_models  # noqa: E402, F401

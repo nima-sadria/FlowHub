@@ -1,4 +1,4 @@
-"""A2.4 Safety Policy Engine — read-only evaluation gate.
+"""A2.4 Safety Policy Engine - read-only evaluation gate.
 
 Evaluates Price Proposals against configurable safety policies.
 Produces structured SafetyResult records; never creates Change Sets,
@@ -128,7 +128,7 @@ class SafetyEngine:
         self._db.flush()
         return log
 
-    # ── Internal evaluation dispatch ─────────────────────────────────────────
+    # -- Internal evaluation dispatch -----------------------------------------
 
     def _evaluate_one(
         self,

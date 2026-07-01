@@ -1,7 +1,8 @@
-"""FlowHub â€” Configuration defaults and constants.
+"""FlowHub - Configuration defaults and constants.
 
 Default values applied when optional environment variables are absent.
-Required variables have no defaults â€” absence causes startup failure.
+Core startup variables have no defaults. Connector credentials are optional and
+may be configured after setup from Settings -> Integrations.
 """
 
 DEFAULTS: dict[str, str | int | bool] = {

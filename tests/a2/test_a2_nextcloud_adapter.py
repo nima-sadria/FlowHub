@@ -1,5 +1,5 @@
 """
-Integration tests — NextcloudSourceAdapter.
+Integration tests - NextcloudSourceAdapter.
 
 All HTTP calls are mocked; no live Nextcloud instance required.
 """
@@ -56,7 +56,7 @@ async def _collect_stream(adapter):
     return rows
 
 
-# ── connect() ─────────────────────────────────────────────────────────────────
+# -- connect() -----------------------------------------------------------------
 
 def test_connect_downloads_file():
     xlsx = _make_xlsx([("Prod A", 101, "50000"), ("Prod B", 102, "80000")])
@@ -67,7 +67,7 @@ def test_connect_downloads_file():
     assert adapter._meta["etag"] == '"e1"'
 
 
-# ── validate_source() ─────────────────────────────────────────────────────────
+# -- validate_source() ---------------------------------------------------------
 
 def test_validate_valid_source():
     xlsx = _make_xlsx([("A", 1, "100"), ("B", 2, "200")])
@@ -125,7 +125,7 @@ def test_validate_non_integer_id_is_error():
     assert result.is_valid is False
 
 
-# ── fetch_snapshot() ──────────────────────────────────────────────────────────
+# -- fetch_snapshot() ----------------------------------------------------------
 
 def test_fetch_snapshot_valid_source():
     xlsx = _make_xlsx([("A", 1, "100"), ("B", 2, "200")])
@@ -176,7 +176,7 @@ def test_fetch_snapshot_stores_snapshot_internally():
     assert adapter._current_snapshot is snap
 
 
-# ── stream_rows() — public contract ───────────────────────────────────────────
+# -- stream_rows() - public contract -------------------------------------------
 
 def test_stream_rows_yields_correct_count():
     xlsx = _make_xlsx([("A", 10, "100"), ("B", 20, "200"), ("C", 30, "300")])
@@ -263,7 +263,7 @@ def test_stream_rows_raises_on_duplicate_ids():
         _run(adapter.fetch_snapshot())
 
 
-# ── HIGH 4: no silent row cap ─────────────────────────────────────────────────
+# -- HIGH 4: no silent row cap -------------------------------------------------
 
 def test_duplicate_detected_at_high_row_number():
     """
@@ -291,7 +291,7 @@ def test_all_rows_returned_when_no_duplicates():
     assert len(streamed) == 1000
 
 
-# ── MEDIUM 1: schema_hash covers all worksheets ───────────────────────────────
+# -- MEDIUM 1: schema_hash covers all worksheets -------------------------------
 
 def test_schema_hash_differs_when_second_sheet_header_changes():
     """
@@ -361,7 +361,7 @@ def test_schema_hash_stable_across_same_content():
     assert snap1.schema_hash == snap2.schema_hash
 
 
-# ── get_capabilities() ────────────────────────────────────────────────────────
+# -- get_capabilities() --------------------------------------------------------
 
 def test_capabilities():
     adapter = _adapter()
@@ -373,7 +373,7 @@ def test_capabilities():
     assert caps.supports_deletions is False
 
 
-# ── get_checkpoint() ──────────────────────────────────────────────────────────
+# -- get_checkpoint() ----------------------------------------------------------
 
 def test_get_checkpoint_returns_etag():
     adapter = _adapter()
@@ -395,7 +395,7 @@ def test_get_checkpoint_returns_none_when_no_etag():
     assert cp is None
 
 
-# ── HIGH 1: advance_checkpoint() persists via CheckpointRepository ────────────
+# -- HIGH 1: advance_checkpoint() persists via CheckpointRepository ------------
 
 def test_advance_checkpoint_persists_to_db():
     """advance_checkpoint(cp, db=session) must durably persist via CheckpointRepository."""
@@ -479,7 +479,7 @@ def test_advance_checkpoint_rollback_on_error():
         _run(adapter.advance_checkpoint(cp, db=mock_db))
 
 
-# ── SOURCE_TYPE constant ──────────────────────────────────────────────────────
+# -- SOURCE_TYPE constant ------------------------------------------------------
 
 def test_source_type_constant():
     assert NextcloudSourceAdapter.SOURCE_TYPE == "nextcloud_xlsx"

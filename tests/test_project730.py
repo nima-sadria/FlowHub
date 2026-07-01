@@ -1,11 +1,11 @@
-"""Project 7.3 — Fetch performance + business reporting remediation regression tests.
+"""Project 7.3 - Fetch performance + business reporting remediation regression tests.
 
 Coverage:
-  H1 — _get_with_retry: Retry-After capped to _MAX_RETRY_SLEEP; budget exceeded → RuntimeError
-  H2 — preview_stream does not make live variation-image WC calls for cached products
-  H3 — analytics_seller_staleness filters to parent_id == 0 (excludes variations)
-  M1 — FetchTelemetry counters are populated by fetch_all_products_fast
-  M2 — _extract_brand falls back to pa_brand-filter attribute when `brands` is empty
+  H1 - _get_with_retry: Retry-After capped to _MAX_RETRY_SLEEP; budget exceeded -> RuntimeError
+  H2 - preview_stream does not make live variation-image WC calls for cached products
+  H3 - analytics_seller_staleness filters to parent_id == 0 (excludes variations)
+  M1 - FetchTelemetry counters are populated by fetch_all_products_fast
+  M2 - _extract_brand falls back to pa_brand-filter attribute when `brands` is empty
 """
 import asyncio
 import os
@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-# ── Minimal env so Settings() doesn't error ───────────────────────────────────
+# -- Minimal env so Settings() doesn't error -----------------------------------
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("NEXTCLOUD_URL", "http://example.invalid")
 os.environ.setdefault("NEXTCLOUD_USER", "x")
@@ -39,7 +39,7 @@ from app.services.woocommerce import (  # noqa: E402
 )
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# -- Helpers -------------------------------------------------------------------
 
 def _mock_resp(status: int, body=None, headers: dict | None = None) -> MagicMock:
     """Build a mock httpx.Response."""
@@ -56,7 +56,7 @@ def _mock_resp(status: int, body=None, headers: dict | None = None) -> MagicMock
     return r
 
 
-# ── H1: Retry cap tests ───────────────────────────────────────────────────────
+# -- H1: Retry cap tests -------------------------------------------------------
 
 def test_retry_after_capped_to_max_sleep():
     """A large Retry-After (e.g. 120s) must be capped to _MAX_RETRY_SLEEP."""
@@ -137,7 +137,7 @@ def test_retry_budget_respects_max_constant():
     )
 
 
-# ── H2: Preview stream — no live variation-image calls for cached products ────
+# -- H2: Preview stream - no live variation-image calls for cached products ----
 
 def test_preview_stream_does_not_call_fetch_variations_for_cached_products():
     """When all product IDs are in the DB cache, preview_stream must NOT call
@@ -153,7 +153,7 @@ def test_preview_stream_does_not_call_fetch_variations_for_cached_products():
         "fetch_variations_for_selected_parents",
         new=AsyncMock(return_value=([], [])),
     ) as mock_var_fetch:
-        # The function is no longer invoked from preview_stream — if it is, test fails.
+        # The function is no longer invoked from preview_stream - if it is, test fails.
         # We confirm the symbol still exists (import sanity) but is not called.
         assert mock_var_fetch is not None
 
@@ -162,15 +162,15 @@ def test_preview_stream_does_not_call_fetch_variations_for_cached_products():
     from app.main import preview_stream  # type: ignore[attr-defined]
     src = inspect.getsource(preview_stream)
     assert "fetch_variations_for_selected_parents" not in src, (
-        "preview_stream still references fetch_variations_for_selected_parents — "
+        "preview_stream still references fetch_variations_for_selected_parents - "
         "the H2 enrichment block was not removed"
     )
     assert "_VAR_PARENT_CAP" not in src, (
-        "preview_stream still contains _VAR_PARENT_CAP — H2 block not fully removed"
+        "preview_stream still contains _VAR_PARENT_CAP - H2 block not fully removed"
     )
 
 
-# ── H3: Staleness endpoint filters to parent_id == 0 ─────────────────────────
+# -- H3: Staleness endpoint filters to parent_id == 0 -------------------------
 
 def test_analytics_staleness_filters_to_parent_products():
     """analytics_seller_staleness must query only rows with parent_id == 0."""
@@ -179,12 +179,12 @@ def test_analytics_staleness_filters_to_parent_products():
 
     src = inspect.getsource(main_module.analytics_seller_staleness)
     assert "parent_id == 0" in src, (
-        "analytics_seller_staleness does not filter to parent_id == 0 — "
+        "analytics_seller_staleness does not filter to parent_id == 0 - "
         "variations will inflate staleness counts"
     )
 
 
-# ── M1: FetchTelemetry is populated by fetch_all_products_fast ───────────────
+# -- M1: FetchTelemetry is populated by fetch_all_products_fast ---------------
 
 def test_fetch_telemetry_product_pages_counted():
     """fetch_all_products_fast must increment telemetry.product_pages per WC page fetched."""
@@ -216,8 +216,8 @@ def test_fetch_telemetry_product_pages_counted():
             await fetch_all_products_fast(telemetry=telem)
 
     asyncio.run(run())
-    assert telem.product_pages >= 1, f"Expected product_pages ≥ 1, got {telem.product_pages}"
-    assert telem.wc_requests >= 1, f"Expected wc_requests ≥ 1, got {telem.wc_requests}"
+    assert telem.product_pages >= 1, f"Expected product_pages >= 1, got {telem.product_pages}"
+    assert telem.wc_requests >= 1, f"Expected wc_requests >= 1, got {telem.wc_requests}"
 
 
 def test_fetch_telemetry_dataclass_defaults():
@@ -248,7 +248,7 @@ def test_get_with_retry_increments_wc_requests():
     assert telem.wc_requests == 1
 
 
-# ── M2: Brand extraction from pa_brand-filter attribute ──────────────────────
+# -- M2: Brand extraction from pa_brand-filter attribute ----------------------
 
 def test_extract_brand_uses_brands_field_first():
     """_extract_brand prefers the WC `brands` taxonomy field."""
@@ -281,7 +281,7 @@ def test_extract_brand_returns_none_when_no_brand():
 
 
 def test_extract_brand_attribute_missing_from_fields_returns_none():
-    """Simulates the pre-7.3 bug: attributes not in _fields → empty list → no brand."""
+    """Simulates the pre-7.3 bug: attributes not in _fields -> empty list -> no brand."""
     product = {"brands": [], "attributes": []}  # as if `attributes` was omitted from WC response
     brand_id, _ = _extract_brand(product)
     assert brand_id is None

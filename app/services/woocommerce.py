@@ -1,5 +1,5 @@
-# LEGACY — WooPrice original service layer.
-# Used exclusively by app/main.py (legacy WooPrice app, port 8000).
+# Legacy Compatibility - original service layer.
+# Used exclusively by app/main.py (legacy compatibility app, legacy port 8000).
 # NOT imported by FlowHub Beta runtime (app/beta/app.py, port 8085).
 # FlowHub Beta uses app/connectors/destinations/woocommerce/ for all WC HTTP calls.
 # Do not migrate or refactor this file as part of any FlowHub Beta phase.
@@ -47,7 +47,7 @@ async def _get_with_retry(
 ) -> httpx.Response:
     """HTTP request with exponential backoff on 429/5xx.
 
-    method: HTTP verb to use — "get" (default) for all normal fetches,
+    method: HTTP verb to use - "get" (default) for all normal fetches,
     "options" for capability probing.  All other behaviour is identical.
     """
     total_sleep = 0.0
@@ -68,15 +68,15 @@ async def _get_with_retry(
         wait = min(raw_wait, _MAX_RETRY_SLEEP)
         if total_sleep + wait >= _MAX_TOTAL_RETRY_SLEEP:
             logger.error(
-                "WC retry budget exhausted (%.0fs slept so far) on %s — aborting fetch",
+                "WC retry budget exhausted (%.0fs slept so far) on %s - aborting fetch",
                 total_sleep, url,
             )
             raise RuntimeError(
                 f"WooCommerce retry budget exhausted after {total_sleep:.0f}s sleep. "
-                "The API is rate-limiting or unavailable — wait a few minutes and try again."
+                "The API is rate-limiting or unavailable - wait a few minutes and try again."
             )
         logger.warning(
-            "WC %d on %s — retry %d/%d in %.0fs (Retry-After: %s, capped from %.0fs)",
+            "WC %d on %s - retry %d/%d in %.0fs (Retry-After: %s, capped from %.0fs)",
             resp.status_code, url, attempt + 1, _MAX_RETRIES, wait,
             retry_after or "none", raw_wait,
         )
@@ -148,7 +148,7 @@ def _extract_brand(p: dict) -> tuple[int | None, str | None]:
     WooCommerce attribute taxonomy instead of the Brands plugin). The brand_id
     for pa_brand-filter entries is a stable crc32 of the brand name (attribute
     options don't expose term IDs in the products endpoint).
-    brand_id=None means no brand at all — never guessed from name or other fields.
+    brand_id=None means no brand at all - never guessed from name or other fields.
     """
     brands = p.get("brands") or []
     if brands:
@@ -212,7 +212,7 @@ async def fetch_product_prices(product_ids: list[int], force: bool = False) -> d
     async with httpx.AsyncClient(auth=_auth(), timeout=90) as client:
 
         if uncached:
-            # ── Phase 1: parallel batch requests (100 IDs each) ──────────────
+            # -- Phase 1: parallel batch requests (100 IDs each) --------------
             async def _fetch_batch(chunk: list[int]) -> list[dict]:
                 params = [("include[]", str(pid)) for pid in chunk] + [
                     ("per_page", "100"),
@@ -233,7 +233,7 @@ async def fetch_product_prices(product_ids: list[int], force: bool = False) -> d
                     result[p["id"]] = data
                     _cache_set(p["id"], data)
 
-        # ── Phase 2: parallel individual lookups for missing IDs ─────────────
+        # -- Phase 2: parallel individual lookups for missing IDs -------------
         missing = [pid for pid in uncached if pid not in result]
 
         async def _fetch_one(pid: int) -> tuple[int, dict] | None:
@@ -261,8 +261,8 @@ async def fetch_product_prices(product_ids: list[int], force: bool = False) -> d
                     result[pid] = data
                     _cache_set(pid, data)
 
-        # ── Phase 3: inherit categories, brand, stock, and modified date from parent ──
-        # Variations don't carry categories, a brand, or a meaningful modified date —
+        # -- Phase 3: inherit categories, brand, stock, and modified date from parent --
+        # Variations don't carry categories, a brand, or a meaningful modified date -
         # the product page shows the PARENT's post_modified, so we use that.
         parent_ids_needed = {
             data["parent_id"]
@@ -276,7 +276,7 @@ async def fetch_product_prices(product_ids: list[int], force: bool = False) -> d
         async def _fetch_parent(ppid: int) -> tuple[int, dict] | None:
             cached = _cache_get(ppid)
             # "brand_id" not in cached guards against a pre-existing in-memory
-            # entry cached before brand support shipped — without this, a
+            # entry cached before brand support shipped - without this, a
             # stale cache hit here would silently report "no brand" instead
             # of actually fetching it.
             if cached and "brand_id" in cached:
@@ -312,11 +312,11 @@ async def fetch_product_prices(product_ids: list[int], force: bool = False) -> d
                         data["categories"] = parent_map[ppid].get("categories", [])
                     if data.get("stock_quantity") is None:
                         data["stock_quantity"] = parent_map[ppid].get("stock_quantity")
-                    # Variations never carry their own `brands` field — always
+                    # Variations never carry their own `brands` field - always
                     # inherit the parent's brand (confirmed via live audit).
                     data["brand_id"] = parent_map[ppid].get("brand_id")
                     data["brand_name"] = parent_map[ppid].get("brand_name")
-                    # Always override variation's date with parent's — this is
+                    # Always override variation's date with parent's - this is
                     # what article:modified_time and the product page widget show
                     data["wc_date_modified"] = parent_map[ppid].get("wc_date_modified")
 
@@ -404,7 +404,7 @@ async def resolve_variation_parent_id(variation_id: int) -> int | None:
                 parent_id = data.get("parent_id") or 0
                 if parent_id > 0:
                     logger.info(
-                        "resolve_variation_parent_id: wc_id=%d → parent_id=%d (type=%s)",
+                        "resolve_variation_parent_id: wc_id=%d -> parent_id=%d (type=%s)",
                         variation_id, parent_id, data.get("type", "?"),
                     )
                     return parent_id
@@ -516,7 +516,7 @@ def _parse_full_product(
     ]
     if parent_id > 0:
         # Variations never carry their own `brands` field (confirmed via live
-        # audit) — always inherit the parent's brand. Never guessed otherwise.
+        # audit) - always inherit the parent's brand. Never guessed otherwise.
         brand_id, brand_name = parent_brand if parent_brand is not None else (None, None)
     else:
         brand_id, brand_name = _extract_brand(p)
@@ -597,7 +597,7 @@ async def _fetch_variations_for_parent(
 async def fetch_all_products_fast(
     telemetry: "FetchTelemetry | None" = None,
 ) -> tuple[list[dict], list[str]]:
-    """Fetch all top-level products (simple + variable parents) — no variation sub-requests.
+    """Fetch all top-level products (simple + variable parents) - no variation sub-requests.
 
     Runs ~24 WC API pages instead of 2000+ variation calls.  Variable parent rows get the
     parent's own image so thumbnails work immediately.  Variation rows are not created here;
@@ -632,7 +632,7 @@ async def fetch_all_products_fast(
     record_wc_success()
     variable_count = sum(1 for p in all_products if p.get("product_type") == "variable")
     logger.info(
-        "fast_fetch: done — %d products (%d variable parents, no variations fetched)",
+        "fast_fetch: done - %d products (%d variable parents, no variations fetched)",
         len(all_products), variable_count,
     )
     return all_products, []
@@ -646,7 +646,7 @@ async def fetch_variations_for_selected_parents(
     """Fetch WC variations only for the given parent IDs.
 
     parent_info: {parent_id: (name, categories_list, image_url_or_none, (brand_id, brand_name)_or_none)}
-    Call this with IDs present in the spreadsheet/preview — never globally.
+    Call this with IDs present in the spreadsheet/preview - never globally.
     """
     if not parent_ids:
         return [], []
@@ -674,7 +674,7 @@ async def fetch_variations_for_selected_parents(
                 var_warnings.append(f"Variation fetch failed for parent #{plist[i]}: {r}")
 
     logger.info(
-        "targeted_variation_fetch: done — %d variations for %d parents (%d warnings)",
+        "targeted_variation_fetch: done - %d variations for %d parents (%d warnings)",
         len(all_variations), len(parent_ids), len(var_warnings),
     )
     return all_variations, var_warnings
@@ -721,7 +721,7 @@ async def fetch_all_products_full(
                 page += 1
 
             logger.info(
-                "full_fetch: phase1 done — %d top-level products, %d variable parents",
+                "full_fetch: phase1 done - %d top-level products, %d variable parents",
                 len(all_products), len(variable_parents),
             )
 
@@ -745,7 +745,7 @@ async def fetch_all_products_full(
 
     record_wc_success()
     logger.info(
-        "full_fetch: complete — %d total products (top-level + variations), %d warnings",
+        "full_fetch: complete - %d total products (top-level + variations), %d warnings",
         len(all_products), len(var_warnings),
     )
     return all_products, var_warnings
@@ -764,7 +764,7 @@ async def _fetch_variations_modified_after(
 ) -> list[dict]:
     """Fetch variations for one parent that were modified in [modified_after, modified_before].
 
-    Stops after the first empty page — if WC returns no results, there are no
+    Stops after the first empty page - if WC returns no results, there are no
     modified variations for this parent and we do not crawl further.
     Deep Sync remains the only operation that fetches ALL variations.
     """
@@ -816,7 +816,7 @@ async def fetch_products_light(
     in the half-open window (modified_after, modified_before], using WC GMT times.
 
     For variable parents in the result set, only variations modified in the same
-    window are fetched — stops on first empty page per parent.
+    window are fetched - stops on first empty page per parent.
     Deep Sync remains the only operation that crawls ALL variations globally.
 
     Returns (products, variation_warnings).
@@ -860,7 +860,7 @@ async def fetch_products_light(
                 page += 1
 
             logger.info(
-                "light_fetch: phase1 done — %d modified top-level product(s), %d variable parent(s)",
+                "light_fetch: phase1 done - %d modified top-level product(s), %d variable parent(s)",
                 len(all_products), len(variable_parents),
             )
 
@@ -890,7 +890,7 @@ async def fetch_products_light(
 
     record_wc_success()
     logger.info(
-        "light_fetch: complete — %d total records (top-level + modified variations), %d warnings",
+        "light_fetch: complete - %d total records (top-level + modified variations), %d warnings",
         len(all_products), len(var_warnings),
     )
     return all_products, var_warnings
@@ -937,7 +937,7 @@ async def update_parent_stock_statuses(parent_statuses: dict[int, str]) -> None:
         await asyncio.gather(*[_update_one(pid, s) for pid, s in parent_statuses.items()])
 
 
-# ── WooCommerce connectivity health state ─────────────────────────────────────
+# -- WooCommerce connectivity health state -------------------------------------
 # Records the epoch of the most recent successful/failed WC network access.
 # Used by /api/health to derive status without live probes.
 _wc_last_success_ts: float = 0.0
@@ -990,10 +990,10 @@ async def check_variation_filter_capability(
     Only marks capability True when the schema *explicitly* declares modified_after.
 
     Cache states
-    ────────────
-    True  — schema confirmed modified_after supported (cached)
-    False — schema explicitly omits modified_after (cached)
-    None  — retry exhaustion / timeout / auth / transport / malformed response (NOT cached)
+    ------------
+    True  - schema confirmed modified_after supported (cached)
+    False - schema explicitly omits modified_after (cached)
+    None  - retry exhaustion / timeout / auth / transport / malformed response (NOT cached)
 
     No variable parent: returns True without caching (no variations to filter).
     """
@@ -1008,11 +1008,11 @@ async def check_variation_filter_capability(
         .first()
     )
     if parent_row is None:
-        # No variable product — cannot prove capability.  Do NOT cache: a later
+        # No variable product - cannot prove capability.  Do NOT cache: a later
         # Deep Sync may add variable products and we must re-probe then.
         # Return True so simple-product-only stores can still Light Refresh.
         logger.info(
-            "wc_capability: no variable parent in cache — skipping probe, "
+            "wc_capability: no variable parent in cache - skipping probe, "
             "variations will not be fetched during Light Refresh"
         )
         return True
@@ -1036,11 +1036,11 @@ async def check_variation_filter_capability(
             try:
                 schema = resp.json()
             except Exception:
-                # WC responded but body is not parseable — connectivity confirmed,
+                # WC responded but body is not parseable - connectivity confirmed,
                 # capability indeterminate. Do NOT cache so next call can re-probe.
                 logger.warning(
                     "wc_capability: OPTIONS returned 200 but body is not valid JSON "
-                    "— capability indeterminate (not cached)"
+                    "- capability indeterminate (not cached)"
                 )
                 return None
             if _schema_supports_modified_after(schema):
@@ -1050,23 +1050,23 @@ async def check_variation_filter_capability(
                 _wc_variation_filter_capable = True
                 return True
             logger.warning(
-                "wc_capability: OPTIONS schema does not declare modified_after — "
+                "wc_capability: OPTIONS schema does not declare modified_after - "
                 "Light Refresh variation filtering unsupported"
             )
             _wc_variation_filter_capable = False
             return False
         else:
             # WC is reachable (it responded); non-200 status is not a network failure.
-            # Capability cannot be determined from this response — do NOT cache.
+            # Capability cannot be determined from this response - do NOT cache.
             record_wc_success()
             logger.warning(
-                "wc_capability: OPTIONS returned %d — capability indeterminate (not cached)",
+                "wc_capability: OPTIONS returned %d - capability indeterminate (not cached)",
                 resp.status_code,
             )
             return None
 
     except RuntimeError:
-        # Retry budget exhausted — connectivity/rate-limit failure, NOT a confirmed schema
+        # Retry budget exhausted - connectivity/rate-limit failure, NOT a confirmed schema
         # check. Do NOT cache: allows re-probe on next call once the API recovers.
         record_wc_failure()
         if telemetry is not None:
@@ -1074,13 +1074,13 @@ async def check_variation_filter_capability(
             telemetry.capability_probe_retries += _probe_telem.retry_count
         logger.warning(
             "wc_capability: OPTIONS retry budget exhausted after %d requests, "
-            "%d retries — capability indeterminate (not cached)",
+            "%d retries - capability indeterminate (not cached)",
             _probe_telem.wc_requests, _probe_telem.retry_count,
         )
         return None
 
     except Exception as exc:
-        # Transient / unexpected error — do NOT cache; allow re-probe on next call.
+        # Transient / unexpected error - do NOT cache; allow re-probe on next call.
         record_wc_failure()
         if telemetry is not None:
             telemetry.capability_probe_requests += _probe_telem.wc_requests

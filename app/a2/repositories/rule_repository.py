@@ -1,5 +1,5 @@
 """
-A2.3-R2 RuleRepository — create, retrieve, and version pricing rules.
+A2.3-R2 RuleRepository - create, retrieve, and version pricing rules.
 
 publish_version() enforces immutability: once a version is published,
 it cannot be republished. set_current_version() switches the active
@@ -25,7 +25,7 @@ class RuleRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
-    # ── Rule CRUD ─────────────────────────────────────────────────────────────
+    # -- Rule CRUD -------------------------------------------------------------
 
     def create_rule(
         self,
@@ -72,7 +72,7 @@ class RuleRepository:
         self._db.flush()
         return True
 
-    # ── Version management ────────────────────────────────────────────────────
+    # -- Version management ----------------------------------------------------
 
     def create_version(
         self,
@@ -171,7 +171,7 @@ class RuleRepository:
             .all()
         )
 
-    # ── Convenience: load active rules as RuleDefinition objects ─────────────
+    # -- Convenience: load active rules as RuleDefinition objects -------------
 
     def load_active_definitions(self) -> list[RuleDefinition]:
         """Return RuleDefinition for every active rule that has a current published version."""

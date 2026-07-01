@@ -1,1 +1,1 @@
-"""Tests for cli/ â€” implemented in B4+."""
+"""Tests for cli/ - implemented in B4+."""

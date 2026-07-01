@@ -26,7 +26,7 @@ export default function Login() {
         if (r.status === 401) {
           setError(data.detail ?? 'Invalid credentials. Please check your username and password.')
         } else if (r.status === 403) {
-          setError(data.detail ?? 'Access not granted — contact your administrator.')
+          setError(data.detail ?? 'Access not granted - contact your administrator.')
         } else if (r.status === 429) {
           setError('Too many login attempts. Please wait a moment and try again.')
         } else if (r.status === 503) {
@@ -53,6 +53,11 @@ export default function Login() {
     <div className="min-h-screen bg-bg-base flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-bg-card border border-border rounded-card shadow-card p-8">
         <div className="mb-7 text-center">
+          <img
+            src="/flowhub-logo.png"
+            alt="FlowHub"
+            className="mx-auto mb-4 h-20 w-20 object-contain"
+          />
           <h1 className="text-[22px] font-bold text-text-base">FlowHub</h1>
           <p className="text-[13px] text-wp-muted mt-1">Sign in to FlowHub</p>
         </div>
@@ -104,7 +109,7 @@ export default function Login() {
             disabled={loading}
             className="mt-2 w-full bg-accent text-white py-2.5 rounded-lg text-[14px] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
       </div>

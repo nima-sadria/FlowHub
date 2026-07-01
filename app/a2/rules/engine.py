@@ -1,5 +1,5 @@
 """
-A2.3 Rule Engine — deterministic transformation of inputs into price proposals.
+A2.3 Rule Engine - deterministic transformation of inputs into price proposals.
 
 Responsibilities:
   - Sort rules by priority (ascending = highest priority first).
@@ -179,7 +179,7 @@ class RuleEngine:
 
         return envelopes
 
-    # ── Internal ────────────────────────────────────────────────────────────────
+    # -- Internal ----------------------------------------------------------------
 
     def _build_envelope(
         self,

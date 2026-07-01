@@ -16,14 +16,14 @@ os.environ.setdefault("BETA_JWT_SECRET", "test-bu4-jwt-secret-32-bytes-min!")
 
 # Import auth models (conftest already does this, but be explicit)
 from app.beta.integration_platform import models as _ip_models  # noqa: F401 - registers ip_* tables
-from app.beta.auth import models as _auth_models  # noqa: F401 â€” registers BetaBase tables
+from app.beta.auth import models as _auth_models  # noqa: F401 - registers BetaBase tables
 # Import setup model so BetaAppConfig is registered with BetaBase.metadata
-from app.beta.setup import models as _setup_models  # noqa: F401 â€” registers beta_app_config
+from app.beta.setup import models as _setup_models  # noqa: F401 - registers beta_app_config
 from app.beta.api.v2 import setup as setup_api
 from app.beta.setup.service import AppConfigService
 
 
-# â”€â”€ Fixtures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Fixtures ------------------------------------------------------------------
 
 @pytest.fixture()
 def db_engine():
@@ -75,7 +75,7 @@ def client(db_engine):
     app.dependency_overrides.clear()
 
 
-# â”€â”€ GET /api/v2/setup/status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- GET /api/v2/setup/status --------------------------------------------------
 
 class TestSetupStatus:
     def test_returns_200(self, client):
@@ -94,7 +94,7 @@ class TestSetupStatus:
         assert r.json()["completed"] is True
 
 
-# â”€â”€ POST /api/v2/setup/server-profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- POST /api/v2/setup/server-profile ----------------------------------------
 
 class TestSetupServerProfile:
     def test_saves_profile(self, client, db):
@@ -141,7 +141,7 @@ class TestSetupServerProfile:
         assert r.status_code == 409
 
 
-# â”€â”€ POST /api/v2/setup/database â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- POST /api/v2/setup/database ----------------------------------------------
 
 class TestSetupDatabase:
     def test_returns_connected(self, client):
@@ -190,7 +190,7 @@ class TestSetupDatabase:
         assert r.status_code == 409
 
 
-# â”€â”€ POST /api/v2/setup/admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- POST /api/v2/setup/admin -------------------------------------------------
 
 class TestSetupAdmin:
     def test_creates_admin_and_returns_tokens(self, client):
@@ -239,11 +239,11 @@ class TestSetupAdmin:
         assert r.status_code == 409
 
 
-# â”€â”€ POST /api/v2/setup/complete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- POST /api/v2/setup/complete ----------------------------------------------
 
 class TestSetupComplete:
     def test_requires_admin_to_exist(self, client):
-        # No admin created yet â€” should be rejected
+        # No admin created yet - should be rejected
         r = client.post("/api/v2/setup/complete")
         assert r.status_code == 422
 
@@ -290,7 +290,7 @@ class TestSetupIntegrationsRemoved:
         assert r.status_code in {404, 405}
 
 
-# â”€â”€ AppConfigService unit tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- AppConfigService unit tests -----------------------------------------------
 
 class TestAppConfigService:
     def test_get_returns_none_for_missing_key(self, db):

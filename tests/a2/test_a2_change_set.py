@@ -1,5 +1,5 @@
 """
-A2.5 — Change Set Engine tests.
+A2.5 - Change Set Engine tests.
 
 Covers:
   - Deterministic digest: identical inputs always produce the same digest
@@ -12,7 +12,7 @@ Covers:
   - State machine: all valid transitions pass; all invalid transitions rejected
   - Cancellation: only DRAFT and READY change sets may be moved to ARCHIVED
   - ARCHIVED is a terminal state (no outbound transitions)
-  - SUPERSEDED → ARCHIVED is allowed
+  - SUPERSEDED -> ARCHIVED is allowed
   - Repository CRUD: create, get, list_by_channel, list_by_snapshot, list_revisions
   - add_item / list_items correctness
   - Service.build: returns (ChangeSet, ChangeSetRevision); ChangeSet in DRAFT
@@ -20,7 +20,7 @@ Covers:
   - Service.verify_digest: returns True for matching inputs, False for changed inputs
   - Alembic migration a2_004: creates expected tables; down_revision == a2_003
   - Migration upgrade creates change set tables; downgrade removes them
-  - Migration lineage: a2_003 → a2_004
+  - Migration lineage: a2_003 -> a2_004
   - Isolation: no imports from A2.6+, WooCommerce, Apply, Dry Run
 """
 import os
@@ -51,11 +51,11 @@ import app.a2.models.source              # noqa: F401
 import app.a2.models.snapshot            # noqa: F401
 import app.a2.models.provenance          # noqa: F401
 import app.a2.models.checkpoint          # noqa: F401
-import app.a2.models.pricing_rule         # noqa: F401 — A2.3-R2
-import app.a2.models.pricing_rule_version  # noqa: F401 — A2.3-R2
-import app.a2.models.price_proposal        # noqa: F401 — A2.3-R2
-import app.a2.models.safety               # noqa: F401 — A2.4
-import app.a2.models.change_set           # noqa: F401 — A2.5
+import app.a2.models.pricing_rule         # noqa: F401 - A2.3-R2
+import app.a2.models.pricing_rule_version  # noqa: F401 - A2.3-R2
+import app.a2.models.price_proposal        # noqa: F401 - A2.3-R2
+import app.a2.models.safety               # noqa: F401 - A2.4
+import app.a2.models.change_set           # noqa: F401 - A2.5
 
 from app.a2.repositories.change_set_repository import (
     ChangeSetRepository,
@@ -69,7 +69,7 @@ from app.a2.services.change_set_service import (
 )
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# -- Fixtures ------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -123,7 +123,7 @@ def _item(
     )
 
 
-# ── Digest correctness ────────────────────────────────────────────────────────
+# -- Digest correctness --------------------------------------------------------
 
 
 class TestDigestDeterminism:
@@ -216,7 +216,7 @@ class TestDigestDeterminism:
         """Price changes that don't affect proposal_hash must not change digest."""
         items_a = [_item(proposed_price="100.00")]
         items_b = [_item(proposed_price="200.00")]
-        # proposed_price is excluded from digest — only proposal_hash matters
+        # proposed_price is excluded from digest - only proposal_hash matters
         assert (
             compute_change_set_digest(items_a, "WC", "all", "snap-001")
             == compute_change_set_digest(items_b, "WC", "all", "snap-001")
@@ -235,7 +235,7 @@ class TestDigestDeterminism:
         assert d1 == d2
 
 
-# ── Repository CRUD ───────────────────────────────────────────────────────────
+# -- Repository CRUD -----------------------------------------------------------
 
 
 class TestChangeSetRepositoryCRUD:
@@ -353,20 +353,20 @@ class TestChangeSetRepositoryCRUD:
         assert item.delta is None
 
 
-# ── State machine ─────────────────────────────────────────────────────────────
+# -- State machine -------------------------------------------------------------
 
 
 class TestStateMachine:
     """Transition matrix (exactly 3 allowed transitions per A2.5 architecture spec):
 
-    DRAFT      → READY         ✓ (valid)
-    READY      → SUPERSEDED    ✓ (valid)
-    READY      → ARCHIVED      ✓ (valid)
-    all others                 ✗ (invalid; raises InvalidStateTransitionError)
+    DRAFT      -> READY         OK (valid)
+    READY      -> SUPERSEDED    OK (valid)
+    READY      -> ARCHIVED      OK (valid)
+    all others                 X (invalid; raises InvalidStateTransitionError)
     SUPERSEDED and ARCHIVED are both terminal states.
     """
 
-    # ── Valid transitions (3 total) ──────────────────────────────────────────
+    # -- Valid transitions (3 total) ------------------------------------------
 
     def test_draft_to_ready(self, repo):
         cs = repo.create(destination_channel="WC", scope="all", source_snapshot_id="s1")
@@ -385,7 +385,7 @@ class TestStateMachine:
         result = repo.transition_state(cs.id, "ARCHIVED")
         assert result.state == "ARCHIVED"
 
-    # ── Invalid transitions (all others rejected) ────────────────────────────
+    # -- Invalid transitions (all others rejected) ----------------------------
 
     def test_draft_to_archived_invalid(self, repo):
         cs = repo.create(destination_channel="WC", scope="all", source_snapshot_id="s1")
@@ -459,17 +459,17 @@ class TestStateMachine:
         repo.transition_state(cs_superseded.id, "READY")
         repo.transition_state(cs_superseded.id, "SUPERSEDED")
 
-        # READY → ARCHIVED: allowed
+        # READY -> ARCHIVED: allowed
         repo.transition_state(cs_ready.id, "ARCHIVED")
-        # DRAFT → ARCHIVED: NOT allowed
+        # DRAFT -> ARCHIVED: NOT allowed
         with pytest.raises(InvalidStateTransitionError):
             repo.transition_state(cs_draft.id, "ARCHIVED")
-        # SUPERSEDED → ARCHIVED: NOT allowed (SUPERSEDED is terminal)
+        # SUPERSEDED -> ARCHIVED: NOT allowed (SUPERSEDED is terminal)
         with pytest.raises(InvalidStateTransitionError):
             repo.transition_state(cs_superseded.id, "ARCHIVED")
 
 
-# ── Service layer ─────────────────────────────────────────────────────────────
+# -- Service layer -------------------------------------------------------------
 
 
 class TestChangeSetServiceBuild:
@@ -717,7 +717,7 @@ class TestChangeSetServiceTransition:
             svc.transition(cs.id, "SUPERSEDED")
 
 
-# ── Immutability ──────────────────────────────────────────────────────────────
+# -- Immutability --------------------------------------------------------------
 
 
 class TestImmutability:
@@ -726,13 +726,13 @@ class TestImmutability:
         that the repository has no update_revision method (design-level immutability)."""
         from app.a2.repositories.change_set_repository import ChangeSetRepository
         assert not hasattr(ChangeSetRepository, "update_revision"), (
-            "ChangeSetRepository must not expose update_revision — revisions are immutable."
+            "ChangeSetRepository must not expose update_revision - revisions are immutable."
         )
 
     def test_no_update_revision_on_service(self, svc):
         from app.a2.services.change_set_service import ChangeSetService
         assert not hasattr(ChangeSetService, "update_revision"), (
-            "ChangeSetService must not expose update_revision — revisions are immutable."
+            "ChangeSetService must not expose update_revision - revisions are immutable."
         )
 
     def test_change_set_revisions_cascade_does_not_include_delete_orphan(self):
@@ -766,7 +766,7 @@ class TestImmutability:
         assert original_items[0].product_id == "SKU-A"
 
 
-# ── Migration ─────────────────────────────────────────────────────────────────
+# -- Migration -----------------------------------------------------------------
 
 
 class TestMigration:
@@ -839,7 +839,7 @@ class TestMigration:
         assert mod_004.down_revision == mod_003.revision
 
 
-# ── Isolation ─────────────────────────────────────────────────────────────────
+# -- Isolation -----------------------------------------------------------------
 
 
 class TestIsolation:

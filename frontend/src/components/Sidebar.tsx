@@ -76,7 +76,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             </div>
           )}
 
-          {/* Collapse button — desktop only */}
+          {/* Collapse button - desktop only */}
           <button
             onClick={onToggleCollapse}
             className="hidden md:flex items-center justify-center w-[26px] h-[26px] rounded border border-border text-wp-muted hover:text-accent hover:border-accent transition-colors flex-shrink-0"

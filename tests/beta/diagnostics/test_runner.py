@@ -1,4 +1,4 @@
-"""Tests for DiagnosticRunner — all using FakeNetworkAdapter, no real network."""
+"""Tests for DiagnosticRunner - all using FakeNetworkAdapter, no real network."""
 
 from __future__ import annotations
 

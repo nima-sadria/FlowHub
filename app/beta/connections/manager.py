@@ -1,4 +1,4 @@
-"""CP1.2 â€” Connection Manager.
+"""CP1.2 - Connection Manager.
 
 Orchestrates retry, circuit breaker, cache, and failure classification for
 all outbound connection probes.  Credentials are never stored here.

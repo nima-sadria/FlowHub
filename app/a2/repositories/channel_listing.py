@@ -1,4 +1,4 @@
-"""ChannelListingRepository — A2.1 foundation, preserved in A2.2."""
+"""ChannelListingRepository - A2.1 foundation, preserved in A2.2."""
 from datetime import datetime, timezone
 from typing import Optional
 
