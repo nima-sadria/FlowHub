@@ -373,7 +373,7 @@ python -m cli.main <command> [options]
 
 **Dry-run install smoke path:**
 ```
-python -m cli.main install dry-run --env-file /path/to/.env --install-dir /opt/wooprice-beta
+python -m cli.main install dry-run --env-file /path/to/.env --install-dir /opt/FlowHub
 ```
 
 **Deliverables:**

@@ -72,8 +72,8 @@ class InstallerConfig:
     rest_api_secret: str = ""      # empty → auto-generate
     timezone: str = "UTC"
     currency: str = "USD"
-    storage_path: str = "/opt/wooprice-beta/storage"
-    backup_path: str = "/opt/wooprice-beta/backups"
+    storage_path: str = "/opt/FlowHub/storage"
+    backup_path: str = "/opt/FlowHub/backups"
     log_level: str = "INFO"
 
     def needs_secret_generation(self) -> bool:

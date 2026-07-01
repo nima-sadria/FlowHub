@@ -1,7 +1,7 @@
 # FlowHub Beta — Morning Handoff
 
 **Prepared:** 2026-06-29 (overnight remediation session)
-**Environment:** Beta · host `/opt/flowhub` · port `8085`
+**Environment:** Beta · host `/opt/FlowHub` · port `8085`
 
 ---
 

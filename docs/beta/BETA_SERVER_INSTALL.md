@@ -1,6 +1,6 @@
 # WooPrice Beta — Server Installation Guide
 
-**Target host path:** `/opt/wooprice-beta`
+**Target host path:** `/opt/FlowHub`
 **App port:** `8085`
 **Profile:** `BETA`
 **Reverse proxy:** Nginx Proxy Manager (external — not managed by this stack)
@@ -20,10 +20,10 @@
 ## 1. Clone the repository
 
 ```bash
-sudo mkdir -p /opt/wooprice-beta
-sudo chown $USER:$USER /opt/wooprice-beta
-git clone <repo-url> /opt/wooprice-beta
-cd /opt/wooprice-beta
+sudo mkdir -p /opt/FlowHub
+sudo chown $USER:$USER /opt/FlowHub
+git clone <repo-url> /opt/FlowHub
+cd /opt/FlowHub
 ```
 
 ---
@@ -74,7 +74,7 @@ python3 -c "import secrets; print(secrets.token_hex(16))"
 ## 3. Create host directories
 
 ```bash
-cd /opt/wooprice-beta
+cd /opt/FlowHub
 mkdir -p storage backups logs
 ```
 
@@ -170,8 +170,8 @@ Expected response:
 
 ### CLI diagnostics (if wooprice CLI is available on the host)
 ```bash
-wooprice diagnostics --env-file /opt/wooprice-beta/.env.beta
-wooprice diagnostics run --env-file /opt/wooprice-beta/.env.beta
+wooprice diagnostics --env-file /opt/FlowHub/.env.beta
+wooprice diagnostics run --env-file /opt/FlowHub/.env.beta
 ```
 
 ---

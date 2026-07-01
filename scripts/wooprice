@@ -11,11 +11,14 @@
 #   wooprice diagnostics run   -- integration health check
 #   wooprice --help            -- full command list
 
-INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-/opt/flowhub}"
+INSTALL_DIR="/opt/FlowHub"
 
 if [[ ! -d "$INSTALL_DIR" ]]; then
     echo "ERROR: FlowHub installation directory not found: ${INSTALL_DIR}" >&2
-    echo "Set FLOWHUB_INSTALL_DIR if installed to a non-default path." >&2
+    if [[ -d "/opt/flowhub" ]]; then
+        echo "Legacy installation detected at /opt/flowhub." >&2
+        echo "Run the installer to migrate it to /opt/FlowHub." >&2
+    fi
     exit 1
 fi
 

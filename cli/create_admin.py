@@ -4,7 +4,7 @@ Creates the initial admin user in the Beta database.
 
 Usage (after install.sh):
   flowhub create-admin
-  flowhub create-admin --username admin --env-file /opt/flowhub/.env.beta
+  flowhub create-admin --username admin --env-file /opt/FlowHub/.env.beta
 
 This is a required post-install step for BU2.  The login endpoint returns 401
 until at least one admin user exists.  Run once; re-running with an existing
@@ -45,7 +45,7 @@ def create_admin(
     env_file: Optional[str] = typer.Option(
         None,
         "--env-file",
-        help="Path to .env.beta (default: /opt/flowhub/.env.beta).",
+        help="Path to .env.beta (default: /opt/FlowHub/.env.beta).",
     ),
 ) -> None:
     """Create the initial FlowHub Beta admin user.
@@ -56,7 +56,7 @@ def create_admin(
     from pathlib import Path
 
     # Load .env.beta so BETA_DATABASE_URL and BETA_JWT_SECRET are set
-    env_path = Path(env_file or "/opt/flowhub/.env.beta")
+    env_path = Path(env_file or "/opt/FlowHub/.env.beta")
     if env_path.exists():
         try:
             from dotenv import load_dotenv

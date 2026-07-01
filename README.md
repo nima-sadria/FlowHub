@@ -167,7 +167,7 @@ Nothing is persisted. The result is returned and discarded.
 ### Option A — Guided installer (recommended)
 
 ```bash
-cd /opt/flowhub
+cd /opt/FlowHub
 sudo ./installer/install.sh
 ```
 
@@ -184,7 +184,7 @@ to configure the application settings.
 ### Option B — Manual
 
 ```bash
-cd /opt/flowhub
+cd /opt/FlowHub
 
 # 1. Configure environment
 cp .env.beta.example .env.beta

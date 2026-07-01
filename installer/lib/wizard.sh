@@ -81,7 +81,7 @@ wizard_section_confirm() {
     echo "    Password : ●●●●●●●●"
     echo ""
     echo "  All other settings use defaults and can be changed in the web Setup Wizard."
-    echo "    Install directory : ${INSTALL_DIR:-/opt/flowhub}"
+    echo "    Install directory : ${INSTALL_DIR:-/opt/FlowHub}"
     echo "    Port              : 8085"
     echo "    Database name     : flowhub"
     echo ""

@@ -20,9 +20,89 @@ set -euo pipefail
 # We detect this and enter bootstrap mode: install system deps, clone the
 # repo into INSTALL_DIR, then re-exec from there.
 
-_FLOWHUB_INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-/opt/flowhub}"
+_FLOWHUB_CANONICAL_INSTALL_DIR="/opt/FlowHub"
+_FLOWHUB_LEGACY_INSTALL_DIR="/opt/flowhub"
+_FLOWHUB_INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-${_FLOWHUB_CANONICAL_INSTALL_DIR}}"
 _FLOWHUB_REPO_URL="https://github.com/nima-sadria/FlowHub.git"
 _FLOWHUB_BRANCH="main"
+
+if [[ "$_FLOWHUB_INSTALL_DIR" == "$_FLOWHUB_LEGACY_INSTALL_DIR" ]]; then
+    echo "  Legacy install directory requested; using canonical path ${_FLOWHUB_CANONICAL_INSTALL_DIR}."
+    _FLOWHUB_INSTALL_DIR="$_FLOWHUB_CANONICAL_INSTALL_DIR"
+elif [[ "$_FLOWHUB_INSTALL_DIR" != "$_FLOWHUB_CANONICAL_INSTALL_DIR" ]]; then
+    echo "ERROR: FlowHub first release installs only to ${_FLOWHUB_CANONICAL_INSTALL_DIR}." >&2
+    exit 1
+fi
+
+_bs_confirm_legacy_migration() {
+    if [[ "${FLOWHUB_ASSUME_YES:-}" == "1" ]]; then
+        return 0
+    fi
+    if [[ ! -t 0 ]]; then
+        echo "  Non-interactive bootstrap detected; migrating legacy install automatically."
+        return 0
+    fi
+    local answer
+    read -r -p "  Migrate legacy installation to ${_FLOWHUB_CANONICAL_INSTALL_DIR}? [Y/n]: " answer
+    answer="${answer:-y}"
+    [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]
+}
+
+_bs_stop_legacy_stack() {
+    local legacy_dir="${_FLOWHUB_LEGACY_INSTALL_DIR}"
+    local compose_file="${legacy_dir}/docker-compose.beta.yml"
+    [[ -f "$compose_file" ]] || return 0
+    if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
+        echo "  Stopping legacy stack before migration..."
+        docker compose --project-directory "$legacy_dir" -f "$compose_file" \
+            --env-file "${legacy_dir}/.env.beta" down --remove-orphans 2>/dev/null || true
+    fi
+}
+
+_bs_rewrite_legacy_paths() {
+    local file
+    for file in \
+        "${_FLOWHUB_CANONICAL_INSTALL_DIR}/.env.beta" \
+        "${_FLOWHUB_CANONICAL_INSTALL_DIR}/storage/config/flowhub-beta.toml"; do
+        if [[ -f "$file" ]]; then
+            sed -i "s|${_FLOWHUB_LEGACY_INSTALL_DIR}|${_FLOWHUB_CANONICAL_INSTALL_DIR}|g" "$file"
+        fi
+    done
+}
+
+_bs_migrate_legacy_install() {
+    [[ "$_FLOWHUB_INSTALL_DIR" == "$_FLOWHUB_CANONICAL_INSTALL_DIR" ]] || return 0
+    [[ -d "$_FLOWHUB_LEGACY_INSTALL_DIR" ]] || return 0
+
+    echo ""
+    echo "  Legacy FlowHub installation detected: ${_FLOWHUB_LEGACY_INSTALL_DIR}"
+    echo "  Canonical installation path is:       ${_FLOWHUB_CANONICAL_INSTALL_DIR}"
+
+    if ! _bs_confirm_legacy_migration; then
+        echo "  Migration skipped. Re-run the installer to migrate before first release."
+        return 0
+    fi
+
+    _bs_stop_legacy_stack
+    mkdir -p "$(dirname "$_FLOWHUB_CANONICAL_INSTALL_DIR")"
+
+    if [[ ! -d "$_FLOWHUB_CANONICAL_INSTALL_DIR" ]]; then
+        echo "  Moving legacy installation to canonical path..."
+        mv "$_FLOWHUB_LEGACY_INSTALL_DIR" "$_FLOWHUB_CANONICAL_INSTALL_DIR"
+    else
+        echo "  Canonical path already exists; copying missing preserved files from legacy path..."
+        local item
+        for item in .env.beta storage backups logs; do
+            if [[ -e "${_FLOWHUB_LEGACY_INSTALL_DIR}/${item}" && ! -e "${_FLOWHUB_CANONICAL_INSTALL_DIR}/${item}" ]]; then
+                cp -a "${_FLOWHUB_LEGACY_INSTALL_DIR}/${item}" "${_FLOWHUB_CANONICAL_INSTALL_DIR}/${item}"
+            fi
+        done
+        rm -rf "$_FLOWHUB_LEGACY_INSTALL_DIR"
+    fi
+
+    _bs_rewrite_legacy_paths
+    echo "  Legacy installation migrated successfully."
+}
 
 _bs_require_root() {
     if [[ "$(id -u)" -ne 0 ]]; then
@@ -171,6 +251,7 @@ _bs_install_docker() {
 }
 
 _bs_clone_or_pull() {
+    _bs_migrate_legacy_install
     if [[ -d "${_FLOWHUB_INSTALL_DIR}/.git" ]]; then
         echo "  Updating ${_FLOWHUB_INSTALL_DIR}..."
         git -C "$_FLOWHUB_INSTALL_DIR" fetch --quiet origin
@@ -279,7 +360,9 @@ _ensure_docker_installed() {
 }
 
 # ---- Defaults ----
-INSTALL_DIR="/opt/flowhub"
+CANONICAL_INSTALL_DIR="/opt/FlowHub"
+LEGACY_INSTALL_DIR="/opt/flowhub"
+INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-${CANONICAL_INSTALL_DIR}}"
 DRY_RUN=0
 NON_INTERACTIVE=0
 ACTION_UNINSTALL=0
@@ -306,6 +389,14 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
+if [[ "$INSTALL_DIR" == "$LEGACY_INSTALL_DIR" ]]; then
+    echo "  Legacy install directory requested; using canonical path ${CANONICAL_INSTALL_DIR}."
+    INSTALL_DIR="$CANONICAL_INSTALL_DIR"
+elif [[ "$INSTALL_DIR" != "$CANONICAL_INSTALL_DIR" ]]; then
+    echo "ERROR: FlowHub first release installs only to ${CANONICAL_INSTALL_DIR}." >&2
+    exit 1
+fi
+
 INSTALLER_ENV_FILE="${INSTALL_DIR}/.env.beta"
 
 # When invoked without an interactive terminal (e.g. piped through
@@ -315,6 +406,80 @@ INSTALLER_ENV_FILE="${INSTALL_DIR}/.env.beta"
 if [[ "$NON_INTERACTIVE" -eq 0 && ! -t 0 ]]; then
     echo "  No interactive terminal detected — running non-interactively with defaults."
     NON_INTERACTIVE=1
+fi
+
+_confirm_legacy_migration() {
+    if [[ "$NON_INTERACTIVE" -eq 1 || "${FLOWHUB_ASSUME_YES:-}" == "1" ]]; then
+        return 0
+    fi
+    local answer
+    read -r -p "  Migrate legacy installation to ${CANONICAL_INSTALL_DIR}? [Y/n]: " answer
+    answer="${answer:-y}"
+    [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]
+}
+
+_stop_stack_at_path() {
+    local path="$1"
+    local compose_file="${path}/docker-compose.beta.yml"
+    [[ -f "$compose_file" ]] || return 0
+    if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
+        echo "  Stopping stack at ${path} before migration..."
+        docker compose --project-directory "$path" -f "$compose_file" \
+            --env-file "${path}/.env.beta" down --remove-orphans 2>/dev/null || true
+    fi
+}
+
+_rewrite_legacy_paths() {
+    local file
+    for file in \
+        "${CANONICAL_INSTALL_DIR}/.env.beta" \
+        "${CANONICAL_INSTALL_DIR}/storage/config/flowhub-beta.toml"; do
+        if [[ -f "$file" ]]; then
+            sed -i "s|${LEGACY_INSTALL_DIR}|${CANONICAL_INSTALL_DIR}|g" "$file"
+        fi
+    done
+}
+
+migrate_legacy_installation_if_needed() {
+    [[ "$INSTALL_DIR" == "$CANONICAL_INSTALL_DIR" ]] || return 0
+    [[ -d "$LEGACY_INSTALL_DIR" ]] || return 0
+
+    echo ""
+    echo "  Legacy FlowHub installation detected: ${LEGACY_INSTALL_DIR}"
+    echo "  Canonical installation path is:       ${CANONICAL_INSTALL_DIR}"
+    echo "  The migration preserves .env.beta, database volumes, uploads, generated secrets, and configuration."
+
+    if ! _confirm_legacy_migration; then
+        echo "  Migration skipped. The installer will continue only with ${CANONICAL_INSTALL_DIR}."
+        return 0
+    fi
+
+    _stop_stack_at_path "$LEGACY_INSTALL_DIR"
+    mkdir -p "$(dirname "$CANONICAL_INSTALL_DIR")"
+
+    if [[ ! -d "$CANONICAL_INSTALL_DIR" ]]; then
+        echo "  Moving legacy installation to canonical path..."
+        mv "$LEGACY_INSTALL_DIR" "$CANONICAL_INSTALL_DIR"
+    else
+        echo "  Canonical path already exists; copying missing preserved files from legacy path..."
+        local item
+        for item in .env.beta storage backups logs; do
+            if [[ -e "${LEGACY_INSTALL_DIR}/${item}" && ! -e "${CANONICAL_INSTALL_DIR}/${item}" ]]; then
+                cp -a "${LEGACY_INSTALL_DIR}/${item}" "${CANONICAL_INSTALL_DIR}/${item}"
+            fi
+        done
+        rm -rf "$LEGACY_INSTALL_DIR"
+    fi
+
+    _rewrite_legacy_paths
+    INSTALL_DIR="$CANONICAL_INSTALL_DIR"
+    INSTALLER_ENV_FILE="${INSTALL_DIR}/.env.beta"
+    REPO_DIR="$CANONICAL_INSTALL_DIR"
+    echo "  Legacy installation migrated successfully."
+}
+
+if [[ "$DRY_RUN" -eq 0 ]]; then
+    migrate_legacy_installation_if_needed
 fi
 
 # Defaults applied when running non-interactively (wizard skipped). Secrets are
@@ -587,8 +752,8 @@ step_storage() {
     echo "Step 5 — Storage Directory Setup"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  [DRY RUN] Would create:"
-        echo "  ${BETA_STORAGE_PATH:-/opt/flowhub/storage}/{logs,config,plugins,uploads,diagnostics}"
-        echo "  ${BETA_BACKUP_PATH:-/opt/flowhub/backups}"
+        echo "  ${BETA_STORAGE_PATH:-/opt/FlowHub/storage}/{logs,config,plugins,uploads,diagnostics}"
+        echo "  ${BETA_BACKUP_PATH:-/opt/FlowHub/backups}"
         echo "  ${INSTALL_DIR}/logs"
         return
     fi
@@ -602,7 +767,7 @@ step_toml_config() {
     echo ""
     echo "Step 6 — Managed Configuration File"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "  [DRY RUN] Would write: ${BETA_STORAGE_PATH:-/opt/flowhub/storage}/config/flowhub-beta.toml"
+        echo "  [DRY RUN] Would write: ${BETA_STORAGE_PATH:-/opt/FlowHub/storage}/config/flowhub-beta.toml"
         return
     fi
     # installer_core imports app.beta.config which requires Python deps installed
@@ -619,12 +784,12 @@ config = InstallerConfig(
     ssl_mode="${BETA_SSL_MODE:-off}",
     postgres_db="${BETA_POSTGRES_DB:-wooprice_beta}",
     postgres_user="${BETA_POSTGRES_USER:-wooprice_beta}",
-    storage_path="${BETA_STORAGE_PATH:-/opt/flowhub/storage}",
-    backup_path="${BETA_BACKUP_PATH:-/opt/flowhub/backups}",
+    storage_path="${BETA_STORAGE_PATH:-/opt/FlowHub/storage}",
+    backup_path="${BETA_BACKUP_PATH:-/opt/FlowHub/backups}",
     log_level="INFO",
 )
 content = generate_toml_content(config)
-config_dir = Path("${BETA_STORAGE_PATH:-/opt/flowhub/storage}/config")
+config_dir = Path("${BETA_STORAGE_PATH:-/opt/FlowHub/storage}/config")
 config_dir.mkdir(parents=True, exist_ok=True)
 path = write_toml_config(content, config_dir)
 print(f"  Managed config written: {path}")

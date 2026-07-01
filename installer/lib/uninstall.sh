@@ -36,12 +36,12 @@ _uninstall_ask_yn() {
 # ---------------------------------------------------------------------------
 
 run_uninstall() {
-    local install_dir="${1:-/opt/flowhub}"
+    local install_dir="${1:-/opt/FlowHub}"
     local env_file="${install_dir}/.env.beta"
     local compose_file="${install_dir}/docker-compose.beta.yml"
     local cli_path="/usr/local/bin/flowhub"
     local project_name
-    project_name="$(basename "$install_dir")"
+    project_name="flowhub"
 
     # ── Step 1: Warning ──────────────────────────────────────────────────────
     echo ""

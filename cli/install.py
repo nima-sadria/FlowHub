@@ -13,7 +13,7 @@ import typer
 
 app = typer.Typer(help="Installation management.")
 
-_DEFAULT_INSTALL_DIR = Path("/opt/wooprice-beta")
+_DEFAULT_INSTALL_DIR = Path("/opt/FlowHub")
 
 
 def _env_file_to_installer_config(env_file: Path | None):  # type: ignore[return]

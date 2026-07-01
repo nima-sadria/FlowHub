@@ -1,6 +1,6 @@
 # FlowHub Beta — Docker Compose stack
 #
-# Target host: /opt/flowhub  (port 8085, profile: BETA)
+# Target host: /opt/FlowHub  (port 8085, profile: BETA)
 # External TLS/proxy: Nginx Proxy Manager (not managed here)
 # No Nginx container — NPM handles reverse proxy on the host
 # No Redis container — not required until B6 (cache/queue implementation)
@@ -13,7 +13,9 @@
 # Verify:
 #   docker compose -f docker-compose.beta.yml ps
 #   curl -s http://localhost:8085/api/health | python3 -m json.tool
-#   wooprice diagnostics run  (if CLI installed)
+#   flowhub diagnostics run  (if CLI installed)
+
+name: flowhub
 
 services:
   app:

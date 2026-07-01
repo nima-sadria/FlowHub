@@ -182,8 +182,8 @@ In `manual` and `letsencrypt` modes an external reverse proxy terminates TLS on 
 - Initial admin password — input masked; must be >= 12 chars; displayed once on completion
 
 **Section 8 — Storage**
-- Storage base path (BETA_STORAGE_PATH) — default: `/opt/wooprice-beta/storage`
-- Backup path (BETA_BACKUP_PATH) — default: `/opt/wooprice-beta/backups`
+- Storage base path (BETA_STORAGE_PATH) — default: `/opt/FlowHub/storage`
+- Backup path (BETA_BACKUP_PATH) — default: `/opt/FlowHub/backups`
 
 **Section 9 — Confirmation**
 - Display summary of all collected values (secrets masked)
@@ -350,7 +350,7 @@ The installer includes an interactive uninstaller reachable from the management 
 sudo bash installer/install.sh          # → Select 4. Uninstall
 
 # Direct flag (works even if .env.beta is absent)
-sudo bash installer/install.sh --uninstall [--install-dir /opt/flowhub]
+sudo bash installer/install.sh --uninstall [--install-dir /opt/FlowHub]
 ```
 
 ### Uninstall flow
@@ -392,9 +392,10 @@ run_uninstall(INSTALL_DIR)
 ### WooPrice isolation
 
 Docker resources are detected exclusively via the `com.docker.compose.project` label
-equal to `basename(INSTALL_DIR)` (e.g. `flowhub`). This label is set by Docker Compose
-on all resources it creates. WooPrice uses a different project name and is never
-matched. The uninstaller never hardcodes container IDs, image tags, or volume names.
+equal to the pinned Compose project name `flowhub`. This label is set by Docker
+Compose on all resources it creates. WooPrice uses a different project name and is
+never matched. The uninstaller never hardcodes container IDs, image tags, or volume
+names.
 
 ### Idempotency
 
@@ -425,6 +426,17 @@ The installer detects if a previous installation exists at `$INSTALL_DIR`:
 **Re-running the installer never silently overwrites an existing `.env` file** — it
 always shows the existing values and asks for confirmation before overwriting.
 
+### Legacy Path Migration
+
+The canonical first-release installation path is `/opt/FlowHub`. If the installer
+detects an older installation at `/opt/flowhub`, it informs the operator and offers
+an idempotent migration to `/opt/FlowHub`.
+
+The migration preserves `.env.beta`, generated secrets, storage, uploads, backups,
+logs, and the Docker database volume. The old path is removed only after the move
+or missing-file copy succeeds. Saved path values inside preserved configuration are
+rewritten from the legacy path to the canonical path.
+
 ---
 
 ## Completion Report
@@ -442,7 +454,7 @@ always shows the existing values and asks for confirmation before overwriting.
 
   Public URL:           https://beta.yourdomain.com
   Internal Docker Port: 8085
-  Environment file:     /opt/flowhub/.env.beta
+  Environment file:     /opt/FlowHub/.env.beta
   Health check:         https://beta.yourdomain.com/api/health
 
   Management:

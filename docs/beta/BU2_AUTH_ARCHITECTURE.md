@@ -111,7 +111,7 @@ The `wooprice create-admin` CLI subcommand creates the initial admin user.
 This is a required post-install step — the login endpoint returns 401 until at least one admin exists.
 
 ```
-wooprice create-admin [--username admin] [--env-file /opt/wooprice-beta/.env.beta]
+wooprice create-admin [--username admin] [--env-file /opt/FlowHub/.env.beta]
 ```
 
 Prompts for username (default: `admin`) and password (with confirmation). Fails safely if username already exists.
