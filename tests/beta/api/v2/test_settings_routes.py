@@ -11,6 +11,7 @@ os.environ.setdefault("BETA_JWT_SECRET", "test-bu5-settings-jwt-secret-32bytes!"
 
 from app.beta.auth import models as _auth_models  # noqa: F401
 from app.beta.setup import models as _setup_models  # noqa: F401
+from app.beta.integration_platform import models as _ip_models  # noqa: F401
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -167,11 +168,8 @@ class TestUpdateSettings:
 
 class TestUpdateWooCommerce:
     def test_saves_credentials(self, client, auth_headers, db):
-        from unittest.mock import AsyncMock, patch
-        with patch("app.beta.api.v2.settings_routes._test_woocommerce_connection",
-                   new=AsyncMock(return_value={"ok": True, "message": "Connected"})):
-            r = client.post("/api/v2/settings/woocommerce", headers=auth_headers,
-                            json={"url": "https://store.example.com", "key": "ck_k", "secret": "cs_s"})
+        r = client.post("/api/v2/settings/woocommerce", headers=auth_headers,
+                        json={"url": "https://store.example.com", "key": "ck_k", "secret": "cs_s"})
         assert r.status_code == 200
         assert r.json()["ok"] is True
         from app.beta.setup.service import AppConfigService
@@ -179,6 +177,12 @@ class TestUpdateWooCommerce:
         assert cfg.get("woocommerce.url") == "https://store.example.com"
         # Secret stored but never returned
         assert cfg.get("woocommerce.key") == "ck_k"
+        connectors = client.get("/api/v2/integrations/connectors", headers=auth_headers)
+        assert connectors.status_code == 200
+        item = connectors.json()["items"][0]
+        settings = {s["key"]: s for s in item["settings"]}
+        assert settings["key"]["value"] is None
+        assert settings["key"]["configured"] is True
 
     def test_rejects_invalid_url(self, client, auth_headers):
         r = client.post("/api/v2/settings/woocommerce", headers=auth_headers,
@@ -190,19 +194,17 @@ class TestUpdateWooCommerce:
 
 class TestUpdateNextcloud:
     def test_saves_credentials(self, client, auth_headers, db):
-        from unittest.mock import AsyncMock, patch
-        with patch("app.beta.api.v2.settings_routes._test_nextcloud_connection",
-                   new=AsyncMock(return_value={"ok": True, "message": "Connected"})):
-            r = client.post("/api/v2/settings/nextcloud", headers=auth_headers,
-                            json={
-                                "url": "https://cloud.example.com",
-                                "username": "user",
-                                "password": "apppass",
-                                "spreadsheet_path": "/prices.xlsx",
-                            })
+        r = client.post("/api/v2/settings/nextcloud", headers=auth_headers,
+                        json={
+                            "url": "https://cloud.example.com",
+                            "username": "user",
+                            "password": "apppass",
+                            "spreadsheet_path": "/prices.xlsx",
+                        })
         assert r.status_code == 200
         assert r.json()["ok"] is True
         from app.beta.setup.service import AppConfigService
         cfg = AppConfigService(db)
         assert cfg.get("nextcloud.url") == "https://cloud.example.com"
         assert cfg.get("nextcloud.spreadsheet_path") == "/prices.xlsx"
+        assert "apppass" not in client.get("/api/v2/settings", headers=auth_headers).text

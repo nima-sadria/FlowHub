@@ -105,7 +105,10 @@ External Systems
 - `stale` — TTL expired or invalidated, refresh needed
 - `error` — last fetch attempt failed; previous data preserved but flagged
 
-**Current state (DL1):** Empty. Products are fetched live per-request in the Products page. Product Cache population is a future refresh phase.
+**Current state (IP foundation):** Products are served from `dl_product_cache`
+through the Integration Platform. The table may be empty until a refresh or
+migration population step inserts records; the Products page shows an empty
+read-only state instead of making a live WooCommerce call.
 
 ---
 
@@ -203,9 +206,13 @@ External Systems
 
 **Purpose:** Describe the configured connector instances — their type, capabilities, and operational parameters.
 
-**Current state (DL1):** Not a separate DB table. Connector configuration is stored in `beta_app_config` (keys: `woocommerce.url`, `nextcloud.url`, etc.) and capability declarations are in `app/connectors/common/types.py` (`ConnectorCapabilities` dataclass).
+**Current state (IP foundation):** Connector metadata is owned by the Integration
+Platform. Registry declarations live in `app/beta/integration_platform/registry.py`
+and configured instances/settings/status/events live in the `ip_*` tables. The
+Data Layer remains the read-model store for products, sources, health, and
+telemetry.
 
-**Planned table: `dl_connector_instances`** *(not yet implemented)*
+**Integration Platform table: `ip_connector_instances`**
 
 | Field | Description |
 |-------|-------------|
@@ -261,7 +268,10 @@ External Systems
 | unhealthy | Check failed — connector not reachable or auth failed |
 | unknown | No check has been performed yet |
 
-**Current state (DL1):** Table exists. Populated by `ConnectorHealthService.upsert()`. The existing `GET /api/v2/diagnostics/status` performs live checks but does not write to this store yet. Writing to the store from diagnostics checks is a future wiring step.
+**Current state (IP foundation):** Table exists. Populated by
+`ConnectorHealthService.upsert()` and read by Integration Platform diagnostics.
+The active Beta v2 diagnostics routes are record-backed and do not perform live
+WooCommerce or Nextcloud checks.
 
 ---
 
@@ -292,7 +302,10 @@ External Systems
 | window_end | datetime | End of current telemetry window |
 | updated_at | datetime | Last update timestamp |
 
-**Current state (DL1):** Table exists. `ConnectorTelemetryService.increment()` is the write interface. Not yet called by integration layer — wiring is a future step. UI shows empty state until connected.
+**Current state (IP foundation):** Table exists. `ConnectorTelemetryService.increment()`
+remains the Data Layer aggregate write interface. The Integration Platform also
+records local connector events in `ip_connector_events` and exposes both event
+and aggregate views through `/api/v2/integrations/telemetry`.
 
 ---
 
@@ -435,8 +448,9 @@ When `expires_at` is past, `freshness` is set to `stale`. The UI reads `freshnes
 
 ### Read Path 1: Products Page (`/products`)
 
-**Current (DL1):** Live call to WooCommerce via connector layer.  
-**Future (DL2+):** Read from `dl_product_cache` where `freshness = 'fresh'`. Fall back to live fetch if cache is empty.
+**Current (IP foundation):** Read from `dl_product_cache` through the Integration
+Platform. Empty cache returns an empty read-only product list; it does not fall
+back to live WooCommerce.
 
 ```
 GET /api/v2/products
@@ -448,18 +462,20 @@ GET /api/v2/products
 
 ### Read Path 2: Workspace Preview (`/workspace`)
 
-**Current (DL1):** Live calls to both WC and NC per preview request.  
-**Future (DL2+):** Source rows from `dl_source_snapshots` + `dl_product_cache`. Preview remains stateless compute on top of cached data.
+**Current (IP foundation):** Record-backed read-only preview shell through the
+Integration Platform. No live WC/NC calls are made. Future preview enrichment
+will compose `dl_source_snapshots` and `dl_product_cache`.
 
 ### Read Path 3: Sources Page (`/sources`)
 
-**Current (DL1):** Live config read from `beta_app_config`.  
-**Future (DL2+):** `dl_source_snapshots` shows last-known state of each source file.
+**Current (IP foundation):** Connector instances plus `dl_source_snapshots`.
+The route returns last-known local source metadata without live Nextcloud calls.
 
 ### Read Path 4: Diagnostics Page (`/diagnostics`)
 
-**Current (DL1):** Live connection tests to WC + NC.  
-**Future (DL2+):** Also shows `dl_connector_health` records + `dl_connector_telemetry` summary.
+**Current (IP foundation):** Integration Platform diagnostics read connector
+records, health snapshots, and telemetry records. They do not perform live
+external checks.
 
 ### Read Path 5: Data Layer Page (`/data-layer`)
 
@@ -468,8 +484,9 @@ Shows empty/uninitialized states until tables are populated.
 
 ### Read Path 6: Settings Page (`/settings`)
 
-**Current (DL1):** Live read from `beta_app_config`.  
-No Data Layer dependency.
+**Current (IP foundation):** Settings read local configuration and Integration
+Platform setting records. Secrets are masked. Saving settings updates local
+records only and does not test credentials through live external calls.
 
 ### Stale/Error/Loading State Representation
 
@@ -489,12 +506,13 @@ No Data Layer dependency.
 
 ### Current Diagnostics (DL1)
 
-`GET /api/v2/diagnostics/status` makes **live** connection tests:
-- DB: `SELECT 1` on Postgres
-- WooCommerce: `GET /wc/v3/products?per_page=1`
-- Nextcloud: `PROPFIND` on root
+`GET /api/v2/diagnostics/status` is record-backed:
+- DB: local database status
+- WooCommerce: Integration Platform/Data Layer connector records
+- Nextcloud: Integration Platform/Data Layer connector records
 
-**Why live?** Diagnostics page is a health check tool — stale cache data would defeat its purpose.
+Live external probes are reserved for a separately approved health-monitor or
+refresh phase.
 
 ### Data Layer Diagnostics (added in DL1)
 
@@ -505,8 +523,8 @@ This is correct: the Data Layer status endpoint shows the state of the Data Laye
 ### Avoiding Slow Blocking
 
 - Data Layer status endpoint: no external HTTP → always fast
-- Diagnostics status endpoint: live HTTP → may be slow if connector is down
-- Future: if connector health in `dl_connector_health` is available and fresh, skip live test and serve from store
+- Diagnostics status endpoint: record-backed, no direct external HTTP
+- Future: a Health Monitor may update `dl_connector_health` using approved read-only probes
 
 ### Last Successful Refresh
 
@@ -655,7 +673,7 @@ All `dl_*` tables are owned by the FlowHub Beta runtime (`app/beta/`). They are 
 
 ## P. Data Flow Diagrams
 
-### Diagram 1: Product Browser Flow (Current — Live)
+### Diagram 1: Product Browser Flow (Current - Integration Platform/Data Layer)
 
 ```
 User opens /products
@@ -666,20 +684,17 @@ GET /api/v2/products
         ▼
 ProductsRouter
         │
-        ▼ (builds WooCommerceClient from config)
-WooCommerceClient.get_products_page()
+        ▼
+IntegrationPlatformService.list_products()
         │
-        ▼
-app/connectors/destinations/woocommerce/rest_client.py
-        │  httpx GET /wc/v3/products
-        ▼
-WooCommerce REST API (external)
+        ▼ (reads from DB)
+dl_product_cache
         │
         ▼
 Response mapped → products list → JSON response → UI
 ```
 
-### Diagram 2: Product Browser Flow (Future — via Data Layer)
+### Diagram 2: Product Refresh Flow (Future)
 
 ```
 User opens /products
@@ -691,17 +706,16 @@ GET /api/v2/products
 ProductsRouter
         │
         ▼
-ProductReadModelService.list(connector_id, page, page_size)
+Approved refresh worker
         │
-        ▼ (reads from DB)
-dl_product_cache WHERE freshness = 'fresh'
+        ▼ (read-only external fetch)
+WooCommerce REST API / future connector transport
         │
-        ├─ cache hit → return cached data → UI
-        │
-        └─ cache miss → enqueue refresh job → return stale data with flag
+        ▼
+ProductReadModelService.upsert()
 ```
 
-### Diagram 3: Workspace Preview Flow (Current — Live)
+### Diagram 3: Workspace Preview Flow (Current - Integration Platform/Data Layer)
 
 ```
 User clicks Preview in /workspace
@@ -709,15 +723,14 @@ User clicks Preview in /workspace
         ▼
 POST /api/v2/workspace/preview
         │
-        ├─ NextcloudClient.get_file() → NC WebDAV (httpx)
-        │       │
-        │       ▼
-        │  parse_price_list(workbook) → {product_id: row}
+        ▼
+IntegrationPlatformService.workspace_preview()
         │
-        └─ WooCommerceClient.get_products() → WC REST (httpx)
-                │
-                ▼
-        match source prices to WC products → preview diff → JSON → UI
+        ▼
+Read local connector records and Data Layer state
+        │
+        ▼
+Return read-only preview shell → JSON → UI
 ```
 
 ### Diagram 4: Source File Refresh Flow (Future)
@@ -772,13 +785,13 @@ User opens /diagnostics
         ▼
 GET /api/v2/diagnostics/status
         │
-        ├─ db.execute('SELECT 1') → DB status
-        ├─ WooCommerceClient.test_connection() → live WC HTTP check
-        └─ NextcloudClient.test_connection() → live NC HTTP check
+        ├─ local DB status
+        ├─ Integration Platform connector records
+        └─ Data Layer health/telemetry records
                 │
                 ▼
         Aggregated status → JSON → UI
-        (does NOT write to dl_connector_health yet)
+        (does not perform external HTTP)
 ```
 
 ### Diagram 7: Future Multi-Channel Product Browser Flow
@@ -818,18 +831,18 @@ Products from SnappShop → UI (same Products page, different channel tab)
 
 | Component | Current status | Data Layer relationship |
 |-----------|---------------|------------------------|
-| `WooCommerceClient` | Active — makes live WC calls | Future: delegates to `ProductReadModelService` for cache reads |
-| `NextcloudClient` | Active — makes live NC calls | Future: delegates to `SourceSnapshotService` for file metadata |
+| `WooCommerceClient` | Legacy compatibility wrapper | Not imported by active Beta v2 API routes |
+| `NextcloudClient` | Legacy compatibility wrapper | Not imported by active Beta v2 API routes |
 | `parse_price_list()` | Active — stateless parse | Future: result row counts written to `dl_source_snapshots` |
 
 ### app/beta/api/v2/ — API Routes
 
 | Route file | Current status | Data Layer relationship |
 |------------|---------------|------------------------|
-| `products.py` | Active — live WC calls | Future: reads from `dl_product_cache` |
-| `workspace.py` | Active — live WC + NC calls | Future: reads from `dl_product_cache` + `dl_source_snapshots` |
-| `sources.py` | Active — config reads | Future: enhanced with `dl_source_snapshots` metadata |
-| `diagnostics.py` | Active — live connection tests | Future: also reads `dl_connector_health` |
+| `products.py` | Active - Integration Platform | Reads from `dl_product_cache` |
+| `workspace.py` | Active - Integration Platform | Record-backed preview shell; future enrichment from `dl_product_cache` + `dl_source_snapshots` |
+| `sources.py` | Active - Integration Platform | Connector instances plus `dl_source_snapshots` |
+| `diagnostics.py` | Active - Integration Platform | Reads connector records and `dl_connector_health`; no live external checks |
 | `data_layer_routes.py` | **NEW (DL1)** — reads `dl_*` tables | Current. Shows empty states until stores are populated |
 
 ### Database Tables
@@ -848,42 +861,49 @@ Products from SnappShop → UI (same Products page, different channel tab)
 | `dl_destination_snapshots` | **Data Layer (DL1)** | New |
 | `dl_refresh_jobs` | **Data Layer (DL1)** | New |
 | `dl_invalidation_events` | **Data Layer (DL1)** | New |
+| `ip_connector_instances` | **Integration Platform** | Connector instance metadata |
+| `ip_connector_settings` | **Integration Platform** | Local connector settings with masked secrets in API responses |
+| `ip_connector_health_snapshots` | **Integration Platform** | Connector status snapshots |
+| `ip_connector_events` | **Integration Platform** | Connector diagnostics and telemetry events |
 
 ### Frontend Pages
 
 | Page | Route | Current status | Data Layer relationship |
 |------|-------|---------------|------------------------|
 | BetaDashboard | /home | Active | No Data Layer dependency yet |
-| Products | /products | Active — live WC | Future: reads from Data Layer |
-| Sources | /sources | Active — config only | Future: shows snapshot metadata |
+| Products | /products | Active - Integration Platform | Reads Data Layer product cache |
+| Sources | /sources | Active - Integration Platform | Shows connector/source snapshot metadata |
 | SourceWizard | /sources/new | Active | No Data Layer dependency |
-| Workspace | /workspace | Active — live compute | Future: reads from Data Layer |
+| Workspace | /workspace | Active - Integration Platform | Record-backed preview shell; no external calls |
 | Activity | /activity | Active — audit log | No Data Layer dependency |
 | **DataLayer** | **/data-layer** | **NEW (DL1)** | Reads all `dl_*` stores via API |
-| Diagnostics | /diagnostics | Active — live checks | Future: enhanced with DL data |
-| Settings | /settings | Active — config | No Data Layer dependency |
+| Diagnostics | /diagnostics | Active - Integration Platform | Record-backed connector diagnostics |
+| Settings | /settings | Active - Integration Platform | Local settings; secrets masked |
+| IntegrationPlatform | /integrations | Active - Integration Platform | Registry, instances, capabilities, telemetry |
 
 ### What is Current vs. Planned vs. Future
 
-**Current (DL1 — this phase):**
+**Current (DL1 + Integration Platform foundation):**
 - All 8 `dl_*` tables created (migration beta_005)
+- Integration Platform `ip_*` tables created (migration beta_006)
 - All 6 service modules implemented (`app/beta/data_layer/`)
 - All 6 read-only API endpoints implemented (`/api/v2/data-layer/*`)
+- Products, Sources, Workspace, Diagnostics, Settings, and telemetry routes are
+  wired through Integration Platform/Data Layer records where approved
 - `/data-layer` UI page shows live Data Layer status with empty states
-- 40 backend tests; 1512 total tests pass
+- `/integrations` UI page shows registry, instances, capabilities, and telemetry
 - Strictly read-only; no scheduler; no Apply
 
-**Planned (DL2 — next phase):**
-- Wire `WooCommerceClient.test_connection()` result to `ConnectorHealthService.upsert()`
-- Wire `ConnectorTelemetryService.increment()` to connector calls in integration layer
-- Wire `SourceSnapshotService.upsert()` after each Workspace preview
-- Manual trigger endpoint: `POST /api/v2/data-layer/refresh` (read-only — fetches and stores, no writes to WC/NC)
+**Planned (DL2):**
+- Approved read-only refresh worker writes product/source records
+- Approved Health Monitor writes `dl_connector_health`
+- Approved telemetry writers increment `dl_connector_telemetry`
+- Manual trigger endpoint: `POST /api/v2/data-layer/refresh` (read-only; fetches and stores, no writes to WC/NC)
 - Show live data in Data Layer page when stores are populated
 
 **Future (DL3+):**
 - ETag-triggered source snapshot refresh
 - Background product cache refresh (requires scheduler design review)
 - Destination snapshot population
-- `dl_connector_instances` table and Connector Metadata Store
 - Webhook ingestion → invalidation → refresh pipeline
 - Multi-channel connector registration

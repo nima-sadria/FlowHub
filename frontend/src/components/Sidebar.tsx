@@ -172,6 +172,20 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
           )}
 
           {hasPerm('can_view_settings') && (
+            <NavLink to="/integrations" className={linkCls} onClick={onClose}>
+              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 7h6" />
+                <path d="M14 7h6" />
+                <path d="M10 7a2 2 0 1 0 4 0 2 2 0 0 0-4 0" />
+                <path d="M4 17h10" />
+                <path d="M18 17h2" />
+                <path d="M14 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0" />
+              </svg>
+              {!collapsed && <span>Integrations</span>}
+            </NavLink>
+          )}
+
+          {hasPerm('can_view_settings') && (
             <NavLink to="/diagnostics" className={linkCls} onClick={onClose}>
               <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />

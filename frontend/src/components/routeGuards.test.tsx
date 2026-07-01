@@ -96,6 +96,7 @@ function RouteMatrix({ initialPath }: { initialPath: string }) {
         <Route path="/sources" element={<RequirePermission permission="can_access_site"><span>sources-page</span></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><span>workspace-page</span></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><span>activity-page</span></RequirePermission>} />
+        <Route path="/integrations" element={<RequirePermission permission="can_view_settings"><span>integrations-page</span></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><span>diagnostics-page</span></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="can_view_settings"><span>settings-page</span></RequirePermission>} />
       </Routes>
@@ -354,6 +355,11 @@ describe('Sidebar — denied user (can_access_site=false)', () => {
     expect(c.querySelector('a[href="/diagnostics"]')).toBeNull()
   })
 
+  it('hides Integrations link', () => {
+    const c = renderSidebar(deniedUser)
+    expect(c.querySelector('a[href="/integrations"]')).toBeNull()
+  })
+
   it('hides Settings link', () => {
     const c = renderSidebar(deniedUser)
     expect(c.querySelector('a[href="/settings"]')).toBeNull()
@@ -391,6 +397,11 @@ describe('Sidebar — allowed user (can_access_site=true, can_fetch=true)', () =
     expect(c.querySelector('a[href="/diagnostics"]')).toBeNull()
   })
 
+  it('hides Integrations link (no can_view_settings)', () => {
+    const c = renderSidebar(allowedUser)
+    expect(c.querySelector('a[href="/integrations"]')).toBeNull()
+  })
+
   it('hides Settings link (no can_view_settings)', () => {
     const c = renderSidebar(allowedUser)
     expect(c.querySelector('a[href="/settings"]')).toBeNull()
@@ -405,6 +416,7 @@ describe('Sidebar — admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/integrations"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
   })
@@ -418,6 +430,7 @@ describe('Sidebar — super admin (is_super_admin=true, is_admin=false)', () => 
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
     expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/integrations"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
   })
@@ -426,6 +439,7 @@ describe('Sidebar — super admin (is_super_admin=true, is_admin=false)', () => 
 describe('Sidebar — settings user (can_view_settings=true)', () => {
   it('shows Diagnostics and Settings links', () => {
     const c = renderSidebar(settingsUser)
+    expect(c.querySelector('a[href="/integrations"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
   })
