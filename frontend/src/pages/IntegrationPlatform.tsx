@@ -25,35 +25,48 @@ interface ConnectorCapabilities {
   api_key: boolean
 }
 
-interface ConnectorDefinition {
-  connector: {
-    identity: {
-      id: string
-      name: string
-      type: string
-      version: string
-      enabled: boolean
-      read_only: boolean
-    }
-    capabilities: ConnectorCapabilities
-    status: HealthStatus
-    runtime_write_blocked: boolean
-    capability_authorizes_write: false
-  }
-  settings_schema: Array<{ key: string; label: string; required: boolean; secret: boolean }>
-  diagnostics_contract: { checks: Array<{ name: string; category: string }> }
+interface RegistryItem {
+  connector_type: string
+  name: string
+  version: string
+  description: string
+  capabilities: ConnectorCapabilities
+  authentication_types: string[]
+  supported_operations: string[]
+  supported_transports: string[]
+  read_only_supported: boolean
+  write_supported: boolean
+  beta_write_blocked: boolean
+  status: string
 }
 
 interface ConnectorInstance {
-  connector: ConnectorDefinition['connector']
-  settings: Array<{ key: string; value: unknown; secret: boolean; configured: boolean }>
+  id: string
+  connector_type: string
+  name: string
+  enabled: boolean
+  read_only: boolean
+  status: HealthStatus
+  health: { healthy: boolean; last_checked_at: string | null; message: string }
+  capabilities: ConnectorCapabilities
   created_at: string | null
   updated_at: string | null
+  last_checked_at: string | null
+  runtime_write_blocked: boolean
+  capability_authorizes_write: false
 }
 
 interface Telemetry {
-  items: Array<{ id: number; connector_id: string; event_name: string; severity: string; message: string; created_at: string }>
-  total: number
+  items: Array<{
+    connector_id: string
+    connector_type: string
+    operation: string
+    request_count: number
+    error_count: number
+    retry_count: number
+    rate_limit_events: number
+    records_fetched: number
+  }>
   aggregate: Record<string, number>
 }
 
@@ -70,7 +83,25 @@ const CAPABILITY_LABELS: Array<[keyof ConnectorCapabilities, string]> = [
   ['api_key', 'API key'],
 ]
 
-function badgeClass(enabled: boolean) {
+function Card({ children }: { children: ReactNode }) {
+  return <div className="bg-bg-card border border-border rounded-card shadow-card p-[18px]">{children}</div>
+}
+
+function statusClass(status: string) {
+  const map: Record<string, string> = {
+    healthy: 'bg-wp-green',
+    warning: 'bg-wp-yellow',
+    degraded: 'bg-wp-yellow',
+    rate_limited: 'bg-wp-yellow',
+    error: 'bg-wp-red',
+    authentication_failed: 'bg-wp-red',
+    timeout: 'bg-wp-red',
+    disabled: 'bg-border',
+  }
+  return map[status] ?? 'bg-border'
+}
+
+function capabilityBadge(enabled: boolean) {
   return [
     'inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium border',
     enabled
@@ -79,45 +110,27 @@ function badgeClass(enabled: boolean) {
   ].join(' ')
 }
 
-function statusDot(status: string) {
-  const map: Record<string, string> = {
-    healthy: 'bg-wp-green',
-    warning: 'bg-wp-yellow',
-    degraded: 'bg-wp-yellow',
-    error: 'bg-wp-red',
-    authentication_failed: 'bg-wp-red',
-    rate_limited: 'bg-wp-yellow',
-    timeout: 'bg-wp-yellow',
-    disabled: 'bg-border',
-  }
-  return map[status] ?? 'bg-border'
-}
-
-function Card({ children }: { children: ReactNode }) {
-  return <div className="bg-bg-card border border-border rounded-card shadow-card p-[18px]">{children}</div>
-}
-
-function ConnectorCard({ definition, instance }: { definition: ConnectorDefinition; instance?: ConnectorInstance }) {
-  const connector = instance?.connector ?? definition.connector
-  const writeAdvertised = connector.capabilities.write_prices || connector.capabilities.write_inventory
-  const configured = instance?.settings.filter(s => s.configured).length ?? 0
+function ConnectorCard({ item, instance }: { item: RegistryItem; instance?: ConnectorInstance }) {
+  const capabilities = instance?.capabilities ?? item.capabilities
+  const status = instance?.status ?? 'disabled'
+  const writesAdvertised = capabilities.write_prices || capabilities.write_inventory
 
   return (
     <Card>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-[16px] font-bold text-text-base">{connector.identity.name}</h2>
-          <p className="text-[12px] text-wp-muted mt-0.5">{connector.identity.type} / v{connector.identity.version}</p>
+          <h2 className="text-[16px] font-bold text-text-base">{item.name}</h2>
+          <p className="text-[12px] text-wp-muted mt-0.5">{item.connector_type} / v{item.version}</p>
         </div>
         <div className="flex items-center gap-1.5 text-[12px] text-text-base">
-          <span className={['w-2 h-2 rounded-full', statusDot(connector.status)].join(' ')} />
-          {connector.status}
+          <span className={['w-2 h-2 rounded-full', statusClass(status)].join(' ')} />
+          {status}
         </div>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         {CAPABILITY_LABELS.map(([key, label]) => (
-          <span key={key} className={badgeClass(connector.capabilities[key])}>{label}</span>
+          <span key={key} className={capabilityBadge(capabilities[key])}>{label}</span>
         ))}
       </div>
 
@@ -127,18 +140,18 @@ function ConnectorCard({ definition, instance }: { definition: ConnectorDefiniti
           <div className="text-text-base font-semibold mt-1">{instance ? 'Configured' : 'Registry only'}</div>
         </div>
         <div className="rounded-lg bg-bg-base border border-border p-3">
-          <div className="text-wp-muted">Settings</div>
-          <div className="text-text-base font-semibold mt-1">{configured} configured</div>
+          <div className="text-wp-muted">Transports</div>
+          <div className="text-text-base font-semibold mt-1">{item.supported_transports.join(', ') || 'None'}</div>
         </div>
         <div className="rounded-lg bg-bg-base border border-border p-3">
-          <div className="text-wp-muted">Writes</div>
+          <div className="text-wp-muted">Runtime writes</div>
           <div className="text-wp-green font-semibold mt-1">Blocked</div>
         </div>
       </div>
 
-      {writeAdvertised && (
+      {writesAdvertised && (
         <div className="mt-4 text-[12px] text-wp-muted bg-amber-50 border border-amber-200 rounded-lg p-3">
-          Write capability is advertised as connector metadata only. FlowHub Beta runtime authorization blocks all writes.
+          Write capability is connector metadata only. FlowHub Beta write authorization and execution remain blocked.
         </div>
       )}
     </Card>
@@ -146,9 +159,10 @@ function ConnectorCard({ definition, instance }: { definition: ConnectorDefiniti
 }
 
 export default function IntegrationPlatform() {
-  const [registry, setRegistry] = useState<ConnectorDefinition[]>([])
+  const [registry, setRegistry] = useState<RegistryItem[]>([])
   const [instances, setInstances] = useState<ConnectorInstance[]>([])
   const [telemetry, setTelemetry] = useState<Telemetry | null>(null)
+  const [events, setEvents] = useState<Array<{ id: number; event_type: string; message: string; severity: string; connector_id: string }>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -156,19 +170,24 @@ export default function IntegrationPlatform() {
     setLoading(true)
     setError(null)
     try {
-      const [registryResp, connectorsResp, telemetryResp] = await Promise.all([
-        authFetch('/api/v2/integrations/registry'),
-        authFetch('/api/v2/integrations/connectors'),
-        authFetch('/api/v2/integrations/telemetry'),
+      const [registryResp, connectorsResp, telemetryResp, eventsResp] = await Promise.all([
+        authFetch('/api/v2/integration-platform/registry'),
+        authFetch('/api/v2/integration-platform/connectors'),
+        authFetch('/api/v2/integration-platform/telemetry'),
+        authFetch('/api/v2/integration-platform/events'),
       ])
       if (!registryResp.ok) throw new Error(`Registry request failed (${registryResp.status})`)
       if (!connectorsResp.ok) throw new Error(`Connector request failed (${connectorsResp.status})`)
       if (!telemetryResp.ok) throw new Error(`Telemetry request failed (${telemetryResp.status})`)
-      const registryData = await registryResp.json() as { items: ConnectorDefinition[] }
+      if (!eventsResp.ok) throw new Error(`Events request failed (${eventsResp.status})`)
+      const registryData = await registryResp.json() as { items: RegistryItem[] }
       const connectorData = await connectorsResp.json() as { items: ConnectorInstance[] }
+      const telemetryData = await telemetryResp.json() as Telemetry
+      const eventsData = await eventsResp.json() as { items: Array<{ id: number; event_type: string; message: string; severity: string; connector_id: string }> }
       setRegistry(registryData.items)
       setInstances(connectorData.items)
-      setTelemetry(await telemetryResp.json() as Telemetry)
+      setTelemetry(telemetryData)
+      setEvents(eventsData.items)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load Integration Platform')
     } finally {
@@ -178,21 +197,21 @@ export default function IntegrationPlatform() {
 
   useEffect(() => { void load() }, [load])
 
-  const advertisedWrites = useMemo(
-    () => registry.filter(d => d.connector.capabilities.write_prices || d.connector.capabilities.write_inventory).length,
-    [registry],
-  )
   const instanceByType = useMemo(
-    () => Object.fromEntries(instances.map(item => [item.connector.identity.type, item])),
+    () => Object.fromEntries(instances.map(item => [item.connector_type, item])),
     [instances],
+  )
+  const advertisedWrites = useMemo(
+    () => registry.filter(item => item.write_supported).length,
+    [registry],
   )
 
   return (
-    <div className="p-4 sm:p-7 flex flex-col gap-5 max-w-5xl">
+    <div className="p-4 sm:p-7 flex flex-col gap-5 max-w-6xl">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[22px] font-bold text-text-base">Integration Platform</h1>
-          <p className="text-[13px] text-wp-muted mt-0.5">Connector registry, local settings, health, and telemetry</p>
+          <p className="text-[13px] text-wp-muted mt-0.5">Connector registry, instances, settings status, diagnostics, telemetry, and events</p>
         </div>
         <button
           onClick={() => void load()}
@@ -213,38 +232,40 @@ export default function IntegrationPlatform() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {registry.map(definition => (
-          <ConnectorCard
-            key={definition.connector.identity.type}
-            definition={definition}
-            instance={instanceByType[definition.connector.identity.type]}
-          />
+        {registry.map(item => (
+          <ConnectorCard key={item.connector_type} item={item} instance={instanceByType[item.connector_type]} />
         ))}
       </div>
 
-      <Card>
-        <p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">Telemetry</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[12px]">
-          <div><div className="text-wp-muted">Events</div><div className="font-semibold text-text-base">{telemetry?.total ?? 0}</div></div>
-          <div><div className="text-wp-muted">Requests</div><div className="font-semibold text-text-base">{telemetry?.aggregate.total_requests ?? 0}</div></div>
-          <div><div className="text-wp-muted">Errors</div><div className="font-semibold text-text-base">{telemetry?.aggregate.total_errors ?? 0}</div></div>
-          <div><div className="text-wp-muted">Products</div><div className="font-semibold text-text-base">{telemetry?.aggregate.total_products_fetched ?? 0}</div></div>
-        </div>
-        <div className="mt-4 divide-y divide-border">
-          {(telemetry?.items ?? []).slice(0, 5).map(item => (
-            <div key={item.id} className="py-3 text-[12px]">
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-medium text-text-base">{item.event_name}</span>
-                <span className="text-wp-muted">{item.connector_id}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">Telemetry</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[12px]">
+            <div><div className="text-wp-muted">Requests</div><div className="font-semibold text-text-base">{telemetry?.aggregate.total_requests ?? 0}</div></div>
+            <div><div className="text-wp-muted">Errors</div><div className="font-semibold text-text-base">{telemetry?.aggregate.total_errors ?? 0}</div></div>
+            <div><div className="text-wp-muted">Records</div><div className="font-semibold text-text-base">{telemetry?.items.reduce((sum, item) => sum + item.records_fetched, 0) ?? 0}</div></div>
+            <div><div className="text-wp-muted">Rate limits</div><div className="font-semibold text-text-base">{telemetry?.items.reduce((sum, item) => sum + item.rate_limit_events, 0) ?? 0}</div></div>
+          </div>
+        </Card>
+
+        <Card>
+          <p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">Events</p>
+          <div className="divide-y divide-border">
+            {events.slice(0, 6).map(item => (
+              <div key={item.id} className="py-3 text-[12px]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium text-text-base">{item.event_type}</span>
+                  <span className="text-wp-muted">{item.connector_id}</span>
+                </div>
+                <div className="text-wp-muted mt-0.5">{item.message}</div>
               </div>
-              <div className="text-wp-muted mt-0.5">{item.message}</div>
-            </div>
-          ))}
-          {!loading && (telemetry?.items.length ?? 0) === 0 && (
-            <div className="py-4 text-center text-[12px] text-wp-muted">No telemetry events yet</div>
-          )}
-        </div>
-      </Card>
+            ))}
+            {!loading && events.length === 0 && (
+              <div className="py-4 text-center text-[12px] text-wp-muted">No connector events yet</div>
+            )}
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }

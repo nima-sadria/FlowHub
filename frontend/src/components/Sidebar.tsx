@@ -159,6 +159,18 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             </NavLink>
           )}
 
+          {hasPerm('can_view_logs') && (
+            <NavLink to="/logging" className={linkCls} onClick={onClose}>
+              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3h18v18H3z" />
+                <path d="M7 8h10" />
+                <path d="M7 12h10" />
+                <path d="M7 16h6" />
+              </svg>
+              {!collapsed && <span>Logging</span>}
+            </NavLink>
+          )}
+
           {hasPerm('can_view_settings') && (
             <NavLink to="/data-layer" className={linkCls} onClick={onClose}>
               <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

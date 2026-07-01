@@ -377,8 +377,9 @@ app/connectors/
 Nextcloud (source).
 
 **Not yet implemented:** SnappShop, Digikala, Technolife, Shopify, ERP, CSV,
-Google Sheets, custom APIs. These are part of the future Integration Platform
-design (see [Future Architecture](#what-is-real-now-vs-planned)).
+Google Sheets, custom APIs. The current Integration Platform provides the
+registry, connector instance, settings, diagnostics, telemetry, webhook,
+polling policy, and write guard contracts for current and future connectors.
 
 The integration layer (`app/beta/integrations/`) provides thin wrapper classes
 (`WooCommerceClient`, `NextcloudClient`) that translate `ConnectorError` →
@@ -389,8 +390,8 @@ interact with the connector layer directly.
 
 ## Database Tables
 
-Five tables are created by Alembic migrations (`alembic_beta/versions/`).
-Current head revision: `beta_004`.
+Platform tables are created by Alembic migrations (`alembic_beta/versions/`).
+Current head revision: `beta_007`.
 
 | Table | Migration | Purpose |
 |---|---|---|
@@ -398,6 +399,9 @@ Current head revision: `beta_004`.
 | `beta_refresh_tokens` | beta_002 | JWT refresh token store (hashed, with expiry and revocation) |
 | `beta_login_audit` | beta_003 | Audit log (login, logout, setup events, settings changes) |
 | `beta_app_config` | beta_004 | Key-value runtime config (credentials, timezone, currency, setup flag) |
+| `dl_*` tables | beta_005 | FlowHub Data Layer read models and telemetry |
+| `ip_*` tables | beta_006, beta_007 | Integration Platform registry, settings, diagnostics, telemetry, webhook, polling records |
+| `logging_*` tables | beta_007 | Unified Logging Platform entries, correlation, retention, export, and redaction records |
 | `alembic_version` | built-in | Alembic migration tracking |
 
 **Key config keys stored in `beta_app_config`:**
@@ -478,14 +482,15 @@ data flow diagrams, multi-channel readiness, and the full database model.
 - Sources view (Nextcloud source status)
 - Settings management (credentials, timezone, currency)
 - Activity log (audit events)
-- Live diagnostics (DB + WC + NC connection status)
+- Live diagnostics backed by Integration Platform/Data Layer records
+- Integration Platform APIs and `/integrations` UI
+- Unified Logging Platform APIs and `/logging` UI
 - Management CLI (`python -m cli.main`)
 
 ### Stubs — endpoint exists, not implemented
 
 | Endpoint | Planned phase |
 |---|---|
-| `POST /api/v2/diagnostics/run` | B6 — Advanced Diagnostics |
 | `GET /api/v2/diagnostics/history` | B6 — Advanced Diagnostics |
 
 ### Planned but not started
@@ -494,7 +499,7 @@ data flow diagrams, multi-channel readiness, and the full database model.
 - Scheduler / automatic pricing — permanently blocked in Beta by design
 - Spreadsheet write path — permanently blocked in Beta by design
 - Additional connectors (SnappShop, Digikala, Shopify, ERP, CSV, Google Sheets)
-- Integration Platform (Connector Manager, Event Bus, Sync Engine, Webhook Receiver)
+- Integration Platform Sync Engine execution and approved connector refresh workers
 - Redis cache layer (noted in docker-compose.beta.yml: not required until B6)
 - Channel Profile (multi-store management)
 - A2 pricing rule engine (exists in `app/a2/` but not wired to Beta runtime)

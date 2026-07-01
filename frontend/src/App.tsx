@@ -31,6 +31,7 @@ import Login from './pages/Login'
 import Setup from './pages/Setup'
 import DataLayer from './pages/DataLayer'
 import IntegrationPlatform from './pages/IntegrationPlatform'
+import LoggingPlatform from './pages/LoggingPlatform'
 import NotFound from './pages/NotFound'
 import type { SetupStatus } from './api/types'
 
@@ -164,6 +165,7 @@ function SetupGate() {
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
         <Route path="/data-layer" element={<RequirePermission permission="can_view_settings"><DataLayer /></RequirePermission>} />
         <Route path="/integrations" element={<RequirePermission permission="can_view_settings"><IntegrationPlatform /></RequirePermission>} />
+        <Route path="/logging" element={<RequirePermission permission="can_view_logs"><LoggingPlatform /></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
       </Route>
