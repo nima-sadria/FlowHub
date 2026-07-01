@@ -49,6 +49,7 @@ from fastapi.staticfiles import StaticFiles
 from app.beta.api.health import router as health_router
 from app.beta.auth.router import router as auth_router
 from app.beta.api.v2.setup import router as setup_router
+from app.beta.api.v2.config import router as config_router
 from app.beta.api.v2.products import router as products_router
 from app.beta.api.v2.sources import router as sources_router
 from app.beta.api.v2.workspace import router as workspace_router
@@ -56,6 +57,7 @@ from app.beta.api.v2.settings_routes import router as settings_router
 from app.beta.api.v2.activity import router as activity_router
 from app.beta.api.v2.diagnostics import router as diagnostics_router
 from app.beta.api.v2.data_layer_routes import router as data_layer_router
+from app.beta.api.v2.integrations import router as integrations_router
 
 _VERSION = "0.3.0-bu5"
 
@@ -106,10 +108,12 @@ app = FastAPI(
 app.include_router(health_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(setup_router, prefix="/api/v2")
+app.include_router(integrations_router, prefix="/api/v2")
 app.include_router(products_router, prefix="/api/v2")
 app.include_router(sources_router, prefix="/api/v2")
 app.include_router(workspace_router, prefix="/api/v2")
 app.include_router(settings_router, prefix="/api/v2")
+app.include_router(config_router, prefix="/api/v2")
 app.include_router(activity_router, prefix="/api/v2")
 app.include_router(diagnostics_router, prefix="/api/v2")
 app.include_router(data_layer_router, prefix="/api/v2")

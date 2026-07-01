@@ -14,7 +14,7 @@ as implemented behavior.
 - [D. Database Schema](#d-database-schema)
 - [E. Deployment Model](#e-deployment-model)
 - [F. Connector Framework](#f-connector-framework)
-- [G. Integration Layer](#g-integration-layer)
+- [G. Integration Platform](#g-integration-platform)
 - [H. Frontend Architecture](#h-frontend-architecture)
 - [I. Authentication Model](#i-authentication-model)
 - [J. Future Architecture Direction](#j-future-architecture-direction)
@@ -58,11 +58,11 @@ as implemented behavior.
 │  │  /api/v2/diagnostics/*  diagnostics.router(system status)       │  │
 │  └───────────────────────────┬─────────────────────────────────────┘  │
 │                              │                                        │
-│  ┌─── Integration Layer ─────▼─────────────────────────────────────┐  │
-│  │  app/beta/integrations/                                         │  │
-│  │  WooCommerceClient    — thin wrapper, error translation         │  │
-│  │  NextcloudClient      — thin wrapper, error translation         │  │
-│  │  IntegrationError     — maps ConnectorError → HTTP 502          │  │
+│  ┌─── Integration Platform ──▼─────────────────────────────────────┐  │
+│  │  app/beta/integration_platform/                                 │  │
+│  │  Registry, instances, settings, diagnostics, telemetry          │  │
+│  │  Data Layer-backed read facade for active Beta v2 routes        │  │
+│  │  Capability metadata does not authorize writes                  │  │
 │  └───────────────────────────┬─────────────────────────────────────┘  │
 │                              │                                        │
 │  ┌─── Connector Framework ───▼─────────────────────────────────────┐  │
@@ -127,10 +127,10 @@ GET /api/v2/setup/status  →  {completed: false}
       Step 3: POST /api/v2/setup/admin           → creates beta_users row, issues tokens
       Step 4a: POST /api/v2/setup/integrations/woocommerce
                  → stores woocommerce.* in beta_app_config
-                 → tests WC connection via WooCommerceConnector.test_connection()
+                 → registers masked Integration Platform settings
       Step 4b: POST /api/v2/setup/integrations/nextcloud
                  → stores nextcloud.* in beta_app_config
-                 → tests NC connection via NextcloudConnector.test_connection()
+                 → registers masked Integration Platform settings
       Step 5: POST /api/v2/setup/complete
                  → sets beta_app_config["setup.completed"] = "true"
                  → all setup endpoints now return 409
@@ -142,32 +142,11 @@ GET /api/v2/setup/status  →  {completed: false}
 ```
 POST /api/v2/workspace/preview
   │
-  ├─ Read woocommerce.* and nextcloud.* from beta_app_config
-  ├─ Validate both are configured (503 if not)
-  │
-  ├─ [parallel]
-  │   ├─ WooCommerceClient.get_all_products_for_preview()
-  │   │     └─ rest_client.list_all_products()
-  │   │           └─ GET /wc/v3/products?per_page=100&page=N  (all pages)
-  │   │                 Retry: exponential backoff on 429/5xx (max 3 retries)
-  │   │
-  │   └─ NextcloudClient.download_file(nc_path)
-  │         └─ webdav.get_file()
-  │               └─ WebDAV GET (httpx, follow_redirects=True)
-  │
-  ├─ spreadsheet.load_workbook_bytes()  →  openpyxl workbook
-  ├─ parse_price_list()  →  {product_id: {price, warning?}}
-  │       Reads all sheets; col B = WC product ID, col C = target price
-  │       Last sheet wins on duplicate product IDs
-  │
-  ├─ _compute_preview()  →  in-memory diff
-  │       For each WC product in spreadsheet:
-  │         if |wc_price - sheet_price| > 0.001:  record change
-  │       Returns list of {productId, productName, sku, currentPrice,
-  │                         proposedPrice, difference, changePct, currency}
-  │
-  ├─ Write beta_login_audit: "preview_started" / "preview_completed" / "preview_failed"
-  └─ Return result JSON  (nothing persisted)
+  ├─ IntegrationPlatformService.workspace_preview()
+  ├─ Read local connector instance/settings state
+  ├─ Read Data Layer records where available
+  ├─ Return read-only preview shell with no changes
+  └─ No external call, no Apply, no Scheduler, no pricing automation
 ```
 
 ### Diagnostics flow
@@ -175,22 +154,10 @@ POST /api/v2/workspace/preview
 ```
 GET /api/v2/diagnostics/status
   │
-  ├─ Database: db.execute("SELECT 1")  →  ok / error
-  │
-  ├─ WooCommerce:
-  │   ├─ WooCommerceClient.from_config(cfg)  (None → unconfigured)
-  │   ├─ wc.test_connection()
-  │   │     └─ rest_client.ping()  →  GET /wc/v3/products?per_page=1
-  │   └─ wc.count_products()
-  │         └─ rest_client.count_products()  →  reads X-WP-Total header
-  │
-  └─ Nextcloud:
-      ├─ NextcloudClient.from_config(cfg)  (None → unconfigured)
-      ├─ nc.test_connection()
-      │     └─ NextcloudConnector.test_connection()  →  OCS user info probe
-      └─ nc.get_file_meta(nc_path)
-            └─ webdav.head_file()  →  HEAD request (never raises)
-               fallback: webdav.get_metadata()  →  PROPFIND depth=0
+  ├─ Database: local DB status
+  ├─ IntegrationPlatformService.diagnostics_status()
+  ├─ Reads connector instances/settings and Data Layer health records
+  └─ No external WooCommerce/Nextcloud probe in active Beta v2 routes
 ```
 
 ---
@@ -253,7 +220,7 @@ Nextcloud.
 
 ## D. Database Schema
 
-**Alembic chain:** `beta_001` → `beta_002` → `beta_003` → `beta_004` (current head)
+**Alembic chain:** `beta_001` → `beta_002` → `beta_003` → `beta_004` → `beta_005` → `beta_006` (current head)
 
 ### `beta_users`  (beta_001)
 
@@ -328,7 +295,7 @@ Indexes: `ix_beta_login_audit_id`, `ix_beta_login_audit_username`
 
 ### `alembic_version`  (Alembic built-in)
 
-Single row: `version_num = "beta_004"` on a fresh or fully migrated install.
+Single row: `version_num = "beta_006"` on a fresh or fully migrated install.
 
 ---
 
@@ -507,23 +474,24 @@ ocs.py
   Raises ConnectorError on auth/network failures
 ```
 
-### Connector wiring summary
+### Integration Platform wiring summary
 
-| Beta route | Integration method | Connector call |
+| Beta route | Integration method | External connector call |
 |---|---|---|
-| `GET /api/v2/products` | `WooCommerceClient.get_products_page()` | `rest_client.list_products_paged()` |
-| `GET /api/v2/products/categories` | `WooCommerceClient.get_categories()` | `rest_client.list_categories_all()` |
-| `POST /api/v2/workspace/preview` | `WooCommerceClient.get_all_products_for_preview()` | `rest_client.list_all_products()` |
-| `POST /api/v2/workspace/preview` | `NextcloudClient.download_file()` | `webdav.get_file()` |
-| `GET /api/v2/sources` | `NextcloudClient.get_file_meta()` | `webdav.head_file()` + `webdav.get_metadata()` |
-| `GET /api/v2/diagnostics/status` | `WooCommerceClient.test_connection()` | `rest_client.ping()` |
-| `GET /api/v2/diagnostics/status` | `WooCommerceClient.count_products()` | `rest_client.count_products()` |
-| `GET /api/v2/diagnostics/status` | `NextcloudClient.test_connection()` | `ocs.get_user_info()` |
-| `GET /api/v2/diagnostics/status` | `NextcloudClient.get_file_meta()` | `webdav.head_file()` |
-| `POST /api/v2/settings/woocommerce` | direct connector | `WooCommerceConnector.test_connection()` |
-| `POST /api/v2/settings/nextcloud` | direct connector | `NextcloudConnector.test_connection()` |
-| `POST /api/v2/setup/integrations/woocommerce` | direct connector | `WooCommerceConnector.test_connection()` |
-| `POST /api/v2/setup/integrations/nextcloud` | direct connector | `NextcloudConnector.test_connection()` |
+| `GET /api/v2/products` | `IntegrationPlatformService.list_products()` | None |
+| `GET /api/v2/products/categories` | `IntegrationPlatformService.list_categories()` | None |
+| `GET /api/v2/sources` | `IntegrationPlatformService.list_sources()` | None |
+| `GET /api/v2/workspace` | `IntegrationPlatformService.workspace_state()` | None |
+| `POST /api/v2/workspace/preview` | `IntegrationPlatformService.workspace_preview()` | None |
+| `GET /api/v2/diagnostics/status` | `IntegrationPlatformService.diagnostics_status()` | None |
+| `POST /api/v2/diagnostics/run` | `IntegrationPlatformService.diagnostics_run()` | None |
+| `GET/PATCH /api/v2/integrations/*/settings` | `IntegrationPlatformService` settings APIs | None |
+| `POST /api/v2/setup/integrations/woocommerce` | `IntegrationPlatformService.ensure_connector_from_settings()` | None |
+| `POST /api/v2/setup/integrations/nextcloud` | `IntegrationPlatformService.ensure_connector_from_settings()` | None |
+
+Active Beta v2 product, source, workspace, diagnostics, settings, and
+Integration Platform routes are record-backed. They do not import legacy
+WooCommerce/Nextcloud clients and do not perform direct `httpx` calls.
 
 ### Legacy layer (isolated, not used by Beta runtime)
 
@@ -535,46 +503,30 @@ imports them (verified by `tests/beta/test_no_direct_httpx.py:test_legacy_servic
 
 ---
 
-## G. Integration Layer
+## G. Integration Platform
 
-`app/beta/integrations/` provides the boundary between route handlers and the
-connector framework.
+`app/beta/integration_platform/` is the current boundary for active Beta v2
+connector metadata, connector settings, diagnostics, telemetry, and Data
+Layer-backed read paths.
 
 ```
-app/beta/integrations/
-├── woocommerce.py   WooCommerceClient — wraps rest_client functions
-├── nextcloud.py     NextcloudClient  — wraps webdav/ocs functions
-├── spreadsheet.py   load_workbook_bytes(), parse_price_list()
-└── errors.py        IntegrationError(message, detail)
-                       → caught by routers → HTTP 502
+app/beta/integration_platform/
+├── contracts.py   Canonical capability, status, settings, product/source,
+│                  workspace, diagnostics, and telemetry contracts
+├── registry.py    WooCommerce and Nextcloud registry definitions
+├── models.py      ip_connector_instances, ip_connector_settings,
+│                  ip_connector_health_snapshots, ip_connector_events
+└── service.py     Record-backed facade used by active Beta v2 routes
 ```
 
-**`WooCommerceClient`** is constructed with `(url, key, secret)` and exposes:
-- `get_products_page(page, per_page, search, category_id, product_type)` → `(list, total)`
-- `get_all_products_for_preview()` → `list`
-- `get_categories()` → `list`
-- `count_products()` → `int`
-- `test_connection()` → `(bool, str, float)`
-- `from_config(cfg)` — class method, returns `None` if not configured
+Active Products, Sources, Workspace, Diagnostics, Settings, Setup, and
+Integration Platform routes use `IntegrationPlatformService` and Data Layer
+records. They do not import the legacy WooCommerce/Nextcloud client wrappers
+and do not perform direct external `httpx` calls.
 
-**`NextcloudClient`** is constructed with `(url, username, password)` and exposes:
-- `download_file(path)` → `(bytes, meta_dict)`
-- `get_file_meta(path)` → `meta_dict` — never raises
-- `test_connection()` → `(bool, str, float)`
-- `from_config(cfg)` — class method, returns `None` if not configured
-
-**Error translation** (`_to_integration_error`):
-
-| `ConnectorErrorCode` | `IntegrationError.message` |
-|---|---|
-| `AUTH_FAILED` | `Authentication failed — check credentials` |
-| `PERMISSION` | `Access denied — check permissions` |
-| `NOT_FOUND` | `Not found: {endpoint}` |
-| `TIMEOUT` | `Connection timed out` |
-| `NETWORK` | `Could not connect to {provider}` |
-| `RATE_LIMITED` | `Rate limited — retry budget exhausted` |
-| `PROVIDER_ERROR` | `Provider error` |
-| `UNKNOWN` | `Unexpected error` |
+`app/beta/integrations/` remains as a legacy compatibility wrapper layer for
+older tests and non-active paths. It is not the active Beta v2 API route
+boundary for Integration Platform wiring.
 
 ---
 
@@ -666,14 +618,25 @@ Argon2id via the `passlib` library. Hashes stored in `beta_users.hashed_password
 
 ## J. Future Architecture Direction
 
-> **This section describes planned future design, not current deployed behavior.**
-> Nothing in this section is implemented. Do not treat this as a description of
-> the current system.
+> **This section distinguishes the implemented Integration Platform foundation
+> from planned future orchestration.**
 
-### Future Integration Platform
+### Integration Platform Foundation
 
-The long-term vision is to evolve the current connector-per-route wiring into a
-full Integration Platform with centralised orchestration:
+The current system includes the Integration Platform foundation:
+
+- Canonical connector capability metadata.
+- Connector registry for WooCommerce and Nextcloud.
+- Local connector instance, setting, health/status, diagnostics, and telemetry
+  records.
+- Beta v2 Products, Sources, Workspace, Diagnostics, Settings, and telemetry
+  routes wired through Integration Platform/Data Layer records.
+- Read-only safety: no Apply, Scheduler execution, automatic pricing,
+  WooCommerce writes, or Nextcloud writes.
+
+### Future Integration Platform Orchestration
+
+The long-term vision is to extend the foundation into centralised orchestration:
 
 ```
 FlowHub Frontend
@@ -724,7 +687,7 @@ Integration Platform
 
 | Current | Future |
 |---|---|
-| Connectors called directly from routes via integration layer | Connectors managed by Connector Manager, called via Sync Engine |
+| Record-backed Integration Platform foundation | Sync Engine orchestrates approved connector reads |
 | No background tasks or scheduling | Polling Engine + Event Bus |
 | No Apply | Apply Engine gated behind approval flow |
 | PostgreSQL only | PostgreSQL + Redis (cache + task queue) |

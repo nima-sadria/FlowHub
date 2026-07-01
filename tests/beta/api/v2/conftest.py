@@ -1,5 +1,10 @@
 """Shared fixtures for BU5 API v2 tests."""
 
+from app.beta.auth import models as _auth_models  # noqa: F401
+from app.beta.data_layer import models as _data_layer_models  # noqa: F401
+from app.beta.integration_platform import models as _integration_platform_models  # noqa: F401
+from app.beta.setup import models as _setup_models  # noqa: F401
+
 import pytest
 
 

@@ -1,18 +1,21 @@
-"""WooPrice Beta — /api/v2/config router (CP1.3 contract stubs).
+"""FlowHub Beta /api/v2/config router.
 
-Runtime configuration read and update endpoints.
-Admin permission required for write operations.
-
-Contract shape defined in CP1.3.  Live implementation in B8 (UI) when the
-RuntimeConfigService is wired into the FastAPI application lifecycle.
-
-Authentication note: All endpoints require a valid JWT.
-Auth middleware implemented in B7.
+Read-only configuration view backed by Integration Platform connector settings.
+Runtime writes through this generic config endpoint are blocked in Beta.
 """
 
-from fastapi import APIRouter
-from pydantic import BaseModel
+from __future__ import annotations
+
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.beta.auth.dependencies import get_current_user
+from app.beta.auth.models import BetaUser
+from app.beta.database import get_db
+from app.beta.integration_platform.service import IntegrationPlatformService
 
 router = APIRouter(prefix="/config", tags=["config"])
 
@@ -37,32 +40,51 @@ class ConfigSetResponse(BaseModel):
     error: Optional[str]
 
 
-@router.get("", response_model=list[ConfigRecordShape])
-async def list_editable_config() -> list[ConfigRecordShape]:
-    """Return all editable runtime configuration fields.
+def _integration_config_records(db: Session) -> list[ConfigRecordShape]:
+    records: list[ConfigRecordShape] = []
+    for connector in IntegrationPlatformService(db).settings_summary():
+        for setting in connector.settings:
+            records.append(
+                ConfigRecordShape(
+                    field_name=f"connector.{connector.connector_id}.{setting.key}",
+                    current_value="configured" if setting.secret and setting.configured else str(setting.value or ""),
+                    is_editable=False,
+                    is_secret=setting.secret,
+                    is_installer_only=False,
+                    description=f"{connector.name} connector setting",
+                )
+            )
+    return records
 
-    JWT authentication required (enforced in B7).
-    Live implementation in B8.
-    """
-    raise NotImplementedError("Config list endpoint implemented in B8.")
+
+@router.get("", response_model=list[ConfigRecordShape])
+async def list_editable_config(
+    _: BetaUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[ConfigRecordShape]:
+    return _integration_config_records(db)
 
 
 @router.get("/{field_name}", response_model=ConfigRecordShape)
-async def get_config_field(field_name: str) -> ConfigRecordShape:
-    """Return a single configuration field value.
-
-    JWT authentication required (enforced in B7).
-    Live implementation in B8.
-    """
-    raise NotImplementedError("Config get endpoint implemented in B8.")
+async def get_config_field(
+    field_name: str,
+    _: BetaUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ConfigRecordShape:
+    records = _integration_config_records(db)
+    for record in records:
+        if record.field_name == field_name:
+            return record
+    raise HTTPException(status.HTTP_404_NOT_FOUND, "Configuration field not found.")
 
 
 @router.put("/{field_name}", response_model=ConfigSetResponse)
-async def set_config_field(field_name: str, body: ConfigSetRequest) -> ConfigSetResponse:
-    """Update an editable runtime configuration field.
-
-    Admin permission required (enforced in B7).
-    Validates before writing. Rejects secrets and installer-only fields.
-    Live implementation in B8.
-    """
-    raise NotImplementedError("Config set endpoint implemented in B8.")
+async def set_config_field(
+    field_name: str,
+    body: ConfigSetRequest,
+    _: BetaUser = Depends(get_current_user),
+) -> ConfigSetResponse:
+    raise HTTPException(
+        status.HTTP_403_FORBIDDEN,
+        "Runtime connector settings writes are disabled in FlowHub Beta.",
+    )

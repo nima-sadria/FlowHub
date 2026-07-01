@@ -15,6 +15,7 @@ os.environ.setdefault("BETA_DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("BETA_JWT_SECRET", "test-bu4-jwt-secret-32-bytes-min!")
 
 # Import auth models (conftest already does this, but be explicit)
+from app.beta.integration_platform import models as _ip_models  # noqa: F401 - registers ip_* tables
 from app.beta.auth import models as _auth_models  # noqa: F401 — registers BetaBase tables
 # Import setup model so BetaAppConfig is registered with BetaBase.metadata
 from app.beta.setup import models as _setup_models  # noqa: F401 — registers beta_app_config
@@ -239,40 +240,43 @@ class TestSetupComplete:
 class TestSetupIntegrations:
     """Tests for WooCommerce and Nextcloud integration endpoints.
 
-    _test_woocommerce and _test_nextcloud are async helpers that make real HTTP
-    calls. They are patched with AsyncMock so tests don't require external services.
+    Setup writes local configuration and Integration Platform setting records.
+    It does not make live external credential-validation calls.
     """
 
     # ── WooCommerce ──────────────────────────────────────────────────────────
 
     def test_woocommerce_saves_credentials(self, client, db):
-        from unittest.mock import AsyncMock, patch
-        mock_result = {"ok": True, "message": "Connected successfully"}
-        with patch("app.beta.api.v2.setup._test_woocommerce", new=AsyncMock(return_value=mock_result)):
-            r = client.post("/api/v2/setup/integrations/woocommerce", json={
-                "url": "https://mystore.example.com",
-                "key": "ck_testkey123",
-                "secret": "cs_testsecret456",
-            })
+        from app.beta.integration_platform.models import IntegrationConnectorSetting
+
+        r = client.post("/api/v2/setup/integrations/woocommerce", json={
+            "url": "https://mystore.example.com",
+            "key": "ck_testkey123",
+            "secret": "cs_testsecret456",
+        })
         assert r.status_code == 200
         assert r.json()["ok"] is True
+        assert r.json()["runtime_write_blocked"] is True
         svc = AppConfigService(db)
         assert svc.get("woocommerce.url") == "https://mystore.example.com"
         assert svc.get("woocommerce.key") == "ck_testkey123"
         assert svc.get("woocommerce.secret") == "cs_testsecret456"
+        setting = db.query(IntegrationConnectorSetting).filter_by(
+            connector_id="woocommerce:primary",
+            key="secret",
+        ).one()
+        assert setting.configured is True
+        assert setting.value_json is None
 
-    def test_woocommerce_returns_connection_test_result(self, client):
-        from unittest.mock import AsyncMock, patch
-        mock_result = {"ok": False, "message": "Authentication failed"}
-        with patch("app.beta.api.v2.setup._test_woocommerce", new=AsyncMock(return_value=mock_result)):
-            r = client.post("/api/v2/setup/integrations/woocommerce", json={
-                "url": "https://mystore.example.com",
-                "key": "ck_badkey",
-                "secret": "cs_badsecret",
-            })
+    def test_woocommerce_does_not_live_validate_credentials(self, client):
+        r = client.post("/api/v2/setup/integrations/woocommerce", json={
+            "url": "https://mystore.example.com",
+            "key": "ck_badkey",
+            "secret": "cs_badsecret",
+        })
         assert r.status_code == 200
-        assert r.json()["ok"] is False
-        assert "Authentication" in r.json()["message"]
+        assert r.json()["ok"] is True
+        assert "saved locally" in r.json()["message"]
 
     def test_woocommerce_rejects_invalid_url(self, client):
         r = client.post("/api/v2/setup/integrations/woocommerce", json={
@@ -295,32 +299,36 @@ class TestSetupIntegrations:
     # ── Nextcloud ────────────────────────────────────────────────────────────
 
     def test_nextcloud_saves_credentials(self, client, db):
-        from unittest.mock import AsyncMock, patch
-        mock_result = {"ok": True, "message": "Connected successfully"}
-        with patch("app.beta.api.v2.setup._test_nextcloud", new=AsyncMock(return_value=mock_result)):
-            r = client.post("/api/v2/setup/integrations/nextcloud", json={
-                "url": "https://cloud.example.com",
-                "username": "myuser",
-                "password": "apppassword123",
-                "spreadsheet_path": "/prices/products.xlsx",
-            })
+        from app.beta.integration_platform.models import IntegrationConnectorSetting
+
+        r = client.post("/api/v2/setup/integrations/nextcloud", json={
+            "url": "https://cloud.example.com",
+            "username": "myuser",
+            "password": "apppassword123",
+            "spreadsheet_path": "/prices/products.xlsx",
+        })
         assert r.status_code == 200
         assert r.json()["ok"] is True
+        assert r.json()["runtime_write_blocked"] is True
         svc = AppConfigService(db)
         assert svc.get("nextcloud.url") == "https://cloud.example.com"
         assert svc.get("nextcloud.username") == "myuser"
         assert svc.get("nextcloud.password") == "apppassword123"
         assert svc.get("nextcloud.spreadsheet_path") == "/prices/products.xlsx"
+        setting = db.query(IntegrationConnectorSetting).filter_by(
+            connector_id="nextcloud:primary",
+            key="password",
+        ).one()
+        assert setting.configured is True
+        assert setting.value_json is None
 
     def test_nextcloud_prepends_slash_to_path(self, client, db):
-        from unittest.mock import AsyncMock, patch
-        with patch("app.beta.api.v2.setup._test_nextcloud", new=AsyncMock(return_value={"ok": True, "message": "ok"})):
-            r = client.post("/api/v2/setup/integrations/nextcloud", json={
-                "url": "https://cloud.example.com",
-                "username": "myuser",
-                "password": "apppassword123",
-                "spreadsheet_path": "prices/products.xlsx",
-            })
+        r = client.post("/api/v2/setup/integrations/nextcloud", json={
+            "url": "https://cloud.example.com",
+            "username": "myuser",
+            "password": "apppassword123",
+            "spreadsheet_path": "prices/products.xlsx",
+        })
         assert r.status_code == 200
         svc = AppConfigService(db)
         assert svc.get("nextcloud.spreadsheet_path") == "/prices/products.xlsx"

@@ -33,10 +33,8 @@ from app.beta.auth.password import hash_password
 from app.beta.auth.refresh_token import generate_refresh_token, hash_refresh_token
 from app.beta.auth.repository import create_audit_event, store_refresh_token
 from app.beta.database import get_db
+from app.beta.integration_platform.service import IntegrationPlatformService
 from app.beta.setup.service import AppConfigService
-from app.connectors.common.auth import AuthConfig
-from app.connectors.destinations.woocommerce.connector import WooCommerceConnector
-from app.connectors.sources.nextcloud.connector import NextcloudConnector
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 
@@ -232,7 +230,7 @@ async def setup_database(db: Session = Depends(get_db)) -> dict:
     return {
         "connected": connected,
         "migration_version": migration_version,
-        "migrations_current": migration_version == "beta_004",
+        "migrations_current": migration_version == "beta_006",
         "database_name": database_name,
         "error": error,
     }
@@ -293,9 +291,17 @@ async def setup_woocommerce(
         updated_by="setup_wizard",
     )
 
-    # Test connection
-    result = await _test_woocommerce(body.url, body.key, body.secret)
-    return result
+    IntegrationPlatformService(db).ensure_connector_from_settings(
+        connector_type="woocommerce",
+        connector_id="woocommerce:primary",
+        name="WooCommerce",
+        values={"url": body.url, "key": body.key, "secret": body.secret},
+    )
+    return {
+        "ok": True,
+        "message": "WooCommerce settings saved locally. Live validation is handled by diagnostics.",
+        "runtime_write_blocked": True,
+    }
 
 
 @router.post("/integrations/nextcloud")
@@ -316,9 +322,22 @@ async def setup_nextcloud(
         updated_by="setup_wizard",
     )
 
-    # Test connection
-    result = await _test_nextcloud(body.url, body.username, body.password)
-    return result
+    IntegrationPlatformService(db).ensure_connector_from_settings(
+        connector_type="nextcloud",
+        connector_id="nextcloud:primary",
+        name="Nextcloud Spreadsheet",
+        values={
+            "url": body.url,
+            "username": body.username,
+            "password": body.password,
+            "spreadsheet_path": body.spreadsheet_path,
+        },
+    )
+    return {
+        "ok": True,
+        "message": "Nextcloud settings saved locally. Live validation is handled by diagnostics.",
+        "runtime_write_blocked": True,
+    }
 
 
 @router.post("/complete")
@@ -339,22 +358,3 @@ async def setup_complete(db: Session = Depends(get_db)) -> dict:
 
 
 # ── Connection test helpers ───────────────────────────────────────────────────
-
-async def _test_woocommerce(url: str, key: str, secret: str) -> dict:
-    auth = AuthConfig(
-        auth_type="api_key",
-        credentials={"url": url, "key": key, "secret": secret},
-    )
-    connector = WooCommerceConnector()
-    result = await connector.test_connection(auth)
-    return {"ok": result.ok, "message": result.message}
-
-
-async def _test_nextcloud(url: str, username: str, password: str) -> dict:
-    auth = AuthConfig(
-        auth_type="basic",
-        credentials={"url": url, "username": username, "password": password},
-    )
-    connector = NextcloudConnector()
-    result = await connector.test_connection(auth)
-    return {"ok": result.ok, "message": result.message}

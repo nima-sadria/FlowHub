@@ -32,6 +32,9 @@ if database_url:
 # The database module is safe to import without a live connection.
 from app.beta.database import BetaBase  # noqa: E402
 from app.beta.auth import models as _auth_models  # noqa: E402, F401
+from app.beta.setup import models as _setup_models  # noqa: E402, F401
+from app.beta.data_layer import models as _data_layer_models  # noqa: E402, F401
+from app.beta.integration_platform import models as _integration_platform_models  # noqa: E402, F401
 
 target_metadata = BetaBase.metadata
 
