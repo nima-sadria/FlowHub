@@ -220,7 +220,7 @@ Nextcloud.
 
 ## D. Database Schema
 
-**Alembic chain:** `beta_001` → `beta_002` → `beta_003` → `beta_004` → `beta_005` → `beta_006` (current head)
+**Alembic chain:** `beta_001` → `beta_002` → `beta_003` → `beta_004` → `beta_005` → `beta_006` → `beta_007` (current head)
 
 ### `beta_users`  (beta_001)
 
@@ -295,7 +295,7 @@ Indexes: `ix_beta_login_audit_id`, `ix_beta_login_audit_username`
 
 ### `alembic_version`  (Alembic built-in)
 
-Single row: `version_num = "beta_006"` on a fresh or fully migrated install.
+Single row: `version_num = "beta_007"` on a fresh or fully migrated install.
 
 ---
 

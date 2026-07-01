@@ -7,8 +7,10 @@ pricing automation.
 
 from __future__ import annotations
 
+import hmac
 import uuid
 from datetime import datetime
+from hashlib import sha256
 from typing import Iterable
 
 from fastapi import HTTPException, status
@@ -45,16 +47,30 @@ from app.beta.integration_platform.contracts import (
     WorkspacePreviewResponse,
 )
 from app.beta.integration_platform.models import (
+    IntegrationConnectorDiagnostic,
     IntegrationConnectorEvent,
     IntegrationConnectorHealthSnapshot,
     IntegrationConnectorInstance,
     IntegrationConnectorSetting,
+    IntegrationConnectorTelemetry,
+    IntegrationPollingPolicy,
+    IntegrationWebhookEvent,
 )
 from app.beta.integration_platform.registry import registry
 from app.beta.setup.service import AppConfigService
 
 
-_SECRET_KEYS = {"key", "secret", "password", "token", "consumer_key", "consumer_secret"}
+_SECRET_KEYS = {
+    "password",
+    "secret",
+    "token",
+    "api_key",
+    "consumer_key",
+    "consumer_secret",
+    "webhook_secret",
+    "bearer",
+    "authorization",
+}
 
 
 class IntegrationPlatformService:
@@ -66,11 +82,21 @@ class IntegrationPlatformService:
     def list_registry(self) -> ConnectorRegistryResponse:
         return ConnectorRegistryResponse(items=registry.list_definitions())
 
+    def list_registry_contract(self) -> dict:
+        return {
+            "items": [self._definition_to_contract(item) for item in registry.list_definitions()],
+            "total": len(registry.list_definitions()),
+            "correlation_id": self._correlation_id(),
+        }
+
     def get_registry_definition(self, connector_type: str) -> ConnectorDefinition:
         definition = registry.get_definition(connector_type)
         if definition is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector definition not found.")
         return definition
+
+    def get_registry_contract(self, connector_type: str) -> dict:
+        return self._definition_to_contract(self.get_registry_definition(connector_type), detail=True)
 
     def list_instances(self) -> ConnectorListResponse:
         self.bootstrap_from_app_config()
@@ -80,6 +106,24 @@ class IntegrationPlatformService:
             .all()
         )
         return ConnectorListResponse(items=[self._instance_to_shape(row) for row in rows])
+
+    def list_instances_contract(self, page: int = 1, page_size: int = 50) -> dict:
+        self.bootstrap_from_app_config()
+        page = max(page, 1)
+        page_size = min(max(page_size, 1), 200)
+        q = self.db.query(IntegrationConnectorInstance).order_by(
+            IntegrationConnectorInstance.connector_type.asc(),
+            IntegrationConnectorInstance.name.asc(),
+        )
+        total = q.count()
+        rows = q.offset((page - 1) * page_size).limit(page_size).all()
+        return {
+            "items": [self._instance_to_contract(row) for row in rows],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "correlation_id": self._correlation_id(),
+        }
 
     def create_instance(self, body: ConnectorCreateRequest) -> ConnectorInstanceShape:
         definition = self.get_registry_definition(body.connector_type)
@@ -106,6 +150,123 @@ class IntegrationPlatformService:
         )
         return self._instance_to_shape(row)
 
+    def create_instance_contract(self, body: dict) -> dict:
+        connector_type = str(body.get("connector_type") or "").strip()
+        if not connector_type:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "connector_type is required.")
+        definition = self.get_registry_definition(connector_type)
+        connector_id = str(body.get("id") or f"{connector_type}:{uuid.uuid4().hex[:12]}")
+        existing = self.db.get(IntegrationConnectorInstance, connector_id)
+        if existing is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Connector instance already exists.")
+        row = IntegrationConnectorInstance(
+            id=connector_id,
+            connector_type=connector_type,
+            name=str(body.get("name") or definition.connector.identity.name),
+            version=definition.connector.identity.version,
+            enabled=bool(body.get("enabled", True)),
+            read_only=True,
+            status=ConnectorHealthStatus.DISABLED.value,
+        )
+        self.db.add(row)
+        self.db.flush()
+        settings = body.get("settings")
+        if isinstance(settings, dict):
+            secret_keys = self._definition_secret_keys(definition)
+            self._upsert_settings(
+                row,
+                [
+                    ConnectorSettingValue(
+                        key=key,
+                        value=value,
+                        secret=_is_secret_key(key) or key in secret_keys,
+                        configured=value not in (None, ""),
+                    )
+                    for key, value in settings.items()
+                ],
+                commit=False,
+            )
+        self.record_event(
+            connector_id=row.id,
+            event_name="connector_created",
+            message="Connector instance was created in FlowHub local configuration only.",
+            metadata={"external_write_performed": False},
+            commit=False,
+        )
+        self.db.commit()
+        self.db.refresh(row)
+        return self._instance_to_contract(row)
+
+    def update_instance_contract(self, connector_id: str, body: dict) -> dict:
+        row = self.db.get(IntegrationConnectorInstance, connector_id)
+        if row is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        if "name" in body:
+            row.name = str(body["name"])
+        if "enabled" in body:
+            row.enabled = bool(body["enabled"])
+        row.read_only = True
+        settings = body.get("settings")
+        if isinstance(settings, dict):
+            secret_keys = self._definition_secret_keys(self.get_registry_definition(row.connector_type))
+            self._upsert_settings(
+                row,
+                [
+                    ConnectorSettingValue(
+                        key=key,
+                        value=value,
+                        secret=_is_secret_key(key) or key in secret_keys,
+                        configured=value not in (None, ""),
+                    )
+                    for key, value in settings.items()
+                ],
+                commit=False,
+            )
+        row.updated_at = datetime.utcnow()
+        self.record_event(
+            connector_id=connector_id,
+            event_name="connector_updated",
+            message="Connector instance was updated locally.",
+            metadata={"external_write_performed": False},
+            commit=False,
+        )
+        self.db.commit()
+        self.db.refresh(row)
+        return self._instance_to_contract(row)
+
+    def set_enabled_contract(self, connector_id: str, enabled: bool) -> dict:
+        row = self.db.get(IntegrationConnectorInstance, connector_id)
+        if row is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        row.enabled = enabled
+        row.read_only = True
+        row.updated_at = datetime.utcnow()
+        self.record_event(
+            connector_id=connector_id,
+            event_name="connector_enabled" if enabled else "connector_disabled",
+            message="Connector enabled state changed locally. Scheduler execution was not started.",
+            metadata={"scheduler_started": False, "external_write_performed": False},
+            commit=False,
+        )
+        self.db.commit()
+        self.db.refresh(row)
+        return self._instance_to_contract(row)
+
+    def delete_instance_contract(self, connector_id: str) -> dict:
+        row = self.db.get(IntegrationConnectorInstance, connector_id)
+        if row is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        self.db.delete(row)
+        self.record_event(
+            connector_id=connector_id,
+            event_name="connector_deleted",
+            message="Connector configuration was deleted from FlowHub only.",
+            metadata={"external_platform_unchanged": True},
+            commit=False,
+        )
+        self.db.commit()
+        return {"deleted": True, "external_platform_unchanged": True, "correlation_id": self._correlation_id()}
+
     def get_instance(self, connector_id: str) -> ConnectorInstanceShape:
         self.bootstrap_from_app_config()
         row = self.db.get(IntegrationConnectorInstance, connector_id)
@@ -115,6 +276,59 @@ class IntegrationPlatformService:
 
     def get_settings(self, connector_id: str) -> list[ConnectorSettingValue]:
         return self.get_instance(connector_id).settings
+
+    def get_settings_contract(self, connector_id: str) -> dict:
+        row = self.db.get(IntegrationConnectorInstance, connector_id)
+        if row is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        settings: dict[str, object] = {}
+        secrets: dict[str, dict[str, str | None]] = {}
+        for item in row.settings:
+            if item.secret:
+                secrets[item.key] = {
+                    "status": "configured" if item.configured else "not_configured",
+                    "replaced_at": _iso(item.updated_at),
+                }
+            else:
+                settings[item.key] = item.value_json
+        return {
+            "connector_id": connector_id,
+            "settings": settings,
+            "secrets": secrets,
+            "correlation_id": self._correlation_id(),
+        }
+
+    def update_settings_contract(self, connector_id: str, body: dict) -> dict:
+        row = self.db.get(IntegrationConnectorInstance, connector_id)
+        if row is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        entries: list[ConnectorSettingValue] = []
+        settings = body.get("settings") if isinstance(body, dict) else None
+        secrets = body.get("secrets") if isinstance(body, dict) else None
+        if isinstance(settings, dict):
+            secret_keys = self._definition_secret_keys(self.get_registry_definition(row.connector_type))
+            entries.extend(
+                ConnectorSettingValue(
+                    key=key,
+                    value=value,
+                    secret=_is_secret_key(key) or key in secret_keys,
+                    configured=value not in (None, ""),
+                )
+                for key, value in settings.items()
+            )
+        if isinstance(secrets, dict):
+            entries.extend(
+                ConnectorSettingValue(key=key, value=value, secret=True, configured=value not in (None, ""))
+                for key, value in secrets.items()
+            )
+        self._upsert_settings(row, entries)
+        self.record_event(
+            connector_id=connector_id,
+            event_name="connector_settings_updated",
+            message="Connector settings were updated; secrets remain write-only.",
+            metadata={"secret_values_returned": False},
+        )
+        return self.get_settings_contract(connector_id)
 
     def update_settings(self, connector_id: str, settings: list[ConnectorSettingValue]) -> ConnectorInstanceShape:
         row = self.db.get(IntegrationConnectorInstance, connector_id)
@@ -200,7 +414,7 @@ class IntegrationPlatformService:
                 ConnectorSettingValue(
                     key=key,
                     value=value,
-                    secret=key in _SECRET_KEYS,
+                    secret=_is_secret_key(key) or key in self._definition_secret_keys(definition),
                     configured=value not in (None, ""),
                 )
                 for key, value in values.items()
@@ -372,6 +586,38 @@ class IntegrationPlatformService:
             aggregate=aggregate,
         )
 
+    def telemetry_contract(self, connector_id: str | None = None, limit: int = 100) -> dict:
+        self.bootstrap_from_app_config()
+        instances = self.db.query(IntegrationConnectorInstance).all()
+        instance_type = {row.id: row.connector_type for row in instances}
+        aggregate = self._telemetry_aggregate(connector_id)
+        rows = []
+        ids = [connector_id] if connector_id else list(instance_type)
+        for cid in ids:
+            if not cid:
+                continue
+            rows.append(
+                {
+                    "connector_id": cid,
+                    "connector_type": instance_type.get(cid, cid.split(":")[0]),
+                    "operation": "data_layer_read",
+                    "request_count": aggregate.get("total_requests", 0),
+                    "error_count": aggregate.get("total_errors", 0),
+                    "latency_ms_p50": 0,
+                    "latency_ms_p95": 0,
+                    "retry_count": 0,
+                    "rate_limit_events": 0,
+                    "refresh_duration_ms": 0,
+                    "records_fetched": aggregate.get("total_products_fetched", 0) + aggregate.get("total_rows_parsed", 0),
+                    "bucket_start": _iso(datetime.utcnow()),
+                }
+            )
+        return {
+            "items": rows[: min(max(limit, 1), 500)],
+            "aggregate": aggregate,
+            "correlation_id": self._correlation_id(),
+        }
+
     def diagnostics_run(self, target: str = "all") -> dict:
         self.bootstrap_from_app_config()
         started = datetime.utcnow()
@@ -421,6 +667,179 @@ class IntegrationPlatformService:
             "repair_steps": [],
         }
 
+    def diagnostics_contract(self, connector_id: str | None = None) -> dict:
+        target = "all"
+        if connector_id:
+            row = self.db.get(IntegrationConnectorInstance, connector_id)
+            if row is None:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+            target = row.connector_type
+        run = self.diagnostics_run(target)
+        status_value = self._diagnostic_status(run["overall_status"])
+        result = {
+            "connector_id": connector_id or "all",
+            "status": status_value,
+            "checks": run["checks"],
+            "started_at": run["started_at"],
+            "finished_at": run["completed_at"],
+            "duration_ms": int(run["duration_ms"]),
+            "warnings": [c for c in run["checks"] if c["status"] == "skip"],
+            "errors": [c for c in run["checks"] if c["status"] == "fail"],
+            "correlation_id": self._correlation_id(),
+        }
+        row = IntegrationConnectorDiagnostic(
+            connector_id=result["connector_id"],
+            status=status_value,
+            checks_json=result["checks"],
+            warnings_json=result["warnings"],
+            errors_json=result["errors"],
+            duration_ms=result["duration_ms"],
+            correlation_id=result["correlation_id"],
+        )
+        self.db.add(row)
+        self.db.commit()
+        return result
+
+    def health_contract(self, connector_id: str | None = None) -> dict:
+        self.bootstrap_from_app_config()
+        q = self.db.query(IntegrationConnectorInstance)
+        if connector_id:
+            q = q.filter(IntegrationConnectorInstance.id == connector_id)
+        rows = q.order_by(IntegrationConnectorInstance.connector_type.asc()).all()
+        if connector_id and not rows:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        items = [self._instance_to_contract(row) for row in rows]
+        summary: dict[str, int] = {status_item.value: 0 for status_item in ConnectorHealthStatus}
+        for item in items:
+            summary[item["status"]] = summary.get(item["status"], 0) + 1
+        if connector_id:
+            return {**items[0]["health"], "status": items[0]["status"], "correlation_id": self._correlation_id()}
+        return {"summary": summary, "items": items, "correlation_id": self._correlation_id()}
+
+    def list_events_contract(self, limit: int = 100) -> dict:
+        events = (
+            self.db.query(IntegrationConnectorEvent)
+            .order_by(IntegrationConnectorEvent.created_at.desc(), IntegrationConnectorEvent.id.desc())
+            .limit(min(max(limit, 1), 500))
+            .all()
+        )
+        return {
+            "items": [
+                {
+                    "id": event.id,
+                    "timestamp": _iso(event.created_at),
+                    "connector_id": event.connector_id,
+                    "event_type": event.event_name,
+                    "severity": event.severity,
+                    "message": event.message,
+                    "actor": None,
+                    "result": event.metadata_json.get("result", "recorded") if event.metadata_json else "recorded",
+                    "correlation_id": event.metadata_json.get("correlation_id") if event.metadata_json else None,
+                }
+                for event in events
+            ],
+            "total": len(events),
+            "correlation_id": self._correlation_id(),
+        }
+
+    def receive_webhook_contract(
+        self,
+        connector_type: str,
+        connector_id: str,
+        payload: dict | list | None,
+        raw_body: bytes,
+        signature: str | None,
+    ) -> dict:
+        instance = self.db.get(IntegrationConnectorInstance, connector_id)
+        if instance is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        webhook_secret = self._secret_configured(instance, "webhook_secret")
+        if not webhook_secret:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Webhook signature verifier is not configured.")
+        if not signature or not _verify_webhook_signature(webhook_secret, raw_body, signature):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Webhook signature verification failed.")
+        accepted = True
+        reason = None
+        event = IntegrationWebhookEvent(
+            connector_type=connector_type,
+            connector_id=connector_id,
+            accepted=accepted,
+            rejected=not accepted,
+            reason=reason,
+            payload_summary_json={"type": type(payload).__name__},
+            correlation_id=self._correlation_id(),
+        )
+        self.db.add(event)
+        self.record_event(
+            connector_id=connector_id,
+            event_name="webhook_received" if accepted else "webhook_rejected",
+            message="Webhook was recorded. Products were not directly mutated.",
+            severity="info" if accepted else "warning",
+            metadata={"direct_product_mutation": False, "refresh_enqueued": False},
+            commit=False,
+        )
+        self.db.commit()
+        return {
+            "accepted": accepted,
+            "rejected": not accepted,
+            "reason": reason,
+            "event_id": f"webhook_{event.id}",
+            "correlation_id": event.correlation_id,
+        }
+
+    def get_polling_contract(self, connector_id: str) -> dict:
+        self.get_instance(connector_id)
+        policy = self.db.get(IntegrationPollingPolicy, connector_id)
+        if policy is None:
+            policy = IntegrationPollingPolicy(connector_id=connector_id, enabled=False)
+            self.db.add(policy)
+            self.db.commit()
+            self.db.refresh(policy)
+        return self._polling_to_contract(policy)
+
+    def update_polling_contract(self, connector_id: str, body: dict) -> dict:
+        self.get_instance(connector_id)
+        policy = self.db.get(IntegrationPollingPolicy, connector_id)
+        if policy is None:
+            policy = IntegrationPollingPolicy(connector_id=connector_id)
+            self.db.add(policy)
+        policy.enabled = bool(body.get("enabled", False))
+        policy.interval_seconds = int(body.get("interval_seconds", policy.interval_seconds or 900))
+        policy.jitter_seconds = int(body.get("jitter_seconds", policy.jitter_seconds or 60))
+        policy.last_run_at = None
+        policy.next_run_at = None
+        policy.updated_at = datetime.utcnow()
+        self.record_event(
+            connector_id=connector_id,
+            event_name="polling_policy_updated",
+            message="Polling policy updated. Scheduler implementation remains disabled.",
+            metadata={"scheduler_implemented": False, "scheduler_started": False},
+            commit=False,
+        )
+        self.db.commit()
+        return self._polling_to_contract(policy)
+
+    def write_guard_contract(self, connector_id: str, operation: str) -> dict:
+        instance = self.get_instance(connector_id)
+        capabilities = instance.connector.capabilities.model_dump()
+        self.record_event(
+            connector_id=connector_id,
+            event_name="write_guard_denied",
+            message="Write operations are disabled in FlowHub Beta.",
+            severity="warning",
+            metadata={"operation": operation, "execution_attempted": False},
+        )
+        return {
+            "allowed": False,
+            "status": "blocked",
+            "error_code": "write_blocked_beta",
+            "message": "Write operations are disabled in FlowHub Beta.",
+            "capability_advertised": bool(capabilities.get(operation, False)),
+            "authorization_granted": False,
+            "execution_attempted": False,
+            "correlation_id": self._correlation_id(),
+        }
+
     def record_event(
         self,
         *,
@@ -467,6 +886,65 @@ class IntegrationPlatformService:
             updated_at=_iso(row.updated_at),
         )
 
+    def _definition_to_contract(self, definition: ConnectorDefinition, detail: bool = False) -> dict:
+        connector = definition.connector
+        capabilities = connector.capabilities.model_dump()
+        body = {
+            "connector_type": connector.identity.type,
+            "name": connector.identity.name,
+            "version": connector.identity.version,
+            "description": f"{connector.identity.name} connector.",
+            "capabilities": capabilities,
+            "authentication_types": self._authentication_types(capabilities),
+            "supported_operations": [key for key, enabled in capabilities.items() if enabled and key not in {"oauth", "api_key", "webhook", "polling"}],
+            "supported_transports": self._supported_transports(capabilities),
+            "read_only_supported": True,
+            "write_supported": bool(capabilities.get("write_prices") or capabilities.get("write_inventory")),
+            "beta_write_blocked": True,
+            "status": "current" if connector.identity.type in {"woocommerce", "nextcloud"} else "future",
+        }
+        if detail:
+            body.update(
+                {
+                    "settings_schema": [item.model_dump() for item in definition.settings_schema],
+                    "secret_fields": [item.key for item in definition.settings_schema if item.secret],
+                    "health_checks": ["settings", "data_layer_health"],
+                    "diagnostic_checks": [item.model_dump() for item in definition.diagnostics_contract.checks],
+                    "webhook_events": ["changed"] if capabilities.get("webhook") else [],
+                    "polling_defaults": {"enabled": False, "interval_seconds": 900, "scheduler_implemented": False},
+                    "rate_limit_policy": {"local_api_limit": "standard", "connector_limits_honored": True},
+                    "data_layer_mappings": ["products", "inventory", "sources"],
+                    "known_limitations": ["FlowHub Beta blocks write execution."],
+                }
+            )
+        return body
+
+    def _instance_to_contract(self, row: IntegrationConnectorInstance) -> dict:
+        definition = self.get_registry_definition(row.connector_type)
+        health_status = self._health_status_for(row).value
+        health = self._latest_health(row.id)
+        return {
+            "id": row.id,
+            "connector_type": row.connector_type,
+            "name": row.name,
+            "enabled": row.enabled,
+            "read_only": True,
+            "status": health_status,
+            "health": {
+                "healthy": health_status == ConnectorHealthStatus.HEALTHY.value,
+                "last_checked_at": _iso(health.checked_at) if health else None,
+                "latency_ms": 0,
+                "error_code": health.error_class if health else None,
+                "message": health.message if health else ("Connector has no Data Layer health record yet."),
+            },
+            "capabilities": definition.connector.capabilities.model_dump(),
+            "created_at": _iso(row.created_at),
+            "updated_at": _iso(row.updated_at),
+            "last_checked_at": _iso(health.checked_at) if health else None,
+            "runtime_write_blocked": True,
+            "capability_authorizes_write": False,
+        }
+
     def _upsert_settings(
         self,
         row: IntegrationConnectorInstance,
@@ -477,9 +955,9 @@ class IntegrationPlatformService:
         existing = {item.key: item for item in row.settings}
         now = datetime.utcnow()
         for item in settings:
-            secret = item.secret or item.key in _SECRET_KEYS
+            secret = item.secret or _is_secret_key(item.key)
             configured = item.configured or item.value not in (None, "")
-            value = None if secret else item.value
+            value = item.value if secret and item.key == "webhook_secret" else None if secret else item.value
             setting = existing.get(item.key)
             if setting is None:
                 setting = IntegrationConnectorSetting(
@@ -547,6 +1025,47 @@ class IntegrationPlatformService:
             metadata=event.metadata_json or {},
         )
 
+    def _polling_to_contract(self, policy: IntegrationPollingPolicy) -> dict:
+        return {
+            "connector_id": policy.connector_id,
+            "enabled": policy.enabled,
+            "interval_seconds": policy.interval_seconds,
+            "jitter_seconds": policy.jitter_seconds,
+            "last_run_at": _iso(policy.last_run_at),
+            "next_run_at": _iso(policy.next_run_at),
+            "scheduler_implemented": False,
+            "correlation_id": self._correlation_id(),
+        }
+
+    def _authentication_types(self, capabilities: dict) -> list[str]:
+        auth: list[str] = []
+        if capabilities.get("api_key"):
+            auth.append("api_key")
+        if capabilities.get("oauth"):
+            auth.append("oauth")
+        return auth
+
+    def _supported_transports(self, capabilities: dict) -> list[str]:
+        transports = ["rest_api"]
+        if capabilities.get("webhook"):
+            transports.append("webhook")
+        if capabilities.get("polling"):
+            transports.append("polling")
+        return transports
+
+    def _definition_secret_keys(self, definition: ConnectorDefinition) -> set[str]:
+        return {item.key for item in definition.settings_schema if item.secret}
+
+    def _diagnostic_status(self, status_value: str) -> str:
+        if status_value == "ok":
+            return ConnectorHealthStatus.HEALTHY.value
+        if status_value == "skip":
+            return ConnectorHealthStatus.DEGRADED.value
+        return ConnectorHealthStatus.ERROR.value
+
+    def _correlation_id(self) -> str:
+        return f"corr_{uuid.uuid4().hex[:12]}"
+
     def _telemetry_aggregate(self, connector_id: str | None) -> dict:
         q = self.db.query(DlConnectorTelemetry)
         if connector_id:
@@ -593,6 +1112,12 @@ class IntegrationPlatformService:
         base = str(url.value_json or "") if url and not url.secret else ""
         suffix = str(path.value_json or "") if path and not path.secret else ""
         return f"{base}{suffix}" if base else row.id
+
+    def _secret_configured(self, row: IntegrationConnectorInstance, key: str) -> str | None:
+        for item in row.settings:
+            if item.key == key and item.secret and item.configured:
+                return str(item.value_json or "")
+        return None
 
     def _source_status(self, row: IntegrationConnectorInstance, snapshot: DlSourceSnapshot | None) -> str:
         if not row.enabled:
@@ -659,6 +1184,17 @@ def _product_has_category(row: DlProductCache, category_id: int) -> bool:
         if isinstance(category, dict) and str(category.get("id")) == str(category_id):
             return True
     return False
+
+
+def _is_secret_key(key: str) -> bool:
+    normalized = key.strip().lower()
+    return normalized in _SECRET_KEYS
+
+
+def _verify_webhook_signature(secret: str, raw_body: bytes, signature: str) -> bool:
+    expected = hmac.new(secret.encode("utf-8"), raw_body, sha256).hexdigest()
+    candidates = {expected, f"sha256={expected}"}
+    return any(hmac.compare_digest(signature.strip(), candidate) for candidate in candidates)
 
 
 def _iso(value: datetime | None) -> str | None:

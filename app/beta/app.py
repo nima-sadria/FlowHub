@@ -58,6 +58,8 @@ from app.beta.api.v2.activity import router as activity_router
 from app.beta.api.v2.diagnostics import router as diagnostics_router
 from app.beta.api.v2.data_layer_routes import router as data_layer_router
 from app.beta.api.v2.integrations import router as integrations_router
+from app.beta.api.v2.integration_platform import router as integration_platform_router
+from app.beta.api.v2.logging import router as logging_router
 
 _VERSION = "0.3.0-bu5"
 
@@ -109,6 +111,8 @@ app.include_router(health_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(setup_router, prefix="/api/v2")
 app.include_router(integrations_router, prefix="/api/v2")
+app.include_router(integration_platform_router, prefix="/api/v2")
+app.include_router(logging_router, prefix="/api/v2")
 app.include_router(products_router, prefix="/api/v2")
 app.include_router(sources_router, prefix="/api/v2")
 app.include_router(workspace_router, prefix="/api/v2")

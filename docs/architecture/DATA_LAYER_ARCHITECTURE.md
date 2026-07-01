@@ -872,6 +872,16 @@ Products from SnappShop → UI (same Products page, different channel tab)
 | `ip_connector_settings` | **Integration Platform** | Local connector settings with masked secrets in API responses |
 | `ip_connector_health_snapshots` | **Integration Platform** | Connector status snapshots |
 | `ip_connector_events` | **Integration Platform** | Connector diagnostics and telemetry events |
+| `ip_connector_diagnostics` | **Integration Platform** | Read-only diagnostic run records |
+| `ip_connector_telemetry` | **Integration Platform** | Canonical connector telemetry contract rows |
+| `ip_webhook_events` | **Integration Platform** | Webhook receipt records; no direct product mutation |
+| `ip_polling_policies` | **Integration Platform** | Polling policy configuration; Scheduler remains disabled |
+| `logging_entries` | **Unified Logging Platform** | Structured application log entries |
+| `logging_correlations` | **Unified Logging Platform** | Correlation ID rollups |
+| `logging_request_traces` | **Unified Logging Platform** | Request-scoped trace rollups |
+| `logging_retention_policies` | **Unified Logging Platform** | Retention policy settings |
+| `logging_export_events` | **Unified Logging Platform** | Log export audit records |
+| `logging_redaction_policy_versions` | **Unified Logging Platform** | Redaction policy visibility records |
 
 ### Frontend Pages
 
@@ -887,18 +897,21 @@ Products from SnappShop → UI (same Products page, different channel tab)
 | Diagnostics | /diagnostics | Active - Integration Platform | Record-backed connector diagnostics |
 | Settings | /settings | Active - Integration Platform | Local settings; secrets masked |
 | IntegrationPlatform | /integrations | Active - Integration Platform | Registry, instances, capabilities, telemetry |
+| LoggingPlatform | /logging | Active - Unified Logging Platform | Application logs, retention, redaction, and search |
 
 ### What is Current vs. Planned vs. Future
 
 **Current (DL1 + Integration Platform foundation):**
 - All 8 `dl_*` tables created (migration beta_005)
-- Integration Platform `ip_*` tables created (migration beta_006)
+- Integration Platform `ip_*` tables created (migrations beta_006 and beta_007)
+- Unified Logging Platform tables created (migration beta_007)
 - All 6 service modules implemented (`app/beta/data_layer/`)
 - All 6 read-only API endpoints implemented (`/api/v2/data-layer/*`)
 - Products, Sources, Workspace, Diagnostics, Settings, and telemetry routes are
   wired through Integration Platform/Data Layer records where approved
 - `/data-layer` UI page shows live Data Layer status with empty states
 - `/integrations` UI page shows registry, instances, capabilities, and telemetry
+- `/logging` UI page shows log search, summary, retention, and redaction policy
 - Strictly read-only; no scheduler; no Apply
 
 **Planned (DL2):**

@@ -726,7 +726,8 @@ Logical services:
 Storage entities:
 
 - `logging_entries`
-- `logging_payloads`
+- Inline `payload_json` on `logging_entries` for the current implementation;
+  a separate `logging_payloads` table remains a future storage option.
 - `logging_correlations`
 - `logging_request_traces`
 - `logging_retention_policies`
