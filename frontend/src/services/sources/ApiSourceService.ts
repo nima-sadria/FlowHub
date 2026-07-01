@@ -32,12 +32,12 @@ export class ApiSourceService implements SourceService {
   }
 
   async testConnection(_config: SourceConfig): Promise<ConnectionTestResult> {
-    // In BU5 connection testing is done inside Settings; this method is not used
-    return { success: false, message: 'Use Settings to configure Nextcloud.' }
+    // Connection testing is handled by the connector UI; this method is not used.
+    return { success: false, message: 'Use Integrations to configure connectors.' }
   }
 
   async createSource(_config: SourceConfig): Promise<Source> {
-    // Write guard — sources are configured via Settings wizard in BU5
-    throw new Error('Write operations are disabled in FlowHub Beta.')
+    // Write guard: source creation is disabled from this service.
+    throw new Error('Write operations are disabled.')
   }
 }

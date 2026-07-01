@@ -5,6 +5,7 @@ import { authFetch } from '../api/authFetch'
 import type { HealthResponse } from '../api/types'
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
+import Empty from '../components/Empty'
 
 function relTime(d: Date): string {
   const s = Math.floor((Date.now() - d.getTime()) / 1000)
@@ -15,63 +16,79 @@ function relTime(d: Date): string {
   return `${Math.floor(m / 60)}h ago`
 }
 
-interface DiagCard {
+interface ConnectorStatus {
+  id?: string
+  name?: string
+  connector_type?: string
+  enabled?: boolean
+  status?: string
+  health?: string | { status?: string; message?: string; checked_at?: string | null } | null
+  last_checked_at?: string | null
+}
+
+interface DiagnosticsStatusResponse {
+  overall_status?: string
+  checkedAt?: string
+  connectors?: ConnectorStatus[]
+  external_call_performed?: boolean
+}
+
+interface StatusRowData {
   label: string
   value: string
   status: 'ok' | 'error' | 'loading' | 'pending'
   detail?: string
 }
 
-function DiagRow({ card }: { card: DiagCard }) {
+function normalizeStatus(status: string | undefined): StatusRowData['status'] {
+  if (!status) return 'pending'
+  const s = status.toLowerCase()
+  if (['healthy', 'ok', 'connected', 'active'].includes(s)) return 'ok'
+  if (['error', 'failed', 'authentication_failed', 'timeout'].includes(s)) return 'error'
+  if (['disabled', 'unconfigured'].includes(s)) return 'pending'
+  return 'pending'
+}
+
+function connectorHealth(connector: ConnectorStatus): string | undefined {
+  if (typeof connector.health === 'string') return connector.health
+  return connector.health?.status ?? connector.status
+}
+
+function Row({ row }: { row: StatusRowData }) {
   const dot =
-    card.status === 'ok'      ? 'bg-wp-green' :
-    card.status === 'error'   ? 'bg-wp-red' :
-    card.status === 'loading' ? 'bg-wp-yellow animate-pulse' :
+    row.status === 'ok'      ? 'bg-wp-green' :
+    row.status === 'error'   ? 'bg-wp-red' :
+    row.status === 'loading' ? 'bg-wp-yellow animate-pulse' :
     'bg-border'
 
-  const statusText =
-    card.status === 'ok'      ? 'OK' :
-    card.status === 'error'   ? 'Error' :
-    card.status === 'loading' ? 'Checking…' :
-    'Pending'
+  const label =
+    row.status === 'ok'      ? 'OK' :
+    row.status === 'error'   ? 'Needs attention' :
+    row.status === 'loading' ? 'Checking...' :
+    'Not configured'
 
   return (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-border last:border-0">
-      <div>
-        <div className="text-[13px] font-medium text-text-base">{card.label}</div>
-        {card.detail && <div className="text-[11px] text-wp-muted mt-0.5">{card.detail}</div>}
+      <div className="min-w-0">
+        <div className="text-[13px] font-medium text-text-base truncate">{row.label}</div>
+        {row.detail && <div className="text-[11px] text-wp-muted mt-0.5">{row.detail}</div>}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
-        <span className="text-[13px] text-text-base font-medium">{card.value}</span>
+        <span className="text-[13px] text-text-base font-medium">{row.value}</span>
         <div className="flex items-center gap-1.5">
           <span className={['w-2 h-2 rounded-full flex-shrink-0', dot].join(' ')} />
-          <span className="text-[11px] text-wp-muted">{statusText}</span>
+          <span className="text-[11px] text-wp-muted">{label}</span>
         </div>
       </div>
     </div>
   )
 }
 
-interface IntegrationStatus {
-  status: 'ok' | 'error' | 'unconfigured'
-  latencyMs: number | null
-  productCount?: number | null
-  lastModified?: string | null
-  detail: string | null
-}
-
-interface DiagnosticsResponse {
-  database: { status: string; detail: string | null }
-  woocommerce: IntegrationStatus
-  nextcloud: IntegrationStatus & { lastModified: string | null }
-  checkedAt: string
-}
-
 export default function Diagnostics() {
   const { authFetch: ctxAuthFetch } = useAuth()
   const { success, error: notifyError } = useNotification()
   const [health, setHealth] = useState<HealthResponse | null>(null)
-  const [diag, setDiag] = useState<DiagnosticsResponse | null>(null)
+  const [diag, setDiag] = useState<DiagnosticsStatusResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [checkedAt, setCheckedAt] = useState<Date | null>(null)
@@ -84,14 +101,13 @@ export default function Diagnostics() {
         apiFetch<HealthResponse>('/api/health', ctxAuthFetch),
         authFetch('/api/v2/diagnostics/status'),
       ])
+      if (!diagResp.ok) throw new ApiError(diagResp.status, await diagResp.text())
       setHealth(healthData)
-      if (diagResp.ok) {
-        setDiag(await diagResp.json() as DiagnosticsResponse)
-      }
+      setDiag(await diagResp.json() as DiagnosticsStatusResponse)
       setCheckedAt(new Date())
       success('Diagnostics refreshed')
     } catch (e) {
-      const msg = e instanceof ApiError ? `HTTP ${e.status}` : 'Failed to reach backend'
+      const msg = e instanceof ApiError ? `Diagnostics unavailable (HTTP ${e.status})` : 'Failed to reach diagnostics'
       setErr(msg)
       notifyError(msg)
     } finally {
@@ -101,61 +117,21 @@ export default function Diagnostics() {
 
   useEffect(() => { void runCheck() }, [runCheck])
 
-  const backendStatus = loading ? 'loading' : err ? 'error' : 'ok'
-
-  function integrationCard(
-    label: string,
-    data: IntegrationStatus | undefined,
-    extras?: { countLabel?: string },
-  ): DiagCard {
-    if (!data) return { label, value: '…', status: 'loading' }
-    if (data.status === 'unconfigured') {
-      return { label, value: 'Not configured', status: 'pending', detail: 'Configure in Settings' }
-    }
-    const latency = data.latencyMs != null ? `${data.latencyMs.toFixed(0)} ms` : null
-    let value = data.status === 'ok' ? 'Connected' : 'Error'
-    if (data.status === 'ok' && latency) value += ` — ${latency}`
-    const detailParts: string[] = []
-    if (data.detail) detailParts.push(data.detail)
-    if (extras?.countLabel && data.productCount != null) {
-      detailParts.push(`${data.productCount} ${extras.countLabel}`)
-    }
-    if (data.lastModified) {
-      detailParts.push(`Last modified: ${data.lastModified}`)
-    }
-    return {
-      label,
-      value,
-      status: data.status === 'ok' ? 'ok' : 'error',
-      detail: detailParts.join(' · ') || undefined,
-    }
-  }
-
-  const systemCards: DiagCard[] = [
+  const backendStatus: StatusRowData['status'] = loading ? 'loading' : err ? 'error' : 'ok'
+  const connectors = diag?.connectors ?? []
+  const systemRows: StatusRowData[] = [
     {
       label: 'Backend',
-      value: health ? `v${health.version}` : loading ? '…' : 'Unavailable',
+      value: loading ? 'Checking...' : health ? 'Online' : 'Unavailable',
       status: backendStatus,
-      detail: health ? `Environment: ${health.env}` : undefined,
+      detail: health ? 'Application service is responding' : undefined,
     },
     {
-      label: 'Database',
-      value: !diag ? (loading ? '…' : 'Unavailable')
-        : diag.database.status === 'ok' ? 'Connected' : 'Error',
-      status: !diag ? backendStatus : diag.database.status === 'ok' ? 'ok' : 'error',
-      detail: diag?.database.detail ?? 'PostgreSQL via beta schema',
+      label: 'Diagnostics',
+      value: loading ? 'Checking...' : diag?.overall_status === 'error' ? 'Attention needed' : 'Ready',
+      status: loading ? 'loading' : normalizeStatus(diag?.overall_status ?? (err ? 'error' : 'ok')),
+      detail: diag?.checkedAt ? `Last checked ${new Date(diag.checkedAt).toLocaleString()}` : undefined,
     },
-    {
-      label: 'Authentication',
-      value: backendStatus === 'ok' ? 'Active' : backendStatus === 'loading' ? '…' : 'Unavailable',
-      status: backendStatus,
-      detail: 'JWT (HS256) + opaque refresh tokens',
-    },
-  ]
-
-  const integrationCards: DiagCard[] = [
-    integrationCard('WooCommerce', diag?.woocommerce, { countLabel: 'products' }),
-    integrationCard('Nextcloud', diag?.nextcloud),
   ]
 
   return (
@@ -164,7 +140,7 @@ export default function Diagnostics() {
         <div>
           <h1 className="text-[22px] font-bold text-text-base">Diagnostics</h1>
           <p className="text-[13px] text-wp-muted mt-0.5">
-            {checkedAt ? `Last checked ${relTime(checkedAt)}` : 'Checking…'}
+            {checkedAt ? `Last checked ${relTime(checkedAt)}` : 'Checking...'}
           </p>
         </div>
         <button
@@ -179,7 +155,7 @@ export default function Diagnostics() {
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
             </svg>
           )}
-          {loading ? 'Checking…' : 'Re-check'}
+          {loading ? 'Checking...' : 'Re-check'}
         </button>
       </div>
 
@@ -191,40 +167,46 @@ export default function Diagnostics() {
 
       <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
         <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">System</p>
-        {systemCards.map(card => <DiagRow key={card.label} card={card} />)}
+        {systemRows.map(row => <Row key={row.label} row={row} />)}
       </div>
 
       <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
-        <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">Integrations</p>
+        <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">Connectors</p>
         {loading && !diag ? (
           <div className="flex items-center gap-2 text-[13px] text-wp-muted py-2">
-            <Spinner size="sm" />Checking integrations…
+            <Spinner size="sm" />Checking connectors...
           </div>
-        ) : (
-          integrationCards.map(card => <DiagRow key={card.label} card={card} />)
-        )}
+        ) : connectors.length === 0 ? (
+          <Empty
+            title="No connectors configured"
+            description="Connector setup is available from Integrations."
+          />
+        ) : connectors.map(connector => {
+          const status = connectorHealth(connector)
+          return (
+            <Row
+              key={connector.id ?? connector.name ?? connector.connector_type ?? 'connector'}
+              row={{
+                label: connector.name ?? connector.connector_type ?? 'Connector',
+                value: connector.enabled === false ? 'Disabled' : status ?? 'Unknown',
+                status: connector.enabled === false ? 'pending' : normalizeStatus(status),
+                detail: connector.last_checked_at ? `Last checked ${new Date(connector.last_checked_at).toLocaleString()}` : undefined,
+              }}
+            />
+          )
+        })}
       </div>
 
       <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
         <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-2">About</p>
         <p className="text-[13px] text-text-base">
           <span className="text-wp-muted">Version: </span>
-          <span className="font-mono">{health?.version ?? '—'}</span>
+          <span className="font-mono">{health?.version ?? '-'}</span>
         </p>
         <p className="text-[13px] text-text-base mt-1">
-          <span className="text-wp-muted">Environment: </span>
-          <span className="font-medium capitalize">{health?.env ?? '—'}</span>
+          <span className="text-wp-muted">Status: </span>
+          <span className="font-medium">{health?.status ?? '-'}</span>
         </p>
-        <p className="text-[13px] text-text-base mt-1">
-          <span className="text-wp-muted">Health endpoint: </span>
-          <span className="font-mono text-accent">GET /api/health</span>
-        </p>
-        {diag?.checkedAt && (
-          <p className="text-[13px] text-text-base mt-1">
-            <span className="text-wp-muted">Checked at: </span>
-            <span className="font-mono text-[12px]">{diag.checkedAt}</span>
-          </p>
-        )}
       </div>
     </div>
   )

@@ -137,13 +137,13 @@ export default function Products() {
       <div className="p-4 sm:p-7 flex flex-col gap-5 max-w-2xl">
         <div>
           <h1 className="text-[22px] font-bold text-text-base">Products</h1>
-          <p className="text-[13px] text-wp-muted mt-0.5">WooCommerce product catalogue</p>
+          <p className="text-[13px] text-wp-muted mt-0.5">Product catalog</p>
         </div>
         <div className="bg-bg-card border border-border rounded-card shadow-card">
           <Empty
-            title="WooCommerce not configured"
-            description="Connect your WooCommerce store in Settings to browse products."
-            action={{ label: 'Go to Settings', onClick: () => { window.location.href = '/settings' } }}
+            title="No product connector configured"
+            description="Connect a product source from Integrations to browse products."
+            action={{ label: 'Open Integrations', onClick: () => { window.location.href = '/integrations' } }}
           />
         </div>
       </div>
@@ -156,7 +156,7 @@ export default function Products() {
         <div>
           <h1 className="text-[22px] font-bold text-text-base">Products</h1>
           <p className="text-[13px] text-wp-muted mt-0.5">
-            {loading ? 'Loading…' : `${total} product${total !== 1 ? 's' : ''} in WooCommerce`}
+            {loading ? 'Loading...' : `${total} product${total !== 1 ? 's' : ''}`}
           </p>
         </div>
       </div>

@@ -37,7 +37,7 @@ const ALL_EVENTS: ActivityEvent[] = [
   makeEvent('evt-011', hoursAgo(1.2),   'system_log',  'info',    'system', 'preview_complete',   '4 products with pending changes'),
   makeEvent('evt-012', hoursAgo(1.5),   'system_log',  'info',    'system', 'health_check',       'GET /api/health → 200 OK'),
   makeEvent('evt-013', hoursAgo(2),     'user_action', 'success', 'admin',  'login_success',      'IP: 192.168.1.10'),
-  makeEvent('evt-014', hoursAgo(2.1),   'system_log',  'info',    'system', 'config_loaded',      'Environment: beta, Version: 0.1.0-dev'),
+  makeEvent('evt-014', hoursAgo(2.1),   'system_log',  'info',    'system', 'config_loaded',      'Application configuration loaded'),
   makeEvent('evt-015', hoursAgo(2.5),   'system_log',  'info',    'system', 'health_check',       'GET /api/health → 200 OK'),
   makeEvent('evt-016', hoursAgo(3),     'user_action', 'error',   'admin',  'login_failed',       'Invalid credentials. IP: 192.168.1.10'),
   makeEvent('evt-017', hoursAgo(3.1),   'user_action', 'error',   'admin',  'login_failed',       'Invalid credentials. IP: 192.168.1.10'),
@@ -52,7 +52,7 @@ const ALL_EVENTS: ActivityEvent[] = [
   makeEvent('evt-026', hoursAgo(8),     'system_log',  'warning', 'system', 'sync_check',         'Stale: Cable Management Kit not synced > 12h'),
   makeEvent('evt-027', hoursAgo(9),     'system_log',  'info',    'system', 'health_check',       'GET /api/health → 200 OK'),
   makeEvent('evt-028', hoursAgo(10),    'user_action', 'success', 'admin',  'login_success',      'IP: 192.168.1.10'),
-  makeEvent('evt-029', hoursAgo(12),    'system_log',  'info',    'system', 'config_loaded',      'Environment: beta, Version: 0.1.0-dev'),
+  makeEvent('evt-029', hoursAgo(12),    'system_log',  'info',    'system', 'config_loaded',      'Application configuration loaded'),
   makeEvent('evt-030', hoursAgo(24),    'user_action', 'info',    'admin',  'logout',             null),
 ]
 

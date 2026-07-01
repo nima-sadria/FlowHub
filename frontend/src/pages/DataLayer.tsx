@@ -249,8 +249,8 @@ export default function DataLayer() {
       {/* Safety Model */}
       <Card>
         <SectionHeader title="Safety" />
-        <Row label="Mode" value="Read-only" dot="bg-wp-green" sub="FlowHub Beta never writes to WooCommerce or Nextcloud" />
-        <Row label="Apply" value="Blocked" dot="bg-border" sub="Price mutations are permanently disabled in Beta" />
+        <Row label="Mode" value="Read-only" dot="bg-wp-green" sub="FlowHub does not write to external connectors from this release" />
+        <Row label="Apply" value="Blocked" dot="bg-border" sub="Price changes cannot be applied from this release" />
         <Row label="Scheduler" value="Not implemented" dot="bg-border" sub="Automatic background refresh is a future phase" />
         <Row label="Data Layer version" value={status?.data_layer_version ?? '—'} />
       </Card>

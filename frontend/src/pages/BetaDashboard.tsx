@@ -105,7 +105,7 @@ export default function BetaDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-[22px] font-bold text-text-base">Dashboard</h1>
-        <p className="text-[13px] text-wp-muted mt-0.5">FlowHub Beta — System Overview</p>
+        <p className="text-[13px] text-wp-muted mt-0.5">System overview</p>
       </div>
 
       {/* User card */}
@@ -123,13 +123,11 @@ export default function BetaDashboard() {
       </div>
 
       {/* System status — uses real /api/health */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Environment" value="Beta" indicator="ok" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           label="Backend"
-          value={health ? `v${health.version}` : healthLoading ? 'Checking…' : 'Unavailable'}
+          value={health ? 'Online' : healthLoading ? 'Checking...' : 'Unavailable'}
           indicator={backendInd}
-          sub={health ? `env: ${health.env}` : undefined}
         />
         <StatCard
           label="Database"
@@ -137,7 +135,7 @@ export default function BetaDashboard() {
           indicator={backendInd}
         />
         <StatCard
-          label="Control Plane"
+          label="Application"
           value={backendInd === 'ok' ? 'Running' : backendInd === 'loading' ? 'Checking…' : 'Unavailable'}
           indicator={backendInd}
         />

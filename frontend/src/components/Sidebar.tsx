@@ -72,7 +72,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <div className="font-bold text-sm text-text-base leading-tight">FlowHub</div>
-              <div className="text-[11px] text-wp-muted">Beta</div>
+              <div className="text-[11px] text-wp-muted">Admin</div>
             </div>
           )}
 

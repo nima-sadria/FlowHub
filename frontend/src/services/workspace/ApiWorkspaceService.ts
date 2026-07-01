@@ -65,6 +65,6 @@ export class ApiWorkspaceService implements WorkspaceService {
   }
 
   async cancelPreview(_previewId: string): Promise<void> {
-    // Stateless BU5 — nothing to cancel on the backend
+    // Stateless preview: nothing to cancel on the backend.
   }
 }

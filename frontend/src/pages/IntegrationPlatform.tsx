@@ -144,14 +144,14 @@ function ConnectorCard({ item, instance }: { item: RegistryItem; instance?: Conn
           <div className="text-text-base font-semibold mt-1">{item.supported_transports.join(', ') || 'None'}</div>
         </div>
         <div className="rounded-lg bg-bg-base border border-border p-3">
-          <div className="text-wp-muted">Runtime writes</div>
+          <div className="text-wp-muted">Write access</div>
           <div className="text-wp-green font-semibold mt-1">Blocked</div>
         </div>
       </div>
 
       {writesAdvertised && (
         <div className="mt-4 text-[12px] text-wp-muted bg-amber-50 border border-amber-200 rounded-lg p-3">
-          Write capability is connector metadata only. FlowHub Beta write authorization and execution remain blocked.
+          Write capability is connector metadata only. Write authorization and execution remain blocked.
         </div>
       )}
     </Card>
@@ -228,7 +228,7 @@ export default function IntegrationPlatform() {
         <Card><p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-1">Registry</p><div className="text-[20px] font-bold text-text-base">{registry.length}</div></Card>
         <Card><p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-1">Instances</p><div className="text-[20px] font-bold text-text-base">{instances.length}</div></Card>
         <Card><p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-1">Advertised Writes</p><div className="text-[20px] font-bold text-text-base">{advertisedWrites}</div></Card>
-        <Card><p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-1">Runtime Writes</p><div className="text-[20px] font-bold text-wp-green">Blocked</div></Card>
+        <Card><p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-1">Write Access</p><div className="text-[20px] font-bold text-wp-green">Blocked</div></Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

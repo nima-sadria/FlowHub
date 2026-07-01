@@ -111,16 +111,16 @@ export default function Workspace() {
         <div className="bg-bg-card border border-border rounded-card shadow-card">
           {!wcConfigured && (
             <Empty
-              title="WooCommerce not configured"
-              description="Connect your WooCommerce store in Settings to use Workspace."
-              action={{ label: 'Go to Settings', onClick: () => { window.location.href = '/settings' } }}
+              title="Product connector required"
+              description="Connect a product source from Integrations to use Workspace."
+              action={{ label: 'Open Integrations', onClick: () => { window.location.href = '/integrations' } }}
             />
           )}
           {wcConfigured && !ncConfigured && (
             <Empty
-              title="Nextcloud not configured"
-              description="Connect a Nextcloud spreadsheet in Settings to use Workspace."
-              action={{ label: 'Go to Settings', onClick: () => { window.location.href = '/settings' } }}
+              title="Source connector required"
+              description="Connect a price source from Integrations to use Workspace."
+              action={{ label: 'Open Integrations', onClick: () => { window.location.href = '/integrations' } }}
             />
           )}
         </div>
@@ -167,7 +167,7 @@ export default function Workspace() {
                 {preview.totalChanges} product{preview.totalChanges !== 1 ? 's' : ''} with pending price changes
               </p>
               <p className="text-[12px] text-wp-muted mt-0.5">
-                Read-only preview. Apply functionality is coming in BU7.
+                Preview only. Changes cannot be applied from this screen.
               </p>
             </div>
           </div>
@@ -212,7 +212,7 @@ export default function Workspace() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
                   <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                Apply changes is coming in BU7
+                Changes cannot be applied from this preview
               </div>
               <button
                 onClick={() => void cancelPreview()}

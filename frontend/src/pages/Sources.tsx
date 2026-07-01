@@ -104,7 +104,7 @@ export default function Sources() {
         <div className="bg-bg-card border border-border rounded-card shadow-card">
           <Empty
             title="No sources configured"
-            description="Add a Nextcloud Excel source to start syncing prices."
+            description="Add a source to start comparing prices."
             action={{ label: 'Add Source', onClick: () => navigate('/sources/new') }}
           />
         </div>
