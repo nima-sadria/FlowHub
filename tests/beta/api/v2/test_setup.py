@@ -19,6 +19,7 @@ from app.beta.integration_platform import models as _ip_models  # noqa: F401 - r
 from app.beta.auth import models as _auth_models  # noqa: F401 — registers BetaBase tables
 # Import setup model so BetaAppConfig is registered with BetaBase.metadata
 from app.beta.setup import models as _setup_models  # noqa: F401 — registers beta_app_config
+from app.beta.api.v2 import setup as setup_api
 from app.beta.setup.service import AppConfigService
 
 
@@ -148,6 +149,39 @@ class TestSetupDatabase:
         assert r.status_code == 200
         data = r.json()
         assert data["connected"] is True
+
+    def test_reports_up_to_date_when_current_revision_matches_latest(self, client, monkeypatch):
+        monkeypatch.setattr(setup_api, "_get_current_beta_revision", lambda db: "beta_007")
+        monkeypatch.setattr(setup_api, "_get_latest_beta_revision", lambda: "beta_007")
+        r = client.post("/api/v2/setup/database")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["current_revision"] == "beta_007"
+        assert data["latest_revision"] == "beta_007"
+        assert data["is_current"] is True
+        assert data["migrations_current"] is True
+
+    def test_reports_needs_update_when_current_revision_is_behind(self, client, monkeypatch):
+        monkeypatch.setattr(setup_api, "_get_current_beta_revision", lambda db: "beta_006")
+        monkeypatch.setattr(setup_api, "_get_latest_beta_revision", lambda: "beta_007")
+        r = client.post("/api/v2/setup/database")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["current_revision"] == "beta_006"
+        assert data["latest_revision"] == "beta_007"
+        assert data["is_current"] is False
+        assert data["migrations_current"] is False
+
+    def test_reports_unable_to_verify_when_latest_revision_is_unknown(self, client, monkeypatch):
+        monkeypatch.setattr(setup_api, "_get_current_beta_revision", lambda db: "beta_007")
+        monkeypatch.setattr(setup_api, "_get_latest_beta_revision", lambda: None)
+        r = client.post("/api/v2/setup/database")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["current_revision"] == "beta_007"
+        assert data["latest_revision"] is None
+        assert data["is_current"] is None
+        assert data["migrations_current"] is False
 
     def test_locked_after_setup_complete(self, db, client):
         AppConfigService(db).mark_setup_complete("test")

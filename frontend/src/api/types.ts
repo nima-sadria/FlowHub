@@ -60,6 +60,9 @@ export interface DatabaseStatusResponse {
   connected: boolean
   migration_version: string | null
   migrations_current: boolean
+  current_revision: string | null
+  latest_revision: string | null
+  is_current: boolean | null
   database_name?: string | null
   error?: string | null
 }

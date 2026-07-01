@@ -104,7 +104,7 @@ function AppleSpinner({ size = 18 }: { size?: number }) {
   )
 }
 
-function SearchableListbox({
+export function SearchableListbox({
   id, label, options, value, onChange, disabled, placeholder,
 }: {
   id?: string
@@ -127,12 +127,13 @@ function SearchableListbox({
       <label className="block text-[13px] font-medium text-text-base mb-1.5">{label}</label>
       <input
         type="text"
-        value={search}
+        value={search || selectedLabel}
         onChange={e => setSearch(e.target.value)}
+        onFocus={e => e.currentTarget.select()}
         placeholder={placeholder ?? `Search ${label.toLowerCase()}…`}
         disabled={disabled}
         autoComplete="off"
-        className="w-full mb-1.5 border border-border rounded-lg px-3 py-1.5 text-[13px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60"
+        className="w-full min-w-0 mb-1.5 border border-border rounded-lg px-3 py-1.5 text-[13px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60 truncate"
       />
       <div
         id={id}
@@ -151,7 +152,7 @@ function SearchableListbox({
             onClick={() => { onChange(opt.value); setSearch('') }}
             disabled={disabled}
             className={[
-              'w-full text-left px-3 py-2 text-[13px] leading-snug',
+              'w-full text-left px-3 py-2 text-[13px] leading-snug break-words',
               opt.value === value
                 ? 'bg-accent text-white font-medium'
                 : 'bg-bg-base text-text-base hover:bg-border',
@@ -161,7 +162,6 @@ function SearchableListbox({
           </button>
         ))}
       </div>
-      <p className="mt-1 text-[11.5px] text-wp-muted">Selected: {selectedLabel}</p>
     </div>
   )
 }
@@ -448,19 +448,28 @@ function DatabaseStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
             failText={status.error ?? 'Failed'}
           />
           <StatusRow
-            label="Schema version"
-            hint="The current database schema version."
-            ok={!!status.migration_version}
-            okText={status.migration_version ?? '—'}
+            label="Current revision"
+            hint="The Alembic revision currently recorded in the database."
+            ok={!!status.current_revision}
+            okText={status.current_revision ?? '—'}
+            failText="Not available"
+            neutral
+          />
+          <StatusRow
+            label="Latest revision"
+            hint="The latest FlowHub migration available to this build."
+            ok={!!status.latest_revision}
+            okText={status.latest_revision ?? '—'}
             failText="Not available"
             neutral
           />
           <StatusRow
             label="Schema status"
-            hint="Confirms all schema updates have been applied."
-            ok={status.migrations_current}
+            hint="Schema status compares the database revision with the latest FlowHub migration."
+            ok={status.is_current === true}
             okText="Up to date"
-            failText="Needs update — re-run installer"
+            failText={status.is_current === false ? 'Needs update — run repair' : 'Unable to verify'}
+            neutral={status.is_current !== false && status.is_current !== true}
           />
         </div>
       )}

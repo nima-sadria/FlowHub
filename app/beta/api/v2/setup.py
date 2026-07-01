@@ -21,7 +21,10 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
+from alembic.config import Config as AlembicConfig
+from alembic.script import ScriptDirectory
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from sqlalchemy import text
@@ -62,6 +65,29 @@ def _require_setup_not_complete(db: Session) -> AppConfigService:
 
 def _get_config_service(db: Session) -> AppConfigService:
     return AppConfigService(db)
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[4]
+
+
+def _get_current_beta_revision(db: Session) -> str | None:
+    try:
+        row = db.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).fetchone()
+        return row[0] if row else None
+    except Exception:
+        return None
+
+
+def _get_latest_beta_revision() -> str | None:
+    try:
+        root = _repo_root()
+        config = AlembicConfig(str(root / "alembic_beta.ini"))
+        config.set_main_option("script_location", str(root / "alembic_beta"))
+        heads = ScriptDirectory.from_config(config).get_heads()
+        return heads[0] if len(heads) == 1 else None
+    except Exception:
+        return None
 
 
 # ── Request / Response models ─────────────────────────────────────────────────
@@ -212,13 +238,13 @@ async def setup_database(db: Session = Depends(get_db)) -> dict:
         connected = False
         error = str(exc)
 
-    # Read current Alembic revision from the alembic_version table
-    migration_version: str | None = None
-    try:
-        row = db.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).fetchone()
-        migration_version = row[0] if row else None
-    except Exception:
-        pass
+    current_revision = _get_current_beta_revision(db) if connected else None
+    latest_revision = _get_latest_beta_revision()
+    is_current = (
+        current_revision == latest_revision
+        if current_revision is not None and latest_revision is not None
+        else None
+    )
 
     database_name: str | None = None
     try:
@@ -229,8 +255,11 @@ async def setup_database(db: Session = Depends(get_db)) -> dict:
 
     return {
         "connected": connected,
-        "migration_version": migration_version,
-        "migrations_current": migration_version == "beta_006",
+        "migration_version": current_revision,
+        "migrations_current": is_current is True,
+        "current_revision": current_revision,
+        "latest_revision": latest_revision,
+        "is_current": is_current,
         "database_name": database_name,
         "error": error,
     }
