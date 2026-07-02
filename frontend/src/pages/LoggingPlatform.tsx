@@ -38,10 +38,10 @@ function Card({ children }: { children: ReactNode }) {
 function severityClass(severity: string) {
   const map: Record<string, string> = {
     debug: 'bg-bg-base text-wp-muted border-border',
-    info: 'bg-blue-50 text-blue-700 border-blue-200',
-    warning: 'bg-amber-50 text-amber-700 border-amber-200',
+    info: 'bg-accent/10 text-accent border-accent/20',
+    warning: 'bg-wp-yellow/10 text-wp-yellow border-wp-yellow/30',
     error: 'bg-wp-red/10 text-wp-red border-wp-red/30',
-    critical: 'bg-purple-50 text-purple-700 border-purple-200',
+    critical: 'bg-wp-red/10 text-wp-red border-wp-red/30',
   }
   return ['inline-flex rounded px-2 py-0.5 border text-[11px] font-medium', map[severity] ?? map.info].join(' ')
 }
@@ -110,9 +110,9 @@ export default function LoggingPlatform() {
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card><p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-1">Total</p><div className="text-[20px] font-bold text-text-base">{summary?.total_logs ?? 0}</div></Card>
-        <Card><p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-1">Warnings</p><div className="text-[20px] font-bold text-amber-600">{summary?.warning_count ?? 0}</div></Card>
+        <Card><p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-1">Warnings</p><div className="text-[20px] font-bold text-wp-yellow">{summary?.warning_count ?? 0}</div></Card>
         <Card><p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-1">Errors</p><div className="text-[20px] font-bold text-wp-red">{summary?.error_count ?? 0}</div></Card>
-        <Card><p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-1">Critical</p><div className="text-[20px] font-bold text-purple-700">{summary?.critical_count ?? 0}</div></Card>
+        <Card><p className="text-[11px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-1">Critical</p><div className="text-[20px] font-bold text-wp-red">{summary?.critical_count ?? 0}</div></Card>
       </div>
 
       <Card>

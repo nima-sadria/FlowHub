@@ -150,7 +150,7 @@ function ConnectorCard({ item, instance }: { item: RegistryItem; instance?: Conn
       </div>
 
       {writesAdvertised && (
-        <div className="mt-4 text-[12px] text-wp-muted bg-amber-50 border border-amber-200 rounded-lg p-3">
+        <div className="mt-4 text-[12px] text-wp-muted bg-wp-yellow/10 border border-wp-yellow/30 rounded-lg p-3">
           Write capability is connector metadata only. Write authorization and execution remain blocked.
         </div>
       )}

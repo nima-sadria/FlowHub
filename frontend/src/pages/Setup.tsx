@@ -187,7 +187,7 @@ function Field({
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div role="alert" className="mb-4 bg-[#fee2e2] border border-[#ef4444]/30 rounded-lg px-4 py-3 text-[13px] text-[#dc2626]">
+    <div role="alert" className="fh-error-alert mb-4 rounded-lg px-4 py-3 text-[13px]">
       {message}
     </div>
   )

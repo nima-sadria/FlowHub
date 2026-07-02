@@ -6,6 +6,17 @@ export default {
   theme: {
     extend: {
       colors: {
+        'fh-navy-950': 'var(--fh-brand-navy-950)',
+        'fh-navy-900': 'var(--fh-brand-navy-900)',
+        'fh-navy-800': 'var(--fh-brand-navy-800)',
+        'fh-blue-700': 'var(--fh-brand-blue-700)',
+        'fh-blue-600': 'var(--fh-brand-blue-600)',
+        'fh-blue-500': 'var(--fh-brand-blue-500)',
+        'fh-blue-400': 'var(--fh-brand-blue-400)',
+        'fh-sky-300': 'var(--fh-brand-sky-300)',
+        'fh-ice-200': 'var(--fh-brand-ice-200)',
+        'fh-mist-100': 'var(--fh-brand-mist-100)',
+        'fh-surface-50': 'var(--fh-brand-surface-50)',
         accent: 'var(--color-accent)',
         'accent-hover': 'var(--color-accent-hover)',
         'wp-green': 'var(--color-wp-green)',
@@ -26,7 +37,8 @@ export default {
         card: '12px',
       },
       boxShadow: {
-        card: '0 1px 4px rgba(0,0,0,.06)',
+        card: '0 14px 36px -28px var(--fh-ui-shadow-blue), 0 1px 4px rgba(6,24,60,.08)',
+        blue: '0 20px 48px -30px var(--fh-ui-shadow-blue)',
       },
       transitionTimingFunction: {
         DEFAULT: 'cubic-bezier(0.4, 0, 0.6, 1)',

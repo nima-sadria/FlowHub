@@ -237,9 +237,9 @@ export default function DataLayer() {
 
       {/* Initialization banner */}
       {!loading && !err && !initialized && (
-        <div className="bg-amber-50 border border-amber-200 rounded-card p-4">
-          <p className="text-[13px] font-medium text-amber-800">Data Layer not yet initialized</p>
-          <p className="text-[12px] text-amber-700 mt-0.5">
+        <div className="bg-wp-yellow/10 border border-wp-yellow/30 rounded-card p-4">
+          <p className="text-[13px] font-medium text-text-base">Data Layer not yet initialized</p>
+          <p className="text-[12px] text-wp-muted mt-0.5">
             All stores are empty. Data populates when products are browsed or previewed.
             Background refresh will be added in a future phase.
           </p>

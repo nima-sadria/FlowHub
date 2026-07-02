@@ -26,41 +26,79 @@
 @tailwind components;
 @tailwind utilities;
 
-/* -- Light theme (default) -- */
+/* -- FlowHub brand system -- */
 :root {
-  --color-accent: #4880FF;
-  --color-accent-hover: #3570E8;
-  --color-wp-green: #22c55e;
-  --color-wp-red: #ef4444;
-  --color-wp-yellow: #f59e0b;
-  --color-wp-orange: #f97316;
-  --color-wp-purple: #a855f7;
-  --color-wp-muted: #8E97A7;
-  --color-bg-base: #F5F6FA;
-  --color-bg-card: #ffffff;
-  --color-border: #E8EAED;
-  --color-text-base: #1C2434;
+  --fh-brand-navy-950: #03112B;
+  --fh-brand-navy-900: #06183C;
+  --fh-brand-navy-800: #0A2558;
+  --fh-brand-blue-700: #003EDC;
+  --fh-brand-blue-600: #0A57F5;
+  --fh-brand-blue-500: #2478FF;
+  --fh-brand-blue-400: #5B9BFF;
+  --fh-brand-sky-300: #96C4FF;
+  --fh-brand-ice-200: #C7DEFF;
+  --fh-brand-mist-100: #EAF3FF;
+  --fh-brand-surface-50: #F8FBFF;
+
+  --fh-semantic-success: #1DBF73;
+  --fh-semantic-warning: #F5A524;
+  --fh-semantic-danger: #EF4444;
+  --fh-semantic-info: #2478FF;
+
+  --fh-text-primary: #06183C;
+  --fh-text-secondary: #365170;
+  --fh-text-muted: #7D90AA;
+  --fh-text-inverse: #FFFFFF;
+
+  --fh-ui-background: #F8FBFF;
+  --fh-ui-card: #FFFFFF;
+  --fh-ui-border: #D7E6FA;
+  --fh-ui-glass-overlay: rgba(255,255,255,0.38);
+  --fh-ui-shadow-blue: rgba(10,87,245,0.22);
+
+  --fh-gradient-primary: linear-gradient(135deg, #003EDC 0%, #2478FF 45%, #C7DEFF 100%);
+  --fh-gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(91,155,255,0.35) 55%, rgba(0,62,220,0.85) 100%);
+
+  --fh-focus-ring: rgba(36,120,255,0.28);
+  --fh-danger-surface: rgba(239,68,68,0.1);
+  --fh-danger-border: rgba(239,68,68,0.32);
+
+  --color-accent: var(--fh-brand-blue-600);
+  --color-accent-hover: var(--fh-brand-blue-700);
+  --color-wp-green: var(--fh-semantic-success);
+  --color-wp-red: var(--fh-semantic-danger);
+  --color-wp-yellow: var(--fh-semantic-warning);
+  --color-wp-orange: var(--fh-semantic-warning);
+  --color-wp-purple: var(--fh-brand-blue-400);
+  --color-wp-muted: var(--fh-text-muted);
+  --color-bg-base: var(--fh-ui-background);
+  --color-bg-card: var(--fh-ui-card);
+  --color-border: var(--fh-ui-border);
+  --color-text-base: var(--fh-text-primary);
 }
 
-/* -- Dark theme - toggled by .dark on <html> -- */
+/* Keep the current app shell on the approved light brand system. */
 .dark {
-  --color-accent: #4880FF;
-  --color-accent-hover: #5590FF;
-  --color-wp-green: #34d399;
-  --color-wp-red: #f87171;
-  --color-wp-yellow: #fbbf24;
-  --color-wp-orange: #fb923c;
-  --color-wp-purple: #c084fc;
-  --color-wp-muted: #9ca3af;
-  --color-bg-base: #111827;
-  --color-bg-card: #1f2937;
-  --color-border: #374151;
-  --color-text-base: #f9fafb;
+  --color-accent: var(--fh-brand-blue-600);
+  --color-accent-hover: var(--fh-brand-blue-700);
+  --color-wp-green: var(--fh-semantic-success);
+  --color-wp-red: var(--fh-semantic-danger);
+  --color-wp-yellow: var(--fh-semantic-warning);
+  --color-wp-orange: var(--fh-semantic-warning);
+  --color-wp-purple: var(--fh-brand-blue-400);
+  --color-wp-muted: var(--fh-text-muted);
+  --color-bg-base: var(--fh-ui-background);
+  --color-bg-card: var(--fh-ui-card);
+  --color-border: var(--fh-ui-border);
+  --color-text-base: var(--fh-text-primary);
 }
 
 @layer base {
   body {
     @apply font-sans bg-bg-base text-text-base;
+    background:
+      radial-gradient(circle at 16% 0%, rgba(150,196,255,0.26), transparent 28rem),
+      var(--fh-ui-background);
     font-feature-settings: "locl" 0;
   }
   @supports (font-variation-settings: normal) {
@@ -85,6 +123,41 @@ button,
     opacity 0.32s cubic-bezier(0.4, 0, 0.6, 1),
     background-color 0.32s cubic-bezier(0.4, 0, 0.6, 1),
     border-color 0.32s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+:focus-visible {
+  outline: 3px solid var(--fh-focus-ring);
+  outline-offset: 2px;
+}
+
+.fh-login-shell {
+  background:
+    radial-gradient(circle at 50% 12%, rgba(91,155,255,0.24), transparent 26rem),
+    linear-gradient(180deg, var(--fh-brand-mist-100) 0%, var(--fh-brand-surface-50) 58%);
+}
+
+.fh-login-card {
+  background: var(--fh-ui-card);
+  border: 1px solid var(--fh-ui-border);
+  box-shadow:
+    0 26px 70px -42px var(--fh-ui-shadow-blue),
+    0 1px 4px rgba(6,24,60,0.08);
+}
+
+.fh-primary-button {
+  background: var(--fh-gradient-primary);
+  color: var(--fh-text-inverse);
+  box-shadow: 0 16px 32px -22px var(--fh-ui-shadow-blue);
+}
+
+.fh-primary-button:hover:not(:disabled) {
+  filter: saturate(1.04) brightness(1.02);
+}
+
+.fh-error-alert {
+  background: var(--fh-danger-surface);
+  border: 1px solid var(--fh-danger-border);
+  color: var(--fh-semantic-danger);
 }
 
 /* -- Reduced-motion override -- */

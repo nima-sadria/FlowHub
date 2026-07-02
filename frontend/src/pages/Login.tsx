@@ -50,68 +50,73 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-base flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-bg-card border border-border rounded-card shadow-card p-8">
+    <div className="fh-login-shell min-h-screen flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-sm">
         <div className="mb-7 text-center">
           <img
-            src="/flowhub-logo.png"
+            src="/flowhub-logo.webp"
             alt="FlowHub"
-            className="mx-auto mb-4 h-20 w-20 object-contain"
+            className="mx-auto mb-5 h-auto w-[220px] max-w-full object-contain sm:w-[310px]"
           />
-          <h1 className="text-[22px] font-bold text-text-base">FlowHub</h1>
-          <p className="text-[13px] text-wp-muted mt-1">Sign in to FlowHub</p>
         </div>
 
-        {error && (
-          <div role="alert" className="mb-4 bg-[#fee2e2] border border-[#ef4444]/30 rounded-lg px-4 py-3 text-[13px] text-[#dc2626]">
-            {error}
+        <div className="fh-login-card rounded-card p-8">
+          <div className="mb-7 text-center">
+            <h1 className="text-[22px] font-bold text-text-base">FlowHub</h1>
+            <p className="text-[13px] text-wp-muted mt-1">Sign in to FlowHub</p>
           </div>
-        )}
 
-        <form onSubmit={(e) => { void handleSubmit(e) }} className="flex flex-col gap-4">
-          <div>
-            <label htmlFor="login-username" className="block text-[13px] font-medium text-text-base mb-1.5">
-              Username
-            </label>
-            <input
-              id="login-username"
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              required
-              autoComplete="username"
-              autoFocus
+          {error && (
+            <div role="alert" className="fh-error-alert mb-4 rounded-lg px-4 py-3 text-[13px]">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={(e) => { void handleSubmit(e) }} className="flex flex-col gap-4">
+            <div>
+              <label htmlFor="login-username" className="block text-[13px] font-medium text-text-base mb-1.5">
+                Username
+              </label>
+              <input
+                id="login-username"
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                required
+                autoComplete="username"
+                autoFocus
+                disabled={loading}
+                className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60"
+                placeholder="Administrator username"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="login-password" className="block text-[13px] font-medium text-text-base mb-1.5">
+                Password
+              </label>
+              <input
+                id="login-password"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                disabled={loading}
+                className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60"
+                placeholder="Enter your administrator credentials"
+              />
+            </div>
+
+            <button
+              type="submit"
               disabled={loading}
-              className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60"
-              placeholder="Administrator username"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="login-password" className="block text-[13px] font-medium text-text-base mb-1.5">
-              Password
-            </label>
-            <input
-              id="login-password"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              disabled={loading}
-              className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60"
-              placeholder="Enter your administrator credentials"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-2 w-full bg-accent text-white py-2.5 rounded-lg text-[14px] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
+              className="fh-primary-button mt-2 w-full py-2.5 rounded-lg text-[14px] font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )
