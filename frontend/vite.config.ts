@@ -25,6 +25,10 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
+      '/static/logos': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
     },
   },
 })

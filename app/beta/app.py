@@ -63,6 +63,7 @@ from app.beta.api.v2.logging import router as logging_router
 _VERSION = os.getenv("FLOWHUB_VERSION", "1.0.0")
 
 _FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
+_STATIC_LOGOS = Path(__file__).parent.parent.parent / "static" / "logos"
 
 _LANDING_HTML = """\
 <!doctype html>
@@ -71,6 +72,7 @@ _LANDING_HTML = """\
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FlowHub</title>
+  <link rel="icon" type="image/x-icon" href="/static/logos/favicon.ico">
   <style>
     body {{ font-family: monospace; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }}
     h1 {{ font-size: 1.4rem; margin-bottom: 0.2em; }}
@@ -123,6 +125,9 @@ app.include_router(data_layer_router, prefix="/api/v2")
 _assets_dir = _FRONTEND_DIST / "assets"
 if _assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
+
+if _STATIC_LOGOS.exists():
+    app.mount("/static/logos", StaticFiles(directory=str(_STATIC_LOGOS)), name="static-logos")
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
