@@ -14,6 +14,7 @@ usage() {
     cat <<'EOF'
 FlowHub management commands:
 
+  flowhub                  Open the interactive management menu
   flowhub help             Show this help
   flowhub install          Run the installer
   flowhub upgrade          Pull latest code, rebuild, migrate, restart
@@ -30,6 +31,8 @@ FlowHub management commands:
   flowhub restore FILE     Restore a local backup archive
   flowhub admin list       List administrator accounts
   flowhub admin create     Create an emergency administrator account
+  flowhub admin reset-username
+                          Rename an administrator account and revoke sessions
   flowhub admin reset-password
                           Reset an administrator password and revoke sessions
 
@@ -117,8 +120,206 @@ wait_for_app_health() {
     done
 }
 
-cmd="${1:-help}"
+load_env_if_present() {
+    if [[ -f "$ENV_FILE" ]]; then
+        set -a
+        # shellcheck source=/dev/null
+        . "$ENV_FILE"
+        set +a
+    fi
+}
+
+public_url() {
+    load_env_if_present
+    local domain="${BETA_DOMAIN:-localhost}"
+    local port="${BETA_PORT:-8085}"
+    if [[ "$domain" == "localhost" || "$domain" == "127.0.0.1" ]]; then
+        echo "http://localhost:${port}"
+    else
+        echo "http://${domain}:${port}"
+    fi
+}
+
+install_state() {
+    if [[ ! -d "$INSTALL_DIR" ]]; then
+        echo "Not installed"
+    elif [[ -f "$COMPOSE_FILE" && -f "$ENV_FILE" ]]; then
+        if check_app_health; then
+            echo "Running"
+        elif run_compose ps --status running -q app >/dev/null 2>&1 && [[ -n "$(run_compose ps --status running -q app 2>/dev/null)" ]]; then
+            echo "Starting"
+        else
+            echo "Stopped"
+        fi
+    else
+        echo "Incomplete"
+    fi
+}
+
+database_state() {
+    if [[ ! -f "$COMPOSE_FILE" || ! -f "$ENV_FILE" ]]; then
+        echo "Unknown"
+        return
+    fi
+    load_env_if_present
+    if run_compose exec -T postgres pg_isready -U "${BETA_POSTGRES_USER:-flowhub}" -d "${BETA_POSTGRES_DB:-flowhub}" >/dev/null 2>&1; then
+        echo "Healthy"
+    else
+        echo "Unable to verify"
+    fi
+}
+
+docker_state() {
+    if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+        echo "Running"
+    elif command -v docker >/dev/null 2>&1; then
+        echo "Installed, not reachable"
+    else
+        echo "Not installed"
+    fi
+}
+
+version_commit() {
+    if [[ -d "${INSTALL_DIR}/.git" ]]; then
+        git -C "$INSTALL_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown"
+    else
+        echo "unknown"
+    fi
+}
+
+print_menu_footer() {
+    echo ""
+    echo "Panel state: $(install_state)"
+    echo "Database: $(database_state)"
+    echo "Safety mode: Read-only"
+    echo "Install path: ${INSTALL_DIR}"
+    echo "Public URL: $(public_url)"
+    echo "Docker: $(docker_state)"
+    echo "Version / commit: $(version_commit)"
+}
+
+menu_run() {
+    local label="$1"
+    shift
+    local status
+    echo ""
+    echo "== ${label} =="
+    set +e
+    "$@"
+    status=$?
+    set -e
+    if [[ "$status" -ne 0 ]]; then
+        echo "Command exited with status ${status}."
+    fi
+    return 0
+}
+
+show_management_menu() {
+    local choice
+    while true; do
+        clear 2>/dev/null || true
+        cat <<'EOF'
+FlowHub Management
+
+0. Exit
+
+Install / Update
+1. Install
+2. Upgrade
+3. Repair
+4. Reinstall
+5. Uninstall
+
+Account
+6. Reset Administrator Username
+7. Reset Administrator Password
+8. View Current Admins
+
+System
+9. Status
+10. Health
+11. Diagnostics
+12. Logs
+
+Services
+13. Start
+14. Stop
+15. Restart
+16. Backup
+17. Restore
+
+Configuration
+18. View Current Settings
+19. Edit Domain / Public URL
+20. Change Port
+21. Show Install Path
+
+Security
+22. Rotate Secrets
+23. Check Secret Exposure
+24. View Safety Status
+
+Advanced
+25. Docker Compose Status
+26. Database Status
+27. Migration Status
+28. Shell into App Container
+EOF
+        print_menu_footer
+        echo ""
+        read -r -p "Please enter your selection [0-28]: " choice || return 0
+        choice="${choice//$'\r'/}"
+        case "$choice" in
+            0|"q"|"quit"|"exit") echo "Exiting."; return 0 ;;
+            1) menu_run "Install" bash "${INSTALL_DIR}/installer/install.sh" ;;
+            2) menu_run "Upgrade" "$0" upgrade ;;
+            3) menu_run "Repair" "$0" repair ;;
+            4) menu_run "Reinstall" bash "${INSTALL_DIR}/installer/install.sh" --reinstall ;;
+            5) menu_run "Uninstall" "$0" uninstall ;;
+            6) menu_run "Reset Administrator Username" "$0" admin reset-username ;;
+            7) menu_run "Reset Administrator Password" "$0" admin reset-password ;;
+            8) menu_run "Current Administrators" "$0" admin list ;;
+            9) menu_run "Status" "$0" status ;;
+            10) menu_run "Health" "$0" health ;;
+            11) menu_run "Diagnostics" "$0" diagnostics run ;;
+            12) menu_run "Logs" "$0" logs ;;
+            13) menu_run "Start" "$0" start ;;
+            14) menu_run "Stop" "$0" stop ;;
+            15) menu_run "Restart" "$0" restart ;;
+            16) menu_run "Backup" "$0" backup ;;
+            17)
+                read -r -p "Backup archive path: " archive
+                menu_run "Restore" "$0" restore "$archive"
+                ;;
+            18) menu_run "Current Settings" "$0" configure show ;;
+            19)
+                read -r -p "New domain / public URL host: " new_domain
+                menu_run "Edit Domain / Public URL" "$0" configure set app.domain "$new_domain"
+                ;;
+            20)
+                read -r -p "New port: " new_port
+                menu_run "Change Port" "$0" configure set app.port "$new_port"
+                ;;
+            21) echo "Install path: ${INSTALL_DIR}" ;;
+            22) echo "Secret rotation is not automated in this release. Rotate values in .env.beta, then run: flowhub repair" ;;
+            23) menu_run "Check Secret Exposure" "$0" configure verify ;;
+            24) echo "Safety mode: Read-only. Apply, Scheduler, WooCommerce writes, and spreadsheet writes are disabled." ;;
+            25) menu_run "Docker Compose Status" "$0" status ;;
+            26) echo "Database: $(database_state)" ;;
+            27) menu_run "Migration Status" "$0" migrate status ;;
+            28) ensure_install; run_compose exec app bash ;;
+            *) echo "Invalid selection: ${choice}" ;;
+        esac
+        echo ""
+        read -r -p "Press Enter to return to the menu..." _ || return 0
+    done
+}
+
+cmd="${1:-menu}"
 case "$cmd" in
+    menu)
+        show_management_menu
+        ;;
     ""|-h|--help|help)
         usage
         ;;

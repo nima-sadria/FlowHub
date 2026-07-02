@@ -114,20 +114,35 @@ _bs_require_root() {
 
 _bs_os_check() {
     [[ -f /etc/os-release ]] || {
-        echo "ERROR: Cannot detect OS. Only Ubuntu and Debian are supported." >&2
+        echo "ERROR: Cannot detect OS. Use Ubuntu Server 24.04 LTS or 26.04 LTS." >&2
         exit 1
     }
     # shellcheck source=/dev/null
     . /etc/os-release
-    case "${ID:-}" in
-        ubuntu|debian)
-            echo "  OS:   ${PRETTY_NAME:-${ID}}"
-            ;;
-        *)
-            echo "ERROR: Unsupported OS '${ID:-unknown}'. Only Ubuntu and Debian are supported." >&2
+    if [[ "${ID:-}" == "ubuntu-core" || "${NAME:-}" == *"Ubuntu Core"* ]]; then
+        echo "ERROR: Ubuntu Core is not supported. Use Ubuntu Server 24.04 LTS or 26.04 LTS." >&2
+        exit 1
+    fi
+    if [[ "${ID:-}" == "ubuntu" && ( "${VERSION_ID:-}" == "24.04" || "${VERSION_ID:-}" == "26.04" ) ]]; then
+        echo "  OS:   ${PRETTY_NAME:-Ubuntu ${VERSION_ID}} (supported)"
+        return 0
+    fi
+    if [[ "${ID:-}" == "ubuntu" || "${ID:-}" == "debian" || "${ID_LIKE:-}" == *"debian"* ]]; then
+        echo "  OS:   ${PRETTY_NAME:-${ID}} (best-effort)"
+        if [[ "${FLOWHUB_ASSUME_YES:-}" == "1" ]]; then
+            return 0
+        fi
+        if [[ ! -t 0 ]]; then
+            echo "ERROR: Best-effort OS requires interactive confirmation." >&2
             exit 1
-            ;;
-    esac
+        fi
+        local answer
+        read -r -p "  Continue with best-effort unsupported OS install? [y/N]: " answer
+        [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]] || exit 1
+        return 0
+    fi
+    echo "ERROR: Unsupported OS '${ID:-unknown}'. Use Ubuntu Server 24.04 LTS or 26.04 LTS." >&2
+    exit 1
 }
 
 _bs_arch_check() {
@@ -135,12 +150,22 @@ _bs_arch_check() {
     arch="$(uname -m)"
     case "$arch" in
         x86_64)  echo "  Arch: amd64" ;;
-        aarch64) echo "  Arch: arm64" ;;
         *)
-            echo "ERROR: Unsupported architecture '${arch}'. Only amd64 and arm64 are supported." >&2
+            echo "ERROR: Unsupported architecture '${arch}'. Only amd64/x86_64 is supported." >&2
             exit 1
             ;;
     esac
+}
+
+_bs_tool_check() {
+    if ! command -v apt-get &>/dev/null; then
+        echo "ERROR: apt-get is required. Use Ubuntu Server 24.04 LTS or 26.04 LTS." >&2
+        exit 1
+    fi
+    if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
+        echo "ERROR: curl or wget is required for installation." >&2
+        exit 1
+    fi
 }
 
 _bs_install_system_deps() {
@@ -148,7 +173,7 @@ _bs_install_system_deps() {
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq
     apt-get install -y --no-install-recommends \
-        git curl ca-certificates gnupg lsb-release openssl python3 python3-pip
+        git curl wget ca-certificates gnupg lsb-release openssl python3 python3-pip
     echo "  System packages installed."
 }
 
@@ -276,6 +301,7 @@ if [[ ! -f "$(dirname "${BASH_SOURCE[0]:-NONE}")/lib/checks.sh" ]]; then
     _bs_require_root
     _bs_os_check
     _bs_arch_check
+    _bs_tool_check
     _bs_install_system_deps
     _bs_install_docker
     _bs_clone_or_pull
@@ -338,18 +364,28 @@ _ensure_docker_installed() {
     fi
     # shellcheck source=/dev/null
     . /etc/os-release
-    case "${ID:-}" in
-        ubuntu|debian) ;;
-        *)
-            echo "  WARNING: OS '${ID:-unknown}' not supported for auto-install - skipping." >&2
-            return 0
-            ;;
-    esac
+    if [[ "${ID:-}" == "ubuntu-core" || "${NAME:-}" == *"Ubuntu Core"* ]]; then
+        echo "  ERROR: Ubuntu Core is not supported." >&2
+        return 1
+    fi
+    if [[ "${ID:-}" == "ubuntu" && ( "${VERSION_ID:-}" == "24.04" || "${VERSION_ID:-}" == "26.04" ) ]]; then
+        :
+    elif [[ "${ID:-}" == "ubuntu" || "${ID:-}" == "debian" || "${ID_LIKE:-}" == *"debian"* ]]; then
+        echo "  WARNING: OS '${PRETTY_NAME:-${ID:-unknown}}' is best-effort for Docker auto-install." >&2
+    else
+        echo "  WARNING: OS '${ID:-unknown}' not supported for auto-install - skipping." >&2
+        return 0
+    fi
+
+    if ! command -v apt-get &>/dev/null; then
+        echo "  WARNING: apt-get not found - skipping Docker auto-install." >&2
+        return 0
+    fi
 
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq
     apt-get install -y --no-install-recommends \
-        curl ca-certificates gnupg lsb-release
+        curl wget ca-certificates gnupg lsb-release
 
     _docker_install_via_apt && return 0
     _docker_install_via_get_script && return 0

@@ -24,6 +24,7 @@ Available commands:
     integrations status   -- show status for all services (CP1.3)
     admin list            -- list local administrator accounts
     admin create          -- create an emergency administrator account
+    admin reset-username  -- rename an administrator account
     admin reset-password  -- reset an administrator password
     migrate *             -- stub (B6)
     backup *              -- stub (B15)

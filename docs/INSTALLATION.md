@@ -2,9 +2,11 @@
 
 ## Supported Host
 
-- Ubuntu 24.04 LTS recommended
-- Debian/Ubuntu supported by the installer
-- amd64 or arm64
+- Ubuntu Server 24.04 LTS supported
+- Ubuntu Server 26.04 LTS supported
+- Ubuntu Core is not supported
+- Other Debian/Ubuntu hosts are best-effort only after confirmation
+- amd64 / x86_64
 - 2 CPU cores minimum
 - 4 GB RAM recommended
 - 20 GB free disk minimum
@@ -67,3 +69,15 @@ prints it once. Store it immediately; FlowHub does not persist plaintext admin
 passwords in logs or backups.
 
 Connector configuration belongs in Settings -> Integrations after sign-in.
+
+## CLI
+
+After installation, run `flowhub` without arguments to open the interactive
+management menu. Direct command mode remains available:
+
+```bash
+flowhub status
+flowhub health
+flowhub restart
+flowhub admin reset-password --help
+```

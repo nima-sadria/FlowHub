@@ -13,6 +13,7 @@ Design principles:
 """
 
 import os
+import platform
 import secrets
 import shutil
 import sys
@@ -243,6 +244,18 @@ def apply_secrets(config: InstallerConfig, sec: InstallerSecrets) -> InstallerCo
 # Prerequisite checks
 # ---------------------------------------------------------------------------
 
+def _parse_os_release(path: Path = Path("/etc/os-release")) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    data: dict[str, str] = {}
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        data[key] = value.strip().strip('"')
+    return data
+
 
 def check_prerequisites(install_dir: Path | None = None) -> list[PrerequisiteResult]:
     """Check all installation prerequisites.
@@ -251,6 +264,74 @@ def check_prerequisites(install_dir: Path | None = None) -> list[PrerequisiteRes
     make network connections, does NOT write any files.
     """
     results: list[PrerequisiteResult] = []
+
+    # OS support. Non-Linux developer hosts can run tests/dry-runs but are not
+    # production install targets.
+    if sys.platform.startswith("linux"):
+        os_release = _parse_os_release()
+        os_id = os_release.get("ID", "")
+        version_id = os_release.get("VERSION_ID", "")
+        pretty = os_release.get("PRETTY_NAME", os_id or "unknown")
+        name = os_release.get("NAME", "")
+        id_like = os_release.get("ID_LIKE", "")
+        if os_id == "ubuntu-core" or "Ubuntu Core" in name:
+            results.append(PrerequisiteResult(
+                name="OS support",
+                passed=False,
+                message="Ubuntu Core is not supported",
+                fix="Use Ubuntu Server 24.04 LTS or 26.04 LTS.",
+            ))
+        elif os_id == "ubuntu" and version_id in {"24.04", "26.04"}:
+            results.append(PrerequisiteResult(
+                name="OS support",
+                passed=True,
+                message=f"{pretty} supported",
+            ))
+        elif os_id in {"ubuntu", "debian"} or "debian" in id_like:
+            results.append(PrerequisiteResult(
+                name="OS support",
+                passed=True,
+                message=f"{pretty} best-effort only",
+                fix="Ubuntu Server 24.04 LTS or 26.04 LTS is recommended.",
+            ))
+        else:
+            results.append(PrerequisiteResult(
+                name="OS support",
+                passed=False,
+                message=f"{pretty} is unsupported",
+                fix="Use Ubuntu Server 24.04 LTS or 26.04 LTS.",
+            ))
+    else:
+        results.append(PrerequisiteResult(
+            name="OS support",
+            passed=True,
+            message="non-Linux development host; production target is Ubuntu Server 24.04/26.04",
+        ))
+
+    arch = platform.machine().lower()
+    results.append(PrerequisiteResult(
+        name="architecture",
+        passed=arch in {"x86_64", "amd64"},
+        message=arch or "unknown",
+        fix="Use an x86_64/amd64 Linux host.",
+    ))
+
+    apt_path = shutil.which("apt-get")
+    results.append(PrerequisiteResult(
+        name="apt-get command",
+        passed=apt_path is not None or not sys.platform.startswith("linux"),
+        message=f"found at {apt_path}" if apt_path else "not found in PATH",
+        fix="Use a Debian/Ubuntu server with apt-get available.",
+    ))
+
+    curl_path = shutil.which("curl")
+    wget_path = shutil.which("wget")
+    results.append(PrerequisiteResult(
+        name="download command",
+        passed=curl_path is not None or wget_path is not None,
+        message=", ".join(p for p in [curl_path, wget_path] if p) or "curl/wget not found",
+        fix="Install curl or wget.",
+    ))
 
     # Python version
     ok = sys.version_info >= (3, 12)

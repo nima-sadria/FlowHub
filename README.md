@@ -89,13 +89,19 @@ docker compose -f docker-compose.beta.yml \
 
 ## Installer
 
-The installer targets Ubuntu/Debian servers and installs FlowHub into:
+The installer supports Ubuntu Server 24.04 LTS and Ubuntu Server 26.04 LTS on
+x86_64/amd64 hosts. Ubuntu Core is not supported. Other Debian/Ubuntu hosts are
+best-effort only and require explicit confirmation.
+
+FlowHub installs into:
 
 ```text
 /opt/FlowHub
 ```
 
-It detects distribution, architecture, CPU, RAM, disk, Docker, Docker Compose, existing installations, and Legacy Compatibility installations at `/opt/flowhub`.
+It detects distribution, Ubuntu version, Ubuntu Core, architecture, `apt-get`,
+curl/wget, CPU, RAM, disk, Docker, Docker Compose, existing installations, and
+Legacy Compatibility installations at `/opt/flowhub`.
 
 Installer actions:
 
@@ -134,6 +140,13 @@ sudo ./installer/install.sh --uninstall
 After installation, the `flowhub` command is available:
 
 ```bash
+flowhub
+```
+
+Running `flowhub` without arguments opens the interactive management menu. Direct
+command mode also remains available:
+
+```bash
 flowhub install
 flowhub upgrade
 flowhub update
@@ -149,6 +162,7 @@ flowhub backup
 flowhub restore backups/flowhub-YYYYMMDDTHHMMSSZ.tar.gz
 flowhub admin list
 flowhub admin create
+flowhub admin reset-username
 flowhub admin reset-password
 ```
 

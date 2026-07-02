@@ -201,3 +201,73 @@ def reset_admin_password(
     finally:
         db.close()
         engine.dispose()
+
+
+@app.command("reset-username")
+def reset_admin_username(
+    username: str = typer.Option(
+        ...,
+        "--username",
+        "-u",
+        prompt="Current admin username",
+        help="Existing administrator username.",
+    ),
+    new_username: str = typer.Option(
+        ...,
+        "--new-username",
+        "-n",
+        prompt="New admin username",
+        help="New administrator username.",
+    ),
+    env_file: Optional[str] = typer.Option(
+        None,
+        "--env-file",
+        help="Path to .env.beta (default: /opt/FlowHub/.env.beta).",
+    ),
+) -> None:
+    """Rename an existing administrator account and revoke active sessions."""
+    username = username.strip()
+    new_username = new_username.strip()
+    if len(new_username) < 3:
+        typer.echo("ERROR: New username must be at least 3 characters.", err=True)
+        raise typer.Exit(1)
+    if username == new_username:
+        typer.echo("No change requested.")
+        return
+
+    engine, db = _session(env_file)
+    try:
+        from app.beta.auth.repository import (
+            create_audit_event,
+            get_user_by_username,
+            revoke_all_user_tokens,
+        )
+
+        user = get_user_by_username(db, username)
+        if user is None:
+            typer.echo(f"ERROR: User '{username}' was not found.", err=True)
+            raise typer.Exit(1)
+        if user.role != "admin":
+            typer.echo(
+                f"ERROR: User '{username}' is not an administrator. "
+                "Refusing to rename non-admin accounts through recovery.",
+                err=True,
+            )
+            raise typer.Exit(1)
+        if get_user_by_username(db, new_username):
+            typer.echo(f"ERROR: User '{new_username}' already exists.", err=True)
+            raise typer.Exit(1)
+
+        old_username = user.username
+        user.username = new_username
+        user.is_active = True
+        db.commit()
+        revoke_all_user_tokens(db, user.id)
+        create_audit_event(db, username=new_username, event="admin_username_reset_cli", ip_address="cli")
+        typer.echo(
+            f"Administrator username changed from '{old_username}' to '{new_username}'. "
+            "Active sessions revoked."
+        )
+    finally:
+        db.close()
+        engine.dispose()

@@ -111,6 +111,7 @@ background scheduler execution is started.
 
 The installed `flowhub` wrapper is Docker-backed for runtime operations:
 
+- `flowhub` interactive management menu
 - `flowhub start`
 - `flowhub stop`
 - `flowhub restart`
@@ -122,6 +123,7 @@ The installed `flowhub` wrapper is Docker-backed for runtime operations:
 - `flowhub uninstall`
 - `flowhub admin list`
 - `flowhub admin create`
+- `flowhub admin reset-username`
 - `flowhub admin reset-password`
 
 Host-side Python package dependencies are not required for normal runtime CLI

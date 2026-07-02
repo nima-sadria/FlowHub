@@ -3,11 +3,15 @@
 ## Check Services
 
 ```bash
+flowhub
 flowhub status
 flowhub health
 flowhub logs app
 flowhub restart
 ```
+
+Running `flowhub` without arguments opens the interactive management menu.
+Direct commands continue to work for automation and support sessions.
 
 ## Repair
 
@@ -33,3 +37,10 @@ flowhub repair
 
 If `/opt/flowhub` exists, run the installer from the current repository. It will
 offer migration to `/opt/FlowHub`.
+
+## Unsupported Host
+
+FlowHub supports Ubuntu Server 24.04 LTS and Ubuntu Server 26.04 LTS on
+x86_64/amd64 hosts. Ubuntu Core is rejected because it does not provide the
+standard Docker/apt-based server environment required by the installer. Other
+Debian/Ubuntu hosts are best-effort only and require confirmation.

@@ -144,6 +144,88 @@ def test_admin_reset_password_refuses_non_admin(tmp_path):
     engine.dispose()
 
 
+def test_admin_reset_username_renames_admin_and_revokes_sessions(tmp_path):
+    engine, Session, env_file = _prepare_db(tmp_path)
+
+    from app.beta.auth.password import hash_password
+    from app.beta.auth.repository import create_user, store_refresh_token
+
+    db = Session()
+    user = create_user(db, username="oldadmin", hashed_password=hash_password("password"), role="admin")
+    token = store_refresh_token(
+        db,
+        user_id=user.id,
+        token_hash="b" * 64,
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=1),
+    )
+    user_id = user.id
+    token_id = token.id
+    db.close()
+
+    result = runner.invoke(
+        app,
+        [
+            "admin",
+            "reset-username",
+            "--username",
+            "oldadmin",
+            "--new-username",
+            "newadmin",
+            "--env-file",
+            str(env_file),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "newadmin" in result.output
+    assert "Active sessions revoked" in result.output
+
+    db = Session()
+    try:
+        from app.beta.auth.models import BetaRefreshToken, BetaUser
+        from app.beta.auth.repository import get_user_by_username
+
+        assert get_user_by_username(db, "oldadmin") is None
+        renamed = db.get(BetaUser, user_id)
+        assert renamed is not None
+        assert renamed.username == "newadmin"
+        revoked = db.get(BetaRefreshToken, token_id)
+        assert revoked is not None
+        assert revoked.revoked_at is not None
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_admin_reset_username_refuses_non_admin(tmp_path):
+    engine, Session, env_file = _prepare_db(tmp_path)
+
+    from app.beta.auth.password import hash_password
+    from app.beta.auth.repository import create_user
+
+    db = Session()
+    create_user(db, username="viewer", hashed_password=hash_password("password"), role="viewer")
+    db.close()
+
+    result = runner.invoke(
+        app,
+        [
+            "admin",
+            "reset-username",
+            "--username",
+            "viewer",
+            "--new-username",
+            "renamedviewer",
+            "--env-file",
+            str(env_file),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "not an administrator" in result.output
+    engine.dispose()
+
+
 def test_admin_list_does_not_show_password_hashes(tmp_path):
     engine, Session, env_file = _prepare_db(tmp_path)
 

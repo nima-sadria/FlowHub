@@ -10,6 +10,7 @@ from installer.installer_core import (
     PrerequisiteResult,
     all_prerequisites_passed,
     check_prerequisites,
+    _parse_os_release,
 )
 
 
@@ -66,6 +67,22 @@ class TestCheckPrerequisites:
     def test_openssl_check_present(self):
         results = check_prerequisites()
         assert any("openssl" in r.name.lower() for r in results)
+
+    def test_os_support_check_present(self):
+        results = check_prerequisites()
+        assert any(r.name == "OS support" for r in results)
+
+    def test_architecture_check_present(self):
+        results = check_prerequisites()
+        assert any(r.name == "architecture" for r in results)
+
+    def test_apt_get_check_present(self):
+        results = check_prerequisites()
+        assert any(r.name == "apt-get command" for r in results)
+
+    def test_download_command_check_present(self):
+        results = check_prerequisites()
+        assert any(r.name == "download command" for r in results)
 
     def test_no_install_dir_means_no_write_permission_check(self):
         results = check_prerequisites(install_dir=None)
@@ -137,6 +154,16 @@ class TestCheckPrerequisites:
         assert openssl_result is not None
         assert openssl_result.passed is False
         assert openssl_result.fix  # has remediation instruction
+
+
+class TestOsReleaseParser:
+    def test_parse_os_release_strips_quotes(self, tmp_path: Path):
+        path = tmp_path / "os-release"
+        path.write_text('ID=ubuntu\nVERSION_ID="26.04"\nPRETTY_NAME="Ubuntu 26.04 LTS"\n', encoding="utf-8")
+        parsed = _parse_os_release(path)
+        assert parsed["ID"] == "ubuntu"
+        assert parsed["VERSION_ID"] == "26.04"
+        assert parsed["PRETTY_NAME"] == "Ubuntu 26.04 LTS"
 
 
 class TestAllPrerequisitesPassed:

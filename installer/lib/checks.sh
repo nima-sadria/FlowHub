@@ -11,6 +11,65 @@ CHECKS_FAILED=0
 
 _check_pass() { printf "  [PASS] %s\n" "$1"; }
 _check_fail() { printf "  [FAIL] %s\n  Fix: %s\n" "$1" "$2"; CHECKS_FAILED=1; }
+_check_warn() { printf "  [WARN] %s\n" "$1"; }
+
+_confirm_best_effort_os() {
+    if [[ "${FLOWHUB_ASSUME_YES:-}" == "1" ]]; then
+        return 0
+    fi
+    if [[ ! -t 0 ]]; then
+        return 1
+    fi
+    local answer
+    read -r -p "  Continue with best-effort unsupported OS install? [y/N]: " answer
+    [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]
+}
+
+check_os_support() {
+    if [[ ! -f /etc/os-release ]]; then
+        _check_fail "OS detection failed" "Use Ubuntu Server 24.04 LTS or 26.04 LTS."
+        return
+    fi
+    # shellcheck source=/dev/null
+    . /etc/os-release
+    if [[ "${ID:-}" == "ubuntu-core" || "${NAME:-}" == *"Ubuntu Core"* ]]; then
+        _check_fail "Ubuntu Core is not supported" "Use Ubuntu Server 24.04 LTS or 26.04 LTS."
+        return
+    fi
+    if [[ "${ID:-}" == "ubuntu" && ( "${VERSION_ID:-}" == "24.04" || "${VERSION_ID:-}" == "26.04" ) ]]; then
+        _check_pass "OS supported: ${PRETTY_NAME:-Ubuntu ${VERSION_ID}}"
+        return
+    fi
+    if [[ "${ID:-}" == "ubuntu" || "${ID:-}" == "debian" || "${ID_LIKE:-}" == *"debian"* ]]; then
+        _check_warn "OS best-effort only: ${PRETTY_NAME:-${ID:-unknown}}"
+        if _confirm_best_effort_os; then
+            _check_pass "Best-effort OS confirmation accepted"
+        else
+            _check_fail "Best-effort OS confirmation declined" "Use Ubuntu Server 24.04 LTS or 26.04 LTS."
+        fi
+        return
+    fi
+    _check_fail "Unsupported OS: ${PRETTY_NAME:-${ID:-unknown}}" "Use Ubuntu Server 24.04 LTS or 26.04 LTS."
+}
+
+check_apt_get_command() {
+    if command -v apt-get &>/dev/null; then
+        _check_pass "apt-get found: $(command -v apt-get)"
+    else
+        _check_fail "apt-get not found" "Use a Debian/Ubuntu server with apt-get available."
+    fi
+}
+
+check_download_command() {
+    if command -v curl &>/dev/null || command -v wget &>/dev/null; then
+        local found=()
+        command -v curl &>/dev/null && found+=("curl")
+        command -v wget &>/dev/null && found+=("wget")
+        _check_pass "download tool found: ${found[*]}"
+    else
+        _check_fail "curl or wget not found" "Install curl or wget with apt-get."
+    fi
+}
 
 check_python_version() {
     local required_major=3 required_minor=10
@@ -65,8 +124,8 @@ check_system_requirements() {
     local arch cpu_count mem_kb disk_kb
     arch="$(uname -m)"
     case "$arch" in
-        x86_64|aarch64) _check_pass "Architecture supported: ${arch}" ;;
-        *) _check_fail "Unsupported architecture: ${arch}" "Use an amd64 or arm64 Linux host." ;;
+        x86_64) _check_pass "Architecture supported: ${arch}" ;;
+        *) _check_fail "Unsupported architecture: ${arch}" "Use an x86_64/amd64 Linux host." ;;
     esac
 
     cpu_count="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 0)"
@@ -114,6 +173,9 @@ run_prerequisite_checks() {
     echo "========================================================"
     echo "  Prerequisite Checks"
     echo "========================================================"
+    check_os_support
+    check_apt_get_command
+    check_download_command
     check_system_requirements "${install_dir:-/}"
     check_python_version
     check_docker_command
