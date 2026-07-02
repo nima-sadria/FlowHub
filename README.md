@@ -147,6 +147,9 @@ flowhub stop
 flowhub uninstall
 flowhub backup
 flowhub restore backups/flowhub-YYYYMMDDTHHMMSSZ.tar.gz
+flowhub admin list
+flowhub admin create
+flowhub admin reset-password
 ```
 
 The installed `flowhub` wrapper is Docker-backed. Runtime commands use the

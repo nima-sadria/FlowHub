@@ -29,6 +29,7 @@ export interface ServerProfilePayload {
 
 export interface AdminPayload {
   username: string
+  email: string
   password: string
 }
 

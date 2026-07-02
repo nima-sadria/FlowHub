@@ -28,6 +28,10 @@ FlowHub management commands:
   flowhub uninstall        Run the uninstaller
   flowhub backup           Create a local backup archive
   flowhub restore FILE     Restore a local backup archive
+  flowhub admin list       List administrator accounts
+  flowhub admin create     Create an emergency administrator account
+  flowhub admin reset-password
+                          Reset an administrator password and revoke sessions
 
 App CLI commands are executed inside the app container, for example:
   flowhub diagnostics run

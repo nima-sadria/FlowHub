@@ -41,6 +41,7 @@ router = APIRouter(prefix="/setup", tags=["setup"])
 _REFRESH_EXPIRE_DAYS = 30
 
 _UTC = timezone.utc
+_EMAIL_ERROR = "Enter a valid email address."
 
 
 def _utcnow() -> datetime:
@@ -85,6 +86,29 @@ def _get_latest_beta_revision() -> str | None:
         return heads[0] if len(heads) == 1 else None
     except Exception:
         return None
+
+
+def _validate_email_value(value: str) -> str:
+    email = value.strip().lower()
+    if not email:
+        raise ValueError(_EMAIL_ERROR)
+    if " " in email or email.count("@") != 1:
+        raise ValueError(_EMAIL_ERROR)
+
+    local, domain = email.split("@", 1)
+    if not local or not domain or len(domain) > 253 or "." not in domain:
+        raise ValueError(_EMAIL_ERROR)
+
+    labels = domain.split(".")
+    label_re = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$")
+    if any(not label or len(label) > 63 or not label_re.match(label) for label in labels):
+        raise ValueError(_EMAIL_ERROR)
+    if not re.match(r"^[A-Za-z]{2,63}$", labels[-1]):
+        raise ValueError(_EMAIL_ERROR)
+    if not re.match(r"^[^\s@]+$", local):
+        raise ValueError(_EMAIL_ERROR)
+
+    return email
 
 
 # -- Request / Response models -------------------------------------------------
@@ -138,6 +162,7 @@ class ServerProfilePayload(BaseModel):
 
 class AdminPayload(BaseModel):
     username: str
+    email: str
     password: str
 
     @field_validator("username")
@@ -149,6 +174,11 @@ class AdminPayload(BaseModel):
         if not re.match(r"^[a-zA-Z0-9_\-\.]+$", v):
             raise ValueError("Username may only contain letters, numbers, underscores, hyphens, and dots")
         return v
+
+    @field_validator("email")
+    @classmethod
+    def _validate_email(cls, v: str) -> str:
+        return _validate_email_value(v)
 
     @field_validator("password")
     @classmethod
@@ -251,6 +281,8 @@ async def setup_admin(
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    svc.set("admin.email", body.email, updated_by="setup_wizard")
 
     create_audit_event(db, username=user.username, event="setup_admin_created", ip_address="setup_wizard")
 

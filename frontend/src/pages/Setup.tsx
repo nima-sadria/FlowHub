@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import type {
   ServerProfilePayload,
   DatabaseStatusResponse,
@@ -59,6 +59,28 @@ const CURRENCIES = [
 ]
 
 const TZ_OPTIONS = ALL_TIMEZONES.map(tz => ({ value: tz, label: tz }))
+const EMAIL_ERROR = 'Enter a valid email address.'
+
+export function validateSetupEmail(value: string): string | null {
+  const email = value.trim()
+  if (!email) return EMAIL_ERROR
+  if (email.includes(' ') || (email.match(/@/g) ?? []).length !== 1) return EMAIL_ERROR
+
+  const [local, domain] = email.split('@')
+  if (!local || !domain || domain.length > 253 || !domain.includes('.')) return EMAIL_ERROR
+
+  const labels = domain.split('.')
+  const validLabels = labels.every(label => (
+    label.length > 0 &&
+    label.length <= 63 &&
+    /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(label)
+  ))
+  const tld = labels[labels.length - 1]
+  if (!validLabels || !/^[A-Za-z]{2,63}$/.test(tld)) return EMAIL_ERROR
+  if (!/^[^\s@]+$/.test(local)) return EMAIL_ERROR
+
+  return null
+}
 
 function AppleSpinner({ size = 18 }: { size?: number }) {
   const half = size / 2
@@ -156,7 +178,8 @@ export function SearchableListbox({
 }
 
 function Field({
-  id, label, type = 'text', value, onChange, placeholder, disabled = false, hint,
+  id, label, type = 'text', value, onChange, placeholder, disabled = false, hint, error,
+  autoComplete = 'off', inputMode,
 }: {
   id: string
   label: string
@@ -166,7 +189,15 @@ function Field({
   placeholder?: string
   disabled?: boolean
   hint?: string
+  error?: string | null
+  autoComplete?: string
+  inputMode?: InputHTMLAttributes<HTMLInputElement>['inputMode']
 }) {
+  const describedBy = [
+    hint ? `${id}-hint` : null,
+    error ? `${id}-error` : null,
+  ].filter(Boolean).join(' ') || undefined
+
   return (
     <div>
       <label htmlFor={id} className="block text-[13px] font-medium text-text-base mb-1.5">{label}</label>
@@ -177,10 +208,17 @@ function Field({
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        autoComplete="off"
-        className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60"
+        autoComplete={autoComplete}
+        inputMode={inputMode}
+        aria-invalid={error ? 'true' : undefined}
+        aria-describedby={describedBy}
+        className={[
+          'w-full border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60',
+          error ? 'border-wp-red' : 'border-border',
+        ].join(' ')}
       />
-      {hint && <p className="mt-1 text-[11.5px] text-wp-muted">{hint}</p>}
+      {hint && <p id={`${id}-hint`} className="mt-1 text-[11.5px] text-wp-muted">{hint}</p>}
+      {error && <p id={`${id}-error`} className="mt-1 text-[11.5px] text-wp-red">{error}</p>}
     </div>
   )
 }
@@ -477,14 +515,21 @@ function AdminStep({
   onBack: () => void
 }) {
   const [username, setUsername] = useState('admin')
+  const [email, setEmail] = useState('')
+  const [emailTouched, setEmailTouched] = useState(false)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const emailError = hasAdmin ? null : validateSetupEmail(email)
 
   async function createAdmin() {
     if (hasAdmin) {
       onNext()
+      return
+    }
+    if (emailError) {
+      setEmailTouched(true)
       return
     }
     if (password !== confirm) {
@@ -494,7 +539,7 @@ function AdminStep({
     setError(null)
     setLoading(true)
     try {
-      const body: AdminPayload = { username: username.trim(), password }
+      const body: AdminPayload = { username: username.trim(), email: email.trim(), password }
       const r = await fetch('/api/v2/setup/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -537,6 +582,18 @@ function AdminStep({
             disabled={loading}
           />
           <Field
+            id="admin-email"
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(value) => { setEmail(value); setEmailTouched(true) }}
+            placeholder="admin@example.com"
+            disabled={loading}
+            autoComplete="email"
+            inputMode="email"
+            error={emailTouched ? emailError : null}
+          />
+          <Field
             id="admin-password"
             label="Password"
             type="password"
@@ -561,7 +618,7 @@ function AdminStep({
         onNext={createAdmin}
         loading={loading}
         nextLabel={hasAdmin ? 'Continue' : 'Create Admin'}
-        nextDisabled={!hasAdmin && (!username.trim() || password.length < 8 || confirm.length < 8)}
+        nextDisabled={!hasAdmin && (!username.trim() || !!emailError || password.length < 8 || confirm.length < 8)}
       />
     </StepCard>
   )

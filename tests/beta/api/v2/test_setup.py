@@ -196,6 +196,7 @@ class TestSetupAdmin:
     def test_creates_admin_and_returns_tokens(self, client):
         r = client.post("/api/v2/setup/admin", json={
             "username": "admin",
+            "email": "admin@example.com",
             "password": "securepassword123",
         })
         assert r.status_code == 200
@@ -204,9 +205,19 @@ class TestSetupAdmin:
         assert "refresh_token" in data
         assert data["username"] == "admin"
 
+    def test_stores_admin_email(self, client, db):
+        r = client.post("/api/v2/setup/admin", json={
+            "username": "admin",
+            "email": " Admin@Example.COM ",
+            "password": "securepassword123",
+        })
+        assert r.status_code == 200
+        assert AppConfigService(db).get("admin.email") == "admin@example.com"
+
     def test_rejects_short_password(self, client):
         r = client.post("/api/v2/setup/admin", json={
             "username": "admin",
+            "email": "admin@example.com",
             "password": "short",
         })
         assert r.status_code == 422
@@ -214,6 +225,26 @@ class TestSetupAdmin:
     def test_rejects_short_username(self, client):
         r = client.post("/api/v2/setup/admin", json={
             "username": "ab",
+            "email": "admin@example.com",
+            "password": "validpassword123",
+        })
+        assert r.status_code == 422
+
+    @pytest.mark.parametrize("email", [
+        "",
+        "adminexample.com",
+        "admin@",
+        "admin@example",
+        "admin@@example.com",
+        "admin @example.com",
+        "admin@example..com",
+        "admin@-example.com",
+        "admin@example.c",
+    ])
+    def test_rejects_invalid_email(self, client, email):
+        r = client.post("/api/v2/setup/admin", json={
+            "username": "admin",
+            "email": email,
             "password": "validpassword123",
         })
         assert r.status_code == 422
@@ -221,10 +252,12 @@ class TestSetupAdmin:
     def test_rejects_second_admin(self, client):
         client.post("/api/v2/setup/admin", json={
             "username": "admin",
+            "email": "admin@example.com",
             "password": "securepassword123",
         })
         r = client.post("/api/v2/setup/admin", json={
             "username": "admin2",
+            "email": "admin2@example.com",
             "password": "securepassword456",
         })
         assert r.status_code == 409
@@ -234,6 +267,7 @@ class TestSetupAdmin:
         db.commit()
         r = client.post("/api/v2/setup/admin", json={
             "username": "admin",
+            "email": "admin@example.com",
             "password": "securepassword123",
         })
         assert r.status_code == 409
@@ -250,6 +284,7 @@ class TestSetupComplete:
     def test_completes_after_admin_created(self, client, db):
         client.post("/api/v2/setup/admin", json={
             "username": "admin",
+            "email": "admin@example.com",
             "password": "securepassword123",
         })
         r = client.post("/api/v2/setup/complete")
@@ -262,6 +297,7 @@ class TestSetupComplete:
     def test_locked_after_completion(self, client):
         client.post("/api/v2/setup/admin", json={
             "username": "admin",
+            "email": "admin@example.com",
             "password": "securepassword123",
         })
         client.post("/api/v2/setup/complete")

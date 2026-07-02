@@ -37,6 +37,9 @@ Current setup steps:
 4. Admin Account
 5. Finish
 
+The Admin Account step collects username, email, and password. Email is
+validated in the UI and again by `POST /api/v2/setup/admin`.
+
 Connector configuration is not part of setup. WooCommerce, Nextcloud, and future
 connectors are configured only in Settings -> Integrations.
 
@@ -117,6 +120,9 @@ The installed `flowhub` wrapper is Docker-backed for runtime operations:
 - `flowhub upgrade`
 - `flowhub update` (alias for upgrade)
 - `flowhub uninstall`
+- `flowhub admin list`
+- `flowhub admin create`
+- `flowhub admin reset-password`
 
 Host-side Python package dependencies are not required for normal runtime CLI
 commands.

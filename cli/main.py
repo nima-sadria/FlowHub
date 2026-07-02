@@ -22,6 +22,9 @@ Available commands:
     integrations list     -- list registered integrations (CP1.3)
     integrations test     -- run live check for a service (CP1.3)
     integrations status   -- show status for all services (CP1.3)
+    admin list            -- list local administrator accounts
+    admin create          -- create an emergency administrator account
+    admin reset-password  -- reset an administrator password
     migrate *             -- stub (B6)
     backup *              -- stub (B15)
     logs *                -- stub (B6)
@@ -43,6 +46,7 @@ from cli.status import app as status_app
 from cli.health import app as health_app
 from cli.diagnostics import app as diagnostics_app
 from cli.integrations import app as integrations_app
+from cli.admin import app as admin_app
 from cli.migrate import app as migrate_app
 from cli.backup import app as backup_app
 from cli.logs import app as logs_app
@@ -77,6 +81,7 @@ app.add_typer(status_app, name="status")
 app.add_typer(health_app, name="health")
 app.add_typer(diagnostics_app, name="diagnostics")
 app.add_typer(integrations_app, name="integrations")
+app.add_typer(admin_app, name="admin")
 app.add_typer(migrate_app, name="migrate")
 app.add_typer(backup_app, name="backup")
 app.add_typer(logs_app, name="logs")
