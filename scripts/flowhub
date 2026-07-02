@@ -81,6 +81,38 @@ run_app_cli() {
     run_compose exec -T app python -m cli.main "$@"
 }
 
+health_url() {
+    echo "http://localhost:${BETA_PORT:-8085}/api/health"
+}
+
+check_app_health() {
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsS --max-time 3 "$(health_url)" >/dev/null 2>&1
+    else
+        run_compose exec -T app curl -fsS --max-time 3 http://localhost:8085/api/health >/dev/null 2>&1
+    fi
+}
+
+wait_for_app_health() {
+    local timeout="${1:-60}"
+    local start now
+    start="$(date +%s)"
+    echo "Waiting for FlowHub to become ready at $(health_url) ..."
+    while true; do
+        if check_app_health; then
+            echo "FlowHub is ready."
+            return 0
+        fi
+        now="$(date +%s)"
+        if (( now - start >= timeout )); then
+            echo "WARNING: FlowHub did not become ready within ${timeout}s." >&2
+            echo "Services may still be starting. Check with: flowhub health" >&2
+            return 1
+        fi
+        sleep 2
+    done
+}
+
 cmd="${1:-help}"
 case "$cmd" in
     ""|-h|--help|help)
@@ -116,7 +148,7 @@ case "$cmd" in
         shift
         ensure_install
         if command -v curl >/dev/null 2>&1; then
-            curl -fsS "http://localhost:${BETA_PORT:-8085}/api/health"
+            curl -fsS "$(health_url)"
             echo
         else
             run_compose exec -T app curl -fsS http://localhost:8085/api/health
@@ -138,6 +170,7 @@ case "$cmd" in
         shift
         ensure_install
         run_compose restart "$@"
+        wait_for_app_health 60
         ;;
     stop)
         shift

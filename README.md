@@ -151,7 +151,8 @@ flowhub restore backups/flowhub-YYYYMMDDTHHMMSSZ.tar.gz
 
 The installed `flowhub` wrapper is Docker-backed. Runtime commands use the
 running containers and do not require Python application dependencies on the
-host.
+host. `flowhub restart` waits for the application health endpoint before
+returning, or exits with a clear warning if readiness is not reached in time.
 
 ## Verification
 
