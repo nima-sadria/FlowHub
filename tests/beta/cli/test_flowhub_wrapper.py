@@ -37,10 +37,10 @@ def test_wrapper_no_args_opens_management_menu():
 
 def test_management_menu_contains_all_numbered_options():
     src = _src()
-    for number in range(0, 28):
+    for number in range(0, 29):
         assert f"{number}." in src
     assert "FlowHub Management" in src
-    assert "Please enter your selection [0-27]:" in src
+    assert "Please enter your selection [0-28]:" in src
     assert "Please enter your selection [0-1]:" in src
 
 
@@ -75,7 +75,7 @@ def test_helper_requires_root_and_has_command_allowlist():
     src = HELPER.read_text(encoding="utf-8")
     assert "require_root" in src
     assert "Unsupported helper command" in src
-    for command in ["status", "health", "restart", "backup", "app-cli", "state"]:
+    for command in ["status", "health", "restart", "backup", "config", "tls", "app-cli", "state"]:
         assert f"{command})" in src
     assert "eval " not in src
     assert "bash -c" not in src
@@ -164,3 +164,39 @@ def test_install_command_on_existing_installation_does_not_run_installer(tmp_pat
         "Use flowhub upgrade, flowhub repair, or flowhub reinstall."
     ) in result.stderr
     assert "helper is not installed" not in result.stderr
+
+
+def test_domain_menu_uses_helper_not_app_config_alias():
+    src = _src()
+    assert 'helper config set-domain "$new_domain"' in src
+    assert 'configure set app.domain' not in src
+
+
+def test_port_menu_uses_helper_not_app_config_alias():
+    src = _src()
+    assert 'helper config set-port "$new_port"' in src
+    assert 'configure set app.port' not in src
+
+
+def test_menu_exposes_tls_management():
+    src = _src()
+    assert "Manage TLS / Let's Encrypt" in src
+    assert "show_tls_menu" in src
+    assert "helper tls letsencrypt" in src
+
+
+def test_helper_supports_domain_port_and_tls_without_arbitrary_shell():
+    src = HELPER.read_text(encoding="utf-8")
+    assert "set-domain" in src
+    assert "set-port" in src
+    assert "tls_letsencrypt" in src
+    assert "validate_domain" in src
+    assert "validate_port" in src
+    assert "eval " not in src
+    assert "bash -c" not in src
+
+
+def test_helper_start_waits_for_readiness_after_compose_up():
+    src = HELPER.read_text(encoding="utf-8")
+    assert "run_compose up -d" in src
+    assert "wait_for_app_health 60" in src

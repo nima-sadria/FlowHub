@@ -87,11 +87,22 @@ public_url() {
     load_env
     local domain="${BETA_DOMAIN:-localhost}"
     local port="${BETA_PORT:-8085}"
-    if [[ "$domain" == "localhost" || "$domain" == "127.0.0.1" ]]; then
-        echo "http://localhost:${port}"
-    else
-        echo "http://${domain}:${port}"
-    fi
+    local ssl_mode="${BETA_SSL_MODE:-off}"
+    case "$ssl_mode" in
+        letsencrypt|manual)
+            echo "https://${domain}"
+            ;;
+        self-signed)
+            echo "https://${domain}:${port}"
+            ;;
+        off|*)
+            if [[ "$domain" == "localhost" || "$domain" == "127.0.0.1" ]]; then
+                echo "http://localhost:${port}"
+            else
+                echo "http://${domain}:${port}"
+            fi
+            ;;
+    esac
 }
 
 install_state() {
@@ -178,6 +189,102 @@ restore_backup() {
     echo "Backup restored. Run: flowhub repair"
 }
 
+validate_domain() {
+    local domain="${1:-}"
+    [[ -n "$domain" ]] || die "Domain is required."
+    [[ "$domain" != http://* && "$domain" != https://* ]] || die "Enter only the host, for example: kharidbezan.com"
+    [[ "$domain" != *"/"* && "$domain" != *":"* && "$domain" != *" "* ]] || die "Domain must be a hostname without scheme, port, path, or spaces."
+    [[ "$domain" =~ ^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$ ]] \
+        || die "Invalid domain host: ${domain}"
+}
+
+validate_port() {
+    local port="${1:-}"
+    [[ "$port" =~ ^[0-9]+$ ]] || die "Port must be a number."
+    (( port >= 1 && port <= 65535 )) || die "Port must be between 1 and 65535."
+}
+
+validate_ssl_mode() {
+    case "${1:-}" in
+        off|self-signed|letsencrypt|manual) ;;
+        *) die "TLS mode must be one of: off, self-signed, letsencrypt, manual." ;;
+    esac
+}
+
+set_env_field() {
+    local key="${1:-}" value="${2:-}"
+    [[ -n "$key" ]] || die "Environment key is required."
+    [[ -f "$ENV_FILE" ]] || die "Environment file not found: ${ENV_FILE}"
+
+    local tmp
+    tmp="$(mktemp)"
+    if grep -qE "^${key}=" "$ENV_FILE"; then
+        awk -v key="$key" -v value="$value" 'BEGIN { done=0 } $0 ~ "^" key "=" { print key "=" value; done=1; next } { print } END { if (!done) print key "=" value }' "$ENV_FILE" > "$tmp"
+    else
+        cat "$ENV_FILE" > "$tmp"
+        printf '%s=%s\n' "$key" "$value" >> "$tmp"
+    fi
+    install -o root -g root -m 0600 "$tmp" "$ENV_FILE"
+    rm -f "$tmp"
+}
+
+set_domain() {
+    local domain="${1:-}"
+    validate_domain "$domain"
+    set_env_field "BETA_DOMAIN" "$domain"
+    echo "Domain updated: ${domain}"
+    echo "Run: flowhub start"
+}
+
+set_port() {
+    local port="${1:-}"
+    validate_port "$port"
+    set_env_field "BETA_PORT" "$port"
+    echo "Port updated: ${port}"
+    echo "Run: flowhub start"
+}
+
+tls_status() {
+    load_env
+    echo "TLS mode: ${BETA_SSL_MODE:-off}"
+    echo "Domain: ${BETA_DOMAIN:-localhost}"
+    echo "Public URL: $(public_url)"
+    case "${BETA_SSL_MODE:-off}" in
+        letsencrypt)
+            echo "Let's Encrypt mode is configured for external reverse-proxy termination."
+            echo "Certificate issuance is handled by the reverse proxy; FlowHub does not store certificate private keys."
+            ;;
+        manual)
+            echo "Manual TLS mode is configured for external reverse-proxy termination."
+            ;;
+        self-signed)
+            echo "Self-signed TLS mode is configured."
+            ;;
+        off|*)
+            echo "TLS mode is off. Use 'flowhub tls letsencrypt <domain>' after DNS points to this host and a reverse proxy is ready."
+            ;;
+    esac
+}
+
+tls_letsencrypt() {
+    local domain="${1:-}"
+    validate_domain "$domain"
+    set_env_field "BETA_DOMAIN" "$domain"
+    set_env_field "BETA_SSL_MODE" "letsencrypt"
+    echo "Let's Encrypt mode configured for: ${domain}"
+    echo "Public URL: https://${domain}"
+    echo "Configure your external reverse proxy to request and renew the certificate for ${domain}."
+    echo "Run: flowhub start"
+}
+
+tls_set_mode() {
+    local mode="${1:-}"
+    validate_ssl_mode "$mode"
+    set_env_field "BETA_SSL_MODE" "$mode"
+    echo "TLS mode updated: ${mode}"
+    echo "Run: flowhub start"
+}
+
 require_root
 cmd="${1:-}"
 shift || true
@@ -207,6 +314,7 @@ case "$cmd" in
     start)
         ensure_install
         run_compose up -d "$@"
+        wait_for_app_health 60
         ;;
     restart)
         ensure_install
@@ -232,6 +340,24 @@ case "$cmd" in
     restore)
         ensure_install
         restore_backup "$@"
+        ;;
+    config)
+        ensure_install
+        case "${1:-}" in
+            set-domain) set_domain "${2:-}" ;;
+            set-port) set_port "${2:-}" ;;
+            *) die "Unsupported config command: ${1:-<empty>}" ;;
+        esac
+        ;;
+    tls)
+        ensure_install
+        case "${1:-}" in
+            status) tls_status ;;
+            letsencrypt) tls_letsencrypt "${2:-}" ;;
+            mode) tls_set_mode "${2:-}" ;;
+            off) tls_set_mode off ;;
+            *) die "Unsupported TLS command: ${1:-<empty>}" ;;
+        esac
         ;;
     app-cli)
         ensure_install

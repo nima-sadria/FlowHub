@@ -28,6 +28,38 @@ health verification.
 The `flowhub` wrapper executes runtime checks through Docker where possible, so
 missing host-side Python packages should not block normal operations.
 
+## Domain Edit Fails
+
+Use the domain helper command or the interactive menu item **Edit Domain /
+Public URL**:
+
+```bash
+flowhub domain set kharidbezan.com
+flowhub start
+```
+
+Do not use `flowhub configure set app.domain`; dotted config aliases are not
+runtime-editable fields.
+
+## Let's Encrypt
+
+Check the recorded TLS mode:
+
+```bash
+flowhub tls status
+```
+
+Configure the public URL for external reverse-proxy TLS:
+
+```bash
+flowhub tls letsencrypt kharidbezan.com
+flowhub start
+```
+
+The current FlowHub compose stack does not issue certificates itself. Configure
+Let's Encrypt issuance and renewal in the external reverse proxy for the same
+domain.
+
 ## Database Needs Update
 
 Use repair:

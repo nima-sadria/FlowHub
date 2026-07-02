@@ -79,6 +79,8 @@ management menu. Direct command mode remains available:
 flowhub status
 flowhub health
 flowhub restart
+flowhub domain set kharidbezan.com
+flowhub tls status
 flowhub admin reset-password --help
 ```
 
@@ -86,3 +88,25 @@ The installer also installs a root-owned FlowHub helper and sudoers allowlist.
 Normal operators run `flowhub` commands without manually typing `sudo`, while
 `.env.beta` remains protected as `root:root 600` and is never sourced by the
 unprivileged wrapper.
+
+## Domain and TLS
+
+The interactive menu includes **Edit Domain / Public URL** for updating the
+public host. Direct command mode is also available:
+
+```bash
+flowhub domain set kharidbezan.com
+flowhub start
+```
+
+The current Docker stack does not include a TLS-terminating reverse proxy.
+Let's Encrypt certificates should be issued and renewed by the external reverse
+proxy in front of FlowHub. The CLI can record the desired public URL mode:
+
+```bash
+flowhub tls letsencrypt kharidbezan.com
+flowhub tls status
+flowhub start
+```
+
+FlowHub does not store Let's Encrypt private keys in this release.

@@ -162,6 +162,9 @@ flowhub stop
 flowhub uninstall
 flowhub backup
 flowhub restore backups/flowhub-YYYYMMDDTHHMMSSZ.tar.gz
+flowhub domain set kharidbezan.com
+flowhub tls status
+flowhub tls letsencrypt kharidbezan.com
 flowhub admin list
 flowhub admin create
 flowhub admin reset-username
@@ -177,6 +180,30 @@ before returning successfully.
 
 On an installed host, `flowhub install` does not re-enter the installer workflow;
 use `flowhub upgrade`, `flowhub repair`, or `flowhub reinstall` instead.
+
+### Domain and TLS
+
+Use the interactive menu option **Edit Domain / Public URL** or direct command
+mode to update the public host:
+
+```bash
+flowhub domain set kharidbezan.com
+flowhub start
+```
+
+FlowHub's current Docker stack exposes the app and expects TLS termination to be
+handled by an external reverse proxy. The CLI can record the desired
+Let's Encrypt mode and public URL:
+
+```bash
+flowhub tls letsencrypt kharidbezan.com
+flowhub tls status
+flowhub start
+```
+
+Certificate issuance and renewal must be configured in the external reverse
+proxy for the same domain. FlowHub does not store Let's Encrypt private keys in
+this release.
 
 ## Verification
 

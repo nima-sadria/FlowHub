@@ -31,6 +31,10 @@ FlowHub management commands:
   flowhub uninstall        Run the uninstaller
   flowhub backup           Create a local backup archive
   flowhub restore FILE     Restore a local backup archive
+  flowhub domain set HOST  Set the public domain host
+  flowhub tls status       Show TLS / Let's Encrypt configuration status
+  flowhub tls letsencrypt HOST
+                          Configure Let's Encrypt mode for an external proxy
   flowhub admin list       List administrator accounts
   flowhub admin create     Create an emergency administrator account
   flowhub admin reset-username
@@ -223,23 +227,24 @@ Services
 Configuration
 17. View Current Settings
 18. Edit Domain / Public URL
-19. Change Port
-20. Show Install Path
+19. Manage TLS / Let's Encrypt
+20. Change Port
+21. Show Install Path
 
 Security
-21. Rotate Secrets
-22. Check Secret Exposure
-23. View Safety Status
+22. Rotate Secrets
+23. Check Secret Exposure
+24. View Safety Status
 
 Advanced
-24. Docker Compose Status
-25. Database Status
-26. Migration Status
-27. Shell into App Container
+25. Docker Compose Status
+26. Database Status
+27. Migration Status
+28. Shell into App Container
 EOF
         print_menu_footer
         echo ""
-        read -r -p "Please enter your selection [0-27]: " choice || return 0
+        read -r -p "Please enter your selection [0-28]: " choice || return 0
         choice="${choice//$'\r'/}"
         case "$choice" in
             0|"q"|"quit"|"exit") echo "Exiting."; return 0 ;;
@@ -265,25 +270,57 @@ EOF
             17) menu_run "Current Settings" "$0" configure show ;;
             18)
                 read -r -p "New domain / public URL host: " new_domain
-                menu_run "Edit Domain / Public URL" "$0" configure set app.domain "$new_domain"
+                menu_run "Edit Domain / Public URL" helper config set-domain "$new_domain"
                 ;;
             19)
-                read -r -p "New port: " new_port
-                menu_run "Change Port" "$0" configure set app.port "$new_port"
+                show_tls_menu
                 ;;
-            20) echo "Install path: ${INSTALL_DIR}" ;;
-            21) echo "Secret rotation is not automated in this release. Rotate values in .env.beta, then run: flowhub repair" ;;
-            22) menu_run "Check Secret Exposure" "$0" configure verify ;;
-            23) echo "Safety mode: Read-only. Apply, Scheduler, WooCommerce writes, and spreadsheet writes are disabled." ;;
-            24) menu_run "Docker Compose Status" "$0" status ;;
-            25) echo "Database: $(footer_value state database)" ;;
-            26) menu_run "Migration Status" "$0" migrate status ;;
-            27) menu_run "App Container Shell" helper shell ;;
+            20)
+                read -r -p "New port: " new_port
+                menu_run "Change Port" helper config set-port "$new_port"
+                ;;
+            21) echo "Install path: ${INSTALL_DIR}" ;;
+            22) echo "Secret rotation is not automated in this release. Rotate values in .env.beta, then run: flowhub repair" ;;
+            23) menu_run "Check Secret Exposure" "$0" configure verify ;;
+            24) echo "Safety mode: Read-only. Apply, Scheduler, WooCommerce writes, and spreadsheet writes are disabled." ;;
+            25) menu_run "Docker Compose Status" "$0" status ;;
+            26) echo "Database: $(footer_value state database)" ;;
+            27) menu_run "Migration Status" "$0" migrate status ;;
+            28) menu_run "App Container Shell" helper shell ;;
             *) echo "Invalid selection: ${choice}" ;;
         esac
         echo ""
         read -r -p "Press Enter to return to the menu..." _ || return 0
     done
+}
+
+show_tls_menu() {
+    local tls_choice tls_domain tls_mode
+    cat <<'EOF'
+
+TLS / Let's Encrypt
+0. Back
+1. Show TLS Status
+2. Configure Let's Encrypt Mode
+3. Set TLS Mode
+4. Disable TLS
+EOF
+    read -r -p "Please enter your selection [0-4]: " tls_choice || return 0
+    tls_choice="${tls_choice//$'\r'/}"
+    case "$tls_choice" in
+        0|"q"|"quit"|"back") return 0 ;;
+        1) menu_run "TLS Status" helper tls status ;;
+        2)
+            read -r -p "Domain host for Let's Encrypt: " tls_domain
+            menu_run "Configure Let's Encrypt Mode" helper tls letsencrypt "$tls_domain"
+            ;;
+        3)
+            read -r -p "TLS mode [off/self-signed/letsencrypt/manual]: " tls_mode
+            menu_run "Set TLS Mode" helper tls mode "$tls_mode"
+            ;;
+        4) menu_run "Disable TLS" helper tls off ;;
+        *) echo "Invalid selection: ${tls_choice}" ;;
+    esac
 }
 
 cmd="${1:-menu}"
@@ -326,6 +363,25 @@ case "$cmd" in
         ensure_install_path
         shift
         helper restore "$@"
+        ;;
+    domain)
+        ensure_install_path
+        shift
+        case "${1:-}" in
+            set)
+                shift
+                helper config set-domain "${1:-}"
+                ;;
+            *)
+                echo "Usage: flowhub domain set HOST" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+    tls)
+        ensure_install_path
+        shift
+        helper tls "$@"
         ;;
     admin|diagnostics|configure|migrate|integrations)
         ensure_install_path
