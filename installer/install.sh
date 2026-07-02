@@ -916,23 +916,39 @@ detect_flowhub_operator_user() {
         return 0
     fi
 
-    candidate="$(awk -F: '$3 >= 1000 && $1 != "nobody" { print $1; exit }' /etc/passwd 2>/dev/null || true)"
-    if [[ -n "$candidate" ]] && id "$candidate" >/dev/null 2>&1; then
-        if id -nG "$candidate" 2>/dev/null | tr ' ' '\n' | grep -qxE 'sudo|wheel'; then
+    if getent group flowhub >/dev/null 2>&1; then
+        candidate="$(getent group flowhub | awk -F: '{ split($4, users, ","); print users[1] }')"
+        if [[ -n "$candidate" && "$candidate" != "root" ]] && id "$candidate" >/dev/null 2>&1; then
             echo "$candidate"
             return 0
         fi
     fi
 
+    for env_candidate in "${LOGNAME:-}" "${USER:-}"; do
+        if [[ -n "$env_candidate" && "$env_candidate" != "root" ]] && id "$env_candidate" >/dev/null 2>&1; then
+            echo "$env_candidate"
+            return 0
+        fi
+    done
+
+    candidate="$(awk -F: '$3 >= 1000 && $1 != "nobody" { print $1; exit }' /etc/passwd 2>/dev/null || true)"
+    if [[ -n "$candidate" && "$candidate" != "root" ]] && id "$candidate" >/dev/null 2>&1; then
+        echo "$candidate"
+        return 0
+    fi
+
     if [[ -t 0 ]]; then
         while true; do
-            read -r -p "  Operator username for flowhub CLI access: " candidate
+            read -r -p "  Linux operator username for flowhub CLI access (blank to skip): " candidate
             candidate="${candidate:-}"
+            if [[ -z "$candidate" ]]; then
+                return 1
+            fi
             if [[ -n "$candidate" && "$candidate" != "root" ]] && id "$candidate" >/dev/null 2>&1; then
                 echo "$candidate"
                 return 0
             fi
-            echo "  Enter an existing non-root username."
+            echo "  '${candidate}' is not an existing non-root Linux user. Try: getent passwd <username>" >&2
         done
     fi
 

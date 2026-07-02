@@ -48,7 +48,16 @@ def test_installer_configures_operator_group_membership():
     assert 'usermod -aG flowhub "$operator_user"' in src
     assert "detect_flowhub_operator_user" in src
     assert "FLOWHUB_OPERATOR_USER" in src
-    assert 'id -nG "$candidate"' in src
+    assert "getent group flowhub" in src
+    assert 'Linux operator username for flowhub CLI access (blank to skip):' in src
+
+
+def test_operator_prompt_does_not_loop_on_blank_input():
+    src = INSTALL.read_text(encoding="utf-8")
+    detect = src[src.index("detect_flowhub_operator_user()") : src.index("step_install_cli()")]
+    assert 'if [[ -z "$candidate" ]]; then' in detect
+    assert "return 1" in detect
+    assert ">&2" in detect
 
 
 def test_sudoers_scope_is_helper_only():
