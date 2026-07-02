@@ -909,6 +909,36 @@ step_create_admin() {
     create_admin_account "$INSTALL_DIR"
 }
 
+detect_flowhub_operator_user() {
+    local candidate="${FLOWHUB_OPERATOR_USER:-${SUDO_USER:-}}"
+    if [[ -n "$candidate" && "$candidate" != "root" ]] && id "$candidate" >/dev/null 2>&1; then
+        echo "$candidate"
+        return 0
+    fi
+
+    candidate="$(awk -F: '$3 >= 1000 && $1 != "nobody" { print $1; exit }' /etc/passwd 2>/dev/null || true)"
+    if [[ -n "$candidate" ]] && id "$candidate" >/dev/null 2>&1; then
+        if id -nG "$candidate" 2>/dev/null | tr ' ' '\n' | grep -qxE 'sudo|wheel'; then
+            echo "$candidate"
+            return 0
+        fi
+    fi
+
+    if [[ -t 0 ]]; then
+        while true; do
+            read -r -p "  Operator username for flowhub CLI access: " candidate
+            candidate="${candidate:-}"
+            if [[ -n "$candidate" && "$candidate" != "root" ]] && id "$candidate" >/dev/null 2>&1; then
+                echo "$candidate"
+                return 0
+            fi
+            echo "  Enter an existing non-root username."
+        done
+    fi
+
+    return 1
+}
+
 step_install_cli() {
     echo ""
     echo "Step 10 - Install flowhub CLI"
@@ -924,7 +954,7 @@ step_install_cli() {
     local helper_dir="/usr/local/lib/flowhub"
     local helper_dst="${helper_dir}/flowhub-helper"
     local sudoers_dst="/etc/sudoers.d/flowhub"
-    local operator_user="${SUDO_USER:-}"
+    local operator_user=""
     local sudoers_tmp
 
     if [[ ! -f "$wrapper_src" || ! -f "$helper_src" ]]; then
@@ -947,8 +977,11 @@ step_install_cli() {
     else
         groupadd --system flowhub
     fi
-    if [[ -n "$operator_user" && "$operator_user" != "root" ]] && id "$operator_user" >/dev/null 2>&1; then
-        usermod -aG flowhub "$operator_user" || true
+    if operator_user="$(detect_flowhub_operator_user)"; then
+        usermod -aG flowhub "$operator_user"
+    else
+        echo "  WARNING: Could not determine a non-root operator user for flowhub CLI access." >&2
+        echo "  Set FLOWHUB_OPERATOR_USER=<username> and run: sudo ./installer/install.sh --repair" >&2
     fi
 
     if [[ -f "${REPO_DIR}/.env.beta" ]]; then
@@ -959,7 +992,7 @@ step_install_cli() {
     sudoers_tmp="$(mktemp)"
     {
         echo "# FlowHub operator helper. Managed by installer/install.sh."
-        echo "Cmnd_Alias FLOWHUB_HELPER = ${helper_dst} *"
+        echo "Cmnd_Alias FLOWHUB_HELPER = ${helper_dst}"
         echo "%flowhub ALL=(root) NOPASSWD: FLOWHUB_HELPER"
         if [[ -n "$operator_user" && "$operator_user" != "root" ]] && id "$operator_user" >/dev/null 2>&1; then
             echo "${operator_user} ALL=(root) NOPASSWD: FLOWHUB_HELPER"
@@ -975,7 +1008,11 @@ step_install_cli() {
     echo "  CLI installed: ${wrapper_dst}"
     echo "  Privileged helper installed: ${helper_dst}"
     echo "  Sudoers allowlist installed: ${sudoers_dst}"
+    if [[ -n "$operator_user" ]]; then
+        echo "  Operator authorized: ${operator_user} (group: flowhub)"
+    fi
     echo "  .env.beta permissions: root:root 600"
+    echo "  If group membership is not visible in an existing shell, open a new shell session."
     echo "  Test with: flowhub --help"
 }
 

@@ -35,9 +35,29 @@ def test_installer_installs_privileged_helper_and_sudoers_allowlist():
     src = INSTALL.read_text(encoding="utf-8")
     assert "/usr/local/lib/flowhub/flowhub-helper" in src
     assert "/etc/sudoers.d/flowhub" in src
-    assert "Cmnd_Alias FLOWHUB_HELPER" in src
+    assert "Cmnd_Alias FLOWHUB_HELPER = ${helper_dst}" in src
+    assert "Cmnd_Alias FLOWHUB_HELPER = ${helper_dst} *" not in src
     assert "NOPASSWD: FLOWHUB_HELPER" in src
     assert "visudo -cf" in src
+    assert "docker" not in src[src.index('sudoers_tmp="$(mktemp)"') : src.index('install -o root -g root -m 0440 "$sudoers_tmp"')]
+
+
+def test_installer_configures_operator_group_membership():
+    src = INSTALL.read_text(encoding="utf-8")
+    assert "groupadd --system flowhub" in src
+    assert 'usermod -aG flowhub "$operator_user"' in src
+    assert "detect_flowhub_operator_user" in src
+    assert "FLOWHUB_OPERATOR_USER" in src
+    assert 'id -nG "$candidate"' in src
+
+
+def test_sudoers_scope_is_helper_only():
+    src = INSTALL.read_text(encoding="utf-8")
+    sudoers = src[src.index('sudoers_tmp="$(mktemp)"') : src.index('install -o root -g root -m 0440 "$sudoers_tmp"')]
+    assert "%flowhub ALL=(root) NOPASSWD: FLOWHUB_HELPER" in sudoers
+    assert "${operator_user} ALL=(root) NOPASSWD: FLOWHUB_HELPER" in sudoers
+    assert "ALL=(ALL)" not in sudoers
+    assert "NOPASSWD: ALL" not in sudoers
 
 
 def test_installer_keeps_env_beta_protected():

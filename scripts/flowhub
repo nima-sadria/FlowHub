@@ -63,6 +63,21 @@ helper() {
     sudo -n "$HELPER" "$@"
 }
 
+repair_with_fallback() {
+    if helper installer repair; then
+        return 0
+    fi
+
+    if [[ -t 0 && -f "${INSTALL_DIR}/installer/install.sh" ]]; then
+        echo "FlowHub helper access is not configured yet. Running one-time repair with sudo authentication." >&2
+        sudo bash "${INSTALL_DIR}/installer/install.sh" --repair
+        return $?
+    fi
+
+    echo "ERROR: FlowHub helper access is not configured. Run: sudo ${INSTALL_DIR}/installer/install.sh --repair" >&2
+    return 1
+}
+
 fail_missing_install() {
     echo "ERROR: FlowHub installation directory not found: ${INSTALL_DIR}" >&2
     if [[ -d "$LEGACY_INSTALL_DIR" ]]; then
@@ -288,7 +303,7 @@ case "$cmd" in
         ;;
     repair)
         ensure_install_path
-        helper installer repair
+        repair_with_fallback
         ;;
     reinstall)
         ensure_install_path

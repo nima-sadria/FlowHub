@@ -95,6 +95,12 @@ def test_helper_keeps_password_reset_interactive():
     assert "--password" not in src
 
 
+def test_repair_has_narrow_existing_install_fallback():
+    src = _src()
+    assert "repair_with_fallback" in src
+    assert src.count('sudo bash "${INSTALL_DIR}/installer/install.sh" --repair') == 1
+
+
 def _run_wrapper(input_text: str, install_dir: Path) -> subprocess.CompletedProcess[str]:
     bash = _bash()
     env = os.environ.copy()
