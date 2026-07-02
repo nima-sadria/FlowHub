@@ -17,7 +17,7 @@ FlowHub management commands:
 
   flowhub                  Open the interactive management menu
   flowhub help             Show this help
-  flowhub install          Run the installer
+  flowhub install          Run first-time installation when FlowHub is not installed
   flowhub upgrade          Pull latest code, rebuild, migrate, restart
   flowhub update           Alias for upgrade
   flowhub repair           Re-run migrations and health checks
@@ -75,6 +75,34 @@ ensure_install_path() {
     [[ -d "$INSTALL_DIR" ]] || fail_missing_install
 }
 
+is_installed() {
+    [[ -d "$INSTALL_DIR" ]]
+}
+
+already_installed_message() {
+    echo "FlowHub is already installed at ${INSTALL_DIR}. Use flowhub upgrade, flowhub repair, or flowhub reinstall." >&2
+}
+
+run_first_install() {
+    if is_installed; then
+        already_installed_message
+        exit 1
+    fi
+
+    if [[ -f "${INSTALL_DIR}/installer/install.sh" ]]; then
+        bash "${INSTALL_DIR}/installer/install.sh"
+    elif [[ -f "./installer/install.sh" ]]; then
+        bash "./installer/install.sh"
+    else
+        cat >&2 <<EOF
+FlowHub is not installed at ${INSTALL_DIR}.
+Install with:
+  curl -fsSL https://raw.githubusercontent.com/nima-sadria/FlowHub/main/installer/install.sh | sudo bash
+EOF
+        exit 1
+    fi
+}
+
 menu_run() {
     local label="$1"
     shift
@@ -92,6 +120,10 @@ menu_run() {
 }
 
 footer_value() {
+    if [[ ! -x "$HELPER" ]]; then
+        echo "Unable to verify"
+        return 0
+    fi
     helper "$@" 2>/dev/null || echo "Unable to verify"
 }
 
@@ -110,96 +142,119 @@ show_management_menu() {
     local choice archive new_domain new_port
     while true; do
         clear 2>/dev/null || true
+        if ! is_installed; then
+            cat <<'EOF'
+FlowHub Management
+
+0. Exit
+
+Install / Setup
+1. Install FlowHub
+EOF
+            echo ""
+            echo "Panel state: Not installed"
+            echo "Install path: ${INSTALL_DIR}"
+            echo ""
+            read -r -p "Please enter your selection [0-1]: " choice || return 0
+            choice="${choice//$'\r'/}"
+            case "$choice" in
+                0|"q"|"quit"|"exit") echo "Exiting."; return 0 ;;
+                1) menu_run "Install FlowHub" "$0" install ;;
+                *) echo "Invalid selection: ${choice}" ;;
+            esac
+            echo ""
+            read -r -p "Press Enter to return to the menu..." _ || return 0
+            continue
+        fi
+
         cat <<'EOF'
 FlowHub Management
 
 0. Exit
 
-Install / Update
-1. Install
-2. Upgrade
-3. Repair
-4. Reinstall
-5. Uninstall
+Maintenance
+1. Upgrade
+2. Repair
+3. Reinstall
+4. Uninstall
 
 Account
-6. Reset Administrator Username
-7. Reset Administrator Password
-8. View Current Admins
+5. Reset Administrator Username
+6. Reset Administrator Password
+7. View Current Admins
 
 System
-9. Status
-10. Health
-11. Diagnostics
-12. Logs
+8. Status
+9. Health
+10. Diagnostics
+11. Logs
 
 Services
-13. Start
-14. Stop
-15. Restart
-16. Backup
-17. Restore
+12. Start
+13. Stop
+14. Restart
+15. Backup
+16. Restore
 
 Configuration
-18. View Current Settings
-19. Edit Domain / Public URL
-20. Change Port
-21. Show Install Path
+17. View Current Settings
+18. Edit Domain / Public URL
+19. Change Port
+20. Show Install Path
 
 Security
-22. Rotate Secrets
-23. Check Secret Exposure
-24. View Safety Status
+21. Rotate Secrets
+22. Check Secret Exposure
+23. View Safety Status
 
 Advanced
-25. Docker Compose Status
-26. Database Status
-27. Migration Status
-28. Shell into App Container
+24. Docker Compose Status
+25. Database Status
+26. Migration Status
+27. Shell into App Container
 EOF
         print_menu_footer
         echo ""
-        read -r -p "Please enter your selection [0-28]: " choice || return 0
+        read -r -p "Please enter your selection [0-27]: " choice || return 0
         choice="${choice//$'\r'/}"
         case "$choice" in
             0|"q"|"quit"|"exit") echo "Exiting."; return 0 ;;
-            1) menu_run "Install" "$0" install ;;
-            2) menu_run "Upgrade" "$0" upgrade ;;
-            3) menu_run "Repair" "$0" repair ;;
-            4) menu_run "Reinstall" "$0" reinstall ;;
-            5) menu_run "Uninstall" "$0" uninstall ;;
-            6) menu_run "Reset Administrator Username" "$0" admin reset-username ;;
-            7) menu_run "Reset Administrator Password" "$0" admin reset-password ;;
-            8) menu_run "Current Administrators" "$0" admin list ;;
-            9) menu_run "Status" "$0" status ;;
-            10) menu_run "Health" "$0" health ;;
-            11) menu_run "Diagnostics" "$0" diagnostics run ;;
-            12) menu_run "Logs" "$0" logs ;;
-            13) menu_run "Start" "$0" start ;;
-            14) menu_run "Stop" "$0" stop ;;
-            15) menu_run "Restart" "$0" restart ;;
-            16) menu_run "Backup" "$0" backup ;;
-            17)
+            1) menu_run "Upgrade" "$0" upgrade ;;
+            2) menu_run "Repair" "$0" repair ;;
+            3) menu_run "Reinstall" "$0" reinstall ;;
+            4) menu_run "Uninstall" "$0" uninstall ;;
+            5) menu_run "Reset Administrator Username" "$0" admin reset-username ;;
+            6) menu_run "Reset Administrator Password" "$0" admin reset-password ;;
+            7) menu_run "Current Administrators" "$0" admin list ;;
+            8) menu_run "Status" "$0" status ;;
+            9) menu_run "Health" "$0" health ;;
+            10) menu_run "Diagnostics" "$0" diagnostics run ;;
+            11) menu_run "Logs" "$0" logs ;;
+            12) menu_run "Start" "$0" start ;;
+            13) menu_run "Stop" "$0" stop ;;
+            14) menu_run "Restart" "$0" restart ;;
+            15) menu_run "Backup" "$0" backup ;;
+            16)
                 read -r -p "Backup archive path: " archive
                 menu_run "Restore" "$0" restore "$archive"
                 ;;
-            18) menu_run "Current Settings" "$0" configure show ;;
-            19)
+            17) menu_run "Current Settings" "$0" configure show ;;
+            18)
                 read -r -p "New domain / public URL host: " new_domain
                 menu_run "Edit Domain / Public URL" "$0" configure set app.domain "$new_domain"
                 ;;
-            20)
+            19)
                 read -r -p "New port: " new_port
                 menu_run "Change Port" "$0" configure set app.port "$new_port"
                 ;;
-            21) echo "Install path: ${INSTALL_DIR}" ;;
-            22) echo "Secret rotation is not automated in this release. Rotate values in .env.beta, then run: flowhub repair" ;;
-            23) menu_run "Check Secret Exposure" "$0" configure verify ;;
-            24) echo "Safety mode: Read-only. Apply, Scheduler, WooCommerce writes, and spreadsheet writes are disabled." ;;
-            25) menu_run "Docker Compose Status" "$0" status ;;
-            26) echo "Database: $(footer_value state database)" ;;
-            27) menu_run "Migration Status" "$0" migrate status ;;
-            28) menu_run "App Container Shell" helper shell ;;
+            20) echo "Install path: ${INSTALL_DIR}" ;;
+            21) echo "Secret rotation is not automated in this release. Rotate values in .env.beta, then run: flowhub repair" ;;
+            22) menu_run "Check Secret Exposure" "$0" configure verify ;;
+            23) echo "Safety mode: Read-only. Apply, Scheduler, WooCommerce writes, and spreadsheet writes are disabled." ;;
+            24) menu_run "Docker Compose Status" "$0" status ;;
+            25) echo "Database: $(footer_value state database)" ;;
+            26) menu_run "Migration Status" "$0" migrate status ;;
+            27) menu_run "App Container Shell" helper shell ;;
             *) echo "Invalid selection: ${choice}" ;;
         esac
         echo ""
@@ -216,8 +271,7 @@ case "$cmd" in
         usage
         ;;
     install)
-        ensure_install_path
-        helper installer install
+        run_first_install
         ;;
     upgrade|update)
         ensure_install_path

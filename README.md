@@ -143,8 +143,10 @@ After installation, the `flowhub` command is available:
 flowhub
 ```
 
-Running `flowhub` without arguments opens the interactive management menu. Direct
-command mode also remains available:
+Running `flowhub` without arguments opens the interactive management menu. Before
+FlowHub is installed, the menu shows only **Install / Setup**. On installed
+hosts, the menu starts with **Maintenance** actions: Upgrade, Repair, Reinstall,
+and Uninstall. Direct command mode also remains available:
 
 ```bash
 flowhub install
@@ -172,6 +174,9 @@ operator can run FlowHub management commands without manually typing `sudo`.
 The wrapper does not read `.env.beta` directly; `.env.beta` remains protected as
 `root:root 600`. `flowhub restart` waits for the application health endpoint
 before returning successfully.
+
+On an installed host, `flowhub install` does not re-enter the installer workflow;
+use `flowhub upgrade`, `flowhub repair`, or `flowhub reinstall` instead.
 
 ## Verification
 
