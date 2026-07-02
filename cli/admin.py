@@ -8,10 +8,18 @@ passwords.
 from __future__ import annotations
 
 import os
+import getpass
+import sys
+import warnings
 from pathlib import Path
 from typing import Optional
 
 import typer
+
+try:
+    import termios
+except ImportError:  # pragma: no cover - Windows fallback
+    termios = None  # type: ignore[assignment]
 
 app = typer.Typer(
     name="admin",
@@ -65,6 +73,44 @@ def _validate_password(password: str) -> None:
         raise typer.Exit(1)
 
 
+SECURE_INPUT_ERROR = (
+    "Secure password input is not available in this terminal. "
+    "Run this command from an interactive TTY."
+)
+
+
+def _secure_password_input_available() -> bool:
+    if os.name == "nt":
+        return bool(getattr(sys.stdin, "isatty", lambda: False)())
+    if termios is None:
+        return False
+    try:
+        with open("/dev/tty", "r", encoding="utf-8") as tty:
+            termios.tcgetattr(tty.fileno())
+        return True
+    except OSError:
+        return False
+
+
+def _prompt_secure_password(prompt: str = "New admin password") -> str:
+    if not _secure_password_input_available():
+        typer.echo(SECURE_INPUT_ERROR, err=True)
+        raise typer.Exit(1)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", getpass.GetPassWarning)
+        password = getpass.getpass(f"{prompt}: ")
+        confirmation = getpass.getpass("Repeat for confirmation: ")
+
+    if any(issubclass(item.category, getpass.GetPassWarning) for item in caught):
+        typer.echo(SECURE_INPUT_ERROR, err=True)
+        raise typer.Exit(1)
+    if password != confirmation:
+        typer.echo("ERROR: Password confirmation does not match.", err=True)
+        raise typer.Exit(1)
+    return password
+
+
 @app.command("list")
 def list_admins(
     env_file: Optional[str] = typer.Option(
@@ -115,11 +161,7 @@ def create_admin(
     if len(username) < 3:
         typer.echo("ERROR: Username must be at least 3 characters.", err=True)
         raise typer.Exit(1)
-    password = typer.prompt(
-        "New admin password",
-        hide_input=True,
-        confirmation_prompt=True,
-    )
+    password = _prompt_secure_password("New admin password")
     _validate_password(password)
 
     engine, db = _session(env_file)
@@ -156,11 +198,7 @@ def reset_admin_password(
 ) -> None:
     """Reset an existing administrator password and revoke active sessions."""
     username = username.strip()
-    password = typer.prompt(
-        "New admin password",
-        hide_input=True,
-        confirmation_prompt=True,
-    )
+    password = _prompt_secure_password("New admin password")
     _validate_password(password)
     if not typer.confirm(
         f"Reset password for administrator '{username}' and revoke active sessions?",

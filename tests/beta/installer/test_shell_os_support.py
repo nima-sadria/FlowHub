@@ -44,3 +44,15 @@ def test_installer_keeps_env_beta_protected():
     src = INSTALL.read_text(encoding="utf-8")
     assert 'chown root:root "${REPO_DIR}/.env.beta"' in src
     assert 'chmod 600 "${REPO_DIR}/.env.beta"' in src
+
+
+def test_upgrade_and_repair_refresh_installed_cli_wrapper():
+    src = INSTALL.read_text(encoding="utf-8")
+    upgrade = src[src.index("step_upgrade()") : src.index("# ---- Repair path")]
+    repair = src[src.index("step_repair()") : src.index("# ---- Reconfigure path")]
+    reconfigure = src[src.index("step_reconfigure()") : src.index("# Load .env.beta")]
+
+    assert "step_update_repository" in upgrade
+    assert "step_install_cli" in upgrade
+    assert "step_install_cli" in repair
+    assert "step_install_cli" in reconfigure

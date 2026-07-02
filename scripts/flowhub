@@ -10,6 +10,7 @@ set -euo pipefail
 INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-/opt/FlowHub}"
 LEGACY_INSTALL_DIR="/opt/flowhub" # Legacy Compatibility
 HELPER="${FLOWHUB_HELPER:-/usr/local/lib/flowhub/flowhub-helper}"
+SELF_PATH="${BASH_SOURCE[0]}"
 
 usage() {
     cat <<'EOF'
@@ -127,6 +128,13 @@ footer_value() {
     helper "$@" 2>/dev/null || echo "Unable to verify"
 }
 
+cli_self_check() {
+    local repo_wrapper="${INSTALL_DIR}/scripts/flowhub"
+    if [[ -f "$repo_wrapper" && -f "$SELF_PATH" ]] && ! cmp -s "$repo_wrapper" "$SELF_PATH" 2>/dev/null; then
+        echo "CLI wrapper: update available. Run: flowhub repair"
+    fi
+}
+
 print_menu_footer() {
     echo ""
     echo "Panel state: $(footer_value state app)"
@@ -136,6 +144,7 @@ print_menu_footer() {
     echo "Public URL: $(footer_value state public-url)"
     echo "Docker: $(footer_value state docker)"
     echo "Version / commit: $(footer_value state version)"
+    cli_self_check
 }
 
 show_management_menu() {

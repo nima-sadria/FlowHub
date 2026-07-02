@@ -663,6 +663,7 @@ step_upgrade() {
     step_docker_launch
     step_database_init
     step_create_admin
+    step_install_cli
     step_health_check
     step_completion_report
 }
@@ -697,6 +698,7 @@ step_repair() {
     fi
 
     step_database_init
+    step_install_cli
     step_health_check
 
     echo ""
@@ -737,6 +739,7 @@ step_reconfigure() {
     step_docker_launch
     step_database_init
     step_create_admin
+    step_install_cli
     step_health_check
     step_completion_report
 }

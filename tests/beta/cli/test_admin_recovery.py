@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+import typer
 from typer.testing import CliRunner
 
+import cli.admin as admin_cli
 from cli.main import app
 
 runner = CliRunner()
@@ -29,8 +32,9 @@ def _prepare_db(tmp_path):
     return engine, Session, env_file
 
 
-def test_admin_create_creates_emergency_admin(tmp_path):
+def test_admin_create_creates_emergency_admin(tmp_path, monkeypatch):
     engine, Session, env_file = _prepare_db(tmp_path)
+    monkeypatch.setattr(admin_cli, "_prompt_secure_password", lambda prompt="New admin password": "recovered-password")
 
     result = runner.invoke(
         app,
@@ -42,7 +46,6 @@ def test_admin_create_creates_emergency_admin(tmp_path):
             "--env-file",
             str(env_file),
         ],
-        input="recovered-password\nrecovered-password\n",
     )
 
     assert result.exit_code == 0
@@ -62,8 +65,9 @@ def test_admin_create_creates_emergency_admin(tmp_path):
         engine.dispose()
 
 
-def test_admin_reset_password_updates_hash_and_revokes_sessions(tmp_path):
+def test_admin_reset_password_updates_hash_and_revokes_sessions(tmp_path, monkeypatch):
     engine, Session, env_file = _prepare_db(tmp_path)
+    monkeypatch.setattr(admin_cli, "_prompt_secure_password", lambda prompt="New admin password": "new-password")
 
     from app.beta.auth.password import hash_password, verify_password
     from app.beta.auth.repository import create_user, store_refresh_token
@@ -92,7 +96,7 @@ def test_admin_reset_password_updates_hash_and_revokes_sessions(tmp_path):
             "--env-file",
             str(env_file),
         ],
-        input="new-password\nnew-password\ny\n",
+        input="y\n",
     )
 
     assert result.exit_code == 0
@@ -115,8 +119,9 @@ def test_admin_reset_password_updates_hash_and_revokes_sessions(tmp_path):
         engine.dispose()
 
 
-def test_admin_reset_password_refuses_non_admin(tmp_path):
+def test_admin_reset_password_refuses_non_admin(tmp_path, monkeypatch):
     engine, Session, env_file = _prepare_db(tmp_path)
+    monkeypatch.setattr(admin_cli, "_prompt_secure_password", lambda prompt="New admin password": "new-password")
 
     from app.beta.auth.password import hash_password
     from app.beta.auth.repository import create_user
@@ -135,7 +140,7 @@ def test_admin_reset_password_refuses_non_admin(tmp_path):
             "--env-file",
             str(env_file),
         ],
-        input="new-password\nnew-password\ny\n",
+        input="y\n",
     )
 
     assert result.exit_code != 0
@@ -151,16 +156,27 @@ def test_admin_reset_password_help_has_no_password_option():
     assert " -p " not in result.output
 
 
-def test_admin_reset_password_confirmation_mismatch_makes_no_change(tmp_path):
+def test_secure_password_prompt_rejects_confirmation_mismatch(monkeypatch):
+    monkeypatch.setattr(admin_cli, "_secure_password_input_available", lambda: True)
+    values = iter(["new-password", "mismatch-password"])
+    monkeypatch.setattr(admin_cli.getpass, "getpass", lambda _prompt: next(values))
+
+    with pytest.raises(typer.Exit):
+        admin_cli._prompt_secure_password()
+
+
+def test_admin_reset_password_aborts_without_secure_input(tmp_path, monkeypatch):
     engine, Session, env_file = _prepare_db(tmp_path)
 
     from app.beta.auth.password import hash_password, verify_password
     from app.beta.auth.repository import create_user
 
     db = Session()
-    user = create_user(db, username="safeadmin", hashed_password=hash_password("old-password"), role="admin")
+    user = create_user(db, username="ttyadmin", hashed_password=hash_password("old-password"), role="admin")
     user_id = user.id
     db.close()
+
+    monkeypatch.setattr(admin_cli, "_secure_password_input_available", lambda: False)
 
     result = runner.invoke(
         app,
@@ -168,16 +184,14 @@ def test_admin_reset_password_confirmation_mismatch_makes_no_change(tmp_path):
             "admin",
             "reset-password",
             "--username",
-            "safeadmin",
+            "ttyadmin",
             "--env-file",
             str(env_file),
         ],
-        input="new-password\nmismatch-password\n",
     )
 
     assert result.exit_code != 0
-    assert "new-password" not in result.output
-    assert "mismatch-password" not in result.output
+    assert admin_cli.SECURE_INPUT_ERROR in result.output
 
     db = Session()
     try:
@@ -191,8 +205,9 @@ def test_admin_reset_password_confirmation_mismatch_makes_no_change(tmp_path):
         engine.dispose()
 
 
-def test_admin_reset_password_final_confirmation_makes_no_change(tmp_path):
+def test_admin_reset_password_final_confirmation_makes_no_change(tmp_path, monkeypatch):
     engine, Session, env_file = _prepare_db(tmp_path)
+    monkeypatch.setattr(admin_cli, "_prompt_secure_password", lambda prompt="New admin password": "new-password")
 
     from app.beta.auth.password import hash_password, verify_password
     from app.beta.auth.repository import create_user
@@ -212,7 +227,7 @@ def test_admin_reset_password_final_confirmation_makes_no_change(tmp_path):
             "--env-file",
             str(env_file),
         ],
-        input="new-password\nnew-password\nn\n",
+        input="n\n",
     )
 
     assert result.exit_code != 0
