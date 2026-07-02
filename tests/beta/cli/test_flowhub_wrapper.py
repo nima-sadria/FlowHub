@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 WRAPPER = Path("scripts/flowhub")
+HELPER = Path("scripts/flowhub-helper")
 
 
 def _src() -> str:
@@ -44,3 +45,34 @@ def test_wrapper_documents_admin_recovery_commands():
     src = _src()
     assert "flowhub admin reset-username" in src
     assert "flowhub admin reset-password" in src
+
+
+def test_wrapper_does_not_source_protected_env_file():
+    src = _src()
+    assert '. "$ENV_FILE"' not in src
+    assert "source \"$ENV_FILE\"" not in src
+    assert "sudo -n \"$HELPER\"" in src
+
+
+def test_helper_requires_root_and_has_command_allowlist():
+    src = HELPER.read_text(encoding="utf-8")
+    assert "require_root" in src
+    assert "Unsupported helper command" in src
+    for command in ["status", "health", "restart", "backup", "app-cli", "state"]:
+        assert f"{command})" in src
+    assert "eval " not in src
+    assert "bash -c" not in src
+
+
+def test_helper_app_cli_allowlist_blocks_arbitrary_commands():
+    src = HELPER.read_text(encoding="utf-8")
+    assert "admin|diagnostics|configure|migrate|integrations" in src
+    assert "Unsupported app CLI command" in src
+    assert "update)" not in src
+
+
+def test_helper_keeps_password_reset_interactive():
+    src = HELPER.read_text(encoding="utf-8")
+    assert "reset-password" in src
+    assert "exec app python -m cli.main" in src
+    assert "--password" not in src

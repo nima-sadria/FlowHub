@@ -39,15 +39,15 @@ def test_admin_create_creates_emergency_admin(tmp_path):
             "create",
             "--username",
             "rescueadmin",
-            "--password",
-            "recovered-password",
             "--env-file",
             str(env_file),
         ],
+        input="recovered-password\nrecovered-password\n",
     )
 
     assert result.exit_code == 0
     assert "rescueadmin" in result.output
+    assert "recovered-password" not in result.output
 
     from app.beta.auth.repository import get_user_by_username
 
@@ -89,15 +89,15 @@ def test_admin_reset_password_updates_hash_and_revokes_sessions(tmp_path):
             "reset-password",
             "--username",
             "lockedadmin",
-            "--password",
-            "new-password",
             "--env-file",
             str(env_file),
         ],
+        input="new-password\nnew-password\ny\n",
     )
 
     assert result.exit_code == 0
     assert "Active sessions revoked" in result.output
+    assert "new-password" not in result.output
 
     db = Session()
     try:
@@ -132,16 +132,102 @@ def test_admin_reset_password_refuses_non_admin(tmp_path):
             "reset-password",
             "--username",
             "viewer",
-            "--password",
-            "new-password",
             "--env-file",
             str(env_file),
         ],
+        input="new-password\nnew-password\ny\n",
     )
 
     assert result.exit_code != 0
     assert "not an administrator" in result.output
     engine.dispose()
+
+
+def test_admin_reset_password_help_has_no_password_option():
+    result = runner.invoke(app, ["admin", "reset-password", "--help"])
+
+    assert result.exit_code == 0
+    assert "--password" not in result.output
+    assert " -p " not in result.output
+
+
+def test_admin_reset_password_confirmation_mismatch_makes_no_change(tmp_path):
+    engine, Session, env_file = _prepare_db(tmp_path)
+
+    from app.beta.auth.password import hash_password, verify_password
+    from app.beta.auth.repository import create_user
+
+    db = Session()
+    user = create_user(db, username="safeadmin", hashed_password=hash_password("old-password"), role="admin")
+    user_id = user.id
+    db.close()
+
+    result = runner.invoke(
+        app,
+        [
+            "admin",
+            "reset-password",
+            "--username",
+            "safeadmin",
+            "--env-file",
+            str(env_file),
+        ],
+        input="new-password\nmismatch-password\n",
+    )
+
+    assert result.exit_code != 0
+    assert "new-password" not in result.output
+    assert "mismatch-password" not in result.output
+
+    db = Session()
+    try:
+        from app.beta.auth.models import BetaUser
+
+        refreshed = db.get(BetaUser, user_id)
+        assert refreshed is not None
+        assert verify_password("old-password", refreshed.hashed_password) is True
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_admin_reset_password_final_confirmation_makes_no_change(tmp_path):
+    engine, Session, env_file = _prepare_db(tmp_path)
+
+    from app.beta.auth.password import hash_password, verify_password
+    from app.beta.auth.repository import create_user
+
+    db = Session()
+    user = create_user(db, username="canceladmin", hashed_password=hash_password("old-password"), role="admin")
+    user_id = user.id
+    db.close()
+
+    result = runner.invoke(
+        app,
+        [
+            "admin",
+            "reset-password",
+            "--username",
+            "canceladmin",
+            "--env-file",
+            str(env_file),
+        ],
+        input="new-password\nnew-password\nn\n",
+    )
+
+    assert result.exit_code != 0
+    assert "No changes made" in result.output
+
+    db = Session()
+    try:
+        from app.beta.auth.models import BetaUser
+
+        refreshed = db.get(BetaUser, user_id)
+        assert refreshed is not None
+        assert verify_password("old-password", refreshed.hashed_password) is True
+    finally:
+        db.close()
+        engine.dispose()
 
 
 def test_admin_reset_username_renames_admin_and_revokes_sessions(tmp_path):
@@ -224,6 +310,45 @@ def test_admin_reset_username_refuses_non_admin(tmp_path):
     assert result.exit_code != 0
     assert "not an administrator" in result.output
     engine.dispose()
+
+
+def test_admin_reset_username_refuses_duplicate_username(tmp_path):
+    engine, Session, env_file = _prepare_db(tmp_path)
+
+    from app.beta.auth.password import hash_password
+    from app.beta.auth.repository import create_user
+
+    db = Session()
+    create_user(db, username="firstadmin", hashed_password=hash_password("password"), role="admin")
+    create_user(db, username="secondadmin", hashed_password=hash_password("password"), role="admin")
+    db.close()
+
+    result = runner.invoke(
+        app,
+        [
+            "admin",
+            "reset-username",
+            "--username",
+            "firstadmin",
+            "--new-username",
+            "secondadmin",
+            "--env-file",
+            str(env_file),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "already exists" in result.output
+
+    db = Session()
+    try:
+        from app.beta.auth.repository import get_user_by_username
+
+        assert get_user_by_username(db, "firstadmin") is not None
+        assert get_user_by_username(db, "secondadmin") is not None
+    finally:
+        db.close()
+        engine.dispose()
 
 
 def test_admin_list_does_not_show_password_hashes(tmp_path):

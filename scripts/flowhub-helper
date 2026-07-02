@@ -1,0 +1,251 @@
+#!/usr/bin/env bash
+# FlowHub privileged helper.
+#
+# Installed root-owned at /usr/local/lib/flowhub/flowhub-helper. The public
+# flowhub wrapper invokes this through a sudoers allowlist. This helper must
+# remain conservative: no arbitrary shell execution, no secret printing, and no
+# direct use by unprivileged callers.
+
+set -euo pipefail
+
+INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-/opt/FlowHub}"
+ENV_FILE="${INSTALL_DIR}/.env.beta"
+COMPOSE_FILE="${INSTALL_DIR}/docker-compose.beta.yml"
+
+die() {
+    echo "ERROR: $*" >&2
+    exit 1
+}
+
+require_root() {
+    [[ "${EUID}" -eq 0 ]] || die "flowhub-helper must run as root through the installed flowhub wrapper."
+}
+
+ensure_install() {
+    [[ -d "$INSTALL_DIR" ]] || die "FlowHub installation directory not found: ${INSTALL_DIR}"
+    [[ -f "$COMPOSE_FILE" ]] || die "Docker Compose file not found: ${COMPOSE_FILE}"
+    [[ -f "$ENV_FILE" ]] || die "Environment file not found: ${ENV_FILE}"
+    cd "$INSTALL_DIR"
+}
+
+load_env() {
+    set -a
+    # shellcheck source=/dev/null
+    . "$ENV_FILE"
+    set +a
+}
+
+compose_cmd() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose"
+    else
+        die "Docker Compose is not available."
+    fi
+}
+
+run_compose() {
+    local dc
+    dc="$(compose_cmd)"
+    ${dc} --project-directory "$INSTALL_DIR" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+}
+
+health_url() {
+    load_env
+    echo "http://localhost:${BETA_PORT:-8085}/api/health"
+}
+
+check_app_health() {
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsS --max-time 3 "$(health_url)" >/dev/null 2>&1
+    else
+        run_compose exec -T app curl -fsS --max-time 3 http://localhost:8085/api/health >/dev/null 2>&1
+    fi
+}
+
+wait_for_app_health() {
+    local timeout="${1:-60}"
+    local start now
+    start="$(date +%s)"
+    echo "Waiting for FlowHub to become ready at $(health_url) ..."
+    while true; do
+        if check_app_health; then
+            echo "FlowHub is ready."
+            return 0
+        fi
+        now="$(date +%s)"
+        if (( now - start >= timeout )); then
+            echo "ERROR: FlowHub did not become ready within ${timeout}s." >&2
+            return 1
+        fi
+        sleep 2
+    done
+}
+
+public_url() {
+    load_env
+    local domain="${BETA_DOMAIN:-localhost}"
+    local port="${BETA_PORT:-8085}"
+    if [[ "$domain" == "localhost" || "$domain" == "127.0.0.1" ]]; then
+        echo "http://localhost:${port}"
+    else
+        echo "http://${domain}:${port}"
+    fi
+}
+
+install_state() {
+    if check_app_health; then
+        echo "Running"
+    elif [[ -n "$(run_compose ps --status running -q app 2>/dev/null)" ]]; then
+        echo "Starting"
+    else
+        echo "Stopped"
+    fi
+}
+
+database_state() {
+    load_env
+    if run_compose exec -T postgres pg_isready -U "${BETA_POSTGRES_USER:-flowhub}" -d "${BETA_POSTGRES_DB:-flowhub}" >/dev/null 2>&1; then
+        echo "Healthy"
+    else
+        echo "Unable to verify"
+    fi
+}
+
+docker_state() {
+    if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+        echo "Running"
+    elif command -v docker >/dev/null 2>&1; then
+        echo "Installed, not reachable"
+    else
+        echo "Not installed"
+    fi
+}
+
+version_commit() {
+    if [[ -d "${INSTALL_DIR}/.git" ]]; then
+        git -C "$INSTALL_DIR" -c safe.directory="$INSTALL_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown"
+    else
+        echo "unknown"
+    fi
+}
+
+run_app_cli() {
+    local first="${1:-}"
+    case "$first" in
+        admin|diagnostics|configure|migrate|integrations)
+            if [[ "$first" == "admin" && "${2:-}" =~ ^(reset-password|reset-username|create)$ && " $* " != *" --help "* ]]; then
+                run_compose exec app python -m cli.main "$@"
+            else
+                run_compose exec -T app python -m cli.main "$@"
+            fi
+            ;;
+        *)
+            die "Unsupported app CLI command: ${first:-<empty>}"
+            ;;
+    esac
+}
+
+run_installer() {
+    local mode="${1:-}"
+    case "$mode" in
+        install) bash "${INSTALL_DIR}/installer/install.sh" ;;
+        upgrade) bash "${INSTALL_DIR}/installer/install.sh" --upgrade ;;
+        repair) bash "${INSTALL_DIR}/installer/install.sh" --repair ;;
+        reinstall) bash "${INSTALL_DIR}/installer/install.sh" --reinstall ;;
+        uninstall) bash "${INSTALL_DIR}/installer/install.sh" --uninstall ;;
+        *) die "Unsupported installer action: ${mode:-<empty>}" ;;
+    esac
+}
+
+create_backup() {
+    mkdir -p "${INSTALL_DIR}/backups"
+    chmod 750 "${INSTALL_DIR}/backups" 2>/dev/null || true
+    local stamp archive
+    stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    archive="${INSTALL_DIR}/backups/flowhub-${stamp}.tar.gz"
+    tar --exclude='logs/admin-credentials.txt' -C "$INSTALL_DIR" -czf "$archive" .env.beta storage logs 2>/dev/null \
+        || tar -C "$INSTALL_DIR" -czf "$archive" .env.beta storage
+    chmod 600 "$archive"
+    echo "Backup created: ${archive}"
+}
+
+restore_backup() {
+    local archive="${1:-}"
+    [[ -n "$archive" && -f "$archive" ]] || die "restore requires a backup archive path."
+    tar -xzf "$archive" -C "$INSTALL_DIR"
+    echo "Backup restored. Run: flowhub repair"
+}
+
+require_root
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+    state)
+        ensure_install
+        case "${1:-}" in
+            app) install_state ;;
+            database) database_state ;;
+            safety) echo "Read-only" ;;
+            public-url) public_url ;;
+            docker) docker_state ;;
+            version) version_commit ;;
+            *) die "Unsupported state field: ${1:-<empty>}" ;;
+        esac
+        ;;
+    status)
+        ensure_install
+        run_compose ps "$@"
+        ;;
+    health)
+        ensure_install
+        curl -fsS "$(health_url)"
+        echo
+        ;;
+    start)
+        ensure_install
+        run_compose up -d "$@"
+        ;;
+    restart)
+        ensure_install
+        run_compose restart "$@"
+        wait_for_app_health 60
+        ;;
+    stop)
+        ensure_install
+        run_compose stop "$@"
+        ;;
+    logs)
+        ensure_install
+        service="${1:-app}"
+        case "$service" in
+            app|postgres) run_compose logs -f "$service" ;;
+            *) die "Unsupported log service: ${service}" ;;
+        esac
+        ;;
+    backup)
+        ensure_install
+        create_backup
+        ;;
+    restore)
+        ensure_install
+        restore_backup "$@"
+        ;;
+    app-cli)
+        ensure_install
+        run_app_cli "$@"
+        ;;
+    installer)
+        ensure_install
+        run_installer "$@"
+        ;;
+    shell)
+        ensure_install
+        run_compose exec app bash
+        ;;
+    *)
+        die "Unsupported helper command: ${cmd:-<empty>}"
+        ;;
+esac

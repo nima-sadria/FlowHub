@@ -911,28 +911,69 @@ step_install_cli() {
     echo "Step 10 - Install flowhub CLI"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  [DRY RUN] Would install: /usr/local/bin/flowhub"
+        echo "  [DRY RUN] Would install: /usr/local/lib/flowhub/flowhub-helper"
+        echo "  [DRY RUN] Would install: /etc/sudoers.d/flowhub"
         return
     fi
     local wrapper_src="${REPO_DIR}/scripts/flowhub"
+    local helper_src="${REPO_DIR}/scripts/flowhub-helper"
     local wrapper_dst="/usr/local/bin/flowhub"
-    if [[ ! -f "$wrapper_src" ]]; then
-        echo "  WARNING: CLI wrapper not found at ${wrapper_src} - skipping" >&2
+    local helper_dir="/usr/local/lib/flowhub"
+    local helper_dst="${helper_dir}/flowhub-helper"
+    local sudoers_dst="/etc/sudoers.d/flowhub"
+    local operator_user="${SUDO_USER:-}"
+    local sudoers_tmp
+
+    if [[ ! -f "$wrapper_src" || ! -f "$helper_src" ]]; then
+        echo "  WARNING: CLI wrapper/helper not found in ${REPO_DIR}/scripts - skipping" >&2
         return
     fi
-    if [[ -w "$(dirname "$wrapper_dst")" ]] || command -v sudo &>/dev/null; then
-        if [[ -w "$(dirname "$wrapper_dst")" ]]; then
-            cp "$wrapper_src" "$wrapper_dst"
-            chmod +x "$wrapper_dst"
-        else
-            sudo cp "$wrapper_src" "$wrapper_dst"
-            sudo chmod +x "$wrapper_dst"
-        fi
-        echo "  CLI installed: ${wrapper_dst}"
-        echo "  Test with: flowhub --help"
-    else
-        echo "  WARNING: Cannot write to $(dirname "$wrapper_dst") (no sudo) - CLI not installed"
-        echo "  Manual install: cp ${wrapper_src} ${wrapper_dst} && chmod +x ${wrapper_dst}"
+
+    if [[ "${EUID}" -ne 0 ]]; then
+        echo "  WARNING: CLI privileged helper requires root installer access - skipping" >&2
+        echo "  Re-run with: sudo ./installer/install.sh --repair" >&2
+        return
     fi
+
+    install -d -o root -g root -m 0755 "$helper_dir"
+    install -o root -g root -m 0755 "$wrapper_src" "$wrapper_dst"
+    install -o root -g root -m 0755 "$helper_src" "$helper_dst"
+
+    if getent group flowhub >/dev/null 2>&1; then
+        :
+    else
+        groupadd --system flowhub
+    fi
+    if [[ -n "$operator_user" && "$operator_user" != "root" ]] && id "$operator_user" >/dev/null 2>&1; then
+        usermod -aG flowhub "$operator_user" || true
+    fi
+
+    if [[ -f "${REPO_DIR}/.env.beta" ]]; then
+        chown root:root "${REPO_DIR}/.env.beta"
+        chmod 600 "${REPO_DIR}/.env.beta"
+    fi
+
+    sudoers_tmp="$(mktemp)"
+    {
+        echo "# FlowHub operator helper. Managed by installer/install.sh."
+        echo "Cmnd_Alias FLOWHUB_HELPER = ${helper_dst} *"
+        echo "%flowhub ALL=(root) NOPASSWD: FLOWHUB_HELPER"
+        if [[ -n "$operator_user" && "$operator_user" != "root" ]] && id "$operator_user" >/dev/null 2>&1; then
+            echo "${operator_user} ALL=(root) NOPASSWD: FLOWHUB_HELPER"
+        fi
+    } > "$sudoers_tmp"
+    chmod 0440 "$sudoers_tmp"
+    if command -v visudo >/dev/null 2>&1; then
+        visudo -cf "$sudoers_tmp" >/dev/null
+    fi
+    install -o root -g root -m 0440 "$sudoers_tmp" "$sudoers_dst"
+    rm -f "$sudoers_tmp"
+
+    echo "  CLI installed: ${wrapper_dst}"
+    echo "  Privileged helper installed: ${helper_dst}"
+    echo "  Sudoers allowlist installed: ${sudoers_dst}"
+    echo "  .env.beta permissions: root:root 600"
+    echo "  Test with: flowhub --help"
 }
 
 step_health_check() {

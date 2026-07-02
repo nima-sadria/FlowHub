@@ -166,10 +166,12 @@ flowhub admin reset-username
 flowhub admin reset-password
 ```
 
-The installed `flowhub` wrapper is Docker-backed. Runtime commands use the
-running containers and do not require Python application dependencies on the
-host. `flowhub restart` waits for the application health endpoint before
-returning, or exits with a clear warning if readiness is not reached in time.
+The installed `flowhub` wrapper is Docker-backed. Runtime commands use a
+root-owned helper with a strict sudoers allowlist, so the normal installing
+operator can run FlowHub management commands without manually typing `sudo`.
+The wrapper does not read `.env.beta` directly; `.env.beta` remains protected as
+`root:root 600`. `flowhub restart` waits for the application health endpoint
+before returning successfully.
 
 ## Verification
 

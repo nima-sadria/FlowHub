@@ -104,15 +104,6 @@ def create_admin(
         prompt="Admin username",
         help="Username for the new administrator account.",
     ),
-    password: str = typer.Option(
-        ...,
-        "--password",
-        "-p",
-        prompt="New admin password",
-        hide_input=True,
-        confirmation_prompt=True,
-        help="Password for the new administrator account.",
-    ),
     env_file: Optional[str] = typer.Option(
         None,
         "--env-file",
@@ -124,6 +115,11 @@ def create_admin(
     if len(username) < 3:
         typer.echo("ERROR: Username must be at least 3 characters.", err=True)
         raise typer.Exit(1)
+    password = typer.prompt(
+        "New admin password",
+        hide_input=True,
+        confirmation_prompt=True,
+    )
     _validate_password(password)
 
     engine, db = _session(env_file)
@@ -152,15 +148,6 @@ def reset_admin_password(
         prompt="Admin username",
         help="Existing administrator username.",
     ),
-    password: str = typer.Option(
-        ...,
-        "--password",
-        "-p",
-        prompt="New admin password",
-        hide_input=True,
-        confirmation_prompt=True,
-        help="New password for the administrator account.",
-    ),
     env_file: Optional[str] = typer.Option(
         None,
         "--env-file",
@@ -169,7 +156,18 @@ def reset_admin_password(
 ) -> None:
     """Reset an existing administrator password and revoke active sessions."""
     username = username.strip()
+    password = typer.prompt(
+        "New admin password",
+        hide_input=True,
+        confirmation_prompt=True,
+    )
     _validate_password(password)
+    if not typer.confirm(
+        f"Reset password for administrator '{username}' and revoke active sessions?",
+        default=False,
+    ):
+        typer.echo("Password reset cancelled. No changes made.")
+        raise typer.Exit(1)
 
     engine, db = _session(env_file)
     try:

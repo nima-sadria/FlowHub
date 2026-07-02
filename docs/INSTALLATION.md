@@ -81,3 +81,8 @@ flowhub health
 flowhub restart
 flowhub admin reset-password --help
 ```
+
+The installer also installs a root-owned FlowHub helper and sudoers allowlist.
+Normal operators run `flowhub` commands without manually typing `sudo`, while
+`.env.beta` remains protected as `root:root 600` and is never sourced by the
+unprivileged wrapper.

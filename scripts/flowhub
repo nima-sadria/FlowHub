@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# FlowHub management CLI wrapper.
+# FlowHub operator CLI wrapper.
 #
-# Installed to /usr/local/bin/flowhub by installer/install.sh.
+# This script is intentionally unprivileged. It never reads .env.beta directly.
+# Privileged Docker/config operations go through the root-owned helper installed
+# by installer/install.sh with a strict sudoers allowlist.
 
 set -euo pipefail
 
 INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-/opt/FlowHub}"
 LEGACY_INSTALL_DIR="/opt/flowhub" # Legacy Compatibility
-ENV_FILE="${INSTALL_DIR}/.env.beta"
-COMPOSE_FILE="${INSTALL_DIR}/docker-compose.beta.yml"
+HELPER="${FLOWHUB_HELPER:-/usr/local/lib/flowhub/flowhub-helper}"
 
 usage() {
     cat <<'EOF'
@@ -24,7 +25,7 @@ FlowHub management commands:
   flowhub health           Check the running application health endpoint
   flowhub logs [service]   Follow service logs
   flowhub start            Start the Docker stack
-  flowhub restart          Restart services
+  flowhub restart          Restart services and wait for readiness
   flowhub stop             Stop services
   flowhub uninstall        Run the uninstaller
   flowhub backup           Create a local backup archive
@@ -34,11 +35,31 @@ FlowHub management commands:
   flowhub admin reset-username
                           Rename an administrator account and revoke sessions
   flowhub admin reset-password
-                          Reset an administrator password and revoke sessions
+                          Reset an administrator password interactively
 
 App CLI commands are executed inside the app container, for example:
   flowhub diagnostics run
 EOF
+}
+
+helper() {
+    if [[ ! -x "$HELPER" ]]; then
+        echo "ERROR: FlowHub helper is not installed: ${HELPER}" >&2
+        echo "Run the installer repair command from ${INSTALL_DIR}." >&2
+        exit 1
+    fi
+
+    if [[ "${EUID}" -eq 0 ]]; then
+        "$HELPER" "$@"
+        return
+    fi
+
+    if ! command -v sudo >/dev/null 2>&1; then
+        echo "ERROR: sudo is required for FlowHub operator commands." >&2
+        exit 1
+    fi
+
+    sudo -n "$HELPER" "$@"
 }
 
 fail_missing_install() {
@@ -50,152 +71,8 @@ fail_missing_install() {
     exit 1
 }
 
-ensure_install() {
+ensure_install_path() {
     [[ -d "$INSTALL_DIR" ]] || fail_missing_install
-    [[ -f "$COMPOSE_FILE" ]] || {
-        echo "ERROR: Docker Compose file not found: ${COMPOSE_FILE}" >&2
-        exit 1
-    }
-    [[ -f "$ENV_FILE" ]] || {
-        echo "ERROR: Environment file not found: ${ENV_FILE}" >&2
-        exit 1
-    }
-    cd "$INSTALL_DIR"
-    set -a
-    # shellcheck source=/dev/null
-    . "$ENV_FILE"
-    set +a
-}
-
-compose_cmd() {
-    if docker compose version >/dev/null 2>&1; then
-        echo "docker compose"
-    elif command -v docker-compose >/dev/null 2>&1; then
-        echo "docker-compose"
-    else
-        echo "ERROR: Docker Compose is not available." >&2
-        exit 1
-    fi
-}
-
-run_compose() {
-    local dc
-    dc="$(compose_cmd)"
-    ${dc} --project-directory "$INSTALL_DIR" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
-}
-
-run_app_cli() {
-    run_compose exec -T app python -m cli.main "$@"
-}
-
-health_url() {
-    echo "http://localhost:${BETA_PORT:-8085}/api/health"
-}
-
-check_app_health() {
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsS --max-time 3 "$(health_url)" >/dev/null 2>&1
-    else
-        run_compose exec -T app curl -fsS --max-time 3 http://localhost:8085/api/health >/dev/null 2>&1
-    fi
-}
-
-wait_for_app_health() {
-    local timeout="${1:-60}"
-    local start now
-    start="$(date +%s)"
-    echo "Waiting for FlowHub to become ready at $(health_url) ..."
-    while true; do
-        if check_app_health; then
-            echo "FlowHub is ready."
-            return 0
-        fi
-        now="$(date +%s)"
-        if (( now - start >= timeout )); then
-            echo "WARNING: FlowHub did not become ready within ${timeout}s." >&2
-            echo "Services may still be starting. Check with: flowhub health" >&2
-            return 1
-        fi
-        sleep 2
-    done
-}
-
-load_env_if_present() {
-    if [[ -f "$ENV_FILE" ]]; then
-        set -a
-        # shellcheck source=/dev/null
-        . "$ENV_FILE"
-        set +a
-    fi
-}
-
-public_url() {
-    load_env_if_present
-    local domain="${BETA_DOMAIN:-localhost}"
-    local port="${BETA_PORT:-8085}"
-    if [[ "$domain" == "localhost" || "$domain" == "127.0.0.1" ]]; then
-        echo "http://localhost:${port}"
-    else
-        echo "http://${domain}:${port}"
-    fi
-}
-
-install_state() {
-    if [[ ! -d "$INSTALL_DIR" ]]; then
-        echo "Not installed"
-    elif [[ -f "$COMPOSE_FILE" && -f "$ENV_FILE" ]]; then
-        if check_app_health; then
-            echo "Running"
-        elif run_compose ps --status running -q app >/dev/null 2>&1 && [[ -n "$(run_compose ps --status running -q app 2>/dev/null)" ]]; then
-            echo "Starting"
-        else
-            echo "Stopped"
-        fi
-    else
-        echo "Incomplete"
-    fi
-}
-
-database_state() {
-    if [[ ! -f "$COMPOSE_FILE" || ! -f "$ENV_FILE" ]]; then
-        echo "Unknown"
-        return
-    fi
-    load_env_if_present
-    if run_compose exec -T postgres pg_isready -U "${BETA_POSTGRES_USER:-flowhub}" -d "${BETA_POSTGRES_DB:-flowhub}" >/dev/null 2>&1; then
-        echo "Healthy"
-    else
-        echo "Unable to verify"
-    fi
-}
-
-docker_state() {
-    if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-        echo "Running"
-    elif command -v docker >/dev/null 2>&1; then
-        echo "Installed, not reachable"
-    else
-        echo "Not installed"
-    fi
-}
-
-version_commit() {
-    if [[ -d "${INSTALL_DIR}/.git" ]]; then
-        git -C "$INSTALL_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown"
-    else
-        echo "unknown"
-    fi
-}
-
-print_menu_footer() {
-    echo ""
-    echo "Panel state: $(install_state)"
-    echo "Database: $(database_state)"
-    echo "Safety mode: Read-only"
-    echo "Install path: ${INSTALL_DIR}"
-    echo "Public URL: $(public_url)"
-    echo "Docker: $(docker_state)"
-    echo "Version / commit: $(version_commit)"
 }
 
 menu_run() {
@@ -214,8 +91,23 @@ menu_run() {
     return 0
 }
 
+footer_value() {
+    helper "$@" 2>/dev/null || echo "Unable to verify"
+}
+
+print_menu_footer() {
+    echo ""
+    echo "Panel state: $(footer_value state app)"
+    echo "Database: $(footer_value state database)"
+    echo "Safety mode: $(footer_value state safety)"
+    echo "Install path: ${INSTALL_DIR}"
+    echo "Public URL: $(footer_value state public-url)"
+    echo "Docker: $(footer_value state docker)"
+    echo "Version / commit: $(footer_value state version)"
+}
+
 show_management_menu() {
-    local choice
+    local choice archive new_domain new_port
     while true; do
         clear 2>/dev/null || true
         cat <<'EOF'
@@ -271,10 +163,10 @@ EOF
         choice="${choice//$'\r'/}"
         case "$choice" in
             0|"q"|"quit"|"exit") echo "Exiting."; return 0 ;;
-            1) menu_run "Install" bash "${INSTALL_DIR}/installer/install.sh" ;;
+            1) menu_run "Install" "$0" install ;;
             2) menu_run "Upgrade" "$0" upgrade ;;
             3) menu_run "Repair" "$0" repair ;;
-            4) menu_run "Reinstall" bash "${INSTALL_DIR}/installer/install.sh" --reinstall ;;
+            4) menu_run "Reinstall" "$0" reinstall ;;
             5) menu_run "Uninstall" "$0" uninstall ;;
             6) menu_run "Reset Administrator Username" "$0" admin reset-username ;;
             7) menu_run "Reset Administrator Password" "$0" admin reset-password ;;
@@ -305,9 +197,9 @@ EOF
             23) menu_run "Check Secret Exposure" "$0" configure verify ;;
             24) echo "Safety mode: Read-only. Apply, Scheduler, WooCommerce writes, and spreadsheet writes are disabled." ;;
             25) menu_run "Docker Compose Status" "$0" status ;;
-            26) echo "Database: $(database_state)" ;;
+            26) echo "Database: $(footer_value state database)" ;;
             27) menu_run "Migration Status" "$0" migrate status ;;
-            28) ensure_install; run_compose exec app bash ;;
+            28) menu_run "App Container Shell" helper shell ;;
             *) echo "Invalid selection: ${choice}" ;;
         esac
         echo ""
@@ -324,87 +216,45 @@ case "$cmd" in
         usage
         ;;
     install)
-        shift
-        ensure_install
-        bash installer/install.sh "$@"
+        ensure_install_path
+        helper installer install
         ;;
     upgrade|update)
-        shift
-        ensure_install
-        git pull origin main
-        bash installer/install.sh --upgrade "$@"
+        ensure_install_path
+        helper installer upgrade
         ;;
     repair)
-        shift
-        ensure_install
-        bash installer/install.sh --repair "$@"
+        ensure_install_path
+        helper installer repair
+        ;;
+    reinstall)
+        ensure_install_path
+        helper installer reinstall
         ;;
     uninstall)
-        shift
-        ensure_install
-        bash installer/install.sh --uninstall "$@"
+        ensure_install_path
+        helper installer uninstall
         ;;
-    status)
-        shift
-        ensure_install
-        run_compose ps "$@"
-        ;;
-    health)
-        shift
-        ensure_install
-        if command -v curl >/dev/null 2>&1; then
-            curl -fsS "$(health_url)"
-            echo
-        else
-            run_compose exec -T app curl -fsS http://localhost:8085/api/health
-            echo
-        fi
+    status|health|start|restart|stop|backup)
+        ensure_install_path
+        helper "$@"
         ;;
     logs)
+        ensure_install_path
         shift
-        ensure_install
-        service="${1:-app}"
-        run_compose logs -f "$service"
-        ;;
-    start)
-        shift
-        ensure_install
-        run_compose up -d "$@"
-        ;;
-    restart)
-        shift
-        ensure_install
-        run_compose restart "$@"
-        wait_for_app_health 60
-        ;;
-    stop)
-        shift
-        ensure_install
-        run_compose stop "$@"
-        ;;
-    backup)
-        shift
-        ensure_install
-        mkdir -p backups
-        stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-        archive="backups/flowhub-${stamp}.tar.gz"
-        tar --exclude='logs/admin-credentials.txt' -czf "$archive" .env.beta storage logs 2>/dev/null \
-            || tar -czf "$archive" .env.beta storage
-        echo "Backup created: ${INSTALL_DIR}/${archive}"
+        helper logs "$@"
         ;;
     restore)
+        ensure_install_path
         shift
-        ensure_install
-        archive="${1:-}"
-        if [[ -z "$archive" || ! -f "$archive" ]]; then
-            echo "ERROR: restore requires a backup archive path." >&2
-            exit 1
-        fi
-        tar -xzf "$archive" -C "$INSTALL_DIR"
-        echo "Backup restored. Run: flowhub repair"
+        helper restore "$@"
+        ;;
+    admin|diagnostics|configure|migrate|integrations)
+        ensure_install_path
+        helper app-cli "$@"
         ;;
     *)
-        ensure_install
-        run_app_cli "$@"
+        ensure_install_path
+        helper app-cli "$@"
         ;;
 esac
