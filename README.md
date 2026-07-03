@@ -143,16 +143,50 @@ After installation, the `flowhub` command is available:
 flowhub
 ```
 
-Running `flowhub` without arguments opens the interactive management menu. Before
-FlowHub is installed, the menu shows only **Install / Setup**. On installed
-hosts, the menu starts with **Maintenance** actions: Upgrade, Repair, Reinstall,
-and Uninstall. Direct command mode also remains available:
+Running `flowhub` without arguments opens the simple operator menu:
+
+```text
+FlowHub Management
+
+Maintenance
+1. Install
+2. Update
+3. Uninstall
+4. Domain + SSL Setup
+5. IP + Port Setup
+
+Account
+6. Admin Setup
+7. Show Base URL
+8. Show Admin Users
+9. Add Admin User
+10. Delete Admin User
+
+Status
+11. Status Overview
+
+Diagnostics
+12. Logs
+13. Errors & Warnings
+
+0. Exit
+```
+
+On installed hosts, menu option 1 is disabled and prints:
+
+```text
+FlowHub is already installed. Use Update instead.
+```
+
+Advanced recovery and support commands remain available only through direct
+command mode:
 
 ```bash
 flowhub install
 flowhub upgrade
 flowhub update
 flowhub repair
+flowhub reinstall
 flowhub status
 flowhub health
 flowhub logs
@@ -162,11 +196,15 @@ flowhub stop
 flowhub uninstall
 flowhub backup
 flowhub restore backups/flowhub-YYYYMMDDTHHMMSSZ.tar.gz
+flowhub base-url
+flowhub overview
+flowhub errors
 flowhub domain set kharidbezan.com
 flowhub tls status
 flowhub tls letsencrypt kharidbezan.com
 flowhub admin list
 flowhub admin create
+flowhub admin delete
 flowhub admin reset-username
 flowhub admin reset-password
 ```
@@ -179,30 +217,36 @@ The wrapper does not read `.env.beta` directly; `.env.beta` remains protected as
 before returning successfully.
 
 On an installed host, `flowhub install` does not re-enter the installer workflow;
-use `flowhub upgrade`, `flowhub repair`, or `flowhub reinstall` instead.
+use Update from the menu or `flowhub upgrade` from direct command mode instead.
 
 ### Domain and TLS
 
-Use the interactive menu option **Edit Domain / Public URL** or direct command
-mode to update the public host:
+Use menu option **4. Domain + SSL Setup** to configure the public domain, panel
+port, and recorded TLS mode. It prints the resulting URL as:
+
+```text
+https://example.com:PORT/
+```
+
+Use menu option **5. IP + Port Setup** for local or private-network deployments
+without SSL. It prints:
+
+```text
+http://IP:PORT/
+```
+
+Direct command mode is still available for support sessions:
 
 ```bash
 flowhub domain set kharidbezan.com
-flowhub start
-```
-
-FlowHub's current Docker stack exposes the app and expects TLS termination to be
-handled by an external reverse proxy. The CLI can record the desired
-Let's Encrypt mode and public URL:
-
-```bash
 flowhub tls letsencrypt kharidbezan.com
 flowhub tls status
 flowhub start
 ```
 
-Certificate issuance and renewal must be configured in the external reverse
-proxy for the same domain. FlowHub does not store Let's Encrypt private keys in
+FlowHub's current Docker stack exposes the app and expects certificate issuance
+and renewal to be handled by an external reverse proxy. FlowHub records the
+desired public URL and TLS mode; it does not store Let's Encrypt private keys in
 this release.
 
 ## Verification

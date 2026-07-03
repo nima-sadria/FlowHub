@@ -11,7 +11,10 @@ flowhub restart
 ```
 
 Running `flowhub` without arguments opens the interactive management menu.
-Direct commands continue to work for automation and support sessions.
+The menu intentionally shows only essential operator actions: install/update,
+uninstall, domain or IP setup, admin setup, base URL, admin users, concise
+status, logs, and errors/warnings. Direct commands continue to work for
+automation and support sessions.
 The installed wrapper calls FlowHub's root-owned helper through a strict
 sudoers allowlist, so these commands should not require manually prefixing
 `sudo` and should not print `.env.beta` permission errors.
@@ -30,8 +33,9 @@ missing host-side Python packages should not block normal operations.
 
 ## Domain Edit Fails
 
-Use the domain helper command or the interactive menu item **Edit Domain /
-Public URL**:
+Use menu option **4. Domain + SSL Setup** for public HTTPS deployments or
+**5. IP + Port Setup** for local/private HTTP deployments. Direct command mode
+is also available:
 
 ```bash
 flowhub domain set kharidbezan.com

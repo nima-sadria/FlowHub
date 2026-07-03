@@ -11,6 +11,7 @@ import os
 import getpass
 import sys
 import warnings
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -70,6 +71,12 @@ def _session(env_file: Optional[str]):
 def _validate_password(password: str) -> None:
     if len(password) < 8:
         typer.echo("ERROR: Password must be at least 8 characters.", err=True)
+        raise typer.Exit(1)
+
+
+def _validate_email(email: str) -> None:
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        typer.echo("ERROR: Enter a valid email address.", err=True)
         raise typer.Exit(1)
 
 
@@ -147,8 +154,14 @@ def create_admin(
         ...,
         "--username",
         "-u",
-        prompt="Admin username",
+        prompt="Admin name",
         help="Username for the new administrator account.",
+    ),
+    email: str = typer.Option(
+        ...,
+        "--email",
+        prompt="Admin email",
+        help="Email address for operator confirmation. Current account storage uses username identity.",
     ),
     env_file: Optional[str] = typer.Option(
         None,
@@ -161,8 +174,16 @@ def create_admin(
     if len(username) < 3:
         typer.echo("ERROR: Username must be at least 3 characters.", err=True)
         raise typer.Exit(1)
+    email = email.strip()
+    _validate_email(email)
     password = _prompt_secure_password("New admin password")
     _validate_password(password)
+    if not typer.confirm(
+        f"Create administrator '{username}'?",
+        default=False,
+    ):
+        typer.echo("Admin creation cancelled. No changes made.")
+        raise typer.Exit(1)
 
     engine, db = _session(env_file)
     try:
@@ -176,6 +197,67 @@ def create_admin(
         create_user(db, username=username, hashed_password=hash_password(password), role="admin")
         create_audit_event(db, username=username, event="admin_created_cli", ip_address="cli")
         typer.echo(f"Administrator '{username}' created.")
+    finally:
+        db.close()
+        engine.dispose()
+
+
+@app.command("delete")
+def delete_admin(
+    username: str = typer.Option(
+        ...,
+        "--username",
+        "-u",
+        prompt="Admin username to delete",
+        help="Existing administrator username.",
+    ),
+    env_file: Optional[str] = typer.Option(
+        None,
+        "--env-file",
+        help="Path to .env.beta (default: /opt/FlowHub/.env.beta).",
+    ),
+) -> None:
+    """Delete an administrator account with last-admin protection."""
+    username = username.strip()
+    engine, db = _session(env_file)
+    try:
+        from app.beta.auth.models import BetaUser
+        from app.beta.auth.repository import create_audit_event, get_user_by_username
+
+        admins = (
+            db.query(BetaUser)
+            .filter(BetaUser.role == "admin")
+            .order_by(BetaUser.username.asc())
+            .all()
+        )
+        if not admins:
+            typer.echo("ERROR: No administrator accounts found.", err=True)
+            raise typer.Exit(1)
+
+        typer.echo("Administrator accounts:")
+        for user in admins:
+            status = "active" if user.is_active else "inactive"
+            typer.echo(f"  {user.username}\t{status}")
+
+        user = get_user_by_username(db, username)
+        if user is None or user.role != "admin":
+            typer.echo(f"ERROR: Administrator '{username}' was not found.", err=True)
+            raise typer.Exit(1)
+        if len(admins) <= 1:
+            typer.echo(
+                "ERROR: Refusing to delete the last administrator account. "
+                "Create another admin first.",
+                err=True,
+            )
+            raise typer.Exit(1)
+        if not typer.confirm(f"Delete administrator '{username}'?", default=False):
+            typer.echo("Admin deletion cancelled. No changes made.")
+            raise typer.Exit(1)
+
+        create_audit_event(db, username=username, event="admin_deleted_cli", ip_address="cli")
+        db.delete(user)
+        db.commit()
+        typer.echo(f"Administrator '{username}' deleted.")
     finally:
         db.close()
         engine.dispose()

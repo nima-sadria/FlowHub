@@ -62,8 +62,8 @@ Verified controls:
 - `flowhub status`, `flowhub health`, `flowhub restart`, `flowhub backup`, and the interactive menu work.
 - `flowhub restart` waits for readiness; immediate `/api/health` returns HTTP 200.
 - Backup succeeds.
-- Installed-host menu shows Maintenance, not Install.
-- Menu footer shows healthy app, database, Docker state, and installed commit.
+- Installed-host menu shows the simplified operator menu; Install is visible but disabled with "Use Update instead."
+- Status Overview shows concise database, panel, and API state.
 - No secrets were printed during tested CLI operations.
 - Apply, scheduler, WooCommerce writes, and spreadsheet writes remain disabled/read-only.
 

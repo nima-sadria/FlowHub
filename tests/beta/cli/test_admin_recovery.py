@@ -43,9 +43,12 @@ def test_admin_create_creates_emergency_admin(tmp_path, monkeypatch):
             "create",
             "--username",
             "rescueadmin",
+            "--email",
+            "rescue@example.com",
             "--env-file",
             str(env_file),
         ],
+        input="y\n",
     )
 
     assert result.exit_code == 0
@@ -60,6 +63,62 @@ def test_admin_create_creates_emergency_admin(tmp_path, monkeypatch):
         assert user is not None
         assert user.role == "admin"
         assert user.is_active is True
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_admin_create_requires_valid_email(tmp_path, monkeypatch):
+    engine, _Session, env_file = _prepare_db(tmp_path)
+    monkeypatch.setattr(admin_cli, "_prompt_secure_password", lambda prompt="New admin password": "recovered-password")
+
+    result = runner.invoke(
+        app,
+        [
+            "admin",
+            "create",
+            "--username",
+            "bademailadmin",
+            "--email",
+            "not-an-email",
+            "--env-file",
+            str(env_file),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Enter a valid email address" in result.output
+    assert "recovered-password" not in result.output
+    engine.dispose()
+
+
+def test_admin_create_confirmation_makes_no_change(tmp_path, monkeypatch):
+    engine, Session, env_file = _prepare_db(tmp_path)
+    monkeypatch.setattr(admin_cli, "_prompt_secure_password", lambda prompt="New admin password": "recovered-password")
+
+    result = runner.invoke(
+        app,
+        [
+            "admin",
+            "create",
+            "--username",
+            "cancelcreate",
+            "--email",
+            "cancel@example.com",
+            "--env-file",
+            str(env_file),
+        ],
+        input="n\n",
+    )
+
+    assert result.exit_code != 0
+    assert "No changes made" in result.output
+
+    from app.beta.auth.repository import get_user_by_username
+
+    db = Session()
+    try:
+        assert get_user_by_username(db, "cancelcreate") is None
     finally:
         db.close()
         engine.dispose()
@@ -150,6 +209,14 @@ def test_admin_reset_password_refuses_non_admin(tmp_path, monkeypatch):
 
 def test_admin_reset_password_help_has_no_password_option():
     result = runner.invoke(app, ["admin", "reset-password", "--help"])
+
+    assert result.exit_code == 0
+    assert "--password" not in result.output
+    assert " -p " not in result.output
+
+
+def test_admin_create_help_has_no_password_option():
+    result = runner.invoke(app, ["admin", "create", "--help"])
 
     assert result.exit_code == 0
     assert "--password" not in result.output
@@ -383,3 +450,108 @@ def test_admin_list_does_not_show_password_hashes(tmp_path):
     assert "hidden-password" not in result.output
     assert "argon2" not in result.output
     engine.dispose()
+
+
+def test_admin_delete_removes_selected_admin(tmp_path):
+    engine, Session, env_file = _prepare_db(tmp_path)
+
+    from app.beta.auth.password import hash_password
+    from app.beta.auth.repository import create_user, get_user_by_username
+
+    db = Session()
+    create_user(db, username="keepadmin", hashed_password=hash_password("password"), role="admin")
+    create_user(db, username="deleteadmin", hashed_password=hash_password("password"), role="admin")
+    db.close()
+
+    result = runner.invoke(
+        app,
+        [
+            "admin",
+            "delete",
+            "--username",
+            "deleteadmin",
+            "--env-file",
+            str(env_file),
+        ],
+        input="y\n",
+    )
+
+    assert result.exit_code == 0
+    assert "Administrator accounts:" in result.output
+    assert "deleteadmin" in result.output
+
+    db = Session()
+    try:
+        assert get_user_by_username(db, "deleteadmin") is None
+        assert get_user_by_username(db, "keepadmin") is not None
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_admin_delete_refuses_last_admin(tmp_path):
+    engine, Session, env_file = _prepare_db(tmp_path)
+
+    from app.beta.auth.password import hash_password
+    from app.beta.auth.repository import create_user, get_user_by_username
+
+    db = Session()
+    create_user(db, username="onlyadmin", hashed_password=hash_password("password"), role="admin")
+    db.close()
+
+    result = runner.invoke(
+        app,
+        [
+            "admin",
+            "delete",
+            "--username",
+            "onlyadmin",
+            "--env-file",
+            str(env_file),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Refusing to delete the last administrator" in result.output
+
+    db = Session()
+    try:
+        assert get_user_by_username(db, "onlyadmin") is not None
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_admin_delete_confirmation_makes_no_change(tmp_path):
+    engine, Session, env_file = _prepare_db(tmp_path)
+
+    from app.beta.auth.password import hash_password
+    from app.beta.auth.repository import create_user, get_user_by_username
+
+    db = Session()
+    create_user(db, username="keepadmin", hashed_password=hash_password("password"), role="admin")
+    create_user(db, username="canceldelete", hashed_password=hash_password("password"), role="admin")
+    db.close()
+
+    result = runner.invoke(
+        app,
+        [
+            "admin",
+            "delete",
+            "--username",
+            "canceldelete",
+            "--env-file",
+            str(env_file),
+        ],
+        input="n\n",
+    )
+
+    assert result.exit_code != 0
+    assert "No changes made" in result.output
+
+    db = Session()
+    try:
+        assert get_user_by_username(db, "canceldelete") is not None
+    finally:
+        db.close()
+        engine.dispose()

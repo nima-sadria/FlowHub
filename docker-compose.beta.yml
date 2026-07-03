@@ -28,7 +28,7 @@ services:
       # Host port is configurable via BETA_PORT; the app always listens on 8085
       # inside the container. Health checks and the completion report use the
       # same BETA_PORT, so these must stay in sync.
-      - "${BETA_PORT:-8085}:8085"
+      - "${BETA_BIND_IP:-0.0.0.0}:${BETA_PORT:-8085}:8085"
     env_file:
       - .env.beta
     volumes:

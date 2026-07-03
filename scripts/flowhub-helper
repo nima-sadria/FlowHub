@@ -90,16 +90,16 @@ public_url() {
     local ssl_mode="${BETA_SSL_MODE:-off}"
     case "$ssl_mode" in
         letsencrypt|manual)
-            echo "https://${domain}"
+            echo "https://${domain}:${port}/"
             ;;
         self-signed)
-            echo "https://${domain}:${port}"
+            echo "https://${domain}:${port}/"
             ;;
         off|*)
             if [[ "$domain" == "localhost" || "$domain" == "127.0.0.1" ]]; then
-                echo "http://localhost:${port}"
+                echo "http://localhost:${port}/"
             else
-                echo "http://${domain}:${port}"
+                echo "http://${domain}:${port}/"
             fi
             ;;
     esac
@@ -113,6 +113,24 @@ install_state() {
     else
         echo "Stopped"
     fi
+}
+
+api_state() {
+    if check_app_health; then
+        echo "Healthy"
+    elif [[ -n "$(run_compose ps --status running -q app 2>/dev/null)" ]]; then
+        echo "Warning"
+    else
+        echo "Error"
+    fi
+}
+
+panel_state() {
+    case "$(install_state)" in
+        Running) echo "Running" ;;
+        Starting) echo "Warning" ;;
+        *) echo "Stopped" ;;
+    esac
 }
 
 database_state() {
@@ -204,6 +222,25 @@ validate_port() {
     (( port >= 1 && port <= 65535 )) || die "Port must be between 1 and 65535."
 }
 
+validate_ip() {
+    local ip="${1:-}"
+    [[ -n "$ip" ]] || die "IP address is required."
+    [[ "$ip" != *" "* && "$ip" != *":"* && "$ip" != *"/"* ]] || die "IP address must not contain spaces, ports, or paths."
+    if [[ "$ip" == "localhost" ]]; then
+        return 0
+    fi
+    if [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+        local IFS=.
+        local -a parts
+        read -r -a parts <<< "$ip"
+        for part in "${parts[@]}"; do
+            (( part >= 0 && part <= 255 )) || die "Invalid IPv4 address: ${ip}"
+        done
+        return 0
+    fi
+    die "Invalid IP address: ${ip}"
+}
+
 validate_ssl_mode() {
     case "${1:-}" in
         off|self-signed|letsencrypt|manual) ;;
@@ -242,6 +279,52 @@ set_port() {
     set_env_field "BETA_PORT" "$port"
     echo "Port updated: ${port}"
     echo "Run: flowhub start"
+}
+
+set_domain_ssl() {
+    local domain="${1:-}" port="${2:-}"
+    validate_domain "$domain"
+    validate_port "$port"
+    set_env_field "BETA_DOMAIN" "$domain"
+    set_env_field "BETA_PORT" "$port"
+    set_env_field "BETA_SSL_MODE" "letsencrypt"
+    set_env_field "BETA_BIND_IP" "0.0.0.0"
+    echo "Base URL: https://${domain}:${port}/"
+    echo "TLS mode: letsencrypt"
+    echo "Run: flowhub start"
+}
+
+set_ip_port() {
+    local ip="${1:-}" port="${2:-}"
+    validate_ip "$ip"
+    validate_port "$port"
+    set_env_field "BETA_BIND_IP" "$ip"
+    set_env_field "BETA_DOMAIN" "$ip"
+    set_env_field "BETA_PORT" "$port"
+    set_env_field "BETA_SSL_MODE" "off"
+    echo "Base URL: http://${ip}:${port}/"
+    echo "TLS mode: off"
+    echo "Run: flowhub start"
+}
+
+status_overview() {
+    echo "Database: $(database_state)"
+    echo "Panel: $(panel_state)"
+    echo "API: $(api_state)"
+}
+
+recent_logs() {
+    run_compose logs --tail="${1:-120}" app
+}
+
+recent_errors() {
+    local output
+    output="$(run_compose logs --tail="${1:-240}" app 2>&1 | grep -Ei 'error|warning|warn|failed|exception|traceback' || true)"
+    if [[ -n "$output" ]]; then
+        printf '%s\n' "$output"
+    else
+        echo "No recent errors or warnings found."
+    fi
 }
 
 tls_status() {
@@ -295,6 +378,8 @@ case "$cmd" in
         case "${1:-}" in
             app) install_state ;;
             database) database_state ;;
+            api) api_state ;;
+            panel) panel_state ;;
             safety) echo "Read-only" ;;
             public-url) public_url ;;
             docker) docker_state ;;
@@ -330,6 +415,8 @@ case "$cmd" in
         service="${1:-app}"
         case "$service" in
             app|postgres) run_compose logs -f "$service" ;;
+            recent) recent_logs "${2:-120}" ;;
+            errors) recent_errors "${2:-240}" ;;
             *) die "Unsupported log service: ${service}" ;;
         esac
         ;;
@@ -346,8 +433,18 @@ case "$cmd" in
         case "${1:-}" in
             set-domain) set_domain "${2:-}" ;;
             set-port) set_port "${2:-}" ;;
+            set-domain-ssl) set_domain_ssl "${2:-}" "${3:-}" ;;
+            set-ip-port) set_ip_port "${2:-}" "${3:-}" ;;
             *) die "Unsupported config command: ${1:-<empty>}" ;;
         esac
+        ;;
+    base-url)
+        ensure_install
+        public_url
+        ;;
+    overview)
+        ensure_install
+        status_overview
         ;;
     tls)
         ensure_install
@@ -366,10 +463,6 @@ case "$cmd" in
     installer)
         ensure_install
         run_installer "$@"
-        ;;
-    shell)
-        ensure_install
-        run_compose exec app bash
         ;;
     *)
         die "Unsupported helper command: ${cmd:-<empty>}"

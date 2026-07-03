@@ -31,12 +31,16 @@ FlowHub management commands:
   flowhub uninstall        Run the uninstaller
   flowhub backup           Create a local backup archive
   flowhub restore FILE     Restore a local backup archive
+  flowhub base-url         Show the configured panel URL
+  flowhub overview         Show concise database, panel, and API status
+  flowhub errors           Show recent errors and warnings
   flowhub domain set HOST  Set the public domain host
   flowhub tls status       Show TLS / Let's Encrypt configuration status
   flowhub tls letsencrypt HOST
                           Configure Let's Encrypt mode for an external proxy
   flowhub admin list       List administrator accounts
   flowhub admin create     Create an emergency administrator account
+  flowhub admin delete     Delete an administrator account safely
   flowhub admin reset-username
                           Rename an administrator account and revoke sessions
   flowhub admin reset-password
@@ -100,7 +104,7 @@ is_installed() {
 }
 
 already_installed_message() {
-    echo "FlowHub is already installed at ${INSTALL_DIR}. Use flowhub upgrade, flowhub repair, or flowhub reinstall." >&2
+    echo "FlowHub is already installed. Use Update instead." >&2
 }
 
 run_first_install() {
@@ -154,173 +158,82 @@ cli_self_check() {
     fi
 }
 
-print_menu_footer() {
-    echo ""
-    echo "Panel state: $(footer_value state app)"
-    echo "Database: $(footer_value state database)"
-    echo "Safety mode: $(footer_value state safety)"
-    echo "Install path: ${INSTALL_DIR}"
-    echo "Public URL: $(footer_value state public-url)"
-    echo "Docker: $(footer_value state docker)"
-    echo "Version / commit: $(footer_value state version)"
-    cli_self_check
-}
-
 show_management_menu() {
-    local choice archive new_domain new_port
+    local choice confirm domain ip port
     while true; do
         clear 2>/dev/null || true
-        if ! is_installed; then
-            cat <<'EOF'
-FlowHub Management
-
-0. Exit
-
-Install / Setup
-1. Install FlowHub
-EOF
-            echo ""
-            echo "Panel state: Not installed"
-            echo "Install path: ${INSTALL_DIR}"
-            echo ""
-            read -r -p "Please enter your selection [0-1]: " choice || return 0
-            choice="${choice//$'\r'/}"
-            case "$choice" in
-                0|"q"|"quit"|"exit") echo "Exiting."; return 0 ;;
-                1) menu_run "Install FlowHub" "$0" install ;;
-                *) echo "Invalid selection: ${choice}" ;;
-            esac
-            echo ""
-            read -r -p "Press Enter to return to the menu..." _ || return 0
-            continue
-        fi
-
         cat <<'EOF'
 FlowHub Management
 
-0. Exit
-
 Maintenance
-1. Upgrade
-2. Repair
-3. Reinstall
-4. Uninstall
+1. Install
+2. Update
+3. Uninstall
+4. Domain + SSL Setup
+5. IP + Port Setup
 
 Account
-5. Reset Administrator Username
-6. Reset Administrator Password
-7. View Current Admins
+6. Admin Setup
+7. Show Base URL
+8. Show Admin Users
+9. Add Admin User
+10. Delete Admin User
 
-System
-8. Status
-9. Health
-10. Diagnostics
-11. Logs
+Status
+11. Status Overview
 
-Services
-12. Start
-13. Stop
-14. Restart
-15. Backup
-16. Restore
+Diagnostics
+12. Logs
+13. Errors & Warnings
 
-Configuration
-17. View Current Settings
-18. Edit Domain / Public URL
-19. Manage TLS / Let's Encrypt
-20. Change Port
-21. Show Install Path
-
-Security
-22. Rotate Secrets
-23. Check Secret Exposure
-24. View Safety Status
-
-Advanced
-25. Docker Compose Status
-26. Database Status
-27. Migration Status
-28. Shell into App Container
+0. Exit
 EOF
-        print_menu_footer
         echo ""
-        read -r -p "Please enter your selection [0-28]: " choice || return 0
+        cli_self_check
+        echo ""
+        read -r -p "Please enter your selection [0-13]: " choice || return 0
         choice="${choice//$'\r'/}"
         case "$choice" in
             0|"q"|"quit"|"exit") echo "Exiting."; return 0 ;;
-            1) menu_run "Upgrade" "$0" upgrade ;;
-            2) menu_run "Repair" "$0" repair ;;
-            3) menu_run "Reinstall" "$0" reinstall ;;
-            4) menu_run "Uninstall" "$0" uninstall ;;
-            5) menu_run "Reset Administrator Username" "$0" admin reset-username ;;
-            6) menu_run "Reset Administrator Password" "$0" admin reset-password ;;
-            7) menu_run "Current Administrators" "$0" admin list ;;
-            8) menu_run "Status" "$0" status ;;
-            9) menu_run "Health" "$0" health ;;
-            10) menu_run "Diagnostics" "$0" diagnostics run ;;
-            11) menu_run "Logs" "$0" logs ;;
-            12) menu_run "Start" "$0" start ;;
-            13) menu_run "Stop" "$0" stop ;;
-            14) menu_run "Restart" "$0" restart ;;
-            15) menu_run "Backup" "$0" backup ;;
-            16)
-                read -r -p "Backup archive path: " archive
-                menu_run "Restore" "$0" restore "$archive"
+            1)
+                if is_installed; then
+                    echo "FlowHub is already installed. Use Update instead."
+                else
+                    menu_run "Install" "$0" install
+                fi
                 ;;
-            17) menu_run "Current Settings" "$0" configure show ;;
-            18)
-                read -r -p "New domain / public URL host: " new_domain
-                menu_run "Edit Domain / Public URL" helper config set-domain "$new_domain"
+            2) menu_run "Update" "$0" update ;;
+            3)
+                read -r -p "Uninstall FlowHub? This requires confirmation in the uninstaller too. Type UNINSTALL to continue: " confirm
+                if [[ "$confirm" == "UNINSTALL" ]]; then
+                    menu_run "Uninstall" "$0" uninstall
+                else
+                    echo "Uninstall cancelled."
+                fi
                 ;;
-            19)
-                show_tls_menu
+            4)
+                read -r -p "Domain host: " domain
+                read -r -p "Public panel port: " port
+                menu_run "Domain + SSL Setup" helper config set-domain-ssl "$domain" "$port"
                 ;;
-            20)
-                read -r -p "New port: " new_port
-                menu_run "Change Port" helper config set-port "$new_port"
+            5)
+                read -r -p "Listen IP: " ip
+                read -r -p "Panel port: " port
+                menu_run "IP + Port Setup" helper config set-ip-port "$ip" "$port"
                 ;;
-            21) echo "Install path: ${INSTALL_DIR}" ;;
-            22) echo "Secret rotation is not automated in this release. Rotate values in .env.beta, then run: flowhub repair" ;;
-            23) menu_run "Check Secret Exposure" "$0" configure verify ;;
-            24) echo "Safety mode: Read-only. Apply, Scheduler, WooCommerce writes, and spreadsheet writes are disabled." ;;
-            25) menu_run "Docker Compose Status" "$0" status ;;
-            26) echo "Database: $(footer_value state database)" ;;
-            27) menu_run "Migration Status" "$0" migrate status ;;
-            28) menu_run "App Container Shell" helper shell ;;
+            6) menu_run "Admin Setup" "$0" admin create ;;
+            7) menu_run "Base URL" helper base-url ;;
+            8) menu_run "Admin Users" "$0" admin list ;;
+            9) menu_run "Add Admin User" "$0" admin create ;;
+            10) menu_run "Delete Admin User" "$0" admin delete ;;
+            11) menu_run "Status Overview" helper overview ;;
+            12) menu_run "Logs" helper logs recent ;;
+            13) menu_run "Errors & Warnings" helper logs errors ;;
             *) echo "Invalid selection: ${choice}" ;;
         esac
         echo ""
         read -r -p "Press Enter to return to the menu..." _ || return 0
     done
-}
-
-show_tls_menu() {
-    local tls_choice tls_domain tls_mode
-    cat <<'EOF'
-
-TLS / Let's Encrypt
-0. Back
-1. Show TLS Status
-2. Configure Let's Encrypt Mode
-3. Set TLS Mode
-4. Disable TLS
-EOF
-    read -r -p "Please enter your selection [0-4]: " tls_choice || return 0
-    tls_choice="${tls_choice//$'\r'/}"
-    case "$tls_choice" in
-        0|"q"|"quit"|"back") return 0 ;;
-        1) menu_run "TLS Status" helper tls status ;;
-        2)
-            read -r -p "Domain host for Let's Encrypt: " tls_domain
-            menu_run "Configure Let's Encrypt Mode" helper tls letsencrypt "$tls_domain"
-            ;;
-        3)
-            read -r -p "TLS mode [off/self-signed/letsencrypt/manual]: " tls_mode
-            menu_run "Set TLS Mode" helper tls mode "$tls_mode"
-            ;;
-        4) menu_run "Disable TLS" helper tls off ;;
-        *) echo "Invalid selection: ${tls_choice}" ;;
-    esac
 }
 
 cmd="${1:-menu}"
@@ -353,6 +266,18 @@ case "$cmd" in
     status|health|start|restart|stop|backup)
         ensure_install_path
         helper "$@"
+        ;;
+    overview)
+        ensure_install_path
+        helper overview
+        ;;
+    base-url)
+        ensure_install_path
+        helper base-url
+        ;;
+    errors)
+        ensure_install_path
+        helper logs errors
         ;;
     logs)
         ensure_install_path

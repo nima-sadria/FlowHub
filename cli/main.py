@@ -1,7 +1,8 @@
 """FlowHub CLI entry point.
 
-Registers all command groups.  Invoked with no arguments: shows the
-interactive management menu (BU1).  Invoked with a subcommand: runs it.
+Registers all command groups. Invoked with no arguments: points operators to
+the installed Docker-backed `flowhub` shell menu. Invoked with a subcommand:
+runs it.
 
 Local invocation:
     python -m cli.main [command] [options]
@@ -70,7 +71,7 @@ app = typer.Typer(
 
 @app.callback()
 def _main_callback(ctx: typer.Context) -> None:
-    """Show the interactive management menu when no subcommand is given."""
+    """Point no-argument local runs to the installed management menu."""
     if ctx.invoked_subcommand is None:
         from cli.menu import show_menu
         show_menu()

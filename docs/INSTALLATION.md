@@ -73,14 +73,49 @@ Connector configuration belongs in Settings -> Integrations after sign-in.
 ## CLI
 
 After installation, run `flowhub` without arguments to open the interactive
-management menu. Direct command mode remains available:
+management menu:
+
+```text
+FlowHub Management
+
+Maintenance
+1. Install
+2. Update
+3. Uninstall
+4. Domain + SSL Setup
+5. IP + Port Setup
+
+Account
+6. Admin Setup
+7. Show Base URL
+8. Show Admin Users
+9. Add Admin User
+10. Delete Admin User
+
+Status
+11. Status Overview
+
+Diagnostics
+12. Logs
+13. Errors & Warnings
+
+0. Exit
+```
+
+On an installed host, option 1 prints `FlowHub is already installed. Use Update
+instead.` Direct command mode remains available for automation and support:
 
 ```bash
 flowhub status
 flowhub health
 flowhub restart
+flowhub base-url
+flowhub overview
+flowhub errors
 flowhub domain set kharidbezan.com
 flowhub tls status
+flowhub admin create
+flowhub admin delete
 flowhub admin reset-password --help
 ```
 
@@ -91,8 +126,21 @@ unprivileged wrapper.
 
 ## Domain and TLS
 
-The interactive menu includes **Edit Domain / Public URL** for updating the
-public host. Direct command mode is also available:
+The interactive menu includes **4. Domain + SSL Setup** for configuring the
+public host, panel port, base URL, and recorded TLS mode. It prints URLs in this
+form:
+
+```text
+https://example.com:PORT/
+```
+
+Use **5. IP + Port Setup** for local or private-network deployments without SSL:
+
+```text
+http://IP:PORT/
+```
+
+Direct command mode is also available:
 
 ```bash
 flowhub domain set kharidbezan.com
