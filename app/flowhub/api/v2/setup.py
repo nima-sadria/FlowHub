@@ -156,7 +156,7 @@ class ServerProfilePayload(BaseModel):
     @classmethod
     def _validate_env(cls, v: str) -> str:
         if v != "production":
-            raise ValueError("Environment must be 'FLOWHUB' (this is a FlowHub-only installation)")
+            raise ValueError("Environment must be 'production'")
         return v
 
 

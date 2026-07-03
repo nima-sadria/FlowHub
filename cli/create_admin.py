@@ -1,4 +1,4 @@
-"""FlowHub - create-admin CLI subcommand (BU2).
+"""FlowHub - create-admin CLI subcommand.
 
 Creates the initial admin user in the FLOWHUB database.
 
@@ -6,13 +6,14 @@ Usage (after install.sh):
   flowhub create-admin
   flowhub create-admin --username admin --env-file /opt/FlowHub/.env
 
-This is a required post-install step for BU2.  The login endpoint returns 401
-until at least one admin user exists.  Run once; re-running with an existing
-username will fail safely with an error message.
+Run once; re-running with an existing username fails safely with an error
+message. Passwords are accepted only through hidden interactive input or the
+internal stdin channel used by the installer.
 """
 
 from __future__ import annotations
 
+import sys
 from typing import Optional
 
 import typer
@@ -33,19 +34,15 @@ def create_admin(
         prompt="Admin username",
         help="Username for the new admin account.",
     ),
-    password: str = typer.Option(
-        ...,
-        "--password",
-        "-p",
-        prompt="Admin password",
-        hide_input=True,
-        confirmation_prompt=True,
-        help="Password for the new admin account.",
-    ),
     env_file: Optional[str] = typer.Option(
         None,
         "--env-file",
         help="Path to .env (default: /opt/FlowHub/.env).",
+    ),
+    secret_stdin: bool = typer.Option(
+        False,
+        "--secret-stdin",
+        help="Internal installer use only: read the new admin secret from stdin.",
     ),
 ) -> None:
     """Create the initial FlowHub admin user.
@@ -54,6 +51,22 @@ def create_admin(
     """
     import os
     from pathlib import Path
+
+    if secret_stdin:
+        password = sys.stdin.readline().rstrip("\n")
+        if not password:
+            typer.echo("ERROR: admin secret was not provided on stdin.", err=True)
+            raise typer.Exit(1)
+    else:
+        from cli.admin import _prompt_secure_password
+        password = _prompt_secure_password("Admin password")
+
+    from cli.admin import _validate_password
+    try:
+        _validate_password(password)
+    except typer.BadParameter as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(1)
 
     # Load .env so FLOWHUB_DATABASE_URL and FLOWHUB_JWT_SECRET are set
     env_path = Path(env_file or "/opt/FlowHub/.env")

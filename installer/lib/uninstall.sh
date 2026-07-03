@@ -165,7 +165,7 @@ run_uninstall() {
         echo " done"
     else
         # If containers are kept but volumes will be removed, stop the stack
-        # first so the volumes are not in use (stop ‰  remove).
+        # first so the volumes are not in use (stop before remove).
         if [[ "$rm_volumes" == "y" && "$docker_ok" -eq 1 && -n "$dc_cmd" && -f "$compose_file" ]]; then
             printf "  Stopping stack (needed before volume removal)..."
             ${dc_cmd} --project-directory "$install_dir" -f "$compose_file" \

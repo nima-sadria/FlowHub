@@ -44,9 +44,11 @@ create_admin_account() {
     echo "  Creating admin user '${username}'..."
 
     # The create-admin CLI reads FLOWHUB_DATABASE_URL from the container env.
-    if ${dc_cmd} --project-directory "$install_dir" -f "$compose_file" --env-file "$env_file" \
+    # The admin password is sent through stdin so it never appears in process
+    # arguments, Docker exec metadata, shell history, or installer logs.
+    if printf '%s\n' "$password" | ${dc_cmd} --project-directory "$install_dir" -f "$compose_file" --env-file "$env_file" \
             exec -T app python -m cli.main create-admin \
-            --username "$username" --password "$password"; then
+            --username "$username" --secret-stdin; then
 
         if [[ "$auto_generated" -eq 1 ]]; then
             echo ""

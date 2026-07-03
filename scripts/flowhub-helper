@@ -351,11 +351,14 @@ tls_status() {
 
 tls_letsencrypt() {
     local domain="${1:-}"
+    local port="${FLOWHUB_PORT:-8085}"
     validate_domain "$domain"
+    load_env
+    port="${FLOWHUB_PORT:-8085}"
     set_env_field "FLOWHUB_DOMAIN" "$domain"
     set_env_field "FLOWHUB_SSL_MODE" "letsencrypt"
     echo "Let's Encrypt mode configured for: ${domain}"
-    echo "Public URL: https://${domain}"
+    echo "Public URL: https://${domain}:${port}/"
     echo "Configure your external reverse proxy to request and renew the certificate for ${domain}."
     echo "Run: flowhub start"
 }

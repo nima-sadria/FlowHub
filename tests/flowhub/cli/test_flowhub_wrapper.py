@@ -245,6 +245,13 @@ def test_helper_supports_menu_actions_without_arbitrary_shell():
     assert "bash -c" not in src
 
 
+def test_helper_uses_port_in_domain_ssl_url_contract():
+    src = _helper_src()
+    assert 'echo "Base URL: https://${domain}:${port}/"' in src
+    assert 'echo "Public URL: https://${domain}:${port}/"' in src
+    assert 'echo "Public URL: https://${domain}"' not in src
+
+
 def test_status_overview_output_is_concise():
     src = _helper_src()
     assert 'echo "Database: $(database_state)"' in src

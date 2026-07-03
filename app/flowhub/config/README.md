@@ -1,6 +1,5 @@
 # FlowHub - Configuration Core
 
-**Phase:** B3 Configuration Foundation
 **Architecture:** Framework-independent. No FastAPI, Typer, or HTTP imports.
 
 ---
@@ -26,11 +25,11 @@ print(config.jwt_secret.get_secret_value())  # SecretStr - use .get_secret_value
 
 ## Environment Variables
 
-### Required (22)
+### Required
 
 | Variable | Type | Validation |
 |---|---|---|
-| `FLOWHUB_ENV` | `dev` \| `FLOWHUB` \| `production` | Enum membership |
+| `FLOWHUB_ENV` | `dev` \| `production` | Enum membership |
 | `FLOWHUB_DOMAIN` | string | Non-empty |
 | `FLOWHUB_PORT` | integer | 1024-65535 |
 | `FLOWHUB_DATABASE_URL` | string | `postgresql://` prefix |
@@ -39,13 +38,6 @@ print(config.jwt_secret.get_secret_value())  # SecretStr - use .get_secret_value
 | `FLOWHUB_POSTGRES_PASSWORD` | **secret** | Non-empty |
 | `FLOWHUB_JWT_SECRET` | **secret** | Min 64 chars |
 | `FLOWHUB_REST_API_SECRET` | **secret** | Min 32 chars |
-| `FLOWHUB_NEXTCLOUD_URL` | URL | `http(s)://` prefix |
-| `FLOWHUB_NEXTCLOUD_FILE_PATH` | path | Non-empty |
-| `FLOWHUB_NEXTCLOUD_USERNAME` | string | Non-empty |
-| `FLOWHUB_NEXTCLOUD_PASSWORD` | **secret** | Non-empty |
-| `FLOWHUB_WOOCOMMERCE_URL` | URL | `http(s)://` prefix |
-| `FLOWHUB_WOOCOMMERCE_KEY` | **secret** | Non-empty |
-| `FLOWHUB_WOOCOMMERCE_SECRET` | **secret** | Non-empty |
 | `FLOWHUB_TIMEZONE` | IANA tz string | `zoneinfo.ZoneInfo()` |
 | `FLOWHUB_CURRENCY` | ISO 4217 | 3 uppercase letters |
 | `FLOWHUB_ADMIN_EMAIL` | email | Basic format check |
@@ -53,7 +45,10 @@ print(config.jwt_secret.get_secret_value())  # SecretStr - use .get_secret_value
 | `FLOWHUB_BACKUP_PATH` | path | Exists + writable |
 | `FLOWHUB_SSL_MODE` | enum | `off` \| `self-signed` \| `letsencrypt` \| `manual` |
 
-### Optional (8, with defaults)
+Connector credentials are optional at startup. They are configured later from
+the Integrations area and must not be required for first boot.
+
+### Optional
 
 | Variable | Default | Description |
 |---|---|---|
@@ -65,6 +60,13 @@ print(config.jwt_secret.get_secret_value())  # SecretStr - use .get_secret_value
 | `FLOWHUB_WORKER_CONCURRENCY` | `2` | Background worker concurrency |
 | `FLOWHUB_SCHEDULER_POLL_SECONDS` | `30` | Scheduler polling interval |
 | `FLOWHUB_BACKUP_RETAIN_DAYS` | `30` | Backup retention period |
+| `FLOWHUB_NEXTCLOUD_URL` | empty | Connector setting, configured after setup |
+| `FLOWHUB_NEXTCLOUD_FILE_PATH` | empty | Connector setting, configured after setup |
+| `FLOWHUB_NEXTCLOUD_USERNAME` | empty | Connector setting, configured after setup |
+| `FLOWHUB_NEXTCLOUD_PASSWORD` | empty | Connector secret, configured after setup |
+| `FLOWHUB_WOOCOMMERCE_URL` | empty | Connector setting, configured after setup |
+| `FLOWHUB_WOOCOMMERCE_KEY` | empty | Connector secret, configured after setup |
+| `FLOWHUB_WOOCOMMERCE_SECRET` | empty | Connector secret, configured after setup |
 
 ---
 
@@ -90,9 +92,8 @@ and `str()`. To access the raw value: `config.jwt_secret.get_secret_value()`.
 
 | Profile | `FLOWHUB_ENV` value | CLI banner | Behavior |
 |---|---|---|---|
-| `ConfigProfile.PRODUCTION` | `"production"` | `[FLOWHUB]` | Normal FlowHub operation |
-| `ConfigProfile.DEV` | `"dev"` | `[DEVELOPMENT ENVIRONMENT]` | Debug output; relaxed guards |
-| `ConfigProfile.PRODUCTION` | `"production"` | `[PRODUCTION]` | All guards active; destructive CLI ops blocked |
+| `ConfigProfile.PRODUCTION` | `"production"` | `[PRODUCTION]` | Normal FlowHub operation |
+| `ConfigProfile.DEV` | `"dev"` | `[LOCAL DEVELOPMENT]` | Local-only debugging; relaxed guards |
 
 ---
 
@@ -153,7 +154,7 @@ manager.load()
 drifts = manager.verify()
 ```
 
-(or: `flowhub configure --verify` once CLI is implemented in B5)
+(or: `flowhub configure verify`)
 
 ---
 
@@ -168,4 +169,4 @@ for change in changes:
     print(f"Migrated: {change}")
 ```
 
-File write after migration is implemented in B4 (Installer Foundation).
+File writes after migration are handled by the installer and runtime config service.

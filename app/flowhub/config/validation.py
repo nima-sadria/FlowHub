@@ -163,8 +163,8 @@ def _v(
 def _check_env(value: str) -> str | None:
     if not value:
         return None
-    if value not in ("dev", "production", "production"):
-        return f"Must be one of: dev, FLOWHUB, production (got {value!r})"
+    if value not in ("dev", "production"):
+        return f"Must be one of: dev, production (got {value!r})"
     return None
 
 

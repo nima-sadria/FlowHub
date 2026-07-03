@@ -85,3 +85,17 @@ def test_upgrade_and_repair_refresh_installed_cli_wrapper():
     assert "step_install_cli" in upgrade
     assert "step_install_cli" in repair
     assert "step_install_cli" in reconfigure
+
+
+def test_installer_admin_creation_uses_stdin_not_process_arguments():
+    src = Path("installer/lib/admin.sh").read_text(encoding="utf-8")
+    assert "--secret-stdin" in src
+    assert "--password" not in src
+    assert '"$password"' not in src[src.index("exec -T app python -m cli.main create-admin") :]
+
+
+def test_installer_public_url_contract_includes_port_for_tls_modes():
+    src = INSTALL.read_text(encoding="utf-8")
+    body = src[src.index("_build_public_url()") : src.index("step_completion_report()")]
+    assert 'echo "https://${domain}:${port}"' in body
+    assert 'echo "https://${domain}"' not in body

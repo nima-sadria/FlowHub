@@ -1,11 +1,9 @@
-"""Tests for cli/create_admin.py (BU2)."""
+"""Tests for cli/create_admin.py."""
 
 from __future__ import annotations
 
 import os
-import pytest
 from typer.testing import CliRunner
-from unittest.mock import patch, MagicMock
 
 from cli.main import app
 
@@ -17,6 +15,20 @@ class TestCreateAdminHelp:
         result = runner.invoke(app, ["create-admin", "--help"])
         assert result.exit_code == 0
         assert "admin" in result.output.lower()
+        assert "--password" not in result.output
+        assert "-p," not in result.output
+
+    def test_password_option_is_rejected(self):
+        result = runner.invoke(app, ["create-admin", "--username", "admin", "--password", "secret123"])
+        assert result.exit_code != 0
+
+    def test_interactive_password_aborts_when_secure_input_unavailable(self, monkeypatch):
+        from cli import admin as admin_cli
+
+        monkeypatch.setattr(admin_cli, "_secure_password_input_available", lambda: False)
+        result = runner.invoke(app, ["create-admin", "--username", "admin"])
+        assert result.exit_code != 0
+        assert "Secure password input is not available" in result.output
 
 
 class TestCreateAdminMissingEnv:
@@ -24,8 +36,8 @@ class TestCreateAdminMissingEnv:
         monkeypatch.delenv("FLOWHUB_DATABASE_URL", raising=False)
         result = runner.invoke(
             app,
-            ["create-admin", "--username", "admin", "--password", "pass", "--no-confirmation-prompt"],
-            input="pass\npass\n",
+            ["create-admin", "--username", "admin", "--secret-stdin"],
+            input="valid-secret\n",
             catch_exceptions=False,
         )
         # Should fail with clear error
@@ -49,8 +61,8 @@ class TestCreateAdminSuccess:
 
         result = runner.invoke(
             app,
-            ["create-admin", "--username", "myadmin", "--password", "hunter2", "--env-file", str(tmp_path / ".env")],
-            input="myadmin\nhunter2\nhunter2\n",
+            ["create-admin", "--username", "myadmin", "--secret-stdin", "--env-file", str(tmp_path / ".env")],
+            input="hunter2-secret\n",
         )
 
         assert "myadmin" in result.output or result.exit_code == 0
@@ -91,8 +103,8 @@ class TestCreateAdminSuccess:
 
         result = runner.invoke(
             app,
-            ["create-admin", "--username", "existing", "--password", "hunter2", "--env-file", str(tmp_path / ".env")],
-            input="existing\nhunter2\nhunter2\n",
+            ["create-admin", "--username", "existing", "--secret-stdin", "--env-file", str(tmp_path / ".env")],
+            input="hunter2-secret\n",
         )
         assert result.exit_code != 0
         engine.dispose()

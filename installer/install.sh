@@ -50,11 +50,35 @@ _bs_confirm_legacy_migration() {
 _bs_stop_legacy_stack() {
     local legacy_dir="${_FLOWHUB_LEGACY_INSTALL_DIR}"
     local compose_file="${legacy_dir}/docker-compose.yml"
+    local env_file="${legacy_dir}/.env"
+    if [[ ! -f "$compose_file" && -f "${legacy_dir}/docker-compose.beta.yml" ]]; then
+        compose_file="${legacy_dir}/docker-compose.beta.yml"
+    fi
+    if [[ ! -f "$env_file" && -f "${legacy_dir}/.env.beta" ]]; then
+        env_file="${legacy_dir}/.env.beta"
+    fi
     [[ -f "$compose_file" ]] || return 0
     if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
         echo "  Stopping legacy stack before migration..."
         docker compose --project-directory "$legacy_dir" -f "$compose_file" \
-            --env-file "${legacy_dir}/.env" down --remove-orphans 2>/dev/null || true
+            --env-file "$env_file" down --remove-orphans 2>/dev/null || true
+    fi
+}
+
+_bs_normalize_legacy_release_files() {
+    local dir="${1:-$_FLOWHUB_CANONICAL_INSTALL_DIR}"
+    [[ -d "$dir" ]] || return 0
+
+    if [[ ! -f "${dir}/.env" && -f "${dir}/.env.beta" ]]; then
+        echo "  Legacy Compatibility: migrating .env.beta to .env"
+        mv "${dir}/.env.beta" "${dir}/.env"
+        chown root:root "${dir}/.env" 2>/dev/null || true
+        chmod 600 "${dir}/.env" 2>/dev/null || true
+    fi
+
+    if [[ ! -f "${dir}/docker-compose.yml" && -f "${dir}/docker-compose.beta.yml" ]]; then
+        echo "  Legacy Compatibility: migrating docker-compose.beta.yml to docker-compose.yml"
+        mv "${dir}/docker-compose.beta.yml" "${dir}/docker-compose.yml"
     fi
 }
 
@@ -92,7 +116,7 @@ _bs_migrate_legacy_install() {
     else
         echo "  Canonical path already exists; copying missing preserved files from legacy path..."
         local item
-        for item in .env storage backups logs; do
+        for item in .env .env.beta docker-compose.yml docker-compose.beta.yml storage backups logs; do
             if [[ -e "${_FLOWHUB_LEGACY_INSTALL_DIR}/${item}" && ! -e "${_FLOWHUB_CANONICAL_INSTALL_DIR}/${item}" ]]; then
                 cp -a "${_FLOWHUB_LEGACY_INSTALL_DIR}/${item}" "${_FLOWHUB_CANONICAL_INSTALL_DIR}/${item}"
             fi
@@ -100,6 +124,7 @@ _bs_migrate_legacy_install() {
         rm -rf "$_FLOWHUB_LEGACY_INSTALL_DIR"
     fi
 
+    _bs_normalize_legacy_release_files "$_FLOWHUB_CANONICAL_INSTALL_DIR"
     _bs_rewrite_legacy_paths
     echo "  Legacy installation migrated successfully."
 }
@@ -460,11 +485,35 @@ _confirm_legacy_migration() {
 _stop_stack_at_path() {
     local path="$1"
     local compose_file="${path}/docker-compose.yml"
+    local env_file="${path}/.env"
+    if [[ ! -f "$compose_file" && -f "${path}/docker-compose.beta.yml" ]]; then
+        compose_file="${path}/docker-compose.beta.yml"
+    fi
+    if [[ ! -f "$env_file" && -f "${path}/.env.beta" ]]; then
+        env_file="${path}/.env.beta"
+    fi
     [[ -f "$compose_file" ]] || return 0
     if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
         echo "  Stopping stack at ${path} before migration..."
         docker compose --project-directory "$path" -f "$compose_file" \
-            --env-file "${path}/.env" down --remove-orphans 2>/dev/null || true
+            --env-file "$env_file" down --remove-orphans 2>/dev/null || true
+    fi
+}
+
+normalize_legacy_release_files() {
+    local dir="${1:-$INSTALL_DIR}"
+    [[ -d "$dir" ]] || return 0
+
+    if [[ ! -f "${dir}/.env" && -f "${dir}/.env.beta" ]]; then
+        echo "  Legacy Compatibility: migrating .env.beta to .env"
+        mv "${dir}/.env.beta" "${dir}/.env"
+        chown root:root "${dir}/.env" 2>/dev/null || true
+        chmod 600 "${dir}/.env" 2>/dev/null || true
+    fi
+
+    if [[ ! -f "${dir}/docker-compose.yml" && -f "${dir}/docker-compose.beta.yml" ]]; then
+        echo "  Legacy Compatibility: migrating docker-compose.beta.yml to docker-compose.yml"
+        mv "${dir}/docker-compose.beta.yml" "${dir}/docker-compose.yml"
     fi
 }
 
@@ -503,7 +552,7 @@ migrate_legacy_installation_if_needed() {
     else
         echo "  Canonical path already exists; copying missing preserved files from legacy path..."
         local item
-        for item in .env storage backups logs; do
+        for item in .env .env.beta docker-compose.yml docker-compose.beta.yml storage backups logs; do
             if [[ -e "${LEGACY_INSTALL_DIR}/${item}" && ! -e "${CANONICAL_INSTALL_DIR}/${item}" ]]; then
                 cp -a "${LEGACY_INSTALL_DIR}/${item}" "${CANONICAL_INSTALL_DIR}/${item}"
             fi
@@ -511,6 +560,7 @@ migrate_legacy_installation_if_needed() {
         rm -rf "$LEGACY_INSTALL_DIR"
     fi
 
+    normalize_legacy_release_files "$CANONICAL_INSTALL_DIR"
     _rewrite_legacy_paths
     INSTALL_DIR="$CANONICAL_INSTALL_DIR"
     INSTALLER_ENV_FILE="${INSTALL_DIR}/.env"
@@ -520,6 +570,7 @@ migrate_legacy_installation_if_needed() {
 
 if [[ "$DRY_RUN" -eq 0 ]]; then
     migrate_legacy_installation_if_needed
+    normalize_legacy_release_files "$INSTALL_DIR"
 fi
 
 # Defaults applied when running non-interactively (wizard skipped). Secrets are
@@ -1046,23 +1097,19 @@ step_health_check() {
 }
 
 # Build the user-facing public URL from domain, port, and SSL mode.
-# Reverse-proxy modes (manual/letsencrypt) do NOT include the port -
-# the internal port is an NPM upstream detail, not part of the public URL.
+# First-release URL contract includes the configured panel port for all modes.
 _build_public_url() {
     local domain="${1:-localhost}"
     local port="${2:-8085}"
     local ssl_mode="${3:-off}"
     case "$ssl_mode" in
         letsencrypt|manual)
-            # External reverse proxy terminates TLS on 443.
-            echo "https://${domain}"
+            echo "https://${domain}:${port}"
             ;;
         self-signed)
-            # Direct HTTPS access; port is part of the URL.
             echo "https://${domain}:${port}"
             ;;
         off|*)
-            # Direct HTTP access; port is part of the URL.
             echo "http://${domain}:${port}"
             ;;
     esac

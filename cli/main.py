@@ -13,30 +13,30 @@ System-installed (after install.sh):
 Available commands:
     install dry-run       -- dry-run smoke path (writes nothing)
     configure show        -- show config (secrets redacted)
-    configure verify      -- validate config using B3
+    configure verify      -- validate config
     configure get <field> -- show a single field value (CP1.3)
     configure set <f> <v> -- update an editable runtime field (CP1.3)
     status                -- local env/config status
     health                -- local-only health checks
     diagnostics           -- config + prerequisites diagnostic report
-    diagnostics run       -- full integration health check (CP1.3)
-    integrations list     -- list registered integrations (CP1.3)
-    integrations test     -- run live check for a service (CP1.3)
-    integrations status   -- show status for all services (CP1.3)
+    diagnostics run       -- full integration health check
+    integrations list     -- list registered integrations
+    integrations test     -- run live check for a service
+    integrations status   -- show status for all services
     admin list            -- list local administrator accounts
     admin create          -- create an emergency administrator account
     admin reset-username  -- rename an administrator account
     admin reset-password  -- reset an administrator password
-    migrate *             -- unavailable (B6)
-    backup *              -- unavailable (B15)
-    logs *                -- unavailable (B6)
-    update *              -- unavailable (B15)
-    adapters *            -- unavailable (B14)
-    channels *            -- unavailable (B8)
-    sources *             -- unavailable (B8)
-    users *               -- unavailable (B7)
-    scheduler *           -- unavailable (B11)
-    ai *                  -- unavailable (B12)
+    migrate *             -- unavailable
+    backup *              -- unavailable
+    logs *                -- unavailable
+    update *              -- unavailable
+    adapters *            -- unavailable
+    channels *            -- unavailable
+    sources *             -- unavailable
+    users *               -- unavailable
+    scheduler *           -- unavailable
+    ai *                  -- unavailable
 """
 
 import typer

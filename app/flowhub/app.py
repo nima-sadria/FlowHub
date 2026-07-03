@@ -13,25 +13,25 @@ Active routes:
   POST /api/v2/setup/database                  - wizard step 2
   POST /api/v2/setup/admin                     - wizard step 3
   POST /api/v2/setup/complete                  - lock wizard
-  GET  /api/v2/products                        - paginated WC product browser  (BU5)
-  GET  /api/v2/products/categories             - WC category list              (BU5)
-  GET  /api/v2/sources                         - configured data sources       (BU5)
-  GET  /api/v2/workspace/state                 - workspace state               (BU5)
-  POST /api/v2/workspace/preview               - compute preview (stateless)   (BU5)
-  GET  /api/v2/settings                        - read runtime settings         (BU5)
-  POST /api/v2/settings                        - update non-credential settings(BU5)
-  POST /api/v2/settings/woocommerce            - replace WC credentials        (BU5)
-  POST /api/v2/settings/nextcloud              - replace NC credentials        (BU5)
-  GET  /api/v2/activity                        - paginated audit log           (BU5)
-  GET  /api/v2/diagnostics/status              - live system diagnostics       (BU5)
-  POST /api/v2/diagnostics/run                 - unavailable (B6)
-  GET  /api/v2/diagnostics/history             - unavailable (B6)
-  GET  /api/v2/data-layer/status               - Data Layer overall status     (DL1)
-  GET  /api/v2/data-layer/products/status      - product cache status          (DL1)
-  GET  /api/v2/data-layer/sources/status       - snapshot status               (DL1)
-  GET  /api/v2/data-layer/connectors/status    - connector health + telemetry  (DL1)
-  GET  /api/v2/data-layer/refresh-jobs         - refresh job history           (DL1)
-  GET  /api/v2/data-layer/invalidation-events  - invalidation event log        (DL1)
+  GET  /api/v2/products                        - paginated product browser
+  GET  /api/v2/products/categories             - product category list
+  GET  /api/v2/sources                         - configured data sources
+  GET  /api/v2/workspace/state                 - workspace state
+  POST /api/v2/workspace/preview               - compute preview (stateless)
+  GET  /api/v2/settings                        - read runtime settings
+  POST /api/v2/settings                        - update non-credential settings
+  POST /api/v2/settings/woocommerce            - replace connector credentials
+  POST /api/v2/settings/nextcloud              - replace connector credentials
+  GET  /api/v2/activity                        - paginated audit log
+  GET  /api/v2/diagnostics/status              - live system diagnostics
+  POST /api/v2/diagnostics/run                 - run read-only diagnostics
+  GET  /api/v2/diagnostics/history             - diagnostics history
+  GET  /api/v2/data-layer/status               - Data Layer overall status
+  GET  /api/v2/data-layer/products/status      - product cache status
+  GET  /api/v2/data-layer/sources/status       - snapshot status
+  GET  /api/v2/data-layer/connectors/status    - connector health + telemetry
+  GET  /api/v2/data-layer/refresh-jobs         - refresh job history
+  GET  /api/v2/data-layer/invalidation-events  - invalidation event log
   GET  /                                       - landing page
   *    /{any}                                  - SPA fallback
 """
