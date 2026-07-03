@@ -196,7 +196,7 @@ _bs_tool_check() {
 _bs_install_system_deps() {
     echo "  Installing system packages..."
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq
+    _apt_get_update_with_docker_source_repair
     apt-get install -y --no-install-recommends \
         git curl wget ca-certificates gnupg lsb-release openssl python3 python3-pip
     echo "  System packages installed."
@@ -204,6 +204,71 @@ _bs_install_system_deps() {
 
 # -- Docker installation helpers -----------------------------------------------
 # Defined before the bootstrap detection so both paths can use them.
+
+_docker_runtime_available() {
+    command -v docker &>/dev/null &&
+        docker --version &>/dev/null 2>&1 &&
+        docker compose version &>/dev/null 2>&1 &&
+        docker info &>/dev/null 2>&1
+}
+
+_ensure_docker_runtime_running() {
+    _docker_runtime_available && return 0
+    if command -v docker &>/dev/null && command -v systemctl &>/dev/null; then
+        systemctl start docker 2>/dev/null || true
+    fi
+    _docker_runtime_available
+}
+
+_has_active_ubuntu26_docker_source() {
+    grep -RIEq '^[[:space:]]*deb .*download\.docker\.com/linux/ubuntu[[:space:]]+resolute[[:space:]]' \
+        /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null
+}
+
+_disable_ubuntu26_docker_sources() {
+    local file tmp
+    while IFS= read -r file; do
+        [[ -f "$file" ]] || continue
+        tmp="$(mktemp)"
+        awk '
+            /^[[:space:]]*#/ { print; next }
+            /download\.docker\.com\/linux\/ubuntu[[:space:]]+resolute[[:space:]]/ {
+                print "# FlowHub disabled unsupported Docker Ubuntu 26 source: " $0
+                next
+            }
+            { print }
+        ' "$file" > "$tmp"
+        cat "$tmp" > "$file"
+        rm -f "$tmp"
+        echo "  Disabled unsupported Docker Ubuntu 26 apt source: ${file}"
+    done < <(grep -RIlE '^[[:space:]]*deb .*download\.docker\.com/linux/ubuntu[[:space:]]+resolute[[:space:]]' \
+        /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null || true)
+}
+
+_apt_get_update_with_docker_source_repair() {
+    local log_file
+    log_file="$(mktemp)"
+    if apt-get update -qq >"$log_file" 2>&1; then
+        rm -f "$log_file"
+        return 0
+    fi
+
+    if _docker_runtime_available &&
+        _has_active_ubuntu26_docker_source &&
+        grep -Eq 'download\.docker\.com/linux/ubuntu|resolute|403|no longer signed' "$log_file"; then
+        echo "  Docker is already installed and functional."
+        echo "  Repairing unsupported Docker Ubuntu 26 apt source before continuing..."
+        cat "$log_file" >&2
+        _disable_ubuntu26_docker_sources
+        rm -f "$log_file"
+        apt-get update -qq
+        return 0
+    fi
+
+    cat "$log_file" >&2
+    rm -f "$log_file"
+    return 1
+}
 
 # Method 1: official Docker apt repository.
 # Downloads the GPG key to a temp file and validates it before touching apt.
@@ -290,7 +355,7 @@ _docker_install_report_failure() {
 }
 
 _bs_install_docker() {
-    if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
+    if _ensure_docker_runtime_running; then
         echo "  Docker: already installed"
         return 0
     fi
@@ -370,7 +435,7 @@ source "${LIB_DIR}/uninstall.sh"
 # No-op (with warning) if auto-install cannot run; hard-fails if both
 # installation methods fail so the installer does not proceed without Docker.
 _ensure_docker_installed() {
-    if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
+    if _ensure_docker_runtime_running; then
         return 0
     fi
 
@@ -408,7 +473,7 @@ _ensure_docker_installed() {
     fi
 
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq
+    _apt_get_update_with_docker_source_repair
     apt-get install -y --no-install-recommends \
         curl wget ca-certificates gnupg lsb-release
 
