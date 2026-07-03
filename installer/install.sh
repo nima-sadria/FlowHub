@@ -24,6 +24,16 @@ _FLOWHUB_LEGACY_INSTALL_DIR="/opt/flowhub" # Legacy Compatibility
 _FLOWHUB_INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-${_FLOWHUB_CANONICAL_INSTALL_DIR}}"
 _FLOWHUB_REPO_URL="https://github.com/nima-sadria/FlowHub.git"
 _FLOWHUB_BRANCH="main"
+_FLOWHUB_BOOTSTRAP_REFRESH=0
+
+for _flowhub_bootstrap_arg in "$@"; do
+    case "$_flowhub_bootstrap_arg" in
+        --upgrade|--repair|--reinstall)
+            _FLOWHUB_BOOTSTRAP_REFRESH=1
+            ;;
+    esac
+done
+unset _flowhub_bootstrap_arg
 
 if [[ "$_FLOWHUB_INSTALL_DIR" == "$_FLOWHUB_LEGACY_INSTALL_DIR" ]]; then
     echo "  Legacy install directory requested; using canonical path ${_FLOWHUB_CANONICAL_INSTALL_DIR}."
@@ -369,7 +379,12 @@ _bs_clone_or_pull() {
     _bs_migrate_legacy_install
     if [[ -d "${_FLOWHUB_INSTALL_DIR}/.git" ]]; then
         echo "  Existing FlowHub repository detected at ${_FLOWHUB_INSTALL_DIR}."
-        echo "  Handing off without changing files; the full installer will ask what to do."
+        if [[ "$_FLOWHUB_BOOTSTRAP_REFRESH" -eq 1 ]]; then
+            echo "  Refreshing repository before installer handoff..."
+            git -C "$_FLOWHUB_INSTALL_DIR" pull --ff-only origin "$_FLOWHUB_BRANCH"
+        else
+            echo "  Handing off without changing files; the full installer will ask what to do."
+        fi
     else
         echo "  Cloning FlowHub into ${_FLOWHUB_INSTALL_DIR}..."
         mkdir -p "$(dirname "$_FLOWHUB_INSTALL_DIR")"

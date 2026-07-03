@@ -58,3 +58,13 @@ def test_fresh_install_still_fails_if_docker_cannot_be_installed():
     assert "_docker_install_via_apt && return 0" in body
     assert "_docker_install_via_get_script && return 0" in body
     assert "_docker_install_report_failure" in body
+
+
+def test_public_upgrade_refreshes_local_checkout_before_handoff():
+    src = _src()
+    assert "_FLOWHUB_BOOTSTRAP_REFRESH=0" in src
+    assert "--upgrade|--repair|--reinstall" in src
+    body = src[src.index("_bs_clone_or_pull()") : src.index("# Bootstrap detection")]
+    assert 'if [[ "$_FLOWHUB_BOOTSTRAP_REFRESH" -eq 1 ]]' in body
+    assert 'git -C "$_FLOWHUB_INSTALL_DIR" pull --ff-only origin "$_FLOWHUB_BRANCH"' in body
+    assert body.index("Refreshing repository before installer handoff") < body.index("exec bash") if "exec bash" in body else True
