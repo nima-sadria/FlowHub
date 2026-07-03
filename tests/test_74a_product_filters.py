@@ -118,7 +118,7 @@ def seed(db):
         ),
         ProductCache(
             wc_id=97002, parent_id=0, product_type="variable",
-            name="Beta Product", sku="",
+            name="FLOWHUB Product", sku="",
             stock_status="outofstock", stock_quantity=0,
             regular_price="200000", final_price="200000",
             categories=json.dumps([{"id": 20, "name": "Electronics"}]),
@@ -138,7 +138,7 @@ def seed(db):
         ),
         ProductCache(
             wc_id=97004, parent_id=97002, product_type="variation",
-            name="Beta Product - Red", sku=None,
+            name="FLOWHUB Product - Red", sku=None,
             stock_status="outofstock", stock_quantity=0,
             regular_price="180000", final_price="180000",
             categories=json.dumps([{"id": 20, "name": "Electronics"}]),
@@ -182,8 +182,8 @@ def test_filter_stock_instock(db):
     assert 97001 in result, "Alpha (instock) must be returned"
     assert 97003 in result, "Gamma (instock) must be returned"
     assert 97005 in result, "Delta (instock) must be returned"
-    assert 97002 not in result, "Beta (outofstock) must NOT be returned"
-    assert 97004 not in result, "Beta-Red (outofstock) must NOT be returned"
+    assert 97002 not in result, "FLOWHUB (outofstock) must NOT be returned"
+    assert 97004 not in result, "FLOWHUB-Red (outofstock) must NOT be returned"
 
 
 # -- F2: stock_status outofstock -----------------------------------------------
@@ -202,8 +202,8 @@ def test_filter_price_has_price(db):
     items, _ = get_page(db, limit=100, price_status="has_price")
     result = ids(items)
     assert 97001 in result, "Alpha has price"
-    assert 97002 in result, "Beta has price"
-    assert 97004 in result, "Beta-Red has price"
+    assert 97002 in result, "FLOWHUB has price"
+    assert 97004 in result, "FLOWHUB-Red has price"
     assert 97005 in result, "Delta has price"
     assert 97003 not in result, "Gamma has empty price - must be excluded"
 
@@ -232,8 +232,8 @@ def test_filter_category_ids_returns_matching(db):
 def test_filter_category_ids_excludes_others(db):
     items, _ = get_page(db, limit=100, category_ids=[20])
     result = ids(items)
-    assert 97002 in result, "Beta is in category 20"
-    assert 97004 in result, "Beta-Red is in category 20"
+    assert 97002 in result, "FLOWHUB is in category 20"
+    assert 97004 in result, "FLOWHUB-Red is in category 20"
     assert 97001 not in result, "Alpha is NOT in category 20"
     assert 97005 not in result, "Delta has no categories"
 
@@ -244,9 +244,9 @@ def test_filter_category_ids_or_logic(db):
     items, _ = get_page(db, limit=100, category_ids=[10, 20])
     result = ids(items)
     assert 97001 in result, "Alpha (cat 10)"
-    assert 97002 in result, "Beta (cat 20)"
+    assert 97002 in result, "FLOWHUB (cat 20)"
     assert 97003 in result, "Gamma (cat 10 and 30)"
-    assert 97004 in result, "Beta-Red (cat 20)"
+    assert 97004 in result, "FLOWHUB-Red (cat 20)"
     assert 97005 not in result, "Delta has no categories -> excluded"
 
 
@@ -255,8 +255,8 @@ def test_filter_category_ids_or_logic(db):
 def test_filter_quality_missing_sku(db):
     items, _ = get_page(db, limit=100, quality_filter="missing_sku")
     result = ids(items)
-    assert 97002 in result, "Beta has empty-string SKU"
-    assert 97004 in result, "Beta-Red has NULL SKU"
+    assert 97002 in result, "FLOWHUB has empty-string SKU"
+    assert 97004 in result, "FLOWHUB-Red has NULL SKU"
     assert 97001 not in result, "Alpha has SKU-A"
     assert 97003 not in result, "Gamma has SKU-G"
 
@@ -266,8 +266,8 @@ def test_filter_quality_missing_sku(db):
 def test_filter_quality_missing_image(db):
     items, _ = get_page(db, limit=100, quality_filter="missing_image")
     result = ids(items)
-    assert 97002 in result, "Beta has no image_url"
-    assert 97004 in result, "Beta-Red has no image_url"
+    assert 97002 in result, "FLOWHUB has no image_url"
+    assert 97004 in result, "FLOWHUB-Red has no image_url"
     assert 97001 not in result, "Alpha has image"
     assert 97003 not in result, "Gamma has image"
 

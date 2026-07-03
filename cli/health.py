@@ -21,7 +21,7 @@ _REQUIRED_MODULES = [
     ("rich", "Rich (terminal output)"),
     ("pydantic", "Pydantic v2 (config schema)"),
     ("dotenv", "python-dotenv (env file loading)"),
-    ("app.beta.config", "B3 Configuration Foundation"),
+    ("app.flowhub.config", "B3 Configuration Foundation"),
     ("installer.installer_core", "B4 Installer Core"),
 ]
 
@@ -94,7 +94,7 @@ def health(
         if _ef and _ef.exists():
             for line in _ef.read_text(encoding="utf-8").splitlines():
                 line = line.strip()
-                if line.startswith("BETA_STORAGE_PATH="):
+                if line.startswith("FLOWHUB_STORAGE_PATH="):
                     storage_path_str = line.split("=", 1)[1].strip()
                     break
     if storage_path_str:

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { inputHint } from '../utils/inputHint'
 
 export default function Login() {
   const { refreshUser } = useAuth()
@@ -86,8 +87,8 @@ export default function Login() {
                 autoComplete="username"
                 autoFocus
                 disabled={loading}
-                className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60"
-                placeholder="Administrator username"
+                className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent disabled:opacity-60"
+                {...inputHint('Administrator username')}
               />
             </div>
 
@@ -103,8 +104,8 @@ export default function Login() {
                 required
                 autoComplete="current-password"
                 disabled={loading}
-                className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60"
-                placeholder="Enter your administrator credentials"
+                className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent disabled:opacity-60"
+                {...inputHint('Enter your administrator credentials')}
               />
             </div>
 

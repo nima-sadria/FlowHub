@@ -8,7 +8,7 @@
 #   bash installer/install.sh [--install-dir <path>] [--dry-run] [--non-interactive]
 #
 # Idempotent: detects existing installations and offers upgrade/repair/reinstall/exit.
-# Never overwrites an existing .env.beta without explicit confirmation.
+# Never overwrites an existing .env without explicit confirmation.
 #
 
 set -euo pipefail
@@ -49,21 +49,21 @@ _bs_confirm_legacy_migration() {
 
 _bs_stop_legacy_stack() {
     local legacy_dir="${_FLOWHUB_LEGACY_INSTALL_DIR}"
-    local compose_file="${legacy_dir}/docker-compose.beta.yml"
+    local compose_file="${legacy_dir}/docker-compose.yml"
     [[ -f "$compose_file" ]] || return 0
     if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
         echo "  Stopping legacy stack before migration..."
         docker compose --project-directory "$legacy_dir" -f "$compose_file" \
-            --env-file "${legacy_dir}/.env.beta" down --remove-orphans 2>/dev/null || true
+            --env-file "${legacy_dir}/.env" down --remove-orphans 2>/dev/null || true
     fi
 }
 
 _bs_rewrite_legacy_paths() {
     local file
     for file in \
-        "${_FLOWHUB_CANONICAL_INSTALL_DIR}/.env.beta" \
+        "${_FLOWHUB_CANONICAL_INSTALL_DIR}/.env" \
         "${_FLOWHUB_CANONICAL_INSTALL_DIR}/storage/config/flowhub.toml" \
-        "${_FLOWHUB_CANONICAL_INSTALL_DIR}/storage/config/flowhub-beta.toml"; do
+        "${_FLOWHUB_CANONICAL_INSTALL_DIR}/storage/config/flowhub.toml"; do
         if [[ -f "$file" ]]; then
             sed -i "s|${_FLOWHUB_LEGACY_INSTALL_DIR}|${_FLOWHUB_CANONICAL_INSTALL_DIR}|g" "$file"
         fi
@@ -92,7 +92,7 @@ _bs_migrate_legacy_install() {
     else
         echo "  Canonical path already exists; copying missing preserved files from legacy path..."
         local item
-        for item in .env.beta storage backups logs; do
+        for item in .env storage backups logs; do
             if [[ -e "${_FLOWHUB_LEGACY_INSTALL_DIR}/${item}" && ! -e "${_FLOWHUB_CANONICAL_INSTALL_DIR}/${item}" ]]; then
                 cp -a "${_FLOWHUB_LEGACY_INSTALL_DIR}/${item}" "${_FLOWHUB_CANONICAL_INSTALL_DIR}/${item}"
             fi
@@ -436,7 +436,7 @@ elif [[ "$INSTALL_DIR" != "$CANONICAL_INSTALL_DIR" ]]; then
     exit 1
 fi
 
-INSTALLER_ENV_FILE="${INSTALL_DIR}/.env.beta"
+INSTALLER_ENV_FILE="${INSTALL_DIR}/.env"
 
 # When invoked without an interactive terminal (e.g. piped through
 # `bash <(curl ...)` in an automated context, CI, or a provisioning script),
@@ -459,21 +459,21 @@ _confirm_legacy_migration() {
 
 _stop_stack_at_path() {
     local path="$1"
-    local compose_file="${path}/docker-compose.beta.yml"
+    local compose_file="${path}/docker-compose.yml"
     [[ -f "$compose_file" ]] || return 0
     if command -v docker &>/dev/null && docker compose version &>/dev/null 2>&1; then
         echo "  Stopping stack at ${path} before migration..."
         docker compose --project-directory "$path" -f "$compose_file" \
-            --env-file "${path}/.env.beta" down --remove-orphans 2>/dev/null || true
+            --env-file "${path}/.env" down --remove-orphans 2>/dev/null || true
     fi
 }
 
 _rewrite_legacy_paths() {
     local file
     for file in \
-        "${CANONICAL_INSTALL_DIR}/.env.beta" \
+        "${CANONICAL_INSTALL_DIR}/.env" \
         "${CANONICAL_INSTALL_DIR}/storage/config/flowhub.toml" \
-        "${CANONICAL_INSTALL_DIR}/storage/config/flowhub-beta.toml"; do
+        "${CANONICAL_INSTALL_DIR}/storage/config/flowhub.toml"; do
         if [[ -f "$file" ]]; then
             sed -i "s|${LEGACY_INSTALL_DIR}|${CANONICAL_INSTALL_DIR}|g" "$file"
         fi
@@ -487,7 +487,7 @@ migrate_legacy_installation_if_needed() {
     echo ""
     echo "  Legacy FlowHub installation detected: ${LEGACY_INSTALL_DIR}"
     echo "  Canonical installation path is:       ${CANONICAL_INSTALL_DIR}"
-    echo "  The migration preserves .env.beta, database volumes, uploads, generated secrets, and configuration."
+    echo "  The migration preserves .env, database volumes, uploads, generated secrets, and configuration."
 
     if ! _confirm_legacy_migration; then
         echo "  Migration skipped. The installer will continue only with ${CANONICAL_INSTALL_DIR}."
@@ -503,7 +503,7 @@ migrate_legacy_installation_if_needed() {
     else
         echo "  Canonical path already exists; copying missing preserved files from legacy path..."
         local item
-        for item in .env.beta storage backups logs; do
+        for item in .env storage backups logs; do
             if [[ -e "${LEGACY_INSTALL_DIR}/${item}" && ! -e "${CANONICAL_INSTALL_DIR}/${item}" ]]; then
                 cp -a "${LEGACY_INSTALL_DIR}/${item}" "${CANONICAL_INSTALL_DIR}/${item}"
             fi
@@ -513,7 +513,7 @@ migrate_legacy_installation_if_needed() {
 
     _rewrite_legacy_paths
     INSTALL_DIR="$CANONICAL_INSTALL_DIR"
-    INSTALLER_ENV_FILE="${INSTALL_DIR}/.env.beta"
+    INSTALLER_ENV_FILE="${INSTALL_DIR}/.env"
     REPO_DIR="$CANONICAL_INSTALL_DIR"
     echo "  Legacy installation migrated successfully."
 }
@@ -524,32 +524,32 @@ fi
 
 # Defaults applied when running non-interactively (wizard skipped). Secrets are
 # generated separately by generate_all_secrets. Only sets vars not already set,
-# so explicit FLOWHUB_*/BETA_* environment overrides are respected.
+# so explicit FLOWHUB_*/FLOWHUB_* environment overrides are respected.
 apply_noninteractive_defaults() {
-    : "${BETA_DOMAIN:=localhost}"
-    : "${BETA_PORT:=8085}"
-    : "${BETA_SSL_MODE:=off}"
-    : "${BETA_POSTGRES_DB:=flowhub}"
-    : "${BETA_POSTGRES_USER:=flowhub}"
-    : "${BETA_NEXTCLOUD_URL:=}"
-    : "${BETA_NEXTCLOUD_FILE_PATH:=}"
-    : "${BETA_NEXTCLOUD_USERNAME:=}"
-    : "${BETA_NEXTCLOUD_PASSWORD:=}"
-    : "${BETA_WOOCOMMERCE_URL:=}"
-    : "${BETA_WOOCOMMERCE_KEY:=}"
-    : "${BETA_WOOCOMMERCE_SECRET:=}"
-    : "${BETA_TIMEZONE:=UTC}"
-    : "${BETA_CURRENCY:=USD}"
-    : "${BETA_ADMIN_USERNAME:=admin}"
-    : "${BETA_ADMIN_EMAIL:=admin@example.com}"
-    : "${BETA_STORAGE_PATH:=${INSTALL_DIR}/storage}"
-    : "${BETA_BACKUP_PATH:=${INSTALL_DIR}/backups}"
-    export BETA_DOMAIN BETA_PORT BETA_SSL_MODE BETA_POSTGRES_DB BETA_POSTGRES_USER \
-        BETA_NEXTCLOUD_URL BETA_NEXTCLOUD_FILE_PATH BETA_NEXTCLOUD_USERNAME BETA_NEXTCLOUD_PASSWORD \
-        BETA_WOOCOMMERCE_URL BETA_WOOCOMMERCE_KEY BETA_WOOCOMMERCE_SECRET \
-        BETA_TIMEZONE BETA_CURRENCY BETA_ADMIN_USERNAME BETA_ADMIN_EMAIL \
-        BETA_STORAGE_PATH BETA_BACKUP_PATH
-    echo "  Non-interactive defaults applied (domain=${BETA_DOMAIN}, port=${BETA_PORT}, db=${BETA_POSTGRES_DB})."
+    : "${FLOWHUB_DOMAIN:=localhost}"
+    : "${FLOWHUB_PORT:=8085}"
+    : "${FLOWHUB_SSL_MODE:=off}"
+    : "${FLOWHUB_POSTGRES_DB:=flowhub}"
+    : "${FLOWHUB_POSTGRES_USER:=flowhub}"
+    : "${FLOWHUB_NEXTCLOUD_URL:=}"
+    : "${FLOWHUB_NEXTCLOUD_FILE_PATH:=}"
+    : "${FLOWHUB_NEXTCLOUD_USERNAME:=}"
+    : "${FLOWHUB_NEXTCLOUD_PASSWORD:=}"
+    : "${FLOWHUB_WOOCOMMERCE_URL:=}"
+    : "${FLOWHUB_WOOCOMMERCE_KEY:=}"
+    : "${FLOWHUB_WOOCOMMERCE_SECRET:=}"
+    : "${FLOWHUB_TIMEZONE:=UTC}"
+    : "${FLOWHUB_CURRENCY:=USD}"
+    : "${FLOWHUB_ADMIN_USERNAME:=admin}"
+    : "${FLOWHUB_ADMIN_EMAIL:=admin@example.com}"
+    : "${FLOWHUB_STORAGE_PATH:=${INSTALL_DIR}/storage}"
+    : "${FLOWHUB_BACKUP_PATH:=${INSTALL_DIR}/backups}"
+    export FLOWHUB_DOMAIN FLOWHUB_PORT FLOWHUB_SSL_MODE FLOWHUB_POSTGRES_DB FLOWHUB_POSTGRES_USER \
+        FLOWHUB_NEXTCLOUD_URL FLOWHUB_NEXTCLOUD_FILE_PATH FLOWHUB_NEXTCLOUD_USERNAME FLOWHUB_NEXTCLOUD_PASSWORD \
+        FLOWHUB_WOOCOMMERCE_URL FLOWHUB_WOOCOMMERCE_KEY FLOWHUB_WOOCOMMERCE_SECRET \
+        FLOWHUB_TIMEZONE FLOWHUB_CURRENCY FLOWHUB_ADMIN_USERNAME FLOWHUB_ADMIN_EMAIL \
+        FLOWHUB_STORAGE_PATH FLOWHUB_BACKUP_PATH
+    echo "  Non-interactive defaults applied (domain=${FLOWHUB_DOMAIN}, port=${FLOWHUB_PORT}, db=${FLOWHUB_POSTGRES_DB})."
 }
 
 # ---- Rollback ----
@@ -578,7 +578,7 @@ on_error() {
         rollback_all
     fi
     echo ""
-    echo "  To diagnose: docker compose -f ${INSTALL_DIR}/docker-compose.beta.yml logs"
+    echo "  To diagnose: docker compose -f ${INSTALL_DIR}/docker-compose.yml logs"
     echo "  To retry:    re-run install.sh"
     exit "$exit_code"
 }
@@ -652,7 +652,7 @@ step_update_repository() {
     fi
 }
 
-# ---- Upgrade path (keeps existing .env.beta) ----
+# ---- Upgrade path (keeps existing .env) ----
 step_upgrade() {
     echo ""
     echo "========================================================"
@@ -676,7 +676,7 @@ step_repair() {
     echo "========================================================"
     _load_env_for_docker
 
-    # Verify .env.beta exists
+    # Verify .env exists
     if [[ ! -f "${INSTALLER_ENV_FILE}" ]]; then
         echo "  ERROR: ${INSTALLER_ENV_FILE} not found. Cannot repair without environment file." >&2
         echo "  Run a fresh install instead: bash installer/install.sh" >&2
@@ -687,7 +687,7 @@ step_repair() {
     step_prerequisites
 
     # Verify Docker Compose stack is reachable
-    local compose_file="${INSTALL_DIR}/docker-compose.beta.yml"
+    local compose_file="${INSTALL_DIR}/docker-compose.yml"
     if [[ -f "$compose_file" ]]; then
         local dc_cmd
         if docker compose version &>/dev/null 2>&1; then dc_cmd="docker compose"
@@ -703,9 +703,9 @@ step_repair() {
 
     echo ""
     _load_env_for_docker
-    local port="${BETA_PORT:-8085}"
-    local domain="${BETA_DOMAIN:-localhost}"
-    local ssl_mode="${BETA_SSL_MODE:-off}"
+    local port="${FLOWHUB_PORT:-8085}"
+    local domain="${FLOWHUB_DOMAIN:-localhost}"
+    local ssl_mode="${FLOWHUB_SSL_MODE:-off}"
     local public_url
     public_url="$(_build_public_url "$domain" "$port" "$ssl_mode")"
     echo "========================================================"
@@ -721,8 +721,8 @@ step_repair() {
 step_reconfigure() {
     echo ""
     echo "========================================================"
-    echo "  Reconfigure: wizard will regenerate .env.beta"
-    echo "  EXISTING .env.beta WILL BE OVERWRITTEN after confirmation."
+    echo "  Reconfigure: wizard will regenerate .env"
+    echo "  EXISTING .env WILL BE OVERWRITTEN after confirmation."
     echo "========================================================"
     if [[ "$ACTION_REINSTALL" -ne 1 && "$NON_INTERACTIVE" -ne 1 && "${FLOWHUB_ASSUME_YES:-}" != "1" ]]; then
         local confirm
@@ -744,14 +744,14 @@ step_reconfigure() {
     step_completion_report
 }
 
-# Load .env.beta into shell for use by Docker deploy functions
+# Load .env into shell for use by Docker deploy functions
 _load_env_for_docker() {
     if [[ -f "${INSTALLER_ENV_FILE}" ]]; then
-        # Export only BETA_* vars; skip comments and blank lines
+        # Export only FLOWHUB_* vars; skip comments and blank lines
         while IFS='=' read -r key value; do
             [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
-            [[ "$key" =~ ^BETA_ ]] && export "$key=$value"
-        done < <(grep -E '^BETA_' "${INSTALLER_ENV_FILE}" 2>/dev/null || true)
+            [[ "$key" =~ ^FLOWHUB_ ]] && export "$key=$value"
+        done < <(grep -E '^FLOWHUB_' "${INSTALLER_ENV_FILE}" 2>/dev/null || true)
     fi
 }
 
@@ -771,7 +771,7 @@ step_wizard() {
         echo ""
         echo "Step 2 - Admin Account Setup"
         run_wizard
-        # Fill remaining BETA_* defaults not asked by the wizard
+        # Fill remaining FLOWHUB_* defaults not asked by the wizard
         apply_noninteractive_defaults
     else
         echo ""
@@ -805,8 +805,8 @@ step_storage() {
     echo "Step 5 - Storage Directory Setup"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  [DRY RUN] Would create:"
-        echo "  ${BETA_STORAGE_PATH:-/opt/FlowHub/storage}/{logs,config,plugins,uploads,diagnostics}"
-        echo "  ${BETA_BACKUP_PATH:-/opt/FlowHub/backups}"
+        echo "  ${FLOWHUB_STORAGE_PATH:-/opt/FlowHub/storage}/{logs,config,plugins,uploads,diagnostics}"
+        echo "  ${FLOWHUB_BACKUP_PATH:-/opt/FlowHub/backups}"
         echo "  ${INSTALL_DIR}/logs"
         return
     fi
@@ -820,11 +820,11 @@ step_toml_config() {
     echo ""
     echo "Step 6 - Managed Configuration File"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "  [DRY RUN] Would write: ${BETA_STORAGE_PATH:-/opt/FlowHub/storage}/config/flowhub.toml"
+        echo "  [DRY RUN] Would write: ${FLOWHUB_STORAGE_PATH:-/opt/FlowHub/storage}/config/flowhub.toml"
         return
     fi
-    # installer_core imports app.beta.config which requires Python deps installed
-    # on the host. Skip gracefully if not available - Docker stack uses .env.beta.
+    # installer_core imports app.flowhub.config which requires Python deps installed
+    # on the host. Skip gracefully if not available - Docker stack uses .env.
     if ! python3 - <<PYEOF 2>/dev/null
 import sys
 sys.path.insert(0, "${REPO_DIR}")
@@ -832,31 +832,31 @@ from installer.installer_core import InstallerConfig, generate_toml_content, wri
 from pathlib import Path
 
 config = InstallerConfig(
-    domain="${BETA_DOMAIN:-}",
-    port=int("${BETA_PORT:-8085}"),
-    ssl_mode="${BETA_SSL_MODE:-off}",
-    postgres_db="${BETA_POSTGRES_DB:-flowhub_beta}",
-    postgres_user="${BETA_POSTGRES_USER:-flowhub_beta}",
-    storage_path="${BETA_STORAGE_PATH:-/opt/FlowHub/storage}",
-    backup_path="${BETA_BACKUP_PATH:-/opt/FlowHub/backups}",
+    domain="${FLOWHUB_DOMAIN:-}",
+    port=int("${FLOWHUB_PORT:-8085}"),
+    ssl_mode="${FLOWHUB_SSL_MODE:-off}",
+    postgres_db="${FLOWHUB_POSTGRES_DB:-flowhub}",
+    postgres_user="${FLOWHUB_POSTGRES_USER:-flowhub}",
+    storage_path="${FLOWHUB_STORAGE_PATH:-/opt/FlowHub/storage}",
+    backup_path="${FLOWHUB_BACKUP_PATH:-/opt/FlowHub/backups}",
     log_level="INFO",
 )
 content = generate_toml_content(config)
-config_dir = Path("${BETA_STORAGE_PATH:-/opt/FlowHub/storage}/config")
+config_dir = Path("${FLOWHUB_STORAGE_PATH:-/opt/FlowHub/storage}/config")
 config_dir.mkdir(parents=True, exist_ok=True)
 path = write_toml_config(content, config_dir)
 print(f"  Managed config written: {path}")
 PYEOF
     then
         echo "  NOTE: TOML config skipped (Python app dependencies not on host)."
-        echo "  Docker stack reads .env.beta directly - no impact on operation."
+        echo "  Docker stack reads .env directly - no impact on operation."
     fi
 }
 
 step_compose_verify() {
     echo ""
     echo "Step 7 - Docker Compose Verification"
-    local compose_file="${INSTALL_DIR}/docker-compose.beta.yml"
+    local compose_file="${INSTALL_DIR}/docker-compose.yml"
     if [[ -f "$compose_file" ]]; then
         echo "  Compose file: ${compose_file}"
         local dc_cmd
@@ -869,7 +869,7 @@ step_compose_verify() {
             echo "  [DRY RUN] Would validate: ${compose_file}"
         fi
     else
-        echo "  ERROR: docker-compose.beta.yml not found at ${INSTALL_DIR}" >&2
+        echo "  ERROR: docker-compose.yml not found at ${INSTALL_DIR}" >&2
         echo "  Ensure the repository was cloned to ${INSTALL_DIR}" >&2
         return 1
     fi
@@ -890,7 +890,7 @@ step_database_init() {
     echo ""
     echo "Step 9 - Database Initialization"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "  [DRY RUN] Would wait for PostgreSQL, then run: alembic -c alembic_beta.ini upgrade head"
+        echo "  [DRY RUN] Would wait for PostgreSQL, then run: alembic -c alembic_flowhub.ini upgrade head"
         return
     fi
     _load_env_for_docker
@@ -1000,9 +1000,9 @@ step_install_cli() {
         echo "  Set FLOWHUB_OPERATOR_USER=<username> and run: sudo ./installer/install.sh --repair" >&2
     fi
 
-    if [[ -f "${REPO_DIR}/.env.beta" ]]; then
-        chown root:root "${REPO_DIR}/.env.beta"
-        chmod 600 "${REPO_DIR}/.env.beta"
+    if [[ -f "${REPO_DIR}/.env" ]]; then
+        chown root:root "${REPO_DIR}/.env"
+        chmod 600 "${REPO_DIR}/.env"
     fi
 
     sudoers_tmp="$(mktemp)"
@@ -1027,7 +1027,7 @@ step_install_cli() {
     if [[ -n "$operator_user" ]]; then
         echo "  Operator authorized: ${operator_user} (group: flowhub)"
     fi
-    echo "  .env.beta permissions: root:root 600"
+    echo "  .env permissions: root:root 600"
     echo "  If group membership is not visible in an existing shell, open a new shell session."
     echo "  Test with: flowhub --help"
 }
@@ -1036,11 +1036,11 @@ step_health_check() {
     echo ""
     echo "Step 11 - Health Verification"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "  [DRY RUN] Would verify: http://localhost:${BETA_PORT:-8085}/api/health"
+        echo "  [DRY RUN] Would verify: http://localhost:${FLOWHUB_PORT:-8085}/api/health"
         return
     fi
     _load_env_for_docker
-    local port="${BETA_PORT:-8085}"
+    local port="${FLOWHUB_PORT:-8085}"
     wait_for_app_healthy "$port" 24
     verify_health_endpoint "$port"
 }
@@ -1077,9 +1077,9 @@ step_completion_report() {
         echo "  Review the output above for a preview of what would happen."
     else
         _load_env_for_docker
-        local port="${BETA_PORT:-8085}"
-        local domain="${BETA_DOMAIN:-localhost}"
-        local ssl_mode="${BETA_SSL_MODE:-off}"
+        local port="${FLOWHUB_PORT:-8085}"
+        local domain="${FLOWHUB_DOMAIN:-localhost}"
+        local ssl_mode="${FLOWHUB_SSL_MODE:-off}"
         local public_url
         public_url="$(_build_public_url "$domain" "$port" "$ssl_mode")"
         echo "  FlowHub - Installation Complete"
@@ -1094,7 +1094,7 @@ step_completion_report() {
         echo "  |    - Database verification                          |"
         echo "  |    * Admin account and finish                       |"
         echo "  |                                                     |"
-        echo "  |  Admin username: ${BETA_ADMIN_USERNAME:-admin}"
+        echo "  |  Admin username: ${FLOWHUB_ADMIN_USERNAME:-admin}"
         echo "  |  Sign in at:     ${public_url}/login"
         echo "  +-----------------------------------------------------+"
         echo ""
@@ -1110,8 +1110,8 @@ step_completion_report() {
         echo "    flowhub diagnostics run - full integration check"
         echo ""
         echo "  Docker:"
-        echo "    docker compose -f ${INSTALL_DIR}/docker-compose.beta.yml ps"
-        echo "    docker compose -f ${INSTALL_DIR}/docker-compose.beta.yml logs -f app"
+        echo "    docker compose -f ${INSTALL_DIR}/docker-compose.yml ps"
+        echo "    docker compose -f ${INSTALL_DIR}/docker-compose.yml logs -f app"
     fi
     echo "========================================================"
 }
@@ -1142,7 +1142,7 @@ main() {
     fi
 
     # Idempotency check - detect existing installation before starting.
-    # Non-interactive mode with an existing .env.beta defaults to upgrade to
+    # Non-interactive mode with an existing .env defaults to upgrade to
     # avoid silently overwriting secrets without confirmation.
     if detect_existing_installation && [[ "$DRY_RUN" -eq 0 ]]; then
         if [[ "$NON_INTERACTIVE" -eq 1 ]]; then

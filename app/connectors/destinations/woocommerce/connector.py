@@ -4,7 +4,7 @@ The only concrete class in this package. Business logic (adapters, rule engine)
 must import only this class - never rest_client.py directly.
 
 All operations are READ-ONLY. No write path (PUT/POST/PATCH/DELETE) is
-implemented. FlowHub Beta is a read-only system.
+implemented. flowhub is a read-only system.
 
 Capabilities:
   can_list_products  = True
@@ -89,7 +89,7 @@ class WooCommerceConnector(DestinationConnector):
             creds = extract_credentials(auth)
             result = await ping(creds)
             latency = (time.monotonic() - t0) * 1000
-            count = result.get("sample_count", 0)
+            count = result.get("records_checked", 0)
             return ConnectionTestResult(
                 ok=True,
                 message=f"Connected to WooCommerce store ({count} product(s) found)",

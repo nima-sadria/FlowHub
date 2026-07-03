@@ -1,5 +1,5 @@
 # FlowHub Docker Compose template
-# Generated output, when used by tooling: docker-compose.beta.yml
+# Generated output, when used by tooling: docker-compose.yml
 # Current runtime stack: app + PostgreSQL. No nginx, worker, or redis service is
 # active in the first release.
 
@@ -9,13 +9,13 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.beta
-    image: flowhub-beta:latest
+      dockerfile: Dockerfile
+    image: flowhub:latest
     restart: unless-stopped
     ports:
-      - "${BETA_PORT:-8085}:8085"
+      - "${FLOWHUB_PORT:-8085}:8085"
     env_file:
-      - .env.beta
+      - .env
     volumes:
       - ./storage:/data/storage
       - ./backups:/data/backups
@@ -34,13 +34,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     env_file:
-      - .env.beta
+      - .env
     environment:
-      POSTGRES_DB: "${BETA_POSTGRES_DB}"
-      POSTGRES_USER: "${BETA_POSTGRES_USER}"
-      POSTGRES_PASSWORD: "${BETA_POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${FLOWHUB_POSTGRES_DB}"
+      POSTGRES_USER: "${FLOWHUB_POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${FLOWHUB_POSTGRES_PASSWORD}"
     volumes:
-      - beta_pgdata:/var/lib/postgresql/data
+      - FLOWHUB_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -49,5 +49,5 @@ services:
       start_period: 10s
 
 volumes:
-  beta_pgdata:
+  FLOWHUB_pgdata:
     driver: local

@@ -1,4 +1,4 @@
-"""FlowHub - flowhub scheduler command group. Stub - B11."""
+"""FlowHub - flowhub scheduler command group. Unavailable - B11."""
 
 import typer
 

@@ -9,8 +9,8 @@
 set -euo pipefail
 
 INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-/opt/FlowHub}"
-ENV_FILE="${INSTALL_DIR}/.env.beta"
-COMPOSE_FILE="${INSTALL_DIR}/docker-compose.beta.yml"
+ENV_FILE="${INSTALL_DIR}/.env"
+COMPOSE_FILE="${INSTALL_DIR}/docker-compose.yml"
 
 die() {
     echo "ERROR: $*" >&2
@@ -53,7 +53,7 @@ run_compose() {
 
 health_url() {
     load_env
-    echo "http://localhost:${BETA_PORT:-8085}/api/health"
+    echo "http://localhost:${FLOWHUB_PORT:-8085}/api/health"
 }
 
 check_app_health() {
@@ -85,9 +85,9 @@ wait_for_app_health() {
 
 public_url() {
     load_env
-    local domain="${BETA_DOMAIN:-localhost}"
-    local port="${BETA_PORT:-8085}"
-    local ssl_mode="${BETA_SSL_MODE:-off}"
+    local domain="${FLOWHUB_DOMAIN:-localhost}"
+    local port="${FLOWHUB_PORT:-8085}"
+    local ssl_mode="${FLOWHUB_SSL_MODE:-off}"
     case "$ssl_mode" in
         letsencrypt|manual)
             echo "https://${domain}:${port}/"
@@ -135,7 +135,7 @@ panel_state() {
 
 database_state() {
     load_env
-    if run_compose exec -T postgres pg_isready -U "${BETA_POSTGRES_USER:-flowhub}" -d "${BETA_POSTGRES_DB:-flowhub}" >/dev/null 2>&1; then
+    if run_compose exec -T postgres pg_isready -U "${FLOWHUB_POSTGRES_USER:-flowhub}" -d "${FLOWHUB_POSTGRES_DB:-flowhub}" >/dev/null 2>&1; then
         echo "Healthy"
     else
         echo "Unable to verify"
@@ -194,8 +194,8 @@ create_backup() {
     local stamp archive
     stamp="$(date -u +%Y%m%dT%H%M%SZ)"
     archive="${INSTALL_DIR}/backups/flowhub-${stamp}.tar.gz"
-    tar --exclude='logs/admin-credentials.txt' -C "$INSTALL_DIR" -czf "$archive" .env.beta storage logs 2>/dev/null \
-        || tar -C "$INSTALL_DIR" -czf "$archive" .env.beta storage
+    tar --exclude='logs/admin-credentials.txt' -C "$INSTALL_DIR" -czf "$archive" .env storage logs 2>/dev/null \
+        || tar -C "$INSTALL_DIR" -czf "$archive" .env storage
     chmod 600 "$archive"
     echo "Backup created: ${archive}"
 }
@@ -268,7 +268,7 @@ set_env_field() {
 set_domain() {
     local domain="${1:-}"
     validate_domain "$domain"
-    set_env_field "BETA_DOMAIN" "$domain"
+    set_env_field "FLOWHUB_DOMAIN" "$domain"
     echo "Domain updated: ${domain}"
     echo "Run: flowhub start"
 }
@@ -276,7 +276,7 @@ set_domain() {
 set_port() {
     local port="${1:-}"
     validate_port "$port"
-    set_env_field "BETA_PORT" "$port"
+    set_env_field "FLOWHUB_PORT" "$port"
     echo "Port updated: ${port}"
     echo "Run: flowhub start"
 }
@@ -285,10 +285,10 @@ set_domain_ssl() {
     local domain="${1:-}" port="${2:-}"
     validate_domain "$domain"
     validate_port "$port"
-    set_env_field "BETA_DOMAIN" "$domain"
-    set_env_field "BETA_PORT" "$port"
-    set_env_field "BETA_SSL_MODE" "letsencrypt"
-    set_env_field "BETA_BIND_IP" "0.0.0.0"
+    set_env_field "FLOWHUB_DOMAIN" "$domain"
+    set_env_field "FLOWHUB_PORT" "$port"
+    set_env_field "FLOWHUB_SSL_MODE" "letsencrypt"
+    set_env_field "FLOWHUB_BIND_IP" "0.0.0.0"
     echo "Base URL: https://${domain}:${port}/"
     echo "TLS mode: letsencrypt"
     echo "Run: flowhub start"
@@ -298,10 +298,10 @@ set_ip_port() {
     local ip="${1:-}" port="${2:-}"
     validate_ip "$ip"
     validate_port "$port"
-    set_env_field "BETA_BIND_IP" "$ip"
-    set_env_field "BETA_DOMAIN" "$ip"
-    set_env_field "BETA_PORT" "$port"
-    set_env_field "BETA_SSL_MODE" "off"
+    set_env_field "FLOWHUB_BIND_IP" "$ip"
+    set_env_field "FLOWHUB_DOMAIN" "$ip"
+    set_env_field "FLOWHUB_PORT" "$port"
+    set_env_field "FLOWHUB_SSL_MODE" "off"
     echo "Base URL: http://${ip}:${port}/"
     echo "TLS mode: off"
     echo "Run: flowhub start"
@@ -329,10 +329,10 @@ recent_errors() {
 
 tls_status() {
     load_env
-    echo "TLS mode: ${BETA_SSL_MODE:-off}"
-    echo "Domain: ${BETA_DOMAIN:-localhost}"
+    echo "TLS mode: ${FLOWHUB_SSL_MODE:-off}"
+    echo "Domain: ${FLOWHUB_DOMAIN:-localhost}"
     echo "Public URL: $(public_url)"
-    case "${BETA_SSL_MODE:-off}" in
+    case "${FLOWHUB_SSL_MODE:-off}" in
         letsencrypt)
             echo "Let's Encrypt mode is configured for external reverse-proxy termination."
             echo "Certificate issuance is handled by the reverse proxy; FlowHub does not store certificate private keys."
@@ -352,8 +352,8 @@ tls_status() {
 tls_letsencrypt() {
     local domain="${1:-}"
     validate_domain "$domain"
-    set_env_field "BETA_DOMAIN" "$domain"
-    set_env_field "BETA_SSL_MODE" "letsencrypt"
+    set_env_field "FLOWHUB_DOMAIN" "$domain"
+    set_env_field "FLOWHUB_SSL_MODE" "letsencrypt"
     echo "Let's Encrypt mode configured for: ${domain}"
     echo "Public URL: https://${domain}"
     echo "Configure your external reverse proxy to request and renew the certificate for ${domain}."
@@ -363,7 +363,7 @@ tls_letsencrypt() {
 tls_set_mode() {
     local mode="${1:-}"
     validate_ssl_mode "$mode"
-    set_env_field "BETA_SSL_MODE" "$mode"
+    set_env_field "FLOWHUB_SSL_MODE" "$mode"
     echo "TLS mode updated: ${mode}"
     echo "Run: flowhub start"
 }

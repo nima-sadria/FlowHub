@@ -4,10 +4,10 @@
 # Runs: npm run build in frontend/
 # Output: frontend/dist/ (served by Nginx container)
 #
-# This is a PLACEHOLDER. Implementation begins in B5.
+# This is a UNAVAILABLE. Implementation begins in B5.
 
 set -euo pipefail
 
-echo "scripts/build_frontend.sh - PLACEHOLDER. Implementation begins in B5."
-echo "See: docs/beta/DEVELOPMENT_GUIDE.md"
+echo "scripts/build_frontend.sh - UNAVAILABLE. Implementation begins in B5."
+echo "See: docs/platform/DEVELOPMENT_GUIDE.md"
 exit 1

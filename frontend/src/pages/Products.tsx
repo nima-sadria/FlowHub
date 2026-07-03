@@ -3,6 +3,7 @@ import { useServices } from '../services/ServiceContext'
 import type { Product } from '../services/types'
 import type { Category } from '../services/products/ProductService'
 import Empty from '../components/Empty'
+import { inputHint } from '../utils/inputHint'
 
 const PAGE_SIZE = 20
 
@@ -172,8 +173,8 @@ export default function Products() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search name or SKU..."
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-bg-base text-[13px] placeholder:text-wp-muted focus:outline-none focus:border-accent transition-colors"
+            {...inputHint('Search name or SKU...')}
+            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-bg-base text-[13px] focus:outline-none focus:border-accent transition-colors"
           />
         </div>
 

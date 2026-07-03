@@ -4,9 +4,9 @@
 # Source from install.sh. Requires:
 #   - App container running and database migrated
 #     (call after wait_for_postgres_ready + run_alembic_migrations)
-#   - BETA_* env exported (call _load_env_for_docker first)
+#   - FLOWHUB_* env exported (call _load_env_for_docker first)
 #
-# Uses BETA_ADMIN_USERNAME, BETA_ADMIN_EMAIL, BETA_ADMIN_PASSWORD from the
+# Uses FLOWHUB_ADMIN_USERNAME, FLOWHUB_ADMIN_EMAIL, FLOWHUB_ADMIN_PASSWORD from the
 # installer wizard. In non-interactive mode, the password is auto-generated
 # and printed once. It is never persisted to disk.
 #
@@ -17,9 +17,9 @@ set -euo pipefail
 
 create_admin_account() {
     local install_dir="$1"
-    local compose_file="${install_dir}/docker-compose.beta.yml"
-    local env_file="${install_dir}/.env.beta"
-    local username="${BETA_ADMIN_USERNAME:-admin}"
+    local compose_file="${install_dir}/docker-compose.yml"
+    local env_file="${install_dir}/.env"
+    local username="${FLOWHUB_ADMIN_USERNAME:-admin}"
     local dc_cmd
 
     if docker compose version &>/dev/null 2>&1; then
@@ -33,8 +33,8 @@ create_admin_account() {
 
     # Use password from wizard if available; otherwise auto-generate.
     local password auto_generated=0
-    if [[ -n "${BETA_ADMIN_PASSWORD:-}" ]]; then
-        password="$BETA_ADMIN_PASSWORD"
+    if [[ -n "${FLOWHUB_ADMIN_PASSWORD:-}" ]]; then
+        password="$FLOWHUB_ADMIN_PASSWORD"
     else
         password="$(openssl rand -hex 20 2>/dev/null \
             || python3 -c 'import secrets; print(secrets.token_hex(20))')"
@@ -43,7 +43,7 @@ create_admin_account() {
 
     echo "  Creating admin user '${username}'..."
 
-    # The create-admin CLI reads BETA_DATABASE_URL from the container env.
+    # The create-admin CLI reads FLOWHUB_DATABASE_URL from the container env.
     if ${dc_cmd} --project-directory "$install_dir" -f "$compose_file" --env-file "$env_file" \
             exec -T app python -m cli.main create-admin \
             --username "$username" --password "$password"; then
@@ -59,7 +59,7 @@ create_admin_account() {
         else
             echo "  Admin account created."
             echo "    Username : ${username}"
-            echo "    Email    : ${BETA_ADMIN_EMAIL:-}"
+            echo "    Email    : ${FLOWHUB_ADMIN_EMAIL:-}"
         fi
         return 0
     fi

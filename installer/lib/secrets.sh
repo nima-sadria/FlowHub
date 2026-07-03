@@ -3,8 +3,8 @@
 #
 # Uses openssl rand. Secrets are held in shell variables only.
 # Written to .env once by env_gen.sh. Never echoed to terminal in plain text.
-# Call generate_all_secrets to populate BETA_JWT_SECRET, BETA_REST_API_SECRET,
-# and BETA_POSTGRES_PASSWORD shell variables.
+# Call generate_all_secrets to populate FLOWHUB_JWT_SECRET, FLOWHUB_REST_API_SECRET,
+# and FLOWHUB_POSTGRES_PASSWORD shell variables.
 
 set -euo pipefail
 
@@ -35,19 +35,19 @@ _mask_secret() {
 
 generate_all_secrets() {
     # Populate variables in calling scope - only generate if not already set
-    if [[ -z "${BETA_JWT_SECRET:-}" ]]; then
-        BETA_JWT_SECRET="$(generate_jwt_secret)"
+    if [[ -z "${FLOWHUB_JWT_SECRET:-}" ]]; then
+        FLOWHUB_JWT_SECRET="$(generate_jwt_secret)"
     fi
-    if [[ -z "${BETA_REST_API_SECRET:-}" ]]; then
-        BETA_REST_API_SECRET="$(generate_rest_api_secret)"
+    if [[ -z "${FLOWHUB_REST_API_SECRET:-}" ]]; then
+        FLOWHUB_REST_API_SECRET="$(generate_rest_api_secret)"
     fi
-    if [[ -z "${BETA_POSTGRES_PASSWORD:-}" ]]; then
-        BETA_POSTGRES_PASSWORD="$(generate_postgres_password)"
+    if [[ -z "${FLOWHUB_POSTGRES_PASSWORD:-}" ]]; then
+        FLOWHUB_POSTGRES_PASSWORD="$(generate_postgres_password)"
     fi
 
     echo "  Secrets generated:"
-    echo "  JWT secret:      $(_mask_secret "$BETA_JWT_SECRET")"
-    echo "  REST API secret: $(_mask_secret "$BETA_REST_API_SECRET")"
-    echo "  Postgres pass:   $(_mask_secret "$BETA_POSTGRES_PASSWORD")"
+    echo "  JWT secret:      $(_mask_secret "$FLOWHUB_JWT_SECRET")"
+    echo "  REST API secret: $(_mask_secret "$FLOWHUB_REST_API_SECRET")"
+    echo "  Postgres pass:   $(_mask_secret "$FLOWHUB_POSTGRES_PASSWORD")"
     echo "  (Secrets will be written to .env once. They will not be displayed again.)"
 }

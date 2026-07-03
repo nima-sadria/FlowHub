@@ -6,7 +6,7 @@ status  - run checks for all services and show a summary
 
 Uses CP1.2 HealthEngine through DiagnosticRunner.
 Secrets are never printed. Network adapter is injected so tests can pass
-a FakeNetworkAdapter without real network calls.
+a TestDoubleNetworkAdapter without real network calls.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from typing import Annotated, Optional
 
 import typer
 
-from app.beta.diagnostics.runner import DiagnosticRunner, KNOWN_SERVICES
+from app.flowhub.diagnostics.runner import DiagnosticRunner, KNOWN_SERVICES
 
 app = typer.Typer(help="Integration service management.")
 
@@ -38,7 +38,7 @@ def _load_config(env_file: Optional[Path]) -> dict[str, str]:
 
 
 def _make_adapter():
-    from app.beta.connections.adapters import RealNetworkAdapter
+    from app.flowhub.connections.adapters import RealNetworkAdapter
     return RealNetworkAdapter()
 
 

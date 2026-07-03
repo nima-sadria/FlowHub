@@ -578,7 +578,7 @@ def test_nc_cache_hit_does_not_update_verification_timestamp():
     from app.services.nextcloud import download_xlsx
 
     nc_svc._xlsx_cache.update({
-        "data": b"fakexlsxdata",
+        "data": b"test_doublexlsxdata",
         "ts": time.time(),  # fresh cache
         "etag": "\"abc\"",
         "last_modified": "Mon, 01 Jan 2024 00:00:00 GMT",
@@ -591,7 +591,7 @@ def test_nc_cache_hit_does_not_update_verification_timestamp():
         return await download_xlsx(force=False)
 
     data = asyncio.run(run())
-    assert data == b"fakexlsxdata", "Cache hit must return cached data"
+    assert data == b"test_doublexlsxdata", "Cache hit must return cached data"
     assert nc_svc._nc_last_success_ts == recorded_ts, (
         "Cache hit must NOT update _nc_last_success_ts - no network access occurred"
     )

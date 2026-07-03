@@ -17,7 +17,7 @@ status, logs, and errors/warnings. Direct commands continue to work for
 automation and support sessions.
 The installed wrapper calls FlowHub's root-owned helper through a strict
 sudoers allowlist, so these commands should not require manually prefixing
-`sudo` and should not print `.env.beta` permission errors.
+`sudo` and should not print `.env` permission errors.
 
 ## Repair
 

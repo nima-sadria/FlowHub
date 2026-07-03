@@ -18,13 +18,13 @@ import sys
 
 # Minimal env so Settings() doesn't error on required fields before we import.
 for _k, _v in [
-    ("NEXTCLOUD_URL", "http://placeholder"),
-    ("NEXTCLOUD_USER", "placeholder"),
-    ("NEXTCLOUD_PASSWORD", "placeholder"),
-    ("NEXTCLOUD_FILE_PATH", "/placeholder"),
-    ("WC_URL", "http://placeholder"),
-    ("WC_KEY", "placeholder"),
-    ("WC_SECRET", "placeholder"),
+    ("NEXTCLOUD_URL", "http://template_variable"),
+    ("NEXTCLOUD_USER", "template_variable"),
+    ("NEXTCLOUD_PASSWORD", "template_variable"),
+    ("NEXTCLOUD_FILE_PATH", "/template_variable"),
+    ("WC_URL", "http://template_variable"),
+    ("WC_KEY", "template_variable"),
+    ("WC_SECRET", "template_variable"),
 ]:
     os.environ.setdefault(_k, _v)
 

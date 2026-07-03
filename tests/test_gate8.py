@@ -200,12 +200,12 @@ def test_options_retry_success_after_transient_429():
 
         call_count = [0]
 
-        async def _fake_options(*args, **kwargs):
+        async def _test_double_options(*args, **kwargs):
             call_count[0] += 1
             return rate_resp if call_count[0] == 1 else ok_resp
 
         client_mock = MagicMock(spec=httpx.AsyncClient)
-        client_mock.options = AsyncMock(side_effect=_fake_options)
+        client_mock.options = AsyncMock(side_effect=_test_double_options)
         client_mock.__aenter__ = AsyncMock(return_value=client_mock)
         client_mock.__aexit__ = AsyncMock(return_value=False)
 

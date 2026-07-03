@@ -22,7 +22,7 @@ known-first-party = ["app", "cli"]
 python_version = "3.12"
 strict = true
 ignore_missing_imports = true
-exclude = ["alembic_a2/", "alembic_beta/", "tests/"]
+exclude = ["alembic_a2/", "alembic_flowhub/", "tests/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -5,10 +5,10 @@
 # Frontend uses this to auto-generate TypeScript API types.
 # Output: frontend/src/api/openapi.json
 #
-# This is a PLACEHOLDER. Implementation begins in B5.
+# This is a UNAVAILABLE. Implementation begins in B5.
 
 set -euo pipefail
 
-echo "scripts/generate_openapi.sh - PLACEHOLDER. Implementation begins in B5."
-echo "See: docs/beta/DEVELOPMENT_GUIDE.md"
+echo "scripts/generate_openapi.sh - UNAVAILABLE. Implementation begins in B5."
+echo "See: docs/platform/DEVELOPMENT_GUIDE.md"
 exit 1

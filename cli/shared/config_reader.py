@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.beta.config import (
+from app.flowhub.config import (
     ConfigurationManager,
     ConfigProfile,
     ConfigValidator,
@@ -54,14 +54,14 @@ def validate_env_file(env_file: Path | None) -> ValidationResult:
     return validator.validate(env_dict)
 
 
-# BETA_DATABASE_URL embeds BETA_POSTGRES_PASSWORD - redact it alongside secrets
-_ALL_SENSITIVE: frozenset[str] = SECRET_FIELDS | frozenset({"BETA_DATABASE_URL"})
+# FLOWHUB_DATABASE_URL embeds FLOWHUB_POSTGRES_PASSWORD - redact it alongside secrets
+_ALL_SENSITIVE: frozenset[str] = SECRET_FIELDS | frozenset({"FLOWHUB_DATABASE_URL"})
 
 
 def redact_env_dict(env_dict: dict[str, str]) -> dict[str, str]:
     """Return a copy of env_dict with all secret fields replaced by [REDACTED].
 
-    BETA_DATABASE_URL is also redacted because it contains BETA_POSTGRES_PASSWORD inline.
+    FLOWHUB_DATABASE_URL is also redacted because it contains FLOWHUB_POSTGRES_PASSWORD inline.
     """
     return {
         k: "[REDACTED]" if k in _ALL_SENSITIVE else v

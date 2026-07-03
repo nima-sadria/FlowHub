@@ -2,7 +2,7 @@
 
 Python implementation of the installer business logic.
 Consumed by Bash entry point (install.sh) and tested directly by
-tests/beta/installer/.
+tests/flowhub/installer/.
 
 Design principles:
 - Zero Docker execution, zero network calls, zero subprocess calls
@@ -21,9 +21,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.beta.config import ConfigValidator, ValidationResult
+from app.flowhub.config import ConfigValidator, ValidationResult
 
-# Storage subdirectories created under BETA_STORAGE_PATH
+# Storage subdirectories created under FLOWHUB_STORAGE_PATH
 _STORAGE_SUBDIRS: tuple[str, ...] = (
     "logs",
     "config",
@@ -63,11 +63,11 @@ class InstallerConfig:
     woocommerce_secret: str = ""
 
     # --- With defaults ---
-    env: str = "beta"
+    env: str = "production"
     port: int = 8080
     ssl_mode: str = "off"
-    postgres_db: str = "flowhub_beta"
-    postgres_user: str = "flowhub_beta"
+    postgres_db: str = "flowhub"
+    postgres_user: str = "flowhub"
     postgres_password: str = ""   # empty -> auto-generate
     jwt_secret: str = ""           # empty -> auto-generate
     rest_api_secret: str = ""      # empty -> auto-generate
@@ -412,7 +412,7 @@ def generate_env_content(config: InstallerConfig) -> str:
     """Generate .env file content string.
 
     Does NOT write any file - returns the content as a string.
-    BETA_DATABASE_URL is constructed from the individual postgres fields.
+    FLOWHUB_DATABASE_URL is constructed from the individual postgres fields.
     """
     database_url = (
         f"postgresql://{config.postgres_user}:{config.postgres_password}"
@@ -424,28 +424,28 @@ def generate_env_content(config: InstallerConfig) -> str:
         f"# Created: {created_at}",
         "# DO NOT COMMIT THIS FILE",
         "",
-        f"BETA_ENV={config.env}",
-        f"BETA_DOMAIN={config.domain}",
-        f"BETA_PORT={config.port}",
-        f"BETA_DATABASE_URL={database_url}",
-        f"BETA_POSTGRES_DB={config.postgres_db}",
-        f"BETA_POSTGRES_USER={config.postgres_user}",
-        f"BETA_POSTGRES_PASSWORD={config.postgres_password}",
-        f"BETA_JWT_SECRET={config.jwt_secret}",
-        f"BETA_REST_API_SECRET={config.rest_api_secret}",
-        f"BETA_NEXTCLOUD_URL={config.nextcloud_url}",
-        f"BETA_NEXTCLOUD_FILE_PATH={config.nextcloud_file_path}",
-        f"BETA_NEXTCLOUD_USERNAME={config.nextcloud_username}",
-        f"BETA_NEXTCLOUD_PASSWORD={config.nextcloud_password}",
-        f"BETA_WOOCOMMERCE_URL={config.woocommerce_url}",
-        f"BETA_WOOCOMMERCE_KEY={config.woocommerce_key}",
-        f"BETA_WOOCOMMERCE_SECRET={config.woocommerce_secret}",
-        f"BETA_TIMEZONE={config.timezone}",
-        f"BETA_CURRENCY={config.currency}",
-        f"BETA_ADMIN_EMAIL={config.admin_email}",
-        f"BETA_STORAGE_PATH={config.storage_path}",
-        f"BETA_BACKUP_PATH={config.backup_path}",
-        f"BETA_SSL_MODE={config.ssl_mode}",
+        f"FLOWHUB_ENV={config.env}",
+        f"FLOWHUB_DOMAIN={config.domain}",
+        f"FLOWHUB_PORT={config.port}",
+        f"FLOWHUB_DATABASE_URL={database_url}",
+        f"FLOWHUB_POSTGRES_DB={config.postgres_db}",
+        f"FLOWHUB_POSTGRES_USER={config.postgres_user}",
+        f"FLOWHUB_POSTGRES_PASSWORD={config.postgres_password}",
+        f"FLOWHUB_JWT_SECRET={config.jwt_secret}",
+        f"FLOWHUB_REST_API_SECRET={config.rest_api_secret}",
+        f"FLOWHUB_NEXTCLOUD_URL={config.nextcloud_url}",
+        f"FLOWHUB_NEXTCLOUD_FILE_PATH={config.nextcloud_file_path}",
+        f"FLOWHUB_NEXTCLOUD_USERNAME={config.nextcloud_username}",
+        f"FLOWHUB_NEXTCLOUD_PASSWORD={config.nextcloud_password}",
+        f"FLOWHUB_WOOCOMMERCE_URL={config.woocommerce_url}",
+        f"FLOWHUB_WOOCOMMERCE_KEY={config.woocommerce_key}",
+        f"FLOWHUB_WOOCOMMERCE_SECRET={config.woocommerce_secret}",
+        f"FLOWHUB_TIMEZONE={config.timezone}",
+        f"FLOWHUB_CURRENCY={config.currency}",
+        f"FLOWHUB_ADMIN_EMAIL={config.admin_email}",
+        f"FLOWHUB_STORAGE_PATH={config.storage_path}",
+        f"FLOWHUB_BACKUP_PATH={config.backup_path}",
+        f"FLOWHUB_SSL_MODE={config.ssl_mode}",
     ]
     return "\n".join(lines) + "\n"
 
@@ -486,8 +486,8 @@ def generate_toml_content(config: InstallerConfig) -> str:
     """Generate managed TOML config content string.
 
     Secrets are NOT included - they live only in the .env file.
-    All values that come from env vars use ${VAR} placeholder syntax
-    for B3 placeholder expansion at runtime.
+    All values that come from env vars use ${VAR} template_variable syntax
+    for B3 template_variable expansion at runtime.
     Does NOT write any file - returns the content as a string.
     """
     created_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -498,38 +498,38 @@ def generate_toml_content(config: InstallerConfig) -> str:
         "# Secrets are NOT stored here - see .env (mode 600)",
         "",
         "[meta]",
-        'version = "beta-1.0.0"',
+        'version = "FLOWHUB-1.0.0"',
         f'installed_at = "{created_at}"',
         'installer_version = "1.0.0"',
         "",
         "[app]",
-        'env = "${BETA_ENV}"',
-        'domain = "${BETA_DOMAIN}"',
+        'env = "${FLOWHUB_ENV}"',
+        'domain = "${FLOWHUB_DOMAIN}"',
         f"port = {config.port}",
-        'timezone = "${BETA_TIMEZONE}"',
-        'currency = "${BETA_CURRENCY}"',
-        'storage_path = "${BETA_STORAGE_PATH}"',
-        'backup_path = "${BETA_BACKUP_PATH}"',
-        'ssl_mode = "${BETA_SSL_MODE}"',
+        'timezone = "${FLOWHUB_TIMEZONE}"',
+        'currency = "${FLOWHUB_CURRENCY}"',
+        'storage_path = "${FLOWHUB_STORAGE_PATH}"',
+        'backup_path = "${FLOWHUB_BACKUP_PATH}"',
+        'ssl_mode = "${FLOWHUB_SSL_MODE}"',
         f'log_level = "{config.log_level}"',
         "",
         "[database]",
-        "# Password: BETA_POSTGRES_PASSWORD env var (never stored here)",
-        'postgres_db = "${BETA_POSTGRES_DB}"',
-        'postgres_user = "${BETA_POSTGRES_USER}"',
+        "# Password: FLOWHUB_POSTGRES_PASSWORD env var (never stored here)",
+        'postgres_db = "${FLOWHUB_POSTGRES_DB}"',
+        'postgres_user = "${FLOWHUB_POSTGRES_USER}"',
         'postgres_host = "postgres"',
         "postgres_port = 5432",
         "",
         "[source]",
         'type = "nextcloud"',
-        'nextcloud_url = "${BETA_NEXTCLOUD_URL}"',
-        'nextcloud_file_path = "${BETA_NEXTCLOUD_FILE_PATH}"',
-        'nextcloud_username = "${BETA_NEXTCLOUD_USERNAME}"',
-        "# Password: BETA_NEXTCLOUD_PASSWORD env var (never stored here)",
+        'nextcloud_url = "${FLOWHUB_NEXTCLOUD_URL}"',
+        'nextcloud_file_path = "${FLOWHUB_NEXTCLOUD_FILE_PATH}"',
+        'nextcloud_username = "${FLOWHUB_NEXTCLOUD_USERNAME}"',
+        "# Password: FLOWHUB_NEXTCLOUD_PASSWORD env var (never stored here)",
         "",
         "[channel]",
-        'woocommerce_url = "${BETA_WOOCOMMERCE_URL}"',
-        "# Key and secret: BETA_WOOCOMMERCE_KEY, BETA_WOOCOMMERCE_SECRET env vars (never stored here)",
+        'woocommerce_url = "${FLOWHUB_WOOCOMMERCE_URL}"',
+        "# Key and secret: FLOWHUB_WOOCOMMERCE_KEY, FLOWHUB_WOOCOMMERCE_SECRET env vars (never stored here)",
     ]
     return "\n".join(lines) + "\n"
 

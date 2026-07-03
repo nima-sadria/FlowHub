@@ -17,7 +17,7 @@ Status: first-release finalization.
 Run:
 
 ```bash
-python -m pytest tests/beta -q
+python -m pytest tests/flowhub -q
 npm run build
 npm test -- --run
 git diff --check

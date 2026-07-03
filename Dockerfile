@@ -5,7 +5,6 @@ WORKDIR /frontend
 
 COPY frontend/package*.json ./
 RUN npm ci --silent
-
 COPY frontend/ ./
 RUN npm run build
 
@@ -14,16 +13,24 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# curl: required for compose healthcheck and diagnostic verification
+# tzdata: required by zoneinfo for IANA timezone validation on slim images
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-COPY --from=frontend-build /frontend/dist/assets /app/static/assets
-COPY --from=frontend-build /frontend/dist/index.html /app/static/index.html
+# app.flowhub.app resolves: Path(__file__).parent.parent.parent / "frontend" / "dist"
+# From /app/app/flowhub/app.py that path is /app/frontend/dist
+COPY --from=frontend-build /frontend/dist ./frontend/dist
 
-RUN mkdir -p /app/data
+RUN mkdir -p /data/storage /data/backups /data/logs
 
-EXPOSE 8000
+EXPOSE 8085
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.flowhub.app:app", "--host", "0.0.0.0", "--port", "8085", \
+     "--log-level", "info", "--access-log"]

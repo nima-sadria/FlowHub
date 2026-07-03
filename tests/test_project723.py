@@ -274,7 +274,7 @@ from unittest.mock import MagicMock as _MagicMock, patch as _patch
 from starlette.responses import JSONResponse as _JSONResponse
 
 
-async def _fake_call_next(_req):
+async def _test_double_call_next(_req):
     return _JSONResponse({"ok": True}, status_code=200)
 
 
@@ -293,7 +293,7 @@ def test_access_log_emits_method_path_status_duration():
     """_access_log must call logger.info with method, path, status, duration."""
     req = _make_mock_request("GET", "/api/health")
     with _patch.object(main_module, "logger") as mock_logger:
-        _asyncio.run(main_module._access_log(req, _fake_call_next))
+        _asyncio.run(main_module._access_log(req, _test_double_call_next))
 
     assert mock_logger.info.called, "logger.info was never called by _access_log"
     fmt, *args = mock_logger.info.call_args[0]
@@ -310,7 +310,7 @@ def test_access_log_does_not_contain_auth_header():
     secret_token = "supersecrettoken123"
     req = _make_mock_request(headers={"Authorization": f"Bearer {secret_token}"})
     with _patch.object(main_module, "logger") as mock_logger:
-        _asyncio.run(main_module._access_log(req, _fake_call_next))
+        _asyncio.run(main_module._access_log(req, _test_double_call_next))
 
     for call in mock_logger.info.call_args_list:
         fmt, *args = call[0]
@@ -324,7 +324,7 @@ def test_access_log_does_not_log_query_params():
     # Simulate a path that contains the token (as would come from url.path in some impls)
     req = _make_mock_request(path="/api/health")
     with _patch.object(main_module, "logger") as mock_logger:
-        _asyncio.run(main_module._access_log(req, _fake_call_next))
+        _asyncio.run(main_module._access_log(req, _test_double_call_next))
 
     for call in mock_logger.info.call_args_list:
         fmt, *args = call[0]

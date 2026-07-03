@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # FlowHub Docker Compose file generation.
 #
-# Generates docker-compose.beta.yml by substituting BETA_* placeholders in
+# Generates docker-compose.yml by substituting FLOWHUB_* template_variables in
 # installer/templates/docker-compose.template.yml using envsubst.
 # Does not start Docker services; launch is handled by docker_deploy.sh.
 
@@ -21,11 +21,11 @@ generate_compose_file() {
         return 1
     fi
 
-    # Substitute only BETA_* variables from environment.
+    # Substitute only FLOWHUB_* variables from environment.
     # shellcheck disable=SC2016
-    envsubst '${BETA_ENV} ${BETA_DOMAIN} ${BETA_PORT} ${BETA_DATABASE_URL}
-              ${BETA_POSTGRES_DB} ${BETA_POSTGRES_USER} ${BETA_POSTGRES_PASSWORD}
-              ${BETA_JWT_SECRET} ${BETA_REST_API_SECRET}' \
+    envsubst '${FLOWHUB_ENV} ${FLOWHUB_DOMAIN} ${FLOWHUB_PORT} ${FLOWHUB_DATABASE_URL}
+              ${FLOWHUB_POSTGRES_DB} ${FLOWHUB_POSTGRES_USER} ${FLOWHUB_POSTGRES_PASSWORD}
+              ${FLOWHUB_JWT_SECRET} ${FLOWHUB_REST_API_SECRET}' \
         < "$template_path" > "$output_path"
 
     echo "  Docker Compose file generated: ${output_path}"

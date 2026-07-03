@@ -1,14 +1,14 @@
 """FlowHub - CLI API client.
 
-HTTP client to the running Beta application. Used by operational CLI
+HTTP client to the running FLOWHUB application. Used by operational CLI
 commands (connected mode). Reads the JWT token from the local session store.
 
 Implementation begins in B4.
 """
 
 
-class BetaAPIClient:
-    """HTTP client for communicating with the running Beta application.
+class FLOWHUBAPIClient:
+    """HTTP client for communicating with the running FLOWHUB application.
 
     Implementation begins in B4.
     """

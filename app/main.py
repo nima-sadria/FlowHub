@@ -1,7 +1,7 @@
 """Legacy Compatibility runtime.
 
 This original root application is retained for historical compatibility only.
-The active FlowHub first-release Docker runtime is `app.beta.app` on port 8085.
+The active FlowHub first-release Docker runtime is `app.flowhub.app` on port 8085.
 Do not import this module from active FlowHub API routes.
 """
 
@@ -633,7 +633,7 @@ def _get_thumb_dir() -> Path:
     return db_path.parent / "thumbs"
 
 
-# 1×1 transparent PNG used as placeholder when no image is available
+# 1×1 transparent PNG used as template_variable when no image is available
 _EMPTY_THUMB = bytes([
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
     0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -1841,13 +1841,13 @@ async def product_thumb(
                 try:
                     upsert_products(db, [{"wc_id": wc_id, "parent_id": parent_id, "product_type": "variation"}])
                     db.commit()
-                    logger.warning("thumb: stubbed variation row wc_id=%d parent_id=%d", wc_id, parent_id)
+                    logger.warning("thumb: unavailablebed variation row wc_id=%d parent_id=%d", wc_id, parent_id)
                 except Exception:
                     db.rollback()
                 row = parent
 
     if not row or not row.image_url:
-        logger.warning("thumb: returning placeholder for wc_id=%d", wc_id)
+        logger.warning("thumb: returning template_variable for wc_id=%d", wc_id)
         return Response(content=_EMPTY_THUMB, media_type="image/png",
                         headers={"Cache-Control": "public, max-age=300"})
 

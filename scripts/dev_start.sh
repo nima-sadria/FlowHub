@@ -5,10 +5,10 @@
 # Runs the FastAPI application on the host with hot reload.
 # Runs the frontend Vite dev server in a separate terminal.
 #
-# This is a PLACEHOLDER. Implementation begins in B2.
+# This is a UNAVAILABLE. Implementation begins in B2.
 
 set -euo pipefail
 
-echo "scripts/dev_start.sh - PLACEHOLDER. Implementation begins in B2."
-echo "See: docs/beta/DEVELOPMENT_GUIDE.md"
+echo "scripts/dev_start.sh - UNAVAILABLE. Implementation begins in B2."
+echo "See: docs/platform/DEVELOPMENT_GUIDE.md"
 exit 1

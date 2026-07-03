@@ -6,12 +6,12 @@ import { ThemeProvider } from './theme/ThemeProvider'
 import { NotificationProvider } from './notifications/NotificationProvider'
 import NotificationContainer from './notifications/NotificationContainer'
 import { ServiceProvider } from './services/ServiceContext'
-import { MockHealthService } from './services/health/MockHealthService'
-import { MockProductService } from './services/products/MockProductService'
-import { MockSourceService } from './services/sources/MockSourceService'
-import { MockWorkspaceService } from './services/workspace/MockWorkspaceService'
-import { MockSettingsService } from './services/settings/MockSettingsService'
-import { MockActivityService } from './services/activity/MockActivityService'
+import { LocalHealthService } from './services/health/LocalHealthService'
+import { LocalProductService } from './services/products/LocalProductService'
+import { LocalSourceService } from './services/sources/LocalSourceService'
+import { LocalWorkspaceService } from './services/workspace/LocalWorkspaceService'
+import { LocalSettingsService } from './services/settings/LocalSettingsService'
+import { LocalActivityService } from './services/activity/LocalActivityService'
 import { ApiHealthService } from './services/health/ApiHealthService'
 import { ApiProductService } from './services/products/ApiProductService'
 import { ApiSourceService } from './services/sources/ApiSourceService'
@@ -19,7 +19,7 @@ import { ApiWorkspaceService } from './services/workspace/ApiWorkspaceService'
 import { ApiSettingsService } from './services/settings/ApiSettingsService'
 import { ApiActivityService } from './services/activity/ApiActivityService'
 import AppShell from './components/AppShell'
-import BetaDashboard from './pages/BetaDashboard'
+import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
 import Sources from './pages/Sources'
 import SourceWizard from './pages/SourceWizard'
@@ -35,17 +35,17 @@ import LoggingPlatform from './pages/LoggingPlatform'
 import NotFound from './pages/NotFound'
 import type { SetupStatus } from './api/types'
 
-// Developer mock mode - only when VITE_DEV_MOCK=true.
-// Normal beta runtime uses real API services.
-const _useMock = import.meta.env.VITE_DEV_MOCK === 'true'
+// Developer local mode - only when VITE_USE_LOCAL_DATA=true.
+// Normal FLOWHUB runtime uses real API services.
+const _useLocal = import.meta.env.VITE_USE_LOCAL_DATA === 'true'
 
-const mockServices = {
-  health:    new MockHealthService(),
-  products:  new MockProductService(),
-  sources:   new MockSourceService(),
-  workspace: new MockWorkspaceService(),
-  settings:  new MockSettingsService(),
-  activity:  new MockActivityService(),
+const localServices = {
+  health:    new LocalHealthService(),
+  products:  new LocalProductService(),
+  sources:   new LocalSourceService(),
+  workspace: new LocalWorkspaceService(),
+  settings:  new LocalSettingsService(),
+  activity:  new LocalActivityService(),
 }
 
 const realServices = {
@@ -57,7 +57,7 @@ const realServices = {
   activity:  new ApiActivityService(),
 }
 
-const activeServices = _useMock ? mockServices : realServices
+const activeServices = _useLocal ? localServices : realServices
 
 function MaintenanceOverlay({ message }: { message?: string }) {
   const { clearAuth } = useAuth()
@@ -157,7 +157,7 @@ function SetupGate() {
       <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
       <Route path="/" element={<Navigate to="/home" replace />} />
       <Route element={<AuthGuard><AppShell /></AuthGuard>}>
-        <Route path="/home" element={<RequirePermission permission="can_access_site"><BetaDashboard /></RequirePermission>} />
+        <Route path="/home" element={<RequirePermission permission="can_access_site"><Dashboard /></RequirePermission>} />
         <Route path="/products" element={<RequirePermission permission="can_fetch"><Products /></RequirePermission>} />
         <Route path="/sources" element={<RequirePermission permission="can_access_site"><Sources /></RequirePermission>} />
         <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><SourceWizard /></RequirePermission>} />

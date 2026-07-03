@@ -1,4 +1,4 @@
-"""FlowHub - flowhub migrate command group. Stub - B6."""
+"""FlowHub - flowhub migrate command group. Unavailable - B6."""
 
 import typer
 

@@ -155,7 +155,7 @@ def test_propfind_connect_error_raises_network():
 # -- get_file tests ------------------------------------------------------------
 
 def test_get_file_returns_bytes_and_meta():
-    content = b"PK fake xlsx bytes"
+    content = b"PK test_double xlsx bytes"
     mock_resp = _mock_response(200, content=content)
     mock_resp.headers = {
         "etag": '"abc"',

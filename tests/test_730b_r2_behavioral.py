@@ -209,8 +209,8 @@ def test_light_refresh_capability_guard_sse_contains_capability_error(client: Te
     may not have the test user), and patch the downstream checks so the request
     reaches the capability guard. The key assertion is the SSE payload shape.
     """
-    fake_creds = {"sub": "testadmin_b", "role": "admin"}
-    with patch("app.main.validate_sse_token", return_value=fake_creds):
+    test_double_creds = {"sub": "testadmin_b", "role": "admin"}
+    with patch("app.main.validate_sse_token", return_value=test_double_creds):
         with patch("app.main._enforce_permission"):  # bypass DB/permission check
             with patch("app.main.get_last_sync_time", return_value=datetime(2024, 1, 1)):
                 # Patch in main's namespace - main.py holds a local `from ... import` reference.

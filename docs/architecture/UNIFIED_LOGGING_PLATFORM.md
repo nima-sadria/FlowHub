@@ -38,7 +38,7 @@ Frontend App
   +-- Frontend Log Contract
   |
   v
-FastAPI Beta v2
+FastAPI FLOWHUB v2
   |
   +-- Backend Log Contract
   +-- Connector Log Contract

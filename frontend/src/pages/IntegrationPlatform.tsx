@@ -36,7 +36,7 @@ interface RegistryItem {
   supported_transports: string[]
   read_only_supported: boolean
   write_supported: boolean
-  beta_write_blocked: boolean
+  FLOWHUB_write_blocked: boolean
   status: string
 }
 

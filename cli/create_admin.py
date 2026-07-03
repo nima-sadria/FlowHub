@@ -1,10 +1,10 @@
 """FlowHub - create-admin CLI subcommand (BU2).
 
-Creates the initial admin user in the Beta database.
+Creates the initial admin user in the FLOWHUB database.
 
 Usage (after install.sh):
   flowhub create-admin
-  flowhub create-admin --username admin --env-file /opt/FlowHub/.env.beta
+  flowhub create-admin --username admin --env-file /opt/FlowHub/.env
 
 This is a required post-install step for BU2.  The login endpoint returns 401
 until at least one admin user exists.  Run once; re-running with an existing
@@ -45,7 +45,7 @@ def create_admin(
     env_file: Optional[str] = typer.Option(
         None,
         "--env-file",
-        help="Path to .env.beta (default: /opt/FlowHub/.env.beta).",
+        help="Path to .env (default: /opt/FlowHub/.env).",
     ),
 ) -> None:
     """Create the initial FlowHub admin user.
@@ -55,8 +55,8 @@ def create_admin(
     import os
     from pathlib import Path
 
-    # Load .env.beta so BETA_DATABASE_URL and BETA_JWT_SECRET are set
-    env_path = Path(env_file or "/opt/FlowHub/.env.beta")
+    # Load .env so FLOWHUB_DATABASE_URL and FLOWHUB_JWT_SECRET are set
+    env_path = Path(env_file or "/opt/FlowHub/.env")
     if env_path.exists():
         try:
             from dotenv import load_dotenv
@@ -69,11 +69,11 @@ def create_admin(
                     k, _, v = line.partition("=")
                     os.environ.setdefault(k.strip(), v.strip())
 
-    db_url = os.environ.get("BETA_DATABASE_URL", "")
+    db_url = os.environ.get("FLOWHUB_DATABASE_URL", "")
     if not db_url:
         typer.echo(
-            "ERROR: BETA_DATABASE_URL is not set.\n"
-            "  Use --env-file /path/to/.env.beta or export BETA_DATABASE_URL.",
+            "ERROR: FLOWHUB_DATABASE_URL is not set.\n"
+            "  Use --env-file /path/to/.env or export FLOWHUB_DATABASE_URL.",
             err=True,
         )
         raise typer.Exit(1)
@@ -82,8 +82,8 @@ def create_admin(
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
 
-        from app.beta.auth.password import hash_password
-        from app.beta.auth.repository import create_user, get_user_by_username
+        from app.flowhub.auth.password import hash_password
+        from app.flowhub.auth.repository import create_user, get_user_by_username
 
         kwargs: dict = {}
         if db_url.startswith("sqlite"):

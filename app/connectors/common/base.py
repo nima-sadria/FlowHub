@@ -74,7 +74,7 @@ class DestinationConnector(ABC):
     outside app/connectors/destinations/<provider>/ may call provider APIs
     directly.
 
-    All methods are READ-ONLY. No write path is permitted in FlowHub Beta.
+    All methods are READ-ONLY. No write path is permitted in flowhub.
     """
 
     connector_id: ConnectorID

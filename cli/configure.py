@@ -30,7 +30,7 @@ def configure_show(
     """Display current configuration. Secrets are always redacted."""
     from cli.shared.output import console, print_banner, print_section, print_error
     from cli.shared.config_reader import load_config, redact_env_dict
-    from app.beta.config import ConfigurationError
+    from app.flowhub.config import ConfigurationError
 
     manager, profile = load_config(env_file)
 
@@ -64,18 +64,18 @@ def configure_show(
     print_section("Configuration (secrets redacted)")
 
     ordered_keys = [
-        "BETA_ENV", "BETA_DOMAIN", "BETA_PORT", "BETA_SSL_MODE",
-        "BETA_TIMEZONE", "BETA_CURRENCY", "BETA_ADMIN_EMAIL",
-        "BETA_POSTGRES_DB", "BETA_POSTGRES_USER",
-        "BETA_DATABASE_URL",
-        "BETA_NEXTCLOUD_URL", "BETA_NEXTCLOUD_FILE_PATH", "BETA_NEXTCLOUD_USERNAME",
-        "BETA_WOOCOMMERCE_URL",
-        "BETA_STORAGE_PATH", "BETA_BACKUP_PATH",
-        "BETA_LOG_LEVEL",
+        "FLOWHUB_ENV", "FLOWHUB_DOMAIN", "FLOWHUB_PORT", "FLOWHUB_SSL_MODE",
+        "FLOWHUB_TIMEZONE", "FLOWHUB_CURRENCY", "FLOWHUB_ADMIN_EMAIL",
+        "FLOWHUB_POSTGRES_DB", "FLOWHUB_POSTGRES_USER",
+        "FLOWHUB_DATABASE_URL",
+        "FLOWHUB_NEXTCLOUD_URL", "FLOWHUB_NEXTCLOUD_FILE_PATH", "FLOWHUB_NEXTCLOUD_USERNAME",
+        "FLOWHUB_WOOCOMMERCE_URL",
+        "FLOWHUB_STORAGE_PATH", "FLOWHUB_BACKUP_PATH",
+        "FLOWHUB_LOG_LEVEL",
         # Secrets shown as redacted
-        "BETA_JWT_SECRET", "BETA_REST_API_SECRET",
-        "BETA_POSTGRES_PASSWORD", "BETA_NEXTCLOUD_PASSWORD",
-        "BETA_WOOCOMMERCE_KEY", "BETA_WOOCOMMERCE_SECRET",
+        "FLOWHUB_JWT_SECRET", "FLOWHUB_REST_API_SECRET",
+        "FLOWHUB_POSTGRES_PASSWORD", "FLOWHUB_NEXTCLOUD_PASSWORD",
+        "FLOWHUB_WOOCOMMERCE_KEY", "FLOWHUB_WOOCOMMERCE_SECRET",
     ]
 
     for key in ordered_keys:
@@ -107,7 +107,7 @@ def configure_verify(
     """Verify configuration using B3 ConfigValidator. Never modifies any file."""
     from cli.shared.output import console, print_banner, print_section, print_success, print_error
     from cli.shared.config_reader import load_config, validate_env_file
-    from app.beta.config import SECRET_FIELDS
+    from app.flowhub.config import SECRET_FIELDS
 
     manager, profile = load_config(env_file)
     if not json_output:
@@ -150,7 +150,7 @@ def configure_verify(
 
 @app.command("get")
 def configure_get(
-    field: Annotated[str, typer.Argument(help="Config field name (e.g., BETA_LOG_LEVEL)")],
+    field: Annotated[str, typer.Argument(help="Config field name (e.g., FLOWHUB_LOG_LEVEL)")],
     env_file: Annotated[
         Path | None,
         typer.Option("--env-file", help="Path to .env file"),
@@ -163,7 +163,7 @@ def configure_get(
     """Show the current value of a single configuration field (secrets redacted)."""
     from cli.shared.output import console, print_banner, print_section
     from cli.shared.config_reader import load_config
-    from app.beta.runtime_config import RuntimeConfigService
+    from app.flowhub.runtime_config import RuntimeConfigService
 
     _, profile = load_config(env_file)
     env_path = env_file or Path(".env")
@@ -189,7 +189,7 @@ def configure_get(
 
 @app.command("set")
 def configure_set(
-    field: Annotated[str, typer.Argument(help="Config field name (e.g., BETA_LOG_LEVEL)")],
+    field: Annotated[str, typer.Argument(help="Config field name (e.g., FLOWHUB_LOG_LEVEL)")],
     value: Annotated[str, typer.Argument(help="New value to set")],
     env_file: Annotated[
         Path | None,
@@ -207,7 +207,7 @@ def configure_set(
     """
     from cli.shared.output import console, print_banner, print_section, print_error
     from cli.shared.config_reader import load_config
-    from app.beta.runtime_config import RuntimeConfigService
+    from app.flowhub.runtime_config import RuntimeConfigService
 
     _, profile = load_config(env_file)
     env_path = env_file or Path(".env")

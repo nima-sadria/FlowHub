@@ -1,4 +1,4 @@
-"""FlowHub - flowhub ai command group. Stub - B12."""
+"""FlowHub - flowhub ai command group. Unavailable - B12."""
 
 import typer
 

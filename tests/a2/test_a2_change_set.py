@@ -227,7 +227,7 @@ class TestDigestDeterminism:
         even when product_id + proposal_id are identical across items."""
         item_a = _item("SAME-SKU", proposal_id="same-id", proposal_hash="alpha",
                         safety_result_id="sr-1", rule_version_id="rv-1")
-        item_b = _item("SAME-SKU", proposal_id="same-id", proposal_hash="beta",
+        item_b = _item("SAME-SKU", proposal_id="same-id", proposal_hash="production",
                         safety_result_id="sr-2", rule_version_id="rv-2")
         # Both orderings must produce the same digest (sort is fully determined)
         d1 = compute_change_set_digest([item_a, item_b], "WC", "all", "snap-001")

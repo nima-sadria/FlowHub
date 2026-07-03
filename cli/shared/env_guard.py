@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from app.beta.config import ConfigProfile
+from app.flowhub.config import ConfigProfile
 
 
 class ProductionResourceError(Exception):
     """Raised when a write operation is attempted in PRODUCTION profile."""
 
 
-def require_beta_env(profile: ConfigProfile) -> None:
+def require_FLOWHUB_env(profile: ConfigProfile) -> None:
     """Assert the active profile is not PRODUCTION; raise otherwise.
 
     Called before any write or mutating operation. Read-only diagnostics

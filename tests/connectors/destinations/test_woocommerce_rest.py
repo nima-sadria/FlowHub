@@ -31,7 +31,7 @@ def _mock_json_response(status: int, data: object) -> MagicMock:
     return r
 
 
-_SAMPLE_PRODUCT = {
+_PRODUCT_FIXTURE = {
     "id": 42,
     "name": "Test Widget",
     "sku": "TW-001",
@@ -48,7 +48,7 @@ _SAMPLE_PRODUCT = {
 # -- list_products -------------------------------------------------------------
 
 def test_list_products_returns_list():
-    mock_resp = _mock_json_response(200, [_SAMPLE_PRODUCT])
+    mock_resp = _mock_json_response(200, [_PRODUCT_FIXTURE])
 
     async def _run():
         with patch("httpx.AsyncClient") as MockClient:
@@ -130,7 +130,7 @@ def test_list_products_connect_error_raises_network():
 # -- get_product ---------------------------------------------------------------
 
 def test_get_product_returns_dict():
-    mock_resp = _mock_json_response(200, _SAMPLE_PRODUCT)
+    mock_resp = _mock_json_response(200, _PRODUCT_FIXTURE)
 
     async def _run():
         with patch("httpx.AsyncClient") as MockClient:
@@ -164,7 +164,7 @@ def test_get_product_404_raises_not_found():
 # -- ping ----------------------------------------------------------------------
 
 def test_ping_returns_reachable():
-    mock_resp = _mock_json_response(200, [_SAMPLE_PRODUCT])
+    mock_resp = _mock_json_response(200, [_PRODUCT_FIXTURE])
 
     async def _run():
         with patch("httpx.AsyncClient") as MockClient:
@@ -176,7 +176,7 @@ def test_ping_returns_reachable():
 
     result = asyncio.run(_run())
     assert result["reachable"] is True
-    assert result["sample_count"] == 1
+    assert result["records_checked"] == 1
 
 
 def test_ping_403_raises_permission():

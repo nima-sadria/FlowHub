@@ -1,8 +1,8 @@
 # Legacy Compatibility - original service layer.
 # Used exclusively by app/main.py (legacy compatibility app, legacy port 8000).
-# NOT imported by FlowHub Beta runtime (app/beta/app.py, port 8085).
-# FlowHub Beta uses app/connectors/sources/nextcloud/ for all Nextcloud HTTP calls.
-# Do not migrate or refactor this file as part of any FlowHub Beta phase.
+# NOT imported by flowhub runtime (app/flowhub/app.py, port 8085).
+# flowhub uses app/connectors/sources/nextcloud/ for all Nextcloud HTTP calls.
+# Do not migrate or refactor this file as part of any flowhub phase.
 import io
 import logging
 import time

@@ -30,7 +30,7 @@ app = typer.Typer(
 
 
 def _load_env(env_file: Optional[str]) -> None:
-    env_path = Path(env_file or "/opt/FlowHub/.env.beta")
+    env_path = Path(env_file or "/opt/FlowHub/.env")
     if not env_path.exists():
         return
 
@@ -48,10 +48,10 @@ def _load_env(env_file: Optional[str]) -> None:
 
 def _session(env_file: Optional[str]):
     _load_env(env_file)
-    db_url = os.environ.get("BETA_DATABASE_URL", "")
+    db_url = os.environ.get("FLOWHUB_DATABASE_URL", "")
     if not db_url:
         typer.echo(
-            "ERROR: BETA_DATABASE_URL is not set. Use --env-file /path/to/.env.beta.",
+            "ERROR: FLOWHUB_DATABASE_URL is not set. Use --env-file /path/to/.env.",
             err=True,
         )
         raise typer.Exit(1)
@@ -123,18 +123,18 @@ def list_admins(
     env_file: Optional[str] = typer.Option(
         None,
         "--env-file",
-        help="Path to .env.beta (default: /opt/FlowHub/.env.beta).",
+        help="Path to .env (default: /opt/FlowHub/.env).",
     ),
 ) -> None:
     """List administrator accounts without exposing secrets."""
     engine, db = _session(env_file)
     try:
-        from app.beta.auth.models import BetaUser
+        from app.flowhub.auth.models import FlowHubUser
 
         admins = (
-            db.query(BetaUser)
-            .filter(BetaUser.role == "admin")
-            .order_by(BetaUser.username.asc())
+            db.query(FlowHubUser)
+            .filter(FlowHubUser.role == "admin")
+            .order_by(FlowHubUser.username.asc())
             .all()
         )
         if not admins:
@@ -166,7 +166,7 @@ def create_admin(
     env_file: Optional[str] = typer.Option(
         None,
         "--env-file",
-        help="Path to .env.beta (default: /opt/FlowHub/.env.beta).",
+        help="Path to .env (default: /opt/FlowHub/.env).",
     ),
 ) -> None:
     """Create an emergency administrator account."""
@@ -187,8 +187,8 @@ def create_admin(
 
     engine, db = _session(env_file)
     try:
-        from app.beta.auth.password import hash_password
-        from app.beta.auth.repository import create_audit_event, create_user, get_user_by_username
+        from app.flowhub.auth.password import hash_password
+        from app.flowhub.auth.repository import create_audit_event, create_user, get_user_by_username
 
         if get_user_by_username(db, username):
             typer.echo(f"ERROR: User '{username}' already exists.", err=True)
@@ -214,20 +214,20 @@ def delete_admin(
     env_file: Optional[str] = typer.Option(
         None,
         "--env-file",
-        help="Path to .env.beta (default: /opt/FlowHub/.env.beta).",
+        help="Path to .env (default: /opt/FlowHub/.env).",
     ),
 ) -> None:
     """Delete an administrator account with last-admin protection."""
     username = username.strip()
     engine, db = _session(env_file)
     try:
-        from app.beta.auth.models import BetaUser
-        from app.beta.auth.repository import create_audit_event, get_user_by_username
+        from app.flowhub.auth.models import FlowHubUser
+        from app.flowhub.auth.repository import create_audit_event, get_user_by_username
 
         admins = (
-            db.query(BetaUser)
-            .filter(BetaUser.role == "admin")
-            .order_by(BetaUser.username.asc())
+            db.query(FlowHubUser)
+            .filter(FlowHubUser.role == "admin")
+            .order_by(FlowHubUser.username.asc())
             .all()
         )
         if not admins:
@@ -275,7 +275,7 @@ def reset_admin_password(
     env_file: Optional[str] = typer.Option(
         None,
         "--env-file",
-        help="Path to .env.beta (default: /opt/FlowHub/.env.beta).",
+        help="Path to .env (default: /opt/FlowHub/.env).",
     ),
 ) -> None:
     """Reset an existing administrator password and revoke active sessions."""
@@ -291,8 +291,8 @@ def reset_admin_password(
 
     engine, db = _session(env_file)
     try:
-        from app.beta.auth.password import hash_password
-        from app.beta.auth.repository import (
+        from app.flowhub.auth.password import hash_password
+        from app.flowhub.auth.repository import (
             create_audit_event,
             get_user_by_username,
             revoke_all_user_tokens,
@@ -340,7 +340,7 @@ def reset_admin_username(
     env_file: Optional[str] = typer.Option(
         None,
         "--env-file",
-        help="Path to .env.beta (default: /opt/FlowHub/.env.beta).",
+        help="Path to .env (default: /opt/FlowHub/.env).",
     ),
 ) -> None:
     """Rename an existing administrator account and revoke active sessions."""
@@ -355,7 +355,7 @@ def reset_admin_username(
 
     engine, db = _session(env_file)
     try:
-        from app.beta.auth.repository import (
+        from app.flowhub.auth.repository import (
             create_audit_event,
             get_user_by_username,
             revoke_all_user_tokens,

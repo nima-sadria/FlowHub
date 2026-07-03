@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { authFetch } from '../api/authFetch'
 import Spinner from '../components/loading/Spinner'
+import { inputHint } from '../utils/inputHint'
 
 interface LoggingSummary {
   total_logs: number
@@ -123,7 +124,7 @@ export default function LoggingPlatform() {
               value={search}
               onChange={event => setSearch(event.target.value)}
               className="mt-1 w-full rounded-lg border border-border bg-bg-base px-3 py-2 text-[13px] text-text-base"
-              placeholder="message, exception, operation"
+              {...inputHint('message, exception, operation')}
             />
           </label>
           <label className="w-full sm:w-44 text-[12px] text-wp-muted">

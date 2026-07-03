@@ -2,11 +2,11 @@
 
 ## Local Verification
 
-- `python -m pytest tests/beta -q`
+- `python -m pytest tests/flowhub -q`
 - `npm run build`
 - `npm test -- --run`
 - `git diff --check`
-- direct-call audit for active Beta v2 routes
+- direct-call audit for active FLOWHUB v2 routes
 - release identity search
 
 ## Deployment Host Verification
@@ -57,7 +57,7 @@ Decision: PASS
 Verified controls:
 
 - `flowhub` works for the normal operator without manually typing `sudo`.
-- Protected configuration remains `root:root 600`: `/opt/FlowHub/.env.beta`.
+- Protected configuration remains `root:root 600`: `/opt/FlowHub/.env`.
 - Docker-backed CLI commands work through the restricted FlowHub helper.
 - `flowhub status`, `flowhub health`, `flowhub restart`, `flowhub backup`, and the interactive menu work.
 - `flowhub restart` waits for readiness; immediate `/api/health` returns HTTP 200.

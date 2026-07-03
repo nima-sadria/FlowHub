@@ -1,11 +1,11 @@
 """FlowHub - Authentication and authorization.
 
-JWT-based authentication for all /api/v2/ and /api/beta/ endpoints.
+JWT-based authentication for all /api/v2/ and /api/FLOWHUB/ endpoints.
 
 Design:
-- Short-lived access tokens signed with BETA_JWT_SECRET (default TTL: 15 min)
+- Short-lived access tokens signed with FLOWHUB_JWT_SECRET (default TTL: 15 min)
 - Long-lived refresh tokens rotated on use (default TTL: 7 days)
-- Permission model: named permissions per BetaUser; admin users hold all permissions
+- Permission model: named permissions per FlowHubUser; admin users hold all permissions
 - Feature flag gates applied per-endpoint after permission check
 - Control Plane rule: local credential login is always available; no external
   identity provider may be required for admin access

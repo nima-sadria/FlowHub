@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # FlowHub operator CLI wrapper.
 #
-# This script is intentionally unprivileged. It never reads .env.beta directly.
+# This script is intentionally unprivileged. It never reads .env directly.
 # Privileged Docker/config operations go through the root-owned helper installed
 # by installer/install.sh with a strict sudoers allowlist.
 

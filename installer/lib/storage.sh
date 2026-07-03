@@ -2,8 +2,8 @@
 # FlowHub - Storage and backup directory setup
 #
 # Source from install.sh. Call setup_storage_dirs.
-# Creates BETA_STORAGE_PATH/{logs,config,plugins,uploads,diagnostics}
-# and BETA_BACKUP_PATH. Tracks created dirs in INSTALLER_CREATED_DIRS for rollback.
+# Creates FLOWHUB_STORAGE_PATH/{logs,config,plugins,uploads,diagnostics}
+# and FLOWHUB_BACKUP_PATH. Tracks created dirs in INSTALLER_CREATED_DIRS for rollback.
 
 set -euo pipefail
 
@@ -27,15 +27,15 @@ _mkdir_tracked() {
 
 setup_storage_dirs() {
     echo "  Setting up storage directories..."
-    _mkdir_tracked "${BETA_STORAGE_PATH}/logs"
-    _mkdir_tracked "${BETA_STORAGE_PATH}/config"
-    _mkdir_tracked "${BETA_STORAGE_PATH}/plugins"
-    _mkdir_tracked "${BETA_STORAGE_PATH}/uploads"
-    _mkdir_tracked "${BETA_STORAGE_PATH}/diagnostics"
-    _mkdir_tracked "${BETA_BACKUP_PATH}"
+    _mkdir_tracked "${FLOWHUB_STORAGE_PATH}/logs"
+    _mkdir_tracked "${FLOWHUB_STORAGE_PATH}/config"
+    _mkdir_tracked "${FLOWHUB_STORAGE_PATH}/plugins"
+    _mkdir_tracked "${FLOWHUB_STORAGE_PATH}/uploads"
+    _mkdir_tracked "${FLOWHUB_STORAGE_PATH}/diagnostics"
+    _mkdir_tracked "${FLOWHUB_BACKUP_PATH}"
 
     # Set restrictive permissions on the storage tree
-    chmod -R 750 "${BETA_STORAGE_PATH}" "${BETA_BACKUP_PATH}" 2>/dev/null || true
+    chmod -R 750 "${FLOWHUB_STORAGE_PATH}" "${FLOWHUB_BACKUP_PATH}" 2>/dev/null || true
     echo "  Storage directories ready."
 }
 

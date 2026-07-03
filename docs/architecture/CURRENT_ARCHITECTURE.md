@@ -23,7 +23,7 @@ flowchart LR
     LOG --> DB
 ```
 
-The active first-release backend entrypoint is `app.beta.app`. Legacy
+The active first-release backend entrypoint is `app.flowhub.app`. Legacy
 `app/main.py` and `app/services/*` modules are retained only for historical
 compatibility and are not imported by the active FlowHub Docker runtime.
 
@@ -100,11 +100,11 @@ Disabled in the first release:
 - Spreadsheet writes
 
 Connector communication for WooCommerce and Nextcloud is isolated to connector
-and integration layers. Active Beta v2 API routes must not directly call external
+and integration layers. Active FLOWHUB v2 API routes must not directly call external
 WooCommerce, WebDAV, OCS, `httpx`, or `requests` clients.
 
 `FEATURE_SCHEDULER` defaults to disabled. Scheduler files may exist as inactive
-stubs, but the scheduler router is not mounted by `app.beta.app` and no
+unavailables, but the scheduler router is not mounted by `app.flowhub.app` and no
 background scheduler execution is started.
 
 ## CLI

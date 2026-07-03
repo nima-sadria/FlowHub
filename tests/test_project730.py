@@ -66,13 +66,13 @@ def test_retry_after_capped_to_max_sleep():
     rate_resp = _mock_resp(429, headers={"Retry-After": "120"})
     call_count = 0
 
-    async def _fake_get(_self_or_url, *args, **kwargs):
+    async def _test_double_get(_self_or_url, *args, **kwargs):
         nonlocal call_count
         call_count += 1
         return rate_resp if call_count == 1 else ok_resp
 
     client = MagicMock(spec=httpx.AsyncClient)
-    client.get = AsyncMock(side_effect=_fake_get)
+    client.get = AsyncMock(side_effect=_test_double_get)
 
     slept: list[float] = []
 
@@ -95,13 +95,13 @@ def test_retry_after_small_value_not_increased():
     rate_resp = _mock_resp(429, headers={"Retry-After": "5"})
     call_count = 0
 
-    async def _fake_get(*args, **kwargs):
+    async def _test_double_get(*args, **kwargs):
         nonlocal call_count
         call_count += 1
         return rate_resp if call_count == 1 else ok_resp
 
     client = MagicMock(spec=httpx.AsyncClient)
-    client.get = AsyncMock(side_effect=_fake_get)
+    client.get = AsyncMock(side_effect=_test_double_get)
     slept: list[float] = []
 
     async def run():
@@ -198,14 +198,14 @@ def test_fetch_telemetry_product_pages_counted():
 
     call_num = [0]
 
-    async def _fake_get(*args, **kwargs):
+    async def _test_double_get(*args, **kwargs):
         call_num[0] += 1
         resp = _mock_resp(200, body=page1 if call_num[0] == 1 else [])
         resp.raise_for_status = MagicMock()
         return resp
 
     client_mock = MagicMock(spec=httpx.AsyncClient)
-    client_mock.get = AsyncMock(side_effect=_fake_get)
+    client_mock.get = AsyncMock(side_effect=_test_double_get)
     client_mock.__aenter__ = AsyncMock(return_value=client_mock)
     client_mock.__aexit__ = AsyncMock(return_value=False)
 

@@ -1,4 +1,4 @@
-"""FlowHub - flowhub sources command group. Stub - B8."""
+"""FlowHub - flowhub sources command group. Unavailable - B8."""
 
 import typer
 

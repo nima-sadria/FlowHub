@@ -20,7 +20,7 @@ _AUTH = AuthConfig(
     },
 )
 
-_SAMPLE_PRODUCT = {
+_PRODUCT_FIXTURE = {
     "id": 10,
     "name": "Widget",
     "sku": "W-001",
@@ -104,7 +104,7 @@ def test_connect_stores_credentials():
     async def _run():
         with patch(
             "app.connectors.destinations.woocommerce.connector.ping",
-            new=AsyncMock(return_value={"reachable": True, "sample_count": 5}),
+            new=AsyncMock(return_value={"reachable": True, "records_checked": 5}),
         ):
             await wc.connect(_AUTH)
 
@@ -119,7 +119,7 @@ def test_disconnect_clears_credentials():
     async def _run():
         with patch(
             "app.connectors.destinations.woocommerce.connector.ping",
-            new=AsyncMock(return_value={"reachable": True, "sample_count": 0}),
+            new=AsyncMock(return_value={"reachable": True, "records_checked": 0}),
         ):
             await wc.connect(_AUTH)
         await wc.disconnect()
@@ -142,7 +142,7 @@ def test_health_connected_returns_healthy():
     async def _run():
         with patch(
             "app.connectors.destinations.woocommerce.connector.ping",
-            new=AsyncMock(return_value={"reachable": True, "sample_count": 3}),
+            new=AsyncMock(return_value={"reachable": True, "records_checked": 3}),
         ):
             await wc.connect(_AUTH)
             return await wc.health()
@@ -158,7 +158,7 @@ def test_health_on_error_returns_unhealthy():
     async def _run():
         with patch(
             "app.connectors.destinations.woocommerce.connector.ping",
-            new=AsyncMock(return_value={"reachable": True, "sample_count": 0}),
+            new=AsyncMock(return_value={"reachable": True, "records_checked": 0}),
         ):
             await wc.connect(_AUTH)
 
@@ -183,7 +183,7 @@ def test_test_connection_ok():
         wc = WooCommerceConnector()
         with patch(
             "app.connectors.destinations.woocommerce.connector.ping",
-            new=AsyncMock(return_value={"reachable": True, "sample_count": 7}),
+            new=AsyncMock(return_value={"reachable": True, "records_checked": 7}),
         ):
             return await wc.test_connection(_AUTH)
 
@@ -219,12 +219,12 @@ def test_list_products_delegates():
     async def _run():
         with patch(
             "app.connectors.destinations.woocommerce.connector.ping",
-            new=AsyncMock(return_value={"reachable": True, "sample_count": 1}),
+            new=AsyncMock(return_value={"reachable": True, "records_checked": 1}),
         ):
             await wc.connect(_AUTH)
         with patch(
             "app.connectors.destinations.woocommerce.connector.list_products",
-            new=AsyncMock(return_value=[_SAMPLE_PRODUCT]),
+            new=AsyncMock(return_value=[_PRODUCT_FIXTURE]),
         ):
             return await wc.list_products(page=1, per_page=50)
 
@@ -239,12 +239,12 @@ def test_read_inventory_returns_stock_fields():
     async def _run():
         with patch(
             "app.connectors.destinations.woocommerce.connector.ping",
-            new=AsyncMock(return_value={"reachable": True, "sample_count": 1}),
+            new=AsyncMock(return_value={"reachable": True, "records_checked": 1}),
         ):
             await wc.connect(_AUTH)
         with patch(
             "app.connectors.destinations.woocommerce.connector.get_product",
-            new=AsyncMock(return_value=_SAMPLE_PRODUCT),
+            new=AsyncMock(return_value=_PRODUCT_FIXTURE),
         ):
             return await wc.read_inventory(10)
 

@@ -19,7 +19,7 @@ Thanks for helping improve FlowHub.
 ## Local Checks
 
 ```bash
-python -m pytest tests/beta -q
+python -m pytest tests/flowhub -q
 npm run build
 npm test -- --run
 git diff --check

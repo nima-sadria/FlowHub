@@ -27,16 +27,16 @@ Available commands:
     admin create          -- create an emergency administrator account
     admin reset-username  -- rename an administrator account
     admin reset-password  -- reset an administrator password
-    migrate *             -- stub (B6)
-    backup *              -- stub (B15)
-    logs *                -- stub (B6)
-    update *              -- stub (B15)
-    adapters *            -- stub (B14)
-    channels *            -- stub (B8)
-    sources *             -- stub (B8)
-    users *               -- stub (B7)
-    scheduler *           -- stub (B11)
-    ai *                  -- stub (B12)
+    migrate *             -- unavailable (B6)
+    backup *              -- unavailable (B15)
+    logs *                -- unavailable (B6)
+    update *              -- unavailable (B15)
+    adapters *            -- unavailable (B14)
+    channels *            -- unavailable (B8)
+    sources *             -- unavailable (B8)
+    users *               -- unavailable (B7)
+    scheduler *           -- unavailable (B11)
+    ai *                  -- unavailable (B12)
 """
 
 import typer

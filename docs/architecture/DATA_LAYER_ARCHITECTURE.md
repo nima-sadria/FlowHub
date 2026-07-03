@@ -75,7 +75,7 @@ External Systems
 - `connector_id` - fully qualified connector instance ID (e.g. `woocommerce:primary`)
 - `product_id` - connector-native product identifier (WC product ID as string)
 - `external_id` - integer WC product ID when connector is WooCommerce
-- `channel_id` - future multi-channel slot (NULL for current Beta)
+- `channel_id` - future multi-channel slot (NULL for current FLOWHUB)
 
 **Fields per product:**
 
@@ -133,9 +133,9 @@ read-only state instead of making a live WooCommerce call.
 **Design rationale:** Inventory can change more frequently than product metadata (name, images, categories). Separating it allows a faster inventory refresh cycle without re-fetching full product data.
 
 **Current state (IP foundation):** Inventory table exists but is not populated
-by active Beta v2 routes yet. Product Browser reads product-level inventory
+by active FLOWHUB v2 routes yet. Product Browser reads product-level inventory
 fields from `dl_product_cache` through the Integration Platform. No live
-WooCommerce inventory call is made from active Beta v2 routes.
+WooCommerce inventory call is made from active FLOWHUB v2 routes.
 
 **Future multi-location support:** `channel_id` is reserved for warehouse/location segmentation. Schema does not need to change when multi-location inventory is added.
 
@@ -214,7 +214,7 @@ phase.
 **Purpose:** Describe the configured connector instances - their type, capabilities, and operational parameters.
 
 **Current state (IP foundation):** Connector metadata is owned by the Integration
-Platform. Registry declarations live in `app/beta/integration_platform/registry.py`
+Platform. Registry declarations live in `app/flowhub/integration_platform/registry.py`
 and configured instances/settings/status/events live in the `ip_*` tables. The
 Data Layer remains the read-model store for products, sources, health, and
 telemetry.
@@ -229,17 +229,17 @@ telemetry.
 | display_name | Human-readable name |
 | capabilities | JSON - serialized ConnectorCapabilities |
 | can_read | boolean |
-| can_write | boolean - always false in Beta |
+| can_write | boolean - always false in FLOWHUB |
 | rate_limit_rps | float - requests per second limit |
 | supports_pagination | boolean |
 | supports_webhooks | boolean |
 | supports_etag | boolean |
 | entity_types | JSON - list: products, inventory, categories, files, ... |
-| credentials_ref | Key name in beta_app_config where credentials live |
+| credentials_ref | Key name in flowhub_app_config where credentials live |
 | enabled | boolean |
 | created_at | datetime |
 
-**Active connectors in Beta:**
+**Active connectors in FLOWHUB:**
 - `woocommerce:primary` - destination, read-only, WC REST API v3
 - `nextcloud:primary` - source, read-only, WebDAV + OCS APIs
 
@@ -277,7 +277,7 @@ telemetry.
 
 **Current state (IP foundation):** Table exists. Populated by
 `ConnectorHealthService.upsert()` and read by Integration Platform diagnostics.
-The active Beta v2 diagnostics routes are record-backed and do not perform live
+The active FLOWHUB v2 diagnostics routes are record-backed and do not perform live
 WooCommerce or Nextcloud checks.
 
 ---
@@ -369,7 +369,7 @@ pending -> running -> completed
 - Same connector_id + entity_type cannot have two `running` jobs simultaneously
 - New manual trigger for a running job returns the existing job ID
 
-**Current state (DL1):** Table and service exist. No automated job creation yet - manual creation only via `RefreshJobService.create()`. Scheduler is strictly forbidden in Beta.
+**Current state (DL1):** Table and service exist. No automated job creation yet - manual creation only via `RefreshJobService.create()`. Scheduler is strictly forbidden in FLOWHUB.
 
 ---
 
@@ -576,8 +576,8 @@ Examples:
 
 | Connector | Type | Status |
 |-----------|------|--------|
-| WooCommerce | Destination | Active (Beta) |
-| Nextcloud | Source | Active (Beta) |
+| WooCommerce | Destination | Active (FLOWHUB) |
+| Nextcloud | Source | Active (FLOWHUB) |
 | SnappShop | Destination | Planned |
 | Digikala | Destination | Planned |
 | Technolife | Destination | Planned |
@@ -597,7 +597,7 @@ When multiple destination connectors are active, the Products page reads from `d
 
 **Purpose:** Enforce that the Data Layer never introduces write paths to external systems.
 
-### Beta Read-Only Guarantee
+### FLOWHUB Read-Only Guarantee
 
 The FlowHub Data Layer is read-only with respect to external systems in the first release:
 
@@ -640,7 +640,7 @@ These are static - not computed from any state. They cannot be false.
 
 ## O. Database Model
 
-**Purpose:** Conceptual description of all Data Layer tables. See `alembic_beta/versions/beta_005_data_layer.py` for the authoritative DDL.
+**Purpose:** Conceptual description of all Data Layer tables. See `alembic_flowhub/versions/FLOWHUB_005_data_layer.py` for the authoritative DDL.
 
 ### Table Summary
 
@@ -674,7 +674,7 @@ These are static - not computed from any state. They cannot be false.
 
 ### Table Ownership
 
-All `dl_*` tables are owned by the FlowHub runtime (`app/beta/`). Legacy Compatibility: they are never read or written by the legacy app runtime (`app/main.py`).
+All `dl_*` tables are owned by the FlowHub runtime (`app/flowhub/`). Legacy Compatibility: they are never read or written by the legacy app runtime (`app/main.py`).
 
 ---
 
@@ -832,17 +832,17 @@ Products from SnappShop -> UI (same Products page, different channel tab)
 | `app/connectors/destinations/woocommerce/` | Active | WC REST client. Future: called by refresh jobs, writes to `dl_product_cache` |
 | `app/connectors/sources/nextcloud/` | Active | NC WebDAV client. Future: called by refresh jobs, writes to `dl_source_snapshots` |
 | `app/connectors/common/health.py` | Active | `HealthResult` returned by `check_health()`. Future: written to `dl_connector_health` |
-| `app/connectors/common/types.py` | Legacy connector framework | Integration Platform uses the canonical capability schema in `app/beta/integration_platform/contracts.py` |
+| `app/connectors/common/types.py` | Legacy connector framework | Integration Platform uses the canonical capability schema in `app/flowhub/integration_platform/contracts.py` |
 
-### app/beta/integrations/ - Integration Layer
+### app/flowhub/integrations/ - Integration Layer
 
 | Component | Current status | Data Layer relationship |
 |-----------|---------------|------------------------|
-| `WooCommerceClient` | Legacy compatibility wrapper | Not imported by active Beta v2 API routes |
-| `NextcloudClient` | Legacy compatibility wrapper | Not imported by active Beta v2 API routes |
+| `WooCommerceClient` | Legacy compatibility wrapper | Not imported by active FLOWHUB v2 API routes |
+| `NextcloudClient` | Legacy compatibility wrapper | Not imported by active FLOWHUB v2 API routes |
 | `parse_price_list()` | Active - stateless parse | Future: result row counts written to `dl_source_snapshots` |
 
-### app/beta/api/v2/ - API Routes
+### app/flowhub/api/v2/ - API Routes
 
 | Route file | Current status | Data Layer relationship |
 |------------|---------------|------------------------|
@@ -856,10 +856,10 @@ Products from SnappShop -> UI (same Products page, different channel tab)
 
 | Table | Owner | Data Layer role |
 |-------|-------|----------------|
-| `beta_users` | Core Beta | No role in Data Layer |
-| `beta_refresh_tokens` | Core Beta | No role in Data Layer |
-| `beta_login_audit` | Core Beta | Source for Activity page (separate from invalidation log) |
-| `beta_app_config` | Core Beta | Source for connector credentials (referenced by Connector Metadata Store) |
+| `flowhub_users` | Core FLOWHUB | No role in Data Layer |
+| `flowhub_refresh_tokens` | Core FLOWHUB | No role in Data Layer |
+| `flowhub_login_audit` | Core FLOWHUB | Source for Activity page (separate from invalidation log) |
+| `flowhub_app_config` | Core FLOWHUB | Source for connector credentials (referenced by Connector Metadata Store) |
 | `dl_connector_health` | **Data Layer (DL1)** | New |
 | `dl_connector_telemetry` | **Data Layer (DL1)** | New |
 | `dl_product_cache` | **Data Layer (DL1)** | New |
@@ -887,7 +887,7 @@ Products from SnappShop -> UI (same Products page, different channel tab)
 
 | Page | Route | Current status | Data Layer relationship |
 |------|-------|---------------|------------------------|
-| BetaDashboard | /home | Active | No Data Layer dependency yet |
+| Dashboard | /home | Active | No Data Layer dependency yet |
 | Products | /products | Active - Integration Platform | Reads Data Layer product cache |
 | Sources | /sources | Active - Integration Platform | Shows connector/source snapshot metadata |
 | SourceWizard | /sources/new | Active | No Data Layer dependency |
@@ -902,10 +902,10 @@ Products from SnappShop -> UI (same Products page, different channel tab)
 ### What is Current vs. Planned vs. Future
 
 **Current (DL1 + Integration Platform foundation):**
-- All 8 `dl_*` tables created (migration beta_005)
-- Integration Platform `ip_*` tables created (migrations beta_006 and beta_007)
-- Unified Logging Platform tables created (migration beta_007)
-- All 6 service modules implemented (`app/beta/data_layer/`)
+- All 8 `dl_*` tables created (migration FLOWHUB_005)
+- Integration Platform `ip_*` tables created (migrations FLOWHUB_006 and FLOWHUB_007)
+- Unified Logging Platform tables created (migration FLOWHUB_007)
+- All 6 service modules implemented (`app/flowhub/data_layer/`)
 - All 6 read-only API endpoints implemented (`/api/v2/data-layer/*`)
 - Products, Sources, Workspace, Diagnostics, Settings, and telemetry routes are
   wired through Integration Platform/Data Layer records where approved

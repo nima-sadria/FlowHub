@@ -4,6 +4,7 @@ import { useServices } from '../services/ServiceContext'
 import type { SourceConfig, ConnectionTestResult } from '../services/types'
 import Spinner from '../components/loading/Spinner'
 import { useNotification } from '../notifications/NotificationProvider'
+import { inputHint } from '../utils/inputHint'
 
 type Step = 1 | 2 | 3 | 4
 
@@ -94,7 +95,7 @@ export default function SourceWizard() {
     }
   }
 
-  function field(name: keyof SourceConfig, label: string, type = 'text', placeholder = '') {
+  function field(name: keyof SourceConfig, label: string, type = 'text', template_variable = '') {
     return (
       <div key={name}>
         <label className="block text-[12px] font-medium text-text-base mb-1.5">{label}</label>
@@ -102,10 +103,10 @@ export default function SourceWizard() {
           type={type}
           value={config[name] as string}
           onChange={e => { setConfig(c => ({ ...c, [name]: e.target.value })); setErrors(ev => ({ ...ev, [name]: undefined })) }}
-          placeholder={placeholder}
+          {...inputHint(template_variable)}
           autoComplete={type === 'password' ? 'new-password' : undefined}
           className={[
-            'w-full px-3 py-2 text-[13px] border rounded-lg bg-bg-base text-text-base placeholder:text-wp-muted focus:outline-none focus:border-accent transition-colors',
+            'w-full px-3 py-2 text-[13px] border rounded-lg bg-bg-base text-text-base focus:outline-none focus:border-accent transition-colors',
             errors[name] ? 'border-wp-red' : 'border-border',
           ].join(' ')}
         />

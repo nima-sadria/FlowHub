@@ -441,7 +441,7 @@ def test_capability_guard_result_cached_after_probe():
             }
         }
 
-        async def _fake_options(*args, **kwargs):
+        async def _test_double_options(*args, **kwargs):
             call_count[0] += 1
             resp = MagicMock(spec=httpx.Response)
             resp.status_code = 200
@@ -449,7 +449,7 @@ def test_capability_guard_result_cached_after_probe():
             return resp
 
         client_mock = MagicMock(spec=httpx.AsyncClient)
-        client_mock.options = AsyncMock(side_effect=_fake_options)
+        client_mock.options = AsyncMock(side_effect=_test_double_options)
         client_mock.__aenter__ = AsyncMock(return_value=client_mock)
         client_mock.__aexit__ = AsyncMock(return_value=False)
 

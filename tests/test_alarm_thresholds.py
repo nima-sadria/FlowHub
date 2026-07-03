@@ -1,11 +1,11 @@
 """Tests for the configurable price-change alarm thresholds (warning + opt-in
-blocking critical threshold), and for demoting the old hardcoded
+blocking critical threshold), and for reducing the old hardcoded
 PRICE_EXTREMELY_HIGH check from a blocker to an advisory warning.
 
 Root cause this addresses: Dry Run was unconditionally blocking on
 `validation_extremely_high` because app/validation.py treated any price over
 999999 as a `critical` finding regardless of currency scale (Rial/Toman
-catalogs routinely exceed this). The fix demotes that check to `warning` and
+catalogs routinely exceed this). The fix lowers that check to `warning` and
 introduces a separate, opt-in, percentage-based critical threshold
 (AlarmThreshold.critical_threshold_percent + block_enabled) that admins
 control explicitly via /api/alarm-settings, resolved per-item with

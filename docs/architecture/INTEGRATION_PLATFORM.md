@@ -72,7 +72,7 @@ Admin UI
   |
   | HTTPS, correlation_id
   v
-FastAPI Beta v2
+FastAPI FLOWHUB v2
   |
   +-- Integration Platform API Contracts
   |     |
@@ -192,7 +192,7 @@ Common error codes:
 - `rate_limited`
 - `timeout`
 - `external_service_unavailable`
-- `write_blocked_beta`
+- `write_blocked_FLOWHUB`
 - `conflict`
 
 Pagination:
@@ -244,7 +244,7 @@ Read-only safety behavior:
 - Deletes remove FlowHub connector configuration only.
 - Test, diagnostics, detection, webhook, and telemetry endpoints must not write
   to external commerce, spreadsheet, ERP, or marketplace systems.
-- Write-capable operations return the Beta write guard response until Owner
+- Write-capable operations return the FLOWHUB write guard response until Owner
   approves write execution.
 
 ## Common Schema Fragments
@@ -333,7 +333,7 @@ Response:
       "supported_transports": ["rest_api", "webhook", "polling"],
       "read_only_supported": true,
       "write_supported": true,
-      "beta_write_blocked": true,
+      "FLOWHUB_write_blocked": true,
       "status": "current"
     }
   ],
@@ -998,7 +998,7 @@ Response:
 {
   "allowed": false,
   "status": "blocked",
-  "error_code": "write_blocked_beta",
+  "error_code": "write_blocked_FLOWHUB",
   "message": "Write operations are disabled in FlowHub.",
   "capability_advertised": true,
   "authorization_granted": false,
@@ -1010,7 +1010,7 @@ Response:
 Required separation:
 
 - Capability: connector may advertise write support.
-- Authorization: Safety Layer and Write Guard deny write authorization in Beta.
+- Authorization: Safety Layer and Write Guard deny write authorization in FLOWHUB.
 - Execution: write execution is not attempted.
 
 ## Frontend Architecture
@@ -1028,7 +1028,7 @@ The Integration Platform UI is an admin/operator surface with these sections:
 UI requirements:
 
 - Show write capabilities as connector metadata, not as permission.
-- Display Beta write blocked state wherever write support is shown.
+- Display FLOWHUB write blocked state wherever write support is shown.
 - Never display raw secret values.
 - Preserve and display correlation IDs for diagnostics and support workflows.
 - Use severity colors consistently:
@@ -1051,7 +1051,7 @@ Logical services:
   events.
 - Webhook Receiver: authentication, validation, event creation.
 - Polling Policy Controller: configuration only until Scheduler approval.
-- Write Guard: Beta write denial contract.
+- Write Guard: FLOWHUB write denial contract.
 
 ## Data Model
 
@@ -1081,7 +1081,7 @@ Data Layer relationships:
 Architecture target, not implementation instruction:
 
 ```text
-app/beta/integration_platform/
+app/flowhub/integration_platform/
   contracts.py
   registry.py
   manager.py
@@ -1094,7 +1094,7 @@ app/beta/integration_platform/
   polling.py
   write_guard.py
 
-app/beta/api/v2/
+app/flowhub/api/v2/
   integration_platform.py
 
 frontend/src/features/integration-platform/

@@ -249,7 +249,7 @@ class DestinationConnector(ABC):
 - `app/connectors/destinations/`
 - `app/connectors/destinations/woocommerce/`
 - `app/a2/` (existing Source Adapter Framework - read only for reference)
-- `app/beta/` (existing beta API - read only for reference)
+- `app/flowhub/` (existing FLOWHUB API - read only for reference)
 - `tests/connectors/destinations/`
 - Any UI file
 - Any rule engine, safety engine, pricing engine, or execution engine file
@@ -378,7 +378,7 @@ Developer B should pull and rebase after Step 5 if B is not yet complete.
 | Prohibited | Reason |
 |---|---|
 | Any pricing logic | Pricing engine is a separate protected system |
-| Inventory write path | FlowHub remains READ-ONLY in Beta |
+| Inventory write path | FlowHub remains READ-ONLY in FLOWHUB |
 | Apply / Dry Run | Protected system - requires Owner approval |
 | Safety Engine hooks | Separate phase |
 | WooCommerce write (PUT/POST products) | Explicitly prohibited - read path only |
@@ -457,7 +457,7 @@ After both branches merge, a mandatory integration audit runs before either conn
 - [ ] **File ownership**: no file under `sources/` was modified by Developer B; no file under `destinations/` was modified by Developer A
 - [ ] **Common contract integrity**: `git diff main..connectors/source-nextcloud -- app/connectors/common/` is empty (same for destination branch)
 - [ ] **Isolation - Nextcloud**: `grep -r "webdav\|PROPFIND\|remote\.php\|OCS" app/ --include="*.py" -l` returns only files inside `app/connectors/sources/nextcloud/`
-- [ ] **Isolation - WooCommerce**: `grep -r "wp-json/wc\|woocommerce" app/ --include="*.py" -l` returns only files inside `app/connectors/destinations/woocommerce/` and `app/beta/` (setup wizard only - existing, permitted)
+- [ ] **Isolation - WooCommerce**: `grep -r "wp-json/wc\|woocommerce" app/ --include="*.py" -l` returns only files inside `app/connectors/destinations/woocommerce/` and `app/flowhub/` (setup wizard only - existing, permitted)
 - [ ] **All tests pass**: `pytest tests/connectors/` green
 - [ ] **No write paths**: grep for `PUT\|POST\|PATCH\|DELETE` in connector files - only `test_connection()` calls are permitted (read tests)
 - [ ] **No pricing logic**: no imports from `app/a2/engines/` or `app/a2/rules/` inside connectors

@@ -4,7 +4,7 @@ Logs and acknowledges all change sets without applying them.
 Use this as a starting point for custom channel adapter plugins.
 
 Full plugin system implementation begins in B12.
-See: docs/beta/PLUGIN_ARCHITECTURE.md
+See: docs/platform/PLUGIN_ARCHITECTURE.md
 """
 
 
@@ -12,7 +12,7 @@ class DummyChannelAdapter:
     """Dummy channel adapter - accepts all change sets without applying them.
 
     This is the minimal reference implementation of a ChannelAdapterPlugin.
-    It demonstrates the required interface without any real I/O.
+    It shows the required interface without any real I/O.
 
     Implementation of the base class and real behavior begins in B12.
     """

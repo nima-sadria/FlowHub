@@ -31,8 +31,8 @@ docker_compose_cmd() {
 
 build_and_start_services() {
     local install_dir="$1"
-    local compose_file="${install_dir}/docker-compose.beta.yml"
-    local env_file="${install_dir}/.env.beta"
+    local compose_file="${install_dir}/docker-compose.yml"
+    local env_file="${install_dir}/.env"
     local dc_cmd
     dc_cmd="$(docker_compose_cmd)"
 
@@ -60,7 +60,7 @@ build_and_start_services() {
 
 wait_for_postgres_ready() {
     local install_dir="$1"
-    local compose_file="${install_dir}/docker-compose.beta.yml"
+    local compose_file="${install_dir}/docker-compose.yml"
     local max_wait="${2:-90}"
     local interval=5
     local elapsed=0
@@ -70,7 +70,7 @@ wait_for_postgres_ready() {
     echo "  Waiting for PostgreSQL to be ready (max ${max_wait}s)..."
     while [[ "$elapsed" -lt "$max_wait" ]]; do
         if ${dc_cmd} --project-directory "$install_dir" -f "$compose_file" exec -T postgres \
-            pg_isready -U "${BETA_POSTGRES_USER}" -d "${BETA_POSTGRES_DB}" \
+            pg_isready -U "${FLOWHUB_POSTGRES_USER}" -d "${FLOWHUB_POSTGRES_DB}" \
             &>/dev/null 2>&1; then
             echo "  PostgreSQL: ready"
             return 0

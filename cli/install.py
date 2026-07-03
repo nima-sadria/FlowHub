@@ -30,30 +30,30 @@ def _env_file_to_installer_config(env_file: Path | None):  # type: ignore[return
             k, _, v = line.partition("=")
             k = k.strip()
             v = v.strip()
-            # Map BETA_* env vars to InstallerConfig fields
+            # Map FLOWHUB_* env vars to InstallerConfig fields
             _MAP = {
-                "BETA_DOMAIN": "domain",
-                "BETA_ADMIN_EMAIL": "admin_email",
-                "BETA_NEXTCLOUD_URL": "nextcloud_url",
-                "BETA_NEXTCLOUD_FILE_PATH": "nextcloud_file_path",
-                "BETA_NEXTCLOUD_USERNAME": "nextcloud_username",
-                "BETA_NEXTCLOUD_PASSWORD": "nextcloud_password",
-                "BETA_WOOCOMMERCE_URL": "woocommerce_url",
-                "BETA_WOOCOMMERCE_KEY": "woocommerce_key",
-                "BETA_WOOCOMMERCE_SECRET": "woocommerce_secret",
-                "BETA_ENV": "env",
-                "BETA_PORT": "port",
-                "BETA_SSL_MODE": "ssl_mode",
-                "BETA_POSTGRES_DB": "postgres_db",
-                "BETA_POSTGRES_USER": "postgres_user",
-                "BETA_POSTGRES_PASSWORD": "postgres_password",
-                "BETA_JWT_SECRET": "jwt_secret",
-                "BETA_REST_API_SECRET": "rest_api_secret",
-                "BETA_TIMEZONE": "timezone",
-                "BETA_CURRENCY": "currency",
-                "BETA_STORAGE_PATH": "storage_path",
-                "BETA_BACKUP_PATH": "backup_path",
-                "BETA_LOG_LEVEL": "log_level",
+                "FLOWHUB_DOMAIN": "domain",
+                "FLOWHUB_ADMIN_EMAIL": "admin_email",
+                "FLOWHUB_NEXTCLOUD_URL": "nextcloud_url",
+                "FLOWHUB_NEXTCLOUD_FILE_PATH": "nextcloud_file_path",
+                "FLOWHUB_NEXTCLOUD_USERNAME": "nextcloud_username",
+                "FLOWHUB_NEXTCLOUD_PASSWORD": "nextcloud_password",
+                "FLOWHUB_WOOCOMMERCE_URL": "woocommerce_url",
+                "FLOWHUB_WOOCOMMERCE_KEY": "woocommerce_key",
+                "FLOWHUB_WOOCOMMERCE_SECRET": "woocommerce_secret",
+                "FLOWHUB_ENV": "env",
+                "FLOWHUB_PORT": "port",
+                "FLOWHUB_SSL_MODE": "ssl_mode",
+                "FLOWHUB_POSTGRES_DB": "postgres_db",
+                "FLOWHUB_POSTGRES_USER": "postgres_user",
+                "FLOWHUB_POSTGRES_PASSWORD": "postgres_password",
+                "FLOWHUB_JWT_SECRET": "jwt_secret",
+                "FLOWHUB_REST_API_SECRET": "rest_api_secret",
+                "FLOWHUB_TIMEZONE": "timezone",
+                "FLOWHUB_CURRENCY": "currency",
+                "FLOWHUB_STORAGE_PATH": "storage_path",
+                "FLOWHUB_BACKUP_PATH": "backup_path",
+                "FLOWHUB_LOG_LEVEL": "log_level",
             }
             field = _MAP.get(k)
             if field is not None:
@@ -90,23 +90,12 @@ def install_dry_run(
     Prints: planned files, planned directories, masked secrets summary,
     validation result. Writes nothing to disk.
     """
-    from cli.shared.output import console, print_banner, print_section, print_success, print_error
+    from cli.shared.output import console, print_banner, print_section, print_success
     from cli.shared.config_reader import load_config
-    from cli.shared.env_guard import require_beta_env, ProductionResourceError
     from installer.installer_core import dry_run_install
 
     manager, profile = load_config(env_file)
     print_banner(profile)
-
-    # Block production profile
-    if profile is not None:
-        try:
-            require_beta_env(profile)
-        except ProductionResourceError as e:
-            from cli.shared.output import print_production_warning
-            print_production_warning()
-            print_error(str(e))
-            raise typer.Exit(code=1)
 
     config = _env_file_to_installer_config(env_file)
     result = dry_run_install(config, install_dir)
@@ -146,7 +135,7 @@ def install_dry_run(
         print_success("Generated configuration is valid.")
     else:
         console.print(f"  [bold red]X {len(validation.errors)} validation error(s):[/bold red]")
-        from app.beta.config import SECRET_FIELDS
+        from app.flowhub.config import SECRET_FIELDS
         for err in validation.errors:
             display = "[REDACTED]" if err.field in SECRET_FIELDS else repr(err.value)
             console.print(f"    [red]X[/red] {err.field}={display}: {err.message}")

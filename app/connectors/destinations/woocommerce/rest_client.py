@@ -4,7 +4,7 @@ THIS IS THE ONLY MODULE PERMITTED TO MAKE WooCommerce REST API CALLS.
 No other FlowHub module may call wp-json/wc/v3/ endpoints directly.
 
 All operations are READ-ONLY. No write path (PUT/POST/PATCH/DELETE products)
-is implemented. FlowHub Beta is a read-only system.
+is implemented. flowhub is a read-only system.
 
 Supported operations:
   - list_products()      - paginated GET /wp-json/wc/v3/products (connector ABC)
@@ -253,7 +253,7 @@ async def list_variations(
 async def ping(creds: WooCommerceCredentials) -> dict:
     """Lightweight connectivity probe - fetch one product to verify API access."""
     result = await _get(creds, "/products", params={"per_page": 1})
-    return {"reachable": True, "sample_count": len(result) if isinstance(result, list) else 0}
+    return {"reachable": True, "records_checked": len(result) if isinstance(result, list) else 0}
 
 
 async def list_products_paged(

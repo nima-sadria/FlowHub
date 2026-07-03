@@ -12,7 +12,7 @@ from typing import Annotated
 
 import typer
 
-from app.beta.config import ConfigurationError, ConfigProfile, SECRET_FIELDS
+from app.flowhub.config import ConfigurationError, ConfigProfile, SECRET_FIELDS
 
 app = typer.Typer(help="Show local environment and configuration status.")
 
@@ -49,7 +49,7 @@ def status(
     env_label: str = "-"
 
     if config_loaded:
-        from app.beta.config import ConfigValidator
+        from app.flowhub.config import ConfigValidator
         # Read env dict for validation (we already loaded it)
         env_dict: dict[str, str] = {}
         _ef = env_file or Path(".env")
@@ -66,11 +66,11 @@ def status(
         result = validator.validate(env_dict)
         config_valid = result.is_valid
         config_errors = [str(e) for e in result.errors]
-        storage_path = env_dict.get("BETA_STORAGE_PATH", "-")
-        backup_path = env_dict.get("BETA_BACKUP_PATH", "-")
-        domain = env_dict.get("BETA_DOMAIN", "-")
-        port = env_dict.get("BETA_PORT", "-")
-        env_label = env_dict.get("BETA_ENV", "-")
+        storage_path = env_dict.get("FLOWHUB_STORAGE_PATH", "-")
+        backup_path = env_dict.get("FLOWHUB_BACKUP_PATH", "-")
+        domain = env_dict.get("FLOWHUB_DOMAIN", "-")
+        port = env_dict.get("FLOWHUB_PORT", "-")
+        env_label = env_dict.get("FLOWHUB_ENV", "-")
 
     data = {
         "profile": profile.value if profile else "unknown",
@@ -103,7 +103,7 @@ def status(
 
     print_section("Environment")
     console.print(f"  Profile:         {profile.value if profile else 'unknown'}")
-    console.print(f"  BETA_ENV:        {env_label}")
+    console.print(f"  FLOWHUB_ENV:        {env_label}")
     console.print(f"  Domain:          {domain}:{port}" if domain != "-" else "  Domain:          -")
 
     print_section("Paths")

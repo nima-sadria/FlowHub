@@ -9,7 +9,7 @@ def _make_xlsx(rows: list[tuple]) -> bytes:
     Build a minimal FlowHub-compatible XLSX in memory.
 
     rows: list of (col_a, col_b, col_c) tuples, inserted starting at row 3.
-    Rows 1-2 are left as header placeholders.
+    Rows 1-2 are left as header template_variables.
     """
     wb = Workbook()
     ws = wb.active

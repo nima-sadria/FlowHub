@@ -6,6 +6,7 @@ import type {
   AdminPayload,
   SetupAdminResponse,
 } from '../api/types'
+import { inputHint } from '../utils/inputHint'
 
 type Step = 'welcome' | 'server-profile' | 'database' | 'admin' | 'finish'
 
@@ -116,7 +117,7 @@ function AppleSpinner({ size = 18 }: { size?: number }) {
 }
 
 export function SearchableListbox({
-  id, label, options, value, onChange, disabled, placeholder,
+  id, label, options, value, onChange, disabled, template_variable,
 }: {
   id?: string
   label: string
@@ -124,7 +125,7 @@ export function SearchableListbox({
   value: string
   onChange: (v: string) => void
   disabled?: boolean
-  placeholder?: string
+  template_variable?: string
 }) {
   const [search, setSearch] = useState('')
   const q = search.trim().toLowerCase()
@@ -141,10 +142,10 @@ export function SearchableListbox({
         value={search || selectedLabel}
         onChange={e => setSearch(e.target.value)}
         onFocus={e => e.currentTarget.select()}
-        placeholder={placeholder ?? `Search ${label.toLowerCase()}...`}
+        {...inputHint(template_variable ?? `Search ${label.toLowerCase()}...`)}
         disabled={disabled}
         autoComplete="off"
-        className="w-full min-w-0 mb-1.5 border border-border rounded-lg px-3 py-1.5 text-[13px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60 truncate"
+        className="w-full min-w-0 mb-1.5 border border-border rounded-lg px-3 py-1.5 text-[13px] bg-bg-base text-text-base focus:outline-none focus:border-accent disabled:opacity-60 truncate"
       />
       <div
         id={id}
@@ -178,7 +179,7 @@ export function SearchableListbox({
 }
 
 function Field({
-  id, label, type = 'text', value, onChange, placeholder, disabled = false, hint, error,
+  id, label, type = 'text', value, onChange, template_variable, disabled = false, hint, error,
   autoComplete = 'off', inputMode,
 }: {
   id: string
@@ -186,7 +187,7 @@ function Field({
   type?: string
   value: string
   onChange: (v: string) => void
-  placeholder?: string
+  template_variable?: string
   disabled?: boolean
   hint?: string
   error?: string | null
@@ -206,14 +207,14 @@ function Field({
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
+        {...inputHint(template_variable)}
         disabled={disabled}
         autoComplete={autoComplete}
         inputMode={inputMode}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy}
         className={[
-          'w-full border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent placeholder:text-wp-muted disabled:opacity-60',
+          'w-full border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent disabled:opacity-60',
           error ? 'border-wp-red' : 'border-border',
         ].join(' ')}
       />
@@ -392,7 +393,7 @@ function ServerProfileStep({
           label="Domain"
           value={domain}
           onChange={setDomain}
-          placeholder="yourdomain.com or localhost"
+          template_variable="yourdomain.com or localhost"
           hint="The domain where FlowHub is accessible. Used in links and notifications."
           disabled={loading}
         />
@@ -403,7 +404,7 @@ function ServerProfileStep({
           value={timezone}
           onChange={setTimezone}
           disabled={loading}
-          placeholder="Search timezones... (e.g. Tehran, London, UTC)"
+          template_variable="Search timezones... (e.g. Tehran, London, UTC)"
         />
         <SearchableListbox
           id="sp-cur"
@@ -412,7 +413,7 @@ function ServerProfileStep({
           value={currency}
           onChange={setCurrency}
           disabled={loading}
-          placeholder="Search currencies... (e.g. USD, IRR)"
+          template_variable="Search currencies... (e.g. USD, IRR)"
         />
       </div>
       <NavButtons onBack={onBack} onNext={handleSubmit} loading={loading} />
@@ -578,7 +579,7 @@ function AdminStep({
             label="Username"
             value={username}
             onChange={setUsername}
-            placeholder="admin"
+            template_variable="admin"
             disabled={loading}
           />
           <Field
@@ -587,7 +588,7 @@ function AdminStep({
             type="email"
             value={email}
             onChange={(value) => { setEmail(value); setEmailTouched(true) }}
-            placeholder="admin@example.com"
+            template_variable="admin@example.com"
             disabled={loading}
             autoComplete="email"
             inputMode="email"
@@ -599,7 +600,7 @@ function AdminStep({
             type="password"
             value={password}
             onChange={setPassword}
-            placeholder="At least 8 characters"
+            template_variable="At least 8 characters"
             disabled={loading}
           />
           <Field
@@ -608,7 +609,7 @@ function AdminStep({
             type="password"
             value={confirm}
             onChange={setConfirm}
-            placeholder="Repeat password"
+            template_variable="Repeat password"
             disabled={loading}
           />
         </div>

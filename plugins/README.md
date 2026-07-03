@@ -30,9 +30,9 @@ plugins/
 
 1. Copy `examples/dummy_channel/` as a starting point
 2. Edit `plugin.json` with your plugin's metadata
-3. Implement the appropriate interface from `app/beta/plugins/interfaces`
+3. Implement the appropriate interface from `app/flowhub/plugins/interfaces`
 4. Install: plugin installation is planned after the first release.
 
-Full documentation: `docs/beta/PLUGIN_ARCHITECTURE.md`
+Full documentation: `docs/platform/PLUGIN_ARCHITECTURE.md`
 
 Implementation of the plugin system begins in B12.

@@ -15,5 +15,6 @@ os.environ.setdefault("NEXTCLOUD_FILE_PATH", "/x.xlsx")
 os.environ.setdefault("WC_URL", "http://example.invalid")
 os.environ.setdefault("WC_KEY", "x")
 os.environ.setdefault("WC_SECRET", "x")
+os.environ.setdefault("JWT_SECRET", "test-suite-jwt-secret-with-at-least-32-bytes")
 # 'testadmin' is used by test_phase7b.py as a super admin (bypasses DB checks).
 os.environ.setdefault("SUPER_ADMIN_USERS", "testadmin")

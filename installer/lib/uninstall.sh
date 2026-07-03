@@ -37,8 +37,8 @@ _uninstall_ask_yn() {
 
 run_uninstall() {
     local install_dir="${1:-/opt/FlowHub}"
-    local env_file="${install_dir}/.env.beta"
-    local compose_file="${install_dir}/docker-compose.beta.yml"
+    local env_file="${install_dir}/.env"
+    local compose_file="${install_dir}/docker-compose.yml"
     local cli_path="/usr/local/bin/flowhub"
     local project_name
     project_name="flowhub"
@@ -74,7 +74,7 @@ run_uninstall() {
     rm_project_dir="$(_uninstall_ask_yn "Remove project directory (${install_dir})"                     "y")"
     rm_cli="$(        _uninstall_ask_yn "Remove CLI (${cli_path})"                                      "y")"
     rm_systemd="$(    _uninstall_ask_yn "Remove systemd services (if any)"                              "y")"
-    rm_config="$(     _uninstall_ask_yn "Remove generated configuration (.env.beta + TOML)"             "y")"
+    rm_config="$(     _uninstall_ask_yn "Remove generated configuration (.env + TOML)"             "y")"
     rm_logs="$(       _uninstall_ask_yn "Remove logs (${install_dir}/logs)"                             "y")"
     rm_backups="$(    _uninstall_ask_yn "Remove backups  [OFF by default] (${install_dir}/backups)"     "n")"
 
@@ -102,7 +102,7 @@ run_uninstall() {
     [[ "$rm_project_dir" == "y" ]] && echo "    - Project directory: ${install_dir}"
     [[ "$rm_cli"         == "y" ]] && echo "    - CLI: ${cli_path}"
     [[ "$rm_systemd"     == "y" ]] && echo "    - Systemd services (flowhub*)"
-    [[ "$rm_config"      == "y" ]] && echo "    - Configuration: .env.beta + TOML"
+    [[ "$rm_config"      == "y" ]] && echo "    - Configuration: .env + TOML"
     [[ "$rm_logs"        == "y" ]] && echo "    - Logs: ${install_dir}/logs"
     [[ "$rm_backups"     == "y" ]] && echo "    - Backups: ${install_dir}/backups"
     echo "  ----------------------------------------------------------"
@@ -260,7 +260,7 @@ run_uninstall() {
     if [[ "$rm_systemd" == "y" ]]; then
         local _found_svc=0
         local _svc
-        for _svc in flowhub flowhub-beta flowhub-worker; do
+        for _svc in FlowHub-worker; do
             if systemctl list-unit-files 2>/dev/null \
                     | grep -q "^${_svc}\.service"; then
                 printf "  Removing systemd service (%s)..." "$_svc"
@@ -280,8 +280,8 @@ run_uninstall() {
         printf "  Removing configuration..."
         rm -f "$env_file" 2>/dev/null || true
         rm -f "${install_dir}/storage/config/flowhub.toml" 2>/dev/null || true
-        rm -f "${install_dir}/storage/config/flowhub-beta.toml" 2>/dev/null || true
-        removed+=("configuration (.env.beta)")
+        rm -f "${install_dir}/storage/config/flowhub.toml" 2>/dev/null || true
+        removed+=("configuration (.env)")
         echo " done"
     else
         [[ -f "$env_file" ]] && preserved+=("configuration (${env_file})")

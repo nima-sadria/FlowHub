@@ -1,7 +1,7 @@
 # FlowHub
 
 [![Build](https://img.shields.io/badge/build-ready_for_release-16a34a)](https://github.com/nima-sadria/FlowHub)
-[![Docker](https://img.shields.io/badge/docker-compose-2496ed)](docker-compose.beta.yml)
+[![Docker](https://img.shields.io/badge/docker-compose-2496ed)](docker-compose.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Latest Release](https://img.shields.io/badge/release-first_public_release-7c3aed)](RELEASE_NOTES.md)
 
@@ -74,17 +74,17 @@ sudo ./installer/install.sh
 git clone https://github.com/nima-sadria/FlowHub.git
 cd FlowHub
 
-cp .env.beta.example .env.beta
+cp .env.example .env
 
-docker compose -f docker-compose.beta.yml \
-  --env-file .env.beta up -d --build
+docker compose -f docker-compose.yml \
+  --env-file .env up -d --build
 ```
 
 Run migrations after the Docker stack is healthy:
 
 ```bash
-docker compose -f docker-compose.beta.yml \
-  --env-file .env.beta exec app alembic -c alembic_beta.ini upgrade head
+docker compose -f docker-compose.yml \
+  --env-file .env exec app alembic -c alembic_flowhub.ini upgrade head
 ```
 
 ## Installer
@@ -212,7 +212,7 @@ flowhub admin reset-password
 The installed `flowhub` wrapper is Docker-backed. Runtime commands use a
 root-owned helper with a strict sudoers allowlist, so the normal installing
 operator can run FlowHub management commands without manually typing `sudo`.
-The wrapper does not read `.env.beta` directly; `.env.beta` remains protected as
+The wrapper does not read `.env` directly; `.env` remains protected as
 `root:root 600`. `flowhub restart` waits for the application health endpoint
 before returning successfully.
 
@@ -253,8 +253,8 @@ this release.
 
 ```bash
 curl http://localhost:8085/api/health
-docker compose -f /opt/FlowHub/docker-compose.beta.yml \
-  --env-file /opt/FlowHub/.env.beta ps
+docker compose -f /opt/FlowHub/docker-compose.yml \
+  --env-file /opt/FlowHub/.env ps
 flowhub health
 ```
 
@@ -275,7 +275,7 @@ Current release UI previews are stored in `docs/assets/screenshots/`.
 - [Current Architecture](docs/architecture/CURRENT_ARCHITECTURE.md)
 - [Integration Platform](docs/architecture/INTEGRATION_PLATFORM.md)
 - [Unified Logging Platform](docs/architecture/UNIFIED_LOGGING_PLATFORM.md)
-- [Installer Architecture](docs/beta/INSTALLER_ARCHITECTURE.md)
+- [Installer Architecture](docs/platform/INSTALLER_ARCHITECTURE.md)
 - [Installation Guide](docs/INSTALLATION.md)
 - [Upgrade Guide](docs/UPGRADE.md)
 - [Backup and Restore](docs/BACKUP_RESTORE.md)

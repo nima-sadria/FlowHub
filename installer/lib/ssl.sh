@@ -2,7 +2,7 @@
 # FlowHub - SSL setup
 #
 # Modes: off / self-signed / letsencrypt / manual
-# Writes certificates to BETA_STORAGE_PATH/ssl/.
+# Writes certificates to FLOWHUB_STORAGE_PATH/ssl/.
 # Configures Nginx accordingly.
 #
 # NOT IMPLEMENTED IN B4.

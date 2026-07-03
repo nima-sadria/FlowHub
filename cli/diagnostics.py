@@ -13,8 +13,8 @@ from typing import Annotated, Optional
 
 import typer
 
-from app.beta.connections.adapters import RealNetworkAdapter
-from app.beta.diagnostics.runner import DiagnosticRunner, KNOWN_SERVICES
+from app.flowhub.connections.adapters import RealNetworkAdapter
+from app.flowhub.diagnostics.runner import DiagnosticRunner, KNOWN_SERVICES
 
 app = typer.Typer(help="Diagnostics: environment checks and integration health.")
 
@@ -36,7 +36,7 @@ def diagnostics(
         return
     from cli.shared.output import console, print_banner, print_section
     from cli.shared.config_reader import load_config, validate_env_file, secret_status
-    from app.beta.config import REQUIRED_FIELDS, SECRET_FIELDS
+    from app.flowhub.config import REQUIRED_FIELDS, SECRET_FIELDS
     from installer.installer_core import check_prerequisites
 
     manager, profile = load_config(env_file)

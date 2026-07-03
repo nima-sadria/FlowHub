@@ -42,7 +42,7 @@ wizard_section_admin() {
     echo "  Create the administrator account you will use to sign in."
     echo ""
 
-    _prompt_plain BETA_ADMIN_USERNAME "Admin username" "admin"
+    _prompt_plain FLOWHUB_ADMIN_USERNAME "Admin username" "admin"
 
     while true; do
         local raw_email
@@ -52,19 +52,19 @@ wizard_section_admin() {
             echo "  ERROR: Email is required." >&2
             continue
         fi
-        BETA_ADMIN_EMAIL="$raw_email"
+        FLOWHUB_ADMIN_EMAIL="$raw_email"
         break
     done
 
     while true; do
-        _prompt_password BETA_ADMIN_PASSWORD "Admin password (min 8 characters)"
-        if [[ ${#BETA_ADMIN_PASSWORD} -lt 8 ]]; then
+        _prompt_password FLOWHUB_ADMIN_PASSWORD "Admin password (min 8 characters)"
+        if [[ ${#FLOWHUB_ADMIN_PASSWORD} -lt 8 ]]; then
             echo "  ERROR: Password must be at least 8 characters." >&2
             continue
         fi
         local confirm_pass
         _prompt_password confirm_pass "Confirm password"
-        if [[ "$BETA_ADMIN_PASSWORD" != "$confirm_pass" ]]; then
+        if [[ "$FLOWHUB_ADMIN_PASSWORD" != "$confirm_pass" ]]; then
             echo "  ERROR: Passwords do not match. Try again." >&2
             continue
         fi
@@ -76,8 +76,8 @@ wizard_section_confirm() {
     _section "Confirm Installation"
     echo ""
     echo "  The following admin account will be created:"
-    echo "    Username : ${BETA_ADMIN_USERNAME}"
-    echo "    Email    : ${BETA_ADMIN_EMAIL}"
+    echo "    Username : ${FLOWHUB_ADMIN_USERNAME}"
+    echo "    Email    : ${FLOWHUB_ADMIN_EMAIL}"
     echo "    Password : -ڈ-ڈ-ڈ-ڈ-ڈ-ڈ-ڈ-ڈ"
     echo ""
     echo "  All other settings use defaults and can be changed in the web Setup Wizard."

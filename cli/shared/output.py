@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
 
-from app.beta.config import ConfigProfile
+from app.flowhub.config import ConfigProfile
 
 console = Console()
 err_console = Console(stderr=True)
 
 _BANNER_STYLES: dict[ConfigProfile, str] = {
     ConfigProfile.DEV: "bold yellow",
-    ConfigProfile.BETA: "bold cyan",
     ConfigProfile.PRODUCTION: "bold red",
 }
 
@@ -28,10 +27,10 @@ def print_banner(profile: ConfigProfile | None = None) -> None:
 def print_production_warning() -> None:
     """Print strong PRODUCTION warning block."""
     console.print("\n[bold red]" + "=" * 56 + "[/bold red]")
-    console.print("[bold red]  ڑ   PRODUCTION PROFILE DETECTED  ڑ [/bold red]")
+    console.print("[bold red]  PRODUCTION PROFILE DETECTED[/bold red]")
     console.print("[bold red]" + "=" * 56 + "[/bold red]")
-    console.print("[red]  Write operations are BLOCKED in the PRODUCTION profile.")
-    console.print("  Only read-only diagnostics are permitted.[/red]\n")
+    console.print("[red]  Write operations are BLOCKED in the PRODUCTION profile.[/red]")
+    console.print("[red]  Only read-only diagnostics are permitted.[/red]\n")
 
 
 def print_error(message: str, suggestion: str | None = None) -> None:
@@ -48,7 +47,7 @@ def print_success(message: str) -> None:
 
 def print_warning(message: str) -> None:
     """Print a formatted warning."""
-    console.print(f"[bold yellow]ڑ [/bold yellow]  {message}")
+    console.print(f"[bold yellow]![/bold yellow]  {message}")
 
 
 def print_info(message: str) -> None:

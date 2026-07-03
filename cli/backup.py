@@ -1,4 +1,4 @@
-"""FlowHub - flowhub backup command group. Stub - B15."""
+"""FlowHub - flowhub backup command group. Unavailable - B15."""
 
 import typer
 

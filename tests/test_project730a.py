@@ -97,7 +97,7 @@ def test_light_fetch_uses_modified_after_filter_on_variations():
 
     calls_made: list[tuple] = []
 
-    async def _fake_get(url: str, **kwargs):
+    async def _test_double_get(url: str, **kwargs):
         params = kwargs.get("params", {})
         calls_made.append((url, dict(params)))
         if "/variations" in url:
@@ -111,7 +111,7 @@ def test_light_fetch_uses_modified_after_filter_on_variations():
         return _ok_resp([])
 
     client_mock = MagicMock(spec=httpx.AsyncClient)
-    client_mock.get = AsyncMock(side_effect=_fake_get)
+    client_mock.get = AsyncMock(side_effect=_test_double_get)
     client_mock.__aenter__ = AsyncMock(return_value=client_mock)
     client_mock.__aexit__ = AsyncMock(return_value=False)
 
@@ -137,7 +137,7 @@ def test_light_fetch_passes_modified_after_to_variations():
     parent = _make_parent(pid=101)
     captured_params: list[dict] = []
 
-    async def _fake_get(url: str, **kwargs):
+    async def _test_double_get(url: str, **kwargs):
         params = kwargs.get("params", {})
         captured_params.append(dict(params))
         if "/variations" in url:
@@ -147,7 +147,7 @@ def test_light_fetch_passes_modified_after_to_variations():
         return _ok_resp([])
 
     client_mock = MagicMock(spec=httpx.AsyncClient)
-    client_mock.get = AsyncMock(side_effect=_fake_get)
+    client_mock.get = AsyncMock(side_effect=_test_double_get)
     client_mock.__aenter__ = AsyncMock(return_value=client_mock)
     client_mock.__aexit__ = AsyncMock(return_value=False)
 
@@ -171,7 +171,7 @@ def test_light_fetch_passes_dates_are_gmt_to_all_calls():
     parent = _make_parent(pid=102)
     all_params: list[dict] = []
 
-    async def _fake_get(url: str, **kwargs):
+    async def _test_double_get(url: str, **kwargs):
         all_params.append(dict(kwargs.get("params", {})))
         if "/variations" in url:
             return _ok_resp([])
@@ -180,7 +180,7 @@ def test_light_fetch_passes_dates_are_gmt_to_all_calls():
         return _ok_resp([])
 
     client_mock = MagicMock(spec=httpx.AsyncClient)
-    client_mock.get = AsyncMock(side_effect=_fake_get)
+    client_mock.get = AsyncMock(side_effect=_test_double_get)
     client_mock.__aenter__ = AsyncMock(return_value=client_mock)
     client_mock.__aexit__ = AsyncMock(return_value=False)
 
@@ -203,7 +203,7 @@ def test_deep_sync_crawls_all_variations_without_modified_filter():
     parent = _make_parent(pid=103)
     var = _make_variation(vid=203, parent_id=103)
 
-    async def _fake_get(url: str, **kwargs):
+    async def _test_double_get(url: str, **kwargs):
         params = dict(kwargs.get("params", {}))
         all_params.append(params)
         if "/variations" in url:
@@ -215,7 +215,7 @@ def test_deep_sync_crawls_all_variations_without_modified_filter():
         return _ok_resp([])
 
     client_mock = MagicMock(spec=httpx.AsyncClient)
-    client_mock.get = AsyncMock(side_effect=_fake_get)
+    client_mock.get = AsyncMock(side_effect=_test_double_get)
     client_mock.__aenter__ = AsyncMock(return_value=client_mock)
     client_mock.__aexit__ = AsyncMock(return_value=False)
 
@@ -251,12 +251,12 @@ def test_telemetry_retry_count_incremented():
 
     call_count = [0]
 
-    async def _fake_get(*args, **kwargs):
+    async def _test_double_get(*args, **kwargs):
         call_count[0] += 1
         return rate_resp if call_count[0] == 1 else ok_resp
 
     client = MagicMock(spec=httpx.AsyncClient)
-    client.get = AsyncMock(side_effect=_fake_get)
+    client.get = AsyncMock(side_effect=_test_double_get)
     telem = FetchTelemetry()
 
     async def run():
