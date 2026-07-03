@@ -24,8 +24,18 @@ def test_legacy_env_migrates_only_when_new_env_is_absent_and_remains_protected()
     body = src[src.index("normalize_legacy_release_files()") : src.index("migrate_legacy_installation_if_needed()")]
     assert '[[ ! -f "${dir}/.env" && -f "${dir}/.env.beta" ]]' in body
     assert 'mv "${dir}/.env.beta" "${dir}/.env"' in body
+    assert '_normalize_legacy_env_keys "${dir}/.env"' in body
     assert 'chown root:root "${dir}/.env"' in body
     assert 'chmod 600 "${dir}/.env"' in body
+
+
+def test_legacy_env_keys_are_translated_to_flowhub_names():
+    src = _src()
+    body = src[src.index("_normalize_legacy_env_keys()") : src.index("_ensure_docker_runtime_running()")]
+    assert "grep -qE '^BETA_'" in body
+    assert 'sub(/^BETA_/, "FLOWHUB_")' in body
+    assert 'FLOWHUB_ENV=production' in body
+    assert 'chmod 600 "$env_file"' in body
 
 
 def test_legacy_compose_migrates_only_when_new_compose_is_absent():

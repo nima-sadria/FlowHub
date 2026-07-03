@@ -86,6 +86,8 @@ _bs_normalize_legacy_release_files() {
         chmod 600 "${dir}/.env" 2>/dev/null || true
     fi
 
+    _normalize_legacy_env_keys "${dir}/.env"
+
     if [[ ! -f "${dir}/docker-compose.yml" && -f "${dir}/docker-compose.beta.yml" ]]; then
         echo "  Legacy Compatibility: migrating docker-compose.beta.yml to docker-compose.yml"
         mv "${dir}/docker-compose.beta.yml" "${dir}/docker-compose.yml"
@@ -220,6 +222,30 @@ _docker_runtime_available() {
         docker --version &>/dev/null 2>&1 &&
         docker compose version &>/dev/null 2>&1 &&
         docker info &>/dev/null 2>&1
+}
+
+_normalize_legacy_env_keys() {
+    local env_file="${1:-}"
+    [[ -f "$env_file" ]] || return 0
+    grep -qE '^BETA_' "$env_file" 2>/dev/null || return 0
+
+    echo "  Legacy Compatibility: migrating BETA_* environment keys to FLOWHUB_*"
+    local tmp
+    tmp="$(mktemp)"
+    awk '
+        /^BETA_/ {
+            sub(/^BETA_/, "FLOWHUB_")
+            if ($0 == "FLOWHUB_ENV=beta") {
+                print "FLOWHUB_ENV=production"
+                next
+            }
+        }
+        { print }
+    ' "$env_file" > "$tmp"
+    cat "$tmp" > "$env_file"
+    rm -f "$tmp"
+    chown root:root "$env_file" 2>/dev/null || true
+    chmod 600 "$env_file" 2>/dev/null || true
 }
 
 _ensure_docker_runtime_running() {
@@ -590,6 +616,8 @@ normalize_legacy_release_files() {
         chown root:root "${dir}/.env" 2>/dev/null || true
         chmod 600 "${dir}/.env" 2>/dev/null || true
     fi
+
+    _normalize_legacy_env_keys "${dir}/.env"
 
     if [[ ! -f "${dir}/docker-compose.yml" && -f "${dir}/docker-compose.beta.yml" ]]; then
         echo "  Legacy Compatibility: migrating docker-compose.beta.yml to docker-compose.yml"
