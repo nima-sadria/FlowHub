@@ -203,7 +203,7 @@ def diagnostics_run(
         )
         ms_note = f"  ({check.duration_ms:.0f}ms)" if check.duration_ms > 0 else ""
         skip_note = (
-            f"  (skipped - {check.skipped_because} failed)"
+            f"  (skipped - {check.skipped_because})"
             if check.skipped_because
             else ""
         )

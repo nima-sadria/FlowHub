@@ -121,7 +121,7 @@ def integrations_test(
             else ""
         )
         skip_note = (
-            f"  ({check.skipped_because} failed)"
+            f"  (skipped - {check.skipped_because})"
             if check.skipped_because
             else ""
         )
