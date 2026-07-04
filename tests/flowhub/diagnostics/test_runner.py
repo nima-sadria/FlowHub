@@ -159,6 +159,15 @@ class TestRunAll:
         report = runner.run_all()
         assert report.overall_status == HealthStatus.PASS
 
+    def test_run_all_skips_unconfigured_connectors(self, runner: DiagnosticRunner):
+        report = runner.run_all()
+        skipped = [check for check in report.checks if check.status == HealthStatus.SKIP]
+        assert {check.check_name for check in skipped} == {
+            "nextcloud:config",
+            "woocommerce:config",
+        }
+        assert "skipped because not configured" in report.summary
+
     def test_run_all_one_service_fails(self, runner: DiagnosticRunner, test_double: TestDoubleNetworkAdapter):
         test_double.dns_responses["nextcloud.example.com"] = DNSResolutionError("NXDOMAIN")
         report = runner.run_all(config={"FLOWHUB_NEXTCLOUD_URL": "https://nextcloud.example.com"})

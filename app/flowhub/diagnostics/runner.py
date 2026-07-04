@@ -32,7 +32,7 @@ _SERVICE_CONFIG: dict[str, dict[str, str]] = {
         "password_key": "FLOWHUB_WOOCOMMERCE_SECRET",
     },
     "currency_api": {
-        "url": "https://alanchand.com/api/",
+        "url": "https://alanchand.com",
         "url_key": "",
         "username_key": "",
         "password_key": "",
@@ -129,8 +129,10 @@ class DiagnosticRunner:
             effective_url = (
                 cfg.get(svc_cfg.get("url_key", ""), "")
                 or svc_cfg.get("url", "")
-                or f"https://{service_name}.example.com"
             )
+            if not effective_url:
+                all_checks.append(_make_unconfigured_skip(service_name))
+                continue
             try:
                 health_results = self._engine.run_integration_chain(
                     service_name=service_name,
@@ -170,6 +172,7 @@ class DiagnosticRunner:
 
         failed = [c for c in checks if c.status == HealthStatus.FAIL]
         warned = [c for c in checks if c.status == HealthStatus.WARN]
+        skipped = [c for c in checks if c.status == HealthStatus.SKIP]
 
         if failed:
             overall_status = HealthStatus.FAIL
@@ -196,6 +199,7 @@ class DiagnosticRunner:
         total = len(checks)
         fail_count = len(failed)
         warn_count = len(warned)
+        skip_count = len(skipped)
         if total == 0:
             summary = "No checks were run."
         elif fail_count:
@@ -205,6 +209,9 @@ class DiagnosticRunner:
             )
         elif warn_count:
             summary = f"{warn_count} of {total} check(s) have warnings."
+        elif skip_count:
+            passed_count = total - skip_count
+            summary = f"{passed_count} check(s) passed; {skip_count} skipped because not configured."
         else:
             summary = f"All {total} check(s) passed."
 
@@ -232,4 +239,14 @@ def _make_unknown_error(
         target=target,
         failure_class=FailureClass.UNKNOWN_ERROR,
         message=message,
+    )
+
+
+def _make_unconfigured_skip(service_name: str) -> HealthCheckResult:
+    return HealthCheckResult.skip(
+        check_name=f"{service_name}:config",
+        category=CheckCategory.CONFIG,
+        target=service_name,
+        skipped_because="not configured",
+        message=f"{service_name} is not configured.",
     )
