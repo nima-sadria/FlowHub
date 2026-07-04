@@ -929,6 +929,7 @@ step_repair() {
         ${dc_cmd} --project-directory "$INSTALL_DIR" -f "$compose_file" --env-file "${INSTALLER_ENV_FILE}" ps 2>/dev/null || true
     fi
 
+    step_docker_launch
     step_database_init
     step_health_check
 
