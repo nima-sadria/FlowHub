@@ -18,6 +18,15 @@
 name: flowhub
 
 services:
+  frontend:
+    profiles:
+      - build
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-build
+    image: flowhub-frontend-build:latest
+
   app:
     build:
       context: .
