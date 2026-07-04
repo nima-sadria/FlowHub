@@ -54,7 +54,7 @@ External Systems
        |
        -¼
   FlowHub UI
-  /products  /workspace  /data-layer  /diagnostics
+  /products  /sources  /workspace  /diagnostics  /activity  /settings
 ```
 
 **What is NOT in the Data Layer:**
@@ -484,10 +484,11 @@ The route returns last-known local source metadata without live Nextcloud calls.
 records, health snapshots, and telemetry records. They do not perform live
 external checks.
 
-### Read Path 5: Data Layer Page (`/data-layer`)
+### Read Path 5: Data Layer Status Views
 
 **Current (DL1):** Reads all `dl_*` tables via Data Layer API endpoints.
-Shows empty/uninitialized states until tables are populated.
+Products, Sources, Workspace, Diagnostics, and Settings show empty or
+uninitialized states until tables are populated.
 
 ### Read Path 6: Settings Page (`/settings`)
 
@@ -893,11 +894,8 @@ Products from SnappShop -> UI (same Products page, different channel tab)
 | SourceWizard | /sources/new | Active | No Data Layer dependency |
 | Workspace | /workspace | Active - Integration Platform | Record-backed preview shell; no external calls |
 | Activity | /activity | Active - audit log | No Data Layer dependency |
-| **DataLayer** | **/data-layer** | **NEW (DL1)** | Reads all `dl_*` stores via API |
 | Diagnostics | /diagnostics | Active - Integration Platform | Record-backed connector diagnostics |
 | Settings | /settings | Active - Integration Platform | Local settings; secrets masked |
-| IntegrationPlatform | /integrations | Active - Integration Platform | Registry, instances, capabilities, telemetry |
-| LoggingPlatform | /logging | Active - Unified Logging Platform | Application logs, retention, redaction, and search |
 
 ### What is Current vs. Planned vs. Future
 
@@ -909,9 +907,8 @@ Products from SnappShop -> UI (same Products page, different channel tab)
 - All 6 read-only API endpoints implemented (`/api/v2/data-layer/*`)
 - Products, Sources, Workspace, Diagnostics, Settings, and telemetry routes are
   wired through Integration Platform/Data Layer records where approved
-- `/data-layer` UI page shows live Data Layer status with empty states
-- `/integrations` UI page shows registry, instances, capabilities, and telemetry
-- `/logging` UI page shows log search, summary, retention, and redaction policy
+- Products, Sources, Workspace, Diagnostics, Settings, and Activity provide the
+  production UI surfaces for Data Layer, connector, and log-backed status
 - Strictly read-only; no scheduler; no Apply
 
 **Planned (DL2):**

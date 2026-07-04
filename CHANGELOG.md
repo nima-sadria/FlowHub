@@ -7,5 +7,5 @@
 - Added Legacy Compatibility migration from `/opt/flowhub`.
 - Added Integration Platform and Unified Logging Platform implementation.
 - Cleaned Setup Wizard to Welcome, Server Profile, Database, Admin Account, Finish.
-- Kept connector configuration in Settings -> Integrations.
+- Kept connector configuration in Settings.
 - Preserved read-only safety for all external systems.

@@ -911,6 +911,11 @@ step_repair() {
     fi
     echo "  Environment file: ${INSTALLER_ENV_FILE} [OK]"
 
+    # Refresh the public operator entrypoints before any checks that may ask
+    # operators to use flowhub. This repairs beta-era helpers that still point
+    # at .env.beta or docker-compose.beta.yml.
+    step_install_cli
+
     step_prerequisites
 
     # Verify Docker Compose stack is reachable
@@ -925,7 +930,6 @@ step_repair() {
     fi
 
     step_database_init
-    step_install_cli
     step_health_check
 
     echo ""

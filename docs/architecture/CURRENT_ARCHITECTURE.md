@@ -41,7 +41,7 @@ The Admin Account step collects username, email, and password. Email is
 validated in the UI and again by `POST /api/v2/setup/admin`.
 
 Connector configuration is not part of setup. WooCommerce, Nextcloud, and future
-connectors are configured only in Settings -> Integrations.
+connectors are configured only in Settings.
 
 Startup does not require WooCommerce or Nextcloud credentials. Connector
 credentials may be absent until an administrator configures them after sign-in.

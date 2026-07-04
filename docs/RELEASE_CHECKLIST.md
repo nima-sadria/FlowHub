@@ -37,7 +37,7 @@ Expected result:
 - services are running
 - setup wizard opens
 - setup steps are Welcome, Server Profile, Database, Admin Account, Finish
-- connector configuration is only under Settings -> Integrations
+- connector configuration is only under Settings
 - `/opt/FlowHub` is the installation path
 
 ## Release Gate Validation Record

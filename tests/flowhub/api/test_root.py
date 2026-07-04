@@ -1,12 +1,10 @@
 """Tests for the FlowHub root route GET /."""
 
-import re
-
 from fastapi.testclient import TestClient
 
-from app.flowhub.app import app
+import app.flowhub.app as flowhub_app
 
-client = TestClient(app)
+client = TestClient(flowhub_app.app)
 
 
 class TestRootRoute:
@@ -18,25 +16,22 @@ class TestRootRoute:
         response = client.get("/")
         assert "text/html" in response.headers["content-type"]
 
-    def test_root_contains_flowhub(self):
-        response = client.get("/")
-        assert "FlowHub" in response.text
+    def test_root_serves_spa_index_when_built(self, monkeypatch, tmp_path):
+        dist = tmp_path / "dist"
+        dist.mkdir()
+        (dist / "index.html").write_text("<!doctype html><div id=\"root\"></div>", encoding="utf-8")
+        monkeypatch.setattr(flowhub_app, "_FRONTEND_DIST", dist)
 
-    def test_root_does_not_show_release_stage_or_version(self):
         response = client.get("/")
-        text = response.text.lower()
-        assert "production" not in text
-        assert re.search(r"\bdev\b", text) is None
-        assert "version" not in text
+        assert response.status_code == 200
+        assert '<div id="root"></div>' in response.text
 
-    def test_root_contains_health_path(self):
-        response = client.get("/")
-        assert "/api/health" in response.text
+    def test_root_fallback_only_when_spa_index_missing(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(flowhub_app, "_FRONTEND_DIST", tmp_path / "missing")
 
-    def test_root_contains_ui_not_implemented_note(self):
         response = client.get("/")
-        text = response.text.lower()
-        assert "ui" in text or "not yet implemented" in text or "not implemented" in text
+        assert response.status_code == 200
+        assert "Frontend assets are not available" in response.text
 
     def test_root_does_not_expose_secrets(self):
         response = client.get("/")

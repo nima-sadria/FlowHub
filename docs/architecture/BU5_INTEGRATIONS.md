@@ -10,7 +10,7 @@ The current first-release connector architecture is documented in:
 
 Current behavior:
 
-- Connector configuration belongs in Settings -> Integrations.
+- Connector configuration belongs in Settings.
 - Setup does not configure connectors.
 - Integration Platform is the permanent connector boundary.
 - Data Layer is canonical for read models and snapshots.

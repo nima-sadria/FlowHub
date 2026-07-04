@@ -11,7 +11,7 @@ Highlights:
 - canonical `/opt/FlowHub` installation path
 - Legacy Compatibility migration from `/opt/flowhub`
 - clean Setup Wizard
-- Settings -> Integrations connector configuration
+- Settings connector configuration
 - Integration Platform
 - Unified Logging Platform
 - read-only safety guard

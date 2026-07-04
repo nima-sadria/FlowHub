@@ -6,7 +6,7 @@
 
 ## Where do I configure WooCommerce and Nextcloud?
 
-Settings -> Integrations.
+Settings.
 
 ## Does setup configure connectors?
 

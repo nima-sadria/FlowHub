@@ -32,7 +32,7 @@ Active routes:
   GET  /api/v2/data-layer/connectors/status    - connector health + telemetry
   GET  /api/v2/data-layer/refresh-jobs         - refresh job history
   GET  /api/v2/data-layer/invalidation-events  - invalidation event log
-  GET  /                                       - landing page
+  GET  /                                       - SPA entry point
   *    /{any}                                  - SPA fallback
 """
 
@@ -65,7 +65,7 @@ _VERSION = os.getenv("FLOWHUB_VERSION", "1.0.0")
 _FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
 _STATIC_LOGOS = Path(__file__).parent.parent.parent / "static" / "logos"
 
-_LANDING_HTML = """\
+_FRONTEND_UNAVAILABLE_HTML = """\
 <!doctype html>
 <html lang="en">
 <head>
@@ -130,10 +130,13 @@ if _STATIC_LOGOS.exists():
     app.mount("/static/logos", StaticFiles(directory=str(_STATIC_LOGOS)), name="static-logos")
 
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-async def root() -> HTMLResponse:
-    """Landing page - always served at root; shows version, environment, health endpoint."""
-    return HTMLResponse(content=_LANDING_HTML.format(version=_VERSION))
+@app.get("/", response_class=HTMLResponse, response_model=None, include_in_schema=False)
+async def root() -> HTMLResponse | FileResponse:
+    """Serve the React SPA at the public root."""
+    index = _FRONTEND_DIST / "index.html"
+    if index.exists():
+        return FileResponse(str(index))
+    return HTMLResponse(content=_FRONTEND_UNAVAILABLE_HTML.format(version=_VERSION))
 
 
 @app.get("/{full_path:path}", response_class=HTMLResponse, response_model=None, include_in_schema=False)
@@ -142,4 +145,4 @@ async def spa(full_path: str) -> HTMLResponse | FileResponse:
     index = _FRONTEND_DIST / "index.html"
     if index.exists():
         return FileResponse(str(index))
-    return HTMLResponse(content=_LANDING_HTML.format(version=_VERSION))
+    return HTMLResponse(content=_FRONTEND_UNAVAILABLE_HTML.format(version=_VERSION))

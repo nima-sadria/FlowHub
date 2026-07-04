@@ -8,7 +8,7 @@ This document mirrors the current release phase:
 - One-command installer
 - Canonical `/opt/FlowHub` deployment path
 - Setup Wizard without connector configuration
-- Connector configuration in Settings -> Integrations
+- Connector configuration in Settings
 - Integration Platform
 - Unified Logging Platform
 - Read-only safety model

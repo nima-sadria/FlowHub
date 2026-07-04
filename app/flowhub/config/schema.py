@@ -40,7 +40,7 @@ class FlowHubConfig(BaseModel):
     rest_api_secret: SecretStr
 
     # Connector settings are optional at startup. They are configured after
-    # setup through Settings -> Integrations.
+    # setup through Settings.
     nextcloud_url: str = ""
     nextcloud_file_path: str = ""
     nextcloud_username: str = ""

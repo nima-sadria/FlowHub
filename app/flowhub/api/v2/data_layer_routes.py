@@ -1,6 +1,6 @@
 """FlowHub - /api/v2/data-layer router.
 
-Read-only endpoints exposing Data Layer status for the /data-layer UI page.
+Read-only endpoints exposing Data Layer status to the production UI.
 No write paths to WooCommerce or Nextcloud are present or possible.
 
 Routes:

@@ -32,8 +32,8 @@ export class ApiSourceService implements SourceService {
   }
 
   async testConnection(_config: SourceConfig): Promise<ConnectionTestResult> {
-    // Connection testing is handled by the connector UI; this method is not used.
-    return { success: false, message: 'Use Integrations to configure connectors.' }
+    // Connection testing is handled by Settings; this method is not used.
+    return { success: false, message: 'Use Settings to configure connectors.' }
   }
 
   async createSource(_config: SourceConfig): Promise<Source> {

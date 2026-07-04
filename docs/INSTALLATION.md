@@ -68,7 +68,7 @@ The installer creates an administrator account. If it generated the password, it
 prints it once. Store it immediately; FlowHub does not persist plaintext admin
 passwords in logs or backups.
 
-Connector configuration belongs in Settings -> Integrations after sign-in.
+Connector configuration belongs in Settings after sign-in.
 
 ## CLI
 

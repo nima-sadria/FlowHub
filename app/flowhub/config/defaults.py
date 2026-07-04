@@ -2,7 +2,7 @@
 
 Default values applied when optional environment variables are absent.
 Core startup variables have no defaults. Connector credentials are optional and
-may be configured after setup from Settings -> Integrations.
+may be configured after setup from Settings.
 """
 
 DEFAULTS: dict[str, str | int | bool] = {

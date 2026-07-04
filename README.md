@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Latest Release](https://img.shields.io/badge/release-first_public_release-7c3aed)](RELEASE_NOTES.md)
 
-FlowHub is a self-hosted multi-channel commerce operations platform. It centralizes product, source, workspace, diagnostics, integration, and logging views behind a read-only first-release safety model.
+FlowHub is a self-hosted multi-channel commerce operations platform. It centralizes product, source, workspace, diagnostics, activity, and settings views behind a read-only first-release safety model.
 
 The first release is designed for safe deployment: connectors can read and diagnose external systems, but write execution remains disabled until explicitly approved in a future release.
 
@@ -31,15 +31,15 @@ flowchart TD
     Dashboard --> Products[Products]
     Dashboard --> Sources[Sources]
     Dashboard --> Workspace[Workspace]
-    Dashboard --> Integrations[Settings -> Integrations]
+    Dashboard --> Settings[Settings]
     Dashboard --> Diagnostics[Diagnostics]
-    Dashboard --> Logging[Logging]
+    Dashboard --> Activity[Activity]
 ```
 
 ## Features
 
 - Clean first-run setup: Welcome, Server Profile, Database, Admin Account, Finish.
-- Connector configuration in one place: Settings -> Integrations.
+- Connector configuration in one place: Settings.
 - Canonical Data Layer for products, sources, workspace state, and snapshots.
 - Integration Platform with connector registry, settings, health, diagnostics, telemetry, and webhook contracts.
 - Unified Logging Platform with structured logs, search, correlation IDs, redaction, retention, and export contracts.
@@ -262,13 +262,9 @@ flowhub health
 
 Current release UI previews are stored in `docs/assets/screenshots/`.
 
-| Dashboard | Workspace | Integrations |
-| --- | --- | --- |
-| ![Dashboard](docs/assets/screenshots/dashboard.svg) | ![Workspace](docs/assets/screenshots/workspace.svg) | ![Integrations](docs/assets/screenshots/integrations.svg) |
-
-| Data Layer | Settings |
+| Dashboard | Workspace | Settings |
 | --- | --- |
-| ![Data Layer](docs/assets/screenshots/data-layer.svg) | ![Settings](docs/assets/screenshots/settings.svg) |
+| ![Dashboard](docs/assets/screenshots/dashboard.svg) | ![Workspace](docs/assets/screenshots/workspace.svg) | ![Settings](docs/assets/screenshots/settings.svg) |
 
 ## Documentation
 

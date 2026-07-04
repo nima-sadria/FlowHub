@@ -8,7 +8,7 @@ Status: first-release finalization.
 - Canonical installation path is `/opt/FlowHub`.
 - Legacy Compatibility migration covers older `/opt/flowhub` installations.
 - Setup Wizard contains Welcome, Server Profile, Database, Admin Account, Finish.
-- Connector configuration belongs in Settings -> Integrations.
+- Connector configuration belongs in Settings.
 - Integration Platform and Unified Logging Platform are implemented.
 - Read-only safety remains active.
 

@@ -84,6 +84,8 @@ def test_upgrade_and_repair_refresh_installed_cli_wrapper():
     assert "step_update_repository" in upgrade
     assert "step_install_cli" in upgrade
     assert "step_install_cli" in repair
+    assert repair.index("step_install_cli") < repair.index("step_prerequisites")
+    assert repair.index("step_install_cli") < repair.index("step_database_init")
     assert "step_install_cli" in reconfigure
 
 

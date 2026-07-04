@@ -5,7 +5,7 @@
 - First public release polish.
 - Self-hosted Docker deployment.
 - Setup Wizard with server profile, database verification, admin account, and finish.
-- Connector configuration under Settings -> Integrations.
+- Connector configuration under Settings.
 - Integration Platform and Unified Logging Platform.
 - Read-only external connector behavior.
 
