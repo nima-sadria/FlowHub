@@ -143,8 +143,8 @@ export default function Products() {
         <div className="bg-bg-card border border-border rounded-card shadow-card">
           <Empty
             title="No product connector configured"
-            description="Connect a product source from Integrations to browse products."
-            action={{ label: 'Open Integrations', onClick: () => { window.location.href = '/integrations' } }}
+            description="Connect a product source from Sources to browse products."
+            action={{ label: 'Open Sources', onClick: () => { window.location.href = '/sources' } }}
           />
         </div>
       </div>

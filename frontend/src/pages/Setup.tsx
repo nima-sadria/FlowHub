@@ -652,7 +652,7 @@ function FinishStep({ onComplete, onBack }: { onComplete: () => void; onBack: ()
     <StepCard title="Finish" subtitle="Complete setup and start using FlowHub.">
       {error && <ErrorBanner message={error} />}
       <div className="mb-4 p-4 bg-bg-base border border-border rounded-lg text-[13px] text-wp-muted">
-        Setup is ready to be finalized. Connector configuration is available from Settings &gt; Integrations after sign-in.
+        Setup is ready to be finalized. Connector configuration is available from Settings after sign-in.
       </div>
       <NavButtons onBack={onBack} onNext={finishSetup} loading={loading} nextLabel="Finish Setup" />
     </StepCard>

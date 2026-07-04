@@ -51,7 +51,7 @@ export default function Workspace() {
   const [preview, setPreview] = useState<WorkspacePreview | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  // Check if both integrations are configured
+  // Check if both product and source connectors are configured.
   const [wcConfigured, setWcConfigured] = useState<boolean | null>(null)
   const [ncConfigured, setNcConfigured] = useState<boolean | null>(null)
   const [configLoading, setConfigLoading] = useState(true)
@@ -112,15 +112,15 @@ export default function Workspace() {
           {!wcConfigured && (
             <Empty
               title="Product connector required"
-              description="Connect a product source from Integrations to use Workspace."
-              action={{ label: 'Open Integrations', onClick: () => { window.location.href = '/integrations' } }}
+              description="Connect a product source from Sources to use Workspace."
+              action={{ label: 'Open Sources', onClick: () => { window.location.href = '/sources' } }}
             />
           )}
           {wcConfigured && !ncConfigured && (
             <Empty
               title="Source connector required"
-              description="Connect a price source from Integrations to use Workspace."
-              action={{ label: 'Open Integrations', onClick: () => { window.location.href = '/integrations' } }}
+              description="Review connector settings before using Workspace."
+              action={{ label: 'Open Settings', onClick: () => { window.location.href = '/settings' } }}
             />
           )}
         </div>

@@ -159,44 +159,6 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             </NavLink>
           )}
 
-          {hasPerm('can_view_logs') && (
-            <NavLink to="/logging" className={linkCls} onClick={onClose}>
-              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 3h18v18H3z" />
-                <path d="M7 8h10" />
-                <path d="M7 12h10" />
-                <path d="M7 16h6" />
-              </svg>
-              {!collapsed && <span>Logging</span>}
-            </NavLink>
-          )}
-
-          {hasPerm('can_view_settings') && (
-            <NavLink to="/data-layer" className={linkCls} onClick={onClose}>
-              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="3" width="8" height="8" rx="1" />
-                <rect x="14" y="3" width="8" height="8" rx="1" />
-                <rect x="2" y="13" width="8" height="8" rx="1" />
-                <rect x="14" y="13" width="8" height="8" rx="1" />
-              </svg>
-              {!collapsed && <span>Data Layer</span>}
-            </NavLink>
-          )}
-
-          {hasPerm('can_view_settings') && (
-            <NavLink to="/integrations" className={linkCls} onClick={onClose}>
-              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 7h6" />
-                <path d="M14 7h6" />
-                <path d="M10 7a2 2 0 1 0 4 0 2 2 0 0 0-4 0" />
-                <path d="M4 17h10" />
-                <path d="M18 17h2" />
-                <path d="M14 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0" />
-              </svg>
-              {!collapsed && <span>Integrations</span>}
-            </NavLink>
-          )}
-
           {hasPerm('can_view_settings') && (
             <NavLink to="/diagnostics" className={linkCls} onClick={onClose}>
               <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

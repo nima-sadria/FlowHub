@@ -109,19 +109,17 @@ describe('effectiveHasPerm - route guard scenarios', () => {
     expect(effectiveHasPerm(user, 'can_fetch')).toBe(false)
   })
 
-  it('Analytics route denied when can_access_site=false', () => {
+  it('Dashboard route denied when can_access_site=false', () => {
     const user = makeUser({ permissions: { can_access_site: false } })
     expect(effectiveHasPerm(user, 'can_access_site')).toBe(false)
   })
 
-  it('Audit/Logs route denied when can_access_site=false + can_view_logs=true', () => {
+  it('Activity route denied when can_access_site=false + can_view_logs=true', () => {
     const user = makeUser({ permissions: { can_access_site: false, can_view_logs: true } })
     expect(effectiveHasPerm(user, 'can_view_logs')).toBe(false)
   })
 
-  it('Admin route bypasses gate for is_admin users', () => {
-    // Admin route uses adminOnly prop - effectiveHasPerm not involved, but
-    // verify admin bypass holds for all other perms too
+  it('admin users bypass the access gate', () => {
     const user = makeUser({ is_admin: true, permissions: { can_access_site: false } })
     expect(effectiveHasPerm(user, 'can_view_logs')).toBe(true)
   })

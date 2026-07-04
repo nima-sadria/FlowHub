@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth'
-import { ApiError } from '../api/client'
+import { apiFetch, ApiError } from '../api/client'
 import { authFetch } from '../api/authFetch'
 import type { HealthResponse } from '../api/types'
 import { useNotification } from '../notifications/NotificationProvider'
@@ -89,26 +89,6 @@ function Row({ row }: { row: StatusRowData }) {
   )
 }
 
-async function fetchJsonWithTimeout<T>(
-  url: string,
-  fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
-): Promise<T> {
-  const controller = new AbortController()
-  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-  try {
-    const response = await fetchFn(url, { signal: controller.signal })
-    if (!response.ok) throw new ApiError(response.status, await response.text())
-    return await response.json() as T
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('request_timeout')
-    }
-    throw error
-  } finally {
-    window.clearTimeout(timeoutId)
-  }
-}
-
 export default function Diagnostics() {
   const { authFetch: ctxAuthFetch } = useAuth()
   const { success, error: notifyError } = useNotification()
@@ -123,8 +103,8 @@ export default function Diagnostics() {
     setErr(null)
     try {
       const [healthData, diagnosticsData] = await Promise.all([
-        fetchJsonWithTimeout<HealthResponse>('/api/health', ctxAuthFetch),
-        fetchJsonWithTimeout<DiagnosticsStatusResponse>('/api/v2/diagnostics/status', authFetch),
+        apiFetch<HealthResponse>('/api/health', ctxAuthFetch, undefined, REQUEST_TIMEOUT_MS),
+        apiFetch<DiagnosticsStatusResponse>('/api/v2/diagnostics/status', authFetch, undefined, REQUEST_TIMEOUT_MS),
       ])
       setHealth(healthData)
       setDiag(diagnosticsData)
@@ -207,7 +187,7 @@ export default function Diagnostics() {
         ) : connectors.length === 0 ? (
           <Empty
             title="No connectors configured"
-            description="Connector setup is available from Integrations."
+            description="Connector setup is available from Settings."
           />
         ) : connectors.map(connector => {
           const status = connectorHealth(connector)

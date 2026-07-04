@@ -6,12 +6,6 @@ import { ThemeProvider } from './theme/ThemeProvider'
 import { NotificationProvider } from './notifications/NotificationProvider'
 import NotificationContainer from './notifications/NotificationContainer'
 import { ServiceProvider } from './services/ServiceContext'
-import { LocalHealthService } from './services/health/LocalHealthService'
-import { LocalProductService } from './services/products/LocalProductService'
-import { LocalSourceService } from './services/sources/LocalSourceService'
-import { LocalWorkspaceService } from './services/workspace/LocalWorkspaceService'
-import { LocalSettingsService } from './services/settings/LocalSettingsService'
-import { LocalActivityService } from './services/activity/LocalActivityService'
 import { ApiHealthService } from './services/health/ApiHealthService'
 import { ApiProductService } from './services/products/ApiProductService'
 import { ApiSourceService } from './services/sources/ApiSourceService'
@@ -29,24 +23,8 @@ import Diagnostics from './pages/Diagnostics'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Setup from './pages/Setup'
-import DataLayer from './pages/DataLayer'
-import IntegrationPlatform from './pages/IntegrationPlatform'
-import LoggingPlatform from './pages/LoggingPlatform'
 import NotFound from './pages/NotFound'
 import type { SetupStatus } from './api/types'
-
-// Developer local mode - only when VITE_USE_LOCAL_DATA=true.
-// Normal FLOWHUB runtime uses real API services.
-const _useLocal = import.meta.env.VITE_USE_LOCAL_DATA === 'true'
-
-const localServices = {
-  health:    new LocalHealthService(),
-  products:  new LocalProductService(),
-  sources:   new LocalSourceService(),
-  workspace: new LocalWorkspaceService(),
-  settings:  new LocalSettingsService(),
-  activity:  new LocalActivityService(),
-}
 
 const realServices = {
   health:    new ApiHealthService(),
@@ -56,8 +34,6 @@ const realServices = {
   settings:  new ApiSettingsService(),
   activity:  new ApiActivityService(),
 }
-
-const activeServices = _useLocal ? localServices : realServices
 
 function MaintenanceOverlay({ message }: { message?: string }) {
   const { clearAuth } = useAuth()
@@ -163,9 +139,6 @@ function SetupGate() {
         <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><SourceWizard /></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
-        <Route path="/data-layer" element={<RequirePermission permission="can_view_settings"><DataLayer /></RequirePermission>} />
-        <Route path="/integrations" element={<RequirePermission permission="can_view_settings"><IntegrationPlatform /></RequirePermission>} />
-        <Route path="/logging" element={<RequirePermission permission="can_view_logs"><LoggingPlatform /></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
       </Route>
@@ -184,7 +157,7 @@ export default function App() {
           <NotificationContainer />
           <DirectionProvider>
             <AuthProvider>
-              <ServiceProvider services={activeServices}>
+              <ServiceProvider services={realServices}>
                 <SetupGate />
               </ServiceProvider>
             </AuthProvider>

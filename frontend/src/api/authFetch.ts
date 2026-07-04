@@ -1,5 +1,5 @@
 /**
- * Lightweight authenticated fetch wrapper for BU5 real service implementations.
+ * Lightweight authenticated fetch wrapper for API service implementations.
  * Reads the JWT from localStorage on every call so stale references are avoided
  * after token refresh.  The auth key matches what AuthProvider writes.
  */
