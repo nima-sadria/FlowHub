@@ -19,6 +19,7 @@ SKIP_PREFIXES = (
     "frontend/node_modules/",
 )
 SKIP_SUFFIXES = (
+    "package-lock.json",
     ".ico",
     ".png",
     ".jpg",

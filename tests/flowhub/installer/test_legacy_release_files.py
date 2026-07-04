@@ -48,3 +48,38 @@ def test_legacy_compose_migrates_only_when_new_compose_is_absent():
 def test_legacy_path_migration_preserves_old_release_files_when_copying_missing_items():
     src = _src()
     assert "for item in .env .env.beta docker-compose.yml docker-compose.beta.yml storage backups logs; do" in src
+
+
+def test_upgrade_resets_installed_checkout_to_current_main_release():
+    src = _src()
+    body = src[src.index("step_update_repository()") : src.index("# ---- Upgrade path")]
+    assert 'git -C "$INSTALL_DIR" fetch origin main' in body
+    assert "git -C \"$INSTALL_DIR\" checkout -B main origin/main" in body
+    assert "git -C \"$INSTALL_DIR\" reset --hard origin/main" in body
+    assert 'normalize_legacy_release_files "$INSTALL_DIR"' in body
+
+
+def test_runtime_contract_blocks_stale_beta_runtime_before_migration():
+    src = _src()
+    contract = src[src.index("assert_production_runtime_files()") : src.index("stop_stale_beta_runtime()")]
+    assert "docker-compose.yml" in contract
+    assert ".env" in contract
+    assert "alembic_flowhub.ini" in contract
+    assert "alembic_flowhub" in contract
+    assert "image: flowhub:latest" in contract
+    assert "app.flowhub.app:app" in contract
+    assert "flowhub-beta:latest|app\\.beta\\.app|docker-compose\\.beta\\.yml|\\.env\\.beta" in contract
+
+
+def test_launch_and_migration_verify_production_runtime_contract():
+    src = _src()
+    launch = src[src.index("step_docker_launch()") : src.index("step_database_init()")]
+    migration = src[src.index("step_database_init()") : src.index("step_create_admin()")]
+    assert 'assert_production_runtime_files "$INSTALL_DIR"' in launch
+    assert 'stop_stale_beta_runtime "$INSTALL_DIR"' in launch
+    assert 'assert_production_runtime_files "$INSTALL_DIR"' in migration
+
+
+def test_deploy_recreates_services_and_removes_orphans():
+    src = Path("installer/lib/docker_deploy.sh").read_text(encoding="utf-8")
+    assert "up -d --build --force-recreate --remove-orphans" in src

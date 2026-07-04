@@ -406,8 +406,11 @@ _bs_clone_or_pull() {
     if [[ -d "${_FLOWHUB_INSTALL_DIR}/.git" ]]; then
         echo "  Existing FlowHub repository detected at ${_FLOWHUB_INSTALL_DIR}."
         if [[ "$_FLOWHUB_BOOTSTRAP_REFRESH" -eq 1 ]]; then
-            echo "  Refreshing repository before installer handoff..."
-            git -C "$_FLOWHUB_INSTALL_DIR" pull --ff-only origin "$_FLOWHUB_BRANCH"
+            echo "  Refreshing repository from origin/${_FLOWHUB_BRANCH} before installer handoff..."
+            git -C "$_FLOWHUB_INSTALL_DIR" fetch origin "$_FLOWHUB_BRANCH"
+            git -C "$_FLOWHUB_INSTALL_DIR" checkout -B "$_FLOWHUB_BRANCH" "origin/${_FLOWHUB_BRANCH}"
+            git -C "$_FLOWHUB_INSTALL_DIR" reset --hard "origin/${_FLOWHUB_BRANCH}"
+            _bs_normalize_legacy_release_files "$_FLOWHUB_INSTALL_DIR"
         else
             echo "  Handing off without changing files; the full installer will ask what to do."
         fi
@@ -625,6 +628,68 @@ normalize_legacy_release_files() {
     fi
 }
 
+assert_production_runtime_files() {
+    local dir="${1:-$INSTALL_DIR}"
+    local compose_file="${dir}/docker-compose.yml"
+    local dockerfile="${dir}/Dockerfile"
+    local alembic_ini="${dir}/alembic_flowhub.ini"
+    local alembic_dir="${dir}/alembic_flowhub"
+
+    echo "  Verifying production runtime files..."
+    [[ -f "$compose_file" ]] || { echo "  ERROR: missing ${compose_file}" >&2; return 1; }
+    [[ -f "${dir}/.env" ]] || { echo "  ERROR: missing ${dir}/.env" >&2; return 1; }
+    [[ -f "$dockerfile" ]] || { echo "  ERROR: missing ${dockerfile}" >&2; return 1; }
+    [[ -f "$alembic_ini" ]] || { echo "  ERROR: missing ${alembic_ini}" >&2; return 1; }
+    [[ -d "$alembic_dir" ]] || { echo "  ERROR: missing ${alembic_dir}" >&2; return 1; }
+
+    grep -q 'image: flowhub:latest' "$compose_file" || {
+        echo "  ERROR: docker-compose.yml does not use image flowhub:latest" >&2
+        return 1
+    }
+    grep -q 'dockerfile: Dockerfile' "$compose_file" || {
+        echo "  ERROR: docker-compose.yml does not build from Dockerfile" >&2
+        return 1
+    }
+    grep -q 'app.flowhub.app:app' "$dockerfile" || {
+        echo "  ERROR: Dockerfile does not start app.flowhub.app:app" >&2
+        return 1
+    }
+    if grep -RIEq 'flowhub-beta:latest|app\.beta\.app|docker-compose\.beta\.yml|\.env\.beta|Dockerfile\.beta|alembic_beta' \
+        "$compose_file" "$dockerfile" "$alembic_ini"; then
+        echo "  ERROR: stale beta runtime reference found in production runtime files" >&2
+        return 1
+    fi
+    echo "  Production runtime files: OK"
+}
+
+stop_stale_beta_runtime() {
+    local dir="${1:-$INSTALL_DIR}"
+    local dc_cmd=""
+    if docker compose version &>/dev/null 2>&1; then
+        dc_cmd="docker compose"
+    elif command -v docker-compose &>/dev/null; then
+        dc_cmd="docker-compose"
+    fi
+
+    if [[ -n "$dc_cmd" && -f "${dir}/docker-compose.beta.yml" ]]; then
+        local legacy_env="${dir}/.env"
+        [[ -f "${dir}/.env.beta" ]] && legacy_env="${dir}/.env.beta"
+        echo "  Stopping stale beta compose stack if present..."
+        ${dc_cmd} --project-directory "$dir" -f "${dir}/docker-compose.beta.yml" \
+            --env-file "$legacy_env" down --remove-orphans 2>/dev/null || true
+    fi
+
+    if command -v docker &>/dev/null; then
+        local stale_ids
+        stale_ids="$(docker ps -aq --filter "ancestor=flowhub-beta:latest" 2>/dev/null || true)"
+        if [[ -n "$stale_ids" ]]; then
+            echo "  Removing stale flowhub-beta containers..."
+            # shellcheck disable=SC2086
+            docker rm -f $stale_ids 2>/dev/null || true
+        fi
+    fi
+}
+
 _rewrite_legacy_paths() {
     local file
     for file in \
@@ -806,8 +871,11 @@ step_uninstall() {
 step_update_repository() {
     if [[ -d "${INSTALL_DIR}/.git" ]]; then
         echo ""
-        echo "  Updating repository..."
-        git -C "$INSTALL_DIR" pull --ff-only origin main
+        echo "  Updating repository from origin/main..."
+        git -C "$INSTALL_DIR" fetch origin main
+        git -C "$INSTALL_DIR" checkout -B main origin/main
+        git -C "$INSTALL_DIR" reset --hard origin/main
+        normalize_legacy_release_files "$INSTALL_DIR"
     fi
 }
 
@@ -1042,6 +1110,8 @@ step_docker_launch() {
         return
     fi
     _load_env_for_docker
+    assert_production_runtime_files "$INSTALL_DIR"
+    stop_stale_beta_runtime "$INSTALL_DIR"
     build_and_start_services "$INSTALL_DIR"
 }
 
@@ -1053,6 +1123,7 @@ step_database_init() {
         return
     fi
     _load_env_for_docker
+    assert_production_runtime_files "$INSTALL_DIR"
     wait_for_postgres_ready "$INSTALL_DIR" 90
     run_alembic_migrations "$INSTALL_DIR"
 }

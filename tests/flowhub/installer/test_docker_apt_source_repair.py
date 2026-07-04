@@ -66,5 +66,7 @@ def test_public_upgrade_refreshes_local_checkout_before_handoff():
     assert "--upgrade|--repair|--reinstall" in src
     body = src[src.index("_bs_clone_or_pull()") : src.index("# Bootstrap detection")]
     assert 'if [[ "$_FLOWHUB_BOOTSTRAP_REFRESH" -eq 1 ]]' in body
-    assert 'git -C "$_FLOWHUB_INSTALL_DIR" pull --ff-only origin "$_FLOWHUB_BRANCH"' in body
-    assert body.index("Refreshing repository before installer handoff") < body.index("exec bash") if "exec bash" in body else True
+    assert 'git -C "$_FLOWHUB_INSTALL_DIR" fetch origin "$_FLOWHUB_BRANCH"' in body
+    assert 'git -C "$_FLOWHUB_INSTALL_DIR" checkout -B "$_FLOWHUB_BRANCH" "origin/${_FLOWHUB_BRANCH}"' in body
+    assert 'git -C "$_FLOWHUB_INSTALL_DIR" reset --hard "origin/${_FLOWHUB_BRANCH}"' in body
+    assert body.index("Refreshing repository from origin/") < body.index("exec bash") if "exec bash" in body else True

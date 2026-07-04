@@ -49,7 +49,8 @@ build_and_start_services() {
     echo "  Compose config: VALID"
 
     echo "  Building images and starting services (this may take a few minutes)..."
-    ${dc_cmd} --project-directory "$install_dir" --env-file "$env_file" -f "$compose_file" up -d --build
+    ${dc_cmd} --project-directory "$install_dir" --env-file "$env_file" -f "$compose_file" \
+        up -d --build --force-recreate --remove-orphans
 
     echo "  Services started."
 }
