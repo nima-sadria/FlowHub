@@ -333,9 +333,11 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
       subtitle="This wizard will guide you through initial setup."
     >
       <div className="space-y-3 mb-6">
-        {steps.map(([label, desc]) => (
+        {steps.map(([label, desc], idx) => (
           <div key={label} className="flex gap-3 p-3 bg-bg-base rounded-lg border border-border">
-            <span className="text-accent mt-0.5 flex-shrink-0">{'->'}</span>
+            <span className="w-7 h-7 rounded-lg bg-fh-mist-100 text-accent flex items-center justify-center text-[12px] font-semibold flex-shrink-0">
+              {idx + 1}
+            </span>
             <div>
               <p className="text-[13px] font-semibold text-text-base">{label}</p>
               <p className="text-[12px] text-wp-muted">{desc}</p>
