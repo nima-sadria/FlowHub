@@ -31,7 +31,7 @@ export default {
         'text-base': 'var(--color-text-base)',
       },
       fontFamily: {
-        sans: ['YekanBakh', 'sans-serif'],
+        sans: ['YekanBakhNoEn', 'sans-serif'],
       },
       borderRadius: {
         card: '12px',
