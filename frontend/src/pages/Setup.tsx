@@ -18,6 +18,36 @@ const STEP_LABELS: Record<Step, string> = {
   finish: 'Finish',
 }
 
+type SetupIcon = 'spark' | 'server' | 'database' | 'user' | 'check' | 'alert'
+
+const STEP_DETAILS: Record<Step, { label: string; description: string; icon: SetupIcon }> = {
+  welcome: {
+    label: 'Welcome',
+    description: 'Review the installation path before FlowHub is enabled.',
+    icon: 'spark',
+  },
+  'server-profile': {
+    label: 'Server Profile',
+    description: 'Set the domain, timezone, and default currency for this installation.',
+    icon: 'server',
+  },
+  database: {
+    label: 'Database',
+    description: 'Confirm that the database connection and schema are ready.',
+    icon: 'database',
+  },
+  admin: {
+    label: 'Admin Account',
+    description: 'Create or confirm the first administrator account.',
+    icon: 'user',
+  },
+  finish: {
+    label: 'Finish',
+    description: 'Complete setup and open the FlowHub workspace.',
+    icon: 'check',
+  },
+}
+
 const SETUP_STEPS: Step[] = ['welcome', 'server-profile', 'database', 'admin', 'finish']
 
 interface SetupProps {
@@ -116,6 +146,76 @@ function AppleSpinner({ size = 18 }: { size?: number }) {
   )
 }
 
+function SetupIconGlyph({ icon, className = 'w-5 h-5' }: { icon: SetupIcon; className?: string }) {
+  const common = {
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} {...common}>
+      {icon === 'spark' && (
+        <>
+          <path d="M12 3l1.7 4.6L18 9.2l-4.3 1.6L12 15.5l-1.7-4.7L6 9.2l4.3-1.6L12 3Z" />
+          <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z" />
+          <path d="M5 13l.7 1.8L7.5 15.5l-1.8.7L5 18l-.7-1.8-1.8-.7 1.8-.7L5 13Z" />
+        </>
+      )}
+      {icon === 'server' && (
+        <>
+          <rect x="4" y="4" width="16" height="6" rx="2" />
+          <rect x="4" y="14" width="16" height="6" rx="2" />
+          <path d="M8 7h.01" />
+          <path d="M8 17h.01" />
+          <path d="M12 7h4" />
+          <path d="M12 17h4" />
+        </>
+      )}
+      {icon === 'database' && (
+        <>
+          <ellipse cx="12" cy="5" rx="7" ry="3" />
+          <path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5" />
+          <path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" />
+        </>
+      )}
+      {icon === 'user' && (
+        <>
+          <path d="M20 21a8 8 0 0 0-16 0" />
+          <circle cx="12" cy="8" r="4" />
+        </>
+      )}
+      {icon === 'check' && <path d="M20 6 9 17l-5-5" />}
+      {icon === 'alert' && (
+        <>
+          <path d="M12 9v4" />
+          <path d="M12 17h.01" />
+          <path d="M10.3 4.4 2.8 18a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.4a2 2 0 0 0-3.4 0Z" />
+        </>
+      )}
+    </svg>
+  )
+}
+
+function ChevronIcon({ open }: { open?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={['w-4 h-4 flex-shrink-0 text-wp-muted transition-transform', open ? 'rotate-180' : ''].join(' ')}
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+
 export function SearchableListbox({
   id, label, options, value, onChange, disabled, template_variable,
 }: {
@@ -160,7 +260,7 @@ export function SearchableListbox({
 
   return (
     <div ref={rootRef} className="relative min-w-0">
-      <label className="block text-[13px] font-medium text-text-base mb-1.5">{label}</label>
+      <label className="mb-1 block text-[12.5px] font-medium text-text-base">{label}</label>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
@@ -174,20 +274,10 @@ export function SearchableListbox({
         aria-haspopup="listbox"
         aria-controls={id}
         disabled={disabled}
-        className="fh-input mb-1.5 min-w-0 py-1.5 flex items-center justify-between gap-2 text-left"
+        className="fh-input mb-1 min-h-9 min-w-0 py-1.5 flex items-center justify-between gap-2 text-left"
       >
         <span className="truncate">{selectedLabel}</span>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={['w-4 h-4 flex-shrink-0 text-wp-muted transition-transform', open ? 'rotate-180' : ''].join(' ')}
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
+        <ChevronIcon open={open} />
       </button>
       {open && (
         <div
@@ -270,7 +360,7 @@ function Field({
 
   return (
     <div>
-      <label htmlFor={id} className="block text-[13px] font-medium text-text-base mb-1.5">{label}</label>
+      <label htmlFor={id} className="mb-1 block text-[12.5px] font-medium text-text-base">{label}</label>
       <input
         id={id}
         type={type}
@@ -283,44 +373,86 @@ function Field({
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy}
         className={[
-          'fh-input text-[14px]',
+          'fh-input min-h-9 text-[13px]',
           error ? 'border-wp-red' : 'border-border',
         ].join(' ')}
       />
-      {hint && <p id={`${id}-hint`} className="mt-1 text-[11.5px] text-wp-muted">{hint}</p>}
-      {error && <p id={`${id}-error`} className="mt-1 text-[11.5px] text-wp-red">{error}</p>}
+      {hint && <p id={`${id}-hint`} className="mt-1 text-[11.5px] leading-4 text-wp-muted">{hint}</p>}
+      {error && <p id={`${id}-error`} className="mt-1 text-[11.5px] leading-4 text-wp-red">{error}</p>}
     </div>
   )
 }
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div role="alert" className="fh-error-alert mb-4 rounded-lg px-4 py-3 text-[13px]">
-      {message}
+    <div role="alert" className="fh-error-alert mb-5 flex items-start gap-3 rounded-lg px-4 py-3 text-[13px] leading-5">
+      <SetupIconGlyph icon="alert" className="mt-0.5 h-4 w-4 flex-shrink-0" />
+      <span>{message}</span>
     </div>
   )
 }
 
-function StepDots({ current, steps }: { current: Step; steps: Step[] }) {
+function StepProgress({ current, steps }: { current: Step; steps: Step[] }) {
   const currentIdx = steps.indexOf(current)
   return (
-    <div className="flex items-center gap-2 mb-8">
-      {steps.map((s, idx) => (
-        <div key={s} className="flex items-center gap-2">
-          <div className={[
-            'w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors',
-            idx < currentIdx ? 'bg-accent text-white' :
-            idx === currentIdx ? 'bg-accent text-white ring-2 ring-accent/20' :
-            'bg-bg-base border border-border text-wp-muted',
-          ].join(' ')}>
-            {idx < currentIdx ? 'OK' : idx + 1}
-          </div>
-          {idx < steps.length - 1 && (
-            <div className={['h-px w-8 transition-colors', idx < currentIdx ? 'bg-accent' : 'bg-border'].join(' ')} />
-          )}
-        </div>
-      ))}
-    </div>
+    <>
+      <ol className="flex items-center px-1 lg:hidden" aria-label="Setup progress">
+        {steps.map((s, idx) => (
+          <li key={s} className="flex min-w-0 flex-1 items-center last:flex-none">
+            <span
+              aria-current={idx === currentIdx ? 'step' : undefined}
+              className={[
+                'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold',
+                idx <= currentIdx
+                  ? 'border-accent bg-accent text-white shadow-sm'
+                  : 'border-border bg-bg-card text-wp-muted',
+              ].join(' ')}
+              title={STEP_DETAILS[s].label}
+            >
+              {idx < currentIdx ? <SetupIconGlyph icon="check" className="h-4 w-4" /> : idx + 1}
+            </span>
+            {idx < steps.length - 1 && (
+              <span className={['mx-2 h-px flex-1', idx < currentIdx ? 'bg-accent' : 'bg-border'].join(' ')} />
+            )}
+          </li>
+        ))}
+      </ol>
+
+      <ol className="hidden gap-1.5 lg:grid" aria-label="Setup progress">
+        {steps.map((s, idx) => (
+          <li key={s}>
+            <div
+              aria-current={idx === currentIdx ? 'step' : undefined}
+              className={[
+                'flex items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-colors',
+                idx === currentIdx
+                  ? 'border-accent bg-fh-mist-100 text-text-base'
+                  : idx < currentIdx
+                    ? 'border-border bg-bg-card text-text-base'
+                    : 'border-transparent bg-transparent text-wp-muted',
+              ].join(' ')}
+            >
+              <span className={[
+                'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border',
+                idx <= currentIdx ? 'border-accent bg-accent text-white' : 'border-border bg-bg-base text-wp-muted',
+              ].join(' ')}>
+                {idx < currentIdx ? (
+                  <SetupIconGlyph icon="check" className="h-3.5 w-3.5" />
+                ) : (
+                  <SetupIconGlyph icon={STEP_DETAILS[s].icon} className="h-3.5 w-3.5" />
+                )}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-[12.5px] font-semibold">{STEP_DETAILS[s].label}</span>
+                <span className="block truncate text-[11px] text-wp-muted">
+                  {idx < currentIdx ? 'Completed' : idx === currentIdx ? 'In progress' : 'Pending'}
+                </span>
+              </span>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </>
   )
 }
 
@@ -335,13 +467,13 @@ function NavButtons({
   nextDisabled?: boolean
 }) {
   return (
-    <div className="flex gap-3 mt-6">
+    <div className="mt-5 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
       {!hideBack && (
         <button
           type="button"
           onClick={onBack}
           disabled={loading}
-          className="fh-button-secondary flex-1 py-2.5 text-[14px]"
+          className="fh-button-secondary min-h-9 w-full py-2 text-[13px] sm:w-auto sm:min-w-24"
         >
           Back
         </button>
@@ -350,7 +482,7 @@ function NavButtons({
         type="button"
         onClick={onNext}
         disabled={loading || nextDisabled}
-        className="fh-button-primary flex-1 py-2.5 text-[14px]"
+        className="fh-button-primary min-h-9 w-full py-2 text-[13px] sm:w-auto sm:min-w-32"
       >
         {loading && <AppleSpinner size={16} />}
         {loading ? 'Please wait...' : nextLabel}
@@ -362,8 +494,10 @@ function NavButtons({
 function StepCard({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <div>
-      <h2 className="text-[18px] font-semibold text-text-base mb-1">{title}</h2>
-      {subtitle && <p className="text-[13px] text-wp-muted mb-6">{subtitle}</p>}
+      <div className="mb-5">
+        <h2 className="text-[20px] font-semibold leading-7 text-text-base">{title}</h2>
+        {subtitle && <p className="mt-1 text-[12.5px] leading-5 text-wp-muted">{subtitle}</p>}
+      </div>
       {children}
     </div>
   )
@@ -372,44 +506,50 @@ function StepCard({ title, subtitle, children }: { title: string; subtitle?: str
 function StatusRow({
   label, hint, ok, okText, failText, neutral = false,
 }: { label: string; hint?: string; ok: boolean; okText: string; failText: string; neutral?: boolean }) {
+  const statusLabel = ok ? okText : failText
+  const tone = neutral ? 'neutral' : ok ? 'success' : 'danger'
   return (
-    <div className="flex items-start justify-between p-3 bg-bg-base border border-border rounded-lg gap-3">
-      <div>
-        <p className="text-[13px] text-text-base leading-tight">{label}</p>
-        {hint && <p className="text-[11px] text-wp-muted mt-0.5">{hint}</p>}
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-bg-card p-3">
+      <div className="min-w-0">
+        <p className="text-[13px] font-semibold leading-5 text-text-base">{label}</p>
+        {hint && <p className="mt-1 text-[12px] leading-5 text-wp-muted">{hint}</p>}
       </div>
       <span className={[
-        'text-[12px] font-medium flex-shrink-0 mt-0.5 text-right',
-        neutral ? 'text-wp-muted' : ok ? 'text-wp-green' : 'text-wp-red',
+        'fh-badge flex-shrink-0 whitespace-nowrap',
+        tone === 'success' ? 'fh-badge-success' : tone === 'danger' ? 'fh-badge-danger' : 'fh-badge-neutral',
       ].join(' ')}>
-        {ok ? okText : failText}
+        {statusLabel}
       </span>
     </div>
   )
 }
 
-function WelcomeStep({ onNext }: { onNext: () => void }) {
-  const steps = [
-    ['Server Profile', 'Configure your domain, timezone, and currency.'],
-    ['Database', 'Verify your database connection.'],
-    ['Admin Account', 'Create the first administrator account.'],
-    ['Finish', 'Lock setup and continue to FlowHub.'],
-  ]
+function InfoPanel({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border bg-bg-base px-3 py-2.5 text-[12.5px] leading-5 text-wp-muted">
+      {children}
+    </div>
+  )
+}
 
+function WelcomeStep({ onNext }: { onNext: () => void }) {
+  const steps = SETUP_STEPS.filter(step => step !== 'welcome')
   return (
     <StepCard
       title="Welcome to FlowHub"
-      subtitle="This wizard will guide you through initial setup."
+      subtitle="This wizard only captures the required system defaults. Connector setup stays available after sign-in."
     >
-      <div className="space-y-3 mb-6">
-        {steps.map(([label, desc], idx) => (
-          <div key={label} className="flex gap-3 p-3 bg-bg-base rounded-lg border border-border">
-            <span className="w-7 h-7 rounded-lg bg-fh-mist-100 text-accent flex items-center justify-center text-[12px] font-semibold flex-shrink-0">
-              {idx + 1}
+      <div className="grid gap-2.5">
+        {steps.map((stepName, idx) => (
+          <div key={stepName} className="flex gap-2.5 rounded-lg border border-border bg-bg-base p-3">
+            <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-fh-mist-100 text-accent">
+              <SetupIconGlyph icon={STEP_DETAILS[stepName].icon} className="h-4 w-4" />
             </span>
-            <div>
-              <p className="text-[13px] font-semibold text-text-base">{label}</p>
-              <p className="text-[12px] text-wp-muted">{desc}</p>
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold leading-5 text-text-base">
+                {idx + 1}. {STEP_DETAILS[stepName].label}
+              </p>
+              <p className="text-[12px] leading-5 text-wp-muted">{STEP_DETAILS[stepName].description}</p>
             </div>
           </div>
         ))}
@@ -458,7 +598,8 @@ function ServerProfileStep({
   return (
     <StepCard title="Server Profile" subtitle="Configure how FlowHub identifies itself.">
       {error && <ErrorBanner message={error} />}
-      <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2">
         <Field
           id="sp-domain"
           label="Domain"
@@ -468,6 +609,7 @@ function ServerProfileStep({
           hint="The domain where FlowHub is accessible. Used in links and notifications."
           disabled={loading}
         />
+        </div>
         <SearchableListbox
           id="sp-tz"
           label="Timezone"
@@ -525,13 +667,13 @@ function DatabaseStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
       {error && <ErrorBanner message={error} />}
 
       {!checked && (
-        <div className="mb-4 p-4 bg-bg-base border border-border rounded-lg text-[13px] text-wp-muted">
+        <InfoPanel>
           Click <strong>Check Database</strong> to verify the connection.
-        </div>
+        </InfoPanel>
       )}
 
       {status && (
-        <div className="space-y-2 mb-4">
+        <div className="grid gap-3">
           <StatusRow
             label="Connection"
             hint="Verifies the app can reach the database."
@@ -640,9 +782,9 @@ function AdminStep({
     >
       {error && <ErrorBanner message={error} />}
       {hasAdmin ? (
-        <div className="mb-4 p-4 bg-bg-base border border-border rounded-lg text-[13px] text-wp-muted">
+        <InfoPanel>
           FlowHub already has an administrator account. Continue to finish setup.
-        </div>
+        </InfoPanel>
       ) : (
         <div className="space-y-4">
           <Field
@@ -722,9 +864,9 @@ function FinishStep({ onComplete, onBack }: { onComplete: () => void; onBack: ()
   return (
     <StepCard title="Finish" subtitle="Complete setup and start using FlowHub.">
       {error && <ErrorBanner message={error} />}
-      <div className="mb-4 p-4 bg-bg-base border border-border rounded-lg text-[13px] text-wp-muted">
+      <InfoPanel>
         Setup is ready to be finalized. Connector configuration is available from Settings after sign-in.
-      </div>
+      </InfoPanel>
       <NavButtons onBack={onBack} onNext={finishSetup} loading={loading} nextLabel="Finish Setup" />
     </StepCard>
   )
@@ -759,31 +901,59 @@ export default function Setup({ onComplete }: SetupProps) {
 
   if (!statusChecked) {
     return (
-      <div className="min-h-screen bg-bg-base flex items-center justify-center">
-        <p className="text-[13px] text-wp-muted">Loading...</p>
+      <div className="flex min-h-screen items-center justify-center bg-bg-base p-4">
+        <div className="fh-card flex items-center gap-3 px-5 py-4 text-[13px] text-wp-muted">
+          <AppleSpinner size={18} />
+          <span>Loading setup status...</span>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-bg-base flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
-        <div className="mb-6 text-center">
-          <h1 className="text-[24px] font-semibold text-text-base">FlowHub</h1>
-          <p className="text-[13px] text-wp-muted mt-0.5">
-            Step {stepIndex + 1} of {SETUP_STEPS.length} - {STEP_LABELS[step]}
-          </p>
-        </div>
+    <div className="min-h-screen bg-bg-base p-3 sm:p-5 lg:p-7">
+      <div className="mx-auto grid min-h-[calc(100vh-1.5rem)] w-full max-w-5xl items-center gap-4 lg:min-h-[calc(100vh-3.5rem)] lg:grid-cols-[minmax(260px,320px)_minmax(0,560px)] lg:justify-center">
+        <aside className="fh-card overflow-hidden">
+          <div className="border-b border-border p-4 sm:p-5">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-white shadow-sm">
+                <SetupIconGlyph icon="spark" className="h-[18px] w-[18px]" />
+              </div>
+              <div>
+                <h1 className="text-[22px] font-semibold leading-7 text-text-base">FlowHub</h1>
+                <p className="text-[12px] leading-5 text-wp-muted">Setup console</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-bg-base p-3">
+              <p className="fh-section-label">Current Step</p>
+              <div className="mt-2.5 flex items-start gap-2.5">
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-fh-mist-100 text-accent">
+                  <SetupIconGlyph icon={STEP_DETAILS[step].icon} className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[15px] font-semibold leading-6 text-text-base">
+                    {STEP_LABELS[step]}
+                  </p>
+                  <p className="mt-0.5 text-[12px] leading-5 text-wp-muted">
+                    {STEP_DETAILS[step].description}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="p-3">
+            <StepProgress current={step} steps={SETUP_STEPS} />
+          </div>
+        </aside>
 
-        <StepDots current={step} steps={SETUP_STEPS} />
-
-        <div className="fh-card p-7">
+        <main className="fh-card overflow-visible p-5 sm:p-6">
+          <p className="fh-section-label mb-3">Step {stepIndex + 1} of {SETUP_STEPS.length}</p>
           {step === 'welcome' && <WelcomeStep onNext={goNext} />}
           {step === 'server-profile' && <ServerProfileStep onNext={goNext} onBack={goBack} />}
           {step === 'database' && <DatabaseStep onNext={goNext} onBack={goBack} />}
           {step === 'admin' && <AdminStep hasAdmin={hasAdmin} onAdminCreated={() => setHasAdmin(true)} onNext={goNext} onBack={goBack} />}
           {step === 'finish' && <FinishStep onComplete={onComplete} onBack={goBack} />}
-        </div>
+        </main>
       </div>
     </div>
   )
