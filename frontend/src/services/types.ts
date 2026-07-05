@@ -128,6 +128,8 @@ export interface CommerceSource {
   name: string
   type: 'Source'
   status: string
+  implemented: boolean
+  placeholder: boolean
   credential_status: string
   last_health_check: string | null
   data_role: string
@@ -136,6 +138,7 @@ export interface CommerceSource {
   health: CommerceHealth
   read_only: boolean
   runtime_write_blocked: boolean
+  settings_available: boolean
 }
 
 export interface CommerceChannel {
@@ -162,6 +165,27 @@ export interface CommerceRelationshipMap {
   example: string[]
   runtime_write_blocked: boolean
   read_only: boolean
+}
+
+export interface CommerceTypeField {
+  key: string
+  label: string
+  required: boolean
+  secret: boolean
+  default?: string | number | boolean | null
+}
+
+export interface CommerceTypeOption {
+  id: string
+  provider: string
+  name: string
+  type: 'Source' | 'Channel'
+  implemented: boolean
+  placeholder: boolean
+  read_only: boolean
+  write_blocked?: boolean
+  runtime_write_blocked: boolean
+  settings_schema: CommerceTypeField[]
 }
 
 // -- Activity ------------------------------------------------------------------

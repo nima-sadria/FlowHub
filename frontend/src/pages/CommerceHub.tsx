@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useServices } from '../services/ServiceContext'
-import type { CommerceChannel, CommerceRelationshipMap, CommerceSource } from '../services/types'
+import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeOption } from '../services/types'
 import Spinner from '../components/loading/Spinner'
 import { useNotification } from '../notifications/NotificationProvider'
 
 type Tab = 'sources' | 'channels'
+type FormKind = 'source' | 'channel'
 
 function prettyStatus(value: string): string {
   return value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -36,12 +38,12 @@ function RelationshipMap({ map }: { map: CommerceRelationshipMap | null }) {
           <p className="text-[11px] text-wp-muted">{nodes[0]}</p>
           <p className="text-[14px] font-semibold text-text-base">{example[0]}</p>
         </div>
-        <div className="text-[20px] text-wp-muted">↓</div>
+        <div className="text-[20px] text-wp-muted">v</div>
         <div className="rounded-lg border border-border bg-bg-base px-4 py-3">
           <p className="text-[11px] text-wp-muted">FlowHub</p>
           <p className="text-[14px] font-semibold text-text-base">{example[1]}</p>
         </div>
-        <div className="text-[20px] text-wp-muted">↓</div>
+        <div className="text-[20px] text-wp-muted">v</div>
         <div className="rounded-lg border border-border bg-bg-base px-4 py-3">
           <p className="text-[11px] text-wp-muted">{nodes[2]}</p>
           <p className="text-[14px] font-semibold text-text-base">{example[2]}</p>
@@ -61,6 +63,7 @@ function SourceCard({ source }: { source: CommerceSource }) {
             <span className={['fh-badge', statusClass(source.status)].join(' ')}>
               {prettyStatus(source.status)}
             </span>
+            {source.placeholder && <span className="fh-badge fh-badge-neutral">Future source placeholder</span>}
           </div>
           <p className="text-[12px] text-wp-muted mt-1">{source.data_role}</p>
         </div>
@@ -74,12 +77,7 @@ function SourceCard({ source }: { source: CommerceSource }) {
         <p><span className="text-wp-muted">Data role: </span><span className="font-medium text-text-base">{source.data_role}</span></p>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <SafetyBadges readOnly={source.read_only} writeBlocked={source.runtime_write_blocked} />
-        <a href={source.action_href} className="fh-button-secondary px-3 py-1.5 text-[12px]">
-          {source.action_label}
-        </a>
-      </div>
+      <SafetyBadges readOnly={source.read_only} writeBlocked={source.runtime_write_blocked} />
     </div>
   )
 }
@@ -127,25 +125,223 @@ function ChannelCard({ channel, onTest, testing }: {
   )
 }
 
+function fieldLabel(kind: FormKind, provider: string, key: string, fallback: string): string {
+  if (kind === 'source' && provider === 'nextcloud' && key === 'url') return 'Base URL'
+  if (kind === 'source' && provider === 'nextcloud' && key === 'password') return 'App password / token'
+  if (kind === 'channel' && provider === 'woocommerce' && key === 'url') return 'Store URL'
+  if (kind === 'channel' && provider === 'woocommerce' && key === 'key') return 'Consumer Key'
+  if (kind === 'channel' && provider === 'woocommerce' && key === 'secret') return 'Consumer Secret'
+  if (['seller_id', 'merchant_id'].includes(key)) return 'Seller/store ID placeholder'
+  if (['api_key', 'api_token'].includes(key)) return 'API key/token placeholder'
+  return fallback
+}
+
+function ConfigPanel({
+  kind,
+  types,
+  onCancel,
+  onSaved,
+}: {
+  kind: FormKind
+  types: CommerceTypeOption[]
+  onCancel: () => void
+  onSaved: () => Promise<void>
+}) {
+  const { commerce } = useServices()
+  const { info, error: notifyError } = useNotification()
+  const [selectedId, setSelectedId] = useState(types[0]?.id ?? '')
+  const selected = useMemo(
+    () => types.find(item => item.id === selectedId) ?? types[0],
+    [selectedId, types],
+  )
+  const [displayName, setDisplayName] = useState(selected?.name ?? '')
+  const [enabled, setEnabled] = useState(false)
+  const [description, setDescription] = useState('')
+  const [settings, setSettings] = useState<Record<string, string>>({})
+  const [secrets, setSecrets] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
+
+  useEffect(() => {
+    setDisplayName(selected?.name ?? '')
+    setEnabled(false)
+    setDescription('')
+    setSettings({})
+    setSecrets({})
+  }, [selected?.id])
+
+  if (!selected) return null
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    setSaving(true)
+    try {
+      const payload = {
+        display_name: displayName,
+        enabled: selected.placeholder ? false : enabled,
+        description,
+        settings,
+        secrets,
+      }
+      if (kind === 'source') await commerce.saveSource(selected.id, payload)
+      else await commerce.saveChannel(selected.id, payload)
+      info(`${selected.name} configuration saved. Secrets remain write-only.`)
+      await onSaved()
+    } catch {
+      notifyError(`Unable to save ${kind} configuration`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function testConnection() {
+    setTesting(true)
+    try {
+      const result = kind === 'source'
+        ? await commerce.testSource(selected.id)
+        : await commerce.testChannel(selected.id)
+      if (result.ok) info(result.message)
+      else notifyError(result.message)
+    } catch {
+      notifyError('Unable to test connection')
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={event => void submit(event)} className="fh-card fh-card-pad flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-[16px] font-semibold text-text-base">
+            {kind === 'source' ? 'Add Source' : 'Add Channel'}
+          </h3>
+          <p className="text-[12px] text-wp-muted mt-1">
+            Configuration is local to FlowHub and remains read-only.
+          </p>
+        </div>
+        <button type="button" onClick={onCancel} className="fh-button-secondary px-3 py-1.5 text-[12px]">
+          Close
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <label className="flex flex-col gap-1 text-[12px] text-wp-muted">
+          {kind === 'source' ? 'Source type' : 'Channel type'}
+          <select
+            value={selected.id}
+            onChange={event => setSelectedId(event.target.value)}
+            className="fh-input"
+          >
+            {types.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-[12px] text-wp-muted">
+          Display name
+          <input value={displayName} onChange={event => setDisplayName(event.target.value)} className="fh-input" />
+        </label>
+        <label className="flex flex-col gap-1 text-[12px] text-wp-muted md:col-span-2">
+          Description optional
+          <input value={description} onChange={event => setDescription(event.target.value)} className="fh-input" />
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="inline-flex items-center gap-2 text-[13px] text-text-base">
+          <input
+            type="checkbox"
+            checked={enabled && !selected.placeholder}
+            disabled={selected.placeholder}
+            onChange={event => setEnabled(event.target.checked)}
+          />
+          Enabled
+        </label>
+        <SafetyBadges readOnly={selected.read_only} writeBlocked={selected.runtime_write_blocked} />
+        {selected.placeholder && (
+          <span className="fh-badge fh-badge-neutral">
+            {kind === 'source' ? 'Future source placeholder' : 'Future channel placeholder'}
+          </span>
+        )}
+        {selected.placeholder && <span className="fh-badge fh-badge-neutral">Not configured</span>}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {selected.settings_schema.map(field => (
+          <label key={field.key} className="flex flex-col gap-1 text-[12px] text-wp-muted">
+            {fieldLabel(kind, selected.provider, field.key, field.label)}
+            <input
+              type={field.secret ? 'password' : 'text'}
+              value={field.secret ? secrets[field.key] ?? '' : settings[field.key] ?? ''}
+              onChange={event => {
+                const value = event.target.value
+                if (field.secret) setSecrets(current => ({ ...current, [field.key]: value }))
+                else setSettings(current => ({ ...current, [field.key]: value }))
+              }}
+              className="fh-input"
+              autoComplete="off"
+            />
+          </label>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap justify-end gap-2">
+        <button type="button" onClick={() => void testConnection()} disabled={testing} className="fh-button-secondary px-4">
+          {testing && <Spinner size="sm" />}
+          {testing ? 'Testing' : 'Test connection'}
+        </button>
+        <button type="submit" disabled={saving} className="fh-button-primary px-4">
+          {saving && <Spinner size="sm" />}
+          {saving ? 'Saving' : 'Save configuration'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export default function CommerceHub() {
   const { commerce } = useServices()
   const { info, error: notifyError } = useNotification()
-  const [tab, setTab] = useState<Tab>('channels')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'sources' ? 'sources' : 'channels')
   const [sources, setSources] = useState<CommerceSource[]>([])
   const [channels, setChannels] = useState<CommerceChannel[]>([])
+  const [sourceTypes, setSourceTypes] = useState<CommerceTypeOption[]>([])
+  const [channelTypes, setChannelTypes] = useState<CommerceTypeOption[]>([])
   const [map, setMap] = useState<CommerceRelationshipMap | null>(null)
   const [loading, setLoading] = useState(true)
   const [testingId, setTestingId] = useState<string | null>(null)
+  const [formKind, setFormKind] = useState<FormKind | null>(null)
 
   useEffect(() => {
-    Promise.all([commerce.getSources(), commerce.getChannels()])
-      .then(([sourceData, channelData]) => {
-        setSources(sourceData.items)
-        setMap(sourceData.relationship_map)
-        setChannels(channelData.items)
-      })
+    const queryTab = searchParams.get('tab')
+    if (queryTab === 'sources' || queryTab === 'channels') setTab(queryTab)
+  }, [searchParams])
+
+  async function loadCommerce() {
+    const [sourceData, channelData, sourceTypeData, channelTypeData] = await Promise.all([
+      commerce.getSources(),
+      commerce.getChannels(),
+      commerce.getSourceTypes(),
+      commerce.getChannelTypes(),
+    ])
+    setSources(sourceData.items)
+    setMap(sourceData.relationship_map)
+    setChannels(channelData.items)
+    setSourceTypes(sourceTypeData.items)
+    setChannelTypes(channelTypeData.items)
+  }
+
+  useEffect(() => {
+    loadCommerce()
+      .catch(() => notifyError('Unable to load Commerce Hub'))
       .finally(() => setLoading(false))
   }, [commerce])
+
+  function selectTab(nextTab: Tab) {
+    setTab(nextTab)
+    setSearchParams({ tab: nextTab })
+    setFormKind(null)
+  }
 
   async function handleTest(channelId: string) {
     setTestingId(channelId)
@@ -158,6 +354,11 @@ export default function CommerceHub() {
     } finally {
       setTestingId(null)
     }
+  }
+
+  async function reloadAfterSave() {
+    await loadCommerce()
+    setFormKind(null)
   }
 
   return (
@@ -176,7 +377,7 @@ export default function CommerceHub() {
         {(['sources', 'channels'] as const).map(item => (
           <button
             key={item}
-            onClick={() => setTab(item)}
+            onClick={() => selectTab(item)}
             className={[
               'px-3 py-1.5 text-[13px] font-medium rounded capitalize transition-colors',
               tab === item ? 'bg-bg-card text-accent shadow-sm' : 'text-wp-muted hover:text-text-base',
@@ -193,20 +394,40 @@ export default function CommerceHub() {
         </div>
       ) : tab === 'sources' ? (
         <section>
-          <div className="mb-4">
-            <h2 className="text-[16px] font-semibold text-text-base">Sources</h2>
-            <p className="text-[12px] text-wp-muted mt-1">Input systems that feed FlowHub / Data Layer.</p>
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[16px] font-semibold text-text-base">Sources</h2>
+              <p className="text-[12px] text-wp-muted mt-1">Input systems that feed FlowHub / Data Layer.</p>
+            </div>
+            <button onClick={() => setFormKind('source')} className="fh-button-primary px-4">
+              Add Source
+            </button>
           </div>
+          {formKind === 'source' && (
+            <div className="mb-4">
+              <ConfigPanel kind="source" types={sourceTypes} onCancel={() => setFormKind(null)} onSaved={reloadAfterSave} />
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {sources.map(source => <SourceCard key={source.id} source={source} />)}
           </div>
         </section>
       ) : (
         <section>
-          <div className="mb-4">
-            <h2 className="text-[16px] font-semibold text-text-base">Channels</h2>
-            <p className="text-[12px] text-wp-muted mt-1">Commerce systems that receive catalog visibility from FlowHub.</p>
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[16px] font-semibold text-text-base">Channels</h2>
+              <p className="text-[12px] text-wp-muted mt-1">Commerce systems that receive catalog visibility from FlowHub.</p>
+            </div>
+            <button onClick={() => setFormKind('channel')} className="fh-button-primary px-4">
+              Add Channel
+            </button>
           </div>
+          {formKind === 'channel' && (
+            <div className="mb-4">
+              <ConfigPanel kind="channel" types={channelTypes} onCancel={() => setFormKind(null)} onSaved={reloadAfterSave} />
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {channels.map(channel => (
               <ChannelCard

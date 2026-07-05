@@ -78,11 +78,13 @@ _SOURCES = [
         "name": "Nextcloud",
         "type": "Source",
         "status": "current",
+        "implemented": True,
+        "placeholder": False,
         "credential_status": "not_configured",
         "last_health_check": None,
         "data_role": "Spreadsheet price input",
-        "action_label": "Open Sources",
-        "action_href": "/sources",
+        "action_label": "Manage",
+        "action_href": "/commerce?tab=sources",
     },
     {
         "id": "csv:import",
@@ -90,11 +92,13 @@ _SOURCES = [
         "name": "CSV",
         "type": "Source",
         "status": "future",
+        "implemented": False,
+        "placeholder": True,
         "credential_status": "not_required",
         "last_health_check": None,
         "data_role": "File import input",
-        "action_label": "Open Diagnostics",
-        "action_href": "/diagnostics",
+        "action_label": "Manage",
+        "action_href": "/commerce?tab=sources",
     },
     {
         "id": "gsheets:price-list",
@@ -102,11 +106,13 @@ _SOURCES = [
         "name": "Google Sheets",
         "type": "Source",
         "status": "future",
+        "implemented": False,
+        "placeholder": True,
         "credential_status": "not_configured",
         "last_health_check": None,
         "data_role": "Spreadsheet price input",
-        "action_label": "Open Diagnostics",
-        "action_href": "/diagnostics",
+        "action_label": "Manage",
+        "action_href": "/commerce?tab=sources",
     },
     {
         "id": "erp:api-import",
@@ -114,11 +120,13 @@ _SOURCES = [
         "name": "ERP / API Import",
         "type": "Source",
         "status": "future",
+        "implemented": False,
+        "placeholder": True,
         "credential_status": "not_configured",
         "last_health_check": None,
         "data_role": "System import input",
-        "action_label": "Open Diagnostics",
-        "action_href": "/diagnostics",
+        "action_label": "Manage",
+        "action_href": "/commerce?tab=sources",
     },
 ]
 
@@ -147,8 +155,26 @@ class CommerceHubService:
             "write_blocked": True,
         }
 
+    def list_source_types(self) -> dict:
+        return {
+            "items": [self._type_contract(item, kind="Source") for item in _SOURCES],
+            "runtime_write_blocked": True,
+            "read_only": True,
+        }
+
+    def list_channel_types(self) -> dict:
+        return {
+            "items": [self._type_contract(item, kind="Channel") for item in _CHANNELS],
+            "runtime_write_blocked": True,
+            "read_only": True,
+            "write_blocked": True,
+        }
+
     def get_channel(self, channel_id: str) -> dict:
         return self._channel_contract(self._channel_meta(channel_id), detail=True)
+
+    def get_source(self, source_id: str) -> dict:
+        return self._source_contract(self._source_meta(source_id), detail=True)
 
     def get_channel_health(self, channel_id: str) -> dict:
         item = self._channel_contract(self._channel_meta(channel_id))
@@ -194,13 +220,52 @@ class CommerceHubService:
             "correlation_id": self._correlation_id(),
         }
 
+    def test_source_connection(self, source_id: str) -> dict:
+        meta = self._source_meta(source_id)
+        item = self._source_contract(meta)
+        configured = item["credential_status"] == "configured"
+        placeholder = bool(meta["placeholder"])
+        if placeholder:
+            message = f"{meta['name']} is a read-only future source placeholder. No external call was performed."
+        elif configured:
+            message = "Local source configuration is present. No external call was performed."
+        else:
+            message = "Source is not configured. No external call was performed."
+        return {
+            "ok": False,
+            "status": "configured" if configured else "not_configured",
+            "message": message,
+            "external_call_performed": False,
+            "read_only": True,
+            "runtime_write_blocked": True,
+            "write_blocked": True,
+            "correlation_id": self._correlation_id(),
+        }
+
+    def update_source_settings(self, source_id: str, body: dict) -> dict:
+        meta = self._source_meta(source_id)
+        provider = str(meta["provider"])
+        if registry.get_definition(provider) is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Source settings are not available.")
+        self._ensure_instance(meta)
+        self._update_instance_state(meta, body)
+        result = self.integration.update_settings_contract(source_id, self._settings_body(body))
+        return {
+            **result,
+            "source_id": source_id,
+            "read_only": True,
+            "runtime_write_blocked": True,
+            "write_blocked": True,
+        }
+
     def update_channel_settings(self, channel_id: str, body: dict) -> dict:
         meta = self._channel_meta(channel_id)
         provider = str(meta["provider"])
         if registry.get_definition(provider) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel settings are not available.")
         self._ensure_instance(meta)
-        result = self.integration.update_settings_contract(channel_id, body)
+        self._update_instance_state(meta, body)
+        result = self.integration.update_settings_contract(channel_id, self._settings_body(body))
         return {
             **result,
             "channel_id": channel_id,
@@ -217,29 +282,31 @@ class CommerceHubService:
             "read_only": True,
         }
 
-    def _source_contract(self, meta: dict) -> dict:
-        if meta["provider"] == "nextcloud":
-            instance = self.db.get(IntegrationConnectorInstance, "nextcloud:primary")
-            if instance is None:
-                self.integration.bootstrap_from_app_config()
-                instance = self.db.get(IntegrationConnectorInstance, "nextcloud:primary")
-            health = self._health("nextcloud:primary")
-            configured = self._instance_configured(instance)
-            return {
-                **meta,
-                "status": self._status(meta, instance, health),
-                "credential_status": "configured" if configured else "not_configured",
-                "last_health_check": self._iso(health.checked_at) if health else None,
-                "health": self._health_contract(health),
-                "runtime_write_blocked": True,
-                "read_only": True,
-            }
-        return {
+    def _source_contract(self, meta: dict, detail: bool = False) -> dict:
+        provider = str(meta["provider"])
+        definition = registry.get_definition(provider)
+        instance = self.db.get(IntegrationConnectorInstance, meta["id"])
+        if provider == "nextcloud" and instance is None:
+            self.integration.bootstrap_from_app_config()
+            instance = self.db.get(IntegrationConnectorInstance, meta["id"])
+        health = self._health(str(meta["id"]))
+        configured = self._instance_configured(instance)
+        body = {
             **meta,
-            "health": self._health_contract(None),
+            "status": self._status(meta, instance, health),
+            "credential_status": "configured" if configured else "not_configured",
+            "last_health_check": self._iso(health.checked_at) if health else None,
+            "health": self._health_contract(health),
             "runtime_write_blocked": True,
             "read_only": True,
+            "settings_available": definition is not None,
         }
+        if detail:
+            body["settings_schema"] = [
+                item.model_dump() for item in definition.settings_schema
+            ] if definition else []
+            body["secrets"] = self._secret_status(instance)
+        return body
 
     def _channel_contract(self, meta: dict, detail: bool = False) -> dict:
         provider = str(meta["provider"])
@@ -299,11 +366,56 @@ class CommerceHubService:
         self.db.refresh(row)
         return row
 
+    def _update_instance_state(self, meta: dict, body: dict) -> None:
+        row = self.db.get(IntegrationConnectorInstance, meta["id"])
+        if row is None:
+            return
+        display_name = str(body.get("display_name") or "").strip() if isinstance(body, dict) else ""
+        if display_name:
+            row.name = display_name
+        enabled = body.get("enabled") if isinstance(body, dict) else None
+        row.enabled = bool(enabled) and not bool(meta.get("placeholder"))
+        row.read_only = True
+        row.status = "disabled" if not row.enabled else "configured"
+        row.updated_at = datetime.utcnow()
+        self.db.commit()
+
+    def _settings_body(self, body: dict) -> dict:
+        settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
+        description = str(body.get("description") or "").strip() if isinstance(body, dict) else ""
+        if description:
+            settings["description"] = description
+        return {
+            "settings": settings,
+            "secrets": body.get("secrets") if isinstance(body, dict) else None,
+        }
+
     def _channel_meta(self, channel_id: str) -> dict:
         for item in _CHANNELS:
             if item["id"] == channel_id or item["provider"] == channel_id:
                 return item
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel not found.")
+
+    def _source_meta(self, source_id: str) -> dict:
+        for item in _SOURCES:
+            if item["id"] == source_id or item["provider"] == source_id:
+                return item
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Source not found.")
+
+    def _type_contract(self, meta: dict, *, kind: str) -> dict:
+        definition = registry.get_definition(str(meta["provider"]))
+        return {
+            "id": meta["id"],
+            "provider": meta["provider"],
+            "name": meta["name"],
+            "type": kind,
+            "implemented": bool(meta["implemented"]),
+            "placeholder": bool(meta["placeholder"]),
+            "read_only": True,
+            "write_blocked": kind == "Channel",
+            "runtime_write_blocked": True,
+            "settings_schema": [item.model_dump() for item in definition.settings_schema] if definition else [],
+        }
 
     def _status(
         self,
@@ -341,8 +453,16 @@ class CommerceHubService:
             required = {"url", "key", "secret"}
         elif instance.connector_type in {"snappshop", "tapsishop"}:
             required = {"api_key"}
+        elif instance.connector_type in {"digikala", "technolife", "shopify"}:
+            required = {"api_token"}
         elif instance.connector_type == "nextcloud":
             required = {"url", "username", "password", "spreadsheet_path"}
+        elif instance.connector_type == "csv":
+            required = {"file_path"}
+        elif instance.connector_type == "gsheets":
+            required = {"sheet_ref"}
+        elif instance.connector_type == "erp":
+            required = {"api_token"}
         else:
             required = set()
         return bool(required) and all(settings.get(key) and settings[key].configured for key in required)

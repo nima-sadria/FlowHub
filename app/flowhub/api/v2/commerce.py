@@ -34,12 +34,58 @@ async def list_sources(
     return service.list_sources()
 
 
+@router.get("/source-types")
+async def list_source_types(
+    _: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    return service.list_source_types()
+
+
+@router.get("/sources/{source_id}")
+async def get_source_detail(
+    source_id: str,
+    _: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    return service.get_source(source_id)
+
+
+@router.post("/sources/{source_id}/test")
+async def test_source_connection(
+    source_id: str,
+    user: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    _require_admin(user)
+    return service.test_source_connection(source_id)
+
+
+@router.put("/sources/{source_id}/settings")
+async def update_source_settings(
+    source_id: str,
+    body: dict,
+    user: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    _require_admin(user)
+    return service.update_source_settings(source_id, body)
+
+
 @router.get("/channels")
 async def list_channels(
     _: FlowHubUser = Depends(get_current_user),
     service: CommerceHubService = Depends(_service),
 ) -> dict:
     return service.list_channels()
+
+
+@router.get("/channel-types")
+async def list_channel_types(
+    _: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    return service.list_channel_types()
 
 
 @router.get("/channels/{channel_id}")

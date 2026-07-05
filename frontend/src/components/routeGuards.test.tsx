@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthContext, RequirePermission } from '../auth'
 import type { AuthContextValue, AuthUser } from '../auth'
 import Sidebar from './Sidebar'
@@ -93,7 +93,7 @@ function RouteMatrix({ initialPath }: { initialPath: string }) {
       <Routes>
         <Route path="/home" element={<RequirePermission permission="can_access_site"><span>home-page</span></RequirePermission>} />
         <Route path="/products" element={<RequirePermission permission="can_fetch"><span>products-page</span></RequirePermission>} />
-        <Route path="/sources" element={<RequirePermission permission="can_access_site"><span>sources-page</span></RequirePermission>} />
+        <Route path="/sources" element={<RequirePermission permission="can_access_site"><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
         <Route path="/commerce" element={<RequirePermission permission="can_access_site"><span>commerce-page</span></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><span>workspace-page</span></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><span>activity-page</span></RequirePermission>} />
@@ -281,6 +281,21 @@ describe('Router - /commerce', () => {
   })
 })
 
+// --- Router - /sources compatibility -----------------------------------------
+
+describe('Router - /sources compatibility', () => {
+  it('redirects Sources compatibility route to Commerce Hub for allowed user', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/sources" />, makeAuth(allowedUser))
+    expect(c.textContent).toContain('commerce-page')
+  })
+
+  it('keeps Sources compatibility route permission-gated', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/sources" />, makeAuth(deniedUser))
+    expect(c.textContent).not.toContain('commerce-page')
+    expect(c.textContent).toContain('Access Denied')
+  })
+})
+
 // --- Router - /settings -------------------------------------------------------
 
 describe('Router - /settings', () => {
@@ -397,9 +412,9 @@ describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => 
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
   })
 
-  it('shows Sources link', () => {
+  it('does not show separate Sources link', () => {
     const c = renderSidebar(allowedUser)
-    expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/sources"]')).toBeNull()
   })
 
   it('shows Commerce Hub link', () => {
@@ -424,11 +439,11 @@ describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => 
 })
 
 describe('Sidebar - admin user (is_admin=true)', () => {
-  it('shows all nav links', () => {
+  it('shows all active nav links', () => {
     const c = renderSidebar(adminUser)
     expect(c.querySelector('a[href="/home"]')).not.toBeNull()
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/sources"]')).toBeNull()
     expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
@@ -438,12 +453,12 @@ describe('Sidebar - admin user (is_admin=true)', () => {
 })
 
 describe('Sidebar - super admin (is_super_admin=true, is_admin=false)', () => {
-  it('shows all permission-gated links', () => {
+  it('shows all active permission-gated links', () => {
     const c = renderSidebar(superUser)
     expect(c.querySelector('a[href="/home"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/sources"]')).toBeNull()
     expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()

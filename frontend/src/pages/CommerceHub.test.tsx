@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider } from '../services/ServiceContext'
 import type { Services } from '../services/ServiceContext'
@@ -27,14 +28,17 @@ const commerce: CommerceService = {
           name: 'Nextcloud',
           type: 'Source',
           status: 'not_configured',
+          implemented: true,
+          placeholder: false,
           credential_status: 'not_configured',
           last_health_check: null,
           data_role: 'Spreadsheet price input',
-          action_label: 'Open Sources',
-          action_href: '/sources',
+          action_label: 'Manage',
+          action_href: '/commerce?tab=sources',
           health: { status: 'unknown', message: '', latency_ms: null, error_code: null },
           read_only: true,
           runtime_write_blocked: true,
+          settings_available: true,
         },
         {
           id: 'csv:import',
@@ -42,14 +46,17 @@ const commerce: CommerceService = {
           name: 'CSV',
           type: 'Source',
           status: 'future',
+          implemented: false,
+          placeholder: true,
           credential_status: 'not_required',
           last_health_check: null,
           data_role: 'File import input',
-          action_label: 'Open Diagnostics',
-          action_href: '/diagnostics',
+          action_label: 'Manage',
+          action_href: '/commerce?tab=sources',
           health: { status: 'unknown', message: '', latency_ms: null, error_code: null },
           read_only: true,
           runtime_write_blocked: true,
+          settings_available: true,
         },
         {
           id: 'gsheets:price-list',
@@ -57,14 +64,17 @@ const commerce: CommerceService = {
           name: 'Google Sheets',
           type: 'Source',
           status: 'future',
+          implemented: false,
+          placeholder: true,
           credential_status: 'not_configured',
           last_health_check: null,
           data_role: 'Spreadsheet price input',
-          action_label: 'Open Diagnostics',
-          action_href: '/diagnostics',
+          action_label: 'Manage',
+          action_href: '/commerce?tab=sources',
           health: { status: 'unknown', message: '', latency_ms: null, error_code: null },
           read_only: true,
           runtime_write_blocked: true,
+          settings_available: true,
         },
         {
           id: 'erp:api-import',
@@ -72,16 +82,77 @@ const commerce: CommerceService = {
           name: 'ERP / API Import',
           type: 'Source',
           status: 'future',
+          implemented: false,
+          placeholder: true,
           credential_status: 'not_configured',
           last_health_check: null,
           data_role: 'System import input',
-          action_label: 'Open Diagnostics',
-          action_href: '/diagnostics',
+          action_label: 'Manage',
+          action_href: '/commerce?tab=sources',
           health: { status: 'unknown', message: '', latency_ms: null, error_code: null },
           read_only: true,
           runtime_write_blocked: true,
+          settings_available: true,
         },
       ],
+    }
+  },
+  async getSourceTypes() {
+    return {
+      items: [
+        typeOption('nextcloud:primary', 'nextcloud', 'Nextcloud', 'Source', false, [
+          { key: 'url', label: 'Nextcloud URL', required: true, secret: false },
+          { key: 'username', label: 'Username', required: true, secret: false },
+          { key: 'password', label: 'Password', required: true, secret: true },
+          { key: 'spreadsheet_path', label: 'Spreadsheet path', required: true, secret: false },
+        ]),
+        typeOption('csv:import', 'csv', 'CSV', 'Source', true, [
+          { key: 'file_path', label: 'File/path placeholder', required: false, secret: false },
+        ]),
+      ],
+    }
+  },
+  async getChannelTypes() {
+    return {
+      items: [
+        typeOption('woocommerce:primary', 'woocommerce', 'WooCommerce', 'Channel', false, [
+          { key: 'url', label: 'Store URL', required: true, secret: false },
+          { key: 'key', label: 'Consumer key', required: true, secret: true },
+          { key: 'secret', label: 'Consumer secret', required: true, secret: true },
+        ]),
+        typeOption('snappshop:main', 'snappshop', 'Snapp Shop', 'Channel', true, [
+          { key: 'api_key', label: 'API key', required: false, secret: true },
+        ]),
+      ],
+    }
+  },
+  async saveSource() {
+    return {
+      settings: {},
+      secrets: { password: { status: 'configured', replaced_at: null } },
+      read_only: true,
+      runtime_write_blocked: true,
+      write_blocked: true,
+    }
+  },
+  async saveChannel() {
+    return {
+      settings: {},
+      secrets: { secret: { status: 'configured', replaced_at: null } },
+      read_only: true,
+      runtime_write_blocked: true,
+      write_blocked: true,
+    }
+  },
+  async testSource() {
+    return {
+      ok: false,
+      status: 'not_configured',
+      message: 'No external call was performed.',
+      external_call_performed: false,
+      read_only: true,
+      runtime_write_blocked: true,
+      write_blocked: true,
     }
   },
   async getChannels() {
@@ -107,6 +178,28 @@ const commerce: CommerceService = {
       write_blocked: true,
     }
   },
+}
+
+function typeOption(
+  id: string,
+  provider: string,
+  name: string,
+  type: 'Source' | 'Channel',
+  placeholder: boolean,
+  settings_schema: Array<{ key: string; label: string; required: boolean; secret: boolean }>,
+) {
+  return {
+    id,
+    provider,
+    name,
+    type,
+    implemented: !placeholder,
+    placeholder,
+    read_only: true,
+    write_blocked: type === 'Channel',
+    runtime_write_blocked: true,
+    settings_schema,
+  }
 }
 
 function channel(id: string, name: string, placeholder: boolean) {
@@ -155,9 +248,11 @@ async function renderPage() {
   await act(async () => {
     root.render(
       <NotificationProvider>
-        <ServiceProvider services={services}>
-          <CommerceHub />
-        </ServiceProvider>
+        <MemoryRouter initialEntries={['/commerce']}>
+          <ServiceProvider services={services}>
+            <CommerceHub />
+          </ServiceProvider>
+        </MemoryRouter>
       </NotificationProvider>,
     )
   })
@@ -176,6 +271,7 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Future channel placeholder')
     expect(c.textContent).toContain('Read-only mode')
     expect(c.textContent).toContain('Writes blocked')
+    expect(c.textContent).toContain('Add Channel')
     expect(c.textContent).not.toContain('Apply')
   })
 
@@ -190,7 +286,31 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('CSV')
     expect(c.textContent).toContain('Google Sheets')
     expect(c.textContent).toContain('ERP / API Import')
+    expect(c.textContent).toContain('Add Source')
+    expect(c.textContent).toContain('Future source placeholder')
     expect(c.textContent).not.toContain('Snapp Shop')
     expect(c.textContent).not.toContain('Tapsi Shop')
+  })
+
+  it('opens Source and Channel forms without rendering secrets', async () => {
+    const c = await renderPage()
+    const addChannel = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add Channel')
+    await act(async () => {
+      addChannel?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    expect(c.textContent).toContain('Channel type')
+    expect(c.textContent).toContain('Consumer Secret')
+
+    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
+    await act(async () => {
+      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    const addSource = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add Source')
+    await act(async () => {
+      addSource?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    expect(c.textContent).toContain('Source type')
+    expect(c.textContent).toContain('App password / token')
+    expect(c.textContent).not.toContain('snapp-secret-value')
   })
 })

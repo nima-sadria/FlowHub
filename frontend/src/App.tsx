@@ -16,8 +16,6 @@ import { ApiCommerceService } from './services/commerce/ApiCommerceService'
 import AppShell from './components/AppShell'
 import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
-import Sources from './pages/Sources'
-import SourceWizard from './pages/SourceWizard'
 import CommerceHub from './pages/CommerceHub'
 import Workspace from './pages/Workspace'
 import Activity from './pages/Activity'
@@ -138,8 +136,8 @@ function SetupGate() {
       <Route element={<AuthGuard><AppShell /></AuthGuard>}>
         <Route path="/home" element={<RequirePermission permission="can_access_site"><Dashboard /></RequirePermission>} />
         <Route path="/products" element={<RequirePermission permission="can_fetch"><Products /></RequirePermission>} />
-        <Route path="/sources" element={<RequirePermission permission="can_access_site"><Sources /></RequirePermission>} />
-        <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><SourceWizard /></RequirePermission>} />
+        <Route path="/sources" element={<RequirePermission permission="can_access_site"><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
+        <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
         <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />

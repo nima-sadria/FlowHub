@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 
 import pytest
 
@@ -69,14 +70,16 @@ def client(db_engine):
 @pytest.fixture()
 def auth_headers(client, db):
     from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.auth.jwt_service import create_access_token
     from app.flowhub.auth.password import hash_password
 
-    user = FlowHubUser(username="commerceadmin", hashed_password=hash_password("password123"), role="admin")
+    username = f"commerceadmin_{uuid.uuid4().hex}"
+    user = FlowHubUser(username=username, hashed_password=hash_password("password123"), role="admin")
     db.add(user)
     db.commit()
-    response = client.post("/api/auth/login", json={"username": "commerceadmin", "password": "password123"})
-    assert response.status_code == 200
-    return {"Authorization": f"Bearer {response.json()['token']}"}
+    db.refresh(user)
+    token = create_access_token(user.id, user.username, user.role)
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_commerce_channels_report_read_only_write_blocked(client, auth_headers):
@@ -107,6 +110,26 @@ def test_commerce_sources_do_not_list_marketplace_channels(client, auth_headers)
     assert "Tapsi Shop" not in names
 
 
+def test_commerce_type_routes_mark_future_placeholders_read_only(client, auth_headers):
+    source_response = client.get("/api/v2/commerce/source-types", headers=auth_headers)
+    channel_response = client.get("/api/v2/commerce/channel-types", headers=auth_headers)
+
+    assert source_response.status_code == 200
+    assert channel_response.status_code == 200
+
+    source_types = {item["provider"]: item for item in source_response.json()["items"]}
+    channel_types = {item["provider"]: item for item in channel_response.json()["items"]}
+
+    assert source_types["nextcloud"]["implemented"] is True
+    assert source_types["csv"]["placeholder"] is True
+    assert source_types["csv"]["read_only"] is True
+    assert channel_types["woocommerce"]["implemented"] is True
+    for provider in ("snappshop", "tapsishop", "digikala", "technolife", "shopify"):
+        assert channel_types[provider]["placeholder"] is True
+        assert channel_types[provider]["read_only"] is True
+        assert channel_types[provider]["write_blocked"] is True
+
+
 def test_snapp_tapsi_registry_placeholders_are_read_only():
     from app.flowhub.integration_platform.registry import registry
 
@@ -121,6 +144,18 @@ def test_snapp_tapsi_registry_placeholders_are_read_only():
 
 def test_placeholder_connection_test_does_not_call_external_system(client, auth_headers):
     response = client.post("/api/v2/commerce/channels/snappshop:main/test", headers=auth_headers, json={})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"] is False
+    assert data["external_call_performed"] is False
+    assert data["read_only"] is True
+    assert data["runtime_write_blocked"] is True
+    assert data["write_blocked"] is True
+
+
+def test_source_placeholder_connection_test_does_not_call_external_system(client, auth_headers):
+    response = client.post("/api/v2/commerce/sources/gsheets:price-list/test", headers=auth_headers, json={})
 
     assert response.status_code == 200
     data = response.json()
@@ -167,6 +202,31 @@ def test_channel_settings_preserve_credential_masking(client, auth_headers):
     detail = client.get("/api/v2/commerce/channels/snappshop:main", headers=auth_headers)
     assert detail.status_code == 200
     assert "snapp-secret-value" not in detail.text
+    assert detail.json()["credential_status"] == "configured"
+
+
+def test_source_settings_preserve_credential_masking(client, auth_headers):
+    response = client.put(
+        "/api/v2/commerce/sources/erp:api-import/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "ERP Import",
+            "enabled": True,
+            "settings": {"base_url": "https://erp.example.test"},
+            "secrets": {"api_token": "erp-secret-value"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "erp-secret-value" not in response.text
+    data = response.json()
+    assert data["read_only"] is True
+    assert data["runtime_write_blocked"] is True
+    assert data["secrets"]["api_token"]["status"] == "configured"
+
+    detail = client.get("/api/v2/commerce/sources/erp:api-import", headers=auth_headers)
+    assert detail.status_code == 200
+    assert "erp-secret-value" not in detail.text
     assert detail.json()["credential_status"] == "configured"
 
 
