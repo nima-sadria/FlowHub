@@ -82,7 +82,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
           {/* Collapse button - desktop only */}
           <button
             onClick={onToggleCollapse}
-            className="hidden md:flex items-center justify-center w-[26px] h-[26px] rounded-lg border border-border bg-white text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors flex-shrink-0"
+            className="hidden md:flex items-center justify-center w-[26px] h-[26px] rounded-lg border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors flex-shrink-0"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <svg
@@ -206,7 +206,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             title="Sign out"
             className={[
               'flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-medium border shadow-sm',
-              'border-wp-red/20 text-wp-red bg-white hover:bg-wp-red/5 transition-colors',
+              'border-wp-red/20 text-wp-red bg-bg-card hover:bg-wp-red/5 transition-colors',
               collapsed ? 'justify-center' : 'w-full',
             ].join(' ')}
           >

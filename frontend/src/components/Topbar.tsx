@@ -78,7 +78,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
       {/* Hamburger - mobile only */}
       <button
         onClick={onMenuClick}
-        className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg border border-border bg-white text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
+        className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
         aria-label="Open navigation"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
@@ -108,7 +108,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
         <button
           onClick={toggleTheme}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-white text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
         >
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>

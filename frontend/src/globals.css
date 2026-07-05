@@ -70,10 +70,35 @@
   --color-text-base: var(--fh-text-primary);
 }
 
-/* Keep the current app shell on the approved light admin system. */
 .dark {
-  --color-accent: var(--fh-brand-blue-600);
-  --color-accent-hover: var(--fh-brand-blue-700);
+  --fh-brand-mist-100: rgba(70,95,255,0.16);
+  --fh-brand-surface-50: #101828;
+
+  --fh-text-primary: #F9FAFB;
+  --fh-text-secondary: #E4E7EC;
+  --fh-text-muted: #98A2B3;
+
+  --fh-ui-background: #101828;
+  --fh-ui-card: #1D2939;
+  --fh-ui-border: #344054;
+  --fh-ui-border-strong: #475467;
+  --fh-ui-control: #1D2939;
+  --fh-ui-control-muted: #101828;
+  --fh-ui-glass-overlay: rgba(16,24,40,0.78);
+  --fh-ui-shadow-blue: rgba(0,0,0,0.32);
+
+  --fh-gradient-glass: linear-gradient(180deg, rgba(29,41,57,0.94) 0%, rgba(16,24,40,0.98) 100%);
+
+  --fh-focus-ring: rgba(97,114,255,0.34);
+  --fh-danger-surface: rgba(240,68,56,0.14);
+  --fh-danger-border: rgba(240,68,56,0.36);
+  --fh-success-surface: rgba(18,183,106,0.14);
+  --fh-success-border: rgba(18,183,106,0.32);
+  --fh-warning-surface: rgba(247,144,9,0.16);
+  --fh-warning-border: rgba(247,144,9,0.34);
+
+  --color-accent: var(--fh-brand-blue-500);
+  --color-accent-hover: var(--fh-brand-blue-400);
   --color-wp-green: var(--fh-semantic-success);
   --color-wp-red: var(--fh-semantic-danger);
   --color-wp-yellow: var(--fh-semantic-warning);
@@ -130,13 +155,13 @@ button,
 .fh-login-card {
   background: var(--fh-ui-card);
   border: 1px solid var(--fh-ui-border);
-  box-shadow: 0 1px 2px rgba(16,24,40,0.05);
+  box-shadow: 0 1px 2px var(--fh-ui-shadow-blue);
 }
 
 .fh-primary-button {
   background: var(--fh-brand-blue-600);
   color: var(--fh-text-inverse);
-  box-shadow: 0 1px 2px rgba(16,24,40,0.05);
+  box-shadow: 0 1px 2px var(--fh-ui-shadow-blue);
 }
 
 .fh-primary-button:hover:not(:disabled) {
@@ -184,11 +209,11 @@ button,
   }
 
   .fh-button-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-2 text-[13px] font-medium text-wp-muted shadow-sm transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-bg-card px-4 py-2 text-[13px] font-medium text-wp-muted shadow-sm transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .fh-input {
-    @apply w-full rounded-lg border border-border bg-white px-3 py-2 text-[13px] text-text-base shadow-sm transition-colors placeholder:text-wp-muted focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60;
+    @apply w-full rounded-lg border border-border bg-bg-card px-3 py-2 text-[13px] text-text-base shadow-sm transition-colors placeholder:text-wp-muted focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .fh-badge {

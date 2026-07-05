@@ -37,8 +37,8 @@ export default {
         card: '10px',
       },
       boxShadow: {
-        card: '0 1px 2px rgba(16,24,40,.05)',
-        blue: '0 1px 2px rgba(16,24,40,.05)',
+        card: '0 1px 2px var(--fh-ui-shadow-blue)',
+        blue: '0 1px 2px var(--fh-ui-shadow-blue)',
       },
       transitionTimingFunction: {
         DEFAULT: 'cubic-bezier(0.4, 0, 0.6, 1)',

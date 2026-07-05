@@ -167,7 +167,7 @@ export function SearchableListbox({
               'w-full text-left px-3 py-2 text-[13px] leading-snug break-words',
               opt.value === value
                 ? 'bg-fh-mist-100 text-accent font-medium'
-                : 'bg-white text-text-base hover:bg-bg-base',
+                : 'bg-bg-card text-text-base hover:bg-bg-base',
             ].join(' ')}
           >
             {opt.label}

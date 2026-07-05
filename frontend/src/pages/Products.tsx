@@ -201,7 +201,7 @@ export default function Products() {
               className={[
                 'px-2.5 py-1 text-[12px] font-medium rounded transition-colors capitalize',
                 productType === t
-                  ? 'bg-white text-accent shadow-sm'
+                  ? 'bg-bg-card text-accent shadow-sm'
                   : 'text-wp-muted hover:text-text-base',
               ].join(' ')}
             >
@@ -220,12 +220,12 @@ export default function Products() {
           {totalPages > 1 && (
             <div className="flex items-center gap-1">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-border bg-white text-wp-muted shadow-sm hover:text-accent hover:border-accent disabled:opacity-40 transition-colors">
+                className="w-7 h-7 flex items-center justify-center rounded-lg border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent disabled:opacity-40 transition-colors">
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" /></svg>
               </button>
               <span className="text-[12px] text-wp-muted px-1">{page} / {totalPages}</span>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-border bg-white text-wp-muted shadow-sm hover:text-accent hover:border-accent disabled:opacity-40 transition-colors">
+                className="w-7 h-7 flex items-center justify-center rounded-lg border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent disabled:opacity-40 transition-colors">
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6" /></svg>
               </button>
             </div>
