@@ -64,6 +64,7 @@ _VERSION = os.getenv("FLOWHUB_VERSION", "1.0.0")
 
 _FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
 _STATIC_LOGOS = Path(__file__).parent.parent.parent / "static" / "logos"
+_STATIC_FONTS = Path(__file__).parent.parent.parent / "static" / "fonts"
 
 _FRONTEND_UNAVAILABLE_HTML = """\
 <!doctype html>
@@ -74,7 +75,15 @@ _FRONTEND_UNAVAILABLE_HTML = """\
   <title>FlowHub</title>
   <link rel="icon" type="image/x-icon" href="/static/logos/favicon.ico?v=2">
   <style>
-    body {{ font-family: monospace; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }}
+    @font-face {{
+      font-family: 'YekanBakh';
+      src: url('/static/fonts/YekanBakhFaNum-VF.woff2') format('woff2-variations'),
+           url('/static/fonts/YekanBakhFaNum-VF.woff') format('woff-variations');
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: swap;
+    }}
+    body {{ font-family: 'YekanBakh', monospace; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }}
     h1 {{ font-size: 1.4rem; margin-bottom: 0.2em; }}
     table {{ border-collapse: collapse; margin-top: 1em; width: 100%; }}
     td {{ padding: 6px 12px; border: 1px solid #ddd; }}
@@ -128,6 +137,9 @@ if _assets_dir.exists():
 
 if _STATIC_LOGOS.exists():
     app.mount("/static/logos", StaticFiles(directory=str(_STATIC_LOGOS)), name="static-logos")
+
+if _STATIC_FONTS.exists():
+    app.mount("/static/fonts", StaticFiles(directory=str(_STATIC_FONTS)), name="static-fonts")
 
 
 @app.get("/", response_class=HTMLResponse, response_model=None, include_in_schema=False)
