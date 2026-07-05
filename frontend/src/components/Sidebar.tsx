@@ -65,11 +65,10 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
         >
           <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
             <img
-              src="/static/logos/FlowHub.webp"
+              src="/static/logos/FlowHub%20favicon.png"
               alt=""
               aria-hidden="true"
-              className="w-[181px] h-[121px] max-w-none flex-shrink-0 select-none"
-              style={{ transform: 'translate(-21px, -35px)' }}
+              className="w-full h-full object-contain flex-shrink-0 select-none"
             />
           </div>
 
