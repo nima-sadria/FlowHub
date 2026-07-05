@@ -19,7 +19,7 @@ export function SkeletonText({ lines = 3 }: { lines?: number }) {
 
 export function SkeletonCard() {
   return (
-    <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex flex-col gap-3">
+    <div className="fh-card fh-card-pad flex flex-col gap-3">
       <Skeleton className="h-3 w-24" />
       <Skeleton className="h-5 w-32" />
       <SkeletonText lines={2} />

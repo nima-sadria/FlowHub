@@ -92,15 +92,15 @@ export default function Workspace() {
   const bothConfigured = wcConfigured === true && ncConfigured === true
 
   return (
-    <div className="p-4 sm:p-7 flex flex-col gap-5 max-w-3xl">
+    <div className="fh-page max-w-3xl">
       <div>
-        <h1 className="text-[22px] font-bold text-text-base">Workspace</h1>
-        <p className="text-[13px] text-wp-muted mt-0.5">Preview price changes from your sources</p>
+        <h1 className="fh-page-title">Workspace</h1>
+        <p className="fh-page-subtitle">Preview price changes from your sources</p>
       </div>
 
       {/* Config loading */}
       {configLoading && (
-        <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex items-center gap-2 text-[13px] text-wp-muted">
+        <div className="fh-card fh-card-pad flex items-center gap-2 text-[13px] text-wp-muted">
           <Spinner size="sm" />
           Loading configuration...
         </div>
@@ -108,7 +108,7 @@ export default function Workspace() {
 
       {/* Not configured */}
       {!configLoading && !bothConfigured && phase === 'idle' && (
-        <div className="bg-bg-card border border-border rounded-card shadow-card">
+        <div className="fh-card">
           {!wcConfigured && (
             <Empty
               title="Product connector required"
@@ -128,7 +128,7 @@ export default function Workspace() {
 
       {/* Idle - start button */}
       {!configLoading && bothConfigured && phase === 'idle' && (
-        <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex flex-col gap-5">
+        <div className="fh-card fh-card-pad flex flex-col gap-5">
           <div>
             <p className="text-[13px] text-text-base font-medium mb-1">Ready</p>
             <p className="text-[12px] text-wp-muted">
@@ -138,7 +138,7 @@ export default function Workspace() {
           </div>
           <button
             onClick={() => void startPreview()}
-            className="w-full py-3 bg-accent text-white text-[14px] font-semibold rounded-lg hover:bg-accent-hover transition-colors"
+            className="fh-button-primary w-full py-3 text-[14px]"
           >
             Start Preview
           </button>
@@ -147,7 +147,7 @@ export default function Workspace() {
 
       {/* Previewing - loading state */}
       {phase === 'previewing' && (
-        <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex flex-col items-center gap-4 py-12">
+        <div className="fh-card fh-card-pad flex flex-col items-center gap-4 py-12">
           <Spinner size="lg" />
           <p className="text-[14px] font-medium text-text-base">Fetching products and source data...</p>
           <p className="text-[12px] text-wp-muted">This may take up to 30 seconds for large catalogues</p>
@@ -174,8 +174,8 @@ export default function Workspace() {
 
           {/* Duplicate warnings */}
           {(preview.duplicateWarnings ?? []).length > 0 && (
-            <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
-              <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">
+            <div className="fh-card fh-card-pad">
+              <p className="fh-section-label mb-3">
                 Spreadsheet Warnings ({preview.duplicateWarnings!.length})
               </p>
               {preview.duplicateWarnings!.map((w, i) => (
@@ -184,8 +184,8 @@ export default function Workspace() {
             </div>
           )}
 
-          <div className="bg-bg-card border border-border rounded-card shadow-card overflow-hidden">
-            <div className="flex items-center justify-between px-[22px] py-4 border-b border-border">
+          <div className="fh-card overflow-hidden">
+            <div className="fh-panel-header">
               <span className="text-[13px] font-semibold text-text-base">
                 Preview - {preview.totalChanges} changes
               </span>
@@ -216,7 +216,7 @@ export default function Workspace() {
               </div>
               <button
                 onClick={() => void cancelPreview()}
-                className="px-4 py-2 text-[13px] border border-border rounded-lg text-wp-muted hover:text-wp-red hover:border-wp-red transition-colors"
+                className="fh-button-secondary hover:text-wp-red hover:border-wp-red"
               >
                 New Preview
               </button>
@@ -227,7 +227,7 @@ export default function Workspace() {
 
       {/* Error */}
       {phase === 'error' && (
-        <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex flex-col gap-4">
+        <div className="fh-card fh-card-pad flex flex-col gap-4">
           <div className="flex items-start gap-3 p-4 bg-wp-red/10 border border-wp-red/30 rounded-lg">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-wp-red flex-shrink-0 mt-0.5">
               <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
@@ -236,7 +236,7 @@ export default function Workspace() {
           </div>
           <button
             onClick={() => setPhase('idle')}
-            className="self-start px-4 py-2 text-[13px] border border-border rounded-lg text-wp-muted hover:text-text-base hover:border-accent transition-colors"
+            className="fh-button-secondary self-start"
           >
             Try again
           </button>

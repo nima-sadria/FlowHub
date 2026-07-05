@@ -18,9 +18,9 @@ function relTime(d: Date | null): string {
 }
 
 const STATUS_BADGE: Record<Source['status'], { cls: string; label: string }> = {
-  active:       { cls: 'bg-wp-green/10 text-wp-green',   label: 'Active' },
-  error:        { cls: 'bg-wp-red/10 text-wp-red',       label: 'Error' },
-  unconfigured: { cls: 'bg-border/60 text-wp-muted',     label: 'Unconfigured' },
+  active:       { cls: 'fh-badge-success', label: 'Active' },
+  error:        { cls: 'fh-badge-danger', label: 'Error' },
+  unconfigured: { cls: 'fh-badge-neutral', label: 'Unconfigured' },
 }
 
 function SourceCard({ source }: { source: Source }) {
@@ -28,12 +28,12 @@ function SourceCard({ source }: { source: Source }) {
   const { info } = useNotification()
 
   return (
-    <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
+    <div className="fh-card fh-card-pad">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[15px] font-semibold text-text-base truncate">{source.name}</span>
-            <span className={['text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide', badge.cls].join(' ')}>
+            <span className="text-[15px] font-medium text-text-base truncate">{source.name}</span>
+            <span className={['fh-badge', badge.cls].join(' ')}>
               {badge.label}
             </span>
           </div>
@@ -41,7 +41,7 @@ function SourceCard({ source }: { source: Source }) {
         </div>
         <button
           onClick={() => info('Configuration editing available in a future phase.')}
-          className="flex-shrink-0 px-3 py-1.5 text-[12px] border border-border rounded-lg text-wp-muted hover:text-text-base hover:border-accent transition-colors"
+          className="fh-button-secondary flex-shrink-0 px-3 py-1.5 text-[12px]"
         >
           Edit
         </button>
@@ -78,15 +78,15 @@ export default function Sources() {
   }, [sources])
 
   return (
-    <div className="p-4 sm:p-7 flex flex-col gap-5 max-w-2xl">
+    <div className="fh-page max-w-2xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[22px] font-bold text-text-base">Sources</h1>
-          <p className="text-[13px] text-wp-muted mt-0.5">Data sources for price synchronisation</p>
+          <h1 className="fh-page-title">Sources</h1>
+          <p className="fh-page-subtitle">Data sources for price synchronisation</p>
         </div>
         <button
           onClick={() => navigate('/sources/new')}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-white text-[13px] font-medium hover:bg-accent-hover transition-colors flex-shrink-0"
+          className="fh-button-primary flex-shrink-0"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
             <path d="M12 5v14M5 12h14" />
@@ -101,7 +101,7 @@ export default function Sources() {
           <SkeletonCard />
         </div>
       ) : items.length === 0 ? (
-        <div className="bg-bg-card border border-border rounded-card shadow-card">
+        <div className="fh-card">
           <Empty
             title="No sources configured"
             description="Add a source to start comparing prices."

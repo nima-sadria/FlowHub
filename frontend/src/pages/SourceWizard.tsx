@@ -106,7 +106,7 @@ export default function SourceWizard() {
           {...inputHint(template_variable)}
           autoComplete={type === 'password' ? 'new-password' : undefined}
           className={[
-            'w-full px-3 py-2 text-[13px] border rounded-lg bg-bg-base text-text-base focus:outline-none focus:border-accent transition-colors',
+            'fh-input',
             errors[name] ? 'border-wp-red' : 'border-border',
           ].join(' ')}
         />
@@ -116,15 +116,15 @@ export default function SourceWizard() {
   }
 
   return (
-    <div className="p-4 sm:p-7 max-w-lg mx-auto">
+    <div className="p-4 sm:p-6 max-w-lg mx-auto">
       <div className="mb-6">
-        <h1 className="text-[22px] font-bold text-text-base">Add a Source</h1>
-        <p className="text-[13px] text-wp-muted mt-0.5">{STEP_LABELS[step - 1]}</p>
+        <h1 className="fh-page-title">Add a Source</h1>
+        <p className="fh-page-subtitle">{STEP_LABELS[step - 1]}</p>
       </div>
 
       <StepIndicator current={step} total={4} />
 
-      <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
+      <div className="fh-card fh-card-pad">
 
         {/* Step 1 - Select type */}
         {step === 1 && (
@@ -163,14 +163,14 @@ export default function SourceWizard() {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setStep(1)}
-                className="flex-1 py-2 text-[13px] border border-border rounded-lg text-wp-muted hover:text-text-base hover:border-accent transition-colors"
+                className="fh-button-secondary flex-1"
               >
                 Back
               </button>
               <button
                 onClick={() => void handleTest()}
                 disabled={testing}
-                className="flex-1 py-2 text-[13px] bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="fh-button-primary flex-1"
               >
                 {testing && <Spinner size="sm" className="text-white" />}
                 {testing ? 'Testing...' : 'Test Connection'}
@@ -204,7 +204,7 @@ export default function SourceWizard() {
             <div className="flex gap-3">
               <button
                 onClick={() => { setStep(2); setTestResult(null) }}
-                className="flex-1 py-2 text-[13px] border border-border rounded-lg text-wp-muted hover:text-text-base hover:border-accent transition-colors"
+                className="fh-button-secondary flex-1"
               >
                 Back
               </button>
@@ -212,7 +212,7 @@ export default function SourceWizard() {
                 <button
                   onClick={() => void handleSave()}
                   disabled={saving}
-                  className="flex-1 py-2 text-[13px] bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="fh-button-primary flex-1"
                 >
                   {saving && <Spinner size="sm" className="text-white" />}
                   {saving ? 'Saving...' : 'Save Source'}
@@ -222,7 +222,7 @@ export default function SourceWizard() {
                 <button
                   onClick={() => void handleTest()}
                   disabled={testing}
-                  className="flex-1 py-2 text-[13px] border border-accent text-accent rounded-lg font-medium hover:bg-accent/5 transition-colors disabled:opacity-50"
+                  className="fh-button-secondary flex-1 border-accent text-accent"
                 >
                   Retry
                 </button>
@@ -246,13 +246,13 @@ export default function SourceWizard() {
             <div className="flex gap-3 w-full">
               <button
                 onClick={() => navigate('/products')}
-                className="flex-1 py-2 text-[13px] border border-border rounded-lg text-wp-muted hover:text-text-base hover:border-accent transition-colors"
+                className="fh-button-secondary flex-1"
               >
                 View Products
               </button>
               <button
                 onClick={() => navigate('/sources')}
-                className="flex-1 py-2 text-[13px] bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors"
+                className="fh-button-primary flex-1"
               >
                 Back to Sources
               </button>

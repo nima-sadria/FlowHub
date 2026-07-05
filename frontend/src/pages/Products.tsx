@@ -135,12 +135,12 @@ export default function Products() {
   // Not configured
   if (!loading && configured === false) {
     return (
-      <div className="p-4 sm:p-7 flex flex-col gap-5 max-w-2xl">
+      <div className="fh-page max-w-2xl">
         <div>
-          <h1 className="text-[22px] font-bold text-text-base">Products</h1>
-          <p className="text-[13px] text-wp-muted mt-0.5">Product catalog</p>
+          <h1 className="fh-page-title">Products</h1>
+          <p className="fh-page-subtitle">Product catalog</p>
         </div>
-        <div className="bg-bg-card border border-border rounded-card shadow-card">
+        <div className="fh-card">
           <Empty
             title="No product connector configured"
             description="Connect a product source from Sources to browse products."
@@ -152,18 +152,18 @@ export default function Products() {
   }
 
   return (
-    <div className="p-4 sm:p-7 flex flex-col gap-5">
+    <div className="fh-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[22px] font-bold text-text-base">Products</h1>
-          <p className="text-[13px] text-wp-muted mt-0.5">
+          <h1 className="fh-page-title">Products</h1>
+          <p className="fh-page-subtitle">
             {loading ? 'Loading...' : `${total} product${total !== 1 ? 's' : ''}`}
           </p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px] flex flex-wrap items-center gap-3">
+      <div className="fh-card fh-card-pad flex flex-wrap items-center gap-3">
         {/* Search */}
         <div className="relative flex-1 min-w-[180px]">
           <svg viewBox="0 0 24 24" className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-wp-muted pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2">
@@ -174,7 +174,7 @@ export default function Products() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             {...inputHint('Search name or SKU...')}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-bg-base text-[13px] focus:outline-none focus:border-accent transition-colors"
+            className="fh-input pl-8 py-1.5"
           />
         </div>
 
@@ -183,7 +183,7 @@ export default function Products() {
           <select
             value={categoryId ?? ''}
             onChange={e => setCategoryId(e.target.value ? Number(e.target.value) : null)}
-            className="px-3 py-1.5 rounded-lg border border-border bg-bg-base text-[13px] text-text-base focus:outline-none focus:border-accent transition-colors"
+            className="fh-input w-auto py-1.5"
           >
             <option value="">All Categories</option>
             {categories.map(c => (
@@ -201,7 +201,7 @@ export default function Products() {
               className={[
                 'px-2.5 py-1 text-[12px] font-medium rounded transition-colors capitalize',
                 productType === t
-                  ? 'bg-bg-card text-text-base shadow-card'
+                  ? 'bg-white text-accent shadow-sm'
                   : 'text-wp-muted hover:text-text-base',
               ].join(' ')}
             >
@@ -212,7 +212,7 @@ export default function Products() {
       </div>
 
       {/* Table */}
-      <div className="bg-bg-card border border-border rounded-card shadow-card overflow-hidden">
+      <div className="fh-card overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <span className="text-[13px] font-semibold text-text-base">
             {loading ? 'Loading...' : total === 0 ? 'No products found' : `Showing ${start}-${end} of ${total}`}
@@ -220,12 +220,12 @@ export default function Products() {
           {totalPages > 1 && (
             <div className="flex items-center gap-1">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors">
+                className="w-7 h-7 flex items-center justify-center rounded-lg border border-border bg-white text-wp-muted shadow-sm hover:text-accent hover:border-accent disabled:opacity-40 transition-colors">
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" /></svg>
               </button>
               <span className="text-[12px] text-wp-muted px-1">{page} / {totalPages}</span>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors">
+                className="w-7 h-7 flex items-center justify-center rounded-lg border border-border bg-white text-wp-muted shadow-sm hover:text-accent hover:border-accent disabled:opacity-40 transition-colors">
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6" /></svg>
               </button>
             </div>

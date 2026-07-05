@@ -25,10 +25,10 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
   const linkCls = ({ isActive }: { isActive: boolean }) =>
     [
-      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors mb-0.5',
+      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors mb-1',
       collapsed ? 'justify-center px-0' : '',
       isActive
-        ? 'bg-accent text-white'
+        ? 'bg-fh-mist-100 text-accent'
         : 'text-wp-muted hover:text-text-base hover:bg-bg-base',
     ].join(' ')
 
@@ -59,27 +59,27 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
         {/* Brand */}
         <div
           className={[
-            'flex items-center h-16 border-b border-border flex-shrink-0',
+            'flex items-center h-[68px] border-b border-border flex-shrink-0',
             collapsed ? 'flex-col justify-center gap-1 py-3 px-2' : 'px-4 gap-3',
           ].join(' ')}
         >
-          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
-            <svg viewBox="0 0 36 36" className="w-5 h-5 text-white" fill="currentColor">
+          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center flex-shrink-0 shadow-sm">
+            <svg viewBox="0 0 36 36" className="w-5 h-5 text-white" fill="currentColor" aria-hidden="true">
               <path d="M14.747 9.125c.527-1.426 1.736-2.573 3.317-2.573 1.643 0 2.792 1.085 3.318 2.573l6.077 16.867c.186.496.248.931.248 1.147 0 1.209-.992 2.046-2.139 2.046-1.303 0-1.954-.682-2.264-1.611l-.931-2.915h-8.62l-.93 2.884c-.31.961-.961 1.642-2.232 1.642-1.24 0-2.294-.93-2.294-2.17 0-.496.155-.868.217-1.023l6.233-16.867zm.34 11.256h5.891l-2.883-8.992h-.062l-2.946 8.992z" />
             </svg>
           </div>
 
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <div className="font-bold text-sm text-text-base leading-tight">FlowHub</div>
-              <div className="text-[11px] text-wp-muted">Admin</div>
+              <div className="font-semibold text-sm text-text-base leading-tight">FlowHub</div>
+              <div className="text-[11px] font-normal text-wp-muted">Admin</div>
             </div>
           )}
 
           {/* Collapse button - desktop only */}
           <button
             onClick={onToggleCollapse}
-            className="hidden md:flex items-center justify-center w-[26px] h-[26px] rounded border border-border text-wp-muted hover:text-accent hover:border-accent transition-colors flex-shrink-0"
+            className="hidden md:flex items-center justify-center w-[26px] h-[26px] rounded-lg border border-border bg-white text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors flex-shrink-0"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <svg
@@ -98,9 +98,9 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-2 py-3 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
           {!collapsed && (
-            <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-wider text-wp-muted select-none">
+            <p className="px-2 mb-3 text-[10px] font-semibold uppercase tracking-wider text-wp-muted select-none">
               FlowHub
             </p>
           )}
@@ -187,7 +187,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
               collapsed ? 'justify-center' : '',
             ].join(' ')}
           >
-            <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-xs font-bold flex-shrink-0 select-none">
+            <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 select-none shadow-sm">
               {user ? initials(user.username) : '?'}
             </div>
             {!collapsed && user && (
@@ -202,8 +202,8 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             onClick={handleLogout}
             title="Sign out"
             className={[
-              'flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-medium border',
-              'border-wp-red/30 text-wp-red bg-wp-red/5 hover:bg-wp-red/10 transition-colors',
+              'flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-medium border shadow-sm',
+              'border-wp-red/20 text-wp-red bg-white hover:bg-wp-red/5 transition-colors',
               collapsed ? 'justify-center' : 'w-full',
             ].join(' ')}
           >

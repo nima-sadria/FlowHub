@@ -15,10 +15,10 @@ function relTime(d: Date): string {
 }
 
 const LEVEL_STYLES: Record<ActivityLevel, { dot: string; badge: string; label: string }> = {
-  info:    { dot: 'bg-accent',        badge: 'bg-accent/10 text-accent',       label: 'Info' },
-  success: { dot: 'bg-wp-green',      badge: 'bg-wp-green/10 text-wp-green',   label: 'Success' },
-  warning: { dot: 'bg-wp-yellow',     badge: 'bg-wp-yellow/10 text-wp-yellow', label: 'Warning' },
-  error:   { dot: 'bg-wp-red',        badge: 'bg-wp-red/10 text-wp-red',       label: 'Error' },
+  info:    { dot: 'bg-accent',        badge: 'fh-badge-info',    label: 'Info' },
+  success: { dot: 'bg-wp-green',      badge: 'fh-badge-success', label: 'Success' },
+  warning: { dot: 'bg-wp-yellow',     badge: 'fh-badge-warning', label: 'Warning' },
+  error:   { dot: 'bg-wp-red',        badge: 'fh-badge-danger',  label: 'Error' },
 }
 
 function formatAction(action: string): string {
@@ -35,7 +35,7 @@ function EventRow({ event }: { event: ActivityEvent }) {
       <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-center gap-2 mb-0.5">
           <span className="text-[13px] font-medium text-text-base">{formatAction(event.action)}</span>
-          <span className={['text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wide', styles.badge].join(' ')}>
+          <span className={['fh-badge', styles.badge].join(' ')}>
             {styles.label}
           </span>
           {event.kind === 'user_action' && (
@@ -85,14 +85,14 @@ export default function Activity() {
   const hasMore = events.length < total
 
   return (
-    <div className="p-4 sm:p-7 flex flex-col gap-5 max-w-2xl">
+    <div className="fh-page max-w-2xl">
       <div>
-        <h1 className="text-[22px] font-bold text-text-base">Activity</h1>
-        <p className="text-[13px] text-wp-muted mt-0.5">System events and user actions</p>
+        <h1 className="fh-page-title">Activity</h1>
+        <p className="fh-page-subtitle">System events and user actions</p>
       </div>
 
-      <div className="bg-bg-card border border-border rounded-card shadow-card">
-        <div className="flex items-center justify-between px-[22px] py-4 border-b border-border">
+      <div className="fh-card">
+        <div className="fh-panel-header">
           <span className="text-[13px] font-semibold text-text-base">
             {loading ? 'Loading...' : `${total} events`}
           </span>
@@ -116,7 +116,7 @@ export default function Activity() {
             <button
               onClick={loadMore}
               disabled={loadingMore}
-              className="w-full py-2 text-[13px] text-wp-muted border border-border rounded-lg hover:text-text-base hover:border-accent transition-colors disabled:opacity-50"
+              className="fh-button-secondary w-full"
             >
               {loadingMore ? 'Loading...' : `Load more (${total - events.length} remaining)`}
             </button>

@@ -9,7 +9,7 @@ export default function NotFound() {
       <p className="text-[13px] text-wp-muted mb-6">This page doesn't exist.</p>
       <button
         onClick={() => navigate('/home')}
-        className="px-4 py-2 rounded-lg bg-accent text-white text-[13px] font-medium hover:bg-accent-hover transition-colors"
+        className="fh-button-primary"
       >
         Return to Dashboard
       </button>

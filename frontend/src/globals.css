@@ -12,42 +12,49 @@
 @tailwind components;
 @tailwind utilities;
 
-/* -- FlowHub brand system -- */
+/* -- TailAdmin-aligned FlowHub design system -- */
 :root {
-  --fh-brand-navy-950: #03112B;
-  --fh-brand-navy-900: #06183C;
-  --fh-brand-navy-800: #0A2558;
-  --fh-brand-blue-700: #003EDC;
-  --fh-brand-blue-600: #0A57F5;
-  --fh-brand-blue-500: #2478FF;
-  --fh-brand-blue-400: #5B9BFF;
-  --fh-brand-sky-300: #96C4FF;
-  --fh-brand-ice-200: #C7DEFF;
-  --fh-brand-mist-100: #EAF3FF;
-  --fh-brand-surface-50: #F8FBFF;
+  --fh-brand-navy-950: #0B1220;
+  --fh-brand-navy-900: #101828;
+  --fh-brand-navy-800: #1D2939;
+  --fh-brand-blue-700: #3641F5;
+  --fh-brand-blue-600: #465FFF;
+  --fh-brand-blue-500: #6172FF;
+  --fh-brand-blue-400: #8098FF;
+  --fh-brand-sky-300: #C7D2FE;
+  --fh-brand-ice-200: #E0E7FF;
+  --fh-brand-mist-100: #ECF3FF;
+  --fh-brand-surface-50: #F9FAFB;
 
-  --fh-semantic-success: #1DBF73;
-  --fh-semantic-warning: #F5A524;
-  --fh-semantic-danger: #EF4444;
-  --fh-semantic-info: #2478FF;
+  --fh-semantic-success: #12B76A;
+  --fh-semantic-warning: #F79009;
+  --fh-semantic-danger: #F04438;
+  --fh-semantic-info: #465FFF;
 
-  --fh-text-primary: #06183C;
-  --fh-text-secondary: #365170;
-  --fh-text-muted: #7D90AA;
+  --fh-text-primary: #101828;
+  --fh-text-secondary: #344054;
+  --fh-text-muted: #667085;
   --fh-text-inverse: #FFFFFF;
 
-  --fh-ui-background: #F8FBFF;
+  --fh-ui-background: #F9FAFB;
   --fh-ui-card: #FFFFFF;
-  --fh-ui-border: #D7E6FA;
-  --fh-ui-glass-overlay: rgba(255,255,255,0.38);
-  --fh-ui-shadow-blue: rgba(10,87,245,0.22);
+  --fh-ui-border: #E4E7EC;
+  --fh-ui-border-strong: #D0D5DD;
+  --fh-ui-control: #FFFFFF;
+  --fh-ui-control-muted: #F9FAFB;
+  --fh-ui-glass-overlay: rgba(255,255,255,0.72);
+  --fh-ui-shadow-blue: rgba(16,24,40,0.08);
 
-  --fh-gradient-primary: linear-gradient(135deg, #003EDC 0%, #2478FF 45%, #C7DEFF 100%);
-  --fh-gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(91,155,255,0.35) 55%, rgba(0,62,220,0.85) 100%);
+  --fh-gradient-primary: linear-gradient(180deg, #6172FF 0%, #465FFF 100%);
+  --fh-gradient-glass: linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(249,250,251,0.96) 100%);
 
-  --fh-focus-ring: rgba(36,120,255,0.28);
-  --fh-danger-surface: rgba(239,68,68,0.1);
-  --fh-danger-border: rgba(239,68,68,0.32);
+  --fh-focus-ring: rgba(70,95,255,0.22);
+  --fh-danger-surface: #FEF3F2;
+  --fh-danger-border: #FECDCA;
+  --fh-success-surface: #ECFDF3;
+  --fh-success-border: #ABEFC6;
+  --fh-warning-surface: #FFFAEB;
+  --fh-warning-border: #FEDF89;
 
   --color-accent: var(--fh-brand-blue-600);
   --color-accent-hover: var(--fh-brand-blue-700);
@@ -63,7 +70,7 @@
   --color-text-base: var(--fh-text-primary);
 }
 
-/* Keep the current app shell on the approved light brand system. */
+/* Keep the current app shell on the approved light admin system. */
 .dark {
   --color-accent: var(--fh-brand-blue-600);
   --color-accent-hover: var(--fh-brand-blue-700);
@@ -82,10 +89,10 @@
 @layer base {
   body {
     @apply font-sans bg-bg-base text-text-base;
-    background:
-      radial-gradient(circle at 16% 0%, rgba(150,196,255,0.26), transparent 28rem),
-      var(--fh-ui-background);
+    background: var(--fh-ui-background);
     font-feature-settings: "locl" 0;
+    font-size: 13px;
+    font-weight: 400;
   }
   @supports (font-variation-settings: normal) {
     body {
@@ -112,38 +119,105 @@ button,
 }
 
 :focus-visible {
-  outline: 3px solid var(--fh-focus-ring);
+  outline: 2px solid var(--fh-focus-ring);
   outline-offset: 2px;
 }
 
 .fh-login-shell {
-  background:
-    radial-gradient(circle at 50% 12%, rgba(91,155,255,0.24), transparent 26rem),
-    linear-gradient(180deg, var(--fh-brand-mist-100) 0%, var(--fh-brand-surface-50) 58%);
+  background: var(--fh-ui-background);
 }
 
 .fh-login-card {
   background: var(--fh-ui-card);
   border: 1px solid var(--fh-ui-border);
-  box-shadow:
-    0 26px 70px -42px var(--fh-ui-shadow-blue),
-    0 1px 4px rgba(6,24,60,0.08);
+  box-shadow: 0 1px 2px rgba(16,24,40,0.05);
 }
 
 .fh-primary-button {
-  background: var(--fh-gradient-primary);
+  background: var(--fh-brand-blue-600);
   color: var(--fh-text-inverse);
-  box-shadow: 0 16px 32px -22px var(--fh-ui-shadow-blue);
+  box-shadow: 0 1px 2px rgba(16,24,40,0.05);
 }
 
 .fh-primary-button:hover:not(:disabled) {
-  filter: saturate(1.04) brightness(1.02);
+  background: var(--fh-brand-blue-700);
+  filter: none;
 }
 
 .fh-error-alert {
   background: var(--fh-danger-surface);
   border: 1px solid var(--fh-danger-border);
   color: var(--fh-semantic-danger);
+}
+
+@layer components {
+  .fh-page {
+    @apply p-4 sm:p-6 flex flex-col gap-5;
+  }
+
+  .fh-page-title {
+    @apply text-[24px] font-semibold leading-8 text-text-base;
+  }
+
+  .fh-page-subtitle {
+    @apply mt-0.5 text-[13px] font-normal text-wp-muted;
+  }
+
+  .fh-card {
+    @apply bg-bg-card border border-border rounded-card shadow-card;
+  }
+
+  .fh-card-pad {
+    @apply p-5;
+  }
+
+  .fh-panel-header {
+    @apply flex items-center justify-between px-5 py-4 border-b border-border;
+  }
+
+  .fh-section-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-wp-muted;
+  }
+
+  .fh-button-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-[13px] font-medium text-white shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .fh-button-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-2 text-[13px] font-medium text-wp-muted shadow-sm transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .fh-input {
+    @apply w-full rounded-lg border border-border bg-white px-3 py-2 text-[13px] text-text-base shadow-sm transition-colors placeholder:text-wp-muted focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .fh-badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium leading-5;
+  }
+
+  .fh-badge-success {
+    background: var(--fh-success-surface);
+    color: var(--fh-semantic-success);
+  }
+
+  .fh-badge-warning {
+    background: var(--fh-warning-surface);
+    color: var(--fh-semantic-warning);
+  }
+
+  .fh-badge-danger {
+    background: var(--fh-danger-surface);
+    color: var(--fh-semantic-danger);
+  }
+
+  .fh-badge-info {
+    background: var(--fh-brand-mist-100);
+    color: var(--fh-brand-blue-600);
+  }
+
+  .fh-badge-neutral {
+    @apply bg-bg-base text-wp-muted;
+  }
 }
 
 /* -- Reduced-motion override -- */

@@ -36,12 +36,12 @@ function Section({ title, description, children }: {
   children: React.ReactNode
 }) {
   return (
-    <div className="bg-bg-card border border-border rounded-card shadow-card overflow-hidden">
-      <div className="px-[22px] py-4 border-b border-border">
+    <div className="fh-card overflow-hidden">
+      <div className="px-5 py-4 border-b border-border">
         <p className="text-[14px] font-semibold text-text-base">{title}</p>
         {description && <p className="text-[12px] text-wp-muted mt-0.5">{description}</p>}
       </div>
-      <div className="px-[22px] py-5 flex flex-col gap-4">{children}</div>
+      <div className="px-5 py-5 flex flex-col gap-4">{children}</div>
     </div>
   )
 }
@@ -50,7 +50,7 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <label className="block text-[12px] font-medium text-text-base mb-1.5">{label}</label>
-      <div className="px-3 py-2 text-[13px] border border-border rounded-lg bg-bg-base text-wp-muted font-mono select-all">
+      <div className="px-3 py-2 text-[13px] border border-border rounded-lg bg-bg-base text-wp-muted font-mono select-all shadow-sm">
         {value}
       </div>
     </div>
@@ -71,7 +71,7 @@ function SelectField({ label, value, options, onChange, disabled }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         disabled={disabled}
-        className="w-full px-3 py-2 text-[13px] border border-border rounded-lg bg-bg-base text-text-base focus:outline-none focus:border-accent transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className="fh-input"
       >
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -95,7 +95,7 @@ function NumberField({ label, value, min, max, onChange }: {
         min={min}
         max={max}
         onChange={e => onChange(Number(e.target.value))}
-        className="w-full px-3 py-2 text-[13px] border border-border rounded-lg bg-bg-base text-text-base focus:outline-none focus:border-accent transition-colors"
+        className="fh-input"
       />
     </div>
   )
@@ -160,24 +160,24 @@ export default function Settings() {
   }
 
   return (
-    <div className="p-4 sm:p-7 flex flex-col gap-5 max-w-2xl">
+    <div className="fh-page max-w-2xl">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-[22px] font-bold text-text-base">Settings</h1>
-          <p className="text-[13px] text-wp-muted mt-0.5">Application settings</p>
+          <h1 className="fh-page-title">Settings</h1>
+          <p className="fh-page-subtitle">Application settings</p>
         </div>
         {dirty && (
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setDraft(appSettings); setDirty(false) }}
-              className="px-4 py-2 text-[13px] border border-border rounded-lg text-wp-muted hover:text-text-base hover:border-accent transition-colors"
+              className="fh-button-secondary"
             >
               Discard
             </button>
             <button
               onClick={() => void handleSave()}
               disabled={saving}
-              className="px-4 py-2 text-[13px] bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="fh-button-primary"
             >
               {saving && <Spinner size="sm" className="text-white" />}
               {saving ? 'Saving...' : 'Save Changes'}

@@ -63,7 +63,7 @@ export default function Login() {
 
         <div className="fh-login-card rounded-card p-8">
           <div className="mb-7 text-center">
-            <h1 className="text-[22px] font-bold text-text-base">FlowHub</h1>
+            <h1 className="text-[24px] font-semibold text-text-base">FlowHub</h1>
             <p className="text-[13px] text-wp-muted mt-1">Sign in to FlowHub</p>
           </div>
 
@@ -87,7 +87,7 @@ export default function Login() {
                 autoComplete="username"
                 autoFocus
                 disabled={loading}
-                className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent disabled:opacity-60"
+                className="fh-input text-[14px]"
                 {...inputHint('Administrator username')}
               />
             </div>
@@ -104,7 +104,7 @@ export default function Login() {
                 required
                 autoComplete="current-password"
                 disabled={loading}
-                className="w-full border border-border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent disabled:opacity-60"
+                className="fh-input text-[14px]"
                 {...inputHint('Enter your administrator credentials')}
               />
             </div>
@@ -112,7 +112,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="fh-primary-button mt-2 w-full py-2.5 rounded-lg text-[14px] font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="fh-primary-button mt-2 w-full py-2.5 rounded-lg text-[14px] font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>

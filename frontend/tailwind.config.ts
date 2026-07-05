@@ -34,11 +34,11 @@ export default {
         sans: ['YekanBakhNoEn', 'sans-serif'],
       },
       borderRadius: {
-        card: '12px',
+        card: '10px',
       },
       boxShadow: {
-        card: '0 14px 36px -28px var(--fh-ui-shadow-blue), 0 1px 4px rgba(6,24,60,.08)',
-        blue: '0 20px 48px -30px var(--fh-ui-shadow-blue)',
+        card: '0 1px 2px rgba(16,24,40,.05)',
+        blue: '0 1px 2px rgba(16,24,40,.05)',
       },
       transitionTimingFunction: {
         DEFAULT: 'cubic-bezier(0.4, 0, 0.6, 1)',

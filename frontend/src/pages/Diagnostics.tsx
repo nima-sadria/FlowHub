@@ -143,18 +143,18 @@ export default function Diagnostics() {
   ]
 
   return (
-    <div className="p-4 sm:p-7 flex flex-col gap-5 max-w-2xl">
+    <div className="fh-page max-w-2xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[22px] font-bold text-text-base">Diagnostics</h1>
-          <p className="text-[13px] text-wp-muted mt-0.5">
+          <h1 className="fh-page-title">Diagnostics</h1>
+          <p className="fh-page-subtitle">
             {checkedAt ? `Last checked ${relTime(checkedAt)}` : loading ? 'Loading' : 'Unable to check'}
           </p>
         </div>
         <button
           onClick={() => void runCheck()}
           disabled={loading}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-[13px] font-medium text-wp-muted hover:text-text-base hover:border-accent transition-colors disabled:opacity-50"
+          className="fh-button-secondary px-3"
         >
           {loading ? <Spinner size="sm" /> : (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
@@ -173,13 +173,13 @@ export default function Diagnostics() {
         </div>
       )}
 
-      <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
-        <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">System</p>
+      <div className="fh-card fh-card-pad">
+        <p className="fh-section-label mb-3">System</p>
         {systemRows.map(row => <Row key={row.label} row={row} />)}
       </div>
 
-      <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
-        <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-3">Connectors</p>
+      <div className="fh-card fh-card-pad">
+        <p className="fh-section-label mb-3">Connectors</p>
         {loading && !diag ? (
           <div className="flex items-center gap-2 text-[13px] text-wp-muted py-2">
             <Spinner size="sm" />Loading connectors
@@ -205,8 +205,8 @@ export default function Diagnostics() {
         })}
       </div>
 
-      <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
-        <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-2">About</p>
+      <div className="fh-card fh-card-pad">
+        <p className="fh-section-label mb-2">About</p>
         <p className="text-[13px] text-text-base mt-1">
           <span className="text-wp-muted">Status: </span>
           <span className="font-medium">{health?.status ?? '-'}</span>

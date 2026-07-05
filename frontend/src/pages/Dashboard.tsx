@@ -31,17 +31,17 @@ function StatCard({ label, value, sub, indicator }: {
     null
 
   return (
-    <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
+    <div className="fh-card fh-card-pad">
       {dot && (
         <div className="flex items-center gap-2 mb-2">
           <span className={['w-2 h-2 rounded-full flex-shrink-0', dot].join(' ')} />
-          <span className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold">{label}</span>
+          <span className="fh-section-label">{label}</span>
         </div>
       )}
       {!dot && (
-        <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted font-semibold mb-2">{label}</p>
+        <p className="fh-section-label mb-2">{label}</p>
       )}
-      <div className="text-[20px] font-bold text-text-base leading-tight">{value}</div>
+      <div className="text-[20px] font-semibold text-text-base leading-tight">{value}</div>
       {sub && <div className="text-[11px] text-wp-muted mt-0.5">{sub}</div>}
     </div>
   )
@@ -101,22 +101,22 @@ export default function Dashboard() {
   const initial = user?.username?.[0]?.toUpperCase() ?? '?'
 
   return (
-    <div className="p-4 sm:p-7 flex flex-col gap-6">
+    <div className="fh-page">
       {/* Header */}
       <div>
-        <h1 className="text-[22px] font-bold text-text-base">Dashboard</h1>
-        <p className="text-[13px] text-wp-muted mt-0.5">System overview</p>
+        <h1 className="fh-page-title">Dashboard</h1>
+        <p className="fh-page-subtitle">System overview</p>
       </div>
 
       {/* User card */}
-      <div className="bg-bg-card border border-border rounded-card shadow-card p-[22px]">
-        <p className="text-[11.5px] uppercase tracking-[.7px] text-wp-muted mb-3 font-semibold">Logged In</p>
+      <div className="fh-card fh-card-pad">
+        <p className="fh-section-label mb-3">Logged In</p>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-            <span className="text-accent font-bold text-[14px]">{initial}</span>
+            <span className="text-accent font-semibold text-[14px]">{initial}</span>
           </div>
           <div>
-            <div className="text-[15px] font-semibold text-text-base">{user?.username ?? '-'}</div>
+            <div className="text-[15px] font-medium text-text-base">{user?.username ?? '-'}</div>
             <div className="text-[12px] text-wp-muted capitalize">{user?.role ?? '-'}</div>
           </div>
         </div>
@@ -158,12 +158,12 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Sources */}
-        <div className="bg-bg-card border border-border rounded-card shadow-card">
-          <div className="flex items-center justify-between px-[22px] py-4 border-b border-border">
+        <div className="fh-card">
+          <div className="fh-panel-header">
             <p className="text-[13px] font-semibold text-text-base">Sources</p>
             <button
               onClick={() => navigate('/sources/new')}
-              className="text-[12px] text-accent font-medium hover:underline"
+              className="text-[12px] text-accent font-medium hover:text-accent-hover"
             >
               + Add Source
             </button>
@@ -184,8 +184,8 @@ export default function Dashboard() {
                     <p className="text-[11px] text-wp-muted">{relTime(s.lastSynced)} آ· {s.productCount} products</p>
                   </div>
                   <span className={[
-                    'text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase',
-                    s.status === 'active' ? 'bg-wp-green/10 text-wp-green' : 'bg-wp-red/10 text-wp-red',
+                    'fh-badge capitalize',
+                    s.status === 'active' ? 'fh-badge-success' : 'fh-badge-danger',
                   ].join(' ')}>
                     {s.status}
                   </span>
@@ -196,12 +196,12 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-bg-card border border-border rounded-card shadow-card">
-          <div className="flex items-center justify-between px-[22px] py-4 border-b border-border">
+        <div className="fh-card">
+          <div className="fh-panel-header">
             <p className="text-[13px] font-semibold text-text-base">Recent Activity</p>
             <button
               onClick={() => navigate('/activity')}
-              className="text-[12px] text-accent font-medium hover:underline"
+              className="text-[12px] text-accent font-medium hover:text-accent-hover"
             >
               View all
             </button>

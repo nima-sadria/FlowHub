@@ -145,7 +145,7 @@ export function SearchableListbox({
         {...inputHint(template_variable ?? `Search ${label.toLowerCase()}...`)}
         disabled={disabled}
         autoComplete="off"
-        className="w-full min-w-0 mb-1.5 border border-border rounded-lg px-3 py-1.5 text-[13px] bg-bg-base text-text-base focus:outline-none focus:border-accent disabled:opacity-60 truncate"
+        className="fh-input mb-1.5 min-w-0 py-1.5 truncate"
       />
       <div
         id={id}
@@ -166,8 +166,8 @@ export function SearchableListbox({
             className={[
               'w-full text-left px-3 py-2 text-[13px] leading-snug break-words',
               opt.value === value
-                ? 'bg-accent text-white font-medium'
-                : 'bg-bg-base text-text-base hover:bg-border',
+                ? 'bg-fh-mist-100 text-accent font-medium'
+                : 'bg-white text-text-base hover:bg-bg-base',
             ].join(' ')}
           >
             {opt.label}
@@ -214,7 +214,7 @@ function Field({
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy}
         className={[
-          'w-full border rounded-lg px-3 py-2 text-[14px] bg-bg-base text-text-base focus:outline-none focus:border-accent disabled:opacity-60',
+          'fh-input text-[14px]',
           error ? 'border-wp-red' : 'border-border',
         ].join(' ')}
       />
@@ -241,8 +241,8 @@ function StepDots({ current, steps }: { current: Step; steps: Step[] }) {
           <div className={[
             'w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors',
             idx < currentIdx ? 'bg-accent text-white' :
-            idx === currentIdx ? 'bg-accent text-white ring-2 ring-accent/30' :
-            'bg-border text-wp-muted',
+            idx === currentIdx ? 'bg-accent text-white ring-2 ring-accent/20' :
+            'bg-bg-base border border-border text-wp-muted',
           ].join(' ')}>
             {idx < currentIdx ? 'OK' : idx + 1}
           </div>
@@ -272,7 +272,7 @@ function NavButtons({
           type="button"
           onClick={onBack}
           disabled={loading}
-          className="flex-1 py-2.5 rounded-lg border border-border text-[14px] font-medium text-wp-muted hover:text-text-base hover:border-accent transition-colors disabled:opacity-50"
+          className="fh-button-secondary flex-1 py-2.5 text-[14px]"
         >
           Back
         </button>
@@ -281,7 +281,7 @@ function NavButtons({
         type="button"
         onClick={onNext}
         disabled={loading || nextDisabled}
-        className="flex-1 py-2.5 rounded-lg bg-accent text-white text-[14px] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="fh-button-primary flex-1 py-2.5 text-[14px]"
       >
         {loading && <AppleSpinner size={16} />}
         {loading ? 'Please wait...' : nextLabel}
@@ -293,7 +293,7 @@ function NavButtons({
 function StepCard({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <div>
-      <h2 className="text-[18px] font-bold text-text-base mb-1">{title}</h2>
+      <h2 className="text-[18px] font-semibold text-text-base mb-1">{title}</h2>
       {subtitle && <p className="text-[13px] text-wp-muted mb-6">{subtitle}</p>}
       {children}
     </div>
@@ -698,7 +698,7 @@ export default function Setup({ onComplete }: SetupProps) {
     <div className="min-h-screen bg-bg-base flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         <div className="mb-6 text-center">
-          <h1 className="text-[24px] font-bold text-text-base">FlowHub</h1>
+          <h1 className="text-[24px] font-semibold text-text-base">FlowHub</h1>
           <p className="text-[13px] text-wp-muted mt-0.5">
             Step {stepIndex + 1} of {SETUP_STEPS.length} - {STEP_LABELS[step]}
           </p>
@@ -706,7 +706,7 @@ export default function Setup({ onComplete }: SetupProps) {
 
         <StepDots current={step} steps={SETUP_STEPS} />
 
-        <div className="bg-bg-card border border-border rounded-card shadow-card p-7">
+        <div className="fh-card p-7">
           {step === 'welcome' && <WelcomeStep onNext={goNext} />}
           {step === 'server-profile' && <ServerProfileStep onNext={goNext} onBack={goBack} />}
           {step === 'database' && <DatabaseStep onNext={goNext} onBack={goBack} />}

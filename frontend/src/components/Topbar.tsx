@@ -74,11 +74,11 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
   }
 
   return (
-    <header className="h-16 bg-bg-card border-b border-border flex items-center px-4 gap-4 flex-shrink-0">
+    <header className="h-[68px] bg-bg-card border-b border-border flex items-center px-5 gap-4 flex-shrink-0">
       {/* Hamburger - mobile only */}
       <button
         onClick={onMenuClick}
-        className="md:hidden flex items-center justify-center w-8 h-8 rounded text-wp-muted hover:text-text-base hover:bg-bg-base transition-colors"
+        className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg border border-border bg-white text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
         aria-label="Open navigation"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
@@ -99,7 +99,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
 
       <div className="ms-auto flex items-center gap-3">
         {/* Health indicator */}
-        <div className="flex items-center gap-1.5 text-[12px] text-wp-muted">
+        <div className="flex items-center gap-1.5 text-[12px] font-medium text-wp-muted">
           <span className={['w-2 h-2 rounded-full flex-shrink-0', healthDot].join(' ')} />
           <span className="hidden sm:inline">{healthLabel}</span>
         </div>
@@ -108,7 +108,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
         <button
           onClick={toggleTheme}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="w-8 h-8 flex items-center justify-center rounded border border-border text-wp-muted hover:text-accent hover:border-accent transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-white text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
         >
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>
@@ -127,13 +127,13 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
               onClick={() => setMenuOpen(o => !o)}
               aria-label="User menu"
               aria-expanded={menuOpen}
-              className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-xs font-bold select-none hover:ring-2 hover:ring-accent/40 transition-shadow"
+              className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold select-none shadow-sm hover:ring-2 hover:ring-accent/25 transition-shadow"
             >
               {user.username.slice(0, 2).toUpperCase()}
             </button>
 
             {menuOpen && (
-              <div className="absolute end-0 top-full mt-1.5 w-44 bg-bg-card border border-border rounded-lg shadow-card py-1 z-50">
+              <div className="absolute end-0 top-full mt-2 w-44 bg-bg-card border border-border rounded-card shadow-card py-1 z-50">
                 <div className="px-3 py-2 text-[12px] text-wp-muted border-b border-border truncate">
                   {user.username}
                 </div>

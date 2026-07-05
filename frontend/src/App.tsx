@@ -39,7 +39,7 @@ function MaintenanceOverlay({ message }: { message?: string }) {
   const { clearAuth } = useAuth()
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/95 backdrop-blur-sm">
-      <div className="max-w-md w-full mx-4 bg-bg-card border border-border rounded-card shadow-card p-8 text-center">
+      <div className="fh-card max-w-md w-full mx-4 p-8 text-center">
         <div className="w-14 h-14 rounded-lg bg-wp-yellow/10 border border-wp-yellow/20 flex items-center justify-center mx-auto mb-4">
           <svg viewBox="0 0 24 24" className="w-7 h-7 text-wp-yellow" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -53,7 +53,7 @@ function MaintenanceOverlay({ message }: { message?: string }) {
         </p>
         <button
           onClick={() => { clearAuth() }}
-          className="px-5 py-2 rounded-lg bg-accent text-white text-[13px] font-medium hover:bg-accent/90 transition-colors"
+          className="fh-button-primary px-5"
         >
           Sign out
         </button>
