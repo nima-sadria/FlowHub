@@ -161,9 +161,10 @@ class TestBuildConfirmationSummary:
         summary = build_confirmation_summary(valid_config_with_paths)
         assert valid_config_with_paths.domain in summary
 
-    def test_contains_admin_email(self, valid_config_with_paths: InstallerConfig):
+    def test_admin_account_is_created_in_web_setup(self, valid_config_with_paths: InstallerConfig):
         summary = build_confirmation_summary(valid_config_with_paths)
-        assert valid_config_with_paths.admin_email in summary
+        assert "Admin account:   created in web setup after install" in summary
+        assert valid_config_with_paths.admin_email not in summary
 
     def test_does_not_reveal_jwt_secret(self, valid_config_with_paths: InstallerConfig):
         summary = build_confirmation_summary(valid_config_with_paths)

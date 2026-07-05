@@ -681,7 +681,7 @@ def build_confirmation_summary(config: InstallerConfig) -> str:
         f"  WooCommerce URL: {config.woocommerce_url}",
         f"  Timezone:        {config.timezone}",
         f"  Currency:        {config.currency}",
-        f"  Admin email:     {config.admin_email}",
+        "  Admin account:   created in web setup after install",
         f"  Storage path:    {config.storage_path}",
         f"  Backup path:     {config.backup_path}",
         "=" * 56,

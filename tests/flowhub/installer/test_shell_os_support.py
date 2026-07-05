@@ -7,6 +7,7 @@ from pathlib import Path
 
 INSTALL = Path("installer/install.sh")
 CHECKS = Path("installer/lib/checks.sh")
+UNINSTALL = Path("installer/lib/uninstall.sh")
 
 
 def test_bootstrap_supports_ubuntu_2404_and_2604():
@@ -90,6 +91,30 @@ def test_upgrade_and_repair_refresh_installed_cli_wrapper():
     assert "step_install_cli" in reconfigure
 
 
+def test_installer_lifecycle_does_not_auto_create_admin():
+    src = INSTALL.read_text(encoding="utf-8")
+
+    upgrade = src[src.index("step_upgrade()") : src.index("# ---- Repair path")]
+    repair = src[src.index("step_repair()") : src.index("# ---- Reconfigure path")]
+    reconfigure = src[src.index("step_reconfigure()") : src.index("# Load .env")]
+    main_flow = src[src.index("main()") :]
+
+    assert "step_create_admin" not in upgrade
+    assert "step_create_admin" not in repair
+    assert "step_create_admin" not in reconfigure
+    assert "step_create_admin" not in main_flow
+    assert "No admin account is created by the installer." in src
+
+
+def test_interactive_installer_does_not_prompt_for_admin_credentials():
+    wizard = Path("installer/lib/wizard.sh").read_text(encoding="utf-8")
+
+    assert "Admin password" not in wizard
+    assert "Admin email" not in wizard
+    assert "Admin username" not in wizard
+    assert "No administrator account will be created by the installer." in wizard
+
+
 def test_installer_admin_creation_uses_stdin_not_process_arguments():
     src = Path("installer/lib/admin.sh").read_text(encoding="utf-8")
     assert "--secret-stdin" in src
@@ -102,3 +127,13 @@ def test_installer_public_url_contract_includes_port_for_tls_modes():
     body = src[src.index("_build_public_url()") : src.index("step_completion_report()")]
     assert 'echo "https://${domain}:${port}"' in body
     assert 'echo "https://${domain}"' not in body
+
+
+def test_uninstall_removes_known_flowhub_database_volumes_without_labels():
+    src = UNINSTALL.read_text(encoding="utf-8")
+    volume_block = src[src.index('if [[ "$rm_volumes" == "y" ]]') : src.index("# -- Network")]
+
+    assert 'label=com.docker.compose.project=${project_name}' in volume_block
+    assert "flowhub_flowhub_pgdata" in volume_block
+    assert "flowhub_pgdata" in volume_block
+    assert "sort -u" in volume_block

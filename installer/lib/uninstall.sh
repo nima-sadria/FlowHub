@@ -214,10 +214,13 @@ run_uninstall() {
     if [[ "$rm_volumes" == "y" ]]; then
         printf "  Removing Docker volumes..."
         if [[ "$docker_ok" -eq 1 ]]; then
-            local _vols
+            local _vols _named_vols
             _vols="$(docker volume ls -q \
                 --filter "label=com.docker.compose.project=${project_name}" \
                 2>/dev/null || true)"
+            _named_vols="$(docker volume ls -q 2>/dev/null \
+                | grep -E '^(flowhub_flowhub_pgdata|flowhub_pgdata|FLOWHUB_pgdata)$' || true)"
+            _vols="$(printf '%s\n%s\n' "$_vols" "$_named_vols" | sort -u | grep -v '^$' || true)"
             if [[ -n "$_vols" ]]; then
                 # shellcheck disable=SC2086
                 docker volume rm $_vols 2>/dev/null || true

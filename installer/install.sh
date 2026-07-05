@@ -889,7 +889,6 @@ step_upgrade() {
     _load_env_for_docker
     step_docker_launch
     step_database_init
-    step_create_admin
     step_install_cli
     step_health_check
     step_completion_report
@@ -970,7 +969,6 @@ step_reconfigure() {
     step_storage
     step_docker_launch
     step_database_init
-    step_create_admin
     step_install_cli
     step_health_check
     step_completion_report
@@ -1001,9 +999,9 @@ step_prerequisites() {
 step_wizard() {
     if [[ "$NON_INTERACTIVE" -eq 0 ]]; then
         echo ""
-        echo "Step 2 - Admin Account Setup"
+        echo "Step 2 - Installation Confirmation"
         run_wizard
-        # Fill remaining FLOWHUB_* defaults not asked by the wizard
+        # Fill FLOWHUB_* defaults for non-secret runtime configuration.
         apply_noninteractive_defaults
     else
         echo ""
@@ -1323,9 +1321,9 @@ step_completion_report() {
         echo "  |  The web wizard will guide you through:             |"
         echo "  |    - Server profile (domain, timezone, currency)    |"
         echo "  |    - Database verification                          |"
-        echo "  |    * Admin account and finish                       |"
+        echo "  |    - First admin account and finish                 |"
         echo "  |                                                     |"
-        echo "  |  Admin username: ${FLOWHUB_ADMIN_USERNAME:-admin}"
+        echo "  |  No admin account is created by the installer.      |"
         echo "  |  Sign in at:     ${public_url}/login"
         echo "  +-----------------------------------------------------+"
         echo ""
@@ -1394,7 +1392,6 @@ main() {
     step_compose_verify
     step_docker_launch
     step_database_init
-    step_create_admin
     step_install_cli
     step_health_check
     step_completion_report

@@ -74,7 +74,7 @@ def test_runtime_contract_blocks_stale_beta_runtime_before_migration():
 def test_launch_and_migration_verify_production_runtime_contract():
     src = _src()
     launch = src[src.index("step_docker_launch()") : src.index("step_database_init()")]
-    migration = src[src.index("step_database_init()") : src.index("step_create_admin()")]
+    migration = src[src.index("step_database_init()") : src.index("detect_flowhub_operator_user()")]
     assert 'assert_production_runtime_files "$INSTALL_DIR"' in launch
     assert 'stop_stale_beta_runtime "$INSTALL_DIR"' in launch
     assert 'assert_production_runtime_files "$INSTALL_DIR"' in migration
