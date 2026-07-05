@@ -6,6 +6,12 @@ import Empty from '../components/Empty'
 import { inputHint } from '../utils/inputHint'
 
 const PAGE_SIZE = 20
+const CHANNEL_OPTIONS = [
+  { id: '', label: 'All Channels' },
+  { id: 'woocommerce:primary', label: 'WooCommerce' },
+  { id: 'snappshop:main', label: 'Snapp Shop' },
+  { id: 'tapsishop:main', label: 'Tapsi Shop' },
+]
 
 function fmtPrice(p: number, currency: string): string {
   return `${currency} ${p.toFixed(2)}`
@@ -84,6 +90,7 @@ export default function Products() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [categoryId, setCategoryId] = useState<number | null>(null)
   const [productType, setProductType] = useState<'all' | 'simple' | 'variable'>('all')
+  const [channelId, setChannelId] = useState('')
   const [page, setPage] = useState(1)
 
   const [items, setItems] = useState<Product[]>([])
@@ -106,7 +113,7 @@ export default function Products() {
     return () => clearTimeout(t)
   }, [search])
 
-  useEffect(() => { setPage(1) }, [categoryId, productType])
+  useEffect(() => { setPage(1) }, [categoryId, productType, channelId])
 
   const fetchProducts = useCallback(() => {
     setLoading(true)
@@ -117,6 +124,7 @@ export default function Products() {
       pageSize: PAGE_SIZE,
       categoryId: categoryId ?? undefined,
       productType: productType === 'all' ? undefined : productType,
+      channelId: channelId || undefined,
     })
       .then(r => {
         setItems(r.items)
@@ -124,7 +132,7 @@ export default function Products() {
         setConfigured(r.configured)
       })
       .finally(() => setLoading(false))
-  }, [productService, debouncedSearch, categoryId, productType, page])
+  }, [productService, debouncedSearch, categoryId, productType, channelId, page])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
@@ -177,6 +185,17 @@ export default function Products() {
             className="fh-input pl-8 py-1.5"
           />
         </div>
+
+        {/* Channel filter */}
+        <select
+          value={channelId}
+          onChange={e => setChannelId(e.target.value)}
+          className="fh-input w-auto py-1.5"
+        >
+          {CHANNEL_OPTIONS.map(channel => (
+            <option key={channel.id || 'all'} value={channel.id}>{channel.label}</option>
+          ))}
+        </select>
 
         {/* Category filter */}
         {categories.length > 0 && (

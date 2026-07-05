@@ -22,6 +22,8 @@ Active routes:
   POST /api/v2/settings                        - update non-credential settings
   POST /api/v2/settings/woocommerce            - replace connector credentials
   POST /api/v2/settings/nextcloud              - replace connector credentials
+  GET  /api/v2/commerce/sources                - Commerce Hub source catalog
+  GET  /api/v2/commerce/channels               - Commerce Hub channel catalog
   GET  /api/v2/activity                        - paginated audit log
   GET  /api/v2/diagnostics/status              - live system diagnostics
   POST /api/v2/diagnostics/run                 - run read-only diagnostics
@@ -53,6 +55,7 @@ from app.flowhub.api.v2.products import router as products_router
 from app.flowhub.api.v2.sources import router as sources_router
 from app.flowhub.api.v2.workspace import router as workspace_router
 from app.flowhub.api.v2.settings_routes import router as settings_router
+from app.flowhub.api.v2.commerce import router as commerce_router
 from app.flowhub.api.v2.activity import router as activity_router
 from app.flowhub.api.v2.diagnostics import router as diagnostics_router
 from app.flowhub.api.v2.data_layer_routes import router as data_layer_router
@@ -125,6 +128,7 @@ app.include_router(products_router, prefix="/api/v2")
 app.include_router(sources_router, prefix="/api/v2")
 app.include_router(workspace_router, prefix="/api/v2")
 app.include_router(settings_router, prefix="/api/v2")
+app.include_router(commerce_router, prefix="/api/v2")
 app.include_router(config_router, prefix="/api/v2")
 app.include_router(activity_router, prefix="/api/v2")
 app.include_router(diagnostics_router, prefix="/api/v2")

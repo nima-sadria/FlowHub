@@ -1,0 +1,90 @@
+"""Commerce Hub API.
+
+Product-facing Sources and Channels surface. All operations are local,
+read-only with respect to external systems, and runtime writes remain blocked.
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.flowhub.auth.dependencies import get_current_user
+from app.flowhub.auth.models import FlowHubUser
+from app.flowhub.commerce.service import CommerceHubService
+from app.flowhub.database import get_db
+
+router = APIRouter(prefix="/commerce", tags=["commerce"])
+
+
+def _service(db: Session = Depends(get_db)) -> CommerceHubService:
+    return CommerceHubService(db)
+
+
+def _require_admin(user: FlowHubUser) -> None:
+    if user.role != "admin":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin permission required.")
+
+
+@router.get("/sources")
+async def list_sources(
+    _: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    return service.list_sources()
+
+
+@router.get("/channels")
+async def list_channels(
+    _: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    return service.list_channels()
+
+
+@router.get("/channels/{channel_id}")
+async def get_channel_detail(
+    channel_id: str,
+    _: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    return service.get_channel(channel_id)
+
+
+@router.post("/channels/{channel_id}/test")
+async def test_channel_connection(
+    channel_id: str,
+    user: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    _require_admin(user)
+    return service.test_channel_connection(channel_id)
+
+
+@router.get("/channels/{channel_id}/health")
+async def get_channel_health(
+    channel_id: str,
+    _: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    return service.get_channel_health(channel_id)
+
+
+@router.get("/channels/{channel_id}/capabilities")
+async def get_channel_capabilities(
+    channel_id: str,
+    _: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    return service.get_channel_capabilities(channel_id)
+
+
+@router.put("/channels/{channel_id}/settings")
+async def update_channel_settings(
+    channel_id: str,
+    body: dict,
+    user: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    _require_admin(user)
+    return service.update_channel_settings(channel_id, body)

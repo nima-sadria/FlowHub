@@ -139,6 +139,17 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             </NavLink>
           )}
 
+          {hasPerm('can_access_site') && (
+            <NavLink to="/commerce" className={linkCls} onClick={onClose}>
+              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7h18" />
+                <path d="M5 7l1 12h12l1-12" />
+                <path d="M9 7a3 3 0 0 1 6 0" />
+              </svg>
+              {!collapsed && <span>Commerce Hub</span>}
+            </NavLink>
+          )}
+
           {hasPerm('can_fetch') && (
             <NavLink to="/workspace" className={linkCls} onClick={onClose}>
               <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

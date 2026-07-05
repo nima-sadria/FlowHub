@@ -40,8 +40,8 @@ Current setup steps:
 The Admin Account step collects username, email, and password. Email is
 validated in the UI and again by `POST /api/v2/setup/admin`.
 
-Connector configuration is not part of setup. WooCommerce, Nextcloud, and future
-connectors are configured only in Settings.
+Connector configuration is not part of setup. Source and Channel configuration
+is handled after sign-in through Settings and Commerce Hub surfaces.
 
 Startup does not require WooCommerce or Nextcloud credentials. Connector
 credentials may be absent until an administrator configures them after sign-in.
@@ -77,6 +77,59 @@ Current:
 
 Capabilities describe what a connector can do. Capabilities do not grant
 authorization. Runtime authorization and write blocking remain separate.
+
+## Commerce Hub
+
+Commerce Hub is the product-facing organization layer for commerce data in
+FlowHub 1.0.0.
+
+Terminology:
+
+- Sources are input systems that feed FlowHub / Data Layer.
+- Channels are commerce systems whose catalog state is read into FlowHub.
+- Channels are implemented internally by the connector framework under
+  `app/connectors/destinations/`, but the product UI uses the term Channel.
+
+Current Sources shown in Commerce Hub:
+
+- Nextcloud
+- CSV
+- Google Sheets
+- ERP / API Import
+
+Current Channels shown in Commerce Hub:
+
+- WooCommerce: first implemented Channel.
+- Snapp Shop: planned read-only Channel placeholder.
+- Tapsi Shop: planned read-only Channel placeholder.
+- Digikala, Technolife, Shopify: future Channel placeholders.
+
+Commerce Hub relationship map:
+
+```text
+Source
+  |
+  v
+FlowHub / Data Layer
+  |
+  v
+Channel
+```
+
+Example:
+
+```text
+Nextcloud
+  |
+  v
+Data Layer
+  |
+  v
+WooCommerce
+```
+
+Commerce Hub does not enable marketplace writes, Apply execution, Scheduler
+execution, or automatic pricing.
 
 ## Unified Logging Platform
 

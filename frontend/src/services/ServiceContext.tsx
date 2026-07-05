@@ -5,6 +5,7 @@ import type { SourceService } from './sources/SourceService'
 import type { WorkspaceService } from './workspace/WorkspaceService'
 import type { SettingsService } from './settings/SettingsService'
 import type { ActivityService } from './activity/ActivityService'
+import type { CommerceService } from './commerce/CommerceService'
 
 export interface Services {
   health: HealthService
@@ -13,6 +14,7 @@ export interface Services {
   workspace: WorkspaceService
   settings: SettingsService
   activity: ActivityService
+  commerce: CommerceService
 }
 
 const ServiceContext = createContext<Services | null>(null)

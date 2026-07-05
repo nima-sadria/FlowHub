@@ -94,6 +94,78 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
             ("telemetry", "telemetry"),
         ),
     ),
+    "snappshop": ConnectorDefinition(
+        connector=ConnectorDescriptor(
+            identity=ConnectorIdentity(
+                id="snappshop",
+                name="Snapp Shop",
+                type="snappshop",
+                version="1.0.0",
+                enabled=False,
+                read_only=True,
+            ),
+            capabilities=ConnectorCapabilities(
+                read_products=True,
+                read_categories=True,
+                read_inventory=True,
+                read_orders=False,
+                write_prices=False,
+                write_inventory=False,
+                webhook=False,
+                polling=False,
+                oauth=False,
+                api_key=True,
+            ),
+            status=ConnectorHealthStatus.DISABLED,
+        ),
+        settings_schema=[
+            ConnectorSettingDefinition(key="base_url", label="API URL", required=False),
+            ConnectorSettingDefinition(key="merchant_id", label="Merchant ID", required=False),
+            ConnectorSettingDefinition(key="api_key", label="API key", required=False, secret=True),
+            ConnectorSettingDefinition(key="api_secret", label="API secret", required=False, secret=True),
+        ],
+        diagnostics_contract=_diagnostics(
+            ("settings", "configuration"),
+            ("placeholder", "capability_detection"),
+            ("health_record", "health"),
+        ),
+    ),
+    "tapsishop": ConnectorDefinition(
+        connector=ConnectorDescriptor(
+            identity=ConnectorIdentity(
+                id="tapsishop",
+                name="Tapsi Shop",
+                type="tapsishop",
+                version="1.0.0",
+                enabled=False,
+                read_only=True,
+            ),
+            capabilities=ConnectorCapabilities(
+                read_products=True,
+                read_categories=True,
+                read_inventory=True,
+                read_orders=False,
+                write_prices=False,
+                write_inventory=False,
+                webhook=False,
+                polling=False,
+                oauth=False,
+                api_key=True,
+            ),
+            status=ConnectorHealthStatus.DISABLED,
+        ),
+        settings_schema=[
+            ConnectorSettingDefinition(key="base_url", label="API URL", required=False),
+            ConnectorSettingDefinition(key="merchant_id", label="Merchant ID", required=False),
+            ConnectorSettingDefinition(key="api_key", label="API key", required=False, secret=True),
+            ConnectorSettingDefinition(key="api_secret", label="API secret", required=False, secret=True),
+        ],
+        diagnostics_contract=_diagnostics(
+            ("settings", "configuration"),
+            ("placeholder", "capability_detection"),
+            ("health_record", "health"),
+        ),
+    ),
 }
 
 

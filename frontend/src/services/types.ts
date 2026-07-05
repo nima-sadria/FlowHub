@@ -32,6 +32,7 @@ export interface ProductFilter {
   pageSize: number
   categoryId?: number | null
   productType?: 'simple' | 'variable' | null
+  channelId?: string | null
 }
 
 export interface PaginatedResult<T> {
@@ -110,6 +111,57 @@ export interface AppSettings {
   environment: string
   wcConfigured?: boolean
   ncConfigured?: boolean
+}
+
+// -- Commerce Hub --------------------------------------------------------------
+
+export interface CommerceHealth {
+  status: string
+  message: string
+  latency_ms: number | null
+  error_code: string | null
+}
+
+export interface CommerceSource {
+  id: string
+  provider: string
+  name: string
+  type: 'Source'
+  status: string
+  credential_status: string
+  last_health_check: string | null
+  data_role: string
+  action_label: string
+  action_href: string
+  health: CommerceHealth
+  read_only: boolean
+  runtime_write_blocked: boolean
+}
+
+export interface CommerceChannel {
+  id: string
+  provider: string
+  name: string
+  type: 'Channel'
+  status: string
+  implemented: boolean
+  placeholder: boolean
+  read_only: boolean
+  write_blocked: boolean
+  runtime_write_blocked: boolean
+  credential_status: string
+  last_health_check: string | null
+  health: CommerceHealth
+  capabilities: Record<string, boolean>
+  capabilities_summary: string[]
+  settings_available: boolean
+}
+
+export interface CommerceRelationshipMap {
+  nodes: string[]
+  example: string[]
+  runtime_write_blocked: boolean
+  read_only: boolean
 }
 
 // -- Activity ------------------------------------------------------------------

@@ -53,6 +53,7 @@ export class ApiProductService implements ProductService {
     if (filter.productType) {
       params.set('productType', filter.productType)
     }
+    if (filter.channelId) params.set('channelId', filter.channelId)
 
     const data = await apiFetch<RawPage>(`/api/v2/products?${params}`, authFetch)
     return {

@@ -31,14 +31,14 @@ Q. [Relationship to Existing FlowHub](#q-relationship-to-existing-flowhub)
 
 ## What is the FlowHub Data Layer?
 
-The **FlowHub Data Layer** is the persistent read model that sits between external systems (WooCommerce, Nextcloud) and the FlowHub UI.
+The **FlowHub Data Layer** is the persistent read model that sits between external systems and the FlowHub UI.
 
 **Key point:** "Cache" is one internal mechanism inside the Data Layer. The Data Layer is the broader concept - it includes caches, snapshots, health records, telemetry, job queues, and invalidation events.
 
 ```
 External Systems
-  WooCommerce REST API
-  Nextcloud WebDAV
+  Sources: Nextcloud, CSV, Google Sheets, ERP / API Import
+  Channels: WooCommerce, Snapp Shop, Tapsi Shop, future marketplaces
 
        | read only (no writes)
        -¼
@@ -54,11 +54,11 @@ External Systems
        |
        -¼
   FlowHub UI
-  /products  /sources  /workspace  /diagnostics  /activity  /settings
+  /products  /commerce  /sources  /workspace  /diagnostics  /activity  /settings
 ```
 
 **What is NOT in the Data Layer:**
-- Any write path to WooCommerce or Nextcloud
+- Any write path to WooCommerce, Snapp Shop, Tapsi Shop, or Sources
 - Price mutations
 - Apply engine
 - Scheduler
@@ -68,11 +68,11 @@ External Systems
 
 ## A. Product Cache
 
-**Purpose:** Persistent read model for WooCommerce products (and future connector products).
+**Purpose:** Persistent read model for WooCommerce products and future Channel products.
 
 **Identity:**
 - Primary key: `(connector_id, product_id)`
-- `connector_id` - fully qualified connector instance ID (e.g. `woocommerce:primary`)
+- `connector_id` - fully qualified Channel instance ID (e.g. `woocommerce:primary`)
 - `product_id` - connector-native product identifier (WC product ID as string)
 - `external_id` - integer WC product ID when connector is WooCommerce
 - `channel_id` - future multi-channel slot (NULL for current FLOWHUB)
@@ -109,6 +109,11 @@ External Systems
 through the Integration Platform. The table may be empty until a refresh or
 migration population step inserts records; the Products page shows an empty
 read-only state instead of making a live WooCommerce call.
+
+**Commerce Hub 1.0.0:** The Products page may pass a Channel filter such as
+`channelId=woocommerce:primary`, `channelId=snappshop:main`, or
+`channelId=tapsishop:main`. The filter only narrows existing Data Layer records;
+it does not create product data or call marketplaces directly.
 
 ---
 
@@ -579,7 +584,8 @@ Examples:
 |-----------|------|--------|
 | WooCommerce | Destination | Active (FLOWHUB) |
 | Nextcloud | Source | Active (FLOWHUB) |
-| SnappShop | Destination | Planned |
+| Snapp Shop | Channel | Planned read-only placeholder |
+| Tapsi Shop | Channel | Planned read-only placeholder |
 | Digikala | Destination | Planned |
 | Technolife | Destination | Planned |
 | Shopify | Destination | Planned |

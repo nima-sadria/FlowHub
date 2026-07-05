@@ -16,14 +16,20 @@ pricing, WooCommerce writes, or Nextcloud writes.
 
 ## Supported Connector Scope
 
-Current connectors:
+Current implemented connectors:
 
 - WooCommerce
 - Nextcloud
 
-Planned connectors:
+Commerce Hub Channels:
 
-- SnappShop
+- WooCommerce is the first implemented Channel.
+- Snapp Shop and Tapsi Shop are planned read-only Channel placeholders in
+  FlowHub 1.0.0.
+
+Planned Channels:
+
+- Snapp Shop
 - Tapsi Shop
 - Digikala
 - Technolife
@@ -51,6 +57,9 @@ Supported transport families:
 - FlowHub Data Layer is the canonical data architecture.
 - Cache is only an internal mechanism inside the Data Layer.
 - Integration Platform owns connector metadata and orchestration contracts.
+- Product UI terminology separates Sources from Channels.
+- Sources feed FlowHub / Data Layer; Channels represent commerce systems.
+- Channels are implemented internally under `app/connectors/destinations/`.
 - Data Layer owns durable read models, snapshots, refresh records, and cache
   records populated by approved connector flows.
 - Connector capabilities are metadata only.
@@ -64,6 +73,29 @@ Supported transport families:
   enqueue an invalidation or refresh event after Owner-approved runtime work.
 - Polling policy is future-ready only until Scheduler implementation is
   explicitly approved.
+
+## Commerce Hub 1.0.0 Contract
+
+Commerce Hub exposes product-facing APIs and UI for Sources and Channels while
+retaining Integration Platform as the internal boundary.
+
+API surface:
+
+- `GET /api/v2/commerce/sources`
+- `GET /api/v2/commerce/channels`
+- `GET /api/v2/commerce/channels/{channel_id}`
+- `POST /api/v2/commerce/channels/{channel_id}/test`
+- `GET /api/v2/commerce/channels/{channel_id}/health`
+- `GET /api/v2/commerce/channels/{channel_id}/capabilities`
+- `PUT /api/v2/commerce/channels/{channel_id}/settings`
+
+Rules:
+
+- All responses report `read_only` and `runtime_write_blocked`.
+- Credential values are write-only after save.
+- Snapp Shop and Tapsi Shop do not perform real external calls in 1.0.0.
+- Marketplace write paths remain unavailable in 1.0.0.
+- Apply, Scheduler execution, and automatic pricing remain disabled.
 
 ## Component Diagram
 

@@ -12,11 +12,13 @@ import { ApiSourceService } from './services/sources/ApiSourceService'
 import { ApiWorkspaceService } from './services/workspace/ApiWorkspaceService'
 import { ApiSettingsService } from './services/settings/ApiSettingsService'
 import { ApiActivityService } from './services/activity/ApiActivityService'
+import { ApiCommerceService } from './services/commerce/ApiCommerceService'
 import AppShell from './components/AppShell'
 import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
 import Sources from './pages/Sources'
 import SourceWizard from './pages/SourceWizard'
+import CommerceHub from './pages/CommerceHub'
 import Workspace from './pages/Workspace'
 import Activity from './pages/Activity'
 import Diagnostics from './pages/Diagnostics'
@@ -33,6 +35,7 @@ const realServices = {
   workspace: new ApiWorkspaceService(),
   settings:  new ApiSettingsService(),
   activity:  new ApiActivityService(),
+  commerce:  new ApiCommerceService(),
 }
 
 function MaintenanceOverlay({ message }: { message?: string }) {
@@ -137,6 +140,7 @@ function SetupGate() {
         <Route path="/products" element={<RequirePermission permission="can_fetch"><Products /></RequirePermission>} />
         <Route path="/sources" element={<RequirePermission permission="can_access_site"><Sources /></RequirePermission>} />
         <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><SourceWizard /></RequirePermission>} />
+        <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />

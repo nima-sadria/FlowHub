@@ -433,11 +433,14 @@ class IntegrationPlatformService:
         page_size: int = 50,
         category_id: int | None = None,
         product_type: str | None = None,
+        connector_id: str | None = None,
     ) -> ConnectorProductListResponse:
         self.bootstrap_from_app_config()
         page = max(page, 1)
         page_size = min(max(page_size, 1), 200)
         q = self.db.query(DlProductCache)
+        if connector_id:
+            q = q.filter(DlProductCache.connector_id == connector_id)
         if search:
             pattern = f"%{search}%"
             q = q.filter(
@@ -472,7 +475,7 @@ class IntegrationPlatformService:
             page=page,
             pageSize=page_size,
             page_size=page_size,
-            configured=self._is_connector_configured("woocommerce:primary"),
+            configured=self._is_connector_configured(connector_id or "woocommerce:primary"),
         )
 
     def list_categories(self) -> ConnectorCategoryListResponse:

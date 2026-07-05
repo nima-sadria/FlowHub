@@ -11,7 +11,11 @@ The current first-release connector architecture is documented in:
 Current behavior:
 
 - Connector configuration belongs in Settings.
+- Commerce Hub separates Sources from Channels in product terminology.
+- Channels are implemented internally by destination connectors.
+- WooCommerce is the first implemented Channel.
+- Snapp Shop and Tapsi Shop are planned read-only Channel placeholders.
 - Setup does not configure connectors.
 - Integration Platform is the permanent connector boundary.
 - Data Layer is canonical for read models and snapshots.
-- Write execution remains disabled.
+- Write execution remains disabled in 1.0.0.

@@ -94,6 +94,7 @@ function RouteMatrix({ initialPath }: { initialPath: string }) {
         <Route path="/home" element={<RequirePermission permission="can_access_site"><span>home-page</span></RequirePermission>} />
         <Route path="/products" element={<RequirePermission permission="can_fetch"><span>products-page</span></RequirePermission>} />
         <Route path="/sources" element={<RequirePermission permission="can_access_site"><span>sources-page</span></RequirePermission>} />
+        <Route path="/commerce" element={<RequirePermission permission="can_access_site"><span>commerce-page</span></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><span>workspace-page</span></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><span>activity-page</span></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><span>diagnostics-page</span></RequirePermission>} />
@@ -265,6 +266,21 @@ describe('Router - /products', () => {
   })
 })
 
+// --- Router - /commerce -------------------------------------------------------
+
+describe('Router - /commerce', () => {
+  it('renders Commerce Hub for allowed user', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/commerce" />, makeAuth(allowedUser))
+    expect(c.textContent).toContain('commerce-page')
+  })
+
+  it('shows Access Denied for denied user', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/commerce" />, makeAuth(deniedUser))
+    expect(c.textContent).not.toContain('commerce-page')
+    expect(c.textContent).toContain('Access Denied')
+  })
+})
+
 // --- Router - /settings -------------------------------------------------------
 
 describe('Router - /settings', () => {
@@ -344,6 +360,11 @@ describe('Sidebar - denied user (can_access_site=false)', () => {
     expect(c.querySelector('a[href="/sources"]')).toBeNull()
   })
 
+  it('hides Commerce Hub link', () => {
+    const c = renderSidebar(deniedUser)
+    expect(c.querySelector('a[href="/commerce"]')).toBeNull()
+  })
+
   it('hides Activity link', () => {
     const c = renderSidebar(deniedUser)
     expect(c.querySelector('a[href="/activity"]')).toBeNull()
@@ -381,6 +402,11 @@ describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => 
     expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
   })
 
+  it('shows Commerce Hub link', () => {
+    const c = renderSidebar(allowedUser)
+    expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
+  })
+
   it('hides Activity link (no can_view_logs)', () => {
     const c = renderSidebar(allowedUser)
     expect(c.querySelector('a[href="/activity"]')).toBeNull()
@@ -403,6 +429,7 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/home"]')).not.toBeNull()
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
     expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
@@ -417,6 +444,7 @@ describe('Sidebar - super admin (is_super_admin=true, is_admin=false)', () => {
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
     expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()

@@ -28,6 +28,7 @@ async def list_products(
     search: str = "",
     categoryId: int | None = None,
     productType: str | None = None,
+    channelId: str | None = None,
     _: FlowHubUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ConnectorProductListResponse:
@@ -37,6 +38,7 @@ async def list_products(
         page_size=pageSize,
         category_id=categoryId,
         product_type=productType,
+        connector_id=channelId,
     )
 
 
