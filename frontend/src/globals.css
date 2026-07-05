@@ -1,8 +1,8 @@
 /* -- Yekan Bakh variable font -- */
 @font-face {
-  font-family: 'YekanBakhNoEn';
-  src: url('/static/fonts/YekanBakhNoEn-VF.woff2') format('woff2-variations'),
-       url('/static/fonts/YekanBakhNoEn-VF.woff') format('woff-variations');
+  font-family: 'YekanBakh';
+  src: url('/static/fonts/YekanBakh-VF.woff2') format('woff2'),
+       url('/static/fonts/YekanBakh-VF.woff') format('woff');
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;

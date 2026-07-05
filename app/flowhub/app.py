@@ -76,14 +76,14 @@ _FRONTEND_UNAVAILABLE_HTML = """\
   <link rel="icon" type="image/x-icon" href="/static/logos/favicon.ico?v=2">
   <style>
     @font-face {{
-      font-family: 'YekanBakhNoEn';
-      src: url('/static/fonts/YekanBakhNoEn-VF.woff2') format('woff2-variations'),
-           url('/static/fonts/YekanBakhNoEn-VF.woff') format('woff-variations');
+      font-family: 'YekanBakh';
+      src: url('/static/fonts/YekanBakh-VF.woff2') format('woff2'),
+           url('/static/fonts/YekanBakh-VF.woff') format('woff');
       font-weight: 100 900;
       font-style: normal;
       font-display: swap;
     }}
-    body {{ font-family: 'YekanBakhNoEn', monospace; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }}
+    body {{ font-family: 'YekanBakh', monospace; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }}
     h1 {{ font-size: 1.4rem; margin-bottom: 0.2em; }}
     table {{ border-collapse: collapse; margin-top: 1em; width: 100%; }}
     td {{ padding: 6px 12px; border: 1px solid #ddd; }}
