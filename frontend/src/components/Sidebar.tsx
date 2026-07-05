@@ -63,13 +63,13 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             collapsed ? 'flex-col justify-center gap-1 py-3 px-2' : 'px-4 gap-3',
           ].join(' ')}
         >
-          <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm ring-1 ring-border">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
             <img
               src="/static/logos/FlowHub.webp"
               alt=""
               aria-hidden="true"
-              className="w-[150px] h-[100px] max-w-none flex-shrink-0 select-none"
-              style={{ transform: 'translate(-13px, -28px)' }}
+              className="w-[181px] h-[121px] max-w-none flex-shrink-0 select-none"
+              style={{ transform: 'translate(-21px, -35px)' }}
             />
           </div>
 
