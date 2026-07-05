@@ -72,7 +72,7 @@ _FRONTEND_UNAVAILABLE_HTML = """\
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FlowHub</title>
-  <link rel="icon" type="image/x-icon" href="/static/logos/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="/static/logos/favicon.ico?v=2">
   <style>
     body {{ font-family: monospace; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }}
     h1 {{ font-size: 1.4rem; margin-bottom: 0.2em; }}

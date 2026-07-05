@@ -55,7 +55,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         <div className="mb-7 text-center">
           <img
-            src="/flowhub-logo.webp"
+            src="/static/logos/FlowHub.webp"
             alt="FlowHub"
             className="mx-auto mb-5 h-auto w-[220px] max-w-full object-contain sm:w-[310px]"
           />
