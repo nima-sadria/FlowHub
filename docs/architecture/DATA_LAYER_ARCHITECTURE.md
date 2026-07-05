@@ -466,7 +466,7 @@ back to live WooCommerce.
 
 ```
 GET /api/v2/products
-  -> ProductReadModelService.list(connector_id, page, page_size)
+  -> IntegrationPlatformService.list_products(connector_id, page, page_size)
     -> dl_product_cache WHERE connector_id = 'woocommerce:primary'
       AND freshness = 'fresh'
       ORDER BY id DESC
@@ -808,22 +808,23 @@ GET /api/v2/diagnostics/status
         (does not perform external HTTP)
 ```
 
-### Diagram 7: Future Multi-Channel Product Browser Flow
+### Diagram 7: Commerce Hub 1.0.0 Read-Only Channel Product Browser Flow
 
 ```
-User opens /products?channel=snappshop
+User opens /products?channelId=snappshop:main
         |
         -¼
 GET /api/v2/products?channelId=snappshop:main
         |
         -¼
-ProductReadModelService.list(connector_id='snappshop:main', ...)
+IntegrationPlatformService.list_products(connector_id='snappshop:main', ...)
         |
         -¼
 dl_product_cache WHERE connector_id = 'snappshop:main'
         |
         -¼
-Products from SnappShop -> UI (same Products page, different channel tab)
+Existing read-only products from Snapp Shop -> UI
+(no product creation, Apply, Scheduler, pricing, stock write, or marketplace write)
 ```
 
 ---
