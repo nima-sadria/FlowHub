@@ -130,6 +130,7 @@ export function SearchableListbox({
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
   const q = search.trim().toLowerCase()
   const filtered = q
     ? options.filter(o => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q))
@@ -138,6 +139,7 @@ export function SearchableListbox({
 
   useEffect(() => {
     if (!open) return
+    searchRef.current?.focus()
 
     function closeOnOutsideClick(e: MouseEvent) {
       if (!rootRef.current?.contains(e.target as Node)) {
@@ -157,56 +159,88 @@ export function SearchableListbox({
   }
 
   return (
-    <div ref={rootRef} className="min-w-0">
+    <div ref={rootRef} className="relative min-w-0">
       <label className="block text-[13px] font-medium text-text-base mb-1.5">{label}</label>
-      <input
-        type="text"
-        value={search || selectedLabel}
-        onChange={e => { setSearch(e.target.value); setOpen(true) }}
-        onClick={() => setOpen(true)}
-        onFocus={e => { e.currentTarget.select(); setOpen(true) }}
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
         onKeyDown={e => {
           if (e.key === 'Escape') {
             setOpen(false)
             setSearch('')
-            e.currentTarget.blur()
           }
         }}
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={id}
-        {...inputHint(template_variable ?? `Search ${label.toLowerCase()}...`)}
         disabled={disabled}
-        autoComplete="off"
-        className="fh-input mb-1.5 min-w-0 py-1.5 truncate"
-      />
+        className="fh-input mb-1.5 min-w-0 py-1.5 flex items-center justify-between gap-2 text-left"
+      >
+        <span className="truncate">{selectedLabel}</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={['w-4 h-4 flex-shrink-0 text-wp-muted transition-transform', open ? 'rotate-180' : ''].join(' ')}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
       {open && (
         <div
-          id={id}
-          role="listbox"
-          aria-label={label}
-          className="max-h-40 overflow-y-auto border border-border rounded-lg"
+          className="absolute z-50 w-full rounded-lg border border-border bg-bg-card shadow-card overflow-hidden"
         >
-          {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-[13px] text-wp-muted">No matches</div>
-          ) : filtered.map(opt => (
-            <button
-              key={opt.value}
-              type="button"
-              role="option"
-              aria-selected={opt.value === value}
-              onClick={() => handleSelect(opt.value)}
-              disabled={disabled}
-              className={[
-                'w-full text-left px-3 py-2 text-[13px] leading-snug break-words',
-                opt.value === value
-                  ? 'bg-fh-mist-100 text-accent font-medium'
-                  : 'bg-bg-card text-text-base hover:bg-bg-base',
-              ].join(' ')}
-            >
-              {opt.label}
-            </button>
-          ))}
+          <div className="p-2 border-b border-border">
+            <input
+              ref={searchRef}
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') {
+                  setOpen(false)
+                  setSearch('')
+                }
+                if (e.key === 'Enter' && filtered[0]) {
+                  handleSelect(filtered[0].value)
+                }
+              }}
+              {...inputHint(template_variable ?? `Search ${label.toLowerCase()}...`)}
+              autoComplete="off"
+              spellCheck={false}
+              className="fh-input py-1.5 shadow-none"
+            />
+          </div>
+          <div id={id} role="listbox" aria-label={label} className="max-h-44 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2 text-[13px] text-wp-muted">No matches</div>
+            ) : filtered.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                role="option"
+                aria-selected={opt.value === value}
+                onClick={() => handleSelect(opt.value)}
+                disabled={disabled}
+                className={[
+                  'w-full text-left px-3 py-2 text-[13px] leading-snug break-words flex items-center justify-between gap-3',
+                  opt.value === value
+                    ? 'bg-fh-mist-100 text-accent font-medium'
+                    : 'bg-bg-card text-text-base hover:bg-bg-base',
+                ].join(' ')}
+              >
+                <span>{opt.label}</span>
+                {opt.value === value && (
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

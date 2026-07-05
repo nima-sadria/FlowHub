@@ -34,8 +34,8 @@ describe('SearchableListbox', () => {
       )
     })
 
-    const input = container.querySelector('input')
-    expect(input?.value).toBe('IRR - Iranian Rial')
+    const trigger = container.querySelector('button')
+    expect(trigger?.textContent).toContain('IRR - Iranian Rial')
     expect(container.textContent).not.toContain('Selected:')
   })
 
@@ -56,9 +56,9 @@ describe('SearchableListbox', () => {
 
     expect(container.querySelector('[role="listbox"]')).toBeNull()
 
-    const input = container.querySelector('input')
+    const trigger = container.querySelector('button')
     act(() => {
-      input?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      trigger?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
 
     expect(container.querySelector('[role="listbox"]')).not.toBeNull()
