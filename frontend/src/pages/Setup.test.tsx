@@ -38,6 +38,32 @@ describe('SearchableListbox', () => {
     expect(input?.value).toBe('IRR - Iranian Rial')
     expect(container.textContent).not.toContain('Selected:')
   })
+
+  it('opens options only after the field is clicked', () => {
+    act(() => {
+      root.render(
+        <SearchableListbox
+          label="Timezone"
+          options={[
+            { value: 'UTC', label: 'UTC' },
+            { value: 'Asia/Tehran', label: 'Asia/Tehran' },
+          ]}
+          value="UTC"
+          onChange={() => {}}
+        />
+      )
+    })
+
+    expect(container.querySelector('[role="listbox"]')).toBeNull()
+
+    const input = container.querySelector('input')
+    act(() => {
+      input?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(container.querySelector('[role="listbox"]')).not.toBeNull()
+    expect(container.textContent).toContain('Asia/Tehran')
+  })
 })
 
 describe('validateSetupEmail', () => {

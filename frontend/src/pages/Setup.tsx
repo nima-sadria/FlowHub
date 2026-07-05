@@ -1,4 +1,4 @@
-import { useEffect, useState, type InputHTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import type {
   ServerProfilePayload,
   DatabaseStatusResponse,
@@ -128,52 +128,87 @@ export function SearchableListbox({
   template_variable?: string
 }) {
   const [search, setSearch] = useState('')
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
   const q = search.trim().toLowerCase()
   const filtered = q
     ? options.filter(o => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q))
     : options
   const selectedLabel = options.find(o => o.value === value)?.label ?? value
 
+  useEffect(() => {
+    if (!open) return
+
+    function closeOnOutsideClick(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) {
+        setOpen(false)
+        setSearch('')
+      }
+    }
+
+    document.addEventListener('mousedown', closeOnOutsideClick)
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick)
+  }, [open])
+
+  function handleSelect(nextValue: string) {
+    onChange(nextValue)
+    setSearch('')
+    setOpen(false)
+  }
+
   return (
-    <div className="min-w-0">
+    <div ref={rootRef} className="min-w-0">
       <label className="block text-[13px] font-medium text-text-base mb-1.5">{label}</label>
       <input
         type="text"
         value={search || selectedLabel}
-        onChange={e => setSearch(e.target.value)}
-        onFocus={e => e.currentTarget.select()}
+        onChange={e => { setSearch(e.target.value); setOpen(true) }}
+        onClick={() => setOpen(true)}
+        onFocus={e => { e.currentTarget.select(); setOpen(true) }}
+        onKeyDown={e => {
+          if (e.key === 'Escape') {
+            setOpen(false)
+            setSearch('')
+            e.currentTarget.blur()
+          }
+        }}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-controls={id}
         {...inputHint(template_variable ?? `Search ${label.toLowerCase()}...`)}
         disabled={disabled}
         autoComplete="off"
         className="fh-input mb-1.5 min-w-0 py-1.5 truncate"
       />
-      <div
-        id={id}
-        role="listbox"
-        aria-label={label}
-        className="max-h-40 overflow-y-auto border border-border rounded-lg"
-      >
-        {filtered.length === 0 ? (
-          <div className="px-3 py-2 text-[13px] text-wp-muted">No matches</div>
-        ) : filtered.map(opt => (
-          <button
-            key={opt.value}
-            type="button"
-            role="option"
-            aria-selected={opt.value === value}
-            onClick={() => { onChange(opt.value); setSearch('') }}
-            disabled={disabled}
-            className={[
-              'w-full text-left px-3 py-2 text-[13px] leading-snug break-words',
-              opt.value === value
-                ? 'bg-fh-mist-100 text-accent font-medium'
-                : 'bg-bg-card text-text-base hover:bg-bg-base',
-            ].join(' ')}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+      {open && (
+        <div
+          id={id}
+          role="listbox"
+          aria-label={label}
+          className="max-h-40 overflow-y-auto border border-border rounded-lg"
+        >
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-[13px] text-wp-muted">No matches</div>
+          ) : filtered.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              role="option"
+              aria-selected={opt.value === value}
+              onClick={() => handleSelect(opt.value)}
+              disabled={disabled}
+              className={[
+                'w-full text-left px-3 py-2 text-[13px] leading-snug break-words',
+                opt.value === value
+                  ? 'bg-fh-mist-100 text-accent font-medium'
+                  : 'bg-bg-card text-text-base hover:bg-bg-base',
+              ].join(' ')}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
