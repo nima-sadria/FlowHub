@@ -8,6 +8,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/products': 'Products',
   '/sources': 'Sources',
   '/sources/new': 'Add Source',
+  '/commerce': 'Commerce Hub',
   '/activity': 'Activity',
   '/diagnostics': 'Diagnostics',
   '/settings': 'Settings',
@@ -74,11 +75,11 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
   }
 
   return (
-    <header className="h-[68px] bg-bg-card border-b border-border flex items-center px-5 gap-4 flex-shrink-0">
+    <header className="h-[64px] md:h-[68px] bg-bg-card border-b border-border flex items-center px-4 md:px-5 gap-3 md:gap-4 flex-shrink-0">
       {/* Hamburger - mobile only */}
       <button
         onClick={onMenuClick}
-        className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
+        className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
         aria-label="Open navigation"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
@@ -89,12 +90,12 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
       </button>
 
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-[13px]">
+      <div className="flex items-center gap-1.5 text-[13px] md:text-[13px] min-w-0">
         <span className="text-wp-muted">FlowHub</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-wp-muted rtl:rotate-180">
           <path d="m9 18 6-6-6-6" />
         </svg>
-        <span className="font-medium text-text-base">{title}</span>
+        <span className="font-semibold md:font-medium text-text-base truncate">{title}</span>
       </div>
 
       <div className="ms-auto flex items-center gap-3">
@@ -108,7 +109,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
         <button
           onClick={toggleTheme}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
+          className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-xl md:rounded-lg border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
         >
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>
@@ -127,7 +128,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
               onClick={() => setMenuOpen(o => !o)}
               aria-label="User menu"
               aria-expanded={menuOpen}
-              className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold select-none shadow-sm hover:ring-2 hover:ring-accent/25 transition-shadow"
+              className="w-10 h-10 md:w-9 md:h-9 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold select-none shadow-sm hover:ring-2 hover:ring-accent/25 transition-shadow"
             >
               {user.username.slice(0, 2).toUpperCase()}
             </button>
