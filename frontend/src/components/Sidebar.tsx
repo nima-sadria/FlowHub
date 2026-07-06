@@ -25,7 +25,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
   const linkCls = ({ isActive }: { isActive: boolean }) =>
     [
-      'flex items-center gap-3 rounded-lg px-3.5 py-3 text-[15px] font-semibold tracking-normal transition-colors mb-1.5',
+      'flex items-center gap-3 rounded-lg px-3.5 py-3 text-[15px] font-extrabold tracking-normal transition-colors mb-1.5',
       'md:px-3 md:py-2.5 md:text-[13px] md:font-medium',
       collapsed ? 'md:justify-center md:px-0' : '',
       isActive
@@ -85,8 +85,8 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
           </div>
 
           <div className={[collapsed ? 'md:hidden' : '', 'flex-1 min-w-0'].join(' ')}>
-            <div className="font-semibold text-[16px] md:text-sm text-text-base leading-tight">FlowHub</div>
-            <div className="mt-0.5 text-[12px] md:text-[11px] font-medium md:font-normal text-wp-muted">Admin</div>
+            <div className="font-extrabold md:font-semibold text-[16px] md:text-sm text-text-base leading-tight">FlowHub</div>
+            <div className="mt-0.5 text-[12px] md:text-[11px] font-bold md:font-normal text-wp-muted">Admin</div>
           </div>
 
           {/* Collapse button - desktop only */}
@@ -112,7 +112,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
         {/* Nav */}
         <nav className="flex-1 px-4 py-5 md:px-3 md:py-4 overflow-y-auto">
-          <p className={[collapsed ? 'md:hidden' : '', 'px-2 mb-4 text-[12px] md:text-[10px] font-medium md:font-semibold uppercase tracking-[0.08em] text-wp-muted select-none'].join(' ')}>
+          <p className={[collapsed ? 'md:hidden' : '', 'px-2 mb-4 text-[12px] md:text-[10px] font-bold md:font-semibold uppercase tracking-[0.08em] text-wp-muted select-none'].join(' ')}>
             FlowHub
           </p>
 
@@ -200,13 +200,13 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
               collapsed ? 'md:justify-center' : '',
             ].join(' ')}
           >
-            <div className="w-10 h-10 md:w-8 md:h-8 rounded-full bg-accent flex items-center justify-center text-white text-[13px] md:text-xs font-semibold flex-shrink-0 select-none shadow-sm">
+            <div className="w-10 h-10 md:w-8 md:h-8 rounded-full bg-accent flex items-center justify-center text-white text-[13px] md:text-xs font-extrabold md:font-semibold flex-shrink-0 select-none shadow-sm">
               {user ? initials(user.username) : '?'}
             </div>
             {user && (
               <div className={[collapsed ? 'md:hidden' : '', 'flex-1 min-w-0'].join(' ')}>
-                <div className="text-[14px] md:text-[13px] font-semibold md:font-medium text-text-base truncate">{user.username}</div>
-                <div className="text-[12px] md:text-[11px] font-medium md:font-normal text-wp-muted">{user.role}</div>
+                <div className="text-[14px] md:text-[13px] font-extrabold md:font-medium text-text-base truncate">{user.username}</div>
+                <div className="text-[12px] md:text-[11px] font-bold md:font-normal text-wp-muted">{user.role}</div>
               </div>
             )}
           </div>
@@ -215,7 +215,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             onClick={handleLogout}
             title="Sign out"
             className={[
-              'flex items-center gap-2 rounded-lg px-2 py-2 md:py-1.5 text-[13px] font-medium border shadow-sm',
+              'flex items-center gap-2 rounded-lg px-2 py-2 md:py-1.5 text-[13px] font-bold md:font-medium border shadow-sm',
               'border-wp-red/20 text-wp-red bg-bg-card hover:bg-wp-red/5 transition-colors',
               collapsed ? 'md:justify-center w-full' : 'w-full',
             ].join(' ')}

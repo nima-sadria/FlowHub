@@ -95,12 +95,12 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-wp-muted rtl:rotate-180">
           <path d="m9 18 6-6-6-6" />
         </svg>
-        <span className="font-semibold md:font-medium text-text-base truncate">{title}</span>
+        <span className="font-extrabold md:font-medium text-text-base truncate">{title}</span>
       </div>
 
       <div className="ms-auto flex items-center gap-3">
         {/* Health indicator */}
-        <div className="flex items-center gap-1.5 text-[12px] font-medium text-wp-muted">
+        <div className="flex items-center gap-1.5 text-[12px] font-bold md:font-medium text-wp-muted">
           <span className={['w-2 h-2 rounded-full flex-shrink-0', healthDot].join(' ')} />
           <span className="hidden sm:inline">{healthLabel}</span>
         </div>
@@ -128,7 +128,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
               onClick={() => setMenuOpen(o => !o)}
               aria-label="User menu"
               aria-expanded={menuOpen}
-              className="w-10 h-10 md:w-9 md:h-9 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold select-none shadow-sm hover:ring-2 hover:ring-accent/25 transition-shadow"
+              className="w-10 h-10 md:w-9 md:h-9 rounded-full bg-accent flex items-center justify-center text-white text-xs font-extrabold md:font-semibold select-none shadow-sm hover:ring-2 hover:ring-accent/25 transition-shadow"
             >
               {user.username.slice(0, 2).toUpperCase()}
             </button>
