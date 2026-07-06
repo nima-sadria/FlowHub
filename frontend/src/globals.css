@@ -119,11 +119,6 @@
     font-size: 13px;
     font-weight: 400;
   }
-  @supports (font-variation-settings: normal) {
-    body {
-      font-variation-settings: 'wght' 400;
-    }
-  }
 }
 
 /* -- Apple-feel transitions -- */
