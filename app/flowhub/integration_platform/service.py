@@ -406,7 +406,6 @@ class IntegrationPlatformService:
             )
         else:
             row.enabled = self._required_settings_configured(definition, values)
-            row.read_only = True
             row.updated_at = now
         self._upsert_settings(
             row,

@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.connectors.common.errors import ConnectorError
 from app.flowhub.auth.models import FlowHubUser
+from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.write_pipeline.adapters import ChannelWriteAdapter, ChannelWriteContext
 from app.flowhub.write_pipeline.contracts import (
@@ -128,6 +129,7 @@ class WritePipelineService:
             raise HTTPException(status.HTTP_409_CONFLICT, "Apply requires a separate approved Dry Run.")
         self._assert_batch_hash_matches(batch)
         adapter = self._adapter_for(batch.channel_id, batch.operation_type)
+        self._assert_channel_write_enabled(batch)
         capabilities = adapter.get_capabilities()
         context = ChannelWriteContext(get_setting=self.config.get, requested_by=user.username)
         batch.status = "executing"
@@ -299,6 +301,11 @@ class WritePipelineService:
     def _assert_batch_hash_matches(self, batch: WriteBatch) -> None:
         if self._batch_hash_from_row(batch) != batch.batch_hash:
             raise HTTPException(status.HTTP_409_CONFLICT, "approval_hash_mismatch")
+
+    def _assert_channel_write_enabled(self, batch: WriteBatch) -> None:
+        instance = self.db.get(IntegrationConnectorInstance, batch.channel_id)
+        if instance is None or instance.read_only:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "channel_write_access_disabled")
 
     def _record_event(
         self,

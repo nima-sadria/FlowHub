@@ -94,6 +94,8 @@ def test_commerce_channels_report_read_only_write_blocked(client, auth_headers):
     by_name = {item["name"]: item for item in data["items"]}
     assert by_name["WooCommerce"]["type"] == "Channel"
     assert by_name["WooCommerce"]["read_only"] is True
+    assert by_name["WooCommerce"]["access_mode"] == "read_only"
+    assert by_name["WooCommerce"]["write_pipeline_eligible"] is False
     assert by_name["Snapp Shop"]["placeholder"] is True
     assert by_name["Snapp Shop"]["write_blocked"] is True
     assert by_name["Tapsi Shop"]["placeholder"] is True
@@ -173,13 +175,54 @@ def test_channel_detail_health_and_capabilities(client, auth_headers):
 
     assert detail.status_code == 200
     assert detail.json()["name"] == "WooCommerce"
+    assert detail.json()["access_mode"] == "read_only"
     assert detail.json()["read_only"] is True
     assert detail.json()["write_blocked"] is True
+    assert detail.json()["write_pipeline_eligible"] is False
     assert health.status_code == 200
     assert health.json()["runtime_write_blocked"] is True
     assert capabilities.status_code == 200
     assert capabilities.json()["capability_authorizes_write"] is False
     assert capabilities.json()["runtime_write_blocked"] is True
+
+
+def test_woocommerce_access_mode_defaults_read_only_until_owner_enables(client, auth_headers):
+    detail = client.get("/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers)
+
+    assert detail.status_code == 200
+    assert detail.json()["access_mode"] == "read_only"
+    assert detail.json()["read_only"] is True
+    assert detail.json()["write_pipeline_eligible"] is False
+
+    response = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={"access_mode": "write_enabled"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["access_mode"] == "write_enabled"
+    assert data["read_only"] is False
+    assert data["write_pipeline_eligible"] is True
+    assert data["runtime_write_blocked"] is True
+
+    detail = client.get("/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers)
+    assert detail.status_code == 200
+    assert detail.json()["access_mode"] == "write_enabled"
+    assert detail.json()["read_only"] is False
+    assert detail.json()["write_pipeline_eligible"] is True
+
+
+def test_placeholder_channel_cannot_be_write_enabled(client, auth_headers):
+    response = client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={"access_mode": "write_enabled"},
+    )
+
+    assert response.status_code == 403
+    assert "channel_write_access_unsupported" in response.text
 
 
 def test_channel_settings_preserve_credential_masking(client, auth_headers):
@@ -196,6 +239,8 @@ def test_channel_settings_preserve_credential_masking(client, auth_headers):
     assert "snapp-secret-value" not in response.text
     data = response.json()
     assert data["read_only"] is True
+    assert data["access_mode"] == "read_only"
+    assert data["write_pipeline_eligible"] is False
     assert data["runtime_write_blocked"] is True
     assert data["secrets"]["api_key"]["status"] == "configured"
 

@@ -105,6 +105,22 @@ def _payload(**overrides):
     return body
 
 
+def _enable_woocommerce_write(client, auth_headers):
+    response = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={"access_mode": "write_enabled"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["access_mode"] == "write_enabled"
+    assert data["read_only"] is False
+    assert data["write_pipeline_eligible"] is True
+    assert data["runtime_write_blocked"] is True
+    return data
+
+
 def test_dry_run_creates_batch_without_marketplace_write(client, auth_headers):
     response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload())
 
@@ -147,6 +163,30 @@ def test_approval_does_not_execute(client, auth_headers, monkeypatch):
     assert approval_event["metadata"]["execution_attempted"] is False
 
 
+def test_read_only_channel_blocks_write_pipeline_execution(client, auth_headers, monkeypatch):
+    from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
+
+    calls = {"count": 0}
+
+    async def fake_execute(_adapter, item, _context):
+        calls["count"] += 1
+        return {"provider": "woocommerce", "product_id": item.channel_product_id, "regular_price": "110.00"}
+
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
+    created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
+    client.post(
+        f"/api/v2/write-pipeline/batches/{created['id']}/approve",
+        headers=auth_headers,
+        json={"reason": "operator approved"},
+    )
+
+    response = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
+
+    assert response.status_code == 403
+    assert "channel_write_access_disabled" in response.text
+    assert calls["count"] == 0
+
+
 def test_execution_requires_second_action_after_approval(client, auth_headers, monkeypatch):
     from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
 
@@ -171,10 +211,38 @@ def test_execution_requires_second_action_after_approval(client, auth_headers, m
     assert approved.status_code == 200
     assert calls["count"] == 0
 
+    _enable_woocommerce_write(client, auth_headers)
     applied = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
     assert applied.status_code == 200
     assert applied.json()["status"] == "applied"
     assert calls["count"] == 1
+
+
+def test_write_enabled_access_mode_does_not_auto_apply(client, auth_headers, monkeypatch):
+    from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
+
+    calls = {"count": 0}
+
+    async def fail_if_called(*_args, **_kwargs):
+        calls["count"] += 1
+        raise AssertionError("access mode must not execute")
+
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fail_if_called)
+    _enable_woocommerce_write(client, auth_headers)
+
+    created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload())
+    assert created.status_code == 201
+    assert created.json()["status"] == "dry_run_ready"
+
+    approved = client.post(
+        f"/api/v2/write-pipeline/batches/{created.json()['id']}/approve",
+        headers=auth_headers,
+        json={"reason": "operator approved"},
+    )
+    assert approved.status_code == 200
+    assert approved.json()["status"] == "approved"
+    assert approved.json()["executedAt"] is None
+    assert calls["count"] == 0
 
 
 def test_non_woocommerce_channels_are_blocked(client, auth_headers):
@@ -262,6 +330,7 @@ def test_execution_dispatches_through_adapter_registry(client, auth_headers, mon
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
     created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
     client.post(f"/api/v2/write-pipeline/batches/{created['id']}/approve", headers=auth_headers, json={})
+    _enable_woocommerce_write(client, auth_headers)
 
     response = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
 
@@ -278,6 +347,9 @@ def test_woocommerce_adapter_is_registered_for_price_updates_only():
     assert registry.get("woocommerce:primary", "stock_update") is None
     assert registry.get("snappshop:main", "price_update") is None
     assert registry.get("tapsishop:main", "price_update") is None
+    assert registry.get("digikala:main", "price_update") is None
+    assert registry.get("technolife:main", "price_update") is None
+    assert registry.get("shopify:main", "price_update") is None
 
 
 def test_future_channel_approved_batch_fails_closed_on_execute(client, auth_headers, db):
@@ -336,6 +408,7 @@ def test_provider_result_is_sanitized_from_events_and_items(client, auth_headers
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
     created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
     client.post(f"/api/v2/write-pipeline/batches/{created['id']}/approve", headers=auth_headers, json={})
+    _enable_woocommerce_write(client, auth_headers)
     response = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
 
     assert response.status_code == 200

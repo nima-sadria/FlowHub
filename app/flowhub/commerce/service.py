@@ -19,6 +19,10 @@ from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.registry import registry
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 
+ACCESS_MODE_READ_ONLY = "read_only"
+ACCESS_MODE_WRITE_ENABLED = "write_enabled"
+ACCESS_MODES = frozenset({ACCESS_MODE_READ_ONLY, ACCESS_MODE_WRITE_ENABLED})
+
 
 _CHANNELS = [
     {
@@ -248,14 +252,16 @@ class CommerceHubService:
         if registry.get_definition(provider) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source settings are not available.")
         self._ensure_instance(meta)
-        self._update_instance_state(meta, body)
+        self._update_instance_state(meta, body, access_mode=ACCESS_MODE_READ_ONLY)
         result = self.integration.update_settings_contract(source_id, self._settings_body(body))
         return {
             **result,
             "source_id": source_id,
+            "access_mode": ACCESS_MODE_READ_ONLY,
             "read_only": True,
             "runtime_write_blocked": True,
             "write_blocked": True,
+            "write_pipeline_eligible": False,
         }
 
     def update_channel_settings(self, channel_id: str, body: dict) -> dict:
@@ -264,14 +270,20 @@ class CommerceHubService:
         if registry.get_definition(provider) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel settings are not available.")
         self._ensure_instance(meta)
-        self._update_instance_state(meta, body)
+        access_mode = self._requested_channel_access_mode(meta, body)
+        self._update_instance_state(meta, body, access_mode=access_mode)
         result = self.integration.update_settings_contract(channel_id, self._settings_body(body))
+        instance = self.db.get(IntegrationConnectorInstance, meta["id"])
+        effective_access_mode = self._access_mode(instance)
+        write_pipeline_eligible = self._write_pipeline_eligible(meta, instance)
         return {
             **result,
             "channel_id": channel_id,
-            "read_only": True,
+            "access_mode": effective_access_mode,
+            "read_only": effective_access_mode == ACCESS_MODE_READ_ONLY,
             "runtime_write_blocked": True,
-            "write_blocked": True,
+            "write_blocked": not write_pipeline_eligible,
+            "write_pipeline_eligible": write_pipeline_eligible,
         }
 
     def relationship_map(self) -> dict:
@@ -317,6 +329,8 @@ class CommerceHubService:
             instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         health = self._health(str(meta["id"]))
         configured = self._instance_configured(instance)
+        access_mode = self._access_mode(instance)
+        write_pipeline_eligible = self._write_pipeline_eligible(meta, instance)
         capabilities = definition.connector.capabilities if definition else ConnectorCapabilities()
         body = {
             "id": meta["id"],
@@ -326,8 +340,10 @@ class CommerceHubService:
             "status": self._status(meta, instance, health),
             "implemented": meta["implemented"],
             "placeholder": meta["placeholder"],
-            "read_only": True,
-            "write_blocked": True,
+            "access_mode": access_mode,
+            "read_only": access_mode == ACCESS_MODE_READ_ONLY,
+            "write_blocked": not write_pipeline_eligible,
+            "write_pipeline_eligible": write_pipeline_eligible,
             "runtime_write_blocked": True,
             "credential_status": "configured" if configured else "not_configured",
             "last_health_check": self._iso(health.checked_at) if health else None,
@@ -366,7 +382,7 @@ class CommerceHubService:
         self.db.refresh(row)
         return row
 
-    def _update_instance_state(self, meta: dict, body: dict) -> None:
+    def _update_instance_state(self, meta: dict, body: dict, *, access_mode: str) -> None:
         row = self.db.get(IntegrationConnectorInstance, meta["id"])
         if row is None:
             return
@@ -374,8 +390,11 @@ class CommerceHubService:
         if display_name:
             row.name = display_name
         enabled = body.get("enabled") if isinstance(body, dict) else None
-        row.enabled = bool(enabled) and not bool(meta.get("placeholder"))
-        row.read_only = True
+        if enabled is not None:
+            row.enabled = bool(enabled) and not bool(meta.get("placeholder"))
+        elif access_mode == ACCESS_MODE_WRITE_ENABLED:
+            row.enabled = not bool(meta.get("placeholder"))
+        row.read_only = access_mode != ACCESS_MODE_WRITE_ENABLED
         row.status = "disabled" if not row.enabled else "configured"
         row.updated_at = datetime.utcnow()
         self.db.commit()
@@ -389,6 +408,30 @@ class CommerceHubService:
             "settings": settings,
             "secrets": body.get("secrets") if isinstance(body, dict) else None,
         }
+
+    def _requested_channel_access_mode(self, meta: dict, body: dict) -> str:
+        raw = None
+        if isinstance(body, dict):
+            raw = body.get("access_mode", body.get("accessMode"))
+        if raw in (None, ""):
+            return self._access_mode(self.db.get(IntegrationConnectorInstance, meta["id"]))
+        access_mode = str(raw).strip().lower().replace("-", "_")
+        if access_mode not in ACCESS_MODES:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "access_mode must be read_only or write_enabled.")
+        if access_mode == ACCESS_MODE_WRITE_ENABLED and not self._write_pipeline_supported(meta):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "channel_write_access_unsupported")
+        return access_mode
+
+    def _access_mode(self, instance: IntegrationConnectorInstance | None) -> str:
+        if instance is None or instance.read_only:
+            return ACCESS_MODE_READ_ONLY
+        return ACCESS_MODE_WRITE_ENABLED
+
+    def _write_pipeline_supported(self, meta: dict) -> bool:
+        return str(meta.get("id")) == "woocommerce:primary" and not bool(meta.get("placeholder"))
+
+    def _write_pipeline_eligible(self, meta: dict, instance: IntegrationConnectorInstance | None) -> bool:
+        return self._write_pipeline_supported(meta) and self._access_mode(instance) == ACCESS_MODE_WRITE_ENABLED
 
     def _channel_meta(self, channel_id: str) -> dict:
         for item in _CHANNELS:
