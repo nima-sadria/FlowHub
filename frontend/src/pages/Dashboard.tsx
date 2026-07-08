@@ -181,7 +181,7 @@ export default function Dashboard() {
                 <div key={s.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
                   <div>
                     <p className="text-[13px] font-medium text-text-base">{s.name}</p>
-                    <p className="text-[11px] text-wp-muted">{relTime(s.lastSynced)} آ· {s.productCount} products</p>
+                    <p className="text-[11px] text-wp-muted">{relTime(s.lastSynced)} · {s.productCount} products</p>
                   </div>
                   <span className={[
                     'fh-badge capitalize',
