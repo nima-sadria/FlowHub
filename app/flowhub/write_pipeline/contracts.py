@@ -20,6 +20,8 @@ class WritePipelinePriceChange(BaseModel):
 
 
 class WritePipelineDryRunRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     previewId: str | None = None
     channelId: str = "woocommerce:primary"
     operationType: str = "price_update"

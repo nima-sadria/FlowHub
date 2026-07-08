@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import uuid
+from hashlib import sha256
+from pathlib import Path
 
 import pytest
 
@@ -121,12 +123,12 @@ def test_dry_run_creates_batch_without_marketplace_write(client, auth_headers):
 
 
 def test_approval_does_not_execute(client, auth_headers, monkeypatch):
-    from app.flowhub.write_pipeline.service import WritePipelineService
+    from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
 
     async def fail_if_called(*_args, **_kwargs):
         raise AssertionError("approval must not execute")
 
-    monkeypatch.setattr(WritePipelineService, "_execute_woocommerce_price_update", fail_if_called)
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fail_if_called)
     created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
 
     approved = client.post(
@@ -146,15 +148,15 @@ def test_approval_does_not_execute(client, auth_headers, monkeypatch):
 
 
 def test_execution_requires_second_action_after_approval(client, auth_headers, monkeypatch):
-    from app.flowhub.write_pipeline.service import WritePipelineService
+    from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
 
     calls = {"count": 0}
 
-    async def fake_execute(_service, item):
+    async def fake_execute(_adapter, item, _context):
         calls["count"] += 1
         return {"provider": "woocommerce", "product_id": item.channel_product_id, "regular_price": "110.00"}
 
-    monkeypatch.setattr(WritePipelineService, "_execute_woocommerce_price_update", fake_execute)
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
     created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
 
     blocked = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
@@ -183,7 +185,7 @@ def test_non_woocommerce_channels_are_blocked(client, auth_headers):
     )
 
     assert response.status_code == 403
-    assert "not write-enabled" in response.text
+    assert "unsupported_channel_write" in response.text
 
 
 def test_stock_fields_are_blocked(client, auth_headers):
@@ -194,6 +196,28 @@ def test_stock_fields_are_blocked(client, auth_headers):
 
     assert response.status_code == 403
     assert "Stock updates are blocked" in response.text
+
+
+def test_stock_operation_is_blocked(client, auth_headers):
+    response = client.post(
+        "/api/v2/write-pipeline/dry-run",
+        headers=auth_headers,
+        json=_payload(operationType="stock_update"),
+    )
+
+    assert response.status_code == 403
+    assert "stock_writes_disabled" in response.text
+
+
+def test_automatic_apply_controls_are_blocked(client, auth_headers):
+    response = client.post(
+        "/api/v2/write-pipeline/dry-run",
+        headers=auth_headers,
+        json=_payload(automaticApply=True),
+    )
+
+    assert response.status_code == 403
+    assert "automatic_apply_disabled" in response.text
 
 
 def test_non_numeric_woocommerce_product_id_is_rejected(client, auth_headers):
@@ -216,3 +240,126 @@ def test_no_scheduler_or_generic_connector_write_api_exposed(client):
     assert "snapp" not in write_paths
     assert "tapsi" not in write_paths
     assert "/connectors/{connector_id}/write" not in integration_paths
+
+
+def test_write_pipeline_service_has_no_woocommerce_connector_import_or_execution_method():
+    src = Path("app/flowhub/write_pipeline/service.py").read_text(encoding="utf-8")
+
+    assert "WooCommerceConnector" not in src
+    assert "_execute_woocommerce_price_update" not in src
+    assert "app.connectors.destinations.woocommerce.connector" not in src
+
+
+def test_execution_dispatches_through_adapter_registry(client, auth_headers, monkeypatch):
+    from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
+
+    calls = {"count": 0}
+
+    async def fake_execute(_adapter, item, _context):
+        calls["count"] += 1
+        return {"provider": "woocommerce", "product_id": item.channel_product_id, "regular_price": "110.00"}
+
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
+    created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
+    client.post(f"/api/v2/write-pipeline/batches/{created['id']}/approve", headers=auth_headers, json={})
+
+    response = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert calls["count"] == 1
+
+
+def test_woocommerce_adapter_is_registered_for_price_updates_only():
+    from app.flowhub.write_pipeline.registry import default_write_adapter_registry
+
+    registry = default_write_adapter_registry()
+
+    assert registry.get("woocommerce:primary", "price_update") is not None
+    assert registry.get("woocommerce:primary", "stock_update") is None
+    assert registry.get("snappshop:main", "price_update") is None
+    assert registry.get("tapsishop:main", "price_update") is None
+
+
+def test_future_channel_approved_batch_fails_closed_on_execute(client, auth_headers, db):
+    from app.flowhub.write_pipeline.models import WriteBatch, WriteItem
+
+    batch_hash = sha256("snappshop:main\nprice_update\n101|100.0000|110.0000|EUR".encode("utf-8")).hexdigest()
+    batch = WriteBatch(
+        id="wb_snapp_closed",
+        channel_id="snappshop:main",
+        channel_type="snappshop",
+        operation_type="price_update",
+        status="approved",
+        batch_hash=batch_hash,
+        item_count=1,
+        currency="EUR",
+        created_by="test",
+        approved_by="test",
+        safety_summary_json={},
+    )
+    db.add(batch)
+    db.add(
+        WriteItem(
+            batch_id=batch.id,
+            channel_product_id="101",
+            sku="SKU-101",
+            product_name="Test Product",
+            current_price=100.0,
+            proposed_price=110.0,
+            delta_amount=10.0,
+            delta_percent=10.0,
+            currency="EUR",
+            pre_write_snapshot_json={},
+            status="pending",
+        )
+    )
+    db.commit()
+
+    response = client.post(f"/api/v2/write-pipeline/batches/{batch.id}/execute", headers=auth_headers)
+
+    assert response.status_code == 403
+    assert "unsupported_channel_write" in response.text
+
+
+def test_provider_result_is_sanitized_from_events_and_items(client, auth_headers, monkeypatch):
+    from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
+
+    async def fake_execute(_adapter, item, _context):
+        return {
+            "provider": "woocommerce",
+            "product_id": item.channel_product_id,
+            "regular_price": "110.00",
+            "secret": "do-not-log",
+            "token": "do-not-log-token",
+        }
+
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
+    created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
+    client.post(f"/api/v2/write-pipeline/batches/{created['id']}/approve", headers=auth_headers, json={})
+    response = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert "do-not-log" not in response.text
+
+    events = client.get(f"/api/v2/write-pipeline/batches/{created['id']}/events", headers=auth_headers)
+    assert "do-not-log" not in events.text
+
+
+def test_production_app_does_not_expose_legacy_stock_or_write_routes(client):
+    paths = {route.path.lower() for route in client.app.routes if hasattr(route, "path")}
+
+    assert "/api/emergency/{batch_id}/apply" not in paths
+    assert "/api/sync/{job_id}/confirm" not in paths
+    assert not any(path.startswith("/api/emergency") for path in paths)
+    assert not any("/stock" in path for path in paths)
+
+
+def test_production_entrypoint_targets_flowhub_app():
+    dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+    installer = Path("installer/install.sh").read_text(encoding="utf-8")
+    compose_template = Path("installer/templates/docker-compose.template.yml").read_text(encoding="utf-8")
+
+    assert 'CMD ["uvicorn", "app.flowhub.app:app"' in dockerfile
+    assert "grep -q 'app.flowhub.app:app'" in installer
+    assert "app.main:app" not in dockerfile
+    assert "app.main:app" not in compose_template

@@ -1,8 +1,8 @@
 """Generic FlowHub Write Pipeline service.
 
 Approval and execution are intentionally separate. Approval records operator
-intent only; execution is a second explicit action and is restricted to the
-WooCommerce price adapter in FlowHub 1.0.0.
+intent only; execution is a second explicit action dispatched through a
+registered channel write adapter.
 """
 
 from __future__ import annotations
@@ -15,11 +15,10 @@ from hashlib import sha256
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.connectors.common.auth import AuthConfig
 from app.connectors.common.errors import ConnectorError
-from app.connectors.destinations.woocommerce.connector import WooCommerceConnector
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.write_pipeline.adapters import ChannelWriteAdapter, ChannelWriteContext
 from app.flowhub.write_pipeline.contracts import (
     WritePipelineApprovalRequest,
     WritePipelineBatchShape,
@@ -28,33 +27,36 @@ from app.flowhub.write_pipeline.contracts import (
     WritePipelineItemShape,
 )
 from app.flowhub.write_pipeline.models import WriteBatch, WriteEvent, WriteItem
+from app.flowhub.write_pipeline.registry import ChannelWriteAdapterRegistry, default_write_adapter_registry
 
-ALLOWED_CHANNEL_ID = "woocommerce:primary"
-ALLOWED_CHANNEL_TYPE = "woocommerce"
-ALLOWED_OPERATION = "price_update"
 MAX_ITEMS = 100
 MAX_DELTA_PERCENT = 50.0
 FORBIDDEN_STOCK_KEYS = frozenset({"stock", "stock_status", "stock_quantity", "inventory", "manage_stock"})
-BLOCKED_CHANNEL_PREFIXES = frozenset({"snappshop", "tapsishop", "digikala", "technolife", "shopify"})
+STOCK_OPERATION_TYPES = frozenset({"stock_update", "inventory_update", "write_inventory", "update_stock"})
+AUTOMATIC_APPLY_KEYS = frozenset({"automaticApply", "automatic_apply", "applyNow", "apply_now", "scheduler", "scheduled"})
 
 
 class WritePipelineService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, registry: ChannelWriteAdapterRegistry | None = None):
         self.db = db
         self.config = AppConfigService(db)
+        self.registry = registry or default_write_adapter_registry()
 
     def create_dry_run(self, body: WritePipelineDryRunRequest, user: FlowHubUser) -> WritePipelineBatchShape:
         if not body.changes:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "At least one price change is required.")
-        self._validate_scope(body.channelId, body.operationType)
-        safety = self._validate_changes([item.model_dump() for item in body.changes])
+        self._validate_request_controls(body)
+        adapter = self._adapter_for(body.channelId, body.operationType)
+        capabilities = adapter.get_capabilities()
+        raw_changes = [item.model_dump() for item in body.changes]
+        safety = self._validate_changes(raw_changes, adapter, body.operationType)
         batch_id = f"wb_{uuid.uuid4().hex[:16]}"
         batch_hash = self._batch_hash(body)
         currency = body.changes[0].currency if body.changes else ""
         batch = WriteBatch(
             id=batch_id,
             channel_id=body.channelId,
-            channel_type=ALLOWED_CHANNEL_TYPE,
+            channel_type=capabilities.channel_type,
             operation_type=body.operationType,
             status="dry_run_ready",
             source_preview_id=body.previewId,
@@ -104,6 +106,7 @@ class WritePipelineService:
         batch = self._get_batch(batch_id)
         if batch.status != "dry_run_ready":
             raise HTTPException(status.HTTP_409_CONFLICT, "Only a completed Dry Run can be approved.")
+        self._assert_batch_hash_matches(batch)
         batch.status = "approved"
         batch.approved_by = user.username
         batch.approved_at = datetime.utcnow()
@@ -111,7 +114,7 @@ class WritePipelineService:
         self._record_event(
             batch.id,
             "approved",
-            "Approved for WooCommerce price update. Execution was not started.",
+            "Approved. Execution was not started.",
             metadata={"approval_recorded": True, "execution_attempted": False},
             commit=False,
         )
@@ -123,12 +126,15 @@ class WritePipelineService:
         batch = self._get_batch(batch_id)
         if batch.status != "approved":
             raise HTTPException(status.HTTP_409_CONFLICT, "Apply requires a separate approved Dry Run.")
-        self._validate_batch_scope(batch)
+        self._assert_batch_hash_matches(batch)
+        adapter = self._adapter_for(batch.channel_id, batch.operation_type)
+        capabilities = adapter.get_capabilities()
+        context = ChannelWriteContext(get_setting=self.config.get, requested_by=user.username)
         batch.status = "executing"
         self._record_event(
             batch.id,
             "execution_started",
-            "Apply to WooCommerce started from an approved Dry Run.",
+            "Apply started from an approved Dry Run.",
             metadata={"approved_by": batch.approved_by, "requested_by": user.username},
             commit=False,
         )
@@ -138,7 +144,7 @@ class WritePipelineService:
         failure_count = 0
         for item in batch.items:
             try:
-                provider_result = await self._execute_woocommerce_price_update(item)
+                provider_result = _safe_provider_result(await adapter.execute_item(item, context))
             except ConnectorError as exc:
                 failure_count += 1
                 item.status = "failed"
@@ -150,7 +156,12 @@ class WritePipelineService:
                     exc.message,
                     item_id=item.id,
                     severity="error",
-                    metadata={"provider": exc.provider, "http_status": exc.http_status},
+                    metadata={
+                        "provider": exc.provider,
+                        "http_status": exc.http_status,
+                        "old_price": item.current_price,
+                        "new_price": item.proposed_price,
+                    },
                     commit=False,
                 )
             except Exception as exc:  # pragma: no cover - defensive adapter boundary
@@ -164,7 +175,11 @@ class WritePipelineService:
                     str(exc),
                     item_id=item.id,
                     severity="error",
-                    metadata={"provider": ALLOWED_CHANNEL_TYPE},
+                    metadata={
+                        "provider": capabilities.channel_type,
+                        "old_price": item.current_price,
+                        "new_price": item.proposed_price,
+                    },
                     commit=False,
                 )
             else:
@@ -174,9 +189,15 @@ class WritePipelineService:
                 self._record_event(
                     batch.id,
                     "item_applied",
-                    "WooCommerce price update applied.",
+                    "Channel price update applied.",
                     item_id=item.id,
-                    metadata={"provider": ALLOWED_CHANNEL_TYPE, "stock_update": False},
+                    metadata={
+                        "provider": capabilities.channel_type,
+                        "stock_update": False,
+                        "old_price": item.current_price,
+                        "new_price": item.proposed_price,
+                        "result": _safe_provider_result(provider_result),
+                    },
                     commit=False,
                 )
 
@@ -185,7 +206,7 @@ class WritePipelineService:
         self._record_event(
             batch.id,
             "execution_finished",
-            "Apply to WooCommerce finished.",
+            "Apply finished.",
             metadata={"success_count": success_count, "failure_count": failure_count, "scheduler_started": False},
             commit=False,
         )
@@ -206,29 +227,23 @@ class WritePipelineService:
         )
         return [self._event_shape(row) for row in rows]
 
-    async def _execute_woocommerce_price_update(self, item: WriteItem) -> dict:
-        auth = AuthConfig(
-            auth_type="api_key",
-            credentials={
-                "url": self.config.get("woocommerce.url") or "",
-                "key": self.config.get("woocommerce.key") or "",
-                "secret": self.config.get("woocommerce.secret") or "",
-            },
-        )
-        connector = WooCommerceConnector()
-        await connector.connect(auth)
-        return await connector.update_price(int(item.channel_product_id), item.proposed_price)
+    def _adapter_for(self, channel_id: str, operation_type: str) -> ChannelWriteAdapter:
+        if operation_type in STOCK_OPERATION_TYPES:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "stock_writes_disabled")
+        adapter = self.registry.get(channel_id, operation_type)
+        if adapter is None:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "unsupported_channel_write")
+        capabilities = adapter.get_capabilities()
+        if capabilities.scheduler_supported or capabilities.automatic_apply_supported:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "unsafe_write_capability")
+        return adapter
 
-    def _validate_scope(self, channel_id: str, operation_type: str) -> None:
-        prefix = channel_id.split(":", 1)[0].lower()
-        if prefix in BLOCKED_CHANNEL_PREFIXES:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "This channel is not write-enabled in FlowHub 1.0.0.")
-        if channel_id != ALLOWED_CHANNEL_ID:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "FlowHub 1.0.0 only supports WooCommerce price updates.")
-        if operation_type != ALLOWED_OPERATION:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only price updates are supported. Stock updates are blocked.")
+    def _validate_request_controls(self, body: WritePipelineDryRunRequest) -> None:
+        extras = getattr(body, "model_extra", None) or {}
+        if AUTOMATIC_APPLY_KEYS.intersection(extras):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "automatic_apply_disabled")
 
-    def _validate_changes(self, raw_changes: list[dict]) -> dict:
+    def _validate_changes(self, raw_changes: list[dict], adapter: ChannelWriteAdapter, operation_type: str) -> dict:
         if len(raw_changes) > MAX_ITEMS:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Dry Run is limited to {MAX_ITEMS} items.")
         currencies: set[str] = set()
@@ -237,9 +252,6 @@ class WritePipelineService:
             forbidden = FORBIDDEN_STOCK_KEYS.intersection({key.lower() for key in change})
             if forbidden:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "Stock updates are blocked in FlowHub 1.0.0.")
-            product_id = str(change.get("productId") or "")
-            if not product_id.isdigit():
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "WooCommerce product ID must be numeric.")
             current = float(change["currentPrice"])
             proposed = float(change["proposedPrice"])
             if not math.isfinite(current) or not math.isfinite(proposed):
@@ -251,23 +263,20 @@ class WritePipelineService:
             if delta_pct > MAX_DELTA_PERCENT:
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Price change exceeds the 50% safety gate.")
             currencies.add(str(change.get("currency") or ""))
+            adapter.validate_item(change)
         if len(currencies) > 1:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Dry Run must use a single currency.")
+        capabilities = adapter.get_capabilities()
         return {
-            "operation": ALLOWED_OPERATION,
-            "channel_id": ALLOWED_CHANNEL_ID,
+            "operation": operation_type,
+            "channel_id": capabilities.channel_ids[0] if capabilities.channel_ids else "",
             "item_count": len(raw_changes),
             "max_delta_percent": round(max_delta, 4),
             "stock_update_allowed": False,
             "scheduler_started": False,
             "automatic_apply": False,
-            "marketplace_writes_limited_to": [ALLOWED_CHANNEL_TYPE],
+            "marketplace_writes_limited_to": [capabilities.channel_type],
         }
-
-    def _validate_batch_scope(self, batch: WriteBatch) -> None:
-        self._validate_scope(batch.channel_id, batch.operation_type)
-        if batch.channel_type != ALLOWED_CHANNEL_TYPE:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Batch channel adapter is not enabled for writes.")
 
     def _get_batch(self, batch_id: str) -> WriteBatch:
         row = self.db.get(WriteBatch, batch_id)
@@ -277,9 +286,19 @@ class WritePipelineService:
 
     def _batch_hash(self, body: WritePipelineDryRunRequest) -> str:
         parts = [body.channelId, body.operationType]
-        for item in body.changes:
+        for item in sorted(body.changes, key=lambda row: row.productId):
             parts.append(f"{item.productId}|{item.currentPrice:.4f}|{item.proposedPrice:.4f}|{item.currency}")
         return sha256("\n".join(parts).encode("utf-8")).hexdigest()
+
+    def _batch_hash_from_row(self, batch: WriteBatch) -> str:
+        parts = [batch.channel_id, batch.operation_type]
+        for item in sorted(batch.items, key=lambda row: row.channel_product_id):
+            parts.append(f"{item.channel_product_id}|{item.current_price:.4f}|{item.proposed_price:.4f}|{item.currency}")
+        return sha256("\n".join(parts).encode("utf-8")).hexdigest()
+
+    def _assert_batch_hash_matches(self, batch: WriteBatch) -> None:
+        if self._batch_hash_from_row(batch) != batch.batch_hash:
+            raise HTTPException(status.HTTP_409_CONFLICT, "approval_hash_mismatch")
 
     def _record_event(
         self,
@@ -361,3 +380,8 @@ class WritePipelineService:
         if current == 0:
             return 0.0
         return ((proposed - current) / current) * 100.0
+
+
+def _safe_provider_result(result: dict) -> dict:
+    blocked = {"key", "secret", "token", "authorization", "password"}
+    return {key: value for key, value in (result or {}).items() if key.lower() not in blocked}
