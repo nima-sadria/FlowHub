@@ -231,6 +231,7 @@ const services: Services = {
   workspace: {} as Services['workspace'],
   settings: {} as Services['settings'],
   activity: {} as Services['activity'],
+  writePipeline: {} as Services['writePipeline'],
 }
 
 beforeEach(() => {

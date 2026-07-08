@@ -100,6 +100,51 @@ export interface WorkspacePreview {
   duplicateWarnings?: string[]
 }
 
+// -- Write Pipeline ------------------------------------------------------------
+
+export type WritePipelineStatus =
+  | 'dry_run_ready'
+  | 'approved'
+  | 'executing'
+  | 'applied'
+  | 'partially_failed'
+  | 'failed'
+
+export interface WritePipelineItem {
+  id: number | null
+  productId: string
+  productName: string
+  sku: string
+  currentPrice: number
+  proposedPrice: number
+  difference: number
+  changePct: number
+  currency: string
+  status: string
+  errorCode?: string | null
+  errorMessage?: string | null
+}
+
+export interface WritePipelineBatch {
+  id: string
+  channelId: string
+  channelType: string
+  operationType: string
+  status: WritePipelineStatus
+  sourcePreviewId?: string | null
+  batchHash: string
+  itemCount: number
+  currency: string
+  safetySummary: Record<string, unknown>
+  createdBy: string
+  approvedBy?: string | null
+  approvalReason?: string | null
+  createdAt: Date
+  approvedAt?: Date | null
+  executedAt?: Date | null
+  items: WritePipelineItem[]
+}
+
 // -- Settings ------------------------------------------------------------------
 
 export interface AppSettings {

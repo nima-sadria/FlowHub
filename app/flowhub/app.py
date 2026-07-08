@@ -18,6 +18,9 @@ Active routes:
   GET  /api/v2/sources                         - configured data sources
   GET  /api/v2/workspace/state                 - workspace state
   POST /api/v2/workspace/preview               - compute preview (stateless)
+  POST /api/v2/write-pipeline/dry-run          - create approved-safety preview for WooCommerce price update
+  POST /api/v2/write-pipeline/batches/{id}/approve - approve a dry run without executing
+  POST /api/v2/write-pipeline/batches/{id}/execute - apply approved WooCommerce price update
   GET  /api/v2/settings                        - read runtime settings
   POST /api/v2/settings                        - update non-credential settings
   POST /api/v2/settings/woocommerce            - replace connector credentials
@@ -54,6 +57,7 @@ from app.flowhub.api.v2.config import router as config_router
 from app.flowhub.api.v2.products import router as products_router
 from app.flowhub.api.v2.sources import router as sources_router
 from app.flowhub.api.v2.workspace import router as workspace_router
+from app.flowhub.api.v2.write_pipeline import router as write_pipeline_router
 from app.flowhub.api.v2.settings_routes import router as settings_router
 from app.flowhub.api.v2.commerce import router as commerce_router
 from app.flowhub.api.v2.activity import router as activity_router
@@ -127,6 +131,7 @@ app.include_router(logging_router, prefix="/api/v2")
 app.include_router(products_router, prefix="/api/v2")
 app.include_router(sources_router, prefix="/api/v2")
 app.include_router(workspace_router, prefix="/api/v2")
+app.include_router(write_pipeline_router, prefix="/api/v2")
 app.include_router(settings_router, prefix="/api/v2")
 app.include_router(commerce_router, prefix="/api/v2")
 app.include_router(config_router, prefix="/api/v2")

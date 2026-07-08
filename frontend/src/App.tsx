@@ -13,6 +13,7 @@ import { ApiWorkspaceService } from './services/workspace/ApiWorkspaceService'
 import { ApiSettingsService } from './services/settings/ApiSettingsService'
 import { ApiActivityService } from './services/activity/ApiActivityService'
 import { ApiCommerceService } from './services/commerce/ApiCommerceService'
+import { ApiWritePipelineService } from './services/writePipeline/ApiWritePipelineService'
 import AppShell from './components/AppShell'
 import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
@@ -34,6 +35,7 @@ const realServices = {
   settings:  new ApiSettingsService(),
   activity:  new ApiActivityService(),
   commerce:  new ApiCommerceService(),
+  writePipeline: new ApiWritePipelineService(),
 }
 
 function MaintenanceOverlay({ message }: { message?: string }) {

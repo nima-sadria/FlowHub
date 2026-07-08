@@ -3,8 +3,9 @@
 THIS IS THE ONLY MODULE PERMITTED TO MAKE WooCommerce REST API CALLS.
 No other FlowHub module may call wp-json/wc/v3/ endpoints directly.
 
-All operations are READ-ONLY. No write path (PUT/POST/PATCH/DELETE products)
-is implemented. flowhub is a read-only system.
+FlowHub 1.0.0 permits one explicit write path through the generic Write
+Pipeline: WooCommerce price update only. No stock, scheduler, or generic
+connector write API is implemented.
 
 Supported operations:
   - list_products()      - paginated GET /wp-json/wc/v3/products (connector ABC)
@@ -15,6 +16,7 @@ Supported operations:
   - list_all_products()  - all pages of products
   - list_categories_all()- all product categories
   - count_products()     - total product count from X-WP-Total header
+  - update_product_price()- PUT /wp-json/wc/v3/products/{id} price fields only
 """
 from __future__ import annotations
 
@@ -218,6 +220,47 @@ async def _get_raw(
     )
 
 
+async def _put(
+    creds: WooCommerceCredentials,
+    path: str,
+    payload: dict[str, Any],
+) -> Any:
+    """Internal PUT helper for the approved Write Pipeline price adapter."""
+    url = creds.url + _WC_API + path
+    try:
+        async with httpx.AsyncClient(
+            auth=_auth(creds),
+            follow_redirects=True,
+        ) as client:
+            r = await client.put(url, json=payload, timeout=_TIMEOUT)
+    except httpx.TimeoutException as exc:
+        raise ConnectorError(
+            code=ConnectorErrorCode.TIMEOUT,
+            message="WooCommerce price update timed out",
+            provider="woocommerce",
+            retryable=True,
+        ) from exc
+    except httpx.ConnectError as exc:
+        raise ConnectorError(
+            code=ConnectorErrorCode.NETWORK,
+            message=f"WooCommerce connection failed: {exc}",
+            provider="woocommerce",
+            retryable=True,
+        ) from exc
+
+    if r.status_code not in {200, 201}:
+        raise _map_http_error(r.status_code)
+
+    try:
+        return r.json()
+    except Exception as exc:
+        raise ConnectorError(
+            code=ConnectorErrorCode.PROVIDER_ERROR,
+            message=f"Failed to parse WooCommerce price update JSON response: {exc}",
+            provider="woocommerce",
+        ) from exc
+
+
 async def list_products(
     creds: WooCommerceCredentials,
     page: int = 1,
@@ -373,3 +416,22 @@ async def count_products(
         "_fields": "id",
     }, timeout=_TIMEOUT_QUICK)
     return int(r.headers.get("X-WP-Total", "0"))
+
+
+async def update_product_price(creds: WooCommerceCredentials, product_id: int, price: float) -> dict:
+    """Update only regular_price for a WooCommerce product.
+
+    Stock and inventory fields are intentionally not accepted by this adapter.
+    """
+    normalized = f"{price:.2f}"
+    result = await _put(
+        creds,
+        f"/products/{product_id}",
+        {"regular_price": normalized},
+    )
+    return {
+        "provider": "woocommerce",
+        "product_id": result.get("id", product_id) if isinstance(result, dict) else product_id,
+        "regular_price": result.get("regular_price", normalized) if isinstance(result, dict) else normalized,
+        "stock_update": False,
+    }

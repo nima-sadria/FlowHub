@@ -3,8 +3,9 @@
 The only concrete class in this package. Business logic (adapters, rule engine)
 must import only this class - never rest_client.py directly.
 
-All operations are READ-ONLY. No write path (PUT/POST/PATCH/DELETE) is
-implemented. flowhub is a read-only system.
+FlowHub 1.0.0 permits one explicit Write Pipeline adapter method:
+WooCommerce price update only. No stock, scheduler, automatic apply, or generic
+connector write API is implemented.
 
 Capabilities:
   can_list_products  = True
@@ -22,11 +23,11 @@ from app.connectors.common.test_result import ConnectionTestResult
 from app.connectors.common.types import ConnectorCapabilities, ConnectorID
 
 from .auth import WooCommerceCredentials, extract_credentials
-from .rest_client import get_product, list_products, ping
+from .rest_client import get_product, list_products, ping, update_product_price
 
 
 class WooCommerceConnector(DestinationConnector):
-    """Read-only WooCommerce destination connector.
+    """WooCommerce destination connector.
 
     Lifecycle:
       1. test_connection(auth)  - probe without storing state
@@ -34,7 +35,8 @@ class WooCommerceConnector(DestinationConnector):
       3. health()               - lightweight ping
       4. list_products(page, per_page)  - paginated product list
       5. read_inventory(product_id)     - stock data for one product
-      6. disconnect()           - clears stored credentials
+      6. update_price(product_id, price)- Write Pipeline price-only adapter
+      7. disconnect()           - clears stored credentials
     """
 
     connector_id: ConnectorID = "woocommerce"
@@ -110,7 +112,7 @@ class WooCommerceConnector(DestinationConnector):
                 latency_ms=round(latency, 1),
             )
 
-    # -- Destination operations (read-only) ------------------------------------
+    # -- Destination operations -------------------------------------------------
 
     def _require_connected(self) -> WooCommerceCredentials:
         if self._creds is None:
@@ -146,3 +148,11 @@ class WooCommerceConnector(DestinationConnector):
             "regular_price": product.get("regular_price"),
             "sale_price": product.get("sale_price"),
         }
+
+    async def update_price(self, product_id: int, price: float) -> dict:
+        """Apply a price-only update through the approved Write Pipeline.
+
+        This method deliberately accepts no stock or inventory fields.
+        """
+        creds = self._require_connected()
+        return await update_product_price(creds, product_id, price)
