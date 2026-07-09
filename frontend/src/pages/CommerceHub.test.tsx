@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import { MemoryRouter } from 'react-router-dom'
+import { AuthContext, type AuthContextValue, type AuthUser } from '../auth'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider } from '../services/ServiceContext'
 import type { Services } from '../services/ServiceContext'
@@ -234,6 +235,32 @@ const services: Services = {
   writePipeline: {} as Services['writePipeline'],
 }
 
+const adminUser: AuthUser = {
+  username: 'admin',
+  role: 'admin',
+  is_admin: true,
+  is_super_admin: false,
+  permissions: { can_access_site: true, can_fetch: true, can_view_settings: true },
+}
+
+const viewerUser: AuthUser = {
+  username: 'viewer',
+  role: 'viewer',
+  is_admin: false,
+  is_super_admin: false,
+  permissions: { can_access_site: true, can_fetch: true, can_view_settings: false },
+}
+
+function authValue(user: AuthUser): AuthContextValue {
+  return {
+    user,
+    status: 'authenticated',
+    refreshUser: async () => undefined,
+    clearAuth: () => undefined,
+    authFetch: fetch,
+  }
+}
+
 beforeEach(() => {
   container = document.createElement('div')
   document.body.appendChild(container)
@@ -245,15 +272,17 @@ afterEach(() => {
   container.remove()
 })
 
-async function renderPage() {
+async function renderPage(user = adminUser) {
   await act(async () => {
     root.render(
       <NotificationProvider>
-        <MemoryRouter initialEntries={['/commerce']}>
-          <ServiceProvider services={services}>
-            <CommerceHub />
-          </ServiceProvider>
-        </MemoryRouter>
+        <AuthContext.Provider value={authValue(user)}>
+          <MemoryRouter initialEntries={['/commerce']}>
+            <ServiceProvider services={services}>
+              <CommerceHub />
+            </ServiceProvider>
+          </MemoryRouter>
+        </AuthContext.Provider>
       </NotificationProvider>,
     )
   })
@@ -313,5 +342,23 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Source type')
     expect(c.textContent).toContain('App password / token')
     expect(c.textContent).not.toContain('snapp-secret-value')
+  })
+
+  it('keeps channel management controls admin-only', async () => {
+    const c = await renderPage(viewerUser)
+
+    expect(c.textContent).toContain('Commerce Hub')
+    expect(c.textContent).toContain('WooCommerce')
+    expect(c.textContent).toContain('Admin permission required')
+    expect(c.textContent).not.toContain('Add Channel')
+    expect(c.textContent).not.toContain('Test connection')
+
+    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
+    await act(async () => {
+      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(c.textContent).toContain('Nextcloud')
+    expect(c.textContent).not.toContain('Add Source')
   })
 })

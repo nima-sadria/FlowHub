@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useAuth } from '../auth'
+import { ApiError } from '../api/client'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeOption } from '../services/types'
 import Spinner from '../components/loading/Spinner'
@@ -17,6 +19,18 @@ function statusClass(status: string): string {
   if (['planned', 'future', 'not_configured', 'unknown'].includes(status)) return 'fh-badge-neutral'
   if (['degraded'].includes(status)) return 'fh-badge-warning'
   return 'fh-badge-danger'
+}
+
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    try {
+      const parsed = JSON.parse(error.message) as { detail?: unknown }
+      if (typeof parsed.detail === 'string' && parsed.detail.trim()) return parsed.detail
+    } catch {
+      if (error.message.trim()) return error.message
+    }
+  }
+  return fallback
 }
 
 function SafetyBadges({ readOnly, writeBlocked }: { readOnly: boolean; writeBlocked: boolean }) {
@@ -82,10 +96,11 @@ function SourceCard({ source }: { source: CommerceSource }) {
   )
 }
 
-function ChannelCard({ channel, onTest, testing }: {
+function ChannelCard({ channel, onTest, testing, canManage }: {
   channel: CommerceChannel
   onTest: (channelId: string) => void
   testing: boolean
+  canManage: boolean
 }) {
   return (
     <div className="fh-card fh-card-pad flex flex-col gap-4">
@@ -112,14 +127,16 @@ function ChannelCard({ channel, onTest, testing }: {
 
       <div className="flex items-center justify-between gap-3">
         <SafetyBadges readOnly={channel.read_only} writeBlocked={channel.write_blocked} />
-        <button
-          onClick={() => onTest(channel.id)}
-          disabled={testing}
-          className="fh-button-secondary px-3 py-1.5 text-[12px]"
-        >
-          {testing && <Spinner size="sm" />}
-          {testing ? 'Testing' : 'Test connection'}
-        </button>
+        {canManage && (
+          <button
+            onClick={() => onTest(channel.id)}
+            disabled={testing}
+            className="fh-button-secondary px-3 py-1.5 text-[12px]"
+          >
+            {testing && <Spinner size="sm" />}
+            {testing ? 'Testing' : 'Test connection'}
+          </button>
+        )}
       </div>
     </div>
   )
@@ -187,8 +204,8 @@ function ConfigPanel({
       else await commerce.saveChannel(selected.id, payload)
       info(`${selected.name} configuration saved. Secrets remain write-only.`)
       await onSaved()
-    } catch {
-      notifyError(`Unable to save ${kind} configuration`)
+    } catch (error) {
+      notifyError(apiErrorMessage(error, `Unable to save ${kind} configuration`))
     } finally {
       setSaving(false)
     }
@@ -202,8 +219,8 @@ function ConfigPanel({
         : await commerce.testChannel(selected.id)
       if (result.ok) info(result.message)
       else notifyError(result.message)
-    } catch {
-      notifyError('Unable to test connection')
+    } catch (error) {
+      notifyError(apiErrorMessage(error, 'Unable to test connection'))
     } finally {
       setTesting(false)
     }
@@ -300,6 +317,7 @@ function ConfigPanel({
 
 export default function CommerceHub() {
   const { commerce } = useServices()
+  const { user } = useAuth()
   const { info, error: notifyError } = useNotification()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'sources' ? 'sources' : 'channels')
@@ -311,6 +329,7 @@ export default function CommerceHub() {
   const [loading, setLoading] = useState(true)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [formKind, setFormKind] = useState<FormKind | null>(null)
+  const canManageCommerce = user?.is_admin === true
 
   useEffect(() => {
     const queryTab = searchParams.get('tab')
@@ -344,13 +363,17 @@ export default function CommerceHub() {
   }
 
   async function handleTest(channelId: string) {
+    if (!canManageCommerce) {
+      notifyError('Admin permission required.')
+      return
+    }
     setTestingId(channelId)
     try {
       const result = await commerce.testChannel(channelId)
       if (result.ok) info(result.message)
       else notifyError(result.message)
-    } catch {
-      notifyError('Unable to test connection')
+    } catch (error) {
+      notifyError(apiErrorMessage(error, 'Unable to test connection'))
     } finally {
       setTestingId(null)
     }
@@ -399,9 +422,13 @@ export default function CommerceHub() {
               <h2 className="text-[16px] font-semibold text-text-base">Sources</h2>
               <p className="text-[12px] text-wp-muted mt-1">Input systems that feed FlowHub / Data Layer.</p>
             </div>
-            <button onClick={() => setFormKind('source')} className="fh-button-primary px-4">
-              Add Source
-            </button>
+            {canManageCommerce ? (
+              <button onClick={() => setFormKind('source')} className="fh-button-primary px-4">
+                Add Source
+              </button>
+            ) : (
+              <span className="fh-badge fh-badge-neutral">Admin permission required</span>
+            )}
           </div>
           {formKind === 'source' && (
             <div className="mb-4">
@@ -419,9 +446,13 @@ export default function CommerceHub() {
               <h2 className="text-[16px] font-semibold text-text-base">Channels</h2>
               <p className="text-[12px] text-wp-muted mt-1">Commerce systems that receive catalog visibility from FlowHub.</p>
             </div>
-            <button onClick={() => setFormKind('channel')} className="fh-button-primary px-4">
-              Add Channel
-            </button>
+            {canManageCommerce ? (
+              <button onClick={() => setFormKind('channel')} className="fh-button-primary px-4">
+                Add Channel
+              </button>
+            ) : (
+              <span className="fh-badge fh-badge-neutral">Admin permission required</span>
+            )}
           </div>
           {formKind === 'channel' && (
             <div className="mb-4">
@@ -435,6 +466,7 @@ export default function CommerceHub() {
                 channel={channel}
                 onTest={(id) => void handleTest(id)}
                 testing={testingId === channel.id}
+                canManage={canManageCommerce}
               />
             ))}
           </div>
