@@ -352,12 +352,14 @@ async function openNextcloudSourceForm(c: HTMLElement) {
   })
 }
 
-function fillNextcloudCredentials(c: HTMLElement, baseUrl = 'https://softpple.business') {
+function fillNextcloudCredentials(c: HTMLElement, baseUrl = 'https://softpple.business', username: string | null = 'owner') {
   const textInputs = Array.from(c.querySelectorAll('input[type="text"]')) as HTMLInputElement[]
   const password = c.querySelector('input[type="password"]') as HTMLInputElement
   act(() => {
     setInputValue(textInputs[0], baseUrl)
-    setInputValue(textInputs[1], 'owner')
+    if (username !== null) {
+      setInputValue(textInputs[1], username)
+    }
     setInputValue(password, 'app-password-value')
   })
 }
@@ -523,14 +525,39 @@ describe('CommerceHub', () => {
     await openNextcloudSourceForm(c)
     fillNextcloudCredentials(c, 'https://softpple.business/index.php/s/xxxxx')
 
-    expect(c.textContent).toContain('Base URL must be the root Nextcloud server URL, not a public share link.')
+    expect(c.textContent).toContain('Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL.')
   })
 
   it('accepts an authenticated Nextcloud WebDAV files URL as source input', async () => {
     const c = await renderPage()
     await openNextcloudSourceForm(c)
-    fillNextcloudCredentials(c, 'https://softpple.business/remote.php/dav/files/woo')
+    fillNextcloudCredentials(c, 'https://softpple.business/remote.php/dav/files/woo', null)
 
-    expect(c.textContent).not.toContain('Base URL must be the root Nextcloud server URL.')
+    const textInputs = Array.from(c.querySelectorAll('input[type="text"]')) as HTMLInputElement[]
+    expect(textInputs[1].value).toBe('woo')
+    expect(c.textContent).not.toContain('Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.')
+    expect(c.textContent).not.toContain('WebDAV URL username does not match configured username.')
+  })
+
+  it('browses Nextcloud with a WebDAV URL and keeps the selected file as a relative path', async () => {
+    const c = await renderPage()
+    await openNextcloudSourceForm(c)
+    fillNextcloudCredentials(c, 'https://softpple.business/remote.php/dav/files/woo', null)
+
+    await act(async () => {
+      Array.from(c.querySelectorAll('button'))
+        .find(button => button.textContent === 'Browse Nextcloud')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      Array.from(c.querySelectorAll('button'))
+        .find(button => button.textContent?.includes('prices.xlsx'))
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(c.textContent).toContain('/prices.xlsx')
+    expect(c.textContent).not.toContain('https://softpple.business/remote.php/dav/files/woo/prices.xlsx')
   })
 })

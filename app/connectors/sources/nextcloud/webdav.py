@@ -41,6 +41,8 @@ class DavResource:
 
 
 def _dav_base(creds: NextcloudCredentials) -> str:
+    if creds.webdav_files_root_url:
+        return creds.webdav_files_root_url.rstrip("/")
     return creds.url + _DAV_PATH.format(username=creds.username)
 
 

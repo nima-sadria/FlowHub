@@ -89,6 +89,48 @@ def test_propfind_returns_resources():
     assert file_resource.content_length == 12345
 
 
+def test_propfind_root_uses_custom_webdav_files_root_url():
+    mock_resp = _mock_response(207, text=_PROPFIND_207)
+    creds = NextcloudCredentials(
+        url="https://example.com/nextcloud",
+        username="alice",
+        password="secret",
+        webdav_files_root_url="https://example.com/nextcloud/remote.php/dav/files/alice/",
+    )
+
+    async def _run():
+        with patch("httpx.AsyncClient") as MockClient:
+            instance = AsyncMock()
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
+            instance.request = AsyncMock(return_value=mock_resp)
+            await propfind_path(creds, "/")
+            return instance.request.call_args.args[1]
+
+    assert asyncio.run(_run()) == "https://example.com/nextcloud/remote.php/dav/files/alice/"
+
+
+def test_propfind_folder_uses_custom_webdav_files_root_url():
+    mock_resp = _mock_response(207, text=_PROPFIND_207)
+    creds = NextcloudCredentials(
+        url="https://example.com/nextcloud",
+        username="alice",
+        password="secret",
+        webdav_files_root_url="https://example.com/nextcloud/remote.php/dav/files/alice/",
+    )
+
+    async def _run():
+        with patch("httpx.AsyncClient") as MockClient:
+            instance = AsyncMock()
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
+            instance.request = AsyncMock(return_value=mock_resp)
+            await propfind_path(creds, "/folder/")
+            return instance.request.call_args.args[1]
+
+    assert asyncio.run(_run()) == "https://example.com/nextcloud/remote.php/dav/files/alice/folder/"
+
+
 def test_propfind_401_raises_auth_error():
     mock_resp = _mock_response(401)
 

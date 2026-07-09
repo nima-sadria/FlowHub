@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from time import monotonic
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -248,11 +248,18 @@ class CommerceHubService:
         if str(meta["provider"]) != "nextcloud" or bool(meta.get("placeholder")):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source browser is not available.")
         values = self._nextcloud_values(body, allow_stored=True)
-        if not values["url"] or not values["username"] or not values["password"]:
+        if not values["url"] or not values["password"]:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nextcloud URL, username, and app password are required to browse files.")
-        url = self._validate_nextcloud_base_url(values["url"])
+        normalized = self._normalize_nextcloud_url(values["url"], values["username"])
+        if not normalized["username"]:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nextcloud URL, username, and app password are required to browse files.")
         path = str(body.get("path") or body.get("current_path") or "/") if isinstance(body, dict) else "/"
-        client = NextcloudClient(url, values["username"], values["password"])
+        client = NextcloudClient(
+            normalized["server_root_url"],
+            normalized["username"],
+            values["password"],
+            webdav_files_root_url=normalized["webdav_files_root_url"],
+        )
         try:
             result = await client.browse_directory(path)
         except IntegrationError as exc:
@@ -518,7 +525,7 @@ class CommerceHubService:
 
     async def _test_nextcloud_source_connection(self) -> dict:
         values = self._nextcloud_values({}, allow_stored=True)
-        if not values["url"] or not values["username"] or not values["password"]:
+        if not values["url"] or not values["password"]:
             return {
                 **self._connection_base(),
                 "ok": False,
@@ -532,10 +539,28 @@ class CommerceHubService:
                 "external_call_performed": False,
             }
 
-        url = self._validate_nextcloud_base_url(values["url"])
+        normalized = self._normalize_nextcloud_url(values["url"], values["username"])
+        if not normalized["username"]:
+            return {
+                **self._connection_base(),
+                "ok": False,
+                "connected": False,
+                "authenticated": False,
+                "status": "not_configured",
+                "http_status": None,
+                "latency_ms": None,
+                "checked_at": self._checked_at(),
+                "message": "Nextcloud is not configured. No external call was performed.",
+                "external_call_performed": False,
+            }
         started = monotonic()
         checked_at = self._checked_at()
-        client = NextcloudClient(url, values["username"], values["password"])
+        client = NextcloudClient(
+            normalized["server_root_url"],
+            normalized["username"],
+            values["password"],
+            webdav_files_root_url=normalized["webdav_files_root_url"],
+        )
         try:
             ok, message, _ = await client.test_connection()
             await client.browse_directory("/")
@@ -596,6 +621,7 @@ class CommerceHubService:
             "username": str(settings.get("username") or "").strip(),
             "password": str(secrets.get("password") or settings.get("password") or "").strip(),
             "spreadsheet_path": str(settings.get("spreadsheet_path") or "").strip(),
+            "webdav_files_root_url": str(settings.get("webdav_files_root_url") or "").strip(),
         }
         if allow_stored:
             values = {
@@ -603,34 +629,78 @@ class CommerceHubService:
                 "username": values["username"] or str(self.integration.config.get("nextcloud.username") or "").strip(),
                 "password": values["password"] or str(self.integration.config.get("nextcloud.password") or "").strip(),
                 "spreadsheet_path": values["spreadsheet_path"] or str(self.integration.config.get("nextcloud.spreadsheet_path") or "").strip(),
+                "webdav_files_root_url": values["webdav_files_root_url"] or str(self.integration.config.get("nextcloud.webdav_files_root_url") or "").strip(),
             }
         return values
 
     def _validate_nextcloud_source_body(self, body: dict) -> None:
         values = self._nextcloud_values(body, allow_stored=False)
         if values["url"]:
-            self._validate_nextcloud_base_url(values["url"])
+            self._normalize_nextcloud_url(values["url"], values["username"])
 
     def _validate_nextcloud_base_url(self, raw_url: str) -> str:
+        return self._normalize_nextcloud_url(raw_url, "")["server_root_url"]
+
+    def _normalize_nextcloud_url(self, raw_url: str, configured_username: str = "") -> dict[str, str]:
         parsed = urlparse(str(raw_url or "").strip())
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Base URL must be the root Nextcloud server URL.")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.")
         path = (parsed.path or "").rstrip("/")
         lowered = path.lower()
-        if "/index.php/s/" in lowered or lowered.startswith("/s/"):
+        if (
+            "/index.php/s/" in lowered
+            or lowered.endswith("/index.php/s")
+            or lowered == "/s"
+            or lowered.endswith("/s")
+            or lowered.startswith("/s/")
+            or "/s/" in lowered
+        ):
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "Base URL must be the root Nextcloud server URL, not a public share link.",
+                "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL.",
+            )
+        if "/public.php/dav/files" in lowered:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL.",
             )
         if lowered.startswith("/remote.php/dav/files/"):
             if parsed.query or parsed.fragment:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Base URL must be the root Nextcloud server URL.")
-            return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.")
+        marker = "/remote.php/dav/files"
+        marker_index = lowered.find(marker)
+        if marker_index >= 0:
+            if parsed.query or parsed.fragment:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.")
+            remainder = path[marker_index + len(marker):].strip("/")
+            username_from_url = unquote(remainder.split("/", 1)[0]) if remainder else ""
+            if not username_from_url:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.")
+            username = str(configured_username or "").strip()
+            if username and username != username_from_url:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "WebDAV URL username does not match configured username.")
+            server_path = path[:marker_index].rstrip("/")
+            server_root_url = f"{parsed.scheme}://{parsed.netloc}{server_path}".rstrip("/")
+            webdav_files_root_url = f"{server_root_url}/remote.php/dav/files/{username_from_url}/"
+            return {
+                "server_root_url": server_root_url,
+                "webdav_files_root_url": webdav_files_root_url,
+                "username": username or username_from_url,
+                "username_from_url": username_from_url,
+            }
         if "/remote.php/dav" in lowered or "/apps/files" in lowered:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Base URL must be the root Nextcloud server URL.")
-        if path not in {"", "/"} or parsed.query or parsed.fragment:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Base URL must be the root Nextcloud server URL.")
-        return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.")
+        if parsed.query or parsed.fragment:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.")
+        server_root_url = f"{parsed.scheme}://{parsed.netloc}{path}".rstrip("/")
+        username = str(configured_username or "").strip()
+        webdav_files_root_url = f"{server_root_url}/remote.php/dav/files/{username}/" if username else ""
+        return {
+            "server_root_url": server_root_url,
+            "webdav_files_root_url": webdav_files_root_url,
+            "username": username,
+            "username_from_url": "",
+        }
 
     def _persist_woocommerce_app_config(self, body: dict) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
@@ -649,9 +719,14 @@ class CommerceHubService:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
         pairs: dict[str, str] = {}
-        if settings.get("url"):
-            pairs["nextcloud.url"] = self._validate_nextcloud_base_url(str(settings["url"]))
-        if settings.get("username"):
+        normalized = self._normalize_nextcloud_url(str(settings.get("url") or ""), str(settings.get("username") or "")) if settings.get("url") else None
+        if normalized:
+            pairs["nextcloud.url"] = normalized["server_root_url"]
+            if normalized["webdav_files_root_url"]:
+                pairs["nextcloud.webdav_files_root_url"] = normalized["webdav_files_root_url"]
+            if normalized["username"]:
+                pairs["nextcloud.username"] = normalized["username"]
+        elif settings.get("username"):
             pairs["nextcloud.username"] = str(settings["username"]).strip()
         if secrets.get("password"):
             pairs["nextcloud.password"] = str(secrets["password"])

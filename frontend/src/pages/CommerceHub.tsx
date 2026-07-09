@@ -168,19 +168,65 @@ function validateNextcloudBaseUrl(value: string): string | null {
   try {
     const url = new URL(trimmed)
     const path = url.pathname.replace(/\/$/, '').toLowerCase()
-    if (path.includes('/index.php/s/') || path.startsWith('/s/')) {
-      return 'Base URL must be the root Nextcloud server URL, not a public share link.'
+    if (
+      path.includes('/index.php/s/') ||
+      path.endsWith('/index.php/s') ||
+      path === '/s' ||
+      path.endsWith('/s') ||
+      path.startsWith('/s/') ||
+      path.includes('/s/')
+    ) {
+      return 'Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL.'
     }
-    if (path.startsWith('/remote.php/dav/files/') && !url.search && !url.hash) {
-      return null
+    if (path.includes('/public.php/dav/files')) {
+      return 'Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL.'
     }
-    if (path.includes('/remote.php/dav') || path.includes('/apps/files') || path.length > 0) {
-      return 'Base URL must be the root Nextcloud server URL.'
+    const marker = '/remote.php/dav/files/'
+    if (path.includes(marker) && !url.search && !url.hash) {
+      const username = path.slice(path.indexOf(marker) + marker.length).split('/')[0]
+      return username ? null : 'Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.'
+    }
+    if (path.includes('/remote.php/dav/files') || path.includes('/remote.php/dav') || path.includes('/apps/files') || url.search || url.hash) {
+      return 'Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.'
     }
   } catch {
-    return 'Base URL must be the root Nextcloud server URL.'
+    return 'Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.'
   }
   return null
+}
+
+function webdavUsernameFromUrl(value: string): string {
+  try {
+    const path = new URL(value.trim()).pathname.replace(/\/$/, '')
+    const marker = '/remote.php/dav/files/'
+    const index = path.toLowerCase().indexOf(marker)
+    if (index < 0) {
+      return ''
+    }
+    return decodeURIComponent(path.slice(index + marker.length).split('/')[0] || '').trim()
+  } catch {
+    return ''
+  }
+}
+
+function webdavUrlUsernameMismatch(value: string, username: string): string | null {
+  const usernameFromUrl = webdavUsernameFromUrl(value)
+  if (usernameFromUrl && username.trim() && username.trim() !== usernameFromUrl) {
+    return 'WebDAV URL username does not match configured username.'
+  }
+  return null
+}
+
+function hasNextcloudUsername(settings: Record<string, string>): boolean {
+  return Boolean(settings.username || webdavUsernameFromUrl(String(settings.url ?? '')))
+}
+
+function nextcloudUrlErrorFor(settings: Record<string, string>): string | null {
+  const urlError = validateNextcloudBaseUrl(String(settings.url ?? ''))
+  if (urlError) {
+    return urlError
+  }
+  return webdavUrlUsernameMismatch(String(settings.url ?? ''), String(settings.username ?? ''))
 }
 
 function NextcloudFilePicker({
@@ -286,7 +332,7 @@ function ConfigPanel({
   const [pickerData, setPickerData] = useState<NextcloudBrowseResult | null>(null)
   const [pickerError, setPickerError] = useState<string | null>(null)
   const nextcloudUrlError = kind === 'source' && selected?.provider === 'nextcloud'
-    ? validateNextcloudBaseUrl(String(settings.url ?? ''))
+    ? nextcloudUrlErrorFor(settings)
     : null
 
   useEffect(() => {
@@ -353,7 +399,7 @@ function ConfigPanel({
       notifyError(nextcloudUrlError)
       return
     }
-    if (!settings.url || !settings.username || !secrets.password) {
+    if (!settings.url || !hasNextcloudUsername(settings) || !secrets.password) {
       const message = 'Enter Nextcloud server URL, Username, and App password / token before browsing Nextcloud.'
       setPickerError(message)
       notifyError(message)
@@ -450,7 +496,14 @@ function ConfigPanel({
               onChange={event => {
                 const value = event.target.value
                 if (field.secret) setSecrets(current => ({ ...current, [field.key]: value }))
-                else setSettings(current => ({ ...current, [field.key]: value }))
+                else setSettings(current => {
+                  const next = { ...current, [field.key]: value }
+                  if (selected.provider === 'nextcloud' && field.key === 'url' && !next.username) {
+                    const usernameFromUrl = webdavUsernameFromUrl(value)
+                    if (usernameFromUrl) next.username = usernameFromUrl
+                  }
+                  return next
+                })
               }}
               className="fh-input"
               autoComplete="off"

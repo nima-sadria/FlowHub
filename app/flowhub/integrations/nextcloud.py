@@ -55,11 +55,12 @@ def _to_integration_error(exc: ConnectorError, endpoint: str) -> IntegrationErro
 class NextcloudClient:
     """Async read-only Nextcloud / WebDAV client backed by the connector framework."""
 
-    def __init__(self, url: str, username: str, password: str) -> None:
+    def __init__(self, url: str, username: str, password: str, *, webdav_files_root_url: str | None = None) -> None:
         self._creds = NextcloudCredentials(
             url=url.rstrip("/"),
             username=username,
             password=password,
+            webdav_files_root_url=webdav_files_root_url if webdav_files_root_url else None,
         )
 
     @classmethod
@@ -68,9 +69,15 @@ class NextcloudClient:
         url = config.get("nextcloud.url")
         username = config.get("nextcloud.username")
         password = config.get("nextcloud.password")
+        webdav_files_root_url = config.get("nextcloud.webdav_files_root_url")
         if not url or not username or not password:
             return None
-        return cls(url, username, password)
+        return cls(url, username, password, webdav_files_root_url=webdav_files_root_url)
+
+    def _webdav_base_url(self) -> str:
+        if self._creds.webdav_files_root_url:
+            return self._creds.webdav_files_root_url.rstrip("/")
+        return f"{self._creds.url}/remote.php/dav/files/{self._creds.username}"
 
     def _clean_path(self, path: str) -> str:
         """Normalize a user file path and reject traversal outside WebDAV root."""
@@ -99,9 +106,7 @@ class NextcloudClient:
         Raises IntegrationError on HTTP or network failure.
         """
         clean_path = self._clean_path(path)
-        endpoint = (
-            f"{self._creds.url}/remote.php/dav/files/{self._creds.username}{clean_path}"
-        )
+        endpoint = f"{self._webdav_base_url()}{clean_path}"
         logger.info("nc download_file provider=%s path=%s", _PROVIDER, path)
         t0 = time.monotonic()
         try:
@@ -172,9 +177,10 @@ class NextcloudClient:
         openpyxl workbooks only.
         """
         clean_path = self._clean_path(path)
-        endpoint = f"{self._creds.url}/remote.php/dav/files/{self._creds.username}{clean_path}"
+        browse_path = clean_path if clean_path == "/" else f"{clean_path.rstrip('/')}/"
+        endpoint = f"{self._webdav_base_url()}{browse_path}"
         try:
-            resources = await propfind_path(self._creds, clean_path, depth="1")
+            resources = await propfind_path(self._creds, browse_path, depth="1")
         except ConnectorError as exc:
             raise _to_integration_error(exc, endpoint) from exc
         current = clean_path.rstrip("/") or "/"
@@ -201,7 +207,7 @@ class NextcloudClient:
     async def get_resource_info(self, path: str) -> dict:
         """Return browser metadata for one resource, raising if it is unavailable."""
         clean_path = self._clean_path(path)
-        endpoint = f"{self._creds.url}/remote.php/dav/files/{self._creds.username}{clean_path}"
+        endpoint = f"{self._webdav_base_url()}{clean_path}"
         try:
             resources = await propfind_path(self._creds, clean_path, depth="0")
         except ConnectorError as exc:
@@ -259,6 +265,7 @@ class NextcloudClient:
                 "url": self._creds.url,
                 "username": self._creds.username,
                 "password": self._creds.password,
+                "webdav_files_root_url": self._creds.webdav_files_root_url or "",
             },
         )
         t0 = time.monotonic()

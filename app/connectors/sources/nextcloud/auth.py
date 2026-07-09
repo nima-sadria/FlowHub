@@ -16,6 +16,7 @@ class NextcloudCredentials:
     url: str      # base URL, trailing slash stripped
     username: str
     password: str
+    webdav_files_root_url: str | None = None
 
 
 def extract_credentials(auth: AuthConfig) -> NextcloudCredentials:
@@ -50,4 +51,5 @@ def extract_credentials(auth: AuthConfig) -> NextcloudCredentials:
         url=url.rstrip("/"),
         username=username,
         password=password,
+        webdav_files_root_url=auth.get("webdav_files_root_url", "") or None,
     )

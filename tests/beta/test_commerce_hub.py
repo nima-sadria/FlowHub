@@ -263,35 +263,22 @@ def test_source_placeholder_connection_test_does_not_call_external_system(client
     assert data["write_blocked"] is True
 
 
-def test_nextcloud_source_accepts_root_base_url(client, auth_headers):
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://softpple.business",
+        "https://softpple.business/",
+        "https://example.com/nextcloud",
+    ],
+)
+def test_nextcloud_source_accepts_root_base_url(client, auth_headers, url):
     response = client.put(
         "/api/v2/commerce/sources/nextcloud:primary/settings",
         headers=auth_headers,
         json={
             "enabled": True,
             "settings": {
-                "url": "https://softpple.business",
-                "username": "woo",
-                "spreadsheet_path": "/Price Sheet.xlsx",
-            },
-            "secrets": {"password": "app-password-secret"},
-        },
-    )
-
-    assert response.status_code == 200
-    assert "app-password-secret" not in response.text
-    assert response.json()["read_only"] is True
-    assert response.json()["write_pipeline_eligible"] is False
-
-
-def test_nextcloud_source_accepts_webdav_files_url_as_input(client, auth_headers):
-    response = client.put(
-        "/api/v2/commerce/sources/nextcloud:primary/settings",
-        headers=auth_headers,
-        json={
-            "enabled": True,
-            "settings": {
-                "url": "https://softpple.business/remote.php/dav/files/woo",
+                "url": url,
                 "username": "woo",
                 "spreadsheet_path": "/Price Sheet.xlsx",
             },
@@ -306,15 +293,94 @@ def test_nextcloud_source_accepts_webdav_files_url_as_input(client, auth_headers
 
 
 @pytest.mark.parametrize(
+    "url",
+    [
+        "https://softpple.business/remote.php/dav/files/woo",
+        "https://softpple.business/remote.php/dav/files/woo/",
+        "https://example.com/nextcloud/remote.php/dav/files/USERNAME/",
+    ],
+)
+def test_nextcloud_source_accepts_webdav_files_url_as_input(client, auth_headers, url):
+    response = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": url,
+                "username": url.rstrip("/").rsplit("/", 1)[-1],
+                "spreadsheet_path": "/Price Sheet.xlsx",
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "app-password-secret" not in response.text
+    assert response.json()["read_only"] is True
+    assert response.json()["write_pipeline_eligible"] is False
+
+
+def test_nextcloud_source_extracts_username_from_webdav_url(client, auth_headers, db):
+    from app.flowhub.setup.service import AppConfigService
+
+    response = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://example.com/nextcloud/remote.php/dav/files/woo/",
+                "spreadsheet_path": "/wooprice/Price List.xlsx",
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 200
+    cfg = AppConfigService(db)
+    assert cfg.get("nextcloud.url") == "https://example.com/nextcloud"
+    assert cfg.get("nextcloud.webdav_files_root_url") == "https://example.com/nextcloud/remote.php/dav/files/woo/"
+    assert cfg.get("nextcloud.username") == "woo"
+    assert cfg.get("nextcloud.spreadsheet_path") == "/wooprice/Price List.xlsx"
+
+
+def test_nextcloud_source_rejects_webdav_username_mismatch(client, auth_headers):
+    response = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "settings": {"url": "https://softpple.business/remote.php/dav/files/woo", "username": "admin"},
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert "WebDAV URL username does not match configured username." in response.text
+
+
+@pytest.mark.parametrize(
     ("url", "message"),
     [
         (
             "https://softpple.business/index.php/s/xxxxx",
-            "Base URL must be the root Nextcloud server URL, not a public share link.",
+            "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL.",
+        ),
+        (
+            "https://softpple.business/public.php/dav/files/xxxxx/",
+            "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL.",
+        ),
+        (
+            "https://softpple.business/remote.php/dav/files/",
+            "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.",
         ),
         (
             "https://softpple.business/apps/files/",
-            "Base URL must be the root Nextcloud server URL.",
+            "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.",
+        ),
+        (
+            "not-a-url",
+            "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.",
         ),
     ],
 )
@@ -339,7 +405,14 @@ def test_nextcloud_webdav_browse_returns_folders_and_spreadsheets_without_secret
     calls: list[dict] = []
 
     async def fake_propfind(creds, path, depth="1"):
-        calls.append({"url": creds.url, "username": creds.username, "password": creds.password, "path": path, "depth": depth})
+        calls.append({
+            "url": creds.url,
+            "webdav_files_root_url": creds.webdav_files_root_url,
+            "username": creds.username,
+            "password": creds.password,
+            "path": path,
+            "depth": depth,
+        })
         return [
             DavResource("/remote.php/dav/files/woo/Reports/", True, last_modified="Mon, 01 Jan 2024 00:00:00 GMT"),
             DavResource("/remote.php/dav/files/woo/Reports/Subfolder/", True, last_modified="Tue, 02 Jan 2024 00:00:00 GMT"),
@@ -373,7 +446,51 @@ def test_nextcloud_webdav_browse_returns_folders_and_spreadsheets_without_secret
     assert files["Q1.xlsx"]["supported"] is True
     assert files["legacy.xls"]["supported"] is False
     assert files["prices.csv"]["supported"] is False
-    assert calls == [{"url": "https://softpple.business", "username": "woo", "password": "app-password-secret", "path": "/Reports", "depth": "1"}]
+    assert calls == [{
+        "url": "https://softpple.business",
+        "webdav_files_root_url": "https://softpple.business/remote.php/dav/files/woo/",
+        "username": "woo",
+        "password": "app-password-secret",
+        "path": "/Reports/",
+        "depth": "1",
+    }]
+
+
+def test_nextcloud_webdav_browse_root_uses_webdav_files_root(client, auth_headers, monkeypatch):
+    from app.connectors.sources.nextcloud.webdav import DavResource
+
+    calls: list[dict] = []
+
+    async def fake_propfind(creds, path, depth="1"):
+        calls.append({
+            "url": creds.url,
+            "webdav_files_root_url": creds.webdav_files_root_url,
+            "username": creds.username,
+            "path": path,
+            "depth": depth,
+        })
+        return [DavResource("/nextcloud/remote.php/dav/files/woo/", True)]
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.propfind_path", fake_propfind)
+
+    response = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/browse",
+        headers=auth_headers,
+        json={
+            "path": "/",
+            "settings": {"url": "https://example.com/nextcloud/remote.php/dav/files/woo/"},
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert calls == [{
+        "url": "https://example.com/nextcloud",
+        "webdav_files_root_url": "https://example.com/nextcloud/remote.php/dav/files/woo/",
+        "username": "woo",
+        "path": "/",
+        "depth": "1",
+    }]
 
 
 def test_nextcloud_webdav_browse_rejects_path_traversal(client, auth_headers, monkeypatch):
