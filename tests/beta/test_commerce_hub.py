@@ -514,12 +514,8 @@ def test_nextcloud_webdav_browse_rejects_path_traversal(client, auth_headers, mo
     assert "app-password-secret" not in response.text
 
 
-def test_nextcloud_test_connection_uses_webdav_and_checks_spreadsheet_path(client, auth_headers, monkeypatch):
+def test_nextcloud_test_connection_with_root_url_uses_webdav_and_checks_spreadsheet_path(client, auth_headers, monkeypatch):
     calls: list[str] = []
-
-    async def fake_test_connection(self):
-        calls.append("test")
-        return True, "Connected to Nextcloud 28", 3.0
 
     async def fake_browse(self, path="/"):
         calls.append(f"browse:{path}")
@@ -529,7 +525,6 @@ def test_nextcloud_test_connection_uses_webdav_and_checks_spreadsheet_path(clien
         calls.append(f"info:{path}")
         return {"name": "prices.xlsx", "path": path, "type": "file", "extension": ".xlsx", "supported": True}
 
-    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.test_connection", fake_test_connection)
     monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fake_browse)
     monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.get_resource_info", fake_info)
 
@@ -550,10 +545,159 @@ def test_nextcloud_test_connection_uses_webdav_and_checks_spreadsheet_path(clien
     assert "app-password-secret" not in response.text
     data = response.json()
     assert data["ok"] is True
+    assert data["status"] == "operational"
+    assert data["webdav_reachable"] is True
+    assert data["spreadsheet_found"] is True
+    assert data["normalized_base_url"] == "https://softpple.business"
+    assert data["normalized_webdav_url"] == "https://softpple.business/remote.php/dav/files/woo/"
+    assert data["message"] == "Connection successful. Spreadsheet found."
     assert data["external_call_performed"] is True
     assert data["read_only"] is True
     assert data["write_blocked"] is True
-    assert calls == ["test", "browse:/", "info:/prices.xlsx"]
+    assert calls == ["browse:/", "info:/prices.xlsx"]
+
+    detail = client.get("/api/v2/commerce/sources/nextcloud:primary", headers=auth_headers)
+    assert detail.status_code == 200
+    assert detail.json()["health"]["status"] == "healthy"
+    assert detail.json()["last_health_check"]
+    assert detail.json()["credential_status"] == "configured"
+
+
+def test_nextcloud_test_connection_with_webdav_url_succeeds_without_spreadsheet_path(client, auth_headers, monkeypatch):
+    calls: list[str] = []
+
+    async def fake_browse(self, path="/"):
+        calls.append(f"browse:{path}")
+        return {"path": "/", "directories": [], "files": [], "read_only": True, "write_blocked": True}
+
+    async def fail_info(self, path):
+        raise AssertionError("empty spreadsheet path must not be checked")
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fake_browse)
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.get_resource_info", fail_info)
+
+    save = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"url": "https://example.com/nextcloud/remote.php/dav/files/woo/"},
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+    assert save.status_code == 200
+
+    response = client.post("/api/v2/commerce/sources/nextcloud:primary/test", headers=auth_headers, json={})
+
+    assert response.status_code == 200
+    assert "app-password-secret" not in response.text
+    data = response.json()
+    assert data["ok"] is True
+    assert data["status"] == "operational"
+    assert data["webdav_reachable"] is True
+    assert data["spreadsheet_found"] is None
+    assert data["normalized_base_url"] == "https://example.com/nextcloud"
+    assert data["normalized_webdav_url"] == "https://example.com/nextcloud/remote.php/dav/files/woo/"
+    assert data["message"] == "Connection successful. Select a spreadsheet file to enable preview."
+    assert calls == ["browse:/"]
+
+
+def test_nextcloud_test_connection_rejects_stored_public_share_url(client, auth_headers, db, monkeypatch):
+    from app.flowhub.setup.service import AppConfigService
+
+    async def fail_browse(self, path="/"):
+        raise AssertionError("invalid public share URL must fail before WebDAV")
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fail_browse)
+    AppConfigService(db).set_many(
+        {
+            "nextcloud.url": "https://softpple.business/index.php/s/xxxxx",
+            "nextcloud.username": "woo",
+            "nextcloud.password": "app-password-secret",
+        },
+        updated_by="test",
+    )
+
+    response = client.post("/api/v2/commerce/sources/nextcloud:primary/test", headers=auth_headers, json={})
+
+    assert response.status_code == 200
+    assert "app-password-secret" not in response.text
+    data = response.json()
+    assert data["ok"] is False
+    assert data["status"] == "error"
+    assert data["webdav_reachable"] is False
+    assert data["spreadsheet_found"] is None
+    assert data["message"] == "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL."
+
+
+def test_nextcloud_test_connection_wrong_credentials_fail_safely(client, auth_headers, monkeypatch):
+    from app.flowhub.integrations.errors import IntegrationError
+
+    async def fake_browse(self, path="/"):
+        raise IntegrationError("Nextcloud", "/remote.php/dav/files/woo/", "Authentication failed - check username and app password", status_code=401)
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fake_browse)
+
+    save = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"url": "https://softpple.business", "username": "woo"},
+            "secrets": {"password": "wrong-secret"},
+        },
+    )
+    assert save.status_code == 200
+
+    response = client.post("/api/v2/commerce/sources/nextcloud:primary/test", headers=auth_headers, json={})
+
+    assert response.status_code == 200
+    assert "wrong-secret" not in response.text
+    data = response.json()
+    assert data["ok"] is False
+    assert data["status"] == "error"
+    assert data["webdav_reachable"] is False
+    assert data["spreadsheet_found"] is None
+    assert data["message"] == "Authentication failed."
+
+    detail = client.get("/api/v2/commerce/sources/nextcloud:primary", headers=auth_headers)
+    assert detail.status_code == 200
+    assert detail.json()["health"]["status"] == "unhealthy"
+    assert detail.json()["health"]["error_code"] == "authentication_failed"
+
+
+def test_nextcloud_test_connection_missing_spreadsheet_fails_clearly(client, auth_headers, monkeypatch):
+    from app.flowhub.integrations.errors import IntegrationError
+
+    async def fake_browse(self, path="/"):
+        return {"path": "/", "directories": [], "files": [], "read_only": True, "write_blocked": True}
+
+    async def missing_info(self, path):
+        raise IntegrationError("Nextcloud", "/remote.php/dav/files/woo/missing.xlsx", "File not found: /missing.xlsx", status_code=404)
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fake_browse)
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.get_resource_info", missing_info)
+
+    save = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"url": "https://softpple.business", "username": "woo", "spreadsheet_path": "/missing.xlsx"},
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+    assert save.status_code == 200
+
+    response = client.post("/api/v2/commerce/sources/nextcloud:primary/test", headers=auth_headers, json={})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"] is False
+    assert data["status"] == "error"
+    assert data["webdav_reachable"] is True
+    assert data["spreadsheet_found"] is False
+    assert data["message"] == "Spreadsheet not found."
 
 
 def test_channel_detail_health_and_capabilities(client, auth_headers):

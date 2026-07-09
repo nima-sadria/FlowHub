@@ -8,6 +8,11 @@ export interface ConnectionCheckResult {
   read_only: boolean
   runtime_write_blocked: boolean
   write_blocked: boolean
+  webdav_reachable?: boolean
+  spreadsheet_found?: boolean | null
+  normalized_base_url?: string
+  normalized_webdav_url?: string
+  checked_at?: string
 }
 
 export interface CommerceService {

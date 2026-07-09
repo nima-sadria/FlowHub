@@ -149,13 +149,18 @@ const commerce: CommerceService = {
   },
   async testSource() {
     return {
-      ok: false,
-      status: 'not_configured',
-      message: 'No external call was performed.',
-      external_call_performed: false,
+      ok: true,
+      status: 'operational',
+      message: 'Connection successful. Spreadsheet found.',
+      external_call_performed: true,
       read_only: true,
       runtime_write_blocked: true,
       write_blocked: true,
+      webdav_reachable: true,
+      spreadsheet_found: true,
+      normalized_base_url: 'https://softpple.business',
+      normalized_webdav_url: 'https://softpple.business/remote.php/dav/files/woo/',
+      checked_at: '2026-07-09T10:00:00Z',
     }
   },
   async getChannels() {
@@ -394,6 +399,117 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Planned source')
     expect(c.textContent).not.toContain('Snapp Shop')
     expect(c.textContent).not.toContain('Tapsi Shop')
+  })
+
+  it('shows Nextcloud source Test connection action but not planned source test actions', async () => {
+    const c = await renderPage()
+    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
+    await act(async () => {
+      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    const testButtons = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Test connection')
+    expect(testButtons).toHaveLength(1)
+    expect(c.textContent).toContain('Nextcloud')
+    expect(c.textContent).toContain('CSV')
+    expect(c.textContent).toContain('Google Sheets')
+  })
+
+  it('tests Nextcloud source connection, shows loading, renders success, and refreshes source health', async () => {
+    let resolveTest: ((value: Awaited<ReturnType<CommerceService['testSource']>>) => void) | undefined
+    let tested = false
+    const refreshedSource = {
+      id: 'nextcloud:primary',
+      provider: 'nextcloud',
+      name: 'Nextcloud',
+      type: 'Source' as const,
+      status: 'healthy',
+      implemented: true,
+      placeholder: false,
+      credential_status: 'configured',
+      last_health_check: '2026-07-09T10:00:00Z',
+      data_role: 'Spreadsheet price input',
+      action_label: 'Manage',
+      action_href: '/commerce?tab=sources',
+      health: { status: 'healthy', message: 'Connection successful. Spreadsheet found.', latency_ms: 12, error_code: null },
+      read_only: true,
+      runtime_write_blocked: true,
+      settings_available: true,
+    }
+    const testCommerce: CommerceService = {
+      ...commerce,
+      async getSources() {
+        const original = await commerce.getSources()
+        return tested
+          ? { ...original, items: [refreshedSource, ...original.items.slice(1)] }
+          : original
+      },
+      async testSource() {
+        return new Promise(resolve => {
+          resolveTest = resolve
+        })
+      },
+    }
+    const c = await renderPage(adminUser, testCommerce)
+    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
+    await act(async () => {
+      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    const testButton = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
+
+    await act(async () => {
+      testButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+    expect(c.textContent).toContain('Testing')
+
+    await act(async () => {
+      tested = true
+      resolveTest?.({
+        ok: true,
+        status: 'operational',
+        message: 'Connection successful. Spreadsheet found.',
+        external_call_performed: true,
+        read_only: true,
+        runtime_write_blocked: true,
+        write_blocked: true,
+      })
+      await Promise.resolve()
+    })
+
+    expect(c.textContent).toContain('Connection successful. Spreadsheet found.')
+    expect(c.textContent).toContain('Healthy')
+    expect(c.textContent).toContain('Configured')
+  })
+
+  it('renders Nextcloud source connection failure message', async () => {
+    const failingCommerce: CommerceService = {
+      ...commerce,
+      async testSource() {
+        return {
+          ok: false,
+          status: 'error',
+          message: 'Authentication failed.',
+          external_call_performed: true,
+          read_only: true,
+          runtime_write_blocked: true,
+          write_blocked: true,
+        }
+      },
+    }
+    const c = await renderPage(adminUser, failingCommerce)
+    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
+    await act(async () => {
+      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    const testButton = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
+
+    await act(async () => {
+      testButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(c.textContent).toContain('Authentication failed.')
   })
 
   it('opens Source and Channel forms without rendering secrets', async () => {

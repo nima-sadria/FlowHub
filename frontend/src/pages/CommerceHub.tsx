@@ -76,7 +76,13 @@ function RelationshipMap({ map }: { map: CommerceRelationshipMap | null }) {
   )
 }
 
-function SourceCard({ source }: { source: CommerceSource }) {
+function SourceCard({ source, onTest, testing, canManage }: {
+  source: CommerceSource
+  onTest: (sourceId: string) => void
+  testing: boolean
+  canManage: boolean
+}) {
+  const canTest = canManage && source.provider === 'nextcloud' && !source.placeholder
   return (
     <div className="fh-card fh-card-pad flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
@@ -100,7 +106,19 @@ function SourceCard({ source }: { source: CommerceSource }) {
         <p><span className="text-wp-muted">Data role: </span><span className="font-medium text-text-base">{source.data_role}</span></p>
       </div>
 
-      <SafetyBadges readOnly={source.read_only} writeBlocked={source.runtime_write_blocked} />
+      <div className="flex items-center justify-between gap-3">
+        <SafetyBadges readOnly={source.read_only} writeBlocked={source.runtime_write_blocked} />
+        {canTest && (
+          <button
+            onClick={() => onTest(source.id)}
+            disabled={testing}
+            className="fh-button-secondary px-3 py-1.5 text-[12px]"
+          >
+            {testing && <Spinner size="sm" />}
+            {testing ? 'Testing' : 'Test connection'}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -606,7 +624,25 @@ export default function CommerceHub() {
     setFormKind(null)
   }
 
-  async function handleTest(channelId: string) {
+  async function handleSourceTest(sourceId: string) {
+    if (!canManageCommerce) {
+      notifyError('Admin permission required.')
+      return
+    }
+    setTestingId(sourceId)
+    try {
+      const result = await commerce.testSource(sourceId)
+      if (result.ok) info(result.message)
+      else notifyError(result.message)
+      await loadCommerce()
+    } catch (error) {
+      notifyError(apiErrorMessage(error, 'Unable to test connection'))
+    } finally {
+      setTestingId(null)
+    }
+  }
+
+  async function handleChannelTest(channelId: string) {
     if (!canManageCommerce) {
       notifyError('Admin permission required.')
       return
@@ -616,6 +652,7 @@ export default function CommerceHub() {
       const result = await commerce.testChannel(channelId)
       if (result.ok) info(result.message)
       else notifyError(result.message)
+      await loadCommerce()
     } catch (error) {
       notifyError(apiErrorMessage(error, 'Unable to test connection'))
     } finally {
@@ -680,7 +717,15 @@ export default function CommerceHub() {
             </div>
           )}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {sources.map(source => <SourceCard key={source.id} source={source} />)}
+            {sources.map(source => (
+              <SourceCard
+                key={source.id}
+                source={source}
+                onTest={(id) => void handleSourceTest(id)}
+                testing={testingId === source.id}
+                canManage={canManageCommerce}
+              />
+            ))}
           </div>
         </section>
       ) : (
@@ -708,7 +753,7 @@ export default function CommerceHub() {
               <ChannelCard
                 key={channel.id}
                 channel={channel}
-                onTest={(id) => void handleTest(id)}
+                onTest={(id) => void handleChannelTest(id)}
                 testing={testingId === channel.id}
                 canManage={canManageCommerce}
               />

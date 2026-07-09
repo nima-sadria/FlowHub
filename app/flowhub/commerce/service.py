@@ -19,6 +19,7 @@ from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import ping as ping_woocommerce
 from app.flowhub.data_layer.models import DlConnectorHealth
+from app.flowhub.data_layer.health_service import ConnectorHealthService
 from app.flowhub.integrations.errors import IntegrationError
 from app.flowhub.integrations.nextcloud import NextcloudClient
 from app.flowhub.integration_platform.contracts import ConnectorCapabilities
@@ -531,65 +532,154 @@ class CommerceHubService:
                 "ok": False,
                 "connected": False,
                 "authenticated": False,
-                "status": "not_configured",
+                "status": "error",
                 "http_status": None,
                 "latency_ms": None,
                 "checked_at": self._checked_at(),
                 "message": "Nextcloud is not configured. No external call was performed.",
+                "webdav_reachable": False,
+                "spreadsheet_found": None,
+                "normalized_base_url": "",
+                "normalized_webdav_url": "",
                 "external_call_performed": False,
             }
 
-        normalized = self._normalize_nextcloud_url(values["url"], values["username"])
+        checked_at = self._checked_at()
+        started = monotonic()
+        try:
+            normalized = self._normalize_nextcloud_url(values["url"], values["username"])
+        except HTTPException as exc:
+            message = str(exc.detail)
+            return self._nextcloud_test_failure(
+                started,
+                checked_at,
+                message,
+                normalized_base_url="",
+                normalized_webdav_url="",
+                webdav_reachable=False,
+                spreadsheet_found=None,
+                external=False,
+                error_class="invalid_url",
+            )
         if not normalized["username"]:
             return {
                 **self._connection_base(),
                 "ok": False,
                 "connected": False,
                 "authenticated": False,
-                "status": "not_configured",
+                "status": "error",
                 "http_status": None,
                 "latency_ms": None,
-                "checked_at": self._checked_at(),
+                "checked_at": checked_at,
                 "message": "Nextcloud is not configured. No external call was performed.",
+                "webdav_reachable": False,
+                "spreadsheet_found": None,
+                "normalized_base_url": normalized["server_root_url"],
+                "normalized_webdav_url": normalized["webdav_files_root_url"],
                 "external_call_performed": False,
             }
-        started = monotonic()
-        checked_at = self._checked_at()
+        normalized_webdav_url = values["webdav_files_root_url"] or normalized["webdav_files_root_url"]
         client = NextcloudClient(
             normalized["server_root_url"],
             normalized["username"],
             values["password"],
-            webdav_files_root_url=normalized["webdav_files_root_url"],
+            webdav_files_root_url=normalized_webdav_url,
         )
         try:
-            ok, message, _ = await client.test_connection()
             await client.browse_directory("/")
             spreadsheet_path = values.get("spreadsheet_path") or ""
+            spreadsheet_found: bool | None = None
             if spreadsheet_path:
-                item = await client.get_resource_info(spreadsheet_path)
+                try:
+                    item = await client.get_resource_info(spreadsheet_path)
+                except IntegrationError as exc:
+                    return self._nextcloud_test_failure(
+                        started,
+                        checked_at,
+                        "Spreadsheet not found.",
+                        normalized_base_url=normalized["server_root_url"],
+                        normalized_webdav_url=normalized_webdav_url,
+                        webdav_reachable=True,
+                        spreadsheet_found=False,
+                        external=True,
+                        http_status=exc.status_code,
+                        error_class="spreadsheet_not_found",
+                    )
                 if item["type"] != "file":
-                    return self._nextcloud_test_failure(started, checked_at, "Spreadsheet Path points to a directory.", external=True)
+                    return self._nextcloud_test_failure(
+                        started,
+                        checked_at,
+                        "Spreadsheet Path points to a directory.",
+                        normalized_base_url=normalized["server_root_url"],
+                        normalized_webdav_url=normalized_webdav_url,
+                        webdav_reachable=True,
+                        spreadsheet_found=False,
+                        external=True,
+                        error_class="spreadsheet_invalid",
+                    )
                 if item.get("supported") is not True:
-                    return self._nextcloud_test_failure(started, checked_at, "Spreadsheet Path must be a supported .xlsx file.", external=True)
+                    return self._nextcloud_test_failure(
+                        started,
+                        checked_at,
+                        "Spreadsheet Path must be a supported .xlsx file.",
+                        normalized_base_url=normalized["server_root_url"],
+                        normalized_webdav_url=normalized_webdav_url,
+                        webdav_reachable=True,
+                        spreadsheet_found=False,
+                        external=True,
+                        error_class="spreadsheet_unsupported",
+                    )
+                spreadsheet_found = True
             latency_ms = round((monotonic() - started) * 1000, 2)
+            message = (
+                "Connection successful. Spreadsheet found."
+                if spreadsheet_found is True
+                else "Connection successful. Select a spreadsheet file to enable preview."
+            )
+            self._record_source_health("nextcloud:primary", "healthy", latency_ms, message, None)
             return {
                 **self._connection_base(),
-                "ok": bool(ok),
-                "connected": bool(ok),
-                "authenticated": bool(ok),
-                "status": "connected" if ok else "error",
+                "ok": True,
+                "connected": True,
+                "authenticated": True,
+                "status": "operational",
                 "http_status": None,
                 "latency_ms": latency_ms,
                 "checked_at": checked_at,
-                "message": f"{message}. WebDAV endpoint is reachable.",
+                "message": message,
+                "webdav_reachable": True,
+                "spreadsheet_found": spreadsheet_found,
+                "normalized_base_url": normalized["server_root_url"],
+                "normalized_webdav_url": normalized_webdav_url,
                 "external_call_performed": True,
             }
         except IntegrationError as exc:
-            return self._nextcloud_test_failure(started, checked_at, exc.message, external=True, http_status=exc.status_code)
+            return self._nextcloud_test_failure(
+                started,
+                checked_at,
+                self._safe_nextcloud_error_message(exc),
+                normalized_base_url=normalized["server_root_url"],
+                normalized_webdav_url=normalized_webdav_url,
+                webdav_reachable=False,
+                spreadsheet_found=None,
+                external=True,
+                http_status=exc.status_code,
+                error_class=self._nextcloud_error_class(exc),
+            )
         except HTTPException:
             raise
         except Exception as exc:
-            return self._nextcloud_test_failure(started, checked_at, str(exc)[:200], external=True)
+            return self._nextcloud_test_failure(
+                started,
+                checked_at,
+                "WebDAV not reachable.",
+                normalized_base_url=normalized["server_root_url"],
+                normalized_webdav_url=normalized_webdav_url,
+                webdav_reachable=False,
+                spreadsheet_found=None,
+                external=True,
+                error_class=type(exc).__name__,
+            )
 
     def _nextcloud_test_failure(
         self,
@@ -597,9 +687,16 @@ class CommerceHubService:
         checked_at: str,
         message: str,
         *,
+        normalized_base_url: str,
+        normalized_webdav_url: str,
+        webdav_reachable: bool,
+        spreadsheet_found: bool | None,
         external: bool,
         http_status: int | None = None,
+        error_class: str | None = None,
     ) -> dict:
+        latency_ms = round((monotonic() - started) * 1000, 2)
+        self._record_source_health("nextcloud:primary", "unhealthy", latency_ms, message, error_class or "connection_failed")
         return {
             **self._connection_base(),
             "ok": False,
@@ -607,11 +704,57 @@ class CommerceHubService:
             "authenticated": False,
             "status": "error",
             "http_status": http_status,
-            "latency_ms": round((monotonic() - started) * 1000, 2),
+            "latency_ms": latency_ms,
             "checked_at": checked_at,
             "message": message,
+            "webdav_reachable": webdav_reachable,
+            "spreadsheet_found": spreadsheet_found,
+            "normalized_base_url": normalized_base_url,
+            "normalized_webdav_url": normalized_webdav_url,
             "external_call_performed": external,
         }
+
+    def _record_source_health(
+        self,
+        source_id: str,
+        status_value: str,
+        latency_ms: float | None,
+        detail: str,
+        error_class: str | None,
+    ) -> None:
+        ConnectorHealthService(self.db).upsert(
+            source_id,
+            "source",
+            status_value,
+            latency_ms=latency_ms,
+            detail=detail[:500],
+            error_class=error_class,
+        )
+
+    def _safe_nextcloud_error_message(self, exc: IntegrationError) -> str:
+        message = exc.message or ""
+        lowered = message.lower()
+        if "authentication failed" in lowered or "access denied" in lowered:
+            return "Authentication failed."
+        if "not found" in lowered:
+            return "WebDAV not reachable."
+        if "timed out" in lowered:
+            return "WebDAV not reachable."
+        if "could not connect" in lowered or "connection" in lowered:
+            return "WebDAV not reachable."
+        return message[:200] or "WebDAV not reachable."
+
+    def _nextcloud_error_class(self, exc: IntegrationError) -> str:
+        message = (exc.message or "").lower()
+        if "authentication failed" in message or "access denied" in message:
+            return "authentication_failed"
+        if "not found" in message:
+            return "webdav_not_found"
+        if "timed out" in message:
+            return "timeout"
+        if "could not connect" in message or "connection" in message:
+            return "network"
+        return "connection_failed"
 
     def _nextcloud_values(self, body: dict, *, allow_stored: bool) -> dict[str, str]:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
@@ -837,7 +980,7 @@ class CommerceHubService:
         elif instance.connector_type in {"digikala", "technolife", "shopify"}:
             required = {"api_token"}
         elif instance.connector_type == "nextcloud":
-            required = {"url", "username", "password", "spreadsheet_path"}
+            required = {"url", "username", "password"}
         elif instance.connector_type == "csv":
             required = {"file_path"}
         elif instance.connector_type == "gsheets":
