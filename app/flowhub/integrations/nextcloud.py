@@ -9,14 +9,16 @@ Read-only: file download + metadata only.  No upload, no write, no delete.
 from __future__ import annotations
 
 import logging
+import posixpath
 import time
 from typing import TYPE_CHECKING
+from urllib.parse import unquote
 
 from app.connectors.common.auth import AuthConfig
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.sources.nextcloud.auth import NextcloudCredentials
 from app.connectors.sources.nextcloud.connector import NextcloudConnector
-from app.connectors.sources.nextcloud.webdav import get_file, get_metadata, head_file
+from app.connectors.sources.nextcloud.webdav import DavResource, get_file, get_metadata, head_file, propfind_path
 
 from .errors import IntegrationError
 
@@ -71,8 +73,24 @@ class NextcloudClient:
         return cls(url, username, password)
 
     def _clean_path(self, path: str) -> str:
-        """Ensure path starts with /."""
-        return "/" + path.lstrip("/")
+        """Normalize a user file path and reject traversal outside WebDAV root."""
+        raw = unquote(str(path or "/")).strip().replace("\\", "/")
+        if "\x00" in raw:
+            raise IntegrationError(_PROVIDER, path, "Invalid Nextcloud path.", status_code=422)
+        if not raw.startswith("/"):
+            raw = "/" + raw
+        raw_parts = [part for part in raw.split("/") if part]
+        if any(part == ".." for part in raw_parts):
+            raise IntegrationError(_PROVIDER, path, "Invalid Nextcloud path.", status_code=422)
+        normalized = posixpath.normpath(raw)
+        if normalized == ".":
+            normalized = "/"
+        if not normalized.startswith("/"):
+            normalized = "/" + normalized
+        parts = [part for part in normalized.split("/") if part]
+        if any(part == ".." for part in parts):
+            raise IntegrationError(_PROVIDER, path, "Invalid Nextcloud path.", status_code=422)
+        return normalized
 
     async def download_file(self, path: str) -> tuple[bytes, dict[str, str | None]]:
         """Download file at path.  Returns (raw_bytes, metadata_dict).
@@ -146,6 +164,93 @@ class NextcloudClient:
         except Exception:
             return {"etag": None, "last_modified": None, "content_length": None}
 
+    async def browse_directory(self, path: str = "/") -> dict:
+        """List a WebDAV directory with folders and spreadsheet-compatible files.
+
+        Returns only directories and spreadsheet file extensions. CSV/XLS/ODS are
+        visible but marked unsupported because the current parser supports
+        openpyxl workbooks only.
+        """
+        clean_path = self._clean_path(path)
+        endpoint = f"{self._creds.url}/remote.php/dav/files/{self._creds.username}{clean_path}"
+        try:
+            resources = await propfind_path(self._creds, clean_path, depth="1")
+        except ConnectorError as exc:
+            raise _to_integration_error(exc, endpoint) from exc
+        current = clean_path.rstrip("/") or "/"
+        directories: list[dict] = []
+        files: list[dict] = []
+        for resource in resources:
+            item = self._resource_to_browser_item(resource)
+            if item is None or item["path"].rstrip("/") == current.rstrip("/"):
+                continue
+            if item["type"] == "directory":
+                directories.append(item)
+            elif item["extension"] in _SPREADSHEET_EXTENSIONS:
+                files.append(item)
+        directories.sort(key=lambda item: item["name"].lower())
+        files.sort(key=lambda item: item["name"].lower())
+        return {
+            "path": current,
+            "directories": directories,
+            "files": files,
+            "read_only": True,
+            "write_blocked": True,
+        }
+
+    async def get_resource_info(self, path: str) -> dict:
+        """Return browser metadata for one resource, raising if it is unavailable."""
+        clean_path = self._clean_path(path)
+        endpoint = f"{self._creds.url}/remote.php/dav/files/{self._creds.username}{clean_path}"
+        try:
+            resources = await propfind_path(self._creds, clean_path, depth="0")
+        except ConnectorError as exc:
+            raise _to_integration_error(exc, endpoint) from exc
+        if not resources:
+            raise IntegrationError(_PROVIDER, endpoint, f"File not found: {clean_path}", status_code=404)
+        item = self._resource_to_browser_item(resources[0])
+        if item is None:
+            raise IntegrationError(_PROVIDER, endpoint, f"File not found: {clean_path}", status_code=404)
+        return item
+
+    def _resource_to_browser_item(self, resource: DavResource) -> dict | None:
+        path = self._path_from_href(resource.href)
+        if path is None:
+            return None
+        name = path.rstrip("/").rsplit("/", 1)[-1] if path.rstrip("/") else "/"
+        if resource.is_collection:
+            return {
+                "name": name,
+                "path": path.rstrip("/") or "/",
+                "type": "directory",
+                "extension": "",
+                "modified_at": resource.last_modified or None,
+                "size": resource.content_length,
+                "supported": True,
+            }
+        extension = _extension(name)
+        return {
+            "name": name,
+            "path": path,
+            "type": "file",
+            "extension": extension,
+            "modified_at": resource.last_modified or None,
+            "size": resource.content_length,
+            "supported": extension in _SUPPORTED_SPREADSHEET_EXTENSIONS,
+        }
+
+    def _path_from_href(self, href: str) -> str | None:
+        decoded = unquote(str(href or ""))
+        marker = f"/remote.php/dav/files/{self._creds.username}"
+        index = decoded.find(marker)
+        if index < 0:
+            return None
+        path = decoded[index + len(marker):] or "/"
+        try:
+            return self._clean_path(path)
+        except IntegrationError:
+            return None
+
     async def test_connection(self) -> tuple[bool, str, float]:
         """Test Nextcloud connectivity.  Returns (ok, message, latency_ms)."""
         auth = AuthConfig(
@@ -173,3 +278,13 @@ class NextcloudClient:
                 _PROVIDER, exc, latency_ms,
             )
             return False, f"Error: {str(exc)[:200]}", latency_ms
+
+
+_SPREADSHEET_EXTENSIONS = frozenset({".xlsx", ".xls", ".ods", ".csv"})
+_SUPPORTED_SPREADSHEET_EXTENSIONS = frozenset({".xlsx"})
+
+
+def _extension(name: str) -> str:
+    if "." not in name:
+        return ""
+    return "." + name.rsplit(".", 1)[-1].lower()

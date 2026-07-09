@@ -58,7 +58,18 @@ async def test_source_connection(
     service: CommerceHubService = Depends(_service),
 ) -> dict:
     _require_admin(user)
-    return service.test_source_connection(source_id)
+    return await service.test_source_connection(source_id)
+
+
+@router.post("/sources/{source_id}/browse")
+async def browse_source_files(
+    source_id: str,
+    body: dict,
+    user: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    _require_admin(user)
+    return await service.browse_source_files(source_id, body)
 
 
 @router.put("/sources/{source_id}/settings")

@@ -263,6 +263,165 @@ def test_source_placeholder_connection_test_does_not_call_external_system(client
     assert data["write_blocked"] is True
 
 
+def test_nextcloud_source_accepts_root_base_url(client, auth_headers):
+    response = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/Price Sheet.xlsx",
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "app-password-secret" not in response.text
+    assert response.json()["read_only"] is True
+    assert response.json()["write_pipeline_eligible"] is False
+
+
+@pytest.mark.parametrize(
+    ("url", "message"),
+    [
+        (
+            "https://softpple.business/index.php/s/xxxxx",
+            "Base URL must be the root Nextcloud server URL, not a public share link.",
+        ),
+        (
+            "https://softpple.business/remote.php/dav/files/woo/",
+            "Base URL must be the root Nextcloud server URL.",
+        ),
+        (
+            "https://softpple.business/apps/files/",
+            "Base URL must be the root Nextcloud server URL.",
+        ),
+    ],
+)
+def test_nextcloud_source_rejects_non_root_base_urls(client, auth_headers, url, message):
+    response = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "settings": {"url": url, "username": "woo", "spreadsheet_path": "/prices.xlsx"},
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert message in response.text
+    assert "app-password-secret" not in response.text
+
+
+def test_nextcloud_webdav_browse_returns_folders_and_spreadsheets_without_secret(client, auth_headers, monkeypatch):
+    from app.connectors.sources.nextcloud.webdav import DavResource
+
+    calls: list[dict] = []
+
+    async def fake_propfind(creds, path, depth="1"):
+        calls.append({"url": creds.url, "username": creds.username, "password": creds.password, "path": path, "depth": depth})
+        return [
+            DavResource("/remote.php/dav/files/woo/Reports/", True, last_modified="Mon, 01 Jan 2024 00:00:00 GMT"),
+            DavResource("/remote.php/dav/files/woo/Reports/Subfolder/", True, last_modified="Tue, 02 Jan 2024 00:00:00 GMT"),
+            DavResource("/remote.php/dav/files/woo/Reports/Q1.xlsx", False, content_length=1234, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            DavResource("/remote.php/dav/files/woo/Reports/legacy.xls", False, content_length=55),
+            DavResource("/remote.php/dav/files/woo/Reports/prices.csv", False, content_length=77),
+            DavResource("/remote.php/dav/files/woo/Reports/readme.txt", False, content_length=10),
+        ]
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.propfind_path", fake_propfind)
+
+    response = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/browse",
+        headers=auth_headers,
+        json={
+            "path": "/Reports",
+            "settings": {"url": "https://softpple.business", "username": "woo"},
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "app-password-secret" not in response.text
+    data = response.json()
+    assert data["path"] == "/Reports"
+    assert data["external_call_performed"] is True
+    assert data["credentials_returned"] is False
+    assert data["directories"][0]["name"] == "Subfolder"
+    files = {item["name"]: item for item in data["files"]}
+    assert set(files) == {"Q1.xlsx", "legacy.xls", "prices.csv"}
+    assert files["Q1.xlsx"]["supported"] is True
+    assert files["legacy.xls"]["supported"] is False
+    assert files["prices.csv"]["supported"] is False
+    assert calls == [{"url": "https://softpple.business", "username": "woo", "password": "app-password-secret", "path": "/Reports", "depth": "1"}]
+
+
+def test_nextcloud_webdav_browse_rejects_path_traversal(client, auth_headers, monkeypatch):
+    async def fail_propfind(*args, **kwargs):
+        raise AssertionError("path traversal must fail before WebDAV")
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.propfind_path", fail_propfind)
+
+    response = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/browse",
+        headers=auth_headers,
+        json={
+            "path": "/Reports/%2e%2e/secrets",
+            "settings": {"url": "https://softpple.business", "username": "woo"},
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert "Invalid Nextcloud path" in response.text
+    assert "app-password-secret" not in response.text
+
+
+def test_nextcloud_test_connection_uses_webdav_and_checks_spreadsheet_path(client, auth_headers, monkeypatch):
+    calls: list[str] = []
+
+    async def fake_test_connection(self):
+        calls.append("test")
+        return True, "Connected to Nextcloud 28", 3.0
+
+    async def fake_browse(self, path="/"):
+        calls.append(f"browse:{path}")
+        return {"path": "/", "directories": [], "files": [], "read_only": True, "write_blocked": True}
+
+    async def fake_info(self, path):
+        calls.append(f"info:{path}")
+        return {"name": "prices.xlsx", "path": path, "type": "file", "extension": ".xlsx", "supported": True}
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.test_connection", fake_test_connection)
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fake_browse)
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.get_resource_info", fake_info)
+
+    save = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"url": "https://softpple.business", "username": "woo", "spreadsheet_path": "/prices.xlsx"},
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+    assert save.status_code == 200
+
+    response = client.post("/api/v2/commerce/sources/nextcloud:primary/test", headers=auth_headers, json={})
+
+    assert response.status_code == 200
+    assert "app-password-secret" not in response.text
+    data = response.json()
+    assert data["ok"] is True
+    assert data["external_call_performed"] is True
+    assert data["read_only"] is True
+    assert data["write_blocked"] is True
+    assert calls == ["test", "browse:/", "info:/prices.xlsx"]
+
+
 def test_channel_detail_health_and_capabilities(client, auth_headers):
     detail = client.get("/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers)
     health = client.get("/api/v2/commerce/channels/woocommerce:primary/health", headers=auth_headers)

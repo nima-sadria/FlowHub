@@ -181,6 +181,46 @@ const commerce: CommerceService = {
       write_blocked: true,
     }
   },
+  async browseNextcloud() {
+    return {
+      path: '/',
+      directories: [
+        {
+          name: 'Reports',
+          path: '/Reports',
+          type: 'directory' as const,
+          extension: '',
+          modified_at: null,
+          size: null,
+          supported: true,
+        },
+      ],
+      files: [
+        {
+          name: 'prices.xlsx',
+          path: '/prices.xlsx',
+          type: 'file' as const,
+          extension: '.xlsx',
+          modified_at: null,
+          size: 1234,
+          supported: true,
+        },
+        {
+          name: 'legacy.csv',
+          path: '/legacy.csv',
+          type: 'file' as const,
+          extension: '.csv',
+          modified_at: null,
+          size: 512,
+          supported: false,
+        },
+      ],
+      read_only: true,
+      write_blocked: true,
+      external_call_performed: true,
+      credentials_returned: false,
+    }
+  },
 }
 
 function typeOption(
@@ -291,6 +331,36 @@ async function renderPage(user = adminUser, commerceOverride: CommerceService = 
   })
   await act(async () => { await Promise.resolve() })
   return container
+}
+
+function setInputValue(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+  setter?.call(input, value)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
+async function openNextcloudSourceForm(c: HTMLElement) {
+  await act(async () => {
+    Array.from(c.querySelectorAll('button'))
+      .find(button => button.textContent === 'Sources')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  })
+  await act(async () => {
+    Array.from(c.querySelectorAll('button'))
+      .find(button => button.textContent === 'Add Source')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  })
+}
+
+function fillNextcloudCredentials(c: HTMLElement, baseUrl = 'https://softpple.business') {
+  const textInputs = Array.from(c.querySelectorAll('input[type="text"]')) as HTMLInputElement[]
+  const password = c.querySelector('input[type="password"]') as HTMLInputElement
+  act(() => {
+    setInputValue(textInputs[0], baseUrl)
+    setInputValue(textInputs[1], 'owner')
+    setInputValue(password, 'app-password-value')
+  })
+  return { pathInput: textInputs[2] }
 }
 
 describe('CommerceHub', () => {
@@ -410,5 +480,47 @@ describe('CommerceHub', () => {
     expect(c.textContent).not.toContain('cs_live_secret')
     expect(c.textContent).not.toContain('snapp-secret-value')
     expect(c.textContent).not.toContain('Unable to save channel configuration')
+  })
+
+  it('shows Nextcloud browser controls for configured source input', async () => {
+    const c = await renderPage()
+    await openNextcloudSourceForm(c)
+
+    expect(c.textContent).toContain('Browse Nextcloud')
+    expect(c.textContent).toContain('Nextcloud spreadsheet file')
+  })
+
+  it('opens Nextcloud file picker, renders directories and spreadsheet files, and selects a path', async () => {
+    const c = await renderPage()
+    await openNextcloudSourceForm(c)
+    const { pathInput } = fillNextcloudCredentials(c)
+
+    await act(async () => {
+      Array.from(c.querySelectorAll('button'))
+        .find(button => button.textContent === 'Browse Nextcloud')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(c.textContent).toContain('Reports')
+    expect(c.textContent).toContain('prices.xlsx')
+    expect(c.textContent).toContain('legacy.csv')
+    expect(c.textContent).toContain('Unsupported')
+
+    await act(async () => {
+      Array.from(c.querySelectorAll('button'))
+        .find(button => button.textContent?.includes('prices.xlsx'))
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(pathInput.value).toBe('/prices.xlsx')
+  })
+
+  it('rejects public share links as Nextcloud Base URL input', async () => {
+    const c = await renderPage()
+    await openNextcloudSourceForm(c)
+    fillNextcloudCredentials(c, 'https://softpple.business/index.php/s/xxxxx')
+
+    expect(c.textContent).toContain('Base URL must be the root Nextcloud server URL, not a public share link.')
   })
 })

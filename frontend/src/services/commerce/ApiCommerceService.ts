@@ -1,7 +1,14 @@
 import { apiFetch } from '../../api/client'
 import { authFetch } from '../../api/authFetch'
 import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeOption } from '../types'
-import type { CommerceConfigPayload, CommerceService, CommerceSettingsResult, ConnectionCheckResult } from './CommerceService'
+import type {
+  CommerceConfigPayload,
+  CommerceService,
+  CommerceSettingsResult,
+  ConnectionCheckResult,
+  NextcloudBrowseRequest,
+  NextcloudBrowseResult,
+} from './CommerceService'
 
 interface SourceResponse {
   items: CommerceSource[]
@@ -62,6 +69,14 @@ export class ApiCommerceService implements CommerceService {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
+    })
+  }
+
+  async browseNextcloud(sourceId: string, payload: NextcloudBrowseRequest): Promise<NextcloudBrowseResult> {
+    return apiFetch<NextcloudBrowseResult>(`/api/v2/commerce/sources/${encodeURIComponent(sourceId)}/browse`, authFetch, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     })
   }
 }

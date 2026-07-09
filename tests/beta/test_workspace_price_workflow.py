@@ -165,6 +165,53 @@ def test_nextcloud_spreadsheet_import_success_generates_preview_and_dry_run(
     assert "approved Dry Run" in execute.text
 
 
+def test_spreadsheet_path_selected_from_source_settings_feeds_preview_workflow(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(db).set_many(
+        {
+            "woocommerce.url": "https://store.example.test",
+            "woocommerce.key": "ck_test",
+            "woocommerce.secret": "cs_test",
+            "server.currency": "EUR",
+            "setup.completed": "true",
+        }
+    )
+    _cache_product(db, "101", "Test Product", "SKU-101", "100.00")
+
+    saved = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/Selected/Prices.xlsx",
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+    assert saved.status_code == 200
+    assert "app-password-secret" not in saved.text
+
+    async def fake_download(self, path):
+        assert path == "/Selected/Prices.xlsx"
+        return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "etag-1", "last_modified": "now"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
+
+    assert preview.status_code == 200
+    row = preview.json()["rows"][0]
+    assert row["source"]["sourceFilePath"] == "/Selected/Prices.xlsx"
+    assert row["eligible_for_dry_run"] is True
+
+
 def test_variation_row_matched_by_variation_id_is_eligible_for_dry_run(
     client, auth_headers, configured_db, monkeypatch
 ):

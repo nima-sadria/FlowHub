@@ -10,6 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from time import monotonic
+from urllib.parse import urlparse
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -18,6 +19,8 @@ from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import ping as ping_woocommerce
 from app.flowhub.data_layer.models import DlConnectorHealth
+from app.flowhub.integrations.errors import IntegrationError
+from app.flowhub.integrations.nextcloud import NextcloudClient
 from app.flowhub.integration_platform.contracts import ConnectorCapabilities
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.registry import registry
@@ -216,13 +219,15 @@ class CommerceHubService:
             return await self._test_woocommerce_channel_connection(configured)
         return self._unsupported_connection_result()
 
-    def test_source_connection(self, source_id: str) -> dict:
+    async def test_source_connection(self, source_id: str) -> dict:
         meta = self._source_meta(source_id)
         item = self._source_contract(meta)
         configured = item["credential_status"] == "configured"
         placeholder = bool(meta["placeholder"])
         if placeholder:
             message = f"{meta['name']} is a read-only planned source. No external call was performed."
+        elif str(meta["provider"]) == "nextcloud":
+            return await self._test_nextcloud_source_connection()
         elif configured:
             message = "Local source configuration is present. No external call was performed."
         else:
@@ -238,13 +243,38 @@ class CommerceHubService:
             "correlation_id": self._correlation_id(),
         }
 
+    async def browse_source_files(self, source_id: str, body: dict) -> dict:
+        meta = self._source_meta(source_id)
+        if str(meta["provider"]) != "nextcloud" or bool(meta.get("placeholder")):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Source browser is not available.")
+        values = self._nextcloud_values(body, allow_stored=True)
+        if not values["url"] or not values["username"] or not values["password"]:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nextcloud URL, username, and app password are required to browse files.")
+        url = self._validate_nextcloud_base_url(values["url"])
+        path = str(body.get("path") or body.get("current_path") or "/") if isinstance(body, dict) else "/"
+        client = NextcloudClient(url, values["username"], values["password"])
+        try:
+            result = await client.browse_directory(path)
+        except IntegrationError as exc:
+            raise HTTPException(exc.status_code or status.HTTP_502_BAD_GATEWAY, exc.detail) from exc
+        return {
+            **result,
+            "source_id": source_id,
+            "external_call_performed": True,
+            "credentials_returned": False,
+        }
+
     def update_source_settings(self, source_id: str, body: dict) -> dict:
         meta = self._source_meta(source_id)
         provider = str(meta["provider"])
         if registry.get_definition(provider) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source settings are not available.")
+        if provider == "nextcloud":
+            self._validate_nextcloud_source_body(body)
         self._ensure_instance(meta)
         self._update_instance_state(meta, body, access_mode=ACCESS_MODE_READ_ONLY)
+        if provider == "nextcloud":
+            self._persist_nextcloud_app_config(body)
         result = self.integration.update_settings_contract(source_id, self._settings_body(body))
         return {
             **result,
@@ -486,6 +516,118 @@ class CommerceHubService:
             return None
         return WooCommerceCredentials(url=url.rstrip("/"), key=key, secret=secret)
 
+    async def _test_nextcloud_source_connection(self) -> dict:
+        values = self._nextcloud_values({}, allow_stored=True)
+        if not values["url"] or not values["username"] or not values["password"]:
+            return {
+                **self._connection_base(),
+                "ok": False,
+                "connected": False,
+                "authenticated": False,
+                "status": "not_configured",
+                "http_status": None,
+                "latency_ms": None,
+                "checked_at": self._checked_at(),
+                "message": "Nextcloud is not configured. No external call was performed.",
+                "external_call_performed": False,
+            }
+
+        url = self._validate_nextcloud_base_url(values["url"])
+        started = monotonic()
+        checked_at = self._checked_at()
+        client = NextcloudClient(url, values["username"], values["password"])
+        try:
+            ok, message, _ = await client.test_connection()
+            await client.browse_directory("/")
+            spreadsheet_path = values.get("spreadsheet_path") or ""
+            if spreadsheet_path:
+                item = await client.get_resource_info(spreadsheet_path)
+                if item["type"] != "file":
+                    return self._nextcloud_test_failure(started, checked_at, "Spreadsheet Path points to a directory.", external=True)
+                if item.get("supported") is not True:
+                    return self._nextcloud_test_failure(started, checked_at, "Spreadsheet Path must be a supported .xlsx file.", external=True)
+            latency_ms = round((monotonic() - started) * 1000, 2)
+            return {
+                **self._connection_base(),
+                "ok": bool(ok),
+                "connected": bool(ok),
+                "authenticated": bool(ok),
+                "status": "connected" if ok else "error",
+                "http_status": None,
+                "latency_ms": latency_ms,
+                "checked_at": checked_at,
+                "message": f"{message}. WebDAV endpoint is reachable.",
+                "external_call_performed": True,
+            }
+        except IntegrationError as exc:
+            return self._nextcloud_test_failure(started, checked_at, exc.message, external=True, http_status=exc.status_code)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            return self._nextcloud_test_failure(started, checked_at, str(exc)[:200], external=True)
+
+    def _nextcloud_test_failure(
+        self,
+        started: float,
+        checked_at: str,
+        message: str,
+        *,
+        external: bool,
+        http_status: int | None = None,
+    ) -> dict:
+        return {
+            **self._connection_base(),
+            "ok": False,
+            "connected": False,
+            "authenticated": False,
+            "status": "error",
+            "http_status": http_status,
+            "latency_ms": round((monotonic() - started) * 1000, 2),
+            "checked_at": checked_at,
+            "message": message,
+            "external_call_performed": external,
+        }
+
+    def _nextcloud_values(self, body: dict, *, allow_stored: bool) -> dict[str, str]:
+        settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
+        secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
+        values = {
+            "url": str(settings.get("url") or "").strip(),
+            "username": str(settings.get("username") or "").strip(),
+            "password": str(secrets.get("password") or settings.get("password") or "").strip(),
+            "spreadsheet_path": str(settings.get("spreadsheet_path") or "").strip(),
+        }
+        if allow_stored:
+            values = {
+                "url": values["url"] or str(self.integration.config.get("nextcloud.url") or "").strip(),
+                "username": values["username"] or str(self.integration.config.get("nextcloud.username") or "").strip(),
+                "password": values["password"] or str(self.integration.config.get("nextcloud.password") or "").strip(),
+                "spreadsheet_path": values["spreadsheet_path"] or str(self.integration.config.get("nextcloud.spreadsheet_path") or "").strip(),
+            }
+        return values
+
+    def _validate_nextcloud_source_body(self, body: dict) -> None:
+        values = self._nextcloud_values(body, allow_stored=False)
+        if values["url"]:
+            self._validate_nextcloud_base_url(values["url"])
+
+    def _validate_nextcloud_base_url(self, raw_url: str) -> str:
+        parsed = urlparse(str(raw_url or "").strip())
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Base URL must be the root Nextcloud server URL.")
+        path = (parsed.path or "").rstrip("/")
+        lowered = path.lower()
+        if "/index.php/s/" in lowered or lowered.startswith("/s/"):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "Base URL must be the root Nextcloud server URL, not a public share link.",
+            )
+        if "/remote.php/dav" in lowered or "/apps/files" in lowered:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Base URL must be the root Nextcloud server URL.")
+        if path not in {"", "/"} or parsed.query or parsed.fragment:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Base URL must be the root Nextcloud server URL.")
+        return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+
     def _persist_woocommerce_app_config(self, body: dict) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
@@ -496,6 +638,21 @@ class CommerceHubService:
             pairs["woocommerce.key"] = str(secrets["key"])
         if secrets.get("secret"):
             pairs["woocommerce.secret"] = str(secrets["secret"])
+        if pairs:
+            self.integration.config.set_many(pairs, updated_by="commerce_hub")
+
+    def _persist_nextcloud_app_config(self, body: dict) -> None:
+        settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
+        secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
+        pairs: dict[str, str] = {}
+        if settings.get("url"):
+            pairs["nextcloud.url"] = self._validate_nextcloud_base_url(str(settings["url"]))
+        if settings.get("username"):
+            pairs["nextcloud.username"] = str(settings["username"]).strip()
+        if secrets.get("password"):
+            pairs["nextcloud.password"] = str(secrets["password"])
+        if settings.get("spreadsheet_path"):
+            pairs["nextcloud.spreadsheet_path"] = str(settings["spreadsheet_path"]).strip()
         if pairs:
             self.integration.config.set_many(pairs, updated_by="commerce_hub")
 

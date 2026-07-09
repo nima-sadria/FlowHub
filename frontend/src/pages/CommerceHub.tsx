@@ -4,6 +4,7 @@ import { useAuth } from '../auth'
 import { ApiError } from '../api/client'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeOption } from '../services/types'
+import type { NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
 import Spinner from '../components/loading/Spinner'
 import { useNotification } from '../notifications/NotificationProvider'
 import PageShell from '../components/PageShell'
@@ -161,6 +162,97 @@ function fieldLabel(kind: FormKind, provider: string, key: string, fallback: str
   return fallback
 }
 
+function validateNextcloudBaseUrl(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  try {
+    const url = new URL(trimmed)
+    const path = url.pathname.replace(/\/$/, '').toLowerCase()
+    if (path.includes('/index.php/s/') || path.startsWith('/s/')) {
+      return 'Base URL must be the root Nextcloud server URL, not a public share link.'
+    }
+    if (path.includes('/remote.php/dav') || path.includes('/apps/files') || path.length > 0) {
+      return 'Base URL must be the root Nextcloud server URL.'
+    }
+  } catch {
+    return 'Base URL must be the root Nextcloud server URL.'
+  }
+  return null
+}
+
+function NextcloudFilePicker({
+  data,
+  loading,
+  error,
+  onClose,
+  onOpenDirectory,
+  onSelectFile,
+}: {
+  data: NextcloudBrowseResult | null
+  loading: boolean
+  error: string | null
+  onClose: () => void
+  onOpenDirectory: (path: string) => void
+  onSelectFile: (file: NextcloudBrowseItem) => void
+}) {
+  const currentPath = data?.path ?? '/'
+  const parentPath = currentPath === '/' ? null : `/${currentPath.split('/').filter(Boolean).slice(0, -1).join('/')}`
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+      <div className="fh-card w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+        <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
+          <div>
+            <h3 className="text-[15px] font-semibold text-text-base">Browse Nextcloud</h3>
+            <p className="text-[12px] text-wp-muted mt-1">{currentPath}</p>
+          </div>
+          <button type="button" onClick={onClose} className="fh-button-secondary px-3 py-1.5 text-[12px]">
+            Close
+          </button>
+        </div>
+        <div className="overflow-auto p-4">
+          {error && <div className="fh-error-alert mb-3 rounded px-3 py-2 text-[12px]">{error}</div>}
+          {loading ? (
+            <div className="flex items-center gap-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading files</div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {parentPath !== null && (
+                <button type="button" onClick={() => onOpenDirectory(parentPath || '/')} className="fh-button-secondary justify-start px-3 py-2 text-[13px]">
+                  Up one folder
+                </button>
+              )}
+              {data?.directories.map(directory => (
+                <button
+                  key={directory.path}
+                  type="button"
+                  onClick={() => onOpenDirectory(directory.path)}
+                  className="fh-button-secondary justify-start px-3 py-2 text-[13px]"
+                >
+                  {directory.name}
+                </button>
+              ))}
+              {data?.files.map(file => (
+                <button
+                  key={file.path}
+                  type="button"
+                  disabled={!file.supported}
+                  onClick={() => onSelectFile(file)}
+                  className="flex items-center justify-between gap-3 rounded border border-border bg-bg-base px-3 py-2 text-left text-[13px] disabled:opacity-60"
+                >
+                  <span className="font-medium text-text-base">{file.name}</span>
+                  <span className="text-[12px] text-wp-muted">{file.supported ? 'Spreadsheet' : 'Unsupported'}</span>
+                </button>
+              ))}
+              {!loading && data && data.directories.length === 0 && data.files.length === 0 && (
+                <p className="text-[13px] text-wp-muted">No spreadsheet files in this folder.</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ConfigPanel({
   kind,
   types,
@@ -186,6 +278,13 @@ function ConfigPanel({
   const [secrets, setSecrets] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerLoading, setPickerLoading] = useState(false)
+  const [pickerData, setPickerData] = useState<NextcloudBrowseResult | null>(null)
+  const [pickerError, setPickerError] = useState<string | null>(null)
+  const nextcloudUrlError = kind === 'source' && selected?.provider === 'nextcloud'
+    ? validateNextcloudBaseUrl(String(settings.url ?? ''))
+    : null
 
   useEffect(() => {
     setDisplayName(selected?.name ?? '')
@@ -193,12 +292,19 @@ function ConfigPanel({
     setDescription('')
     setSettings({})
     setSecrets({})
+    setPickerOpen(false)
+    setPickerData(null)
+    setPickerError(null)
   }, [selected?.id])
 
   if (!selected) return null
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    if (nextcloudUrlError) {
+      notifyError(nextcloudUrlError)
+      return
+    }
     setSaving(true)
     try {
       const payload = {
@@ -220,6 +326,10 @@ function ConfigPanel({
   }
 
   async function testConnection() {
+    if (nextcloudUrlError) {
+      notifyError(nextcloudUrlError)
+      return
+    }
     setTesting(true)
     try {
       const result = kind === 'source'
@@ -232,6 +342,41 @@ function ConfigPanel({
     } finally {
       setTesting(false)
     }
+  }
+
+  async function browseNextcloud(path = '/') {
+    if (nextcloudUrlError) {
+      setPickerError(nextcloudUrlError)
+      notifyError(nextcloudUrlError)
+      return
+    }
+    if (!settings.url || !settings.username || !secrets.password) {
+      const message = 'Enter Base URL, Username, and App password / token before browsing Nextcloud.'
+      setPickerError(message)
+      notifyError(message)
+      return
+    }
+    setPickerOpen(true)
+    setPickerLoading(true)
+    setPickerError(null)
+    try {
+      const result = await commerce.browseNextcloud(selected.id, {
+        path,
+        settings,
+        secrets,
+      })
+      setPickerData(result)
+    } catch (error) {
+      setPickerError(apiErrorMessage(error, 'Unable to browse Nextcloud'))
+    } finally {
+      setPickerLoading(false)
+    }
+  }
+
+  function selectNextcloudFile(file: NextcloudBrowseItem) {
+    if (!file.supported) return
+    setSettings(current => ({ ...current, spreadsheet_path: file.path }))
+    setPickerOpen(false)
   }
 
   return (
@@ -305,9 +450,28 @@ function ConfigPanel({
               className="fh-input"
               autoComplete="off"
             />
+            {selected.provider === 'nextcloud' && field.key === 'url' && nextcloudUrlError && (
+              <span className="text-[12px] text-wp-red">{nextcloudUrlError}</span>
+            )}
           </label>
         ))}
       </div>
+
+      {kind === 'source' && selected.provider === 'nextcloud' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-bg-base px-3 py-3">
+          <div>
+            <p className="text-[13px] font-medium text-text-base">Nextcloud spreadsheet file</p>
+            <p className="text-[12px] text-wp-muted">Use WebDAV with your app password. Public share links are not required.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void browseNextcloud('/')}
+            className="fh-button-secondary px-4"
+          >
+            Browse Nextcloud
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-wrap justify-end gap-2">
         <button type="button" onClick={() => void testConnection()} disabled={testing} className="fh-button-secondary px-4">
@@ -319,6 +483,16 @@ function ConfigPanel({
           {saving ? 'Saving' : 'Save configuration'}
         </button>
       </div>
+      {pickerOpen && (
+        <NextcloudFilePicker
+          data={pickerData}
+          loading={pickerLoading}
+          error={pickerError}
+          onClose={() => setPickerOpen(false)}
+          onOpenDirectory={(path) => void browseNextcloud(path)}
+          onSelectFile={selectNextcloudFile}
+        />
+      )}
     </form>
   )
 }
