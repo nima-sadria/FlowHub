@@ -152,7 +152,7 @@ function ChannelCard({ channel, onTest, testing, canManage }: {
 }
 
 function fieldLabel(kind: FormKind, provider: string, key: string, fallback: string): string {
-  if (kind === 'source' && provider === 'nextcloud' && key === 'url') return 'Base URL'
+  if (kind === 'source' && provider === 'nextcloud' && key === 'url') return 'Nextcloud server URL'
   if (kind === 'source' && provider === 'nextcloud' && key === 'password') return 'App password / token'
   if (kind === 'channel' && provider === 'woocommerce' && key === 'url') return 'Store URL'
   if (kind === 'channel' && provider === 'woocommerce' && key === 'key') return 'Consumer Key'
@@ -351,7 +351,7 @@ function ConfigPanel({
       return
     }
     if (!settings.url || !settings.username || !secrets.password) {
-      const message = 'Enter Base URL, Username, and App password / token before browsing Nextcloud.'
+      const message = 'Enter Nextcloud server URL, Username, and App password / token before browsing Nextcloud.'
       setPickerError(message)
       notifyError(message)
       return
@@ -436,7 +436,9 @@ function ConfigPanel({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {selected.settings_schema.map(field => (
+        {selected.settings_schema
+          .filter(field => !(kind === 'source' && selected.provider === 'nextcloud' && field.key === 'spreadsheet_path'))
+          .map(field => (
           <label key={field.key} className="flex flex-col gap-1 text-[12px] text-wp-muted">
             {fieldLabel(kind, selected.provider, field.key, field.label)}
             <input
@@ -459,9 +461,13 @@ function ConfigPanel({
 
       {kind === 'source' && selected.provider === 'nextcloud' && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-bg-base px-3 py-3">
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-text-base">Nextcloud spreadsheet file</p>
             <p className="text-[12px] text-wp-muted">Use WebDAV with your app password. Public share links are not required.</p>
+            <p className="mt-2 text-[12px] text-wp-muted">Selected file</p>
+            <div className="mt-1 min-h-10 rounded-md border border-border bg-bg-subtle px-3 py-2 text-[13px] text-text-base">
+              {settings.spreadsheet_path || 'No spreadsheet file selected'}
+            </div>
           </div>
           <button
             type="button"

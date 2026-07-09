@@ -360,7 +360,6 @@ function fillNextcloudCredentials(c: HTMLElement, baseUrl = 'https://softpple.bu
     setInputValue(textInputs[1], 'owner')
     setInputValue(password, 'app-password-value')
   })
-  return { pathInput: textInputs[2] }
 }
 
 describe('CommerceHub', () => {
@@ -488,12 +487,15 @@ describe('CommerceHub', () => {
 
     expect(c.textContent).toContain('Browse Nextcloud')
     expect(c.textContent).toContain('Nextcloud spreadsheet file')
+    expect(c.textContent).toContain('Selected file')
+    expect(c.textContent).toContain('No spreadsheet file selected')
+    expect(c.textContent).not.toContain('Spreadsheet path')
   })
 
   it('opens Nextcloud file picker, renders directories and spreadsheet files, and selects a path', async () => {
     const c = await renderPage()
     await openNextcloudSourceForm(c)
-    const { pathInput } = fillNextcloudCredentials(c)
+    fillNextcloudCredentials(c)
 
     await act(async () => {
       Array.from(c.querySelectorAll('button'))
@@ -513,7 +515,7 @@ describe('CommerceHub', () => {
         ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
 
-    expect(pathInput.value).toBe('/prices.xlsx')
+    expect(c.textContent).toContain('/prices.xlsx')
   })
 
   it('rejects public share links as Nextcloud Base URL input', async () => {
