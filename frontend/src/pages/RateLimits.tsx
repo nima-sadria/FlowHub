@@ -3,6 +3,7 @@ import { useServices } from '../services/ServiceContext'
 import type { RateLimitSettings } from '../services/types'
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
+import PageShell from '../components/PageShell'
 
 const MIN_RPM = 1
 const MAX_RPM = 1000
@@ -42,7 +43,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
-export default function RateLimits() {
+export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
   const { settings } = useServices()
   const { success, error: notifyError } = useNotification()
   const [current, setCurrent] = useState<RateLimitSettings | null>(null)
@@ -100,37 +101,31 @@ export default function RateLimits() {
     }
   }
 
-  return (
-    <div className="fh-page max-w-2xl">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="fh-page-title">Global API Rate Limits</h1>
-          <p className="fh-page-subtitle">Inherited by every Source and Channel</p>
-        </div>
-        {dirty && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                if (!current) return
-                setReadRpm(current.read_requests_per_minute)
-                setWriteRpm(current.write_requests_per_minute)
-              }}
-              className="fh-button-secondary"
-            >
-              Discard
-            </button>
-            <button
-              onClick={() => void save()}
-              disabled={saving || Boolean(validation)}
-              className="fh-button-primary"
-            >
-              {saving && <Spinner size="sm" className="text-white" />}
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
-        )}
-      </div>
+  const actions = dirty && (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => {
+          if (!current) return
+          setReadRpm(current.read_requests_per_minute)
+          setWriteRpm(current.write_requests_per_minute)
+        }}
+        className="fh-button-secondary"
+      >
+        Discard
+      </button>
+      <button
+        onClick={() => void save()}
+        disabled={saving || Boolean(validation)}
+        className="fh-button-primary"
+      >
+        {saving && <Spinner size="sm" className="text-white" />}
+        {saving ? 'Saving...' : 'Save Changes'}
+      </button>
+    </div>
+  )
 
+  const editor = (
+    <>
       <div className="fh-card fh-card-pad">
         {loading ? (
           <div className="flex items-center gap-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading...</div>
@@ -160,6 +155,39 @@ export default function RateLimits() {
           <Stat label="Automatic sync" value="Disabled" />
         </div>
       </div>
-    </div>
+    </>
   )
+
+  if (embedded) {
+    return (
+      <section id="rate-limits" className="flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-[16px] font-semibold text-text-base">Global API Rate Limits</h2>
+            <p className="text-[12px] text-wp-muted mt-0.5">Inherited by every Source and Channel</p>
+          </div>
+          {actions}
+        </div>
+        {editor}
+      </section>
+    )
+  }
+
+  return (
+    <PageShell>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="fh-page-title">Global API Rate Limits</h1>
+          <p className="fh-page-subtitle">Inherited by every Source and Channel</p>
+        </div>
+        {actions}
+      </div>
+
+      {editor}
+    </PageShell>
+  )
+}
+
+export default function RateLimits() {
+  return <RateLimitsPanel />
 }

@@ -6,6 +6,8 @@ import { apiFetch } from '../api/client'
 import type { HealthResponse } from '../api/types'
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
+import PageShell from '../components/PageShell'
+import { RateLimitsPanel } from './RateLimits'
 
 const TIMEZONES = [
   'UTC',
@@ -160,7 +162,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="fh-page max-w-2xl">
+    <PageShell>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="fh-page-title">Settings</h1>
@@ -214,6 +216,8 @@ export default function Settings() {
         )}
       </Section>
 
+      <RateLimitsPanel embedded />
+
       <Section title="About" description="Application information">
         {healthLoading ? (
           <div className="flex items-center gap-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading...</div>
@@ -229,6 +233,6 @@ export default function Settings() {
           </div>
         )}
       </Section>
-    </div>
+    </PageShell>
   )
 }

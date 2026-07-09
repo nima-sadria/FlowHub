@@ -6,6 +6,7 @@ import { useServices } from '../services/ServiceContext'
 import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeOption } from '../services/types'
 import Spinner from '../components/loading/Spinner'
 import { useNotification } from '../notifications/NotificationProvider'
+import PageShell from '../components/PageShell'
 
 type Tab = 'sources' | 'channels'
 type FormKind = 'source' | 'channel'
@@ -21,13 +22,20 @@ function statusClass(status: string): string {
   return 'fh-badge-danger'
 }
 
+function redactSensitiveText(value: string): string {
+  return value.replace(
+    /((?:consumer_secret|consumer_key|access_token|refresh_token|authorization|password|api_key|apikey|secret|token|key)\s*["']?\s*[:=]\s*["']?)([^"',\s}]+)/gi,
+    '$1[REDACTED]',
+  )
+}
+
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     try {
       const parsed = JSON.parse(error.message) as { detail?: unknown }
-      if (typeof parsed.detail === 'string' && parsed.detail.trim()) return parsed.detail
+      if (typeof parsed.detail === 'string' && parsed.detail.trim()) return redactSensitiveText(parsed.detail)
     } catch {
-      if (error.message.trim()) return error.message
+      if (error.message.trim()) return redactSensitiveText(error.message)
     }
   }
   return fallback
@@ -385,7 +393,7 @@ export default function CommerceHub() {
   }
 
   return (
-    <div className="fh-page max-w-5xl">
+    <PageShell>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="fh-page-title">Commerce Hub</h1>
@@ -472,6 +480,6 @@ export default function CommerceHub() {
           </div>
         </section>
       )}
-    </div>
+    </PageShell>
   )
 }

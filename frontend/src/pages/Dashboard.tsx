@@ -7,6 +7,7 @@ import { apiFetch } from '../api/client'
 import type { HealthResponse } from '../api/types'
 import { SkeletonCard } from '../components/loading/Skeleton'
 import Empty from '../components/Empty'
+import PageShell from '../components/PageShell'
 
 type Indicator = 'ok' | 'error' | 'loading'
 
@@ -101,7 +102,7 @@ export default function Dashboard() {
   const initial = user?.username?.[0]?.toUpperCase() ?? '?'
 
   return (
-    <div className="fh-page">
+    <PageShell>
       {/* Header */}
       <div>
         <h1 className="fh-page-title">Dashboard</h1>
@@ -231,6 +232,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }

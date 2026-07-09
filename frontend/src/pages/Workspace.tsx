@@ -4,6 +4,7 @@ import type { WorkspacePreview, PriceChange, WritePipelineBatch } from '../servi
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
+import PageShell from '../components/PageShell'
 
 function fmtPrice(p: number, currency: string): string {
   return `${currency} ${p.toFixed(2)}`
@@ -163,7 +164,7 @@ export default function Workspace() {
   const bothConfigured = wcConfigured === true && ncConfigured === true
 
   return (
-    <div className="fh-page max-w-3xl">
+    <PageShell>
       <div>
         <h1 className="fh-page-title">Workspace</h1>
         <p className="fh-page-subtitle">Preview price changes from your sources</p>
@@ -384,6 +385,6 @@ export default function Workspace() {
           </button>
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

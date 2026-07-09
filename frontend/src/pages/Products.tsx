@@ -3,6 +3,7 @@ import { useServices } from '../services/ServiceContext'
 import type { Product } from '../services/types'
 import type { Category } from '../services/products/ProductService'
 import Empty from '../components/Empty'
+import PageShell from '../components/PageShell'
 import { inputHint } from '../utils/inputHint'
 
 const PAGE_SIZE = 20
@@ -143,7 +144,7 @@ export default function Products() {
   // Not configured
   if (!loading && configured === false) {
     return (
-      <div className="fh-page max-w-2xl">
+      <PageShell>
         <div>
           <h1 className="fh-page-title">Products</h1>
           <p className="fh-page-subtitle">Product catalog</p>
@@ -155,12 +156,12 @@ export default function Products() {
             action={{ label: 'Open Sources', onClick: () => { window.location.href = '/sources' } }}
           />
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   return (
-    <div className="fh-page">
+    <PageShell>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="fh-page-title">Products</h1>
@@ -294,6 +295,6 @@ export default function Products() {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   )
 }

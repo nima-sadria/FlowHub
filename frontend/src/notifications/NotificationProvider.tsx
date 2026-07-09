@@ -34,7 +34,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const id = crypto.randomUUID()
     const notification: Notification = { id, type, message, duration }
     setNotifications(prev => {
-      const next = [notification, ...prev]
+      const duplicate = prev.find(n => n.type === type && n.message === message)
+      if (duplicate) {
+        clearTimeout(timersRef.current[duplicate.id])
+        delete timersRef.current[duplicate.id]
+      }
+      const next = [notification, ...prev.filter(n => n.id !== duplicate?.id)]
       return next.length > MAX_NOTIFICATIONS ? next.slice(0, MAX_NOTIFICATIONS) : next
     })
     if (duration > 0) {
@@ -52,11 +57,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 export function useNotification() {
   const ctx = useContext(NotificationContext)
   if (!ctx) throw new Error('useNotification must be used inside NotificationProvider')
-  return {
-    info: (msg: string, dur?: number) => ctx.show('info', msg, dur),
-    success: (msg: string, dur?: number) => ctx.show('success', msg, dur),
-    warning: (msg: string, dur?: number) => ctx.show('warning', msg, dur),
-    error: (msg: string, dur?: number) => ctx.show('error', msg, dur),
-    dismiss: ctx.dismiss,
-  }
+  const { show, dismiss } = ctx
+  return useMemo(() => ({
+    info: (msg: string, dur?: number) => show('info', msg, dur),
+    success: (msg: string, dur?: number) => show('success', msg, dur),
+    warning: (msg: string, dur?: number) => show('warning', msg, dur),
+    error: (msg: string, dur?: number) => show('error', msg, dur),
+    dismiss,
+  }), [show, dismiss])
 }

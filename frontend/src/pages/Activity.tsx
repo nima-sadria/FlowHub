@@ -3,6 +3,7 @@ import { useServices } from '../services/ServiceContext'
 import type { ActivityEvent, ActivityLevel } from '../services/types'
 import { SkeletonCard } from '../components/loading/Skeleton'
 import Empty from '../components/Empty'
+import PageShell from '../components/PageShell'
 
 function relTime(d: Date): string {
   const s = Math.floor((Date.now() - d.getTime()) / 1000)
@@ -85,7 +86,7 @@ export default function Activity() {
   const hasMore = events.length < total
 
   return (
-    <div className="fh-page max-w-2xl">
+    <PageShell>
       <div>
         <h1 className="fh-page-title">Activity</h1>
         <p className="fh-page-subtitle">System events and user actions</p>
@@ -123,6 +124,6 @@ export default function Activity() {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   )
 }

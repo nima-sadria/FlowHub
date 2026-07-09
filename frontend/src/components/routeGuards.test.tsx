@@ -409,7 +409,7 @@ describe('Sidebar - denied user (can_access_site=false)', () => {
     expect(c.querySelector('a[href="/settings"]')).toBeNull()
   })
 
-  it('hides Rate Limits link', () => {
+  it('does not show Rate Limits as a main sidebar link', () => {
     const c = renderSidebar(deniedUser)
     expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
   })
@@ -456,7 +456,7 @@ describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => 
     expect(c.querySelector('a[href="/settings"]')).toBeNull()
   })
 
-  it('hides Rate Limits link (no can_view_settings)', () => {
+  it('does not show Rate Limits as a main sidebar link', () => {
     const c = renderSidebar(allowedUser)
     expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
   })
@@ -472,7 +472,7 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
   })
 })
@@ -487,16 +487,16 @@ describe('Sidebar - super admin (is_super_admin=true, is_admin=false)', () => {
     expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
   })
 })
 
 describe('Sidebar - settings user (can_view_settings=true)', () => {
-  it('shows Diagnostics, Rate Limits, and Settings links', () => {
+  it('shows Diagnostics and Settings links without a top-level Rate Limits link', () => {
     const c = renderSidebar(settingsUser)
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
   })
 })

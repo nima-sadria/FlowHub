@@ -4,7 +4,9 @@ import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthContext, type AuthContextValue, type AuthUser } from '../auth'
+import { ApiError } from '../api/client'
 import { NotificationProvider } from '../notifications/NotificationProvider'
+import NotificationContainer from '../notifications/NotificationContainer'
 import { ServiceProvider } from '../services/ServiceContext'
 import type { Services } from '../services/ServiceContext'
 import type { CommerceService } from '../services/commerce/CommerceService'
@@ -272,15 +274,16 @@ afterEach(() => {
   container.remove()
 })
 
-async function renderPage(user = adminUser) {
+async function renderPage(user = adminUser, commerceOverride: CommerceService = commerce) {
   await act(async () => {
     root.render(
       <NotificationProvider>
         <AuthContext.Provider value={authValue(user)}>
           <MemoryRouter initialEntries={['/commerce']}>
-            <ServiceProvider services={services}>
+            <ServiceProvider services={{ ...services, commerce: commerceOverride }}>
               <CommerceHub />
             </ServiceProvider>
+            <NotificationContainer />
           </MemoryRouter>
         </AuthContext.Provider>
       </NotificationProvider>,
@@ -360,5 +363,52 @@ describe('CommerceHub', () => {
 
     expect(c.textContent).toContain('Nextcloud')
     expect(c.textContent).not.toContain('Add Source')
+  })
+
+  it('shows backend detail for channel test errors', async () => {
+    const failingCommerce: CommerceService = {
+      ...commerce,
+      async testChannel() {
+        throw new ApiError(403, JSON.stringify({ detail: 'Admin permission required.' }))
+      },
+    }
+    const c = await renderPage(adminUser, failingCommerce)
+    const testButton = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
+
+    await act(async () => {
+      testButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(c.textContent).toContain('Admin permission required.')
+    expect(c.textContent).not.toContain('Unable to test connection')
+  })
+
+  it('shows backend detail for save errors without rendering secret values', async () => {
+    const failingCommerce: CommerceService = {
+      ...commerce,
+      async saveChannel() {
+        throw new ApiError(400, JSON.stringify({
+          detail: 'Invalid credential: consumer_secret=cs_live_secret api_key=snapp-secret-value',
+        }))
+      },
+    }
+    const c = await renderPage(adminUser, failingCommerce)
+    const addChannel = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add Channel')
+    await act(async () => {
+      addChannel?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    const save = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Save configuration')
+
+    await act(async () => {
+      save?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(c.textContent).toContain('Invalid credential')
+    expect(c.textContent).toContain('[REDACTED]')
+    expect(c.textContent).not.toContain('cs_live_secret')
+    expect(c.textContent).not.toContain('snapp-secret-value')
+    expect(c.textContent).not.toContain('Unable to save channel configuration')
   })
 })

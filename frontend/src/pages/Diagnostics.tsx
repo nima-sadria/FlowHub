@@ -6,6 +6,7 @@ import type { HealthResponse } from '../api/types'
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
+import PageShell from '../components/PageShell'
 
 const REQUEST_TIMEOUT_MS = 10_000
 
@@ -167,7 +168,7 @@ export default function Diagnostics() {
   ]
 
   return (
-    <div className="fh-page max-w-2xl">
+    <PageShell>
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="fh-page-title">Diagnostics</h1>
@@ -280,6 +281,6 @@ export default function Diagnostics() {
           <span className="font-medium">{health?.status ?? '-'}</span>
         </p>
       </div>
-    </div>
+    </PageShell>
   )
 }

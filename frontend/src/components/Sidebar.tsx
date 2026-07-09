@@ -182,18 +182,6 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
           )}
 
           {hasPerm('can_view_settings') && (
-            <NavLink to="/rate-limits" className={linkCls} onClick={onClose}>
-              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 19V5" />
-                <path d="M9 19V9" />
-                <path d="M14 19V3" />
-                <path d="M19 19v-7" />
-              </svg>
-              <span className={collapsed ? 'md:hidden' : ''}>Rate Limits</span>
-            </NavLink>
-          )}
-
-          {hasPerm('can_view_settings') && (
             <NavLink to="/settings" className={linkCls} onClick={onClose}>
               <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3" />
