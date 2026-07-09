@@ -137,10 +137,10 @@ def _validate_rpm(value: int) -> int:
     return value
 
 
-def _ewma(current: float | None, sample: float) -> float:
+def _ewma(current: float | None, observed: float) -> float:
     if current is None:
-        return sample
-    return (current * 0.8) + (sample * 0.2)
+        return observed
+    return (current * 0.8) + (observed * 0.2)
 
 
 def _avg(values: list[float]) -> float:

@@ -5,6 +5,7 @@ from pathlib import Path
 import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -14,6 +15,10 @@ def _alembic_config() -> Config:
     cfg = Config(str(ROOT / "alembic_flowhub.ini"))
     cfg.set_main_option("script_location", str(ROOT / "alembic_flowhub"))
     return cfg
+
+
+def _head_revision() -> str:
+    return ScriptDirectory.from_config(_alembic_config()).get_current_head()
 
 
 def test_legacy_revision_and_core_tables_upgrade_without_data_loss(tmp_path, monkeypatch):
@@ -72,7 +77,7 @@ def test_legacy_revision_and_core_tables_upgrade_without_data_loss(tmp_path, mon
             sa.text("SELECT value FROM flowhub_app_config WHERE key = 'setup.completed'")
         ).scalar_one()
 
-    assert revision == "FLOWHUB_007"
+    assert revision == _head_revision()
     assert admin_count == 1
     assert setup_value == "true"
     engine.dispose()
@@ -88,5 +93,5 @@ def test_fresh_database_still_upgrades_to_head(tmp_path, monkeypatch):
     engine = sa.create_engine(db_url)
     with engine.connect() as conn:
         revision = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert revision == "FLOWHUB_007"
+    assert revision == _head_revision()
     engine.dispose()

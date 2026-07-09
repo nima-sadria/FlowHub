@@ -18,6 +18,9 @@ _SENSITIVE_MARKERS = (
     "consumer_secret",
     "access_token",
     "refresh_token",
+    "bearer",
+    "credential",
+    "credentials",
 )
 
 _CREDENTIAL_KEY_CONTEXT = (
@@ -30,10 +33,11 @@ _CREDENTIAL_KEY_CONTEXT = (
     "access",
     "refresh",
     "app",
+    "session",
 )
 
 _SENSITIVE_TEXT_PATTERN = re.compile(
-    r"(?i)\b(secret|token|password|authorization|api_key|apikey|consumer_key|consumer_secret|access_token|refresh_token|key)"
+    r"(?i)\b(secret|token|password|authorization|api_key|apikey|consumer_key|consumer_secret|access_token|refresh_token|bearer|credential|credentials|key)"
     r"(\s*[:=]\s*)"
     r"([^,\s;&]+)"
 )

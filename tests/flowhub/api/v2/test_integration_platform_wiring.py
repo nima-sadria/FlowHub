@@ -117,6 +117,11 @@ def test_canonical_capability_schema_baseline():
         "polling",
         "oauth",
         "api_key",
+        "supports_modified_since",
+        "supports_delta_sync",
+        "supports_updated_after",
+        "supports_pagination",
+        "supports_batch_read",
     }
     statuses = {item.value for item in ConnectorHealthStatus}
     assert statuses == {
@@ -370,9 +375,9 @@ def test_workspace_routes_are_read_only(client, auth_headers, db):
     assert summary["scheduler_available"] is False
     assert summary["pricing_automation_available"] is False
 
-    preview = client.post("/api/v2/workspace/preview", headers=auth_headers).json()
-    assert preview["external_call_performed"] is False
-    assert preview["runtime_write_blocked"] is True
+    preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
+    assert preview.status_code == 422
+    assert "Missing required setting" in preview.text
 
 
 def test_diagnostics_run_uses_records_only(client, auth_headers, db):

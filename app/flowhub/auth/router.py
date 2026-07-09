@@ -53,15 +53,41 @@ router = APIRouter()
 _REFRESH_EXPIRE_DAYS = 30
 
 _ROLE_PERMISSIONS: dict[str, dict[str, bool]] = {
+    "owner": {
+        "can_access_site": True,
+        "can_fetch": True,
+        "can_apply": True,
+        "can_edit_price": True,
+        "can_edit_stock": False,
+        "can_view_logs": True,
+        "can_view_settings": True,
+    },
+    "super_admin": {
+        "can_access_site": True,
+        "can_fetch": True,
+        "can_apply": True,
+        "can_edit_price": True,
+        "can_edit_stock": False,
+        "can_view_logs": True,
+        "can_view_settings": True,
+    },
     "admin": {
         "can_access_site": True,
         "can_fetch": True,
+        "can_apply": True,
+        "can_edit_price": True,
+        "can_edit_stock": False,
         "can_view_logs": True,
         "can_view_settings": True,
     },
     "viewer": {
         "can_access_site": True,
+        "can_fetch": False,
+        "can_apply": False,
+        "can_edit_price": False,
+        "can_edit_stock": False,
         "can_view_logs": True,
+        "can_view_settings": False,
     },
 }
 
@@ -185,7 +211,7 @@ async def me(current_user: FlowHubUser = Depends(get_current_user)) -> MeRespons
     return MeResponse(
         username=current_user.username,
         role=current_user.role,
-        is_admin=current_user.role == "admin",
-        is_super_admin=False,
+        is_admin=current_user.role in {"owner", "super_admin", "admin"},
+        is_super_admin=current_user.role in {"owner", "super_admin"},
         permissions=permissions,
     )

@@ -85,7 +85,7 @@ function SourceCard({ source }: { source: CommerceSource }) {
             <span className={['fh-badge', statusClass(source.status)].join(' ')}>
               {prettyStatus(source.status)}
             </span>
-            {source.placeholder && <span className="fh-badge fh-badge-neutral">Future source placeholder</span>}
+            {source.placeholder && <span className="fh-badge fh-badge-neutral">Planned source</span>}
           </div>
           <p className="text-[12px] text-wp-muted mt-1">{source.data_role}</p>
         </div>
@@ -119,7 +119,7 @@ function ChannelCard({ channel, onTest, testing, canManage }: {
             <span className={['fh-badge', statusClass(channel.status)].join(' ')}>
               {prettyStatus(channel.status)}
             </span>
-            {channel.placeholder && <span className="fh-badge fh-badge-neutral">Future channel placeholder</span>}
+            {channel.placeholder && <span className="fh-badge fh-badge-neutral">Planned channel</span>}
           </div>
           <p className="text-[12px] text-wp-muted mt-1">{channel.capabilities_summary.join(', ')}</p>
         </div>
@@ -156,8 +156,8 @@ function fieldLabel(kind: FormKind, provider: string, key: string, fallback: str
   if (kind === 'channel' && provider === 'woocommerce' && key === 'url') return 'Store URL'
   if (kind === 'channel' && provider === 'woocommerce' && key === 'key') return 'Consumer Key'
   if (kind === 'channel' && provider === 'woocommerce' && key === 'secret') return 'Consumer Secret'
-  if (['seller_id', 'merchant_id'].includes(key)) return 'Seller/store ID placeholder'
-  if (['api_key', 'api_token'].includes(key)) return 'API key/token placeholder'
+  if (['seller_id', 'merchant_id'].includes(key)) return 'Seller/store ID'
+  if (['api_key', 'api_token'].includes(key)) return 'API key/token'
   return fallback
 }
 
@@ -284,7 +284,7 @@ function ConfigPanel({
         <SafetyBadges readOnly={selected.read_only} writeBlocked={selected.runtime_write_blocked} />
         {selected.placeholder && (
           <span className="fh-badge fh-badge-neutral">
-            {kind === 'source' ? 'Future source placeholder' : 'Future channel placeholder'}
+            {kind === 'source' ? 'Planned source' : 'Planned channel'}
           </span>
         )}
         {selected.placeholder && <span className="fh-badge fh-badge-neutral">Not configured</span>}

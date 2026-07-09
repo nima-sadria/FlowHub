@@ -67,6 +67,7 @@ from app.flowhub.api.v2.integrations import router as integrations_router
 from app.flowhub.api.v2.integration_platform import router as integration_platform_router
 from app.flowhub.api.v2.logging import router as logging_router
 from app.flowhub.api.v2.read_engine import router as read_engine_router
+from app.flowhub.api.v2.users import router as users_router
 
 _VERSION = os.getenv("FLOWHUB_VERSION", "1.0.0")
 
@@ -128,6 +129,7 @@ app.include_router(setup_router, prefix="/api/v2")
 app.include_router(integrations_router, prefix="/api/v2")
 app.include_router(integration_platform_router, prefix="/api/v2")
 app.include_router(logging_router, prefix="/api/v2")
+app.include_router(users_router, prefix="/api/v2")
 app.include_router(products_router, prefix="/api/v2")
 app.include_router(sources_router, prefix="/api/v2")
 app.include_router(workspace_router, prefix="/api/v2")

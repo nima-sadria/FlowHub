@@ -18,7 +18,7 @@ def _service(db: Session = Depends(get_db)) -> ManualReadService:
 
 
 def _require_admin(user: FlowHubUser) -> None:
-    if user.role != "admin":
+    if user.role not in {"owner", "super_admin", "admin"}:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin permission required.")
 
 

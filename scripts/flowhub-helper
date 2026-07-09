@@ -194,8 +194,24 @@ create_backup() {
     local stamp archive
     stamp="$(date -u +%Y%m%dT%H%M%SZ)"
     archive="${INSTALL_DIR}/backups/flowhub-${stamp}.tar.gz"
-    tar --exclude='logs/admin-credentials.txt' -C "$INSTALL_DIR" -czf "$archive" .env storage logs 2>/dev/null \
-        || tar -C "$INSTALL_DIR" -czf "$archive" .env storage
+    load_env
+    local tmpdir
+    tmpdir="$(mktemp -d)"
+    if ! run_compose exec -T postgres pg_dump \
+        -U "${FLOWHUB_POSTGRES_USER:-flowhub}" \
+        -d "${FLOWHUB_POSTGRES_DB:-flowhub}" \
+        --clean --if-exists > "${tmpdir}/postgres.sql"; then
+        rm -rf "$tmpdir"
+        die "database backup failed; archive was not created."
+    fi
+    [[ -f "${INSTALL_DIR}/.env" ]] && cp "${INSTALL_DIR}/.env" "${tmpdir}/.env"
+    [[ -d "${INSTALL_DIR}/storage" ]] && cp -a "${INSTALL_DIR}/storage" "${tmpdir}/storage"
+    if [[ -d "${INSTALL_DIR}/logs" ]]; then
+        mkdir -p "${tmpdir}/logs"
+        tar --exclude='admin-credentials.txt' -C "${INSTALL_DIR}/logs" -cf - . | tar -C "${tmpdir}/logs" -xf -
+    fi
+    tar -C "$tmpdir" -czf "$archive" .
+    rm -rf "$tmpdir"
     chmod 600 "$archive"
     echo "Backup created: ${archive}"
 }
@@ -203,7 +219,24 @@ create_backup() {
 restore_backup() {
     local archive="${1:-}"
     [[ -n "$archive" && -f "$archive" ]] || die "restore requires a backup archive path."
-    tar -xzf "$archive" -C "$INSTALL_DIR"
+    local tmpdir
+    tmpdir="$(mktemp -d)"
+    tar -xzf "$archive" -C "$tmpdir"
+    [[ -f "${tmpdir}/postgres.sql" ]] || {
+        rm -rf "$tmpdir"
+        die "backup archive does not contain postgres.sql; refusing partial restore."
+    }
+    [[ -f "${tmpdir}/.env" ]] && cp "${tmpdir}/.env" "${INSTALL_DIR}/.env" && chmod 600 "${INSTALL_DIR}/.env"
+    [[ -d "${tmpdir}/storage" ]] && rm -rf "${INSTALL_DIR}/storage" && cp -a "${tmpdir}/storage" "${INSTALL_DIR}/storage"
+    [[ -d "${tmpdir}/logs" ]] && mkdir -p "${INSTALL_DIR}/logs" && cp -a "${tmpdir}/logs/." "${INSTALL_DIR}/logs/"
+    load_env
+    if ! run_compose exec -T postgres psql \
+        -U "${FLOWHUB_POSTGRES_USER:-flowhub}" \
+        -d "${FLOWHUB_POSTGRES_DB:-flowhub}" < "${tmpdir}/postgres.sql"; then
+        rm -rf "$tmpdir"
+        die "database restore failed; inspect PostgreSQL logs before retrying."
+    fi
+    rm -rf "$tmpdir"
     echo "Backup restored. Run: flowhub repair"
 }
 

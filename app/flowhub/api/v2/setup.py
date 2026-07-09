@@ -39,6 +39,7 @@ from app.flowhub.setup.service import AppConfigService
 router = APIRouter(prefix="/setup", tags=["setup"])
 
 _REFRESH_EXPIRE_DAYS = 30
+_ADMIN_ROLES = ("owner", "super_admin", "admin")
 
 _UTC = timezone.utc
 _EMAIL_ERROR = "Enter a valid email address."
@@ -194,7 +195,7 @@ class AdminPayload(BaseModel):
 async def setup_status(db: Session = Depends(get_db)) -> dict:
     """Public endpoint: returns whether setup has been completed and if an admin exists."""
     svc = AppConfigService(db)
-    has_admin = db.query(FlowHubUser).filter(FlowHubUser.role == "admin").first() is not None
+    has_admin = db.query(FlowHubUser).filter(FlowHubUser.role.in_(_ADMIN_ROLES)).first() is not None
     return {"completed": svc.is_setup_completed(), "has_admin": has_admin}
 
 
@@ -263,7 +264,7 @@ async def setup_admin(
     svc = _require_setup_not_complete(db)
 
     # Prevent creating a second admin through this endpoint
-    existing_admin = db.query(FlowHubUser).filter(FlowHubUser.role == "admin").first()
+    existing_admin = db.query(FlowHubUser).filter(FlowHubUser.role.in_(_ADMIN_ROLES)).first()
     if existing_admin:
         raise HTTPException(
             status_code=409,
@@ -300,7 +301,7 @@ async def setup_complete(db: Session = Depends(get_db)) -> dict:
     svc = _require_setup_not_complete(db)
 
     # Require at least one admin user before allowing completion
-    admin_exists = db.query(FlowHubUser).filter(FlowHubUser.role == "admin").first()
+    admin_exists = db.query(FlowHubUser).filter(FlowHubUser.role.in_(_ADMIN_ROLES)).first()
     if not admin_exists:
         raise HTTPException(
             status_code=422,

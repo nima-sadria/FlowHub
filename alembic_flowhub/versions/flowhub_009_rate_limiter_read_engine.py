@@ -18,26 +18,40 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("dl_connector_telemetry", sa.Column("queue_length", sa.Integer(), nullable=True, server_default="0"))
-    op.add_column("dl_connector_telemetry", sa.Column("last_throttle_at", sa.DateTime(), nullable=True))
-    op.add_column("dl_connector_telemetry", sa.Column("last_connector_delay_ms", sa.Float(), nullable=True))
-    op.add_column("dl_connector_telemetry", sa.Column("last_request_duration_ms", sa.Float(), nullable=True))
+    _add_column_if_missing("dl_connector_telemetry", sa.Column("queue_length", sa.Integer(), nullable=True, server_default="0"))
+    _add_column_if_missing("dl_connector_telemetry", sa.Column("last_throttle_at", sa.DateTime(), nullable=True))
+    _add_column_if_missing("dl_connector_telemetry", sa.Column("last_connector_delay_ms", sa.Float(), nullable=True))
+    _add_column_if_missing("dl_connector_telemetry", sa.Column("last_request_duration_ms", sa.Float(), nullable=True))
 
-    op.add_column("dl_product_cache", sa.Column("last_price", sa.Text(), nullable=True))
-    op.add_column("dl_product_cache", sa.Column("last_successful_read", sa.DateTime(), nullable=True))
-    op.add_column("dl_product_cache", sa.Column("last_modified", sa.String(length=100), nullable=True))
-    op.add_column("dl_product_cache", sa.Column("exists", sa.Boolean(), nullable=False, server_default=sa.true()))
-    op.add_column("dl_product_cache", sa.Column("record_hash", sa.String(length=64), nullable=True))
+    _add_column_if_missing("dl_product_cache", sa.Column("last_price", sa.Text(), nullable=True))
+    _add_column_if_missing("dl_product_cache", sa.Column("last_successful_read", sa.DateTime(), nullable=True))
+    _add_column_if_missing("dl_product_cache", sa.Column("last_modified", sa.String(length=100), nullable=True))
+    _add_column_if_missing("dl_product_cache", sa.Column("exists", sa.Boolean(), nullable=False, server_default=sa.true()))
+    _add_column_if_missing("dl_product_cache", sa.Column("record_hash", sa.String(length=64), nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column("dl_product_cache", "record_hash")
-    op.drop_column("dl_product_cache", "exists")
-    op.drop_column("dl_product_cache", "last_modified")
-    op.drop_column("dl_product_cache", "last_successful_read")
-    op.drop_column("dl_product_cache", "last_price")
+    _drop_column_if_present("dl_product_cache", "record_hash")
+    _drop_column_if_present("dl_product_cache", "exists")
+    _drop_column_if_present("dl_product_cache", "last_modified")
+    _drop_column_if_present("dl_product_cache", "last_successful_read")
+    _drop_column_if_present("dl_product_cache", "last_price")
 
-    op.drop_column("dl_connector_telemetry", "last_request_duration_ms")
-    op.drop_column("dl_connector_telemetry", "last_connector_delay_ms")
-    op.drop_column("dl_connector_telemetry", "last_throttle_at")
-    op.drop_column("dl_connector_telemetry", "queue_length")
+    _drop_column_if_present("dl_connector_telemetry", "last_request_duration_ms")
+    _drop_column_if_present("dl_connector_telemetry", "last_connector_delay_ms")
+    _drop_column_if_present("dl_connector_telemetry", "last_throttle_at")
+    _drop_column_if_present("dl_connector_telemetry", "queue_length")
+
+
+def _columns(table_name: str) -> set[str]:
+    return {column["name"] for column in sa.inspect(op.get_bind()).get_columns(table_name)}
+
+
+def _add_column_if_missing(table_name: str, column: sa.Column) -> None:
+    if column.name not in _columns(table_name):
+        op.add_column(table_name, column)
+
+
+def _drop_column_if_present(table_name: str, column_name: str) -> None:
+    if column_name in _columns(table_name):
+        op.drop_column(table_name, column_name)

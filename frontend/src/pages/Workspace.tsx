@@ -367,7 +367,7 @@ export default function Workspace() {
               <p>Simple and variation WooCommerce price updates are supported.</p>
               <p>Variation rows require cached parent product metadata.</p>
               <p>Stock updates are not supported.</p>
-              <p>CSV and Google Sheets are placeholders.</p>
+              <p>CSV and Google Sheets are not available in 1.0.0.</p>
             </div>
           </div>
 

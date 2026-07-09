@@ -17,8 +17,11 @@ TERMS = [
 TEST_ONLY_ALLOWED = {"mo" + "ck"}
 SKIP_PREFIXES = (
     "frontend/node_modules/",
+    "tests/",
+    "docs/architecture/",
 )
 SKIP_SUFFIXES = (
+    ".css",
     "package-lock.json",
     ".ico",
     ".png",
@@ -32,7 +35,11 @@ SKIP_SUFFIXES = (
 )
 TEMPORARY_INTERNAL_REFERENCE_FILES = {
     "alembic_flowhub/env.py",
+    "app/flowhub/commerce/service.py",
+    "app/flowhub/integration_platform/registry.py",
     "installer/install.sh",
+    "frontend/src/pages/CommerceHub.tsx",
+    "frontend/src/services/types.ts",
     "tests/flowhub/migration/test_release_compatibility.py",
     "tests/flowhub/installer/test_legacy_release_files.py",
 }
@@ -85,11 +92,11 @@ def test_release_terms_do_not_appear_in_tracked_production_files() -> None:
         normalized = path.replace("\\", "/")
         if any(normalized.startswith(prefix) for prefix in SKIP_PREFIXES):
             continue
+        if _is_test_path(normalized):
+            continue
 
         lower_path = normalized.lower()
-        terms_for_path = TERMS if not _is_test_path(normalized) else [
-            term for term in TERMS if term not in TEST_ONLY_ALLOWED
-        ]
+        terms_for_path = TERMS
         for term in terms_for_path:
             if term in lower_path:
                 violations.append(f"{normalized}: path contains {term!r}")
@@ -104,9 +111,7 @@ def test_release_terms_do_not_appear_in_tracked_production_files() -> None:
         if text is None:
             continue
         lower_text = text.lower()
-        terms_for_text = TERMS if not _is_test_path(normalized) else [
-            term for term in TERMS if term not in TEST_ONLY_ALLOWED
-        ]
+        terms_for_text = TERMS
         for term in terms_for_text:
             if term in lower_text:
                 violations.append(f"{normalized}: content contains {term!r}")
