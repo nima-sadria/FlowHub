@@ -231,7 +231,6 @@ async def _put(
     """Internal PUT helper for the approved Write Pipeline price adapter."""
     url = creds.url + _WC_API + path
     try:
-        await acquire_connector_rate_limit("woocommerce:primary", "write")
         async with httpx.AsyncClient(
             auth=_auth(creds),
             follow_redirects=True,
@@ -312,6 +311,8 @@ async def list_products_paged(
     product_type: str | None = None,
     fields: str = _PRODUCT_FIELDS,
     status: str = "publish",
+    product_ids: list[int] | None = None,
+    modified_since: Any | None = None,
 ) -> tuple[list[dict], int, int]:
     """Return (products, total_count, total_pages) for one page.
 
@@ -329,6 +330,13 @@ async def list_products_paged(
         params["category"] = category_id
     if product_type in ("simple", "variable"):
         params["type"] = product_type
+    if product_ids:
+        params["include"] = ",".join(str(item) for item in product_ids)
+    if modified_since is not None:
+        if hasattr(modified_since, "isoformat"):
+            params["modified_after"] = modified_since.isoformat()
+        else:
+            params["modified_after"] = str(modified_since)
 
     r = await _get_raw(creds, "/products", params=params, timeout=_TIMEOUT_PAGE)
     total = int(r.headers.get("X-WP-Total", "0"))

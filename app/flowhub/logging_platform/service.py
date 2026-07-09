@@ -25,6 +25,7 @@ from app.flowhub.logging_platform.models import (
     LoggingRequestTrace,
     LoggingRetentionPolicy,
 )
+from app.flowhub.security.redaction import is_sensitive_key
 
 SEVERITIES = {"debug", "info", "warning", "error", "critical"}
 FRONTEND_CATEGORIES = {
@@ -377,7 +378,7 @@ class LoggingPlatformService:
             result: dict[str, Any] = {}
             for key, item in value.items():
                 key_lower = str(key).lower()
-                result[key] = "[REDACTED]" if any(marker in key_lower for marker in SECRET_MARKERS) else self._redact(item)
+                result[key] = "[REDACTED]" if is_sensitive_key(key_lower) else self._redact(item)
             return result
         if isinstance(value, list):
             return [self._redact(item) for item in value]

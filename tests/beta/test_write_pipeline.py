@@ -338,6 +338,54 @@ def test_execution_dispatches_through_adapter_registry(client, auth_headers, mon
     assert calls["count"] == 1
 
 
+def test_manual_apply_acquires_write_limiter_before_adapter_execution(client, auth_headers, monkeypatch):
+    from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
+
+    order: list[str] = []
+
+    async def fake_acquire(self, connector_id, operation, *, connector_type=None):
+        from app.flowhub.rate_limit import RateLimitAcquireResult
+
+        order.append(f"limiter:{connector_id}:{operation}:{connector_type}")
+        return RateLimitAcquireResult(
+            connector_id=connector_id,
+            operation=operation,
+            rpm=30,
+            delay_seconds=0,
+            delayed=False,
+            queue_length=0,
+            estimated_delay_ms=0,
+            requests_completed=1,
+            requests_delayed=0,
+            throttle_events=0,
+            average_request_duration_ms=0,
+            last_throttle_at=None,
+            last_connector_delay_ms=0,
+        )
+
+    async def fake_execute(_adapter, item, _context):
+        order.append(f"adapter:{item.channel_product_id}")
+        return {"provider": "woocommerce", "product_id": item.channel_product_id, "regular_price": "110.00"}
+
+    monkeypatch.setattr("app.flowhub.rate_limit.service.RateLimitService.acquire", fake_acquire)
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
+    created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
+    client.post(f"/api/v2/write-pipeline/batches/{created['id']}/approve", headers=auth_headers, json={})
+    _enable_woocommerce_write(client, auth_headers)
+
+    response = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert order == ["limiter:woocommerce:primary:write:woocommerce", "adapter:101"]
+
+
+def test_woocommerce_rest_put_does_not_take_second_write_limiter_token():
+    src = Path("app/connectors/destinations/woocommerce/rest_client.py").read_text(encoding="utf-8")
+    put_body = src.split("async def _put(", 1)[1].split("async def list_products", 1)[0]
+
+    assert 'acquire_connector_rate_limit("woocommerce:primary", "write")' not in put_body
+
+
 def test_woocommerce_adapter_is_registered_for_price_updates_only():
     from app.flowhub.write_pipeline.registry import default_write_adapter_registry
 

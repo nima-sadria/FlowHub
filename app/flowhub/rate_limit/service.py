@@ -82,8 +82,6 @@ class RateLimitService:
         row.queue_length = result.queue_length
         row.last_throttle_at = result.last_throttle_at
         row.last_connector_delay_ms = result.last_connector_delay_ms
-        row.last_request_duration_ms = result.average_request_duration_ms
-        row.avg_latency_ms = _ewma(row.avg_latency_ms, result.average_request_duration_ms)
         row.updated_at = now
         self.db.commit()
 
@@ -92,6 +90,15 @@ class RateLimitService:
         snapshot = global_rate_limiter_registry.snapshot()
         rows = self.db.query(DlConnectorTelemetry).all()
         last_throttle = _latest([row.last_throttle_at for row in rows] + [snapshot.get("last_throttle")])
+        queue_length = max(int(snapshot.get("queue_length") or 0), sum((row.queue_length or 0) for row in rows))
+        request_duration = _avg_nullable([row.last_request_duration_ms for row in rows])
+        avg_latency = _avg_nullable([row.avg_latency_ms for row in rows])
+        limiter_delay = _max_nullable([row.last_connector_delay_ms for row in rows] + [snapshot.get("last_connector_delay_ms")])
+        eta = (
+            queue_length * (60.0 / min(settings.read_requests_per_minute, settings.write_requests_per_minute))
+            if queue_length > 0
+            else None
+        )
         return {
             "settings": {
                 "read_requests_per_minute": settings.read_requests_per_minute,
@@ -101,17 +108,18 @@ class RateLimitService:
             },
             "current_read_rpm": settings.read_requests_per_minute,
             "current_write_rpm": settings.write_requests_per_minute,
-            "queue_length": max(int(snapshot.get("queue_length") or 0), sum((row.queue_length or 0) for row in rows)),
-            "average_request_duration_ms": round(_avg([row.avg_latency_ms or 0 for row in rows] + [snapshot.get("average_request_duration_ms") or 0]), 2),
-            "average_latency_ms": round(_avg([row.avg_latency_ms or 0 for row in rows] + [snapshot.get("average_request_duration_ms") or 0]), 2),
+            "queue_length": queue_length,
+            "average_request_duration_ms": _round_or_none(request_duration),
+            "average_latency_ms": _round_or_none(avg_latency),
             "throttle_count": max(int(snapshot.get("throttle_count") or 0), sum((row.throttle_events or 0) for row in rows)),
             "throttle_events": max(int(snapshot.get("throttle_count") or 0), sum((row.throttle_events or 0) for row in rows)),
             "last_throttle": _iso(last_throttle),
-            "last_connector_delay_ms": max([row.last_connector_delay_ms or 0 for row in rows] + [snapshot.get("last_connector_delay_ms") or 0]),
+            "last_connector_delay_ms": _round_or_none(limiter_delay),
+            "last_limiter_delay_ms": _round_or_none(limiter_delay),
             "requests_completed": snapshot.get("requests_completed", 0),
             "requests_delayed": snapshot.get("requests_delayed", 0),
-            "remaining_queue": max(int(snapshot.get("queue_length") or 0), sum((row.queue_length or 0) for row in rows)),
-            "estimated_completion_seconds": 0,
+            "remaining_queue": queue_length,
+            "estimated_completion_seconds": _round_or_none(eta),
         }
 
 
@@ -138,6 +146,20 @@ def _ewma(current: float | None, sample: float) -> float:
 def _avg(values: list[float]) -> float:
     meaningful = [value for value in values if value]
     return sum(meaningful) / len(meaningful) if meaningful else 0.0
+
+
+def _avg_nullable(values: list[float | None]) -> float | None:
+    meaningful = [value for value in values if value is not None]
+    return sum(meaningful) / len(meaningful) if meaningful else None
+
+
+def _max_nullable(values: list[float | None]) -> float | None:
+    meaningful = [value for value in values if value is not None]
+    return max(meaningful) if meaningful else None
+
+
+def _round_or_none(value: float | None) -> float | None:
+    return round(value, 2) if value is not None else None
 
 
 def _latest(values: list[datetime | None]) -> datetime | None:

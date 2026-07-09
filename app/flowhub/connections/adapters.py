@@ -9,6 +9,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
+from app.flowhub.rate_limit import acquire_connector_rate_limit
+
 
 # ---------------------------------------------------------------------------
 # Custom exception hierarchy
@@ -255,6 +257,7 @@ class RealNetworkAdapter(NetworkAdapter):
         auth: Optional[tuple[str, str]],
     ) -> tuple[int, bytes]:
         import httpx
+        _acquire_global_read_limit("connection-test:http")
         try:
             with httpx.Client(timeout=timeout, follow_redirects=True) as client:
                 r = client.request(method, url, headers=headers, auth=auth)
@@ -277,6 +280,7 @@ class RealNetworkAdapter(NetworkAdapter):
         timeout: float,
     ) -> tuple[bool, int]:
         import httpx
+        _acquire_global_read_limit("connection-test:auth")
         try:
             with httpx.Client(timeout=timeout) as client:
                 r = client.get(url, auth=(username, password))
@@ -341,3 +345,31 @@ class RealNetworkAdapter(NetworkAdapter):
         if not os.path.exists(socket_path):
             raise DockerAdapterError(f"Docker socket not found at {socket_path}")
         return {"available": True, "socket_path": socket_path}
+
+
+def _acquire_global_read_limit(connector_id: str) -> None:
+    import asyncio
+    import threading
+
+    async def _acquire() -> None:
+        await acquire_connector_rate_limit(connector_id, "read")
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(_acquire())
+        return
+
+    error: list[BaseException] = []
+
+    def _runner() -> None:
+        try:
+            asyncio.run(_acquire())
+        except BaseException as exc:  # pragma: no cover - defensive bridge
+            error.append(exc)
+
+    thread = threading.Thread(target=_runner, daemon=True)
+    thread.start()
+    thread.join()
+    if error:
+        raise error[0]

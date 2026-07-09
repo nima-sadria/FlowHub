@@ -66,6 +66,7 @@ from app.flowhub.api.v2.data_layer_routes import router as data_layer_router
 from app.flowhub.api.v2.integrations import router as integrations_router
 from app.flowhub.api.v2.integration_platform import router as integration_platform_router
 from app.flowhub.api.v2.logging import router as logging_router
+from app.flowhub.api.v2.read_engine import router as read_engine_router
 
 _VERSION = os.getenv("FLOWHUB_VERSION", "1.0.0")
 
@@ -137,6 +138,7 @@ app.include_router(commerce_router, prefix="/api/v2")
 app.include_router(config_router, prefix="/api/v2")
 app.include_router(activity_router, prefix="/api/v2")
 app.include_router(diagnostics_router, prefix="/api/v2")
+app.include_router(read_engine_router, prefix="/api/v2")
 app.include_router(data_layer_router, prefix="/api/v2")
 
 # Static assets (hashed filenames produced by Vite; only mounted if built)

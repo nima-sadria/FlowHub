@@ -18,6 +18,8 @@ from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob
 from app.flowhub.data_layer.product_service import ProductReadModelService
 from app.flowhub.rate_limit.service import RateLimitService
 from app.flowhub.read_engine.contracts import ReadConnectorAdapter, ReadPage
+from app.flowhub.read_engine.exceptions import IncrementalReadUnsupported
+from app.flowhub.security.redaction import redact_sensitive
 
 
 @dataclass(frozen=True)
@@ -73,11 +75,16 @@ class IncrementalReadEngine:
         requests_completed = int(meta.get("requests_completed") or 0)
         requests_delayed = int(meta.get("requests_delayed") or 0)
         products_stored = int(meta.get("products_stored") or 0)
+        seen_product_ids = {str(item) for item in (meta.get("seen_product_ids") or [])}
         modified_since = self._modified_since(adapter.connector_id) if strategy == "modified_since" else None
-        product_ids = self.eligible_cached_product_ids(adapter.connector_id) if strategy == "metadata_filter" else None
+        product_ids = meta.get("product_ids") if strategy == "metadata_filter" else None
+        if strategy == "metadata_filter" and product_ids is None:
+            product_ids = await self._metadata_filtered_product_ids(adapter)
 
         try:
             while True:
+                if strategy == "metadata_filter" and not product_ids:
+                    break
                 limiter_result = await self.rate_limits.acquire(
                     adapter.connector_id,
                     "read",
@@ -89,7 +96,11 @@ class IncrementalReadEngine:
 
                 page = await self._fetch_page(adapter, strategy, cursor, modified_since, product_ids)
                 for item in page.items:
+                    product_id = self._product_id(item)
+                    if not product_id or product_id in seen_product_ids:
+                        continue
                     self._store_product(adapter.connector_id, item)
+                    seen_product_ids.add(product_id)
                     products_stored += 1
 
                 cursor = page.next_cursor
@@ -101,6 +112,8 @@ class IncrementalReadEngine:
                         "requests_completed": requests_completed,
                         "requests_delayed": requests_delayed,
                         "products_stored": products_stored,
+                        "seen_product_ids": sorted(seen_product_ids),
+                        "product_ids": product_ids if strategy == "metadata_filter" else None,
                         "queue_survives_interruption": True,
                         "scheduler_started": False,
                         "automatic_sync": False,
@@ -128,7 +141,12 @@ class IncrementalReadEngine:
             job.duration_ms = (job.completed_at - job.started_at).total_seconds() * 1000
         self.db.commit()
 
-        estimated = None if requests_completed == 0 else max(0, (60.0 / self.rate_limits.get_settings().read_requests_per_minute) * (1 if cursor else 0))
+        remaining_queue = 0 if cursor is None else 1
+        estimated = (
+            (60.0 / self.rate_limits.get_settings().read_requests_per_minute) * remaining_queue
+            if remaining_queue
+            else None
+        )
         return ReadProgress(
             job_id=job.id,
             connector_id=adapter.connector_id,
@@ -137,23 +155,60 @@ class IncrementalReadEngine:
             requests_completed=requests_completed,
             requests_delayed=requests_delayed,
             products_stored=products_stored,
-            remaining_queue=0 if cursor is None else 1,
+            remaining_queue=remaining_queue,
             estimated_completion_seconds=estimated,
         )
 
-    def _fetch_page(
+    async def _fetch_page(
         self,
         adapter: ReadConnectorAdapter,
         strategy: str,
         cursor: str | None,
         modified_since: datetime | None,
         product_ids: list[str] | None,
-    ):
+    ) -> ReadPage:
         if strategy == "metadata_filter":
-            return adapter.fetch_products(cursor=cursor, product_ids=product_ids or [])
+            if not adapter.capabilities.supports_batch_read:
+                raise IncrementalReadUnsupported("incremental_read_unsupported: connector cannot batch read product IDs")
+            return await adapter.fetch_products(cursor=cursor, product_ids=product_ids or [])
         if strategy == "modified_since":
-            return adapter.fetch_products(modified_since=modified_since, cursor=cursor)
-        return adapter.fetch_products(cursor=cursor)
+            return await adapter.fetch_products(modified_since=modified_since, cursor=cursor)
+        return await adapter.fetch_products(cursor=cursor)
+
+    async def _metadata_filtered_product_ids(self, adapter: ReadConnectorAdapter) -> list[str]:
+        if not adapter.capabilities.supports_batch_read:
+            raise IncrementalReadUnsupported("incremental_read_unsupported: connector cannot batch read product IDs")
+
+        eligible_cache = set(self.eligible_cached_product_ids(adapter.connector_id))
+        cutoff = datetime.utcnow() - timedelta(days=365)
+        selected: list[str] = []
+        seen: set[str] = set()
+        cursor: str | None = None
+
+        while True:
+            await self.rate_limits.acquire(
+                adapter.connector_id,
+                "read",
+                connector_type=adapter.connector_type,
+            )
+            page = await adapter.fetch_metadata(cursor=cursor)
+            for item in page.items:
+                product_id = self._product_id(item)
+                if not product_id or product_id in seen:
+                    continue
+                modified = _parse_modified(
+                    item.get("last_modified")
+                    or item.get("date_modified_gmt")
+                    or item.get("updated_at")
+                    or item.get("modified")
+                )
+                if product_id in eligible_cache or (modified is not None and modified >= cutoff):
+                    selected.append(product_id)
+                    seen.add(product_id)
+            cursor = page.next_cursor
+            if not cursor:
+                break
+        return selected
 
     def _resume_or_create_job(self, connector_id: str, strategy: str, triggered_by: str) -> DlRefreshJob:
         existing = (
@@ -192,7 +247,7 @@ class IncrementalReadEngine:
         return row.last_successful_read if row else None
 
     def _store_product(self, connector_id: str, item: dict[str, Any]) -> None:
-        product_id = str(item.get("product_id") or item.get("id") or "")
+        product_id = self._product_id(item)
         if not product_id:
             return
         now = datetime.utcnow()
@@ -215,6 +270,9 @@ class IncrementalReadEngine:
             freshness="fresh",
         )
 
+    def _product_id(self, item: dict[str, Any]) -> str:
+        return str(item.get("product_id") or item.get("id") or "").strip()
+
 
 def _has_valid_price(row: DlProductCache) -> bool:
     price = row.last_price if row.last_price not in (None, "") else row.price
@@ -233,8 +291,7 @@ def _parse_modified(value: str | None) -> datetime | None:
 
 
 def _safe_item(item: dict[str, Any]) -> dict[str, Any]:
-    blocked = {"key", "secret", "token", "authorization", "password"}
-    return {key: value for key, value in item.items() if key.lower() not in blocked}
+    return redact_sensitive(item)
 
 
 def _hash(item: dict[str, Any]) -> str:

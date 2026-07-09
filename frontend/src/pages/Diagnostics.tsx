@@ -41,11 +41,14 @@ interface DiagnosticsStatusResponse {
     }
     queue_length?: number
     average_request_duration_ms?: number
+    average_latency_ms?: number | null
     throttle_count?: number
     last_throttle?: string | null
-    last_connector_delay_ms?: number
+    last_connector_delay_ms?: number | null
+    last_limiter_delay_ms?: number | null
     requests_completed?: number
     requests_delayed?: number
+    estimated_completion_seconds?: number | null
   }
   external_call_performed?: boolean
 }
@@ -102,6 +105,11 @@ function Row({ row }: { row: StatusRowData }) {
       </div>
     </div>
   )
+}
+
+function metricValue(value: number | null | undefined, suffix = ''): string {
+  if (value === null || value === undefined) return 'Unavailable'
+  return `${value}${suffix}`
 }
 
 export default function Diagnostics() {
@@ -240,6 +248,21 @@ export default function Diagnostics() {
             label: 'Queue length',
             value: loading ? 'Loading' : String(limiter?.queue_length ?? 0),
             status: loading ? 'loading' : 'ok',
+          }} />
+          <Row row={{
+            label: 'Request duration',
+            value: loading ? 'Loading' : metricValue(limiter?.average_request_duration_ms, ' ms'),
+            status: loading ? 'loading' : 'pending',
+          }} />
+          <Row row={{
+            label: 'Limiter delay',
+            value: loading ? 'Loading' : metricValue(limiter?.last_limiter_delay_ms ?? limiter?.last_connector_delay_ms, ' ms'),
+            status: loading ? 'loading' : (limiter?.last_limiter_delay_ms ? 'warning' : 'ok'),
+          }} />
+          <Row row={{
+            label: 'ETA',
+            value: loading ? 'Loading' : metricValue(limiter?.estimated_completion_seconds, ' s'),
+            status: loading ? 'loading' : 'pending',
           }} />
           <Row row={{
             label: 'Throttle events',

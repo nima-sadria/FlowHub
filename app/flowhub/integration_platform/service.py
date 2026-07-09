@@ -57,6 +57,7 @@ from app.flowhub.integration_platform.models import (
     IntegrationWebhookEvent,
 )
 from app.flowhub.integration_platform.registry import registry
+from app.flowhub.security.redaction import is_sensitive_key
 from app.flowhub.setup.service import AppConfigService
 
 
@@ -1189,8 +1190,7 @@ def _product_has_category(row: DlProductCache, category_id: int) -> bool:
 
 
 def _is_secret_key(key: str) -> bool:
-    normalized = key.strip().lower()
-    return normalized in _SECRET_KEYS
+    return is_sensitive_key(key)
 
 
 def _verify_webhook_signature(secret: str, raw_body: bytes, signature: str) -> bool:

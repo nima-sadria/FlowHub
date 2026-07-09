@@ -19,6 +19,7 @@ from app.connectors.common.errors import ConnectorError
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.rate_limit.service import RateLimitService
+from app.flowhub.security.redaction import redact_sensitive
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.write_pipeline.adapters import ChannelWriteAdapter, ChannelWriteContext
 from app.flowhub.write_pipeline.contracts import (
@@ -327,7 +328,7 @@ class WritePipelineService:
             event_type=event_type,
             severity=severity,
             message=message,
-            metadata_json=metadata or {},
+            metadata_json=redact_sensitive(metadata or {}),
             correlation_id=f"corr_{uuid.uuid4().hex[:12]}",
         )
         self.db.add(event)
@@ -393,5 +394,4 @@ class WritePipelineService:
 
 
 def _safe_provider_result(result: dict) -> dict:
-    blocked = {"key", "secret", "token", "authorization", "password"}
-    return {key: value for key, value in (result or {}).items() if key.lower() not in blocked}
+    return redact_sensitive(result or {})
