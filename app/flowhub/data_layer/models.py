@@ -70,6 +70,10 @@ class DlConnectorTelemetry(FlowHubBase):
     rows_parsed = Column(Integer, default=0)
     last_refresh_duration_ms = Column(Float, nullable=True)
     last_preview_duration_ms = Column(Float, nullable=True)
+    queue_length = Column(Integer, default=0)
+    last_throttle_at = Column(DateTime, nullable=True)
+    last_connector_delay_ms = Column(Float, nullable=True)
+    last_request_duration_ms = Column(Float, nullable=True)
     window_start = Column(DateTime, nullable=True)
     window_end = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, nullable=True)
@@ -91,6 +95,7 @@ class DlProductCache(FlowHubBase):
     parent_id = Column(String(255), nullable=True)         # parent product_id for variations
     status = Column(String(50), nullable=True)             # publish | draft | private
     price = Column(Text, nullable=True)
+    last_price = Column(Text, nullable=True)
     regular_price = Column(Text, nullable=True)
     sale_price = Column(Text, nullable=True)
     stock_qty = Column(Integer, nullable=True)
@@ -102,6 +107,10 @@ class DlProductCache(FlowHubBase):
     channel_id = Column(String(100), nullable=True)        # future multi-channel support
     freshness = Column(String(20), default="stale")        # fresh | stale | error
     last_fetched_at = Column(DateTime, nullable=True)
+    last_successful_read = Column(DateTime, nullable=True)
+    last_modified = Column(String(100), nullable=True)
+    exists = Column(Boolean, nullable=False, default=True)
+    record_hash = Column(String(64), nullable=True)
     expires_at = Column(DateTime, nullable=True)
     raw_data = Column(JSON, nullable=True)
 

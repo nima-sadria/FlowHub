@@ -107,10 +107,15 @@ def _product_to_dict(p: DlProductCache) -> dict:
         "product_type": p.product_type,
         "status": p.status,
         "price": p.price,
+        "last_price": p.last_price,
         "stock_status": p.stock_status,
         "freshness": p.freshness,
         "channel_id": p.channel_id,
         "last_fetched_at": _iso(p.last_fetched_at),
+        "last_successful_read": _iso(p.last_successful_read),
+        "last_modified": p.last_modified,
+        "exists": p.exists,
+        "hash": p.record_hash,
         "expires_at": _iso(p.expires_at),
     }
 

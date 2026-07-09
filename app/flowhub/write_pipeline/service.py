@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.connectors.common.errors import ConnectorError
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+from app.flowhub.rate_limit.service import RateLimitService
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.write_pipeline.adapters import ChannelWriteAdapter, ChannelWriteContext
 from app.flowhub.write_pipeline.contracts import (
@@ -132,6 +133,7 @@ class WritePipelineService:
         self._assert_channel_write_enabled(batch)
         capabilities = adapter.get_capabilities()
         context = ChannelWriteContext(get_setting=self.config.get, requested_by=user.username)
+        rate_limits = RateLimitService(self.db)
         batch.status = "executing"
         self._record_event(
             batch.id,
@@ -146,6 +148,7 @@ class WritePipelineService:
         failure_count = 0
         for item in batch.items:
             try:
+                await rate_limits.acquire(batch.channel_id, "write", connector_type=capabilities.channel_type)
                 provider_result = _safe_provider_result(await adapter.execute_item(item, context))
             except ConnectorError as exc:
                 failure_count += 1

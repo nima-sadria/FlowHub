@@ -98,6 +98,7 @@ function RouteMatrix({ initialPath }: { initialPath: string }) {
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><span>workspace-page</span></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><span>activity-page</span></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><span>diagnostics-page</span></RequirePermission>} />
+        <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><span>rate-limits-page</span></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="can_view_settings"><span>settings-page</span></RequirePermission>} />
       </Routes>
     </MemoryRouter>
@@ -323,6 +324,19 @@ describe('Router - /settings', () => {
   })
 })
 
+describe('Router - /rate-limits', () => {
+  it('renders Rate Limits for user with can_view_settings=true', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/rate-limits" />, makeAuth(settingsUser))
+    expect(c.textContent).toContain('rate-limits-page')
+  })
+
+  it('shows Access Denied for user without can_view_settings', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/rate-limits" />, makeAuth(allowedUser))
+    expect(c.textContent).not.toContain('rate-limits-page')
+    expect(c.textContent).toContain('Access Denied')
+  })
+})
+
 // --- Router - /activity -------------------------------------------------------
 
 describe('Router - /activity', () => {
@@ -394,6 +408,11 @@ describe('Sidebar - denied user (can_access_site=false)', () => {
     const c = renderSidebar(deniedUser)
     expect(c.querySelector('a[href="/settings"]')).toBeNull()
   })
+
+  it('hides Rate Limits link', () => {
+    const c = renderSidebar(deniedUser)
+    expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
+  })
 })
 
 describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => {
@@ -436,6 +455,11 @@ describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => 
     const c = renderSidebar(allowedUser)
     expect(c.querySelector('a[href="/settings"]')).toBeNull()
   })
+
+  it('hides Rate Limits link (no can_view_settings)', () => {
+    const c = renderSidebar(allowedUser)
+    expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
+  })
 })
 
 describe('Sidebar - admin user (is_admin=true)', () => {
@@ -448,6 +472,7 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
   })
 })
@@ -462,14 +487,16 @@ describe('Sidebar - super admin (is_super_admin=true, is_admin=false)', () => {
     expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
   })
 })
 
 describe('Sidebar - settings user (can_view_settings=true)', () => {
-  it('shows Diagnostics and Settings links', () => {
+  it('shows Diagnostics, Rate Limits, and Settings links', () => {
     const c = renderSidebar(settingsUser)
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
   })
 })

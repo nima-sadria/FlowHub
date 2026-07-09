@@ -11,6 +11,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/commerce': 'Commerce Hub',
   '/activity': 'Activity',
   '/diagnostics': 'Diagnostics',
+  '/rate-limits': 'Global API Rate Limits',
   '/settings': 'Settings',
 }
 

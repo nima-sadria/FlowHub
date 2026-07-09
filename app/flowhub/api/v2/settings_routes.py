@@ -18,6 +18,7 @@ from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.auth.repository import create_audit_event
 from app.flowhub.database import get_db
 from app.flowhub.integration_platform.service import IntegrationPlatformService
+from app.flowhub.rate_limit.service import RateLimitService
 from app.flowhub.setup.service import AppConfigService
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -65,6 +66,18 @@ class SettingsPatch(BaseModel):
             return value
         if not (5 <= value <= 1440):
             raise ValueError("Sync interval must be between 5 and 1440 minutes")
+        return value
+
+
+class RateLimitSettingsPatch(BaseModel):
+    read_requests_per_minute: int
+    write_requests_per_minute: int
+
+    @field_validator("read_requests_per_minute", "write_requests_per_minute")
+    @classmethod
+    def _validate_rpm(cls, value: int) -> int:
+        if not (1 <= value <= 1000):
+            raise ValueError("Rate limit must be between 1 and 1000 requests per minute")
         return value
 
 
@@ -144,6 +157,52 @@ async def update_settings(
     cfg.set_many(pairs, updated_by=current_user.username)
     create_audit_event(db, username=current_user.username, event="settings_changed", ip_address="api")
     return {"ok": True, "updated": list(pairs.keys()), "runtime_write_blocked": True}
+
+
+@router.get("/rate-limits")
+async def get_rate_limits(
+    current_user: FlowHubUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    _ = current_user
+    settings = RateLimitService(db).get_settings()
+    return {
+        "read_requests_per_minute": settings.read_requests_per_minute,
+        "write_requests_per_minute": settings.write_requests_per_minute,
+        "read_delay_ms": round((60.0 / settings.read_requests_per_minute) * 1000, 2),
+        "write_delay_ms": round((60.0 / settings.write_requests_per_minute) * 1000, 2),
+        "inherits_to_all_connectors": True,
+        "per_connector_override_available": False,
+        "scheduler_started": False,
+        "automatic_sync": False,
+        "runtime_write_blocked": True,
+    }
+
+
+@router.post("/rate-limits")
+async def update_rate_limits(
+    body: RateLimitSettingsPatch,
+    current_user: FlowHubUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    settings = RateLimitService(db).update_settings(
+        body.read_requests_per_minute,
+        body.write_requests_per_minute,
+        updated_by=current_user.username,
+    )
+    create_audit_event(db, username=current_user.username, event="rate_limits_changed", ip_address="api")
+    return {
+        "ok": True,
+        "read_requests_per_minute": settings.read_requests_per_minute,
+        "write_requests_per_minute": settings.write_requests_per_minute,
+        "read_delay_ms": round((60.0 / settings.read_requests_per_minute) * 1000, 2),
+        "write_delay_ms": round((60.0 / settings.write_requests_per_minute) * 1000, 2),
+        "inherits_to_all_connectors": True,
+        "per_connector_override_available": False,
+        "scheduler_started": False,
+        "automatic_sync": False,
+        "runtime_write_blocked": True,
+    }
 
 
 @router.post("/woocommerce")

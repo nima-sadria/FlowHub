@@ -32,6 +32,21 @@ interface DiagnosticsStatusResponse {
   overall_status?: string
   checkedAt?: string
   connectors?: ConnectorStatus[]
+  rateLimiter?: {
+    settings?: {
+      read_requests_per_minute?: number
+      write_requests_per_minute?: number
+      read_delay_ms?: number
+      write_delay_ms?: number
+    }
+    queue_length?: number
+    average_request_duration_ms?: number
+    throttle_count?: number
+    last_throttle?: string | null
+    last_connector_delay_ms?: number
+    requests_completed?: number
+    requests_delayed?: number
+  }
   external_call_performed?: boolean
 }
 
@@ -127,6 +142,7 @@ export default function Diagnostics() {
 
   const backendStatus: StatusRowData['status'] = loading ? 'loading' : err ? 'error' : 'ok'
   const connectors = diag?.connectors ?? []
+  const limiter = diag?.rateLimiter
   const systemRows: StatusRowData[] = [
     {
       label: 'Backend',
@@ -203,6 +219,35 @@ export default function Diagnostics() {
             />
           )
         })}
+      </div>
+
+      <div className="fh-card fh-card-pad">
+        <p className="fh-section-label mb-3">Rate Limiter</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Row row={{
+            label: 'Read Requests / Minute',
+            value: loading ? 'Loading' : String(limiter?.settings?.read_requests_per_minute ?? '-'),
+            status: loading ? 'loading' : 'ok',
+            detail: limiter?.settings?.read_delay_ms ? `Delay ${limiter.settings.read_delay_ms} ms` : undefined,
+          }} />
+          <Row row={{
+            label: 'Write Requests / Minute',
+            value: loading ? 'Loading' : String(limiter?.settings?.write_requests_per_minute ?? '-'),
+            status: loading ? 'loading' : 'ok',
+            detail: limiter?.settings?.write_delay_ms ? `Delay ${limiter.settings.write_delay_ms} ms` : undefined,
+          }} />
+          <Row row={{
+            label: 'Queue length',
+            value: loading ? 'Loading' : String(limiter?.queue_length ?? 0),
+            status: loading ? 'loading' : 'ok',
+          }} />
+          <Row row={{
+            label: 'Throttle events',
+            value: loading ? 'Loading' : String(limiter?.throttle_count ?? 0),
+            status: loading ? 'loading' : (limiter?.throttle_count ? 'warning' : 'ok'),
+            detail: limiter?.last_throttle ? `Last ${new Date(limiter.last_throttle).toLocaleString()}` : undefined,
+          }} />
+        </div>
       </div>
 
       <div className="fh-card fh-card-pad">

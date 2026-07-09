@@ -1,4 +1,4 @@
-import type { AppSettings } from '../types'
+import type { AppSettings, RateLimitSettings } from '../types'
 import type { SettingsService } from './SettingsService'
 import { apiFetch } from '../../api/client'
 import { authFetch } from '../../api/authFetch'
@@ -40,5 +40,17 @@ export class ApiSettingsService implements SettingsService {
       }),
     })
     return this.getSettings()
+  }
+
+  async getRateLimits(): Promise<RateLimitSettings> {
+    return apiFetch<RateLimitSettings>('/api/v2/settings/rate-limits', authFetch)
+  }
+
+  async updateRateLimits(patch: Pick<RateLimitSettings, 'read_requests_per_minute' | 'write_requests_per_minute'>): Promise<RateLimitSettings> {
+    return apiFetch<RateLimitSettings>('/api/v2/settings/rate-limits', authFetch, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
   }
 }

@@ -22,6 +22,7 @@ import Workspace from './pages/Workspace'
 import Activity from './pages/Activity'
 import Diagnostics from './pages/Diagnostics'
 import Settings from './pages/Settings'
+import RateLimits from './pages/RateLimits'
 import Login from './pages/Login'
 import Setup from './pages/Setup'
 import NotFound from './pages/NotFound'
@@ -144,6 +145,7 @@ function SetupGate() {
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
+        <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
       </Route>
       <Route path="*" element={<NotFound />} />

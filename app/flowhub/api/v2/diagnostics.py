@@ -16,6 +16,7 @@ from app.flowhub.auth.dependencies import get_current_user
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.database import get_db
 from app.flowhub.integration_platform.service import IntegrationPlatformService
+from app.flowhub.rate_limit.service import RateLimitService
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
 
@@ -68,11 +69,13 @@ async def diagnostics_status(
     run = service.diagnostics_run("all")
     connector_status = service.list_instances()
     telemetry = service.telemetry(limit=20)
+    rate_limits = RateLimitService(db).diagnostics()
     return {
         "overall_status": run["overall_status"],
         "checkedAt": run["completed_at"],
         "connectors": [item.model_dump() for item in connector_status.items],
         "telemetry": telemetry.model_dump(),
+        "rateLimiter": rate_limits,
         "external_call_performed": False,
     }
 

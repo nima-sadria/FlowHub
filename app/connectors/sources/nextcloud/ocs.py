@@ -18,6 +18,7 @@ import httpx
 
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.sources.nextcloud.auth import NextcloudCredentials
+from app.flowhub.rate_limit import acquire_connector_rate_limit
 
 _TIMEOUT = httpx.Timeout(connect=10.0, read=15.0, write=5.0, pool=5.0)
 _OCS_CAPS = "/ocs/v1.php/cloud/capabilities?format=xml"
@@ -56,6 +57,7 @@ async def check_server_info(creds: NextcloudCredentials) -> OCSServerInfo:
     """Probe the OCS capabilities endpoint to confirm Nextcloud is reachable."""
     url = creds.url + _OCS_CAPS
     try:
+        await acquire_connector_rate_limit("nextcloud:primary", "read")
         async with httpx.AsyncClient(
             auth=_auth(creds),
             follow_redirects=True,
@@ -115,6 +117,7 @@ async def check_user_quota(creds: NextcloudCredentials) -> OCSUserInfo:
     """Verify the authenticated user exists and return basic account info."""
     url = creds.url + _OCS_USER
     try:
+        await acquire_connector_rate_limit("nextcloud:primary", "read")
         async with httpx.AsyncClient(
             auth=_auth(creds),
             follow_redirects=True,

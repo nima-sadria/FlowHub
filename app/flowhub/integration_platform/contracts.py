@@ -39,6 +39,11 @@ class ConnectorCapabilities(BaseModel):
     polling: bool = False
     oauth: bool = False
     api_key: bool = False
+    supports_modified_since: bool = False
+    supports_delta_sync: bool = False
+    supports_updated_after: bool = False
+    supports_pagination: bool = False
+    supports_batch_read: bool = False
 
 
 class ConnectorDescriptor(BaseModel):

@@ -27,6 +27,7 @@ import httpx
 
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
+from app.flowhub.rate_limit import acquire_connector_rate_limit
 
 _TIMEOUT = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0)
 _TIMEOUT_QUICK = httpx.Timeout(connect=10.0, read=15.0, write=10.0, pool=5.0)
@@ -98,6 +99,7 @@ async def _get(
     """Internal GET helper. Returns parsed JSON."""
     url = creds.url + _WC_API + path
     try:
+        await acquire_connector_rate_limit("woocommerce:primary", "read")
         async with httpx.AsyncClient(
             auth=_auth(creds),
             follow_redirects=True,
@@ -148,6 +150,7 @@ async def _get_raw(
 
     for attempt in range(_MAX_RETRIES + 1):
         try:
+            await acquire_connector_rate_limit("woocommerce:primary", "read")
             async with httpx.AsyncClient(
                 auth=_auth(creds),
                 follow_redirects=True,
@@ -228,6 +231,7 @@ async def _put(
     """Internal PUT helper for the approved Write Pipeline price adapter."""
     url = creds.url + _WC_API + path
     try:
+        await acquire_connector_rate_limit("woocommerce:primary", "write")
         async with httpx.AsyncClient(
             auth=_auth(creds),
             follow_redirects=True,

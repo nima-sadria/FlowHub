@@ -20,6 +20,7 @@ import httpx
 
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.sources.nextcloud.auth import NextcloudCredentials
+from app.flowhub.rate_limit import acquire_connector_rate_limit
 
 _DAV = "DAV:"
 _TIMEOUT = httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=10.0)
@@ -139,6 +140,7 @@ async def propfind_path(
     )
     t0 = time.monotonic()
     try:
+        await acquire_connector_rate_limit("nextcloud:primary", "read")
         async with httpx.AsyncClient(auth=_auth(creds), follow_redirects=True) as client:
             r = await client.request(
                 "PROPFIND",
@@ -172,6 +174,7 @@ async def get_file(creds: NextcloudCredentials, path: str) -> tuple[bytes, dict]
     """Download a file from WebDAV. Returns (content_bytes, metadata_dict)."""
     url = _dav_base(creds) + path
     try:
+        await acquire_connector_rate_limit("nextcloud:primary", "read")
         async with httpx.AsyncClient(auth=_auth(creds), follow_redirects=True) as client:
             r = await client.get(url, timeout=_TIMEOUT)
     except httpx.TimeoutException as exc:
@@ -209,6 +212,7 @@ async def head_file(creds: NextcloudCredentials, path: str) -> dict:
     """
     url = _dav_base(creds) + path
     try:
+        await acquire_connector_rate_limit("nextcloud:primary", "read")
         async with httpx.AsyncClient(auth=_auth(creds), follow_redirects=True) as client:
             r = await client.head(url, timeout=_TIMEOUT)
     except (httpx.TimeoutException, httpx.ConnectError):

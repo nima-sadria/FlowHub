@@ -158,6 +158,18 @@ export interface AppSettings {
   ncConfigured?: boolean
 }
 
+export interface RateLimitSettings {
+  read_requests_per_minute: number
+  write_requests_per_minute: number
+  read_delay_ms: number
+  write_delay_ms: number
+  inherits_to_all_connectors: boolean
+  per_connector_override_available: boolean
+  scheduler_started: boolean
+  automatic_sync: boolean
+  runtime_write_blocked: boolean
+}
+
 // -- Commerce Hub --------------------------------------------------------------
 
 export interface CommerceHealth {
