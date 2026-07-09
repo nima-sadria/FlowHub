@@ -222,7 +222,7 @@ class CommerceHubService:
         configured = item["credential_status"] == "configured"
         placeholder = bool(meta["placeholder"])
         if placeholder:
-            message = f"{meta['name']} is a read-only future source placeholder. No external call was performed."
+            message = f"{meta['name']} is a read-only planned source. No external call was performed."
         elif configured:
             message = "Local source configuration is present. No external call was performed."
         else:
@@ -649,7 +649,7 @@ class CommerceHubService:
             ("polling", "Polling"),
         ]
         enabled = [label for key, label in labels if getattr(capabilities, key)]
-        return enabled or ["Future channel placeholder"]
+        return enabled or ["Planned channel unavailable in 1.0.0"]
 
     def _correlation_id(self) -> str:
         return f"corr_{uuid.uuid4().hex[:12]}"

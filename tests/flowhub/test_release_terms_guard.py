@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -33,15 +34,34 @@ SKIP_SUFFIXES = (
     ".lock",
     ".pyc",
 )
-TEMPORARY_INTERNAL_REFERENCE_FILES = {
+LEGACY_COMPATIBILITY_REFERENCE_FILES = {
     "alembic_flowhub/env.py",
-    "app/flowhub/commerce/service.py",
-    "app/flowhub/integration_platform/registry.py",
     "installer/install.sh",
-    "frontend/src/pages/CommerceHub.tsx",
-    "frontend/src/services/types.ts",
-    "tests/flowhub/migration/test_release_compatibility.py",
-    "tests/flowhub/installer/test_legacy_release_files.py",
+}
+INTERNAL_TERM_PATTERNS = {
+    "app/flowhub/commerce/service.py": (
+        r'"placeholder":\s*(True|False|bool\(meta\["placeholder"\]\))',
+        r'\bplaceholder\s*=\s*bool\(meta\["placeholder"\]\)',
+        r'\bif placeholder:',
+        r'\bif meta\.get\("placeholder"\):',
+        r'not bool\(meta\.get\("placeholder"\)\)',
+        r'bool\(meta\.get\("placeholder"\)\)',
+        r'bool\(meta\["placeholder"\]\)',
+        r'meta\["placeholder"\]',
+        r'_placeholder_connection_result',
+        r'"status":\s*"placeholder"',
+    ),
+    "app/flowhub/integration_platform/registry.py": (
+        r'\("placeholder",\s*"capability_detection"\)',
+    ),
+    "frontend/src/pages/CommerceHub.tsx": (
+        r'\bsource\.placeholder\b',
+        r'\bchannel\.placeholder\b',
+        r'\bselected\.placeholder\b',
+    ),
+    "frontend/src/services/types.ts": (
+        r'\bplaceholder:\s*boolean\b',
+    ),
 }
 
 
@@ -85,6 +105,11 @@ def _read_text(path: Path) -> str | None:
         return None
 
 
+def _allowed_internal_term_line(path: str, line: str) -> bool:
+    patterns = INTERNAL_TERM_PATTERNS.get(path, ())
+    return any(re.search(pattern, line) for pattern in patterns)
+
+
 def test_release_terms_do_not_appear_in_tracked_production_files() -> None:
     violations: list[str] = []
 
@@ -101,7 +126,7 @@ def test_release_terms_do_not_appear_in_tracked_production_files() -> None:
             if term in lower_path:
                 violations.append(f"{normalized}: path contains {term!r}")
 
-        if normalized in TEMPORARY_INTERNAL_REFERENCE_FILES:
+        if normalized in LEGACY_COMPATIBILITY_REFERENCE_FILES:
             continue
 
         if _skip_content_scan(normalized):
@@ -110,11 +135,12 @@ def test_release_terms_do_not_appear_in_tracked_production_files() -> None:
         text = _read_text(ROOT / normalized)
         if text is None:
             continue
-        lower_text = text.lower()
         terms_for_text = TERMS
-        for term in terms_for_text:
-            if term in lower_text:
-                violations.append(f"{normalized}: content contains {term!r}")
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            lower_line = line.lower()
+            for term in terms_for_text:
+                if term in lower_line and not _allowed_internal_term_line(normalized, line):
+                    violations.append(f"{normalized}:{line_number}: content contains {term!r}")
 
     assert not violations, "\n".join(violations[:200])
 

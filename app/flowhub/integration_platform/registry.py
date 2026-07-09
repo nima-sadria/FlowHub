@@ -134,7 +134,7 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
             status=ConnectorHealthStatus.DISABLED,
         ),
         settings_schema=[
-            ConnectorSettingDefinition(key="file_path", label="File/path placeholder", required=False),
+            ConnectorSettingDefinition(key="file_path", label="File path", required=False),
         ],
         diagnostics_contract=_diagnostics(
             ("settings", "configuration"),
@@ -172,7 +172,7 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
             status=ConnectorHealthStatus.DISABLED,
         ),
         settings_schema=[
-            ConnectorSettingDefinition(key="sheet_ref", label="Sheet URL or Sheet ID placeholder", required=False),
+            ConnectorSettingDefinition(key="sheet_ref", label="Sheet URL or Sheet ID", required=False),
         ],
         diagnostics_contract=_diagnostics(
             ("settings", "configuration"),
@@ -210,8 +210,8 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
             status=ConnectorHealthStatus.DISABLED,
         ),
         settings_schema=[
-            ConnectorSettingDefinition(key="base_url", label="Base URL placeholder", required=False),
-            ConnectorSettingDefinition(key="api_token", label="API token placeholder", required=False, secret=True),
+            ConnectorSettingDefinition(key="base_url", label="Base URL", required=False),
+            ConnectorSettingDefinition(key="api_token", label="API token", required=False, secret=True),
         ],
         diagnostics_contract=_diagnostics(
             ("settings", "configuration"),
@@ -331,8 +331,8 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
             status=ConnectorHealthStatus.DISABLED,
         ),
         settings_schema=[
-            ConnectorSettingDefinition(key="seller_id", label="Seller/store ID placeholder", required=False),
-            ConnectorSettingDefinition(key="api_token", label="API key/token placeholder", required=False, secret=True),
+            ConnectorSettingDefinition(key="seller_id", label="Seller/store ID", required=False),
+            ConnectorSettingDefinition(key="api_token", label="API key/token", required=False, secret=True),
         ],
         diagnostics_contract=_diagnostics(
             ("settings", "configuration"),
@@ -370,8 +370,8 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
             status=ConnectorHealthStatus.DISABLED,
         ),
         settings_schema=[
-            ConnectorSettingDefinition(key="seller_id", label="Seller/store ID placeholder", required=False),
-            ConnectorSettingDefinition(key="api_token", label="API key/token placeholder", required=False, secret=True),
+            ConnectorSettingDefinition(key="seller_id", label="Seller/store ID", required=False),
+            ConnectorSettingDefinition(key="api_token", label="API key/token", required=False, secret=True),
         ],
         diagnostics_contract=_diagnostics(
             ("settings", "configuration"),
@@ -409,8 +409,8 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
             status=ConnectorHealthStatus.DISABLED,
         ),
         settings_schema=[
-            ConnectorSettingDefinition(key="seller_id", label="Seller/store ID placeholder", required=False),
-            ConnectorSettingDefinition(key="api_token", label="API key/token placeholder", required=False, secret=True),
+            ConnectorSettingDefinition(key="seller_id", label="Seller/store ID", required=False),
+            ConnectorSettingDefinition(key="api_token", label="API key/token", required=False, secret=True),
         ],
         diagnostics_contract=_diagnostics(
             ("settings", "configuration"),

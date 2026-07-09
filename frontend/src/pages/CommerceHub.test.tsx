@@ -110,7 +110,7 @@ const commerce: CommerceService = {
           { key: 'spreadsheet_path', label: 'Spreadsheet path', required: true, secret: false },
         ]),
         typeOption('csv:import', 'csv', 'CSV', 'Source', true, [
-          { key: 'file_path', label: 'File/path placeholder', required: false, secret: false },
+          { key: 'file_path', label: 'File path', required: false, secret: false },
         ]),
       ],
     }
