@@ -144,13 +144,108 @@ def test_snapp_tapsi_registry_placeholders_are_read_only():
         assert definition.connector.capabilities.write_inventory is False
 
 
-def test_placeholder_connection_test_does_not_call_external_system(client, auth_headers):
+def test_woocommerce_connection_test_performs_read_only_api_call_without_secret_leakage(client, auth_headers, monkeypatch):
+    limiter_calls: list[tuple[str, str]] = []
+    request_calls: list[dict] = []
+
+    async def fake_acquire(connector_id: str, operation: str):
+        limiter_calls.append((connector_id, operation))
+
+    class FakeResponse:
+        status_code = 200
+        headers = {"X-WP-Total": "1", "X-WP-TotalPages": "1"}
+
+        def json(self):
+            return [{"id": 123}]
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            self.auth = kwargs.get("auth")
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def get(self, url, *, params, timeout):
+            request_calls.append({
+                "url": url,
+                "params": params,
+                "timeout": timeout,
+                "auth": self.auth,
+            })
+            return FakeResponse()
+
+    monkeypatch.setattr(
+        "app.connectors.destinations.woocommerce.rest_client.acquire_connector_rate_limit",
+        fake_acquire,
+    )
+    monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client.httpx.AsyncClient", FakeAsyncClient)
+
+    save = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "WooCommerce",
+            "enabled": True,
+            "settings": {"url": "https://store.example.test"},
+            "secrets": {"key": "ck_live_secret", "secret": "cs_live_secret"},
+        },
+    )
+    assert save.status_code == 200
+    assert "ck_live_secret" not in save.text
+    assert "cs_live_secret" not in save.text
+
+    response = client.post("/api/v2/commerce/channels/woocommerce:primary/test", headers=auth_headers, json={})
+
+    assert response.status_code == 200
+    assert "ck_live_secret" not in response.text
+    assert "cs_live_secret" not in response.text
+    data = response.json()
+    assert data["ok"] is True
+    assert data["connected"] is True
+    assert data["authenticated"] is True
+    assert data["status"] == "connected"
+    assert data["http_status"] == 200
+    assert isinstance(data["latency_ms"], (int, float))
+    assert data["checked_at"]
+    assert data["external_call_performed"] is True
+    assert data["read_only"] is True
+    assert data["runtime_write_blocked"] is True
+    assert data["write_blocked"] is True
+    assert limiter_calls == [("woocommerce:primary", "read")]
+    assert len(request_calls) == 1
+    assert request_calls[0]["url"] == "https://store.example.test/wp-json/wc/v3/products"
+    assert request_calls[0]["params"]["per_page"] == 1
+    assert request_calls[0]["params"]["_fields"] == "id"
+    assert request_calls[0]["auth"] == ("ck_live_secret", "cs_live_secret")
+
+
+def test_placeholder_connection_test_does_not_call_external_system(client, auth_headers, monkeypatch):
+    async def fail_acquire(*args, **kwargs):
+        raise AssertionError("placeholder channels must not acquire a limiter token")
+
+    class FailingAsyncClient:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("placeholder channels must not create outbound HTTP clients")
+
+    monkeypatch.setattr(
+        "app.connectors.destinations.woocommerce.rest_client.acquire_connector_rate_limit",
+        fail_acquire,
+    )
+    monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client.httpx.AsyncClient", FailingAsyncClient)
+
     response = client.post("/api/v2/commerce/channels/snappshop:main/test", headers=auth_headers, json={})
 
     assert response.status_code == 200
     data = response.json()
     assert data["ok"] is False
+    assert data["connected"] is False
+    assert data["authenticated"] is False
+    assert data["status"] == "placeholder"
     assert data["external_call_performed"] is False
+    assert data["message"] == "Real connector is not implemented yet. No external call was performed."
     assert data["read_only"] is True
     assert data["runtime_write_blocked"] is True
     assert data["write_blocked"] is True

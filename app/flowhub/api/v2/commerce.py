@@ -104,7 +104,7 @@ async def test_channel_connection(
     service: CommerceHubService = Depends(_service),
 ) -> dict:
     _require_admin(user)
-    return service.test_channel_connection(channel_id)
+    return await service.test_channel_connection(channel_id)
 
 
 @router.get("/channels/{channel_id}/health")

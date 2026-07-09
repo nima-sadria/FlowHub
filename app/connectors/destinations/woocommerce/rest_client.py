@@ -298,8 +298,20 @@ async def list_variations(
 
 async def ping(creds: WooCommerceCredentials) -> dict:
     """Lightweight connectivity probe - fetch one product to verify API access."""
-    result = await _get(creds, "/products", params={"per_page": 1})
-    return {"reachable": True, "records_checked": len(result) if isinstance(result, list) else 0}
+    result = await _get_raw(creds, "/products", params={"per_page": 1, "_fields": "id"}, timeout=_TIMEOUT_QUICK)
+    try:
+        data = result.json()
+    except Exception as exc:
+        raise ConnectorError(
+            code=ConnectorErrorCode.PROVIDER_ERROR,
+            message=f"Failed to parse WooCommerce ping JSON response: {exc}",
+            provider="woocommerce",
+        ) from exc
+    return {
+        "reachable": True,
+        "records_checked": len(data) if isinstance(data, list) else 0,
+        "http_status": result.status_code,
+    }
 
 
 async def list_products_paged(

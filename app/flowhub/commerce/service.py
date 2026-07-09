@@ -9,10 +9,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from time import monotonic
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
+from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
+from app.connectors.destinations.woocommerce.rest_client import ping as ping_woocommerce
 from app.flowhub.data_layer.models import DlConnectorHealth
 from app.flowhub.integration_platform.contracts import ConnectorCapabilities
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
@@ -201,28 +205,16 @@ class CommerceHubService:
             "capability_authorizes_write": False,
         }
 
-    def test_channel_connection(self, channel_id: str) -> dict:
+    async def test_channel_connection(self, channel_id: str) -> dict:
         meta = self._channel_meta(channel_id)
         item = self._channel_contract(meta)
         configured = item["credential_status"] == "configured"
         placeholder = bool(meta["placeholder"])
-        ok = configured and not placeholder
         if placeholder:
-            message = f"{meta['name']} is a read-only future channel placeholder. No external call was performed."
-        elif configured:
-            message = "Local channel configuration is present. No external call was performed."
-        else:
-            message = "Channel is not configured. No external call was performed."
-        return {
-            "ok": ok,
-            "status": "configured" if configured else "not_configured",
-            "message": message,
-            "external_call_performed": False,
-            "read_only": True,
-            "runtime_write_blocked": True,
-            "write_blocked": True,
-            "correlation_id": self._correlation_id(),
-        }
+            return self._placeholder_connection_result()
+        if str(meta["provider"]) == "woocommerce":
+            return await self._test_woocommerce_channel_connection(configured)
+        return self._unsupported_connection_result()
 
     def test_source_connection(self, source_id: str) -> dict:
         meta = self._source_meta(source_id)
@@ -272,6 +264,8 @@ class CommerceHubService:
         self._ensure_instance(meta)
         access_mode = self._requested_channel_access_mode(meta, body)
         self._update_instance_state(meta, body, access_mode=access_mode)
+        if provider == "woocommerce":
+            self._persist_woocommerce_app_config(body)
         result = self.integration.update_settings_contract(channel_id, self._settings_body(body))
         instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         effective_access_mode = self._access_mode(instance)
@@ -433,6 +427,114 @@ class CommerceHubService:
     def _write_pipeline_eligible(self, meta: dict, instance: IntegrationConnectorInstance | None) -> bool:
         return self._write_pipeline_supported(meta) and self._access_mode(instance) == ACCESS_MODE_WRITE_ENABLED
 
+    async def _test_woocommerce_channel_connection(self, configured: bool) -> dict:
+        creds = self._woocommerce_credentials()
+        if not configured or creds is None:
+            return {
+                **self._connection_base(),
+                "ok": False,
+                "connected": False,
+                "authenticated": False,
+                "status": "not_configured",
+                "http_status": None,
+                "latency_ms": None,
+                "checked_at": self._checked_at(),
+                "message": "WooCommerce is not configured. No external call was performed.",
+                "external_call_performed": False,
+            }
+
+        started = monotonic()
+        checked_at = self._checked_at()
+        try:
+            result = await ping_woocommerce(creds)
+            latency_ms = round((monotonic() - started) * 1000, 2)
+            http_status = int(result.get("http_status") or 200)
+            records_checked = int(result.get("records_checked") or 0)
+            return {
+                **self._connection_base(),
+                "ok": True,
+                "connected": True,
+                "authenticated": True,
+                "status": "connected",
+                "http_status": http_status,
+                "latency_ms": latency_ms,
+                "checked_at": checked_at,
+                "external_call_performed": True,
+                "message": f"Connected to WooCommerce. Read-only API probe returned HTTP {http_status} with {records_checked} product record(s) checked.",
+            }
+        except ConnectorError as exc:
+            latency_ms = round((monotonic() - started) * 1000, 2)
+            authenticated = exc.code not in {ConnectorErrorCode.AUTH_FAILED, ConnectorErrorCode.PERMISSION}
+            return {
+                **self._connection_base(),
+                "ok": False,
+                "connected": False,
+                "authenticated": authenticated,
+                "status": "authentication_failed" if not authenticated else "error",
+                "http_status": exc.http_status,
+                "latency_ms": latency_ms,
+                "checked_at": checked_at,
+                "external_call_performed": True,
+                "message": exc.message,
+            }
+
+    def _woocommerce_credentials(self) -> WooCommerceCredentials | None:
+        url = self.integration.config.get("woocommerce.url")
+        key = self.integration.config.get("woocommerce.key")
+        secret = self.integration.config.get("woocommerce.secret")
+        if not url or not key or not secret:
+            return None
+        return WooCommerceCredentials(url=url.rstrip("/"), key=key, secret=secret)
+
+    def _persist_woocommerce_app_config(self, body: dict) -> None:
+        settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
+        secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
+        pairs: dict[str, str] = {}
+        if settings.get("url"):
+            pairs["woocommerce.url"] = str(settings["url"]).strip().rstrip("/")
+        if secrets.get("key"):
+            pairs["woocommerce.key"] = str(secrets["key"])
+        if secrets.get("secret"):
+            pairs["woocommerce.secret"] = str(secrets["secret"])
+        if pairs:
+            self.integration.config.set_many(pairs, updated_by="commerce_hub")
+
+    def _placeholder_connection_result(self) -> dict:
+        return {
+            **self._connection_base(),
+            "ok": False,
+            "connected": False,
+            "authenticated": False,
+            "status": "placeholder",
+            "http_status": None,
+            "latency_ms": None,
+            "checked_at": self._checked_at(),
+            "message": "Real connector is not implemented yet. No external call was performed.",
+            "external_call_performed": False,
+        }
+
+    def _unsupported_connection_result(self) -> dict:
+        return {
+            **self._connection_base(),
+            "ok": False,
+            "connected": False,
+            "authenticated": False,
+            "status": "unsupported",
+            "http_status": None,
+            "latency_ms": None,
+            "checked_at": self._checked_at(),
+            "message": "Real connector is not implemented yet. No external call was performed.",
+            "external_call_performed": False,
+        }
+
+    def _connection_base(self) -> dict:
+        return {
+            "read_only": True,
+            "runtime_write_blocked": True,
+            "write_blocked": True,
+            "correlation_id": self._correlation_id(),
+        }
+
     def _channel_meta(self, channel_id: str) -> dict:
         for item in _CHANNELS:
             if item["id"] == channel_id or item["provider"] == channel_id:
@@ -551,6 +653,9 @@ class CommerceHubService:
 
     def _correlation_id(self) -> str:
         return f"corr_{uuid.uuid4().hex[:12]}"
+
+    def _checked_at(self) -> str:
+        return self._iso(datetime.utcnow()) or ""
 
     def _iso(self, value: datetime | None) -> str | None:
         if value is None:
