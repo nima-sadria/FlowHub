@@ -85,13 +85,9 @@ class IncrementalReadEngine:
             while True:
                 if strategy == "metadata_filter" and not product_ids:
                     break
-                limiter_result = await self.rate_limits.acquire(
-                    adapter.connector_id,
-                    "read",
-                    connector_type=adapter.connector_type,
-                )
+                limiter_result = await self._acquire_read_limit_if_needed(adapter)
                 requests_completed += 1
-                if limiter_result.delayed:
+                if limiter_result is not None and limiter_result.delayed:
                     requests_delayed += 1
 
                 page = await self._fetch_page(adapter, strategy, cursor, modified_since, product_ids)
@@ -186,11 +182,7 @@ class IncrementalReadEngine:
         cursor: str | None = None
 
         while True:
-            await self.rate_limits.acquire(
-                adapter.connector_id,
-                "read",
-                connector_type=adapter.connector_type,
-            )
+            await self._acquire_read_limit_if_needed(adapter)
             page = await adapter.fetch_metadata(cursor=cursor)
             for item in page.items:
                 product_id = self._product_id(item)
@@ -209,6 +201,15 @@ class IncrementalReadEngine:
             if not cursor:
                 break
         return selected
+
+    async def _acquire_read_limit_if_needed(self, adapter: ReadConnectorAdapter):
+        if bool(getattr(adapter, "uses_http_boundary_limiter", False)):
+            return None
+        return await self.rate_limits.acquire(
+            adapter.connector_id,
+            "read",
+            connector_type=adapter.connector_type,
+        )
 
     def _resume_or_create_job(self, connector_id: str, strategy: str, triggered_by: str) -> DlRefreshJob:
         existing = (

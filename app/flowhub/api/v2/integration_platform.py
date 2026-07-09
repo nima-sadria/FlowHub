@@ -130,11 +130,12 @@ async def test_connection(
 ) -> dict:
     _require_admin(user)
     instance = service.get_instance(connector_id)
+    health = service.latest_health(connector_id)
     status_value = instance.connector.status.value
     return {
         "ok": status_value not in {"error", "authentication_failed"},
         "status": status_value,
-        "latency_ms": 0,
+        "latency_ms": health.latency_ms if health else None,
         "connector_version": instance.connector.identity.version,
         "detected_capabilities": instance.connector.capabilities.model_dump(),
         "authentication_valid": status_value != "authentication_failed",

@@ -67,14 +67,17 @@ async def diagnostics_status(
 ) -> dict:
     service = IntegrationPlatformService(db)
     run = service.diagnostics_run("all")
-    connector_status = service.list_instances()
+    connector_status = service.list_instances_contract()
     telemetry = service.telemetry(limit=20)
+    telemetry_contract = service.telemetry_contract(limit=20)
     rate_limits = RateLimitService(db).diagnostics()
     return {
         "overall_status": run["overall_status"],
         "checkedAt": run["completed_at"],
-        "connectors": [item.model_dump() for item in connector_status.items],
+        "checks": run["checks"],
+        "connectors": connector_status["items"],
         "telemetry": telemetry.model_dump(),
+        "telemetryContract": telemetry_contract,
         "rateLimiter": rate_limits,
         "external_call_performed": False,
     }

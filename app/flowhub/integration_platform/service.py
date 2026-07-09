@@ -57,7 +57,7 @@ from app.flowhub.integration_platform.models import (
     IntegrationWebhookEvent,
 )
 from app.flowhub.integration_platform.registry import registry
-from app.flowhub.security.redaction import is_sensitive_key
+from app.flowhub.security.redaction import is_sensitive_key, redact_sensitive
 from app.flowhub.setup.service import AppConfigService
 
 
@@ -274,6 +274,12 @@ class IntegrationPlatformService:
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
         return self._instance_to_shape(row)
+
+    def latest_health(self, connector_id: str) -> DlConnectorHealth | None:
+        self.bootstrap_from_app_config()
+        if self.db.get(IntegrationConnectorInstance, connector_id) is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        return self._latest_health(connector_id)
 
     def get_settings(self, connector_id: str) -> list[ConnectorSettingValue]:
         return self.get_instance(connector_id).settings
@@ -594,25 +600,30 @@ class IntegrationPlatformService:
         instances = self.db.query(IntegrationConnectorInstance).all()
         instance_type = {row.id: row.connector_type for row in instances}
         aggregate = self._telemetry_aggregate(connector_id)
+        telemetry_query = self.db.query(DlConnectorTelemetry)
+        if connector_id:
+            telemetry_query = telemetry_query.filter(DlConnectorTelemetry.connector_id == connector_id)
+        telemetry_rows = {row.connector_id: row for row in telemetry_query.all()}
         rows = []
         ids = [connector_id] if connector_id else list(instance_type)
         for cid in ids:
             if not cid:
                 continue
+            telemetry = telemetry_rows.get(cid)
             rows.append(
                 {
                     "connector_id": cid,
                     "connector_type": instance_type.get(cid, cid.split(":")[0]),
                     "operation": "data_layer_read",
-                    "request_count": aggregate.get("total_requests", 0),
-                    "error_count": aggregate.get("total_errors", 0),
-                    "latency_ms_p50": 0,
-                    "latency_ms_p95": 0,
-                    "retry_count": 0,
-                    "rate_limit_events": 0,
-                    "refresh_duration_ms": 0,
-                    "records_fetched": aggregate.get("total_products_fetched", 0) + aggregate.get("total_rows_parsed", 0),
-                    "bucket_start": _iso(datetime.utcnow()),
+                    "request_count": telemetry.request_count if telemetry else 0,
+                    "error_count": telemetry.error_count if telemetry else 0,
+                    "latency_ms_p50": telemetry.avg_latency_ms if telemetry else None,
+                    "latency_ms_p95": telemetry.p95_latency_ms if telemetry else None,
+                    "retry_count": telemetry.retry_count if telemetry else 0,
+                    "rate_limit_events": telemetry.throttle_events if telemetry else 0,
+                    "refresh_duration_ms": telemetry.last_refresh_duration_ms if telemetry else None,
+                    "records_fetched": ((telemetry.products_fetched or 0) + (telemetry.rows_parsed or 0)) if telemetry else 0,
+                    "bucket_start": _iso(telemetry.window_start) if telemetry and telemetry.window_start else None,
                 }
             )
         return {
@@ -638,7 +649,9 @@ class IntegrationPlatformService:
             instance = instances.get(definition.connector.identity.type)
             health = self._latest_health(instance.id) if instance else None
             for check in definition.diagnostics_contract.checks:
+                check_started = datetime.utcnow()
                 check_status, message, skipped = self._diagnostic_check_result(check.name, instance, health)
+                check_duration_ms = (datetime.utcnow() - check_started).total_seconds() * 1000
                 checks.append(
                     {
                         "check_name": check.name,
@@ -649,7 +662,7 @@ class IntegrationPlatformService:
                         "severity": "info" if check_status != "fail" else "warning",
                         "message": message,
                         "repair_hint": "Configure connector settings or refresh Data Layer records." if skipped else "",
-                        "duration_ms": 0.0,
+                        "duration_ms": check_duration_ms,
                         "checked_at": _iso(started),
                         "details": {"external_call_performed": False},
                         "skipped_because": skipped,
@@ -858,7 +871,7 @@ class IntegrationPlatformService:
             event_name=event_name,
             severity=severity,
             message=message,
-            metadata_json=metadata or {},
+            metadata_json=redact_sensitive(metadata or {}),
         )
         self.db.add(event)
         if commit:
@@ -936,7 +949,7 @@ class IntegrationPlatformService:
             "health": {
                 "healthy": health_status == ConnectorHealthStatus.HEALTHY.value,
                 "last_checked_at": _iso(health.checked_at) if health else None,
-                "latency_ms": 0,
+                "latency_ms": health.latency_ms if health else None,
                 "error_code": health.error_class if health else None,
                 "message": health.message if health else ("Connector has no Data Layer health record yet."),
             },
@@ -1025,7 +1038,7 @@ class IntegrationPlatformService:
             severity=event.severity,
             message=event.message,
             created_at=_iso(event.created_at) or "",
-            metadata=event.metadata_json or {},
+            metadata=redact_sensitive(event.metadata_json or {}),
         )
 
     def _polling_to_contract(self, policy: IntegrationPollingPolicy) -> dict:

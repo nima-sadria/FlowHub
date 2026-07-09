@@ -13,6 +13,7 @@ from app.flowhub.read_engine.contracts import ConnectorReadCapabilities, ReadPag
 class WooCommerceProductReadAdapter:
     connector_id = "woocommerce:primary"
     connector_type = "woocommerce"
+    uses_http_boundary_limiter = True
     capabilities = ConnectorReadCapabilities(
         supports_modified_since=True,
         supports_delta_sync=True,

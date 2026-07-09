@@ -247,10 +247,43 @@ def test_woocommerce_read_adapter_capabilities_are_incremental_safe():
 
     adapter = WooCommerceProductReadAdapter(url="https://store.example.test", key="ck_test", secret="cs_test")
 
+    assert adapter.uses_http_boundary_limiter is True
     assert adapter.capabilities.supports_modified_since is True
     assert adapter.capabilities.supports_updated_after is True
     assert adapter.capabilities.supports_batch_read is True
     assert adapter.capabilities.supports_pagination is True
+
+
+@pytest.mark.asyncio
+async def test_woocommerce_manual_read_uses_single_http_boundary_read_token(db, monkeypatch):
+    from app.connectors.read.woocommerce import WooCommerceProductReadAdapter
+    from app.flowhub.rate_limit import acquire_connector_rate_limit, global_rate_limiter_registry
+    from app.flowhub.rate_limit.service import RateLimitService
+    from app.flowhub.read_engine.service import IncrementalReadEngine
+
+    global_rate_limiter_registry.reset_for_tests()
+    engine_acquires: list[tuple[str, str]] = []
+
+    async def fail_engine_acquire(self, connector_id, operation, *, connector_type=None):
+        _ = (self, connector_type)
+        engine_acquires.append((connector_id, operation))
+        raise AssertionError("WooCommerce reads must be limited at the HTTP boundary only")
+
+    async def fake_list_products_paged(*args, **kwargs):
+        _ = (args, kwargs)
+        await acquire_connector_rate_limit("woocommerce:primary", "read")
+        return ([{"id": "101", "sku": "A", "name": "Alpha", "price": "10.00"}], 1, 1)
+
+    monkeypatch.setattr(RateLimitService, "acquire", fail_engine_acquire)
+    monkeypatch.setattr("app.connectors.read.woocommerce.list_products_paged", fake_list_products_paged)
+
+    adapter = WooCommerceProductReadAdapter(url="https://store.example.test", key="ck_test", secret="cs_test")
+    progress = await IncrementalReadEngine(db).run_manual(adapter)
+
+    assert progress.status == "completed"
+    assert progress.requests_completed == 1
+    assert engine_acquires == []
+    assert global_rate_limiter_registry.snapshot()["requests_completed"] == 1
 
 
 def test_nextcloud_read_adapter_fails_closed_for_incremental_products():
@@ -522,6 +555,76 @@ async def test_diagnostics_updated_and_no_secret_leakage(client, auth_headers, d
     assert data["rateLimiter"]["estimated_completion_seconds"] is None
     assert "secret" not in response.text.lower()
     assert "password" not in response.text.lower()
+
+
+def test_diagnostics_status_full_payload_uses_null_for_unavailable_metrics(client, auth_headers, db):
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(db).set_many(
+        {
+            "woocommerce.url": "https://store.example.test",
+            "woocommerce.key": "ck_test",
+            "woocommerce.secret": "cs_test",
+        },
+        updated_by="test",
+    )
+
+    response = client.get("/api/v2/diagnostics/status", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["checks"]
+    assert all(isinstance(item["duration_ms"], (int, float)) for item in data["checks"])
+    assert data["telemetryContract"]["items"]
+    for item in data["telemetryContract"]["items"]:
+        assert item["latency_ms_p50"] is None
+        assert item["latency_ms_p95"] is None
+        assert item["refresh_duration_ms"] is None
+        assert item["bucket_start"] is None
+    for connector in data["connectors"]:
+        assert connector["health"]["latency_ms"] is None
+
+
+def test_integration_platform_test_connection_returns_null_latency_when_unmeasured(client, auth_headers, db):
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(db).set_many(
+        {
+            "woocommerce.url": "https://store.example.test",
+            "woocommerce.key": "ck_test",
+            "woocommerce.secret": "cs_test",
+        },
+        updated_by="test",
+    )
+
+    response = client.post("/api/v2/integration-platform/connectors/woocommerce:primary/test", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["latency_ms"] is None
+
+
+def test_integration_platform_event_metadata_is_redacted_on_persist_and_response(db):
+    from app.flowhub.integration_platform.service import IntegrationPlatformService
+
+    service = IntegrationPlatformService(db)
+    event = service.record_event(
+        connector_id="woocommerce:primary",
+        event_name="redaction_check",
+        message="metadata redaction check",
+        metadata={
+            "consumer_secret_value": "hide-me",
+            "nested": {"access_token": "hide-token", "display_name": "keep-me"},
+        },
+    )
+
+    assert event.metadata_json["consumer_secret_value"] == "[REDACTED]"
+    assert event.metadata_json["nested"]["access_token"] == "[REDACTED]"
+    assert event.metadata_json["nested"]["display_name"] == "keep-me"
+    telemetry = service.telemetry(connector_id="woocommerce:primary")
+    assert telemetry.items[0].metadata["consumer_secret_value"] == "[REDACTED]"
+    assert telemetry.items[0].metadata["nested"]["access_token"] == "[REDACTED]"
+    assert "hide-me" not in telemetry.model_dump_json()
+    assert "hide-token" not in telemetry.model_dump_json()
 
 
 def test_marker_based_redaction_handles_substring_secret_fields():
