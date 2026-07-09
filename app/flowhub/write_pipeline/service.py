@@ -80,6 +80,11 @@ class WritePipelineService:
             extras = getattr(change, "model_extra", None) or {}
             source = extras.get("source")
             warnings = extras.get("validationWarnings", [])
+            item_type = str(extras.get("itemType") or "simple")
+            parent_product_id = extras.get("parentProductId")
+            parent_product_name = extras.get("parentProductName")
+            variation_id = extras.get("variationId")
+            variation_attributes = extras.get("variationAttributes") or []
             self.db.add(
                 WriteItem(
                     batch_id=batch.id,
@@ -99,6 +104,11 @@ class WritePipelineService:
                         "source": source,
                         "validation_warnings": warnings,
                         "status": extras.get("status") or extras.get("validationStatus"),
+                        "item_type": item_type,
+                        "parent_product_id": parent_product_id,
+                        "parent_product_name": parent_product_name,
+                        "variation_id": variation_id,
+                        "variation_attributes": variation_attributes,
                         "source_fingerprint": _source_fingerprint(source),
                     },
                     status="pending",
@@ -212,6 +222,10 @@ class WritePipelineService:
                         "new_price": item.proposed_price,
                         "status": item.status,
                         "source": _item_source(item),
+                        "item_type": _item_type(item),
+                        "parent_product_id": _parent_product_id(item),
+                        "variation_id": _variation_id(item),
+                        "variation_attributes": _variation_attributes(item),
                     },
                     commit=False,
                 )
@@ -237,6 +251,10 @@ class WritePipelineService:
                         "new_price": item.proposed_price,
                         "status": item.status,
                         "source": _item_source(item),
+                        "item_type": _item_type(item),
+                        "parent_product_id": _parent_product_id(item),
+                        "variation_id": _variation_id(item),
+                        "variation_attributes": _variation_attributes(item),
                     },
                     commit=False,
                 )
@@ -266,6 +284,10 @@ class WritePipelineService:
                                 "status": item.status,
                                 "verification": verification,
                                 "source": _item_source(item),
+                                "item_type": _item_type(item),
+                                "parent_product_id": _parent_product_id(item),
+                                "variation_id": _variation_id(item),
+                                "variation_attributes": _variation_attributes(item),
                             },
                             commit=False,
                         )
@@ -294,6 +316,10 @@ class WritePipelineService:
                         "result": _safe_provider_result(provider_result),
                         "verification": verification,
                         "source": _item_source(item),
+                        "item_type": _item_type(item),
+                        "parent_product_id": _parent_product_id(item),
+                        "variation_id": _variation_id(item),
+                        "variation_attributes": _variation_attributes(item),
                     },
                     commit=False,
                 )
@@ -423,16 +449,30 @@ class WritePipelineService:
     def _batch_hash(self, body: WritePipelineDryRunRequest) -> str:
         parts = [body.channelId, body.operationType]
         for item in sorted(body.changes, key=lambda row: row.productId):
-            source = (getattr(item, "model_extra", None) or {}).get("source")
+            extras = getattr(item, "model_extra", None) or {}
+            source = extras.get("source")
             source_part = _source_fingerprint(source)
-            parts.append(f"{item.productId}|{item.currentPrice:.4f}|{item.proposedPrice:.4f}|{item.currency}|{source_part}")
+            item_type = str(extras.get("itemType") or "simple")
+            parent_product_id = str(extras.get("parentProductId") or "")
+            variation_id = str(extras.get("variationId") or "")
+            parts.append(
+                f"{item.productId}|{item.currentPrice:.4f}|{item.proposedPrice:.4f}|{item.currency}|"
+                f"{source_part}|{item_type}|{parent_product_id}|{variation_id}"
+            )
         return sha256("\n".join(parts).encode("utf-8")).hexdigest()
 
     def _batch_hash_from_row(self, batch: WriteBatch) -> str:
         parts = [batch.channel_id, batch.operation_type]
         for item in sorted(batch.items, key=lambda row: row.channel_product_id):
-            source_part = str((item.pre_write_snapshot_json or {}).get("source_fingerprint") or "")
-            parts.append(f"{item.channel_product_id}|{item.current_price:.4f}|{item.proposed_price:.4f}|{item.currency}|{source_part}")
+            snapshot = item.pre_write_snapshot_json or {}
+            source_part = str(snapshot.get("source_fingerprint") or "")
+            item_type = str(snapshot.get("item_type") or "simple")
+            parent_product_id = str(snapshot.get("parent_product_id") or "")
+            variation_id = str(snapshot.get("variation_id") or "")
+            parts.append(
+                f"{item.channel_product_id}|{item.current_price:.4f}|{item.proposed_price:.4f}|{item.currency}|"
+                f"{source_part}|{item_type}|{parent_product_id}|{variation_id}"
+            )
         return sha256("\n".join(parts).encode("utf-8")).hexdigest()
 
     def _assert_batch_hash_matches(self, batch: WriteBatch) -> None:
@@ -508,6 +548,11 @@ class WritePipelineService:
             errorMessage=row.error_message,
             source=_item_source(row),
             validationWarnings=list((row.pre_write_snapshot_json or {}).get("validation_warnings") or []),
+            itemType=_item_type(row),
+            parentProductId=_parent_product_id(row),
+            parentProductName=(row.pre_write_snapshot_json or {}).get("parent_product_name"),
+            variationId=_variation_id(row),
+            variationAttributes=_variation_attributes(row),
             providerResult=_safe_provider_result(row.provider_result_json or {}),
             verification=(row.provider_result_json or {}).get("verification"),
         )
@@ -607,6 +652,25 @@ def _safe_provider_result(result: dict) -> dict:
 def _item_source(item: WriteItem) -> dict | None:
     source = (item.pre_write_snapshot_json or {}).get("source")
     return source if isinstance(source, dict) else None
+
+
+def _item_type(item: WriteItem) -> str:
+    return str((item.pre_write_snapshot_json or {}).get("item_type") or "simple")
+
+
+def _parent_product_id(item: WriteItem) -> str | None:
+    value = (item.pre_write_snapshot_json or {}).get("parent_product_id")
+    return str(value) if value not in (None, "") else None
+
+
+def _variation_id(item: WriteItem) -> str | None:
+    value = (item.pre_write_snapshot_json or {}).get("variation_id")
+    return str(value) if value not in (None, "") else None
+
+
+def _variation_attributes(item: WriteItem) -> list[dict]:
+    value = (item.pre_write_snapshot_json or {}).get("variation_attributes")
+    return value if isinstance(value, list) else []
 
 
 def _source_fingerprint(source: object) -> str:

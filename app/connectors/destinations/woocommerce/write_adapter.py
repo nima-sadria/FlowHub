@@ -38,14 +38,25 @@ class WooCommercePriceWriteAdapter:
         product_id = str(item.get("productId") or "")
         if not product_id.isdigit():
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "WooCommerce product ID must be numeric.")
+        if str(item.get("itemType") or "simple") == "variation":
+            parent_product_id = str(item.get("parentProductId") or "")
+            if not parent_product_id.isdigit():
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "WooCommerce variation rows require a numeric parent product ID.")
 
     async def execute_item(self, item: WriteItem, context: ChannelWriteContext) -> dict:
         connector = await self._connected_connector(context)
-        return await connector.update_price(int(item.channel_product_id), item.proposed_price)
+        return await connector.update_price(
+            int(item.channel_product_id),
+            item.proposed_price,
+            parent_product_id=_parent_product_id(item),
+        )
 
     async def verify_item(self, item: WriteItem, context: ChannelWriteContext) -> dict:
         connector = await self._connected_connector(context)
-        observed = await connector.read_product_price(int(item.channel_product_id))
+        observed = await connector.read_product_price(
+            int(item.channel_product_id),
+            parent_product_id=_parent_product_id(item),
+        )
         raw_observed = observed.get("regular_price")
         try:
             observed_price = float(str(raw_observed).replace(",", "").strip())
@@ -73,3 +84,12 @@ class WooCommercePriceWriteAdapter:
         connector = WooCommerceConnector()
         await connector.connect(auth)
         return connector
+
+
+def _parent_product_id(item: WriteItem) -> int | None:
+    if not isinstance(item.pre_write_snapshot_json, dict):
+        return None
+    if item.pre_write_snapshot_json.get("item_type") != "variation":
+        return None
+    raw_parent = item.pre_write_snapshot_json.get("parent_product_id")
+    return int(raw_parent) if str(raw_parent or "").isdigit() else None

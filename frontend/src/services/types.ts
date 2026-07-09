@@ -90,6 +90,11 @@ export interface PriceChange {
   status?: string
   eligible_for_dry_run?: boolean
   validationStatus?: string
+  itemType?: 'simple' | 'variation' | string
+  parentProductId?: string | null
+  parentProductName?: string | null
+  variationId?: string | null
+  variationAttributes?: Array<Record<string, string>>
   source?: WorkspaceSourceRowInfo
   validationWarnings?: string[]
 }
@@ -115,6 +120,11 @@ export interface WorkspaceMatchedProductInfo {
   externalId?: number | null
   productType: string
   parentId?: string | null
+  parentProductId?: string | null
+  parentProductName?: string | null
+  variationId?: string | null
+  variationAttributes?: Array<Record<string, string>>
+  itemType?: 'simple' | 'variation' | string
   sku: string
   name: string
   currentPrice: number
@@ -189,6 +199,11 @@ export interface WritePipelineItem {
   errorMessage?: string | null
   source?: WorkspaceSourceRowInfo | null
   validationWarnings?: string[]
+  itemType?: string
+  parentProductId?: string | null
+  parentProductName?: string | null
+  variationId?: string | null
+  variationAttributes?: Array<Record<string, string>>
   providerResult?: Record<string, unknown>
   verification?: {
     verified: boolean

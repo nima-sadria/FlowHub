@@ -16,6 +16,11 @@ interface RawChange {
   status?: string
   eligible_for_dry_run?: boolean
   validationStatus?: string
+  itemType?: string
+  parentProductId?: string | null
+  parentProductName?: string | null
+  variationId?: string | null
+  variationAttributes?: Array<Record<string, string>>
   source?: Record<string, unknown>
   validationWarnings?: string[]
 }
@@ -47,6 +52,11 @@ function mapChange(r: RawChange): PriceChange {
     status: r.status,
     eligible_for_dry_run: r.eligible_for_dry_run,
     validationStatus: r.validationStatus,
+    itemType: r.itemType,
+    parentProductId: r.parentProductId,
+    parentProductName: r.parentProductName,
+    variationId: r.variationId,
+    variationAttributes: r.variationAttributes,
     source: r.source as PriceChange['source'],
     validationWarnings: r.validationWarnings,
   }

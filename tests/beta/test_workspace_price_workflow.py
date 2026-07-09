@@ -165,6 +165,122 @@ def test_nextcloud_spreadsheet_import_success_generates_preview_and_dry_run(
     assert "approved Dry Run" in execute.text
 
 
+def test_variation_row_matched_by_variation_id_is_eligible_for_dry_run(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    _cache_product(configured_db, "100", "Parent Hoodie", "PARENT-100", "0.00", product_type="variable")
+    _cache_product(
+        configured_db,
+        "201",
+        "Parent Hoodie - Blue / XL",
+        "VAR-201",
+        "120.00",
+        product_type="variation",
+        parent_id="100",
+        raw_data={"attributes": [{"name": "Color", "option": "Blue"}, {"name": "Size", "option": "XL"}]},
+    )
+
+    async def fake_download(self, path):
+        return _xlsx([["Parent Hoodie - Blue / XL", 201, "132.00", "VAR-201"]]), {"etag": "etag-var"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    row = data["rows"][0]
+    assert row["status"] == "valid_change"
+    assert row["eligible_for_dry_run"] is True
+    assert row["matchedProduct"]["itemType"] == "variation"
+    assert row["matchedProduct"]["variationId"] == "201"
+    assert row["matchedProduct"]["parentProductId"] == "100"
+    assert row["matchedProduct"]["parentProductName"] == "Parent Hoodie"
+    assert row["matchedProduct"]["variationAttributes"] == [
+        {"name": "Color", "value": "Blue"},
+        {"name": "Size", "value": "XL"},
+    ]
+    change = data["changes"][0]
+    assert change["itemType"] == "variation"
+    assert change["productId"] == "201"
+    assert change["variationId"] == "201"
+    assert change["parentProductId"] == "100"
+
+    dry_run = client.post(
+        "/api/v2/write-pipeline/dry-run",
+        headers=auth_headers,
+        json={
+            "previewId": data["id"],
+            "channelId": "woocommerce:primary",
+            "operationType": "price_update",
+            "previewSummary": data["summary"],
+            "changes": data["changes"],
+        },
+    )
+    assert dry_run.status_code == 201
+    item = dry_run.json()["items"][0]
+    assert item["itemType"] == "variation"
+    assert item["variationId"] == "201"
+    assert item["parentProductId"] == "100"
+    assert item["variationAttributes"][0] == {"name": "Color", "value": "Blue"}
+
+
+def test_variation_row_matched_by_sku_if_safe(client, auth_headers, configured_db, monkeypatch):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    _cache_product(configured_db, "100", "Parent Hoodie", "PARENT-100", "0.00", product_type="variable")
+    _cache_product(
+        configured_db,
+        "202",
+        "Parent Hoodie - Red / L",
+        "VAR-202",
+        "100.00",
+        product_type="variation",
+        parent_id="100",
+    )
+
+    async def fake_download(self, path):
+        return _xlsx([["Parent Hoodie - Red / L", "", "115.00", "VAR-202"]]), {"etag": "etag-var-sku"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+
+    assert response.status_code == 200
+    row = response.json()["rows"][0]
+    assert row["matchedProduct"]["variationId"] == "202"
+    assert row["eligible_for_dry_run"] is True
+
+
+def test_variation_row_missing_parent_id_fails_closed(client, auth_headers, configured_db, monkeypatch):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    _cache_product(
+        configured_db,
+        "203",
+        "Orphan Variation",
+        "VAR-203",
+        "100.00",
+        product_type="variation",
+        parent_id=None,
+    )
+
+    async def fake_download(self, path):
+        return _xlsx([["Orphan Variation", 203, "110.00", "VAR-203"]]), {"etag": "etag-orphan"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+
+    assert response.status_code == 200
+    row = response.json()["rows"][0]
+    assert row["status"] == "error"
+    assert "missing_variation_parent_id" in row["errors"]
+    assert row["eligible_for_dry_run"] is False
+
+
 def test_simple_woocommerce_price_workflow_end_to_end_with_mocked_adapter(
     client, auth_headers, configured_db, monkeypatch
 ):
@@ -285,18 +401,19 @@ def test_workspace_preview_classifies_validation_errors_warnings_and_unchanged(
     assert "large_price_change" in by_row[8]["warnings"]
     assert "invalid_or_missing_price" in by_row[9]["errors"]
     assert "missing_product" in by_row[10]["errors"]
-    assert "unsupported_product_type" in by_row[11]["errors"]
-    assert "variation_writes_not_supported" in by_row[11]["errors"]
+    assert by_row[11]["status"] == "valid_change"
+    assert by_row[11]["matchedProduct"]["itemType"] == "variation"
+    assert by_row[11]["eligible_for_dry_run"] is True
     assert "duplicate_sku" in by_row[12]["errors"]
     assert "duplicate_sku" in by_row[13]["errors"]
     assert "missing_product_identifier" in by_row[14]["errors"]
     assert "large_price_change_blocked" in by_row[15]["errors"]
-    assert data["summary"]["error_rows"] == 10
+    assert data["summary"]["error_rows"] == 9
     assert data["summary"]["unchanged_rows"] == 1
     assert data["summary"]["large_changes"] == 2
 
     change_ids = {item["productId"] for item in data["changes"]}
-    assert change_ids == {"104", "105"}
+    assert change_ids == {"104", "105", "107"}
     assert all("stock" not in item for item in data["changes"])
 
 
@@ -380,7 +497,17 @@ def test_spreadsheet_normalizes_persian_digits_and_commas():
     assert duplicates["duplicate_product_ids"] == []
 
 
-def _cache_product(db, product_id: str, name: str, sku: str, price: str, *, product_type: str = "simple") -> None:
+def _cache_product(
+    db,
+    product_id: str,
+    name: str,
+    sku: str,
+    price: str,
+    *,
+    product_type: str = "simple",
+    parent_id: str | None = "100",
+    raw_data: dict | None = None,
+) -> None:
     from app.flowhub.data_layer.models import DlProductCache
 
     db.add(
@@ -391,13 +518,14 @@ def _cache_product(db, product_id: str, name: str, sku: str, price: str, *, prod
             sku=sku,
             name=name,
             product_type=product_type,
-            parent_id="100" if product_type == "variation" else None,
+            parent_id=parent_id if product_type == "variation" else None,
             regular_price=price,
             price=price,
             categories=[{"name": "Default"}],
             images=[{"src": f"https://example.test/{product_id}.jpg"}],
             freshness="fresh",
             exists=True,
+            raw_data=raw_data or {},
             last_fetched_at=datetime.utcnow(),
         )
     )

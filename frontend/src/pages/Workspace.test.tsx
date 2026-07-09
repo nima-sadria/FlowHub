@@ -33,6 +33,10 @@ describe('Workspace source-driven preview', () => {
     await click('Start Preview')
 
     expect(container.textContent).toContain('Valid Product')
+    expect(container.textContent).toContain('Variation Product')
+    expect(container.textContent).toContain('Variation')
+    expect(container.textContent).toContain('Parent 100')
+    expect(container.textContent).toContain('Color: Blue')
     expect(container.textContent).toContain('Missing Product')
     expect(container.textContent).toContain('large_price_change')
     expect(container.textContent).toContain('Unchanged')
@@ -41,7 +45,8 @@ describe('Workspace source-driven preview', () => {
     expect(container.textContent).toContain('Automatic apply is disabled')
     expect(container.textContent).toContain('Only approved batches can be applied')
     expect(container.textContent).toContain('Other channels are read-only/unavailable for this workflow')
-    expect(container.textContent).toContain('Variation writes are not supported')
+    expect(container.textContent).toContain('Simple and variation WooCommerce price updates are supported')
+    expect(container.textContent).toContain('Variation rows require cached parent product metadata')
     expect(button('Dry Run')?.hasAttribute('disabled')).toBe(true)
   })
 
@@ -55,7 +60,8 @@ describe('Workspace source-driven preview', () => {
 
     await click('Dry Run')
     expect(createDryRun).toHaveBeenCalledTimes(1)
-    expect(createDryRun.mock.calls[0][1]).toHaveLength(1)
+    expect(createDryRun.mock.calls[0][1]).toHaveLength(2)
+    expect(createDryRun.mock.calls[0][1][1].itemType).toBe('variation')
     expect(createDryRun.mock.calls[0][2]).toEqual(preview.summary)
     expect(container.textContent).toContain('Dry Run ready')
     expect(container.textContent).toContain('Approve')
@@ -174,7 +180,35 @@ function makePreview({ withError }: { withError: boolean }): WorkspacePreview {
     },
     {
       id: 'wp_1:Sheet1:4',
-      source: sourceInfo(4, 'Warning Product'),
+      source: sourceInfo(4, 'Variation Product', '201', 'VAR-201'),
+      matchedProduct: {
+        channelId: 'woocommerce:primary',
+        productId: '201',
+        productType: 'variation',
+        itemType: 'variation',
+        parentId: '100',
+        parentProductId: '100',
+        parentProductName: 'Parent Product',
+        variationId: '201',
+        variationAttributes: [{ name: 'Color', value: 'Blue' }],
+        sku: 'VAR-201',
+        name: 'Variation Product',
+        currentPrice: 120,
+        effectivePrice: 120,
+        categoryNames: ['Default'],
+      },
+      currentPrice: 120,
+      proposedPrice: 132,
+      difference: 12,
+      changePct: 10,
+      status: 'valid_change' as const,
+      errors: [],
+      warnings: [],
+      eligible_for_dry_run: true,
+    },
+    {
+      id: 'wp_1:Sheet1:5',
+      source: sourceInfo(5, 'Warning Product'),
       matchedProduct: null,
       currentPrice: 100,
       proposedPrice: 140,
@@ -186,8 +220,8 @@ function makePreview({ withError }: { withError: boolean }): WorkspacePreview {
       eligible_for_dry_run: true,
     },
     {
-      id: 'wp_1:Sheet1:5',
-      source: sourceInfo(5, 'Same Product'),
+      id: 'wp_1:Sheet1:6',
+      source: sourceInfo(6, 'Same Product'),
       matchedProduct: null,
       currentPrice: 100,
       proposedPrice: 100,
@@ -200,8 +234,8 @@ function makePreview({ withError }: { withError: boolean }): WorkspacePreview {
     },
     ...(withError
       ? [{
-          id: 'wp_1:Sheet1:6',
-          source: sourceInfo(6, 'Missing Product'),
+          id: 'wp_1:Sheet1:7',
+          source: sourceInfo(7, 'Missing Product'),
           matchedProduct: null,
           currentPrice: null,
           proposedPrice: 120,
@@ -219,7 +253,7 @@ function makePreview({ withError }: { withError: boolean }): WorkspacePreview {
     sourceId: 'nextcloud:primary',
     sourceName: 'Nextcloud Spreadsheet: /prices.xlsx',
     state: 'preview_ready',
-    totalChanges: 1,
+    totalChanges: 2,
     changes: [{
       productId: '101',
       productName: 'Valid Product',
@@ -234,11 +268,30 @@ function makePreview({ withError }: { withError: boolean }): WorkspacePreview {
       eligible_for_dry_run: true,
       source: sourceInfo(3, 'Valid Product'),
       validationWarnings: [],
+    }, {
+      productId: '201',
+      productName: 'Variation Product',
+      sku: 'VAR-201',
+      currentPrice: 120,
+      proposedPrice: 132,
+      difference: 12,
+      changePct: 10,
+      currency: 'EUR',
+      status: 'valid_change',
+      validationStatus: 'valid_change',
+      eligible_for_dry_run: true,
+      itemType: 'variation',
+      parentProductId: '100',
+      parentProductName: 'Parent Product',
+      variationId: '201',
+      variationAttributes: [{ name: 'Color', value: 'Blue' }],
+      source: sourceInfo(4, 'Variation Product', '201', 'VAR-201'),
+      validationWarnings: [],
     }],
     rows,
     summary: {
       total_rows: rows.length,
-      valid_changes: 1,
+      valid_changes: 2,
       unchanged_rows: 1,
       warning_rows: 1,
       error_rows: withError ? 1 : 0,
@@ -251,7 +304,7 @@ function makePreview({ withError }: { withError: boolean }): WorkspacePreview {
   }
 }
 
-function sourceInfo(rowNumber: number, productName: string) {
+function sourceInfo(rowNumber: number, productName: string, productId = String(100 + rowNumber), sku = `SKU-${100 + rowNumber}`) {
   return {
     previewId: 'wp_1',
     sourceId: 'nextcloud:primary',
@@ -261,8 +314,8 @@ function sourceInfo(rowNumber: number, productName: string) {
     sourceFilePath: '/prices.xlsx',
     worksheet: 'Sheet1',
     rowNumber,
-    productId: String(100 + rowNumber),
-    sku: `SKU-${100 + rowNumber}`,
+    productId,
+    sku,
     productName,
     rawPrice: '110.00',
   }
@@ -295,25 +348,50 @@ function makeBatch(itemCount: number, status: WritePipelineBatch['status']): Wri
     createdAt: new Date(),
     approvedAt: null,
     executedAt: null,
-    items: itemCount
-      ? [{
-          id: 1,
-          productId: '101',
-          productName: 'Valid Product',
-          sku: 'SKU-101',
-          currentPrice: 100,
-          proposedPrice: 110,
-          difference: 10,
-          changePct: 10,
-          currency: 'EUR',
-          status: status === 'applied' ? 'applied' : 'pending',
-          source: sourceInfo(3, 'Valid Product'),
-          validationWarnings: [],
-          providerResult: { provider: 'woocommerce', regular_price: '110.00' },
-          verification: status === 'applied'
-            ? { verified: true, observed_price: 110, expected_price: 110, verification_error: null }
-            : null,
-        }]
-      : [],
+    items: itemCount ? makeBatchItems(itemCount, status) : [],
   }
+}
+
+function makeBatchItems(itemCount: number, status: WritePipelineBatch['status']) {
+  const applied = status === 'applied'
+  const items: WritePipelineBatch['items'] = [{
+    id: 1,
+    productId: '101',
+    productName: 'Valid Product',
+    sku: 'SKU-101',
+    currentPrice: 100,
+    proposedPrice: 110,
+    difference: 10,
+    changePct: 10,
+    currency: 'EUR',
+    status: applied ? 'applied' : 'pending',
+    source: sourceInfo(3, 'Valid Product'),
+    validationWarnings: [],
+    providerResult: { provider: 'woocommerce', regular_price: '110.00' },
+    verification: applied ? { verified: true, observed_price: 110, expected_price: 110, verification_error: null } : null,
+  }]
+  if (itemCount > 1) {
+    items.push({
+      id: 2,
+      productId: '201',
+      productName: 'Variation Product',
+      sku: 'VAR-201',
+      currentPrice: 120,
+      proposedPrice: 132,
+      difference: 12,
+      changePct: 10,
+      currency: 'EUR',
+      status: applied ? 'applied' : 'pending',
+      source: sourceInfo(4, 'Variation Product', '201', 'VAR-201'),
+      validationWarnings: [],
+      itemType: 'variation',
+      parentProductId: '100',
+      parentProductName: 'Parent Product',
+      variationId: '201',
+      variationAttributes: [{ name: 'Color', value: 'Blue' }],
+      providerResult: { provider: 'woocommerce', variation_id: 201, regular_price: '132.00' },
+      verification: applied ? { verified: true, observed_price: 132, expected_price: 132, verification_error: null } : null,
+    })
+  }
+  return items
 }

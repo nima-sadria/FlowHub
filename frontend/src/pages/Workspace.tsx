@@ -74,17 +74,37 @@ function messages(row: WorkspacePreviewRow): string {
   return items.length ? items.join(', ') : '-'
 }
 
+function attributeText(attributes?: Array<Record<string, string>>): string {
+  if (!attributes?.length) return ''
+  return attributes
+    .map(item => [item.name, item.value].filter(Boolean).join(': '))
+    .filter(Boolean)
+    .join(', ')
+}
+
 function PreviewRow({ row }: { row: WorkspacePreviewRow }) {
   const name = row.matchedProduct?.name ?? row.source.productName ?? 'Unmatched product'
   const sku = row.matchedProduct?.sku || row.source.sku || '-'
+  const isVariation = row.matchedProduct?.itemType === 'variation' || row.matchedProduct?.productType === 'variation'
+  const attrs = attributeText(row.matchedProduct?.variationAttributes)
   const currency = 'EUR'
   return (
     <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
       <td className="px-4 py-3 min-w-0 max-w-[220px]">
-        <div className="text-[13px] font-medium text-text-base truncate">{name}</div>
+        <div className="flex items-center gap-2 text-[13px] font-medium text-text-base">
+          <span className="truncate">{name}</span>
+          {isVariation && <span className="fh-badge fh-badge-neutral shrink-0">Variation</span>}
+        </div>
         <div className="text-[11px] font-mono text-wp-muted mt-0.5">
           {row.source.worksheet}:{row.source.rowNumber} · {sku}
         </div>
+        {isVariation && (
+          <div className="text-[11px] text-wp-muted mt-0.5 truncate">
+            Parent {row.matchedProduct?.parentProductId ?? row.matchedProduct?.parentId ?? '-'}
+            {row.matchedProduct?.parentProductName ? ` آ· ${row.matchedProduct.parentProductName}` : ''}
+            {attrs ? ` آ· ${attrs}` : ''}
+          </div>
+        )}
       </td>
       <td className="px-4 py-3 text-[13px] text-wp-muted font-mono">
         {row.currentPrice == null ? '-' : fmtPrice(row.currentPrice, currency)}
@@ -130,11 +150,21 @@ function safetyMetric(batch: WritePipelineBatch, key: string, fallback = 0): num
 function ResultItemRow({ item }: { item: WritePipelineItem }) {
   const verification = item.verification
   const verified = verification?.verified === true
+  const isVariation = item.itemType === 'variation'
+  const attrs = attributeText(item.variationAttributes)
   return (
     <tr className="border-b border-border last:border-0">
       <td className="px-4 py-3">
-        <div className="text-[13px] font-medium text-text-base">{item.productName || item.productId}</div>
+        <div className="flex items-center gap-2 text-[13px] font-medium text-text-base">
+          <span>{item.productName || item.productId}</span>
+          {isVariation && <span className="fh-badge fh-badge-neutral">Variation</span>}
+        </div>
         <div className="text-[11px] font-mono text-wp-muted">{item.source?.worksheet ?? '-'}:{item.source?.rowNumber ?? '-'} · {item.sku || '-'}</div>
+        {isVariation && (
+          <div className="text-[11px] text-wp-muted mt-0.5">
+            Parent {item.parentProductId ?? '-'}{attrs ? ` آ· ${attrs}` : ''}
+          </div>
+        )}
       </td>
       <td className="px-4 py-3 text-[12px] font-mono text-wp-muted">{fmtPrice(item.currentPrice, item.currency)}</td>
       <td className="px-4 py-3 text-[12px] font-mono text-text-base">{fmtPrice(item.proposedPrice, item.currency)}</td>
@@ -334,8 +364,8 @@ export default function Workspace() {
               <p>Other channels are read-only/unavailable for this workflow.</p>
             </div>
             <div className="mt-3 pt-3 border-t border-border grid gap-2 sm:grid-cols-2 xl:grid-cols-4 text-[12px] text-wp-muted">
-              <p>Simple WooCommerce price updates are supported.</p>
-              <p>Variation writes are not supported.</p>
+              <p>Simple and variation WooCommerce price updates are supported.</p>
+              <p>Variation rows require cached parent product metadata.</p>
               <p>Stock updates are not supported.</p>
               <p>CSV and Google Sheets are placeholders.</p>
             </div>

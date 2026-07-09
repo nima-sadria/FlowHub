@@ -23,7 +23,7 @@ from app.connectors.common.test_result import ConnectionTestResult
 from app.connectors.common.types import ConnectorCapabilities, ConnectorID
 
 from .auth import WooCommerceCredentials, extract_credentials
-from .rest_client import get_product, list_products, ping, update_product_price
+from .rest_client import get_product, get_variation, list_products, ping, update_product_price
 
 
 class WooCommerceConnector(DestinationConnector):
@@ -150,21 +150,26 @@ class WooCommerceConnector(DestinationConnector):
             "sale_price": product.get("sale_price"),
         }
 
-    async def update_price(self, product_id: int, price: float) -> dict:
+    async def update_price(self, product_id: int, price: float, *, parent_product_id: int | None = None) -> dict:
         """Apply a price-only update through the approved Write Pipeline.
 
         This method deliberately accepts no stock or inventory fields.
         """
         creds = self._require_connected()
-        return await update_product_price(creds, product_id, price)
+        return await update_product_price(creds, product_id, price, parent_product_id=parent_product_id)
 
-    async def read_product_price(self, product_id: int) -> dict:
+    async def read_product_price(self, product_id: int, *, parent_product_id: int | None = None) -> dict:
         """Read price fields for post-apply verification."""
         creds = self._require_connected()
-        product = await get_product(creds, product_id)
+        if parent_product_id is None:
+            product = await get_product(creds, product_id)
+        else:
+            product = await get_variation(creds, parent_product_id, product_id)
         return {
             "provider": "woocommerce",
             "product_id": product.get("id", product_id),
+            "parent_product_id": parent_product_id,
+            "variation_id": product_id if parent_product_id is not None else None,
             "regular_price": product.get("regular_price"),
             "price": product.get("price"),
             "sale_price": product.get("sale_price"),

@@ -439,6 +439,53 @@ def test_woocommerce_rest_put_does_not_take_second_write_limiter_token():
     assert 'acquire_connector_rate_limit("woocommerce:primary", "write")' not in put_body
 
 
+@pytest.mark.asyncio
+async def test_woocommerce_variation_price_update_uses_variation_endpoint(monkeypatch):
+    from app.connectors.destinations.woocommerce import rest_client
+    from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
+
+    captured = {}
+
+    async def fake_put(_creds, path, payload):
+        captured["path"] = path
+        captured["payload"] = payload
+        return {"id": 201, "regular_price": payload["regular_price"]}
+
+    monkeypatch.setattr(rest_client, "_put", fake_put)
+
+    result = await rest_client.update_product_price(
+        WooCommerceCredentials(url="https://store.example.test", key="ck", secret="cs"),
+        201,
+        132.0,
+        parent_product_id=100,
+    )
+
+    assert captured == {
+        "path": "/products/100/variations/201",
+        "payload": {"regular_price": "132.00"},
+    }
+    assert result["variation_id"] == 201
+    assert result["parent_product_id"] == 100
+    assert result["stock_update"] is False
+
+
+def test_variation_dry_run_requires_parent_product_id(client, auth_headers):
+    body = _payload()
+    body["changes"][0].update({
+        "productId": "201",
+        "productName": "Parent Hoodie - Blue / XL",
+        "sku": "VAR-201",
+        "itemType": "variation",
+        "variationId": "201",
+        "parentProductId": None,
+    })
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=body)
+
+    assert response.status_code == 422
+    assert "parent product ID" in response.text
+
+
 def test_woocommerce_adapter_is_registered_for_price_updates_only():
     from app.flowhub.write_pipeline.registry import default_write_adapter_registry
 
@@ -488,6 +535,68 @@ def test_apply_records_read_back_verification_and_audit_metadata(client, auth_he
     assert applied_event["correlationId"].startswith("corr_")
 
 
+def test_apply_records_variation_audit_metadata(client, auth_headers, monkeypatch):
+    from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
+
+    body = _payload()
+    body["changes"][0].update({
+        "productId": "201",
+        "productName": "Parent Hoodie - Blue / XL",
+        "sku": "VAR-201",
+        "currentPrice": 120.0,
+        "proposedPrice": 132.0,
+        "itemType": "variation",
+        "variationId": "201",
+        "parentProductId": "100",
+        "parentProductName": "Parent Hoodie",
+        "variationAttributes": [{"name": "Color", "value": "Blue"}, {"name": "Size", "value": "XL"}],
+        "source": {**_source("preview-test", row=7), "productId": "201", "sku": "VAR-201"},
+    })
+
+    async def fake_execute(_adapter, item, _context):
+        assert item.channel_product_id == "201"
+        assert item.pre_write_snapshot_json["item_type"] == "variation"
+        return {
+            "provider": "woocommerce",
+            "product_id": item.channel_product_id,
+            "variation_id": 201,
+            "parent_product_id": 100,
+            "regular_price": "132.00",
+            "stock_update": False,
+        }
+
+    async def fake_verify(_adapter, item, _context):
+        return {
+            "provider": "woocommerce",
+            "verified": True,
+            "observed_price": 132.0,
+            "expected_price": item.proposed_price,
+            "verification_error": None,
+        }
+
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "verify_item", fake_verify)
+    created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=body).json()
+    assert created["items"][0]["itemType"] == "variation"
+    assert created["items"][0]["variationId"] == "201"
+    client.post(f"/api/v2/write-pipeline/batches/{created['id']}/approve", headers=auth_headers, json={"reason": "ok"})
+    _enable_woocommerce_write(client, auth_headers)
+
+    response = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
+
+    assert response.status_code == 200
+    item = response.json()["items"][0]
+    assert item["itemType"] == "variation"
+    assert item["parentProductId"] == "100"
+    assert item["variationAttributes"][0] == {"name": "Color", "value": "Blue"}
+    events = client.get(f"/api/v2/write-pipeline/batches/{created['id']}/events", headers=auth_headers).json()
+    applied_event = [event for event in events if event["eventType"] == "item_applied"][0]
+    assert applied_event["metadata"]["item_type"] == "variation"
+    assert applied_event["metadata"]["parent_product_id"] == "100"
+    assert applied_event["metadata"]["variation_id"] == "201"
+    assert applied_event["metadata"]["variation_attributes"][1] == {"name": "Size", "value": "XL"}
+
+
 def test_partial_failure_is_recorded_with_safe_provider_error(client, auth_headers, monkeypatch):
     from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
     from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
@@ -534,7 +643,7 @@ def test_partial_failure_is_recorded_with_safe_provider_error(client, auth_heade
 def test_future_channel_approved_batch_fails_closed_on_execute(client, auth_headers, db):
     from app.flowhub.write_pipeline.models import WriteBatch, WriteItem
 
-    batch_hash = sha256("snappshop:main\nprice_update\n101|100.0000|110.0000|EUR|".encode("utf-8")).hexdigest()
+    batch_hash = sha256("snappshop:main\nprice_update\n101|100.0000|110.0000|EUR||simple||".encode("utf-8")).hexdigest()
     batch = WriteBatch(
         id="wb_snapp_closed",
         channel_id="snappshop:main",

@@ -48,6 +48,11 @@ class WritePipelineItemShape(BaseModel):
     errorMessage: str | None = None
     source: dict | None = None
     validationWarnings: list[str] = Field(default_factory=list)
+    itemType: str = "simple"
+    parentProductId: str | None = None
+    parentProductName: str | None = None
+    variationId: str | None = None
+    variationAttributes: list[dict] = Field(default_factory=list)
     providerResult: dict = Field(default_factory=dict)
     verification: dict | None = None
 

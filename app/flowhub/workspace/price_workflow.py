@@ -31,7 +31,7 @@ MAX_DRY_RUN_DELTA_PERCENT = 50.0
 LARGE_CHANGE_WARNING_PERCENT = 30.0
 SUSPICIOUS_LOW_PRICE = 1.0
 SUSPICIOUS_HIGH_PRICE = 100_000.0
-SUPPORTED_WRITE_PRODUCT_TYPES = frozenset({"simple"})
+SUPPORTED_WRITE_PRODUCT_TYPES = frozenset({"simple", "variation"})
 
 
 @dataclass(frozen=True)
@@ -40,6 +40,8 @@ class ProductMatch:
     current_price: float
     category_names: list[str]
     image_url: str | None
+    parent_row: DlProductCache | None
+    variation_attributes: list[dict]
 
 
 class WorkspacePriceWorkflowService:
@@ -201,8 +203,8 @@ class WorkspacePriceWorkflowService:
                 product_type = (matched.row.product_type or "simple").lower()
                 if product_type not in SUPPORTED_WRITE_PRODUCT_TYPES:
                     errors.append("unsupported_product_type")
-                    if product_type == "variation":
-                        errors.append("variation_writes_not_supported")
+                if product_type == "variation" and not str(matched.row.parent_id or "").strip():
+                    errors.append("missing_variation_parent_id")
                 source_name = str(source_row.get("product_name") or "").strip()
                 cache_name = str(matched.row.name or "").strip()
                 if source_name and cache_name and source_name.casefold() != cache_name.casefold():
@@ -251,6 +253,11 @@ class WorkspacePriceWorkflowService:
                     "validationStatus": status_value,
                     "status": status_value,
                     "eligible_for_dry_run": True,
+                    "itemType": _item_type(matched.row),
+                    "parentProductId": matched.row.parent_id,
+                    "parentProductName": matched.parent_row.name if matched.parent_row is not None else None,
+                    "variationId": matched.row.product_id if _item_type(matched.row) == "variation" else None,
+                    "variationAttributes": matched.variation_attributes,
                     "source": _source_payload(source_row, preview_id, snapshot),
                     "validationWarnings": warnings,
                 }
@@ -307,7 +314,9 @@ class WorkspacePriceWorkflowService:
             row=candidates[0],
             current_price=current_price,
             category_names=_category_names(candidates[0].categories),
-            image_url=_image_url(candidates[0].images),
+            image_url=_resolved_image_url(candidates[0], by_product_id),
+            parent_row=by_product_id.get(str(candidates[0].parent_id)) if candidates[0].parent_id else None,
+            variation_attributes=_variation_attributes(candidates[0].raw_data),
         )
 
 
@@ -356,6 +365,36 @@ def _image_url(images: Any) -> str | None:
     return None
 
 
+def _resolved_image_url(product: DlProductCache, by_product_id: dict[str, DlProductCache]) -> str | None:
+    image_url = _image_url(product.images)
+    if image_url:
+        return image_url
+    if (product.product_type or "").lower() != "variation" or not product.parent_id:
+        return None
+    parent = by_product_id.get(str(product.parent_id))
+    return _image_url(parent.images) if parent is not None else None
+
+
+def _variation_attributes(raw_data: Any) -> list[dict]:
+    if not isinstance(raw_data, dict):
+        return []
+    raw_attributes = raw_data.get("attributes") or raw_data.get("variation_attributes") or []
+    if not isinstance(raw_attributes, list):
+        return []
+    attributes: list[dict] = []
+    for item in raw_attributes:
+        if isinstance(item, dict):
+            name = item.get("name") or item.get("attribute") or item.get("slug")
+            value = item.get("option") or item.get("value")
+            if name or value:
+                attributes.append({"name": str(name or ""), "value": str(value or "")})
+    return attributes
+
+
+def _item_type(row: DlProductCache) -> str:
+    return "variation" if (row.product_type or "").lower() == "variation" else "simple"
+
+
 def _source_payload(source_row: dict, preview_id: str, snapshot: DlSourceSnapshot) -> dict:
     return {
         "previewId": preview_id,
@@ -384,6 +423,11 @@ def _matched_payload(match: ProductMatch | None) -> dict | None:
         "externalId": row.external_id,
         "productType": row.product_type or "simple",
         "parentId": row.parent_id,
+        "parentProductId": row.parent_id,
+        "parentProductName": match.parent_row.name if match.parent_row is not None else None,
+        "variationId": row.product_id if _item_type(row) == "variation" else None,
+        "variationAttributes": match.variation_attributes,
+        "itemType": _item_type(row),
         "sku": row.sku or "",
         "name": row.name or "",
         "currentPrice": match.current_price,

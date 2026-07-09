@@ -10,6 +10,7 @@ connector write API is implemented.
 Supported operations:
   - list_products()      - paginated GET /wp-json/wc/v3/products (connector ABC)
   - get_product()        - GET /wp-json/wc/v3/products/{id}
+  - get_variation()      - GET /wp-json/wc/v3/products/{id}/variations/{variation_id}
   - list_variations()    - GET /wp-json/wc/v3/products/{id}/variations
   - ping()               - lightweight connectivity probe
   - list_products_paged()- paginated product fetch returning (products, total, total_pages)
@@ -442,20 +443,39 @@ async def count_products(
     return int(r.headers.get("X-WP-Total", "0"))
 
 
-async def update_product_price(creds: WooCommerceCredentials, product_id: int, price: float) -> dict:
-    """Update only regular_price for a WooCommerce product.
+async def get_variation(creds: WooCommerceCredentials, product_id: int, variation_id: int) -> dict:
+    """Return one variation by parent product ID and variation ID."""
+    data = await _get(creds, f"/products/{product_id}/variations/{variation_id}")
+    return data if isinstance(data, dict) else {}
+
+
+async def update_product_price(
+    creds: WooCommerceCredentials,
+    product_id: int,
+    price: float,
+    *,
+    parent_product_id: int | None = None,
+) -> dict:
+    """Update only regular_price for a WooCommerce product or variation.
 
     Stock and inventory fields are intentionally not accepted by this adapter.
     """
     normalized = f"{price:.2f}"
+    path = (
+        f"/products/{parent_product_id}/variations/{product_id}"
+        if parent_product_id is not None
+        else f"/products/{product_id}"
+    )
     result = await _put(
         creds,
-        f"/products/{product_id}",
+        path,
         {"regular_price": normalized},
     )
     return {
         "provider": "woocommerce",
         "product_id": result.get("id", product_id) if isinstance(result, dict) else product_id,
+        "parent_product_id": parent_product_id,
+        "variation_id": product_id if parent_product_id is not None else None,
         "regular_price": result.get("regular_price", normalized) if isinstance(result, dict) else normalized,
         "stock_update": False,
     }
