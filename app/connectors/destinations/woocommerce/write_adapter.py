@@ -40,6 +40,28 @@ class WooCommercePriceWriteAdapter:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "WooCommerce product ID must be numeric.")
 
     async def execute_item(self, item: WriteItem, context: ChannelWriteContext) -> dict:
+        connector = await self._connected_connector(context)
+        return await connector.update_price(int(item.channel_product_id), item.proposed_price)
+
+    async def verify_item(self, item: WriteItem, context: ChannelWriteContext) -> dict:
+        connector = await self._connected_connector(context)
+        observed = await connector.read_product_price(int(item.channel_product_id))
+        raw_observed = observed.get("regular_price")
+        try:
+            observed_price = float(str(raw_observed).replace(",", "").strip())
+        except (TypeError, ValueError):
+            observed_price = None
+        expected = float(item.proposed_price)
+        verified = observed_price is not None and abs(observed_price - expected) < 0.005
+        return {
+            "provider": "woocommerce",
+            "verified": verified,
+            "observed_price": observed_price,
+            "expected_price": expected,
+            "verification_error": None if verified else "observed_price_mismatch",
+        }
+
+    async def _connected_connector(self, context: ChannelWriteContext) -> WooCommerceConnector:
         auth = AuthConfig(
             auth_type="api_key",
             credentials={
@@ -50,4 +72,4 @@ class WooCommercePriceWriteAdapter:
         )
         connector = WooCommerceConnector()
         await connector.connect(auth)
-        return await connector.update_price(int(item.channel_product_id), item.proposed_price)
+        return connector

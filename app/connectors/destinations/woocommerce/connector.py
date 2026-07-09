@@ -36,7 +36,8 @@ class WooCommerceConnector(DestinationConnector):
       4. list_products(page, per_page)  - paginated product list
       5. read_inventory(product_id)     - stock data for one product
       6. update_price(product_id, price)- Write Pipeline price-only adapter
-      7. disconnect()           - clears stored credentials
+      7. read_product_price(product_id) - read-back verification after write
+      8. disconnect()           - clears stored credentials
     """
 
     connector_id: ConnectorID = "woocommerce"
@@ -156,3 +157,15 @@ class WooCommerceConnector(DestinationConnector):
         """
         creds = self._require_connected()
         return await update_product_price(creds, product_id, price)
+
+    async def read_product_price(self, product_id: int) -> dict:
+        """Read price fields for post-apply verification."""
+        creds = self._require_connected()
+        product = await get_product(creds, product_id)
+        return {
+            "provider": "woocommerce",
+            "product_id": product.get("id", product_id),
+            "regular_price": product.get("regular_price"),
+            "price": product.get("price"),
+            "sale_price": product.get("sale_price"),
+        }

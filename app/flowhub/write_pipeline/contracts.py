@@ -22,9 +22,10 @@ class WritePipelinePriceChange(BaseModel):
 class WritePipelineDryRunRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    previewId: str | None = None
+    previewId: str
     channelId: str = "woocommerce:primary"
     operationType: str = "price_update"
+    previewSummary: dict = Field(default_factory=dict)
     changes: list[WritePipelinePriceChange] = Field(default_factory=list, max_length=100)
 
 
@@ -45,6 +46,10 @@ class WritePipelineItemShape(BaseModel):
     status: str
     errorCode: str | None = None
     errorMessage: str | None = None
+    source: dict | None = None
+    validationWarnings: list[str] = Field(default_factory=list)
+    providerResult: dict = Field(default_factory=dict)
+    verification: dict | None = None
 
 
 class WritePipelineBatchShape(BaseModel):
@@ -58,6 +63,7 @@ class WritePipelineBatchShape(BaseModel):
     itemCount: int
     currency: str
     safetySummary: dict
+    resultSummary: dict = Field(default_factory=dict)
     createdBy: str
     approvedBy: str | None = None
     approvalReason: str | None = None

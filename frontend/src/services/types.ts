@@ -87,6 +87,7 @@ export interface PriceChange {
   changePct: number
   currency: string
   warning?: string | null
+  status?: string
   eligible_for_dry_run?: boolean
   validationStatus?: string
   source?: WorkspaceSourceRowInfo
@@ -186,6 +187,27 @@ export interface WritePipelineItem {
   status: string
   errorCode?: string | null
   errorMessage?: string | null
+  source?: WorkspaceSourceRowInfo | null
+  validationWarnings?: string[]
+  providerResult?: Record<string, unknown>
+  verification?: {
+    verified: boolean
+    observed_price?: number | null
+    expected_price?: number | null
+    verification_error?: string | null
+  } | null
+}
+
+export interface WritePipelineResultSummary {
+  total_attempted: number
+  success_count: number
+  failure_count: number
+  skipped_count: number
+  blocked_count: number
+  warning_count: number
+  verified_count: number
+  unverified_count: number
+  estimated_affected_products: number
 }
 
 export interface WritePipelineBatch {
@@ -199,6 +221,7 @@ export interface WritePipelineBatch {
   itemCount: number
   currency: string
   safetySummary: Record<string, unknown>
+  resultSummary?: WritePipelineResultSummary
   createdBy: string
   approvedBy?: string | null
   approvalReason?: string | null

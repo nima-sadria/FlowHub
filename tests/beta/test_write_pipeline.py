@@ -90,6 +90,13 @@ def _payload(**overrides):
         "previewId": "preview-test",
         "channelId": "woocommerce:primary",
         "operationType": "price_update",
+        "previewSummary": {
+            "total_rows": 3,
+            "valid_changes": 1,
+            "warning_rows": 0,
+            "unchanged_rows": 1,
+            "error_rows": 1,
+        },
         "changes": [
             {
                 "productId": "101",
@@ -98,11 +105,33 @@ def _payload(**overrides):
                 "currentPrice": 100.0,
                 "proposedPrice": 110.0,
                 "currency": "EUR",
+                "status": "valid_change",
+                "validationStatus": "valid_change",
+                "eligible_for_dry_run": True,
+                "source": _source("preview-test", row=3),
+                "validationWarnings": [],
             }
         ],
     }
     body.update(overrides)
     return body
+
+
+def _source(preview_id: str, *, row: int = 3):
+    return {
+        "previewId": preview_id,
+        "sourceId": "nextcloud:primary",
+        "sourceType": "nextcloud_spreadsheet",
+        "sourceSnapshotId": 1,
+        "sourceSnapshotVersion": 1,
+        "sourceFilePath": "/prices.xlsx",
+        "worksheet": "Sheet1",
+        "rowNumber": row,
+        "productId": "101",
+        "sku": "SKU-101",
+        "productName": "Test Product",
+        "rawPrice": "110.00",
+    }
 
 
 def _enable_woocommerce_write(client, auth_headers):
@@ -132,6 +161,10 @@ def test_dry_run_creates_batch_without_marketplace_write(client, auth_headers):
     assert data["safetySummary"]["automatic_apply"] is False
     assert data["safetySummary"]["scheduler_started"] is False
     assert data["safetySummary"]["stock_update_allowed"] is False
+    assert data["safetySummary"]["eligible_rows"] == 1
+    assert data["safetySummary"]["skipped_rows"] == 1
+    assert data["safetySummary"]["blocked_rows"] == 1
+    assert data["safetySummary"]["estimated_affected_products"] == 1
 
     events = client.get(f"/api/v2/write-pipeline/batches/{data['id']}/events", headers=auth_headers)
     assert events.status_code == 200
@@ -216,6 +249,7 @@ def test_execution_requires_second_action_after_approval(client, auth_headers, m
     assert applied.status_code == 200
     assert applied.json()["status"] == "applied"
     assert calls["count"] == 1
+    assert applied.json()["resultSummary"]["total_attempted"] == 1
 
 
 def test_write_enabled_access_mode_does_not_auto_apply(client, auth_headers, monkeypatch):
@@ -254,6 +288,25 @@ def test_non_woocommerce_channels_are_blocked(client, auth_headers):
 
     assert response.status_code == 403
     assert "unsupported_channel_write" in response.text
+
+
+def test_dry_run_requires_workspace_preview_provenance(client, auth_headers):
+    body = _payload()
+    body.pop("previewId")
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=body)
+
+    assert response.status_code == 422
+
+
+def test_dry_run_rejects_changes_without_matching_preview_source(client, auth_headers):
+    body = _payload()
+    body["changes"][0]["source"]["previewId"] = "different-preview"
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=body)
+
+    assert response.status_code == 422
+    assert "active Workspace preview" in response.text
 
 
 def test_stock_fields_are_blocked(client, auth_headers):
@@ -400,10 +453,88 @@ def test_woocommerce_adapter_is_registered_for_price_updates_only():
     assert registry.get("shopify:main", "price_update") is None
 
 
+def test_apply_records_read_back_verification_and_audit_metadata(client, auth_headers, monkeypatch):
+    from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
+
+    async def fake_execute(_adapter, item, _context):
+        return {"provider": "woocommerce", "product_id": item.channel_product_id, "regular_price": "110.00"}
+
+    async def fake_verify(_adapter, item, _context):
+        return {
+            "provider": "woocommerce",
+            "verified": True,
+            "observed_price": 110.0,
+            "expected_price": item.proposed_price,
+            "verification_error": None,
+        }
+
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "verify_item", fake_verify)
+    created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
+    client.post(f"/api/v2/write-pipeline/batches/{created['id']}/approve", headers=auth_headers, json={"reason": "ok"})
+    _enable_woocommerce_write(client, auth_headers)
+
+    response = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["items"][0]["verification"]["verified"] is True
+    assert data["resultSummary"]["verified_count"] == 1
+    events = client.get(f"/api/v2/write-pipeline/batches/{created['id']}/events", headers=auth_headers).json()
+    applied_event = [item for item in events if item["eventType"] == "item_applied"][0]
+    assert applied_event["metadata"]["source"]["sourceFilePath"] == "/prices.xlsx"
+    assert applied_event["metadata"]["product_id"] == "101"
+    assert applied_event["metadata"]["verification"]["verified"] is True
+    assert applied_event["correlationId"].startswith("corr_")
+
+
+def test_partial_failure_is_recorded_with_safe_provider_error(client, auth_headers, monkeypatch):
+    from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
+    from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
+
+    body = _payload()
+    body["previewSummary"]["valid_changes"] = 2
+    body["changes"].append({
+        **body["changes"][0],
+        "productId": "102",
+        "productName": "Second Product",
+        "sku": "SKU-102",
+        "source": {**_source("preview-test", row=4), "productId": "102", "sku": "SKU-102"},
+    })
+
+    async def fake_execute(_adapter, item, _context):
+        if item.channel_product_id == "102":
+            raise ConnectorError(
+                code=ConnectorErrorCode.AUTH_FAILED,
+                message="consumer_secret=cs_live_secret failed",
+                provider="woocommerce",
+                http_status=401,
+            )
+        return {"provider": "woocommerce", "product_id": item.channel_product_id, "regular_price": "110.00"}
+
+    async def fake_verify(_adapter, item, _context):
+        return {"verified": True, "observed_price": 110.0, "expected_price": item.proposed_price}
+
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "verify_item", fake_verify)
+    created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=body).json()
+    client.post(f"/api/v2/write-pipeline/batches/{created['id']}/approve", headers=auth_headers, json={})
+    _enable_woocommerce_write(client, auth_headers)
+
+    response = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "partially_failed"
+    assert response.json()["resultSummary"]["failure_count"] == 1
+    assert "cs_live_secret" not in response.text
+    events = client.get(f"/api/v2/write-pipeline/batches/{created['id']}/events", headers=auth_headers)
+    assert "cs_live_secret" not in events.text
+
+
 def test_future_channel_approved_batch_fails_closed_on_execute(client, auth_headers, db):
     from app.flowhub.write_pipeline.models import WriteBatch, WriteItem
 
-    batch_hash = sha256("snappshop:main\nprice_update\n101|100.0000|110.0000|EUR".encode("utf-8")).hexdigest()
+    batch_hash = sha256("snappshop:main\nprice_update\n101|100.0000|110.0000|EUR|".encode("utf-8")).hexdigest()
     batch = WriteBatch(
         id="wb_snapp_closed",
         channel_id="snappshop:main",

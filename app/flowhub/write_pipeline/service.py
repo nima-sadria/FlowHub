@@ -7,6 +7,7 @@ registered channel write adapter.
 
 from __future__ import annotations
 
+import asyncio
 import math
 import uuid
 from datetime import datetime
@@ -19,7 +20,7 @@ from app.connectors.common.errors import ConnectorError
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.rate_limit.service import RateLimitService
-from app.flowhub.security.redaction import redact_sensitive
+from app.flowhub.security.redaction import redact_sensitive, redact_sensitive_text
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.write_pipeline.adapters import ChannelWriteAdapter, ChannelWriteContext
 from app.flowhub.write_pipeline.contracts import (
@@ -34,6 +35,8 @@ from app.flowhub.write_pipeline.registry import ChannelWriteAdapterRegistry, def
 
 MAX_ITEMS = 100
 MAX_DELTA_PERCENT = 50.0
+VERIFY_SMALL_BATCH_LIMIT = 25
+VERIFY_TIMEOUT_SECONDS = 10.0
 FORBIDDEN_STOCK_KEYS = frozenset({"stock", "stock_status", "stock_quantity", "inventory", "manage_stock"})
 STOCK_OPERATION_TYPES = frozenset({"stock_update", "inventory_update", "write_inventory", "update_stock"})
 AUTOMATIC_APPLY_KEYS = frozenset({"automaticApply", "automatic_apply", "applyNow", "apply_now", "scheduler", "scheduled"})
@@ -52,7 +55,7 @@ class WritePipelineService:
         adapter = self._adapter_for(body.channelId, body.operationType)
         capabilities = adapter.get_capabilities()
         raw_changes = [item.model_dump() for item in body.changes]
-        safety = self._validate_changes(raw_changes, adapter, body.operationType)
+        safety = self._validate_changes(raw_changes, adapter, body.operationType, body.previewId, body.previewSummary)
         batch_id = f"wb_{uuid.uuid4().hex[:16]}"
         batch_hash = self._batch_hash(body)
         currency = body.changes[0].currency if body.changes else ""
@@ -74,6 +77,9 @@ class WritePipelineService:
         for change in body.changes:
             delta = change.proposedPrice - change.currentPrice
             pct = self._delta_percent(change.currentPrice, change.proposedPrice)
+            extras = getattr(change, "model_extra", None) or {}
+            source = extras.get("source")
+            warnings = extras.get("validationWarnings", [])
             self.db.add(
                 WriteItem(
                     batch_id=batch.id,
@@ -90,8 +96,10 @@ class WritePipelineService:
                         "sku": change.sku,
                         "price": change.currentPrice,
                         "currency": change.currency,
-                        "source": (getattr(change, "model_extra", None) or {}).get("source"),
-                        "validation_warnings": (getattr(change, "model_extra", None) or {}).get("validationWarnings", []),
+                        "source": source,
+                        "validation_warnings": warnings,
+                        "status": extras.get("status") or extras.get("validationStatus"),
+                        "source_fingerprint": _source_fingerprint(source),
                     },
                     status="pending",
                 )
@@ -103,6 +111,14 @@ class WritePipelineService:
             metadata={
                 "approval_recorded": False,
                 "execution_attempted": False,
+                "actor": user.username,
+                "channel_id": body.channelId,
+                "operation_type": body.operationType,
+                "batch_hash": batch_hash,
+                "item_count": len(body.changes),
+                "eligible_rows": safety["eligible_rows"],
+                "skipped_rows": safety["skipped_rows"],
+                "blocked_rows": safety["blocked_rows"],
                 "source_preview_id": body.previewId,
                 "source_rows": [
                     (getattr(change, "model_extra", None) or {}).get("source")
@@ -129,7 +145,14 @@ class WritePipelineService:
             batch.id,
             "approved",
             "Approved. Execution was not started.",
-            metadata={"approval_recorded": True, "execution_attempted": False},
+            metadata={
+                "approval_recorded": True,
+                "execution_attempted": False,
+                "actor": user.username,
+                "approved_item_count": batch.item_count,
+                "batch_hash": batch.batch_hash,
+                "channel_id": batch.channel_id,
+            },
             commit=False,
         )
         self.db.commit()
@@ -158,6 +181,10 @@ class WritePipelineService:
 
         success_count = 0
         failure_count = 0
+        verified_count = 0
+        unverified_count = 0
+        verification_warning_count = 0
+        verification_enabled = batch.item_count <= VERIFY_SMALL_BATCH_LIMIT
         for item in batch.items:
             try:
                 await rate_limits.acquire(batch.channel_id, "write", connector_type=capabilities.channel_type)
@@ -166,18 +193,25 @@ class WritePipelineService:
                 failure_count += 1
                 item.status = "failed"
                 item.error_code = exc.code.value
-                item.error_message = exc.message
+                item.error_message = redact_sensitive_text(exc.message)
                 self._record_event(
                     batch.id,
                     "item_failed",
-                    exc.message,
+                    item.error_message,
                     item_id=item.id,
                     severity="error",
                     metadata={
                         "provider": exc.provider,
                         "http_status": exc.http_status,
+                        "actor": user.username,
+                        "channel_id": batch.channel_id,
+                        "batch_id": batch.id,
+                        "product_id": item.channel_product_id,
+                        "sku": item.sku,
                         "old_price": item.current_price,
                         "new_price": item.proposed_price,
+                        "status": item.status,
+                        "source": _item_source(item),
                     },
                     commit=False,
                 )
@@ -185,24 +219,62 @@ class WritePipelineService:
                 failure_count += 1
                 item.status = "failed"
                 item.error_code = "unexpected_error"
-                item.error_message = str(exc)
+                item.error_message = redact_sensitive_text(str(exc))
                 self._record_event(
                     batch.id,
                     "item_failed",
-                    str(exc),
+                    item.error_message,
                     item_id=item.id,
                     severity="error",
                     metadata={
                         "provider": capabilities.channel_type,
+                        "actor": user.username,
+                        "channel_id": batch.channel_id,
+                        "batch_id": batch.id,
+                        "product_id": item.channel_product_id,
+                        "sku": item.sku,
                         "old_price": item.current_price,
                         "new_price": item.proposed_price,
+                        "status": item.status,
+                        "source": _item_source(item),
                     },
                     commit=False,
                 )
             else:
+                verification = self._verification_skipped_result()
+                if verification_enabled:
+                    verification = await self._verify_applied_item(adapter, item, context)
+                    if verification.get("verified") is True:
+                        verified_count += 1
+                    else:
+                        unverified_count += 1
+                        verification_warning_count += 1
+                        self._record_event(
+                            batch.id,
+                            "item_verification_warning",
+                            "Price read-back verification did not confirm the expected value.",
+                            item_id=item.id,
+                            severity="warning",
+                            metadata={
+                                "actor": user.username,
+                                "channel_id": batch.channel_id,
+                                "batch_id": batch.id,
+                                "product_id": item.channel_product_id,
+                                "sku": item.sku,
+                                "old_price": item.current_price,
+                                "new_price": item.proposed_price,
+                                "status": item.status,
+                                "verification": verification,
+                                "source": _item_source(item),
+                            },
+                            commit=False,
+                        )
+                else:
+                    unverified_count += 1
                 success_count += 1
                 item.status = "applied"
-                item.provider_result_json = provider_result
+                provider_result["verification"] = verification
+                item.provider_result_json = _safe_provider_result(provider_result)
                 self._record_event(
                     batch.id,
                     "item_applied",
@@ -211,9 +283,17 @@ class WritePipelineService:
                     metadata={
                         "provider": capabilities.channel_type,
                         "stock_update": False,
+                        "actor": user.username,
+                        "channel_id": batch.channel_id,
+                        "batch_id": batch.id,
+                        "product_id": item.channel_product_id,
+                        "sku": item.sku,
                         "old_price": item.current_price,
                         "new_price": item.proposed_price,
+                        "status": item.status,
                         "result": _safe_provider_result(provider_result),
+                        "verification": verification,
+                        "source": _item_source(item),
                     },
                     commit=False,
                 )
@@ -224,7 +304,20 @@ class WritePipelineService:
             batch.id,
             "execution_finished",
             "Apply finished.",
-            metadata={"success_count": success_count, "failure_count": failure_count, "scheduler_started": False},
+            metadata={
+                "actor": user.username,
+                "channel_id": batch.channel_id,
+                "batch_id": batch.id,
+                "success_count": success_count,
+                "failure_count": failure_count,
+                "warning_count": verification_warning_count,
+                "verified_count": verified_count,
+                "unverified_count": unverified_count,
+                "skipped_count": (batch.safety_summary_json or {}).get("skipped_rows", 0),
+                "scheduler_started": False,
+                "automatic_apply": False,
+                "stock_update": False,
+            },
             commit=False,
         )
         self.db.commit()
@@ -260,13 +353,26 @@ class WritePipelineService:
         if AUTOMATIC_APPLY_KEYS.intersection(extras):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "automatic_apply_disabled")
 
-    def _validate_changes(self, raw_changes: list[dict], adapter: ChannelWriteAdapter, operation_type: str) -> dict:
+    def _validate_changes(
+        self,
+        raw_changes: list[dict],
+        adapter: ChannelWriteAdapter,
+        operation_type: str,
+        preview_id: str,
+        preview_summary: dict,
+    ) -> dict:
         if len(raw_changes) > MAX_ITEMS:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Dry Run is limited to {MAX_ITEMS} items.")
+        if not preview_id:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Dry Run requires a Workspace preview ID.")
         currencies: set[str] = set()
         max_delta = 0.0
+        product_ids: set[str] = set()
         for change in raw_changes:
-            if change.get("eligible_for_dry_run") is False:
+            source = change.get("source")
+            if not isinstance(source, dict) or source.get("previewId") != preview_id:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Dry Run changes must come from the active Workspace preview.")
+            if change.get("eligible_for_dry_run") is not True:
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Rows with validation errors cannot enter Dry Run.")
             if change.get("status") == "error" or change.get("validationStatus") == "error":
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Rows with validation errors cannot enter Dry Run.")
@@ -284,14 +390,23 @@ class WritePipelineService:
             if delta_pct > MAX_DELTA_PERCENT:
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Price change exceeds the 50% safety gate.")
             currencies.add(str(change.get("currency") or ""))
+            product_ids.add(str(change.get("productId") or ""))
             adapter.validate_item(change)
         if len(currencies) > 1:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Dry Run must use a single currency.")
         capabilities = adapter.get_capabilities()
+        skipped_rows = int(preview_summary.get("unchanged_rows") or 0) if isinstance(preview_summary, dict) else 0
+        blocked_rows = int(preview_summary.get("error_rows") or 0) if isinstance(preview_summary, dict) else 0
+        warning_rows = int(preview_summary.get("warning_rows") or 0) if isinstance(preview_summary, dict) else 0
         return {
             "operation": operation_type,
             "channel_id": capabilities.channel_ids[0] if capabilities.channel_ids else "",
             "item_count": len(raw_changes),
+            "eligible_rows": len(raw_changes),
+            "skipped_rows": skipped_rows,
+            "blocked_rows": blocked_rows,
+            "warning_rows": warning_rows,
+            "estimated_affected_products": len(product_ids),
             "max_delta_percent": round(max_delta, 4),
             "stock_update_allowed": False,
             "scheduler_started": False,
@@ -308,13 +423,16 @@ class WritePipelineService:
     def _batch_hash(self, body: WritePipelineDryRunRequest) -> str:
         parts = [body.channelId, body.operationType]
         for item in sorted(body.changes, key=lambda row: row.productId):
-            parts.append(f"{item.productId}|{item.currentPrice:.4f}|{item.proposedPrice:.4f}|{item.currency}")
+            source = (getattr(item, "model_extra", None) or {}).get("source")
+            source_part = _source_fingerprint(source)
+            parts.append(f"{item.productId}|{item.currentPrice:.4f}|{item.proposedPrice:.4f}|{item.currency}|{source_part}")
         return sha256("\n".join(parts).encode("utf-8")).hexdigest()
 
     def _batch_hash_from_row(self, batch: WriteBatch) -> str:
         parts = [batch.channel_id, batch.operation_type]
         for item in sorted(batch.items, key=lambda row: row.channel_product_id):
-            parts.append(f"{item.channel_product_id}|{item.current_price:.4f}|{item.proposed_price:.4f}|{item.currency}")
+            source_part = str((item.pre_write_snapshot_json or {}).get("source_fingerprint") or "")
+            parts.append(f"{item.channel_product_id}|{item.current_price:.4f}|{item.proposed_price:.4f}|{item.currency}|{source_part}")
         return sha256("\n".join(parts).encode("utf-8")).hexdigest()
 
     def _assert_batch_hash_matches(self, batch: WriteBatch) -> None:
@@ -364,6 +482,7 @@ class WritePipelineService:
             itemCount=row.item_count,
             currency=row.currency,
             safetySummary=row.safety_summary_json or {},
+            resultSummary=self._result_summary(row),
             createdBy=row.created_by,
             approvedBy=row.approved_by,
             approvalReason=row.approval_reason,
@@ -387,6 +506,10 @@ class WritePipelineService:
             status=row.status,
             errorCode=row.error_code,
             errorMessage=row.error_message,
+            source=_item_source(row),
+            validationWarnings=list((row.pre_write_snapshot_json or {}).get("validation_warnings") or []),
+            providerResult=_safe_provider_result(row.provider_result_json or {}),
+            verification=(row.provider_result_json or {}).get("verification"),
         )
 
     def _event_shape(self, row: WriteEvent) -> WritePipelineEventShape:
@@ -407,6 +530,89 @@ class WritePipelineService:
             return 0.0
         return ((proposed - current) / current) * 100.0
 
+    async def _verify_applied_item(
+        self,
+        adapter: ChannelWriteAdapter,
+        item: WriteItem,
+        context: ChannelWriteContext,
+    ) -> dict:
+        try:
+            async with asyncio.timeout(VERIFY_TIMEOUT_SECONDS):
+                result = await adapter.verify_item(item, context)
+            return _safe_provider_result({
+                "verified": bool(result.get("verified")),
+                "observed_price": result.get("observed_price"),
+                "expected_price": result.get("expected_price", item.proposed_price),
+                "verification_error": result.get("verification_error"),
+            })
+        except ConnectorError as exc:
+            return {
+                "verified": False,
+                "observed_price": None,
+                "expected_price": item.proposed_price,
+                "verification_error": redact_sensitive_text(exc.message),
+            }
+        except TimeoutError:
+            return {
+                "verified": False,
+                "observed_price": None,
+                "expected_price": item.proposed_price,
+                "verification_error": "verification_timeout",
+            }
+        except Exception as exc:  # pragma: no cover - defensive adapter boundary
+            return {
+                "verified": False,
+                "observed_price": None,
+                "expected_price": item.proposed_price,
+                "verification_error": redact_sensitive_text(str(exc)),
+            }
+
+    def _verification_skipped_result(self) -> dict:
+        return {
+            "verified": False,
+            "observed_price": None,
+            "expected_price": None,
+            "verification_error": "verification_skipped_batch_too_large",
+        }
+
+    def _result_summary(self, row: WriteBatch) -> dict:
+        attempted = len(row.items) if row.executed_at else 0
+        success = sum(1 for item in row.items if item.status == "applied")
+        failure = sum(1 for item in row.items if item.status == "failed")
+        verified = sum(1 for item in row.items if (item.provider_result_json or {}).get("verification", {}).get("verified") is True)
+        unverified = sum(
+            1
+            for item in row.items
+            if item.status == "applied" and (item.provider_result_json or {}).get("verification", {}).get("verified") is not True
+        )
+        safety = row.safety_summary_json or {}
+        warning_count = int(safety.get("warning_rows") or 0) + unverified
+        return {
+            "total_attempted": attempted,
+            "success_count": success,
+            "failure_count": failure,
+            "skipped_count": int(safety.get("skipped_rows") or 0),
+            "blocked_count": int(safety.get("blocked_rows") or 0),
+            "warning_count": warning_count,
+            "verified_count": verified,
+            "unverified_count": unverified,
+            "estimated_affected_products": int(safety.get("estimated_affected_products") or row.item_count),
+        }
+
 
 def _safe_provider_result(result: dict) -> dict:
     return redact_sensitive(result or {})
+
+
+def _item_source(item: WriteItem) -> dict | None:
+    source = (item.pre_write_snapshot_json or {}).get("source")
+    return source if isinstance(source, dict) else None
+
+
+def _source_fingerprint(source: object) -> str:
+    if not isinstance(source, dict):
+        return ""
+    return "|".join(
+        str(source.get(key) or "")
+        for key in ("previewId", "sourceSnapshotId", "sourceSnapshotVersion", "sourceFilePath", "worksheet", "rowNumber")
+    )

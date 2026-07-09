@@ -13,6 +13,7 @@ interface RawChange {
   changePct: number
   currency: string
   warning?: string | null
+  status?: string
   eligible_for_dry_run?: boolean
   validationStatus?: string
   source?: Record<string, unknown>
@@ -43,6 +44,7 @@ function mapChange(r: RawChange): PriceChange {
     changePct: r.changePct,
     currency: r.currency,
     warning: r.warning ?? null,
+    status: r.status,
     eligible_for_dry_run: r.eligible_for_dry_run,
     validationStatus: r.validationStatus,
     source: r.source as PriceChange['source'],

@@ -37,12 +37,17 @@ describe('Workspace source-driven preview', () => {
     expect(container.textContent).toContain('large_price_change')
     expect(container.textContent).toContain('Unchanged')
     expect(container.textContent).toContain('blocking error')
+    expect(container.textContent).toContain('Stock will not be changed')
+    expect(container.textContent).toContain('Automatic apply is disabled')
+    expect(container.textContent).toContain('Only approved batches can be applied')
+    expect(container.textContent).toContain('Other channels are read-only/unavailable for this workflow')
+    expect(container.textContent).toContain('Variation writes are not supported')
     expect(button('Dry Run')?.hasAttribute('disabled')).toBe(true)
   })
 
   it('enables Dry Run for valid preview rows and sends only eligible changes', async () => {
     const preview = makePreview({ withError: false })
-    const createDryRun = vi.fn(async (_previewId: string, changes) => makeBatch(changes.length, 'dry_run_ready'))
+    const createDryRun = vi.fn(async (_previewId: string, changes, _summary) => makeBatch(changes.length, 'dry_run_ready'))
     await renderWorkspace(preview, createDryRun)
 
     await click('Start Preview')
@@ -51,9 +56,27 @@ describe('Workspace source-driven preview', () => {
     await click('Dry Run')
     expect(createDryRun).toHaveBeenCalledTimes(1)
     expect(createDryRun.mock.calls[0][1]).toHaveLength(1)
+    expect(createDryRun.mock.calls[0][2]).toEqual(preview.summary)
     expect(container.textContent).toContain('Dry Run ready')
     expect(container.textContent).toContain('Approve')
     expect(container.textContent).not.toContain('Apply to WooCommerce')
+  })
+
+  it('keeps approval mandatory and renders result summary after apply', async () => {
+    const preview = makePreview({ withError: false })
+    const createDryRun = vi.fn(async (_previewId: string, changes, _summary) => makeBatch(changes.length, 'dry_run_ready'))
+    await renderWorkspace(preview, createDryRun)
+
+    await click('Start Preview')
+    await click('Dry Run')
+    await click('Approve')
+    expect(container.textContent).toContain('Apply to WooCommerce')
+    await click('Apply to WooCommerce')
+
+    expect(container.textContent).toContain('Attempted')
+    expect(container.textContent).toContain('Verified')
+    expect(container.textContent).toContain('Valid Product')
+    expect(container.textContent).toContain('Verified at')
   })
 })
 
@@ -206,7 +229,11 @@ function makePreview({ withError }: { withError: boolean }): WorkspacePreview {
       difference: 10,
       changePct: 10,
       currency: 'EUR',
+      status: 'valid_change',
+      validationStatus: 'valid_change',
       eligible_for_dry_run: true,
+      source: sourceInfo(3, 'Valid Product'),
+      validationWarnings: [],
     }],
     rows,
     summary: {
@@ -253,10 +280,40 @@ function makeBatch(itemCount: number, status: WritePipelineBatch['status']): Wri
     itemCount,
     currency: 'EUR',
     safetySummary: { stock_update_allowed: false, scheduler_started: false, automatic_apply: false },
+    resultSummary: {
+      total_attempted: status === 'applied' ? itemCount : 0,
+      success_count: status === 'applied' ? itemCount : 0,
+      failure_count: 0,
+      skipped_count: 1,
+      blocked_count: 0,
+      warning_count: 0,
+      verified_count: status === 'applied' ? itemCount : 0,
+      unverified_count: 0,
+      estimated_affected_products: itemCount,
+    },
     createdBy: 'admin',
     createdAt: new Date(),
     approvedAt: null,
     executedAt: null,
-    items: [],
+    items: itemCount
+      ? [{
+          id: 1,
+          productId: '101',
+          productName: 'Valid Product',
+          sku: 'SKU-101',
+          currentPrice: 100,
+          proposedPrice: 110,
+          difference: 10,
+          changePct: 10,
+          currency: 'EUR',
+          status: status === 'applied' ? 'applied' : 'pending',
+          source: sourceInfo(3, 'Valid Product'),
+          validationWarnings: [],
+          providerResult: { provider: 'woocommerce', regular_price: '110.00' },
+          verification: status === 'applied'
+            ? { verified: true, observed_price: 110, expected_price: 110, verification_error: null }
+            : null,
+        }]
+      : [],
   }
 }

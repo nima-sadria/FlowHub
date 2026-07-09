@@ -37,3 +37,6 @@ class ChannelWriteAdapter(Protocol):
 
     async def execute_item(self, item: WriteItem, context: ChannelWriteContext) -> dict:
         """Execute one already-approved write item."""
+
+    async def verify_item(self, item: WriteItem, context: ChannelWriteContext) -> dict:
+        """Read back one updated item after a successful write."""

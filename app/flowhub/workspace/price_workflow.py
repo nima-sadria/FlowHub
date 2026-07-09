@@ -51,6 +51,7 @@ class WorkspacePriceWorkflowService:
         started = datetime.utcnow()
         preview_id = f"wp_{uuid.uuid4().hex[:16]}"
         spreadsheet_path = self._required_config("nextcloud.spreadsheet_path")
+        self._require_channel_config()
         client = NextcloudClient.from_config(self.config)
         if client is None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nextcloud source credentials are incomplete.")
@@ -97,6 +98,10 @@ class WorkspacePriceWorkflowService:
         if not value:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Missing required setting: {key}")
         return value
+
+    def _require_channel_config(self) -> None:
+        for key in ("woocommerce.url", "woocommerce.key", "woocommerce.secret"):
+            self._required_config(key)
 
     def _load_products(self) -> list[DlProductCache]:
         return (
@@ -175,6 +180,8 @@ class WorkspacePriceWorkflowService:
             product_id = source_row.get("product_id")
             sku = str(source_row.get("sku") or "")
 
+            if not product_id and not sku.strip():
+                errors.append("missing_product_identifier")
             if source_row.get("product_id_error"):
                 errors.append("invalid_product_id")
             if product_id and product_id in duplicate_product_ids:
@@ -194,12 +201,16 @@ class WorkspacePriceWorkflowService:
                 product_type = (matched.row.product_type or "simple").lower()
                 if product_type not in SUPPORTED_WRITE_PRODUCT_TYPES:
                     errors.append("unsupported_product_type")
+                    if product_type == "variation":
+                        errors.append("variation_writes_not_supported")
                 source_name = str(source_row.get("product_name") or "").strip()
                 cache_name = str(matched.row.name or "").strip()
                 if source_name and cache_name and source_name.casefold() != cache_name.casefold():
                     errors.append("product_name_mismatch")
                 if matched.row.freshness == "stale":
                     warnings.append("stale_product_cache")
+                if _parse_float(matched.row.sale_price) is not None:
+                    warnings.append("active_sale_price_not_modified")
 
             current_price = matched.current_price if matched is not None else None
             proposed = float(proposed_price) if isinstance(proposed_price, int | float) else None
@@ -238,6 +249,7 @@ class WorkspacePriceWorkflowService:
                     "difference": round(difference or 0.0, 4),
                     "warning": "; ".join(warnings) if warnings else None,
                     "validationStatus": status_value,
+                    "status": status_value,
                     "eligible_for_dry_run": True,
                     "source": _source_payload(source_row, preview_id, snapshot),
                     "validationWarnings": warnings,

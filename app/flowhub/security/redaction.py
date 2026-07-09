@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 REDACTED = "[REDACTED]"
@@ -31,6 +32,12 @@ _CREDENTIAL_KEY_CONTEXT = (
     "app",
 )
 
+_SENSITIVE_TEXT_PATTERN = re.compile(
+    r"(?i)\b(secret|token|password|authorization|api_key|apikey|consumer_key|consumer_secret|access_token|refresh_token|key)"
+    r"(\s*[:=]\s*)"
+    r"([^,\s;&]+)"
+)
+
 
 def is_sensitive_key(key: object) -> bool:
     normalized = str(key).strip().lower().replace("-", "_")
@@ -53,4 +60,10 @@ def redact_sensitive(value: Any) -> Any:
         return [redact_sensitive(item) for item in value]
     if isinstance(value, tuple):
         return tuple(redact_sensitive(item) for item in value)
+    if isinstance(value, str):
+        return redact_sensitive_text(value)
     return value
+
+
+def redact_sensitive_text(value: str) -> str:
+    return _SENSITIVE_TEXT_PATTERN.sub(lambda match: f"{match.group(1)}{match.group(2)}{REDACTED}", value)

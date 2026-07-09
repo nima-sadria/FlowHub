@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useServices } from '../services/ServiceContext'
-import type { WorkspacePreview, PriceChange, WorkspacePreviewRow, WritePipelineBatch } from '../services/types'
+import type { WorkspacePreview, PriceChange, WorkspacePreviewRow, WritePipelineBatch, WritePipelineItem } from '../services/types'
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
@@ -117,6 +117,39 @@ function WorkflowSteps({ phase }: { phase: Phase }) {
   )
 }
 
+function batchMetric(batch: WritePipelineBatch, key: string, fallback = 0): number {
+  const value = batch.resultSummary?.[key as keyof NonNullable<WritePipelineBatch['resultSummary']>]
+  return typeof value === 'number' ? value : fallback
+}
+
+function safetyMetric(batch: WritePipelineBatch, key: string, fallback = 0): number {
+  const value = batch.safetySummary[key]
+  return typeof value === 'number' ? value : fallback
+}
+
+function ResultItemRow({ item }: { item: WritePipelineItem }) {
+  const verification = item.verification
+  const verified = verification?.verified === true
+  return (
+    <tr className="border-b border-border last:border-0">
+      <td className="px-4 py-3">
+        <div className="text-[13px] font-medium text-text-base">{item.productName || item.productId}</div>
+        <div className="text-[11px] font-mono text-wp-muted">{item.source?.worksheet ?? '-'}:{item.source?.rowNumber ?? '-'} · {item.sku || '-'}</div>
+      </td>
+      <td className="px-4 py-3 text-[12px] font-mono text-wp-muted">{fmtPrice(item.currentPrice, item.currency)}</td>
+      <td className="px-4 py-3 text-[12px] font-mono text-text-base">{fmtPrice(item.proposedPrice, item.currency)}</td>
+      <td className="px-4 py-3"><span className={['fh-badge', item.status === 'failed' ? 'fh-badge-error' : 'fh-badge-valid'].join(' ')}>{item.status}</span></td>
+      <td className="px-4 py-3 text-[12px] text-wp-muted">
+        {item.status === 'failed'
+          ? (item.errorMessage ?? item.errorCode ?? 'Failed')
+          : verified
+            ? `Verified at ${fmtPrice(Number(verification?.observed_price ?? item.proposedPrice), item.currency)}`
+            : (verification?.verification_error ?? 'Not verified')}
+      </td>
+    </tr>
+  )
+}
+
 export default function Workspace() {
   const { workspace, settings, writePipeline } = useServices()
   const { info } = useNotification()
@@ -166,7 +199,7 @@ export default function Workspace() {
     setPhase('dry_running')
     setErrorMsg(null)
     try {
-      const b = await writePipeline.createDryRun(preview.id, eligible)
+      const b = await writePipeline.createDryRun(preview.id, eligible, preview.summary)
       setBatch(b)
       setPhase('dry_run_ready')
       info(`Dry Run ready - ${b.itemCount} price change${b.itemCount !== 1 ? 's' : ''} validated`)
@@ -292,6 +325,22 @@ export default function Workspace() {
         <>
           <WorkflowSteps phase={phase} />
 
+          <div className="fh-card fh-card-pad">
+            <p className="fh-section-label mb-3">Workflow guardrails</p>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4 text-[12px] text-wp-muted">
+              <p>Stock will not be changed.</p>
+              <p>Automatic apply is disabled.</p>
+              <p>Only approved batches can be applied.</p>
+              <p>Other channels are read-only/unavailable for this workflow.</p>
+            </div>
+            <div className="mt-3 pt-3 border-t border-border grid gap-2 sm:grid-cols-2 xl:grid-cols-4 text-[12px] text-wp-muted">
+              <p>Simple WooCommerce price updates are supported.</p>
+              <p>Variation writes are not supported.</p>
+              <p>Stock updates are not supported.</p>
+              <p>CSV and Google Sheets are placeholders.</p>
+            </div>
+          </div>
+
           <div className="bg-wp-yellow/10 border border-wp-yellow/30 rounded-card p-4 flex items-start gap-3">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-wp-yellow flex-shrink-0 mt-0.5">
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -358,6 +407,22 @@ export default function Workspace() {
                   <p className="font-medium text-text-base">Disabled</p>
                 </div>
               </div>
+              {batch.status === 'dry_run_ready' && (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-[12px]">
+                  {[
+                    ['Eligible', safetyMetric(batch, 'eligible_rows', batch.itemCount)],
+                    ['Skipped', safetyMetric(batch, 'skipped_rows')],
+                    ['Blocked', safetyMetric(batch, 'blocked_rows')],
+                    ['Warnings', safetyMetric(batch, 'warning_rows')],
+                    ['Affected', safetyMetric(batch, 'estimated_affected_products', batch.itemCount)],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-card border border-border bg-bg-base p-3">
+                      <p className="text-wp-muted">{label}</p>
+                      <p className="text-text-base font-semibold mt-1">{String(value)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               {phase === 'dry_run_ready' && (
                 <button onClick={() => void approveDryRun()} className="fh-button-primary self-start">
                   Approve
@@ -369,9 +434,39 @@ export default function Workspace() {
                 </button>
               )}
               {phase === 'result' && (
-                <p className="text-[12px] text-wp-muted">
-                  Applied: {batch.items.filter(item => item.status === 'applied').length}. Failed: {batch.items.filter(item => item.status === 'failed').length}.
-                </p>
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 text-[12px]">
+                    {[
+                      ['Attempted', batchMetric(batch, 'total_attempted', batch.items.length)],
+                      ['Success', batchMetric(batch, 'success_count', batch.items.filter(item => item.status === 'applied').length)],
+                      ['Failed', batchMetric(batch, 'failure_count', batch.items.filter(item => item.status === 'failed').length)],
+                      ['Skipped', batchMetric(batch, 'skipped_count')],
+                      ['Warnings', batchMetric(batch, 'warning_count')],
+                      ['Verified', batchMetric(batch, 'verified_count')],
+                      ['Unverified', batchMetric(batch, 'unverified_count')],
+                      ['Affected', batchMetric(batch, 'estimated_affected_products', batch.itemCount)],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-card border border-border bg-bg-base p-3">
+                        <p className="text-wp-muted">{label}</p>
+                        <p className="text-text-base font-semibold mt-1">{String(value)}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="overflow-x-auto border border-border rounded-card">
+                    <table className="w-full text-[13px]">
+                      <thead>
+                        <tr className="border-b border-border bg-bg-base">
+                          {['Product', 'Old Price', 'New Price', 'Status', 'Result'].map(h => (
+                            <th key={h} className="px-4 py-2.5 text-start text-[11px] font-semibold text-wp-muted uppercase tracking-wide">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {batch.items.map(item => <ResultItemRow key={item.id ?? item.productId} item={item} />)}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               )}
             </div>
           )}

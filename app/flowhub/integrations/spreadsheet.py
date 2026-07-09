@@ -240,7 +240,9 @@ def parse_source_price_rows(wb: "openpyxl.Workbook") -> tuple[list[dict], dict]:
 
             product_id_raw = "" if product_id_cell is None or product_id_cell.value is None else str(product_id_cell.value).strip()
             sku = "" if sku_cell is None or sku_cell.value is None else str(sku_cell.value).strip()
-            if not product_id_raw and not sku:
+            product_name = "" if name_cell is None or name_cell.value is None else str(name_cell.value).strip()
+            raw_price = "" if price_cell is None or price_cell.value is None else str(price_cell.value).strip()
+            if not product_name and not product_id_raw and not sku and not raw_price:
                 consecutive_empty += 1
                 if consecutive_empty >= 30:
                     break
@@ -259,8 +261,6 @@ def parse_source_price_rows(wb: "openpyxl.Workbook") -> tuple[list[dict], dict]:
                 except (TypeError, ValueError):
                     product_id_error = True
 
-            product_name = "" if name_cell is None or name_cell.value is None else str(name_cell.value).strip()
-            raw_price = "" if price_cell is None or price_cell.value is None else str(price_cell.value).strip()
             price: float | None = None
             price_parse_error = False
             if raw_price:
