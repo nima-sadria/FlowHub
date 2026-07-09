@@ -525,4 +525,12 @@ describe('CommerceHub', () => {
 
     expect(c.textContent).toContain('Base URL must be the root Nextcloud server URL, not a public share link.')
   })
+
+  it('accepts an authenticated Nextcloud WebDAV files URL as source input', async () => {
+    const c = await renderPage()
+    await openNextcloudSourceForm(c)
+    fillNextcloudCredentials(c, 'https://softpple.business/remote.php/dav/files/woo')
+
+    expect(c.textContent).not.toContain('Base URL must be the root Nextcloud server URL.')
+  })
 })

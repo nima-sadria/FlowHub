@@ -284,16 +284,33 @@ def test_nextcloud_source_accepts_root_base_url(client, auth_headers):
     assert response.json()["write_pipeline_eligible"] is False
 
 
+def test_nextcloud_source_accepts_webdav_files_url_as_input(client, auth_headers):
+    response = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business/remote.php/dav/files/woo",
+                "username": "woo",
+                "spreadsheet_path": "/Price Sheet.xlsx",
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "app-password-secret" not in response.text
+    assert response.json()["read_only"] is True
+    assert response.json()["write_pipeline_eligible"] is False
+
+
 @pytest.mark.parametrize(
     ("url", "message"),
     [
         (
             "https://softpple.business/index.php/s/xxxxx",
             "Base URL must be the root Nextcloud server URL, not a public share link.",
-        ),
-        (
-            "https://softpple.business/remote.php/dav/files/woo/",
-            "Base URL must be the root Nextcloud server URL.",
         ),
         (
             "https://softpple.business/apps/files/",
@@ -339,7 +356,7 @@ def test_nextcloud_webdav_browse_returns_folders_and_spreadsheets_without_secret
         headers=auth_headers,
         json={
             "path": "/Reports",
-            "settings": {"url": "https://softpple.business", "username": "woo"},
+            "settings": {"url": "https://softpple.business/remote.php/dav/files/woo", "username": "woo"},
             "secrets": {"password": "app-password-secret"},
         },
     )

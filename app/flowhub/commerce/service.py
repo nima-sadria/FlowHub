@@ -622,6 +622,10 @@ class CommerceHubService:
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
                 "Base URL must be the root Nextcloud server URL, not a public share link.",
             )
+        if lowered.startswith("/remote.php/dav/files/"):
+            if parsed.query or parsed.fragment:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Base URL must be the root Nextcloud server URL.")
+            return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
         if "/remote.php/dav" in lowered or "/apps/files" in lowered:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Base URL must be the root Nextcloud server URL.")
         if path not in {"", "/"} or parsed.query or parsed.fragment:

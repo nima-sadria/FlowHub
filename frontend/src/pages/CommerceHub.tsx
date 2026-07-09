@@ -171,6 +171,9 @@ function validateNextcloudBaseUrl(value: string): string | null {
     if (path.includes('/index.php/s/') || path.startsWith('/s/')) {
       return 'Base URL must be the root Nextcloud server URL, not a public share link.'
     }
+    if (path.startsWith('/remote.php/dav/files/') && !url.search && !url.hash) {
+      return null
+    }
     if (path.includes('/remote.php/dav') || path.includes('/apps/files') || path.length > 0) {
       return 'Base URL must be the root Nextcloud server URL.'
     }
