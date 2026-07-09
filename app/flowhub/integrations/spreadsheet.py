@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -50,6 +51,8 @@ _DIGIT_TRANSLATION = str.maketrans({
     "\u0660": "0", "\u0661": "1", "\u0662": "2", "\u0663": "3", "\u0664": "4",
     "\u0665": "5", "\u0666": "6", "\u0667": "7", "\u0668": "8", "\u0669": "9",
 })
+
+_COLUMN_REF_RE = re.compile(r"^[A-Za-z]{1,3}$")
 
 
 # -- Internal helpers ----------------------------------------------------------
@@ -221,76 +224,147 @@ def parse_price_list(
     return entries, duplicates
 
 
-def parse_source_price_rows(wb: "openpyxl.Workbook") -> tuple[list[dict], dict]:
+def parse_source_price_rows(
+    wb: "openpyxl.Workbook",
+    *,
+    mapping: dict[str, dict[str, object]] | None = None,
+    worksheet_mode: str = "all",
+    worksheet_name: str | None = None,
+) -> tuple[list[dict], dict]:
     """Parse worksheets into normalized source-row candidates for Workspace.
 
-    Existing WooPrice-compatible columns are preserved:
+    Default columns preserve the current WooPrice-compatible behavior:
     A = product name, B = WooCommerce product ID, C = proposed price.
-    Column D is treated as an optional SKU when present.
+    Column D is treated as an optional SKU unless D is explicitly mapped to
+    enabled stock. Mapping values can be spreadsheet letters or header names.
     """
+    import openpyxl.utils
+
+    mapping = mapping or {
+        "id": {"enabled": True, "column": "B"},
+        "price": {"enabled": True, "column": "C"},
+        "stock": {"enabled": False, "column": "D"},
+    }
+    sheet_names = _selected_sheet_names(wb, worksheet_mode, worksheet_name)
     rows: list[dict] = []
-    for sheet_name in wb.sheetnames:
+    for sheet_name in sheet_names:
         ws = wb[sheet_name]
+        headers = _header_map(ws)
+        id_column = _resolve_column_index(mapping.get("id", {}).get("column"), headers) if mapping.get("id", {}).get("enabled") else None
+        price_column = _resolve_column_index(mapping.get("price", {}).get("column"), headers) if mapping.get("price", {}).get("enabled") else None
+        stock_column = _resolve_column_index(mapping.get("stock", {}).get("column"), headers) if mapping.get("stock", {}).get("enabled") else None
+        sku_column = _sku_column_index(headers, stock_column)
         consecutive_empty = 0
         for row in ws.iter_rows(min_row=3, max_row=1002, values_only=False):
-            name_cell = row[0] if len(row) > 0 else None
-            product_id_cell = row[1] if len(row) > 1 else None
-            price_cell = row[2] if len(row) > 2 else None
-            sku_cell = row[3] if len(row) > 3 else None
+            raw_values = _raw_values(row)
+            name_cell = _cell_at(row, 1)
+            product_id_cell = _cell_at(row, id_column)
+            price_cell = _cell_at(row, price_column)
+            stock_cell = _cell_at(row, stock_column)
+            sku_cell = _cell_at(row, sku_column)
 
-            product_id_raw = "" if product_id_cell is None or product_id_cell.value is None else str(product_id_cell.value).strip()
-            sku = "" if sku_cell is None or sku_cell.value is None else str(sku_cell.value).strip()
-            product_name = "" if name_cell is None or name_cell.value is None else str(name_cell.value).strip()
-            raw_price = "" if price_cell is None or price_cell.value is None else str(price_cell.value).strip()
-            if not product_name and not product_id_raw and not sku and not raw_price:
+            product_id_raw = _cell_text(product_id_cell)
+            sku = _cell_text(sku_cell)
+            product_name = _cell_text(name_cell)
+            raw_price = _cell_text(price_cell)
+            raw_stock = _cell_text(stock_cell)
+            if not product_name and not product_id_raw and not sku and not raw_price and not raw_stock:
                 consecutive_empty += 1
                 if consecutive_empty >= 30:
                     break
                 continue
             consecutive_empty = 0
 
+            row_errors: list[str] = []
+            row_warnings: list[str] = []
             product_id: str | None = None
             product_id_error = False
-            if product_id_raw:
-                try:
-                    parsed_product_id = int(float(_normalize_price_text(product_id_raw)))
-                    if parsed_product_id > 0:
-                        product_id = str(parsed_product_id)
-                    else:
+            if mapping.get("id", {}).get("enabled"):
+                if not product_id_raw:
+                    if not sku:
+                        row_errors.append("missing_product_id")
+                elif product_id_raw:
+                    try:
+                        parsed_product_id = int(float(_normalize_price_text(product_id_raw)))
+                        if parsed_product_id > 0:
+                            product_id = str(parsed_product_id)
+                        else:
+                            product_id_error = True
+                    except (TypeError, ValueError):
                         product_id_error = True
-                except (TypeError, ValueError):
-                    product_id_error = True
+                if product_id_error:
+                    row_errors.append("invalid_product_id")
 
             price: float | None = None
             price_parse_error = False
-            if raw_price:
-                normalized = _normalize_price_text(raw_price)
-                if normalized.lower() in _OUT_OF_STOCK_MARKERS:
-                    price = None
+            price_enabled = bool(mapping.get("price", {}).get("enabled"))
+            if price_enabled:
+                if raw_price:
+                    normalized = _normalize_price_text(raw_price)
+                    if normalized.lower() in _OUT_OF_STOCK_MARKERS:
+                        price = None
+                    else:
+                        try:
+                            price = float(normalized)
+                        except (TypeError, ValueError):
+                            price_parse_error = True
                 else:
-                    try:
-                        price = float(normalized)
-                    except (TypeError, ValueError):
-                        price_parse_error = True
+                    price_parse_error = True
+                if price_parse_error:
+                    row_errors.append("invalid_price")
 
+            stock: int | None = None
+            stock_parse_error = False
+            stock_enabled = bool(mapping.get("stock", {}).get("enabled"))
+            if stock_enabled:
+                if raw_stock:
+                    try:
+                        candidate = int(float(_normalize_price_text(raw_stock)))
+                        if candidate < 0:
+                            stock_parse_error = True
+                            row_errors.append("stock_below_zero")
+                        else:
+                            stock = candidate
+                    except (TypeError, ValueError):
+                        stock_parse_error = True
+                else:
+                    stock_parse_error = True
+                if stock_parse_error and "stock_below_zero" not in row_errors:
+                    row_errors.append("invalid_stock")
+
+            row_number = getattr(product_id_cell or sku_cell or price_cell or stock_cell or name_cell, "row", None)
             rows.append({
                 "source_id": "nextcloud:primary",
                 "source_type": "nextcloud_spreadsheet",
                 "worksheet": sheet_name,
-                "row_number": getattr(product_id_cell or sku_cell or price_cell or name_cell, "row", None),
+                "sheet_name": sheet_name,
+                "row_number": row_number,
                 "product_id": product_id,
+                "external_product_id": product_id,
                 "raw_product_id": product_id_raw,
                 "product_id_error": product_id_error,
                 "sku": sku,
                 "product_name": product_name,
                 "proposed_price": price,
+                "source_price": price,
                 "raw_price": raw_price,
                 "price_parse_error": price_parse_error,
+                "price_enabled": price_enabled,
+                "source_stock": stock,
+                "raw_stock": raw_stock,
+                "stock_parse_error": stock_parse_error,
+                "stock_enabled": stock_enabled,
+                "id_enabled": bool(mapping.get("id", {}).get("enabled")),
+                "row_errors": row_errors,
+                "row_warnings": row_warnings,
+                "raw_values": raw_values,
                 "raw": {
                     "product_name": product_name,
                     "product_id": product_id_raw,
                     "price": raw_price,
+                    "stock": raw_stock,
                     "sku": sku,
+                    "values": raw_values,
                 },
             })
 
@@ -300,6 +374,67 @@ def parse_source_price_rows(wb: "openpyxl.Workbook") -> tuple[list[dict], dict]:
         "duplicate_product_ids": duplicate_product_ids,
         "duplicate_skus": duplicate_skus,
     }
+
+
+def _selected_sheet_names(wb: "openpyxl.Workbook", mode: str, name: str | None) -> list[str]:
+    if str(mode or "all").strip().lower() != "selected":
+        return list(wb.sheetnames)
+    requested = str(name or "").strip()
+    if not requested:
+        raise ValueError("Selected worksheet name is required.")
+    if requested not in wb.sheetnames:
+        raise ValueError(f"Selected worksheet not found: {requested}")
+    return [requested]
+
+
+def _header_map(ws: "openpyxl.worksheet.worksheet.Worksheet") -> dict[str, int]:
+    headers: dict[str, int] = {}
+    for cell in next(ws.iter_rows(min_row=1, max_row=1, values_only=False), []):
+        value = _cell_text(cell).casefold()
+        if value:
+            headers.setdefault(value, cell.column)
+    return headers
+
+
+def _resolve_column_index(ref: object, headers: dict[str, int]) -> int | None:
+    text = str(ref or "").strip()
+    if not text:
+        return None
+    if _COLUMN_REF_RE.fullmatch(text):
+        import openpyxl.utils
+
+        return openpyxl.utils.column_index_from_string(text.upper())
+    return headers.get(text.casefold())
+
+
+def _sku_column_index(headers: dict[str, int], stock_column: int | None) -> int | None:
+    for key in ("sku", "product sku"):
+        if key in headers and headers[key] != stock_column:
+            return headers[key]
+    return None if stock_column == 4 else 4
+
+
+def _cell_at(row: tuple, column_index: int | None):
+    if column_index is None or column_index <= 0:
+        return None
+    offset = column_index - 1
+    return row[offset] if offset < len(row) else None
+
+
+def _cell_text(cell: object | None) -> str:
+    value = getattr(cell, "value", None)
+    return "" if value is None else str(value).strip()
+
+
+def _raw_values(row: tuple) -> dict[str, str]:
+    import openpyxl.utils
+
+    values: dict[str, str] = {}
+    for cell in row:
+        value = _cell_text(cell)
+        if value:
+            values[openpyxl.utils.get_column_letter(cell.column)] = value
+    return values
 
 
 def load_workbook_bytes(data: bytes) -> "openpyxl.Workbook":

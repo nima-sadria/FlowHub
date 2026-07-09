@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from io import BytesIO
 
 import pytest
 
@@ -700,6 +701,177 @@ def test_nextcloud_test_connection_missing_spreadsheet_fails_clearly(client, aut
     assert data["message"] == "Spreadsheet not found."
 
 
+def test_nextcloud_source_mapping_and_read_policy_are_saved(client, auth_headers, db):
+    from app.flowhub.setup.service import AppConfigService
+
+    response = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business/remote.php/dav/files/woo/",
+                "spreadsheet_path": "/Reports/prices.xlsx",
+                "source_mapping": {
+                    "id": {"enabled": True, "column": "E"},
+                    "price": {"enabled": True, "column": "D"},
+                    "stock": {"enabled": True, "column": "B"},
+                },
+                "source_read_policy": {
+                    "enabled": True,
+                    "max_reads_per_24h": 7,
+                    "manual_read_allowed": True,
+                },
+                "worksheet_mode": "selected",
+                "worksheet_name": "Prices",
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "app-password-secret" not in response.text
+    cfg = AppConfigService(db)
+    assert cfg.get("nextcloud.url") == "https://softpple.business"
+    assert cfg.get("nextcloud.username") == "woo"
+    assert '"column": "E"' in cfg.get("nextcloud.source_mapping")
+    assert '"max_reads_per_24h": 7' in cfg.get("nextcloud.source_read_policy")
+    assert cfg.get("nextcloud.worksheet_mode") == "selected"
+    assert cfg.get("nextcloud.worksheet_name") == "Prices"
+
+    detail = client.get("/api/v2/commerce/sources/nextcloud:primary", headers=auth_headers)
+    assert detail.status_code == 200
+    assert detail.json()["read_policy"]["max_reads_per_24h"] == 7
+
+
+@pytest.mark.parametrize(
+    "settings,message",
+    [
+        (
+            {"source_mapping": {"id": {"enabled": True, "column": ""}}},
+            "id column is required when enabled.",
+        ),
+        (
+            {
+                "source_mapping": {
+                    "id": {"enabled": True, "column": "B"},
+                    "price": {"enabled": True, "column": "B"},
+                    "stock": {"enabled": False, "column": "D"},
+                }
+            },
+            "Duplicate enabled source mapping column",
+        ),
+        (
+            {"worksheet_mode": "selected", "worksheet_name": ""},
+            "worksheet_name is required",
+        ),
+    ],
+)
+def test_nextcloud_source_mapping_validation_rejects_invalid_settings(client, auth_headers, settings, message):
+    response = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"url": "https://softpple.business", "username": "woo", **settings},
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert message in response.text
+    assert "app-password-secret" not in response.text
+
+
+def test_nextcloud_manual_read_now_uses_mapping_and_never_writes(client, auth_headers, monkeypatch):
+    from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    async def fake_download(self, path):
+        assert path == "/Reports/prices.xlsx"
+        return _xlsx_custom(
+            headers=["Name", "Stock", "SKU", "Price", "Product ID"],
+            rows=[["Mapped Product", "12", "SKU-101", "125.00", "101"]],
+        ), {"etag": "etag-read"}
+
+    async def fail_write(*args, **kwargs):
+        raise AssertionError("Manual source read must not write to WooCommerce")
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fail_write)
+
+    save = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/Reports/prices.xlsx",
+                "source_mapping": {
+                    "id": {"enabled": True, "column": "E"},
+                    "price": {"enabled": True, "column": "D"},
+                    "stock": {"enabled": True, "column": "B"},
+                },
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+    assert save.status_code == 200
+
+    response = client.post("/api/v2/commerce/sources/nextcloud:primary/read", headers=auth_headers, json={})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"] is True
+    assert data["rows_read"] == 1
+    assert data["valid_rows"] == 1
+    assert data["external_call_performed"] is True
+    assert data["source_write"] is False
+    assert data["write_blocked"] is True
+    assert data["reads_remaining"] == 9
+
+
+def test_nextcloud_source_read_rate_limit_is_enforced(client, auth_headers, monkeypatch):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    async def fake_download(self, path):
+        return _xlsx_custom(
+            headers=["Name", "Product ID", "Price", "SKU"],
+            rows=[["Limited Product", "101", "125.00", "SKU-101"]],
+        ), {"etag": "etag-limit"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    save = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/Reports/prices.xlsx",
+                "source_read_policy": {
+                    "enabled": True,
+                    "max_reads_per_24h": 1,
+                    "manual_read_allowed": True,
+                },
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+    assert save.status_code == 200
+
+    first = client.post("/api/v2/commerce/sources/nextcloud:primary/read", headers=auth_headers, json={})
+    second = client.post("/api/v2/commerce/sources/nextcloud:primary/read", headers=auth_headers, json={})
+
+    assert first.status_code == 200
+    assert first.json()["reads_remaining"] == 0
+    assert second.status_code == 429
+    assert "Source read limit exceeded" in second.text
+
+
 def test_channel_detail_health_and_capabilities(client, auth_headers):
     detail = client.get("/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers)
     health = client.get("/api/v2/commerce/channels/woocommerce:primary/health", headers=auth_headers)
@@ -814,3 +986,18 @@ def test_commerce_routes_do_not_expose_write_execution(client):
     assert "scheduler" not in commerce_paths
     assert "pricing" not in commerce_paths
     assert "write" not in commerce_paths
+
+
+def _xlsx_custom(headers: list[str], rows: list[list[object]]) -> bytes:
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    ws.append(headers)
+    ws.append(["" for _ in headers])
+    for row in rows:
+        ws.append(row)
+    stream = BytesIO()
+    wb.save(stream)
+    return stream.getvalue()

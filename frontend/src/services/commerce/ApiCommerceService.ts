@@ -8,6 +8,7 @@ import type {
   ConnectionCheckResult,
   NextcloudBrowseRequest,
   NextcloudBrowseResult,
+  SourceReadResult,
 } from './CommerceService'
 
 interface SourceResponse {
@@ -66,6 +67,14 @@ export class ApiCommerceService implements CommerceService {
 
   async testChannel(channelId: string): Promise<ConnectionCheckResult> {
     return apiFetch<ConnectionCheckResult>(`/api/v2/commerce/channels/${encodeURIComponent(channelId)}/test`, authFetch, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+  }
+
+  async readSource(sourceId: string): Promise<SourceReadResult> {
+    return apiFetch<SourceReadResult>(`/api/v2/commerce/sources/${encodeURIComponent(sourceId)}/read`, authFetch, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),

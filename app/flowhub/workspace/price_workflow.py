@@ -8,7 +8,6 @@ Pipeline dry-run endpoint.
 
 from __future__ import annotations
 
-import hashlib
 import math
 import uuid
 from dataclasses import dataclass
@@ -20,9 +19,9 @@ from sqlalchemy.orm import Session
 
 from app.flowhub.data_layer.models import DlProductCache, DlSourceSnapshot
 from app.flowhub.integration_platform.contracts import WorkspacePreviewResponse
-from app.flowhub.integrations.nextcloud import NextcloudClient
-from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_source_price_rows
+from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
 
 SOURCE_ID = "nextcloud:primary"
 SOURCE_TYPE = "nextcloud_spreadsheet"
@@ -48,42 +47,45 @@ class WorkspacePriceWorkflowService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.config = AppConfigService(db)
+        self.source_reader = SpreadsheetSourceReadService(db)
+        self.integration = IntegrationPlatformService(db)
 
     async def preview_from_nextcloud(self) -> WorkspacePreviewResponse:
         started = datetime.utcnow()
         preview_id = f"wp_{uuid.uuid4().hex[:16]}"
-        spreadsheet_path = self._required_config("nextcloud.spreadsheet_path")
+        self._required_config("nextcloud.spreadsheet_path")
         self._require_channel_config()
-        client = NextcloudClient.from_config(self.config)
-        if client is None:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nextcloud source credentials are incomplete.")
-
         products = self._load_products()
         if not products:
             raise HTTPException(status.HTTP_409_CONFLICT, "WooCommerce product cache is empty. Run a manual read first.")
 
-        content, file_meta = await client.download_file(spreadsheet_path)
-        workbook = load_workbook_bytes(content)
-        source_rows, duplicate_info = parse_source_price_rows(workbook)
-        if not source_rows:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Spreadsheet contains no importable price rows.")
-
-        snapshot = self._upsert_source_snapshot(
-            file_path=spreadsheet_path,
-            content=content,
-            file_meta=file_meta,
-            sheet_names=list(workbook.sheetnames),
-            row_count=len(source_rows),
-            duplicate_count=len(duplicate_info["duplicate_product_ids"]) + len(duplicate_info["duplicate_skus"]),
+        imported = await self.source_reader.read_nextcloud_spreadsheet(
+            triggered_by="workspace_preview",
+            manual=False,
         )
-        rows = self._build_preview_rows(source_rows, duplicate_info, products, preview_id, snapshot)
+        rows = self._build_preview_rows(imported.rows, imported.duplicate_info, products, preview_id, imported.snapshot)
         summary = _summary(rows)
         eligible_changes = [row["dry_run_change"] for row in rows if row["eligible_for_dry_run"]]
-        duplicate_warnings = _duplicate_warnings(duplicate_info)
+        duplicate_warnings = _duplicate_warnings(imported.duplicate_info)
+        self.integration.record_event(
+            connector_id=SOURCE_ID,
+            event_name="preview_generated",
+            message="Workspace preview generated from source rows.",
+            metadata={
+                "source_id": SOURCE_ID,
+                "source_type": SOURCE_TYPE,
+                "source_file_path": imported.spreadsheet_path,
+                "row_count": summary["total_rows"],
+                "selected_count": len(eligible_changes),
+                "changed_count": summary["changed_prices"],
+                "blocked_count": summary["blocked_rows"],
+                "stock_write": False,
+            },
+        )
         return WorkspacePreviewResponse(
             id=preview_id,
             sourceId=SOURCE_ID,
-            sourceName=f"Nextcloud Spreadsheet: {spreadsheet_path}",
+            sourceName=f"Nextcloud Spreadsheet: {imported.spreadsheet_path}",
             state="preview_ready",
             totalChanges=len(eligible_changes),
             changes=eligible_changes,
@@ -113,46 +115,6 @@ class WorkspacePriceWorkflowService:
             .all()
         )
 
-    def _upsert_source_snapshot(
-        self,
-        *,
-        file_path: str,
-        content: bytes,
-        file_meta: dict[str, str | None],
-        sheet_names: list[str],
-        row_count: int,
-        duplicate_count: int,
-    ) -> DlSourceSnapshot:
-        now = datetime.utcnow()
-        integrity_hash = hashlib.sha256(content).hexdigest()
-        snapshot = (
-            self.db.query(DlSourceSnapshot)
-            .filter(DlSourceSnapshot.connector_id == SOURCE_ID)
-            .filter(DlSourceSnapshot.file_path == file_path)
-            .one_or_none()
-        )
-        if snapshot is None:
-            snapshot = DlSourceSnapshot(
-                connector_id=SOURCE_ID,
-                file_path=file_path,
-                version_seq=1,
-                snapshotted_at=now,
-            )
-            self.db.add(snapshot)
-        else:
-            snapshot.version_seq = (snapshot.version_seq or 0) + 1
-            snapshot.snapshotted_at = now
-        snapshot.etag = file_meta.get("etag")
-        snapshot.last_modified = file_meta.get("last_modified")
-        snapshot.parsed_row_count = row_count
-        snapshot.duplicate_count = duplicate_count
-        snapshot.invalid_row_count = None
-        snapshot.integrity_hash = integrity_hash
-        snapshot.sheet_names = sheet_names
-        self.db.commit()
-        self.db.refresh(snapshot)
-        return snapshot
-
     def _build_preview_rows(
         self,
         source_rows: list[dict],
@@ -163,12 +125,9 @@ class WorkspacePriceWorkflowService:
     ) -> list[dict]:
         by_product_id = {row.product_id: row for row in products if row.product_id}
         by_sku: dict[str, list[DlProductCache]] = {}
-        by_name: dict[str, list[DlProductCache]] = {}
         for product in products:
             if product.sku:
                 by_sku.setdefault(product.sku.strip().lower(), []).append(product)
-            if product.name:
-                by_name.setdefault(product.name.strip().lower(), []).append(product)
 
         duplicate_product_ids = set(duplicate_info["duplicate_product_ids"])
         duplicate_skus = set(duplicate_info["duplicate_skus"])
@@ -177,10 +136,15 @@ class WorkspacePriceWorkflowService:
             errors: list[str] = []
             warnings: list[str] = []
             status_value = "valid_change"
-            matched = self._match_product(source_row, by_product_id, by_sku, by_name, errors)
+            errors.extend(str(item) for item in source_row.get("row_errors") or [])
+            warnings.extend(str(item) for item in source_row.get("row_warnings") or [])
+            matched = self._match_product(source_row, by_product_id, by_sku, errors)
             proposed_price = source_row.get("proposed_price")
             product_id = source_row.get("product_id")
             sku = str(source_row.get("sku") or "")
+            price_enabled = source_row.get("price_enabled") is not False
+            stock_enabled = source_row.get("stock_enabled") is True
+            source_stock = source_row.get("source_stock")
 
             if not product_id and not sku.strip():
                 errors.append("missing_product_identifier")
@@ -190,14 +154,15 @@ class WorkspacePriceWorkflowService:
                 errors.append("duplicate_product_id")
             if sku and sku.strip().lower() in duplicate_skus:
                 errors.append("duplicate_sku")
-            if source_row.get("price_parse_error") or source_row.get("raw_price") == "":
-                errors.append("invalid_or_missing_price")
-            elif proposed_price is None:
-                errors.append("missing_price")
-            elif not isinstance(proposed_price, int | float) or not math.isfinite(float(proposed_price)):
-                errors.append("invalid_price")
-            elif float(proposed_price) <= 0:
-                errors.append("zero_or_negative_price")
+            if price_enabled:
+                if source_row.get("price_parse_error") or source_row.get("raw_price") == "":
+                    errors.append("invalid_or_missing_price")
+                elif proposed_price is None:
+                    errors.append("missing_price")
+                elif not isinstance(proposed_price, int | float) or not math.isfinite(float(proposed_price)):
+                    errors.append("invalid_price")
+                elif float(proposed_price) <= 0:
+                    errors.append("zero_or_negative_price")
 
             if matched is not None:
                 product_type = (matched.row.product_type or "simple").lower()
@@ -213,31 +178,63 @@ class WorkspacePriceWorkflowService:
                     warnings.append("stale_product_cache")
                 if _parse_float(matched.row.sale_price) is not None:
                     warnings.append("active_sale_price_not_modified")
+                if stock_enabled and source_stock is not None and matched.row.manage_stock is False:
+                    warnings.append("manage_stock_false_stock_update_requested")
 
             current_price = matched.current_price if matched is not None else None
-            proposed = float(proposed_price) if isinstance(proposed_price, int | float) else None
+            current_stock = matched.row.stock_qty if matched is not None else None
+            proposed = float(proposed_price) if price_enabled and isinstance(proposed_price, int | float) else None
             difference = None
             change_pct = None
+            price_changed = False
             if current_price is not None and proposed is not None:
                 difference = proposed - current_price
                 change_pct = ((proposed - current_price) / current_price) * 100 if current_price else 0.0
                 if proposed == current_price:
                     status_value = "unchanged"
-                elif abs(change_pct) > MAX_DRY_RUN_DELTA_PERCENT:
-                    errors.append("large_price_change_blocked")
-                elif abs(change_pct) > LARGE_CHANGE_WARNING_PERCENT:
-                    warnings.append("large_price_change")
+                else:
+                    price_changed = True
+                    if abs(change_pct) > MAX_DRY_RUN_DELTA_PERCENT:
+                        errors.append("large_price_change_blocked")
+                    elif abs(change_pct) > LARGE_CHANGE_WARNING_PERCENT:
+                        warnings.append("large_price_change")
                 if proposed < SUSPICIOUS_LOW_PRICE:
                     warnings.append("suspiciously_low_price")
                 if proposed > SUSPICIOUS_HIGH_PRICE:
                     warnings.append("suspiciously_high_price")
+
+            stock_difference = None
+            stock_changed = False
+            if stock_enabled and isinstance(source_stock, int) and current_stock is not None:
+                stock_difference = source_stock - int(current_stock)
+                stock_changed = stock_difference != 0
+                if source_stock < 0:
+                    errors.append("stock_below_zero")
+                if abs(stock_difference) > 1000:
+                    warnings.append("large_stock_change")
+
+            if price_enabled is False and stock_changed:
+                status_value = "stock_changed"
+            elif price_changed and stock_changed:
+                status_value = "price_and_stock_changed"
+            elif price_changed:
+                status_value = "valid_change"
+            elif stock_changed:
+                status_value = "stock_changed"
+            elif not errors:
+                status_value = "unchanged"
 
             if errors:
                 status_value = "error"
             elif status_value != "unchanged" and warnings:
                 status_value = "warning"
 
-            eligible = status_value in {"valid_change", "warning"} and matched is not None and proposed is not None
+            eligible = (
+                status_value in {"valid_change", "warning", "price_and_stock_changed"}
+                and matched is not None
+                and proposed is not None
+                and price_changed
+            )
             dry_run_change = None
             if eligible:
                 dry_run_change = {
@@ -268,9 +265,13 @@ class WorkspacePriceWorkflowService:
                 "matchedProduct": _matched_payload(matched),
                 "currentPrice": current_price,
                 "proposedPrice": proposed,
+                "currentStock": current_stock,
+                "sourceStock": source_stock,
+                "stockDifference": stock_difference,
                 "difference": round(difference, 4) if difference is not None else None,
                 "changePct": round(change_pct, 4) if change_pct is not None else None,
                 "status": status_value,
+                "changeType": _change_type(price_changed, stock_changed),
                 "errors": errors,
                 "warnings": warnings,
                 "eligible_for_dry_run": eligible,
@@ -286,19 +287,16 @@ class WorkspacePriceWorkflowService:
         source_row: dict,
         by_product_id: dict[str, DlProductCache],
         by_sku: dict[str, list[DlProductCache]],
-        by_name: dict[str, list[DlProductCache]],
         errors: list[str],
     ) -> ProductMatch | None:
         candidates: list[DlProductCache] = []
         product_id = source_row.get("product_id")
-        if product_id:
+        if product_id and source_row.get("id_enabled") is not False:
             product = by_product_id.get(str(product_id))
             if product is not None:
                 candidates = [product]
         if not candidates and source_row.get("sku"):
             candidates = by_sku.get(str(source_row["sku"]).strip().lower(), [])
-        if not candidates and source_row.get("product_name"):
-            candidates = by_name.get(str(source_row["product_name"]).strip().lower(), [])
 
         if not candidates:
             errors.append("missing_product")
@@ -409,6 +407,9 @@ def _source_payload(source_row: dict, preview_id: str, snapshot: DlSourceSnapsho
         "sku": source_row.get("sku") or "",
         "productName": source_row.get("product_name") or "",
         "rawPrice": source_row.get("raw_price") or "",
+        "rawStock": source_row.get("raw_stock") or "",
+        "sourceStock": source_row.get("source_stock"),
+        "rawValues": source_row.get("raw_values") or {},
         "raw": source_row.get("raw") or {},
     }
 
@@ -434,6 +435,9 @@ def _matched_payload(match: ProductMatch | None) -> dict | None:
         "regularPrice": _parse_float(row.regular_price),
         "salePrice": _parse_float(row.sale_price),
         "effectivePrice": match.current_price,
+        "stockQuantity": row.stock_qty,
+        "stockStatus": row.stock_status,
+        "manageStock": row.manage_stock,
         "imageUrl": match.image_url,
         "categoryNames": match.category_names,
         "lastFetchedAt": row.last_fetched_at.isoformat() if row.last_fetched_at else None,
@@ -442,12 +446,15 @@ def _matched_payload(match: ProductMatch | None) -> dict | None:
 
 
 def _summary(rows: list[dict]) -> dict:
+    changed_prices = sum(1 for row in rows if row.get("difference") not in (None, 0) and row["status"] != "error")
+    changed_stock = sum(1 for row in rows if row.get("stockDifference") not in (None, 0) and row["status"] != "error")
     return {
         "total_rows": len(rows),
         "valid_changes": sum(1 for row in rows if row["status"] == "valid_change"),
         "unchanged_rows": sum(1 for row in rows if row["status"] == "unchanged"),
         "warning_rows": sum(1 for row in rows if row["warnings"]),
         "error_rows": sum(1 for row in rows if row["errors"]),
+        "blocked_rows": sum(1 for row in rows if row["errors"]),
         "duplicate_rows": sum(
             1 for row in rows if "duplicate_product_id" in row["errors"] or "duplicate_sku" in row["errors"]
         ),
@@ -455,7 +462,27 @@ def _summary(rows: list[dict]) -> dict:
         "large_changes": sum(
             1 for row in rows if "large_price_change" in row["warnings"] or "large_price_change_blocked" in row["errors"]
         ),
+        "matched_products": sum(
+            1 for row in rows if row.get("matchedProduct") and row["matchedProduct"].get("itemType") == "simple"
+        ),
+        "matched_variations": sum(
+            1 for row in rows if row.get("matchedProduct") and row["matchedProduct"].get("itemType") == "variation"
+        ),
+        "unmatched_rows": sum(1 for row in rows if row.get("matchedProduct") is None),
+        "changed_prices": changed_prices,
+        "changed_stock": changed_stock,
+        "estimated_woocommerce_updates": sum(1 for row in rows if row.get("eligible_for_dry_run")),
     }
+
+
+def _change_type(price_changed: bool, stock_changed: bool) -> str:
+    if price_changed and stock_changed:
+        return "price_and_stock_changed"
+    if price_changed:
+        return "price_changed"
+    if stock_changed:
+        return "stock_changed"
+    return "unchanged"
 
 
 def _duplicate_warnings(duplicate_info: dict) -> list[str]:

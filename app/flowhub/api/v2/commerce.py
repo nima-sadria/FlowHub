@@ -72,6 +72,16 @@ async def browse_source_files(
     return await service.browse_source_files(source_id, body)
 
 
+@router.post("/sources/{source_id}/read")
+async def read_source_now(
+    source_id: str,
+    user: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    _require_admin(user)
+    return await service.read_source_now(source_id, user.username)
+
+
 @router.put("/sources/{source_id}/settings")
 async def update_source_settings(
     source_id: str,

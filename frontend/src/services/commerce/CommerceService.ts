@@ -24,6 +24,7 @@ export interface CommerceService {
   saveChannel(channelId: string, payload: CommerceConfigPayload): Promise<CommerceSettingsResult>
   testSource(sourceId: string): Promise<ConnectionCheckResult>
   testChannel(channelId: string): Promise<ConnectionCheckResult>
+  readSource(sourceId: string): Promise<SourceReadResult>
   browseNextcloud(sourceId: string, payload: NextcloudBrowseRequest): Promise<NextcloudBrowseResult>
 }
 
@@ -31,7 +32,7 @@ export interface CommerceConfigPayload {
   display_name: string
   enabled: boolean
   description?: string
-  settings: Record<string, string | boolean>
+  settings: Record<string, unknown>
   secrets: Record<string, string>
 }
 
@@ -67,4 +68,26 @@ export interface NextcloudBrowseResult {
   write_blocked: boolean
   external_call_performed: boolean
   credentials_returned: boolean
+}
+
+export interface SourceReadResult {
+  ok: boolean
+  rows_read: number
+  valid_rows: number
+  warning_rows: number
+  error_rows: number
+  last_read_at: string
+  remaining_reads_today: number
+  reads_used_last_24h: number
+  reads_remaining: number
+  reset_at: string | null
+  warnings: string[]
+  errors: string[]
+  source_id: string
+  source_type: string
+  spreadsheet_path: string
+  external_call_performed: boolean
+  read_only: boolean
+  source_write: boolean
+  write_blocked: boolean
 }

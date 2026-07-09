@@ -40,6 +40,9 @@ describe('Workspace source-driven preview', () => {
     expect(container.textContent).toContain('Missing Product')
     expect(container.textContent).toContain('large_price_change')
     expect(container.textContent).toContain('Unchanged')
+    expect(container.textContent).toContain('Stock Only Product')
+    expect(container.textContent).toContain('Stock only')
+    expect(container.textContent).toContain('+3')
     expect(container.textContent).toContain('blocking error')
     expect(container.textContent).toContain('Stock will not be changed')
     expect(container.textContent).toContain('Automatic apply is disabled')
@@ -61,6 +64,8 @@ describe('Workspace source-driven preview', () => {
     await click('Dry Run')
     expect(createDryRun).toHaveBeenCalledTimes(1)
     expect(createDryRun.mock.calls[0][1]).toHaveLength(2)
+    const dryRunChanges = createDryRun.mock.calls[0][1] as Array<{ productId: string }>
+    expect(dryRunChanges.map(item => item.productId)).not.toContain('104')
     expect(createDryRun.mock.calls[0][1][1].itemType).toBe('variation')
     expect(createDryRun.mock.calls[0][2]).toEqual(preview.summary)
     expect(container.textContent).toContain('Dry Run ready')
@@ -171,6 +176,9 @@ function makePreview({ withError }: { withError: boolean }): WorkspacePreview {
       },
       currentPrice: 100,
       proposedPrice: 110,
+      currentStock: 5,
+      sourceStock: 5,
+      stockDifference: 0,
       difference: 10,
       changePct: 10,
       status: 'valid_change' as const,
@@ -199,6 +207,9 @@ function makePreview({ withError }: { withError: boolean }): WorkspacePreview {
       },
       currentPrice: 120,
       proposedPrice: 132,
+      currentStock: 6,
+      sourceStock: 6,
+      stockDifference: 0,
       difference: 12,
       changePct: 10,
       status: 'valid_change' as const,
@@ -228,6 +239,33 @@ function makePreview({ withError }: { withError: boolean }): WorkspacePreview {
       difference: 0,
       changePct: 0,
       status: 'unchanged' as const,
+      errors: [],
+      warnings: [],
+      eligible_for_dry_run: false,
+    },
+    {
+      id: 'wp_1:Sheet1:8',
+      source: { ...sourceInfo(8, 'Stock Only Product', '104', 'SKU-104'), rawStock: '8', sourceStock: 8 },
+      matchedProduct: {
+        channelId: 'woocommerce:primary',
+        productId: '104',
+        productType: 'simple',
+        sku: 'SKU-104',
+        name: 'Stock Only Product',
+        currentPrice: 100,
+        effectivePrice: 100,
+        stockQuantity: 5,
+        categoryNames: ['Default'],
+      },
+      currentPrice: 100,
+      proposedPrice: 100,
+      currentStock: 5,
+      sourceStock: 8,
+      stockDifference: 3,
+      difference: 0,
+      changePct: 0,
+      status: 'stock_changed' as const,
+      changeType: 'stock_changed',
       errors: [],
       warnings: [],
       eligible_for_dry_run: false,
@@ -298,6 +336,8 @@ function makePreview({ withError }: { withError: boolean }): WorkspacePreview {
       duplicate_rows: 0,
       missing_products: withError ? 1 : 0,
       large_changes: 1,
+      changed_stock: 1,
+      estimated_woocommerce_updates: 2,
     },
     startedAt: new Date(),
     duplicateWarnings: [],

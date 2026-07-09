@@ -544,6 +544,153 @@ def test_spreadsheet_normalizes_persian_digits_and_commas():
     assert duplicates["duplicate_product_ids"] == []
 
 
+def test_workspace_preview_uses_configured_mapping_and_reads_stock(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(configured_db).set_many(
+        {
+            "nextcloud.source_mapping": (
+                '{"id":{"enabled":true,"column":"E"},'
+                '"price":{"enabled":true,"column":"D"},'
+                '"stock":{"enabled":true,"column":"B"}}'
+            )
+        },
+        updated_by="test",
+    )
+    _cache_product(configured_db, "101", "Mapped Product", "SKU-101", "100.00", stock_qty=8)
+
+    async def fake_download(self, path):
+        return _xlsx_custom(
+            headers=["Name", "Stock", "SKU", "Price", "Product ID"],
+            rows=[["Mapped Product", "12", "SKU-101", "125.00", "101"]],
+        ), {"etag": "etag-mapped"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    row = data["rows"][0]
+    assert row["source"]["rawValues"] == {
+        "A": "Mapped Product",
+        "B": "12",
+        "C": "SKU-101",
+        "D": "125.00",
+        "E": "101",
+    }
+    assert row["source"]["sourceStock"] == 12
+    assert row["currentStock"] == 8
+    assert row["sourceStock"] == 12
+    assert row["stockDifference"] == 4
+    assert row["changeType"] == "price_and_stock_changed"
+    assert row["eligible_for_dry_run"] is True
+    assert data["summary"]["changed_stock"] == 1
+    assert "stock" not in data["changes"][0]
+    assert "stockQuantity" not in data["changes"][0]
+
+
+def test_price_disabled_generates_no_price_changes(client, auth_headers, configured_db, monkeypatch):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(configured_db).set_many(
+        {
+            "nextcloud.source_mapping": (
+                '{"id":{"enabled":true,"column":"B"},'
+                '"price":{"enabled":false,"column":"C"},'
+                '"stock":{"enabled":true,"column":"D"}}'
+            )
+        },
+        updated_by="test",
+    )
+    _cache_product(configured_db, "101", "Stock Only", "SKU-101", "100.00", stock_qty=5)
+
+    async def fake_download(self, path):
+        return _xlsx([["Stock Only", 101, "999.00", "8"]]), {"etag": "etag-price-disabled"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    row = data["rows"][0]
+    assert row["status"] == "stock_changed"
+    assert row["proposedPrice"] is None
+    assert row["sourceStock"] == 8
+    assert row["eligible_for_dry_run"] is False
+    assert data["changes"] == []
+    assert data["summary"]["estimated_woocommerce_updates"] == 0
+
+
+def test_stock_only_row_is_visible_but_excluded_from_write_changes(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(configured_db).set_many(
+        {
+            "nextcloud.source_mapping": (
+                '{"id":{"enabled":true,"column":"B"},'
+                '"price":{"enabled":true,"column":"C"},'
+                '"stock":{"enabled":true,"column":"D"}}'
+            )
+        },
+        updated_by="test",
+    )
+    _cache_product(configured_db, "101", "Stock Only", "SKU-101", "100.00", stock_qty=5)
+
+    async def fake_download(self, path):
+        return _xlsx([["Stock Only", 101, "100.00", "8"]]), {"etag": "etag-stock-only"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    row = data["rows"][0]
+    assert row["status"] == "stock_changed"
+    assert row["sourceStock"] == 8
+    assert row["stockDifference"] == 3
+    assert row["eligible_for_dry_run"] is False
+    assert data["changes"] == []
+
+
+def test_selected_worksheet_is_read_and_missing_worksheet_fails(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.setup.service import AppConfigService
+
+    _cache_product(configured_db, "101", "Selected Product", "SKU-101", "100.00")
+
+    async def fake_download(self, path):
+        return _xlsx_multi_sheet(), {"etag": "etag-sheets"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    AppConfigService(configured_db).set_many(
+        {"nextcloud.worksheet_mode": "selected", "nextcloud.worksheet_name": "Prices"},
+        updated_by="test",
+    )
+
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+    assert response.status_code == 200
+    row = response.json()["rows"][0]
+    assert row["source"]["worksheet"] == "Prices"
+    assert row["source"]["productName"] == "Selected Product"
+
+    AppConfigService(configured_db).set_many({"nextcloud.worksheet_name": "Missing"}, updated_by="test")
+    missing = client.post("/api/v2/workspace/preview", headers=auth_headers)
+    assert missing.status_code == 422
+    assert "Selected worksheet not found" in missing.text
+
+
 def _cache_product(
     db,
     product_id: str,
@@ -554,6 +701,9 @@ def _cache_product(
     product_type: str = "simple",
     parent_id: str | None = "100",
     raw_data: dict | None = None,
+    stock_qty: int | None = None,
+    stock_status: str | None = "instock",
+    manage_stock: bool | None = True,
 ) -> None:
     from app.flowhub.data_layer.models import DlProductCache
 
@@ -568,6 +718,9 @@ def _cache_product(
             parent_id=parent_id if product_type == "variation" else None,
             regular_price=price,
             price=price,
+            stock_qty=stock_qty,
+            stock_status=stock_status,
+            manage_stock=manage_stock,
             categories=[{"name": "Default"}],
             images=[{"src": f"https://example.test/{product_id}.jpg"}],
             freshness="fresh",
@@ -589,6 +742,39 @@ def _xlsx(rows: list[list[object]]) -> bytes:
     ws.append(["", "", "", ""])
     for row in rows:
         ws.append(row)
+    stream = BytesIO()
+    wb.save(stream)
+    return stream.getvalue()
+
+
+def _xlsx_custom(headers: list[str], rows: list[list[object]]) -> bytes:
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    ws.append(headers)
+    ws.append(["" for _ in headers])
+    for row in rows:
+        ws.append(row)
+    stream = BytesIO()
+    wb.save(stream)
+    return stream.getvalue()
+
+
+def _xlsx_multi_sheet() -> bytes:
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Ignore"
+    ws.append(["Name", "Product ID", "Price", "SKU"])
+    ws.append(["", "", "", ""])
+    ws.append(["Wrong Sheet", 999, "130.00", "SKU-999"])
+    prices = wb.create_sheet("Prices")
+    prices.append(["Name", "Product ID", "Price", "SKU"])
+    prices.append(["", "", "", ""])
+    prices.append(["Selected Product", 101, "120.00", "SKU-101"])
     stream = BytesIO()
     wb.save(stream)
     return stream.getvalue()

@@ -59,13 +59,16 @@ function statusLabel(status: WorkspacePreviewRow['status']): string {
   if (status === 'valid_change') return 'Valid'
   if (status === 'warning') return 'Warning'
   if (status === 'unchanged') return 'Unchanged'
+  if (status === 'stock_changed') return 'Stock only'
+  if (status === 'price_and_stock_changed') return 'Price + Stock'
   return 'Error'
 }
 
 function statusClass(status: WorkspacePreviewRow['status']): string {
   if (status === 'valid_change') return 'fh-badge-success'
   if (status === 'warning') return 'fh-badge-warning'
-  if (status === 'unchanged') return 'fh-badge-neutral'
+  if (status === 'unchanged' || status === 'stock_changed') return 'fh-badge-neutral'
+  if (status === 'price_and_stock_changed') return 'fh-badge-warning'
   return 'fh-badge-danger'
 }
 
@@ -88,6 +91,7 @@ function PreviewRow({ row }: { row: WorkspacePreviewRow }) {
   const isVariation = row.matchedProduct?.itemType === 'variation' || row.matchedProduct?.productType === 'variation'
   const attrs = attributeText(row.matchedProduct?.variationAttributes)
   const currency = 'EUR'
+  const stockDiff = row.stockDifference
   return (
     <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
       <td className="px-4 py-3 min-w-0 max-w-[220px]">
@@ -114,6 +118,15 @@ function PreviewRow({ row }: { row: WorkspacePreviewRow }) {
       </td>
       <td className="px-4 py-3">
         {row.changePct == null ? '-' : <ChangePct pct={row.changePct} />}
+      </td>
+      <td className="px-4 py-3 text-[13px] text-wp-muted font-mono">
+        {row.currentStock == null ? '-' : row.currentStock}
+      </td>
+      <td className="px-4 py-3 text-[13px] text-text-base font-mono">
+        {row.sourceStock == null ? row.source.rawStock || '-' : row.sourceStock}
+      </td>
+      <td className="px-4 py-3 text-[12px] text-wp-muted font-mono">
+        {stockDiff == null ? '-' : `${stockDiff > 0 ? '+' : ''}${stockDiff}`}
       </td>
       <td className="px-4 py-3">
         <span className={['fh-badge', statusClass(row.status)].join(' ')}>{statusLabel(row.status)}</span>
@@ -525,7 +538,7 @@ export default function Workspace() {
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-border bg-bg-base">
-                    {['Product', 'Current Price', 'New Price', 'Change', 'Status', 'Validation'].map(h => (
+                    {['Product', 'Current Price', 'New Price', 'Change', 'Current Stock', 'Source Stock', 'Stock Change', 'Status', 'Validation'].map(h => (
                       <th key={h} className="px-4 py-2.5 text-start text-[11px] font-semibold text-wp-muted uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>

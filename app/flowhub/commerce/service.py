@@ -26,6 +26,13 @@ from app.flowhub.integration_platform.contracts import ConnectorCapabilities
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.registry import registry
 from app.flowhub.integration_platform.service import IntegrationPlatformService
+from app.flowhub.sources.spreadsheet_source import (
+    SpreadsheetSourceReadService,
+    normalize_read_policy,
+    normalize_source_mapping,
+    serialize_read_policy,
+    serialize_source_mapping,
+)
 
 ACCESS_MODE_READ_ONLY = "read_only"
 ACCESS_MODE_WRITE_ENABLED = "write_enabled"
@@ -272,6 +279,17 @@ class CommerceHubService:
             "credentials_returned": False,
         }
 
+    async def read_source_now(self, source_id: str, actor: str) -> dict:
+        meta = self._source_meta(source_id)
+        if str(meta["provider"]) != "nextcloud" or bool(meta.get("placeholder")):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Source read is not available.")
+        instance = self.db.get(IntegrationConnectorInstance, meta["id"])
+        if instance is None or not instance.enabled:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Source must be enabled before Read now.")
+        reader = SpreadsheetSourceReadService(self.db)
+        result = await reader.read_nextcloud_spreadsheet(triggered_by=actor, manual=True)
+        return reader.manual_read_response(result)
+
     def update_source_settings(self, source_id: str, body: dict) -> dict:
         meta = self._source_meta(source_id)
         provider = str(meta["provider"])
@@ -335,6 +353,7 @@ class CommerceHubService:
             instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         health = self._health(str(meta["id"]))
         configured = self._instance_configured(instance)
+        read_status = SpreadsheetSourceReadService(self.db).read_status() if provider == "nextcloud" else None
         body = {
             **meta,
             "status": self._status(meta, instance, health),
@@ -345,6 +364,12 @@ class CommerceHubService:
             "read_only": True,
             "settings_available": definition is not None,
         }
+        if read_status is not None:
+            body["read_status"] = read_status
+            body["read_policy"] = {
+                key: read_status[key]
+                for key in ("enabled", "max_reads_per_24h", "manual_read_allowed", "reads_used_last_24h", "reads_remaining", "reset_at", "last_read_at")
+            }
         if detail:
             body["settings_schema"] = [
                 item.model_dump() for item in definition.settings_schema
@@ -780,6 +805,16 @@ class CommerceHubService:
         values = self._nextcloud_values(body, allow_stored=False)
         if values["url"]:
             self._normalize_nextcloud_url(values["url"], values["username"])
+        settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
+        if "source_mapping" in settings:
+            normalize_source_mapping(settings.get("source_mapping"))
+        if "source_read_policy" in settings:
+            normalize_read_policy(settings.get("source_read_policy"))
+        worksheet_mode = str(settings.get("worksheet_mode") or "all").strip().lower()
+        if worksheet_mode not in {"all", "selected"}:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "worksheet_mode must be all or selected.")
+        if worksheet_mode == "selected" and not str(settings.get("worksheet_name") or "").strip():
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "worksheet_name is required when selected worksheet mode is enabled.")
 
     def _validate_nextcloud_base_url(self, raw_url: str) -> str:
         return self._normalize_nextcloud_url(raw_url, "")["server_root_url"]
@@ -875,6 +910,14 @@ class CommerceHubService:
             pairs["nextcloud.password"] = str(secrets["password"])
         if settings.get("spreadsheet_path"):
             pairs["nextcloud.spreadsheet_path"] = str(settings["spreadsheet_path"]).strip()
+        if "source_mapping" in settings:
+            pairs["nextcloud.source_mapping"] = serialize_source_mapping(normalize_source_mapping(settings.get("source_mapping")))
+        if "source_read_policy" in settings:
+            pairs["nextcloud.source_read_policy"] = serialize_read_policy(normalize_read_policy(settings.get("source_read_policy")))
+        if settings.get("worksheet_mode"):
+            pairs["nextcloud.worksheet_mode"] = str(settings["worksheet_mode"]).strip().lower()
+        if "worksheet_name" in settings:
+            pairs["nextcloud.worksheet_name"] = str(settings.get("worksheet_name") or "").strip()
         if pairs:
             self.integration.config.set_many(pairs, updated_by="commerce_hub")
 

@@ -163,6 +163,29 @@ const commerce: CommerceService = {
       checked_at: '2026-07-09T10:00:00Z',
     }
   },
+  async readSource() {
+    return {
+      ok: true,
+      rows_read: 1,
+      valid_rows: 1,
+      warning_rows: 0,
+      error_rows: 0,
+      last_read_at: '2026-07-09T10:00:00Z',
+      remaining_reads_today: 9,
+      reads_used_last_24h: 1,
+      reads_remaining: 9,
+      reset_at: null,
+      warnings: [],
+      errors: [],
+      source_id: 'nextcloud:primary',
+      source_type: 'nextcloud_spreadsheet',
+      spreadsheet_path: '/prices.xlsx',
+      external_call_performed: true,
+      read_only: true,
+      source_write: false,
+      write_blocked: true,
+    }
+  },
   async getChannels() {
     return {
       items: [
@@ -344,6 +367,14 @@ function setInputValue(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
+function inputByLabel(c: HTMLElement, labelText: string): HTMLInputElement {
+  const label = Array.from(c.querySelectorAll('label'))
+    .find(item => item.textContent?.toLowerCase().includes(labelText.toLowerCase()))
+  const input = label?.querySelector('input')
+  expect(input).toBeTruthy()
+  return input as HTMLInputElement
+}
+
 async function openNextcloudSourceForm(c: HTMLElement) {
   await act(async () => {
     Array.from(c.querySelectorAll('button'))
@@ -358,14 +389,12 @@ async function openNextcloudSourceForm(c: HTMLElement) {
 }
 
 function fillNextcloudCredentials(c: HTMLElement, baseUrl = 'https://softpple.business', username: string | null = 'owner') {
-  const textInputs = Array.from(c.querySelectorAll('input[type="text"]')) as HTMLInputElement[]
-  const password = c.querySelector('input[type="password"]') as HTMLInputElement
   act(() => {
-    setInputValue(textInputs[0], baseUrl)
+    setInputValue(inputByLabel(c, 'Nextcloud server URL'), baseUrl)
     if (username !== null) {
-      setInputValue(textInputs[1], username)
+      setInputValue(inputByLabel(c, 'Username'), username)
     }
-    setInputValue(password, 'app-password-value')
+    setInputValue(c.querySelector('input[type="password"]') as HTMLInputElement, 'app-password-value')
   })
 }
 
@@ -410,6 +439,10 @@ describe('CommerceHub', () => {
 
     const testButtons = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Test connection')
     expect(testButtons).toHaveLength(1)
+    const readButtons = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Read now')
+    expect(readButtons).toHaveLength(1)
+    const settingsButtons = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Settings')
+    expect(settingsButtons).toHaveLength(1)
     expect(c.textContent).toContain('Nextcloud')
     expect(c.textContent).toContain('CSV')
     expect(c.textContent).toContain('Google Sheets')
@@ -531,7 +564,67 @@ describe('CommerceHub', () => {
     })
     expect(c.textContent).toContain('Source type')
     expect(c.textContent).toContain('App password / token')
+    expect(c.textContent).toContain('Column Mapping')
+    expect(c.textContent).toContain('Read Policy')
     expect(c.textContent).not.toContain('snapp-secret-value')
+  })
+
+  it('saves Nextcloud source column mapping, worksheet, and read policy settings', async () => {
+    const captured: { payload: Parameters<CommerceService['saveSource']>[1] | null } = { payload: null }
+    const savingCommerce: CommerceService = {
+      ...commerce,
+      async saveSource(_sourceId, nextPayload) {
+        captured.payload = nextPayload
+        return commerce.saveSource(_sourceId, nextPayload)
+      },
+    }
+    const c = await renderPage(adminUser, savingCommerce)
+    await openNextcloudSourceForm(c)
+
+    await act(async () => {
+      inputByLabel(c, 'stock').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      inputByLabel(c, 'Selected worksheet').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      setInputValue(inputByLabel(c, 'Worksheet name'), 'Prices')
+      setInputValue(inputByLabel(c, 'Max reads per 24 hours'), '5')
+    })
+    await act(async () => {
+      Array.from(c.querySelectorAll('button'))
+        .find(button => button.textContent === 'Save configuration')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(captured.payload).toBeTruthy()
+    if (!captured.payload) throw new Error('saveSource payload was not captured')
+    expect(captured.payload.settings.source_mapping).toEqual({
+      id: { enabled: true, column: 'B' },
+      price: { enabled: true, column: 'C' },
+      stock: { enabled: true, column: 'D' },
+    })
+    expect(captured.payload.settings.worksheet_mode).toBe('selected')
+    expect(captured.payload.settings.worksheet_name).toBe('Prices')
+    expect(captured.payload.settings.source_read_policy).toMatchObject({
+      enabled: true,
+      max_reads_per_24h: 5,
+      manual_read_allowed: true,
+    })
+  })
+
+  it('runs Read now for Nextcloud and renders the read result', async () => {
+    const c = await renderPage()
+    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
+    await act(async () => {
+      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    await act(async () => {
+      Array.from(c.querySelectorAll('button'))
+        .find(button => button.textContent === 'Read now')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(c.textContent).toContain('Read complete - 1 row read; 9 reads remaining today.')
   })
 
   it('keeps channel management controls admin-only', async () => {

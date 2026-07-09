@@ -112,6 +112,9 @@ export interface WorkspaceSourceRowInfo {
   sku?: string
   productName?: string
   rawPrice?: string
+  rawStock?: string
+  sourceStock?: number | null
+  rawValues?: Record<string, string>
 }
 
 export interface WorkspaceMatchedProductInfo {
@@ -131,6 +134,9 @@ export interface WorkspaceMatchedProductInfo {
   regularPrice?: number | null
   salePrice?: number | null
   effectivePrice: number
+  stockQuantity?: number | null
+  stockStatus?: string | null
+  manageStock?: boolean | null
   imageUrl?: string | null
   categoryNames: string[]
   freshness?: string | null
@@ -142,9 +148,13 @@ export interface WorkspacePreviewRow {
   matchedProduct: WorkspaceMatchedProductInfo | null
   currentPrice: number | null
   proposedPrice: number | null
+  currentStock?: number | null
+  sourceStock?: number | null
+  stockDifference?: number | null
   difference: number | null
   changePct: number | null
-  status: 'valid_change' | 'warning' | 'unchanged' | 'error'
+  status: 'valid_change' | 'warning' | 'unchanged' | 'error' | 'stock_changed' | 'price_and_stock_changed'
+  changeType?: string
   errors: string[]
   warnings: string[]
   eligible_for_dry_run: boolean
@@ -159,6 +169,13 @@ export interface WorkspacePreviewSummary {
   duplicate_rows: number
   missing_products: number
   large_changes: number
+  matched_products?: number
+  matched_variations?: number
+  unmatched_rows?: number
+  changed_prices?: number
+  changed_stock?: number
+  blocked_rows?: number
+  estimated_woocommerce_updates?: number
 }
 
 export interface WorkspacePreview {
@@ -294,9 +311,28 @@ export interface CommerceSource {
   action_label: string
   action_href: string
   health: CommerceHealth
+  read_policy?: CommerceSourceReadPolicy
+  read_status?: CommerceSourceReadStatus
   read_only: boolean
   runtime_write_blocked: boolean
   settings_available: boolean
+}
+
+export interface CommerceSourceReadPolicy {
+  enabled: boolean
+  max_reads_per_24h: number
+  manual_read_allowed: boolean
+  reads_used_last_24h: number
+  reads_remaining: number
+  reset_at: string | null
+  last_read_at: string | null
+}
+
+export interface CommerceSourceReadStatus extends CommerceSourceReadPolicy {
+  last_read_status: string | null
+  last_row_count: number | null
+  last_warning_count: number | null
+  last_error_count: number | null
 }
 
 export interface CommerceChannel {

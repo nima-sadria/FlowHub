@@ -11,6 +11,21 @@ import PageShell from '../components/PageShell'
 
 type Tab = 'sources' | 'channels'
 type FormKind = 'source' | 'channel'
+type SourceMappingField = { enabled: boolean; column: string }
+type SourceMappingDraft = Record<'id' | 'price' | 'stock', SourceMappingField>
+type ReadPolicyDraft = { enabled: boolean; max_reads_per_24h: number; manual_read_allowed: boolean }
+
+const DEFAULT_SOURCE_MAPPING: SourceMappingDraft = {
+  id: { enabled: true, column: 'B' },
+  price: { enabled: true, column: 'C' },
+  stock: { enabled: false, column: 'D' },
+}
+
+const DEFAULT_READ_POLICY: ReadPolicyDraft = {
+  enabled: true,
+  max_reads_per_24h: 10,
+  manual_read_allowed: true,
+}
 
 function prettyStatus(value: string): string {
   return value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -76,13 +91,17 @@ function RelationshipMap({ map }: { map: CommerceRelationshipMap | null }) {
   )
 }
 
-function SourceCard({ source, onTest, testing, canManage }: {
+function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, canManage }: {
   source: CommerceSource
   onTest: (sourceId: string) => void
+  onRead: (sourceId: string) => void
+  onConfigure: (sourceId: string) => void
   testing: boolean
+  reading: boolean
   canManage: boolean
 }) {
-  const canTest = canManage && source.provider === 'nextcloud' && !source.placeholder
+  const canUseNextcloudActions = canManage && source.provider === 'nextcloud' && !source.placeholder
+  const readStatus = source.read_status
   return (
     <div className="fh-card fh-card-pad flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
@@ -104,19 +123,45 @@ function SourceCard({ source, onTest, testing, canManage }: {
         <p><span className="text-wp-muted">Last health check: </span><span className="font-medium text-text-base">{source.last_health_check ? new Date(source.last_health_check).toLocaleString() : 'Not checked'}</span></p>
         <p><span className="text-wp-muted">Health: </span><span className="font-medium text-text-base">{prettyStatus(source.health?.status ?? 'unknown')}</span></p>
         <p><span className="text-wp-muted">Data role: </span><span className="font-medium text-text-base">{source.data_role}</span></p>
+        {readStatus && (
+          <>
+            <p><span className="text-wp-muted">Last read: </span><span className="font-medium text-text-base">{readStatus.last_read_at ? new Date(readStatus.last_read_at).toLocaleString() : 'Not read'}</span></p>
+            <p><span className="text-wp-muted">Reads remaining: </span><span className="font-medium text-text-base">{readStatus.reads_remaining}</span></p>
+            <p><span className="text-wp-muted">Last read status: </span><span className="font-medium text-text-base">{readStatus.last_read_status ? prettyStatus(readStatus.last_read_status) : 'Not read'}</span></p>
+            <p><span className="text-wp-muted">Last row count: </span><span className="font-medium text-text-base">{readStatus.last_row_count ?? '-'}</span></p>
+          </>
+        )}
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <SafetyBadges readOnly={source.read_only} writeBlocked={source.runtime_write_blocked} />
-        {canTest && (
-          <button
-            onClick={() => onTest(source.id)}
-            disabled={testing}
-            className="fh-button-secondary px-3 py-1.5 text-[12px]"
-          >
-            {testing && <Spinner size="sm" />}
-            {testing ? 'Testing' : 'Test connection'}
-          </button>
+        {canUseNextcloudActions && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              aria-label="Source settings"
+              onClick={() => onConfigure(source.id)}
+              className="fh-button-secondary px-3 py-1.5 text-[12px]"
+            >
+              Settings
+            </button>
+            <button
+              onClick={() => onTest(source.id)}
+              disabled={testing || reading}
+              className="fh-button-secondary px-3 py-1.5 text-[12px]"
+            >
+              {testing && <Spinner size="sm" />}
+              {testing ? 'Testing' : 'Test connection'}
+            </button>
+            <button
+              onClick={() => onRead(source.id)}
+              disabled={testing || reading || source.read_policy?.manual_read_allowed === false}
+              className="fh-button-secondary px-3 py-1.5 text-[12px]"
+            >
+              {reading && <Spinner size="sm" />}
+              {reading ? 'Reading' : 'Read now'}
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -349,6 +394,10 @@ function ConfigPanel({
   const [pickerLoading, setPickerLoading] = useState(false)
   const [pickerData, setPickerData] = useState<NextcloudBrowseResult | null>(null)
   const [pickerError, setPickerError] = useState<string | null>(null)
+  const [sourceMapping, setSourceMapping] = useState<SourceMappingDraft>(DEFAULT_SOURCE_MAPPING)
+  const [worksheetMode, setWorksheetMode] = useState<'all' | 'selected'>('all')
+  const [worksheetName, setWorksheetName] = useState('')
+  const [readPolicy, setReadPolicy] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
   const nextcloudUrlError = kind === 'source' && selected?.provider === 'nextcloud'
     ? nextcloudUrlErrorFor(settings)
     : null
@@ -362,6 +411,10 @@ function ConfigPanel({
     setPickerOpen(false)
     setPickerData(null)
     setPickerError(null)
+    setSourceMapping(DEFAULT_SOURCE_MAPPING)
+    setWorksheetMode('all')
+    setWorksheetName('')
+    setReadPolicy(DEFAULT_READ_POLICY)
   }, [selected?.id])
 
   if (!selected) return null
@@ -378,7 +431,15 @@ function ConfigPanel({
         display_name: displayName,
         enabled: selected.placeholder ? false : enabled,
         description,
-        settings,
+        settings: kind === 'source' && selected.provider === 'nextcloud'
+          ? {
+              ...settings,
+              source_mapping: sourceMapping,
+              source_read_policy: readPolicy,
+              worksheet_mode: worksheetMode,
+              worksheet_name: worksheetName,
+            }
+          : settings,
         secrets,
       }
       if (kind === 'source') await commerce.saveSource(selected.id, payload)
@@ -444,6 +505,13 @@ function ConfigPanel({
     if (!file.supported) return
     setSettings(current => ({ ...current, spreadsheet_path: file.path }))
     setPickerOpen(false)
+  }
+
+  function updateMappingField(field: keyof SourceMappingDraft, patch: Partial<SourceMappingField>) {
+    setSourceMapping(current => ({
+      ...current,
+      [field]: { ...current[field], ...patch },
+    }))
   }
 
   return (
@@ -534,22 +602,125 @@ function ConfigPanel({
       </div>
 
       {kind === 'source' && selected.provider === 'nextcloud' && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-bg-base px-3 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-medium text-text-base">Nextcloud spreadsheet file</p>
-            <p className="text-[12px] text-wp-muted">Use WebDAV with your app password. Public share links are not required.</p>
-            <p className="mt-2 text-[12px] text-wp-muted">Selected file</p>
-            <div className="mt-1 min-h-10 rounded-md border border-border bg-bg-subtle px-3 py-2 text-[13px] text-text-base">
-              {settings.spreadsheet_path || 'No spreadsheet file selected'}
+        <div className="flex flex-col gap-4">
+          <div className="rounded-lg border border-border bg-bg-base px-3 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-medium text-text-base">Nextcloud spreadsheet file</p>
+                <p className="text-[12px] text-wp-muted">Use WebDAV with your app password. Public share links are not required.</p>
+                <p className="mt-2 text-[12px] text-wp-muted">Selected file</p>
+                <div className="mt-1 min-h-10 rounded-md border border-border bg-bg-subtle px-3 py-2 text-[13px] text-text-base">
+                  {settings.spreadsheet_path || 'No spreadsheet file selected'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void browseNextcloud('/')}
+                className="fh-button-secondary px-4"
+              >
+                Browse Nextcloud
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => void browseNextcloud('/')}
-            className="fh-button-secondary px-4"
-          >
-            Browse Nextcloud
-          </button>
+
+          <div className="rounded-lg border border-border bg-bg-base px-3 py-3">
+            <p className="text-[13px] font-medium text-text-base">Column Mapping</p>
+            <p className="text-[12px] text-wp-muted mt-1">Enabled fields require a spreadsheet column letter or header name.</p>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              {(['id', 'price', 'stock'] as const).map(field => (
+                <div key={field} className="rounded-md border border-border bg-bg-subtle p-3">
+                  <label className="inline-flex items-center gap-2 text-[13px] text-text-base capitalize">
+                    <input
+                      type="checkbox"
+                      checked={sourceMapping[field].enabled}
+                      onChange={event => updateMappingField(field, { enabled: event.target.checked })}
+                    />
+                    {field === 'id' ? 'Product ID' : field}
+                  </label>
+                  <label className="mt-2 flex flex-col gap-1 text-[12px] text-wp-muted">
+                    Column
+                    <input
+                      value={sourceMapping[field].column}
+                      onChange={event => updateMappingField(field, { column: event.target.value })}
+                      className="fh-input"
+                      autoComplete="off"
+                    />
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-border bg-bg-base px-3 py-3">
+              <p className="text-[13px] font-medium text-text-base">Worksheet</p>
+              <div className="mt-3 flex flex-col gap-2 text-[13px] text-text-base">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="worksheet_mode"
+                    checked={worksheetMode === 'all'}
+                    onChange={() => setWorksheetMode('all')}
+                  />
+                  All worksheets
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="worksheet_mode"
+                    checked={worksheetMode === 'selected'}
+                    onChange={() => setWorksheetMode('selected')}
+                  />
+                  Selected worksheet
+                </label>
+                <label className="flex flex-col gap-1 text-[12px] text-wp-muted">
+                  Worksheet name
+                  <input
+                    value={worksheetName}
+                    onChange={event => setWorksheetName(event.target.value)}
+                    disabled={worksheetMode !== 'selected'}
+                    className="fh-input"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-bg-base px-3 py-3">
+              <p className="text-[13px] font-medium text-text-base">Read Policy</p>
+              <div className="mt-3 flex flex-col gap-3">
+                <label className="inline-flex items-center gap-2 text-[13px] text-text-base">
+                  <input
+                    type="checkbox"
+                    checked={readPolicy.enabled}
+                    onChange={event => setReadPolicy(current => ({ ...current, enabled: event.target.checked }))}
+                  />
+                  Limit source reads
+                </label>
+                <label className="inline-flex items-center gap-2 text-[13px] text-text-base">
+                  <input
+                    type="checkbox"
+                    checked={readPolicy.manual_read_allowed}
+                    onChange={event => setReadPolicy(current => ({ ...current, manual_read_allowed: event.target.checked }))}
+                  />
+                  Manual Read now allowed
+                </label>
+                <label className="flex flex-col gap-1 text-[12px] text-wp-muted">
+                  Max reads per 24 hours
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={readPolicy.max_reads_per_24h}
+                    onChange={event => setReadPolicy(current => ({
+                      ...current,
+                      max_reads_per_24h: Number(event.target.value || DEFAULT_READ_POLICY.max_reads_per_24h),
+                    }))}
+                    className="fh-input"
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -590,6 +761,7 @@ export default function CommerceHub() {
   const [map, setMap] = useState<CommerceRelationshipMap | null>(null)
   const [loading, setLoading] = useState(true)
   const [testingId, setTestingId] = useState<string | null>(null)
+  const [readingId, setReadingId] = useState<string | null>(null)
   const [formKind, setFormKind] = useState<FormKind | null>(null)
   const canManageCommerce = user?.is_admin === true
 
@@ -660,6 +832,37 @@ export default function CommerceHub() {
     }
   }
 
+  async function handleSourceRead(sourceId: string) {
+    if (!canManageCommerce) {
+      notifyError('Admin permission required.')
+      return
+    }
+    setReadingId(sourceId)
+    try {
+      const result = await commerce.readSource(sourceId)
+      if (result.ok) {
+        info(`Read complete - ${result.rows_read} row${result.rows_read !== 1 ? 's' : ''} read; ${result.reads_remaining} read${result.reads_remaining !== 1 ? 's' : ''} remaining today.`)
+      } else {
+        notifyError('Source read failed.')
+      }
+      await loadCommerce()
+    } catch (error) {
+      notifyError(apiErrorMessage(error, 'Unable to read source'))
+    } finally {
+      setReadingId(null)
+    }
+  }
+
+  function handleSourceConfigure(_sourceId: string) {
+    if (!canManageCommerce) {
+      notifyError('Admin permission required.')
+      return
+    }
+    setTab('sources')
+    setSearchParams({ tab: 'sources' })
+    setFormKind('source')
+  }
+
   async function reloadAfterSave() {
     await loadCommerce()
     setFormKind(null)
@@ -722,7 +925,10 @@ export default function CommerceHub() {
                 key={source.id}
                 source={source}
                 onTest={(id) => void handleSourceTest(id)}
+                onRead={(id) => void handleSourceRead(id)}
+                onConfigure={handleSourceConfigure}
                 testing={testingId === source.id}
+                reading={readingId === source.id}
                 canManage={canManageCommerce}
               />
             ))}
