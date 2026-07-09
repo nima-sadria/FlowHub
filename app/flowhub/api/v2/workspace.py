@@ -1,8 +1,9 @@
 """FlowHub /api/v2/workspace router.
 
-Workspace reads are served from Integration Platform/Data Layer records. No
-Apply, Scheduler execution, automatic pricing, WooCommerce writes, Nextcloud
-writes, or live external connector calls are exposed here.
+Workspace preview is an explicit user-triggered source import. It may perform a
+read-only Nextcloud download, then compares rows against the Data Layer product
+cache. No Apply, Scheduler execution, automatic pricing, WooCommerce writes, or
+Nextcloud writes are exposed here.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.database import get_db
 from app.flowhub.integration_platform.contracts import WorkspaceIntegrationSummary, WorkspacePreviewResponse
 from app.flowhub.integration_platform.service import IntegrationPlatformService
+from app.flowhub.workspace.price_workflow import WorkspacePriceWorkflowService
 
 router = APIRouter(prefix="/workspace", tags=["workspace"])
 
@@ -39,4 +41,4 @@ async def start_preview(
     _: FlowHubUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> WorkspacePreviewResponse:
-    return IntegrationPlatformService(db).workspace_preview()
+    return await WorkspacePriceWorkflowService(db).preview_from_nextcloud()

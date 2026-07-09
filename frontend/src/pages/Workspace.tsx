@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useServices } from '../services/ServiceContext'
-import type { WorkspacePreview, PriceChange, WritePipelineBatch } from '../services/types'
+import type { WorkspacePreview, PriceChange, WorkspacePreviewRow, WritePipelineBatch } from '../services/types'
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
@@ -52,6 +52,56 @@ function StepPill({ label, active, done }: { label: string; active: boolean; don
     ].join(' ')}>
       {label}
     </span>
+  )
+}
+
+function statusLabel(status: WorkspacePreviewRow['status']): string {
+  if (status === 'valid_change') return 'Valid'
+  if (status === 'warning') return 'Warning'
+  if (status === 'unchanged') return 'Unchanged'
+  return 'Error'
+}
+
+function statusClass(status: WorkspacePreviewRow['status']): string {
+  if (status === 'valid_change') return 'fh-badge-success'
+  if (status === 'warning') return 'fh-badge-warning'
+  if (status === 'unchanged') return 'fh-badge-neutral'
+  return 'fh-badge-danger'
+}
+
+function messages(row: WorkspacePreviewRow): string {
+  const items = [...row.errors, ...row.warnings]
+  return items.length ? items.join(', ') : '-'
+}
+
+function PreviewRow({ row }: { row: WorkspacePreviewRow }) {
+  const name = row.matchedProduct?.name ?? row.source.productName ?? 'Unmatched product'
+  const sku = row.matchedProduct?.sku || row.source.sku || '-'
+  const currency = 'EUR'
+  return (
+    <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
+      <td className="px-4 py-3 min-w-0 max-w-[220px]">
+        <div className="text-[13px] font-medium text-text-base truncate">{name}</div>
+        <div className="text-[11px] font-mono text-wp-muted mt-0.5">
+          {row.source.worksheet}:{row.source.rowNumber} · {sku}
+        </div>
+      </td>
+      <td className="px-4 py-3 text-[13px] text-wp-muted font-mono">
+        {row.currentPrice == null ? '-' : fmtPrice(row.currentPrice, currency)}
+      </td>
+      <td className="px-4 py-3 text-[13px] font-medium text-text-base font-mono">
+        {row.proposedPrice == null ? row.source.rawPrice || '-' : fmtPrice(row.proposedPrice, currency)}
+      </td>
+      <td className="px-4 py-3">
+        {row.changePct == null ? '-' : <ChangePct pct={row.changePct} />}
+      </td>
+      <td className="px-4 py-3">
+        <span className={['fh-badge', statusClass(row.status)].join(' ')}>{statusLabel(row.status)}</span>
+      </td>
+      <td className="px-4 py-3 text-[11px] text-wp-muted max-w-[280px]">
+        <span className="line-clamp-2">{messages(row)}</span>
+      </td>
+    </tr>
   )
 }
 
@@ -111,10 +161,12 @@ export default function Workspace() {
 
   const createDryRun = useCallback(async () => {
     if (!preview) return
+    const eligible = preview.changes.filter(change => change.eligible_for_dry_run !== false)
+    if (eligible.length === 0 || preview.summary.error_rows > 0) return
     setPhase('dry_running')
     setErrorMsg(null)
     try {
-      const b = await writePipeline.createDryRun(preview.id, preview.changes)
+      const b = await writePipeline.createDryRun(preview.id, eligible)
       setBatch(b)
       setPhase('dry_run_ready')
       info(`Dry Run ready - ${b.itemCount} price change${b.itemCount !== 1 ? 's' : ''} validated`)
@@ -162,6 +214,8 @@ export default function Workspace() {
   }, [workspace, preview])
 
   const bothConfigured = wcConfigured === true && ncConfigured === true
+  const blockingErrors = (preview?.summary.error_rows ?? 0) > 0
+  const eligibleChanges = preview?.changes.filter(change => change.eligible_for_dry_run !== false) ?? []
 
   return (
     <PageShell>
@@ -245,12 +299,30 @@ export default function Workspace() {
             </svg>
             <div>
               <p className="text-[13px] font-medium text-wp-yellow">
-                {preview.totalChanges} product{preview.totalChanges !== 1 ? 's' : ''} with pending price changes
+                {preview.summary.valid_changes + preview.summary.warning_rows} eligible row{preview.summary.valid_changes + preview.summary.warning_rows !== 1 ? 's' : ''}; {preview.summary.error_rows} blocking error{preview.summary.error_rows !== 1 ? 's' : ''}
               </p>
               <p className="text-[12px] text-wp-muted mt-0.5">
-                Preview first, then run safety checks before approval.
+                Preview first, then run safety checks before approval. Rows with errors cannot enter Dry Run.
               </p>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+            {[
+              ['Rows', preview.summary.total_rows],
+              ['Valid', preview.summary.valid_changes],
+              ['Warnings', preview.summary.warning_rows],
+              ['Unchanged', preview.summary.unchanged_rows],
+              ['Errors', preview.summary.error_rows],
+              ['Duplicates', preview.summary.duplicate_rows],
+              ['Missing', preview.summary.missing_products],
+              ['Large', preview.summary.large_changes],
+            ].map(([label, value]) => (
+              <div key={label} className="fh-card fh-card-pad">
+                <p className="text-[11px] text-wp-muted">{label}</p>
+                <p className="text-[18px] font-semibold text-text-base mt-1">{value}</p>
+              </div>
+            ))}
           </div>
 
           {batch && (
@@ -319,7 +391,7 @@ export default function Workspace() {
           <div className="fh-card overflow-hidden">
             <div className="fh-panel-header">
               <span className="text-[13px] font-semibold text-text-base">
-                Preview - {preview.totalChanges} changes
+                Preview - {preview.summary.total_rows} source rows
               </span>
               <span className="text-[11px] font-mono text-wp-muted">Source: {preview.sourceName}</span>
             </div>
@@ -328,13 +400,15 @@ export default function Workspace() {
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-border bg-bg-base">
-                    {['Product', 'Current Price', 'New Price', 'Change', 'Warning'].map(h => (
+                    {['Product', 'Current Price', 'New Price', 'Change', 'Status', 'Validation'].map(h => (
                       <th key={h} className="px-4 py-2.5 text-start text-[11px] font-semibold text-wp-muted uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {preview.changes.map(c => <PriceChangeRow key={c.productId} change={c} />)}
+                  {preview.rows.length > 0
+                    ? preview.rows.map(row => <PreviewRow key={row.id} row={row} />)
+                    : preview.changes.map(c => <PriceChangeRow key={c.productId} change={c} />)}
                 </tbody>
               </table>
             </div>
@@ -350,7 +424,7 @@ export default function Workspace() {
                 {phase === 'preview_ready' && (
                   <button
                     onClick={() => void createDryRun()}
-                    disabled={preview.totalChanges === 0}
+                    disabled={eligibleChanges.length === 0 || blockingErrors}
                     className="fh-button-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Dry Run

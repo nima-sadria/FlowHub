@@ -1,0 +1,291 @@
+from __future__ import annotations
+
+import os
+import uuid
+from datetime import datetime
+from io import BytesIO
+
+import pytest
+
+os.environ.setdefault("FLOWHUB_DATABASE_URL", "sqlite:///:memory:")
+os.environ.setdefault("FLOWHUB_JWT_SECRET", "test-workspace-workflow-jwt-secret-32bytes!")
+
+from app.flowhub.auth import models as _auth_models  # noqa: F401
+from app.flowhub.data_layer import models as _data_layer_models  # noqa: F401
+from app.flowhub.integration_platform import models as _integration_platform_models  # noqa: F401
+from app.flowhub.setup import models as _setup_models  # noqa: F401
+from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: F401
+
+
+@pytest.fixture()
+def db_engine():
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import StaticPool
+
+    from app.flowhub.database import FlowHubBase, _get_engine
+
+    _get_engine.cache_clear()
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    FlowHubBase.metadata.create_all(engine)
+    yield engine
+    FlowHubBase.metadata.drop_all(engine)
+    engine.dispose()
+    _get_engine.cache_clear()
+
+
+@pytest.fixture()
+def db(db_engine):
+    from sqlalchemy.orm import sessionmaker
+
+    Session = sessionmaker(bind=db_engine)
+    session = Session()
+    yield session
+    session.close()
+
+
+@pytest.fixture()
+def client(db_engine):
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
+
+    from app.flowhub.app import app
+    from app.flowhub.database import get_db
+
+    Session = sessionmaker(bind=db_engine)
+
+    def _override_get_db():
+        s = Session()
+        try:
+            yield s
+        finally:
+            s.close()
+
+    app.dependency_overrides[get_db] = _override_get_db
+    with TestClient(app, raise_server_exceptions=True) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def auth_headers(client, db):
+    from app.flowhub.auth.jwt_service import create_access_token
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.auth.password import hash_password
+
+    username = f"workspaceadmin_{uuid.uuid4().hex}"
+    user = FlowHubUser(username=username, hashed_password=hash_password("password123"), role="admin")
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_access_token(user.id, user.username, user.role)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def configured_db(db):
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(db).set_many(
+        {
+            "woocommerce.url": "https://store.example.test",
+            "woocommerce.key": "ck_test",
+            "woocommerce.secret": "cs_test",
+            "nextcloud.url": "https://cloud.example.test",
+            "nextcloud.username": "user",
+            "nextcloud.password": "pass",
+            "nextcloud.spreadsheet_path": "/prices.xlsx",
+            "server.currency": "EUR",
+            "setup.completed": "true",
+        }
+    )
+    return db
+
+
+def test_nextcloud_spreadsheet_import_success_generates_preview_and_dry_run(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    _cache_product(configured_db, "101", "Test Product", "SKU-101", "100.00")
+
+    async def fake_download(self, path):
+        assert path == "/prices.xlsx"
+        return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "etag-1", "last_modified": "now"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
+    assert preview.status_code == 200
+    data = preview.json()
+    assert data["external_call_performed"] is True
+    assert data["summary"]["total_rows"] == 1
+    assert data["summary"]["valid_changes"] == 1
+    assert data["changes"][0]["source"]["worksheet"] == "Sheet1"
+    assert data["changes"][0]["source"]["rowNumber"] == 3
+
+    dry_run = client.post(
+        "/api/v2/write-pipeline/dry-run",
+        headers=auth_headers,
+        json={
+            "previewId": data["id"],
+            "channelId": "woocommerce:primary",
+            "operationType": "price_update",
+            "changes": data["changes"],
+        },
+    )
+    assert dry_run.status_code == 201
+    batch = dry_run.json()
+    assert batch["status"] == "dry_run_ready"
+    assert batch["sourcePreviewId"] == data["id"]
+    assert batch["items"][0]["productId"] == "101"
+
+    execute = client.post(f"/api/v2/write-pipeline/batches/{batch['id']}/execute", headers=auth_headers)
+    assert execute.status_code == 409
+    assert "approved Dry Run" in execute.text
+
+
+def test_workspace_preview_classifies_validation_errors_warnings_and_unchanged(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    _cache_product(configured_db, "101", "Duplicate Product", "SKU-101", "100.00")
+    _cache_product(configured_db, "102", "Cache Name", "SKU-102", "100.00")
+    _cache_product(configured_db, "103", "Same Price", "SKU-103", "100.00")
+    _cache_product(configured_db, "104", "Valid Product", "SKU-104", "100.00")
+    _cache_product(configured_db, "105", "Large Warning", "SKU-105", "100.00")
+    _cache_product(configured_db, "106", "Invalid Price", "SKU-106", "100.00")
+    _cache_product(configured_db, "107", "Variation Product", "SKU-107", "100.00", product_type="variation")
+    _cache_product(configured_db, "108", "SKU Match", "DUP-SKU", "100.00")
+
+    async def fake_download(self, path):
+        return _xlsx(
+            [
+                ["Duplicate Product", 101, "110.00", "SKU-101"],
+                ["Duplicate Product", 101, "111.00", "SKU-101B"],
+                ["Wrong Name", 102, "120.00", "SKU-102"],
+                ["Same Price", 103, "100.00", "SKU-103"],
+                ["Valid Product", 104, "112.00", "SKU-104"],
+                ["Large Warning", 105, "140.00", "SKU-105"],
+                ["Invalid Price", 106, "abc", "SKU-106"],
+                ["Missing Product", 999, "120.00", "SKU-999"],
+                ["Variation Product", 107, "120.00", "SKU-107"],
+                ["SKU Match", "", "120.00", "DUP-SKU"],
+                ["SKU Match", "", "121.00", "DUP-SKU"],
+            ]
+        ), {"etag": "etag-2"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+    rows = data["rows"]
+    by_row = {item["source"]["rowNumber"]: item for item in rows}
+
+    assert "duplicate_product_id" in by_row[3]["errors"]
+    assert "product_name_mismatch" in by_row[5]["errors"]
+    assert by_row[6]["status"] == "unchanged"
+    assert by_row[7]["eligible_for_dry_run"] is True
+    assert "large_price_change" in by_row[8]["warnings"]
+    assert "invalid_or_missing_price" in by_row[9]["errors"]
+    assert "missing_product" in by_row[10]["errors"]
+    assert "unsupported_product_type" in by_row[11]["errors"]
+    assert "duplicate_sku" in by_row[12]["errors"]
+    assert "duplicate_sku" in by_row[13]["errors"]
+    assert data["summary"]["error_rows"] == 8
+    assert data["summary"]["unchanged_rows"] == 1
+    assert data["summary"]["large_changes"] == 1
+
+    change_ids = {item["productId"] for item in data["changes"]}
+    assert change_ids == {"104", "105"}
+    assert all("stock" not in item for item in data["changes"])
+
+
+def test_rows_with_errors_are_rejected_by_write_pipeline(client, auth_headers):
+    response = client.post(
+        "/api/v2/write-pipeline/dry-run",
+        headers=auth_headers,
+        json={
+            "previewId": "wp_bad",
+            "changes": [
+                {
+                    "productId": "101",
+                    "productName": "Bad",
+                    "sku": "SKU-101",
+                    "currentPrice": 100.0,
+                    "proposedPrice": 110.0,
+                    "currency": "EUR",
+                    "eligible_for_dry_run": False,
+                    "validationStatus": "error",
+                }
+            ],
+        },
+    )
+    assert response.status_code == 422
+    assert "validation errors" in response.text
+
+
+def test_preview_fails_safely_when_cache_is_empty(client, auth_headers, configured_db, monkeypatch):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    async def fake_download(self, path):
+        raise AssertionError("empty product cache must fail before source download")
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+    assert response.status_code == 409
+    assert "product cache is empty" in response.text
+
+
+def test_spreadsheet_normalizes_persian_digits_and_commas():
+    from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_source_price_rows
+
+    wb = load_workbook_bytes(_xlsx([["Persian Product", "۱۰۱", "۱,۲۳۴.۵۰", "SKU-FA"]]))
+    rows, duplicates = parse_source_price_rows(wb)
+    assert rows[0]["product_id"] == "101"
+    assert rows[0]["proposed_price"] == 1234.5
+    assert duplicates["duplicate_product_ids"] == []
+
+
+def _cache_product(db, product_id: str, name: str, sku: str, price: str, *, product_type: str = "simple") -> None:
+    from app.flowhub.data_layer.models import DlProductCache
+
+    db.add(
+        DlProductCache(
+            connector_id="woocommerce:primary",
+            product_id=product_id,
+            external_id=int(product_id),
+            sku=sku,
+            name=name,
+            product_type=product_type,
+            parent_id="100" if product_type == "variation" else None,
+            regular_price=price,
+            price=price,
+            categories=[{"name": "Default"}],
+            images=[{"src": f"https://example.test/{product_id}.jpg"}],
+            freshness="fresh",
+            exists=True,
+            last_fetched_at=datetime.utcnow(),
+        )
+    )
+    db.commit()
+
+
+def _xlsx(rows: list[list[object]]) -> bytes:
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    ws.append(["Name", "Product ID", "Price", "SKU"])
+    ws.append(["", "", "", ""])
+    for row in rows:
+        ws.append(row)
+    stream = BytesIO()
+    wb.save(stream)
+    return stream.getvalue()

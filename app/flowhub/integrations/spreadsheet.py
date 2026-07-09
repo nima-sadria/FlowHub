@@ -221,8 +221,102 @@ def parse_price_list(
     return entries, duplicates
 
 
+def parse_source_price_rows(wb: "openpyxl.Workbook") -> tuple[list[dict], dict]:
+    """Parse worksheets into normalized source-row candidates for Workspace.
+
+    Existing WooPrice-compatible columns are preserved:
+    A = product name, B = WooCommerce product ID, C = proposed price.
+    Column D is treated as an optional SKU when present.
+    """
+    rows: list[dict] = []
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        consecutive_empty = 0
+        for row in ws.iter_rows(min_row=3, max_row=1002, values_only=False):
+            name_cell = row[0] if len(row) > 0 else None
+            product_id_cell = row[1] if len(row) > 1 else None
+            price_cell = row[2] if len(row) > 2 else None
+            sku_cell = row[3] if len(row) > 3 else None
+
+            product_id_raw = "" if product_id_cell is None or product_id_cell.value is None else str(product_id_cell.value).strip()
+            sku = "" if sku_cell is None or sku_cell.value is None else str(sku_cell.value).strip()
+            if not product_id_raw and not sku:
+                consecutive_empty += 1
+                if consecutive_empty >= 30:
+                    break
+                continue
+            consecutive_empty = 0
+
+            product_id: str | None = None
+            product_id_error = False
+            if product_id_raw:
+                try:
+                    parsed_product_id = int(float(_normalize_price_text(product_id_raw)))
+                    if parsed_product_id > 0:
+                        product_id = str(parsed_product_id)
+                    else:
+                        product_id_error = True
+                except (TypeError, ValueError):
+                    product_id_error = True
+
+            product_name = "" if name_cell is None or name_cell.value is None else str(name_cell.value).strip()
+            raw_price = "" if price_cell is None or price_cell.value is None else str(price_cell.value).strip()
+            price: float | None = None
+            price_parse_error = False
+            if raw_price:
+                normalized = _normalize_price_text(raw_price)
+                if normalized.lower() in _OUT_OF_STOCK_MARKERS:
+                    price = None
+                else:
+                    try:
+                        price = float(normalized)
+                    except (TypeError, ValueError):
+                        price_parse_error = True
+
+            rows.append({
+                "source_id": "nextcloud:primary",
+                "source_type": "nextcloud_spreadsheet",
+                "worksheet": sheet_name,
+                "row_number": getattr(product_id_cell or sku_cell or price_cell or name_cell, "row", None),
+                "product_id": product_id,
+                "raw_product_id": product_id_raw,
+                "product_id_error": product_id_error,
+                "sku": sku,
+                "product_name": product_name,
+                "proposed_price": price,
+                "raw_price": raw_price,
+                "price_parse_error": price_parse_error,
+                "raw": {
+                    "product_name": product_name,
+                    "product_id": product_id_raw,
+                    "price": raw_price,
+                    "sku": sku,
+                },
+            })
+
+    duplicate_product_ids = _duplicate_values(row["product_id"] for row in rows if row.get("product_id"))
+    duplicate_skus = _duplicate_values(row["sku"].strip().lower() for row in rows if row.get("sku"))
+    return rows, {
+        "duplicate_product_ids": duplicate_product_ids,
+        "duplicate_skus": duplicate_skus,
+    }
+
+
 def load_workbook_bytes(data: bytes) -> "openpyxl.Workbook":
     """Load an openpyxl Workbook from raw bytes."""
     import openpyxl
     logger.info("spreadsheet load_workbook_bytes size=%d bytes", len(data))
     return openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+
+
+def _duplicate_values(values) -> list[str]:
+    seen: set[str] = set()
+    duplicates: set[str] = set()
+    for value in values:
+        item = str(value).strip()
+        if not item:
+            continue
+        if item in seen:
+            duplicates.add(item)
+        seen.add(item)
+    return sorted(duplicates)

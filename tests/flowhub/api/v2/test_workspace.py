@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
+from io import BytesIO
 
 import pytest
 
@@ -116,20 +118,52 @@ class TestWorkspacePreview:
         response = client.post("/api/v2/workspace/preview")
         assert response.status_code == 401
 
-    def test_preview_does_not_require_live_connector_configuration(self, client, auth_headers):
+    def test_preview_fails_closed_without_live_connector_configuration(self, client, auth_headers):
         response = client.post("/api/v2/workspace/preview", headers=auth_headers)
-        assert response.status_code == 200
-        assert response.json()["external_call_performed"] is False
+        assert response.status_code == 422
+        assert "Missing required setting: nextcloud.spreadsheet_path" in response.text
 
-    def test_preview_returns_data_layer_shape(self, client, auth_headers, configured_db):
+    def test_preview_returns_source_driven_rows(self, client, auth_headers, configured_db, monkeypatch):
+        from app.flowhub.data_layer.models import DlProductCache
+        from app.flowhub.integrations.nextcloud import NextcloudClient
+
+        configured_db.add(
+            DlProductCache(
+                connector_id="woocommerce:primary",
+                product_id="101",
+                external_id=101,
+                sku="SKU-101",
+                name="Test Product",
+                product_type="simple",
+                regular_price="100.00",
+                price="100.00",
+                categories=[{"name": "Category"}],
+                images=[{"src": "https://example.test/image.jpg"}],
+                freshness="fresh",
+                exists=True,
+                last_fetched_at=datetime.utcnow(),
+            )
+        )
+        configured_db.commit()
+
+        async def fake_download(self, path):
+            assert path == "/prices.xlsx"
+            return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "abc", "last_modified": "today"}
+
+        monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
         response = client.post("/api/v2/workspace/preview", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert data["state"] == "preview_ready"
-        assert data["totalChanges"] == 0
-        assert data["changes"] == []
+        assert data["totalChanges"] == 1
+        assert data["summary"]["total_rows"] == 1
+        assert data["summary"]["valid_changes"] == 1
+        assert data["rows"][0]["source"]["worksheet"] == "Sheet"
+        assert data["rows"][0]["matchedProduct"]["productId"] == "101"
+        assert data["changes"][0]["productId"] == "101"
+        assert data["changes"][0]["source"]["sourceFilePath"] == "/prices.xlsx"
         assert data["runtime_write_blocked"] is True
-        assert data["external_call_performed"] is False
+        assert data["external_call_performed"] is True
         assert "startedAt" in data
 
     def test_preview_write_guard_via_http(self, client, auth_headers):
@@ -140,3 +174,18 @@ class TestWorkspacePreview:
             raise_write_blocked()
         assert exc_info.value.status_code == 403
         assert exc_info.value.detail == FLOWHUB_WRITE_BLOCKED
+
+
+def _xlsx(rows: list[list[object]]) -> bytes:
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sheet"
+    ws.append(["Name", "Product ID", "Price", "SKU"])
+    ws.append(["", "", "", ""])
+    for row in rows:
+        ws.append(row)
+    stream = BytesIO()
+    wb.save(stream)
+    return stream.getvalue()

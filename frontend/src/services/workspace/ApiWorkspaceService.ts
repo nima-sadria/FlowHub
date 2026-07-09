@@ -13,6 +13,10 @@ interface RawChange {
   changePct: number
   currency: string
   warning?: string | null
+  eligible_for_dry_run?: boolean
+  validationStatus?: string
+  source?: Record<string, unknown>
+  validationWarnings?: string[]
 }
 
 interface RawPreview {
@@ -22,6 +26,8 @@ interface RawPreview {
   state: string
   totalChanges: number
   changes: RawChange[]
+  rows?: WorkspacePreview['rows']
+  summary?: WorkspacePreview['summary']
   startedAt: string
   duplicateWarnings?: string[]
 }
@@ -37,6 +43,10 @@ function mapChange(r: RawChange): PriceChange {
     changePct: r.changePct,
     currency: r.currency,
     warning: r.warning ?? null,
+    eligible_for_dry_run: r.eligible_for_dry_run,
+    validationStatus: r.validationStatus,
+    source: r.source as PriceChange['source'],
+    validationWarnings: r.validationWarnings,
   }
 }
 
@@ -59,6 +69,17 @@ export class ApiWorkspaceService implements WorkspaceService {
       state: data.state as WorkspaceState,
       totalChanges: data.totalChanges,
       changes: data.changes.map(mapChange),
+      rows: data.rows ?? [],
+      summary: data.summary ?? {
+        total_rows: data.changes.length,
+        valid_changes: data.changes.length,
+        unchanged_rows: 0,
+        warning_rows: 0,
+        error_rows: 0,
+        duplicate_rows: 0,
+        missing_products: 0,
+        large_changes: 0,
+      },
       startedAt: new Date(data.startedAt),
       duplicateWarnings: data.duplicateWarnings,
     }

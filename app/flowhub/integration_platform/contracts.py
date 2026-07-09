@@ -187,6 +187,8 @@ class WorkspacePreviewResponse(BaseModel):
     state: str
     totalChanges: int
     changes: list[dict] = Field(default_factory=list)
+    rows: list[dict] = Field(default_factory=list)
+    summary: dict = Field(default_factory=dict)
     startedAt: str
     duplicateWarnings: list[str] = Field(default_factory=list)
     runtime_write_blocked: bool = True

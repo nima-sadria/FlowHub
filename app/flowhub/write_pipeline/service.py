@@ -90,6 +90,8 @@ class WritePipelineService:
                         "sku": change.sku,
                         "price": change.currentPrice,
                         "currency": change.currency,
+                        "source": (getattr(change, "model_extra", None) or {}).get("source"),
+                        "validation_warnings": (getattr(change, "model_extra", None) or {}).get("validationWarnings", []),
                     },
                     status="pending",
                 )
@@ -98,7 +100,16 @@ class WritePipelineService:
             batch.id,
             "dry_run_created",
             "Dry Run created. No marketplace write was executed.",
-            metadata={"approval_recorded": False, "execution_attempted": False},
+            metadata={
+                "approval_recorded": False,
+                "execution_attempted": False,
+                "source_preview_id": body.previewId,
+                "source_rows": [
+                    (getattr(change, "model_extra", None) or {}).get("source")
+                    for change in body.changes
+                    if (getattr(change, "model_extra", None) or {}).get("source")
+                ],
+            },
             commit=False,
         )
         self.db.commit()
@@ -255,6 +266,10 @@ class WritePipelineService:
         currencies: set[str] = set()
         max_delta = 0.0
         for change in raw_changes:
+            if change.get("eligible_for_dry_run") is False:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Rows with validation errors cannot enter Dry Run.")
+            if change.get("status") == "error" or change.get("validationStatus") == "error":
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Rows with validation errors cannot enter Dry Run.")
             forbidden = FORBIDDEN_STOCK_KEYS.intersection({key.lower() for key in change})
             if forbidden:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "Stock updates are blocked in FlowHub 1.0.0.")

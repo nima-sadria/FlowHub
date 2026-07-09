@@ -549,22 +549,9 @@ class IntegrationPlatformService:
         )
 
     def workspace_preview(self) -> WorkspacePreviewResponse:
-        self.bootstrap_from_app_config()
-        now = datetime.utcnow()
-        self.record_event(
-            connector_id="integration-platform",
-            event_name="workspace_preview_read",
-            message="Workspace preview read Data Layer records only.",
-            metadata={"external_call_performed": False},
-        )
-        return WorkspacePreviewResponse(
-            id=str(uuid.uuid4()),
-            sourceId="data-layer",
-            sourceName="FlowHub Data Layer",
-            state="preview_ready",
-            totalChanges=0,
-            changes=[],
-            startedAt=_iso(now) or now.isoformat(),
+        raise HTTPException(
+            status.HTTP_410_GONE,
+            "Workspace preview must use WorkspacePriceWorkflowService.preview_from_nextcloud().",
         )
 
     def settings_summary(self) -> list[IntegrationSettingsSummary]:

@@ -28,6 +28,8 @@ function loadPreview(): WorkspacePreview | null {
       state: 'preview_ready',
       totalChanges: LOCAL_CHANGES.length,
       changes: LOCAL_CHANGES,
+      rows: localRows(),
+      summary: localSummary(),
       startedAt: new Date(p.startedAt),
     }
   } catch {
@@ -67,6 +69,8 @@ export class LocalWorkspaceService implements WorkspaceService {
       state: 'preview_ready',
       totalChanges: LOCAL_CHANGES.length,
       changes: LOCAL_CHANGES,
+      rows: localRows(),
+      summary: localSummary(),
       startedAt: new Date(),
     }
     this.preview = preview
@@ -78,5 +82,56 @@ export class LocalWorkspaceService implements WorkspaceService {
     await delay(100)
     this.preview = null
     clearPreview()
+  }
+}
+
+function localRows(): WorkspacePreview['rows'] {
+  return LOCAL_CHANGES.map((change, index) => ({
+    id: `local:${change.productId}`,
+    source: {
+      previewId: 'local',
+      sourceId: 'local',
+      sourceType: 'local_demo',
+      sourceSnapshotId: 0,
+      sourceSnapshotVersion: 1,
+      sourceFilePath: 'local-demo',
+      worksheet: 'Demo',
+      rowNumber: index + 3,
+      productId: change.productId,
+      sku: change.sku,
+      productName: change.productName,
+      rawPrice: String(change.proposedPrice),
+    },
+    matchedProduct: {
+      channelId: 'woocommerce:primary',
+      productId: change.productId,
+      productType: 'simple',
+      sku: change.sku,
+      name: change.productName,
+      currentPrice: change.currentPrice,
+      effectivePrice: change.currentPrice,
+      categoryNames: [],
+    },
+    currentPrice: change.currentPrice,
+    proposedPrice: change.proposedPrice,
+    difference: change.proposedPrice - change.currentPrice,
+    changePct: change.changePct,
+    status: 'valid_change',
+    errors: [],
+    warnings: change.warning ? [change.warning] : [],
+    eligible_for_dry_run: true,
+  }))
+}
+
+function localSummary(): WorkspacePreview['summary'] {
+  return {
+    total_rows: LOCAL_CHANGES.length,
+    valid_changes: LOCAL_CHANGES.length,
+    unchanged_rows: 0,
+    warning_rows: 0,
+    error_rows: 0,
+    duplicate_rows: 0,
+    missing_products: 0,
+    large_changes: 0,
   }
 }

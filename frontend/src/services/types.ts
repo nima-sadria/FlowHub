@@ -87,6 +87,67 @@ export interface PriceChange {
   changePct: number
   currency: string
   warning?: string | null
+  eligible_for_dry_run?: boolean
+  validationStatus?: string
+  source?: WorkspaceSourceRowInfo
+  validationWarnings?: string[]
+}
+
+export interface WorkspaceSourceRowInfo {
+  previewId: string
+  sourceId: string
+  sourceType: string
+  sourceSnapshotId: number
+  sourceSnapshotVersion: number
+  sourceFilePath: string
+  worksheet: string
+  rowNumber: number
+  productId?: string | null
+  sku?: string
+  productName?: string
+  rawPrice?: string
+}
+
+export interface WorkspaceMatchedProductInfo {
+  channelId: string
+  productId: string
+  externalId?: number | null
+  productType: string
+  parentId?: string | null
+  sku: string
+  name: string
+  currentPrice: number
+  regularPrice?: number | null
+  salePrice?: number | null
+  effectivePrice: number
+  imageUrl?: string | null
+  categoryNames: string[]
+  freshness?: string | null
+}
+
+export interface WorkspacePreviewRow {
+  id: string
+  source: WorkspaceSourceRowInfo
+  matchedProduct: WorkspaceMatchedProductInfo | null
+  currentPrice: number | null
+  proposedPrice: number | null
+  difference: number | null
+  changePct: number | null
+  status: 'valid_change' | 'warning' | 'unchanged' | 'error'
+  errors: string[]
+  warnings: string[]
+  eligible_for_dry_run: boolean
+}
+
+export interface WorkspacePreviewSummary {
+  total_rows: number
+  valid_changes: number
+  unchanged_rows: number
+  warning_rows: number
+  error_rows: number
+  duplicate_rows: number
+  missing_products: number
+  large_changes: number
 }
 
 export interface WorkspacePreview {
@@ -96,6 +157,8 @@ export interface WorkspacePreview {
   state: WorkspaceState
   totalChanges: number
   changes: PriceChange[]
+  rows: WorkspacePreviewRow[]
+  summary: WorkspacePreviewSummary
   startedAt: Date
   duplicateWarnings?: string[]
 }
