@@ -162,7 +162,7 @@ export default function Products() {
 
   return (
     <PageShell>
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">Products</h1>
           <p className="fh-page-subtitle">
@@ -203,8 +203,8 @@ export default function Products() {
           <select
             value={categoryId ?? ''}
             onChange={e => setCategoryId(e.target.value ? Number(e.target.value) : null)}
-            className="fh-input w-auto py-1.5"
-          >
+          className="fh-input w-auto py-1.5"
+        >
             <option value="">All Categories</option>
             {categories.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -213,16 +213,16 @@ export default function Products() {
         )}
 
         {/* Type filter */}
-        <div className="flex items-center gap-1 bg-bg-base rounded-lg p-1 border border-border">
+        <div className="fh-segmented">
           {(['all', 'simple', 'variable'] as const).map(t => (
             <button
               key={t}
               onClick={() => setProductType(t)}
               className={[
-                'px-2.5 py-1 text-[12px] font-medium rounded transition-colors capitalize',
+                'fh-segmented-button capitalize',
                 productType === t
-                  ? 'bg-bg-card text-accent shadow-sm'
-                  : 'text-wp-muted hover:text-text-base',
+                  ? 'fh-segmented-button-active'
+                  : '',
               ].join(' ')}
             >
               {t === 'all' ? 'All Types' : t}
@@ -232,8 +232,8 @@ export default function Products() {
       </div>
 
       {/* Table */}
-      <div className="fh-card overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+      <div className="fh-table-wrapper">
+        <div className="fh-panel-header">
           <span className="text-[13px] font-semibold text-text-base">
             {loading ? 'Loading...' : total === 0 ? 'No products found' : `Showing ${start}-${end} of ${total}`}
           </span>
@@ -253,11 +253,11 @@ export default function Products() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-[13px]">
+          <table className="fh-table min-w-[560px] text-[13px]">
             <thead>
-              <tr className="border-b border-border bg-bg-base">
+              <tr>
                 {['Product', 'Type', 'Price', 'Categories'].map(h => (
-                  <th key={h} className="px-4 py-2.5 text-start text-[11px] font-semibold text-wp-muted uppercase tracking-wide">{h}</th>
+                  <th key={h}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -279,7 +279,7 @@ export default function Products() {
         </div>
 
         {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+          <div className="fh-panel-footer !justify-between">
             <span className="text-[12px] text-wp-muted">{start}-{end} of {total}</span>
             <div className="flex items-center gap-1">
               <button onClick={() => setPage(1)} disabled={page === 1} className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors text-[12px]">«</button>

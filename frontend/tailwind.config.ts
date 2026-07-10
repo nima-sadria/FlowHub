@@ -27,6 +27,7 @@ export default {
         'wp-muted': 'var(--color-wp-muted)',
         'bg-base': 'var(--color-bg-base)',
         'bg-card': 'var(--color-bg-card)',
+        'bg-subtle': 'var(--fh-ui-surface-subtle)',
         border: 'var(--color-border)',
         'text-base': 'var(--color-text-base)',
       },

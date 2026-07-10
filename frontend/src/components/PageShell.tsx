@@ -9,8 +9,10 @@ interface PageShellProps {
 // Do not create page-specific narrow containers unless explicitly approved by Owner.
 export default function PageShell({ children, className = '' }: PageShellProps) {
   return (
-    <div className={['fh-page', className].filter(Boolean).join(' ')}>
-      {children}
+    <div className="fh-page">
+      <div className={['fh-page-inner', className].filter(Boolean).join(' ')}>
+        {children}
+      </div>
     </div>
   )
 }

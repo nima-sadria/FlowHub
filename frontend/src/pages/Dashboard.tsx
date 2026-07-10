@@ -32,18 +32,21 @@ function StatCard({ label, value, sub, indicator }: {
     null
 
   return (
-    <div className="fh-card fh-card-pad">
-      {dot && (
-        <div className="flex items-center gap-2 mb-2">
-          <span className={['w-2 h-2 rounded-full flex-shrink-0', dot].join(' ')} />
-          <span className="fh-section-label">{label}</span>
+    <div className="fh-stat-card">
+      <div className="flex items-center gap-3">
+        <div className="fh-stat-card-icon">
+          {dot ? (
+            <span className={['w-2.5 h-2.5 rounded-full flex-shrink-0', dot].join(' ')} />
+          ) : (
+            <span className="h-2.5 w-2.5 rounded-full bg-border" />
+          )}
         </div>
-      )}
-      {!dot && (
-        <p className="fh-section-label mb-2">{label}</p>
-      )}
-      <div className="text-[20px] font-semibold text-text-base leading-tight">{value}</div>
-      {sub && <div className="text-[11px] text-wp-muted mt-0.5">{sub}</div>}
+        <div className="min-w-0">
+          <p className="fh-stat-card-label">{label}</p>
+          <div className="fh-stat-card-value">{value}</div>
+        </div>
+      </div>
+      {sub && <div className="text-[12px] text-wp-muted">{sub}</div>}
     </div>
   )
 }
@@ -103,10 +106,11 @@ export default function Dashboard() {
 
   return (
     <PageShell>
-      {/* Header */}
-      <div>
+      <div className="fh-page-header">
+        <div>
         <h1 className="fh-page-title">Dashboard</h1>
         <p className="fh-page-subtitle">System overview</p>
+        </div>
       </div>
 
       {/* User card */}
@@ -124,7 +128,7 @@ export default function Dashboard() {
       </div>
 
       {/* System status - uses real /api/health */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="fh-stat-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="Backend"
           value={health ? 'Online' : healthLoading ? 'Loading' : 'Unavailable'}
@@ -144,13 +148,13 @@ export default function Dashboard() {
 
       {/* Summary stat row */}
       {dataLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="fh-stat-grid grid-cols-1 sm:grid-cols-3">
           <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="fh-stat-grid grid-cols-1 sm:grid-cols-3">
           <StatCard label="Total Products" value={totalProducts !== null ? String(totalProducts) : '-'} sub="across connected channels" />
           <StatCard label="Active Sources" value={String(activeSources.length)} sub={activeSources.length === 1 ? '1 connected' : `${activeSources.length} configured`} />
           <StatCard label="Last Preview" value={lastSync ? relTime(lastSync) : '-'} />
@@ -161,15 +165,15 @@ export default function Dashboard() {
         {/* Sources */}
         <div className="fh-card">
           <div className="fh-panel-header">
-            <p className="text-[13px] font-semibold text-text-base">Sources</p>
+            <p className="text-[16px] font-semibold text-text-base">Sources</p>
             <button
               onClick={() => navigate('/sources/new')}
-              className="text-[12px] text-accent font-medium hover:text-accent-hover"
+              className="text-[13px] text-accent font-medium hover:text-accent-hover"
             >
               + Add Source
             </button>
           </div>
-          <div className="px-[22px] py-3">
+          <div className="fh-panel-body !py-3">
             {dataLoading ? (
               <SkeletonCard />
             ) : sourceList.length === 0 ? (
@@ -199,15 +203,15 @@ export default function Dashboard() {
         {/* Recent Activity */}
         <div className="fh-card">
           <div className="fh-panel-header">
-            <p className="text-[13px] font-semibold text-text-base">Recent Activity</p>
+            <p className="text-[16px] font-semibold text-text-base">Recent Activity</p>
             <button
               onClick={() => navigate('/activity')}
-              className="text-[12px] text-accent font-medium hover:text-accent-hover"
+              className="text-[13px] text-accent font-medium hover:text-accent-hover"
             >
               View all
             </button>
           </div>
-          <div className="px-[22px]">
+          <div className="fh-panel-body !pt-0">
             {dataLoading ? (
               <div className="py-3">
                 <SkeletonCard />

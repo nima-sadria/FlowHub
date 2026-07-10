@@ -25,12 +25,12 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
   const linkCls = ({ isActive }: { isActive: boolean }) =>
     [
-      'flex items-center gap-3 rounded-lg px-3.5 py-3 text-[15px] font-extrabold tracking-normal transition-colors mb-1.5',
-      'md:px-3 md:py-2.5 md:text-[13px] md:font-medium',
+      'fh-menu-item group mb-1.5 px-3.5 py-3 text-[15px] font-semibold',
+      'md:px-3 md:py-2.5 md:text-[14px]',
       collapsed ? 'md:justify-center md:px-0' : '',
       isActive
-        ? 'bg-fh-mist-100 text-accent'
-        : 'text-wp-muted hover:text-text-base hover:bg-bg-base',
+        ? 'fh-menu-item-active text-accent'
+        : 'text-wp-muted',
     ].join(' ')
 
   function handleLogout() {
@@ -50,11 +50,11 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
       <aside
         className={[
-          'flex flex-col bg-bg-card border-e border-border h-screen flex-shrink-0',
+          'flex flex-col bg-bg-card border-e border-border h-screen flex-shrink-0 shadow-sm',
           'fixed md:sticky top-0 inset-y-0 start-0 z-30',
-          'transition-all duration-200 ease-in-out',
+          'transition-all duration-300 ease-in-out',
           open ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full md:!translate-x-0',
-          collapsed ? 'w-[320px] max-w-[86vw] md:w-[58px]' : 'w-[320px] max-w-[86vw] md:w-60',
+          collapsed ? 'w-[290px] max-w-[86vw] md:w-[90px]' : 'w-[290px] max-w-[86vw] md:w-[290px]',
         ].join(' ')}
       >
         {/* Brand */}
@@ -85,8 +85,8 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
           </div>
 
           <div className={[collapsed ? 'md:hidden' : '', 'flex-1 min-w-0'].join(' ')}>
-            <div className="font-extrabold md:font-semibold text-[16px] md:text-sm text-text-base leading-tight">FlowHub</div>
-            <div className="mt-0.5 text-[12px] md:text-[11px] font-bold md:font-normal text-wp-muted">Admin</div>
+            <div className="font-semibold text-[18px] md:text-[16px] text-text-base leading-tight">FlowHub</div>
+            <div className="mt-0.5 text-[12px] md:text-[12px] font-medium text-wp-muted">Control Center</div>
           </div>
 
           {/* Collapse button - desktop only */}
@@ -111,14 +111,14 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-4 py-5 md:px-3 md:py-4 overflow-y-auto">
-          <p className={[collapsed ? 'md:hidden' : '', 'px-2 mb-4 text-[12px] md:text-[10px] font-bold md:font-semibold uppercase tracking-[0.08em] text-wp-muted select-none'].join(' ')}>
-            FlowHub
+        <nav className="flex-1 px-4 py-5 md:px-4 md:py-6 overflow-y-auto no-scrollbar">
+          <p className={[collapsed ? 'md:hidden' : '', 'px-2 mb-4 text-[12px] md:text-[11px] font-semibold uppercase tracking-[0.08em] text-wp-muted select-none'].join(' ')}>
+            Main
           </p>
 
           {hasPerm('can_access_site') && (
             <NavLink to="/home" className={linkCls} onClick={onClose}>
-              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="currentColor">
+              <svg viewBox="0 0 24 24" className="fh-menu-item-icon w-[18px] h-[18px] flex-shrink-0" fill="currentColor">
                 <rect x="3" y="3" width="7" height="7" rx="1" />
                 <rect x="14" y="3" width="7" height="7" rx="1" />
                 <rect x="3" y="14" width="7" height="7" rx="1" />
@@ -130,7 +130,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
           {hasPerm('can_fetch') && (
             <NavLink to="/products" className={linkCls} onClick={onClose}>
-              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="fh-menu-item-icon w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="3" width="20" height="14" rx="2" />
                 <path d="M8 21h8M12 17v4" />
               </svg>
@@ -140,7 +140,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
           {hasPerm('can_access_site') && (
             <NavLink to="/commerce" className={linkCls} onClick={onClose}>
-              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="fh-menu-item-icon w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 7h18" />
                 <path d="M5 7l1 12h12l1-12" />
                 <path d="M9 7a3 3 0 0 1 6 0" />
@@ -151,7 +151,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
           {hasPerm('can_fetch') && (
             <NavLink to="/workspace" className={linkCls} onClick={onClose}>
-              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="fh-menu-item-icon w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M23 4v6h-6" />
                 <path d="M1 20v-6h6" />
                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -162,7 +162,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
           {hasPerm('can_view_logs') && (
             <NavLink to="/activity" className={linkCls} onClick={onClose}>
-              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="fh-menu-item-icon w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
                 <line x1="16" y1="13" x2="8" y2="13" />
@@ -174,7 +174,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
           {hasPerm('can_view_settings') && (
             <NavLink to="/diagnostics" className={linkCls} onClick={onClose}>
-              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="fh-menu-item-icon w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
               </svg>
               <span className={collapsed ? 'md:hidden' : ''}>Diagnostics</span>
@@ -183,7 +183,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
           {hasPerm('can_view_settings') && (
             <NavLink to="/settings" className={linkCls} onClick={onClose}>
-              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" className="fh-menu-item-icon w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3" />
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </svg>
@@ -193,20 +193,20 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border p-4 md:p-3 flex-shrink-0 flex flex-col gap-3 md:gap-2">
+        <div className="border-t border-border p-4 md:p-4 flex-shrink-0 flex flex-col gap-3 md:gap-3">
           <div
             className={[
               'flex items-center gap-2.5',
               collapsed ? 'md:justify-center' : '',
             ].join(' ')}
           >
-            <div className="w-10 h-10 md:w-8 md:h-8 rounded-full bg-accent flex items-center justify-center text-white text-[13px] md:text-xs font-extrabold md:font-semibold flex-shrink-0 select-none shadow-sm">
+            <div className="w-10 h-10 md:w-10 md:h-10 rounded-full bg-accent flex items-center justify-center text-white text-[13px] md:text-[13px] font-semibold flex-shrink-0 select-none shadow-sm">
               {user ? initials(user.username) : '?'}
             </div>
             {user && (
               <div className={[collapsed ? 'md:hidden' : '', 'flex-1 min-w-0'].join(' ')}>
-                <div className="text-[14px] md:text-[13px] font-extrabold md:font-medium text-text-base truncate">{user.username}</div>
-                <div className="text-[12px] md:text-[11px] font-bold md:font-normal text-wp-muted">{user.role}</div>
+                <div className="text-[14px] md:text-[14px] font-medium text-text-base truncate">{user.username}</div>
+                <div className="text-[12px] md:text-[12px] font-medium text-wp-muted">{user.role}</div>
               </div>
             )}
           </div>
@@ -215,7 +215,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             onClick={handleLogout}
             title="Sign out"
             className={[
-              'flex items-center gap-2 rounded-lg px-2 py-2 md:py-1.5 text-[13px] font-bold md:font-medium border shadow-sm',
+              'flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium border shadow-sm',
               'border-wp-red/20 text-wp-red bg-bg-card hover:bg-wp-red/5 transition-colors',
               collapsed ? 'md:justify-center w-full' : 'w-full',
             ].join(' ')}

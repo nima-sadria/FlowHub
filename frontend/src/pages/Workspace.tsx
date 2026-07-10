@@ -64,7 +64,7 @@ type Phase = 'idle' | 'previewing' | 'preview_ready' | 'dry_running' | 'dry_run_
 function StepPill({ label, active, done }: { label: string; active: boolean; done: boolean }) {
   return (
     <span className={[
-      'px-2.5 py-1 rounded-md text-[11px] font-semibold border',
+      'px-3 py-1.5 rounded-lg text-[11px] font-semibold border',
       active ? 'bg-wp-yellow/10 text-wp-yellow border-wp-yellow/30' : done ? 'bg-wp-green/10 text-wp-green border-wp-green/30' : 'text-wp-muted border-border',
     ].join(' ')}>
       {label}
@@ -231,6 +231,7 @@ export default function Workspace() {
   const [preview, setPreview] = useState<WorkspacePreview | null>(null)
   const [batch, setBatch] = useState<WritePipelineBatch | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [cacheEmptyError, setCacheEmptyError] = useState(false)
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
 
   // Check if both product and source connectors are configured.
@@ -254,6 +255,7 @@ export default function Workspace() {
   const startPreview = useCallback(async () => {
     setPhase('previewing')
     setErrorMsg(null)
+    setCacheEmptyError(false)
     try {
       const p = await workspace.startPreview('')
       setPreview(p)
@@ -262,7 +264,9 @@ export default function Workspace() {
       setPhase('preview_ready')
       info(`Preview ready - ${p.totalChanges} product${p.totalChanges !== 1 ? 's' : ''} with pending price changes`)
     } catch (e) {
-      setErrorMsg(workspaceErrorMessage(e, 'Failed to start preview'))
+      const message = workspaceErrorMessage(e, 'Failed to start preview')
+      setErrorMsg(message)
+      setCacheEmptyError(message.includes('WooCommerce product cache is empty'))
       setPhase('error')
     }
   }, [workspace, info])
@@ -337,9 +341,11 @@ export default function Workspace() {
 
   return (
     <PageShell>
-      <div>
+      <div className="fh-page-header">
+        <div>
         <h1 className="fh-page-title">Workspace</h1>
         <p className="fh-page-subtitle">Preview price changes from your sources</p>
+        </div>
       </div>
 
       {/* Config loading */}
@@ -374,8 +380,8 @@ export default function Workspace() {
       {!configLoading && bothConfigured && phase === 'idle' && (
         <div className="fh-card fh-card-pad flex flex-col gap-5">
           <div>
-            <p className="text-[13px] text-text-base font-medium mb-1">Ready</p>
-            <p className="text-[12px] text-wp-muted">
+            <p className="fh-section-title">Ready</p>
+            <p className="fh-section-subtitle mt-1">
               FlowHub will fetch products from the connected channel and compare them against the
               configured source data. No changes will be applied.
             </p>
@@ -410,15 +416,18 @@ export default function Workspace() {
         <>
           <WorkflowSteps phase={phase} />
 
-          <div className="fh-card fh-card-pad">
-            <p className="fh-section-label mb-3">Workflow guardrails</p>
+          <div className="fh-form-section">
+            <div>
+              <p className="fh-section-label">Workflow Guardrails</p>
+              <p className="fh-form-section-description">The underlying workflow is unchanged. These surfaces are normalized for readability only.</p>
+            </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4 text-[12px] text-wp-muted">
               <p>Stock will not be changed.</p>
               <p>Automatic apply is disabled.</p>
               <p>Only approved batches can be applied.</p>
               <p>Other channels are read-only/unavailable for this workflow.</p>
             </div>
-            <div className="mt-3 pt-3 border-t border-border grid gap-2 sm:grid-cols-2 xl:grid-cols-4 text-[12px] text-wp-muted">
+            <div className="grid gap-2 border-t border-border pt-4 sm:grid-cols-2 xl:grid-cols-4 text-[12px] text-wp-muted">
               <p>Simple and variation WooCommerce price updates are supported.</p>
               <p>Variation rows require cached parent product metadata.</p>
               <p>Stock updates are not supported.</p>
@@ -441,7 +450,7 @@ export default function Workspace() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+          <div className="fh-stat-grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
             {[
               ['Rows', preview.summary.total_rows],
               ['Valid', preview.summary.valid_changes],
@@ -460,10 +469,10 @@ export default function Workspace() {
           </div>
 
           {batch && (
-            <div className="fh-card fh-card-pad flex flex-col gap-3">
+            <div className="fh-card fh-card-pad flex flex-col gap-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[13px] font-semibold text-text-base">
+                  <p className="fh-section-title text-[16px]">
                     {phase === 'dry_run_ready' && 'Dry Run ready'}
                     {phase === 'approved' && 'Approved'}
                     {phase === 'result' && 'Result'}
@@ -537,12 +546,13 @@ export default function Workspace() {
                       </div>
                     ))}
                   </div>
-                  <div className="overflow-x-auto border border-border rounded-card">
-                    <table className="w-full text-[13px]">
+                  <div className="fh-table-wrapper">
+                    <div className="overflow-x-auto">
+                    <table className="fh-table fh-table-compact min-w-[720px] text-[13px]">
                       <thead>
-                        <tr className="border-b border-border bg-bg-base">
+                        <tr>
                           {['Product', 'Old Price', 'New Price', 'Status', 'Result'].map(h => (
-                            <th key={h} className="px-4 py-2.5 text-start text-[11px] font-semibold text-wp-muted uppercase tracking-wide">{h}</th>
+                            <th key={h}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -550,6 +560,7 @@ export default function Workspace() {
                         {batch.items.map(item => <ResultItemRow key={item.id ?? item.productId} item={item} />)}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 </div>
               )}
@@ -570,9 +581,12 @@ export default function Workspace() {
 
           <div className="fh-card overflow-hidden">
             <div className="fh-panel-header">
-              <span className="text-[13px] font-semibold text-text-base">
+              <div>
+                <span className="text-[16px] font-semibold text-text-base">
                 Preview - {preview.summary.total_rows} source rows
-              </span>
+                </span>
+                <p className="text-[12px] text-wp-muted mt-1">Dense validation rows remain scrollable, but now use the shared table surface and spacing.</p>
+              </div>
               <div className="flex flex-wrap items-center gap-3 text-[11px] text-wp-muted">
                 <span className="font-mono">Source: {preview.sourceName}</span>
                 <button type="button" onClick={() => setSelectedRowIds(new Set(eligibleRows.map(row => row.id)))} className="fh-button-secondary px-2 py-1">
@@ -584,7 +598,7 @@ export default function Workspace() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 px-4 py-3 border-b border-border text-[12px]">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 px-4 py-3 border-b border-border bg-bg-subtle text-[12px]">
               <span>Selected: <strong>{selectedRowIds.size}</strong></span>
               <span>Eligible: <strong>{eligibleRows.length}</strong></span>
               <span>Blocked: <strong>{blockedRows}</strong></span>
@@ -593,11 +607,11 @@ export default function Workspace() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-[13px]">
+              <table className="fh-table fh-table-compact min-w-[1120px] text-[13px]">
                 <thead>
-                  <tr className="border-b border-border bg-bg-base">
+                  <tr>
                     {['Select', 'Product', 'Current Price', 'New Price', 'Change', 'Current Stock', 'Source Stock', 'Stock Change', 'Status', 'Validation'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-start text-[11px] font-semibold text-wp-muted uppercase tracking-wide">{h}</th>
+                      <th key={h}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -611,7 +625,7 @@ export default function Workspace() {
               </table>
             </div>
 
-            <div className="px-[22px] py-4 border-t border-border flex items-center justify-between">
+            <div className="fh-panel-footer !justify-between">
               <div className="flex items-center gap-2 text-[12px] text-wp-muted">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
                   <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
@@ -655,6 +669,15 @@ export default function Workspace() {
           >
             Try again
           </button>
+          {cacheEmptyError && (
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/commerce?tab=channels' }}
+              className="fh-button-secondary self-start"
+            >
+              {'Go to Commerce Hub \u2192 Channels and refresh the WooCommerce product cache.'}
+            </button>
+          )}
         </div>
       )}
     </PageShell>

@@ -39,11 +39,13 @@ function Section({ title, description, children }: {
 }) {
   return (
     <div className="fh-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-border">
-        <p className="text-[14px] font-semibold text-text-base">{title}</p>
-        {description && <p className="text-[12px] text-wp-muted mt-0.5">{description}</p>}
+      <div className="fh-panel-header !min-h-0 !items-start !py-5">
+        <div>
+          <p className="text-[16px] font-semibold text-text-base">{title}</p>
+          {description && <p className="text-[13px] text-wp-muted mt-1">{description}</p>}
+        </div>
       </div>
-      <div className="px-5 py-5 flex flex-col gap-4">{children}</div>
+      <div className="fh-panel-body flex flex-col gap-4">{children}</div>
     </div>
   )
 }
@@ -163,13 +165,13 @@ export default function Settings() {
 
   return (
     <PageShell>
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">Settings</h1>
           <p className="fh-page-subtitle">Application settings</p>
         </div>
         {dirty && (
-          <div className="flex items-center gap-2">
+          <div className="fh-actions">
             <button
               onClick={() => { setDraft(appSettings); setDirty(false) }}
               className="fh-button-secondary"

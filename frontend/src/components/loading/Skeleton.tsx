@@ -3,7 +3,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ className = '' }: SkeletonProps) {
-  return <div className={['bg-border/40 animate-pulse rounded', className].join(' ')} />
+  return <div className={['animate-pulse rounded-lg bg-bg-subtle border border-border/50', className].join(' ')} />
 }
 
 export function SkeletonText({ lines = 3 }: { lines?: number }) {

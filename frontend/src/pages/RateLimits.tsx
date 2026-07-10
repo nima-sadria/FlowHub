@@ -102,7 +102,7 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
   }
 
   const actions = dirty && (
-    <div className="flex items-center gap-2">
+    <div className="fh-actions">
       <button
         onClick={() => {
           if (!current) return
@@ -161,7 +161,7 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
   if (embedded) {
     return (
       <section id="rate-limits" className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="fh-page-header">
           <div>
             <h2 className="text-[16px] font-semibold text-text-base">Global API Rate Limits</h2>
             <p className="text-[12px] text-wp-muted mt-0.5">Inherited by every Source and Channel</p>
@@ -175,7 +175,7 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <PageShell>
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">Global API Rate Limits</h1>
           <p className="fh-page-subtitle">Inherited by every Source and Channel</p>

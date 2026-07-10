@@ -52,19 +52,19 @@ export default function Login() {
 
   return (
     <div className="fh-login-shell min-h-screen flex items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-sm">
-        <div className="mb-7 text-center">
+      <div className="w-full max-w-[420px]">
+        <div className="mb-8 text-center">
           <img
             src="/static/logos/FlowHub.webp"
             alt="FlowHub"
-            className="mx-auto mb-5 h-auto w-[220px] max-w-full object-contain sm:w-[310px]"
+            className="mx-auto mb-6 h-auto w-[220px] max-w-full object-contain sm:w-[310px]"
           />
         </div>
 
-        <div className="fh-login-card rounded-card p-8">
-          <div className="mb-7 text-center">
-            <h1 className="text-[24px] font-semibold text-text-base">FlowHub</h1>
-            <p className="text-[13px] text-wp-muted mt-1">Sign in to FlowHub</p>
+        <div className="fh-login-card rounded-card p-8 sm:p-10">
+          <div className="mb-8 text-center">
+            <h1 className="text-[28px] leading-9 font-semibold text-text-base">FlowHub</h1>
+            <p className="text-[14px] text-wp-muted mt-1">Sign in to FlowHub</p>
           </div>
 
           {error && (

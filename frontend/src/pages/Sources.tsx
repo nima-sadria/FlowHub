@@ -5,6 +5,7 @@ import type { Source } from '../services/types'
 import { SkeletonCard } from '../components/loading/Skeleton'
 import Empty from '../components/Empty'
 import { useNotification } from '../notifications/NotificationProvider'
+import PageShell from '../components/PageShell'
 
 function relTime(d: Date | null): string {
   if (!d) return '-'
@@ -78,8 +79,8 @@ export default function Sources() {
   }, [sources])
 
   return (
-    <div className="fh-page max-w-2xl">
-      <div className="flex items-start justify-between gap-4">
+    <PageShell>
+      <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">Sources</h1>
           <p className="fh-page-subtitle">Data sources for price synchronisation</p>
@@ -113,6 +114,6 @@ export default function Sources() {
           {items.map(s => <SourceCard key={s.id} source={s} />)}
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

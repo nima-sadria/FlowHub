@@ -118,7 +118,7 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
         <span className="text-[12px] font-medium text-text-base">{source.type}</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12px]">
+      <div className="fh-form-grid sm:grid-cols-2 text-[12px]">
         <p><span className="text-wp-muted">Credential status: </span><span className="font-medium text-text-base">{prettyStatus(source.credential_status)}</span></p>
         <p><span className="text-wp-muted">Last health check: </span><span className="font-medium text-text-base">{source.last_health_check ? new Date(source.last_health_check).toLocaleString() : 'Not checked'}</span></p>
         <p><span className="text-wp-muted">Health: </span><span className="font-medium text-text-base">{prettyStatus(source.health?.status ?? 'unknown')}</span></p>
@@ -168,12 +168,16 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
   )
 }
 
-function ChannelCard({ channel, onTest, testing, canManage }: {
+function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refreshing, canManage }: {
   channel: CommerceChannel
   onTest: (channelId: string) => void
+  onRefresh: (channelId: string) => void
+  onConfigure: (channelId: string) => void
   testing: boolean
+  refreshing: boolean
   canManage: boolean
 }) {
+  const isWooCommerce = channel.provider === 'woocommerce' && !channel.placeholder
   return (
     <div className="fh-card fh-card-pad flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
@@ -190,24 +194,54 @@ function ChannelCard({ channel, onTest, testing, canManage }: {
         <span className="text-[12px] font-medium text-text-base">{channel.type}</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12px]">
+      <div className="fh-form-grid sm:grid-cols-2 text-[12px]">
         <p><span className="text-wp-muted">Credential status: </span><span className="font-medium text-text-base">{prettyStatus(channel.credential_status)}</span></p>
         <p><span className="text-wp-muted">Last health check: </span><span className="font-medium text-text-base">{channel.last_health_check ? new Date(channel.last_health_check).toLocaleString() : 'Not checked'}</span></p>
         <p><span className="text-wp-muted">Health: </span><span className="font-medium text-text-base">{prettyStatus(channel.health?.status ?? 'unknown')}</span></p>
         <p><span className="text-wp-muted">Capabilities: </span><span className="font-medium text-text-base">{channel.capabilities_summary.join(', ')}</span></p>
+        {isWooCommerce && (
+          <>
+            <p><span className="text-wp-muted">Cached products: </span><span className="font-medium text-text-base">{channel.cached_products}</span></p>
+            <p><span className="text-wp-muted">Cached variations: </span><span className="font-medium text-text-base">{channel.cached_variations}</span></p>
+            <p><span className="text-wp-muted">Last cache refresh: </span><span className="font-medium text-text-base">{channel.last_cache_refresh ? new Date(channel.last_cache_refresh).toLocaleString() : 'Not refreshed'}</span></p>
+            <p><span className="text-wp-muted">Refresh status: </span><span className="font-medium text-text-base">{prettyStatus(channel.cache_refresh_status)}</span></p>
+          </>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-3">
         <SafetyBadges readOnly={channel.read_only} writeBlocked={channel.write_blocked} />
         {canManage && (
-          <button
-            onClick={() => onTest(channel.id)}
-            disabled={testing}
-            className="fh-button-secondary px-3 py-1.5 text-[12px]"
-          >
-            {testing && <Spinner size="sm" />}
-            {testing ? 'Testing' : 'Test connection'}
-          </button>
+          <div className="flex flex-wrap gap-2 justify-end">
+            {isWooCommerce && (
+              <button
+                type="button"
+                onClick={() => onConfigure(channel.id)}
+                disabled={testing || refreshing}
+                className="fh-button-secondary px-3 py-1.5 text-[12px]"
+              >
+                Settings
+              </button>
+            )}
+            <button
+              onClick={() => onTest(channel.id)}
+              disabled={testing || refreshing}
+              className="fh-button-secondary px-3 py-1.5 text-[12px]"
+            >
+              {testing && <Spinner size="sm" />}
+              {testing ? 'Testing' : 'Test connection'}
+            </button>
+            {isWooCommerce && (
+              <button
+                onClick={() => onRefresh(channel.id)}
+                disabled={testing || refreshing}
+                className="fh-button-secondary px-3 py-1.5 text-[12px]"
+              >
+                {refreshing && <Spinner size="sm" />}
+                {refreshing ? 'Refreshing' : 'Refresh product cache'}
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -515,13 +549,13 @@ function ConfigPanel({
   }
 
   return (
-    <form onSubmit={event => void submit(event)} className="fh-card fh-card-pad flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
+    <form onSubmit={event => void submit(event)} className="fh-card overflow-hidden">
+      <div className="fh-panel-header !items-start">
         <div>
-          <h3 className="text-[16px] font-semibold text-text-base">
+          <h3 className="text-[18px] font-semibold text-text-base">
             {kind === 'source' ? 'Add Source' : 'Add Channel'}
           </h3>
-          <p className="text-[12px] text-wp-muted mt-1">
+          <p className="text-[13px] text-wp-muted mt-1">
             Configuration is local to FlowHub and remains read-only.
           </p>
         </div>
@@ -530,29 +564,35 @@ function ConfigPanel({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <label className="flex flex-col gap-1 text-[12px] text-wp-muted">
-          {kind === 'source' ? 'Source type' : 'Channel type'}
+      <div className="fh-panel-body fh-stack">
+      <div className="fh-form-section">
+        <div>
+          <p className="fh-form-section-title">General</p>
+          <p className="fh-form-section-description">Define the connector type, display name, and local FlowHub state.</p>
+        </div>
+        <div className="fh-form-grid md:grid-cols-2">
+        <label className="fh-field">
+          <span className="fh-help-text">{kind === 'source' ? 'Source type' : 'Channel type'}</span>
           <select
             value={selected.id}
             onChange={event => setSelectedId(event.target.value)}
-            className="fh-input"
+            className="fh-select"
           >
             {types.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-[12px] text-wp-muted">
-          Display name
+        <label className="fh-field">
+          <span className="fh-help-text">Display name</span>
           <input value={displayName} onChange={event => setDisplayName(event.target.value)} className="fh-input" />
         </label>
-        <label className="flex flex-col gap-1 text-[12px] text-wp-muted md:col-span-2">
-          Description optional
+        <label className="fh-field md:col-span-2">
+          <span className="fh-help-text">Description optional</span>
           <input value={description} onChange={event => setDescription(event.target.value)} className="fh-input" />
         </label>
-      </div>
+        </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="inline-flex items-center gap-2 text-[13px] text-text-base">
+        <div className="fh-actions">
+        <label className="fh-inline-check">
           <input
             type="checkbox"
             checked={enabled && !selected.placeholder}
@@ -568,14 +608,20 @@ function ConfigPanel({
           </span>
         )}
         {selected.placeholder && <span className="fh-badge fh-badge-neutral">Not configured</span>}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="fh-form-section">
+        <div>
+          <p className="fh-form-section-title">Connection Settings</p>
+          <p className="fh-form-section-description">Labels, help text, and validation states are normalized here without changing the underlying validation rules.</p>
+        </div>
+      <div className="fh-form-grid md:grid-cols-2">
         {selected.settings_schema
           .filter(field => !(kind === 'source' && selected.provider === 'nextcloud' && field.key === 'spreadsheet_path'))
           .map(field => (
-          <label key={field.key} className="flex flex-col gap-1 text-[12px] text-wp-muted">
-            {fieldLabel(kind, selected.provider, field.key, field.label)}
+          <label key={field.key} className="fh-field">
+            <span className="fh-help-text">{fieldLabel(kind, selected.provider, field.key, field.label)}</span>
             <input
               type={field.secret ? 'password' : 'text'}
               value={field.secret ? secrets[field.key] ?? '' : settings[field.key] ?? ''}
@@ -595,20 +641,21 @@ function ConfigPanel({
               autoComplete="off"
             />
             {selected.provider === 'nextcloud' && field.key === 'url' && nextcloudUrlError && (
-              <span className="text-[12px] text-wp-red">{nextcloudUrlError}</span>
+              <span className="fh-field-error">{nextcloudUrlError}</span>
             )}
           </label>
         ))}
       </div>
+      </div>
 
       {kind === 'source' && selected.provider === 'nextcloud' && (
-        <div className="flex flex-col gap-4">
-          <div className="rounded-lg border border-border bg-bg-base px-3 py-3">
+        <div className="fh-stack">
+          <div className="fh-form-section">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-medium text-text-base">Nextcloud spreadsheet file</p>
-                <p className="text-[12px] text-wp-muted">Use WebDAV with your app password. Public share links are not required.</p>
-                <p className="mt-2 text-[12px] text-wp-muted">Selected file</p>
+                <p className="fh-form-section-title">Nextcloud spreadsheet file</p>
+                <p className="fh-form-section-description">Use WebDAV with your app password. Public share links are not required.</p>
+                <p className="mt-3 fh-help-text">Selected file</p>
                 <div className="mt-1 min-h-10 rounded-md border border-border bg-bg-subtle px-3 py-2 text-[13px] text-text-base">
                   {settings.spreadsheet_path || 'No spreadsheet file selected'}
                 </div>
@@ -623,13 +670,15 @@ function ConfigPanel({
             </div>
           </div>
 
-          <div className="rounded-lg border border-border bg-bg-base px-3 py-3">
-            <p className="text-[13px] font-medium text-text-base">Column Mapping</p>
-            <p className="text-[12px] text-wp-muted mt-1">Enabled fields require a spreadsheet column letter or header name.</p>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
+          <div className="fh-form-section">
+            <div>
+              <p className="fh-form-section-title">Column Mapping</p>
+              <p className="fh-form-section-description">Enabled fields require a spreadsheet column letter or header name.</p>
+            </div>
+            <div className="fh-form-grid md:grid-cols-3">
               {(['id', 'price', 'stock'] as const).map(field => (
                 <div key={field} className="rounded-md border border-border bg-bg-subtle p-3">
-                  <label className="inline-flex items-center gap-2 text-[13px] text-text-base capitalize">
+                  <label className="fh-inline-check capitalize">
                     <input
                       type="checkbox"
                       checked={sourceMapping[field].enabled}
@@ -637,8 +686,8 @@ function ConfigPanel({
                     />
                     {field === 'id' ? 'Product ID' : field}
                   </label>
-                  <label className="mt-2 flex flex-col gap-1 text-[12px] text-wp-muted">
-                    Column
+                  <label className="fh-field mt-2">
+                    <span className="fh-help-text">Column</span>
                     <input
                       value={sourceMapping[field].column}
                       onChange={event => updateMappingField(field, { column: event.target.value })}
@@ -651,11 +700,14 @@ function ConfigPanel({
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-lg border border-border bg-bg-base px-3 py-3">
-              <p className="text-[13px] font-medium text-text-base">Worksheet</p>
-              <div className="mt-3 flex flex-col gap-2 text-[13px] text-text-base">
-                <label className="inline-flex items-center gap-2">
+          <div className="fh-form-grid md:grid-cols-2">
+            <div className="fh-form-section">
+              <div>
+                <p className="fh-form-section-title">Worksheet</p>
+                <p className="fh-form-section-description">Choose whether FlowHub should read every worksheet or a single named worksheet.</p>
+              </div>
+              <div className="flex flex-col gap-2 text-[13px] text-text-base">
+                <label className="fh-inline-check">
                   <input
                     type="radio"
                     name="worksheet_mode"
@@ -664,7 +716,7 @@ function ConfigPanel({
                   />
                   All worksheets
                 </label>
-                <label className="inline-flex items-center gap-2">
+                <label className="fh-inline-check">
                   <input
                     type="radio"
                     name="worksheet_mode"
@@ -673,8 +725,8 @@ function ConfigPanel({
                   />
                   Selected worksheet
                 </label>
-                <label className="flex flex-col gap-1 text-[12px] text-wp-muted">
-                  Worksheet name
+                <label className="fh-field">
+                  <span className="fh-help-text">Worksheet name</span>
                   <input
                     value={worksheetName}
                     onChange={event => setWorksheetName(event.target.value)}
@@ -685,10 +737,13 @@ function ConfigPanel({
               </div>
             </div>
 
-            <div className="rounded-lg border border-border bg-bg-base px-3 py-3">
-              <p className="text-[13px] font-medium text-text-base">Read Policy</p>
-              <div className="mt-3 flex flex-col gap-3">
-                <label className="inline-flex items-center gap-2 text-[13px] text-text-base">
+            <div className="fh-form-section">
+              <div>
+                <p className="fh-form-section-title">Read Policy</p>
+                <p className="fh-form-section-description">These controls only affect source read policy presentation and action placement.</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                <label className="fh-inline-check">
                   <input
                     type="checkbox"
                     checked={readPolicy.enabled}
@@ -696,7 +751,7 @@ function ConfigPanel({
                   />
                   Limit source reads
                 </label>
-                <label className="inline-flex items-center gap-2 text-[13px] text-text-base">
+                <label className="fh-inline-check">
                   <input
                     type="checkbox"
                     checked={readPolicy.manual_read_allowed}
@@ -704,8 +759,8 @@ function ConfigPanel({
                   />
                   Manual Read now allowed
                 </label>
-                <label className="flex flex-col gap-1 text-[12px] text-wp-muted">
-                  Max reads per 24 hours
+                <label className="fh-field">
+                  <span className="fh-help-text">Max reads per 24 hours</span>
                   <input
                     type="number"
                     min={1}
@@ -724,7 +779,7 @@ function ConfigPanel({
         </div>
       )}
 
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="fh-panel-footer">
         <button type="button" onClick={() => void testConnection()} disabled={testing} className="fh-button-secondary px-4">
           {testing && <Spinner size="sm" />}
           {testing ? 'Testing' : 'Test connection'}
@@ -733,6 +788,7 @@ function ConfigPanel({
           {saving && <Spinner size="sm" />}
           {saving ? 'Saving' : 'Save configuration'}
         </button>
+      </div>
       </div>
       {pickerOpen && (
         <NextcloudFilePicker
@@ -762,6 +818,7 @@ export default function CommerceHub() {
   const [loading, setLoading] = useState(true)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [readingId, setReadingId] = useState<string | null>(null)
+  const [refreshingId, setRefreshingId] = useState<string | null>(null)
   const [formKind, setFormKind] = useState<FormKind | null>(null)
   const canManageCommerce = user?.is_admin === true
 
@@ -832,6 +889,27 @@ export default function CommerceHub() {
     }
   }
 
+  async function handleChannelCacheRefresh(channelId: string) {
+    if (!canManageCommerce) {
+      notifyError('Admin permission required.')
+      return
+    }
+    setRefreshingId(channelId)
+    try {
+      const result = await commerce.refreshChannelCache(channelId)
+      if (result.ok) {
+        info('WooCommerce product cache updated. Workspace Preview is now available.')
+      } else {
+        notifyError(result.errors[0] || 'Unable to refresh WooCommerce product cache')
+      }
+      await loadCommerce()
+    } catch (error) {
+      notifyError(apiErrorMessage(error, 'Unable to refresh WooCommerce product cache'))
+    } finally {
+      setRefreshingId(null)
+    }
+  }
+
   async function handleSourceRead(sourceId: string) {
     if (!canManageCommerce) {
       notifyError('Admin permission required.')
@@ -863,6 +941,16 @@ export default function CommerceHub() {
     setFormKind('source')
   }
 
+  function handleChannelConfigure(_channelId: string) {
+    if (!canManageCommerce) {
+      notifyError('Admin permission required.')
+      return
+    }
+    setTab('channels')
+    setSearchParams({ tab: 'channels' })
+    setFormKind('channel')
+  }
+
   async function reloadAfterSave() {
     await loadCommerce()
     setFormKind(null)
@@ -870,7 +958,7 @@ export default function CommerceHub() {
 
   return (
     <PageShell>
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">Commerce Hub</h1>
           <p className="fh-page-subtitle">Read-only source and channel overview</p>
@@ -880,14 +968,14 @@ export default function CommerceHub() {
 
       <RelationshipMap map={map} />
 
-      <div className="flex items-center gap-1 bg-bg-base rounded-lg p-1 border border-border w-fit">
+      <div className="fh-segmented w-fit">
         {(['sources', 'channels'] as const).map(item => (
           <button
             key={item}
             onClick={() => selectTab(item)}
             className={[
-              'px-3 py-1.5 text-[13px] font-medium rounded capitalize transition-colors',
-              tab === item ? 'bg-bg-card text-accent shadow-sm' : 'text-wp-muted hover:text-text-base',
+              'fh-segmented-button capitalize',
+              tab === item ? 'fh-segmented-button-active' : '',
             ].join(' ')}
           >
             {item === 'sources' ? 'Sources' : 'Channels'}
@@ -901,7 +989,7 @@ export default function CommerceHub() {
         </div>
       ) : tab === 'sources' ? (
         <section>
-          <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="fh-page-toolbar mb-4">
             <div>
               <h2 className="text-[16px] font-semibold text-text-base">Sources</h2>
               <p className="text-[12px] text-wp-muted mt-1">Input systems that feed FlowHub / Data Layer.</p>
@@ -936,7 +1024,7 @@ export default function CommerceHub() {
         </section>
       ) : (
         <section>
-          <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="fh-page-toolbar mb-4">
             <div>
               <h2 className="text-[16px] font-semibold text-text-base">Channels</h2>
               <p className="text-[12px] text-wp-muted mt-1">Commerce systems that receive catalog visibility from FlowHub.</p>
@@ -960,7 +1048,10 @@ export default function CommerceHub() {
                 key={channel.id}
                 channel={channel}
                 onTest={(id) => void handleChannelTest(id)}
+                onRefresh={(id) => void handleChannelCacheRefresh(id)}
+                onConfigure={handleChannelConfigure}
                 testing={testingId === channel.id}
+                refreshing={refreshingId === channel.id}
                 canManage={canManageCommerce}
               />
             ))}

@@ -89,7 +89,7 @@ export default function AppShell() {
   }
 
   return (
-    <div className="flex h-screen bg-bg-base overflow-hidden">
+    <div className="flex min-h-screen bg-bg-base overflow-hidden">
       <Sidebar
         open={sidebarOpen}
         collapsed={sidebarCollapsed}
@@ -104,7 +104,7 @@ export default function AppShell() {
           user={user}
           onLogout={handleLogout}
         />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto bg-bg-base">
           <Outlet />
         </main>
       </div>

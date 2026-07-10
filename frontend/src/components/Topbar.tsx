@@ -68,7 +68,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
   const healthLabel =
     health === 'ok' ? 'Connected' :
     health === 'error' ? 'Offline' :
-    '-'
+    'Checking'
 
   function handleLogout() {
     setMenuOpen(false)
@@ -76,7 +76,8 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
   }
 
   return (
-    <header className="h-[64px] md:h-[68px] bg-bg-card border-b border-border flex items-center px-4 md:px-5 gap-3 md:gap-4 flex-shrink-0">
+    <header className="sticky top-0 z-20 border-b border-border bg-bg-card/95 backdrop-blur">
+      <div className="flex min-h-[68px] items-center gap-3 px-4 py-3 md:min-h-[72px] md:px-6 md:py-4">
       {/* Hamburger - mobile only */}
       <button
         onClick={onMenuClick}
@@ -91,26 +92,29 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
       </button>
 
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-[13px] md:text-[13px] min-w-0">
-        <span className="text-wp-muted">FlowHub</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-wp-muted rtl:rotate-180">
-          <path d="m9 18 6-6-6-6" />
-        </svg>
-        <span className="font-extrabold md:font-medium text-text-base truncate">{title}</span>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 text-[12px] text-wp-muted">
+          <span>FlowHub</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-wp-muted rtl:rotate-180">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+          <span className="truncate">{title}</span>
+        </div>
+        <p className="mt-1 truncate text-[18px] font-semibold leading-7 text-text-base">{title}</p>
       </div>
 
       <div className="ms-auto flex items-center gap-3">
         {/* Health indicator */}
-        <div className="flex items-center gap-1.5 text-[12px] font-bold md:font-medium text-wp-muted">
+        <div className="hidden sm:flex items-center gap-2 rounded-full border border-border bg-bg-base px-3 py-1.5 text-[12px] font-medium text-wp-muted">
           <span className={['w-2 h-2 rounded-full flex-shrink-0', healthDot].join(' ')} />
-          <span className="hidden sm:inline">{healthLabel}</span>
+          <span>{healthLabel}</span>
         </div>
 
         {/* Dark mode toggle */}
         <button
           onClick={toggleTheme}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-xl md:rounded-lg border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
+          className="w-10 h-10 md:w-10 md:h-10 flex items-center justify-center rounded-xl border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
         >
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>
@@ -129,19 +133,19 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
               onClick={() => setMenuOpen(o => !o)}
               aria-label="User menu"
               aria-expanded={menuOpen}
-              className="w-10 h-10 md:w-9 md:h-9 rounded-full bg-accent flex items-center justify-center text-white text-xs font-extrabold md:font-semibold select-none shadow-sm hover:ring-2 hover:ring-accent/25 transition-shadow"
+              className="w-10 h-10 md:w-10 md:h-10 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold select-none shadow-sm hover:ring-2 hover:ring-accent/25 transition-shadow"
             >
               {user.username.slice(0, 2).toUpperCase()}
             </button>
 
             {menuOpen && (
-              <div className="absolute end-0 top-full mt-2 w-44 bg-bg-card border border-border rounded-card shadow-card py-1 z-50">
-                <div className="px-3 py-2 text-[12px] text-wp-muted border-b border-border truncate">
+              <div className="absolute end-0 top-full mt-2 w-52 bg-bg-card border border-border rounded-card shadow-card py-1 z-50">
+                <div className="px-3 py-3 text-[12px] text-wp-muted border-b border-border truncate">
                   {user.username}
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-wp-red hover:bg-bg-base transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-wp-red hover:bg-bg-base transition-colors"
                 >
                   {SIGNOUT_ICON}
                   Sign out
@@ -150,6 +154,7 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
             )}
           </div>
         )}
+      </div>
       </div>
     </header>
   )

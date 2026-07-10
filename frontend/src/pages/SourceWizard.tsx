@@ -5,6 +5,7 @@ import type { SourceConfig, ConnectionTestResult } from '../services/types'
 import Spinner from '../components/loading/Spinner'
 import { useNotification } from '../notifications/NotificationProvider'
 import { inputHint } from '../utils/inputHint'
+import PageShell from '../components/PageShell'
 
 type Step = 1 | 2 | 3 | 4
 
@@ -116,10 +117,12 @@ export default function SourceWizard() {
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-lg mx-auto">
-      <div className="mb-6">
-        <h1 className="fh-page-title">Add a Source</h1>
-        <p className="fh-page-subtitle">{STEP_LABELS[step - 1]}</p>
+    <PageShell className="max-w-3xl">
+      <div className="fh-page-header">
+        <div>
+          <h1 className="fh-page-title">Add a Source</h1>
+          <p className="fh-page-subtitle">{STEP_LABELS[step - 1]}</p>
+        </div>
       </div>
 
       <StepIndicator current={step} total={4} />
@@ -260,6 +263,6 @@ export default function SourceWizard() {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   )
 }

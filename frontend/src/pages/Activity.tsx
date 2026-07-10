@@ -87,19 +87,21 @@ export default function Activity() {
 
   return (
     <PageShell>
-      <div>
+      <div className="fh-page-header">
+        <div>
         <h1 className="fh-page-title">Activity</h1>
         <p className="fh-page-subtitle">System events and user actions</p>
+        </div>
       </div>
 
       <div className="fh-card">
         <div className="fh-panel-header">
-          <span className="text-[13px] font-semibold text-text-base">
+          <span className="text-[16px] font-semibold text-text-base">
             {loading ? 'Loading...' : `${total} events`}
           </span>
         </div>
 
-        <div className="px-[22px]">
+        <div className="fh-panel-body !pt-0">
           {loading ? (
             <div className="py-4 flex flex-col gap-3">
               <SkeletonCard />
@@ -113,7 +115,7 @@ export default function Activity() {
         </div>
 
         {!loading && hasMore && (
-          <div className="px-[22px] py-4 border-t border-border">
+          <div className="fh-panel-footer !justify-start">
             <button
               onClick={loadMore}
               disabled={loadingMore}

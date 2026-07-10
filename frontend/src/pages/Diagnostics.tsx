@@ -169,7 +169,7 @@ export default function Diagnostics() {
 
   return (
     <PageShell>
-      <div className="flex items-start justify-between gap-4">
+      <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">Diagnostics</h1>
           <p className="fh-page-subtitle">

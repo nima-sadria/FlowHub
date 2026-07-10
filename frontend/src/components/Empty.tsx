@@ -16,12 +16,12 @@ function DefaultIcon() {
 
 export default function Empty({ icon, title, description, action }: Props) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-      <div className="w-12 h-12 rounded-full bg-bg-base flex items-center justify-center mb-4 text-wp-muted">
+    <div className="fh-empty-state">
+      <div className="w-12 h-12 rounded-xl bg-bg-base flex items-center justify-center text-wp-muted border border-border">
         {icon ?? <DefaultIcon />}
       </div>
-      <p className="text-[15px] font-medium text-text-base mb-1">{title}</p>
-      {description && <p className="text-[13px] text-wp-muted max-w-sm mb-4">{description}</p>}
+      <p className="fh-empty-state-title">{title}</p>
+      {description && <p className="fh-empty-state-description">{description}</p>}
       {action && (
         <button
           onClick={action.onClick}
