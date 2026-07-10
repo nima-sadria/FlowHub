@@ -99,5 +99,6 @@ def test_fresh_database_still_upgrades_to_head(tmp_path, monkeypatch):
         "dl_workspace_previews",
         "dl_source_read_locks",
         "dl_source_read_reservations",
+        "flowhub_login_rate_limits",
     } <= tables
     engine.dispose()

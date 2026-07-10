@@ -162,6 +162,27 @@ def test_direct_call_audit_for_active_FLOWHUB_v2_routes():
     assert offenders == []
 
 
+def test_legacy_connector_mutations_require_admin(client, auth_headers, db):
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.auth.password import hash_password
+
+    viewer = FlowHubUser(username="integrationviewer", hashed_password=hash_password("password123"), role="viewer")
+    db.add(viewer)
+    db.commit()
+    login = client.post("/api/auth/login", json={"username": "integrationviewer", "password": "password123"})
+    viewer_headers = {"Authorization": f"Bearer {login.json()['token']}"}
+    create_body = {"connector_type": "nextcloud", "id": "nextcloud:blocked", "name": "Blocked"}
+
+    assert client.post("/api/v2/integrations/connectors", headers=viewer_headers, json=create_body).status_code == 403
+    assert client.post("/api/v2/integrations/connectors", headers=auth_headers, json=create_body).status_code == 201
+    response = client.patch(
+        "/api/v2/integrations/connectors/nextcloud:blocked/settings",
+        headers=viewer_headers,
+        json={"settings": [{"key": "url", "value": "https://cloud.example.test"}]},
+    )
+    assert response.status_code == 403
+
+
 def test_products_route_reads_data_layer_records(client, auth_headers, db):
     from app.flowhub.data_layer.product_service import ProductReadModelService
     from app.flowhub.setup.service import AppConfigService

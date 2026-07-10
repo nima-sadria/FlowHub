@@ -198,3 +198,36 @@ class TestViewerRole:
         assert me["is_admin"] is False
         assert me["permissions"].get("can_access_site") is True
         assert me["permissions"].get("can_fetch") is not True
+
+
+class TestTrustedProxyHeaders:
+    def _request(self, peer: str, forwarded: str):
+        from starlette.requests import Request
+
+        return Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "scheme": "http",
+                "path": "/api/auth/login",
+                "raw_path": b"/api/auth/login",
+                "query_string": b"",
+                "headers": [(b"x-forwarded-for", forwarded.encode())],
+                "client": (peer, 1234),
+                "server": ("testserver", 80),
+            }
+        )
+
+    def test_spoofed_forwarded_header_from_untrusted_peer_is_ignored(self, monkeypatch):
+        from app.flowhub.auth.router import _client_ip, _trusted_proxy_networks
+
+        monkeypatch.delenv("FLOWHUB_TRUSTED_PROXY_NETWORKS", raising=False)
+        _trusted_proxy_networks.cache_clear()
+        assert _client_ip(self._request("203.0.113.10", "198.51.100.44")) == "203.0.113.10"
+
+    def test_forwarded_header_from_configured_proxy_is_used(self, monkeypatch):
+        from app.flowhub.auth.router import _client_ip, _trusted_proxy_networks
+
+        monkeypatch.setenv("FLOWHUB_TRUSTED_PROXY_NETWORKS", "203.0.113.0/24")
+        _trusted_proxy_networks.cache_clear()
+        assert _client_ip(self._request("203.0.113.10", "198.51.100.44, 203.0.113.10")) == "198.51.100.44"

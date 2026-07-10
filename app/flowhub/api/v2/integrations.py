@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.dependencies import get_current_user
+from app.flowhub.auth.authorization import require_admin
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.database import get_db
 from app.flowhub.integration_platform.contracts import (
@@ -59,7 +60,7 @@ async def list_connectors(
 @router.post("/connectors", response_model=ConnectorInstanceShape, status_code=201)
 async def create_connector(
     body: ConnectorCreateRequest,
-    _: FlowHubUser = Depends(get_current_user),
+    _: FlowHubUser = Depends(require_admin),
     service: IntegrationPlatformService = Depends(_service),
 ) -> ConnectorInstanceShape:
     return service.create_instance(body)
@@ -96,7 +97,7 @@ async def get_connector_settings(
 async def update_connector_settings(
     connector_id: str,
     body: ConnectorSettingsUpdateRequest,
-    _: FlowHubUser = Depends(get_current_user),
+    _: FlowHubUser = Depends(require_admin),
     service: IntegrationPlatformService = Depends(_service),
 ) -> ConnectorInstanceShape:
     return service.update_settings(connector_id, body.settings)

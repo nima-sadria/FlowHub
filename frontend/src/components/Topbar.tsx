@@ -24,30 +24,12 @@ interface Props {
   onLogout: () => void
 }
 
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
-    </svg>
-  )
-}
-
 function MenuIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <line x1="3" y1="6" x2="21" y2="6" />
       <line x1="3" y1="12" x2="21" y2="12" />
       <line x1="3" y1="18" x2="15" y2="18" />
-    </svg>
-  )
-}
-
-function BellIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5" />
-      <path d="M10 20a2 2 0 0 0 4 0" />
     </svg>
   )
 }
@@ -118,24 +100,6 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
           </div>
         </div>
 
-        <div className="fh-topbar-search hidden xl:block">
-          <span className="fh-topbar-search-icon">
-            <SearchIcon />
-          </span>
-          <input
-            id="global-command-search"
-            name="global-command-search"
-            className="fh-input"
-            type="text"
-            placeholder="Search or type command..."
-            aria-label="Search"
-            readOnly
-          />
-          <span className="fh-topbar-shortcut" aria-hidden="true">
-            Ctrl K
-          </span>
-        </div>
-
         <div className="ms-auto flex items-center gap-2 sm:gap-3">
           <div className="hidden sm:flex">
             <Badge dot variant={healthVariant}>{healthLabel}</Badge>
@@ -146,13 +110,6 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
             label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </IconButton>
-
-          <IconButton
-            label="Notifications"
-            className="hidden sm:inline-flex"
-          >
-            <BellIcon />
           </IconButton>
 
           {user && (

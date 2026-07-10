@@ -55,3 +55,13 @@ class FlowHubLoginAudit(FlowHubBase):
     event: Mapped[str] = mapped_column(String(50), nullable=False)
     ip_address: Mapped[str] = mapped_column(String(45), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
+
+
+class FlowHubLoginRateLimit(FlowHubBase):
+    """Database-backed login attempt window shared by all application workers."""
+
+    __tablename__ = "flowhub_login_rate_limits"
+
+    ip_address: Mapped[str] = mapped_column(String(45), primary_key=True)
+    window_started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

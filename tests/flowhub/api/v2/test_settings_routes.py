@@ -80,6 +80,32 @@ def auth_headers(client, db):
     return {"Authorization": f"Bearer {r.json()['token']}"}
 
 
+@pytest.fixture()
+def viewer_headers(client, db):
+    from app.flowhub.auth.password import hash_password
+    from app.flowhub.auth.models import FlowHubUser
+
+    user = FlowHubUser(username="settingsviewer", hashed_password=hash_password("pass1234"), role="viewer")
+    db.add(user)
+    db.commit()
+    r = client.post("/api/auth/login", json={"username": "settingsviewer", "password": "pass1234"})
+    assert r.status_code == 200
+    return {"Authorization": f"Bearer {r.json()['token']}"}
+
+
+@pytest.fixture()
+def owner_headers(client, db):
+    from app.flowhub.auth.password import hash_password
+    from app.flowhub.auth.models import FlowHubUser
+
+    user = FlowHubUser(username="settingsowner", hashed_password=hash_password("pass1234"), role="owner")
+    db.add(user)
+    db.commit()
+    r = client.post("/api/auth/login", json={"username": "settingsowner", "password": "pass1234"})
+    assert r.status_code == 200
+    return {"Authorization": f"Bearer {r.json()['token']}"}
+
+
 # -- GET /api/v2/settings ------------------------------------------------------
 
 class TestGetSettings:
@@ -162,6 +188,25 @@ class TestUpdateSettings:
     def test_rejects_empty_body(self, client, auth_headers):
         r = client.post("/api/v2/settings", headers=auth_headers, json={})
         assert r.status_code == 400
+
+    @pytest.mark.parametrize(
+        ("path", "body"),
+        [
+            ("/api/v2/settings", {"timezone": "UTC"}),
+            ("/api/v2/settings/rate-limits", {"read_requests_per_minute": 60, "write_requests_per_minute": 30}),
+            ("/api/v2/settings/woocommerce", {"url": "https://store.example.com", "key": "ck_test", "secret": "cs_test"}),
+            ("/api/v2/settings/nextcloud", {"url": "https://cloud.example.com", "username": "user", "password": "app-pass", "spreadsheet_path": "/prices.xlsx"}),
+        ],
+    )
+    def test_viewer_cannot_mutate_settings(self, client, viewer_headers, path, body):
+        r = client.post(path, headers=viewer_headers, json=body)
+        assert r.status_code == 403
+
+    def test_owner_can_update_settings(self, client, owner_headers, db):
+        r = client.post("/api/v2/settings", headers=owner_headers, json={"currency": "IRR"})
+        assert r.status_code == 200
+        from app.flowhub.setup.service import AppConfigService
+        assert AppConfigService(db).get("server.currency") == "IRR"
 
 
 # -- POST /api/v2/settings/woocommerce ----------------------------------------

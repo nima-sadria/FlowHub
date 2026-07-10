@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.dependencies import get_current_user
+from app.flowhub.auth.authorization import require_admin
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.database import get_db
 from app.flowhub.integration_platform.contracts import WorkspaceIntegrationSummary, WorkspacePreviewResponse
@@ -38,7 +39,7 @@ async def get_state(
 
 @router.post("/preview", response_model=WorkspacePreviewResponse)
 async def start_preview(
-    user: FlowHubUser = Depends(get_current_user),
+    user: FlowHubUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> WorkspacePreviewResponse:
     return await WorkspacePriceWorkflowService(db).preview_from_nextcloud(user)

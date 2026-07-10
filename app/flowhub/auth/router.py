@@ -19,6 +19,9 @@ Security properties:
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
+import ipaddress
+import os
 
 _UTC = timezone.utc
 
@@ -37,7 +40,7 @@ from .dependencies import get_current_user
 from .jwt_service import create_access_token
 from .models import FlowHubUser
 from .password import verify_password
-from .rate_limiter import check_rate_limit, record_attempt
+from .rate_limiter import clear_login_attempts, consume_login_attempt
 from .refresh_token import generate_refresh_token, hash_refresh_token
 from .repository import (
     create_audit_event,
@@ -119,11 +122,35 @@ class MeResponse(BaseModel):
 
 # -- Helpers -------------------------------------------------------------------
 
+@lru_cache(maxsize=1)
+def _trusted_proxy_networks() -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+    raw = os.environ.get("FLOWHUB_TRUSTED_PROXY_NETWORKS", "")
+    networks = []
+    for value in raw.split(","):
+        value = value.strip()
+        if not value:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(value, strict=False))
+        except ValueError:
+            continue
+    return tuple(networks)
+
+
 def _client_ip(request: Request) -> str:
+    peer = request.client.host if request.client else "unknown"
+    try:
+        trusted_peer = any(ipaddress.ip_address(peer) in network for network in _trusted_proxy_networks())
+    except ValueError:
+        trusted_peer = False
     xff = request.headers.get("X-Forwarded-For", "")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    if trusted_peer and xff:
+        candidate = xff.split(",")[0].strip()
+        try:
+            return str(ipaddress.ip_address(candidate))
+        except ValueError:
+            pass
+    return peer
 
 
 def _issue_tokens(db: Session, user: FlowHubUser) -> TokenResponse:
@@ -144,20 +171,19 @@ async def login(
 ) -> TokenResponse:
     ip = _client_ip(request)
 
-    if not check_rate_limit(ip):
+    if not consume_login_attempt(db, ip):
         create_audit_event(db, username=body.username, event="login_rate_limited", ip_address=ip)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many login attempts. Please wait and try again.",
         )
 
-    record_attempt(ip)
-
     user = get_user_by_username(db, body.username)
     if not user or not user.is_active or not verify_password(body.password, user.hashed_password):
         create_audit_event(db, username=body.username, event="login_failed", ip_address=ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
 
+    clear_login_attempts(db, ip)
     tokens = _issue_tokens(db, user)
     create_audit_event(db, username=user.username, event="login_success", ip_address=ip)
     return tokens

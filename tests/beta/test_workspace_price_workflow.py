@@ -105,6 +105,20 @@ def configured_db(db):
     return db
 
 
+def test_viewer_cannot_start_workspace_preview(client, configured_db):
+    from app.flowhub.auth.jwt_service import create_access_token
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.auth.password import hash_password
+
+    viewer = FlowHubUser(username="workspaceviewer", hashed_password=hash_password("password123"), role="viewer")
+    configured_db.add(viewer)
+    configured_db.commit()
+    headers = {"Authorization": f"Bearer {create_access_token(viewer.id, viewer.username, viewer.role)}"}
+
+    response = client.post("/api/v2/workspace/preview", headers=headers)
+    assert response.status_code == 403
+
+
 def test_nextcloud_spreadsheet_import_success_generates_preview_and_dry_run(
     client, auth_headers, configured_db, monkeypatch
 ):

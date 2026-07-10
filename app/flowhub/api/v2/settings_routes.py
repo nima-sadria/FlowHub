@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.flowhub.auth.dependencies import get_current_user
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.auth.repository import create_audit_event
+from app.flowhub.auth.authorization import require_admin
 from app.flowhub.database import get_db
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.rate_limit.service import RateLimitService
@@ -141,7 +142,7 @@ async def get_settings(
 @router.post("")
 async def update_settings(
     body: SettingsPatch,
-    current_user: FlowHubUser = Depends(get_current_user),
+    current_user: FlowHubUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     cfg = AppConfigService(db)
@@ -182,7 +183,7 @@ async def get_rate_limits(
 @router.post("/rate-limits")
 async def update_rate_limits(
     body: RateLimitSettingsPatch,
-    current_user: FlowHubUser = Depends(get_current_user),
+    current_user: FlowHubUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     settings = RateLimitService(db).update_settings(
@@ -208,7 +209,7 @@ async def update_rate_limits(
 @router.post("/woocommerce")
 async def update_woocommerce(
     body: WooCommerceCredentials,
-    current_user: FlowHubUser = Depends(get_current_user),
+    current_user: FlowHubUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     cfg = AppConfigService(db)
@@ -237,7 +238,7 @@ async def update_woocommerce(
 @router.post("/nextcloud")
 async def update_nextcloud(
     body: NextcloudCredentials,
-    current_user: FlowHubUser = Depends(get_current_user),
+    current_user: FlowHubUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     cfg = AppConfigService(db)

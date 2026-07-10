@@ -188,15 +188,29 @@ run_installer() {
     esac
 }
 
+BACKUP_ARCHIVE=""
+
+backup_manifest() {
+    python3 "${INSTALL_DIR}/app/flowhub/backup/manifest.py" "$@"
+}
+
+current_migration_head() {
+    run_compose exec -T app alembic -c alembic_flowhub.ini heads 2>/dev/null | awk 'NR == 1 { print $1 }'
+}
+
 create_backup() {
+    local label="${1:-backup}"
+    [[ "$label" =~ ^[A-Za-z0-9_-]+$ ]] || die "backup label contains unsupported characters."
     mkdir -p "${INSTALL_DIR}/backups"
     chmod 750 "${INSTALL_DIR}/backups" 2>/dev/null || true
-    local stamp archive
+    local stamp archive tmpdir migration_head
     stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-    archive="${INSTALL_DIR}/backups/flowhub-${stamp}.tar.gz"
+    archive="${INSTALL_DIR}/backups/flowhub-${label}-${stamp}.tar.gz"
     load_env
-    local tmpdir
-    tmpdir="$(mktemp -d)"
+    [[ -f "${INSTALL_DIR}/.env" ]] || die "environment file is required for backup."
+    [[ -d "${INSTALL_DIR}/storage" ]] || die "storage directory is required for backup."
+    tmpdir="$(mktemp -d "${INSTALL_DIR}/backups/.backup.XXXXXX")"
+    chmod 700 "$tmpdir"
     if ! run_compose exec -T postgres pg_dump \
         -U "${FLOWHUB_POSTGRES_USER:-flowhub}" \
         -d "${FLOWHUB_POSTGRES_DB:-flowhub}" \
@@ -204,39 +218,102 @@ create_backup() {
         rm -rf "$tmpdir"
         die "database backup failed; archive was not created."
     fi
-    [[ -f "${INSTALL_DIR}/.env" ]] && cp "${INSTALL_DIR}/.env" "${tmpdir}/.env"
-    [[ -d "${INSTALL_DIR}/storage" ]] && cp -a "${INSTALL_DIR}/storage" "${tmpdir}/storage"
+    cp -a "${INSTALL_DIR}/.env" "${tmpdir}/.env"
+    cp -a "${INSTALL_DIR}/storage" "${tmpdir}/storage"
     if [[ -d "${INSTALL_DIR}/logs" ]]; then
         mkdir -p "${tmpdir}/logs"
         tar --exclude='admin-credentials.txt' -C "${INSTALL_DIR}/logs" -cf - . | tar -C "${tmpdir}/logs" -xf -
     fi
+    migration_head="$(current_migration_head)"
+    [[ -n "$migration_head" ]] || {
+        rm -rf "$tmpdir"
+        die "could not determine the current migration head; archive was not created."
+    }
+    if ! backup_manifest create --root "$tmpdir" \
+        --application-version "${FLOWHUB_VERSION:-1.0.0}" \
+        --migration-head "$migration_head"; then
+        rm -rf "$tmpdir"
+        die "backup manifest generation failed; archive was not created."
+    fi
     tar -C "$tmpdir" -czf "$archive" .
     rm -rf "$tmpdir"
     chmod 600 "$archive"
+    BACKUP_ARCHIVE="$archive"
     echo "Backup created: ${archive}"
+}
+
+restore_database_dump() {
+    local dump_path="$1"
+    load_env
+    run_compose exec -T postgres psql \
+        -v ON_ERROR_STOP=1 \
+        --single-transaction \
+        -U "${FLOWHUB_POSTGRES_USER:-flowhub}" \
+        -d "${FLOWHUB_POSTGRES_DB:-flowhub}" < "$dump_path"
+}
+
+restore_database_from_archive() {
+    local archive="$1"
+    local tmpdir
+    tmpdir="$(mktemp -d "${INSTALL_DIR}/backups/.recovery.XXXXXX")"
+    if ! backup_manifest validate-archive --archive "$archive" ||
+        ! tar -xzf "$archive" -C "$tmpdir" ||
+        ! backup_manifest validate --root "$tmpdir" ||
+        ! restore_database_dump "${tmpdir}/postgres.sql"; then
+        rm -rf "$tmpdir"
+        return 1
+    fi
+    rm -rf "$tmpdir"
+}
+
+apply_restored_files() {
+    local staging_dir="$1"
+    local rollback_dir="$2"
+    mkdir -p "$rollback_dir"
+    mv "${INSTALL_DIR}/.env" "${rollback_dir}/.env"
+    mv "${INSTALL_DIR}/storage" "${rollback_dir}/storage"
+    mv "${staging_dir}/.env" "${INSTALL_DIR}/.env"
+    mv "${staging_dir}/storage" "${INSTALL_DIR}/storage"
+    chmod 600 "${INSTALL_DIR}/.env"
+}
+
+restore_live_files() {
+    local rollback_dir="$1"
+    local failed_dir="$2"
+    mkdir -p "$failed_dir"
+    [[ -e "${INSTALL_DIR}/.env" ]] && mv "${INSTALL_DIR}/.env" "${failed_dir}/.env"
+    [[ -e "${INSTALL_DIR}/storage" ]] && mv "${INSTALL_DIR}/storage" "${failed_dir}/storage"
+    [[ -e "${rollback_dir}/.env" ]] && mv "${rollback_dir}/.env" "${INSTALL_DIR}/.env"
+    [[ -e "${rollback_dir}/storage" ]] && mv "${rollback_dir}/storage" "${INSTALL_DIR}/storage"
+    [[ -f "${INSTALL_DIR}/.env" ]] && chmod 600 "${INSTALL_DIR}/.env"
 }
 
 restore_backup() {
     local archive="${1:-}"
     [[ -n "$archive" && -f "$archive" ]] || die "restore requires a backup archive path."
-    local tmpdir
-    tmpdir="$(mktemp -d)"
-    tar -xzf "$archive" -C "$tmpdir"
-    [[ -f "${tmpdir}/postgres.sql" ]] || {
-        rm -rf "$tmpdir"
-        die "backup archive does not contain postgres.sql; refusing partial restore."
-    }
-    [[ -f "${tmpdir}/.env" ]] && cp "${tmpdir}/.env" "${INSTALL_DIR}/.env" && chmod 600 "${INSTALL_DIR}/.env"
-    [[ -d "${tmpdir}/storage" ]] && rm -rf "${INSTALL_DIR}/storage" && cp -a "${tmpdir}/storage" "${INSTALL_DIR}/storage"
-    [[ -d "${tmpdir}/logs" ]] && mkdir -p "${INSTALL_DIR}/logs" && cp -a "${tmpdir}/logs/." "${INSTALL_DIR}/logs/"
-    load_env
-    if ! run_compose exec -T postgres psql \
-        -U "${FLOWHUB_POSTGRES_USER:-flowhub}" \
-        -d "${FLOWHUB_POSTGRES_DB:-flowhub}" < "${tmpdir}/postgres.sql"; then
-        rm -rf "$tmpdir"
-        die "database restore failed; inspect PostgreSQL logs before retrying."
+    local staging_dir rollback_dir failed_dir safety_archive
+    backup_manifest validate-archive --archive "$archive" || die "backup archive validation failed."
+    staging_dir="$(mktemp -d "${INSTALL_DIR}/backups/.restore.XXXXXX")"
+    if ! tar -xzf "$archive" -C "$staging_dir" || ! backup_manifest validate --root "$staging_dir"; then
+        rm -rf "$staging_dir"
+        die "backup archive is incomplete or failed checksum validation."
     fi
-    rm -rf "$tmpdir"
+    create_backup "pre-restore"
+    safety_archive="$BACKUP_ARCHIVE"
+    if ! restore_database_dump "${staging_dir}/postgres.sql"; then
+        rm -rf "$staging_dir"
+        die "database restore failed; live files were not changed."
+    fi
+    rollback_dir="$(mktemp -d "${INSTALL_DIR}/backups/.rollback.XXXXXX")"
+    failed_dir="$(mktemp -d "${INSTALL_DIR}/backups/.failed.XXXXXX")"
+    if ! apply_restored_files "$staging_dir" "$rollback_dir"; then
+        restore_live_files "$rollback_dir" "$failed_dir" || true
+        if ! restore_database_from_archive "$safety_archive"; then
+            die "restore finalization failed and automatic database recovery failed; use ${safety_archive}."
+        fi
+        die "restore finalization failed; the previous production state was restored."
+    fi
+    rm -rf "$staging_dir" "$rollback_dir" "$failed_dir"
     echo "Backup restored. Run: flowhub repair"
 }
 
