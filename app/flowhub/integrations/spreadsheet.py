@@ -118,9 +118,8 @@ def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict
         consecutive_empty = 0
 
         pid_raw = str(b_val).strip()
-        pid_normalized = _normalize_price_text(pid_raw)
         try:
-            pid = int(float(pid_normalized))
+            pid = _parse_whole_number(pid_raw, allow_zero=False)
         except (ValueError, TypeError):
             skipped_bad_id += 1
             logger.debug(

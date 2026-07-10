@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from datetime import datetime, timedelta
@@ -94,6 +95,33 @@ def _payload(**overrides):
     }
     body.update(overrides)
     return body
+
+
+def _set_maintenance(db, enabled: bool, message: str = "") -> None:
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(db).set(
+        "maintenance_mode",
+        json.dumps({"enabled": enabled, "message": message}),
+        updated_by="test",
+    )
+
+
+def _headers_for_role(db, role: str) -> tuple[dict[str, str], object]:
+    from app.flowhub.auth.jwt_service import create_access_token
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.auth.password import hash_password
+
+    user = FlowHubUser(
+        username=f"{role}_{uuid.uuid4().hex}",
+        hashed_password=hash_password("password123"),
+        role=role,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_access_token(user.id, user.username, user.role)
+    return {"Authorization": f"Bearer {token}"}, user
 
 
 def _source(preview_id: str, *, row: int = 3):
@@ -311,6 +339,89 @@ def test_approval_does_not_execute(client, auth_headers, monkeypatch):
     events = client.get(f"/api/v2/write-pipeline/batches/{created['id']}/events", headers=auth_headers)
     approval_event = [item for item in events.json() if item["eventType"] == "approved"][0]
     assert approval_event["metadata"]["execution_attempted"] is False
+
+
+def test_production_app_blocks_dry_run_during_maintenance(client, auth_headers, db):
+    _set_maintenance(db, True, "Database maintenance")
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload())
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "MAINTENANCE_MODE_ACTIVE"
+    assert response.json()["message"] == "Write operations are unavailable while maintenance mode is active."
+    assert response.json()["maintenance"] is True
+
+
+def test_production_app_blocks_approval_during_maintenance(client, auth_headers, db):
+    created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
+    _set_maintenance(db, True)
+
+    response = client.post(
+        f"/api/v2/write-pipeline/batches/{created['id']}/approve",
+        headers=auth_headers,
+        json={"reason": "operator approved"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "MAINTENANCE_MODE_ACTIVE"
+
+
+def test_production_app_blocks_execute_during_maintenance(client, auth_headers, db):
+    created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
+    approved = client.post(
+        f"/api/v2/write-pipeline/batches/{created['id']}/approve",
+        headers=auth_headers,
+        json={"reason": "operator approved"},
+    )
+    assert approved.status_code == 200
+    _set_maintenance(db, True)
+
+    response = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "MAINTENANCE_MODE_ACTIVE"
+
+
+def test_viewer_remains_unauthorized_during_maintenance(client, db):
+    headers, _ = _headers_for_role(db, "viewer")
+    _set_maintenance(db, True)
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=headers, json=_payload())
+
+    assert response.status_code == 403
+
+
+def test_super_admin_maintenance_bypass_is_audited(client, db):
+    from app.flowhub.auth.models import FlowHubLoginAudit
+
+    headers, user = _headers_for_role(db, "super_admin")
+    _set_preview(db, user=user)
+    _set_maintenance(db, True)
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=headers, json=_payload())
+
+    assert response.status_code == 201
+    db.expire_all()
+    event = (
+        db.query(FlowHubLoginAudit)
+        .filter(
+            FlowHubLoginAudit.username == user.username,
+            FlowHubLoginAudit.event == "maintenance_write_bypass",
+        )
+        .one_or_none()
+    )
+    assert event is not None
+
+
+def test_invalid_maintenance_state_fails_closed(client, auth_headers, db):
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(db).set("maintenance_mode", "not-json", updated_by="test")
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload())
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "MAINTENANCE_MODE_ACTIVE"
 
 
 def test_read_only_channel_blocks_write_pipeline_execution(client, auth_headers, monkeypatch):

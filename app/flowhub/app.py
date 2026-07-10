@@ -46,8 +46,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import FastAPI, Request, status
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.flowhub.api.health import router as health_router
@@ -68,6 +68,11 @@ from app.flowhub.api.v2.integration_platform import router as integration_platfo
 from app.flowhub.api.v2.logging import router as logging_router
 from app.flowhub.api.v2.read_engine import router as read_engine_router
 from app.flowhub.api.v2.users import router as users_router
+from app.flowhub.maintenance import (
+    MAINTENANCE_ERROR_CODE,
+    MAINTENANCE_ERROR_MESSAGE,
+    MaintenanceModeActiveError,
+)
 
 _VERSION = os.getenv("FLOWHUB_VERSION", "1.0.0")
 
@@ -121,6 +126,19 @@ app = FastAPI(
     redoc_url=None,
     openapi_url=None,
 )
+
+
+@app.exception_handler(MaintenanceModeActiveError)
+async def maintenance_mode_active_handler(_: Request, __: MaintenanceModeActiveError) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "code": MAINTENANCE_ERROR_CODE,
+            "message": MAINTENANCE_ERROR_MESSAGE,
+            "detail": MAINTENANCE_ERROR_MESSAGE,
+            "maintenance": True,
+        },
+    )
 
 # API routers - registered before the SPA catch-all so they take priority
 app.include_router(health_router, prefix="/api")

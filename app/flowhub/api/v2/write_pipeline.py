@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.dependencies import get_current_user
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.database import get_db
+from app.flowhub.maintenance import require_write_operation_available
 from app.flowhub.write_pipeline.contracts import (
     WritePipelineApprovalRequest,
     WritePipelineBatchShape,
@@ -23,18 +24,12 @@ def _service(db: Session = Depends(get_db)) -> WritePipelineService:
     return WritePipelineService(db)
 
 
-def _require_admin(user: FlowHubUser) -> None:
-    if user.role not in {"owner", "super_admin", "admin"}:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin permission required.")
-
-
 @router.post("/dry-run", response_model=WritePipelineBatchShape, status_code=201)
 async def create_dry_run(
     body: WritePipelineDryRunRequest,
-    user: FlowHubUser = Depends(get_current_user),
+    user: FlowHubUser = Depends(require_write_operation_available),
     service: WritePipelineService = Depends(_service),
 ) -> WritePipelineBatchShape:
-    _require_admin(user)
     return service.create_dry_run(body, user)
 
 
@@ -51,20 +46,18 @@ async def get_batch(
 async def approve_batch(
     batch_id: str,
     body: WritePipelineApprovalRequest,
-    user: FlowHubUser = Depends(get_current_user),
+    user: FlowHubUser = Depends(require_write_operation_available),
     service: WritePipelineService = Depends(_service),
 ) -> WritePipelineBatchShape:
-    _require_admin(user)
     return service.approve(batch_id, body, user)
 
 
 @router.post("/batches/{batch_id}/execute", response_model=WritePipelineBatchShape)
 async def execute_batch(
     batch_id: str,
-    user: FlowHubUser = Depends(get_current_user),
+    user: FlowHubUser = Depends(require_write_operation_available),
     service: WritePipelineService = Depends(_service),
 ) -> WritePipelineBatchShape:
-    _require_admin(user)
     return await service.execute(batch_id, user)
 
 

@@ -6,6 +6,7 @@ All tests use in-memory openpyxl workbooks - no file I/O needed.
 from __future__ import annotations
 
 import openpyxl
+import pytest
 
 from app.flowhub.integrations.spreadsheet import parse_price_list, _normalize_price_text
 
@@ -126,6 +127,18 @@ class TestParsePriceList:
         entries, _ = parse_price_list(wb)
         assert len(entries) == 0
 
+    @pytest.mark.parametrize("raw_id", [101.9, "101.9", "1e3", -10, 0, True, "101abc"])
+    def test_rejects_noncanonical_product_id(self, raw_id):
+        wb = _make_wb(("Sheet1", [("Bad ID", raw_id, 5.00)]))
+        entries, _ = parse_price_list(wb)
+        assert entries == {}
+
+    @pytest.mark.parametrize("raw_id", [101, "101", " 101 ", "\u06f1\u06f0\u06f1", "\u0661\u0660\u0661"])
+    def test_accepts_canonical_positive_product_id(self, raw_id):
+        wb = _make_wb(("Sheet1", [("Valid ID", raw_id, 5.00)]))
+        entries, _ = parse_price_list(wb)
+        assert set(entries) == {101}
+
     def test_negative_price_is_error(self):
         wb = _make_wb(("Sheet1", [("Neg", 700, -5.00)]))
         entries, _ = parse_price_list(wb)
@@ -154,6 +167,3 @@ class TestParsePriceList:
         entries, duplicates = parse_price_list(wb)
         assert entries == {}
         assert duplicates == []
-
-
-import pytest  # noqa: E402 (imported after test body for clarity)
