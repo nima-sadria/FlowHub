@@ -1337,14 +1337,14 @@ select,
   .fh-menu-item {
     position: relative;
     width: 100%;
-    min-height: 44px;
+    min-height: 40px;
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 12px;
+    padding: 8px 12px;
     color: var(--fh-gray-700);
     background: transparent;
-    border-radius: var(--fh-radius-lg);
+    border-radius: var(--fh-radius-md);
     font-size: var(--fh-text-sm);
     line-height: 20px;
     font-weight: 500;

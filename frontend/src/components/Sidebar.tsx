@@ -109,10 +109,10 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             Main
           </p>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-2">
             {hasPerm('can_access_site') && (
               <NavLink to="/home" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <rect x="3.75" y="3.75" width="6.5" height="6.5" rx="1.25" />
                   <rect x="13.75" y="3.75" width="6.5" height="6.5" rx="1.25" />
                   <rect x="3.75" y="13.75" width="6.5" height="6.5" rx="1.25" />
@@ -124,7 +124,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
             {hasPerm('can_fetch') && (
               <NavLink to="/products" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <rect x="3" y="4" width="18" height="12.5" rx="2.5" />
                   <path d="M8 20h8" />
                   <path d="M12 16.5V20" />
@@ -135,7 +135,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
             {hasPerm('can_access_site') && (
               <NavLink to="/commerce" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M4 8h16" />
                   <path d="M6 8.5 7 19h10l1-10.5" />
                   <path d="M9 8a3 3 0 0 1 6 0" />
@@ -146,7 +146,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
             {hasPerm('can_fetch') && (
               <NavLink to="/workspace" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M21 4v5h-5" />
                   <path d="M3 20v-5h5" />
                   <path d="M4.75 9.25a8.5 8.5 0 0 1 13.98-3.17L21 8.5" />
@@ -158,7 +158,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
             {hasPerm('can_view_logs') && (
               <NavLink to="/activity" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
                   <path d="M14 3v6h6" />
                   <path d="M8 13h8" />
@@ -170,7 +170,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
             {hasPerm('can_view_settings') && (
               <NavLink to="/diagnostics" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M3 12h4l2.5 7L14 5l2.5 7H21" />
                 </svg>
                 <span className={collapsed ? 'md:hidden' : ''}>Diagnostics</span>
@@ -179,7 +179,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
             {hasPerm('can_view_settings') && (
               <NavLink to="/settings" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <circle cx="12" cy="12" r="3" />
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
