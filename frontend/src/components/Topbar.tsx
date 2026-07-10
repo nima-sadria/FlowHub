@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import Badge from './Badge'
+import IconButton from './IconButton'
 import { useTheme } from '../theme/ThemeProvider'
 
 const PAGE_TITLES: Record<string, string> = {
@@ -15,14 +17,6 @@ const PAGE_TITLES: Record<string, string> = {
   '/settings': 'Settings',
 }
 
-const SIGNOUT_ICON = (
-  <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-)
-
 interface Props {
   onMenuClick: () => void
   health: 'ok' | 'error' | 'loading'
@@ -30,26 +24,57 @@ interface Props {
   onLogout: () => void
 }
 
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  )
+}
+
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="15" y2="18" />
+    </svg>
+  )
+}
+
+function BellIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </svg>
+  )
+}
+
 function SunIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="5" />
-      <line x1="12" y1="1" x2="12" y2="3" />
-      <line x1="12" y1="21" x2="12" y2="23" />
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-      <line x1="1" y1="12" x2="3" y2="12" />
-      <line x1="21" y1="12" x2="23" y2="12" />
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.5" />
+      <path d="M12 2.5v2.5M12 19v2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2.5 12H5M19 12h2.5M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" />
     </svg>
   )
 }
 
 function MoonIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7.2 7.2 0 0 0 9.8 9.8Z" />
+    </svg>
+  )
+}
+
+function SignOutIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="m16 17 5-5-5-5" />
+      <path d="M21 12H9" />
     </svg>
   )
 }
@@ -60,15 +85,15 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
   const { theme, toggleTheme } = useTheme()
   const title = PAGE_TITLES[location.pathname] ?? 'FlowHub'
 
-  const healthDot =
-    health === 'ok' ? 'bg-wp-green' :
-    health === 'error' ? 'bg-wp-red' :
-    'bg-border'
-
   const healthLabel =
     health === 'ok' ? 'Connected' :
     health === 'error' ? 'Offline' :
     'Checking'
+
+  const healthVariant =
+    health === 'ok' ? 'success' :
+    health === 'error' ? 'error' :
+    'neutral'
 
   function handleLogout() {
     setMenuOpen(false)
@@ -76,85 +101,104 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
   }
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-bg-card/95 backdrop-blur">
-      <div className="flex min-h-[68px] items-center gap-3 px-4 py-3 md:min-h-[72px] md:px-6 md:py-4">
-      {/* Hamburger - mobile only */}
-      <button
-        onClick={onMenuClick}
-        className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
-        aria-label="Open navigation"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-          <line x1="3" y1="6" x2="21" y2="6" />
-          <line x1="3" y1="12" x2="21" y2="12" />
-          <line x1="3" y1="18" x2="21" y2="18" />
-        </svg>
-      </button>
-
-      {/* Breadcrumb */}
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5 text-[12px] text-wp-muted">
-          <span>FlowHub</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-wp-muted rtl:rotate-180">
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-          <span className="truncate">{title}</span>
-        </div>
-        <p className="mt-1 truncate text-[18px] font-semibold leading-7 text-text-base">{title}</p>
-      </div>
-
-      <div className="ms-auto flex items-center gap-3">
-        {/* Health indicator */}
-        <div className="hidden sm:flex items-center gap-2 rounded-full border border-border bg-bg-base px-3 py-1.5 text-[12px] font-medium text-wp-muted">
-          <span className={['w-2 h-2 rounded-full flex-shrink-0', healthDot].join(' ')} />
-          <span>{healthLabel}</span>
-        </div>
-
-        {/* Dark mode toggle */}
-        <button
-          onClick={toggleTheme}
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="w-10 h-10 md:w-10 md:h-10 flex items-center justify-center rounded-xl border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent transition-colors"
-        >
-          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-        </button>
-
-        {/* Avatar - click opens user menu */}
-        {user && (
-          <div
-            className="relative"
-            onBlur={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                setMenuOpen(false)
-              }
-            }}
+    <header className="fh-topbar">
+      <div className="fh-topbar-inner">
+        <div className="flex min-w-0 items-center gap-3">
+          <IconButton
+            onClick={onMenuClick}
+            className="md:hidden"
+            label="Open navigation"
           >
-            <button
-              onClick={() => setMenuOpen(o => !o)}
-              aria-label="User menu"
-              aria-expanded={menuOpen}
-              className="w-10 h-10 md:w-10 md:h-10 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold select-none shadow-sm hover:ring-2 hover:ring-accent/25 transition-shadow"
-            >
-              {user.username.slice(0, 2).toUpperCase()}
-            </button>
+            <MenuIcon />
+          </IconButton>
 
-            {menuOpen && (
-              <div className="absolute end-0 top-full mt-2 w-52 bg-bg-card border border-border rounded-card shadow-card py-1 z-50">
-                <div className="px-3 py-3 text-[12px] text-wp-muted border-b border-border truncate">
-                  {user.username}
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-wp-red hover:bg-bg-base transition-colors"
-                >
-                  {SIGNOUT_ICON}
-                  Sign out
-                </button>
-              </div>
-            )}
+          <div className="min-w-0">
+            <div className="fh-text-caption">FlowHub / {title}</div>
+            <p className="truncate text-[20px] font-semibold leading-7 text-text-base">{title}</p>
           </div>
-        )}
-      </div>
+        </div>
+
+        <div className="fh-topbar-search hidden xl:block">
+          <span className="fh-topbar-search-icon">
+            <SearchIcon />
+          </span>
+          <input
+            className="fh-input"
+            type="text"
+            placeholder="Search or type command..."
+            aria-label="Search"
+            readOnly
+          />
+          <span className="fh-topbar-shortcut" aria-hidden="true">
+            Ctrl K
+          </span>
+        </div>
+
+        <div className="ms-auto flex items-center gap-2 sm:gap-3">
+          <div className="hidden sm:flex">
+            <Badge dot variant={healthVariant}>{healthLabel}</Badge>
+          </div>
+
+          <IconButton
+            onClick={toggleTheme}
+            label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+          </IconButton>
+
+          <IconButton
+            label="Notifications"
+            className="hidden sm:inline-flex"
+          >
+            <BellIcon />
+          </IconButton>
+
+          {user && (
+            <div
+              className="relative"
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                  setMenuOpen(false)
+                }
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setMenuOpen(open => !open)}
+                aria-label="User menu"
+                aria-expanded={menuOpen}
+                className="fh-user-chip"
+              >
+                <div className="hidden text-left sm:block">
+                  <div className="text-[13px] font-medium leading-5 text-text-base">{user.username}</div>
+                  <div className="fh-text-caption uppercase tracking-[0.06em]">{healthLabel}</div>
+                </div>
+                <span className="fh-user-avatar">
+                  {user.username.slice(0, 2).toUpperCase()}
+                </span>
+              </button>
+
+              {menuOpen && (
+                <div className="fh-dropdown absolute end-0 top-full mt-2 w-56 z-50">
+                  <div className="rounded-xl border border-border bg-bg-base px-3 py-3">
+                    <div className="text-[13px] font-medium leading-5 text-text-base">{user.username}</div>
+                    <div className="fh-text-caption mt-0.5">Signed in</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="fh-dropdown-item mt-1 text-wp-red hover:bg-wp-red/5 hover:text-wp-red"
+                  >
+                    <span className="fh-icon-md">
+                      <SignOutIcon />
+                    </span>
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </header>
   )

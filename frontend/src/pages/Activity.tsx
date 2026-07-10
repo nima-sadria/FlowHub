@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+import Badge from '../components/Badge'
+import Empty from '../components/Empty'
+import { SkeletonCard } from '../components/loading/Skeleton'
+import PageShell from '../components/PageShell'
 import { useServices } from '../services/ServiceContext'
 import type { ActivityEvent, ActivityLevel } from '../services/types'
-import { SkeletonCard } from '../components/loading/Skeleton'
-import Empty from '../components/Empty'
-import PageShell from '../components/PageShell'
 
 function relTime(d: Date): string {
   const s = Math.floor((Date.now() - d.getTime()) / 1000)
@@ -15,11 +16,11 @@ function relTime(d: Date): string {
   return `${Math.floor(h / 24)}d ago`
 }
 
-const LEVEL_STYLES: Record<ActivityLevel, { dot: string; badge: string; label: string }> = {
-  info:    { dot: 'bg-accent',        badge: 'fh-badge-info',    label: 'Info' },
-  success: { dot: 'bg-wp-green',      badge: 'fh-badge-success', label: 'Success' },
-  warning: { dot: 'bg-wp-yellow',     badge: 'fh-badge-warning', label: 'Warning' },
-  error:   { dot: 'bg-wp-red',        badge: 'fh-badge-danger',  label: 'Error' },
+const LEVEL_STYLES: Record<ActivityLevel, { dot: string; variant: 'info' | 'success' | 'warning' | 'danger'; label: string }> = {
+  info: { dot: 'fh-status-dot-info', variant: 'info', label: 'Info' },
+  success: { dot: 'fh-status-dot-success', variant: 'success', label: 'Success' },
+  warning: { dot: 'fh-status-dot-warning', variant: 'warning', label: 'Warning' },
+  error: { dot: 'fh-status-dot-danger', variant: 'danger', label: 'Error' },
 }
 
 function formatAction(action: string): string {
@@ -31,23 +32,21 @@ function EventRow({ event }: { event: ActivityEvent }) {
   return (
     <div className="flex items-start gap-3 py-3 border-b border-border last:border-0">
       <div className="flex-shrink-0 mt-1.5">
-        <span className={['w-2 h-2 rounded-full block', styles.dot].join(' ')} />
+        <span aria-hidden="true" className={['fh-status-dot', styles.dot].join(' ')} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-center gap-2 mb-0.5">
-          <span className="text-[13px] font-medium text-text-base">{formatAction(event.action)}</span>
-          <span className={['fh-badge', styles.badge].join(' ')}>
-            {styles.label}
-          </span>
+          <span className="fh-text-body font-medium text-text-base">{formatAction(event.action)}</span>
+          <Badge variant={styles.variant}>{styles.label}</Badge>
           {event.kind === 'user_action' && (
-            <span className="text-[11px] text-wp-muted">by {event.actor}</span>
+            <span className="fh-text-caption">by {event.actor}</span>
           )}
         </div>
         {event.detail && (
-          <p className="text-[12px] text-wp-muted truncate">{event.detail}</p>
+          <p className="fh-text-caption truncate">{event.detail}</p>
         )}
       </div>
-      <span className="flex-shrink-0 text-[11px] text-wp-muted whitespace-nowrap mt-0.5">
+      <span className="flex-shrink-0 fh-text-caption whitespace-nowrap mt-0.5">
         {relTime(event.timestamp)}
       </span>
     </div>
@@ -64,7 +63,8 @@ export default function Activity() {
   const PAGE_SIZE = 15
 
   const loadPage = useCallback(async (p: number, append: boolean) => {
-    if (p === 1) setLoading(true); else setLoadingMore(true)
+    if (p === 1) setLoading(true)
+    else setLoadingMore(true)
     try {
       const result = await activity.getEvents({ page: p, pageSize: PAGE_SIZE })
       setEvents(prev => append ? [...prev, ...result.items] : result.items)
@@ -89,14 +89,14 @@ export default function Activity() {
     <PageShell>
       <div className="fh-page-header">
         <div>
-        <h1 className="fh-page-title">Activity</h1>
-        <p className="fh-page-subtitle">System events and user actions</p>
+          <h1 className="fh-page-title">Activity</h1>
+          <p className="fh-page-subtitle">System events and user actions</p>
         </div>
       </div>
 
       <div className="fh-card">
         <div className="fh-panel-header">
-          <span className="text-[16px] font-semibold text-text-base">
+          <span className="fh-section-title">
             {loading ? 'Loading...' : `${total} events`}
           </span>
         </div>

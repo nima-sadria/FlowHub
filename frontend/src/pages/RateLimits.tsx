@@ -20,8 +20,8 @@ function NumberField({ label, value, onChange }: {
   onChange: (value: number) => void
 }) {
   return (
-    <div>
-      <label className="block text-[12px] font-medium text-text-base mb-1.5">{label}</label>
+    <div className="fh-field">
+      <label className="fh-help-text">{label}</label>
       <input
         type="number"
         min={MIN_RPM}
@@ -36,9 +36,9 @@ function NumberField({ label, value, onChange }: {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-border rounded-card px-4 py-3 bg-bg-card">
-      <div className="text-[11px] uppercase tracking-[0.08em] text-wp-muted font-semibold">{label}</div>
-      <div className="text-[18px] font-semibold text-text-base mt-1">{value}</div>
+    <div className="fh-stat-tile">
+      <div className="fh-stat-tile-label uppercase tracking-[0.08em]">{label}</div>
+      <div className="fh-stat-tile-value">{value}</div>
     </div>
   )
 }
@@ -128,13 +128,13 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
     <>
       <div className="fh-card fh-card-pad">
         {loading ? (
-          <div className="flex items-center gap-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading...</div>
+          <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />Loading...</div>
         ) : (
           <div className="flex flex-col gap-4">
             <NumberField label="Read Requests / Minute" value={readRpm} onChange={setReadRpm} />
             <NumberField label="Write Requests / Minute" value={writeRpm} onChange={setWriteRpm} />
             {validation && (
-              <div className="bg-wp-red/10 border border-wp-red/30 rounded-card p-3 text-[13px] text-wp-red">
+              <div className="fh-alert fh-alert-danger">
                 {validation}
               </div>
             )}
@@ -163,8 +163,8 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
       <section id="rate-limits" className="flex flex-col gap-4">
         <div className="fh-page-header">
           <div>
-            <h2 className="text-[16px] font-semibold text-text-base">Global API Rate Limits</h2>
-            <p className="text-[12px] text-wp-muted mt-0.5">Inherited by every Source and Channel</p>
+            <h2 className="fh-section-title">Global API Rate Limits</h2>
+            <p className="fh-section-subtitle mt-0.5">Inherited by every Source and Channel</p>
           </div>
           {actions}
         </div>

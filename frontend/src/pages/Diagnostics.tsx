@@ -94,14 +94,14 @@ function Row({ row }: { row: StatusRowData }) {
   return (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-border last:border-0">
       <div className="min-w-0">
-        <div className="text-[13px] font-medium text-text-base truncate">{row.label}</div>
-        {row.detail && <div className="text-[11px] text-wp-muted mt-0.5">{row.detail}</div>}
+        <div className="fh-text-body font-medium text-text-base truncate">{row.label}</div>
+        {row.detail && <div className="fh-text-caption mt-0.5">{row.detail}</div>}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
-        <span className="text-[13px] text-text-base font-medium">{row.value}</span>
+        <span className="fh-text-body font-medium">{row.value}</span>
         <div className="flex items-center gap-1.5">
           <span className={['w-2 h-2 rounded-full flex-shrink-0', dot].join(' ')} />
-          <span className="text-[11px] text-wp-muted">{label}</span>
+          <span className="fh-text-caption">{label}</span>
         </div>
       </div>
     </div>
@@ -179,7 +179,7 @@ export default function Diagnostics() {
         <button
           onClick={() => void runCheck()}
           disabled={loading}
-          className="fh-button-secondary px-3"
+          className="fh-button-secondary"
         >
           {loading ? <Spinner size="sm" /> : (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
@@ -193,7 +193,7 @@ export default function Diagnostics() {
       </div>
 
       {err && (
-        <div className="bg-wp-red/10 border border-wp-red/30 rounded-card p-4 text-[13px] text-wp-red">
+        <div className="fh-alert fh-alert-danger">
           {err}
         </div>
       )}
@@ -206,7 +206,7 @@ export default function Diagnostics() {
       <div className="fh-card fh-card-pad">
         <p className="fh-section-label mb-3">Connectors</p>
         {loading && !diag ? (
-          <div className="flex items-center gap-2 text-[13px] text-wp-muted py-2">
+          <div className="flex items-center gap-2 py-2 fh-text-body-sm">
             <Spinner size="sm" />Loading connectors
           </div>
         ) : connectors.length === 0 ? (
@@ -276,7 +276,7 @@ export default function Diagnostics() {
 
       <div className="fh-card fh-card-pad">
         <p className="fh-section-label mb-2">About</p>
-        <p className="text-[13px] text-text-base mt-1">
+        <p className="fh-text-body mt-1">
           <span className="text-wp-muted">Status: </span>
           <span className="font-medium">{health?.status ?? '-'}</span>
         </p>

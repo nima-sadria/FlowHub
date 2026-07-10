@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
+import Badge from '../components/Badge'
+import Empty from '../components/Empty'
+import IconButton from '../components/IconButton'
+import PageShell from '../components/PageShell'
 import { useServices } from '../services/ServiceContext'
 import type { Product } from '../services/types'
 import type { Category } from '../services/products/ProductService'
-import Empty from '../components/Empty'
-import PageShell from '../components/PageShell'
 import { inputHint } from '../utils/inputHint'
 
 const PAGE_SIZE = 20
@@ -21,7 +23,6 @@ function fmtPrice(p: number, currency: string): string {
 function ProductRow({ product }: { product: Product }) {
   return (
     <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
-      {/* Image + Name */}
       <td className="px-4 py-3 min-w-0 max-w-[260px]">
         <div className="flex items-center gap-3 min-w-0">
           {product.imageUrl ? (
@@ -33,7 +34,7 @@ function ProductRow({ product }: { product: Product }) {
             />
           ) : (
             <div className="w-9 h-9 rounded border border-border bg-bg-base flex-shrink-0 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-4 h-4 text-border" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg viewBox="0 0 24 24" className="fh-icon-sm text-border" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
                 <rect x="3" y="3" width="18" height="18" rx="2" />
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <polyline points="21 15 16 10 5 21" />
@@ -41,30 +42,23 @@ function ProductRow({ product }: { product: Product }) {
             </div>
           )}
           <div className="min-w-0">
-            <div className="text-[13px] font-medium text-text-base truncate">{product.name}</div>
-            <div className="text-[11px] font-mono text-wp-muted mt-0.5">{product.sku || '-'}</div>
+            <div className="fh-text-body font-medium truncate">{product.name}</div>
+            <div className="fh-text-caption fh-text-mono mt-0.5">{product.sku || '-'}</div>
           </div>
         </div>
       </td>
-      {/* Type */}
       <td className="px-4 py-3">
-        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full capitalize bg-bg-base border border-border text-wp-muted">
-          {product.productType ?? 'simple'}
-        </span>
+        <Badge className="capitalize" variant="neutral">{product.productType ?? 'simple'}</Badge>
       </td>
-      {/* Price */}
-      <td className="px-4 py-3 text-[13px] font-medium text-text-base font-mono">
+      <td className="px-4 py-3 fh-text-body font-medium font-mono">
         {fmtPrice(product.currentPrice, product.currency)}
       </td>
-      {/* Categories */}
       <td className="px-4 py-3">
         {(product.categoryNames ?? []).slice(0, 2).map(c => (
-          <span key={c} className="me-1 text-[11px] px-1.5 py-0.5 bg-bg-base border border-border rounded text-wp-muted">
-            {c}
-          </span>
+          <Badge key={c} className="me-1" variant="neutral">{c}</Badge>
         ))}
         {(product.categoryNames ?? []).length > 2 && (
-          <span className="text-[11px] text-wp-muted">+{product.categoryNames.length - 2}</span>
+          <span className="fh-text-caption">+{product.categoryNames.length - 2}</span>
         )}
       </td>
     </tr>
@@ -76,13 +70,12 @@ function SkeletonRow() {
     <tr className="border-b border-border">
       {[240, 70, 80, 120].map((w, i) => (
         <td key={i} className="px-4 py-3">
-          <div className={`h-3 bg-border/40 animate-pulse rounded`} style={{ width: w }} />
+          <div className="h-3 bg-border/40 animate-pulse rounded" style={{ width: w }} />
         </td>
       ))}
     </tr>
   )
 }
-
 
 export default function Products() {
   const { products: productService } = useServices()
@@ -101,16 +94,17 @@ export default function Products() {
 
   const [categories, setCategories] = useState<Category[]>([])
 
-  // Load categories once
   useEffect(() => {
     if (productService.getCategories) {
       productService.getCategories().then(setCategories).catch(() => {})
     }
   }, [productService])
 
-  // Debounce search
   useEffect(() => {
-    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 300)
+    const t = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(1)
+    }, 300)
     return () => clearTimeout(t)
   }, [search])
 
@@ -141,7 +135,6 @@ export default function Products() {
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const end = Math.min(page * PAGE_SIZE, total)
 
-  // Not configured
   if (!loading && configured === false) {
     return (
       <PageShell>
@@ -171,11 +164,9 @@ export default function Products() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="fh-card fh-card-pad flex flex-wrap items-center gap-3">
-        {/* Search */}
         <div className="relative flex-1 min-w-[180px]">
-          <svg viewBox="0 0 24 24" className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-wp-muted pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg viewBox="0 0 24 24" className="absolute left-2.5 top-1/2 -translate-y-1/2 fh-icon-sm text-wp-muted pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
           </svg>
           <input
@@ -183,28 +174,26 @@ export default function Products() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             {...inputHint('Search name or SKU...')}
-            className="fh-input pl-8 py-1.5"
+            className="fh-input pl-8"
           />
         </div>
 
-        {/* Channel filter */}
         <select
           value={channelId}
           onChange={e => setChannelId(e.target.value)}
-          className="fh-input w-auto py-1.5"
+          className="fh-select w-auto min-w-[150px]"
         >
           {CHANNEL_OPTIONS.map(channel => (
             <option key={channel.id || 'all'} value={channel.id}>{channel.label}</option>
           ))}
         </select>
 
-        {/* Category filter */}
         {categories.length > 0 && (
           <select
             value={categoryId ?? ''}
             onChange={e => setCategoryId(e.target.value ? Number(e.target.value) : null)}
-          className="fh-input w-auto py-1.5"
-        >
+            className="fh-select w-auto min-w-[170px]"
+          >
             <option value="">All Categories</option>
             {categories.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -212,7 +201,6 @@ export default function Products() {
           </select>
         )}
 
-        {/* Type filter */}
         <div className="fh-segmented">
           {(['all', 'simple', 'variable'] as const).map(t => (
             <button
@@ -220,9 +208,7 @@ export default function Products() {
               onClick={() => setProductType(t)}
               className={[
                 'fh-segmented-button capitalize',
-                productType === t
-                  ? 'fh-segmented-button-active'
-                  : '',
+                productType === t ? 'fh-segmented-button-active' : '',
               ].join(' ')}
             >
               {t === 'all' ? 'All Types' : t}
@@ -231,29 +217,26 @@ export default function Products() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="fh-table-wrapper">
         <div className="fh-panel-header">
-          <span className="text-[13px] font-semibold text-text-base">
+          <span className="fh-text-body font-semibold">
             {loading ? 'Loading...' : total === 0 ? 'No products found' : `Showing ${start}-${end} of ${total}`}
           </span>
           {totalPages > 1 && (
             <div className="flex items-center gap-1">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent disabled:opacity-40 transition-colors">
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" /></svg>
-              </button>
-              <span className="text-[12px] text-wp-muted px-1">{page} / {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-border bg-bg-card text-wp-muted shadow-sm hover:text-accent hover:border-accent disabled:opacity-40 transition-colors">
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6" /></svg>
-              </button>
+              <IconButton label="Previous page" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} size="sm">
+                <svg viewBox="0 0 24 24" className="fh-icon-sm" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+              </IconButton>
+              <span className="fh-text-caption px-1">{page} / {totalPages}</span>
+              <IconButton label="Next page" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} size="sm">
+                <svg viewBox="0 0 24 24" className="fh-icon-sm" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </IconButton>
             </div>
           )}
         </div>
 
         <div className="overflow-x-auto">
-          <table className="fh-table min-w-[560px] text-[13px]">
+          <table className="fh-table min-w-[560px]">
             <thead>
               <tr>
                 {['Product', 'Type', 'Price', 'Categories'].map(h => (
@@ -271,26 +254,29 @@ export default function Products() {
                         <Empty title="No products match" description="Try adjusting the search or filter." />
                       </td>
                     </tr>
-                  )
-                  : items.map(p => <ProductRow key={p.id} product={p} />)
-              }
+                    )
+                  : items.map(p => <ProductRow key={p.id} product={p} />)}
             </tbody>
           </table>
         </div>
 
         {!loading && totalPages > 1 && (
           <div className="fh-panel-footer !justify-between">
-            <span className="text-[12px] text-wp-muted">{start}-{end} of {total}</span>
+            <span className="fh-text-caption">{start}-{end} of {total}</span>
             <div className="flex items-center gap-1">
-              <button onClick={() => setPage(1)} disabled={page === 1} className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors text-[12px]">«</button>
-              <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors">
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" /></svg>
-              </button>
-              <span className="text-[12px] text-wp-muted px-1.5">{page} / {totalPages}</span>
-              <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages} className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors">
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6" /></svg>
-              </button>
-              <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="w-7 h-7 flex items-center justify-center rounded border border-border text-wp-muted hover:text-text-base disabled:opacity-40 transition-colors text-[12px]">»</button>
+              <IconButton label="First page" onClick={() => setPage(1)} disabled={page === 1} size="sm">
+                <span aria-hidden="true" className="fh-text-caption">«</span>
+              </IconButton>
+              <IconButton label="Previous page" onClick={() => setPage(p => p - 1)} disabled={page === 1} size="sm">
+                <svg viewBox="0 0 24 24" className="fh-icon-sm" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+              </IconButton>
+              <span className="fh-text-caption px-1.5">{page} / {totalPages}</span>
+              <IconButton label="Next page" onClick={() => setPage(p => p + 1)} disabled={page === totalPages} size="sm">
+                <svg viewBox="0 0 24 24" className="fh-icon-sm" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </IconButton>
+              <IconButton label="Last page" onClick={() => setPage(totalPages)} disabled={page === totalPages} size="sm">
+                <span aria-hidden="true" className="fh-text-caption">»</span>
+              </IconButton>
             </div>
           </div>
         )}

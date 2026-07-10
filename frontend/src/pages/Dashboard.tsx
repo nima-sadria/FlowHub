@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth'
-import { useServices } from '../services/ServiceContext'
-import type { Source, ActivityEvent } from '../services/types'
 import { apiFetch } from '../api/client'
 import type { HealthResponse } from '../api/types'
-import { SkeletonCard } from '../components/loading/Skeleton'
+import { useAuth } from '../auth'
+import Badge from '../components/Badge'
 import Empty from '../components/Empty'
+import { SkeletonCard } from '../components/loading/Skeleton'
 import PageShell from '../components/PageShell'
+import { useServices } from '../services/ServiceContext'
+import type { ActivityEvent, Source } from '../services/types'
 
 type Indicator = 'ok' | 'error' | 'loading'
 
@@ -23,11 +24,14 @@ function relTime(d: Date | null): string {
 }
 
 function StatCard({ label, value, sub, indicator }: {
-  label: string; value: string; sub?: string; indicator?: Indicator
+  label: string
+  value: string
+  sub?: string
+  indicator?: Indicator
 }) {
   const dot =
-    indicator === 'ok'      ? 'bg-wp-green' :
-    indicator === 'error'   ? 'bg-wp-red' :
+    indicator === 'ok' ? 'bg-wp-green' :
+    indicator === 'error' ? 'bg-wp-red' :
     indicator === 'loading' ? 'bg-wp-yellow animate-pulse' :
     null
 
@@ -36,7 +40,7 @@ function StatCard({ label, value, sub, indicator }: {
       <div className="flex items-center gap-3">
         <div className="fh-stat-card-icon">
           {dot ? (
-            <span className={['w-2.5 h-2.5 rounded-full flex-shrink-0', dot].join(' ')} />
+            <span className={['h-2.5 w-2.5 rounded-full flex-shrink-0', dot].join(' ')} />
           ) : (
             <span className="h-2.5 w-2.5 rounded-full bg-border" />
           )}
@@ -46,7 +50,7 @@ function StatCard({ label, value, sub, indicator }: {
           <div className="fh-stat-card-value">{value}</div>
         </div>
       </div>
-      {sub && <div className="text-[12px] text-wp-muted">{sub}</div>}
+      {sub && <div className="fh-text-caption">{sub}</div>}
     </div>
   )
 }
@@ -102,32 +106,28 @@ export default function Dashboard() {
     return !best || s.lastSynced > best ? s.lastSynced : best
   }, null)
 
-  const initial = user?.username?.[0]?.toUpperCase() ?? '?'
+  const initial = user?.username?.slice(0, 2).toUpperCase() ?? '?'
 
   return (
     <PageShell>
       <div className="fh-page-header">
         <div>
-        <h1 className="fh-page-title">Dashboard</h1>
-        <p className="fh-page-subtitle">System overview</p>
+          <h1 className="fh-page-title">Dashboard</h1>
+          <p className="fh-page-subtitle">System overview</p>
         </div>
       </div>
 
-      {/* User card */}
       <div className="fh-card fh-card-pad">
         <p className="fh-section-label mb-3">Logged In</p>
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-            <span className="text-accent font-semibold text-[14px]">{initial}</span>
-          </div>
+          <div className="fh-user-avatar flex-shrink-0">{initial}</div>
           <div>
-            <div className="text-[15px] font-medium text-text-base">{user?.username ?? '-'}</div>
-            <div className="text-[12px] text-wp-muted capitalize">{user?.role ?? '-'}</div>
+            <div className="fh-text-body font-medium">{user?.username ?? '-'}</div>
+            <div className="fh-text-caption capitalize">{user?.role ?? '-'}</div>
           </div>
         </div>
       </div>
 
-      {/* System status - uses real /api/health */}
       <div className="fh-stat-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="Backend"
@@ -146,7 +146,6 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Summary stat row */}
       {dataLoading ? (
         <div className="fh-stat-grid grid-cols-1 sm:grid-cols-3">
           <SkeletonCard />
@@ -161,16 +160,12 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Sources */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="fh-card">
           <div className="fh-panel-header">
-            <p className="text-[16px] font-semibold text-text-base">Sources</p>
-            <button
-              onClick={() => navigate('/sources/new')}
-              className="text-[13px] text-accent font-medium hover:text-accent-hover"
-            >
-              + Add Source
+            <p className="fh-section-title">Sources</p>
+            <button onClick={() => navigate('/sources/new')} className="fh-toolbar-link">
+              Add Source
             </button>
           </div>
           <div className="fh-panel-body !py-3">
@@ -182,32 +177,23 @@ export default function Dashboard() {
                 action={{ label: 'Add your first source', onClick: () => navigate('/sources/new') }}
               />
             ) : (
-              sourceList.map(s => (
-                <div key={s.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
+              sourceList.map(source => (
+                <div key={source.id} className="flex items-center justify-between border-b border-border py-2.5 last:border-0">
                   <div>
-                    <p className="text-[13px] font-medium text-text-base">{s.name}</p>
-                    <p className="text-[11px] text-wp-muted">{relTime(s.lastSynced)} · {s.productCount} products</p>
+                    <p className="fh-text-body font-medium">{source.name}</p>
+                    <p className="fh-text-caption">{`${relTime(source.lastSynced)} · ${source.productCount} products`}</p>
                   </div>
-                  <span className={[
-                    'fh-badge capitalize',
-                    s.status === 'active' ? 'fh-badge-success' : 'fh-badge-danger',
-                  ].join(' ')}>
-                    {s.status}
-                  </span>
+                  <Badge className="capitalize" variant={source.status === 'active' ? 'success' : 'error'}>{source.status}</Badge>
                 </div>
               ))
             )}
           </div>
         </div>
 
-        {/* Recent Activity */}
         <div className="fh-card">
           <div className="fh-panel-header">
-            <p className="text-[16px] font-semibold text-text-base">Recent Activity</p>
-            <button
-              onClick={() => navigate('/activity')}
-              className="text-[13px] text-accent font-medium hover:text-accent-hover"
-            >
+            <p className="fh-section-title">Recent Activity</p>
+            <button onClick={() => navigate('/activity')} className="fh-toolbar-link">
               View all
             </button>
           </div>
@@ -219,17 +205,19 @@ export default function Dashboard() {
             ) : recentEvents.length === 0 ? (
               <Empty title="No events yet" />
             ) : (
-              recentEvents.map(e => (
-                <div key={e.id} className="flex items-center gap-3 py-2.5 border-b border-border last:border-0">
-                  <span className={[
-                    'w-2 h-2 rounded-full flex-shrink-0',
-                    e.level === 'success' ? 'bg-wp-green' :
-                    e.level === 'error'   ? 'bg-wp-red' :
-                    e.level === 'warning' ? 'bg-wp-yellow' :
-                    'bg-accent',
-                  ].join(' ')} />
-                  <p className="flex-1 text-[12px] text-text-base truncate">{formatAction(e.action)}</p>
-                  <span className="text-[11px] text-wp-muted flex-shrink-0">{relTime(e.timestamp)}</span>
+              recentEvents.map(event => (
+                <div key={event.id} className="flex items-center gap-3 border-b border-border py-2.5 last:border-0">
+                  <span
+                    className={[
+                      'h-2 w-2 rounded-full flex-shrink-0',
+                      event.level === 'success' ? 'bg-wp-green' :
+                      event.level === 'error' ? 'bg-wp-red' :
+                      event.level === 'warning' ? 'bg-wp-yellow' :
+                      'bg-accent',
+                    ].join(' ')}
+                  />
+                  <p className="fh-text-caption flex-1 truncate text-text-base">{formatAction(event.action)}</p>
+                  <span className="fh-text-caption flex-shrink-0">{relTime(event.timestamp)}</span>
                 </div>
               ))
             )}

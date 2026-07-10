@@ -1341,17 +1341,17 @@ select,
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 14px;
-    color: var(--fh-text-secondary);
+    padding: 10px 12px;
+    color: var(--fh-gray-700);
     background: transparent;
     border-radius: var(--fh-radius-xl);
-    font-size: 13px;
+    font-size: var(--fh-text-sm);
     line-height: 20px;
     font-weight: 500;
   }
 
   .fh-menu-item:hover {
-    color: var(--fh-text-secondary);
+    color: var(--fh-gray-800);
     background: var(--fh-gray-100);
   }
 
@@ -1363,6 +1363,7 @@ select,
   .fh-menu-item-active {
     color: var(--fh-brand-500);
     background: var(--fh-brand-50);
+    font-weight: 500;
   }
 
   .dark .fh-menu-item-active {

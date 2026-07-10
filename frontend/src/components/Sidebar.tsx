@@ -28,7 +28,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
     [
       'fh-menu-item group',
       collapsed ? 'md:justify-center md:px-0' : '',
-      isActive ? 'fh-menu-item-active text-accent' : 'text-wp-muted',
+      isActive ? 'fh-menu-item-active' : '',
     ].join(' ')
 
   function handleLogout() {
@@ -65,7 +65,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             className="md:hidden border-transparent shadow-none bg-bg-base"
             label="Close navigation"
           >
-            <svg viewBox="0 0 24 24" className="fh-icon-lg" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg viewBox="0 0 24 24" className="fh-icon-lg" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M18 6 6 18" />
               <path d="m6 6 12 12" />
             </svg>
@@ -82,7 +82,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
           <div className={[collapsed ? 'md:hidden' : '', 'flex-1 min-w-0'].join(' ')}>
             <div className="font-semibold text-[16px] text-text-base leading-6">FlowHub</div>
-            <div className="text-[12px] font-medium text-wp-muted leading-4">Control Center</div>
+            <div className="text-xs font-medium leading-4 text-[color:var(--fh-gray-500)]">Control Center</div>
           </div>
 
           <IconButton
@@ -95,7 +95,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.75"
+              strokeWidth="1.5"
               className={['w-4 h-4 transition-transform duration-200', collapsed ? 'rotate-180' : ''].join(' ')}
               aria-hidden="true"
             >
@@ -105,14 +105,14 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
         </div>
 
         <nav className="flex-1 px-4 py-4 md:px-4 md:py-5 overflow-y-auto no-scrollbar">
-          <p className={[collapsed ? 'md:hidden' : '', 'px-3 mb-3 text-[12px] font-semibold uppercase tracking-[0.08em] text-wp-muted select-none'].join(' ')}>
+          <p className={[collapsed ? 'md:hidden' : '', 'px-3 mb-4 text-xs font-semibold uppercase tracking-[0.08em] text-[color:var(--fh-gray-400)] leading-5 select-none'].join(' ')}>
             Main
           </p>
 
           <div className="flex flex-col gap-1.5">
             {hasPerm('can_access_site') && (
               <NavLink to="/home" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-[21px] w-[21px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <rect x="3.75" y="3.75" width="6.5" height="6.5" rx="1.25" />
                   <rect x="13.75" y="3.75" width="6.5" height="6.5" rx="1.25" />
                   <rect x="3.75" y="13.75" width="6.5" height="6.5" rx="1.25" />
@@ -124,7 +124,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
             {hasPerm('can_fetch') && (
               <NavLink to="/products" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-[21px] w-[21px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <rect x="3" y="4" width="18" height="12.5" rx="2.5" />
                   <path d="M8 20h8" />
                   <path d="M12 16.5V20" />
@@ -135,7 +135,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
             {hasPerm('can_access_site') && (
               <NavLink to="/commerce" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-[21px] w-[21px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M4 8h16" />
                   <path d="M6 8.5 7 19h10l1-10.5" />
                   <path d="M9 8a3 3 0 0 1 6 0" />
@@ -146,7 +146,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
             {hasPerm('can_fetch') && (
               <NavLink to="/workspace" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-[21px] w-[21px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M21 4v5h-5" />
                   <path d="M3 20v-5h5" />
                   <path d="M4.75 9.25a8.5 8.5 0 0 1 13.98-3.17L21 8.5" />
@@ -158,7 +158,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
             {hasPerm('can_view_logs') && (
               <NavLink to="/activity" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-[21px] w-[21px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
                   <path d="M14 3v6h6" />
                   <path d="M8 13h8" />
@@ -170,7 +170,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
             {hasPerm('can_view_settings') && (
               <NavLink to="/diagnostics" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-[21px] w-[21px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M3 12h4l2.5 7L14 5l2.5 7H21" />
                 </svg>
                 <span className={collapsed ? 'md:hidden' : ''}>Diagnostics</span>
@@ -179,7 +179,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
             {hasPerm('can_view_settings') && (
               <NavLink to="/settings" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-[21px] w-[21px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <circle cx="12" cy="12" r="3" />
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
@@ -202,7 +202,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             {user && (
               <div className={[collapsed ? 'md:hidden' : '', 'flex-1 min-w-0'].join(' ')}>
                 <div className="text-[13px] font-medium leading-5 text-text-base truncate">{user.username}</div>
-                <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-wp-muted">{user.role}</div>
+                <div className="text-xs font-medium uppercase tracking-[0.06em] text-[color:var(--fh-gray-500)]">{user.role}</div>
               </div>
             )}
             <button
@@ -210,7 +210,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
               title="Sign out"
               aria-label="Sign out"
               className={[
-                'inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-bg-base text-wp-muted transition-colors hover:border-wp-red/30 hover:bg-wp-red/5 hover:text-wp-red',
+                'inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-bg-base text-[color:var(--fh-gray-500)] transition-colors hover:border-wp-red/30 hover:bg-wp-red/5 hover:text-wp-red',
                 collapsed ? 'md:ms-0' : 'ms-auto',
               ].join(' ')}
             >

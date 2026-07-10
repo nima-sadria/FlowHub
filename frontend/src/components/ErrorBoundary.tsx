@@ -30,8 +30,8 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="p-4 sm:p-7">
           <div className="fh-card max-w-xl p-6">
-            <h2 className="text-[18px] font-bold text-text-base mb-2">Something went wrong</h2>
-            <p className="text-[13px] text-wp-muted mb-4">
+            <h2 className="fh-section-title mb-2">Something went wrong</h2>
+            <p className="fh-text-body-sm mb-4">
               An unexpected error occurred on this page.
             </p>
             <button

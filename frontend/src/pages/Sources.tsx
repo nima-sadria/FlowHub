@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useServices } from '../services/ServiceContext'
-import type { Source } from '../services/types'
-import { SkeletonCard } from '../components/loading/Skeleton'
+import Badge from '../components/Badge'
 import Empty from '../components/Empty'
+import { SkeletonCard } from '../components/loading/Skeleton'
 import { useNotification } from '../notifications/NotificationProvider'
 import PageShell from '../components/PageShell'
+import { useServices } from '../services/ServiceContext'
+import type { Source } from '../services/types'
 
 function relTime(d: Date | null): string {
   if (!d) return '-'
@@ -18,10 +19,10 @@ function relTime(d: Date | null): string {
   return `${Math.floor(h / 24)}d ago`
 }
 
-const STATUS_BADGE: Record<Source['status'], { cls: string; label: string }> = {
-  active:       { cls: 'fh-badge-success', label: 'Active' },
-  error:        { cls: 'fh-badge-danger', label: 'Error' },
-  unconfigured: { cls: 'fh-badge-neutral', label: 'Unconfigured' },
+const STATUS_BADGE: Record<Source['status'], { variant: 'success' | 'danger' | 'neutral'; label: string }> = {
+  active: { variant: 'success', label: 'Active' },
+  error: { variant: 'danger', label: 'Error' },
+  unconfigured: { variant: 'neutral', label: 'Unconfigured' },
 }
 
 function SourceCard({ source }: { source: Source }) {
@@ -33,22 +34,20 @@ function SourceCard({ source }: { source: Source }) {
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[15px] font-medium text-text-base truncate">{source.name}</span>
-            <span className={['fh-badge', badge.cls].join(' ')}>
-              {badge.label}
-            </span>
+            <span className="fh-text-body font-medium truncate">{source.name}</span>
+            <Badge variant={badge.variant}>{badge.label}</Badge>
           </div>
-          <p className="text-[12px] font-mono text-wp-muted mt-0.5 truncate">{source.displayUrl}</p>
+          <p className="fh-text-caption fh-text-mono mt-0.5 truncate">{source.displayUrl}</p>
         </div>
         <button
           onClick={() => info('Configuration editing available in a future phase.')}
-          className="fh-button-secondary flex-shrink-0 px-3 py-1.5 text-[12px]"
+          className="fh-button-secondary flex-shrink-0"
         >
           Edit
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-[12px]">
+      <div className="flex flex-wrap gap-x-5 gap-y-1.5 fh-text-caption">
         <span>
           <span className="text-wp-muted">Type: </span>
           <span className="font-medium text-text-base capitalize">{source.type.replace(/_/g, ' ')}</span>
@@ -89,7 +88,7 @@ export default function Sources() {
           onClick={() => navigate('/sources/new')}
           className="fh-button-primary flex-shrink-0"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" className="fh-icon-sm" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
           </svg>
           Add Source
