@@ -443,6 +443,7 @@ describe('CommerceHub', () => {
     const c = await renderPage()
 
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Refresh product cache')).toHaveLength(1)
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Settings')).toHaveLength(1)
     expect(c.textContent).toContain('Cached products: 2')
     expect(c.textContent).toContain('Cached variations: 2')
     expect(c.textContent).toContain('Refresh status: Completed')
