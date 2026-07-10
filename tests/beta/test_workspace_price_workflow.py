@@ -183,6 +183,18 @@ def test_workspace_preview_succeeds_after_woocommerce_channel_cache_refresh(
 ):
     from app.flowhub.integrations.nextcloud import NextcloudClient
 
+    configured = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "WooCommerce",
+            "enabled": True,
+            "settings": {"url": "https://store.example.test"},
+            "secrets": {"key": "ck_test", "secret": "cs_test"},
+        },
+    )
+    assert configured.status_code == 200
+
     async def fake_list_products(_creds, *, page=1, **_kwargs):
         if page > 1:
             return [], 1, 1
@@ -590,6 +602,70 @@ def test_preview_fails_safely_when_cache_is_empty(client, auth_headers, configur
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
     assert response.status_code == 409
     assert "product cache is empty" in response.text
+
+
+@pytest.mark.parametrize("refresh_status", ["failed", "partial_failed"])
+def test_preview_blocks_incomplete_cache_refresh(client, auth_headers, configured_db, monkeypatch, refresh_status):
+    from app.flowhub.data_layer.models import DlRefreshJob
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    _cache_product(configured_db, "101", "Blocked Product", "SKU-101", "100.00")
+    configured_db.add(
+        DlRefreshJob(
+            job_type="manual",
+            entity_type="products",
+            connector_id="woocommerce:primary",
+            status=refresh_status,
+            triggered_by="tester",
+            created_at=datetime.utcnow(),
+            completed_at=datetime.utcnow(),
+            meta={"products_stored": 1},
+        )
+    )
+    configured_db.commit()
+
+    async def fake_download(self, path):
+        raise AssertionError("incomplete cache refresh must fail before source download")
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+
+    assert response.status_code == 409
+    assert "CACHE_REFRESH_INCOMPLETE" in response.text
+    assert refresh_status in response.text
+    assert "Refresh product cache again in Commerce Hub -> Channels." in response.text
+
+
+def test_preview_allows_completed_with_warnings_cache_refresh(client, auth_headers, configured_db, monkeypatch):
+    from app.flowhub.data_layer.models import DlRefreshJob
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    _cache_product(configured_db, "101", "Test Product", "SKU-101", "100.00")
+    configured_db.add(
+        DlRefreshJob(
+            job_type="manual",
+            entity_type="products",
+            connector_id="woocommerce:primary",
+            status="completed_with_warnings",
+            triggered_by="tester",
+            created_at=datetime.utcnow(),
+            completed_at=datetime.utcnow(),
+            meta={"products_stored": 1},
+        )
+    )
+    configured_db.commit()
+
+    async def fake_download(self, path):
+        assert path == "/prices.xlsx"
+        return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "etag-warning"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["duplicateWarnings"]
+    assert "completed with warnings" in data["duplicateWarnings"][0]
 
 
 def test_preview_fails_safely_when_channel_credentials_are_missing(client, auth_headers, db, monkeypatch):

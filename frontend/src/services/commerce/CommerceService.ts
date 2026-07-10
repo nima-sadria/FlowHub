@@ -31,7 +31,7 @@ export interface CommerceService {
 
 export interface ChannelCacheRefreshResult {
   ok: boolean
-  status: 'completed' | 'completed_with_warnings' | 'failed'
+  status: 'completed' | 'completed_with_warnings' | 'failed' | 'partial_failed'
   products_read: number
   variable_products_read: number
   variations_read: number

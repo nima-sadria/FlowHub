@@ -235,6 +235,12 @@ class CommerceHubService:
         meta = self._channel_meta(channel_id)
         if str(meta["provider"]) != "woocommerce" or bool(meta.get("placeholder")):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Product cache refresh is not available for this channel.")
+        instance = self.db.get(IntegrationConnectorInstance, meta["id"])
+        if instance is None or not instance.enabled:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {"code": "CHANNEL_DISABLED", "message": "WooCommerce channel is disabled."},
+            )
 
         started = datetime.utcnow()
         adapter: WooCommerceProductReadAdapter | None = None
@@ -263,6 +269,7 @@ class CommerceHubService:
             warnings = list(adapter.warnings)
             result_status = "completed_with_warnings" if warnings else "completed"
             completed = datetime.utcnow()
+            self._mark_latest_refresh_status(channel_id, result_status, completed)
             result = self._cache_refresh_result(
                 adapter,
                 ok=True,
@@ -282,12 +289,12 @@ class CommerceHubService:
             return result
         except Exception as exc:
             completed = datetime.utcnow()
-            cache_rows_upserted = self._mark_latest_refresh_failed(channel_id, exc, completed)
+            cache_rows_upserted, result_status = self._mark_latest_refresh_failed(channel_id, exc, completed)
             errors = [self._safe_cache_refresh_error(exc)]
             result = self._cache_refresh_result(
                 adapter,
                 ok=False,
-                status_value="failed",
+                status_value=result_status,
                 cache_rows_upserted=cache_rows_upserted,
                 warnings=list(adapter.warnings) if adapter else [],
                 errors=errors,
@@ -554,7 +561,7 @@ class CommerceHubService:
             "credentials_returned": False,
         }
 
-    def _mark_latest_refresh_failed(self, channel_id: str, exc: Exception, completed: datetime) -> int:
+    def _mark_latest_refresh_status(self, channel_id: str, status_value: str, completed: datetime) -> None:
         job = (
             self.db.query(DlRefreshJob)
             .filter(DlRefreshJob.connector_id == channel_id, DlRefreshJob.entity_type == "products")
@@ -562,13 +569,27 @@ class CommerceHubService:
             .first()
         )
         if job is None:
-            return 0
+            return
+        job.status = status_value
+        job.completed_at = completed
+        self.db.commit()
+
+    def _mark_latest_refresh_failed(self, channel_id: str, exc: Exception, completed: datetime) -> tuple[int, str]:
+        job = (
+            self.db.query(DlRefreshJob)
+            .filter(DlRefreshJob.connector_id == channel_id, DlRefreshJob.entity_type == "products")
+            .order_by(DlRefreshJob.created_at.desc(), DlRefreshJob.id.desc())
+            .first()
+        )
+        if job is None:
+            return 0, "failed"
         stored = int((job.meta or {}).get("products_stored") or 0)
-        job.status = "failed"
+        status_value = "partial_failed" if stored > 0 else "failed"
+        job.status = status_value
         job.completed_at = completed
         job.error_message = self._safe_cache_refresh_error(exc)[:500]
         self.db.commit()
-        return stored
+        return stored, status_value
 
     def _safe_cache_refresh_error(self, exc: Exception) -> str:
         if isinstance(exc, HTTPException):

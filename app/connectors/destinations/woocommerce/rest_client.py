@@ -292,10 +292,23 @@ async def list_variations(
     per_page: int = 100,
 ) -> list[dict]:
     """Return variations of a variable product (read-only)."""
-    return await _get(creds, f"/products/{product_id}/variations", params={
-        "page": page,
-        "per_page": per_page,
-    })
+    r = await _get_raw(
+        creds,
+        f"/products/{product_id}/variations",
+        params={
+            "page": page,
+            "per_page": per_page,
+        },
+        timeout=_TIMEOUT_PAGE,
+    )
+    try:
+        return r.json()
+    except Exception as exc:
+        raise ConnectorError(
+            code=ConnectorErrorCode.PROVIDER_ERROR,
+            message=f"Failed to parse WooCommerce variations JSON: {exc}",
+            provider="woocommerce",
+        ) from exc
 
 
 async def ping(creds: WooCommerceCredentials) -> dict:

@@ -18,7 +18,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
-from app.flowhub.data_layer.models import DlProductCache, DlSourceSnapshot
+from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob, DlSourceSnapshot
 from app.flowhub.integration_platform.contracts import WorkspacePreviewResponse
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.setup.service import AppConfigService
@@ -57,6 +57,8 @@ class WorkspacePriceWorkflowService:
         preview_id = f"wp_{uuid.uuid4().hex[:16]}"
         self._required_config("nextcloud.spreadsheet_path")
         self._require_channel_config()
+        latest_refresh = self._latest_cache_refresh()
+        self._ensure_cache_refresh_ready(latest_refresh)
         products = self._load_products()
         if not products:
             raise HTTPException(status.HTTP_409_CONFLICT, "WooCommerce product cache is empty. Run a manual read first.")
@@ -70,6 +72,11 @@ class WorkspacePriceWorkflowService:
         summary = _summary(rows)
         eligible_changes = [row["dry_run_change"] for row in rows if row["eligible_for_dry_run"]]
         duplicate_warnings = _duplicate_warnings(imported.duplicate_info)
+        if latest_refresh is not None and latest_refresh.status == "completed_with_warnings":
+            duplicate_warnings.append(
+                "WooCommerce cache refresh completed with warnings"
+                f" ({self._refresh_timestamp(latest_refresh)}). Review Commerce Hub -> Channels if preview results look incomplete."
+            )
         preview_snapshot = WorkspacePreviewStore(self.db).create(
             preview_id=preview_id,
             source_id=SOURCE_ID,
@@ -126,6 +133,33 @@ class WorkspacePriceWorkflowService:
             .filter(DlProductCache.connector_id == CHANNEL_ID)
             .filter(DlProductCache.exists.is_(True))
             .all()
+        )
+
+    def _latest_cache_refresh(self) -> DlRefreshJob | None:
+        return (
+            self.db.query(DlRefreshJob)
+            .filter(DlRefreshJob.connector_id == CHANNEL_ID, DlRefreshJob.entity_type == "products")
+            .order_by(DlRefreshJob.created_at.desc(), DlRefreshJob.id.desc())
+            .first()
+        )
+
+    def _ensure_cache_refresh_ready(self, latest_refresh: DlRefreshJob | None) -> None:
+        if latest_refresh is None:
+            return
+        if latest_refresh.status not in {"failed", "partial_failed"}:
+            return
+        timestamp = self._refresh_timestamp(latest_refresh)
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "CACHE_REFRESH_INCOMPLETE: WooCommerce product cache refresh status is "
+            f"'{latest_refresh.status}' as of {timestamp}. Refresh product cache again in Commerce Hub -> Channels.",
+        )
+
+    def _refresh_timestamp(self, latest_refresh: DlRefreshJob) -> str:
+        return (
+            (latest_refresh.completed_at or latest_refresh.started_at or latest_refresh.created_at).isoformat()
+            if (latest_refresh.completed_at or latest_refresh.started_at or latest_refresh.created_at)
+            else "unknown"
         )
 
     def _build_preview_rows(

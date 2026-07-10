@@ -1203,7 +1203,7 @@ def test_woocommerce_cache_refresh_reports_partial_page_failure_safely(
     assert response.status_code == 200
     data = response.json()
     assert data["ok"] is False
-    assert data["status"] == "failed"
+    assert data["status"] == "partial_failed"
     assert data["products_read"] == 1
     assert data["cache_rows_upserted"] == 1
     assert db.query(DlProductCache).count() == 1
@@ -1213,15 +1213,49 @@ def test_woocommerce_cache_refresh_reports_partial_page_failure_safely(
     assert data["credentials_returned"] is False
 
 
+def test_woocommerce_cache_refresh_blocks_disabled_channels_before_outbound_calls(client, auth_headers, monkeypatch):
+    _configure_woocommerce_channel(client, auth_headers)
+    outbound_calls = 0
+
+    async def fake_list_products(*_args, **_kwargs):
+        nonlocal outbound_calls
+        outbound_calls += 1
+        raise AssertionError("disabled channel must not perform WooCommerce reads")
+
+    disable = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={"enabled": False},
+    )
+    assert disable.status_code == 200
+
+    monkeypatch.setattr("app.connectors.read.woocommerce.list_products_paged", fake_list_products)
+    response = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == {
+        "code": "CHANNEL_DISABLED",
+        "message": "WooCommerce channel is disabled.",
+    }
+    assert outbound_calls == 0
+
+
 def test_woocommerce_cache_refresh_requires_credentials_and_admin(client, auth_headers, db):
     from app.flowhub.auth.jwt_service import create_access_token
     from app.flowhub.auth.models import FlowHubUser
     from app.flowhub.auth.password import hash_password
 
-    missing = client.post(
-        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+    enable_without_credentials = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
         headers=auth_headers,
+        json={"display_name": "WooCommerce", "enabled": True, "settings": {}},
     )
+    assert enable_without_credentials.status_code == 200
+
+    missing = client.post("/api/v2/commerce/channels/woocommerce:primary/refresh-cache", headers=auth_headers)
     assert missing.status_code == 200
     assert missing.json()["ok"] is False
     assert missing.json()["status"] == "failed"
@@ -1243,6 +1277,162 @@ def test_woocommerce_cache_refresh_requires_credentials_and_admin(client, auth_h
         headers=viewer_headers,
     )
     assert forbidden.status_code == 403
+
+
+def test_woocommerce_variation_fetch_retries_transient_500(monkeypatch):
+    import asyncio
+    import httpx
+
+    from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
+    from app.connectors.destinations.woocommerce.rest_client import list_variations
+
+    calls = 0
+    sleeps: list[float] = []
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, *, params, timeout):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return httpx.Response(500, request=httpx.Request("GET", url), json={"message": "retry"})
+            return httpx.Response(200, request=httpx.Request("GET", url), json=[{"id": 201}])
+
+    async def fake_sleep(delay: float):
+        sleeps.append(delay)
+
+    async def fake_acquire(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client.httpx.AsyncClient", lambda **_kwargs: FakeClient())
+    monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client.acquire_connector_rate_limit", fake_acquire)
+
+    result = asyncio.run(
+        list_variations(
+            WooCommerceCredentials(url="https://store.example.test", key="ck_test", secret="cs_test"),
+            200,
+            page=1,
+            per_page=100,
+        )
+    )
+
+    assert result == [{"id": 201}]
+    assert calls == 2
+    assert sleeps == [1.0]
+
+
+def test_woocommerce_variation_fetch_retries_429_retry_after(monkeypatch):
+    import asyncio
+    import httpx
+
+    from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
+    from app.connectors.destinations.woocommerce.rest_client import list_variations
+
+    calls = 0
+    sleeps: list[float] = []
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, *, params, timeout):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return httpx.Response(
+                    429,
+                    request=httpx.Request("GET", url),
+                    json={"message": "rate limited"},
+                    headers={"Retry-After": "7"},
+                )
+            return httpx.Response(200, request=httpx.Request("GET", url), json=[{"id": 202}])
+
+    async def fake_sleep(delay: float):
+        sleeps.append(delay)
+
+    async def fake_acquire(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client.httpx.AsyncClient", lambda **_kwargs: FakeClient())
+    monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client.acquire_connector_rate_limit", fake_acquire)
+
+    result = asyncio.run(
+        list_variations(
+            WooCommerceCredentials(url="https://store.example.test", key="ck_test", secret="cs_test"),
+            200,
+            page=1,
+            per_page=100,
+        )
+    )
+
+    assert result == [{"id": 202}]
+    assert calls == 2
+    assert sleeps == [7.0]
+
+
+def test_woocommerce_cache_refresh_reports_variation_failure_safely(client, auth_headers, db, monkeypatch):
+    from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
+
+    _configure_woocommerce_channel(client, auth_headers)
+
+    async def fake_list_products(_creds, *, page, per_page, **_kwargs):
+        assert page == 1
+        assert per_page == 100
+        return [
+            {
+                "id": 200,
+                "name": "Variable parent",
+                "type": "variable",
+                "sku": "PARENT-200",
+                "regular_price": "",
+                "sale_price": "",
+                "price": "",
+                "stock_quantity": None,
+                "stock_status": "instock",
+                "manage_stock": False,
+                "backorders": "no",
+                "categories": [],
+                "images": [],
+                "status": "publish",
+                "date_modified_gmt": "2026-07-10T08:00:00",
+            },
+        ], 1, 1
+
+    async def fake_list_variations(_creds, product_id, *, page, per_page):
+        raise ConnectorError(
+            code=ConnectorErrorCode.PROVIDER_ERROR,
+            message="Variation fetch failed for key=ck_live_secret secret=cs_live_secret",
+            provider="woocommerce",
+            http_status=500,
+        )
+
+    monkeypatch.setattr("app.connectors.read.woocommerce.list_products_paged", fake_list_products)
+    monkeypatch.setattr("app.connectors.read.woocommerce.list_variations", fake_list_variations)
+
+    response = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"] is False
+    assert data["status"] == "failed"
+    assert data["products_read"] == 1
+    assert data["cache_rows_upserted"] == 0
+    assert "Variation fetch failed" in data["errors"][0]
+    assert "ck_live_secret" not in response.text
+    assert "cs_live_secret" not in response.text
 
 
 def test_woocommerce_access_mode_defaults_read_only_until_owner_enables(client, auth_headers):
