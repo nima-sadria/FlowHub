@@ -260,7 +260,7 @@ export function SearchableListbox({
 
   return (
     <div ref={rootRef} className="relative min-w-0">
-      <label className="mb-1 block text-[13px] font-medium text-text-base">{label}</label>
+      <label className="fh-label mb-1 block">{label}</label>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
@@ -274,7 +274,7 @@ export function SearchableListbox({
         aria-haspopup="listbox"
         aria-controls={id}
         disabled={disabled}
-        className="fh-input mb-1 min-h-9 min-w-0 py-1.5 flex items-center justify-between gap-2 text-left"
+        className="fh-input mb-1 min-w-0 flex items-center justify-between gap-2 text-left"
       >
         <span className="truncate">{selectedLabel}</span>
         <ChevronIcon open={open} />
@@ -301,13 +301,13 @@ export function SearchableListbox({
               {...inputHint(template_variable ?? `Search ${label.toLowerCase()}...`)}
               autoComplete="off"
               spellCheck={false}
-              className="fh-input py-1.5 shadow-none"
-            />
-          </div>
-          <div id={id} role="listbox" aria-label={label} className="max-h-44 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <div className="px-3 py-2 text-[14px] text-wp-muted">No matches</div>
-            ) : filtered.map(opt => (
+            className="fh-input shadow-none"
+          />
+        </div>
+        <div id={id} role="listbox" aria-label={label} className="max-h-44 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 fh-text-body-sm">No matches</div>
+          ) : filtered.map(opt => (
               <button
                 key={opt.value}
                 type="button"
@@ -316,7 +316,7 @@ export function SearchableListbox({
                 onClick={() => handleSelect(opt.value)}
                 disabled={disabled}
                 className={[
-                  'w-full text-left px-3 py-2 text-[14px] leading-snug break-words flex items-center justify-between gap-3',
+                  'w-full text-left px-3 py-2 fh-text-body break-words flex items-center justify-between gap-3',
                   opt.value === value
                     ? 'bg-fh-mist-100 text-accent font-medium'
                     : 'bg-bg-card text-text-base hover:bg-bg-base',
@@ -359,8 +359,8 @@ function Field({
   ].filter(Boolean).join(' ') || undefined
 
   return (
-    <div>
-      <label htmlFor={id} className="mb-1 block text-[13px] font-medium text-text-base">{label}</label>
+    <div className="fh-field">
+      <label htmlFor={id} className="fh-label">{label}</label>
       <input
         id={id}
         type={type}
@@ -373,19 +373,19 @@ function Field({
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy}
         className={[
-          'fh-input min-h-9 text-[14px]',
-          error ? 'border-wp-red' : 'border-border',
+          'fh-input',
+          error ? 'fh-input-error' : '',
         ].join(' ')}
       />
-      {hint && <p id={`${id}-hint`} className="mt-1 text-[13px] leading-5 text-wp-muted">{hint}</p>}
-      {error && <p id={`${id}-error`} className="mt-1 text-[13px] leading-5 text-wp-red">{error}</p>}
+      {hint && <p id={`${id}-hint`} className="fh-help-text">{hint}</p>}
+      {error && <p id={`${id}-error`} className="fh-field-error">{error}</p>}
     </div>
   )
 }
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div role="alert" className="fh-error-alert mb-5 flex items-start gap-3 rounded-lg px-4 py-3 text-[14px] leading-6">
+    <div role="alert" className="fh-error-alert mb-5">
       <SetupIconGlyph icon="alert" className="mt-0.5 h-4 w-4 flex-shrink-0" />
       <span>{message}</span>
     </div>
@@ -402,7 +402,8 @@ function StepProgress({ current, steps }: { current: Step; steps: Step[] }) {
             <span
               aria-current={idx === currentIdx ? 'step' : undefined}
               className={[
-                'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold',
+                'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border text-xs font-semibold',
+
                 idx <= currentIdx
                   ? 'border-accent bg-accent text-white shadow-sm'
                   : 'border-border bg-bg-card text-wp-muted',
@@ -443,8 +444,8 @@ function StepProgress({ current, steps }: { current: Step; steps: Step[] }) {
                 )}
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-[14px] font-semibold">{STEP_DETAILS[s].label}</span>
-                <span className="block truncate text-[14px] leading-5 text-wp-muted">
+                <span className="block truncate fh-text-body font-semibold">{STEP_DETAILS[s].label}</span>
+                <span className="block truncate fh-text-body-sm">
                   {idx < currentIdx ? 'Completed' : idx === currentIdx ? 'In progress' : 'Pending'}
                 </span>
               </span>
@@ -473,7 +474,7 @@ function NavButtons({
           type="button"
           onClick={onBack}
           disabled={loading}
-          className="fh-button-secondary min-h-9 w-full py-2 text-[15px] sm:w-auto sm:min-w-24"
+          className="fh-button-secondary w-full sm:w-auto sm:min-w-24"
         >
           Back
         </button>
@@ -482,7 +483,7 @@ function NavButtons({
         type="button"
         onClick={onNext}
         disabled={loading || nextDisabled}
-        className="fh-button-primary min-h-9 w-full py-2 text-[15px] sm:w-auto sm:min-w-32"
+        className="fh-button-primary w-full sm:w-auto sm:min-w-32"
       >
         {loading && <AppleSpinner size={16} />}
         {loading ? 'Please wait...' : nextLabel}
@@ -494,8 +495,8 @@ function NavButtons({
 function StepCard({
   title,
   subtitle,
-  titleClassName = 'text-[17px] leading-7',
-  subtitleClassName = 'text-[14px]',
+  titleClassName = 'fh-section-title',
+  subtitleClassName = 'fh-section-subtitle',
   children,
 }: {
   title: string
@@ -507,8 +508,8 @@ function StepCard({
   return (
     <div>
       <div className="mb-5">
-        <h2 className={['font-semibold text-text-base', titleClassName].join(' ')}>{title}</h2>
-        {subtitle && <p className={['mt-1 leading-6 text-wp-muted', subtitleClassName].join(' ')}>{subtitle}</p>}
+        <h2 className={titleClassName}>{title}</h2>
+        {subtitle && <p className={['mt-1', subtitleClassName].join(' ')}>{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -523,8 +524,8 @@ function StatusRow({
   return (
     <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-bg-card p-3">
       <div className="min-w-0">
-        <p className="text-[14px] font-semibold leading-5 text-text-base">{label}</p>
-        {hint && <p className="mt-1 text-[14px] leading-6 text-wp-muted">{hint}</p>}
+        <p className="fh-text-body font-semibold">{label}</p>
+        {hint && <p className="mt-1 fh-text-body-sm">{hint}</p>}
       </div>
       <span className={[
         'fh-badge flex-shrink-0 whitespace-nowrap',
@@ -538,7 +539,7 @@ function StatusRow({
 
 function InfoPanel({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-lg border border-border bg-bg-base px-3 py-2.5 text-[14px] leading-6 text-wp-muted">
+    <div className="rounded-lg border border-border bg-bg-base px-3 py-2.5 fh-text-body-sm">
       {children}
     </div>
   )
@@ -550,7 +551,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
     <StepCard
       title="Welcome to FlowHub"
       subtitle="This wizard only captures the required system defaults. Connector setup stays available after sign-in."
-      titleClassName="text-[32px] leading-10"
+      titleClassName="fh-page-title"
     >
       <div className="grid gap-2.5">
         {steps.map((stepName, idx) => (
@@ -559,10 +560,10 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
               <SetupIconGlyph icon={STEP_DETAILS[stepName].icon} className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <p className="text-[14px] font-semibold leading-6 text-text-base">
+              <p className="fh-text-body font-semibold">
                 {idx + 1}. {STEP_DETAILS[stepName].label}
               </p>
-              <p className="text-[14px] leading-6 text-wp-muted">{STEP_DETAILS[stepName].description}</p>
+              <p className="fh-text-body-sm">{STEP_DETAILS[stepName].description}</p>
             </div>
           </div>
         ))}
@@ -915,7 +916,7 @@ export default function Setup({ onComplete }: SetupProps) {
   if (!statusChecked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg-base p-4">
-        <div className="fh-card flex items-center gap-3 px-5 py-4 text-[14px] text-wp-muted">
+        <div className="fh-card flex items-center gap-3 px-5 py-4 fh-text-body-sm">
           <AppleSpinner size={18} />
           <span>Loading setup status...</span>
         </div>
@@ -933,21 +934,21 @@ export default function Setup({ onComplete }: SetupProps) {
                 <SetupIconGlyph icon="spark" className="h-[18px] w-[18px]" />
               </div>
               <div>
-                <h1 className="text-[22px] font-semibold leading-7 text-text-base">FlowHub</h1>
-                <p className="text-[13px] leading-5 text-wp-muted">Setup console</p>
+                <h1 className="fh-section-title">FlowHub</h1>
+                <p className="fh-text-body-sm">Setup console</p>
               </div>
             </div>
             <div className="rounded-lg border border-border bg-bg-base p-3">
-              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-wp-muted">Current Step</p>
+              <p className="fh-section-label">Current Step</p>
               <div className="mt-2.5 flex items-start gap-2.5">
                 <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-fh-mist-100 text-accent">
                   <SetupIconGlyph icon={STEP_DETAILS[step].icon} className="h-4 w-4" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[14px] font-semibold leading-6 text-text-base">
+                  <p className="fh-text-body font-semibold">
                     {STEP_LABELS[step]}
                   </p>
-                  <p className="mt-0.5 text-[14px] leading-6 text-wp-muted">
+                  <p className="mt-0.5 fh-text-body-sm">
                     {STEP_DETAILS[step].description}
                   </p>
                 </div>
@@ -960,7 +961,7 @@ export default function Setup({ onComplete }: SetupProps) {
         </aside>
 
         <main className="fh-card overflow-visible p-5 sm:p-6">
-          <p className="mb-3 text-[12px] font-semibold uppercase tracking-[0.08em] text-wp-muted">Step {stepIndex + 1} of {SETUP_STEPS.length}</p>
+          <p className="mb-3 fh-section-label">Step {stepIndex + 1} of {SETUP_STEPS.length}</p>
           {step === 'welcome' && <WelcomeStep onNext={goNext} />}
           {step === 'server-profile' && <ServerProfileStep onNext={goNext} onBack={goBack} />}
           {step === 'database' && <DatabaseStep onNext={goNext} onBack={goBack} />}

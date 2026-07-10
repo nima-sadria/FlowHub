@@ -19,7 +19,7 @@ function StepIndicator({ current, total }: { current: Step; total: number }) {
         return (
           <div key={step} className="flex items-center gap-2">
             <div className={[
-              'w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold transition-colors',
+              'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors',
               active  ? 'bg-accent text-white' :
               done    ? 'bg-wp-green/20 text-wp-green' :
               'bg-bg-base border border-border text-wp-muted',
@@ -98,8 +98,8 @@ export default function SourceWizard() {
 
   function field(name: keyof SourceConfig, label: string, type = 'text', template_variable = '') {
     return (
-      <div key={name}>
-        <label className="block text-[12px] font-medium text-text-base mb-1.5">{label}</label>
+      <div key={name} className="fh-field">
+        <label className="fh-help-text">{label}</label>
         <input
           type={type}
           value={config[name] as string}
@@ -108,10 +108,10 @@ export default function SourceWizard() {
           autoComplete={type === 'password' ? 'new-password' : undefined}
           className={[
             'fh-input',
-            errors[name] ? 'border-wp-red' : 'border-border',
+            errors[name] ? 'fh-input-error' : '',
           ].join(' ')}
         />
-        {errors[name] && <p className="text-[11px] text-wp-red mt-1">{errors[name]}</p>}
+        {errors[name] && <p className="fh-field-error">{errors[name]}</p>}
       </div>
     )
   }
@@ -132,10 +132,10 @@ export default function SourceWizard() {
         {/* Step 1 - Select type */}
         {step === 1 && (
           <div className="flex flex-col gap-4">
-            <p className="text-[13px] text-wp-muted">Select the type of data source to connect.</p>
+            <p className="fh-text-body-sm">Select the type of data source to connect.</p>
             <button
               onClick={() => setStep(2)}
-              className="flex items-start gap-4 p-4 border-2 border-accent rounded-card bg-accent/5 text-start w-full hover:bg-accent/10 transition-colors"
+              className="fh-card flex w-full items-start gap-4 border-accent bg-accent/5 p-4 text-start transition-colors hover:bg-accent/10"
             >
               <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-accent">
@@ -146,8 +146,8 @@ export default function SourceWizard() {
                 </svg>
               </div>
               <div>
-                <div className="text-[14px] font-semibold text-text-base">Nextcloud Excel</div>
-                <div className="text-[12px] text-wp-muted mt-0.5">
+                <div className="fh-text-body font-semibold">Nextcloud Excel</div>
+                <div className="fh-text-caption mt-0.5">
                   Read prices from an Excel spreadsheet hosted on Nextcloud or a compatible WebDAV server.
                 </div>
               </div>
@@ -186,21 +186,21 @@ export default function SourceWizard() {
         {step === 3 && (
           <div className="flex flex-col gap-4">
             {testResult?.success ? (
-              <div className="flex items-start gap-3 p-4 bg-wp-green/10 border border-wp-green/30 rounded-lg">
+              <div className="fh-alert fh-alert-success">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-wp-green flex-shrink-0 mt-0.5">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
                 <div>
-                  <p className="text-[13px] font-medium text-wp-green">Connection successful</p>
-                  <p className="text-[12px] text-wp-muted mt-0.5">{testResult.message}</p>
+                  <p className="fh-text-body font-medium text-wp-green">Connection successful</p>
+                  <p className="fh-text-caption mt-0.5">{testResult.message}</p>
                 </div>
               </div>
             ) : testResult && !testResult.success ? (
-              <div className="flex items-start gap-3 p-4 bg-wp-red/10 border border-wp-red/30 rounded-lg">
+              <div className="fh-alert fh-alert-danger">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-wp-red flex-shrink-0 mt-0.5">
                   <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
                 </svg>
-                <p className="text-[13px] text-wp-red">{testResult.message}</p>
+                <p className="fh-text-body text-wp-red">{testResult.message}</p>
               </div>
             ) : null}
 
@@ -225,7 +225,7 @@ export default function SourceWizard() {
                 <button
                   onClick={() => void handleTest()}
                   disabled={testing}
-                  className="fh-button-secondary flex-1 border-accent text-accent"
+                  className="fh-button-secondary flex-1"
                 >
                   Retry
                 </button>
@@ -243,8 +243,8 @@ export default function SourceWizard() {
               </svg>
             </div>
             <div>
-              <p className="text-[16px] font-semibold text-text-base">{config.name} added</p>
-              <p className="text-[13px] text-wp-muted mt-1">Your source is active and ready to sync.</p>
+              <p className="fh-section-title">{config.name} added</p>
+              <p className="fh-text-body-sm mt-1">Your source is active and ready to sync.</p>
             </div>
             <div className="flex gap-3 w-full">
               <button

@@ -61,21 +61,21 @@ export default function Login() {
           />
         </div>
 
-        <div className="fh-login-card rounded-card p-8 sm:p-10">
+        <div className="fh-login-card p-8 sm:p-10">
           <div className="mb-8 text-center">
-            <h1 className="text-[28px] leading-9 font-semibold text-text-base">FlowHub</h1>
-            <p className="text-[14px] text-wp-muted mt-1">Sign in to FlowHub</p>
+            <h1 className="fh-page-title">FlowHub</h1>
+            <p className="fh-page-subtitle mt-1">Sign in to FlowHub</p>
           </div>
 
           {error && (
-            <div role="alert" className="fh-error-alert mb-4 rounded-lg px-4 py-3 text-[13px]">
+            <div role="alert" className="fh-error-alert mb-4">
               {error}
             </div>
           )}
 
           <form onSubmit={(e) => { void handleSubmit(e) }} className="flex flex-col gap-4">
-            <div>
-              <label htmlFor="login-username" className="block text-[13px] font-medium text-text-base mb-1.5">
+            <div className="fh-field">
+              <label htmlFor="login-username" className="fh-label">
                 Username
               </label>
               <input
@@ -87,13 +87,13 @@ export default function Login() {
                 autoComplete="username"
                 autoFocus
                 disabled={loading}
-                className="fh-input text-[14px]"
+                className="fh-input"
                 {...inputHint('Administrator username')}
               />
             </div>
 
-            <div>
-              <label htmlFor="login-password" className="block text-[13px] font-medium text-text-base mb-1.5">
+            <div className="fh-field">
+              <label htmlFor="login-password" className="fh-label">
                 Password
               </label>
               <input
@@ -104,7 +104,7 @@ export default function Login() {
                 required
                 autoComplete="current-password"
                 disabled={loading}
-                className="fh-input text-[14px]"
+                className="fh-input"
                 {...inputHint('Enter your administrator credentials')}
               />
             </div>
@@ -112,7 +112,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="fh-primary-button mt-2 w-full py-2.5 rounded-lg text-[14px] font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="fh-button-primary mt-2 w-full"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>

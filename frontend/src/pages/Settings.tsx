@@ -39,10 +39,10 @@ function Section({ title, description, children }: {
 }) {
   return (
     <div className="fh-card overflow-hidden">
-      <div className="fh-panel-header !min-h-0 !items-start !py-5">
+      <div className="fh-panel-header !min-h-0 !items-start">
         <div>
-          <p className="text-[16px] font-semibold text-text-base">{title}</p>
-          {description && <p className="text-[13px] text-wp-muted mt-1">{description}</p>}
+          <p className="fh-section-title">{title}</p>
+          {description && <p className="fh-section-subtitle mt-1">{description}</p>}
         </div>
       </div>
       <div className="fh-panel-body flex flex-col gap-4">{children}</div>
@@ -52,9 +52,9 @@ function Section({ title, description, children }: {
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <label className="block text-[12px] font-medium text-text-base mb-1.5">{label}</label>
-      <div className="px-3 py-2 text-[13px] border border-border rounded-lg bg-bg-base text-wp-muted font-mono select-all shadow-sm">
+    <div className="fh-field">
+      <label className="fh-help-text">{label}</label>
+      <div className="rounded-lg border border-border bg-bg-base px-3 py-2 fh-text-body-sm font-mono select-all">
         {value}
       </div>
     </div>
@@ -69,13 +69,13 @@ function SelectField({ label, value, options, onChange, disabled }: {
   disabled?: boolean
 }) {
   return (
-    <div>
-      <label className="block text-[12px] font-medium text-text-base mb-1.5">{label}</label>
+    <div className="fh-field">
+      <label className="fh-help-text">{label}</label>
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
         disabled={disabled}
-        className="fh-input"
+        className="fh-select"
       >
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -91,8 +91,8 @@ function NumberField({ label, value, min, max, onChange }: {
   onChange: (v: number) => void
 }) {
   return (
-    <div>
-      <label className="block text-[12px] font-medium text-text-base mb-1.5">{label}</label>
+    <div className="fh-field">
+      <label className="fh-help-text">{label}</label>
       <input
         type="number"
         value={value}
@@ -192,7 +192,7 @@ export default function Settings() {
 
       <Section title="General" description="Configure display and synchronization preferences">
         {!draft ? (
-          <div className="flex items-center gap-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading...</div>
+          <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />Loading...</div>
         ) : (
           <>
             <NumberField
@@ -222,11 +222,11 @@ export default function Settings() {
 
       <Section title="About" description="Application information">
         {healthLoading ? (
-          <div className="flex items-center gap-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading...</div>
+          <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />Loading...</div>
         ) : healthErr ? (
           <div className="flex items-center justify-between">
-            <p className="text-[13px] text-wp-red">Backend unavailable</p>
-            <button onClick={() => void fetchHealth()} className="text-[12px] text-accent hover:underline">Retry</button>
+            <p className="fh-text-body-sm text-wp-red">Backend unavailable</p>
+            <button onClick={() => void fetchHealth()} className="fh-toolbar-link">Retry</button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

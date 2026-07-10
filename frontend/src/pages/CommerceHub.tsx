@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { ApiError } from '../api/client'
+import Badge from '../components/Badge'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeOption } from '../services/types'
 import type { NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
@@ -31,13 +32,6 @@ function prettyStatus(value: string): string {
   return value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-function statusClass(status: string): string {
-  if (['healthy', 'configured', 'current'].includes(status)) return 'fh-badge-success'
-  if (['planned', 'future', 'not_configured', 'unknown'].includes(status)) return 'fh-badge-neutral'
-  if (['degraded'].includes(status)) return 'fh-badge-warning'
-  return 'fh-badge-danger'
-}
-
 function redactSensitiveText(value: string): string {
   return value.replace(
     /((?:consumer_secret|consumer_key|access_token|refresh_token|authorization|password|api_key|apikey|secret|token|key)\s*["']?\s*[:=]\s*["']?)([^"',\s}]+)/gi,
@@ -60,8 +54,8 @@ function apiErrorMessage(error: unknown, fallback: string): string {
 function SafetyBadges({ readOnly, writeBlocked }: { readOnly: boolean; writeBlocked: boolean }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {readOnly && <span className="fh-badge fh-badge-neutral">Read-only mode</span>}
-      {writeBlocked && <span className="fh-badge fh-badge-danger">Writes blocked</span>}
+      {readOnly && <Badge variant="neutral">Read-only mode</Badge>}
+      {writeBlocked && <Badge variant="danger">Writes blocked</Badge>}
     </div>
   )
 }
@@ -72,19 +66,19 @@ function RelationshipMap({ map }: { map: CommerceRelationshipMap | null }) {
   return (
     <div className="fh-card fh-card-pad">
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto_1fr] gap-3 items-center text-center">
-        <div className="rounded-lg border border-border bg-bg-base px-4 py-3">
-          <p className="text-[11px] text-wp-muted">{nodes[0]}</p>
-          <p className="text-[14px] font-semibold text-text-base">{example[0]}</p>
+        <div className="fh-stat-tile">
+          <p className="fh-stat-tile-label">{nodes[0]}</p>
+          <p className="fh-text-body font-semibold">{example[0]}</p>
         </div>
-        <div className="text-[20px] text-wp-muted">v</div>
-        <div className="rounded-lg border border-border bg-bg-base px-4 py-3">
-          <p className="text-[11px] text-wp-muted">FlowHub</p>
-          <p className="text-[14px] font-semibold text-text-base">{example[1]}</p>
+        <div className="text-xl text-wp-muted">/</div>
+        <div className="fh-stat-tile">
+          <p className="fh-stat-tile-label">FlowHub</p>
+          <p className="fh-text-body font-semibold">{example[1]}</p>
         </div>
-        <div className="text-[20px] text-wp-muted">v</div>
-        <div className="rounded-lg border border-border bg-bg-base px-4 py-3">
-          <p className="text-[11px] text-wp-muted">{nodes[2]}</p>
-          <p className="text-[14px] font-semibold text-text-base">{example[2]}</p>
+        <div className="text-xl text-wp-muted">/</div>
+        <div className="fh-stat-tile">
+          <p className="fh-stat-tile-label">{nodes[2]}</p>
+          <p className="fh-text-body font-semibold">{example[2]}</p>
         </div>
       </div>
     </div>
@@ -107,18 +101,18 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-[15px] font-semibold text-text-base">{source.name}</h3>
-            <span className={['fh-badge', statusClass(source.status)].join(' ')}>
+            <h3 className="fh-section-title">{source.name}</h3>
+            <Badge variant={source.status === 'degraded' ? 'warning' : ['healthy', 'configured', 'current'].includes(source.status) ? 'success' : ['planned', 'future', 'not_configured', 'unknown'].includes(source.status) ? 'neutral' : 'danger'}>
               {prettyStatus(source.status)}
-            </span>
-            {source.placeholder && <span className="fh-badge fh-badge-neutral">Planned source</span>}
+            </Badge>
+            {source.placeholder && <Badge variant="neutral">Planned source</Badge>}
           </div>
-          <p className="text-[12px] text-wp-muted mt-1">{source.data_role}</p>
+          <p className="fh-text-caption mt-1">{source.data_role}</p>
         </div>
-        <span className="text-[12px] font-medium text-text-base">{source.type}</span>
+        <span className="fh-text-caption font-medium text-text-base">{source.type}</span>
       </div>
 
-      <div className="fh-form-grid sm:grid-cols-2 text-[12px]">
+      <div className="fh-form-grid sm:grid-cols-2 fh-text-caption">
         <p><span className="text-wp-muted">Credential status: </span><span className="font-medium text-text-base">{prettyStatus(source.credential_status)}</span></p>
         <p><span className="text-wp-muted">Last health check: </span><span className="font-medium text-text-base">{source.last_health_check ? new Date(source.last_health_check).toLocaleString() : 'Not checked'}</span></p>
         <p><span className="text-wp-muted">Health: </span><span className="font-medium text-text-base">{prettyStatus(source.health?.status ?? 'unknown')}</span></p>
@@ -141,14 +135,14 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
               type="button"
               aria-label="Source settings"
               onClick={() => onConfigure(source.id)}
-              className="fh-button-secondary px-3 py-1.5 text-[12px]"
+              className="fh-button-secondary"
             >
               Settings
             </button>
             <button
               onClick={() => onTest(source.id)}
               disabled={testing || reading}
-              className="fh-button-secondary px-3 py-1.5 text-[12px]"
+              className="fh-button-secondary"
             >
               {testing && <Spinner size="sm" />}
               {testing ? 'Testing' : 'Test connection'}
@@ -156,7 +150,7 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
             <button
               onClick={() => onRead(source.id)}
               disabled={testing || reading || source.read_policy?.manual_read_allowed === false}
-              className="fh-button-secondary px-3 py-1.5 text-[12px]"
+              className="fh-button-secondary"
             >
               {reading && <Spinner size="sm" />}
               {reading ? 'Reading' : 'Read now'}
@@ -183,18 +177,18 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-[15px] font-semibold text-text-base">{channel.name}</h3>
-            <span className={['fh-badge', statusClass(channel.status)].join(' ')}>
+            <h3 className="fh-section-title">{channel.name}</h3>
+            <Badge variant={channel.status === 'degraded' ? 'warning' : ['healthy', 'configured', 'current'].includes(channel.status) ? 'success' : ['planned', 'future', 'not_configured', 'unknown'].includes(channel.status) ? 'neutral' : 'danger'}>
               {prettyStatus(channel.status)}
-            </span>
-            {channel.placeholder && <span className="fh-badge fh-badge-neutral">Planned channel</span>}
+            </Badge>
+            {channel.placeholder && <Badge variant="neutral">Planned channel</Badge>}
           </div>
-          <p className="text-[12px] text-wp-muted mt-1">{channel.capabilities_summary.join(', ')}</p>
+          <p className="fh-text-caption mt-1">{channel.capabilities_summary.join(', ')}</p>
         </div>
-        <span className="text-[12px] font-medium text-text-base">{channel.type}</span>
+        <span className="fh-text-caption font-medium text-text-base">{channel.type}</span>
       </div>
 
-      <div className="fh-form-grid sm:grid-cols-2 text-[12px]">
+      <div className="fh-form-grid sm:grid-cols-2 fh-text-caption">
         <p><span className="text-wp-muted">Credential status: </span><span className="font-medium text-text-base">{prettyStatus(channel.credential_status)}</span></p>
         <p><span className="text-wp-muted">Last health check: </span><span className="font-medium text-text-base">{channel.last_health_check ? new Date(channel.last_health_check).toLocaleString() : 'Not checked'}</span></p>
         <p><span className="text-wp-muted">Health: </span><span className="font-medium text-text-base">{prettyStatus(channel.health?.status ?? 'unknown')}</span></p>
@@ -218,7 +212,7 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
                 type="button"
                 onClick={() => onConfigure(channel.id)}
                 disabled={testing || refreshing}
-                className="fh-button-secondary px-3 py-1.5 text-[12px]"
+                className="fh-button-secondary"
               >
                 Settings
               </button>
@@ -226,7 +220,7 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
             <button
               onClick={() => onTest(channel.id)}
               disabled={testing || refreshing}
-              className="fh-button-secondary px-3 py-1.5 text-[12px]"
+              className="fh-button-secondary"
             >
               {testing && <Spinner size="sm" />}
               {testing ? 'Testing' : 'Test connection'}
@@ -235,7 +229,7 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
               <button
                 onClick={() => onRefresh(channel.id)}
                 disabled={testing || refreshing}
-                className="fh-button-secondary px-3 py-1.5 text-[12px]"
+                className="fh-button-secondary"
               >
                 {refreshing && <Spinner size="sm" />}
                 {refreshing ? 'Refreshing' : 'Refresh product cache'}
@@ -346,23 +340,23 @@ function NextcloudFilePicker({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
       <div className="fh-card w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
-        <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="fh-panel-header !min-h-0 !items-start">
           <div>
-            <h3 className="text-[15px] font-semibold text-text-base">Browse Nextcloud</h3>
-            <p className="text-[12px] text-wp-muted mt-1">{currentPath}</p>
+            <h3 className="fh-section-title">Browse Nextcloud</h3>
+            <p className="fh-section-subtitle mt-1">{currentPath}</p>
           </div>
-          <button type="button" onClick={onClose} className="fh-button-secondary px-3 py-1.5 text-[12px]">
+          <button type="button" onClick={onClose} className="fh-button-secondary">
             Close
           </button>
         </div>
         <div className="overflow-auto p-4">
-          {error && <div className="fh-error-alert mb-3 rounded px-3 py-2 text-[12px]">{error}</div>}
+          {error && <div className="fh-error-alert mb-3">{error}</div>}
           {loading ? (
-            <div className="flex items-center gap-2 text-[13px] text-wp-muted"><Spinner size="sm" />Loading files</div>
+            <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />Loading files</div>
           ) : (
             <div className="flex flex-col gap-2">
               {parentPath !== null && (
-                <button type="button" onClick={() => onOpenDirectory(parentPath || '/')} className="fh-button-secondary justify-start px-3 py-2 text-[13px]">
+                <button type="button" onClick={() => onOpenDirectory(parentPath || '/')} className="fh-button-secondary justify-start">
                   Up one folder
                 </button>
               )}
@@ -371,7 +365,7 @@ function NextcloudFilePicker({
                   key={directory.path}
                   type="button"
                   onClick={() => onOpenDirectory(directory.path)}
-                  className="fh-button-secondary justify-start px-3 py-2 text-[13px]"
+                  className="fh-button-secondary justify-start"
                 >
                   {directory.name}
                 </button>
@@ -382,14 +376,14 @@ function NextcloudFilePicker({
                   type="button"
                   disabled={!file.supported}
                   onClick={() => onSelectFile(file)}
-                  className="flex items-center justify-between gap-3 rounded border border-border bg-bg-base px-3 py-2 text-left text-[13px] disabled:opacity-60"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-bg-base px-3 py-3 text-left fh-text-body disabled:opacity-60"
                 >
                   <span className="font-medium text-text-base">{file.name}</span>
-                  <span className="text-[12px] text-wp-muted">{file.supported ? 'Spreadsheet' : 'Unsupported'}</span>
+                  <span className="fh-text-caption">{file.supported ? 'Spreadsheet' : 'Unsupported'}</span>
                 </button>
               ))}
               {!loading && data && data.directories.length === 0 && data.files.length === 0 && (
-                <p className="text-[13px] text-wp-muted">No spreadsheet files in this folder.</p>
+                <p className="fh-text-body-sm">No spreadsheet files in this folder.</p>
               )}
             </div>
           )}
@@ -552,14 +546,14 @@ function ConfigPanel({
     <form onSubmit={event => void submit(event)} className="fh-card overflow-hidden">
       <div className="fh-panel-header !items-start">
         <div>
-          <h3 className="text-[18px] font-semibold text-text-base">
+          <h3 className="fh-section-title">
             {kind === 'source' ? 'Add Source' : 'Add Channel'}
           </h3>
-          <p className="text-[13px] text-wp-muted mt-1">
+          <p className="fh-section-subtitle mt-1">
             Configuration is local to FlowHub and remains read-only.
           </p>
         </div>
-        <button type="button" onClick={onCancel} className="fh-button-secondary px-3 py-1.5 text-[12px]">
+        <button type="button" onClick={onCancel} className="fh-button-secondary">
           Close
         </button>
       </div>
@@ -603,11 +597,11 @@ function ConfigPanel({
         </label>
         <SafetyBadges readOnly={selected.read_only} writeBlocked={selected.runtime_write_blocked} />
         {selected.placeholder && (
-          <span className="fh-badge fh-badge-neutral">
+          <Badge variant="neutral">
             {kind === 'source' ? 'Planned source' : 'Planned channel'}
-          </span>
+          </Badge>
         )}
-        {selected.placeholder && <span className="fh-badge fh-badge-neutral">Not configured</span>}
+        {selected.placeholder && <Badge variant="neutral">Not configured</Badge>}
         </div>
       </div>
 
@@ -656,7 +650,7 @@ function ConfigPanel({
                 <p className="fh-form-section-title">Nextcloud spreadsheet file</p>
                 <p className="fh-form-section-description">Use WebDAV with your app password. Public share links are not required.</p>
                 <p className="mt-3 fh-help-text">Selected file</p>
-                <div className="mt-1 min-h-10 rounded-md border border-border bg-bg-subtle px-3 py-2 text-[13px] text-text-base">
+                <div className="mt-1 min-h-10 rounded-md border border-border bg-bg-subtle px-3 py-2 fh-text-body">
                   {settings.spreadsheet_path || 'No spreadsheet file selected'}
                 </div>
               </div>
@@ -706,7 +700,7 @@ function ConfigPanel({
                 <p className="fh-form-section-title">Worksheet</p>
                 <p className="fh-form-section-description">Choose whether FlowHub should read every worksheet or a single named worksheet.</p>
               </div>
-              <div className="flex flex-col gap-2 text-[13px] text-text-base">
+              <div className="flex flex-col gap-2 fh-text-body">
                 <label className="fh-inline-check">
                   <input
                     type="radio"
@@ -984,22 +978,22 @@ export default function CommerceHub() {
       </div>
 
       {loading ? (
-        <div className="fh-card fh-card-pad flex items-center gap-2 text-[13px] text-wp-muted">
-          <Spinner size="sm" />Loading Commerce Hub
-        </div>
+          <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm">
+            <Spinner size="sm" />Loading Commerce Hub
+          </div>
       ) : tab === 'sources' ? (
         <section>
           <div className="fh-page-toolbar mb-4">
             <div>
-              <h2 className="text-[16px] font-semibold text-text-base">Sources</h2>
-              <p className="text-[12px] text-wp-muted mt-1">Input systems that feed FlowHub / Data Layer.</p>
+              <h2 className="fh-section-title">Sources</h2>
+              <p className="fh-section-subtitle mt-1">Input systems that feed FlowHub / Data Layer.</p>
             </div>
             {canManageCommerce ? (
               <button onClick={() => setFormKind('source')} className="fh-button-primary px-4">
                 Add Source
               </button>
             ) : (
-              <span className="fh-badge fh-badge-neutral">Admin permission required</span>
+              <Badge variant="neutral">Admin permission required</Badge>
             )}
           </div>
           {formKind === 'source' && (
@@ -1026,15 +1020,15 @@ export default function CommerceHub() {
         <section>
           <div className="fh-page-toolbar mb-4">
             <div>
-              <h2 className="text-[16px] font-semibold text-text-base">Channels</h2>
-              <p className="text-[12px] text-wp-muted mt-1">Commerce systems that receive catalog visibility from FlowHub.</p>
+              <h2 className="fh-section-title">Channels</h2>
+              <p className="fh-section-subtitle mt-1">Commerce systems that receive catalog visibility from FlowHub.</p>
             </div>
             {canManageCommerce ? (
               <button onClick={() => setFormKind('channel')} className="fh-button-primary px-4">
                 Add Channel
               </button>
             ) : (
-              <span className="fh-badge fh-badge-neutral">Admin permission required</span>
+              <Badge variant="neutral">Admin permission required</Badge>
             )}
           </div>
           {formKind === 'channel' && (
