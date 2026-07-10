@@ -352,6 +352,10 @@ export interface CommerceChannel {
   capabilities: Record<string, boolean>
   capabilities_summary: string[]
   settings_available: boolean
+  cached_products: number
+  cached_variations: number
+  last_cache_refresh: string | null
+  cache_refresh_status: string
 }
 
 export interface CommerceRelationshipMap {

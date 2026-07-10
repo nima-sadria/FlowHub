@@ -128,6 +128,16 @@ async def test_channel_connection(
     return await service.test_channel_connection(channel_id)
 
 
+@router.post("/channels/{channel_id}/refresh-cache")
+async def refresh_channel_cache(
+    channel_id: str,
+    user: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    _require_admin(user)
+    return await service.refresh_channel_cache(channel_id, user.username)
+
+
 @router.get("/channels/{channel_id}/health")
 async def get_channel_health(
     channel_id: str,

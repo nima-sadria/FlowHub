@@ -62,9 +62,20 @@ class IncrementalReadEngine:
                 eligible.append(row.product_id)
         return eligible
 
-    async def run_manual(self, adapter: ReadConnectorAdapter, *, triggered_by: str = "manual") -> ReadProgress:
-        strategy = self.determine_strategy(adapter)
-        job = self._resume_or_create_job(adapter.connector_id, strategy, triggered_by)
+    async def run_manual(
+        self,
+        adapter: ReadConnectorAdapter,
+        *,
+        triggered_by: str = "manual",
+        force_full: bool = False,
+    ) -> ReadProgress:
+        strategy = "initial_full_read" if force_full else self.determine_strategy(adapter)
+        job = self._resume_or_create_job(
+            adapter.connector_id,
+            strategy,
+            triggered_by,
+            resume_pending=not force_full,
+        )
         job.status = "running"
         job.started_at = job.started_at or datetime.utcnow()
         self.db.commit()
@@ -130,6 +141,12 @@ class IncrementalReadEngine:
             }
             self.db.commit()
             raise
+
+        if force_full:
+            unseen = self.db.query(DlProductCache).filter(DlProductCache.connector_id == adapter.connector_id)
+            if seen_product_ids:
+                unseen = unseen.filter(DlProductCache.product_id.notin_(seen_product_ids))
+            unseen.update({"exists": False, "freshness": "stale"}, synchronize_session=False)
 
         job.status = "completed"
         job.completed_at = datetime.utcnow()
@@ -211,22 +228,39 @@ class IncrementalReadEngine:
             connector_type=adapter.connector_type,
         )
 
-    def _resume_or_create_job(self, connector_id: str, strategy: str, triggered_by: str) -> DlRefreshJob:
+    def _resume_or_create_job(
+        self,
+        connector_id: str,
+        strategy: str,
+        triggered_by: str,
+        *,
+        resume_pending: bool = True,
+    ) -> DlRefreshJob:
         existing = (
             self.db.query(DlRefreshJob)
             .filter_by(connector_id=connector_id, entity_type="products", status="pending")
             .order_by(DlRefreshJob.created_at.desc())
             .first()
         )
-        if existing and (existing.meta or {}).get("resumable"):
+        if existing and resume_pending and (existing.meta or {}).get("resumable"):
             return existing
+        if existing and not resume_pending:
+            existing.status = "failed"
+            existing.error_message = "Superseded by a new full manual refresh."
+            existing.completed_at = datetime.utcnow()
+            self.db.commit()
         job = DlRefreshJob(
             job_type="manual",
             entity_type="products",
             connector_id=connector_id,
             status="pending",
             triggered_by=triggered_by,
-            meta={"strategy": strategy, "scheduler_started": False, "automatic_sync": False},
+            meta={
+                "strategy": strategy,
+                "force_full": not resume_pending,
+                "scheduler_started": False,
+                "automatic_sync": False,
+            },
             created_at=datetime.utcnow(),
         )
         self.db.add(job)
@@ -253,6 +287,8 @@ class IncrementalReadEngine:
             return
         now = datetime.utcnow()
         price = item.get("last_price", item.get("price"))
+        if price in (None, ""):
+            price = item.get("sale_price") or item.get("regular_price")
         raw_data = _safe_item(item)
         self.products.upsert(
             connector_id,
@@ -260,8 +296,21 @@ class IncrementalReadEngine:
             {
                 "sku": item.get("sku"),
                 "name": item.get("name"),
+                "external_id": _int_or_none(item.get("external_id", item.get("id"))),
+                "product_type": item.get("product_type") or item.get("type"),
+                "parent_id": str(item.get("parent_id")) if item.get("parent_id") not in (None, "") else None,
+                "status": item.get("status"),
                 "price": str(price) if price is not None else None,
                 "last_price": str(price) if price is not None else None,
+                "regular_price": _text_or_none(item.get("regular_price")),
+                "sale_price": _text_or_none(item.get("sale_price")),
+                "stock_qty": _int_or_none(item.get("stock_quantity", item.get("stock_qty"))),
+                "stock_status": item.get("stock_status"),
+                "manage_stock": _bool_or_none(item.get("manage_stock")),
+                "backorders_allowed": str(item.get("backorders") or "").lower() in {"yes", "notify", "true", "1"},
+                "categories": item.get("categories") if isinstance(item.get("categories"), list) else [],
+                "images": item.get("images") if isinstance(item.get("images"), list) else [],
+                "channel_id": connector_id,
                 "last_successful_read": now,
                 "last_modified": item.get("last_modified") or item.get("date_modified_gmt") or item.get("updated_at"),
                 "exists": bool(item.get("exists", True)),
@@ -289,6 +338,32 @@ def _parse_modified(value: str | None) -> datetime | None:
     except ValueError:
         return None
     return parsed.replace(tzinfo=None)
+
+
+def _int_or_none(value: Any) -> int | None:
+    if value in (None, "") or isinstance(value, bool):
+        return None
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _text_or_none(value: Any) -> str | None:
+    return None if value in (None, "") else str(value)
+
+
+def _bool_or_none(value: Any) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in {"true", "1", "yes"}:
+        return True
+    if normalized in {"false", "0", "no"}:
+        return False
+    return None
 
 
 def _safe_item(item: dict[str, Any]) -> dict[str, Any]:

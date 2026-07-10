@@ -26,6 +26,18 @@ afterEach(() => {
 })
 
 describe('Workspace source-driven preview', () => {
+  it('guides cache-empty preview failures to the WooCommerce Channel refresh action', async () => {
+    await renderWorkspaceWithPreviewError(new ApiError(
+      409,
+      JSON.stringify({ detail: 'WooCommerce product cache is empty. Run a manual read first.' }),
+    ))
+
+    await click('Start Preview')
+
+    expect(container.textContent).toContain('WooCommerce product cache is empty')
+    expect(container.textContent).toContain('Go to Commerce Hub → Channels and refresh the WooCommerce product cache.')
+  })
+
   it('displays preview rows and keeps blocked, unchanged, and stock-only rows unselectable', async () => {
     const preview = makePreview({ withError: true })
     const createDryRun = vi.fn()
@@ -148,6 +160,47 @@ async function renderWorkspace(
       async applyToWooCommerce() { return makeBatch(1, 'applied') },
       async getBatch() { return makeBatch(1, 'dry_run_ready') },
     },
+    health: {},
+    products: {},
+    sources: {},
+    activity: {},
+    commerce: {},
+  } as unknown as Services
+
+  await act(async () => {
+    root.render(
+      <NotificationProvider>
+        <ServiceProvider services={services}>
+          <Workspace />
+        </ServiceProvider>
+      </NotificationProvider>,
+    )
+  })
+  await flush()
+}
+
+async function renderWorkspaceWithPreviewError(error: Error) {
+  const services = {
+    settings: {
+      async getSettings() {
+        return {
+          woocommerceUrl: 'https://store.example.test',
+          nextcloudUrl: 'https://cloud.example.test',
+          syncIntervalMinutes: 60,
+          timezone: 'UTC',
+          currency: 'EUR',
+          environment: 'test',
+          wcConfigured: true,
+          ncConfigured: true,
+        }
+      },
+    },
+    workspace: {
+      async getState() { return 'idle' as const },
+      async startPreview() { throw error },
+      async cancelPreview() {},
+    },
+    writePipeline: {},
     health: {},
     products: {},
     sources: {},

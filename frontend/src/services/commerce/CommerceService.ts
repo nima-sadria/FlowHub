@@ -24,8 +24,30 @@ export interface CommerceService {
   saveChannel(channelId: string, payload: CommerceConfigPayload): Promise<CommerceSettingsResult>
   testSource(sourceId: string): Promise<ConnectionCheckResult>
   testChannel(channelId: string): Promise<ConnectionCheckResult>
+  refreshChannelCache(channelId: string): Promise<ChannelCacheRefreshResult>
   readSource(sourceId: string): Promise<SourceReadResult>
   browseNextcloud(sourceId: string, payload: NextcloudBrowseRequest): Promise<NextcloudBrowseResult>
+}
+
+export interface ChannelCacheRefreshResult {
+  ok: boolean
+  status: 'completed' | 'completed_with_warnings' | 'failed'
+  products_read: number
+  variable_products_read: number
+  variations_read: number
+  cache_rows_upserted: number
+  warnings: string[]
+  errors: string[]
+  started_at: string
+  completed_at: string
+  read_only: boolean
+  external_write: boolean
+  stock_write: boolean
+  source_write: boolean
+  dry_run_created: boolean
+  approval_created: boolean
+  apply_executed: boolean
+  credentials_returned: boolean
 }
 
 export interface CommerceConfigPayload {

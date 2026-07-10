@@ -1024,6 +1024,227 @@ def test_channel_detail_health_and_capabilities(client, auth_headers):
     assert capabilities.json()["runtime_write_blocked"] is True
 
 
+def test_woocommerce_cache_refresh_populates_variations_and_upserts_without_writes(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.data_layer.models import DlProductCache
+
+    _configure_woocommerce_channel(client, auth_headers)
+    catalog_price = {"simple": "10.00"}
+    write_calls: list[tuple] = []
+
+    async def fake_list_products(_creds, *, page, per_page, **_kwargs):
+        assert per_page == 100
+        assert page == 1
+        return [
+            {
+                "id": 101,
+                "name": "Simple product",
+                "type": "simple",
+                "sku": "SIMPLE-101",
+                "regular_price": catalog_price["simple"],
+                "sale_price": "",
+                "price": catalog_price["simple"],
+                "stock_quantity": 5,
+                "stock_status": "instock",
+                "manage_stock": True,
+                "backorders": "no",
+                "categories": [{"id": 7, "name": "Catalog"}],
+                "images": [{"src": "https://store.example.test/simple.jpg"}],
+                "status": "publish",
+                "date_modified_gmt": "2026-07-10T08:00:00",
+            },
+            {
+                "id": 200,
+                "name": "Variable parent",
+                "type": "variable",
+                "sku": "PARENT-200",
+                "regular_price": "",
+                "sale_price": "",
+                "price": "",
+                "stock_quantity": None,
+                "stock_status": "instock",
+                "manage_stock": False,
+                "backorders": "no",
+                "categories": [{"id": 8, "name": "Variable"}],
+                "images": [{"src": "https://store.example.test/parent.jpg"}],
+                "status": "publish",
+                "date_modified_gmt": "2026-07-10T08:00:00",
+            },
+        ], 2, 1
+
+    async def fake_list_variations(_creds, product_id, *, page, per_page):
+        assert product_id == 200
+        assert page == 1
+        assert per_page == 100
+        return [{
+            "id": 201,
+            "sku": "VAR-201",
+            "regular_price": "20.00",
+            "sale_price": "18.00",
+            "price": "18.00",
+            "stock_quantity": 3,
+            "stock_status": "instock",
+            "manage_stock": True,
+            "backorders": "no",
+            "attributes": [{"name": "Color", "option": "Blue"}],
+            "image": {"src": "https://store.example.test/variation.jpg"},
+            "status": "publish",
+            "date_modified_gmt": "2026-07-10T08:05:00",
+        }]
+
+    async def fail_if_write_called(*args, **kwargs):
+        write_calls.append((args, kwargs))
+        raise AssertionError("WooCommerce writes are forbidden during cache refresh")
+
+    monkeypatch.setattr("app.connectors.read.woocommerce.list_products_paged", fake_list_products)
+    monkeypatch.setattr("app.connectors.read.woocommerce.list_variations", fake_list_variations)
+    monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client._put", fail_if_write_called)
+
+    first = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+        headers=auth_headers,
+    )
+
+    assert first.status_code == 200
+    assert first.json() == {
+        **first.json(),
+        "ok": True,
+        "status": "completed",
+        "products_read": 2,
+        "variable_products_read": 1,
+        "variations_read": 1,
+        "cache_rows_upserted": 3,
+        "warnings": [],
+        "errors": [],
+        "read_only": True,
+        "external_write": False,
+        "stock_write": False,
+        "source_write": False,
+        "dry_run_created": False,
+        "approval_created": False,
+        "apply_executed": False,
+        "credentials_returned": False,
+    }
+    rows = db.query(DlProductCache).order_by(DlProductCache.product_id).all()
+    assert [row.product_id for row in rows] == ["101", "200", "201"]
+    simple, parent, variation = rows
+    assert simple.product_type == "simple"
+    assert simple.regular_price == "10.00"
+    assert simple.stock_qty == 5
+    assert simple.categories == [{"id": 7, "name": "Catalog"}]
+    assert simple.images == [{"src": "https://store.example.test/simple.jpg"}]
+    assert simple.channel_id == "woocommerce:primary"
+    assert parent.product_type == "variable"
+    assert variation.product_type == "variation"
+    assert variation.parent_id == "200"
+    assert variation.sku == "VAR-201"
+    assert variation.regular_price == "20.00"
+    assert variation.sale_price == "18.00"
+    assert variation.price == "18.00"
+    assert variation.raw_data["attributes"] == [{"name": "Color", "option": "Blue"}]
+    assert variation.last_successful_read is not None
+    assert write_calls == []
+
+    catalog_price["simple"] = "12.50"
+    second = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+        headers=auth_headers,
+    )
+
+    assert second.status_code == 200
+    assert second.json()["cache_rows_upserted"] == 3
+    assert db.query(DlProductCache).count() == 3
+    db.expire_all()
+    updated = db.query(DlProductCache).filter_by(product_id="101").one()
+    assert updated.regular_price == "12.50"
+    assert updated.price == "12.50"
+    assert write_calls == []
+
+    channels = client.get("/api/v2/commerce/channels", headers=auth_headers).json()["items"]
+    woo = next(item for item in channels if item["id"] == "woocommerce:primary")
+    assert woo["cached_products"] == 2
+    assert woo["cached_variations"] == 1
+    assert woo["cache_refresh_status"] == "completed"
+    assert woo["last_cache_refresh"]
+
+
+def test_woocommerce_cache_refresh_reports_partial_page_failure_safely(
+    client, auth_headers, db, monkeypatch
+):
+    from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
+    from app.flowhub.data_layer.models import DlProductCache
+
+    _configure_woocommerce_channel(client, auth_headers)
+
+    async def fake_list_products(_creds, *, page, **_kwargs):
+        if page == 1:
+            return [{
+                "id": 101,
+                "name": "First page product",
+                "type": "simple",
+                "regular_price": "10.00",
+                "price": "10.00",
+            }], 2, 2
+        raise ConnectorError(
+            code=ConnectorErrorCode.AUTH_FAILED,
+            message="Authentication failed for key=ck_live_secret secret=cs_live_secret",
+            provider="woocommerce",
+            http_status=401,
+        )
+
+    monkeypatch.setattr("app.connectors.read.woocommerce.list_products_paged", fake_list_products)
+
+    response = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"] is False
+    assert data["status"] == "failed"
+    assert data["products_read"] == 1
+    assert data["cache_rows_upserted"] == 1
+    assert db.query(DlProductCache).count() == 1
+    assert "Authentication failed" in data["errors"][0]
+    assert "ck_live_secret" not in response.text
+    assert "cs_live_secret" not in response.text
+    assert data["credentials_returned"] is False
+
+
+def test_woocommerce_cache_refresh_requires_credentials_and_admin(client, auth_headers, db):
+    from app.flowhub.auth.jwt_service import create_access_token
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.auth.password import hash_password
+
+    missing = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+        headers=auth_headers,
+    )
+    assert missing.status_code == 200
+    assert missing.json()["ok"] is False
+    assert missing.json()["status"] == "failed"
+    assert missing.json()["errors"] == ["connector_not_configured"]
+
+    viewer = FlowHubUser(
+        username=f"cacheviewer_{uuid.uuid4().hex}",
+        hashed_password=hash_password("password123"),
+        role="viewer",
+    )
+    db.add(viewer)
+    db.commit()
+    db.refresh(viewer)
+    viewer_headers = {
+        "Authorization": f"Bearer {create_access_token(viewer.id, viewer.username, viewer.role)}"
+    }
+    forbidden = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+        headers=viewer_headers,
+    )
+    assert forbidden.status_code == 403
+
+
 def test_woocommerce_access_mode_defaults_read_only_until_owner_enables(client, auth_headers):
     detail = client.get("/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers)
 
@@ -1135,3 +1356,19 @@ def _xlsx_custom(headers: list[str], rows: list[list[object]]) -> bytes:
     stream = BytesIO()
     wb.save(stream)
     return stream.getvalue()
+
+
+def _configure_woocommerce_channel(client, auth_headers) -> None:
+    response = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "WooCommerce",
+            "enabled": True,
+            "settings": {"url": "https://store.example.test"},
+            "secrets": {"key": "ck_live_secret", "secret": "cs_live_secret"},
+        },
+    )
+    assert response.status_code == 200
+    assert "ck_live_secret" not in response.text
+    assert "cs_live_secret" not in response.text

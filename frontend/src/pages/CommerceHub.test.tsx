@@ -209,6 +209,28 @@ const commerce: CommerceService = {
       write_blocked: true,
     }
   },
+  async refreshChannelCache() {
+    return {
+      ok: true,
+      status: 'completed',
+      products_read: 2,
+      variable_products_read: 1,
+      variations_read: 2,
+      cache_rows_upserted: 4,
+      warnings: [],
+      errors: [],
+      started_at: '2026-07-10T10:00:00Z',
+      completed_at: '2026-07-10T10:00:01Z',
+      read_only: true,
+      external_write: false,
+      stock_write: false,
+      source_write: false,
+      dry_run_created: false,
+      approval_created: false,
+      apply_executed: false,
+      credentials_returned: false,
+    }
+  },
   async browseNextcloud() {
     return {
       path: '/',
@@ -291,6 +313,10 @@ function channel(id: string, name: string, placeholder: boolean) {
     capabilities: { read_products: true },
     capabilities_summary: ['Product read'],
     settings_available: true,
+    cached_products: id === 'woocommerce:primary' ? 2 : 0,
+    cached_variations: id === 'woocommerce:primary' ? 2 : 0,
+    last_cache_refresh: id === 'woocommerce:primary' ? '2026-07-10T10:00:01Z' : null,
+    cache_refresh_status: id === 'woocommerce:primary' ? 'completed' : 'not_run',
   }
 }
 
@@ -411,6 +437,98 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Writes blocked')
     expect(c.textContent).toContain('Add Channel')
     expect(c.textContent).not.toContain('Apply')
+  })
+
+  it('shows the single cache refresh action and cache status only on WooCommerce', async () => {
+    const c = await renderPage()
+
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Refresh product cache')).toHaveLength(1)
+    expect(c.textContent).toContain('Cached products: 2')
+    expect(c.textContent).toContain('Cached variations: 2')
+    expect(c.textContent).toContain('Refresh status: Completed')
+
+    await act(async () => {
+      Array.from(c.querySelectorAll('button'))
+        .find(button => button.textContent === 'Sources')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(c.textContent).not.toContain('Refresh product cache')
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Read now')).toHaveLength(1)
+  })
+
+  it('shows cache refresh loading, success, and refreshed channel counts', async () => {
+    let refreshed = false
+    let resolveRefresh: ((value: Awaited<ReturnType<CommerceService['refreshChannelCache']>>) => void) | undefined
+    const refreshCommerce: CommerceService = {
+      ...commerce,
+      async getChannels() {
+        const original = await commerce.getChannels()
+        const items = [...original.items]
+        if (refreshed) {
+          items[0] = {
+            ...items[0],
+            cached_products: 7,
+            cached_variations: 3,
+            cache_refresh_status: 'completed',
+            last_cache_refresh: '2026-07-10T11:00:01Z',
+          }
+        }
+        return { ...original, items }
+      },
+      async refreshChannelCache() {
+        return new Promise(resolve => {
+          resolveRefresh = resolve
+        })
+      },
+    }
+    const c = await renderPage(adminUser, refreshCommerce)
+    const refreshButton = Array.from(c.querySelectorAll('button'))
+      .find(button => button.textContent === 'Refresh product cache')
+
+    await act(async () => {
+      refreshButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(c.textContent).toContain('Refreshing')
+    expect((Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Refreshing') as HTMLButtonElement).disabled).toBe(true)
+
+    await act(async () => {
+      refreshed = true
+      resolveRefresh?.(await commerce.refreshChannelCache('woocommerce:primary'))
+      await Promise.resolve()
+    })
+
+    expect(c.textContent).toContain('WooCommerce product cache updated. Workspace Preview is now available.')
+    expect(c.textContent).toContain('Cached products: 7')
+    expect(c.textContent).toContain('Cached variations: 3')
+  })
+
+  it('renders a safe cache refresh failure reason', async () => {
+    const failingCommerce: CommerceService = {
+      ...commerce,
+      async refreshChannelCache() {
+        return {
+          ...await commerce.refreshChannelCache('woocommerce:primary'),
+          ok: false,
+          status: 'failed',
+          errors: ['WooCommerce authentication failed.'],
+        }
+      },
+    }
+    const c = await renderPage(adminUser, failingCommerce)
+
+    await act(async () => {
+      Array.from(c.querySelectorAll('button'))
+        .find(button => button.textContent === 'Refresh product cache')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(c.textContent).toContain('WooCommerce authentication failed.')
+    expect(c.textContent).not.toContain('ck_live_secret')
+    expect(c.textContent).not.toContain('cs_live_secret')
   })
 
   it('renders Sources without listing marketplace channels there', async () => {

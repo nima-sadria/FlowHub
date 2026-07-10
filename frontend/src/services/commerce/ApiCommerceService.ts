@@ -5,6 +5,7 @@ import type {
   CommerceConfigPayload,
   CommerceService,
   CommerceSettingsResult,
+  ChannelCacheRefreshResult,
   ConnectionCheckResult,
   NextcloudBrowseRequest,
   NextcloudBrowseResult,
@@ -71,6 +72,18 @@ export class ApiCommerceService implements CommerceService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     })
+  }
+
+  async refreshChannelCache(channelId: string): Promise<ChannelCacheRefreshResult> {
+    return apiFetch<ChannelCacheRefreshResult>(
+      `/api/v2/commerce/channels/${encodeURIComponent(channelId)}/refresh-cache`,
+      authFetch,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      },
+    )
   }
 
   async readSource(sourceId: string): Promise<SourceReadResult> {

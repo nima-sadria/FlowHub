@@ -16,9 +16,10 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
+from app.connectors.read.woocommerce import WooCommerceProductReadAdapter
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import ping as ping_woocommerce
-from app.flowhub.data_layer.models import DlConnectorHealth
+from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
 from app.flowhub.data_layer.health_service import ConnectorHealthService
 from app.flowhub.integrations.errors import IntegrationError
 from app.flowhub.integrations.nextcloud import NextcloudClient
@@ -26,6 +27,9 @@ from app.flowhub.integration_platform.contracts import ConnectorCapabilities
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.registry import registry
 from app.flowhub.integration_platform.service import IntegrationPlatformService
+from app.flowhub.read_engine.manual import ManualReadService
+from app.flowhub.read_engine.service import IncrementalReadEngine
+from app.flowhub.security.redaction import redact_sensitive_text
 from app.flowhub.sources.spreadsheet_source import (
     SpreadsheetSourceReadService,
     normalize_read_policy,
@@ -227,6 +231,78 @@ class CommerceHubService:
             return await self._test_woocommerce_channel_connection(configured)
         return self._unsupported_connection_result()
 
+    async def refresh_channel_cache(self, channel_id: str, actor: str) -> dict:
+        meta = self._channel_meta(channel_id)
+        if str(meta["provider"]) != "woocommerce" or bool(meta.get("placeholder")):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Product cache refresh is not available for this channel.")
+
+        started = datetime.utcnow()
+        adapter: WooCommerceProductReadAdapter | None = None
+        self.integration.record_event(
+            connector_id=channel_id,
+            event_name="product_cache_refresh_started",
+            message="Manual WooCommerce product cache refresh started.",
+            metadata={
+                "actor": actor,
+                "read_only": True,
+                "external_write": False,
+                "stock_write": False,
+                "automatic_apply": False,
+            },
+        )
+        try:
+            configured_adapter = ManualReadService(self.db).adapter_for(channel_id)
+            if not isinstance(configured_adapter, WooCommerceProductReadAdapter):
+                raise HTTPException(status.HTTP_409_CONFLICT, "woocommerce_cache_refresh_unsupported")
+            adapter = configured_adapter
+            progress = await IncrementalReadEngine(self.db).run_manual(
+                adapter,
+                triggered_by=actor,
+                force_full=True,
+            )
+            warnings = list(adapter.warnings)
+            result_status = "completed_with_warnings" if warnings else "completed"
+            completed = datetime.utcnow()
+            result = self._cache_refresh_result(
+                adapter,
+                ok=True,
+                status_value=result_status,
+                cache_rows_upserted=progress.products_stored,
+                warnings=warnings,
+                errors=[],
+                started=started,
+                completed=completed,
+            )
+            self.integration.record_event(
+                connector_id=channel_id,
+                event_name="product_cache_refresh_completed",
+                message="Manual WooCommerce product cache refresh completed.",
+                metadata={**result, "actor": actor, "external_write": False},
+            )
+            return result
+        except Exception as exc:
+            completed = datetime.utcnow()
+            cache_rows_upserted = self._mark_latest_refresh_failed(channel_id, exc, completed)
+            errors = [self._safe_cache_refresh_error(exc)]
+            result = self._cache_refresh_result(
+                adapter,
+                ok=False,
+                status_value="failed",
+                cache_rows_upserted=cache_rows_upserted,
+                warnings=list(adapter.warnings) if adapter else [],
+                errors=errors,
+                started=started,
+                completed=completed,
+            )
+            self.integration.record_event(
+                connector_id=channel_id,
+                event_name="product_cache_refresh_failed",
+                message="Manual WooCommerce product cache refresh failed.",
+                severity="error",
+                metadata={**result, "actor": actor, "external_write": False},
+            )
+            return result
+
     async def test_source_connection(self, source_id: str) -> dict:
         meta = self._source_meta(source_id)
         item = self._source_contract(meta)
@@ -393,6 +469,25 @@ class CommerceHubService:
         access_mode = self._access_mode(instance)
         write_pipeline_eligible = self._write_pipeline_eligible(meta, instance)
         capabilities = definition.connector.capabilities if definition else ConnectorCapabilities()
+        cache_rows = (
+            self.db.query(DlProductCache)
+            .filter(DlProductCache.connector_id == str(meta["id"]), DlProductCache.exists.is_(True))
+            .all()
+            if provider == "woocommerce"
+            else []
+        )
+        cached_variations = sum(1 for row in cache_rows if (row.product_type or "").lower() == "variation")
+        latest_refresh = (
+            self.db.query(DlRefreshJob)
+            .filter(
+                DlRefreshJob.connector_id == str(meta["id"]),
+                DlRefreshJob.entity_type == "products",
+            )
+            .order_by(DlRefreshJob.created_at.desc(), DlRefreshJob.id.desc())
+            .first()
+            if provider == "woocommerce"
+            else None
+        )
         body = {
             "id": meta["id"],
             "provider": provider,
@@ -412,6 +507,12 @@ class CommerceHubService:
             "capabilities": capabilities.model_dump(),
             "capabilities_summary": self._capabilities_summary(capabilities),
             "settings_available": definition is not None,
+            "cached_products": len(cache_rows) - cached_variations,
+            "cached_variations": cached_variations,
+            "last_cache_refresh": self._iso(
+                latest_refresh.completed_at or latest_refresh.started_at or latest_refresh.created_at
+            ) if latest_refresh else None,
+            "cache_refresh_status": latest_refresh.status if latest_refresh else "not_run",
         }
         if detail:
             body["settings_schema"] = [
@@ -419,6 +520,71 @@ class CommerceHubService:
             ] if definition else []
             body["secrets"] = self._secret_status(instance)
         return body
+
+    def _cache_refresh_result(
+        self,
+        adapter: WooCommerceProductReadAdapter | None,
+        *,
+        ok: bool,
+        status_value: str,
+        cache_rows_upserted: int,
+        warnings: list[str],
+        errors: list[str],
+        started: datetime,
+        completed: datetime,
+    ) -> dict:
+        return {
+            "ok": ok,
+            "status": status_value,
+            "products_read": adapter.products_read if adapter else 0,
+            "variable_products_read": adapter.variable_products_read if adapter else 0,
+            "variations_read": adapter.variations_read if adapter else 0,
+            "cache_rows_upserted": cache_rows_upserted,
+            "warnings": warnings,
+            "errors": errors,
+            "started_at": self._iso(started),
+            "completed_at": self._iso(completed),
+            "read_only": True,
+            "external_write": False,
+            "stock_write": False,
+            "source_write": False,
+            "dry_run_created": False,
+            "approval_created": False,
+            "apply_executed": False,
+            "credentials_returned": False,
+        }
+
+    def _mark_latest_refresh_failed(self, channel_id: str, exc: Exception, completed: datetime) -> int:
+        job = (
+            self.db.query(DlRefreshJob)
+            .filter(DlRefreshJob.connector_id == channel_id, DlRefreshJob.entity_type == "products")
+            .order_by(DlRefreshJob.created_at.desc(), DlRefreshJob.id.desc())
+            .first()
+        )
+        if job is None:
+            return 0
+        stored = int((job.meta or {}).get("products_stored") or 0)
+        job.status = "failed"
+        job.completed_at = completed
+        job.error_message = self._safe_cache_refresh_error(exc)[:500]
+        self.db.commit()
+        return stored
+
+    def _safe_cache_refresh_error(self, exc: Exception) -> str:
+        if isinstance(exc, HTTPException):
+            detail = exc.detail
+            if isinstance(detail, dict):
+                detail = detail.get("message") or detail.get("code") or "WooCommerce cache refresh failed."
+            message = str(detail)
+        elif isinstance(exc, ConnectorError):
+            message = exc.message
+        else:
+            message = str(exc) or "WooCommerce cache refresh failed."
+        for credential_key in ("woocommerce.key", "woocommerce.secret"):
+            credential = self.integration.config.get(credential_key)
+            if credential:
+                message = message.replace(credential, "[REDACTED]")
+        return redact_sensitive_text(message)[:300]
 
     def _ensure_instance(self, meta: dict) -> IntegrationConnectorInstance:
         row = self.db.get(IntegrationConnectorInstance, meta["id"])

@@ -39,7 +39,8 @@ _WC_API = "/wp-json/wc/v3"
 # Field selectors used by the integration layer
 _PRODUCT_FIELDS = (
     "id,name,type,sku,regular_price,sale_price,price,"
-    "stock_status,categories,images,status,date_modified_gmt"
+    "stock_quantity,stock_status,manage_stock,backorders,"
+    "categories,images,attributes,status,date_modified_gmt"
 )
 _CATEGORY_FIELDS = "id,name,parent,count"
 

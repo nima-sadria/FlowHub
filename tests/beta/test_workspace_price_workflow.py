@@ -178,6 +178,63 @@ def test_nextcloud_spreadsheet_import_success_generates_preview_and_dry_run(
     assert "approved Dry Run" in execute.text
 
 
+def test_workspace_preview_succeeds_after_woocommerce_channel_cache_refresh(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    async def fake_list_products(_creds, *, page=1, **_kwargs):
+        if page > 1:
+            return [], 1, 1
+        return [
+            {
+                "id": 101,
+                "name": "Test Product",
+                "type": "simple",
+                "sku": "SKU-101",
+                "regular_price": "100.00",
+                "sale_price": "",
+                "price": "100.00",
+                "stock_quantity": 4,
+                "stock_status": "instock",
+                "manage_stock": True,
+                "backorders": "no",
+                "categories": [],
+                "images": [],
+                "status": "publish",
+                "date_modified_gmt": "2026-07-10T10:00:00",
+            }
+        ], 1, 1
+
+    async def no_variations(_creds, _product_id, **_kwargs):
+        return []
+
+    async def fake_download(self, path):
+        assert path == "/prices.xlsx"
+        return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "etag-after-refresh"}
+
+    monkeypatch.setattr("app.connectors.read.woocommerce.list_products_paged", fake_list_products)
+    monkeypatch.setattr("app.connectors.read.woocommerce.list_variations", no_variations)
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    refresh = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+        headers=auth_headers,
+    )
+    assert refresh.status_code == 200
+    assert refresh.json()["ok"] is True
+    assert refresh.json()["cache_rows_upserted"] == 1
+
+    preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
+
+    assert preview.status_code == 200
+    row = preview.json()["rows"][0]
+    assert row["source"]["productId"] == "101"
+    assert row["currentPrice"] == 100.0
+    assert row["proposedPrice"] == 110.0
+    assert row["eligible_for_dry_run"] is True
+
+
 def test_spreadsheet_path_selected_from_source_settings_feeds_preview_workflow(
     client, auth_headers, db, monkeypatch
 ):
