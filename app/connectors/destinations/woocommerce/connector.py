@@ -80,7 +80,7 @@ class WooCommerceConnector(DestinationConnector):
             return HealthResult(
                 status=HealthStatus.UNHEALTHY,
                 latency_ms=round(latency, 1),
-                detail=str(exc),
+                detail="WooCommerce connection failed.",
             )
 
     # -- Connection test -------------------------------------------------------
@@ -102,14 +102,14 @@ class WooCommerceConnector(DestinationConnector):
             latency = (time.monotonic() - t0) * 1000
             return ConnectionTestResult(
                 ok=False,
-                message=str(exc),
+                message="WooCommerce connection failed.",
                 latency_ms=round(latency, 1),
             )
         except Exception as exc:
             latency = (time.monotonic() - t0) * 1000
             return ConnectionTestResult(
                 ok=False,
-                message=f"Unexpected error: {exc}",
+                message="WooCommerce returned an invalid or unavailable response.",
                 latency_ms=round(latency, 1),
             )
 

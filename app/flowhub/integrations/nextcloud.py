@@ -46,7 +46,7 @@ def _to_integration_error(exc: ConnectorError, endpoint: str) -> IntegrationErro
     elif code == ConnectorErrorCode.NETWORK:
         msg = "Could not connect to Nextcloud - check URL and network"
     else:
-        msg = exc.message or f"Nextcloud error: {code.value}"
+        msg = "Nextcloud returned an invalid or unavailable response."
     return IntegrationError(_PROVIDER, endpoint, msg, status_code=exc.http_status)
 
 
@@ -121,10 +121,10 @@ class NextcloudClient:
         except Exception as exc:
             elapsed_ms = (time.monotonic() - t0) * 1000
             logger.warning(
-                "nc download_file provider=%s path=%s unexpected_error=%s duration_ms=%.0f",
-                _PROVIDER, path, exc, elapsed_ms,
+                "nc download_file provider=%s path=%s unexpected_error=true duration_ms=%.0f",
+                _PROVIDER, path, elapsed_ms,
             )
-            raise IntegrationError(_PROVIDER, endpoint, str(exc)[:200]) from exc
+            raise IntegrationError(_PROVIDER, endpoint, "Nextcloud returned an invalid or unavailable response.") from exc
 
         elapsed_ms = (time.monotonic() - t0) * 1000
         logger.info(

@@ -95,7 +95,7 @@ def _parse_propfind(xml_text: str) -> list[DavResource]:
     except ET.ParseError as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.PROVIDER_ERROR,
-            message=f"Failed to parse PROPFIND response: {exc}",
+            message="WebDAV returned an invalid response.",
             provider="nextcloud",
         ) from exc
 
@@ -161,7 +161,7 @@ async def propfind_path(
     except httpx.ConnectError as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.NETWORK,
-            message=f"WebDAV connection failed: {exc}",
+            message="WebDAV connection failed.",
             provider="nextcloud",
             retryable=True,
         ) from exc
@@ -189,7 +189,7 @@ async def get_file(creds: NextcloudCredentials, path: str) -> tuple[bytes, dict]
     except httpx.ConnectError as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.NETWORK,
-            message=f"WebDAV connection failed: {exc}",
+            message="WebDAV connection failed.",
             provider="nextcloud",
             retryable=True,
         ) from exc

@@ -6,23 +6,9 @@ import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
 import PageShell from '../components/PageShell'
-import { ApiError } from '../api/client'
+import { apiErrorMessage } from '../api/client'
 
-function workspaceErrorMessage(error: unknown, fallback: string): string {
-  const redact = (value: string) => value.replace(
-    /((?:consumer_secret|consumer_key|access_token|refresh_token|authorization|password|api_key|apikey|secret|token|key)\s*["']?\s*[:=]\s*["']?)([^"',\s}]+)/gi,
-    '$1[REDACTED]',
-  )
-  if (error instanceof ApiError) {
-    try {
-      const parsed = JSON.parse(error.message) as { detail?: unknown }
-      if (typeof parsed.detail === 'string' && parsed.detail.trim()) return redact(parsed.detail)
-    } catch {
-      if (error.message.trim()) return redact(error.message)
-    }
-  }
-  return error instanceof Error && error.message.trim() ? redact(error.message) : fallback
-}
+const workspaceErrorMessage = apiErrorMessage
 
 function fmtPrice(p: number, currency: string): string {
   return `${currency} ${p.toFixed(2)}`

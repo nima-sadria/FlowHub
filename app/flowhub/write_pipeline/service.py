@@ -21,7 +21,8 @@ from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.rate_limit.service import RateLimitService
-from app.flowhub.security.redaction import redact_sensitive, redact_sensitive_text
+from app.flowhub.security.redaction import redact_sensitive
+from app.flowhub.security.upstream_errors import normalize_upstream_error
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.write_pipeline.adapters import ChannelWriteAdapter, ChannelWriteContext
 from app.flowhub.write_pipeline.contracts import (
@@ -226,7 +227,7 @@ class WritePipelineService:
                 failure_count += 1
                 item.status = "failed"
                 item.error_code = exc.code.value
-                item.error_message = redact_sensitive_text(exc.message)
+                item.error_message = str(normalize_upstream_error(exc, source="woocommerce")["message"])
                 self._record_event(
                     batch.id,
                     "item_failed",
@@ -256,7 +257,7 @@ class WritePipelineService:
                 failure_count += 1
                 item.status = "failed"
                 item.error_code = "unexpected_error"
-                item.error_message = redact_sensitive_text(str(exc))
+                item.error_message = str(normalize_upstream_error(exc, source="woocommerce")["message"])
                 self._record_event(
                     batch.id,
                     "item_failed",
@@ -661,7 +662,7 @@ class WritePipelineService:
                 "verified": False,
                 "observed_price": None,
                 "expected_price": item.proposed_price,
-                "verification_error": redact_sensitive_text(exc.message),
+                "verification_error": normalize_upstream_error(exc, source="woocommerce")["message"],
             }
         except TimeoutError:
             return {
@@ -675,7 +676,7 @@ class WritePipelineService:
                 "verified": False,
                 "observed_price": None,
                 "expected_price": item.proposed_price,
-                "verification_error": redact_sensitive_text(str(exc)),
+                "verification_error": normalize_upstream_error(exc, source="woocommerce")["message"],
             }
 
     def _verification_skipped_result(self) -> dict:

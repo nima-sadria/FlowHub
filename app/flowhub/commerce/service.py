@@ -29,7 +29,7 @@ from app.flowhub.integration_platform.registry import registry
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.read_engine.manual import ManualReadService
 from app.flowhub.read_engine.service import IncrementalReadEngine
-from app.flowhub.security.redaction import redact_sensitive_text
+from app.flowhub.security.upstream_errors import UpstreamServiceError, normalize_upstream_error
 from app.flowhub.sources.spreadsheet_source import (
     SpreadsheetSourceReadService,
     normalize_read_policy,
@@ -290,7 +290,8 @@ class CommerceHubService:
         except Exception as exc:
             completed = datetime.utcnow()
             cache_rows_upserted, result_status = self._mark_latest_refresh_failed(channel_id, exc, completed)
-            errors = [self._safe_cache_refresh_error(exc)]
+            safe_error = normalize_upstream_error(exc, source="woocommerce")
+            errors = [safe_error["message"]]
             result = self._cache_refresh_result(
                 adapter,
                 ok=False,
@@ -301,6 +302,7 @@ class CommerceHubService:
                 started=started,
                 completed=completed,
             )
+            result["error"] = safe_error
             self.integration.record_event(
                 connector_id=channel_id,
                 event_name="product_cache_refresh_failed",
@@ -354,7 +356,9 @@ class CommerceHubService:
         try:
             result = await client.browse_directory(path)
         except IntegrationError as exc:
-            raise HTTPException(exc.status_code or status.HTTP_502_BAD_GATEWAY, exc.detail) from exc
+            if exc.status_code is not None and exc.status_code < status.HTTP_500_INTERNAL_SERVER_ERROR:
+                raise HTTPException(exc.status_code, exc.message) from exc
+            raise UpstreamServiceError(exc, source="nextcloud") from exc
         return {
             **result,
             "source_id": source_id,
@@ -592,20 +596,7 @@ class CommerceHubService:
         return stored, status_value
 
     def _safe_cache_refresh_error(self, exc: Exception) -> str:
-        if isinstance(exc, HTTPException):
-            detail = exc.detail
-            if isinstance(detail, dict):
-                detail = detail.get("message") or detail.get("code") or "WooCommerce cache refresh failed."
-            message = str(detail)
-        elif isinstance(exc, ConnectorError):
-            message = exc.message
-        else:
-            message = str(exc) or "WooCommerce cache refresh failed."
-        for credential_key in ("woocommerce.key", "woocommerce.secret"):
-            credential = self.integration.config.get(credential_key)
-            if credential:
-                message = message.replace(credential, "[REDACTED]")
-        return redact_sensitive_text(message)[:300]
+        return str(normalize_upstream_error(exc, source="woocommerce")["message"])
 
     def _ensure_instance(self, meta: dict) -> IntegrationConnectorInstance:
         row = self.db.get(IntegrationConnectorInstance, meta["id"])
@@ -719,6 +710,7 @@ class CommerceHubService:
         except ConnectorError as exc:
             latency_ms = round((monotonic() - started) * 1000, 2)
             authenticated = exc.code not in {ConnectorErrorCode.AUTH_FAILED, ConnectorErrorCode.PERMISSION}
+            safe_error = normalize_upstream_error(exc, source="woocommerce")
             return {
                 **self._connection_base(),
                 "ok": False,
@@ -729,7 +721,8 @@ class CommerceHubService:
                 "latency_ms": latency_ms,
                 "checked_at": checked_at,
                 "external_call_performed": True,
-                "message": exc.message,
+                "message": safe_error["message"],
+                "code": safe_error["code"],
             }
 
     def _woocommerce_credentials(self) -> WooCommerceCredentials | None:
@@ -948,17 +941,7 @@ class CommerceHubService:
         )
 
     def _safe_nextcloud_error_message(self, exc: IntegrationError) -> str:
-        message = exc.message or ""
-        lowered = message.lower()
-        if "authentication failed" in lowered or "access denied" in lowered:
-            return "Authentication failed."
-        if "not found" in lowered:
-            return "WebDAV not reachable."
-        if "timed out" in lowered:
-            return "WebDAV not reachable."
-        if "could not connect" in lowered or "connection" in lowered:
-            return "WebDAV not reachable."
-        return message[:200] or "WebDAV not reachable."
+        return str(normalize_upstream_error(exc, source="nextcloud")["message"])
 
     def _nextcloud_error_class(self, exc: IntegrationError) -> str:
         message = (exc.message or "").lower()

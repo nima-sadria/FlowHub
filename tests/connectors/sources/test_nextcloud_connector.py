@@ -198,7 +198,7 @@ def test_test_connection_auth_failure():
 
     result = asyncio.run(_run())
     assert result.ok is False
-    assert "bad credentials" in result.message
+    assert result.message == "Nextcloud connection failed."
 
 
 # -- list_folders / list_files -------------------------------------------------

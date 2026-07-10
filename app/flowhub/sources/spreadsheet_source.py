@@ -20,6 +20,7 @@ from app.flowhub.integrations.errors import IntegrationError
 from app.flowhub.integrations.nextcloud import NextcloudClient
 from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_source_price_rows
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.security.upstream_errors import UpstreamServiceError, normalize_upstream_error
 
 SOURCE_ID = "nextcloud:primary"
 SOURCE_TYPE = "nextcloud_spreadsheet"
@@ -150,7 +151,7 @@ class SpreadsheetSourceReadService:
                 stats=stats,
             )
         except IntegrationError as exc:
-            safe_message = str(getattr(exc, "detail", "") or getattr(exc, "message", "") or "Source read failed.")
+            safe_error = normalize_upstream_error(exc, source="nextcloud")
             if reservation:
                 self.finalize_read_reservation(reservation.id, "failed", error_code="INTEGRATION_ERROR")
             self.config.set_many(
@@ -168,14 +169,15 @@ class SpreadsheetSourceReadService:
                     "source_id": SOURCE_ID,
                     "source_type": SOURCE_TYPE,
                     "spreadsheet_path": spreadsheet_path,
-                    "error": safe_message[:200],
+                    "error": safe_error["message"],
+                    "error_code": safe_error["code"],
                     "reservation_id": reservation.id if reservation else None,
                     "read_only": True,
                     "source_write": False,
                 },
                 severity="error",
             )
-            raise HTTPException(exc.status_code or status.HTTP_502_BAD_GATEWAY, safe_message[:200]) from exc
+            raise UpstreamServiceError(exc, source="nextcloud") from exc
         except ValueError as exc:
             safe_message = str(exc)
             if reservation:

@@ -128,8 +128,11 @@ Data Layer
 WooCommerce
 ```
 
-Commerce Hub does not enable marketplace writes, Apply execution, Scheduler
-execution, or automatic pricing.
+Commerce Hub provides read-only Source and Channel operations. The protected
+Write Pipeline is the only external WooCommerce write path: it supports manual
+price updates for simple products and variations after Workspace Preview, row
+selection, Dry Run, and Approval. Commerce Hub itself does not write to Sources,
+does not write stock, and does not start scheduled or automatic work.
 
 ## Unified Logging Platform
 
@@ -144,13 +147,13 @@ Current:
 
 ## Safety Model
 
-Disabled in the first release:
+Deferred in the first release:
 
-- Apply execution
+- Stock writes
+- Source or spreadsheet writes
 - Scheduler execution
-- Automatic pricing
-- WooCommerce writes
-- Spreadsheet writes
+- Automatic pricing and automatic Apply
+- Additional marketplace write channels
 
 Connector communication for WooCommerce and Nextcloud is isolated to connector
 and integration layers. Active FLOWHUB v2 API routes must not directly call external
@@ -198,4 +201,4 @@ installer to `/opt/FlowHub`.
 - Additional connectors: Shopify, Magento, ERP, CSV, Google Sheets, custom APIs.
 - Live logging tail.
 - Scheduler execution only after separate approval.
-- Write execution only after separate architecture, audit, and Owner approval.
+- Additional write channels only after separate architecture, audit, and Owner approval.

@@ -117,7 +117,7 @@ async def _get(
     except httpx.ConnectError as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.NETWORK,
-            message=f"WooCommerce connection failed: {exc}",
+            message="WooCommerce connection failed.",
             provider="woocommerce",
             retryable=True,
         ) from exc
@@ -130,7 +130,7 @@ async def _get(
     except Exception as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.PROVIDER_ERROR,
-            message=f"Failed to parse WooCommerce JSON response: {exc}",
+            message="WooCommerce returned an invalid response.",
             provider="woocommerce",
         ) from exc
 
@@ -181,7 +181,7 @@ async def _get_raw(
             if attempt >= _MAX_RETRIES:
                 raise ConnectorError(
                     code=ConnectorErrorCode.NETWORK,
-                    message=f"WooCommerce connection failed: {exc}",
+                    message="WooCommerce connection failed.",
                     provider="woocommerce",
                     retryable=True,
                 ) from exc
@@ -248,7 +248,7 @@ async def _put(
     except httpx.ConnectError as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.NETWORK,
-            message=f"WooCommerce connection failed: {exc}",
+            message="WooCommerce connection failed.",
             provider="woocommerce",
             retryable=True,
         ) from exc
@@ -261,7 +261,7 @@ async def _put(
     except Exception as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.PROVIDER_ERROR,
-            message=f"Failed to parse WooCommerce price update JSON response: {exc}",
+            message="WooCommerce returned an invalid response.",
             provider="woocommerce",
         ) from exc
 
@@ -306,7 +306,7 @@ async def list_variations(
     except Exception as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.PROVIDER_ERROR,
-            message=f"Failed to parse WooCommerce variations JSON: {exc}",
+            message="WooCommerce returned an invalid response.",
             provider="woocommerce",
         ) from exc
 
@@ -319,7 +319,7 @@ async def ping(creds: WooCommerceCredentials) -> dict:
     except Exception as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.PROVIDER_ERROR,
-            message=f"Failed to parse WooCommerce ping JSON response: {exc}",
+            message="WooCommerce returned an invalid response.",
             provider="woocommerce",
         ) from exc
     return {
@@ -373,7 +373,7 @@ async def list_products_paged(
     except Exception as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.PROVIDER_ERROR,
-            message=f"Failed to parse WooCommerce products JSON: {exc}",
+            message="WooCommerce returned an invalid response.",
             provider="woocommerce",
         ) from exc
     return data, total, total_pages
@@ -399,7 +399,7 @@ async def list_all_products(
         except Exception as exc:
             raise ConnectorError(
                 code=ConnectorErrorCode.PROVIDER_ERROR,
-                message=f"Failed to parse WooCommerce JSON: {exc}",
+                message="WooCommerce returned an invalid response.",
                 provider="woocommerce",
             ) from exc
         if not raw_list:
@@ -431,7 +431,7 @@ async def list_categories_all(
         except Exception as exc:
             raise ConnectorError(
                 code=ConnectorErrorCode.PROVIDER_ERROR,
-                message=f"Failed to parse WooCommerce categories JSON: {exc}",
+                message="WooCommerce returned an invalid response.",
                 provider="woocommerce",
             ) from exc
         if not raw_list:

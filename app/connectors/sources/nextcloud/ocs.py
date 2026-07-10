@@ -74,7 +74,7 @@ async def check_server_info(creds: NextcloudCredentials) -> OCSServerInfo:
     except httpx.ConnectError as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.NETWORK,
-            message=f"OCS connection failed: {exc}",
+            message="OCS connection failed.",
             provider="nextcloud",
             retryable=True,
         ) from exc
@@ -134,7 +134,7 @@ async def check_user_quota(creds: NextcloudCredentials) -> OCSUserInfo:
     except httpx.ConnectError as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.NETWORK,
-            message=f"OCS connection failed: {exc}",
+            message="OCS connection failed.",
             provider="nextcloud",
             retryable=True,
         ) from exc

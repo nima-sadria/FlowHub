@@ -1430,7 +1430,7 @@ def test_woocommerce_cache_refresh_reports_variation_failure_safely(client, auth
     assert data["status"] == "failed"
     assert data["products_read"] == 1
     assert data["cache_rows_upserted"] == 0
-    assert "Variation fetch failed" in data["errors"][0]
+    assert data["errors"] == ["The external service returned an invalid or unavailable response."]
     assert "ck_live_secret" not in response.text
     assert "cs_live_secret" not in response.text
 
@@ -1546,6 +1546,97 @@ def _xlsx_custom(headers: list[str], rows: list[list[object]]) -> bytes:
     stream = BytesIO()
     wb.save(stream)
     return stream.getvalue()
+
+
+def test_nextcloud_browse_html_error_returns_safe_structured_payload(client, auth_headers, monkeypatch):
+    from app.flowhub.integrations.errors import IntegrationError
+
+    async def fail_browse(self, path="/"):
+        raise IntegrationError(
+            "nextcloud",
+            "/remote.php/dav/files/woo/",
+            "<!DOCTYPE html><html><body>proxy error password=app-password-secret</body></html>",
+            status_code=502,
+        )
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fail_browse)
+    response = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/browse",
+        headers=auth_headers,
+        json={
+            "path": "/",
+            "settings": {"url": "https://nextcloud.example.test", "username": "woo"},
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 502
+    assert response.json() == {
+        "code": "SOURCE_UPSTREAM_ERROR",
+        "message": "The external service returned an invalid or unavailable response.",
+        "source": "nextcloud",
+        "http_status": 502,
+    }
+    assert "<html" not in response.text.lower()
+    assert "app-password-secret" not in response.text
+
+
+def test_nextcloud_source_read_html_error_returns_safe_structured_payload(client, auth_headers, monkeypatch):
+    from app.flowhub.integrations.errors import IntegrationError
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    async def fail_download(self, path):
+        raise IntegrationError(
+            "nextcloud",
+            path,
+            "<html><body>gateway timeout token=private-token</body></html>",
+            status_code=504,
+        )
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fail_download)
+    save = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"url": "https://nextcloud.example.test", "username": "woo", "spreadsheet_path": "/Prices.xlsx"},
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+    assert save.status_code == 200
+
+    response = client.post("/api/v2/commerce/sources/nextcloud:primary/read", headers=auth_headers)
+
+    assert response.status_code == 504
+    assert response.json()["code"] == "SOURCE_UPSTREAM_ERROR"
+    assert response.json()["message"] == "The external service returned an invalid or unavailable response."
+    assert "<html" not in response.text.lower()
+    assert "private-token" not in response.text
+
+
+def test_woocommerce_cache_refresh_html_error_returns_safe_result(client, auth_headers, monkeypatch):
+    from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
+
+    _configure_woocommerce_channel(client, auth_headers)
+
+    async def fail_list_products(*_args, **_kwargs):
+        raise ConnectorError(
+            code=ConnectorErrorCode.PROVIDER_ERROR,
+            message="<!DOCTYPE html><html><body>upstream secret=cs_live_secret</body></html>",
+            provider="woocommerce",
+            http_status=503,
+        )
+
+    monkeypatch.setattr("app.connectors.read.woocommerce.list_products_paged", fail_list_products)
+    response = client.post("/api/v2/commerce/channels/woocommerce:primary/refresh-cache", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"] is False
+    assert data["error"]["code"] == "CHANNEL_UPSTREAM_ERROR"
+    assert data["error"]["message"] == "The external service returned an invalid or unavailable response."
+    assert "<html" not in response.text.lower()
+    assert "cs_live_secret" not in response.text
 
 
 def _configure_woocommerce_channel(client, auth_headers) -> None:

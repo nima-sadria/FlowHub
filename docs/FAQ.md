@@ -14,8 +14,11 @@ No. Setup contains Welcome, Server Profile, Database, Owner Account, and Finish.
 
 ## Are writes enabled?
 
-No. Apply, scheduler execution, automatic pricing, WooCommerce writes, and
-spreadsheet writes are disabled in the first release.
+Manual WooCommerce price writes are available only through the protected
+Workspace flow: Preview, row selection, Dry Run, Approval, Manual Execute,
+read-back verification, and audit. Simple products and variations are
+supported. Stock writes, spreadsheet/source writes, schedulers, automatic
+pricing, and automatic Apply remain disabled.
 
 ## What is `/opt/flowhub`?
 

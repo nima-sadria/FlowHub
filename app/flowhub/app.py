@@ -46,7 +46,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -72,6 +73,14 @@ from app.flowhub.maintenance import (
     MAINTENANCE_ERROR_CODE,
     MAINTENANCE_ERROR_MESSAGE,
     MaintenanceModeActiveError,
+)
+from app.connectors.common.errors import ConnectorError
+from app.flowhub.integrations.errors import IntegrationError
+from app.flowhub.security.upstream_errors import (
+    UpstreamServiceError,
+    is_unsafe_upstream_content,
+    normalize_upstream_error,
+    upstream_http_status,
 )
 
 _VERSION = os.getenv("FLOWHUB_VERSION", "1.0.0")
@@ -139,6 +148,31 @@ async def maintenance_mode_active_handler(_: Request, __: MaintenanceModeActiveE
             "maintenance": True,
         },
     )
+
+
+@app.exception_handler(UpstreamServiceError)
+async def upstream_service_error_handler(_: Request, exc: UpstreamServiceError) -> JSONResponse:
+    return JSONResponse(status_code=upstream_http_status(exc.error), content=normalize_upstream_error(exc.error, source=exc.source))
+
+
+@app.exception_handler(ConnectorError)
+async def connector_error_handler(_: Request, exc: ConnectorError) -> JSONResponse:
+    return JSONResponse(status_code=upstream_http_status(exc), content=normalize_upstream_error(exc))
+
+
+@app.exception_handler(IntegrationError)
+async def integration_error_handler(_: Request, exc: IntegrationError) -> JSONResponse:
+    return JSONResponse(status_code=upstream_http_status(exc), content=normalize_upstream_error(exc))
+
+
+@app.exception_handler(HTTPException)
+async def safe_http_exception_handler(request: Request, exc: HTTPException):
+    if is_unsafe_upstream_content(exc.detail):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=normalize_upstream_error(Exception("unsafe upstream response"), source="proxy"),
+        )
+    return await http_exception_handler(request, exc)
 
 # API routers - registered before the SPA catch-all so they take priority
 app.include_router(health_router, prefix="/api")

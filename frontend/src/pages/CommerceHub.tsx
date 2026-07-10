@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth'
-import { ApiError } from '../api/client'
+import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeOption } from '../services/types'
@@ -30,25 +30,6 @@ const DEFAULT_READ_POLICY: ReadPolicyDraft = {
 
 function prettyStatus(value: string): string {
   return value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
-
-function redactSensitiveText(value: string): string {
-  return value.replace(
-    /((?:consumer_secret|consumer_key|access_token|refresh_token|authorization|password|api_key|apikey|secret|token|key)\s*["']?\s*[:=]\s*["']?)([^"',\s}]+)/gi,
-    '$1[REDACTED]',
-  )
-}
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) {
-    try {
-      const parsed = JSON.parse(error.message) as { detail?: unknown }
-      if (typeof parsed.detail === 'string' && parsed.detail.trim()) return redactSensitiveText(parsed.detail)
-    } catch {
-      if (error.message.trim()) return redactSensitiveText(error.message)
-    }
-  }
-  return fallback
 }
 
 function SafetyBadges({ readOnly, writeBlocked }: { readOnly: boolean; writeBlocked: boolean }) {

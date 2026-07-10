@@ -95,7 +95,7 @@ Rules:
 - Credential values are write-only after save.
 - Snapp Shop and Tapsi Shop do not perform real external calls in 1.0.0.
 - Marketplace write paths remain unavailable in 1.0.0.
-- Apply, Scheduler execution, and automatic pricing remain disabled.
+- WooCommerce price execution is manual and available only through the Write Pipeline after Preview, Dry Run, and Approval. Scheduler execution and automatic pricing remain disabled.
 
 ## Component Diagram
 

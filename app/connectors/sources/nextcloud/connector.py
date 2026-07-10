@@ -86,7 +86,7 @@ class NextcloudConnector(SourceConnector):
             return HealthResult(
                 status=HealthStatus.UNHEALTHY,
                 latency_ms=latency,
-                detail=str(exc),
+                detail="Nextcloud connection failed.",
             )
 
     # -- Connection test -------------------------------------------------------
@@ -108,14 +108,14 @@ class NextcloudConnector(SourceConnector):
             latency = (time.monotonic() - t0) * 1000
             return ConnectionTestResult(
                 ok=False,
-                message=str(exc),
+                message="Nextcloud connection failed.",
                 latency_ms=round(latency, 1),
             )
         except Exception as exc:
             latency = (time.monotonic() - t0) * 1000
             return ConnectionTestResult(
                 ok=False,
-                message=f"Unexpected error: {exc}",
+                message="Nextcloud returned an invalid or unavailable response.",
                 latency_ms=round(latency, 1),
             )
 

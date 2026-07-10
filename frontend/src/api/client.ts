@@ -1,11 +1,66 @@
 export class ApiError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly code?: string,
+  ) {
     super(message)
     this.name = 'ApiError'
   }
 }
 
 type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+
+const UPSTREAM_FALLBACK = 'An upstream service returned an invalid response. Check the connection and try again.'
+
+type SafeErrorPayload = {
+  code?: unknown
+  message?: unknown
+  detail?: unknown
+}
+
+function redactSensitiveText(value: string): string {
+  return value.replace(
+    /((?:consumer_secret|consumer_key|access_token|refresh_token|authorization|password|api_key|apikey|secret|token|key)\s*["']?\s*[:=]\s*["']?)([^"',\s}]+)/gi,
+    '$1[REDACTED]',
+  )
+}
+
+function safeMessage(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.length > 512 || /<\/?(?:html|body)|<!doctype|<\?xml|cloudflare|nginx|proxy error|gateway timeout/i.test(trimmed)) {
+    return null
+  }
+  return redactSensitiveText(trimmed)
+}
+
+function safePayload(value: unknown): { message: string; code?: string } {
+  const payload = value && typeof value === 'object' ? value as SafeErrorPayload : {}
+  const detail = payload.detail && typeof payload.detail === 'object'
+    ? payload.detail as SafeErrorPayload
+    : null
+  const message = safeMessage(detail?.message)
+    ?? safeMessage(payload.message)
+    ?? safeMessage(payload.detail)
+    ?? UPSTREAM_FALLBACK
+  const code = typeof (detail?.code ?? payload.code) === 'string'
+    ? String(detail?.code ?? payload.code)
+    : undefined
+  return { message, code }
+}
+
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    try {
+      return safePayload(JSON.parse(error.message)).message
+    } catch {
+      return safeMessage(error.message) ?? fallback
+    }
+  }
+  if (error instanceof Error) return safeMessage(error.message) ?? fallback
+  return fallback
+}
 
 export async function apiFetch<T>(
   url: string,
@@ -24,8 +79,13 @@ export async function apiFetch<T>(
       : init
     const r = await fetchFn(url, requestInit)
     if (!r.ok) {
-      const text = await r.text().catch(() => r.statusText)
-      throw new ApiError(r.status, text)
+      let payload: unknown = null
+      const contentType = r.headers.get('content-type') ?? ''
+      if (contentType.toLowerCase().includes('application/json')) {
+        payload = await r.json().catch(() => null)
+      }
+      const safe = safePayload(payload)
+      throw new ApiError(r.status, safe.message, safe.code)
     }
     return r.json() as Promise<T>
   } catch (error) {

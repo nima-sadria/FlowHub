@@ -208,7 +208,7 @@ def test_test_connection_auth_failure():
 
     result = asyncio.run(_run())
     assert result.ok is False
-    assert "invalid key" in result.message
+    assert result.message == "WooCommerce connection failed."
 
 
 # -- list_products / read_inventory --------------------------------------------
