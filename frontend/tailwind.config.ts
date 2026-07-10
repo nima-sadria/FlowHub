@@ -32,7 +32,7 @@ export default {
         'text-base': 'var(--color-text-base)',
       },
       fontFamily: {
-        sans: ['SF-Pro', 'sans-serif'],
+        sans: ['Outfit', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
       },
       borderRadius: {
         card: '10px',

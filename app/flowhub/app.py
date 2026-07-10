@@ -90,13 +90,13 @@ _FRONTEND_UNAVAILABLE_HTML = """\
   <link rel="icon" type="image/x-icon" href="/static/logos/favicon.ico?v=2">
   <style>
     @font-face {{
-      font-family: 'SF-Pro';
-      src: url('/static/fonts/SF-Pro.ttf') format('truetype');
+      font-family: 'Outfit';
+      src: url('/static/fonts/Outfit-VariableFont_wght.ttf') format('truetype');
       font-weight: 100 900;
       font-style: normal;
       font-display: swap;
     }}
-    body {{ font-family: 'SF-Pro', monospace; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }}
+    body {{ font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #222; }}
     h1 {{ font-size: 1.4rem; margin-bottom: 0.2em; }}
     table {{ border-collapse: collapse; margin-top: 1em; width: 100%; }}
     td {{ padding: 6px 12px; border: 1px solid #ddd; }}

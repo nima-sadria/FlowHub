@@ -17,10 +17,6 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
-      '/static/fonts': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
       '/static/icons': {
         target: 'http://localhost:8000',
         changeOrigin: true,
