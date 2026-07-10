@@ -123,6 +123,8 @@ export default function Topbar({ onMenuClick, health, user, onLogout }: Props) {
             <SearchIcon />
           </span>
           <input
+            id="global-command-search"
+            name="global-command-search"
             className="fh-input"
             type="text"
             placeholder="Search or type command..."

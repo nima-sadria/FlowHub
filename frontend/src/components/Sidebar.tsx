@@ -56,8 +56,8 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
       >
         <div
           className={[
-            'flex items-center h-[72px] md:h-[64px] border-b border-border flex-shrink-0',
-            collapsed ? 'gap-3 px-4 md:justify-center md:px-3' : 'px-4 gap-3.5',
+            'flex items-center h-20 border-b border-border flex-shrink-0',
+            collapsed ? 'gap-3 px-5 md:justify-center md:px-3' : 'px-5 gap-3',
           ].join(' ')}
         >
           <IconButton
@@ -71,7 +71,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             </svg>
           </IconButton>
 
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 bg-bg-base border border-border">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 bg-bg-base border border-border">
             <img
               src="/static/logos/FlowHub%20favicon.png"
               alt=""
@@ -81,7 +81,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
           </div>
 
           <div className={[collapsed ? 'md:hidden' : '', 'flex-1 min-w-0'].join(' ')}>
-            <div className="font-semibold text-[16px] text-text-base leading-6">FlowHub</div>
+            <div className="font-semibold text-xl text-text-base leading-7">FlowHub</div>
             <div className="text-xs font-medium leading-4 text-[color:var(--fh-gray-500)]">Control Center</div>
           </div>
 
@@ -104,12 +104,12 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
           </IconButton>
         </div>
 
-        <nav className="flex-1 px-4 py-4 md:px-4 md:py-5 overflow-y-auto no-scrollbar">
-          <p className={[collapsed ? 'md:hidden' : '', 'px-3 mb-4 text-xs font-semibold uppercase tracking-[0.08em] text-[color:var(--fh-gray-400)] leading-5 select-none'].join(' ')}>
+        <nav className="flex-1 px-5 py-5 overflow-y-auto no-scrollbar">
+          <p className={[collapsed ? 'md:hidden' : '', 'mb-4 text-xs font-semibold uppercase tracking-[0.08em] text-[color:var(--fh-gray-400)] leading-5 select-none'].join(' ')}>
             Main
           </p>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             {hasPerm('can_access_site') && (
               <NavLink to="/home" className={linkCls} onClick={onClose}>
                 <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -189,7 +189,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
           </div>
         </nav>
 
-        <div className="border-t border-border px-4 py-3 flex-shrink-0">
+        <div className="border-t border-border px-5 py-4 flex-shrink-0">
           <div
             className={[
               'flex items-center gap-2.5',

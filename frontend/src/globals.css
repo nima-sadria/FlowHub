@@ -1344,10 +1344,11 @@ select,
     padding: 10px 12px;
     color: var(--fh-gray-700);
     background: transparent;
-    border-radius: var(--fh-radius-xl);
+    border-radius: var(--fh-radius-lg);
     font-size: var(--fh-text-sm);
     line-height: 20px;
     font-weight: 500;
+    box-shadow: none;
   }
 
   .fh-menu-item:hover {
@@ -1364,6 +1365,7 @@ select,
     color: var(--fh-brand-500);
     background: var(--fh-brand-50);
     font-weight: 500;
+    box-shadow: none;
   }
 
   .dark .fh-menu-item-active {
@@ -1616,7 +1618,7 @@ select,
   }
 
   .fh-topbar-inner {
-    min-height: 72px;
+    min-height: 80px;
     display: flex;
     align-items: center;
     gap: 16px;
