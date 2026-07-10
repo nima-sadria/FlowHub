@@ -22,7 +22,7 @@ wget -qO- https://raw.githubusercontent.com/nima-sadria/FlowHub/main/installer/i
 ```
 
 The installer clones FlowHub into `/opt/FlowHub`, generates `.env`, generates
-secrets, builds Docker images, runs migrations, creates the first administrator,
+secrets, builds Docker images, runs migrations, creates the initial owner,
 starts services, runs health checks, and prints the application URL.
 
 ## Clone Install
@@ -64,11 +64,19 @@ warning before continuing. Exit makes no changes.
 
 ## First Login
 
-The installer creates an administrator account. If it generated the password, it
+The setup wizard creates the initial owner account. If it generated the password, it
 prints it once. Store it immediately; FlowHub does not persist plaintext admin
 passwords in logs or backups.
 
 Connector configuration belongs in Settings after sign-in.
+
+## Trusted Proxies
+
+FlowHub ignores `X-Forwarded-For` unless the direct peer is listed in
+`FLOWHUB_TRUSTED_PROXY_NETWORKS`. Leave the value empty for direct deployments.
+For a reverse proxy on a private Docker network, use a CIDR such as
+`172.18.0.0/16`; do not add public networks. This protects database-backed login
+throttling from forged forwarded headers.
 
 ## CLI
 

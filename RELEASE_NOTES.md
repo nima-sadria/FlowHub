@@ -1,23 +1,32 @@
-# Release Notes
+# FlowHub 1.0.0 Release Notes
 
-## First Public Release
+## Included capabilities
 
-FlowHub is ready for first public deployment as a self-hosted, read-only commerce
-operations platform.
+- Nextcloud/OnlyOffice spreadsheet Sources through authenticated WebDAV.
+- Source test, file browse, worksheet selection, column mapping, manual read,
+  source read quota, and validation.
+- WooCommerce Channel test and manual cache refresh for simple products, variable
+  parents, and variations.
+- Immutable Preview, row selection, Dry Run, Approval, manual price Apply,
+  read-back verification, and audit.
+- Database-backed login throttling with explicit trusted-proxy configuration.
+- PostgreSQL-inclusive backups, manifest validation, explicit restore, and
+  rollback documentation.
 
-Highlights:
+## Safety model
 
-- one-command installer
-- canonical `/opt/FlowHub` installation path
-- Legacy Compatibility migration from `/opt/flowhub`
-- clean Setup Wizard
-- Settings connector configuration
-- Integration Platform
-- Unified Logging Platform
-- read-only safety guard
+Only the Write Pipeline may update WooCommerce, and only after Dry Run and
+Approval. Sources remain read-only. Stock writes, schedulers, automatic Apply,
+and automatic synchronization are not included.
 
-Known limitations:
+## Upgrade and rollback
 
-- Live Tail is future-ready but not required for first release.
-- Write execution remains disabled.
-- Fresh Ubuntu install verification should be run on the target deployment host.
+The migration head is `FLOWHUB_011`. Create `flowhub backup` before upgrading;
+use [docs/release/ROLLBACK.md](docs/release/ROLLBACK.md) for a failed upgrade.
+
+## Deferred after 1.0.0
+
+- CSV and Google Sheets Sources
+- WooCommerce stock updates
+- Additional marketplace write Channels
+- Scheduled/background synchronization

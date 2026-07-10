@@ -268,15 +268,17 @@ async def setup_admin(
     if existing_admin:
         raise HTTPException(
             status_code=409,
-            detail="An administrator account already exists. This endpoint is locked.",
+            detail="An owner or administrator account already exists. This endpoint is locked.",
         )
 
-    # Create the admin user
+    # The setup endpoint can create exactly one initial privileged operator.
+    # A plain admin could not later create or promote an owner, leaving a fresh
+    # installation without a privileged recovery and lifecycle actor.
     hashed = hash_password(body.password)
     user = FlowHubUser(
         username=body.username,
         hashed_password=hashed,
-        role="admin",
+        role="owner",
         is_active=True,
     )
     db.add(user)
@@ -285,7 +287,7 @@ async def setup_admin(
 
     svc.set("admin.email", body.email, updated_by="setup_wizard")
 
-    create_audit_event(db, username=user.username, event="setup_admin_created", ip_address="setup_wizard")
+    create_audit_event(db, username=user.username, event="setup_owner_created", ip_address="setup_wizard")
 
     # Issue tokens so the wizard can continue authenticated if needed
     access = create_access_token(user.id, user.username, user.role)
@@ -305,7 +307,7 @@ async def setup_complete(db: Session = Depends(get_db)) -> dict:
     if not admin_exists:
         raise HTTPException(
             status_code=422,
-            detail="Cannot complete setup: no administrator account has been created.",
+            detail="Cannot complete setup: no owner or administrator account has been created.",
         )
 
     svc.mark_setup_complete(updated_by="setup_wizard")

@@ -1,13 +1,16 @@
 # Release Checklist
 
-## Local Verification
+## Release-Candidate Verification
 
-- `python -m pytest tests/flowhub -q`
-- `npm run build`
-- `npm test -- --run`
+- `python3 -m pytest -q`
+- `python3 -m pytest tests/flowhub -q`
+- `python3 -m pytest tests/flowhub/test_release_terms_guard.py -q`
+- `python3 -m pytest tests/flowhub/migration/test_release_compatibility.py -q`
+- `npm test -- --run` and `npm run build` from `frontend/`
 - `git diff --check`
-- direct-call audit for active FLOWHUB v2 routes
-- release identity search
+- Confirm `FLOWHUB_011` is the Alembic head.
+- Confirm a backup manifest and restore-control-flow test pass before tagging.
+- Confirm Docker build and an isolated-stack smoke test on a host with Docker.
 
 ## Deployment Host Verification
 
@@ -36,36 +39,12 @@ Expected result:
 
 - services are running
 - setup wizard opens
-- setup steps are Welcome, Server Profile, Database, Admin Account, Finish
-- connector configuration is only under Settings
+- setup steps are Welcome, Server Profile, Database, Owner Account, Finish
+- Nextcloud Source and WooCommerce Channel configuration are available in Commerce Hub
 - `/opt/FlowHub` is the installation path
 
-## Release Gate Validation Record
+## Production Verification
 
-Date: 2026-07-02
-
-Verified commit: `00fd7b0eac81ca548a875639617ac6a4b0724a92`
-
-Environment:
-
-- Fresh Ubuntu Server 26.04 LTS VM
-- Host: `192.168.100.14`
-- Normal operator: `codex`
-
-Decision: PASS
-
-Verified controls:
-
-- `flowhub` works for the normal operator without manually typing `sudo`.
-- Protected configuration remains `root:root 600`: `/opt/FlowHub/.env`.
-- Docker-backed CLI commands work through the restricted FlowHub helper.
-- `flowhub status`, `flowhub health`, `flowhub restart`, `flowhub backup`, and the interactive menu work.
-- `flowhub restart` waits for readiness; immediate `/api/health` returns HTTP 200.
-- Backup succeeds.
-- Installed-host menu shows the simplified operator menu; Install is visible but disabled with "Use Update instead."
-- Status Overview shows concise database, panel, and API state.
-- No secrets were printed during tested CLI operations.
-- Apply, scheduler, WooCommerce writes, and spreadsheet writes remain disabled/read-only.
-
-This record documents release-gate validation only. It does not indicate that
-public production deployment has occurred.
+Record the actual release commit, environment, backup archive identity, Docker
+health result, and smoke-test evidence at deployment time. Do not record public
+host addresses, credentials, tokens, or copied log bodies in this repository.

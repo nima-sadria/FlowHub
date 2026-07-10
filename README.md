@@ -5,9 +5,10 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Latest Release](https://img.shields.io/badge/release-first_public_release-7c3aed)](RELEASE_NOTES.md)
 
-FlowHub is a self-hosted multi-channel commerce operations platform. It centralizes product, source, workspace, diagnostics, activity, and settings views behind a read-only first-release safety model.
-
-The first release is designed for safe deployment: connectors can read and diagnose external systems, but write execution remains disabled until explicitly approved in a future release.
+FlowHub 1.0.0 is a self-hosted WooCommerce price-management platform. It reads a
+Nextcloud-hosted spreadsheet through WebDAV, validates proposed price changes
+against a manually refreshed WooCommerce product cache, and performs only
+explicitly approved manual price updates.
 
 ## Architecture
 
@@ -38,12 +39,17 @@ flowchart TD
 
 ## Features
 
-- Clean first-run setup: Welcome, Server Profile, Database, Admin Account, Finish.
-- Connector configuration in one place: Settings.
-- Canonical Data Layer for products, sources, workspace state, and snapshots.
-- Integration Platform with connector registry, settings, health, diagnostics, telemetry, and webhook contracts.
-- Unified Logging Platform with structured logs, search, correlation IDs, redaction, retention, and export contracts.
-- Read-only first-release safety: no Apply, no scheduler execution, no automatic pricing, no WooCommerce writes, no spreadsheet writes.
+- First-run setup creates the initial owner account, then locks setup.
+- Nextcloud Sources are read-only: test WebDAV access, browse/select a workbook,
+  map columns, select worksheets, and manually read within a source quota.
+- WooCommerce Channels provide read-only connection checks and manual product-cache
+  refreshes for simple products, variable parents, and variations.
+- The Workspace workflow is server-authoritative: Preview, row selection, Dry
+  Run, Approval, manual Apply, read-back verification, and audit.
+- WooCommerce writes support price fields only for simple products and variations.
+  Stock writes, source writes, schedulers, and automatic Apply are not available.
+- Integration, diagnostics, logging, rate limiting, redaction, backup, and
+  rollback controls are included for production operation.
 - Professional installer and `flowhub` server management command.
 
 ## Quick Start
@@ -118,7 +124,7 @@ It offers Upgrade, Repair, Reinstall, or Exit. Upgrade and Repair preserve
 configuration, generated secrets, database data, uploads, backups, logs, and
 Docker volumes. Reinstall warns before destructive actions.
 
-Generated administrator passwords are printed once during installation and are
+Generated initial-owner passwords are printed once during installation and are
 not stored in plaintext logs or backups.
 
 ## Update
@@ -156,7 +162,7 @@ Maintenance
 5. IP + Port Setup
 
 Account
-6. Admin Setup
+6. Owner Setup
 7. Show Base URL
 8. Show Admin Users
 9. Add Admin User

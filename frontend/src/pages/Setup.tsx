@@ -14,7 +14,7 @@ const STEP_LABELS: Record<Step, string> = {
   welcome: 'Welcome',
   'server-profile': 'Server Profile',
   database: 'Database',
-  admin: 'Admin Account',
+  admin: 'Owner Account',
   finish: 'Finish',
 }
 
@@ -37,8 +37,8 @@ const STEP_DETAILS: Record<Step, { label: string; description: string; icon: Set
     icon: 'database',
   },
   admin: {
-    label: 'Admin Account',
-    description: 'Create or confirm the first administrator account.',
+    label: 'Owner Account',
+    description: 'Create or confirm the initial owner account.',
     icon: 'user',
   },
   finish: {
@@ -791,13 +791,13 @@ function AdminStep({
 
   return (
     <StepCard
-      title="Admin Account"
-      subtitle={hasAdmin ? 'An administrator account already exists.' : 'Create the first administrator account.'}
+      title="Owner Account"
+      subtitle={hasAdmin ? 'An owner or administrator account already exists.' : 'Create the initial owner account.'}
     >
       {error && <ErrorBanner message={error} />}
       {hasAdmin ? (
         <InfoPanel>
-          FlowHub already has an administrator account. Continue to finish setup.
+          FlowHub already has an owner or administrator account. Continue to finish setup.
         </InfoPanel>
       ) : (
         <div className="space-y-4">
@@ -845,7 +845,7 @@ function AdminStep({
         onBack={onBack}
         onNext={createAdmin}
         loading={loading}
-        nextLabel={hasAdmin ? 'Continue' : 'Create Admin'}
+        nextLabel={hasAdmin ? 'Continue' : 'Create Owner'}
         nextDisabled={!hasAdmin && (!username.trim() || !!emailError || password.length < 8 || confirm.length < 8)}
       />
     </StepCard>

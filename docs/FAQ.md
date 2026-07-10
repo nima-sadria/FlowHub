@@ -10,7 +10,7 @@ Settings.
 
 ## Does setup configure connectors?
 
-No. Setup contains Welcome, Server Profile, Database, Admin Account, and Finish.
+No. Setup contains Welcome, Server Profile, Database, Owner Account, and Finish.
 
 ## Are writes enabled?
 

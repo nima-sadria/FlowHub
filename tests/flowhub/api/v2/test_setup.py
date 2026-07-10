@@ -193,7 +193,7 @@ class TestSetupDatabase:
 # -- POST /api/v2/setup/admin -------------------------------------------------
 
 class TestSetupAdmin:
-    def test_creates_admin_and_returns_tokens(self, client):
+    def test_creates_initial_owner_and_returns_tokens(self, client):
         r = client.post("/api/v2/setup/admin", json={
             "username": "admin",
             "email": "admin@example.com",
@@ -204,6 +204,12 @@ class TestSetupAdmin:
         assert "token" in data
         assert "refresh_token" in data
         assert data["username"] == "admin"
+
+        me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {data['token']}"})
+        assert me.status_code == 200
+        assert me.json()["role"] == "owner"
+        assert me.json()["is_admin"] is True
+        assert me.json()["is_super_admin"] is True
 
     def test_stores_admin_email(self, client, db):
         r = client.post("/api/v2/setup/admin", json={

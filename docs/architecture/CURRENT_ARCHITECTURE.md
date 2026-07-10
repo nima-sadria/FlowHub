@@ -34,10 +34,10 @@ Current setup steps:
 1. Welcome
 2. Server Profile
 3. Database
-4. Admin Account
+4. Owner Account
 5. Finish
 
-The Admin Account step collects username, email, and password. Email is
+The Owner Account step collects username, email, and password. Email is
 validated in the UI and again by `POST /api/v2/setup/admin`.
 
 Connector configuration is not part of setup. Source and Channel configuration
