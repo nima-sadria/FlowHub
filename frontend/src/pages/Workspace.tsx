@@ -5,6 +5,23 @@ import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
 import PageShell from '../components/PageShell'
+import { ApiError } from '../api/client'
+
+function workspaceErrorMessage(error: unknown, fallback: string): string {
+  const redact = (value: string) => value.replace(
+    /((?:consumer_secret|consumer_key|access_token|refresh_token|authorization|password|api_key|apikey|secret|token|key)\s*["']?\s*[:=]\s*["']?)([^"',\s}]+)/gi,
+    '$1[REDACTED]',
+  )
+  if (error instanceof ApiError) {
+    try {
+      const parsed = JSON.parse(error.message) as { detail?: unknown }
+      if (typeof parsed.detail === 'string' && parsed.detail.trim()) return redact(parsed.detail)
+    } catch {
+      if (error.message.trim()) return redact(error.message)
+    }
+  }
+  return error instanceof Error && error.message.trim() ? redact(error.message) : fallback
+}
 
 function fmtPrice(p: number, currency: string): string {
   return `${currency} ${p.toFixed(2)}`
@@ -85,7 +102,11 @@ function attributeText(attributes?: Array<Record<string, string>>): string {
     .join(', ')
 }
 
-function PreviewRow({ row }: { row: WorkspacePreviewRow }) {
+function PreviewRow({ row, selected, onToggle }: {
+  row: WorkspacePreviewRow
+  selected: boolean
+  onToggle: (rowId: string, selected: boolean) => void
+}) {
   const name = row.matchedProduct?.name ?? row.source.productName ?? 'Unmatched product'
   const sku = row.matchedProduct?.sku || row.source.sku || '-'
   const isVariation = row.matchedProduct?.itemType === 'variation' || row.matchedProduct?.productType === 'variation'
@@ -94,6 +115,15 @@ function PreviewRow({ row }: { row: WorkspacePreviewRow }) {
   const stockDiff = row.stockDifference
   return (
     <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
+      <td className="px-4 py-3 text-center">
+        <input
+          type="checkbox"
+          aria-label={`Select ${name}`}
+          checked={selected}
+          disabled={!row.eligible_for_dry_run}
+          onChange={event => onToggle(row.id, event.target.checked)}
+        />
+      </td>
       <td className="px-4 py-3 min-w-0 max-w-[220px]">
         <div className="flex items-center gap-2 text-[13px] font-medium text-text-base">
           <span className="truncate">{name}</span>
@@ -201,6 +231,7 @@ export default function Workspace() {
   const [preview, setPreview] = useState<WorkspacePreview | null>(null)
   const [batch, setBatch] = useState<WritePipelineBatch | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
 
   // Check if both product and source connectors are configured.
   const [wcConfigured, setWcConfigured] = useState<boolean | null>(null)
@@ -226,31 +257,32 @@ export default function Workspace() {
     try {
       const p = await workspace.startPreview('')
       setPreview(p)
+      setSelectedRowIds(new Set(p.rows.filter(row => row.eligible_for_dry_run).map(row => row.id)))
       setBatch(null)
       setPhase('preview_ready')
       info(`Preview ready - ${p.totalChanges} product${p.totalChanges !== 1 ? 's' : ''} with pending price changes`)
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : 'Failed to start preview')
+      setErrorMsg(workspaceErrorMessage(e, 'Failed to start preview'))
       setPhase('error')
     }
   }, [workspace, info])
 
   const createDryRun = useCallback(async () => {
     if (!preview) return
-    const eligible = preview.changes.filter(change => change.eligible_for_dry_run !== false)
-    if (eligible.length === 0 || preview.summary.error_rows > 0) return
+    const selected = [...selectedRowIds]
+    if (selected.length === 0) return
     setPhase('dry_running')
     setErrorMsg(null)
     try {
-      const b = await writePipeline.createDryRun(preview.id, eligible, preview.summary)
+      const b = await writePipeline.createDryRun(preview.id, selected)
       setBatch(b)
       setPhase('dry_run_ready')
       info(`Dry Run ready - ${b.itemCount} price change${b.itemCount !== 1 ? 's' : ''} validated`)
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : 'Failed to create Dry Run')
+      setErrorMsg(workspaceErrorMessage(e, 'Failed to create Dry Run'))
       setPhase('error')
     }
-  }, [preview, writePipeline, info])
+  }, [preview, selectedRowIds, writePipeline, info])
 
   const approveDryRun = useCallback(async () => {
     if (!batch) return
@@ -262,7 +294,7 @@ export default function Workspace() {
       setPhase('approved')
       info('Approved. Apply to WooCommerce still requires a separate action.')
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : 'Failed to approve')
+      setErrorMsg(workspaceErrorMessage(e, 'Failed to approve'))
       setPhase('error')
     }
   }, [batch, writePipeline, info])
@@ -277,7 +309,7 @@ export default function Workspace() {
       setPhase('result')
       info('WooCommerce apply finished')
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : 'Failed to apply to WooCommerce')
+      setErrorMsg(workspaceErrorMessage(e, 'Failed to apply to WooCommerce'))
       setPhase('error')
     }
   }, [batch, writePipeline, info])
@@ -286,12 +318,22 @@ export default function Workspace() {
     if (preview) await workspace.cancelPreview(preview.id)
     setPreview(null)
     setBatch(null)
+    setSelectedRowIds(new Set())
     setPhase('idle')
   }, [workspace, preview])
 
   const bothConfigured = wcConfigured === true && ncConfigured === true
-  const blockingErrors = (preview?.summary.error_rows ?? 0) > 0
-  const eligibleChanges = preview?.changes.filter(change => change.eligible_for_dry_run !== false) ?? []
+  const eligibleRows = preview?.rows.filter(row => row.eligible_for_dry_run) ?? []
+  const blockedRows = preview?.rows.filter(row => row.errors.length > 0).length ?? 0
+  const stockOnlyRows = preview?.rows.filter(row => row.status === 'stock_changed').length ?? 0
+  const toggleRow = useCallback((rowId: string, selected: boolean) => {
+    setSelectedRowIds(current => {
+      const next = new Set(current)
+      if (selected) next.add(rowId)
+      else next.delete(rowId)
+      return next
+    })
+  }, [])
 
   return (
     <PageShell>
@@ -531,21 +573,39 @@ export default function Workspace() {
               <span className="text-[13px] font-semibold text-text-base">
                 Preview - {preview.summary.total_rows} source rows
               </span>
-              <span className="text-[11px] font-mono text-wp-muted">Source: {preview.sourceName}</span>
+              <div className="flex flex-wrap items-center gap-3 text-[11px] text-wp-muted">
+                <span className="font-mono">Source: {preview.sourceName}</span>
+                <button type="button" onClick={() => setSelectedRowIds(new Set(eligibleRows.map(row => row.id)))} className="fh-button-secondary px-2 py-1">
+                  Select all eligible
+                </button>
+                <button type="button" onClick={() => setSelectedRowIds(new Set())} className="fh-button-secondary px-2 py-1">
+                  Deselect all
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 px-4 py-3 border-b border-border text-[12px]">
+              <span>Selected: <strong>{selectedRowIds.size}</strong></span>
+              <span>Eligible: <strong>{eligibleRows.length}</strong></span>
+              <span>Blocked: <strong>{blockedRows}</strong></span>
+              <span>Stock-only: <strong>{stockOnlyRows}</strong></span>
+              <span>Estimated WooCommerce calls: <strong>{selectedRowIds.size}</strong></span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-border bg-bg-base">
-                    {['Product', 'Current Price', 'New Price', 'Change', 'Current Stock', 'Source Stock', 'Stock Change', 'Status', 'Validation'].map(h => (
+                    {['Select', 'Product', 'Current Price', 'New Price', 'Change', 'Current Stock', 'Source Stock', 'Stock Change', 'Status', 'Validation'].map(h => (
                       <th key={h} className="px-4 py-2.5 text-start text-[11px] font-semibold text-wp-muted uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {preview.rows.length > 0
-                    ? preview.rows.map(row => <PreviewRow key={row.id} row={row} />)
+                    ? preview.rows.map(row => (
+                        <PreviewRow key={row.id} row={row} selected={selectedRowIds.has(row.id)} onToggle={toggleRow} />
+                      ))
                     : preview.changes.map(c => <PriceChangeRow key={c.productId} change={c} />)}
                 </tbody>
               </table>
@@ -562,7 +622,7 @@ export default function Workspace() {
                 {phase === 'preview_ready' && (
                   <button
                     onClick={() => void createDryRun()}
-                    disabled={eligibleChanges.length === 0 || blockingErrors}
+                    disabled={selectedRowIds.size === 0}
                     className="fh-button-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Dry Run

@@ -121,6 +121,21 @@ def test_nextcloud_spreadsheet_import_success_generates_preview_and_dry_run(
     preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
     assert preview.status_code == 200
     data = preview.json()
+    from app.flowhub.data_layer.models import DlWorkspacePreview
+
+    stored_preview = configured_db.get(DlWorkspacePreview, data["id"])
+    assert stored_preview is not None
+    assert stored_preview.preview_hash and len(stored_preview.preview_hash) == 64
+    assert stored_preview.rows_json[0]["id"] == data["rows"][0]["id"]
+    from app.flowhub.integration_platform.models import IntegrationConnectorEvent
+
+    preview_event = (
+        configured_db.query(IntegrationConnectorEvent)
+        .filter(IntegrationConnectorEvent.event_name == "preview_created")
+        .one()
+    )
+    assert preview_event.metadata_json["preview_id"] == data["id"]
+    assert preview_event.metadata_json["preview_hash"] == stored_preview.preview_hash
     assert data["external_call_performed"] is True
     assert data["summary"]["total_rows"] == 1
     assert data["summary"]["valid_changes"] == 1
@@ -149,9 +164,7 @@ def test_nextcloud_spreadsheet_import_success_generates_preview_and_dry_run(
         headers=auth_headers,
         json={
             "previewId": data["id"],
-            "channelId": "woocommerce:primary",
-            "operationType": "price_update",
-            "changes": data["changes"],
+            "selectedRowIds": [row["id"]],
         },
     )
     assert dry_run.status_code == 201
@@ -260,10 +273,7 @@ def test_variation_row_matched_by_variation_id_is_eligible_for_dry_run(
         headers=auth_headers,
         json={
             "previewId": data["id"],
-            "channelId": "woocommerce:primary",
-            "operationType": "price_update",
-            "previewSummary": data["summary"],
-            "changes": data["changes"],
+            "selectedRowIds": [row["id"]],
         },
     )
     assert dry_run.status_code == 201
@@ -276,6 +286,18 @@ def test_variation_row_matched_by_variation_id_is_eligible_for_dry_run(
 
 def test_variation_row_matched_by_sku_if_safe(client, auth_headers, configured_db, monkeypatch):
     from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(configured_db).set_many(
+        {
+            "nextcloud.source_mapping": (
+                '{"id":{"enabled":false,"column":"B"},'
+                '"price":{"enabled":true,"column":"C"},'
+                '"stock":{"enabled":false,"column":"D"}}'
+            )
+        },
+        updated_by="test",
+    )
 
     _cache_product(configured_db, "100", "Parent Hoodie", "PARENT-100", "0.00", product_type="variable")
     _cache_product(
@@ -366,10 +388,7 @@ def test_simple_woocommerce_price_workflow_end_to_end_with_mocked_adapter(
         headers=auth_headers,
         json={
             "previewId": preview["id"],
-            "channelId": "woocommerce:primary",
-            "operationType": "price_update",
-            "previewSummary": preview["summary"],
-            "changes": preview["changes"],
+            "selectedRowIds": [preview["rows"][0]["id"]],
         },
     ).json()
     approved = client.post(
@@ -396,7 +415,12 @@ def test_simple_woocommerce_price_workflow_end_to_end_with_mocked_adapter(
     assert data["resultSummary"]["success_count"] == 1
     assert data["resultSummary"]["verified_count"] == 1
     events = client.get(f"/api/v2/write-pipeline/batches/{dry_run['id']}/events", headers=auth_headers).json()
-    assert {item["eventType"] for item in events} >= {"dry_run_created", "approved", "item_applied", "execution_finished"}
+    assert {item["eventType"] for item in events} >= {
+        "dry_run_created_from_preview",
+        "approved",
+        "item_applied",
+        "execution_finished",
+    }
 
 
 def test_workspace_preview_classifies_validation_errors_warnings_and_unchanged(
@@ -470,6 +494,7 @@ def test_rows_with_errors_are_rejected_by_write_pipeline(client, auth_headers):
         headers=auth_headers,
         json={
             "previewId": "wp_bad",
+            "selectedRowIds": ["wp_bad:Sheet1:3"],
             "changes": [
                 {
                     "productId": "101",
@@ -495,7 +520,7 @@ def test_rows_with_errors_are_rejected_by_write_pipeline(client, auth_headers):
         },
     )
     assert response.status_code == 422
-    assert "validation errors" in response.text
+    assert "DRY_RUN_REQUEST_FIELDS_INVALID" in response.text
 
 
 def test_preview_fails_safely_when_cache_is_empty(client, auth_headers, configured_db, monkeypatch):
@@ -542,6 +567,80 @@ def test_spreadsheet_normalizes_persian_digits_and_commas():
     assert rows[0]["product_id"] == "101"
     assert rows[0]["proposed_price"] == 1234.5
     assert duplicates["duplicate_product_ids"] == []
+
+
+@pytest.mark.parametrize("raw_id", [101, "101", " 101 ", "\u06f1\u06f0\u06f1", "\u0661\u0660\u0661"])
+def test_spreadsheet_accepts_only_positive_whole_product_ids(raw_id):
+    from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_source_price_rows
+
+    rows, _ = parse_source_price_rows(load_workbook_bytes(_xlsx([["Product", raw_id, "110.00", "SKU-101"]])))
+
+    assert rows[0]["product_id"] == "101"
+    assert "invalid_product_id" not in rows[0]["row_errors"]
+
+
+@pytest.mark.parametrize("raw_id", [101.9, "101.9", "1e3", "-10", "0", "101abc", True, ""])
+def test_spreadsheet_rejects_noncanonical_product_ids(raw_id):
+    from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_source_price_rows
+
+    rows, _ = parse_source_price_rows(load_workbook_bytes(_xlsx([["Product", raw_id, "110.00", "SKU-101"]])))
+
+    assert rows[0]["product_id"] is None
+    assert "invalid_product_id" in rows[0]["row_errors"]
+    assert rows[0]["row_error_details"] == [{
+        "code": "INVALID_PRODUCT_ID",
+        "message": "Product ID must be a positive whole number.",
+    }]
+
+
+@pytest.mark.parametrize(
+    ("raw_stock", "accepted"),
+    [(0, True), ("0", True), (8, True), (8.5, False), ("8.5", False), ("1e3", False), (-1, False)],
+)
+def test_spreadsheet_stock_requires_non_negative_whole_number(raw_stock, accepted):
+    from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_source_price_rows
+
+    mapping = {
+        "id": {"enabled": True, "column": "B"},
+        "price": {"enabled": True, "column": "C"},
+        "stock": {"enabled": True, "column": "D"},
+    }
+    rows, _ = parse_source_price_rows(
+        load_workbook_bytes(_xlsx([["Product", 101, "110.00", raw_stock]])),
+        mapping=mapping,
+    )
+
+    if accepted:
+        assert rows[0]["source_stock"] == int(raw_stock)
+        assert "invalid_stock" not in rows[0]["row_errors"]
+    else:
+        assert rows[0]["source_stock"] is None
+        assert "invalid_stock" in rows[0]["row_errors"]
+        assert rows[0]["row_error_details"][-1]["code"] == "INVALID_STOCK"
+
+
+def test_duplicate_product_ids_and_skus_are_detected_across_worksheets():
+    import openpyxl
+
+    from app.flowhub.integrations.spreadsheet import parse_source_price_rows
+
+    workbook = openpyxl.Workbook()
+    first = workbook.active
+    first.title = "First"
+    second = workbook.create_sheet("Second")
+    for sheet, row in (
+        (first, ["First Product", 101, "110", "DUP-SKU"]),
+        (second, ["Second Product", 101, "120", "DUP-SKU"]),
+    ):
+        sheet.append(["Name", "Product ID", "Price", "SKU"])
+        sheet.append(["", "", "", ""])
+        sheet.append(row)
+
+    rows, duplicates = parse_source_price_rows(workbook)
+
+    assert duplicates == {"duplicate_product_ids": ["101"], "duplicate_skus": ["dup-sku"]}
+    assert all("duplicate_product_id" in row["row_errors"] for row in rows)
+    assert all("duplicate_sku" in row["row_errors"] for row in rows)
 
 
 def test_workspace_preview_uses_configured_mapping_and_reads_stock(

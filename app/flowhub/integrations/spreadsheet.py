@@ -53,6 +53,16 @@ _DIGIT_TRANSLATION = str.maketrans({
 })
 
 _COLUMN_REF_RE = re.compile(r"^[A-Za-z]{1,3}$")
+_WHOLE_NUMBER_RE = re.compile(r"^[0-9]+$")
+
+_INVALID_PRODUCT_ID = {
+    "code": "INVALID_PRODUCT_ID",
+    "message": "Product ID must be a positive whole number.",
+}
+_INVALID_STOCK = {
+    "code": "INVALID_STOCK",
+    "message": "Stock must be a non-negative whole number.",
+}
 
 
 # -- Internal helpers ----------------------------------------------------------
@@ -66,6 +76,17 @@ def _normalize_price_text(raw: str) -> str:
         .replace(",", "")
         .strip()
     )
+
+
+def _parse_whole_number(raw: str, *, allow_zero: bool) -> int:
+    """Parse a canonical integer without rounding, truncation, or exponent expansion."""
+    normalized = raw.translate(_DIGIT_TRANSLATION).strip()
+    if not _WHOLE_NUMBER_RE.fullmatch(normalized):
+        raise ValueError("not a canonical whole number")
+    value = int(normalized)
+    if value < 0 or (value == 0 and not allow_zero):
+        raise ValueError("whole number outside allowed range")
+    return value
 
 
 def _parse_sheet_rows(ws: "openpyxl.worksheet.worksheet.Worksheet") -> list[dict]:
@@ -277,23 +298,20 @@ def parse_source_price_rows(
 
             row_errors: list[str] = []
             row_warnings: list[str] = []
+            row_error_details: list[dict[str, str]] = []
             product_id: str | None = None
             product_id_error = False
             if mapping.get("id", {}).get("enabled"):
                 if not product_id_raw:
-                    if not sku:
-                        row_errors.append("missing_product_id")
+                    product_id_error = True
                 elif product_id_raw:
                     try:
-                        parsed_product_id = int(float(_normalize_price_text(product_id_raw)))
-                        if parsed_product_id > 0:
-                            product_id = str(parsed_product_id)
-                        else:
-                            product_id_error = True
-                    except (TypeError, ValueError):
+                        product_id = str(_parse_whole_number(product_id_raw, allow_zero=False))
+                    except ValueError:
                         product_id_error = True
                 if product_id_error:
                     row_errors.append("invalid_product_id")
+                    row_error_details.append(dict(_INVALID_PRODUCT_ID))
 
             price: float | None = None
             price_parse_error = False
@@ -319,18 +337,14 @@ def parse_source_price_rows(
             if stock_enabled:
                 if raw_stock:
                     try:
-                        candidate = int(float(_normalize_price_text(raw_stock)))
-                        if candidate < 0:
-                            stock_parse_error = True
-                            row_errors.append("stock_below_zero")
-                        else:
-                            stock = candidate
-                    except (TypeError, ValueError):
+                        stock = _parse_whole_number(raw_stock, allow_zero=True)
+                    except ValueError:
                         stock_parse_error = True
                 else:
                     stock_parse_error = True
-                if stock_parse_error and "stock_below_zero" not in row_errors:
+                if stock_parse_error:
                     row_errors.append("invalid_stock")
+                    row_error_details.append(dict(_INVALID_STOCK))
 
             row_number = getattr(product_id_cell or sku_cell or price_cell or stock_cell or name_cell, "row", None)
             rows.append({
@@ -356,6 +370,7 @@ def parse_source_price_rows(
                 "stock_enabled": stock_enabled,
                 "id_enabled": bool(mapping.get("id", {}).get("enabled")),
                 "row_errors": row_errors,
+                "row_error_details": row_error_details,
                 "row_warnings": row_warnings,
                 "raw_values": raw_values,
                 "raw": {
@@ -370,6 +385,25 @@ def parse_source_price_rows(
 
     duplicate_product_ids = _duplicate_values(row["product_id"] for row in rows if row.get("product_id"))
     duplicate_skus = _duplicate_values(row["sku"].strip().lower() for row in rows if row.get("sku"))
+    duplicate_product_id_set = set(duplicate_product_ids)
+    duplicate_sku_set = set(duplicate_skus)
+    for row in rows:
+        duplicate_id = bool(row.get("product_id") and row["product_id"] in duplicate_product_id_set)
+        duplicate_sku = bool(row.get("sku") and row["sku"].strip().lower() in duplicate_sku_set)
+        row["duplicate_product_id"] = duplicate_id
+        row["duplicate_sku"] = duplicate_sku
+        if duplicate_id:
+            row["row_errors"].append("duplicate_product_id")
+            row["row_error_details"].append({
+                "code": "DUPLICATE_PRODUCT_ID",
+                "message": "Product ID appears more than once in the spreadsheet.",
+            })
+        if duplicate_sku:
+            row["row_errors"].append("duplicate_sku")
+            row["row_error_details"].append({
+                "code": "DUPLICATE_SKU",
+                "message": "SKU appears more than once in the spreadsheet.",
+            })
     return rows, {
         "duplicate_product_ids": duplicate_product_ids,
         "duplicate_skus": duplicate_skus,

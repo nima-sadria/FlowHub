@@ -6,6 +6,7 @@ import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { WorkspacePreview, WritePipelineBatch } from '../services/types'
 import Workspace from './Workspace'
+import { ApiError } from '../api/client'
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -25,7 +26,7 @@ afterEach(() => {
 })
 
 describe('Workspace source-driven preview', () => {
-  it('displays preview rows, warnings, unchanged rows, and blocks Dry Run when errors exist', async () => {
+  it('displays preview rows and keeps blocked, unchanged, and stock-only rows unselectable', async () => {
     const preview = makePreview({ withError: true })
     const createDryRun = vi.fn()
     await renderWorkspace(preview, createDryRun)
@@ -50,24 +51,37 @@ describe('Workspace source-driven preview', () => {
     expect(container.textContent).toContain('Other channels are read-only/unavailable for this workflow')
     expect(container.textContent).toContain('Simple and variation WooCommerce price updates are supported')
     expect(container.textContent).toContain('Variation rows require cached parent product metadata')
-    expect(button('Dry Run')?.hasAttribute('disabled')).toBe(true)
+    expect(checkbox('Select Missing Product')?.hasAttribute('disabled')).toBe(true)
+    expect(checkbox('Select Same Product')?.hasAttribute('disabled')).toBe(true)
+    expect(checkbox('Select Stock Only Product')?.hasAttribute('disabled')).toBe(true)
+    expect(checkbox('Select Valid Product')?.hasAttribute('disabled')).toBe(false)
+    expect(button('Dry Run')?.hasAttribute('disabled')).toBe(false)
   })
 
-  it('enables Dry Run for valid preview rows and sends only eligible changes', async () => {
+  it('selects eligible rows and sends only preview ID plus selected row IDs', async () => {
     const preview = makePreview({ withError: false })
-    const createDryRun = vi.fn(async (_previewId: string, changes, _summary) => makeBatch(changes.length, 'dry_run_ready'))
+    const createDryRun = vi.fn(async (_previewId: string, selectedRowIds: string[]) => makeBatch(selectedRowIds.length, 'dry_run_ready'))
     await renderWorkspace(preview, createDryRun)
 
     await click('Start Preview')
     expect(button('Dry Run')?.hasAttribute('disabled')).toBe(false)
+    expect(container.textContent).toContain('Selected: 3')
+
+    await click('Deselect all')
+    expect(container.textContent).toContain('Selected: 0')
+    expect(button('Dry Run')?.hasAttribute('disabled')).toBe(true)
+
+    await click('Select all eligible')
+    expect(container.textContent).toContain('Selected: 3')
 
     await click('Dry Run')
     expect(createDryRun).toHaveBeenCalledTimes(1)
-    expect(createDryRun.mock.calls[0][1]).toHaveLength(2)
-    const dryRunChanges = createDryRun.mock.calls[0][1] as Array<{ productId: string }>
-    expect(dryRunChanges.map(item => item.productId)).not.toContain('104')
-    expect(createDryRun.mock.calls[0][1][1].itemType).toBe('variation')
-    expect(createDryRun.mock.calls[0][2]).toEqual(preview.summary)
+    expect(createDryRun).toHaveBeenCalledWith('wp_1', [
+      'wp_1:Sheet1:3',
+      'wp_1:Sheet1:4',
+      'wp_1:Sheet1:5',
+    ])
+    expect(createDryRun.mock.calls[0]).toHaveLength(2)
     expect(container.textContent).toContain('Dry Run ready')
     expect(container.textContent).toContain('Approve')
     expect(container.textContent).not.toContain('Apply to WooCommerce')
@@ -75,7 +89,7 @@ describe('Workspace source-driven preview', () => {
 
   it('keeps approval mandatory and renders result summary after apply', async () => {
     const preview = makePreview({ withError: false })
-    const createDryRun = vi.fn(async (_previewId: string, changes, _summary) => makeBatch(changes.length, 'dry_run_ready'))
+    const createDryRun = vi.fn(async (_previewId: string, selectedRowIds: string[]) => makeBatch(selectedRowIds.length, 'dry_run_ready'))
     await renderWorkspace(preview, createDryRun)
 
     await click('Start Preview')
@@ -88,6 +102,19 @@ describe('Workspace source-driven preview', () => {
     expect(container.textContent).toContain('Verified')
     expect(container.textContent).toContain('Valid Product')
     expect(container.textContent).toContain('Verified at')
+  })
+
+  it('shows immutable preview rejection returned by the server', async () => {
+    const preview = makePreview({ withError: false })
+    const createDryRun = vi.fn(async () => {
+      throw new ApiError(409, JSON.stringify({ detail: 'PREVIEW_EXPIRED' }))
+    })
+    await renderWorkspace(preview, createDryRun)
+
+    await click('Start Preview')
+    await click('Dry Run')
+
+    expect(container.textContent).toContain('PREVIEW_EXPIRED')
   })
 })
 
@@ -151,6 +178,10 @@ async function click(label: string) {
 
 function button(label: string): HTMLButtonElement | null {
   return Array.from(container.querySelectorAll('button')).find(item => item.textContent?.includes(label)) ?? null
+}
+
+function checkbox(label: string): HTMLInputElement | null {
+  return container.querySelector(`input[type="checkbox"][aria-label="${label}"]`)
 }
 
 async function flush() {

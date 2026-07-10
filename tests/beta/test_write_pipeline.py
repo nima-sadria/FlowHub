@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from datetime import datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 
@@ -81,6 +82,7 @@ def auth_headers(client, db):
     db.add(user)
     db.commit()
     db.refresh(user)
+    _set_preview(db, user=user)
     token = create_access_token(user.id, user.username, user.role)
     return {"Authorization": f"Bearer {token}"}
 
@@ -88,30 +90,7 @@ def auth_headers(client, db):
 def _payload(**overrides):
     body = {
         "previewId": "preview-test",
-        "channelId": "woocommerce:primary",
-        "operationType": "price_update",
-        "previewSummary": {
-            "total_rows": 3,
-            "valid_changes": 1,
-            "warning_rows": 0,
-            "unchanged_rows": 1,
-            "error_rows": 1,
-        },
-        "changes": [
-            {
-                "productId": "101",
-                "productName": "Test Product",
-                "sku": "SKU-101",
-                "currentPrice": 100.0,
-                "proposedPrice": 110.0,
-                "currency": "EUR",
-                "status": "valid_change",
-                "validationStatus": "valid_change",
-                "eligible_for_dry_run": True,
-                "source": _source("preview-test", row=3),
-                "validationWarnings": [],
-            }
-        ],
+        "selectedRowIds": ["preview-test:Sheet1:3"],
     }
     body.update(overrides)
     return body
@@ -132,6 +111,142 @@ def _source(preview_id: str, *, row: int = 3):
         "productName": "Test Product",
         "rawPrice": "110.00",
     }
+
+
+def _change(
+    *,
+    product_id: str = "101",
+    product_name: str = "Test Product",
+    sku: str = "SKU-101",
+    current_price: float = 100.0,
+    proposed_price: float = 110.0,
+    row: int = 3,
+    **extras,
+):
+    return {
+        "productId": product_id,
+        "productName": product_name,
+        "sku": sku,
+        "currentPrice": current_price,
+        "proposedPrice": proposed_price,
+        "currency": "EUR",
+        "status": "valid_change",
+        "validationStatus": "valid_change",
+        "eligible_for_dry_run": True,
+        "source": {**_source("preview-test", row=row), "productId": product_id, "sku": sku},
+        "validationWarnings": [],
+        **extras,
+    }
+
+
+def _set_preview(
+    db,
+    *,
+    user=None,
+    changes: list[dict] | None = None,
+    row_errors: dict[int, list[str]] | None = None,
+    preview_id: str = "preview-test",
+    summary: dict | None = None,
+):
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.data_layer.models import DlProductCache, DlSourceSnapshot, DlWorkspacePreview
+    from app.flowhub.workspace.preview_store import WorkspacePreviewStore
+
+    user = user or db.query(FlowHubUser).first()
+    source_snapshot = db.query(DlSourceSnapshot).filter(DlSourceSnapshot.file_path == "/prices.xlsx").one_or_none()
+    if source_snapshot is None:
+        source_snapshot = DlSourceSnapshot(
+            connector_id="nextcloud:primary",
+            file_path="/prices.xlsx",
+            integrity_hash="a" * 64,
+            version_seq=1,
+            sheet_names=["Sheet1"],
+            snapshotted_at=datetime.utcnow(),
+        )
+        db.add(source_snapshot)
+        db.commit()
+        db.refresh(source_snapshot)
+    existing = db.get(DlWorkspacePreview, preview_id)
+    if existing is not None:
+        db.delete(existing)
+        db.commit()
+
+    changes = changes or [_change()]
+    for change in changes:
+        cached = (
+            db.query(DlProductCache)
+            .filter(DlProductCache.connector_id == "woocommerce:primary")
+            .filter(DlProductCache.product_id == str(change["productId"]))
+            .one_or_none()
+        )
+        if cached is None:
+            cached = DlProductCache(
+                connector_id="woocommerce:primary",
+                product_id=str(change["productId"]),
+                exists=True,
+            )
+            db.add(cached)
+        cached.regular_price = str(change["currentPrice"])
+        cached.price = str(change["currentPrice"])
+        cached.product_type = str(change.get("itemType") or "simple")
+        cached.parent_id = change.get("parentProductId")
+    db.commit()
+    errors_by_row = row_errors or {}
+    rows = []
+    for change in changes:
+        source = dict(change["source"])
+        source.update({
+            "previewId": preview_id,
+            "sourceSnapshotId": source_snapshot.id,
+            "sourceSnapshotVersion": source_snapshot.version_seq,
+        })
+        change = {**change, "source": source}
+        row_number = int(source["rowNumber"])
+        errors = list(errors_by_row.get(row_number, []))
+        eligible = not errors and change.get("eligible_for_dry_run") is True
+        rows.append({
+            "id": f"{preview_id}:Sheet1:{row_number}",
+            "source": source,
+            "matchedProduct": {
+                "channelId": "woocommerce:primary",
+                "productId": change["productId"],
+                "productType": change.get("itemType", "simple"),
+                "itemType": change.get("itemType", "simple"),
+                "parentProductId": change.get("parentProductId"),
+                "variationId": change.get("variationId"),
+                "sku": change.get("sku", ""),
+                "name": change.get("productName", ""),
+                "currentPrice": change["currentPrice"],
+                "effectivePrice": change["currentPrice"],
+                "categoryNames": [],
+            },
+            "currentPrice": change["currentPrice"],
+            "proposedPrice": change["proposedPrice"],
+            "difference": change["proposedPrice"] - change["currentPrice"],
+            "changePct": 10.0,
+            "status": "error" if errors else change.get("status", "valid_change"),
+            "changeType": "price_changed",
+            "errors": errors,
+            "warnings": change.get("validationWarnings", []),
+            "eligible_for_dry_run": eligible,
+            "dry_run_change": change if eligible else None,
+        })
+    summary = summary or {
+        "total_rows": 3,
+        "valid_changes": len(changes),
+        "warning_rows": 0,
+        "unchanged_rows": 1,
+        "error_rows": 1,
+    }
+    WorkspacePreviewStore(db).create(
+        preview_id=preview_id,
+        source_id="nextcloud:primary",
+        source_snapshot=source_snapshot,
+        owner=user,
+        rows=rows,
+        summary=summary,
+    )
+    return [row["id"] for row in rows]
 
 
 def _enable_woocommerce_write(client, auth_headers):
@@ -168,6 +283,8 @@ def test_dry_run_creates_batch_without_marketplace_write(client, auth_headers):
 
     events = client.get(f"/api/v2/write-pipeline/batches/{data['id']}/events", headers=auth_headers)
     assert events.status_code == 200
+    assert events.json()[0]["eventType"] == "dry_run_created_from_preview"
+    assert events.json()[0]["metadata"]["selected_row_ids"] == ["preview-test:Sheet1:3"]
     assert events.json()[0]["metadata"]["execution_attempted"] is False
 
 
@@ -299,24 +416,167 @@ def test_dry_run_requires_workspace_preview_provenance(client, auth_headers):
     assert response.status_code == 422
 
 
+def test_missing_preview_is_rejected_and_audited(client, auth_headers, db):
+    from app.flowhub.integration_platform.models import IntegrationConnectorEvent
+
+    response = client.post(
+        "/api/v2/write-pipeline/dry-run",
+        headers=auth_headers,
+        json={"previewId": "missing-preview", "selectedRowIds": ["missing:row"]},
+    )
+
+    assert response.status_code == 404
+    assert "PREVIEW_NOT_FOUND" in response.text
+    event = db.query(IntegrationConnectorEvent).filter(IntegrationConnectorEvent.event_name == "dry_run_rejected").one()
+    assert event.metadata_json["reason"] == "PREVIEW_NOT_FOUND"
+    assert event.metadata_json["execution_attempted"] is False
+
+
 def test_dry_run_rejects_changes_without_matching_preview_source(client, auth_headers):
     body = _payload()
-    body["changes"][0]["source"]["previewId"] = "different-preview"
+    body["selectedRowIds"] = ["preview-test:Sheet1:999"]
 
     response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=body)
 
     assert response.status_code == 422
-    assert "active Workspace preview" in response.text
+    assert "PREVIEW_ROW_NOT_FOUND" in response.text
+
+
+def test_arbitrary_client_row_cannot_enter_dry_run(client, auth_headers):
+    body = _payload()
+    body["changes"] = [_change(product_id="999", proposed_price=120.0)]
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=body)
+
+    assert response.status_code == 422
+    assert "DRY_RUN_REQUEST_FIELDS_INVALID" in response.text
+
+
+def test_expired_preview_is_rejected(client, auth_headers, db):
+    from app.flowhub.data_layer.models import DlWorkspacePreview
+
+    preview = db.get(DlWorkspacePreview, "preview-test")
+    preview.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    db.commit()
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload())
+
+    assert response.status_code == 409
+    assert "PREVIEW_EXPIRED" in response.text
+
+
+def test_preview_row_with_error_cannot_enter_dry_run(client, auth_headers, db):
+    _set_preview(db, row_errors={3: ["invalid_price"]})
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload())
+
+    assert response.status_code == 422
+    assert "PREVIEW_ROW_NOT_ELIGIBLE" in response.text
+
+
+def test_only_selected_preview_rows_enter_dry_run(client, auth_headers, db):
+    row_ids = _set_preview(
+        db,
+        changes=[_change(), _change(product_id="102", product_name="Second", sku="SKU-102", row=4)],
+        summary={"total_rows": 2, "valid_changes": 2, "warning_rows": 0, "unchanged_rows": 0, "error_rows": 0},
+    )
+
+    response = client.post(
+        "/api/v2/write-pipeline/dry-run",
+        headers=auth_headers,
+        json={"previewId": "preview-test", "selectedRowIds": [row_ids[1]]},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["itemCount"] == 1
+    assert response.json()["items"][0]["productId"] == "102"
+
+
+def test_duplicate_selected_row_ids_are_rejected(client, auth_headers):
+    row_id = _payload()["selectedRowIds"][0]
+
+    response = client.post(
+        "/api/v2/write-pipeline/dry-run",
+        headers=auth_headers,
+        json={"previewId": "preview-test", "selectedRowIds": [row_id, row_id]},
+    )
+
+    assert response.status_code == 422
+    assert "PREVIEW_ROW_NOT_ELIGIBLE" in response.text
+
+
+def test_preview_ownership_is_enforced(client, auth_headers, db):
+    from app.flowhub.auth.jwt_service import create_access_token
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.auth.password import hash_password
+
+    other = FlowHubUser(username="other_admin", hashed_password=hash_password("password123"), role="admin")
+    db.add(other)
+    db.commit()
+    db.refresh(other)
+    other_headers = {"Authorization": f"Bearer {create_access_token(other.id, other.username, other.role)}"}
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=other_headers, json=_payload())
+
+    assert response.status_code == 403
+    assert "PREVIEW_OWNERSHIP_MISMATCH" in response.text
+
+
+def test_preview_row_tampering_is_detected(client, auth_headers, db):
+    from app.flowhub.data_layer.models import DlWorkspacePreview
+
+    preview = db.get(DlWorkspacePreview, "preview-test")
+    rows = list(preview.rows_json)
+    rows[0] = {**rows[0], "proposedPrice": 999.0}
+    preview.rows_json = rows
+    db.commit()
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload())
+
+    assert response.status_code == 409
+    assert "PREVIEW_HASH_MISMATCH" in response.text
+
+
+def test_changed_source_snapshot_invalidates_preview(client, auth_headers, db):
+    from app.flowhub.data_layer.models import DlSourceSnapshot
+
+    source = db.query(DlSourceSnapshot).filter(DlSourceSnapshot.file_path == "/prices.xlsx").one()
+    source.integrity_hash = "b" * 64
+    db.commit()
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload())
+
+    assert response.status_code == 409
+    assert "PREVIEW_HASH_MISMATCH" in response.text
+
+
+def test_changed_cached_product_price_invalidates_preview(client, auth_headers, db):
+    from app.flowhub.data_layer.models import DlProductCache
+
+    product = (
+        db.query(DlProductCache)
+        .filter(DlProductCache.connector_id == "woocommerce:primary")
+        .filter(DlProductCache.product_id == "101")
+        .one()
+    )
+    product.regular_price = "105.00"
+    product.price = "105.00"
+    db.commit()
+
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload())
+
+    assert response.status_code == 409
+    assert "PREVIEW_HASH_MISMATCH" in response.text
 
 
 def test_stock_fields_are_blocked(client, auth_headers):
     body = _payload()
-    body["changes"][0]["stock_quantity"] = 5
+    body["stock_quantity"] = 5
 
     response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=body)
 
     assert response.status_code == 403
-    assert "Stock updates are blocked" in response.text
+    assert "stock_writes_disabled" in response.text
 
 
 def test_stock_operation_is_blocked(client, auth_headers):
@@ -341,11 +601,10 @@ def test_automatic_apply_controls_are_blocked(client, auth_headers):
     assert "automatic_apply_disabled" in response.text
 
 
-def test_non_numeric_woocommerce_product_id_is_rejected(client, auth_headers):
-    body = _payload()
-    body["changes"][0]["productId"] = "prod-101"
+def test_non_numeric_woocommerce_product_id_is_rejected(client, auth_headers, db):
+    _set_preview(db, changes=[_change(product_id="prod-101")])
 
-    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=body)
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload())
 
     assert response.status_code == 422
     assert "product ID must be numeric" in response.text
@@ -469,18 +728,17 @@ async def test_woocommerce_variation_price_update_uses_variation_endpoint(monkey
     assert result["stock_update"] is False
 
 
-def test_variation_dry_run_requires_parent_product_id(client, auth_headers):
-    body = _payload()
-    body["changes"][0].update({
-        "productId": "201",
-        "productName": "Parent Hoodie - Blue / XL",
-        "sku": "VAR-201",
-        "itemType": "variation",
-        "variationId": "201",
-        "parentProductId": None,
-    })
+def test_variation_dry_run_requires_parent_product_id(client, auth_headers, db):
+    _set_preview(db, changes=[_change(
+        product_id="201",
+        product_name="Parent Hoodie - Blue / XL",
+        sku="VAR-201",
+        itemType="variation",
+        variationId="201",
+        parentProductId=None,
+    )])
 
-    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=body)
+    response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload())
 
     assert response.status_code == 422
     assert "parent product ID" in response.text
@@ -535,23 +793,22 @@ def test_apply_records_read_back_verification_and_audit_metadata(client, auth_he
     assert applied_event["correlationId"].startswith("corr_")
 
 
-def test_apply_records_variation_audit_metadata(client, auth_headers, monkeypatch):
+def test_apply_records_variation_audit_metadata(client, auth_headers, db, monkeypatch):
     from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
 
-    body = _payload()
-    body["changes"][0].update({
-        "productId": "201",
-        "productName": "Parent Hoodie - Blue / XL",
-        "sku": "VAR-201",
-        "currentPrice": 120.0,
-        "proposedPrice": 132.0,
-        "itemType": "variation",
-        "variationId": "201",
-        "parentProductId": "100",
-        "parentProductName": "Parent Hoodie",
-        "variationAttributes": [{"name": "Color", "value": "Blue"}, {"name": "Size", "value": "XL"}],
-        "source": {**_source("preview-test", row=7), "productId": "201", "sku": "VAR-201"},
-    })
+    _set_preview(db, changes=[_change(
+        product_id="201",
+        product_name="Parent Hoodie - Blue / XL",
+        sku="VAR-201",
+        current_price=120.0,
+        proposed_price=132.0,
+        row=7,
+        itemType="variation",
+        variationId="201",
+        parentProductId="100",
+        parentProductName="Parent Hoodie",
+        variationAttributes=[{"name": "Color", "value": "Blue"}, {"name": "Size", "value": "XL"}],
+    )])
 
     async def fake_execute(_adapter, item, _context):
         assert item.channel_product_id == "201"
@@ -576,7 +833,11 @@ def test_apply_records_variation_audit_metadata(client, auth_headers, monkeypatc
 
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "verify_item", fake_verify)
-    created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=body).json()
+    created = client.post(
+        "/api/v2/write-pipeline/dry-run",
+        headers=auth_headers,
+        json={"previewId": "preview-test", "selectedRowIds": ["preview-test:Sheet1:7"]},
+    ).json()
     assert created["items"][0]["itemType"] == "variation"
     assert created["items"][0]["variationId"] == "201"
     client.post(f"/api/v2/write-pipeline/batches/{created['id']}/approve", headers=auth_headers, json={"reason": "ok"})
@@ -597,19 +858,15 @@ def test_apply_records_variation_audit_metadata(client, auth_headers, monkeypatc
     assert applied_event["metadata"]["variation_attributes"][1] == {"name": "Size", "value": "XL"}
 
 
-def test_partial_failure_is_recorded_with_safe_provider_error(client, auth_headers, monkeypatch):
+def test_partial_failure_is_recorded_with_safe_provider_error(client, auth_headers, db, monkeypatch):
     from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
     from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
 
-    body = _payload()
-    body["previewSummary"]["valid_changes"] = 2
-    body["changes"].append({
-        **body["changes"][0],
-        "productId": "102",
-        "productName": "Second Product",
-        "sku": "SKU-102",
-        "source": {**_source("preview-test", row=4), "productId": "102", "sku": "SKU-102"},
-    })
+    selected_ids = _set_preview(
+        db,
+        changes=[_change(), _change(product_id="102", product_name="Second Product", sku="SKU-102", row=4)],
+        summary={"total_rows": 2, "valid_changes": 2, "warning_rows": 0, "unchanged_rows": 0, "error_rows": 0},
+    )
 
     async def fake_execute(_adapter, item, _context):
         if item.channel_product_id == "102":
@@ -626,7 +883,11 @@ def test_partial_failure_is_recorded_with_safe_provider_error(client, auth_heade
 
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "verify_item", fake_verify)
-    created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=body).json()
+    created = client.post(
+        "/api/v2/write-pipeline/dry-run",
+        headers=auth_headers,
+        json={"previewId": "preview-test", "selectedRowIds": selected_ids},
+    ).json()
     client.post(f"/api/v2/write-pipeline/batches/{created['id']}/approve", headers=auth_headers, json={})
     _enable_woocommerce_write(client, auth_headers)
 

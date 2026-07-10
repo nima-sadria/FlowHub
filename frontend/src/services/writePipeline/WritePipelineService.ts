@@ -1,7 +1,7 @@
-import type { PriceChange, WorkspacePreviewSummary, WritePipelineBatch } from '../types'
+import type { WritePipelineBatch } from '../types'
 
 export interface WritePipelineService {
-  createDryRun(previewId: string, changes: PriceChange[], previewSummary?: WorkspacePreviewSummary): Promise<WritePipelineBatch>
+  createDryRun(previewId: string, selectedRowIds: string[]): Promise<WritePipelineBatch>
   approve(batchId: string, reason?: string): Promise<WritePipelineBatch>
   applyToWooCommerce(batchId: string): Promise<WritePipelineBatch>
   getBatch(batchId: string): Promise<WritePipelineBatch>

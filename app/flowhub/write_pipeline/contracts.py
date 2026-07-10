@@ -23,10 +23,7 @@ class WritePipelineDryRunRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     previewId: str
-    channelId: str = "woocommerce:primary"
-    operationType: str = "price_update"
-    previewSummary: dict = Field(default_factory=dict)
-    changes: list[WritePipelinePriceChange] = Field(default_factory=list, max_length=100)
+    selectedRowIds: list[str] = Field(default_factory=list, max_length=100)
 
 
 class WritePipelineApprovalRequest(BaseModel):

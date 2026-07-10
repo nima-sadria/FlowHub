@@ -79,7 +79,7 @@ async def read_source_now(
     service: CommerceHubService = Depends(_service),
 ) -> dict:
     _require_admin(user)
-    return await service.read_source_now(source_id, user.username)
+    return await service.read_source_now(source_id, user.username, user.id)
 
 
 @router.put("/sources/{source_id}/settings")

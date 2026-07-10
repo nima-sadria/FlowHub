@@ -38,7 +38,7 @@ async def get_state(
 
 @router.post("/preview", response_model=WorkspacePreviewResponse)
 async def start_preview(
-    _: FlowHubUser = Depends(get_current_user),
+    user: FlowHubUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> WorkspacePreviewResponse:
-    return await WorkspacePriceWorkflowService(db).preview_from_nextcloud()
+    return await WorkspacePriceWorkflowService(db).preview_from_nextcloud(user)

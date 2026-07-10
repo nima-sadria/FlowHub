@@ -5,14 +5,16 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.flowhub.data_layer.models import DlSourceSnapshot
+from app.flowhub.data_layer.models import DlSourceReadLock, DlSourceReadReservation, DlSourceSnapshot
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.integrations.errors import IntegrationError
 from app.flowhub.integrations.nextcloud import NextcloudClient
@@ -66,16 +68,18 @@ class SpreadsheetSourceReadService:
         self,
         *,
         triggered_by: str,
+        triggered_by_id: str | int | None = None,
         manual: bool,
-        consume_quota: bool = True,
     ) -> SourceImportResult:
         spreadsheet_path = self._required_config("nextcloud.spreadsheet_path")
-        policy_state = self.check_read_allowed(manual=manual)
         mapping = self.mapping()
         worksheet = self.worksheet_selection()
         client = NextcloudClient.from_config(self.config)
         if client is None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nextcloud source credentials are incomplete.")
+        reservation_user_id = str(triggered_by_id if triggered_by_id is not None else triggered_by)
+        reservation = self.reserve_read_slot(reservation_user_id, manual=manual)
+        policy_state = self.read_policy_state()
 
         self._record_event(
             "source_read_started",
@@ -87,6 +91,8 @@ class SpreadsheetSourceReadService:
                 "spreadsheet_path": spreadsheet_path,
                 "worksheet_mode": worksheet["mode"],
                 "worksheet_name": worksheet["name"],
+                "reservation_id": reservation.id if reservation else None,
+                "reservation_status": reservation.status if reservation else None,
                 "read_only": True,
                 "source_write": False,
             },
@@ -112,8 +118,6 @@ class SpreadsheetSourceReadService:
                 duplicate_count=len(duplicate_info["duplicate_product_ids"]) + len(duplicate_info["duplicate_skus"]),
                 invalid_row_count=stats["error_rows"],
             )
-            if consume_quota:
-                policy_state = self.record_read(stats)
             self._record_event(
                 "source_read_completed",
                 "Source read completed.",
@@ -127,10 +131,14 @@ class SpreadsheetSourceReadService:
                     "valid_rows": stats["valid_rows"],
                     "warning_rows": stats["warning_rows"],
                     "error_rows": stats["error_rows"],
+                    "duplicate_rows": stats["duplicate_rows"],
+                    "reservation_id": reservation.id if reservation else None,
                     "read_only": True,
                     "source_write": False,
                 },
             )
+            if reservation:
+                policy_state = self.finalize_read_reservation(reservation.id, "succeeded", stats=stats)
             return SourceImportResult(
                 source_id=SOURCE_ID,
                 source_type=SOURCE_TYPE,
@@ -143,6 +151,8 @@ class SpreadsheetSourceReadService:
             )
         except IntegrationError as exc:
             safe_message = str(getattr(exc, "detail", "") or getattr(exc, "message", "") or "Source read failed.")
+            if reservation:
+                self.finalize_read_reservation(reservation.id, "failed", error_code="INTEGRATION_ERROR")
             self.config.set_many(
                 {
                     _LAST_READ_AT_KEY: _iso(datetime.utcnow()),
@@ -159,6 +169,7 @@ class SpreadsheetSourceReadService:
                     "source_type": SOURCE_TYPE,
                     "spreadsheet_path": spreadsheet_path,
                     "error": safe_message[:200],
+                    "reservation_id": reservation.id if reservation else None,
                     "read_only": True,
                     "source_write": False,
                 },
@@ -167,6 +178,8 @@ class SpreadsheetSourceReadService:
             raise HTTPException(exc.status_code or status.HTTP_502_BAD_GATEWAY, safe_message[:200]) from exc
         except ValueError as exc:
             safe_message = str(exc)
+            if reservation:
+                self.finalize_read_reservation(reservation.id, "failed", error_code="SOURCE_VALIDATION_ERROR")
             self.config.set_many(
                 {
                     _LAST_READ_AT_KEY: _iso(datetime.utcnow()),
@@ -183,6 +196,7 @@ class SpreadsheetSourceReadService:
                     "source_type": SOURCE_TYPE,
                     "spreadsheet_path": spreadsheet_path,
                     "error": safe_message,
+                    "reservation_id": reservation.id if reservation else None,
                     "read_only": True,
                     "source_write": False,
                 },
@@ -190,6 +204,8 @@ class SpreadsheetSourceReadService:
             )
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, safe_message) from exc
         except Exception as exc:
+            if reservation:
+                self.finalize_read_reservation(reservation.id, "failed", error_code=type(exc).__name__[:120])
             self.config.set_many(
                 {
                     _LAST_READ_AT_KEY: _iso(datetime.utcnow()),
@@ -206,6 +222,7 @@ class SpreadsheetSourceReadService:
                     "source_type": SOURCE_TYPE,
                     "spreadsheet_path": spreadsheet_path,
                     "error": _safe_error_message(exc),
+                    "reservation_id": reservation.id if reservation else None,
                     "read_only": True,
                     "source_write": False,
                 },
@@ -220,6 +237,7 @@ class SpreadsheetSourceReadService:
             "valid_rows": result.stats["valid_rows"],
             "warning_rows": result.stats["warning_rows"],
             "error_rows": result.stats["error_rows"],
+            "duplicate_rows": result.stats["duplicate_rows"],
             "last_read_at": result.read_policy["last_read_at"],
             "remaining_reads_today": result.read_policy["reads_remaining"],
             "reads_used_last_24h": result.read_policy["reads_used_last_24h"],
@@ -227,6 +245,7 @@ class SpreadsheetSourceReadService:
             "reset_at": result.read_policy["reset_at"],
             "warnings": result.stats["warnings"],
             "errors": result.stats["errors"],
+            "error_details": result.stats["error_details"],
             "source_id": result.source_id,
             "source_type": result.source_type,
             "spreadsheet_path": result.spreadsheet_path,
@@ -265,12 +284,19 @@ class SpreadsheetSourceReadService:
     def read_policy_state(self, *, now: datetime | None = None) -> dict:
         now = now or datetime.utcnow()
         policy = self.read_policy()
-        history = _recent_history(self.config.get(_HISTORY_KEY), now)
+        legacy_history = _recent_history(self.config.get(_HISTORY_KEY), now)
+        reservations = (
+            self.db.query(DlSourceReadReservation)
+            .filter(DlSourceReadReservation.source_id == SOURCE_ID)
+            .filter(DlSourceReadReservation.reserved_at >= now - timedelta(hours=24))
+            .all()
+        )
         max_reads = int(policy["max_reads_per_24h"])
-        used = len(history) if policy["enabled"] else 0
+        used = len(legacy_history) + len(reservations) if policy["enabled"] else 0
         reset_at = None
-        if history:
-            reset_at = _iso(min(history) + timedelta(hours=24))
+        timestamps = legacy_history + [row.reserved_at for row in reservations]
+        if timestamps:
+            reset_at = _iso(min(timestamps) + timedelta(hours=24))
         return {
             "enabled": bool(policy["enabled"]),
             "max_reads_per_24h": max_reads,
@@ -289,22 +315,130 @@ class SpreadsheetSourceReadService:
             raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Source read limit exceeded.")
         return state
 
-    def record_read(self, stats: dict) -> dict:
+    def reserve_read_slot(self, user_id: str, *, manual: bool) -> DlSourceReadReservation:
+        """Reserve atomically before outbound access.
+
+        Every committed reservation consumes the rolling quota, including a
+        failed outbound attempt. Configuration validation happens before this
+        method, so local validation failures do not consume a slot.
+        """
+        policy = self.read_policy()
+        if manual and not policy["manual_read_allowed"]:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Manual source read is disabled by source read policy.")
+
         now = datetime.utcnow()
-        history = _recent_history(self.config.get(_HISTORY_KEY), now)
-        history.append(now)
-        self.config.set_many(
-            {
-                _HISTORY_KEY: json.dumps([_iso(item) for item in history]),
-                _LAST_READ_AT_KEY: _iso(now),
-                _LAST_READ_STATUS_KEY: "completed" if stats["error_rows"] == 0 else "completed_with_errors",
+        self.db.commit()
+        dialect = self.db.get_bind().dialect.name
+        if dialect == "sqlite":
+            self.db.execute(text("BEGIN IMMEDIATE"))
+            self.db.execute(
+                text("INSERT OR IGNORE INTO dl_source_read_locks (source_id, updated_at) VALUES (:source_id, :updated_at)"),
+                {"source_id": SOURCE_ID, "updated_at": now},
+            )
+        elif dialect == "postgresql":
+            self.db.execute(
+                text(
+                    "INSERT INTO dl_source_read_locks (source_id, updated_at) VALUES (:source_id, :updated_at) "
+                    "ON CONFLICT (source_id) DO NOTHING"
+                ),
+                {"source_id": SOURCE_ID, "updated_at": now},
+            )
+        elif dialect in {"mysql", "mariadb"}:
+            self.db.execute(
+                text("INSERT IGNORE INTO dl_source_read_locks (source_id, updated_at) VALUES (:source_id, :updated_at)"),
+                {"source_id": SOURCE_ID, "updated_at": now},
+            )
+        else:
+            if self.db.get(DlSourceReadLock, SOURCE_ID) is None:
+                self.db.add(DlSourceReadLock(source_id=SOURCE_ID, updated_at=now))
+                self.db.flush()
+
+        lock = (
+            self.db.query(DlSourceReadLock)
+            .filter(DlSourceReadLock.source_id == SOURCE_ID)
+            .with_for_update()
+            .one()
+        )
+        lock.updated_at = now
+        self.db.flush()
+
+        cutoff = now - timedelta(hours=24)
+        reserved_count = (
+            self.db.query(DlSourceReadReservation)
+            .filter(DlSourceReadReservation.source_id == SOURCE_ID)
+            .filter(DlSourceReadReservation.reserved_at >= cutoff)
+            .count()
+        )
+        legacy_count = len(_recent_history(self.config.get(_HISTORY_KEY), now))
+        if policy["enabled"] and reserved_count + legacy_count >= int(policy["max_reads_per_24h"]):
+            self.db.rollback()
+            raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Source read limit exceeded.")
+
+        reservation = DlSourceReadReservation(
+            id=f"srr_{uuid.uuid4().hex[:20]}",
+            source_id=SOURCE_ID,
+            user_id=str(user_id),
+            reserved_at=now,
+            status="reserved",
+        )
+        self.db.add(reservation)
+        self.db.commit()
+        self.db.refresh(reservation)
+        self._record_event(
+            "source_read_reserved",
+            "Source read quota slot reserved before outbound access.",
+            str(user_id),
+            {"source_id": SOURCE_ID, "reservation_id": reservation.id, "reservation_status": "reserved"},
+        )
+        return reservation
+
+    def finalize_read_reservation(
+        self,
+        reservation_id: str,
+        final_status: str,
+        *,
+        stats: dict | None = None,
+        error_code: str | None = None,
+    ) -> dict:
+        self.db.rollback()
+        reservation = self.db.get(DlSourceReadReservation, reservation_id)
+        if reservation is None:
+            raise RuntimeError("Source read reservation is missing.")
+        if reservation.status == "reserved":
+            reservation.status = final_status
+            reservation.completed_at = datetime.utcnow()
+            reservation.error_code = error_code
+            self.db.commit()
+
+        values = {
+            _LAST_READ_AT_KEY: _iso(reservation.completed_at or datetime.utcnow()),
+            _LAST_READ_STATUS_KEY: (
+                "failed" if final_status == "failed" else "completed_with_errors" if stats and stats["error_rows"] else "completed"
+            ),
+        }
+        if stats:
+            values.update({
                 _LAST_READ_ROWS_KEY: str(stats["total_rows"]),
                 _LAST_READ_WARNINGS_KEY: str(stats["warning_rows"]),
                 _LAST_READ_ERRORS_KEY: str(stats["error_rows"]),
-            },
+            })
+        self.config.set_many(
+            values,
             updated_by="source_read",
         )
-        return self.read_policy_state(now=now)
+        self._record_event(
+            "source_read_reservation_finalized",
+            "Source read reservation finalized.",
+            reservation.user_id,
+            {
+                "source_id": SOURCE_ID,
+                "reservation_id": reservation.id,
+                "reservation_status": final_status,
+                "error_code": error_code,
+            },
+            severity="error" if final_status == "failed" else "info",
+        )
+        return self.read_policy_state(now=reservation.completed_at or datetime.utcnow())
 
     def _required_config(self, key: str) -> str:
         value = self.config.get(key)
@@ -374,6 +508,7 @@ class SpreadsheetSourceReadService:
 def source_row_stats(rows: list[dict], duplicate_info: dict) -> dict:
     warnings: list[str] = []
     errors: list[str] = []
+    error_details: list[dict[str, str]] = []
     for product_id in duplicate_info.get("duplicate_product_ids", []):
         errors.append(f"Duplicate product ID in spreadsheet: {product_id}")
     for sku in duplicate_info.get("duplicate_skus", []):
@@ -385,13 +520,28 @@ def source_row_stats(rows: list[dict], duplicate_info: dict) -> dict:
         for item in row.get("row_errors") or []:
             if item not in errors:
                 errors.append(str(item))
+        for detail in row.get("row_error_details") or []:
+            if isinstance(detail, dict) and detail not in error_details:
+                error_details.append({
+                    "code": str(detail.get("code") or "SOURCE_ROW_INVALID"),
+                    "message": str(detail.get("message") or "Source row is invalid."),
+                })
+    error_rows = sum(1 for row in rows if row.get("row_errors"))
+    warning_rows = sum(1 for row in rows if not row.get("row_errors") and row.get("row_warnings"))
+    valid_rows = len(rows) - error_rows - warning_rows
+    duplicate_rows = sum(
+        1 for row in rows if row.get("duplicate_product_id") or row.get("duplicate_sku")
+    )
     return {
         "total_rows": len(rows),
-        "valid_rows": sum(1 for row in rows if not row.get("row_errors")),
-        "warning_rows": sum(1 for row in rows if row.get("row_warnings")),
-        "error_rows": sum(1 for row in rows if row.get("row_errors")),
+        "valid_rows": valid_rows,
+        "warning_rows": warning_rows,
+        "error_rows": error_rows,
+        "duplicate_rows": duplicate_rows,
+        "duplicate_rows_are_error_subset": True,
         "warnings": warnings,
         "errors": errors,
+        "error_details": error_details,
     }
 
 

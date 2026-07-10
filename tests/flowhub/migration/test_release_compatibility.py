@@ -94,4 +94,10 @@ def test_fresh_database_still_upgrades_to_head(tmp_path, monkeypatch):
     with engine.connect() as conn:
         revision = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one()
     assert revision == _head_revision()
+    tables = set(sa.inspect(engine).get_table_names())
+    assert {
+        "dl_workspace_previews",
+        "dl_source_read_locks",
+        "dl_source_read_reservations",
+    } <= tables
     engine.dispose()

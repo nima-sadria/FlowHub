@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
+from threading import Barrier
 
 import pytest
 
@@ -870,6 +872,138 @@ def test_nextcloud_source_read_rate_limit_is_enforced(client, auth_headers, monk
     assert first.json()["reads_remaining"] == 0
     assert second.status_code == 429
     assert "Source read limit exceeded" in second.text
+
+
+def test_failed_outbound_source_read_consumes_reserved_quota(client, auth_headers, db, monkeypatch):
+    from app.flowhub.data_layer.models import DlSourceReadReservation
+    from app.flowhub.integration_platform.models import IntegrationConnectorEvent
+    from app.flowhub.integrations.errors import IntegrationError
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    async def fail_download(self, path):
+        raise IntegrationError("nextcloud", path, "WebDAV unavailable", status_code=502)
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fail_download)
+    save = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/Reports/prices.xlsx",
+                "source_read_policy": {"enabled": True, "max_reads_per_24h": 1, "manual_read_allowed": True},
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+    assert save.status_code == 200
+
+    failed = client.post("/api/v2/commerce/sources/nextcloud:primary/read", headers=auth_headers)
+    limited = client.post("/api/v2/commerce/sources/nextcloud:primary/read", headers=auth_headers)
+
+    assert failed.status_code == 502
+    assert limited.status_code == 429
+    reservations = db.query(DlSourceReadReservation).all()
+    assert len(reservations) == 1
+    assert reservations[0].status == "failed"
+    events = {
+        row.event_name: row
+        for row in db.query(IntegrationConnectorEvent)
+        .filter(IntegrationConnectorEvent.event_name.in_({"source_read_reserved", "source_read_reservation_finalized"}))
+        .all()
+    }
+    assert events["source_read_reserved"].metadata_json["reservation_status"] == "reserved"
+    assert events["source_read_reservation_finalized"].metadata_json["reservation_status"] == "failed"
+
+
+def test_concurrent_source_reads_cannot_exceed_atomic_quota(tmp_path):
+    from fastapi import HTTPException
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.flowhub.database import FlowHubBase
+    from app.flowhub.setup.service import AppConfigService
+    from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
+    from app.flowhub.data_layer.models import DlSourceReadReservation
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'source-quota.db'}",
+        connect_args={"check_same_thread": False, "timeout": 10},
+    )
+    FlowHubBase.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    setup_session = Session()
+    AppConfigService(setup_session).set_many(
+        {"nextcloud.source_read_policy": '{"enabled":true,"max_reads_per_24h":1,"manual_read_allowed":true}'},
+        updated_by="test",
+    )
+    setup_session.close()
+    barrier = Barrier(2)
+
+    def reserve(actor: str) -> int:
+        session = Session()
+        try:
+            barrier.wait()
+            SpreadsheetSourceReadService(session).reserve_read_slot(actor, manual=True)
+            return 200
+        except HTTPException as exc:
+            return exc.status_code
+        finally:
+            session.close()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = sorted(executor.map(reserve, ["admin-a", "admin-b"]))
+
+    check_session = Session()
+    assert results == [200, 429]
+    assert check_session.query(DlSourceReadReservation).count() == 1
+    check_session.close()
+    engine.dispose()
+
+
+def test_duplicate_rows_are_errors_and_manual_read_counts_reconcile(client, auth_headers, monkeypatch):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    async def fake_download(self, path):
+        return _xlsx_custom(
+            headers=["Name", "Product ID", "Price", "SKU"],
+            rows=[
+                ["A", "101", "110", "DUP-SKU"],
+                ["B", "101", "111", "SKU-B"],
+                ["C", "102", "112", "DUP-SKU"],
+                ["D", "103", "bad", "SKU-D"],
+                ["E", "104", "114", "SKU-E"],
+            ],
+        ), {"etag": "etag-duplicates"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    save = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/Reports/prices.xlsx",
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+    assert save.status_code == 200
+
+    response = client.post("/api/v2/commerce/sources/nextcloud:primary/read", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["rows_read"] == 5
+    assert data["valid_rows"] == 1
+    assert data["warning_rows"] == 0
+    assert data["error_rows"] == 4
+    assert data["duplicate_rows"] == 3
+    assert data["valid_rows"] + data["warning_rows"] + data["error_rows"] == data["rows_read"]
 
 
 def test_channel_detail_health_and_capabilities(client, auth_headers):

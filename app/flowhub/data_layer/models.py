@@ -153,6 +153,48 @@ class DlSourceSnapshot(FlowHubBase):
     snapshotted_at = Column(DateTime, nullable=False)
 
 
+class DlWorkspacePreview(FlowHubBase):
+    """Immutable server-owned Workspace preview used to authorize Dry Run rows."""
+
+    __tablename__ = "dl_workspace_previews"
+
+    id = Column(String(120), primary_key=True)
+    source_id = Column(String(255), nullable=False, index=True)
+    source_snapshot_id = Column(Integer, nullable=False, index=True)
+    source_integrity_hash = Column(String(64), nullable=False)
+    owner_user_id = Column(Integer, nullable=False, index=True)
+    owner_username = Column(String(160), nullable=False)
+    preview_hash = Column(String(64), nullable=False)
+    rows_json = Column(JSON, nullable=False)
+    row_hashes_json = Column(JSON, nullable=False)
+    summary_json = Column(JSON, nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+
+
+class DlSourceReadLock(FlowHubBase):
+    """Per-source database lock row used to serialize quota reservations."""
+
+    __tablename__ = "dl_source_read_locks"
+
+    source_id = Column(String(255), primary_key=True)
+    updated_at = Column(DateTime, nullable=False)
+
+
+class DlSourceReadReservation(FlowHubBase):
+    """Durable accounting for every outbound source-read attempt."""
+
+    __tablename__ = "dl_source_read_reservations"
+
+    id = Column(String(120), primary_key=True)
+    source_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(String(160), nullable=False, index=True)
+    reserved_at = Column(DateTime, nullable=False, index=True)
+    status = Column(String(30), nullable=False, index=True)
+    completed_at = Column(DateTime, nullable=True)
+    error_code = Column(String(120), nullable=True)
+
+
 class DlDestinationSnapshot(FlowHubBase):
     """Destination product/price snapshot. One row per (connector_id, product_id)."""
 

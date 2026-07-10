@@ -279,7 +279,7 @@ class CommerceHubService:
             "credentials_returned": False,
         }
 
-    async def read_source_now(self, source_id: str, actor: str) -> dict:
+    async def read_source_now(self, source_id: str, actor: str, actor_id: int | str | None = None) -> dict:
         meta = self._source_meta(source_id)
         if str(meta["provider"]) != "nextcloud" or bool(meta.get("placeholder")):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source read is not available.")
@@ -287,7 +287,11 @@ class CommerceHubService:
         if instance is None or not instance.enabled:
             raise HTTPException(status.HTTP_409_CONFLICT, "Source must be enabled before Read now.")
         reader = SpreadsheetSourceReadService(self.db)
-        result = await reader.read_nextcloud_spreadsheet(triggered_by=actor, manual=True)
+        result = await reader.read_nextcloud_spreadsheet(
+            triggered_by=actor,
+            triggered_by_id=actor_id,
+            manual=True,
+        )
         return reader.manual_read_response(result)
 
     def update_source_settings(self, source_id: str, body: dict) -> dict:

@@ -1,4 +1,4 @@
-import type { PriceChange, WorkspacePreviewSummary, WritePipelineBatch } from '../types'
+import type { WritePipelineBatch } from '../types'
 import type { WritePipelineService } from './WritePipelineService'
 import { apiFetch } from '../../api/client'
 import { authFetch } from '../../api/authFetch'
@@ -18,7 +18,7 @@ function mapBatch(raw: RawBatch): WritePipelineBatch {
   }
 }
 export class ApiWritePipelineService implements WritePipelineService {
-  async createDryRun(previewId: string, changes: PriceChange[], previewSummary?: WorkspacePreviewSummary): Promise<WritePipelineBatch> {
+  async createDryRun(previewId: string, selectedRowIds: string[]): Promise<WritePipelineBatch> {
     const raw = await apiFetch<RawBatch>(
       '/api/v2/write-pipeline/dry-run',
       authFetch,
@@ -27,10 +27,7 @@ export class ApiWritePipelineService implements WritePipelineService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           previewId,
-          channelId: 'woocommerce:primary',
-          operationType: 'price_update',
-          previewSummary: previewSummary ?? {},
-          changes,
+          selectedRowIds,
         }),
       },
     )

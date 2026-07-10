@@ -17,11 +17,13 @@ from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.data_layer.models import DlProductCache, DlSourceSnapshot
 from app.flowhub.integration_platform.contracts import WorkspacePreviewResponse
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
+from app.flowhub.workspace.preview_store import WorkspacePreviewStore
 
 SOURCE_ID = "nextcloud:primary"
 SOURCE_TYPE = "nextcloud_spreadsheet"
@@ -50,7 +52,7 @@ class WorkspacePriceWorkflowService:
         self.source_reader = SpreadsheetSourceReadService(db)
         self.integration = IntegrationPlatformService(db)
 
-    async def preview_from_nextcloud(self) -> WorkspacePreviewResponse:
+    async def preview_from_nextcloud(self, user: FlowHubUser) -> WorkspacePreviewResponse:
         started = datetime.utcnow()
         preview_id = f"wp_{uuid.uuid4().hex[:16]}"
         self._required_config("nextcloud.spreadsheet_path")
@@ -60,18 +62,29 @@ class WorkspacePriceWorkflowService:
             raise HTTPException(status.HTTP_409_CONFLICT, "WooCommerce product cache is empty. Run a manual read first.")
 
         imported = await self.source_reader.read_nextcloud_spreadsheet(
-            triggered_by="workspace_preview",
+            triggered_by=user.username,
+            triggered_by_id=user.id,
             manual=False,
         )
         rows = self._build_preview_rows(imported.rows, imported.duplicate_info, products, preview_id, imported.snapshot)
         summary = _summary(rows)
         eligible_changes = [row["dry_run_change"] for row in rows if row["eligible_for_dry_run"]]
         duplicate_warnings = _duplicate_warnings(imported.duplicate_info)
+        preview_snapshot = WorkspacePreviewStore(self.db).create(
+            preview_id=preview_id,
+            source_id=SOURCE_ID,
+            source_snapshot=imported.snapshot,
+            owner=user,
+            rows=rows,
+            summary=summary,
+        )
         self.integration.record_event(
             connector_id=SOURCE_ID,
-            event_name="preview_generated",
-            message="Workspace preview generated from source rows.",
+            event_name="preview_created",
+            message="Immutable Workspace preview created from source rows.",
             metadata={
+                "preview_id": preview_id,
+                "preview_hash": preview_snapshot.preview_hash,
                 "source_id": SOURCE_ID,
                 "source_type": SOURCE_TYPE,
                 "source_file_path": imported.spreadsheet_path,
@@ -259,6 +272,8 @@ class WorkspacePriceWorkflowService:
                     "validationWarnings": warnings,
                 }
 
+            errors = list(dict.fromkeys(errors))
+            warnings = list(dict.fromkeys(warnings))
             preview_rows.append({
                 "id": f"{preview_id}:{source_row.get('worksheet')}:{source_row.get('row_number')}",
                 "source": _source_payload(source_row, preview_id, snapshot),
@@ -273,6 +288,7 @@ class WorkspacePriceWorkflowService:
                 "status": status_value,
                 "changeType": _change_type(price_changed, stock_changed),
                 "errors": errors,
+                "errorDetails": source_row.get("row_error_details") or [],
                 "warnings": warnings,
                 "eligible_for_dry_run": eligible,
                 "dry_run_change": dry_run_change,

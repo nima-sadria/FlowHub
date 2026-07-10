@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.connectors.common.errors import ConnectorError
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.rate_limit.service import RateLimitService
 from app.flowhub.security.redaction import redact_sensitive, redact_sensitive_text
 from app.flowhub.setup.service import AppConfigService
@@ -29,15 +30,19 @@ from app.flowhub.write_pipeline.contracts import (
     WritePipelineDryRunRequest,
     WritePipelineEventShape,
     WritePipelineItemShape,
+    WritePipelinePriceChange,
 )
 from app.flowhub.write_pipeline.models import WriteBatch, WriteEvent, WriteItem
 from app.flowhub.write_pipeline.registry import ChannelWriteAdapterRegistry, default_write_adapter_registry
+from app.flowhub.workspace.preview_store import PreviewValidationError, WorkspacePreviewStore
 
 MAX_ITEMS = 100
 MAX_DELTA_PERCENT = 50.0
 VERIFY_SMALL_BATCH_LIMIT = 25
 VERIFY_TIMEOUT_SECONDS = 10.0
-FORBIDDEN_STOCK_KEYS = frozenset({"stock", "stock_status", "stock_quantity", "inventory", "manage_stock"})
+FORBIDDEN_STOCK_KEYS = frozenset({
+    "stock", "stock_status", "stockstatus", "stock_quantity", "stockquantity", "inventory", "manage_stock", "managestock"
+})
 STOCK_OPERATION_TYPES = frozenset({"stock_update", "inventory_update", "write_inventory", "update_stock"})
 AUTOMATIC_APPLY_KEYS = frozenset({"automaticApply", "automatic_apply", "applyNow", "apply_now", "scheduler", "scheduled"})
 
@@ -47,34 +52,49 @@ class WritePipelineService:
         self.db = db
         self.config = AppConfigService(db)
         self.registry = registry or default_write_adapter_registry()
+        self.integration = IntegrationPlatformService(db)
 
     def create_dry_run(self, body: WritePipelineDryRunRequest, user: FlowHubUser) -> WritePipelineBatchShape:
-        if not body.changes:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "At least one price change is required.")
-        self._validate_request_controls(body)
-        adapter = self._adapter_for(body.channelId, body.operationType)
+        self._validate_request_controls(body, user)
+        try:
+            selection = WorkspacePreviewStore(self.db).validate_selection(
+                preview_id=body.previewId,
+                selected_row_ids=body.selectedRowIds,
+                user=user,
+            )
+        except PreviewValidationError as exc:
+            self._record_preview_rejection(body.previewId, body.selectedRowIds, user, exc.code)
+            raise HTTPException(exc.status_code, exc.code) from exc
+
+        channel_id = "woocommerce:primary"
+        operation_type = "price_update"
+        changes = [WritePipelinePriceChange.model_validate(change) for change in selection.changes]
+        raw_changes = [change.model_dump() for change in changes]
+        adapter = self._adapter_for(channel_id, operation_type)
         capabilities = adapter.get_capabilities()
-        raw_changes = [item.model_dump() for item in body.changes]
-        safety = self._validate_changes(raw_changes, adapter, body.operationType, body.previewId, body.previewSummary)
+        preview_summary = selection.preview.summary_json if isinstance(selection.preview.summary_json, dict) else {}
+        safety = self._validate_changes(raw_changes, adapter, operation_type, body.previewId, preview_summary)
+        safety["selected_row_ids"] = list(body.selectedRowIds)
+        safety["preview_hash"] = selection.preview.preview_hash
         batch_id = f"wb_{uuid.uuid4().hex[:16]}"
-        batch_hash = self._batch_hash(body)
-        currency = body.changes[0].currency if body.changes else ""
+        batch_hash = self._batch_hash(changes, channel_id, operation_type)
+        currency = changes[0].currency if changes else ""
         batch = WriteBatch(
             id=batch_id,
-            channel_id=body.channelId,
+            channel_id=channel_id,
             channel_type=capabilities.channel_type,
-            operation_type=body.operationType,
+            operation_type=operation_type,
             status="dry_run_ready",
             source_preview_id=body.previewId,
             batch_hash=batch_hash,
-            item_count=len(body.changes),
+            item_count=len(changes),
             currency=currency,
             created_by=user.username,
             safety_summary_json=safety,
         )
         self.db.add(batch)
         self.db.flush()
-        for change in body.changes:
+        for change in changes:
             delta = change.proposedPrice - change.currentPrice
             pct = self._delta_percent(change.currentPrice, change.proposedPrice)
             extras = getattr(change, "model_extra", None) or {}
@@ -116,23 +136,26 @@ class WritePipelineService:
             )
         self._record_event(
             batch.id,
-            "dry_run_created",
-            "Dry Run created. No marketplace write was executed.",
+            "dry_run_created_from_preview",
+            "Dry Run created from immutable selected preview rows. No marketplace write was executed.",
             metadata={
                 "approval_recorded": False,
                 "execution_attempted": False,
                 "actor": user.username,
-                "channel_id": body.channelId,
-                "operation_type": body.operationType,
+                "channel_id": channel_id,
+                "operation_type": operation_type,
                 "batch_hash": batch_hash,
-                "item_count": len(body.changes),
+                "item_count": len(changes),
                 "eligible_rows": safety["eligible_rows"],
                 "skipped_rows": safety["skipped_rows"],
                 "blocked_rows": safety["blocked_rows"],
                 "source_preview_id": body.previewId,
+                "preview_hash": selection.preview.preview_hash,
+                "selected_row_ids": list(body.selectedRowIds),
+                "selected_row_count": len(body.selectedRowIds),
                 "source_rows": [
                     (getattr(change, "model_extra", None) or {}).get("source")
-                    for change in body.changes
+                    for change in changes
                     if (getattr(change, "model_extra", None) or {}).get("source")
                 ],
             },
@@ -374,10 +397,26 @@ class WritePipelineService:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "unsafe_write_capability")
         return adapter
 
-    def _validate_request_controls(self, body: WritePipelineDryRunRequest) -> None:
+    def _validate_request_controls(self, body: WritePipelineDryRunRequest, user: FlowHubUser) -> None:
         extras = getattr(body, "model_extra", None) or {}
         if AUTOMATIC_APPLY_KEYS.intersection(extras):
+            self._record_preview_rejection(body.previewId, body.selectedRowIds, user, "automatic_apply_disabled")
             raise HTTPException(status.HTTP_403_FORBIDDEN, "automatic_apply_disabled")
+        if extras.get("channelId") not in (None, "woocommerce:primary"):
+            self._record_preview_rejection(body.previewId, body.selectedRowIds, user, "unsupported_channel_write")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "unsupported_channel_write")
+        if STOCK_OPERATION_TYPES.intersection({str(extras.get("operationType") or "").lower()}):
+            self._record_preview_rejection(body.previewId, body.selectedRowIds, user, "stock_writes_disabled")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "stock_writes_disabled")
+        if FORBIDDEN_STOCK_KEYS.intersection({str(key).lower() for key in extras}):
+            self._record_preview_rejection(body.previewId, body.selectedRowIds, user, "stock_writes_disabled")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "stock_writes_disabled")
+        if extras:
+            self._record_preview_rejection(body.previewId, body.selectedRowIds, user, "DRY_RUN_REQUEST_FIELDS_INVALID")
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "DRY_RUN_REQUEST_FIELDS_INVALID: submit only previewId and selectedRowIds.",
+            )
 
     def _validate_changes(
         self,
@@ -446,9 +485,14 @@ class WritePipelineService:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Dry Run not found.")
         return row
 
-    def _batch_hash(self, body: WritePipelineDryRunRequest) -> str:
-        parts = [body.channelId, body.operationType]
-        for item in sorted(body.changes, key=lambda row: row.productId):
+    def _batch_hash(
+        self,
+        changes: list[WritePipelinePriceChange],
+        channel_id: str,
+        operation_type: str,
+    ) -> str:
+        parts = [channel_id, operation_type]
+        for item in sorted(changes, key=lambda row: row.productId):
             extras = getattr(item, "model_extra", None) or {}
             source = extras.get("source")
             source_part = _source_fingerprint(source)
@@ -460,6 +504,28 @@ class WritePipelineService:
                 f"{source_part}|{item_type}|{parent_product_id}|{variation_id}"
             )
         return sha256("\n".join(parts).encode("utf-8")).hexdigest()
+
+    def _record_preview_rejection(
+        self,
+        preview_id: str,
+        selected_row_ids: list[str],
+        user: FlowHubUser,
+        reason: str,
+    ) -> None:
+        self.integration.record_event(
+            connector_id="nextcloud:primary",
+            event_name="dry_run_rejected",
+            message="Dry Run request rejected before batch creation.",
+            severity="warning",
+            metadata={
+                "preview_id": preview_id,
+                "selected_row_ids": list(selected_row_ids),
+                "selected_row_count": len(selected_row_ids),
+                "reason": reason,
+                "actor": user.username,
+                "execution_attempted": False,
+            },
+        )
 
     def _batch_hash_from_row(self, batch: WriteBatch) -> str:
         parts = [batch.channel_id, batch.operation_type]

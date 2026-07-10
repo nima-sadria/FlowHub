@@ -35,6 +35,7 @@ from app.flowhub.auth import models as _auth_models  # noqa: E402, F401
 from app.flowhub.setup import models as _setup_models  # noqa: E402, F401
 from app.flowhub.data_layer import models as _data_layer_models  # noqa: E402, F401
 from app.flowhub.integration_platform import models as _integration_platform_models  # noqa: E402, F401
+from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: E402, F401
 
 target_metadata = FlowHubBase.metadata
 
