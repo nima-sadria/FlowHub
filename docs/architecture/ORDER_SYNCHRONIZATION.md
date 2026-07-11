@@ -78,10 +78,47 @@ channel-scoped leases. The lease row uses `source=__channel_lease__` and stores
 success, last failure, and next-run metadata.
 
 Lease acquisition is an atomic conditional database update. It succeeds only
-when no active lease exists or the previous lease has expired. Release verifies
-the lease owner; a stale worker cannot release a newer worker's lease. Cursor
-progress is committed only while the worker still owns the channel lease, and a
-page cursor is advanced only after the page has been durably committed.
+when no active lease exists or the previous lease has expired. Heartbeat and
+checkpoint commits use one database predicate requiring the expected lease row,
+matching owner, a non-null expiry, and `lease_expires_at` strictly later than
+current UTC. A failed predicate rolls back pending normalized records and cursor
+progress and records a sanitized `lease_expired` or `lease_lost` failure.
+
+Release verifies ownership with an affected-row check. An expired owner may
+clear its own still-unreplaced lease during cleanup. It cannot release a newer
+worker's lease because the owner must still match. Polling and reconciliation
+share the same channel lease, and a page cursor advances only when the page and
+active-lease guard commit in the same transaction.
+
+## PostgreSQL Lease Tests
+
+The concurrency suite uses independent SQLAlchemy sessions against an isolated
+schema in a dedicated database whose name must contain `test`. It refuses a URL
+that does not meet that guard.
+
+Install test dependencies and start the local test database:
+
+```powershell
+python -m pip install -r requirements-test.txt
+docker compose -f docker-compose.test.yml up -d --wait postgres-test
+$env:FLOWHUB_TEST_POSTGRES_URL = "postgresql+psycopg://flowhub_test:flowhub_test_local_only@localhost:55432/flowhub_lease_test"
+```
+
+Run the PostgreSQL-marked tests:
+
+```powershell
+python -m pytest tests/flowhub/orders/test_order_sync_postgres.py -m postgres -q
+```
+
+Destroy the isolated database and clear the local test URL:
+
+```powershell
+docker compose -f docker-compose.test.yml down -v
+Remove-Item Env:FLOWHUB_TEST_POSTGRES_URL
+```
+
+The credentials above are local test-only defaults in
+`docker-compose.test.yml`; no production database URL or credential is used.
 
 ## Operations
 

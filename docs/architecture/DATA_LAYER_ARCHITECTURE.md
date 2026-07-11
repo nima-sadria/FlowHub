@@ -61,7 +61,8 @@ External Systems
 - Any write path to WooCommerce, Snapp Shop, Tapsi Shop, or Sources
 - Price mutations
 - Apply engine
-- Scheduler
+- Product/source refresh scheduler (the marketplace order-sync runner belongs
+  to the Integration Platform and does not make the Data Layer canonical)
 - Automatic pricing
 
 ---
@@ -331,7 +332,9 @@ and aggregate views through `/api/v2/integrations/telemetry`.
 - `manual` - triggered by user action (e.g. clicking Refresh in UI)
 - `webhook` - triggered by a WC/NC webhook event
 - `etag` - triggered because ETag changed on source file check
-- `scheduled` - triggered by background scheduler *(future phase)*
+- `scheduled` - reserved for a future Data Layer product/source refresh
+  scheduler; this is distinct from the implemented marketplace order-sync
+  runner
 
 **Entity types:**
 - `products` - refresh product cache from destination
@@ -374,7 +377,11 @@ pending -> running -> completed
 - Same connector_id + entity_type cannot have two `running` jobs simultaneously
 - New manual trigger for a running job returns the existing job ID
 
-**Current state (DL1):** Table and service exist. No automated job creation yet - manual creation only via `RefreshJobService.create()`. Scheduler is strictly forbidden in FLOWHUB.
+**Current state (DL1):** Table and service exist. No automated Data Layer
+refresh-job creation exists yet; jobs are created manually through
+`RefreshJobService.create()`. This restriction does not apply to the separate
+Integration Platform `order-sync-runner`, which normalizes marketplace orders
+without scheduling Data Layer refresh jobs.
 
 ---
 
@@ -611,12 +618,14 @@ The FlowHub Data Layer is read-only with respect to external systems in the firs
 | Operation | Status | Enforcement |
 |-----------|--------|-------------|
 | WooCommerce product read | Allowed | Via connector layer |
-| WooCommerce price write | **Blocked** | No write path exists in code |
+| WooCommerce price write | Protected | Write Pipeline Preview, Dry Run, approval, execute, and read-back guards |
 | WooCommerce stock write | **Blocked** | No write path exists in code |
+| SnappShop/TapsiShop product write | Protected | Capability-gated channel adapters through explicit Preview/Dry Run/Apply |
 | Nextcloud file read | Allowed | Via connector layer |
 | Nextcloud file write | **Blocked** | No write path exists in code |
-| Apply engine | **Blocked** | Not implemented |
-| Scheduler | **Blocked** | Not implemented |
+| Apply engine | Protected | Explicit approval is required; Dry Run performs no external write |
+| Data Layer refresh scheduler | **Blocked** | Not implemented |
+| Marketplace order-sync runner | Active | Separate process with capability checks and per-channel database leases |
 | Automatic pricing | **Blocked** | Not implemented |
 
 ### Read Cache ‰  Apply Permission
@@ -883,7 +892,7 @@ Existing read-only products from Snapp Shop -> UI
 | `ip_connector_diagnostics` | **Integration Platform** | Read-only diagnostic run records |
 | `ip_connector_telemetry` | **Integration Platform** | Canonical connector telemetry contract rows |
 | `ip_webhook_events` | **Integration Platform** | Webhook receipt records; no direct product mutation |
-| `ip_polling_policies` | **Integration Platform** | Polling policy configuration; Scheduler remains disabled |
+| `ip_polling_policies` | **Integration Platform** | Polling policy configuration; marketplace order polling runs in `order-sync-runner` |
 | `logging_entries` | **Unified Logging Platform** | Structured application log entries |
 | `logging_correlations` | **Unified Logging Platform** | Correlation ID rollups |
 | `logging_request_traces` | **Unified Logging Platform** | Request-scoped trace rollups |
@@ -916,7 +925,8 @@ Existing read-only products from Snapp Shop -> UI
   wired through Integration Platform/Data Layer records where approved
 - Products, Sources, Workspace, Diagnostics, Settings, and Activity provide the
   production UI surfaces for Data Layer, connector, and log-backed status
-- Strictly read-only; no scheduler; no Apply
+- Data Layer APIs remain read-only. Marketplace product Apply and marketplace
+  order scheduling are separate protected Integration Platform workflows.
 
 **Planned (DL2):**
 - Approved read-only refresh worker writes product/source records
@@ -931,3 +941,26 @@ Existing read-only products from Snapp Shop -> UI
 - Destination snapshot population
 - Webhook ingestion -> invalidation -> refresh pipeline
 - Multi-channel connector registration
+
+### Marketplace Order Synchronization Boundary
+
+The implemented marketplace order scheduler is not the planned Data Layer
+refresh scheduler described above. It runs as a separate process:
+
+```bash
+python -m app.flowhub.orders.runner
+```
+
+The runner polls SnappShop order events, reconciles provider orders when
+`orders.read` is declared, and processes pending TapsiShop webhook receipts.
+Polling and reconciliation for one channel share a channel-scoped lease, so
+they cannot overlap unexpectedly.
+
+Lease acquisition is an atomic conditional database update. Heartbeat and
+checkpoint commits use the same owner plus unexpired-lease predicate, with
+`lease_expires_at` required to be strictly later than current UTC. If the
+lease expires or ownership changes, pending normalized records and cursor
+progress are rolled back and the run is not marked successful. An expired
+owner may clear its own still-unreplaced lease during `finally` cleanup, but
+the owner predicate prevents it from releasing or changing a replacement
+worker's lease.

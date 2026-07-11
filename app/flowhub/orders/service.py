@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from typing import Any
 
@@ -70,6 +70,19 @@ class OrderSyncLease:
     expires_at: datetime
 
 
+class OrderSyncLeaseError(HTTPException):
+    """Raised when a runner can no longer perform owner-only lease operations."""
+
+    def __init__(self, category: str) -> None:
+        self.category = category
+        detail = (
+            "Order synchronization lease has expired."
+            if category == "lease_expired"
+            else "Order synchronization lease is no longer owned by this runner."
+        )
+        super().__init__(status_code=status.HTTP_409_CONFLICT, detail=detail)
+
+
 class OrderSyncService:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -87,7 +100,7 @@ class OrderSyncService:
         provider_order_id = _provider_order_id(order)
         raw_hash = _hash(order.raw)
         raw_summary = _order_summary(order)
-        now = datetime.utcnow()
+        now = _utcnow()
         existing = (
             self.db.query(ChannelOrderRecord)
             .filter_by(channel_id=order.channel_id, provider_order_id=provider_order_id)
@@ -200,11 +213,11 @@ class OrderSyncService:
                 pagination = page.pagination
                 next_cursor = pagination.next_cursor if isinstance(pagination, CursorPagination) else None
                 checkpoint.cursor = next_cursor
-                checkpoint.last_run_at = datetime.utcnow()
+                checkpoint.last_run_at = _utcnow()
                 checkpoint.last_success_at = checkpoint.last_run_at
                 checkpoint.last_failure_category = None
                 checkpoint.next_run_at = checkpoint.last_run_at + timedelta(seconds=checkpoint.interval_seconds)
-                checkpoint.updated_at = datetime.utcnow()
+                checkpoint.updated_at = _utcnow()
                 if hasattr(connector, "acknowledge_order_events"):
                     connector.acknowledge_order_events(page)
                 self._commit_checkpoint_progress(checkpoint, lease)
@@ -213,8 +226,8 @@ class OrderSyncService:
                     break
             effects_after = self.db.query(ChannelInventoryEffectRecord).filter_by(channel_id=channel_id).count()
             return OrderSyncResult(channel_id, "snappshop_events", processed, duplicates, effects_after - effects_before, cursor)
-        except Exception:
-            self._mark_checkpoint_failure(lease, "sync_failed")
+        except Exception as exc:
+            self._mark_checkpoint_failure(lease, _lease_failure_category(exc, "sync_failed"))
             raise
         finally:
             self.release_checkpoint_lease(lease)
@@ -252,7 +265,7 @@ class OrderSyncService:
                 if self._record_event(event, source="tapsishop_webhook"):
                     duplicates += 1
                     receipt.processing_state = "processed"
-                    receipt.processed_at = datetime.utcnow()
+                    receipt.processed_at = _utcnow()
                     continue
                 order = await self._order_for_tapsishop_receipt(receipt.channel_id, normalized, connector)
                 self.upsert_order(
@@ -264,11 +277,11 @@ class OrderSyncService:
                     commit=False,
                 )
                 receipt.processing_state = "processed"
-                receipt.processed_at = datetime.utcnow()
+                receipt.processed_at = _utcnow()
                 receipt.last_error_category = None
                 processed += 1
             checkpoint = self._ensure_checkpoint(channel_id, "tapsishop", "tapsishop_webhook")
-            now = datetime.utcnow()
+            now = _utcnow()
             checkpoint.last_run_at = now
             checkpoint.last_success_at = now
             checkpoint.last_failure_category = None
@@ -277,8 +290,8 @@ class OrderSyncService:
             self._commit_checkpoint_progress(checkpoint, lease)
             effects_after = self.db.query(ChannelInventoryEffectRecord).filter_by(channel_id=channel_id).count()
             return OrderSyncResult(channel_id, "tapsishop_webhook", processed, duplicates, effects_after - effects_before)
-        except Exception:
-            self._mark_checkpoint_failure(lease, "webhook_processing_failed")
+        except Exception as exc:
+            self._mark_checkpoint_failure(lease, _lease_failure_category(exc, "webhook_processing_failed"))
             raise
         finally:
             self.release_checkpoint_lease(lease)
@@ -316,7 +329,7 @@ class OrderSyncService:
                     self._audit(channel_id, item.connector_type, row.internal_id, "order_reconciliation_repair", "Reconciliation repaired missing or stale order state.", {})
                 processed += 1
             checkpoint = self._ensure_checkpoint(channel_id, getattr(connector, "connector_type", channel_id.split(":", 1)[0]), "reconciliation", interval_seconds=interval_seconds)
-            now = datetime.utcnow()
+            now = _utcnow()
             checkpoint.last_run_at = now
             checkpoint.last_success_at = now
             checkpoint.last_failure_category = None
@@ -324,8 +337,8 @@ class OrderSyncService:
             checkpoint.updated_at = now
             self._commit_checkpoint_progress(checkpoint, lease)
             return OrderSyncResult(channel_id, "reconciliation", processed, 0, 0)
-        except Exception:
-            self._mark_checkpoint_failure(lease, "reconciliation_failed")
+        except Exception as exc:
+            self._mark_checkpoint_failure(lease, _lease_failure_category(exc, "reconciliation_failed"))
             raise
         finally:
             self.release_checkpoint_lease(lease)
@@ -361,7 +374,7 @@ class OrderSyncService:
         interval_seconds: int | None = None,
         owner: str | None = None,
     ) -> OrderSyncLease:
-        now = datetime.utcnow()
+        now = _utcnow()
         expires_at = now + timedelta(seconds=max(1, lease_seconds))
         owner = owner or str(uuid.uuid4())
         checkpoint = self._ensure_checkpoint(channel_id, connector_type, CHANNEL_LEASE_SOURCE, interval_seconds=interval_seconds)
@@ -401,7 +414,7 @@ class OrderSyncService:
         if checkpoint is not None:
             if interval_seconds is not None and checkpoint.interval_seconds != max(1, int(interval_seconds)):
                 checkpoint.interval_seconds = max(1, int(interval_seconds))
-                checkpoint.updated_at = datetime.utcnow()
+                checkpoint.updated_at = _utcnow()
                 self.db.commit()
                 self.db.refresh(checkpoint)
             return checkpoint
@@ -416,20 +429,24 @@ class OrderSyncService:
             checkpoint = self.db.query(OrderSyncCheckpoint).filter_by(channel_id=channel_id, source=source).one()
         return checkpoint
 
-    def heartbeat_checkpoint_lease(self, lease: OrderSyncLease, *, lease_seconds: int = LOCK_TTL_SECONDS) -> None:
-        now = datetime.utcnow()
+    def heartbeat_checkpoint_lease(self, lease: OrderSyncLease, *, lease_seconds: int = LOCK_TTL_SECONDS) -> bool:
+        now = _utcnow()
         expires_at = now + timedelta(seconds=max(1, lease_seconds))
-        rowcount = (
-            self.db.query(OrderSyncCheckpoint)
-            .filter(OrderSyncCheckpoint.id == lease.checkpoint_id, OrderSyncCheckpoint.lock_owner == lease.owner)
-            .update({"lease_heartbeat_at": now, "lease_expires_at": expires_at, "updated_at": now}, synchronize_session=False)
+        rowcount = self._update_active_lease(
+            lease,
+            now=now,
+            values={"lease_heartbeat_at": now, "lease_expires_at": expires_at, "updated_at": now},
         )
         if rowcount != 1:
             self.db.rollback()
-            raise HTTPException(status.HTTP_409_CONFLICT, "Order synchronization lease is no longer owned by this runner.")
+            raise self._lease_error(lease, now)
         self.db.commit()
+        return True
 
     def release_checkpoint_lease(self, lease: OrderSyncLease) -> bool:
+        now = _utcnow()
+        # Cleanup may clear an expired lease only while this owner is still recorded.
+        # A replacement owner is protected by the owner predicate.
         rowcount = (
             self.db.query(OrderSyncCheckpoint)
             .filter(OrderSyncCheckpoint.id == lease.checkpoint_id, OrderSyncCheckpoint.lock_owner == lease.owner)
@@ -439,7 +456,7 @@ class OrderSyncService:
                     "lock_owner": None,
                     "lease_expires_at": None,
                     "lease_heartbeat_at": None,
-                    "updated_at": datetime.utcnow(),
+                    "updated_at": now,
                 },
                 synchronize_session=False,
             )
@@ -448,16 +465,41 @@ class OrderSyncService:
         return rowcount == 1
 
     def _commit_checkpoint_progress(self, checkpoint: OrderSyncCheckpoint, lease: OrderSyncLease) -> None:
-        current = self.db.get(OrderSyncCheckpoint, lease.checkpoint_id)
-        if current is None or current.lock_owner != lease.owner:
+        now = _utcnow()
+        rowcount = self._update_active_lease(lease, now=now, values={"updated_at": now})
+        if rowcount != 1:
             self.db.rollback()
-            raise HTTPException(status.HTTP_409_CONFLICT, "Order synchronization lease is no longer owned by this runner.")
+            raise self._lease_error(lease, now)
         self.db.commit()
+
+    def _update_active_lease(self, lease: OrderSyncLease, *, now: datetime, values: dict[str, Any]) -> int:
+        """Atomically update a lease only while ownership is current and unexpired."""
+        return (
+            self.db.query(OrderSyncCheckpoint)
+            .filter(
+                OrderSyncCheckpoint.id == lease.checkpoint_id,
+                OrderSyncCheckpoint.lock_owner == lease.owner,
+                OrderSyncCheckpoint.lease_expires_at.is_not(None),
+                OrderSyncCheckpoint.lease_expires_at > now,
+            )
+            .update(values, synchronize_session=False)
+        )
+
+    def _lease_error(self, lease: OrderSyncLease, now: datetime) -> OrderSyncLeaseError:
+        current = self.db.get(OrderSyncCheckpoint, lease.checkpoint_id)
+        if (
+            current is not None
+            and current.lock_owner == lease.owner
+            and current.lease_expires_at is not None
+            and current.lease_expires_at <= now
+        ):
+            return OrderSyncLeaseError("lease_expired")
+        return OrderSyncLeaseError("lease_lost")
 
     def _mark_checkpoint_failure(self, lease: OrderSyncLease, category: str) -> None:
         try:
             self.db.rollback()
-            now = datetime.utcnow()
+            now = _utcnow()
             (
                 self.db.query(OrderSyncCheckpoint)
                 .filter(OrderSyncCheckpoint.id == lease.checkpoint_id, OrderSyncCheckpoint.lock_owner == lease.owner)
@@ -789,6 +831,15 @@ def _compact(value: Any) -> dict:
         "final_price", "finalPrice", "item_status",
     }
     return {k: v for k, v in value.items() if k in allowed}
+
+
+def _utcnow() -> datetime:
+    """Return a database-safe naive timestamp derived from timezone-aware UTC."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _lease_failure_category(exc: Exception, fallback: str) -> str:
+    return exc.category if isinstance(exc, OrderSyncLeaseError) else fallback
 
 
 def _order_summary(order: ChannelOrder) -> dict:

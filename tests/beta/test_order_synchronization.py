@@ -307,6 +307,118 @@ def test_expired_lease_can_be_reacquired_and_old_owner_cannot_release(db_engine)
         assert OrderSyncService(db).release_checkpoint_lease(new) is True
 
 
+def test_valid_owner_heartbeat_extends_lease_and_release_succeeds(db):
+    from app.flowhub.orders.service import CHANNEL_LEASE_SOURCE, OrderSyncService
+
+    service = OrderSyncService(db)
+    lease = service.acquire_checkpoint_lease("snapp:heartbeat", "snappshop", "snappshop_events", owner="owner")
+    before = db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:heartbeat", source=CHANNEL_LEASE_SOURCE).one().lease_expires_at
+
+    assert service.heartbeat_checkpoint_lease(lease, lease_seconds=1800) is True
+    db.expire_all()
+    after = db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:heartbeat", source=CHANNEL_LEASE_SOURCE).one().lease_expires_at
+    assert after > before
+    assert service.release_checkpoint_lease(lease) is True
+
+
+def test_expired_lease_cannot_heartbeat_or_revive(db):
+    from app.flowhub.orders.service import CHANNEL_LEASE_SOURCE, OrderSyncLeaseError, OrderSyncService
+
+    service = OrderSyncService(db)
+    lease = service.acquire_checkpoint_lease("snapp:heartbeat-expired", "snappshop", "snappshop_events", owner="owner")
+    row = db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:heartbeat-expired", source=CHANNEL_LEASE_SOURCE).one()
+    expired_at = datetime.utcnow() - timedelta(seconds=1)
+    row.lease_expires_at = expired_at
+    db.commit()
+
+    with pytest.raises(OrderSyncLeaseError) as exc:
+        service.heartbeat_checkpoint_lease(lease)
+
+    assert exc.value.category == "lease_expired"
+    db.expire_all()
+    row = db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:heartbeat-expired", source=CHANNEL_LEASE_SOURCE).one()
+    assert row.lease_expires_at == expired_at
+    assert row.lock_owner == "owner"
+
+
+def test_checkpoint_commit_requires_current_unexpired_owner(db_engine):
+    from sqlalchemy.orm import sessionmaker
+    from app.flowhub.orders.service import CHANNEL_LEASE_SOURCE, OrderSyncLeaseError, OrderSyncService
+
+    Session = sessionmaker(bind=db_engine)
+    with Session() as owner_db:
+        service = OrderSyncService(owner_db)
+        lease = service.acquire_checkpoint_lease("snapp:commit", "snappshop", "snappshop_events", owner="owner")
+        checkpoint = service._ensure_checkpoint("snapp:commit", "snappshop", "snappshop_events")
+        checkpoint.cursor = "valid-cursor"
+        service._commit_checkpoint_progress(checkpoint, lease)
+        assert checkpoint.cursor == "valid-cursor"
+
+        lease_row = owner_db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:commit", source=CHANNEL_LEASE_SOURCE).one()
+        lease_row.lease_expires_at = datetime.utcnow() - timedelta(seconds=1)
+        owner_db.commit()
+        checkpoint.cursor = "expired-cursor"
+        with pytest.raises(OrderSyncLeaseError) as expired:
+            service._commit_checkpoint_progress(checkpoint, lease)
+        assert expired.value.category == "lease_expired"
+        owner_db.expire_all()
+        assert owner_db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:commit", source="snappshop_events").one().cursor == "valid-cursor"
+
+    with Session() as replacement_db:
+        replacement = OrderSyncService(replacement_db).acquire_checkpoint_lease(
+            "snapp:commit", "snappshop", "reconciliation", owner="replacement"
+        )
+
+    with Session() as stale_db:
+        stale_service = OrderSyncService(stale_db)
+        checkpoint = stale_service._ensure_checkpoint("snapp:commit", "snappshop", "snappshop_events")
+        checkpoint.cursor = "stale-cursor"
+        with pytest.raises(OrderSyncLeaseError) as lost:
+            stale_service._commit_checkpoint_progress(checkpoint, lease)
+        assert lost.value.category == "lease_lost"
+        assert stale_service.release_checkpoint_lease(lease) is False
+
+    with Session() as verify_db:
+        assert verify_db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:commit", source="snappshop_events").one().cursor == "valid-cursor"
+        lease_row = verify_db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:commit", source=CHANNEL_LEASE_SOURCE).one()
+        assert lease_row.lock_owner == "replacement"
+        assert OrderSyncService(verify_db).release_checkpoint_lease(replacement) is True
+
+
+@pytest.mark.asyncio
+async def test_expired_lease_rolls_back_channel_work_and_records_sanitized_failure(db):
+    from app.flowhub.orders.service import CHANNEL_LEASE_SOURCE, OrderSyncLeaseError, OrderSyncService
+
+    class ExpiringConnector(FakeSnappConnector):
+        async def list_order_events(self, pagination):
+            lease_row = db.query(_order_models.OrderSyncCheckpoint).filter_by(
+                channel_id="snapp:lease-lost", source=CHANNEL_LEASE_SOURCE
+            ).one()
+            lease_row.lease_expires_at = datetime.utcnow() - timedelta(seconds=1)
+            db.commit()
+            page = await super().list_order_events(pagination)
+            for event in page.items:
+                object.__setattr__(event, "channel_id", "snapp:lease-lost")
+            return page
+
+        async def get_order(self, identifiers):
+            order = await super().get_order(identifiers)
+            object.__setattr__(order, "channel_id", "snapp:lease-lost")
+            return order
+
+    with pytest.raises(OrderSyncLeaseError) as exc:
+        await OrderSyncService(db).sync_snappshop_events("snapp:lease-lost", ExpiringConnector(), limit_pages=1)
+
+    assert exc.value.category == "lease_expired"
+    assert db.query(_order_models.ChannelOrderRecord).filter_by(channel_id="snapp:lease-lost").count() == 0
+    checkpoint = db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:lease-lost", source="snappshop_events").one()
+    assert checkpoint.cursor is None
+    assert checkpoint.last_success_at is None
+    lease_row = db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:lease-lost", source=CHANNEL_LEASE_SOURCE).one()
+    assert lease_row.last_failure_category == "lease_expired"
+    assert "secret" not in str(lease_row.last_failure_category).lower()
+
+
 def test_separate_channels_can_hold_leases_concurrently(db_engine):
     from sqlalchemy.orm import sessionmaker
     from app.flowhub.orders.service import OrderSyncService

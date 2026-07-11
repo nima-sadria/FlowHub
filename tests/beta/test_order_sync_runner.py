@@ -142,6 +142,35 @@ async def test_runner_channel_failure_does_not_stop_other_channels(session_facto
 
 
 @pytest.mark.asyncio
+async def test_runner_records_sanitized_lost_lease_category_without_success(session_factory, monkeypatch):
+    from app.flowhub.orders.runner import OrderSyncRunner
+    from app.flowhub.orders.service import OrderSyncLeaseError
+
+    with session_factory() as db:
+        _seed_channel(db, "snappshop:lease-lost", "snappshop", enabled=True, settings={"token": "secret", "agent_identifier": "agent"})
+
+    monkeypatch.setattr(OrderSyncRunner, "_snappshop_connector", lambda self, channel_id, settings: RunnerSnappConnector(channel_id))
+
+    async def lose_lease(self, channel_id, connector, **kwargs):
+        raise OrderSyncLeaseError("lease_lost")
+
+    monkeypatch.setattr(OrderSyncRunner, "_sync_snappshop", lose_lease)
+    runner = OrderSyncRunner(session_factory, settings=_settings(), runner_id="runner-lease-lost")
+
+    await runner.run_once()
+
+    with session_factory() as db:
+        failure = db.query(_integration_models.IntegrationConnectorEvent).filter_by(
+            connector_id="snappshop:lease-lost", event_name="order_sync_channel_failed"
+        ).one()
+        assert failure.metadata_json["category"] == "lease_lost"
+        assert "secret" not in str(failure.metadata_json).lower()
+        assert db.query(_integration_models.IntegrationConnectorEvent).filter_by(
+            connector_id="snappshop:lease-lost", event_name="order_sync_snappshop_events_completed"
+        ).count() == 0
+
+
+@pytest.mark.asyncio
 async def test_runner_graceful_shutdown_records_stopped_heartbeat(session_factory):
     from app.flowhub.orders.runner import OrderSyncRunner, OrderSyncRunnerSettings
 

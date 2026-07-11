@@ -31,4 +31,5 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
     "integration: marks tests as integration tests (requires running database)",
+    "postgres: marks PostgreSQL-backed integration tests (requires FLOWHUB_TEST_POSTGRES_URL)",
 ]
