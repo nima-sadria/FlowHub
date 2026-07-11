@@ -17,15 +17,18 @@ Security: after POST /setup/complete all setup endpoints return 409.
 
 from __future__ import annotations
 
+import logging
 import re
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from alembic.config import Config as AlembicConfig
 from alembic.script import ScriptDirectory
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
-from sqlalchemy import text
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.jwt_service import create_access_token
@@ -37,6 +40,7 @@ from app.flowhub.database import get_db
 from app.flowhub.setup.service import AppConfigService
 
 router = APIRouter(prefix="/setup", tags=["setup"])
+logger = logging.getLogger(__name__)
 
 _REFRESH_EXPIRE_DAYS = 30
 _ADMIN_ROLES = ("owner", "super_admin", "admin")
@@ -60,6 +64,47 @@ def _require_setup_not_complete(db: Session) -> AppConfigService:
             detail="Setup has already been completed. Use Settings to change configuration.",
         )
     return svc
+
+
+def _request_id(request: Request) -> str:
+    return request.headers.get("x-request-id") or f"req_{uuid.uuid4().hex[:12]}"
+
+
+def _table_exists(db: Session, table_name: str) -> bool:
+    try:
+        return inspect(db.get_bind()).has_table(table_name)
+    except SQLAlchemyError:
+        return False
+
+
+def _is_setup_completed_if_available(db: Session, request: Request) -> bool:
+    if not _table_exists(db, "flowhub_app_config"):
+        return False
+    try:
+        return AppConfigService(db).is_setup_completed()
+    except SQLAlchemyError:
+        logger.exception(
+            "setup_state_check_failed request_id=%s method=%s path=%s",
+            _request_id(request),
+            request.method,
+            request.url.path,
+        )
+        return False
+
+
+def _has_admin_if_available(db: Session, request: Request) -> bool:
+    if not _table_exists(db, "flowhub_users"):
+        return False
+    try:
+        return db.query(FlowHubUser).filter(FlowHubUser.role.in_(_ADMIN_ROLES)).first() is not None
+    except SQLAlchemyError:
+        logger.exception(
+            "setup_admin_check_failed request_id=%s method=%s path=%s",
+            _request_id(request),
+            request.method,
+            request.url.path,
+        )
+        return False
 
 
 def _get_config_service(db: Session) -> AppConfigService:
@@ -192,11 +237,16 @@ class AdminPayload(BaseModel):
 # -- Endpoints -----------------------------------------------------------------
 
 @router.get("/status")
-async def setup_status(db: Session = Depends(get_db)) -> dict:
+async def setup_status(request: Request, db: Session = Depends(get_db)) -> dict:
     """Public endpoint: returns whether setup has been completed and if an admin exists."""
-    svc = AppConfigService(db)
-    has_admin = db.query(FlowHubUser).filter(FlowHubUser.role.in_(_ADMIN_ROLES)).first() is not None
-    return {"completed": svc.is_setup_completed(), "has_admin": has_admin}
+    app_config_table_exists = _table_exists(db, "flowhub_app_config")
+    users_table_exists = _table_exists(db, "flowhub_users")
+    return {
+        "completed": _is_setup_completed_if_available(db, request),
+        "has_admin": _has_admin_if_available(db, request),
+        "database_initialized": app_config_table_exists and users_table_exists,
+        "migrations_required": not (app_config_table_exists and users_table_exists),
+    }
 
 
 @router.post("/server-profile")
@@ -219,8 +269,12 @@ async def setup_server_profile(
 
 
 @router.post("/database")
-async def setup_database(db: Session = Depends(get_db)) -> dict:
-    _require_setup_not_complete(db)
+async def setup_database(request: Request, db: Session = Depends(get_db)) -> dict:
+    if _is_setup_completed_if_available(db, request):
+        raise HTTPException(
+            status_code=409,
+            detail="Setup has already been completed. Use Settings to change configuration.",
+        )
     try:
         db.execute(text("SELECT 1"))
         connected = True

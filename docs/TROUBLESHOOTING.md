@@ -72,6 +72,11 @@ Use repair:
 flowhub repair
 ```
 
+When the setup page opens against an older database, `/api/v2/setup/status`
+reports `migrations_required: true` instead of exposing a server error. The
+database check step shows the current and latest migration revisions. Run repair
+before creating users or changing connector settings.
+
 ## Legacy Compatibility Path
 
 If `/opt/flowhub` exists, run the installer from the current repository. It will

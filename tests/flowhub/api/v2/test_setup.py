@@ -93,6 +93,54 @@ class TestSetupStatus:
         r = client.get("/api/v2/setup/status")
         assert r.json()["completed"] is True
 
+    def test_legacy_unmigrated_database_returns_migration_state(self, tmp_path, monkeypatch):
+        from sqlalchemy import create_engine, text
+        from sqlalchemy.orm import sessionmaker
+        from fastapi.testclient import TestClient
+        from app.flowhub.app import app
+        from app.flowhub.database import get_db
+
+        db_path = tmp_path / "legacy.db"
+        engine = create_engine(f"sqlite:///{db_path}")
+        with engine.begin() as conn:
+            conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
+            conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('005')"))
+
+        Session = sessionmaker(bind=engine)
+
+        def _override_get_db():
+            s = Session()
+            try:
+                yield s
+            finally:
+                s.close()
+
+        monkeypatch.setattr(setup_api, "_get_latest_FLOWHUB_revision", lambda: "FLOWHUB_011")
+        app.dependency_overrides[get_db] = _override_get_db
+        try:
+            with TestClient(app, raise_server_exceptions=False) as legacy_client:
+                r = legacy_client.get("/api/v2/setup/status")
+                assert r.status_code == 200
+                assert r.json() == {
+                    "completed": False,
+                    "has_admin": False,
+                    "database_initialized": False,
+                    "migrations_required": True,
+                }
+
+                database = legacy_client.post("/api/v2/setup/database")
+                assert database.status_code == 200
+                data = database.json()
+                assert data["connected"] is True
+                assert data["current_revision"] == "005"
+                assert data["latest_revision"] == "FLOWHUB_011"
+                assert data["is_current"] is False
+                assert data["migrations_current"] is False
+                assert "no such table" not in database.text.lower()
+        finally:
+            app.dependency_overrides.clear()
+            engine.dispose()
+
 
 # -- POST /api/v2/setup/server-profile ----------------------------------------
 
