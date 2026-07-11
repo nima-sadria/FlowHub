@@ -10,6 +10,7 @@ from hashlib import sha256
 from typing import Any
 
 from fastapi import HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -45,6 +46,7 @@ TAPSISHOP_STATUS_MAP = {
     "CANCELLATION": "cancelled",
 }
 LOCK_TTL_SECONDS = 15 * 60
+CHANNEL_LEASE_SOURCE = "__channel_lease__"
 
 
 @dataclass(frozen=True)
@@ -56,6 +58,16 @@ class OrderSyncResult:
     effects_created: int
     cursor: str | None = None
     state: str = "completed"
+
+
+@dataclass(frozen=True)
+class OrderSyncLease:
+    checkpoint_id: int
+    channel_id: str
+    source: str
+    owner: str
+    acquired_at: datetime
+    expires_at: datetime
 
 
 class OrderSyncService:
@@ -142,14 +154,30 @@ class OrderSyncService:
             self.db.refresh(existing)
         return existing
 
-    async def sync_snappshop_events(self, channel_id: str, connector: Any, *, limit_pages: int = 10) -> OrderSyncResult:
-        checkpoint = self._acquire_checkpoint(channel_id, "snappshop", "snappshop_events")
+    async def sync_snappshop_events(
+        self,
+        channel_id: str,
+        connector: Any,
+        *,
+        limit_pages: int = 10,
+        lease_seconds: int = LOCK_TTL_SECONDS,
+        interval_seconds: int | None = None,
+    ) -> OrderSyncResult:
+        lease = self.acquire_checkpoint_lease(
+            channel_id,
+            "snappshop",
+            "snappshop_events",
+            lease_seconds=lease_seconds,
+            interval_seconds=interval_seconds,
+        )
+        checkpoint = self._ensure_checkpoint(channel_id, "snappshop", "snappshop_events", interval_seconds=interval_seconds)
         processed = 0
         duplicates = 0
         effects_before = self.db.query(ChannelInventoryEffectRecord).filter_by(channel_id=channel_id).count()
         cursor = checkpoint.cursor
         try:
             for _ in range(max(1, limit_pages)):
+                self.heartbeat_checkpoint_lease(lease, lease_seconds=lease_seconds)
                 page = await connector.list_order_events(CursorPagination(cursor=cursor, limit=50))
                 if not isinstance(page, PaginatedResult):
                     raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Connector returned malformed order event page.")
@@ -173,73 +201,134 @@ class OrderSyncService:
                 next_cursor = pagination.next_cursor if isinstance(pagination, CursorPagination) else None
                 checkpoint.cursor = next_cursor
                 checkpoint.last_run_at = datetime.utcnow()
+                checkpoint.last_success_at = checkpoint.last_run_at
+                checkpoint.last_failure_category = None
                 checkpoint.next_run_at = checkpoint.last_run_at + timedelta(seconds=checkpoint.interval_seconds)
                 checkpoint.updated_at = datetime.utcnow()
                 if hasattr(connector, "acknowledge_order_events"):
                     connector.acknowledge_order_events(page)
-                self.db.commit()
+                self._commit_checkpoint_progress(checkpoint, lease)
                 cursor = next_cursor
                 if not isinstance(pagination, CursorPagination) or not pagination.has_more:
                     break
             effects_after = self.db.query(ChannelInventoryEffectRecord).filter_by(channel_id=channel_id).count()
             return OrderSyncResult(channel_id, "snappshop_events", processed, duplicates, effects_after - effects_before, cursor)
+        except Exception:
+            self._mark_checkpoint_failure(lease, "sync_failed")
+            raise
         finally:
-            self._release_checkpoint(checkpoint)
+            self.release_checkpoint_lease(lease)
 
-    async def process_tapsishop_webhook_receipts(self, channel_id: str, connector: Any | None = None, *, limit: int = 100) -> OrderSyncResult:
-        receipts = (
-            self.db.query(WebhookReceipt)
-            .filter(WebhookReceipt.channel_id == channel_id, WebhookReceipt.provider == "tapsishop")
-            .filter(WebhookReceipt.processing_state.in_(["queued", "retry_scheduled"]))
-            .order_by(WebhookReceipt.received_at.asc(), WebhookReceipt.id.asc())
-            .limit(limit)
-            .all()
+    async def process_tapsishop_webhook_receipts(
+        self,
+        channel_id: str,
+        connector: Any | None = None,
+        *,
+        limit: int = 100,
+        lease_seconds: int = LOCK_TTL_SECONDS,
+    ) -> OrderSyncResult:
+        lease = self.acquire_checkpoint_lease(
+            channel_id,
+            "tapsishop",
+            "tapsishop_webhook",
+            lease_seconds=lease_seconds,
         )
-        processed = 0
-        duplicates = 0
-        effects_before = self.db.query(ChannelInventoryEffectRecord).filter_by(channel_id=channel_id).count()
-        for receipt in receipts:
-            normalized = receipt.normalized_event_json or {}
-            event = _event_from_tapsishop_receipt(receipt)
-            if self._record_event(event, source="tapsishop_webhook"):
-                duplicates += 1
+        try:
+            receipts = (
+                self.db.query(WebhookReceipt)
+                .filter(WebhookReceipt.channel_id == channel_id, WebhookReceipt.provider == "tapsishop")
+                .filter(WebhookReceipt.processing_state.in_(["queued", "retry_scheduled"]))
+                .order_by(WebhookReceipt.received_at.asc(), WebhookReceipt.id.asc())
+                .limit(limit)
+                .all()
+            )
+            processed = 0
+            duplicates = 0
+            effects_before = self.db.query(ChannelInventoryEffectRecord).filter_by(channel_id=channel_id).count()
+            for receipt in receipts:
+                self.heartbeat_checkpoint_lease(lease, lease_seconds=lease_seconds)
+                normalized = receipt.normalized_event_json or {}
+                event = _event_from_tapsishop_receipt(receipt)
+                if self._record_event(event, source="tapsishop_webhook"):
+                    duplicates += 1
+                    receipt.processing_state = "processed"
+                    receipt.processed_at = datetime.utcnow()
+                    continue
+                order = await self._order_for_tapsishop_receipt(receipt.channel_id, normalized, connector)
+                self.upsert_order(
+                    order,
+                    source="tapsishop_webhook",
+                    source_event_id=receipt.provider_event_id,
+                    event_type=event.event_type,
+                    occurred_at=_parse_dt(event.occurred_at),
+                    commit=False,
+                )
                 receipt.processing_state = "processed"
                 receipt.processed_at = datetime.utcnow()
-                continue
-            order = await self._order_for_tapsishop_receipt(receipt.channel_id, normalized, connector)
-            self.upsert_order(
-                order,
-                source="tapsishop_webhook",
-                source_event_id=receipt.provider_event_id,
-                event_type=event.event_type,
-                occurred_at=_parse_dt(event.occurred_at),
-                commit=False,
-            )
-            receipt.processing_state = "processed"
-            receipt.processed_at = datetime.utcnow()
-            receipt.last_error_category = None
-            processed += 1
-        self.db.commit()
-        effects_after = self.db.query(ChannelInventoryEffectRecord).filter_by(channel_id=channel_id).count()
-        return OrderSyncResult(channel_id, "tapsishop_webhook", processed, duplicates, effects_after - effects_before)
+                receipt.last_error_category = None
+                processed += 1
+            checkpoint = self._ensure_checkpoint(channel_id, "tapsishop", "tapsishop_webhook")
+            now = datetime.utcnow()
+            checkpoint.last_run_at = now
+            checkpoint.last_success_at = now
+            checkpoint.last_failure_category = None
+            checkpoint.next_run_at = now
+            checkpoint.updated_at = now
+            self._commit_checkpoint_progress(checkpoint, lease)
+            effects_after = self.db.query(ChannelInventoryEffectRecord).filter_by(channel_id=channel_id).count()
+            return OrderSyncResult(channel_id, "tapsishop_webhook", processed, duplicates, effects_after - effects_before)
+        except Exception:
+            self._mark_checkpoint_failure(lease, "webhook_processing_failed")
+            raise
+        finally:
+            self.release_checkpoint_lease(lease)
 
-    async def reconcile_recent_orders(self, channel_id: str, connector: Any, *, page_size: int = 50) -> OrderSyncResult:
-        page = await connector.list_orders(PageNumberPagination(page=1, page_size=page_size))
+    async def reconcile_recent_orders(
+        self,
+        channel_id: str,
+        connector: Any,
+        *,
+        page_size: int = 50,
+        lease_seconds: int = LOCK_TTL_SECONDS,
+        interval_seconds: int | None = None,
+    ) -> OrderSyncResult:
+        lease = self.acquire_checkpoint_lease(
+            channel_id,
+            getattr(connector, "connector_type", channel_id.split(":", 1)[0]),
+            "reconciliation",
+            lease_seconds=lease_seconds,
+            interval_seconds=interval_seconds,
+        )
         processed = 0
-        for item in page.items:
-            if not isinstance(item, ChannelOrder):
-                continue
-            before = (
-                self.db.query(ChannelOrderRecord)
-                .filter_by(channel_id=channel_id, provider_order_id=_provider_order_id(item))
-                .first()
-            )
-            row = self.upsert_order(item, source="reconciliation", source_event_id=f"reconcile:{_provider_order_id(item)}", commit=False)
-            if before is None or before.raw_hash != row.raw_hash:
-                self._audit(channel_id, item.connector_type, row.internal_id, "order_reconciliation_repair", "Reconciliation repaired missing or stale order state.", {})
-            processed += 1
-        self.db.commit()
-        return OrderSyncResult(channel_id, "reconciliation", processed, 0, 0)
+        try:
+            self.heartbeat_checkpoint_lease(lease, lease_seconds=lease_seconds)
+            page = await connector.list_orders(PageNumberPagination(page=1, page_size=page_size))
+            for item in page.items:
+                if not isinstance(item, ChannelOrder):
+                    continue
+                before = (
+                    self.db.query(ChannelOrderRecord)
+                    .filter_by(channel_id=channel_id, provider_order_id=_provider_order_id(item))
+                    .first()
+                )
+                row = self.upsert_order(item, source="reconciliation", source_event_id=f"reconcile:{_provider_order_id(item)}", commit=False)
+                if before is None or before.raw_hash != row.raw_hash:
+                    self._audit(channel_id, item.connector_type, row.internal_id, "order_reconciliation_repair", "Reconciliation repaired missing or stale order state.", {})
+                processed += 1
+            checkpoint = self._ensure_checkpoint(channel_id, getattr(connector, "connector_type", channel_id.split(":", 1)[0]), "reconciliation", interval_seconds=interval_seconds)
+            now = datetime.utcnow()
+            checkpoint.last_run_at = now
+            checkpoint.last_success_at = now
+            checkpoint.last_failure_category = None
+            checkpoint.next_run_at = now + timedelta(seconds=checkpoint.interval_seconds)
+            checkpoint.updated_at = now
+            self._commit_checkpoint_progress(checkpoint, lease)
+            return OrderSyncResult(channel_id, "reconciliation", processed, 0, 0)
+        except Exception:
+            self._mark_checkpoint_failure(lease, "reconciliation_failed")
+            raise
+        finally:
+            self.release_checkpoint_lease(lease)
 
     def list_orders(self, *, page: int = 1, page_size: int = 50, channel_id: str | None = None) -> dict:
         page = max(1, int(page))
@@ -262,29 +351,124 @@ class OrderSyncService:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found.")
         return self._order_shape(row, include_detail=True)
 
-    def _acquire_checkpoint(self, channel_id: str, connector_type: str, source: str) -> OrderSyncCheckpoint:
+    def acquire_checkpoint_lease(
+        self,
+        channel_id: str,
+        connector_type: str,
+        source: str,
+        *,
+        lease_seconds: int = LOCK_TTL_SECONDS,
+        interval_seconds: int | None = None,
+        owner: str | None = None,
+    ) -> OrderSyncLease:
         now = datetime.utcnow()
-        checkpoint = self.db.query(OrderSyncCheckpoint).filter_by(channel_id=channel_id, source=source).first()
-        if checkpoint is None:
-            checkpoint = OrderSyncCheckpoint(channel_id=channel_id, connector_type=connector_type, source=source)
-            self.db.add(checkpoint)
-            self.db.flush()
-        if checkpoint.locked_at and checkpoint.locked_at > now - timedelta(seconds=LOCK_TTL_SECONDS):
+        expires_at = now + timedelta(seconds=max(1, lease_seconds))
+        owner = owner or str(uuid.uuid4())
+        checkpoint = self._ensure_checkpoint(channel_id, connector_type, CHANNEL_LEASE_SOURCE, interval_seconds=interval_seconds)
+
+        values = {
+            "locked_at": now,
+            "lock_owner": owner,
+            "lease_expires_at": expires_at,
+            "lease_heartbeat_at": now,
+            "last_run_id": owner,
+            "updated_at": now,
+        }
+        if interval_seconds is not None:
+            values["interval_seconds"] = max(1, int(interval_seconds))
+
+        rowcount = (
+            self.db.query(OrderSyncCheckpoint)
+            .filter(OrderSyncCheckpoint.id == checkpoint.id)
+            .filter(or_(OrderSyncCheckpoint.lease_expires_at.is_(None), OrderSyncCheckpoint.lease_expires_at <= now))
+            .update(values, synchronize_session=False)
+        )
+        if rowcount != 1:
+            self.db.rollback()
             raise HTTPException(status.HTTP_409_CONFLICT, "Order synchronization is already running for this channel.")
-        checkpoint.locked_at = now
-        checkpoint.lock_owner = str(uuid.uuid4())
         self.db.commit()
-        self.db.refresh(checkpoint)
+        return OrderSyncLease(checkpoint.id, channel_id, source, owner, now, expires_at)
+
+    def _ensure_checkpoint(
+        self,
+        channel_id: str,
+        connector_type: str,
+        source: str,
+        *,
+        interval_seconds: int | None = None,
+    ) -> OrderSyncCheckpoint:
+        checkpoint = self.db.query(OrderSyncCheckpoint).filter_by(channel_id=channel_id, source=source).first()
+        if checkpoint is not None:
+            if interval_seconds is not None and checkpoint.interval_seconds != max(1, int(interval_seconds)):
+                checkpoint.interval_seconds = max(1, int(interval_seconds))
+                checkpoint.updated_at = datetime.utcnow()
+                self.db.commit()
+                self.db.refresh(checkpoint)
+            return checkpoint
+        checkpoint = OrderSyncCheckpoint(channel_id=channel_id, connector_type=connector_type, source=source)
+        if interval_seconds is not None:
+            checkpoint.interval_seconds = max(1, int(interval_seconds))
+        self.db.add(checkpoint)
+        try:
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            checkpoint = self.db.query(OrderSyncCheckpoint).filter_by(channel_id=channel_id, source=source).one()
         return checkpoint
 
-    def _release_checkpoint(self, checkpoint: OrderSyncCheckpoint) -> None:
-        current = self.db.get(OrderSyncCheckpoint, checkpoint.id)
-        if current is None:
-            return
-        current.locked_at = None
-        current.lock_owner = None
-        current.updated_at = datetime.utcnow()
+    def heartbeat_checkpoint_lease(self, lease: OrderSyncLease, *, lease_seconds: int = LOCK_TTL_SECONDS) -> None:
+        now = datetime.utcnow()
+        expires_at = now + timedelta(seconds=max(1, lease_seconds))
+        rowcount = (
+            self.db.query(OrderSyncCheckpoint)
+            .filter(OrderSyncCheckpoint.id == lease.checkpoint_id, OrderSyncCheckpoint.lock_owner == lease.owner)
+            .update({"lease_heartbeat_at": now, "lease_expires_at": expires_at, "updated_at": now}, synchronize_session=False)
+        )
+        if rowcount != 1:
+            self.db.rollback()
+            raise HTTPException(status.HTTP_409_CONFLICT, "Order synchronization lease is no longer owned by this runner.")
         self.db.commit()
+
+    def release_checkpoint_lease(self, lease: OrderSyncLease) -> bool:
+        rowcount = (
+            self.db.query(OrderSyncCheckpoint)
+            .filter(OrderSyncCheckpoint.id == lease.checkpoint_id, OrderSyncCheckpoint.lock_owner == lease.owner)
+            .update(
+                {
+                    "locked_at": None,
+                    "lock_owner": None,
+                    "lease_expires_at": None,
+                    "lease_heartbeat_at": None,
+                    "updated_at": datetime.utcnow(),
+                },
+                synchronize_session=False,
+            )
+        )
+        self.db.commit()
+        return rowcount == 1
+
+    def _commit_checkpoint_progress(self, checkpoint: OrderSyncCheckpoint, lease: OrderSyncLease) -> None:
+        current = self.db.get(OrderSyncCheckpoint, lease.checkpoint_id)
+        if current is None or current.lock_owner != lease.owner:
+            self.db.rollback()
+            raise HTTPException(status.HTTP_409_CONFLICT, "Order synchronization lease is no longer owned by this runner.")
+        self.db.commit()
+
+    def _mark_checkpoint_failure(self, lease: OrderSyncLease, category: str) -> None:
+        try:
+            self.db.rollback()
+            now = datetime.utcnow()
+            (
+                self.db.query(OrderSyncCheckpoint)
+                .filter(OrderSyncCheckpoint.id == lease.checkpoint_id, OrderSyncCheckpoint.lock_owner == lease.owner)
+                .update(
+                    {"last_failure_at": now, "last_failure_category": category, "updated_at": now},
+                    synchronize_session=False,
+                )
+            )
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
 
     def _record_event(self, event: ChannelOrderEvent, *, source: str) -> bool:
         if self.db.query(ChannelOrderEventRecord).filter_by(channel_id=event.channel_id, provider_event_id=event.event_id).first():

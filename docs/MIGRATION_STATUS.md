@@ -2,8 +2,10 @@
 
 ## Current release head
 
-FlowHub 1.0.0 migration head is **`FLOWHUB_014`**.
+FlowHub 1.0.0 migration head is **`FLOWHUB_015`**.
 
+`FLOWHUB_015` follows `FLOWHUB_014` and adds production order-sync lease
+metadata to `channel_order_sync_checkpoints`.
 `FLOWHUB_014` follows `FLOWHUB_013` and creates normalized channel order,
 order item, shipment, invoice, provider event, proposed inventory effect,
 sync checkpoint, and order sync audit tables.

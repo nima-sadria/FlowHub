@@ -39,7 +39,9 @@ prices, and stock-only changes cannot be selected.
 - Only simple-product and variation **price** fields are written.
 - Stock is shown read-only in Preview; FlowHub never writes stock.
 - Sources are never written back to.
-- There is no scheduler, automatic synchronization, or automatic Apply.
+- Pricing has no scheduler, automatic synchronization, or automatic Apply.
+  Marketplace order synchronization is handled separately by
+  `order-sync-runner` and does not write product prices.
 - Maintenance mode blocks Dry Run, Approval, and Apply, except for the audited
   owner/super-admin policy where configured.
 - A failed or partial cache refresh blocks Preview. A warning-complete refresh is

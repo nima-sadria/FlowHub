@@ -155,6 +155,42 @@ def test_malformed_response_stale_sync_delayed_webhook_and_dead_letter_are_visib
     assert "token=secret" not in text
 
 
+def test_tapsishop_token_refresh_diagnostics_are_channel_scoped(db):
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+    from app.flowhub.integration_platform.models import IntegrationConnectorEvent
+
+    now = datetime.utcnow()
+    _seed_channel(db, "tapsishop:main", "tapsishop", enabled=True, settings={"token": None, "token_refresh_enabled": True})
+    _seed_channel(db, "tapsishop:second", "tapsishop", enabled=True, settings={"token": None, "token_refresh_enabled": True})
+    _seed_health(db, "tapsishop:main", "tapsishop", "healthy", now, last_success_at=now)
+    _seed_health(db, "tapsishop:second", "tapsishop", "unhealthy", now, error_class="authentication")
+    db.add(IntegrationConnectorEvent(
+        connector_id="tapsishop:main",
+        event_name="token_refresh_succeeded",
+        severity="info",
+        message="token refreshed",
+        metadata_json={},
+        created_at=now,
+    ))
+    db.add(IntegrationConnectorEvent(
+        connector_id="tapsishop:second",
+        event_name="token_refresh_failed",
+        severity="warning",
+        message="token refresh failed",
+        metadata_json={},
+        created_at=now,
+    ))
+    db.commit()
+
+    payload = ChannelHealthReporter(db).report()
+    main = _item(payload, "tapsishop:main")
+    second = _item(payload, "tapsishop:second")
+
+    assert "credential_refresh_succeeded" in main["dimensions"]["tokenRefresh"]["message"]
+    assert "credential_refresh_failed" not in main["dimensions"]["tokenRefresh"]["message"]
+    assert "credential_refresh_failed" in second["dimensions"]["tokenRefresh"]["message"]
+
+
 def test_channel_health_endpoint_and_refresh_suppress_concurrent_provider_checks(client, db, auth_headers, monkeypatch):
     from app.flowhub.diagnostics.channel_health import _REFRESH_LOCKS
 

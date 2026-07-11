@@ -114,4 +114,13 @@ def test_fresh_database_still_upgrades_to_head(tmp_path, monkeypatch):
         "channel_order_sync_checkpoints",
         "channel_order_sync_audit",
     } <= tables
+    checkpoint_columns = {column["name"] for column in sa.inspect(engine).get_columns("channel_order_sync_checkpoints")}
+    assert {
+        "lease_expires_at",
+        "lease_heartbeat_at",
+        "last_success_at",
+        "last_failure_at",
+        "last_failure_category",
+        "last_run_id",
+    } <= checkpoint_columns
     engine.dispose()

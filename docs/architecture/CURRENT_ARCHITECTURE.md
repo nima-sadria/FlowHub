@@ -136,8 +136,11 @@ Current Sources shown in Commerce Hub:
 Current Channels shown in Commerce Hub:
 
 - WooCommerce: first implemented Channel.
-- Snapp Shop: planned read-only Channel placeholder.
-- Tapsi Shop: planned read-only Channel placeholder.
+- Snapp Shop: implemented marketplace Channel with product, price/stock update,
+  order polling, and reconciliation support through protected backend APIs.
+- Tapsi Shop: implemented marketplace Channel with product, price/stock update,
+  webhook ingestion, order receipt processing, and reconciliation support
+  through protected backend APIs.
 - Digikala, Technolife, Shopify: future Channel placeholders.
 
 Commerce Hub relationship map:
@@ -164,11 +167,14 @@ Data Layer
 WooCommerce
 ```
 
-Commerce Hub provides read-only Source and Channel operations. The protected
-Write Pipeline is the only external WooCommerce write path: it supports manual
-price updates for simple products and variations after Workspace Preview, row
-selection, Dry Run, and Approval. Commerce Hub itself does not write to Sources,
-does not write stock, and does not start scheduled or automatic work.
+Commerce Hub provides Source and Channel configuration and health surfaces. The
+protected Write Pipeline is the only external WooCommerce write path: it
+supports manual price updates for simple products and variations after
+Workspace Preview, row selection, Dry Run, and Approval. The Products
+multi-channel price editor is the protected marketplace price write path for
+capability-enabled channels and requires no-write Dry Run, explicit Approval,
+and Apply. Commerce Hub itself does not write to Sources, does not write stock,
+and does not perform Apply.
 
 ## Unified Logging Platform
 
@@ -187,17 +193,18 @@ Deferred in the first release:
 
 - Stock writes
 - Source or spreadsheet writes
-- Scheduler execution
 - Automatic pricing and automatic Apply
-- Additional marketplace write channels
+- Additional marketplace channels beyond WooCommerce, SnappShop, and TapsiShop
 
 Connector communication for WooCommerce and Nextcloud is isolated to connector
 and integration layers. Active FLOWHUB v2 API routes must not directly call external
 WooCommerce, WebDAV, OCS, `httpx`, or `requests` clients.
 
-`FEATURE_SCHEDULER` defaults to disabled. Scheduler files may exist as inactive
-unavailables, but the scheduler router is not mounted by `app.flowhub.app` and no
-background scheduler execution is started.
+The A2 deferred write scheduler remains inactive in the FlowHub API runtime.
+Marketplace order synchronization uses a separate `order-sync-runner` process
+with channel-scoped database leases. It polls SnappShop order events, processes
+accepted TapsiShop webhook receipts, and reconciles recent orders without
+performing product price writes, stock writes, or automatic Apply.
 
 ## CLI
 

@@ -43,6 +43,19 @@ docker compose -f docker-compose.yml --env-file .env up -d --build
 docker compose -f docker-compose.yml --env-file .env exec app alembic -c alembic_flowhub.ini upgrade head
 ```
 
+The Compose stack includes:
+
+- `app`: FastAPI and static frontend runtime.
+- `order-sync-runner`: separate marketplace order synchronization worker.
+- `postgres`: PostgreSQL persistence.
+
+Check the worker with:
+
+```bash
+docker compose -f docker-compose.yml ps order-sync-runner
+docker compose -f docker-compose.yml logs -f order-sync-runner
+```
+
 ## Legacy Compatibility
 
 Older deployments may exist at `/opt/flowhub`. The installer detects this path,

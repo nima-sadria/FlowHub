@@ -27,7 +27,7 @@ from app.flowhub.product_pricing.models import ProductPriceOperation, ProductPri
 from app.flowhub.webhooks.models import WebhookDeadLetter, WebhookReceipt
 
 
-CHANNEL_IDS = ("woocommerce:primary", "snappshop:main", "tapsishop:main")
+DEFAULT_CHANNEL_IDS = ("woocommerce:primary", "snappshop:main", "tapsishop:main")
 HEALTH_CACHE_SECONDS = 60
 EXTERNAL_CHECK_TIMEOUT_SECONDS = 8.0
 STALE_SYNC_AFTER = timedelta(hours=24)
@@ -39,18 +39,20 @@ class ChannelHealthReporter:
         self.db = db
 
     def report(self) -> dict:
-        items = [self._channel_shape(channel_id) for channel_id in CHANNEL_IDS]
+        items = [self._channel_shape(channel_id) for channel_id in self._channel_ids()]
         return {
             "checkedAt": _iso(datetime.utcnow()),
             "summary": _summary(items),
             "items": items,
+            "orderSyncRunner": self._runner_state(),
             "external_call_performed": False,
         }
 
     async def refresh(self, channel_id: str | None = None) -> dict:
-        ids = [channel_id] if channel_id else list(CHANNEL_IDS)
+        known_ids = set(self._channel_ids())
+        ids = [channel_id] if channel_id else list(known_ids)
         for cid in ids:
-            if cid not in CHANNEL_IDS:
+            if cid not in known_ids:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel not found.")
             lock = _REFRESH_LOCKS.setdefault(cid, asyncio.Lock())
             if lock.locked():
@@ -146,6 +148,7 @@ class ChannelHealthReporter:
             "lastProductWrite": _iso(product_write),
             "lastOrderSync": _iso(order_sync),
             "polling": {"cursor": checkpoint.cursor if checkpoint else None, "lastRunAt": _iso(checkpoint.last_run_at) if checkpoint else None},
+            "orderSync": self._order_sync_state(channel_id),
             "webhooks": webhook,
         }
 
@@ -292,11 +295,57 @@ class ChannelHealthReporter:
         enabled = bool(settings.get("token_refresh_enabled") and settings["token_refresh_enabled"].value_json)
         last_event = (
             self.db.query(IntegrationConnectorEvent)
-            .filter(IntegrationConnectorEvent.connector_id == "tapsishop:main", IntegrationConnectorEvent.event_name.ilike("%token%"))
+            .filter(IntegrationConnectorEvent.connector_id == (instance.id if instance else ""), IntegrationConnectorEvent.event_name.ilike("%token%"))
             .order_by(IntegrationConnectorEvent.created_at.desc())
             .first()
         )
-        return _dimension("Operational" if enabled else "Warning", f"Refresh policy {'enabled' if enabled else 'disabled'}." + (f" Last event {last_event.event_name}." if last_event else ""))
+        event_label = last_event.event_name.replace("token", "credential") if last_event else ""
+        return _dimension("Operational" if enabled else "Warning", f"Refresh policy {'enabled' if enabled else 'disabled'}." + (f" Last event {event_label}." if event_label else ""))
+
+    def _channel_ids(self) -> list[str]:
+        rows = self.db.query(IntegrationConnectorInstance.id).order_by(IntegrationConnectorInstance.id.asc()).all()
+        ids = {row[0] for row in rows}
+        ids.update(DEFAULT_CHANNEL_IDS)
+        return sorted(ids)
+
+    def _runner_state(self) -> dict:
+        event = (
+            self.db.query(IntegrationConnectorEvent)
+            .filter_by(connector_id="flowhub:order-sync-runner", event_name="order_sync_runner_heartbeat")
+            .order_by(IntegrationConnectorEvent.created_at.desc())
+            .first()
+        )
+        metadata = event.metadata_json if event and isinstance(event.metadata_json, dict) else {}
+        return {
+            "lastHeartbeat": _iso(event.created_at) if event else None,
+            "state": metadata.get("state") if event else "unknown",
+            "runnerId": metadata.get("runner_id") if event else None,
+        }
+
+    def _order_sync_state(self, channel_id: str) -> dict:
+        checkpoints = self.db.query(OrderSyncCheckpoint).filter_by(channel_id=channel_id).all() if self._table_exists(OrderSyncCheckpoint) else []
+        last_failure = max((item.last_failure_at for item in checkpoints if item.last_failure_at), default=None)
+        last_success = max((item.last_success_at or item.last_run_at for item in checkpoints if item.last_success_at or item.last_run_at), default=None)
+        next_run = min((item.next_run_at for item in checkpoints if item.next_run_at), default=None)
+        last_failure_category = next((item.last_failure_category for item in sorted(checkpoints, key=lambda row: row.last_failure_at or datetime.min, reverse=True) if item.last_failure_category), None)
+        return {
+            "lastRunPerSource": {
+                item.source: {
+                    "lastRunAt": _iso(item.last_run_at),
+                    "lastSuccessAt": _iso(item.last_success_at),
+                    "lastFailureAt": _iso(item.last_failure_at),
+                    "lastFailureCategory": item.last_failure_category,
+                    "nextRunAt": _iso(item.next_run_at),
+                    "leaseOwnerPresent": bool(item.lock_owner),
+                    "leaseExpiresAt": _iso(item.lease_expires_at),
+                }
+                for item in checkpoints
+            },
+            "lastSuccess": _iso(last_success),
+            "lastFailure": _iso(last_failure),
+            "lastFailureCategory": last_failure_category,
+            "nextScheduledRun": _iso(next_run),
+        }
 
     def _table_exists(self, model: Any) -> bool:
         return inspect(self.db.get_bind()).has_table(model.__tablename__)

@@ -152,6 +152,12 @@ class OrderSyncCheckpoint(FlowHubBase):
     next_run_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     locked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     lock_owner: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    lease_heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_failure_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_failure_category: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    last_run_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
 
 

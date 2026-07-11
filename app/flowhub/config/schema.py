@@ -77,6 +77,15 @@ class FlowHubConfig(BaseModel):
     scheduler_poll_seconds: int = Field(
         default=int(DEFAULTS["FLOWHUB_SCHEDULER_POLL_SECONDS"]), ge=1
     )
+    order_sync_enabled: bool = Field(default=True)
+    order_sync_runner_poll_seconds: int = Field(default=int(DEFAULTS["FLOWHUB_ORDER_SYNC_RUNNER_POLL_SECONDS"]), ge=1)
+    order_sync_poll_interval_seconds: int = Field(default=int(DEFAULTS["FLOWHUB_ORDER_SYNC_POLL_INTERVAL_SECONDS"]), ge=1)
+    order_sync_reconcile_interval_seconds: int = Field(default=int(DEFAULTS["FLOWHUB_ORDER_SYNC_RECONCILE_INTERVAL_SECONDS"]), ge=1)
+    order_sync_lease_seconds: int = Field(default=int(DEFAULTS["FLOWHUB_ORDER_SYNC_LEASE_SECONDS"]), ge=1)
+    order_sync_max_pages: int = Field(default=int(DEFAULTS["FLOWHUB_ORDER_SYNC_MAX_PAGES"]), ge=1)
+    order_sync_reconcile_page_size: int = Field(default=int(DEFAULTS["FLOWHUB_ORDER_SYNC_RECONCILE_PAGE_SIZE"]), ge=1)
+    order_sync_webhook_batch_size: int = Field(default=int(DEFAULTS["FLOWHUB_ORDER_SYNC_WEBHOOK_BATCH_SIZE"]), ge=1)
+    order_sync_operation_timeout_seconds: int = Field(default=int(DEFAULTS["FLOWHUB_ORDER_SYNC_OPERATION_TIMEOUT_SECONDS"]), ge=1)
     backup_retain_days: int = Field(
         default=int(DEFAULTS["FLOWHUB_BACKUP_RETAIN_DAYS"]), ge=1
     )
@@ -196,6 +205,12 @@ class FlowHubConfig(BaseModel):
             except ValueError:
                 return default
 
+        def _get_bool(name: str, default: bool) -> bool:
+            value = env.get(name)
+            if value is None or value == "":
+                return default
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+
         storage_path = _get("FLOWHUB_STORAGE_PATH")
         plugin_dir = _get("FLOWHUB_PLUGIN_DIR") or (
             f"{storage_path}/plugins" if storage_path else ""
@@ -241,6 +256,15 @@ class FlowHubConfig(BaseModel):
             scheduler_poll_seconds=_get_int(
                 "FLOWHUB_SCHEDULER_POLL_SECONDS", int(DEFAULTS["FLOWHUB_SCHEDULER_POLL_SECONDS"])
             ),
+            order_sync_enabled=_get_bool("FLOWHUB_ORDER_SYNC_ENABLED", True),
+            order_sync_runner_poll_seconds=_get_int("FLOWHUB_ORDER_SYNC_RUNNER_POLL_SECONDS", int(DEFAULTS["FLOWHUB_ORDER_SYNC_RUNNER_POLL_SECONDS"])),
+            order_sync_poll_interval_seconds=_get_int("FLOWHUB_ORDER_SYNC_POLL_INTERVAL_SECONDS", int(DEFAULTS["FLOWHUB_ORDER_SYNC_POLL_INTERVAL_SECONDS"])),
+            order_sync_reconcile_interval_seconds=_get_int("FLOWHUB_ORDER_SYNC_RECONCILE_INTERVAL_SECONDS", int(DEFAULTS["FLOWHUB_ORDER_SYNC_RECONCILE_INTERVAL_SECONDS"])),
+            order_sync_lease_seconds=_get_int("FLOWHUB_ORDER_SYNC_LEASE_SECONDS", int(DEFAULTS["FLOWHUB_ORDER_SYNC_LEASE_SECONDS"])),
+            order_sync_max_pages=_get_int("FLOWHUB_ORDER_SYNC_MAX_PAGES", int(DEFAULTS["FLOWHUB_ORDER_SYNC_MAX_PAGES"])),
+            order_sync_reconcile_page_size=_get_int("FLOWHUB_ORDER_SYNC_RECONCILE_PAGE_SIZE", int(DEFAULTS["FLOWHUB_ORDER_SYNC_RECONCILE_PAGE_SIZE"])),
+            order_sync_webhook_batch_size=_get_int("FLOWHUB_ORDER_SYNC_WEBHOOK_BATCH_SIZE", int(DEFAULTS["FLOWHUB_ORDER_SYNC_WEBHOOK_BATCH_SIZE"])),
+            order_sync_operation_timeout_seconds=_get_int("FLOWHUB_ORDER_SYNC_OPERATION_TIMEOUT_SECONDS", int(DEFAULTS["FLOWHUB_ORDER_SYNC_OPERATION_TIMEOUT_SECONDS"])),
             backup_retain_days=_get_int(
                 "FLOWHUB_BACKUP_RETAIN_DAYS", int(DEFAULTS["FLOWHUB_BACKUP_RETAIN_DAYS"])
             ),

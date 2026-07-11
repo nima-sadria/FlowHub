@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -243,21 +243,128 @@ async def test_out_of_order_events_do_not_overwrite_newer_order_state(db):
 async def test_overlapping_snappshop_scheduler_run_is_rejected(db):
     from fastapi import HTTPException
     from app.flowhub.orders.models import OrderSyncCheckpoint
-    from app.flowhub.orders.service import OrderSyncService
+    from app.flowhub.orders.service import CHANNEL_LEASE_SOURCE, OrderSyncService
 
     db.add(OrderSyncCheckpoint(
         channel_id="snapp:1",
         connector_type="snappshop",
-        source="snappshop_events",
+        source=CHANNEL_LEASE_SOURCE,
         cursor=None,
         locked_at=datetime.utcnow(),
         lock_owner="worker-1",
+        lease_expires_at=datetime.utcnow() + timedelta(minutes=5),
     ))
     db.commit()
 
     with pytest.raises(HTTPException) as exc:
         await OrderSyncService(db).sync_snappshop_events("snapp:1", FakeSnappConnector())
     assert exc.value.status_code == 409
+
+
+def test_atomic_channel_lease_allows_only_one_independent_session(db_engine):
+    from fastapi import HTTPException
+    from sqlalchemy.orm import sessionmaker
+    from app.flowhub.orders.service import CHANNEL_LEASE_SOURCE, OrderSyncService
+
+    Session = sessionmaker(bind=db_engine)
+    first = Session()
+    second = Session()
+    try:
+        lease = OrderSyncService(first).acquire_checkpoint_lease("snapp:lease", "snappshop", "snappshop_events", owner="owner-1")
+
+        with pytest.raises(HTTPException) as exc:
+            OrderSyncService(second).acquire_checkpoint_lease("snapp:lease", "snappshop", "reconciliation", owner="owner-2")
+
+        assert exc.value.status_code == 409
+        row = first.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:lease", source=CHANNEL_LEASE_SOURCE).one()
+        assert row.lock_owner == "owner-1"
+        assert row.lease_expires_at is not None
+        assert first.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:lease", source="snappshop_events").first() is None
+        assert OrderSyncService(first).release_checkpoint_lease(lease) is True
+    finally:
+        first.close()
+        second.close()
+
+
+def test_expired_lease_can_be_reacquired_and_old_owner_cannot_release(db_engine):
+    from sqlalchemy.orm import sessionmaker
+    from app.flowhub.orders.service import CHANNEL_LEASE_SOURCE, OrderSyncLease, OrderSyncService
+
+    Session = sessionmaker(bind=db_engine)
+    with Session() as db:
+        old = OrderSyncService(db).acquire_checkpoint_lease("snapp:expired", "snappshop", "snappshop_events", owner="old-owner", lease_seconds=1)
+        row = db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:expired", source=CHANNEL_LEASE_SOURCE).one()
+        row.lease_expires_at = datetime.utcnow() - timedelta(seconds=1)
+        db.commit()
+
+    with Session() as db:
+        new = OrderSyncService(db).acquire_checkpoint_lease("snapp:expired", "snappshop", "reconciliation", owner="new-owner")
+        assert new.owner == "new-owner"
+        stale = OrderSyncLease(new.checkpoint_id, "snapp:expired", "snappshop_events", "old-owner", old.acquired_at, old.expires_at)
+        assert OrderSyncService(db).release_checkpoint_lease(stale) is False
+        row = db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:expired", source=CHANNEL_LEASE_SOURCE).one()
+        assert row.lock_owner == "new-owner"
+        assert OrderSyncService(db).release_checkpoint_lease(new) is True
+
+
+def test_separate_channels_can_hold_leases_concurrently(db_engine):
+    from sqlalchemy.orm import sessionmaker
+    from app.flowhub.orders.service import OrderSyncService
+
+    Session = sessionmaker(bind=db_engine)
+    one = Session()
+    two = Session()
+    try:
+        lease_one = OrderSyncService(one).acquire_checkpoint_lease("snapp:a", "snappshop", "snappshop_events", owner="a")
+        lease_two = OrderSyncService(two).acquire_checkpoint_lease("snapp:b", "snappshop", "snappshop_events", owner="b")
+        assert lease_one.channel_id == "snapp:a"
+        assert lease_two.channel_id == "snapp:b"
+    finally:
+        one.close()
+        two.close()
+
+
+def test_rollback_after_failed_lease_does_not_leave_false_active_lease(db_engine):
+    from fastapi import HTTPException
+    from sqlalchemy.orm import sessionmaker
+    from app.flowhub.orders.service import CHANNEL_LEASE_SOURCE, OrderSyncService
+
+    Session = sessionmaker(bind=db_engine)
+    holder = Session()
+    loser = Session()
+    try:
+        lease = OrderSyncService(holder).acquire_checkpoint_lease("snapp:rollback", "snappshop", "snappshop_events", owner="holder")
+        with pytest.raises(HTTPException):
+            OrderSyncService(loser).acquire_checkpoint_lease("snapp:rollback", "snappshop", "snappshop_events", owner="loser")
+        loser.rollback()
+        rows = loser.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:rollback", source=CHANNEL_LEASE_SOURCE).all()
+        assert len(rows) == 1
+        assert rows[0].lock_owner == "holder"
+        assert OrderSyncService(holder).release_checkpoint_lease(lease) is True
+    finally:
+        holder.close()
+        loser.close()
+
+
+@pytest.mark.asyncio
+async def test_lease_loser_does_not_process_or_advance_cursor(db_engine):
+    from fastapi import HTTPException
+    from sqlalchemy.orm import sessionmaker
+    from app.flowhub.orders.service import OrderSyncService
+
+    Session = sessionmaker(bind=db_engine)
+    holder = Session()
+    loser = Session()
+    try:
+        lease = OrderSyncService(holder).acquire_checkpoint_lease("snapp:cursor", "snappshop", "snappshop_events", owner="holder")
+        with pytest.raises(HTTPException):
+            await OrderSyncService(loser).sync_snappshop_events("snapp:cursor", FakeSnappConnector())
+        assert loser.query(_order_models.ChannelOrderRecord).filter_by(channel_id="snapp:cursor").count() == 0
+        assert loser.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:cursor", source="snappshop_events").first() is None
+        assert OrderSyncService(holder).release_checkpoint_lease(lease) is True
+    finally:
+        holder.close()
+        loser.close()
 
 
 @pytest.mark.asyncio

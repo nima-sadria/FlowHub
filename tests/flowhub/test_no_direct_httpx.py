@@ -5,9 +5,10 @@ Two independent checks that enforce connector isolation for the flowhub runtime.
 ------------------------------------------------------------------------------
 TEST 1 - test_no_direct_httpx_in_FLOWHUB_runtime()
   Scans the entire app/flowhub/ tree for any `import httpx` / `from httpx` statement.
-  The only permitted file is app/flowhub/connections/adapters.py (generic transport
-  adapter for the installer / diagnostics B6 layer - not a WC/NC API client).
-  All other FLOWHUB files that need HTTP go through app/connectors/.
+  The permitted files are app/flowhub/connections/adapters.py (generic transport
+  adapter for the installer / diagnostics B6 layer - not a WC/NC API client)
+  and the capability-gated marketplace connectors under app/flowhub/channels/.
+  All other FLOWHUB files that need WC/NC HTTP go through app/connectors/.
 
 TEST 2 - test_legacy_services_not_imported_by_FLOWHUB()
   Confirms that the Legacy Compatibility service layer (app/services/woocommerce.py,
@@ -31,6 +32,10 @@ _FLOWHUB_DIR = _REPO_ROOT / "app" / "flowhub"
 
 # Permitted FLOWHUB file that uses httpx for non-WC/NC transport (installer / B6 diagnostics)
 _ADAPTERS_FILE = _FLOWHUB_DIR / "connections" / "adapters.py"
+_MARKETPLACE_CONNECTOR_FILES = {
+    (_FLOWHUB_DIR / "channels" / "snappshop.py").resolve(),
+    (_FLOWHUB_DIR / "channels" / "tapsishop.py").resolve(),
+}
 
 # Legacy Compatibility service modules that make direct WC/NC HTTP calls.
 # These must remain isolated from app/flowhub/ - verified by TEST 2.
@@ -91,11 +96,11 @@ def _imported_modules(path: pathlib.Path) -> set[str]:
 # -- TEST 1 --------------------------------------------------------------------
 
 def test_no_direct_httpx_in_FLOWHUB_runtime():
-    """All of app/flowhub/ must be httpx-free, except the generic transport adapter.
+    """app/flowhub/ direct httpx use is limited to approved transport boundaries.
 
     flowhub runtime uses app/connectors/ for all WC and Nextcloud HTTP.
-    The one permitted exception is app/flowhub/connections/adapters.py which
-    implements a generic installer/B6 network adapter unrelated to WC/NC APIs.
+    Approved exceptions are the generic installer/B6 transport adapter and the
+    capability-gated marketplace channel connectors.
     """
     violations: list[str] = []
 
@@ -103,15 +108,16 @@ def test_no_direct_httpx_in_FLOWHUB_runtime():
         # Permitted exception - generic transport adapter, not a WC/NC API client
         if py_file.resolve() == _ADAPTERS_FILE.resolve():
             continue
+        if py_file.resolve() in _MARKETPLACE_CONNECTOR_FILES:
+            continue
         if _has_httpx_import(py_file):
             rel = py_file.relative_to(_REPO_ROOT)
             violations.append(str(rel))
 
     assert violations == [], (
         "The following app/flowhub/ files import httpx directly.\n"
-        "All WC/NC HTTP calls must go through app/connectors/.\n"
-        "The only permitted FLOWHUB httpx user is app/flowhub/connections/adapters.py "
-        "(generic installer transport - not a WC/NC client).\n"
+        "All WC/NC HTTP calls must go through app/connectors/; marketplace HTTP "
+        "is limited to approved app/flowhub/channels connector files.\n"
         "Violations:\n"
         + "\n".join(f"  {v}" for v in sorted(violations))
     )

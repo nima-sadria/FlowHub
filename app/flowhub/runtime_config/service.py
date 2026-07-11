@@ -251,6 +251,12 @@ def _validate_positive_int(value: str) -> Optional[str]:
     return None
 
 
+def _validate_bool(value: str) -> Optional[str]:
+    if value.strip().lower() not in {"1", "0", "true", "false", "yes", "no", "on", "off"}:
+        return f"Value must be boolean-like (got {value!r})"
+    return None
+
+
 _FIELD_VALIDATORS: dict[str, list[Callable[[str], Optional[str]]]] = {
     "FLOWHUB_LOG_LEVEL": [_validate_log_level],
     "FLOWHUB_NEXTCLOUD_URL": [_validate_url],
@@ -258,6 +264,15 @@ _FIELD_VALIDATORS: dict[str, list[Callable[[str], Optional[str]]]] = {
     "FLOWHUB_TIMEZONE": [_validate_timezone],
     "FLOWHUB_CURRENCY": [_validate_currency],
     "FLOWHUB_SCHEDULER_POLL_SECONDS": [_validate_positive_int],
+    "FLOWHUB_ORDER_SYNC_ENABLED": [_validate_bool],
+    "FLOWHUB_ORDER_SYNC_RUNNER_POLL_SECONDS": [_validate_positive_int],
+    "FLOWHUB_ORDER_SYNC_POLL_INTERVAL_SECONDS": [_validate_positive_int],
+    "FLOWHUB_ORDER_SYNC_RECONCILE_INTERVAL_SECONDS": [_validate_positive_int],
+    "FLOWHUB_ORDER_SYNC_LEASE_SECONDS": [_validate_positive_int],
+    "FLOWHUB_ORDER_SYNC_MAX_PAGES": [_validate_positive_int],
+    "FLOWHUB_ORDER_SYNC_RECONCILE_PAGE_SIZE": [_validate_positive_int],
+    "FLOWHUB_ORDER_SYNC_WEBHOOK_BATCH_SIZE": [_validate_positive_int],
+    "FLOWHUB_ORDER_SYNC_OPERATION_TIMEOUT_SECONDS": [_validate_positive_int],
     "FLOWHUB_BACKUP_RETAIN_DAYS": [_validate_positive_int],
     "FLOWHUB_MAX_UPLOAD_MB": [_validate_positive_int],
     "FLOWHUB_WORKER_CONCURRENCY": [_validate_positive_int],

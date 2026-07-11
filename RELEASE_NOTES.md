@@ -16,6 +16,10 @@
 - Durable TapsiShop webhook ingestion with channel-specific webhook token
   authentication, requestId idempotency, minimized payload storage, retry and
   dead-letter processing state, and TapsiShop-compatible success responses.
+- Production order synchronization runner for enabled marketplace channels:
+  SnappShop order event polling, order reconciliation, and pending TapsiShop
+  webhook receipt processing run in a separate worker process with
+  channel-scoped leases and sanitized health visibility.
 - Database-backed login throttling with explicit trusted-proxy configuration.
 - PostgreSQL-inclusive backups, manifest validation, explicit restore, and
   rollback documentation.
@@ -23,17 +27,17 @@
 ## Safety model
 
 Only the Write Pipeline may update WooCommerce, and only after Dry Run and
-Approval. Sources remain read-only. Stock writes, schedulers, automatic Apply,
-and automatic synchronization are not included.
+Approval. Multi-channel marketplace price writes are protected by the Products
+Dry Run, Approval, and explicit Apply workflow. Sources remain read-only. Stock
+writes and automatic Apply are not included.
 
 ## Upgrade and rollback
 
-The migration head is `FLOWHUB_013`. Create `flowhub backup` before upgrading;
+The migration head is `FLOWHUB_015`. Create `flowhub backup` before upgrading;
 use [docs/release/ROLLBACK.md](docs/release/ROLLBACK.md) for a failed upgrade.
 
 ## Deferred after 1.0.0
 
 - CSV and Google Sheets Sources
 - WooCommerce stock updates
-- Additional marketplace write Channels
-- Scheduled/background synchronization
+- Additional marketplace Channels beyond WooCommerce, SnappShop, and TapsiShop
