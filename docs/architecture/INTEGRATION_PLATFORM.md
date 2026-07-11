@@ -60,6 +60,9 @@ Supported transport families:
 - Product UI terminology separates Sources from Channels.
 - Sources feed FlowHub / Data Layer; Channels represent commerce systems.
 - Channels are implemented internally under `app/connectors/destinations/`.
+- Marketplace channel contracts and normalized channel DTOs are documented in
+  `docs/architecture/MARKETPLACE_CHANNELS.md` and implemented under
+  `app/flowhub/channels`.
 - Data Layer owns durable read models, snapshots, refresh records, and cache
   records populated by approved connector flows.
 - Connector capabilities are metadata only.
