@@ -1085,6 +1085,25 @@ select,
     height: 20px;
   }
 
+  .fh-svg-icon {
+    display: inline-block;
+    flex-shrink: 0;
+    color: currentColor;
+    background-color: currentColor;
+    mask-image: var(--fh-icon-url);
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: contain;
+    -webkit-mask-image: var(--fh-icon-url);
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+  }
+
+  [dir="rtl"] .fh-svg-icon[data-rtl-mirror="true"] {
+    transform: scaleX(-1);
+  }
+
   .fh-button-primary:disabled,
   .fh-button-secondary:disabled,
   .fh-button-ghost:disabled,

@@ -502,6 +502,18 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
   })
+
+  it('renders centralized icons for active navigation links', () => {
+    const c = renderSidebar(adminUser)
+    expect(c.querySelector('a[href="/home"] [data-icon="dashboard"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/products"] [data-icon="products"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/orders"] [data-icon="orders"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/commerce"] [data-icon="commerce"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/workspace"] [data-icon="workspace"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/activity"] [data-icon="activity"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/diagnostics"] [data-icon="diagnostics"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/settings"] [data-icon="settings"]')).not.toBeNull()
+  })
 })
 
 describe('Sidebar - super admin (is_super_admin=true, is_admin=false)', () => {

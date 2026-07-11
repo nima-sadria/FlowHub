@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Badge from '../components/Badge'
 import Empty from '../components/Empty'
+import Icon from '../components/Icon'
 import { SkeletonCard } from '../components/loading/Skeleton'
 import PageShell from '../components/PageShell'
 import { useServices } from '../services/ServiceContext'
@@ -121,6 +122,7 @@ export default function Activity() {
               disabled={loadingMore}
               className="fh-button-secondary w-full"
             >
+              <Icon name="download" />
               {loadingMore ? 'Loading...' : `Load more (${total - events.length} remaining)`}
             </button>
           </div>

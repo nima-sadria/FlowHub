@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import type { AuthUser } from '../auth'
 import { useAuth } from '../auth'
+import Icon from './Icon'
 import IconButton from './IconButton'
 import { effectiveHasPerm } from '../utils/permissions'
 
@@ -65,10 +66,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             className="md:hidden border-transparent shadow-none bg-bg-base"
             label="Close navigation"
           >
-            <svg viewBox="0 0 24 24" className="fh-icon-lg" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
+            <Icon name="close" size="lg" />
           </IconButton>
 
           <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 bg-bg-base border border-border">
@@ -91,16 +89,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             size="sm"
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className={['w-4 h-4 transition-transform duration-200', collapsed ? 'rotate-180' : ''].join(' ')}
-              aria-hidden="true"
-            >
-              <path d="m15 18-6-6 6-6" />
-            </svg>
+            <Icon name={collapsed ? 'next' : 'previous'} mirrorRtl />
           </IconButton>
         </div>
 
@@ -112,88 +101,56 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
           <div className="flex flex-col gap-2">
             {hasPerm('can_access_site') && (
               <NavLink to="/home" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <rect x="3.75" y="3.75" width="6.5" height="6.5" rx="1.25" />
-                  <rect x="13.75" y="3.75" width="6.5" height="6.5" rx="1.25" />
-                  <rect x="3.75" y="13.75" width="6.5" height="6.5" rx="1.25" />
-                  <rect x="13.75" y="13.75" width="6.5" height="6.5" rx="1.25" />
-                </svg>
+                <Icon name="dashboard" className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Dashboard</span>
               </NavLink>
             )}
 
             {hasPerm('can_fetch') && (
               <NavLink to="/products" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <rect x="3" y="4" width="18" height="12.5" rx="2.5" />
-                  <path d="M8 20h8" />
-                  <path d="M12 16.5V20" />
-                </svg>
+                <Icon name="products" className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Products</span>
               </NavLink>
             )}
 
             {hasPerm('can_fetch') && (
               <NavLink to="/orders" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M7 4h10a2 2 0 0 1 2 2v14l-3-2-2 2-2-2-2 2-2-2-3 2V6a2 2 0 0 1 2-2Z" />
-                  <path d="M9 9h6" />
-                  <path d="M9 13h6" />
-                </svg>
+                <Icon name="orders" className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Orders</span>
               </NavLink>
             )}
 
             {hasPerm('can_access_site') && (
               <NavLink to="/commerce" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M4 8h16" />
-                  <path d="M6 8.5 7 19h10l1-10.5" />
-                  <path d="M9 8a3 3 0 0 1 6 0" />
-                </svg>
+                <Icon name="commerce" className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Commerce Hub</span>
               </NavLink>
             )}
 
             {hasPerm('can_fetch') && (
               <NavLink to="/workspace" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M21 4v5h-5" />
-                  <path d="M3 20v-5h5" />
-                  <path d="M4.75 9.25a8.5 8.5 0 0 1 13.98-3.17L21 8.5" />
-                  <path d="M3 15.5l2.27 2.42A8.5 8.5 0 0 0 19.25 15" />
-                </svg>
+                <Icon name="workspace" className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Workspace</span>
               </NavLink>
             )}
 
             {hasPerm('can_view_logs') && (
               <NavLink to="/activity" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
-                  <path d="M14 3v6h6" />
-                  <path d="M8 13h8" />
-                  <path d="M8 17h6" />
-                </svg>
+                <Icon name="activity" className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Activity</span>
               </NavLink>
             )}
 
             {hasPerm('can_view_settings') && (
               <NavLink to="/diagnostics" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 12h4l2.5 7L14 5l2.5 7H21" />
-                </svg>
+                <Icon name="diagnostics" className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Diagnostics</span>
               </NavLink>
             )}
 
             {hasPerm('can_view_settings') && (
               <NavLink to="/settings" className={linkCls} onClick={onClose}>
-                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
+                <Icon name="settings" className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Settings</span>
               </NavLink>
             )}
@@ -225,11 +182,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
                 collapsed ? 'md:ms-0' : 'ms-auto',
               ].join(' ')}
             >
-              <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
+              <Icon name="next" className="h-[18px] w-[18px]" mirrorRtl />
             </button>
           </div>
         </div>

@@ -6,6 +6,7 @@ import type { HealthResponse } from '../api/types'
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
+import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
 import type { ChannelHealthItem, ChannelHealthResponse, ChannelHealthLevel } from '../services/types'
 
@@ -228,11 +229,7 @@ export default function Diagnostics() {
           className="fh-button-secondary"
         >
           {loading ? <Spinner size="sm" /> : (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
+            <Icon name="refresh" />
           )}
           {loading ? 'Loading' : 'Re-check'}
         </button>
@@ -291,7 +288,8 @@ export default function Diagnostics() {
                     disabled={refreshingChannel !== null}
                     className="fh-button-secondary self-start"
                   >
-                    {refreshingChannel === channel.channelId ? <Spinner size="sm" /> : 'Refresh'}
+                    {refreshingChannel === channel.channelId ? <Spinner size="sm" /> : <Icon name="refresh" />}
+                    Refresh
                   </button>
                 </div>
                 <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">

@@ -5,6 +5,7 @@ import type { AppSettings } from '../services/types'
 import { apiFetch } from '../api/client'
 import type { HealthResponse } from '../api/types'
 import { useNotification } from '../notifications/NotificationProvider'
+import Icon from '../components/Icon'
 import Spinner from '../components/loading/Spinner'
 import PageShell from '../components/PageShell'
 import { RateLimitsPanel } from './RateLimits'
@@ -176,6 +177,7 @@ export default function Settings() {
               onClick={() => { setDraft(appSettings); setDirty(false) }}
               className="fh-button-secondary"
             >
+              <Icon name="close" />
               Discard
             </button>
             <button
@@ -184,6 +186,7 @@ export default function Settings() {
               className="fh-button-primary"
             >
               {saving && <Spinner size="sm" className="text-white" />}
+              {!saving && <Icon name="save" />}
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
@@ -226,7 +229,10 @@ export default function Settings() {
         ) : healthErr ? (
           <div className="flex items-center justify-between">
             <p className="fh-text-body-sm text-wp-red">Backend unavailable</p>
-            <button onClick={() => void fetchHealth()} className="fh-toolbar-link">Retry</button>
+            <button onClick={() => void fetchHealth()} className="fh-toolbar-link">
+              <Icon name="retry" />
+              Retry
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

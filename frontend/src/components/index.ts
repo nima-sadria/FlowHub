@@ -1,6 +1,7 @@
 export { default as ErrorBoundary } from './ErrorBoundary'
 export { default as Empty } from './Empty'
 export { default as Badge } from './Badge'
+export { default as Icon } from './Icon'
 export { default as IconButton } from './IconButton'
 export { default as Spinner } from './loading/Spinner'
 export { default as PageLoading } from './loading/PageLoading'

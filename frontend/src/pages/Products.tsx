@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'
 import Empty from '../components/Empty'
+import Icon from '../components/Icon'
 import IconButton from '../components/IconButton'
 import LocalizedText from '../components/LocalizedText'
 import PageShell from '../components/PageShell'
@@ -47,11 +48,7 @@ function ProductRow({ product, onEditPrices }: { product: Product; onEditPrices:
             />
           ) : (
             <div className="w-9 h-9 rounded border border-border bg-bg-base flex-shrink-0 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="fh-icon-sm text-border" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
+              <Icon name="products" className="text-border" />
             </div>
           )}
           <div className="min-w-0">
@@ -84,6 +81,7 @@ function ProductRow({ product, onEditPrices }: { product: Product; onEditPrices:
           className="fh-button fh-button-secondary fh-button-sm whitespace-nowrap"
           onClick={() => onEditPrices(product)}
         >
+          <Icon name="edit" />
           Edit prices
         </button>
       </td>
@@ -144,7 +142,7 @@ function ProductPriceEditor({
           </p>
         </div>
         <IconButton label="Close channel price editor" onClick={onClose} size="sm">
-          <svg viewBox="0 0 24 24" className="fh-icon-sm" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          <Icon name="close" />
         </IconButton>
       </div>
 
@@ -191,15 +189,19 @@ function ProductPriceEditor({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className="fh-button fh-button-secondary" onClick={onValidate} disabled={loading || selectedCount === 0}>
+                <Icon name="testConnection" />
                 Validate
               </button>
               <button type="button" className="fh-button fh-button-primary" onClick={onDryRun} disabled={!canDryRun}>
+                <Icon name="dryRun" />
                 Preview / Dry Run
               </button>
               <button type="button" className="fh-button fh-button-secondary" onClick={onApprove} disabled={!canApprove}>
+                <Icon name="apply" />
                 Approve
               </button>
               <button type="button" className="fh-button fh-button-danger" onClick={onApply} disabled={!canApply}>
+                <Icon name="apply" />
                 Apply
               </button>
             </div>
@@ -519,9 +521,7 @@ export default function Products() {
 
       <div className="fh-card fh-card-pad flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[180px]">
-          <svg viewBox="0 0 24 24" className="absolute left-2.5 top-1/2 -translate-y-1/2 fh-icon-sm text-wp-muted pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-          </svg>
+          <Icon name="search" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-wp-muted pointer-events-none" />
           <input
             type="text"
             value={search}
@@ -603,11 +603,11 @@ export default function Products() {
           {totalPages > 1 && (
             <div className="flex items-center gap-1">
               <IconButton label="Previous page" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} size="sm">
-                <svg viewBox="0 0 24 24" className="fh-icon-sm" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+                <Icon name="previous" mirrorRtl />
               </IconButton>
               <span className="fh-text-caption px-1">{page} / {totalPages}</span>
               <IconButton label="Next page" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} size="sm">
-                <svg viewBox="0 0 24 24" className="fh-icon-sm" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                <Icon name="next" mirrorRtl />
               </IconButton>
             </div>
           )}
@@ -646,11 +646,11 @@ export default function Products() {
                 <span aria-hidden="true" className="fh-text-caption">«</span>
               </IconButton>
               <IconButton label="Previous page" onClick={() => setPage(p => p - 1)} disabled={page === 1} size="sm">
-                <svg viewBox="0 0 24 24" className="fh-icon-sm" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+                <Icon name="previous" mirrorRtl />
               </IconButton>
               <span className="fh-text-caption px-1.5">{page} / {totalPages}</span>
               <IconButton label="Next page" onClick={() => setPage(p => p + 1)} disabled={page === totalPages} size="sm">
-                <svg viewBox="0 0 24 24" className="fh-icon-sm" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                <Icon name="next" mirrorRtl />
               </IconButton>
               <IconButton label="Last page" onClick={() => setPage(totalPages)} disabled={page === totalPages} size="sm">
                 <span aria-hidden="true" className="fh-text-caption">»</span>

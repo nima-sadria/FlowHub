@@ -8,6 +8,7 @@ import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, Commerce
 import type { NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
 import Spinner from '../components/loading/Spinner'
 import { useNotification } from '../notifications/NotificationProvider'
+import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
 
 type Tab = 'sources' | 'channels'
@@ -118,6 +119,7 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
               onClick={() => onConfigure(source.id)}
               className="fh-button-secondary"
             >
+              <Icon name="settings" />
               Settings
             </button>
             <button
@@ -126,6 +128,7 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
               className="fh-button-secondary"
             >
               {testing && <Spinner size="sm" />}
+              {!testing && <Icon name="testConnection" />}
               {testing ? 'Testing' : 'Test connection'}
             </button>
             <button
@@ -134,6 +137,7 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
               className="fh-button-secondary"
             >
               {reading && <Spinner size="sm" />}
+              {!reading && <Icon name="sync" />}
               {reading ? 'Reading' : 'Read now'}
             </button>
           </div>
@@ -195,6 +199,7 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
                 disabled={testing || refreshing}
                 className="fh-button-secondary"
               >
+                <Icon name="settings" />
                 Settings
               </button>
             )}
@@ -204,6 +209,7 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
               className="fh-button-secondary"
             >
               {testing && <Spinner size="sm" />}
+              {!testing && <Icon name="testConnection" />}
               {testing ? 'Testing' : 'Test connection'}
             </button>
             {isWooCommerce && (
@@ -213,6 +219,7 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
                 className="fh-button-secondary"
               >
                 {refreshing && <Spinner size="sm" />}
+                {!refreshing && <Icon name="refresh" />}
                 {refreshing ? 'Refreshing' : 'Refresh product cache'}
               </button>
             )}
@@ -327,6 +334,7 @@ function NextcloudFilePicker({
             <p className="fh-section-subtitle mt-1">{currentPath}</p>
           </div>
           <button type="button" onClick={onClose} className="fh-button-secondary">
+            <Icon name="close" />
             Close
           </button>
         </div>
@@ -338,6 +346,7 @@ function NextcloudFilePicker({
             <div className="flex flex-col gap-2">
               {parentPath !== null && (
                 <button type="button" onClick={() => onOpenDirectory(parentPath || '/')} className="fh-button-secondary justify-start">
+                  <Icon name="previous" mirrorRtl />
                   Up one folder
                 </button>
               )}
@@ -348,6 +357,7 @@ function NextcloudFilePicker({
                   onClick={() => onOpenDirectory(directory.path)}
                   className="fh-button-secondary justify-start"
                 >
+                  <Icon name="folder" />
                   {directory.name}
                 </button>
               ))}
@@ -359,7 +369,10 @@ function NextcloudFilePicker({
                   onClick={() => onSelectFile(file)}
                   className="flex items-center justify-between gap-3 rounded-lg border border-border bg-bg-base px-3 py-3 text-left fh-text-body disabled:opacity-60"
                 >
-                  <span className="font-medium text-text-base">{file.name}</span>
+                  <span className="inline-flex min-w-0 items-center gap-2 font-medium text-text-base">
+                    <Icon name="file" />
+                    <span className="truncate">{file.name}</span>
+                  </span>
                   <span className="fh-text-caption">{file.supported ? 'Spreadsheet' : 'Unsupported'}</span>
                 </button>
               ))}
@@ -535,6 +548,7 @@ function ConfigPanel({
           </p>
         </div>
         <button type="button" onClick={onCancel} className="fh-button-secondary">
+          <Icon name="close" />
           Close
         </button>
       </div>
@@ -757,10 +771,12 @@ function ConfigPanel({
       <div className="fh-panel-footer">
         <button type="button" onClick={() => void testConnection()} disabled={testing} className="fh-button-secondary px-4">
           {testing && <Spinner size="sm" />}
+          {!testing && <Icon name="testConnection" />}
           {testing ? 'Testing' : 'Test connection'}
         </button>
         <button type="submit" disabled={saving} className="fh-button-primary px-4">
           {saving && <Spinner size="sm" />}
+          {!saving && <Icon name="save" />}
           {saving ? 'Saving' : 'Save configuration'}
         </button>
       </div>
@@ -971,6 +987,7 @@ export default function CommerceHub() {
             </div>
             {canManageCommerce ? (
               <button onClick={() => setFormKind('source')} className="fh-button-primary px-4">
+                <Icon name="add" />
                 Add Source
               </button>
             ) : (
@@ -1006,6 +1023,7 @@ export default function CommerceHub() {
             </div>
             {canManageCommerce ? (
               <button onClick={() => setFormKind('channel')} className="fh-button-primary px-4">
+                <Icon name="add" />
                 Add Channel
               </button>
             ) : (

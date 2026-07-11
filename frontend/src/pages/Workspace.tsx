@@ -5,6 +5,7 @@ import type { WorkspacePreview, PriceChange, WorkspacePreviewRow, WritePipelineB
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
+import Icon from '../components/Icon'
 import LocalizedText from '../components/LocalizedText'
 import PageShell from '../components/PageShell'
 import { apiErrorMessage } from '../api/client'
@@ -393,6 +394,7 @@ export default function Workspace() {
             onClick={() => void startPreview()}
             className="fh-button-primary w-full"
           >
+            <Icon name="preview" />
             Start Preview
           </button>
         </div>
@@ -439,10 +441,7 @@ export default function Workspace() {
           </div>
 
           <div className="fh-alert fh-alert-warning">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-wp-yellow flex-shrink-0 mt-0.5">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
+            <Icon name="alert" className="mt-0.5 h-5 w-5 text-wp-yellow" />
             <div>
               <p className="fh-text-body font-medium text-wp-yellow">
                 {preview.summary.valid_changes + preview.summary.warning_rows} eligible row{preview.summary.valid_changes + preview.summary.warning_rows !== 1 ? 's' : ''}; {preview.summary.error_rows} blocking error{preview.summary.error_rows !== 1 ? 's' : ''}
@@ -522,11 +521,13 @@ export default function Workspace() {
               )}
               {phase === 'dry_run_ready' && (
                 <button onClick={() => void approveDryRun()} className="fh-button-primary self-start">
+                  <Icon name="apply" />
                   Approve
                 </button>
               )}
               {phase === 'approved' && (
                 <button onClick={() => void applyToWooCommerce()} className="fh-button-primary self-start">
+                  <Icon name="apply" />
                   Apply to WooCommerce
                 </button>
               )}
@@ -596,9 +597,11 @@ export default function Workspace() {
                   <LocalizedText text={preview.sourceName} />
                 </span>
                 <button type="button" onClick={() => setSelectedRowIds(new Set(eligibleRows.map(row => row.id)))} className="fh-button-secondary px-2 py-1">
+                  <Icon name="apply" />
                   Select all eligible
                 </button>
                 <button type="button" onClick={() => setSelectedRowIds(new Set())} className="fh-button-secondary px-2 py-1">
+                  <Icon name="close" />
                   Deselect all
                 </button>
               </div>
@@ -633,9 +636,7 @@ export default function Workspace() {
 
             <div className="fh-panel-footer !justify-between">
               <div className="flex items-center gap-2 fh-text-caption">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
+                <Icon name="alert" />
                 Apply requires Dry Run and Approval first
               </div>
               <div className="flex items-center gap-2">
@@ -645,6 +646,7 @@ export default function Workspace() {
                     disabled={selectedRowIds.size === 0}
                     className="fh-button-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   >
+                    <Icon name="dryRun" />
                     Dry Run
                   </button>
                 )}
@@ -652,6 +654,7 @@ export default function Workspace() {
                   onClick={() => void cancelPreview()}
                   className="fh-button-secondary hover:text-wp-red hover:border-wp-red"
                 >
+                  <Icon name="preview" />
                   New Preview
                 </button>
               </div>
@@ -664,15 +667,14 @@ export default function Workspace() {
       {phase === 'error' && (
         <div className="fh-card fh-card-pad flex flex-col gap-4">
           <div className="fh-alert fh-alert-danger">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-wp-red flex-shrink-0 mt-0.5">
-              <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
-            </svg>
+            <Icon name="disconnect" className="mt-0.5 h-5 w-5 text-wp-red" />
             <p className="fh-text-body text-wp-red">{errorMsg ?? 'An error occurred.'}</p>
           </div>
           <button
             onClick={() => setPhase('idle')}
             className="fh-button-secondary self-start"
           >
+            <Icon name="retry" />
             Try again
           </button>
           {cacheEmptyError && (
@@ -681,6 +683,7 @@ export default function Workspace() {
               onClick={() => { window.location.href = '/commerce?tab=channels' }}
               className="fh-button-secondary self-start"
             >
+              <Icon name="next" mirrorRtl />
               {'Go to Commerce Hub \u2192 Channels and refresh the WooCommerce product cache.'}
             </button>
           )}

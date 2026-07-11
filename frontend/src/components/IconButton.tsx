@@ -23,6 +23,7 @@ export default function IconButton({
     <button
       type={type}
       aria-label={label}
+      title={props.title ?? label}
       className={[
         'fh-icon-button',
         size === 'sm' ? 'fh-icon-button-sm' : '',

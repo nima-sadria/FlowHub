@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useServices } from '../services/ServiceContext'
 import type { RateLimitSettings } from '../services/types'
 import { useNotification } from '../notifications/NotificationProvider'
+import Icon from '../components/Icon'
 import Spinner from '../components/loading/Spinner'
 import PageShell from '../components/PageShell'
 
@@ -111,6 +112,7 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
         }}
         className="fh-button-secondary"
       >
+        <Icon name="close" />
         Discard
       </button>
       <button
@@ -119,6 +121,7 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
         className="fh-button-primary"
       >
         {saving && <Spinner size="sm" className="text-white" />}
+        {!saving && <Icon name="save" />}
         {saving ? 'Saving...' : 'Save Changes'}
       </button>
     </div>
