@@ -2,10 +2,11 @@
 
 ## Current release head
 
-FlowHub 1.0.0 migration head is **`FLOWHUB_011`**.
+FlowHub 1.0.0 migration head is **`FLOWHUB_012`**.
 
-`FLOWHUB_011` follows `FLOWHUB_010` and creates the database-backed login
-rate-limit state. The release compatibility suite covers both a fresh database
+`FLOWHUB_012` follows `FLOWHUB_011` and creates the protected multi-channel
+product price operation tables used by the Products Dry Run, Approval, Apply,
+and audit workflow. The release compatibility suite covers both a fresh database
 upgrade and the supported legacy installation upgrade path through the current
 head.
 

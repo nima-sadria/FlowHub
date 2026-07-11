@@ -19,6 +19,44 @@ The internal marketplace contract lives in `app/flowhub/channels`.
 
 Existing WooCommerce write behavior remains in the protected Write Pipeline. The marketplace abstraction does not add a generic write endpoint and does not relax channel access modes.
 
+## Multi-Channel Product Pricing
+
+The Products workflow exposes a protected single-product channel price editor
+through FlowHub backend APIs only. The frontend never calls WooCommerce,
+SnappShop, or TapsiShop APIs directly.
+
+The editor loads canonical/business price data separately from channel values.
+Each channel row reports connection state, read/write capability, current
+synchronized value, proposed value, unit, normalized value, freshness, stale
+token, validation state, and pending change state. Channel columns are driven by
+declared capabilities and connector instance access mode; disabled,
+disconnected, or read-only channels cannot be edited and do not block writable
+channels.
+
+Protected endpoints:
+
+- `GET /api/v2/products/{product_id}/channel-prices`
+- `POST /api/v2/products/{product_id}/channel-prices/validate`
+- `POST /api/v2/products/{product_id}/channel-prices/dry-run`
+- `GET /api/v2/products/channel-price-operations/{operation_id}`
+- `POST /api/v2/products/channel-price-operations/{operation_id}/approve`
+- `POST /api/v2/products/channel-price-operations/{operation_id}/apply`
+
+Dry Run stores a no-write operation and audit records. Apply is rejected until a
+separate approval call succeeds. Stale tokens prevent accidental overwrite when
+channel data changed after the editor opened or after Dry Run. Audit metadata
+records actor, product, channel, previous value, proposed value, converted
+outbound value, unit, result, upstream reference, and timestamp.
+
+Currency units stay explicit at the channel boundary:
+
+- WooCommerce and canonical values use the configured store currency.
+- SnappShop editable/write values are toman and normalize to rial for display.
+- TapsiShop editable/write values are rial.
+
+The backend performs validation and connector-boundary conversion. The Rule
+Engine must not assume toman or rial.
+
 ## Capabilities
 
 Connectors declare capabilities explicitly. Callers must check capabilities before invoking optional behavior.

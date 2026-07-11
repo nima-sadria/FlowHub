@@ -15,6 +15,11 @@ Active routes:
   POST /api/v2/setup/complete                  - lock wizard
   GET  /api/v2/products                        - paginated product browser
   GET  /api/v2/products/categories             - product category list
+  GET  /api/v2/products/{id}/channel-prices    - protected channel price editor state
+  POST /api/v2/products/{id}/channel-prices/validate - validate proposed channel price edits
+  POST /api/v2/products/{id}/channel-prices/dry-run  - create no-write multi-channel price Dry Run
+  POST /api/v2/products/channel-price-operations/{id}/approve - approve a price Dry Run
+  POST /api/v2/products/channel-price-operations/{id}/apply   - apply approved channel price writes
   GET  /api/v2/sources                         - configured data sources
   GET  /api/v2/workspace/state                 - workspace state
   POST /api/v2/workspace/preview               - compute preview (stateless)

@@ -1,11 +1,18 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'
 import Empty from '../components/Empty'
 import IconButton from '../components/IconButton'
 import LocalizedText from '../components/LocalizedText'
 import PageShell from '../components/PageShell'
 import { useServices } from '../services/ServiceContext'
-import type { Product } from '../services/types'
+import type {
+  Product,
+  ProductChannelPriceChange,
+  ProductChannelPriceOperation,
+  ProductChannelPriceState,
+  ProductChannelPriceStateSet,
+} from '../services/types'
 import type { Category } from '../services/products/ProductService'
 import { inputHint } from '../utils/inputHint'
 
@@ -21,7 +28,12 @@ function fmtPrice(p: number, currency: string): string {
   return `${currency} ${p.toFixed(2)}`
 }
 
-function ProductRow({ product }: { product: Product }) {
+function fmtValue(value: number | null | undefined, unit: string): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '-'
+  return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit}`
+}
+
+function ProductRow({ product, onEditPrices }: { product: Product; onEditPrices: (product: Product) => void }) {
   return (
     <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
       <td className="px-4 py-3 min-w-0 max-w-[260px]">
@@ -66,6 +78,15 @@ function ProductRow({ product }: { product: Product }) {
           <span className="fh-text-caption">+{product.categoryNames.length - 2}</span>
         )}
       </td>
+      <td className="px-4 py-3 text-right">
+        <button
+          type="button"
+          className="fh-button fh-button-secondary fh-button-sm whitespace-nowrap"
+          onClick={() => onEditPrices(product)}
+        >
+          Edit prices
+        </button>
+      </td>
     </tr>
   )
 }
@@ -73,12 +94,246 @@ function ProductRow({ product }: { product: Product }) {
 function SkeletonRow() {
   return (
     <tr className="border-b border-border">
-      {[240, 70, 80, 120].map((w, i) => (
+      {[240, 70, 80, 120, 96].map((w, i) => (
         <td key={i} className="px-4 py-3">
           <div className="h-3 bg-border/40 animate-pulse rounded" style={{ width: w }} />
         </td>
       ))}
     </tr>
+  )
+}
+
+function ProductPriceEditor({
+  state,
+  operation,
+  draftValues,
+  loading,
+  error,
+  selectedCount,
+  onDraftChange,
+  onValidate,
+  onDryRun,
+  onApprove,
+  onApply,
+  onClose,
+}: {
+  state: ProductChannelPriceStateSet | null
+  operation: ProductChannelPriceOperation | null
+  draftValues: Record<string, string>
+  loading: boolean
+  error: string | null
+  selectedCount: number
+  onDraftChange: (channelId: string, value: string) => void
+  onValidate: () => void
+  onDryRun: () => void
+  onApprove: () => void
+  onApply: () => void
+  onClose: () => void
+}) {
+  const canDryRun = Boolean(state && selectedCount > 0 && !loading)
+  const canApprove = operation?.status === 'dry_run_ready' && !loading
+  const canApply = operation?.status === 'approved' && !loading
+
+  return (
+    <section className="fh-card fh-card-pad space-y-4" aria-label="Multi-channel price editor">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="fh-section-title">Channel prices</h2>
+          <p className="fh-text-caption">
+            {state ? <><LocalizedText text={state.product.name} /> <span className="fh-text-mono">({state.product.sku || state.product.id})</span></> : 'Loading product price state...'}
+          </p>
+        </div>
+        <IconButton label="Close channel price editor" onClick={onClose} size="sm">
+          <svg viewBox="0 0 24 24" className="fh-icon-sm" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+        </IconButton>
+      </div>
+
+      {error && (
+        <div className="rounded border border-danger/30 bg-danger/5 px-3 py-2 fh-text-body text-danger" role="alert">
+          {error}
+        </div>
+      )}
+
+      {state && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <InfoTile label="Canonical/business price" value={fmtValue(state.canonical.value, state.canonical.currency)} />
+            <InfoTile label="Dry Run" value={state.dryRunRequired ? 'Required before Apply' : 'Optional'} />
+            <InfoTile label="Pending edits" value={String(selectedCount)} />
+          </div>
+
+          <div className="overflow-x-auto rounded border border-border" tabIndex={0} aria-label="Channel price comparison table">
+            <table className="fh-table min-w-[1120px]">
+              <thead>
+                <tr>
+                  {['Channel', 'State', 'Capability', 'Current', 'Proposed', 'Unit', 'Normalized', 'Freshness', 'Validation', 'Pending'].map(label => (
+                    <th key={label}>{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {state.channels.map(channel => (
+                  <ChannelPriceRow
+                    key={channel.channelId}
+                    channel={channel}
+                    draftValue={draftValues[channel.channelId] ?? ''}
+                    operationItem={operation?.items.find(item => item.channelId === channel.channelId)}
+                    onDraftChange={onDraftChange}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="fh-text-caption">
+              Editing fields only creates local pending changes. Dry Run performs validation without external writes.
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className="fh-button fh-button-secondary" onClick={onValidate} disabled={loading || selectedCount === 0}>
+                Validate
+              </button>
+              <button type="button" className="fh-button fh-button-primary" onClick={onDryRun} disabled={!canDryRun}>
+                Preview / Dry Run
+              </button>
+              <button type="button" className="fh-button fh-button-secondary" onClick={onApprove} disabled={!canApprove}>
+                Approve
+              </button>
+              <button type="button" className="fh-button fh-button-danger" onClick={onApply} disabled={!canApply}>
+                Apply
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {operation && (
+        <OperationResult operation={operation} />
+      )}
+    </section>
+  )
+}
+
+function ChannelPriceRow({
+  channel,
+  draftValue,
+  operationItem,
+  onDraftChange,
+}: {
+  channel: ProductChannelPriceState
+  draftValue: string
+  operationItem?: ProductChannelPriceOperation['items'][number]
+  onDraftChange: (channelId: string, value: string) => void
+}) {
+  const validationVariant = channel.validationState === 'valid' ? 'success' : channel.validationState === 'error' ? 'error' : 'warning'
+  const connectionVariant = channel.connectionState === 'connected' ? 'success' : channel.connectionState === 'disconnected' ? 'warning' : 'neutral'
+  const editable = channel.canWrite
+  return (
+    <tr className="border-b border-border">
+      <td className="px-4 py-3 sticky left-0 bg-bg-surface z-[1] min-w-[170px]">
+        <div className="fh-text-body font-semibold">{channel.channelName}</div>
+        <div className="fh-text-caption fh-text-mono">{channel.channelId}</div>
+      </td>
+      <td className="px-4 py-3">
+        <Badge variant={connectionVariant} dot>{channel.connectionState}</Badge>
+        <div className="fh-text-caption mt-1" title={`Health: ${channel.healthStatus}`}>Health: {channel.healthStatus}</div>
+      </td>
+      <td className="px-4 py-3">
+        <Badge variant={editable ? 'success' : 'warning'}>{editable ? 'Read/write' : channel.readOnly ? 'Read-only' : 'Unavailable'}</Badge>
+        <div className="fh-text-caption mt-1">{channel.writeCapability}</div>
+      </td>
+      <td className="px-4 py-3 fh-text-mono">{fmtValue(channel.currentValue, channel.unit)}</td>
+      <td className="px-4 py-3 min-w-[180px]">
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min="0"
+            step={channel.unit === 'rial' || channel.unit === 'toman' ? '1' : '0.01'}
+            value={draftValue}
+            onChange={event => onDraftChange(channel.channelId, event.target.value)}
+            disabled={!editable}
+            aria-label={`${channel.channelName} proposed price`}
+            className="fh-input h-9 w-28 font-mono"
+          />
+          <span className="fh-text-caption" title={`Editable value unit: ${channel.unit}`}>{channel.unit}</span>
+        </div>
+      </td>
+      <td className="px-4 py-3">{channel.unit}</td>
+      <td className="px-4 py-3">
+        <div className="fh-text-mono">{fmtValue(channel.normalizedValue, channel.normalizedUnit)}</div>
+        {channel.unit !== channel.normalizedUnit && (
+          <div className="fh-text-caption">source unit: {channel.unit}</div>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        <Badge variant={channel.freshness === 'fresh' ? 'success' : 'warning'}>{channel.freshness}</Badge>
+        <div className="fh-text-caption mt-1">{channel.lastSyncedAt ? new Date(channel.lastSyncedAt).toLocaleString() : 'Never synced'}</div>
+      </td>
+      <td className="px-4 py-3 min-w-[180px]">
+        <Badge variant={validationVariant}>{channel.validationState}</Badge>
+        <div className="fh-text-caption mt-1">{operationItem?.errorMessage ?? channel.validationMessage ?? operationItem?.status ?? 'Ready'}</div>
+      </td>
+      <td className="px-4 py-3">
+        <Badge variant={operationItem?.status === 'failed' ? 'error' : channel.pendingChange ? 'warning' : operationItem?.status === 'applied' ? 'success' : 'neutral'}>
+          {operationItem?.status ?? (channel.pendingChange ? 'pending' : 'unchanged')}
+        </Badge>
+      </td>
+    </tr>
+  )
+}
+
+function InfoTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-border bg-bg-base px-3 py-2">
+      <div className="fh-text-caption">{label}</div>
+      <div className="fh-text-body font-semibold mt-1">{value}</div>
+    </div>
+  )
+}
+
+function OperationResult({ operation }: { operation: ProductChannelPriceOperation }) {
+  return (
+    <div className="rounded border border-border bg-bg-base px-3 py-3" aria-label="Channel price operation result">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="fh-text-body font-semibold">Operation {operation.id}</div>
+          <div className="fh-text-caption">Status: {operation.status}</div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="neutral">Total {operation.summary.total}</Badge>
+          <Badge variant="success">Success {operation.summary.success}</Badge>
+          <Badge variant={operation.summary.failed ? 'error' : 'neutral'}>Failed {operation.summary.failed}</Badge>
+          <Badge variant={operation.externalWritePerformed ? 'warning' : 'success'}>
+            {operation.externalWritePerformed ? 'External write performed' : 'No external write'}
+          </Badge>
+        </div>
+      </div>
+      {operation.items.length > 0 && (
+        <div className="mt-3 overflow-x-auto">
+          <table className="fh-table min-w-[760px]">
+            <thead>
+              <tr>
+                {['Channel', 'Previous', 'Proposed', 'Outbound', 'Result'].map(label => <th key={label}>{label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {operation.items.map(item => (
+                <tr key={item.id} className="border-b border-border">
+                  <td className="px-4 py-2 fh-text-mono">{item.channelId}</td>
+                  <td className="px-4 py-2">{fmtValue(item.currentValue, item.unit)}</td>
+                  <td className="px-4 py-2">{fmtValue(item.proposedValue, item.unit)}</td>
+                  <td className="px-4 py-2">{fmtValue(item.outboundValue, item.outboundUnit)}</td>
+                  <td className="px-4 py-2">
+                    <Badge variant={item.status === 'failed' ? 'error' : item.status === 'applied' ? 'success' : 'warning'}>{item.status}</Badge>
+                    {item.errorMessage && <div className="fh-text-caption mt-1">{item.errorMessage}</div>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -98,6 +353,11 @@ export default function Products() {
   const [loading, setLoading] = useState(true)
 
   const [categories, setCategories] = useState<Category[]>([])
+  const [priceState, setPriceState] = useState<ProductChannelPriceStateSet | null>(null)
+  const [priceOperation, setPriceOperation] = useState<ProductChannelPriceOperation | null>(null)
+  const [draftValues, setDraftValues] = useState<Record<string, string>>({})
+  const [editorLoading, setEditorLoading] = useState(false)
+  const [editorError, setEditorError] = useState<string | null>(null)
 
   useEffect(() => {
     if (productService.getCategories) {
@@ -135,6 +395,94 @@ export default function Products() {
   }, [productService, debouncedSearch, categoryId, productType, channelId, page])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
+
+  const selectedChanges = useMemo<ProductChannelPriceChange[]>(() => {
+    if (!priceState) return []
+    return priceState.channels
+      .map(channel => {
+        const raw = draftValues[channel.channelId]
+        const value = raw === undefined || raw.trim() === '' ? channel.proposedValue : Number(raw)
+        if (value === null || value === undefined || Number.isNaN(value)) return null
+        const current = channel.currentValue
+        if (current !== null && current !== undefined && Math.abs(current - value) < 0.0001) return null
+        return {
+          channelId: channel.channelId,
+          proposedValue: value,
+          unit: channel.unit,
+          staleToken: channel.staleToken,
+        }
+      })
+      .filter((change): change is ProductChannelPriceChange => change !== null)
+  }, [priceState, draftValues])
+
+  const openPriceEditor = useCallback((product: Product) => {
+    setEditorLoading(true)
+    setEditorError(null)
+    setPriceOperation(null)
+    productService.getChannelPrices(product.id)
+      .then(state => {
+        setPriceState(state)
+        setDraftValues(Object.fromEntries(state.channels.map(channel => [
+          channel.channelId,
+          channel.proposedValue === null || channel.proposedValue === undefined ? '' : String(channel.proposedValue),
+        ])))
+      })
+      .catch(error => setEditorError(apiErrorMessage(error, 'Unable to load channel prices.')))
+      .finally(() => setEditorLoading(false))
+  }, [productService])
+
+  const validatePrices = useCallback(() => {
+    if (!priceState) return
+    setEditorLoading(true)
+    setEditorError(null)
+    productService.validateChannelPrices(priceState.product.id, { changes: selectedChanges })
+      .then(setPriceState)
+      .catch(error => setEditorError(apiErrorMessage(error, 'Unable to validate channel prices.')))
+      .finally(() => setEditorLoading(false))
+  }, [priceState, productService, selectedChanges])
+
+  const createDryRun = useCallback(() => {
+    if (!priceState) return
+    setEditorLoading(true)
+    setEditorError(null)
+    productService.createChannelPriceDryRun(priceState.product.id, { version: priceState.version, changes: selectedChanges })
+      .then(setPriceOperation)
+      .catch(error => setEditorError(apiErrorMessage(error, 'Unable to create Dry Run.')))
+      .finally(() => setEditorLoading(false))
+  }, [priceState, productService, selectedChanges])
+
+  const approveOperation = useCallback(() => {
+    if (!priceOperation) return
+    setEditorLoading(true)
+    setEditorError(null)
+    productService.approveChannelPriceOperation(priceOperation.id, 'Approved from Products multi-channel price editor')
+      .then(setPriceOperation)
+      .catch(error => setEditorError(apiErrorMessage(error, 'Unable to approve Dry Run.')))
+      .finally(() => setEditorLoading(false))
+  }, [priceOperation, productService])
+
+  const applyOperation = useCallback(() => {
+    if (!priceOperation) return
+    setEditorLoading(true)
+    setEditorError(null)
+    productService.applyChannelPriceOperation(priceOperation.id)
+      .then(operation => {
+        setPriceOperation(operation)
+        if (priceState) {
+          productService.getChannelPrices(priceState.product.id)
+            .then(state => {
+              setPriceState(state)
+              setDraftValues(current => ({ ...current, ...Object.fromEntries(state.channels.map(channel => [
+                channel.channelId,
+                current[channel.channelId] ?? String(channel.proposedValue ?? ''),
+              ])) }))
+            })
+            .catch(() => {})
+        }
+      })
+      .catch(error => setEditorError(apiErrorMessage(error, 'Unable to apply channel prices.')))
+      .finally(() => setEditorLoading(false))
+  }, [priceOperation, priceState, productService])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
@@ -222,6 +570,31 @@ export default function Products() {
         </div>
       </div>
 
+      {(priceState || editorLoading || editorError) && (
+        <ProductPriceEditor
+          state={priceState}
+          operation={priceOperation}
+          draftValues={draftValues}
+          loading={editorLoading}
+          error={editorError}
+          selectedCount={selectedChanges.length}
+          onDraftChange={(channelId, value) => {
+            setDraftValues(current => ({ ...current, [channelId]: value }))
+            setPriceOperation(null)
+          }}
+          onValidate={validatePrices}
+          onDryRun={createDryRun}
+          onApprove={approveOperation}
+          onApply={applyOperation}
+          onClose={() => {
+            setPriceState(null)
+            setPriceOperation(null)
+            setEditorError(null)
+            setDraftValues({})
+          }}
+        />
+      )}
+
       <div className="fh-table-wrapper">
         <div className="fh-panel-header">
           <span className="fh-text-body font-semibold">
@@ -244,7 +617,7 @@ export default function Products() {
           <table className="fh-table min-w-[560px]">
             <thead>
               <tr>
-                {['Product', 'Type', 'Price', 'Categories'].map(h => (
+                {['Product', 'Type', 'Price', 'Categories', 'Actions'].map(h => (
                   <th key={h}>{h}</th>
                 ))}
               </tr>
@@ -255,12 +628,12 @@ export default function Products() {
                 : items.length === 0
                   ? (
                     <tr>
-                      <td colSpan={4}>
+                      <td colSpan={5}>
                         <Empty title="No products match" description="Try adjusting the search or filter." />
                       </td>
                     </tr>
                     )
-                  : items.map(p => <ProductRow key={p.id} product={p} />)}
+                  : items.map(p => <ProductRow key={p.id} product={p} onEditPrices={openPriceEditor} />)}
             </tbody>
           </table>
         </div>

@@ -8,7 +8,7 @@
 - `python3 -m pytest tests/flowhub/migration/test_release_compatibility.py -q`
 - `npm test -- --run` and `npm run build` from `frontend/`
 - `git diff --check`
-- Confirm `FLOWHUB_011` is the Alembic head.
+- Confirm `FLOWHUB_012` is the Alembic head.
 - Confirm a backup manifest and restore-control-flow test pass before tagging.
 - Confirm Docker build and an isolated-stack smoke test on a host with Docker.
 

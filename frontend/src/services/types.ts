@@ -43,6 +43,119 @@ export interface PaginatedResult<T> {
   configured?: boolean
 }
 
+export type ChannelPriceValidationState = 'valid' | 'error' | 'read_only' | 'disconnected'
+export type ChannelPriceOperationStatus = 'dry_run_ready' | 'approved' | 'applied' | 'partially_failed' | 'failed'
+
+export interface ProductChannelPriceState {
+  channelId: string
+  channelName: string
+  connectorType: string
+  channelProductId: string
+  sku: string
+  connectionState: string
+  healthStatus: string
+  canRead: boolean
+  canWrite: boolean
+  readOnly: boolean
+  writeCapability: string
+  currentValue: number | null
+  proposedValue: number | null
+  currency: string
+  unit: string
+  normalizedValue: number | null
+  normalizedCurrency: string
+  normalizedUnit: string
+  freshness: string
+  lastSyncedAt: string | null
+  outboundValue?: number | null
+  outboundUnit?: string
+  validationState: ChannelPriceValidationState
+  validationMessage: string | null
+  pendingChange: boolean
+  staleToken: string
+}
+
+export interface ProductChannelPriceStateSet {
+  product: {
+    id: string
+    name: string
+    sku: string
+    productType: string
+    imageUrl?: string | null
+  }
+  version: string
+  canonical: {
+    label: string
+    value: number | null
+    currency: string
+    unit: string
+    freshness: string
+    lastSyncedAt: string | null
+    staleToken: string
+  }
+  channels: ProductChannelPriceState[]
+  dryRunRequired: boolean
+  applyRequiresApproval: boolean
+  status?: string
+}
+
+export interface ProductChannelPriceChange {
+  channelId: string
+  proposedValue: number
+  unit: string
+  staleToken: string
+  specialPrice?: number | null
+}
+
+export interface ProductChannelPriceRequest {
+  version?: string
+  changes: ProductChannelPriceChange[]
+}
+
+export interface ProductChannelPriceOperationItem {
+  id: number
+  channelId: string
+  connectorType: string
+  channelProductId: string
+  sku: string
+  currentValue: number
+  proposedValue: number
+  currency: string
+  unit: string
+  outboundValue: number
+  outboundUnit: string
+  staleToken: string
+  status: string
+  validationState: string
+  errorMessage: string | null
+  result: Record<string, unknown>
+}
+
+export interface ProductChannelPriceOperation {
+  id: string
+  productId: string
+  sku: string
+  productName: string
+  status: ChannelPriceOperationStatus
+  version: string
+  createdBy: string
+  approvedBy: string | null
+  approvalReason: string | null
+  createdAt: string | null
+  approvedAt: string | null
+  appliedAt: string | null
+  summary: {
+    total: number
+    pending: number
+    success: number
+    failed: number
+    external_write_performed: boolean
+  }
+  items: ProductChannelPriceOperationItem[]
+  externalWritePerformed: boolean
+  applyRequiresApproval: boolean
+}
+
 // -- Sources -------------------------------------------------------------------
 
 export type SourceType = 'nextcloud_excel'

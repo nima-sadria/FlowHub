@@ -1,4 +1,12 @@
-import type { Product, ProductFilter, PaginatedResult, ProductSyncStatus } from '../types'
+import type {
+  Product,
+  ProductChannelPriceOperation,
+  ProductChannelPriceRequest,
+  ProductChannelPriceStateSet,
+  ProductFilter,
+  PaginatedResult,
+  ProductSyncStatus,
+} from '../types'
 import type { ProductService } from './ProductService'
 
 const delay = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
@@ -48,4 +56,161 @@ export class LocalProductService implements ProductService {
     if (!p) throw new Error(`Product ${id} not found`)
     return p
   }
+
+  async getChannelPrices(productId: string): Promise<ProductChannelPriceStateSet> {
+    await delay(80)
+    return makeChannelPrices(productId)
+  }
+
+  async validateChannelPrices(productId: string, request: ProductChannelPriceRequest): Promise<ProductChannelPriceStateSet> {
+    await delay(80)
+    return validateLocal(productId, request)
+  }
+
+  async createChannelPriceDryRun(productId: string, request: ProductChannelPriceRequest): Promise<ProductChannelPriceOperation> {
+    await delay(100)
+    const validated = validateLocal(productId, request)
+    const items = validated.channels.filter(channel => channel.pendingChange && channel.validationState === 'valid').map((channel, index) => ({
+      id: index + 1,
+      channelId: channel.channelId,
+      connectorType: channel.connectorType,
+      channelProductId: channel.channelProductId,
+      sku: channel.sku,
+      currentValue: channel.currentValue ?? 0,
+      proposedValue: channel.proposedValue ?? 0,
+      currency: channel.currency,
+      unit: channel.unit,
+      outboundValue: channel.outboundValue ?? channel.proposedValue ?? 0,
+      outboundUnit: channel.outboundUnit ?? channel.unit,
+      staleToken: channel.staleToken,
+      status: 'pending',
+      validationState: channel.validationState,
+      errorMessage: null,
+      result: { dry_run: true, external_write: false },
+    }))
+    return {
+      id: `local_${Date.now()}`,
+      productId,
+      sku: validated.product.sku,
+      productName: validated.product.name,
+      status: 'dry_run_ready',
+      version: validated.version,
+      createdBy: 'local',
+      approvedBy: null,
+      approvalReason: null,
+      createdAt: new Date().toISOString(),
+      approvedAt: null,
+      appliedAt: null,
+      summary: { total: items.length, pending: items.length, success: 0, failed: 0, external_write_performed: false },
+      items,
+      externalWritePerformed: false,
+      applyRequiresApproval: true,
+    }
+  }
+
+  async getChannelPriceOperation(operationId: string): Promise<ProductChannelPriceOperation> {
+    throw new Error(`Local operation ${operationId} is not persisted`)
+  }
+
+  async approveChannelPriceOperation(operationId: string, reason?: string): Promise<ProductChannelPriceOperation> {
+    return {
+      id: operationId,
+      productId: 'prod-001',
+      sku: 'WHP-001',
+      productName: 'Wireless Headphones Pro',
+      status: 'approved',
+      version: 'local-v1',
+      createdBy: 'local',
+      approvedBy: 'local',
+      approvalReason: reason ?? null,
+      createdAt: new Date().toISOString(),
+      approvedAt: new Date().toISOString(),
+      appliedAt: null,
+      summary: { total: 0, pending: 0, success: 0, failed: 0, external_write_performed: false },
+      items: [],
+      externalWritePerformed: false,
+      applyRequiresApproval: true,
+    }
+  }
+
+  async applyChannelPriceOperation(operationId: string): Promise<ProductChannelPriceOperation> {
+    const approved = await this.approveChannelPriceOperation(operationId)
+    return { ...approved, status: 'applied', appliedAt: new Date().toISOString(), externalWritePerformed: true }
+  }
+}
+
+function makeChannelPrices(productId: string): ProductChannelPriceStateSet {
+  const product = ALL_PRODUCTS.find(p => p.id === productId) ?? ALL_PRODUCTS[0]
+  const base = product.currentPrice
+  return {
+    product: { id: product.id, name: product.name, sku: product.sku, productType: product.productType ?? 'simple', imageUrl: product.imageUrl },
+    version: `local-${product.id}-v1`,
+    canonical: {
+      label: 'Canonical/business price',
+      value: base,
+      currency: product.currency,
+      unit: 'store currency',
+      freshness: 'fresh',
+      lastSyncedAt: product.lastSynced?.toISOString() ?? null,
+      staleToken: `canonical-${product.id}`,
+    },
+    dryRunRequired: true,
+    applyRequiresApproval: true,
+    channels: [
+      makeChannel('woocommerce:primary', 'WooCommerce', 'woocommerce', product.sku, base, product.currency, product.currency),
+      makeChannel('snappshop:main', 'Snapp Shop', 'snappshop', product.sku, Math.round(base * 1000), 'IRR', 'toman'),
+      makeChannel('tapsishop:main', 'Tapsi Shop', 'tapsishop', product.sku, Math.round(base * 10000), 'IRR', 'rial'),
+    ],
+  }
+}
+
+function makeChannel(channelId: string, channelName: string, connectorType: string, sku: string, value: number, currency: string, unit: string) {
+  return {
+    channelId,
+    channelName,
+    connectorType,
+    channelProductId: `${channelId}:${sku}`,
+    sku,
+    connectionState: 'connected',
+    healthStatus: 'ok',
+    canRead: true,
+    canWrite: true,
+    readOnly: false,
+    writeCapability: 'products.write_price',
+    currentValue: value,
+    proposedValue: value,
+    currency,
+    unit,
+    normalizedValue: channelId === 'snappshop:main' ? value * 10 : value,
+    normalizedCurrency: channelId === 'woocommerce:primary' ? currency : 'IRR',
+    normalizedUnit: channelId === 'woocommerce:primary' ? currency : 'rial',
+    freshness: 'fresh',
+    lastSyncedAt: new Date().toISOString(),
+    validationState: 'valid' as const,
+    validationMessage: null,
+    pendingChange: false,
+    staleToken: `${channelId}:${sku}:v1`,
+  }
+}
+
+function validateLocal(productId: string, request: ProductChannelPriceRequest): ProductChannelPriceStateSet {
+  const loaded = makeChannelPrices(productId)
+  loaded.channels = loaded.channels.map(channel => {
+    const change = request.changes.find(item => item.channelId === channel.channelId)
+    if (!change) return channel
+    const errors: string[] = []
+    if (!Number.isFinite(change.proposedValue) || change.proposedValue < 0) errors.push('Price must be numeric and non-negative.')
+    if (change.unit !== channel.unit) errors.push(`Expected ${channel.unit}.`)
+    return {
+      ...channel,
+      proposedValue: change.proposedValue,
+      outboundValue: change.proposedValue,
+      outboundUnit: channel.unit,
+      normalizedValue: channel.channelId === 'snappshop:main' ? change.proposedValue * 10 : change.proposedValue,
+      pendingChange: channel.currentValue !== change.proposedValue,
+      validationState: errors.length ? 'error' : 'valid',
+      validationMessage: errors.join('; ') || null,
+    }
+  })
+  return { ...loaded, status: 'validated' }
 }

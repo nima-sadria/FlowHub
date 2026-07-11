@@ -32,6 +32,6 @@ FlowHub restores the prior runtime files and attempts database recovery from the
 safety archive. Restore is always an explicit operator action; FlowHub does not
 perform automatic rollback.
 
-The current migration head is `FLOWHUB_011`. Verify a completed restore with
+The current migration head is `FLOWHUB_012`. Verify a completed restore with
 `flowhub repair`, `flowhub health`, sign-in, Diagnostics, and a read-only
 Workspace Preview before approving any price update.

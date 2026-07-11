@@ -1,4 +1,11 @@
-import type { Product, ProductFilter, PaginatedResult } from '../types'
+import type {
+  Product,
+  ProductChannelPriceOperation,
+  ProductChannelPriceRequest,
+  ProductChannelPriceStateSet,
+  ProductFilter,
+  PaginatedResult,
+} from '../types'
 import type { ProductService, Category } from './ProductService'
 import { apiFetch } from '../../api/client'
 import { authFetch } from '../../api/authFetch'
@@ -73,5 +80,45 @@ export class ApiProductService implements ProductService {
   async getCategories(): Promise<Category[]> {
     const data = await apiFetch<{ items: Category[] }>('/api/v2/products/categories', authFetch)
     return data.items
+  }
+
+  async getChannelPrices(productId: string): Promise<ProductChannelPriceStateSet> {
+    return apiFetch<ProductChannelPriceStateSet>(`/api/v2/products/${encodeURIComponent(productId)}/channel-prices`, authFetch)
+  }
+
+  async validateChannelPrices(productId: string, request: ProductChannelPriceRequest): Promise<ProductChannelPriceStateSet> {
+    return apiFetch<ProductChannelPriceStateSet>(`/api/v2/products/${encodeURIComponent(productId)}/channel-prices/validate`, authFetch, jsonRequest(request))
+  }
+
+  async createChannelPriceDryRun(productId: string, request: ProductChannelPriceRequest): Promise<ProductChannelPriceOperation> {
+    return apiFetch<ProductChannelPriceOperation>(`/api/v2/products/${encodeURIComponent(productId)}/channel-prices/dry-run`, authFetch, jsonRequest(request))
+  }
+
+  async getChannelPriceOperation(operationId: string): Promise<ProductChannelPriceOperation> {
+    return apiFetch<ProductChannelPriceOperation>(`/api/v2/products/channel-price-operations/${encodeURIComponent(operationId)}`, authFetch)
+  }
+
+  async approveChannelPriceOperation(operationId: string, reason?: string): Promise<ProductChannelPriceOperation> {
+    return apiFetch<ProductChannelPriceOperation>(
+      `/api/v2/products/channel-price-operations/${encodeURIComponent(operationId)}/approve`,
+      authFetch,
+      jsonRequest({ reason: reason ?? '' }),
+    )
+  }
+
+  async applyChannelPriceOperation(operationId: string): Promise<ProductChannelPriceOperation> {
+    return apiFetch<ProductChannelPriceOperation>(
+      `/api/v2/products/channel-price-operations/${encodeURIComponent(operationId)}/apply`,
+      authFetch,
+      jsonRequest({}),
+    )
+  }
+}
+
+function jsonRequest(body: unknown): RequestInit {
+  return {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   }
 }
