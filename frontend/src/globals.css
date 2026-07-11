@@ -13,6 +13,20 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Yekan Bakh";
+  src: url("/static/fonts/YekanBakh-VF.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0600-06FF,
+    U+0750-077F,
+    U+08A0-08FF,
+    U+FB50-FDFF,
+    U+FE70-FEFF;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -30,6 +44,22 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+
+  --fh-font-family-persian:
+    "Yekan Bakh",
+    Tahoma,
+    "Segoe UI",
+    sans-serif;
+
+  --fh-font-family-mono:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace;
 
   --fh-text-title-2xl: 72px;
   --fh-leading-title-2xl: 90px;
@@ -429,6 +459,44 @@
   table,
   dialog {
     font-family: var(--fh-font-family);
+  }
+
+  :lang(fa),
+  .fh-persian-panel,
+  .fh-persian-text {
+    font-family: var(--fh-font-family-persian);
+    font-feature-settings: "locl" 1, "kern" 1;
+  }
+
+  code,
+  kbd,
+  samp,
+  pre,
+  .font-mono,
+  .fh-text-mono,
+  .fh-technical-text,
+  .fh-persian-panel code,
+  .fh-persian-panel kbd,
+  .fh-persian-panel samp,
+  .fh-persian-panel pre,
+  .fh-persian-panel .font-mono,
+  .fh-persian-panel .fh-text-mono,
+  .fh-persian-panel .fh-technical-text,
+  .fh-persian-text.font-mono,
+  .fh-persian-text.fh-text-mono,
+  .fh-persian-text.fh-technical-text,
+  :lang(fa) code,
+  :lang(fa) kbd,
+  :lang(fa) samp,
+  :lang(fa) pre,
+  :lang(fa) .font-mono,
+  :lang(fa) .fh-text-mono,
+  :lang(fa) .fh-technical-text,
+  :lang(fa).font-mono,
+  :lang(fa).fh-text-mono,
+  :lang(fa).fh-technical-text {
+    font-family: var(--fh-font-family-mono);
+    font-variant-numeric: tabular-nums;
   }
 
   button,

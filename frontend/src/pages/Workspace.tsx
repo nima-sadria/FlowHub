@@ -5,6 +5,7 @@ import type { WorkspacePreview, PriceChange, WorkspacePreviewRow, WritePipelineB
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
+import LocalizedText from '../components/LocalizedText'
 import PageShell from '../components/PageShell'
 import { apiErrorMessage } from '../api/client'
 
@@ -27,7 +28,9 @@ function PriceChangeRow({ change }: { change: PriceChange }) {
   return (
     <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
       <td className="px-4 py-3 min-w-0 max-w-[200px]">
-        <div className="fh-text-body font-medium truncate">{change.productName}</div>
+        <div className="fh-text-body font-medium truncate">
+          <LocalizedText text={change.productName} />
+        </div>
         <div className="fh-text-caption fh-text-mono mt-0.5">{change.sku}</div>
       </td>
       <td className="px-4 py-3 fh-text-caption font-mono">
@@ -105,7 +108,7 @@ function PreviewRow({ row, selected, onToggle }: {
       </td>
       <td className="px-4 py-3 min-w-0 max-w-[220px]">
         <div className="flex items-center gap-2 fh-text-body font-medium text-text-base">
-          <span className="truncate">{name}</span>
+          <LocalizedText className="truncate" text={name} />
           {isVariation && <Badge className="shrink-0" variant="neutral">Variation</Badge>}
         </div>
         <div className="fh-text-caption fh-text-mono mt-0.5">
@@ -114,8 +117,18 @@ function PreviewRow({ row, selected, onToggle }: {
         {isVariation && (
           <div className="fh-text-caption mt-0.5 truncate">
             Parent {row.matchedProduct?.parentProductId ?? row.matchedProduct?.parentId ?? '-'}
-            {row.matchedProduct?.parentProductName ? ` آ· ${row.matchedProduct.parentProductName}` : ''}
-            {attrs ? ` آ· ${attrs}` : ''}
+            {row.matchedProduct?.parentProductName && (
+              <>
+                {' · '}
+                <LocalizedText text={row.matchedProduct.parentProductName} />
+              </>
+            )}
+            {attrs && (
+              <>
+                {' · '}
+                <LocalizedText text={attrs} />
+              </>
+            )}
           </div>
         )}
       </td>
@@ -183,13 +196,19 @@ function ResultItemRow({ item }: { item: WritePipelineItem }) {
     <tr className="border-b border-border last:border-0">
       <td className="px-4 py-3">
         <div className="flex items-center gap-2 fh-text-body font-medium text-text-base">
-          <span>{item.productName || item.productId}</span>
+          <LocalizedText text={item.productName || item.productId} />
           {isVariation && <Badge variant="neutral">Variation</Badge>}
         </div>
         <div className="fh-text-caption font-mono">{item.source?.worksheet ?? '-'}:{item.source?.rowNumber ?? '-'} · {item.sku || '-'}</div>
         {isVariation && (
           <div className="fh-text-caption mt-0.5">
-            Parent {item.parentProductId ?? '-'}{attrs ? ` آ· ${attrs}` : ''}
+            Parent {item.parentProductId ?? '-'}
+            {attrs && (
+              <>
+                {' · '}
+                <LocalizedText text={attrs} />
+              </>
+            )}
           </div>
         )}
       </td>
@@ -572,7 +591,10 @@ export default function Workspace() {
                 <p className="fh-text-caption mt-1">Dense validation rows remain scrollable, but now use the shared table surface and spacing.</p>
               </div>
               <div className="flex flex-wrap items-center gap-3 fh-text-caption">
-                <span className="font-mono">Source: {preview.sourceName}</span>
+                <span>
+                  <span className="font-mono">Source: </span>
+                  <LocalizedText text={preview.sourceName} />
+                </span>
                 <button type="button" onClick={() => setSelectedRowIds(new Set(eligibleRows.map(row => row.id)))} className="fh-button-secondary px-2 py-1">
                   Select all eligible
                 </button>

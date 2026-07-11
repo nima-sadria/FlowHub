@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Badge from '../components/Badge'
 import Empty from '../components/Empty'
 import IconButton from '../components/IconButton'
+import LocalizedText from '../components/LocalizedText'
 import PageShell from '../components/PageShell'
 import { useServices } from '../services/ServiceContext'
 import type { Product } from '../services/types'
@@ -42,7 +43,9 @@ function ProductRow({ product }: { product: Product }) {
             </div>
           )}
           <div className="min-w-0">
-            <div className="fh-text-body font-medium truncate">{product.name}</div>
+            <div className="fh-text-body font-medium truncate">
+              <LocalizedText text={product.name} />
+            </div>
             <div className="fh-text-caption fh-text-mono mt-0.5">{product.sku || '-'}</div>
           </div>
         </div>
@@ -55,7 +58,9 @@ function ProductRow({ product }: { product: Product }) {
       </td>
       <td className="px-4 py-3">
         {(product.categoryNames ?? []).slice(0, 2).map(c => (
-          <Badge key={c} className="me-1" variant="neutral">{c}</Badge>
+          <Badge key={c} className="me-1" variant="neutral">
+            <LocalizedText text={c} />
+          </Badge>
         ))}
         {(product.categoryNames ?? []).length > 2 && (
           <span className="fh-text-caption">+{product.categoryNames.length - 2}</span>

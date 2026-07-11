@@ -145,6 +145,26 @@ describe('Workspace source-driven preview', () => {
     expect(container.textContent).not.toContain('eyJhbGci')
     expect(container.textContent).not.toContain('user:pass')
   })
+
+  it('marks Persian data text while keeping technical table values unmarked', async () => {
+    const preview = makePreview({ withError: false })
+    preview.sourceName = 'SKU محصول'
+    preview.rows[0].source.productName = 'WooCommerce فروشگاه'
+    preview.rows[0].matchedProduct!.name = 'WooCommerce فروشگاه'
+    preview.rows[1].matchedProduct!.variationAttributes = [{ name: 'Color', value: 'آبی' }]
+    const createDryRun = vi.fn()
+    await renderWorkspace(preview, createDryRun)
+
+    await click('Start Preview')
+
+    const persianNodes = Array.from(container.querySelectorAll('[lang="fa"]'))
+    expect(persianNodes.some(node => node.textContent === 'WooCommerce فروشگاه')).toBe(true)
+    expect(persianNodes.some(node => node.textContent === 'SKU محصول')).toBe(true)
+    expect(persianNodes.some(node => node.textContent === 'Color: آبی')).toBe(true)
+    expect(container.querySelector('.fh-text-mono[lang="fa"]')).toBeNull()
+    expect(container.textContent).toContain('SKU-101')
+    expect(container.textContent).toContain('EUR 100.00')
+  })
 })
 
 async function renderWorkspace(
