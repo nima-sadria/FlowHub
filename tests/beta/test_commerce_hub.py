@@ -99,7 +99,7 @@ def test_commerce_channels_report_read_only_write_blocked(client, auth_headers):
     assert by_name["WooCommerce"]["read_only"] is True
     assert by_name["WooCommerce"]["access_mode"] == "read_only"
     assert by_name["WooCommerce"]["write_pipeline_eligible"] is False
-    assert by_name["Snapp Shop"]["placeholder"] is True
+    assert by_name["Snapp Shop"]["placeholder"] is False
     assert by_name["Snapp Shop"]["write_blocked"] is True
     assert by_name["Tapsi Shop"]["placeholder"] is True
     assert by_name["Tapsi Shop"]["write_blocked"] is True
@@ -129,22 +129,33 @@ def test_commerce_type_routes_mark_future_placeholders_read_only(client, auth_he
     assert source_types["csv"]["placeholder"] is True
     assert source_types["csv"]["read_only"] is True
     assert channel_types["woocommerce"]["implemented"] is True
-    for provider in ("snappshop", "tapsishop", "digikala", "technolife", "shopify"):
+    assert channel_types["snappshop"]["implemented"] is True
+    assert channel_types["snappshop"]["placeholder"] is False
+    assert channel_types["snappshop"]["read_only"] is True
+    assert channel_types["snappshop"]["write_blocked"] is True
+    for provider in ("tapsishop", "digikala", "technolife", "shopify"):
         assert channel_types[provider]["placeholder"] is True
         assert channel_types[provider]["read_only"] is True
         assert channel_types[provider]["write_blocked"] is True
 
 
-def test_snapp_tapsi_registry_placeholders_are_read_only():
+def test_snapp_registry_is_implemented_and_tapsi_placeholder_is_read_only():
     from app.flowhub.integration_platform.registry import registry
 
-    for provider in ("snappshop", "tapsishop"):
-        definition = registry.get_definition(provider)
-        assert definition is not None
-        assert definition.connector.identity.read_only is True
-        assert definition.connector.capabilities.read_products is True
-        assert definition.connector.capabilities.write_prices is False
-        assert definition.connector.capabilities.write_inventory is False
+    snapp = registry.get_definition("snappshop")
+    assert snapp is not None
+    assert snapp.connector.identity.read_only is True
+    assert snapp.connector.capabilities.read_products is True
+    assert snapp.connector.capabilities.read_orders is True
+    assert snapp.connector.capabilities.write_prices is True
+    assert snapp.connector.capabilities.write_inventory is True
+
+    tapsi = registry.get_definition("tapsishop")
+    assert tapsi is not None
+    assert tapsi.connector.identity.read_only is True
+    assert tapsi.connector.capabilities.read_products is True
+    assert tapsi.connector.capabilities.write_prices is False
+    assert tapsi.connector.capabilities.write_inventory is False
 
 
 def test_woocommerce_connection_test_performs_read_only_api_call_without_secret_leakage(client, auth_headers, monkeypatch):
@@ -225,6 +236,75 @@ def test_woocommerce_connection_test_performs_read_only_api_call_without_secret_
     assert request_calls[0]["auth"] == ("ck_live_secret", "cs_live_secret")
 
 
+def test_snappshop_connection_test_performs_vendor_probe_without_secret_leakage(client, auth_headers, monkeypatch):
+    request_calls: list[dict] = []
+
+    class FakeResponse:
+        status_code = 200
+        headers = {}
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    class FakeAsyncClient:
+        responses = [
+            FakeResponse({"status": True, "data": [{"id": "vendor-1", "title": "Vendor"}]}),
+            FakeResponse({"status": True, "data": {"id": "vendor-1", "title": "Vendor"}}),
+        ]
+
+        def __init__(self, *args, **kwargs):
+            self.kwargs = kwargs
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def request(self, method, url, *, headers=None, params=None, json=None):
+            request_calls.append({"method": method, "url": url, "headers": headers, "params": params, "json": json})
+            return self.responses.pop(0)
+
+    monkeypatch.setattr("app.flowhub.channels.snappshop.httpx.AsyncClient", FakeAsyncClient)
+
+    save = client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "Snapp Shop",
+            "enabled": True,
+            "settings": {
+                "base_url": "https://apix.snappshop.ir/automation/v1",
+                "agent_identifier": "flowhub-agent",
+                "agent_header_name": "User-Agent",
+                "vendor_id": "vendor-1",
+            },
+            "secrets": {"token": "snapp-secret-value"},
+        },
+    )
+    assert save.status_code == 200
+    assert "snapp-secret-value" not in save.text
+
+    response = client.post("/api/v2/commerce/channels/snappshop:main/test", headers=auth_headers, json={})
+
+    assert response.status_code == 200
+    assert "snapp-secret-value" not in response.text
+    data = response.json()
+    assert data["ok"] is True
+    assert data["connected"] is True
+    assert data["authenticated"] is True
+    assert data["external_call_performed"] is True
+    assert data["read_only"] is True
+    assert data["runtime_write_blocked"] is True
+    assert request_calls[0]["url"] == "https://apix.snappshop.ir/automation/v1/vendors"
+    assert request_calls[0]["headers"]["Authorization"] == "Bearer snapp-secret-value"
+    assert request_calls[0]["headers"]["User-Agent"] == "flowhub-agent"
+    assert request_calls[1]["url"] == "https://apix.snappshop.ir/automation/v1/vendors/vendor-1"
+
+
 def test_placeholder_connection_test_does_not_call_external_system(client, auth_headers, monkeypatch):
     async def fail_acquire(*args, **kwargs):
         raise AssertionError("placeholder channels must not acquire a limiter token")
@@ -239,7 +319,7 @@ def test_placeholder_connection_test_does_not_call_external_system(client, auth_
     )
     monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client.httpx.AsyncClient", FailingAsyncClient)
 
-    response = client.post("/api/v2/commerce/channels/snappshop:main/test", headers=auth_headers, json={})
+    response = client.post("/api/v2/commerce/channels/tapsishop:main/test", headers=auth_headers, json={})
 
     assert response.status_code == 200
     data = response.json()
@@ -1554,7 +1634,7 @@ def test_woocommerce_access_mode_defaults_read_only_until_owner_enables(client, 
     assert detail.json()["write_pipeline_eligible"] is True
 
 
-def test_placeholder_channel_cannot_be_write_enabled(client, auth_headers):
+def test_non_woocommerce_channel_cannot_be_write_enabled(client, auth_headers):
     response = client.put(
         "/api/v2/commerce/channels/snappshop:main/settings",
         headers=auth_headers,
@@ -1570,8 +1650,8 @@ def test_channel_settings_preserve_credential_masking(client, auth_headers):
         "/api/v2/commerce/channels/snappshop:main/settings",
         headers=auth_headers,
         json={
-            "settings": {"merchant_id": "merchant-1"},
-            "secrets": {"api_key": "snapp-secret-value"},
+            "settings": {"agent_identifier": "flowhub-agent", "vendor_id": "vendor-1"},
+            "secrets": {"token": "snapp-secret-value"},
         },
     )
 
@@ -1582,7 +1662,7 @@ def test_channel_settings_preserve_credential_masking(client, auth_headers):
     assert data["access_mode"] == "read_only"
     assert data["write_pipeline_eligible"] is False
     assert data["runtime_write_blocked"] is True
-    assert data["secrets"]["api_key"]["status"] == "configured"
+    assert data["secrets"]["token"]["status"] == "configured"
 
     detail = client.get("/api/v2/commerce/channels/snappshop:main", headers=auth_headers)
     assert detail.status_code == 200

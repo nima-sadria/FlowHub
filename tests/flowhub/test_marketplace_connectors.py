@@ -133,5 +133,6 @@ def test_default_registry_keeps_future_marketplaces_unimplemented_and_woocommerc
     assert registry.supports("woocommerce:primary", ChannelCapability.PRODUCTS_READ) is True
     assert registry.supports("woocommerce:primary", ChannelCapability.PRODUCTS_WRITE_PRICE) is True
     assert registry.supports("woocommerce:primary", ChannelCapability.PRODUCTS_WRITE_STOCK) is False
-    assert registry.get_definition("snappshop:main").implemented is False
+    assert registry.get_definition("snappshop:main").implemented is True
+    assert registry.supports("snappshop:main", ChannelCapability.PRODUCTS_WRITE_STOCK) is True
     assert registry.get_definition("tapsishop:main").implemented is False

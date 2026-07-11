@@ -123,8 +123,13 @@ const commerce: CommerceService = {
           { key: 'key', label: 'Consumer key', required: true, secret: true },
           { key: 'secret', label: 'Consumer secret', required: true, secret: true },
         ]),
-        typeOption('snappshop:main', 'snappshop', 'Snapp Shop', 'Channel', true, [
-          { key: 'api_key', label: 'API key', required: false, secret: true },
+        typeOption('snappshop:main', 'snappshop', 'Snapp Shop', 'Channel', false, [
+          { key: 'base_url', label: 'Base URL', required: false, secret: false },
+          { key: 'agent_identifier', label: 'Agent identifier', required: true, secret: false },
+          { key: 'agent_header_name', label: 'Agent header name', required: false, secret: false },
+          { key: 'request_timeout', label: 'Request timeout seconds', required: false, secret: false },
+          { key: 'vendor_id', label: 'Vendor ID', required: false, secret: false },
+          { key: 'token', label: 'Bearer token', required: true, secret: true },
         ]),
       ],
     }
@@ -190,7 +195,7 @@ const commerce: CommerceService = {
     return {
       items: [
         channel('woocommerce:primary', 'WooCommerce', false),
-        channel('snappshop:main', 'Snapp Shop', true),
+        channel('snappshop:main', 'Snapp Shop', false),
         channel('tapsishop:main', 'Tapsi Shop', true),
         channel('digikala:main', 'Digikala', true),
         channel('technolife:main', 'Technolife', true),

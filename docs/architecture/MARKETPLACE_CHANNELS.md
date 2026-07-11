@@ -105,4 +105,35 @@ Retry metadata must distinguish retryable read failures from unsafe write reques
 6. Add tests with a fake or mocked connector for read normalization, write result normalization, pagination, capability denial, and secret redaction.
 7. Wire write behavior only through an approved channel adapter and existing Dry Run, Approval, Apply, audit, limiter, and maintenance protections.
 
-SnappShop and TapsiShop are future channel definitions only. This abstraction does not implement their external API calls.
+## SnappShop Connector
+
+The SnappShop channel connector is implemented under
+`app/flowhub/channels/snappshop.py` from
+`snappshop_vendor_automation_API_v2.1.2.pdf`.
+
+Documented defaults and configurable assumptions:
+
+- Base URL default: `https://apix.snappshop.ir/automation/v1`.
+- Authentication: `Authorization: Bearer {token}`.
+- Unique agent header: the document text describes a user/agent identifier and
+  shows `User-Agent: {agent id}`. FlowHub defaults to `User-Agent` but stores
+  `agent_header_name` as connector configuration because the wording is
+  inconsistent.
+- Product list pagination is page-number based and documented as 20 products per
+  response. Full synchronization follows `meta.pagination.total_pages` with an
+  upper page bound.
+- Product writes use `PATCH /vendors/{vendor_id}/products`, up to 50 items per
+  request. Outbound items use either `sku` or `id`; FlowHub prefers `sku` when
+  both are available because the document says SKU takes precedence.
+- SnappShop product write prices are toman. FlowHub requires currency/unit
+  metadata at this boundary and converts canonical rial values to toman here,
+  never in the Rule Engine.
+- Order events and order history use cursor pagination. The cursor is advanced
+  only through an explicit acknowledgement path after the caller has durably
+  stored the page.
+- The companion `webhook.v.0.2.pdf` describes TapsiShop webhook APIs, not
+  SnappShop. SnappShop webhook receipt remains unsupported until a SnappShop
+  webhook document is supplied.
+
+TapsiShop remains a future channel definition only. This task does not implement
+TapsiShop external API calls.

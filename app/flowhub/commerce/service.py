@@ -18,6 +18,7 @@ from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.read.woocommerce import WooCommerceProductReadAdapter
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import ping as ping_woocommerce
+from app.flowhub.channels.snappshop import IntegrationSettingsOrderEventCursorStore, SnappShopConfig, SnappShopConnector
 from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
 from app.flowhub.data_layer.health_service import ConnectorHealthService
 from app.flowhub.integrations.errors import IntegrationError
@@ -56,9 +57,9 @@ _CHANNELS = [
         "id": "snappshop:main",
         "provider": "snappshop",
         "name": "Snapp Shop",
-        "status": "planned",
-        "implemented": False,
-        "placeholder": True,
+        "status": "current",
+        "implemented": True,
+        "placeholder": False,
     },
     {
         "id": "tapsishop:main",
@@ -229,6 +230,8 @@ class CommerceHubService:
             return self._placeholder_connection_result()
         if str(meta["provider"]) == "woocommerce":
             return await self._test_woocommerce_channel_connection(configured)
+        if str(meta["provider"]) == "snappshop":
+            return await self._test_snappshop_channel_connection(configured)
         return self._unsupported_connection_result()
 
     async def refresh_channel_cache(self, channel_id: str, actor: str) -> dict:
@@ -413,6 +416,8 @@ class CommerceHubService:
         self._update_instance_state(meta, body, access_mode=access_mode)
         if provider == "woocommerce":
             self._persist_woocommerce_app_config(body)
+        if provider == "snappshop":
+            self._persist_snappshop_app_config(body)
         result = self.integration.update_settings_contract(channel_id, self._settings_body(body))
         instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         effective_access_mode = self._access_mode(instance)
@@ -733,6 +738,57 @@ class CommerceHubService:
             return None
         return WooCommerceCredentials(url=url.rstrip("/"), key=key, secret=secret)
 
+    async def _test_snappshop_channel_connection(self, configured: bool) -> dict:
+        connector = self._snappshop_connector()
+        if not configured or connector is None:
+            return {
+                **self._connection_base(),
+                "ok": False,
+                "connected": False,
+                "authenticated": False,
+                "status": "not_configured",
+                "http_status": None,
+                "latency_ms": None,
+                "checked_at": self._checked_at(),
+                "message": "SnappShop is not configured. No external call was performed.",
+                "external_call_performed": False,
+            }
+        health = await connector.test_connection()
+        error = health.error
+        ok = health.status == "healthy"
+        return {
+            **self._connection_base(),
+            "ok": ok,
+            "connected": ok,
+            "authenticated": ok,
+            "status": "connected" if ok else "error",
+            "http_status": error.http_status if error else 200,
+            "latency_ms": health.latency_ms,
+            "checked_at": health.checked_at or self._checked_at(),
+            "message": "Connected to SnappShop. Vendor API probe succeeded." if ok else (error.message if error else "SnappShop connection test failed."),
+            "external_call_performed": True,
+        }
+
+    def _snappshop_connector(self) -> SnappShopConnector | None:
+        try:
+            config = SnappShopConfig.from_values(
+                settings={
+                    "base_url": self.integration.config.get("snappshop.base_url"),
+                    "agent_identifier": self.integration.config.get("snappshop.agent_identifier"),
+                    "agent_header_name": self.integration.config.get("snappshop.agent_header_name"),
+                    "request_timeout": self.integration.config.get("snappshop.request_timeout"),
+                    "vendor_id": self.integration.config.get("snappshop.vendor_id"),
+                },
+                secrets={"token": self.integration.config.get("snappshop.token")},
+            )
+        except (TypeError, ValueError):
+            return None
+        return SnappShopConnector(
+            channel_id="snappshop:main",
+            config=config,
+            cursor_store=IntegrationSettingsOrderEventCursorStore(self.db),
+        )
+
     async def _test_nextcloud_source_connection(self) -> dict:
         values = self._nextcloud_values({}, allow_stored=True)
         if not values["url"] or not values["password"]:
@@ -1019,6 +1075,25 @@ class CommerceHubService:
         if pairs:
             self.integration.config.set_many(pairs, updated_by="commerce_hub")
 
+    def _persist_snappshop_app_config(self, body: dict) -> None:
+        settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
+        secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
+        pairs: dict[str, str] = {}
+        pairs["snappshop.base_url"] = str(
+            settings.get("base_url") or "https://apix.snappshop.ir/automation/v1"
+        ).strip().rstrip("/")
+        pairs["snappshop.agent_header_name"] = str(settings.get("agent_header_name") or "User-Agent").strip()
+        if settings.get("agent_identifier"):
+            pairs["snappshop.agent_identifier"] = str(settings["agent_identifier"]).strip()
+        if settings.get("request_timeout"):
+            pairs["snappshop.request_timeout"] = str(settings["request_timeout"]).strip()
+        if "vendor_id" in settings:
+            pairs["snappshop.vendor_id"] = str(settings.get("vendor_id") or "").strip()
+        if secrets.get("token"):
+            pairs["snappshop.token"] = str(secrets["token"])
+        if pairs:
+            self.integration.config.set_many(pairs, updated_by="commerce_hub")
+
     def _persist_nextcloud_app_config(self, body: dict) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
@@ -1144,7 +1219,9 @@ class CommerceHubService:
         settings = {item.key: item for item in instance.settings}
         if instance.connector_type == "woocommerce":
             required = {"url", "key", "secret"}
-        elif instance.connector_type in {"snappshop", "tapsishop"}:
+        elif instance.connector_type == "snappshop":
+            required = {"token", "agent_identifier"}
+        elif instance.connector_type == "tapsishop":
             required = {"api_key"}
         elif instance.connector_type in {"digikala", "technolife", "shopify"}:
             required = {"api_token"}

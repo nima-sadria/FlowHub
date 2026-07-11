@@ -68,8 +68,24 @@ def default_marketplace_registry() -> MarketplaceConnectorRegistry:
             implemented=True,
         )
     )
+    registry.register_definition(
+        MarketplaceConnectorDefinition(
+            connector_type="snappshop",
+            channel_id="snappshop:main",
+            name="Snapp Shop",
+            capabilities=frozenset({
+                ChannelCapability.PRODUCTS_READ,
+                ChannelCapability.PRODUCTS_WRITE_PRICE,
+                ChannelCapability.PRODUCTS_WRITE_STOCK,
+                ChannelCapability.PRODUCTS_WRITE_DISCOUNT,
+                ChannelCapability.PRODUCTS_WRITE_CAPACITY,
+                ChannelCapability.ORDERS_READ,
+                ChannelCapability.ORDERS_EVENTS_POLL,
+            }),
+            implemented=True,
+        )
+    )
     for connector_type, channel_id, name in (
-        ("snappshop", "snappshop:main", "Snapp Shop"),
         ("tapsishop", "tapsishop:main", "Tapsi Shop"),
     ):
         registry.register_definition(

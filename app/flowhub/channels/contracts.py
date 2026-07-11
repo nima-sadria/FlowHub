@@ -92,6 +92,7 @@ class ChannelProduct(BaseModel):
     name: str
     current_price: float | None = None
     currency: str | None = None
+    price_unit: str | None = None
     stock_quantity: float | None = None
     status: str | None = None
     raw: dict[str, Any] = Field(default_factory=dict)
@@ -105,6 +106,10 @@ class ChannelProductUpdate(BaseModel):
     discount_price: float | None = None
     capacity: int | None = None
     currency: str | None = None
+    price_unit: str | None = None
+    special_price_start_at: str | None = None
+    special_price_end_at: str | None = None
+    special_price_stock: int | None = None
     idempotency_key: str | None = None
 
 
