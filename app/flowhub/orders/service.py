@@ -11,7 +11,8 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from app.flowhub.channels.contracts import ChannelOrder, ChannelOrderEvent, CursorPagination, PageNumberPagination, PaginatedResult
@@ -26,7 +27,7 @@ from app.flowhub.orders.models import (
     OrderSyncCheckpoint,
 )
 from app.flowhub.security.redaction import redact_sensitive
-from app.flowhub.webhooks.models import WebhookReceipt
+from app.flowhub.webhooks.models import WebhookProcessingAttempt, WebhookReceipt
 
 
 SNAPPSHOP_STATUS_MAP = {
@@ -81,6 +82,12 @@ class OrderSyncLeaseError(HTTPException):
             else "Order synchronization lease is no longer owned by this runner."
         )
         super().__init__(status_code=status.HTTP_409_CONFLICT, detail=detail)
+
+
+class OrderSyncAcknowledgementError(RuntimeError):
+    """Raised after a durable page commit when source acknowledgement fails."""
+
+    category = "acknowledgement_failed"
 
 
 class OrderSyncService:
@@ -218,10 +225,15 @@ class OrderSyncService:
                 checkpoint.last_failure_category = None
                 checkpoint.next_run_at = checkpoint.last_run_at + timedelta(seconds=checkpoint.interval_seconds)
                 checkpoint.updated_at = _utcnow()
-                if hasattr(connector, "acknowledge_order_events"):
-                    connector.acknowledge_order_events(page)
                 self._commit_checkpoint_progress(checkpoint, lease)
                 cursor = next_cursor
+                if hasattr(connector, "acknowledge_order_events"):
+                    try:
+                        connector.acknowledge_order_events(page)
+                    except Exception as exc:
+                        raise OrderSyncAcknowledgementError(
+                            "Order event page was committed, but source acknowledgement failed."
+                        ) from exc
                 if not isinstance(pagination, CursorPagination) or not pagination.has_more:
                     break
             effects_after = self.db.query(ChannelInventoryEffectRecord).filter_by(channel_id=channel_id).count()
@@ -246,48 +258,54 @@ class OrderSyncService:
             "tapsishop_webhook",
             lease_seconds=lease_seconds,
         )
+        checkpoint = self._ensure_checkpoint(channel_id, "tapsishop", "tapsishop_webhook")
         try:
-            receipts = (
-                self.db.query(WebhookReceipt)
-                .filter(WebhookReceipt.channel_id == channel_id, WebhookReceipt.provider == "tapsishop")
-                .filter(WebhookReceipt.processing_state.in_(["queued", "retry_scheduled"]))
-                .order_by(WebhookReceipt.received_at.asc(), WebhookReceipt.id.asc())
-                .limit(limit)
-                .all()
-            )
+            receipt_ids = [
+                receipt_id
+                for (receipt_id,) in (
+                    self.db.query(WebhookReceipt)
+                    .with_entities(WebhookReceipt.id)
+                    .filter(WebhookReceipt.channel_id == channel_id, WebhookReceipt.provider == "tapsishop")
+                    .filter(WebhookReceipt.processing_state.in_(["queued", "retry_scheduled"]))
+                    .order_by(WebhookReceipt.received_at.asc(), WebhookReceipt.id.asc())
+                    .limit(limit)
+                    .all()
+                )
+            ]
             processed = 0
             duplicates = 0
             effects_before = self.db.query(ChannelInventoryEffectRecord).filter_by(channel_id=channel_id).count()
-            for receipt in receipts:
+            if not receipt_ids:
                 self.heartbeat_checkpoint_lease(lease, lease_seconds=lease_seconds)
+            for receipt_id in receipt_ids:
+                # Each receipt is an atomic processing unit. Heartbeat commits only
+                # the lease/checkpoint setup before any receipt state is staged.
+                self.heartbeat_checkpoint_lease(lease, lease_seconds=lease_seconds)
+                receipt = self.db.get(WebhookReceipt, receipt_id)
+                if receipt is None or receipt.processing_state not in {"queued", "retry_scheduled"}:
+                    continue
                 normalized = receipt.normalized_event_json or {}
                 event = _event_from_tapsishop_receipt(receipt)
-                if self._record_event(event, source="tapsishop_webhook"):
+                duplicate = self._record_event(event, source="tapsishop_webhook")
+                if duplicate:
                     duplicates += 1
-                    receipt.processing_state = "processed"
-                    receipt.processed_at = _utcnow()
-                    continue
-                order = await self._order_for_tapsishop_receipt(receipt.channel_id, normalized, connector)
-                self.upsert_order(
-                    order,
-                    source="tapsishop_webhook",
-                    source_event_id=receipt.provider_event_id,
-                    event_type=event.event_type,
-                    occurred_at=_parse_dt(event.occurred_at),
-                    commit=False,
-                )
-                receipt.processing_state = "processed"
-                receipt.processed_at = _utcnow()
-                receipt.last_error_category = None
-                processed += 1
-            checkpoint = self._ensure_checkpoint(channel_id, "tapsishop", "tapsishop_webhook")
-            now = _utcnow()
-            checkpoint.last_run_at = now
-            checkpoint.last_success_at = now
-            checkpoint.last_failure_category = None
-            checkpoint.next_run_at = now
-            checkpoint.updated_at = now
-            self._commit_checkpoint_progress(checkpoint, lease)
+                else:
+                    order = await self._order_for_tapsishop_receipt(receipt.channel_id, normalized, connector)
+                    self.upsert_order(
+                        order,
+                        source="tapsishop_webhook",
+                        source_event_id=receipt.provider_event_id,
+                        event_type=event.event_type,
+                        occurred_at=_parse_dt(event.occurred_at),
+                        commit=False,
+                    )
+                    processed += 1
+                self._mark_receipt_processed(receipt)
+                self._mark_checkpoint_success(checkpoint, next_run_at=_utcnow())
+                self._commit_checkpoint_progress(checkpoint, lease)
+            if not receipt_ids:
+                self._mark_checkpoint_success(checkpoint, next_run_at=_utcnow())
+                self._commit_checkpoint_progress(checkpoint, lease)
             effects_after = self.db.query(ChannelInventoryEffectRecord).filter_by(channel_id=channel_id).count()
             return OrderSyncResult(channel_id, "tapsishop_webhook", processed, duplicates, effects_after - effects_before)
         except Exception as exc:
@@ -312,6 +330,12 @@ class OrderSyncService:
             lease_seconds=lease_seconds,
             interval_seconds=interval_seconds,
         )
+        checkpoint = self._ensure_checkpoint(
+            channel_id,
+            getattr(connector, "connector_type", channel_id.split(":", 1)[0]),
+            "reconciliation",
+            interval_seconds=interval_seconds,
+        )
         processed = 0
         try:
             self.heartbeat_checkpoint_lease(lease, lease_seconds=lease_seconds)
@@ -328,7 +352,6 @@ class OrderSyncService:
                 if before is None or before.raw_hash != row.raw_hash:
                     self._audit(channel_id, item.connector_type, row.internal_id, "order_reconciliation_repair", "Reconciliation repaired missing or stale order state.", {})
                 processed += 1
-            checkpoint = self._ensure_checkpoint(channel_id, getattr(connector, "connector_type", channel_id.split(":", 1)[0]), "reconciliation", interval_seconds=interval_seconds)
             now = _utcnow()
             checkpoint.last_run_at = now
             checkpoint.last_success_at = now
@@ -415,19 +438,39 @@ class OrderSyncService:
             if interval_seconds is not None and checkpoint.interval_seconds != max(1, int(interval_seconds)):
                 checkpoint.interval_seconds = max(1, int(interval_seconds))
                 checkpoint.updated_at = _utcnow()
-                self.db.commit()
-                self.db.refresh(checkpoint)
+                self.db.flush()
             return checkpoint
         checkpoint = OrderSyncCheckpoint(channel_id=channel_id, connector_type=connector_type, source=source)
-        if interval_seconds is not None:
-            checkpoint.interval_seconds = max(1, int(interval_seconds))
-        self.db.add(checkpoint)
-        try:
-            self.db.commit()
-        except IntegrityError:
-            self.db.rollback()
-            checkpoint = self.db.query(OrderSyncCheckpoint).filter_by(channel_id=channel_id, source=source).one()
-        return checkpoint
+        values: dict[str, Any] = {
+            "channel_id": channel_id,
+            "connector_type": connector_type,
+            "source": source,
+            "interval_seconds": max(1, int(interval_seconds)) if interval_seconds is not None else 900,
+            "updated_at": _utcnow(),
+        }
+        dialect = self.db.get_bind().dialect.name
+        if dialect == "postgresql":
+            statement = postgresql_insert(OrderSyncCheckpoint).values(**values).on_conflict_do_nothing(
+                index_elements=["channel_id", "source"]
+            )
+        elif dialect == "sqlite":
+            statement = sqlite_insert(OrderSyncCheckpoint).values(**values).on_conflict_do_nothing(
+                index_elements=["channel_id", "source"]
+            )
+        else:
+            self.db.add(checkpoint)
+            self.db.flush()
+            return checkpoint
+        self.db.execute(statement)
+        return self.db.query(OrderSyncCheckpoint).filter_by(channel_id=channel_id, source=source).one()
+
+    def _mark_checkpoint_success(self, checkpoint: OrderSyncCheckpoint, *, next_run_at: datetime) -> None:
+        now = _utcnow()
+        checkpoint.last_run_at = now
+        checkpoint.last_success_at = now
+        checkpoint.last_failure_category = None
+        checkpoint.next_run_at = next_run_at
+        checkpoint.updated_at = now
 
     def heartbeat_checkpoint_lease(self, lease: OrderSyncLease, *, lease_seconds: int = LOCK_TTL_SECONDS) -> bool:
         now = _utcnow()
@@ -515,7 +558,7 @@ class OrderSyncService:
     def _record_event(self, event: ChannelOrderEvent, *, source: str) -> bool:
         if self.db.query(ChannelOrderEventRecord).filter_by(channel_id=event.channel_id, provider_event_id=event.event_id).first():
             return True
-        row = ChannelOrderEventRecord(
+        self.db.add(ChannelOrderEventRecord(
             channel_id=event.channel_id,
             connector_type=event.connector_type,
             provider_event_id=event.event_id,
@@ -528,14 +571,25 @@ class OrderSyncService:
             raw_hash=_hash(event.raw),
             raw_summary_json=redact_sensitive(_compact(event.raw)),
             state="accepted",
-        )
-        self.db.add(row)
-        try:
-            self.db.flush()
-        except IntegrityError:
-            self.db.rollback()
-            return True
+        ))
+        self.db.flush()
         return False
+
+    def _mark_receipt_processed(self, receipt: WebhookReceipt) -> None:
+        """Stage receipt and attempt completion in the caller-owned transaction."""
+        receipt.attempt_count += 1
+        receipt.processing_state = "processed"
+        receipt.processed_at = _utcnow()
+        receipt.last_error_category = None
+        receipt.next_attempt_at = None
+        self.db.add(WebhookProcessingAttempt(
+            receipt_id=receipt.id,
+            channel_id=receipt.channel_id,
+            provider=receipt.provider,
+            attempt_number=receipt.attempt_count,
+            state="processed",
+            retryable=False,
+        ))
 
     async def _order_for_event(self, connector: Any, event: ChannelOrderEvent) -> ChannelOrder:
         order_number = event.order_identifiers.order_number
@@ -839,7 +893,11 @@ def _utcnow() -> datetime:
 
 
 def _lease_failure_category(exc: Exception, fallback: str) -> str:
-    return exc.category if isinstance(exc, OrderSyncLeaseError) else fallback
+    if isinstance(exc, OrderSyncLeaseError):
+        return exc.category
+    if isinstance(exc, OrderSyncAcknowledgementError):
+        return exc.category
+    return fallback
 
 
 def _order_summary(order: ChannelOrder) -> dict:

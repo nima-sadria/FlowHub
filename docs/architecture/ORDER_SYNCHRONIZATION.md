@@ -90,6 +90,19 @@ worker's lease because the owner must still match. Polling and reconciliation
 share the same channel lease, and a page cursor advances only when the page and
 active-lease guard commit in the same transaction.
 
+Private persistence helpers may execute and flush but do not commit the caller's
+transaction. For webhook processing, one receipt is the atomic unit: normalized
+order records, items, audit/event records, proposed inventory effects, receipt
+state, checkpoint state, and the final active-lease guard commit together. A
+reconciliation page uses the same boundary. Lease loss rolls the unit back and
+leaves receipts eligible for retry.
+
+SnappShop event-page acknowledgement occurs only after the normalized page and
+cursor checkpoint are durably committed. An acknowledgement failure is recorded
+separately and does not undo committed domain state. Retry starts from the
+durable FlowHub checkpoint, while event and inventory-effect identities preserve
+idempotency.
+
 ## PostgreSQL Lease Tests
 
 The concurrency suite uses independent SQLAlchemy sessions against an isolated

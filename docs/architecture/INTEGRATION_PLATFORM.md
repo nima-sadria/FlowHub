@@ -11,8 +11,8 @@ registry metadata, connector instances, connector settings, connector health,
 diagnostics, telemetry, webhooks, polling policy, and future transport support.
 
 This document describes the approved architecture and the implemented first-release
-runtime surface. It does not authorize Scheduler execution, Apply, automatic
-pricing, WooCommerce writes, or Nextcloud writes.
+runtime surface. Product writes require the protected Preview, Dry Run, and
+explicit Apply workflow. Automatic pricing and Nextcloud writes remain disabled.
 
 ## Supported Connector Scope
 
@@ -20,17 +20,18 @@ Current implemented connectors:
 
 - WooCommerce
 - Nextcloud
+- SnappShop
+- TapsiShop
 
 Commerce Hub Channels:
 
-- WooCommerce is the first implemented Channel.
-- Snapp Shop and Tapsi Shop are planned read-only Channel placeholders in
-  FlowHub 1.0.0.
+- WooCommerce, SnappShop, and TapsiShop are implemented Channels.
+- SnappShop and TapsiShop write operations are available only when the channel
+  declares the required capability and the protected backend workflow approves
+  the operation.
 
 Planned Channels:
 
-- Snapp Shop
-- Tapsi Shop
 - Digikala
 - Technolife
 
@@ -65,17 +66,19 @@ Supported transport families:
   `app/flowhub/channels`.
 - Data Layer owns durable read models, snapshots, refresh records, and cache
   records populated by approved connector flows.
-- Connector capabilities are metadata only.
-- Authorization is enforced separately by the Safety Layer and future Write
-  Guard.
+- Connector capabilities describe available operations but never grant
+  authorization by themselves.
+- Authorization is enforced separately by the Safety Layer and protected write
+  workflow.
 - Execution is a third separate concern and is never granted by capability
   detection.
-- In FlowHub, all write operations remain blocked, even when a connector
-  advertises `write_prices` or `write_inventory`.
+- Product writes remain blocked unless capability, channel access mode, Dry Run,
+  explicit approval, and Apply validation all succeed.
 - Webhooks must not directly mutate products. They may validate, record, and
   enqueue an invalidation or refresh event after Owner-approved runtime work.
-- Polling policy is future-ready only until Scheduler implementation is
-  explicitly approved.
+- Marketplace order polling and reconciliation run in the separate
+  `order-sync-runner`. Data Layer product/source refresh scheduling remains a
+  separate future concern.
 
 ## Commerce Hub 1.0.0 Contract
 
@@ -94,11 +97,15 @@ API surface:
 
 Rules:
 
-- All responses report `read_only` and `runtime_write_blocked`.
+- Legacy Commerce Hub browser responses may report `read_only` and
+  `runtime_write_blocked`; protected marketplace writes use the dedicated
+  backend pricing workflow rather than this read model.
 - Credential values are write-only after save.
-- Snapp Shop and Tapsi Shop do not perform real external calls in 1.0.0.
-- Marketplace write paths remain unavailable in 1.0.0.
-- WooCommerce price execution is manual and available only through the Write Pipeline after Preview, Dry Run, and Approval. Scheduler execution and automatic pricing remain disabled.
+- SnappShop and TapsiShop connectors perform external reads and capability-gated
+  product writes through backend adapters.
+- WooCommerce price execution is manual and available only through the Write Pipeline after Preview, Dry Run, and Approval. Automatic pricing remains disabled.
+- Marketplace order synchronization is scheduled only by the separate
+  `order-sync-runner`; automatic pricing remains disabled.
 
 ## Component Diagram
 

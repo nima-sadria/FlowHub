@@ -32,6 +32,18 @@ def test_postgres_lease_test_path_and_current_capability_docs() -> None:
     assert "Marketplace Order Synchronization Boundary" in data_layer
 
 
+def test_security_and_integration_docs_match_atomic_marketplace_runtime() -> None:
+    security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    integration = (ROOT / "docs" / "architecture" / "INTEGRATION_PLATFORM.md").read_text(encoding="utf-8")
+    order_sync = (ROOT / "docs" / "architecture" / "ORDER_SYNCHRONIZATION.md").read_text(encoding="utf-8")
+
+    assert "additional marketplace writes remain disabled or deferred" not in security
+    assert "planned read-only Channel placeholders" not in integration
+    assert "Marketplace order synchronization is scheduled" in integration
+    assert "one receipt is the atomic unit" in order_sync
+    assert "acknowledgement occurs only after" in order_sync
+
+
 def test_static_icon_index_is_tracked_asset_manifest_with_existing_svgs() -> None:
     index = ROOT / "static" / "icons" / "index.ts"
     assert index.exists()

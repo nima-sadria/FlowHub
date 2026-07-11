@@ -585,14 +585,14 @@ Examples:
 3. Wire connector to Data Layer services: call `ProductReadModelService.upsert()` and `ConnectorHealthService.upsert()` after each fetch
 4. No changes needed to `dl_product_cache`, `dl_inventory_cache`, `dl_refresh_jobs`, or `dl_invalidation_events` - they already accept any `connector_id`
 
-### Planned Future Connectors
+### Connector Status
 
 | Connector | Type | Status |
 |-----------|------|--------|
 | WooCommerce | Destination | Active (FLOWHUB) |
 | Nextcloud | Source | Active (FLOWHUB) |
-| Snapp Shop | Channel | Planned read-only placeholder |
-| Tapsi Shop | Channel | Planned read-only placeholder |
+| SnappShop | Channel | Active; capability-gated product writes and order synchronization |
+| TapsiShop | Channel | Active; capability-gated product writes, webhook ingestion, and order synchronization |
 | Digikala | Destination | Planned |
 | Technolife | Destination | Planned |
 | Shopify | Destination | Planned |
@@ -832,8 +832,9 @@ IntegrationPlatformService.list_products(connector_id='snappshop:main', ...)
 dl_product_cache WHERE connector_id = 'snappshop:main'
         |
         -¼
-Existing read-only products from Snapp Shop -> UI
-(no product creation, Apply, Scheduler, pricing, stock write, or marketplace write)
+Existing channel products from SnappShop -> UI
+(this GET browser path performs no external write; protected Apply and the
+separate order-sync runner are independent Integration Platform workflows)
 ```
 
 ---

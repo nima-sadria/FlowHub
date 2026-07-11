@@ -220,6 +220,9 @@ async def test_tapsishop_purchase_and_cancellation_webhooks_are_idempotent(db):
     effects = db.query(_order_models.ChannelInventoryEffectRecord).filter_by(channel_id="tapsi:1").all()
     assert len(effects) == 2
     assert sorted(effect.quantity_delta for effect in effects) == [-3.0, 3.0]
+    assert db.query(_webhook_models.WebhookProcessingAttempt).filter_by(
+        channel_id="tapsi:1", state="processed"
+    ).count() == 2
     assert db.query(_order_models.ChannelOrderItemRecord).filter_by(order_id=order.internal_id).one().sku is None
 
 
@@ -417,6 +420,236 @@ async def test_expired_lease_rolls_back_channel_work_and_records_sanitized_failu
     lease_row = db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:lease-lost", source=CHANNEL_LEASE_SOURCE).one()
     assert lease_row.last_failure_category == "lease_expired"
     assert "secret" not in str(lease_row.last_failure_category).lower()
+
+
+def test_ensure_checkpoint_never_commits_caller_transaction(db, monkeypatch):
+    from app.flowhub.orders.service import OrderSyncService
+
+    service = OrderSyncService(db)
+
+    def unexpected_commit():
+        raise AssertionError("_ensure_checkpoint committed the caller transaction")
+
+    monkeypatch.setattr(db, "commit", unexpected_commit)
+    checkpoint = service._ensure_checkpoint("snapp:no-commit", "snappshop", "snappshop_events")
+
+    assert checkpoint.id is not None
+    db.rollback()
+    assert db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:no-commit").count() == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("mode", "expected_category"),
+    [("expired", "lease_expired"), ("replacement", "lease_lost")],
+)
+async def test_webhook_lease_loss_rolls_back_entire_receipt_unit(db_engine, mode, expected_category):
+    from sqlalchemy.orm import sessionmaker
+    from app.flowhub.orders.service import CHANNEL_LEASE_SOURCE, OrderSyncLeaseError, OrderSyncService
+
+    Session = sessionmaker(bind=db_engine)
+    with Session() as seed:
+        _receipt(seed, f"webhook-{mode}", 1)
+
+    class LeaseMutatingService(OrderSyncService):
+        def _record_event(self, event, *, source):
+            row = self.db.query(_order_models.OrderSyncCheckpoint).filter_by(
+                channel_id="tapsi:1", source=CHANNEL_LEASE_SOURCE
+            ).one()
+            if mode == "expired":
+                row.lease_expires_at = datetime.utcnow() - timedelta(seconds=1)
+            else:
+                row.lock_owner = "replacement-owner"
+                row.lease_expires_at = datetime.utcnow() + timedelta(minutes=5)
+            self.db.commit()
+            return super()._record_event(event, source=source)
+
+    with Session() as processing:
+        with pytest.raises(OrderSyncLeaseError) as exc:
+            await LeaseMutatingService(processing).process_tapsishop_webhook_receipts(
+                "tapsi:1", FakeTapsiConnector()
+            )
+        assert exc.value.category == expected_category
+
+    with Session() as verify:
+        assert verify.query(_order_models.ChannelOrderRecord).filter_by(channel_id="tapsi:1").count() == 0
+        assert verify.query(_order_models.ChannelOrderItemRecord).count() == 0
+        assert verify.query(_order_models.ChannelInventoryEffectRecord).filter_by(channel_id="tapsi:1").count() == 0
+        assert verify.query(_order_models.OrderSyncAuditRecord).filter_by(channel_id="tapsi:1").count() == 0
+        assert verify.query(_order_models.ChannelOrderEventRecord).filter_by(channel_id="tapsi:1").count() == 0
+        receipt = verify.query(_webhook_models.WebhookReceipt).filter_by(channel_id="tapsi:1").one()
+        assert receipt.processing_state == "queued"
+        assert receipt.processed_at is None
+        assert receipt.attempt_count == 0
+        assert verify.query(_webhook_models.WebhookProcessingAttempt).filter_by(
+            receipt_id=receipt.id
+        ).count() == 0
+        checkpoint = verify.query(_order_models.OrderSyncCheckpoint).filter_by(
+            channel_id="tapsi:1", source="tapsishop_webhook"
+        ).one()
+        assert checkpoint.cursor is None
+        assert checkpoint.last_success_at is None
+        lease_row = verify.query(_order_models.OrderSyncCheckpoint).filter_by(
+            channel_id="tapsi:1", source=CHANNEL_LEASE_SOURCE
+        ).one()
+        if mode == "replacement":
+            assert lease_row.lock_owner == "replacement-owner"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("mode", "expected_category", "seed_prior"),
+    [("expired", "lease_expired", False), ("replacement", "lease_lost", True)],
+)
+async def test_reconciliation_lease_loss_rolls_back_page(db_engine, mode, expected_category, seed_prior):
+    from sqlalchemy.orm import sessionmaker
+    from app.flowhub.orders.service import CHANNEL_LEASE_SOURCE, OrderSyncLeaseError, OrderSyncService
+
+    Session = sessionmaker(bind=db_engine)
+    if seed_prior:
+        with Session() as seed:
+            prior = await FakeTapsiConnector(status="1").get_order({"id": "T-200"})
+            OrderSyncService(seed).upsert_order(prior, source="seed")
+
+    class LeaseMutatingConnector(FakeTapsiConnector):
+        connector_type = "tapsishop"
+
+        async def list_orders(self, pagination):
+            row = processing.query(_order_models.OrderSyncCheckpoint).filter_by(
+                channel_id="tapsi:1", source=CHANNEL_LEASE_SOURCE
+            ).one()
+            if mode == "expired":
+                row.lease_expires_at = datetime.utcnow() - timedelta(seconds=1)
+            else:
+                row.lock_owner = "replacement-owner"
+                row.lease_expires_at = datetime.utcnow() + timedelta(minutes=5)
+            processing.commit()
+            return await super().list_orders(pagination)
+
+    with Session() as processing:
+        with pytest.raises(OrderSyncLeaseError) as exc:
+            await OrderSyncService(processing).reconcile_recent_orders(
+                "tapsi:1", LeaseMutatingConnector(status="3")
+            )
+        assert exc.value.category == expected_category
+
+    with Session() as verify:
+        orders = verify.query(_order_models.ChannelOrderRecord).filter_by(channel_id="tapsi:1").all()
+        if seed_prior:
+            assert len(orders) == 1
+            assert orders[0].provider_status == "1"
+        else:
+            assert orders == []
+        checkpoint = verify.query(_order_models.OrderSyncCheckpoint).filter_by(
+            channel_id="tapsi:1", source="reconciliation"
+        ).one()
+        assert checkpoint.cursor is None
+        assert checkpoint.last_success_at is None
+        assert verify.query(_order_models.OrderSyncAuditRecord).filter_by(
+            event_name="order_reconciliation_repair"
+        ).count() == 0
+        lease_row = verify.query(_order_models.OrderSyncCheckpoint).filter_by(
+            channel_id="tapsi:1", source=CHANNEL_LEASE_SOURCE
+        ).one()
+        if mode == "replacement":
+            assert lease_row.lock_owner == "replacement-owner"
+
+
+@pytest.mark.asyncio
+async def test_snappshop_acknowledges_only_after_durable_page_commit(db_engine):
+    from sqlalchemy.orm import sessionmaker
+    from app.flowhub.orders.service import OrderSyncService
+
+    Session = sessionmaker(bind=db_engine)
+
+    class VerifyingConnector(FakeSnappConnector):
+        def acknowledge_order_events(self, page):
+            with Session() as verify:
+                checkpoint = verify.query(_order_models.OrderSyncCheckpoint).filter_by(
+                    channel_id="snapp:1", source="snappshop_events"
+                ).one()
+                assert checkpoint.cursor == page.pagination.next_cursor
+                assert verify.query(_order_models.ChannelOrderRecord).filter_by(channel_id="snapp:1").count() == 1
+            super().acknowledge_order_events(page)
+
+    connector = VerifyingConnector()
+    with Session() as processing:
+        result = await OrderSyncService(processing).sync_snappshop_events(
+            "snapp:1", connector, limit_pages=1
+        )
+
+    assert result.cursor == "cursor-2"
+    assert connector.acknowledged == ["cursor-2"]
+
+
+@pytest.mark.asyncio
+async def test_snappshop_lease_expiry_does_not_acknowledge(db):
+    from app.flowhub.orders.service import CHANNEL_LEASE_SOURCE, OrderSyncLeaseError, OrderSyncService
+
+    class ExpiringConnector(FakeSnappConnector):
+        async def list_order_events(self, pagination):
+            row = db.query(_order_models.OrderSyncCheckpoint).filter_by(
+                channel_id="snapp:ack-expired", source=CHANNEL_LEASE_SOURCE
+            ).one()
+            row.lease_expires_at = datetime.utcnow() - timedelta(seconds=1)
+            db.commit()
+            page = await super().list_order_events(pagination)
+            for event in page.items:
+                object.__setattr__(event, "channel_id", "snapp:ack-expired")
+            return page
+
+        async def get_order(self, identifiers):
+            order = await super().get_order(identifiers)
+            object.__setattr__(order, "channel_id", "snapp:ack-expired")
+            return order
+
+    connector = ExpiringConnector()
+    with pytest.raises(OrderSyncLeaseError):
+        await OrderSyncService(db).sync_snappshop_events("snapp:ack-expired", connector, limit_pages=1)
+
+    assert connector.acknowledged == []
+
+
+@pytest.mark.asyncio
+async def test_snappshop_acknowledgement_failure_preserves_commit_and_retry_is_idempotent(db_engine):
+    from sqlalchemy.orm import sessionmaker
+    from app.flowhub.orders.service import OrderSyncAcknowledgementError, OrderSyncService
+
+    Session = sessionmaker(bind=db_engine)
+
+    class FailOnceConnector(FakeSnappConnector):
+        def __init__(self):
+            super().__init__()
+            self.fail_ack = True
+
+        def acknowledge_order_events(self, page):
+            if self.fail_ack:
+                self.fail_ack = False
+                raise RuntimeError("ack unavailable")
+            super().acknowledge_order_events(page)
+
+    connector = FailOnceConnector()
+    with Session() as first:
+        with pytest.raises(OrderSyncAcknowledgementError):
+            await OrderSyncService(first).sync_snappshop_events("snapp:1", connector, limit_pages=1)
+
+    with Session() as verify:
+        checkpoint = verify.query(_order_models.OrderSyncCheckpoint).filter_by(
+            channel_id="snapp:1", source="snappshop_events"
+        ).one()
+        assert checkpoint.cursor == "cursor-2"
+        assert verify.query(_order_models.ChannelOrderRecord).filter_by(channel_id="snapp:1").count() == 1
+        assert verify.query(_order_models.ChannelInventoryEffectRecord).filter_by(channel_id="snapp:1").count() == 2
+
+    with Session() as retry:
+        result = await OrderSyncService(retry).sync_snappshop_events("snapp:1", connector, limit_pages=1)
+
+    assert result.cursor == "cursor-3"
+    assert connector.calls[-1] == "cursor-2"
+    assert connector.acknowledged == ["cursor-3"]
+    with Session() as verify:
+        assert verify.query(_order_models.ChannelOrderRecord).filter_by(channel_id="snapp:1").count() == 1
+        assert verify.query(_order_models.ChannelInventoryEffectRecord).filter_by(channel_id="snapp:1").count() == 2
 
 
 def test_separate_channels_can_hold_leases_concurrently(db_engine):

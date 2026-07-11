@@ -13,13 +13,29 @@ from fastapi import HTTPException
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.flowhub.orders.models import OrderSyncCheckpoint
+from app.flowhub.channels.contracts import (
+    ChannelIdentifierSet,
+    ChannelOrder,
+    ChannelOrderEvent,
+    ChannelOrderItem,
+    CursorPagination,
+    PaginatedResult,
+)
+from app.flowhub.database import FlowHubBase
+from app.flowhub.orders.models import (
+    ChannelInventoryEffectRecord,
+    ChannelOrderItemRecord,
+    ChannelOrderRecord,
+    OrderSyncAuditRecord,
+    OrderSyncCheckpoint,
+)
 from app.flowhub.orders.service import (
     CHANNEL_LEASE_SOURCE,
     OrderSyncLease,
     OrderSyncLeaseError,
     OrderSyncService,
 )
+from app.flowhub.webhooks.models import WebhookProcessingAttempt, WebhookReceipt
 
 
 pytestmark = pytest.mark.postgres
@@ -48,7 +64,7 @@ def postgres_engine() -> Engine:
         connect_args={"options": f"-csearch_path={schema}"},
         pool_pre_ping=True,
     )
-    OrderSyncCheckpoint.__table__.create(engine)
+    FlowHubBase.metadata.create_all(engine)
     try:
         yield engine
     finally:
@@ -61,7 +77,8 @@ def postgres_engine() -> Engine:
 @pytest.fixture()
 def pg_sessions(postgres_engine: Engine) -> sessionmaker[Session]:
     with postgres_engine.begin() as connection:
-        connection.execute(sa.delete(OrderSyncCheckpoint))
+        table_names = ", ".join(f'"{table.name}"' for table in FlowHubBase.metadata.sorted_tables)
+        connection.execute(sa.text(f"TRUNCATE TABLE {table_names} RESTART IDENTITY CASCADE"))
     return sessionmaker(bind=postgres_engine, expire_on_commit=False)
 
 
@@ -134,8 +151,8 @@ def test_concurrent_acquisition_has_one_winner_and_loser_cannot_advance(pg_sessi
     with pg_sessions() as db:
         checkpoint = db.query(OrderSyncCheckpoint).filter_by(
             channel_id="snappshop:contended", source="snappshop_events"
-        ).one()
-        assert checkpoint.cursor is None
+        ).first()
+        assert checkpoint is None
         assert OrderSyncService(db).release_checkpoint_lease(winner_lease) is True
 
 
@@ -251,3 +268,168 @@ def test_failed_contender_rollback_leaves_no_false_lease(pg_sessions):
         row = _lease_row(verify_db, "snappshop:rollback")
         assert row.lock_owner == "holder"
         assert OrderSyncService(verify_db).release_checkpoint_lease(holder) is True
+
+
+@pytest.mark.parametrize(
+    ("workflow", "mode", "expected_category"),
+    [
+        ("webhook", "expired", "lease_expired"),
+        ("webhook", "replacement", "lease_lost"),
+        ("reconciliation", "expired", "lease_expired"),
+        ("reconciliation", "replacement", "lease_lost"),
+    ],
+)
+def test_workflow_transaction_rolls_back_when_lease_changes_at_final_guard(
+    pg_sessions, workflow, mode, expected_category
+):
+    channel_id = f"tapsishop:{workflow}-{mode}"
+    if workflow == "webhook":
+        with pg_sessions() as seed:
+            _seed_receipt(seed, channel_id, f"request-{mode}")
+
+    class LeaseMutatingService(OrderSyncService):
+        def _commit_checkpoint_progress(self, checkpoint, lease):
+            with pg_sessions() as other:
+                row = _lease_row(other, channel_id)
+                if mode == "expired":
+                    row.lease_expires_at = _utcnow() - timedelta(seconds=1)
+                else:
+                    row.lock_owner = "replacement-owner"
+                    row.lease_expires_at = _utcnow() + timedelta(minutes=5)
+                other.commit()
+            return super()._commit_checkpoint_progress(checkpoint, lease)
+
+    with pg_sessions() as processing:
+        service = LeaseMutatingService(processing)
+        with pytest.raises(OrderSyncLeaseError) as exc:
+            if workflow == "webhook":
+                asyncio.run(service.process_tapsishop_webhook_receipts(channel_id, _TapsiConnector(channel_id)))
+            else:
+                asyncio.run(service.reconcile_recent_orders(channel_id, _TapsiConnector(channel_id)))
+        assert exc.value.category == expected_category
+
+    with pg_sessions() as verify:
+        assert verify.query(ChannelOrderRecord).filter_by(channel_id=channel_id).count() == 0
+        assert verify.query(ChannelOrderItemRecord).count() == 0
+        assert verify.query(ChannelInventoryEffectRecord).filter_by(channel_id=channel_id).count() == 0
+        assert verify.query(OrderSyncAuditRecord).filter_by(channel_id=channel_id).count() == 0
+        source = "tapsishop_webhook" if workflow == "webhook" else "reconciliation"
+        checkpoint = verify.query(OrderSyncCheckpoint).filter_by(channel_id=channel_id, source=source).one()
+        assert checkpoint.cursor is None
+        assert checkpoint.last_success_at is None
+        if workflow == "webhook":
+            receipt = verify.query(WebhookReceipt).filter_by(channel_id=channel_id).one()
+            assert receipt.processing_state == "queued"
+            assert receipt.processed_at is None
+            assert receipt.attempt_count == 0
+            assert verify.query(WebhookProcessingAttempt).filter_by(receipt_id=receipt.id).count() == 0
+        if mode == "replacement":
+            assert _lease_row(verify, channel_id).lock_owner == "replacement-owner"
+
+
+def test_snappshop_acknowledgement_observes_durable_postgres_commit(pg_sessions):
+    channel_id = "snappshop:ack-order"
+
+    class Connector:
+        def __init__(self):
+            self.acknowledged = False
+
+        async def list_order_events(self, pagination):
+            return PaginatedResult(
+                items=[
+                    ChannelOrderEvent(
+                        channel_id=channel_id,
+                        connector_type="snappshop",
+                        event_id="event-ack",
+                        event_type="NEW_ORDER",
+                        occurred_at="2026-07-12T00:00:00Z",
+                        order_identifiers=ChannelIdentifierSet(order_number="S-ACK"),
+                        raw={"event_id": "event-ack", "event_type": "NEW_ORDER", "order_number": "S-ACK"},
+                    )
+                ],
+                pagination=CursorPagination(cursor=None, next_cursor="cursor-ack", has_more=False, limit=50),
+            )
+
+        async def get_order(self, identifiers):
+            return _channel_order(channel_id, "S-ACK", "NEW_ORDER")
+
+        def acknowledge_order_events(self, page):
+            with pg_sessions() as verify:
+                checkpoint = verify.query(OrderSyncCheckpoint).filter_by(
+                    channel_id=channel_id, source="snappshop_events"
+                ).one()
+                assert checkpoint.cursor == "cursor-ack"
+                assert verify.query(ChannelOrderRecord).filter_by(channel_id=channel_id).count() == 1
+            self.acknowledged = True
+
+    connector = Connector()
+    with pg_sessions() as processing:
+        result = asyncio.run(
+            OrderSyncService(processing).sync_snappshop_events(channel_id, connector, limit_pages=1)
+        )
+
+    assert result.cursor == "cursor-ack"
+    assert connector.acknowledged is True
+
+
+class _TapsiConnector:
+    connector_type = "tapsishop"
+
+    def __init__(self, channel_id: str):
+        self.channel_id = channel_id
+
+    async def get_order(self, identifiers):
+        return _channel_order(self.channel_id, str(identifiers.get("id") or "T-1"), "1")
+
+    async def list_orders(self, pagination):
+        return PaginatedResult(items=[_channel_order(self.channel_id, "T-1", "1")], pagination=pagination)
+
+
+def _channel_order(channel_id: str, order_number: str, order_status: str) -> ChannelOrder:
+    return ChannelOrder(
+        channel_id=channel_id,
+        connector_type="tapsishop" if channel_id.startswith("tapsishop") else "snappshop",
+        identifiers=ChannelIdentifierSet(external_product_id=order_number, order_number=order_number),
+        status=order_status,
+        created_at="2026-07-12T00:00:00Z",
+        updated_at="2026-07-12T00:00:00Z",
+        items=[
+            ChannelOrderItem(
+                identifiers=ChannelIdentifierSet(external_product_id="product-1", sku="SKU-1"),
+                name="Product",
+                quantity=1,
+                unit_price=100,
+                currency="IRR",
+                raw={"id": "item-1", "sku": "SKU-1", "quantity": 1, "finalPrice": 100},
+            )
+        ],
+        total=100,
+        currency="IRR",
+        raw={"orderId": order_number, "orderNumber": order_number, "status": order_status},
+    )
+
+
+def _seed_receipt(db: Session, channel_id: str, request_id: str) -> None:
+    db.add(
+        WebhookReceipt(
+            channel_id=channel_id,
+            provider="tapsishop",
+            provider_event_id=request_id,
+            payload_hash=request_id.ljust(64, "0")[:64],
+            payload_summary_json={"requestId": request_id, "orderId": "T-1", "changeType": 1},
+            normalized_event_json={
+                "requestId": request_id,
+                "orderId": "T-1",
+                "changeType": 1,
+                "changeTypeLabel": "deducted_due_to_purchase",
+                "occurredAt": "2026-07-12T00:00:00Z",
+                "orderDetail": {"orderId": "T-1", "orderNumber": "T-1", "status": "1"},
+                "items": [
+                    {"orderItemId": "item-1", "productId": "product-1", "sku": "SKU-1", "quantity": 1, "price": 100}
+                ],
+            },
+            acknowledged_at=_utcnow(),
+            processing_state="queued",
+        )
+    )
+    db.commit()

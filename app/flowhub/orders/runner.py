@@ -363,7 +363,7 @@ def _env_bool(name: str, default: bool) -> bool:
 
 def _error_category(exc: Exception) -> str:
     category = getattr(exc, "category", None)
-    if isinstance(category, str) and category in {"lease_expired", "lease_lost"}:
+    if isinstance(category, str) and category in {"lease_expired", "lease_lost", "acknowledgement_failed"}:
         return category
     detail = getattr(exc, "detail", None)
     if isinstance(detail, str) and detail:
