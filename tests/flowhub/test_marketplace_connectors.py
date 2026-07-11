@@ -127,7 +127,7 @@ def test_unsupported_capability_is_structured_and_not_retryable():
     assert error.retry.safe_to_retry is False
 
 
-def test_default_registry_keeps_future_marketplaces_unimplemented_and_woocommerce_price_only():
+def test_default_registry_keeps_marketplace_capabilities_explicit_and_woocommerce_price_only():
     registry = default_marketplace_registry()
 
     assert registry.supports("woocommerce:primary", ChannelCapability.PRODUCTS_READ) is True
@@ -135,4 +135,8 @@ def test_default_registry_keeps_future_marketplaces_unimplemented_and_woocommerc
     assert registry.supports("woocommerce:primary", ChannelCapability.PRODUCTS_WRITE_STOCK) is False
     assert registry.get_definition("snappshop:main").implemented is True
     assert registry.supports("snappshop:main", ChannelCapability.PRODUCTS_WRITE_STOCK) is True
-    assert registry.get_definition("tapsishop:main").implemented is False
+    assert registry.get_definition("tapsishop:main").implemented is True
+    assert registry.supports("tapsishop:main", ChannelCapability.PRODUCTS_WRITE_STOCK) is True
+    assert registry.supports("tapsishop:main", ChannelCapability.ORDERS_WEBHOOK_RECEIVE) is True
+    assert registry.supports("tapsishop:main", ChannelCapability.COURIER_READ) is True
+    assert registry.supports("tapsishop:main", ChannelCapability.COURIER_REVIEW) is False

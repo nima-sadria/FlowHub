@@ -131,6 +131,17 @@ const commerce: CommerceService = {
           { key: 'vendor_id', label: 'Vendor ID', required: false, secret: false },
           { key: 'token', label: 'Bearer token', required: true, secret: true },
         ]),
+        typeOption('tapsishop:main', 'tapsishop', 'Tapsi Shop', 'Channel', false, [
+          { key: 'base_url', label: 'Base URL', required: false, secret: false },
+          { key: 'request_timeout', label: 'Request timeout seconds', required: false, secret: false },
+          { key: 'selected_vendor_id', label: 'Selected vendor/store ID', required: false, secret: false },
+          { key: 'token_refresh_enabled', label: 'Token refresh enabled', required: false, secret: false },
+          { key: 'token_refresh_name', label: 'Token refresh name', required: false, secret: false },
+          { key: 'revoke_current_token', label: 'Revoke current token on refresh', required: false, secret: false },
+          { key: 'token_refresh_expired_at', label: 'Token refresh expiration', required: false, secret: false },
+          { key: 'token', label: 'Authorization token', required: true, secret: true },
+          { key: 'webhook_token', label: 'Webhook token', required: false, secret: true },
+        ]),
       ],
     }
   },
@@ -196,7 +207,7 @@ const commerce: CommerceService = {
       items: [
         channel('woocommerce:primary', 'WooCommerce', false),
         channel('snappshop:main', 'Snapp Shop', false),
-        channel('tapsishop:main', 'Tapsi Shop', true),
+        channel('tapsishop:main', 'Tapsi Shop', false),
         channel('digikala:main', 'Digikala', true),
         channel('technolife:main', 'Technolife', true),
         channel('shopify:main', 'Shopify', true),

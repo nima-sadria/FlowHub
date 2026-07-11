@@ -101,7 +101,7 @@ def test_commerce_channels_report_read_only_write_blocked(client, auth_headers):
     assert by_name["WooCommerce"]["write_pipeline_eligible"] is False
     assert by_name["Snapp Shop"]["placeholder"] is False
     assert by_name["Snapp Shop"]["write_blocked"] is True
-    assert by_name["Tapsi Shop"]["placeholder"] is True
+    assert by_name["Tapsi Shop"]["placeholder"] is False
     assert by_name["Tapsi Shop"]["write_blocked"] is True
 
 
@@ -133,13 +133,17 @@ def test_commerce_type_routes_mark_future_placeholders_read_only(client, auth_he
     assert channel_types["snappshop"]["placeholder"] is False
     assert channel_types["snappshop"]["read_only"] is True
     assert channel_types["snappshop"]["write_blocked"] is True
-    for provider in ("tapsishop", "digikala", "technolife", "shopify"):
+    assert channel_types["tapsishop"]["implemented"] is True
+    assert channel_types["tapsishop"]["placeholder"] is False
+    assert channel_types["tapsishop"]["read_only"] is True
+    assert channel_types["tapsishop"]["write_blocked"] is True
+    for provider in ("digikala", "technolife", "shopify"):
         assert channel_types[provider]["placeholder"] is True
         assert channel_types[provider]["read_only"] is True
         assert channel_types[provider]["write_blocked"] is True
 
 
-def test_snapp_registry_is_implemented_and_tapsi_placeholder_is_read_only():
+def test_snapp_and_tapsi_registries_are_implemented_and_read_only():
     from app.flowhub.integration_platform.registry import registry
 
     snapp = registry.get_definition("snappshop")
@@ -154,8 +158,10 @@ def test_snapp_registry_is_implemented_and_tapsi_placeholder_is_read_only():
     assert tapsi is not None
     assert tapsi.connector.identity.read_only is True
     assert tapsi.connector.capabilities.read_products is True
-    assert tapsi.connector.capabilities.write_prices is False
-    assert tapsi.connector.capabilities.write_inventory is False
+    assert tapsi.connector.capabilities.read_orders is True
+    assert tapsi.connector.capabilities.write_prices is True
+    assert tapsi.connector.capabilities.write_inventory is True
+    assert tapsi.connector.capabilities.webhook is True
 
 
 def test_woocommerce_connection_test_performs_read_only_api_call_without_secret_leakage(client, auth_headers, monkeypatch):
@@ -319,7 +325,7 @@ def test_placeholder_connection_test_does_not_call_external_system(client, auth_
     )
     monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client.httpx.AsyncClient", FailingAsyncClient)
 
-    response = client.post("/api/v2/commerce/channels/tapsishop:main/test", headers=auth_headers, json={})
+    response = client.post("/api/v2/commerce/channels/digikala:main/test", headers=auth_headers, json={})
 
     assert response.status_code == 200
     data = response.json()
@@ -332,6 +338,87 @@ def test_placeholder_connection_test_does_not_call_external_system(client, auth_
     assert data["read_only"] is True
     assert data["runtime_write_blocked"] is True
     assert data["write_blocked"] is True
+
+
+def test_tapsishop_connection_test_performs_vendor_probe_without_secret_leakage(client, auth_headers, monkeypatch):
+    request_calls: list[dict] = []
+
+    class FakeResponse:
+        status_code = 200
+        headers = {}
+
+        def json(self):
+            return {
+                "success": True,
+                "data": {
+                    "vendorId": 42,
+                    "vendorName": "Vendor",
+                    "storeName": "Store",
+                    "storeLink": "https://store.example.test",
+                    "storeNumber": "S-42",
+                },
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            self.kwargs = kwargs
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def request(self, method, url, *, headers=None, json=None):
+            request_calls.append({"method": method, "url": url, "headers": headers, "json": json})
+            return FakeResponse()
+
+    monkeypatch.setattr("app.flowhub.channels.tapsishop.httpx.AsyncClient", FakeAsyncClient)
+
+    save = client.put(
+        "/api/v2/commerce/channels/tapsishop:main/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "Tapsi Shop",
+            "enabled": True,
+            "settings": {
+                "base_url": "https://vendorgw.tapsi.shop/Web/Hub/vendors/v1",
+                "request_timeout": "10",
+                "selected_vendor_id": "42",
+                "token_refresh_enabled": "true",
+            },
+            "secrets": {
+                "token": "tapsi-secret-value",
+                "webhook_token": "tapsi-webhook-secret",
+            },
+        },
+    )
+    assert save.status_code == 200
+    assert "tapsi-secret-value" not in save.text
+    assert "tapsi-webhook-secret" not in save.text
+
+    response = client.post("/api/v2/commerce/channels/tapsishop:main/test", headers=auth_headers, json={})
+
+    assert response.status_code == 200
+    assert "tapsi-secret-value" not in response.text
+    assert "tapsi-webhook-secret" not in response.text
+    data = response.json()
+    assert data["ok"] is True
+    assert data["connected"] is True
+    assert data["authenticated"] is True
+    assert data["external_call_performed"] is True
+    assert data["read_only"] is True
+    assert data["runtime_write_blocked"] is True
+    assert request_calls == [{
+        "method": "GET",
+        "url": "https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/vendor-information",
+        "headers": {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "TapsiShop.Hub.Authorization": "tapsi-secret-value",
+        },
+        "json": None,
+    }]
 
 
 def test_source_placeholder_connection_test_does_not_call_external_system(client, auth_headers):
@@ -1667,6 +1754,37 @@ def test_channel_settings_preserve_credential_masking(client, auth_headers):
     detail = client.get("/api/v2/commerce/channels/snappshop:main", headers=auth_headers)
     assert detail.status_code == 200
     assert "snapp-secret-value" not in detail.text
+    assert detail.json()["credential_status"] == "configured"
+
+
+def test_tapsishop_channel_settings_mask_separate_outbound_and_webhook_tokens(client, auth_headers):
+    response = client.put(
+        "/api/v2/commerce/channels/tapsishop:main/settings",
+        headers=auth_headers,
+        json={
+            "settings": {"selected_vendor_id": "42"},
+            "secrets": {
+                "token": "tapsi-secret-value",
+                "webhook_token": "tapsi-webhook-secret",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert "tapsi-secret-value" not in response.text
+    assert "tapsi-webhook-secret" not in response.text
+    data = response.json()
+    assert data["read_only"] is True
+    assert data["access_mode"] == "read_only"
+    assert data["write_pipeline_eligible"] is False
+    assert data["runtime_write_blocked"] is True
+    assert data["secrets"]["token"]["status"] == "configured"
+    assert data["secrets"]["webhook_token"]["status"] == "configured"
+
+    detail = client.get("/api/v2/commerce/channels/tapsishop:main", headers=auth_headers)
+    assert detail.status_code == 200
+    assert "tapsi-secret-value" not in detail.text
+    assert "tapsi-webhook-secret" not in detail.text
     assert detail.json()["credential_status"] == "configured"
 
 

@@ -135,5 +135,37 @@ Documented defaults and configurable assumptions:
   SnappShop. SnappShop webhook receipt remains unsupported until a SnappShop
   webhook document is supplied.
 
-TapsiShop remains a future channel definition only. This task does not implement
-TapsiShop external API calls.
+## TapsiShop Connector
+
+The TapsiShop channel connector is implemented under
+`app/flowhub/channels/tapsishop.py` from `webhook.v.0.2.pdf`.
+
+Documented defaults and configurable assumptions:
+
+- Base URL default: `https://vendorgw.tapsi.shop/Web/Hub/vendors/v1`.
+- The document shows inconsistent path casing in examples. FlowHub constructs
+  every URL through the connector `_url()` helper so path casing can be
+  normalized in one place.
+- Outbound API authentication uses
+  `TapsiShop.Hub.Authorization: {token}`.
+- Incoming webhook authentication uses the separate
+  `TapsiShop.Hub.Webhook-Authorization: {webhook_token}` credential. FlowHub
+  never reuses the outbound token as the webhook token.
+- Webhook acknowledgement uses HTTP 200 with a response body containing
+  `succeed: true`.
+- Health checks call only `GET /vendor-information`; they do not run product or
+  order synchronization.
+- Product writes use rial values at the channel boundary. FlowHub requires
+  explicit `IRR`/`rial` metadata and validates integer multiples of 10 to avoid
+  accidental rial/toman conversion.
+- Token refresh uses `POST /refresh-token`. The PDF sample contains a spacing
+  typo in one rendered path, so the normalized documented task path is isolated
+  as `TAPSISHOP_REFRESH_PATH`.
+- Token refresh occurs only after an authentication failure on a safe request or
+  through the explicit connector refresh method. A per-connector async lock
+  prevents concurrent refreshes, the stored token update is delegated to the
+  existing configuration service, and the original safe request is retried once.
+- Courier lookup is implemented as `GET /courier/{pickupCode}`. Courier review
+  remains capability-gated and is not exposed in the UI until the documented
+  method inconsistency for `/review-courier` is verified against a real API or
+  vendor sandbox. The currently documented method constant is `PUT`.

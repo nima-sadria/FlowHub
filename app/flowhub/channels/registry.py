@@ -85,20 +85,21 @@ def default_marketplace_registry() -> MarketplaceConnectorRegistry:
             implemented=True,
         )
     )
-    for connector_type, channel_id, name in (
-        ("tapsishop", "tapsishop:main", "Tapsi Shop"),
-    ):
-        registry.register_definition(
-            MarketplaceConnectorDefinition(
-                connector_type=connector_type,
-                channel_id=channel_id,
-                name=name,
-                capabilities=frozenset({
-                    ChannelCapability.PRODUCTS_READ,
-                    ChannelCapability.ORDERS_READ,
-                    ChannelCapability.ORDERS_EVENTS_POLL,
-                }),
-                implemented=False,
-            )
+    registry.register_definition(
+        MarketplaceConnectorDefinition(
+            connector_type="tapsishop",
+            channel_id="tapsishop:main",
+            name="Tapsi Shop",
+            capabilities=frozenset({
+                ChannelCapability.PRODUCTS_READ,
+                ChannelCapability.PRODUCTS_WRITE_PRICE,
+                ChannelCapability.PRODUCTS_WRITE_STOCK,
+                ChannelCapability.ORDERS_READ,
+                ChannelCapability.ORDERS_WEBHOOK_RECEIVE,
+                ChannelCapability.CREDENTIALS_REFRESH,
+                ChannelCapability.COURIER_READ,
+            }),
+            implemented=True,
         )
+    )
     return registry

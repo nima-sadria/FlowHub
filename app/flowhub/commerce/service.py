@@ -19,6 +19,7 @@ from app.connectors.read.woocommerce import WooCommerceProductReadAdapter
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import ping as ping_woocommerce
 from app.flowhub.channels.snappshop import IntegrationSettingsOrderEventCursorStore, SnappShopConfig, SnappShopConnector
+from app.flowhub.channels.tapsishop import TAPSISHOP_BASE_URL, TapsiShopConfig, TapsiShopConnector
 from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
 from app.flowhub.data_layer.health_service import ConnectorHealthService
 from app.flowhub.integrations.errors import IntegrationError
@@ -65,9 +66,9 @@ _CHANNELS = [
         "id": "tapsishop:main",
         "provider": "tapsishop",
         "name": "Tapsi Shop",
-        "status": "planned",
-        "implemented": False,
-        "placeholder": True,
+        "status": "current",
+        "implemented": True,
+        "placeholder": False,
     },
     {
         "id": "digikala:main",
@@ -232,6 +233,8 @@ class CommerceHubService:
             return await self._test_woocommerce_channel_connection(configured)
         if str(meta["provider"]) == "snappshop":
             return await self._test_snappshop_channel_connection(configured)
+        if str(meta["provider"]) == "tapsishop":
+            return await self._test_tapsishop_channel_connection(configured)
         return self._unsupported_connection_result()
 
     async def refresh_channel_cache(self, channel_id: str, actor: str) -> dict:
@@ -418,6 +421,8 @@ class CommerceHubService:
             self._persist_woocommerce_app_config(body)
         if provider == "snappshop":
             self._persist_snappshop_app_config(body)
+        if provider == "tapsishop":
+            self._persist_tapsishop_app_config(body)
         result = self.integration.update_settings_contract(channel_id, self._settings_body(body))
         instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         effective_access_mode = self._access_mode(instance)
@@ -789,6 +794,66 @@ class CommerceHubService:
             cursor_store=IntegrationSettingsOrderEventCursorStore(self.db),
         )
 
+    async def _test_tapsishop_channel_connection(self, configured: bool) -> dict:
+        connector = self._tapsishop_connector()
+        if not configured or connector is None:
+            return {
+                **self._connection_base(),
+                "ok": False,
+                "connected": False,
+                "authenticated": False,
+                "status": "not_configured",
+                "http_status": None,
+                "latency_ms": None,
+                "checked_at": self._checked_at(),
+                "message": "TapsiShop is not configured. No external call was performed.",
+                "external_call_performed": False,
+            }
+        health = await connector.test_connection()
+        error = health.error
+        ok = health.status == "healthy"
+        return {
+            **self._connection_base(),
+            "ok": ok,
+            "connected": ok,
+            "authenticated": ok,
+            "status": "connected" if ok else "error",
+            "http_status": error.http_status if error else 200,
+            "latency_ms": health.latency_ms,
+            "checked_at": health.checked_at or self._checked_at(),
+            "message": "Connected to TapsiShop. Vendor information probe succeeded." if ok else (error.message if error else "TapsiShop connection test failed."),
+            "external_call_performed": True,
+        }
+
+    def _tapsishop_connector(self) -> TapsiShopConnector | None:
+        try:
+            config = TapsiShopConfig.from_values(
+                settings={
+                    "base_url": self.integration.config.get("tapsishop.base_url"),
+                    "request_timeout": self.integration.config.get("tapsishop.request_timeout"),
+                    "token_refresh_enabled": self.integration.config.get("tapsishop.token_refresh_enabled"),
+                    "token_refresh_name": self.integration.config.get("tapsishop.token_refresh_name"),
+                    "revoke_current_token": self.integration.config.get("tapsishop.revoke_current_token"),
+                    "token_refresh_expired_at": self.integration.config.get("tapsishop.token_refresh_expired_at"),
+                    "selected_vendor_id": self.integration.config.get("tapsishop.selected_vendor_id"),
+                },
+                secrets={
+                    "token": self.integration.config.get("tapsishop.token"),
+                    "webhook_token": self.integration.config.get("tapsishop.webhook_token"),
+                },
+            )
+        except (TypeError, ValueError):
+            return None
+
+        def update_token(new_token: str) -> None:
+            self.integration.config.set("tapsishop.token", new_token, updated_by="tapsishop_refresh")
+
+        return TapsiShopConnector(
+            channel_id="tapsishop:main",
+            config=config,
+            token_updater=update_token,
+        )
+
     async def _test_nextcloud_source_connection(self) -> dict:
         values = self._nextcloud_values({}, allow_stored=True)
         if not values["url"] or not values["password"]:
@@ -1094,6 +1159,29 @@ class CommerceHubService:
         if pairs:
             self.integration.config.set_many(pairs, updated_by="commerce_hub")
 
+    def _persist_tapsishop_app_config(self, body: dict) -> None:
+        settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
+        secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
+        pairs: dict[str, str] = {
+            "tapsishop.base_url": str(settings.get("base_url") or TAPSISHOP_BASE_URL).strip().rstrip("/"),
+        }
+        for source_key, config_key in (
+            ("request_timeout", "tapsishop.request_timeout"),
+            ("token_refresh_enabled", "tapsishop.token_refresh_enabled"),
+            ("token_refresh_name", "tapsishop.token_refresh_name"),
+            ("revoke_current_token", "tapsishop.revoke_current_token"),
+            ("token_refresh_expired_at", "tapsishop.token_refresh_expired_at"),
+            ("selected_vendor_id", "tapsishop.selected_vendor_id"),
+        ):
+            if source_key in settings:
+                pairs[config_key] = str(settings.get(source_key) or "").strip()
+        if secrets.get("token"):
+            pairs["tapsishop.token"] = str(secrets["token"])
+        if secrets.get("webhook_token"):
+            pairs["tapsishop.webhook_token"] = str(secrets["webhook_token"])
+        if pairs:
+            self.integration.config.set_many(pairs, updated_by="commerce_hub")
+
     def _persist_nextcloud_app_config(self, body: dict) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
@@ -1222,7 +1310,7 @@ class CommerceHubService:
         elif instance.connector_type == "snappshop":
             required = {"token", "agent_identifier"}
         elif instance.connector_type == "tapsishop":
-            required = {"api_key"}
+            required = {"token"}
         elif instance.connector_type in {"digikala", "technolife", "shopify"}:
             required = {"api_token"}
         elif instance.connector_type == "nextcloud":

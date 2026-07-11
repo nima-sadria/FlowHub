@@ -9,6 +9,7 @@ Key namespace conventions:
   woocommerce.*    - URL, consumer key/secret
   nextcloud.*      - URL, username, password, spreadsheet path
   snappshop.*      - URL, token, agent header, vendor selection
+  tapsishop.*      - URL, outbound token, webhook token, refresh policy
 """
 
 from __future__ import annotations
@@ -25,6 +26,8 @@ _SECRET_KEYS: frozenset[str] = frozenset({
     "woocommerce.secret",
     "nextcloud.password",
     "snappshop.token",
+    "tapsishop.token",
+    "tapsishop.webhook_token",
 })
 
 
