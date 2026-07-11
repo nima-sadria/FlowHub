@@ -8,9 +8,9 @@ import Empty from '../components/Empty'
 import { SkeletonCard } from '../components/loading/Skeleton'
 import PageShell from '../components/PageShell'
 import { useServices } from '../services/ServiceContext'
-import type { ActivityEvent, Source } from '../services/types'
+import type { ActivityEvent, ChannelHealthResponse, Source } from '../services/types'
 
-type Indicator = 'ok' | 'error' | 'loading'
+type Indicator = 'ok' | 'warning' | 'error' | 'loading'
 
 function relTime(d: Date | null): string {
   if (!d) return '-'
@@ -31,6 +31,7 @@ function StatCard({ label, value, sub, indicator }: {
 }) {
   const dot =
     indicator === 'ok' ? 'bg-wp-green' :
+    indicator === 'warning' ? 'bg-wp-yellow' :
     indicator === 'error' ? 'bg-wp-red' :
     indicator === 'loading' ? 'bg-wp-yellow animate-pulse' :
     null
@@ -61,10 +62,11 @@ function formatAction(action: string): string {
 
 export default function Dashboard() {
   const { user, authFetch } = useAuth()
-  const { sources, products, activity } = useServices()
+  const { sources, products, activity, health: healthService } = useServices()
   const navigate = useNavigate()
 
   const [health, setHealth] = useState<HealthResponse | null>(null)
+  const [channelHealth, setChannelHealth] = useState<ChannelHealthResponse | null>(null)
   const [healthLoading, setHealthLoading] = useState(true)
   const [healthErr, setHealthErr] = useState(false)
 
@@ -75,15 +77,20 @@ export default function Dashboard() {
 
   const fetchHealth = useCallback(async () => {
     setHealthLoading(true)
+    setHealthErr(false)
     try {
-      const data = await apiFetch<HealthResponse>('/api/health', authFetch)
+      const [data, channels] = await Promise.all([
+        apiFetch<HealthResponse>('/api/health', authFetch),
+        healthService.getChannelHealth(),
+      ])
       setHealth(data)
+      setChannelHealth(channels)
     } catch {
       setHealthErr(true)
     } finally {
       setHealthLoading(false)
     }
-  }, [authFetch])
+  }, [authFetch, healthService])
 
   useEffect(() => { void fetchHealth() }, [fetchHealth])
 
@@ -100,6 +107,14 @@ export default function Dashboard() {
   }, [sources, products, activity])
 
   const backendInd: Indicator = healthLoading ? 'loading' : healthErr ? 'error' : 'ok'
+  const channelOverall = channelHealth?.summary.overall
+  const channelInd: Indicator =
+    healthLoading ? 'loading' :
+    channelOverall === 'Operational' ? 'ok' :
+    channelOverall === 'Warning' || channelOverall === 'Unable to check' ? 'warning' :
+    channelOverall === 'Disabled' ? 'warning' :
+    channelOverall === 'Error' ? 'error' :
+    healthErr ? 'error' : 'warning'
   const activeSources = sourceList.filter(s => s.status === 'active')
   const lastSync = activeSources.reduce<Date | null>((best, s) => {
     if (!s.lastSynced) return best
@@ -144,6 +159,12 @@ export default function Dashboard() {
           value={backendInd === 'ok' ? 'Running' : backendInd === 'loading' ? 'Loading' : 'Unavailable'}
           indicator={backendInd}
         />
+        <StatCard
+          label="Channels"
+          value={channelOverall ?? (healthLoading ? 'Loading' : 'Unable to check')}
+          sub={channelHealth ? `${channelHealth.items.length} monitored destinations` : undefined}
+          indicator={channelInd}
+        />
       </div>
 
       {dataLoading ? (
@@ -161,6 +182,37 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="fh-card">
+          <div className="fh-panel-header">
+            <p className="fh-section-title">Channels</p>
+            <button onClick={() => navigate('/diagnostics')} className="fh-toolbar-link">
+              Diagnostics
+            </button>
+          </div>
+          <div className="fh-panel-body !py-3">
+            {healthLoading && !channelHealth ? (
+              <SkeletonCard />
+            ) : !channelHealth || channelHealth.items.length === 0 ? (
+              <Empty title="No channels monitored" />
+            ) : (
+              channelHealth.items.map(channel => (
+                <div key={channel.channelId} className="flex items-center justify-between gap-3 border-b border-border py-2.5 last:border-0">
+                  <div className="min-w-0">
+                    <p className="fh-text-body font-medium truncate">{channel.channelType}</p>
+                    <p className="fh-text-caption truncate">{channel.summary}</p>
+                  </div>
+                  <Badge
+                    className="capitalize flex-shrink-0"
+                    variant={channel.status === 'Operational' ? 'success' : channel.status === 'Error' ? 'error' : 'warning'}
+                  >
+                    {channel.status}
+                  </Badge>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         <div className="fh-card">
           <div className="fh-panel-header">
             <p className="fh-section-title">Sources</p>

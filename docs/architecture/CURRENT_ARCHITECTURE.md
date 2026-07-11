@@ -78,6 +78,42 @@ Current:
 Capabilities describe what a connector can do. Capabilities do not grant
 authorization. Runtime authorization and write blocking remain separate.
 
+## Health And Diagnostics
+
+`GET /api/v2/diagnostics/status` includes a unified `channelHealth` payload used
+by both Dashboard and Diagnostics. The channel-health read path is local and
+record-backed: it summarizes connector configuration, the latest credential and
+external API probe snapshot, read/write capabilities, recent product and order
+sync evidence, polling cursor progress, webhook receipt/processing state,
+dead-letter counts, and token-refresh state.
+
+Explicit provider probes are separate and administrator-only:
+
+- `GET /api/v2/diagnostics/channels/health`
+- `POST /api/v2/diagnostics/channels/health/refresh`
+
+Normal health reads do not perform product writes, full product syncs, or full
+order syncs. Explicit refresh uses bounded lightweight channel checks and caches
+the result briefly in `dl_connector_health`; concurrent refreshes for the same
+channel are suppressed. Responses expose sanitized status, latency, last
+successful operation, error category, capabilities, and recommended action.
+They must not expose tokens, webhook tokens, authorization headers, full
+upstream payloads, stack traces, or customer data.
+
+Channel health levels are:
+
+- `Operational`
+- `Warning`
+- `Error`
+- `Unable to check`
+- `Disabled`
+
+A disabled channel is reported as `Disabled`, not `Error`. Timeouts are reported
+as `Unable to check` unless other durable evidence raises a stronger warning or
+error. Missing optional order, pricing, or webhook tables are treated as
+unavailable local evidence rather than an API failure, so diagnostics remain
+usable during partial migrations.
+
 ## Commerce Hub
 
 Commerce Hub is the product-facing organization layer for commerce data in

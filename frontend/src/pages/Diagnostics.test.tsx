@@ -38,6 +38,7 @@ function responseFor(input: RequestInfo | URL): Response {
       overall_status: 'ok',
       checkedAt: new Date().toISOString(),
       connectors: [],
+      channelHealth: channelHealthPayload(),
       rateLimiter: {
         settings: {
           read_requests_per_minute: 60,
@@ -52,7 +53,60 @@ function responseFor(input: RequestInfo | URL): Response {
       },
     }), { status: 200 })
   }
+  if (url.includes('/api/v2/diagnostics/channels/health/refresh')) {
+    return new Response(JSON.stringify(channelHealthPayload()), { status: 200 })
+  }
   return new Response('{}', { status: 404 })
+}
+
+function channelHealthPayload() {
+  return {
+    checkedAt: new Date().toISOString(),
+    summary: { overall: 'Warning', counts: { Operational: 1, Warning: 1, Error: 0, 'Unable to check': 0, Disabled: 1 } },
+    external_call_performed: false,
+    items: [
+      {
+        channelId: 'woocommerce:primary',
+        channelType: 'woocommerce',
+        enabled: true,
+        accessMode: 'read_only',
+        status: 'Operational',
+        summary: 'WooCommerce is operational.',
+        lastChecked: new Date().toISOString(),
+        latency: 12,
+        lastSuccessfulOperation: new Date().toISOString(),
+        lastErrorCategory: null,
+        capabilityState: { read_products: true, write_prices: true },
+        nextRecommendedAction: 'No immediate action required.',
+        dimensions: { credentials: { status: 'Operational', message: 'Credential validation passed.' } },
+        lastProductRead: new Date().toISOString(),
+        lastProductWrite: null,
+        lastOrderSync: new Date().toISOString(),
+        polling: { cursor: null, lastRunAt: null },
+        webhooks: { supported: false, received: 0, queued: 0, processed: 0, deadLetter: 0, lastReceivedAt: null, lastProcessedAt: null },
+      },
+      {
+        channelId: 'tapsishop:main',
+        channelType: 'tapsishop',
+        enabled: true,
+        accessMode: 'read_only',
+        status: 'Warning',
+        summary: 'Accepted webhook receipts are waiting for processing.',
+        lastChecked: new Date().toISOString(),
+        latency: 24,
+        lastSuccessfulOperation: new Date().toISOString(),
+        lastErrorCategory: null,
+        capabilityState: { read_products: true, write_prices: true, webhook: true },
+        nextRecommendedAction: 'Review queued webhook receipts.',
+        dimensions: { webhookProcessing: { status: 'Warning', message: 'Accepted webhook receipts are waiting for processing.' } },
+        lastProductRead: new Date().toISOString(),
+        lastProductWrite: null,
+        lastOrderSync: new Date().toISOString(),
+        polling: { cursor: null, lastRunAt: null },
+        webhooks: { supported: true, received: 1, queued: 1, processed: 0, deadLetter: 0, lastReceivedAt: new Date().toISOString(), lastProcessedAt: null },
+      },
+    ],
+  }
 }
 
 beforeEach(() => {
@@ -84,6 +138,23 @@ async function renderPage() {
 }
 
 describe('Diagnostics', () => {
+  it('renders normalized channel health and refreshes one channel', async () => {
+    const c = await renderPage()
+    expect(c.textContent).toContain('Channel Health')
+    expect(c.textContent).toContain('WooCommerce')
+    expect(c.textContent).toContain('TapsiShop')
+    expect(c.textContent).toContain('Accepted webhook receipts are waiting for processing.')
+
+    const refresh = Array.from(c.querySelectorAll('button')).find(button => button.textContent?.includes('Refresh'))
+    await act(async () => {
+      refresh?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.map(call => String(call[0]))
+    expect(calls.some(url => url.includes('/api/v2/diagnostics/channels/health/refresh'))).toBe(true)
+  })
+
   it('does not stack duplicate refreshed success toasts', async () => {
     const c = await renderPage()
     const recheck = Array.from(c.querySelectorAll('button')).find(button => button.textContent?.includes('Re-check'))

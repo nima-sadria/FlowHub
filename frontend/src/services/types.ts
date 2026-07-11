@@ -7,6 +7,52 @@ export interface SystemHealth {
   checkedAt: Date
 }
 
+export type ChannelHealthLevel = 'Operational' | 'Warning' | 'Error' | 'Unable to check' | 'Disabled'
+
+export interface ChannelHealthDimension {
+  status: ChannelHealthLevel
+  message: string
+}
+
+export interface ChannelHealthItem {
+  channelId: string
+  channelType: string
+  enabled: boolean
+  accessMode: string
+  status: ChannelHealthLevel
+  summary: string
+  lastChecked: string | null
+  latency: number | null
+  lastSuccessfulOperation: string | null
+  lastErrorCategory: string | null
+  capabilityState: Record<string, boolean>
+  nextRecommendedAction: string
+  dimensions: Record<string, ChannelHealthDimension>
+  lastProductRead: string | null
+  lastProductWrite: string | null
+  lastOrderSync: string | null
+  polling: { cursor: string | null; lastRunAt: string | null }
+  webhooks: {
+    supported: boolean
+    received: number
+    queued: number
+    processed: number
+    deadLetter: number
+    lastReceivedAt: string | null
+    lastProcessedAt: string | null
+  }
+}
+
+export interface ChannelHealthResponse {
+  checkedAt: string
+  summary: {
+    overall: ChannelHealthLevel
+    counts: Record<ChannelHealthLevel, number>
+  }
+  items: ChannelHealthItem[]
+  external_call_performed: boolean
+}
+
 // -- Products ------------------------------------------------------------------
 
 export type ProductSyncStatus = 'synced' | 'pending' | 'stale' | 'error'

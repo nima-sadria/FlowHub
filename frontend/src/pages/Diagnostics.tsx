@@ -7,6 +7,7 @@ import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
 import PageShell from '../components/PageShell'
+import type { ChannelHealthItem, ChannelHealthResponse, ChannelHealthLevel } from '../services/types'
 
 const REQUEST_TIMEOUT_MS = 10_000
 
@@ -33,6 +34,7 @@ interface DiagnosticsStatusResponse {
   overall_status?: string
   checkedAt?: string
   connectors?: ConnectorStatus[]
+  channelHealth?: ChannelHealthResponse
   rateLimiter?: {
     settings?: {
       read_requests_per_minute?: number
@@ -64,8 +66,8 @@ interface StatusRowData {
 function normalizeStatus(status: string | undefined): StatusRowData['status'] {
   if (!status) return 'pending'
   const s = status.toLowerCase()
-  if (['healthy', 'ok', 'connected', 'active'].includes(s)) return 'ok'
-  if (['warning', 'degraded', 'rate_limited'].includes(s)) return 'warning'
+  if (['healthy', 'ok', 'connected', 'active', 'operational'].includes(s)) return 'ok'
+  if (['warning', 'degraded', 'rate_limited', 'unable to check'].includes(s)) return 'warning'
   if (['error', 'failed', 'authentication_failed', 'timeout'].includes(s)) return 'error'
   if (['disabled', 'unconfigured'].includes(s)) return 'pending'
   return 'pending'
@@ -113,6 +115,20 @@ function metricValue(value: number | null | undefined, suffix = ''): string {
   return `${value}${suffix}`
 }
 
+function channelLabel(channel: ChannelHealthItem): string {
+  if (channel.channelType === 'woocommerce') return 'WooCommerce'
+  if (channel.channelType === 'snappshop') return 'SnappShop'
+  if (channel.channelType === 'tapsishop') return 'TapsiShop'
+  return channel.channelType
+}
+
+function statusBadgeClass(status: ChannelHealthLevel): string {
+  if (status === 'Operational') return 'bg-green-50 text-green-700 border-green-200'
+  if (status === 'Error') return 'bg-red-50 text-red-700 border-red-200'
+  if (status === 'Disabled') return 'bg-gray-50 text-gray-600 border-gray-200'
+  return 'bg-yellow-50 text-yellow-700 border-yellow-200'
+}
+
 export default function Diagnostics() {
   const { authFetch: ctxAuthFetch } = useAuth()
   const { success, error: notifyError } = useNotification()
@@ -121,6 +137,7 @@ export default function Diagnostics() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [checkedAt, setCheckedAt] = useState<Date | null>(null)
+  const [refreshingChannel, setRefreshingChannel] = useState<string | null>(null)
 
   const runCheck = useCallback(async () => {
     setLoading(true)
@@ -147,10 +164,39 @@ export default function Diagnostics() {
     }
   }, [ctxAuthFetch, success, notifyError])
 
+  const refreshChannel = useCallback(async (channelId: string) => {
+    setRefreshingChannel(channelId)
+    try {
+      const data = await apiFetch<ChannelHealthResponse>(
+        '/api/v2/diagnostics/channels/health/refresh',
+        authFetch,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channelId }),
+        },
+        REQUEST_TIMEOUT_MS,
+      )
+      setDiag(current => current ? { ...current, channelHealth: data } : current)
+      setCheckedAt(new Date())
+      success('Channel health refreshed')
+    } catch (e) {
+      const msg = e instanceof ApiError
+        ? `Channel health refresh failed (HTTP ${e.status})`
+        : e instanceof Error && e.message === 'request_timeout'
+          ? 'Channel health refresh timed out.'
+          : 'Channel health refresh failed.'
+      notifyError(msg)
+    } finally {
+      setRefreshingChannel(null)
+    }
+  }, [success, notifyError])
+
   useEffect(() => { void runCheck() }, [runCheck])
 
   const backendStatus: StatusRowData['status'] = loading ? 'loading' : err ? 'error' : 'ok'
   const connectors = diag?.connectors ?? []
+  const channelHealth = diag?.channelHealth
   const limiter = diag?.rateLimiter
   const systemRows: StatusRowData[] = [
     {
@@ -201,6 +247,76 @@ export default function Diagnostics() {
       <div className="fh-card fh-card-pad">
         <p className="fh-section-label mb-3">System</p>
         {systemRows.map(row => <Row key={row.label} row={row} />)}
+      </div>
+
+      <div className="fh-card fh-card-pad">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <p className="fh-section-label">Channel Health</p>
+            {channelHealth?.checkedAt && (
+              <p className="fh-text-caption mt-1">Checked {new Date(channelHealth.checkedAt).toLocaleString()}</p>
+            )}
+          </div>
+          {channelHealth && (
+            <span className={['inline-flex rounded-full border px-2.5 py-1 fh-text-caption font-medium', statusBadgeClass(channelHealth.summary.overall)].join(' ')}>
+              {channelHealth.summary.overall}
+            </span>
+          )}
+        </div>
+        {loading && !channelHealth ? (
+          <div className="flex items-center gap-2 py-2 fh-text-body-sm">
+            <Spinner size="sm" />Loading channel health
+          </div>
+        ) : !channelHealth || channelHealth.items.length === 0 ? (
+          <Empty title="No channel health data" />
+        ) : (
+          <div className="space-y-3">
+            {channelHealth.items.map(channel => (
+              <div key={channel.channelId} className="rounded-md border border-border p-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="fh-text-body font-semibold">{channelLabel(channel)}</p>
+                      <span className={['inline-flex rounded-full border px-2 py-0.5 fh-text-caption font-medium', statusBadgeClass(channel.status)].join(' ')}>
+                        {channel.status}
+                      </span>
+                      <span className="fh-text-caption">{channel.accessMode}</span>
+                    </div>
+                    <p className="fh-text-caption mt-1">{channel.summary}</p>
+                    <p className="fh-text-caption mt-1">Next action: {channel.nextRecommendedAction}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void refreshChannel(channel.channelId)}
+                    disabled={refreshingChannel !== null}
+                    className="fh-button-secondary self-start"
+                  >
+                    {refreshingChannel === channel.channelId ? <Spinner size="sm" /> : 'Refresh'}
+                  </button>
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                  {Object.entries(channel.dimensions).map(([key, dimension]) => (
+                    <div key={key} className="rounded border border-border px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="fh-text-caption font-medium text-text-base">{key}</span>
+                        <span className={['inline-flex rounded-full border px-2 py-0.5 fh-text-caption', statusBadgeClass(dimension.status)].join(' ')}>
+                          {dimension.status}
+                        </span>
+                      </div>
+                      {dimension.message && <p className="fh-text-caption mt-1">{dimension.message}</p>}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-2 fh-text-caption sm:grid-cols-2 lg:grid-cols-4">
+                  <span>Last checked: {channel.lastChecked ? new Date(channel.lastChecked).toLocaleString() : 'Unavailable'}</span>
+                  <span>Latency: {metricValue(channel.latency, ' ms')}</span>
+                  <span>Last success: {channel.lastSuccessfulOperation ? new Date(channel.lastSuccessfulOperation).toLocaleString() : 'Unavailable'}</span>
+                  <span>Error category: {channel.lastErrorCategory ?? 'None'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="fh-card fh-card-pad">
