@@ -207,3 +207,53 @@ Documented defaults and configurable assumptions:
   remains capability-gated and is not exposed in the UI until the documented
   method inconsistency for `/review-courier` is verified against a real API or
   vendor sandbox. The currently documented method constant is `PUT`.
+
+## TapsiShop Webhook Ingestion
+
+FlowHub exposes a dedicated TapsiShop webhook receiver:
+
+- `POST /api/v2/webhooks/tapsishop/{channel_id}`
+
+Authentication uses the `TapsiShop.Hub.Webhook-Authorization` header and the
+stored `webhook_token` for the exact channel. FlowHub uses constant-time
+comparison and never logs the supplied or stored token. The outbound API token
+and webhook token remain separate credentials.
+
+The receiver validates payload size and `application/json` before parsing. A
+successful response is returned only after the receipt is durably stored:
+
+```json
+{
+  "message": "Webhook accepted.",
+  "succeed": true
+}
+```
+
+Idempotency is enforced by `(channel_id, requestId)`. Repeated delivery of an
+already accepted request returns the same TapsiShop-compatible success response
+without creating another receipt or processing attempt. The same `requestId` can
+be accepted independently for another channel.
+
+The HTTP handler does not mutate canonical inventory, orders, or products. It
+creates an immutable receipt, stores a normalized channel event, and leaves
+business effects to the processing layer. Current normalized `changeType`
+mapping:
+
+- `1`: deducted due to purchase
+- `2`: added due to cancellation
+
+Stored payload data is minimized. FlowHub stores request ID, order/item/product
+identifiers, SKU, quantity, timestamps, prices, payload hash, and processing
+state. Customer name, phone number, national code, and delivery address are not
+stored in receipt summaries or normalized events and must not be logged.
+
+Processing uses bounded exponential backoff for transient failures. Permanent
+validation failures are not retried. Exhausted failures move to dead-letter
+state. Authorized administrators can replay a receipt; replay preserves the
+same idempotency identity and does not create a new accepted event. Sanitized
+metrics expose received, accepted, duplicate, failed, dead-letter, and processing
+latency counts.
+
+Retention: webhook receipt rows include `retention_until`, currently set to 90
+days after receipt. A future retention worker should purge or archive rows after
+that timestamp according to the deployment's privacy policy.

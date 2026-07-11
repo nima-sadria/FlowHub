@@ -100,5 +100,8 @@ def test_fresh_database_still_upgrades_to_head(tmp_path, monkeypatch):
         "dl_source_read_locks",
         "dl_source_read_reservations",
         "flowhub_login_rate_limits",
+        "webhook_receipts",
+        "webhook_processing_attempts",
+        "webhook_dead_letters",
     } <= tables
     engine.dispose()

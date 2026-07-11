@@ -2,13 +2,14 @@
 
 ## Current release head
 
-FlowHub 1.0.0 migration head is **`FLOWHUB_012`**.
+FlowHub 1.0.0 migration head is **`FLOWHUB_013`**.
 
-`FLOWHUB_012` follows `FLOWHUB_011` and creates the protected multi-channel
-product price operation tables used by the Products Dry Run, Approval, Apply,
-and audit workflow. The release compatibility suite covers both a fresh database
-upgrade and the supported legacy installation upgrade path through the current
-head.
+`FLOWHUB_013` follows `FLOWHUB_012` and creates durable webhook ingestion
+tables for immutable receipts, processing attempts, and dead letters.
+`FLOWHUB_012` created the protected multi-channel product price operation
+tables used by the Products Dry Run, Approval, Apply, and audit workflow. The
+release compatibility suite covers both a fresh database upgrade and the
+supported legacy installation upgrade path through the current head.
 
 Use the installer upgrade flow or run:
 

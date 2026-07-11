@@ -13,6 +13,9 @@
   WooCommerce, SnappShop, and TapsiShop price review, no-write Dry Run,
   explicit Approval/Apply, per-channel results, stale-state conflict checks,
   and audit records.
+- Durable TapsiShop webhook ingestion with channel-specific webhook token
+  authentication, requestId idempotency, minimized payload storage, retry and
+  dead-letter processing state, and TapsiShop-compatible success responses.
 - Database-backed login throttling with explicit trusted-proxy configuration.
 - PostgreSQL-inclusive backups, manifest validation, explicit restore, and
   rollback documentation.
@@ -25,7 +28,7 @@ and automatic synchronization are not included.
 
 ## Upgrade and rollback
 
-The migration head is `FLOWHUB_012`. Create `flowhub backup` before upgrading;
+The migration head is `FLOWHUB_013`. Create `flowhub backup` before upgrading;
 use [docs/release/ROLLBACK.md](docs/release/ROLLBACK.md) for a failed upgrade.
 
 ## Deferred after 1.0.0
