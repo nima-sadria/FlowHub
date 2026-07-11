@@ -253,3 +253,49 @@ class TestUpdateNextcloud:
         assert cfg.get("nextcloud.url") == "https://cloud.example.com"
         assert cfg.get("nextcloud.spreadsheet_path") == "/prices.xlsx"
         assert "apppass" not in client.get("/api/v2/settings", headers=auth_headers).text
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://user@cloud.example.test",
+            "https://user:password@cloud.example.test",
+            "https://user%40example.test:token@cloud.example.test/remote.php/dav/files/user",
+        ],
+    )
+    def test_rejects_credential_bearing_url(self, client, auth_headers, caplog, url):
+        r = client.post(
+            "/api/v2/settings/nextcloud",
+            headers=auth_headers,
+            json={
+                "url": url,
+                "username": "user",
+                "password": "separate-app-password",
+                "spreadsheet_path": "/prices.xlsx",
+            },
+        )
+
+        assert r.status_code == 422
+        assert r.json()["detail"]["code"] == "CREDENTIALS_IN_URL_NOT_ALLOWED"
+        assert url not in r.text
+        assert "separate-app-password" not in r.text
+        assert url not in caplog.text
+
+    def test_settings_response_withholds_legacy_credential_url(self, client, auth_headers, db):
+        from app.flowhub.setup.service import AppConfigService
+
+        unsafe_url = "https://user:legacy-secret@cloud.example.test"
+        AppConfigService(db).set_many(
+            {
+                "nextcloud.url": unsafe_url,
+                "nextcloud.username": "user",
+                "nextcloud.password": "separate-app-password",
+            },
+            updated_by="legacy-test",
+        )
+
+        response = client.get("/api/v2/settings", headers=auth_headers)
+
+        assert response.status_code == 200
+        assert response.json()["nextcloudUrl"] == ""
+        assert unsafe_url not in response.text
+        assert "legacy-secret" not in response.text

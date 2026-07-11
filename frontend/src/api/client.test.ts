@@ -72,4 +72,42 @@ describe('apiFetch', () => {
     expect(apiErrorMessage(err, 'fallback')).toBe('The external service rate limit was reached.')
     expect(apiErrorMessage(new ApiError(502, '<html>proxy</html>'), 'fallback')).toBe('fallback')
   })
+
+  it.each([
+    ['Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.private.signature', 'Authorization: [REDACTED]'],
+    ['authorization=Basic dXNlcjpwYXNz', 'authorization=[REDACTED]'],
+    ['Request failed with Bearer eyJhbGciOiJIUzI1NiJ9.private', 'Request failed with [REDACTED]'],
+    ['password=private token: abcdefgh api_key=key-value', 'password=[REDACTED] token: [REDACTED] api_key=[REDACTED]'],
+    ['cookie=session-secret session=session-value jwt=jwt-value', 'cookie=[REDACTED] session=[REDACTED] jwt=[REDACTED]'],
+  ])('fully redacts structured credential text', (unsafe, expected) => {
+    expect(apiErrorMessage(new ApiError(400, JSON.stringify({ message: unsafe })), 'fallback')).toBe(expected)
+  })
+
+  it('removes userinfo from credential-bearing URLs', () => {
+    const error = new ApiError(400, JSON.stringify({ detail: 'Check https://user:pass@example.test/path now.' }))
+    const message = apiErrorMessage(error, 'fallback')
+    expect(message).toBe('Check https://example.test/path now.')
+    expect(message).not.toContain('user:pass')
+  })
+
+  it.each([
+    'Traceback (most recent call last):\n  File "service.py", line 10\nValueError: secret',
+    'Internal Server Error\n    at handler (api.ts:10:2)\n    at next (router.ts:2:1)',
+  ])('replaces stack traces with a fixed safe message', (trace) => {
+    expect(apiErrorMessage(new ApiError(500, JSON.stringify({ detail: trace })), 'fallback'))
+      .toBe('An internal service error occurred.')
+  })
+
+  it('truncates long structured errors after sanitization', () => {
+    const message = apiErrorMessage(new ApiError(500, JSON.stringify({ message: 'x'.repeat(700) })), 'fallback')
+    expect(message).toHaveLength(500)
+    expect(message.endsWith('...')).toBe(true)
+  })
+
+  it('preserves concise normal messages and supports title/errors fields', () => {
+    expect(apiErrorMessage(new ApiError(409, JSON.stringify({ title: 'Configuration conflict.' })), 'fallback'))
+      .toBe('Configuration conflict.')
+    expect(apiErrorMessage(new ApiError(422, JSON.stringify({ errors: ['Invalid spreadsheet path.'] })), 'fallback'))
+      .toBe('Invalid spreadsheet path.')
+  })
 })

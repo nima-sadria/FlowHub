@@ -128,6 +128,23 @@ describe('Workspace source-driven preview', () => {
 
     expect(container.textContent).toContain('PREVIEW_EXPIRED')
   })
+
+  it('renders only the shared sanitized Workspace error', async () => {
+    const preview = makePreview({ withError: false })
+    const createDryRun = vi.fn(async () => {
+      throw new ApiError(500, JSON.stringify({
+        detail: 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.private.signature https://user:pass@example.test/path',
+      }))
+    })
+    await renderWorkspace(preview, createDryRun)
+
+    await click('Start Preview')
+    await click('Dry Run')
+
+    expect(container.textContent).toContain('Authorization: [REDACTED]')
+    expect(container.textContent).not.toContain('eyJhbGci')
+    expect(container.textContent).not.toContain('user:pass')
+  })
 })
 
 async function renderWorkspace(

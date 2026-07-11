@@ -17,6 +17,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
 from app.flowhub.data_layer.models import (
     DlConnectorHealth,
     DlConnectorTelemetry,
@@ -171,7 +172,7 @@ class IntegrationPlatformService:
         )
         self.db.add(row)
         self.db.flush()
-        settings = body.get("settings")
+        settings = self._normalize_connector_settings(connector_type, body.get("settings"))
         if isinstance(settings, dict):
             secret_keys = self._definition_secret_keys(definition)
             self._upsert_settings(
@@ -207,7 +208,7 @@ class IntegrationPlatformService:
         if "enabled" in body:
             row.enabled = bool(body["enabled"])
         row.read_only = True
-        settings = body.get("settings")
+        settings = self._normalize_connector_settings(row.connector_type, body.get("settings"))
         if isinstance(settings, dict):
             secret_keys = self._definition_secret_keys(self.get_registry_definition(row.connector_type))
             self._upsert_settings(
@@ -297,7 +298,7 @@ class IntegrationPlatformService:
                     "replaced_at": _iso(item.updated_at),
                 }
             else:
-                settings[item.key] = item.value_json
+                settings[item.key] = self._public_setting_value(row.connector_type, item.key, item.value_json)
         return {
             "connector_id": connector_id,
             "settings": settings,
@@ -310,7 +311,10 @@ class IntegrationPlatformService:
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
         entries: list[ConnectorSettingValue] = []
-        settings = body.get("settings") if isinstance(body, dict) else None
+        settings = self._normalize_connector_settings(
+            row.connector_type,
+            body.get("settings") if isinstance(body, dict) else None,
+        )
         secrets = body.get("secrets") if isinstance(body, dict) else None
         if isinstance(settings, dict):
             secret_keys = self._definition_secret_keys(self.get_registry_definition(row.connector_type))
@@ -341,6 +345,25 @@ class IntegrationPlatformService:
         row = self.db.get(IntegrationConnectorInstance, connector_id)
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        if row.connector_type == "nextcloud":
+            normalized = self._normalize_connector_settings(
+                row.connector_type,
+                {item.key: item.value for item in settings},
+            ) or {}
+            settings = [
+                item.model_copy(update={"value": normalized.get(item.key, item.value)})
+                for item in settings
+            ]
+            if "webdav_files_root_url" in normalized and not any(
+                item.key == "webdav_files_root_url" for item in settings
+            ):
+                settings.append(
+                    ConnectorSettingValue(
+                        key="webdav_files_root_url",
+                        value=normalized["webdav_files_root_url"],
+                        configured=bool(normalized["webdav_files_root_url"]),
+                    )
+                )
         self._upsert_settings(row, settings)
         self.record_event(
             connector_id=connector_id,
@@ -388,6 +411,7 @@ class IntegrationPlatformService:
         values: dict[str, object | None],
     ) -> IntegrationConnectorInstance:
         definition = self.get_registry_definition(connector_type)
+        values = self._normalize_connector_settings(connector_type, values, reject_invalid=False) or {}
         row = self.db.get(IntegrationConnectorInstance, connector_id)
         now = datetime.utcnow()
         if row is None:
@@ -884,7 +908,7 @@ class IntegrationPlatformService:
         )
         return ConnectorInstanceShape(
             connector=descriptor,
-            settings=[self._setting_to_shape(item) for item in row.settings],
+            settings=[self._setting_to_shape(item, row.connector_type) for item in row.settings],
             created_at=_iso(row.created_at),
             updated_at=_iso(row.updated_at),
         )
@@ -981,13 +1005,55 @@ class IntegrationPlatformService:
         if commit:
             self.db.commit()
 
-    def _setting_to_shape(self, row: IntegrationConnectorSetting) -> ConnectorSettingValue:
+    def _setting_to_shape(self, row: IntegrationConnectorSetting, connector_type: str = "") -> ConnectorSettingValue:
+        value = None if row.secret else self._public_setting_value(connector_type, row.key, row.value_json)
         return ConnectorSettingValue(
             key=row.key,
-            value=None if row.secret else row.value_json,
+            value=value,
             secret=row.secret,
-            configured=row.configured,
+            configured=row.configured and (row.secret or value not in (None, "")),
         )
+
+    def _normalize_connector_settings(
+        self,
+        connector_type: str,
+        settings: object,
+        *,
+        reject_invalid: bool = True,
+    ) -> dict | None:
+        if not isinstance(settings, dict):
+            return None
+        normalized_settings = dict(settings)
+        if connector_type != "nextcloud" or not normalized_settings.get("url"):
+            return normalized_settings
+        try:
+            normalized = normalize_nextcloud_url(
+                str(normalized_settings["url"]),
+                str(normalized_settings.get("username") or ""),
+            )
+        except NextcloudUrlValidationError as exc:
+            if reject_invalid:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    {"code": exc.code, "message": str(exc)},
+                ) from exc
+            normalized_settings["url"] = None
+            normalized_settings["webdav_files_root_url"] = None
+            return normalized_settings
+        normalized_settings["url"] = normalized["server_root_url"]
+        normalized_settings["webdav_files_root_url"] = normalized["webdav_files_root_url"]
+        if normalized["username"]:
+            normalized_settings["username"] = normalized["username"]
+        return normalized_settings
+
+    def _public_setting_value(self, connector_type: str, key: str, value: object) -> object:
+        if connector_type != "nextcloud" or key not in {"url", "webdav_files_root_url"} or not value:
+            return value
+        try:
+            normalized = normalize_nextcloud_url(str(value))
+        except NextcloudUrlValidationError:
+            return None
+        return normalized["server_root_url"] if key == "url" else normalized["webdav_files_root_url"]
 
     def _product_to_shape(self, row: DlProductCache, currency: str) -> ConnectorProductShape:
         categories = row.categories or []

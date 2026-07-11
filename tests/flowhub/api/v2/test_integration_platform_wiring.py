@@ -183,6 +183,25 @@ def test_legacy_connector_mutations_require_admin(client, auth_headers, db):
     assert response.status_code == 403
 
 
+def test_legacy_nextcloud_settings_reject_credential_url(client, auth_headers):
+    assert client.post(
+        "/api/v2/integrations/connectors",
+        headers=auth_headers,
+        json={"connector_type": "nextcloud", "id": "nextcloud:credential-url", "name": "Nextcloud"},
+    ).status_code == 201
+    unsafe_url = "https://user:embedded-secret@cloud.example.test"
+
+    response = client.patch(
+        "/api/v2/integrations/connectors/nextcloud:credential-url/settings",
+        headers=auth_headers,
+        json={"settings": [{"key": "url", "value": unsafe_url}, {"key": "username", "value": "user"}]},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "CREDENTIALS_IN_URL_NOT_ALLOWED"
+    assert unsafe_url not in response.text
+
+
 def test_products_route_reads_data_layer_records(client, auth_headers, db):
     from app.flowhub.data_layer.product_service import ProductReadModelService
     from app.flowhub.setup.service import AppConfigService

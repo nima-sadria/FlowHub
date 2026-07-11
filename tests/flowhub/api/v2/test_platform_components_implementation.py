@@ -173,6 +173,25 @@ def test_integration_platform_canonical_contracts_and_write_guard(client, auth_h
     }
 
 
+def test_canonical_nextcloud_connector_rejects_credential_url(client, auth_headers):
+    unsafe_url = "https://user:embedded-secret@cloud.example.test"
+    response = client.post(
+        "/api/v2/integration-platform/connectors",
+        headers=auth_headers,
+        json={
+            "connector_type": "nextcloud",
+            "id": "nextcloud:unsafe-url",
+            "name": "Nextcloud",
+            "settings": {"url": unsafe_url, "username": "user"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "CREDENTIALS_IN_URL_NOT_ALLOWED"
+    assert unsafe_url not in response.text
+    assert "embedded-secret" not in response.text
+
+
 def test_integration_platform_diagnostics_polling_webhook_are_safe(client, auth_headers):
     client.post(
         "/api/v2/integration-platform/connectors",

@@ -19,6 +19,7 @@ from app.flowhub.auth.repository import create_audit_event
 from app.flowhub.auth.authorization import require_admin
 from app.flowhub.database import get_db
 from app.flowhub.integration_platform.service import IntegrationPlatformService
+from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
 from app.flowhub.rate_limit.service import RateLimitService
 from app.flowhub.setup.service import AppConfigService
 
@@ -31,6 +32,16 @@ def _is_wc_configured(cfg: AppConfigService) -> bool:
 
 def _is_nc_configured(cfg: AppConfigService) -> bool:
     return bool(cfg.get("nextcloud.url") and cfg.get("nextcloud.username") and cfg.get("nextcloud.password"))
+
+
+def _public_nextcloud_url(cfg: AppConfigService) -> str:
+    try:
+        return normalize_nextcloud_url(
+            cfg.get("nextcloud.url") or "",
+            cfg.get("nextcloud.username") or "",
+        )["server_root_url"]
+    except NextcloudUrlValidationError:
+        return ""
 
 
 class SettingsPatch(BaseModel):
@@ -127,7 +138,7 @@ async def get_settings(
     connectors = IntegrationPlatformService(db).settings_summary()
     return {
         "woocommerceUrl": cfg.get("woocommerce.url") or "",
-        "nextcloudUrl": cfg.get("nextcloud.url") or "",
+        "nextcloudUrl": _public_nextcloud_url(cfg),
         "syncIntervalMinutes": int(cfg.get("server.sync_interval_minutes") or "60"),
         "timezone": cfg.get("server.timezone") or "UTC",
         "currency": cfg.get("server.currency") or "EUR",
@@ -241,11 +252,16 @@ async def update_nextcloud(
     current_user: FlowHubUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
+    try:
+        normalized = normalize_nextcloud_url(body.url, body.username)
+    except NextcloudUrlValidationError as exc:
+        raise HTTPException(status_code=422, detail={"code": exc.code, "message": str(exc)}) from exc
     cfg = AppConfigService(db)
     cfg.set_many(
         {
-            "nextcloud.url": body.url,
-            "nextcloud.username": body.username,
+            "nextcloud.url": normalized["server_root_url"],
+            "nextcloud.webdav_files_root_url": normalized["webdav_files_root_url"],
+            "nextcloud.username": normalized["username"],
             "nextcloud.password": body.password,
             "nextcloud.spreadsheet_path": body.spreadsheet_path,
         },
@@ -256,13 +272,13 @@ async def update_nextcloud(
         connector_id="nextcloud:primary",
         name="Nextcloud Spreadsheet",
         values={
-            "url": body.url,
-            "username": body.username,
+            "url": normalized["server_root_url"],
+            "username": normalized["username"],
             "password": body.password,
             "spreadsheet_path": body.spreadsheet_path,
         },
     )
-    create_audit_event(db, username=current_user.username, event="nextcloud_configured", ip_address=body.url)
+    create_audit_event(db, username=current_user.username, event="nextcloud_configured", ip_address="local-settings")
     return {
         "ok": True,
         "message": "Nextcloud settings saved locally. Live validation is handled by diagnostics.",

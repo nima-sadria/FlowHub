@@ -19,6 +19,7 @@ from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.sources.nextcloud.auth import NextcloudCredentials
 from app.connectors.sources.nextcloud.connector import NextcloudConnector
 from app.connectors.sources.nextcloud.webdav import DavResource, get_file, get_metadata, head_file, propfind_path
+from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
 
 from .errors import IntegrationError
 
@@ -72,7 +73,18 @@ class NextcloudClient:
         webdav_files_root_url = config.get("nextcloud.webdav_files_root_url")
         if not url or not username or not password:
             return None
-        return cls(url, username, password, webdav_files_root_url=webdav_files_root_url)
+        try:
+            normalized = normalize_nextcloud_url(url, username)
+            if webdav_files_root_url:
+                normalize_nextcloud_url(webdav_files_root_url, username)
+        except NextcloudUrlValidationError as exc:
+            raise IntegrationError(_PROVIDER, "configuration", str(exc), status_code=422) from exc
+        return cls(
+            normalized["server_root_url"],
+            normalized["username"],
+            password,
+            webdav_files_root_url=normalized["webdav_files_root_url"],
+        )
 
     def _webdav_base_url(self) -> str:
         if self._creds.webdav_files_root_url:

@@ -324,6 +324,35 @@ def test_nextcloud_source_accepts_webdav_files_url_as_input(client, auth_headers
     assert response.json()["write_pipeline_eligible"] is False
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://user@nextcloud.example.test",
+        "https://user:password@nextcloud.example.test",
+        "https://user%40example.test:token@nextcloud.example.test/remote.php/dav/files/user",
+    ],
+)
+def test_nextcloud_source_rejects_credential_bearing_urls_without_exposure(client, auth_headers, caplog, url):
+    response = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "settings": {"url": url, "username": "user", "spreadsheet_path": "/prices.xlsx"},
+            "secrets": {"password": "separate-app-password"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "code": "CREDENTIALS_IN_URL_NOT_ALLOWED",
+        "message": "Credentials must not be embedded in the Nextcloud URL. Use the separate username and app-password fields.",
+    }
+    assert url not in response.text
+    assert "separate-app-password" not in response.text
+    assert url not in caplog.text
+    assert "separate-app-password" not in caplog.text
+
+
 def test_nextcloud_source_extracts_username_from_webdav_url(client, auth_headers, db):
     from app.flowhub.setup.service import AppConfigService
 
@@ -631,6 +660,68 @@ def test_nextcloud_test_connection_rejects_stored_public_share_url(client, auth_
     assert data["webdav_reachable"] is False
     assert data["spreadsheet_found"] is None
     assert data["message"] == "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL."
+
+
+def test_nextcloud_test_connection_rejects_stored_credential_url_before_webdav(client, auth_headers, db, monkeypatch):
+    from app.flowhub.setup.service import AppConfigService
+
+    async def fail_browse(self, path="/"):
+        raise AssertionError("credential-bearing URL must fail before WebDAV")
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fail_browse)
+    unsafe_url = "https://woo:embedded-secret@softpple.business"
+    AppConfigService(db).set_many(
+        {
+            "nextcloud.url": unsafe_url,
+            "nextcloud.username": "woo",
+            "nextcloud.password": "separate-app-password",
+        },
+        updated_by="test",
+    )
+
+    response = client.post("/api/v2/commerce/sources/nextcloud:primary/test", headers=auth_headers, json={})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"] is False
+    assert data["code"] == "CREDENTIALS_IN_URL_NOT_ALLOWED"
+    assert data["external_call_performed"] is False
+    assert data["normalized_base_url"] == ""
+    assert data["normalized_webdav_url"] == ""
+    assert unsafe_url not in response.text
+    assert "embedded-secret" not in response.text
+
+
+def test_nextcloud_read_rejects_legacy_credential_url_before_download(client, auth_headers, db, monkeypatch):
+    from app.flowhub.setup.service import AppConfigService
+
+    async def fail_download(self, path):
+        raise AssertionError("credential-bearing URL must fail before source download")
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.download_file", fail_download)
+    save = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/Reports/prices.xlsx",
+            },
+            "secrets": {"password": "separate-app-password"},
+        },
+    )
+    assert save.status_code == 200
+    unsafe_url = "https://woo:embedded-secret@softpple.business"
+    AppConfigService(db).set_many({"nextcloud.url": unsafe_url}, updated_by="legacy-test")
+
+    response = client.post("/api/v2/commerce/sources/nextcloud:primary/read", headers=auth_headers, json={})
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "CREDENTIALS_IN_URL_NOT_ALLOWED"
+    assert unsafe_url not in response.text
+    assert "embedded-secret" not in response.text
 
 
 def test_nextcloud_test_connection_wrong_credentials_fail_safely(client, auth_headers, monkeypatch):

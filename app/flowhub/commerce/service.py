@@ -10,7 +10,6 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from time import monotonic
-from urllib.parse import unquote, urlparse
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -23,6 +22,7 @@ from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlR
 from app.flowhub.data_layer.health_service import ConnectorHealthService
 from app.flowhub.integrations.errors import IntegrationError
 from app.flowhub.integrations.nextcloud import NextcloudClient
+from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
 from app.flowhub.integration_platform.contracts import ConnectorCapabilities
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.registry import registry
@@ -758,7 +758,8 @@ class CommerceHubService:
         try:
             normalized = self._normalize_nextcloud_url(values["url"], values["username"])
         except HTTPException as exc:
-            message = str(exc.detail)
+            detail = exc.detail if isinstance(exc.detail, dict) else {}
+            message = str(detail.get("message") or exc.detail)
             return self._nextcloud_test_failure(
                 started,
                 checked_at,
@@ -769,6 +770,7 @@ class CommerceHubService:
                 spreadsheet_found=None,
                 external=False,
                 error_class="invalid_url",
+                code=str(detail.get("code") or "INVALID_NEXTCLOUD_URL"),
             )
         if not normalized["username"]:
             return {
@@ -787,7 +789,7 @@ class CommerceHubService:
                 "normalized_webdav_url": normalized["webdav_files_root_url"],
                 "external_call_performed": False,
             }
-        normalized_webdav_url = values["webdav_files_root_url"] or normalized["webdav_files_root_url"]
+        normalized_webdav_url = normalized["webdav_files_root_url"]
         client = NextcloudClient(
             normalized["server_root_url"],
             normalized["username"],
@@ -903,6 +905,7 @@ class CommerceHubService:
         external: bool,
         http_status: int | None = None,
         error_class: str | None = None,
+        code: str | None = None,
     ) -> dict:
         latency_ms = round((monotonic() - started) * 1000, 2)
         self._record_source_health("nextcloud:primary", "unhealthy", latency_ms, message, error_class or "connection_failed")
@@ -916,6 +919,7 @@ class CommerceHubService:
             "latency_ms": latency_ms,
             "checked_at": checked_at,
             "message": message,
+            **({"code": code} if code else {}),
             "webdav_reachable": webdav_reachable,
             "spreadsheet_found": spreadsheet_found,
             "normalized_base_url": normalized_base_url,
@@ -994,65 +998,13 @@ class CommerceHubService:
         return self._normalize_nextcloud_url(raw_url, "")["server_root_url"]
 
     def _normalize_nextcloud_url(self, raw_url: str, configured_username: str = "") -> dict[str, str]:
-        parsed = urlparse(str(raw_url or "").strip())
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.")
-        path = (parsed.path or "").rstrip("/")
-        lowered = path.lower()
-        if (
-            "/index.php/s/" in lowered
-            or lowered.endswith("/index.php/s")
-            or lowered == "/s"
-            or lowered.endswith("/s")
-            or lowered.startswith("/s/")
-            or "/s/" in lowered
-        ):
+        try:
+            return normalize_nextcloud_url(raw_url, configured_username)
+        except NextcloudUrlValidationError as exc:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL.",
-            )
-        if "/public.php/dav/files" in lowered:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL.",
-            )
-        if lowered.startswith("/remote.php/dav/files/"):
-            if parsed.query or parsed.fragment:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.")
-        marker = "/remote.php/dav/files"
-        marker_index = lowered.find(marker)
-        if marker_index >= 0:
-            if parsed.query or parsed.fragment:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.")
-            remainder = path[marker_index + len(marker):].strip("/")
-            username_from_url = unquote(remainder.split("/", 1)[0]) if remainder else ""
-            if not username_from_url:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.")
-            username = str(configured_username or "").strip()
-            if username and username != username_from_url:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "WebDAV URL username does not match configured username.")
-            server_path = path[:marker_index].rstrip("/")
-            server_root_url = f"{parsed.scheme}://{parsed.netloc}{server_path}".rstrip("/")
-            webdav_files_root_url = f"{server_root_url}/remote.php/dav/files/{username_from_url}/"
-            return {
-                "server_root_url": server_root_url,
-                "webdav_files_root_url": webdav_files_root_url,
-                "username": username or username_from_url,
-                "username_from_url": username_from_url,
-            }
-        if "/remote.php/dav" in lowered or "/apps/files" in lowered:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.")
-        if parsed.query or parsed.fragment:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.")
-        server_root_url = f"{parsed.scheme}://{parsed.netloc}{path}".rstrip("/")
-        username = str(configured_username or "").strip()
-        webdav_files_root_url = f"{server_root_url}/remote.php/dav/files/{username}/" if username else ""
-        return {
-            "server_root_url": server_root_url,
-            "webdav_files_root_url": webdav_files_root_url,
-            "username": username,
-            "username_from_url": "",
-        }
+                {"code": exc.code, "message": str(exc)},
+            ) from exc
 
     def _persist_woocommerce_app_config(self, body: dict) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}

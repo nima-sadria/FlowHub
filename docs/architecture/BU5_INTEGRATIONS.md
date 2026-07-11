@@ -18,4 +18,5 @@ Current behavior:
 - Setup does not configure connectors.
 - Integration Platform is the permanent connector boundary.
 - Data Layer is canonical for read models and snapshots.
-- Write execution remains disabled in 1.0.0.
+- Manual WooCommerce price execution for simple products and variations is available only through Preview, Row Selection, Dry Run, Approval, Manual Execute, Read-back Verification, and Audit.
+- The Write Pipeline is the only external WooCommerce write path. Stock writes, Source writes, Scheduler execution, automatic Apply, and additional marketplace writes remain disabled or deferred.

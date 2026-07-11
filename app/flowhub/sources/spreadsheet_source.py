@@ -14,6 +14,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
 from app.flowhub.data_layer.models import DlSourceReadLock, DlSourceReadReservation, DlSourceSnapshot
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.integrations.errors import IntegrationError
@@ -75,6 +76,16 @@ class SpreadsheetSourceReadService:
         spreadsheet_path = self._required_config("nextcloud.spreadsheet_path")
         mapping = self.mapping()
         worksheet = self.worksheet_selection()
+        try:
+            normalize_nextcloud_url(
+                self.config.get("nextcloud.url") or "",
+                self.config.get("nextcloud.username") or "",
+            )
+        except NextcloudUrlValidationError as exc:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {"code": exc.code, "message": str(exc)},
+            ) from exc
         client = NextcloudClient.from_config(self.config)
         if client is None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nextcloud source credentials are incomplete.")

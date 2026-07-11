@@ -788,7 +788,7 @@ describe('CommerceHub', () => {
       ...commerce,
       async saveChannel() {
         throw new ApiError(400, JSON.stringify({
-          detail: 'Invalid credential: consumer_secret=cs_live_secret api_key=snapp-secret-value',
+          detail: 'Invalid credential: consumer_secret=cs_live_secret api_key=snapp-secret-value Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.private.signature https://user:pass@example.test/path',
         }))
       },
     }
@@ -808,6 +808,8 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('[REDACTED]')
     expect(c.textContent).not.toContain('cs_live_secret')
     expect(c.textContent).not.toContain('snapp-secret-value')
+    expect(c.textContent).not.toContain('eyJhbGci')
+    expect(c.textContent).not.toContain('user:pass')
     expect(c.textContent).not.toContain('Unable to save channel configuration')
   })
 
