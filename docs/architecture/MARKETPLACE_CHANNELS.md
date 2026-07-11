@@ -116,6 +116,13 @@ Default limits should be conservative. Channel configs include safe timeout defa
 
 Secrets stay in the existing connector configuration and secret-storage flow. Normal APIs may report whether a secret is configured, but must never return raw tokens, API keys, passwords, authorization headers, cookies, or refresh tokens.
 
+Commerce Hub provides admin-only configuration for implemented channels. Its
+sanitized configuration response contains non-secret settings and credential
+state only. SnappShop connection tests return authorized vendor choices for
+selection. TapsiShop reports outbound and webhook credential state separately
+and displays a webhook URL that contains no secret. Leaving a secret input blank
+while editing preserves the stored credential.
+
 ## Errors And Retries
 
 Connector errors use normalized categories:

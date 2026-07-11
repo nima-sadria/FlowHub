@@ -13,6 +13,31 @@ export interface ConnectionCheckResult {
   normalized_base_url?: string
   normalized_webdav_url?: string
   checked_at?: string
+  vendors?: CommerceVendor[]
+  vendor_information?: CommerceVendor
+}
+
+export interface CommerceVendor {
+  id: string | null
+  name: string
+  store_url?: string | null
+  reference_code?: string | null
+}
+
+export interface CommerceChannelConfiguration {
+  channel_id: string
+  provider: string
+  display_name: string
+  configured: boolean
+  enabled: boolean
+  access_mode: 'read_only' | 'write_enabled'
+  settings: Record<string, unknown>
+  secrets: Record<string, { status: string; replaced_at: string | null }>
+  token_configured: boolean
+  webhook_token_configured: boolean
+  settings_schema: CommerceTypeOption['settings_schema']
+  webhook_path: string | null
+  credentials_returned: false
 }
 
 export interface CommerceService {
@@ -20,10 +45,11 @@ export interface CommerceService {
   getChannels(): Promise<{ items: CommerceChannel[] }>
   getSourceTypes(): Promise<{ items: CommerceTypeOption[] }>
   getChannelTypes(): Promise<{ items: CommerceTypeOption[] }>
+  getChannelConfiguration(channelId: string): Promise<CommerceChannelConfiguration>
   saveSource(sourceId: string, payload: CommerceConfigPayload): Promise<CommerceSettingsResult>
   saveChannel(channelId: string, payload: CommerceConfigPayload): Promise<CommerceSettingsResult>
   testSource(sourceId: string): Promise<ConnectionCheckResult>
-  testChannel(channelId: string): Promise<ConnectionCheckResult>
+  testChannel(channelId: string, payload?: CommerceConfigPayload): Promise<ConnectionCheckResult>
   refreshChannelCache(channelId: string): Promise<ChannelCacheRefreshResult>
   readSource(sourceId: string): Promise<SourceReadResult>
   browseNextcloud(sourceId: string, payload: NextcloudBrowseRequest): Promise<NextcloudBrowseResult>
@@ -53,6 +79,7 @@ export interface ChannelCacheRefreshResult {
 export interface CommerceConfigPayload {
   display_name: string
   enabled: boolean
+  access_mode?: 'read_only' | 'write_enabled'
   description?: string
   settings: Record<string, unknown>
   secrets: Record<string, string>

@@ -8,6 +8,8 @@ pricing automation.
 from __future__ import annotations
 
 import hmac
+import logging
+import traceback
 import uuid
 from datetime import datetime
 from hashlib import sha256
@@ -74,6 +76,8 @@ _SECRET_KEYS = {
     "authorization",
 }
 
+logger = logging.getLogger(__name__)
+
 
 class IntegrationPlatformService:
     def __init__(self, db: Session):
@@ -119,8 +123,26 @@ class IntegrationPlatformService:
         )
         total = q.count()
         rows = q.offset((page - 1) * page_size).limit(page_size).all()
+        items = []
+        for row in rows:
+            try:
+                items.append(self._instance_to_contract(row))
+            except Exception as exc:
+                logger.error(
+                    "integration_connector_contract_failed",
+                    extra={
+                        "connector_id": row.id,
+                        "connector_type": row.connector_type,
+                        "exception_type": type(exc).__name__,
+                        "traceback_frames": [
+                            {"file": frame.filename, "line": frame.lineno, "function": frame.name}
+                            for frame in traceback.extract_tb(exc.__traceback__)
+                        ],
+                    },
+                )
+                items.append(self._instance_error_contract(row))
         return {
-            "items": [self._instance_to_contract(row) for row in rows],
+            "items": items,
             "total": total,
             "page": page,
             "page_size": page_size,
@@ -331,6 +353,7 @@ class IntegrationPlatformService:
             entries.extend(
                 ConnectorSettingValue(key=key, value=value, secret=True, configured=value not in (None, ""))
                 for key, value in secrets.items()
+                if value not in (None, "")
             )
         self._upsert_settings(row, entries)
         self.record_event(
@@ -962,12 +985,35 @@ class IntegrationPlatformService:
                 "last_checked_at": _iso(health.checked_at) if health else None,
                 "latency_ms": health.latency_ms if health else None,
                 "error_code": health.error_class if health else None,
-                "message": health.message if health else ("Connector has no Data Layer health record yet."),
+                "message": health.detail if health else ("Connector has no Data Layer health record yet."),
             },
             "capabilities": definition.connector.capabilities.model_dump(),
             "created_at": _iso(row.created_at),
             "updated_at": _iso(row.updated_at),
             "last_checked_at": _iso(health.checked_at) if health else None,
+            "runtime_write_blocked": True,
+            "capability_authorizes_write": False,
+        }
+
+    def _instance_error_contract(self, row: IntegrationConnectorInstance) -> dict:
+        return {
+            "id": row.id,
+            "connector_type": row.connector_type,
+            "name": row.name,
+            "enabled": row.enabled,
+            "read_only": True,
+            "status": "error",
+            "health": {
+                "healthy": False,
+                "last_checked_at": None,
+                "latency_ms": None,
+                "error_code": "diagnostic_unavailable",
+                "message": "Connector diagnostics are temporarily unavailable.",
+            },
+            "capabilities": {},
+            "created_at": _iso(row.created_at),
+            "updated_at": _iso(row.updated_at),
+            "last_checked_at": None,
             "runtime_write_blocked": True,
             "capability_authorizes_write": False,
         }

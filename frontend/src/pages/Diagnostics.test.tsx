@@ -172,4 +172,30 @@ describe('Diagnostics', () => {
       .filter(alert => alert.textContent?.includes('Diagnostics refreshed'))
     expect(refreshedToasts).toHaveLength(1)
   })
+
+  it('clears a page-wide error after a successful Re-check', async () => {
+    let diagnosticsCalls = 0
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      const url = String(input)
+      if (url.includes('/api/v2/diagnostics/status')) {
+        diagnosticsCalls += 1
+        if (diagnosticsCalls === 1) {
+          return new Response(JSON.stringify({ detail: 'temporary failure' }), { status: 500 })
+        }
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+    const c = await renderPage()
+    expect(c.textContent).toContain('Diagnostics unavailable (HTTP 500)')
+
+    const recheck = Array.from(c.querySelectorAll('button')).find(button => button.textContent?.includes('Re-check'))
+    await act(async () => {
+      recheck?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(c.querySelector('.fh-alert-danger')).toBeNull()
+    expect(c.textContent).toContain('Channel Health')
+    expect(c.textContent).toContain('WooCommerce')
+  })
 })

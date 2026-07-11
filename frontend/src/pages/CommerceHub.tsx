@@ -5,7 +5,7 @@ import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeOption } from '../services/types'
-import type { NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
+import type { CommerceChannelConfiguration, CommerceVendor, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
 import Spinner from '../components/loading/Spinner'
 import { useNotification } from '../notifications/NotificationProvider'
 import Icon from '../components/Icon'
@@ -157,6 +157,8 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
   canManage: boolean
 }) {
   const isWooCommerce = channel.provider === 'woocommerce' && !channel.placeholder
+  const isConfigurable = channel.implemented && !channel.placeholder && ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider)
+  const isConfigured = channel.credential_status === 'configured'
   return (
     <div className="fh-card fh-card-pad flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
@@ -178,6 +180,12 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
         <p><span className="text-wp-muted">Last health check: </span><span className="font-medium text-text-base">{channel.last_health_check ? new Date(channel.last_health_check).toLocaleString() : 'Not checked'}</span></p>
         <p><span className="text-wp-muted">Health: </span><span className="font-medium text-text-base">{prettyStatus(channel.health?.status ?? 'unknown')}</span></p>
         <p><span className="text-wp-muted">Capabilities: </span><span className="font-medium text-text-base">{channel.capabilities_summary.join(', ')}</span></p>
+        {channel.provider === 'tapsishop' && (
+          <>
+            <p><span className="text-wp-muted">API credentials: </span><span className="font-medium text-text-base">{channel.token_configured ? 'Configured' : 'Not configured'}</span></p>
+            <p><span className="text-wp-muted">Webhook credentials: </span><span className="font-medium text-text-base">{channel.webhook_token_configured ? 'Configured' : 'Not configured'}</span></p>
+          </>
+        )}
         {isWooCommerce && (
           <>
             <p><span className="text-wp-muted">Cached products: </span><span className="font-medium text-text-base">{channel.cached_products}</span></p>
@@ -192,26 +200,28 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
         <SafetyBadges readOnly={channel.read_only} writeBlocked={channel.write_blocked} />
         {canManage && (
           <div className="flex flex-wrap gap-2 justify-end">
-            {isWooCommerce && (
+            {isConfigurable && (
               <button
                 type="button"
                 onClick={() => onConfigure(channel.id)}
                 disabled={testing || refreshing}
                 className="fh-button-secondary"
               >
-                <Icon name="settings" />
-                Settings
+                <Icon name={isConfigured ? 'settings' : 'edit'} />
+                {isConfigured ? 'Settings' : 'Configure'}
               </button>
             )}
-            <button
-              onClick={() => onTest(channel.id)}
-              disabled={testing || refreshing}
-              className="fh-button-secondary"
-            >
-              {testing && <Spinner size="sm" />}
-              {!testing && <Icon name="testConnection" />}
-              {testing ? 'Testing' : 'Test connection'}
-            </button>
+            {isConfigurable && (
+              <button
+                onClick={() => onTest(channel.id)}
+                disabled={testing || refreshing || !isConfigured}
+                className="fh-button-secondary"
+              >
+                {testing && <Spinner size="sm" />}
+                {!testing && <Icon name="testConnection" />}
+                {testing ? 'Testing' : 'Test connection'}
+              </button>
+            )}
             {isWooCommerce && (
               <button
                 onClick={() => onRefresh(channel.id)}
@@ -390,28 +400,35 @@ function NextcloudFilePicker({
 function ConfigPanel({
   kind,
   types,
+  initialChannelId,
   onCancel,
   onSaved,
 }: {
   kind: FormKind
   types: CommerceTypeOption[]
+  initialChannelId?: string | null
   onCancel: () => void
   onSaved: () => Promise<void>
 }) {
   const { commerce } = useServices()
   const { info, error: notifyError } = useNotification()
-  const [selectedId, setSelectedId] = useState(types[0]?.id ?? '')
+  const [selectedId, setSelectedId] = useState(initialChannelId ?? types[0]?.id ?? '')
   const selected = useMemo(
     () => types.find(item => item.id === selectedId) ?? types[0],
     [selectedId, types],
   )
   const [displayName, setDisplayName] = useState(selected?.name ?? '')
   const [enabled, setEnabled] = useState(false)
+  const [accessMode, setAccessMode] = useState<'read_only' | 'write_enabled'>('read_only')
   const [description, setDescription] = useState('')
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [secrets, setSecrets] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [loadingConfiguration, setLoadingConfiguration] = useState(Boolean(initialChannelId))
+  const [secretStatus, setSecretStatus] = useState<CommerceChannelConfiguration['secrets']>({})
+  const [vendors, setVendors] = useState<CommerceVendor[]>([])
+  const [vendorInformation, setVendorInformation] = useState<CommerceVendor | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerLoading, setPickerLoading] = useState(false)
   const [pickerData, setPickerData] = useState<NextcloudBrowseResult | null>(null)
@@ -425,11 +442,18 @@ function ConfigPanel({
     : null
 
   useEffect(() => {
+    if (initialChannelId) return
     setDisplayName(selected?.name ?? '')
     setEnabled(false)
     setDescription('')
-    setSettings({})
+    setSettings(Object.fromEntries((selected?.settings_schema ?? [])
+      .filter(field => !field.secret && field.default !== undefined && field.default !== null)
+      .map(field => [field.key, String(field.default)])))
     setSecrets({})
+    setAccessMode('read_only')
+    setSecretStatus({})
+    setVendors([])
+    setVendorInformation(null)
     setPickerOpen(false)
     setPickerData(null)
     setPickerError(null)
@@ -437,9 +461,62 @@ function ConfigPanel({
     setWorksheetMode('all')
     setWorksheetName('')
     setReadPolicy(DEFAULT_READ_POLICY)
-  }, [selected?.id])
+  }, [selected?.id, initialChannelId])
+
+  useEffect(() => {
+    if (kind !== 'channel' || !initialChannelId) return
+    let active = true
+    setLoadingConfiguration(true)
+    setSelectedId(initialChannelId)
+    commerce.getChannelConfiguration(initialChannelId)
+      .then(configuration => {
+        if (!active) return
+        setDisplayName(configuration.display_name)
+        setEnabled(configuration.enabled)
+        setAccessMode(configuration.access_mode)
+        setSettings(Object.fromEntries(Object.entries(configuration.settings).map(([key, value]) => [key, value == null ? '' : String(value)])))
+        setSecrets({})
+        setSecretStatus(configuration.secrets)
+      })
+      .catch(error => {
+        if (active) notifyError(apiErrorMessage(error, 'Unable to load channel configuration'))
+      })
+      .finally(() => {
+        if (active) setLoadingConfiguration(false)
+      })
+    return () => { active = false }
+  }, [commerce, initialChannelId, kind, notifyError])
 
   if (!selected) return null
+
+  const configuredSecret = (key: string) => secretStatus[key]?.status === 'configured'
+  const hasSecret = (key: string) => Boolean(secrets[key]?.trim()) || configuredSecret(key)
+  const canTest = selected.provider === 'snappshop'
+    ? Boolean(settings.agent_identifier?.trim()) && hasSecret('token')
+    : selected.provider === 'tapsishop'
+      ? hasSecret('token')
+      : selected.provider === 'woocommerce'
+        ? Boolean(settings.url?.trim()) && hasSecret('key') && hasSecret('secret')
+        : true
+
+  function configurationPayload() {
+    return {
+      display_name: displayName,
+      enabled: selected.placeholder ? false : enabled,
+      access_mode: accessMode,
+      description,
+      settings: kind === 'source' && selected.provider === 'nextcloud'
+        ? {
+            ...settings,
+            source_mapping: sourceMapping,
+            source_read_policy: readPolicy,
+            worksheet_mode: worksheetMode,
+            worksheet_name: worksheetName,
+          }
+        : settings,
+      secrets,
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -449,21 +526,7 @@ function ConfigPanel({
     }
     setSaving(true)
     try {
-      const payload = {
-        display_name: displayName,
-        enabled: selected.placeholder ? false : enabled,
-        description,
-        settings: kind === 'source' && selected.provider === 'nextcloud'
-          ? {
-              ...settings,
-              source_mapping: sourceMapping,
-              source_read_policy: readPolicy,
-              worksheet_mode: worksheetMode,
-              worksheet_name: worksheetName,
-            }
-          : settings,
-        secrets,
-      }
+      const payload = configurationPayload()
       if (kind === 'source') await commerce.saveSource(selected.id, payload)
       else await commerce.saveChannel(selected.id, payload)
       info(`${selected.name} configuration saved. Secrets remain write-only.`)
@@ -484,8 +547,12 @@ function ConfigPanel({
     try {
       const result = kind === 'source'
         ? await commerce.testSource(selected.id)
-        : await commerce.testChannel(selected.id)
-      if (result.ok) info(result.message)
+        : await commerce.testChannel(selected.id, configurationPayload())
+      if (result.ok) {
+        setVendors(result.vendors ?? [])
+        setVendorInformation(result.vendor_information ?? null)
+        info(result.message)
+      }
       else notifyError(result.message)
     } catch (error) {
       notifyError(apiErrorMessage(error, 'Unable to test connection'))
@@ -536,15 +603,19 @@ function ConfigPanel({
     }))
   }
 
+  if (loadingConfiguration) {
+    return <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />Loading channel configuration</div>
+  }
+
   return (
     <form onSubmit={event => void submit(event)} className="fh-card overflow-hidden">
       <div className="fh-panel-header !items-start">
         <div>
           <h3 className="fh-section-title">
-            {kind === 'source' ? 'Add Source' : 'Add Channel'}
+            {initialChannelId ? `Configure ${selected.name}` : kind === 'source' ? 'Add Source' : 'Add Channel'}
           </h3>
           <p className="fh-section-subtitle mt-1">
-            Configuration is local to FlowHub and remains read-only.
+            Credentials are stored server-side and never returned to this form.
           </p>
         </div>
         <button type="button" onClick={onCancel} className="fh-button-secondary">
@@ -565,6 +636,7 @@ function ConfigPanel({
           <select
             value={selected.id}
             onChange={event => setSelectedId(event.target.value)}
+            disabled={Boolean(initialChannelId)}
             className="fh-select"
           >
             {types.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
@@ -578,6 +650,15 @@ function ConfigPanel({
           <span className="fh-help-text">Description optional</span>
           <input value={description} onChange={event => setDescription(event.target.value)} className="fh-input" />
         </label>
+        {kind === 'channel' && (
+          <label className="fh-field">
+            <span className="fh-help-text">Access mode</span>
+            <select value={accessMode} onChange={event => setAccessMode(event.target.value as 'read_only' | 'write_enabled')} className="fh-select">
+              <option value="read_only">Read only</option>
+              {selected.provider === 'woocommerce' && <option value="write_enabled">Write enabled</option>}
+            </select>
+          </label>
+        )}
         </div>
 
         <div className="fh-actions">
@@ -611,24 +692,40 @@ function ConfigPanel({
           .map(field => (
           <label key={field.key} className="fh-field">
             <span className="fh-help-text">{fieldLabel(kind, selected.provider, field.key, field.label)}</span>
-            <input
-              type={field.secret ? 'password' : 'text'}
-              value={field.secret ? secrets[field.key] ?? '' : settings[field.key] ?? ''}
-              onChange={event => {
-                const value = event.target.value
-                if (field.secret) setSecrets(current => ({ ...current, [field.key]: value }))
-                else setSettings(current => {
-                  const next = { ...current, [field.key]: value }
-                  if (selected.provider === 'nextcloud' && field.key === 'url' && !next.username) {
-                    const usernameFromUrl = webdavUsernameFromUrl(value)
-                    if (usernameFromUrl) next.username = usernameFromUrl
-                  }
-                  return next
-                })
-              }}
-              className="fh-input"
-              autoComplete="off"
-            />
+            {selected.provider === 'snappshop' && field.key === 'vendor_id' && vendors.length > 0 ? (
+              <select value={settings.vendor_id ?? ''} onChange={event => setSettings(current => ({ ...current, vendor_id: event.target.value }))} className="fh-select">
+                <option value="">Select vendor</option>
+                {vendors.map(vendor => <option key={vendor.id ?? vendor.name} value={vendor.id ?? ''}>{vendor.name}</option>)}
+              </select>
+            ) : ['token_refresh_enabled', 'revoke_current_token'].includes(field.key) ? (
+              <input
+                type="checkbox"
+                checked={settings[field.key] === 'true'}
+                onChange={event => setSettings(current => ({ ...current, [field.key]: String(event.target.checked) }))}
+              />
+            ) : (
+              <input
+                type={field.secret ? 'password' : field.key === 'request_timeout' ? 'number' : 'text'}
+                min={field.key === 'request_timeout' ? 0.1 : undefined}
+                max={field.key === 'request_timeout' ? 120 : undefined}
+                value={field.secret ? secrets[field.key] ?? '' : settings[field.key] ?? ''}
+                onChange={event => {
+                  const value = event.target.value
+                  if (field.secret) setSecrets(current => ({ ...current, [field.key]: value }))
+                  else setSettings(current => {
+                    const next = { ...current, [field.key]: value }
+                    if (selected.provider === 'nextcloud' && field.key === 'url' && !next.username) {
+                      const usernameFromUrl = webdavUsernameFromUrl(value)
+                      if (usernameFromUrl) next.username = usernameFromUrl
+                    }
+                    return next
+                  })
+                }}
+                className="fh-input"
+                autoComplete="new-password"
+              />
+            )}
+            {field.secret && configuredSecret(field.key) && <span className="fh-help-text">Configured; leave blank to keep unchanged.</span>}
             {selected.provider === 'nextcloud' && field.key === 'url' && nextcloudUrlError && (
               <span className="fh-field-error">{nextcloudUrlError}</span>
             )}
@@ -636,6 +733,27 @@ function ConfigPanel({
         ))}
       </div>
       </div>
+
+      {kind === 'channel' && selected.provider === 'tapsishop' && (
+        <div className="fh-form-section">
+          <div>
+            <p className="fh-form-section-title">Webhook registration</p>
+            <p className="fh-form-section-description">Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token.</p>
+          </div>
+          <label className="fh-field">
+            <span className="fh-help-text">Webhook URL</span>
+            <input readOnly value={`${window.location.origin}/api/v2/webhooks/tapsishop/${encodeURIComponent(selected.id)}`} className="fh-input" />
+          </label>
+          <p className="fh-help-text">Webhook credential: {configuredSecret('webhook_token') ? 'Configured' : 'Not configured'}</p>
+          {vendorInformation && (
+            <div className="rounded-md border border-border bg-bg-subtle p-3 fh-text-body-sm">
+              <p className="font-medium text-text-base">{vendorInformation.name}</p>
+              <p className="fh-text-caption">Vendor ID: {vendorInformation.id ?? 'Unavailable'}</p>
+              {vendorInformation.reference_code && <p className="fh-text-caption">Store number: {vendorInformation.reference_code}</p>}
+            </div>
+          )}
+        </div>
+      )}
 
       {kind === 'source' && selected.provider === 'nextcloud' && (
         <div className="fh-stack">
@@ -769,7 +887,7 @@ function ConfigPanel({
       )}
 
       <div className="fh-panel-footer">
-        <button type="button" onClick={() => void testConnection()} disabled={testing} className="fh-button-secondary px-4">
+        <button type="button" onClick={() => void testConnection()} disabled={testing || !canTest} className="fh-button-secondary px-4">
           {testing && <Spinner size="sm" />}
           {!testing && <Icon name="testConnection" />}
           {testing ? 'Testing' : 'Test connection'}
@@ -811,6 +929,7 @@ export default function CommerceHub() {
   const [readingId, setReadingId] = useState<string | null>(null)
   const [refreshingId, setRefreshingId] = useState<string | null>(null)
   const [formKind, setFormKind] = useState<FormKind | null>(null)
+  const [editingChannelId, setEditingChannelId] = useState<string | null>(null)
   const canManageCommerce = user?.is_admin === true
 
   useEffect(() => {
@@ -842,6 +961,7 @@ export default function CommerceHub() {
     setTab(nextTab)
     setSearchParams({ tab: nextTab })
     setFormKind(null)
+    setEditingChannelId(null)
   }
 
   async function handleSourceTest(sourceId: string) {
@@ -932,19 +1052,21 @@ export default function CommerceHub() {
     setFormKind('source')
   }
 
-  function handleChannelConfigure(_channelId: string) {
+  function handleChannelConfigure(channelId: string) {
     if (!canManageCommerce) {
       notifyError('Admin permission required.')
       return
     }
     setTab('channels')
     setSearchParams({ tab: 'channels' })
+    setEditingChannelId(channelId)
     setFormKind('channel')
   }
 
   async function reloadAfterSave() {
     await loadCommerce()
     setFormKind(null)
+    setEditingChannelId(null)
   }
 
   return (
@@ -1022,7 +1144,7 @@ export default function CommerceHub() {
               <p className="fh-section-subtitle mt-1">Commerce systems that receive catalog visibility from FlowHub.</p>
             </div>
             {canManageCommerce ? (
-              <button onClick={() => setFormKind('channel')} className="fh-button-primary px-4">
+              <button onClick={() => { setEditingChannelId(null); setFormKind('channel') }} className="fh-button-primary px-4">
                 <Icon name="add" />
                 Add Channel
               </button>
@@ -1032,7 +1154,13 @@ export default function CommerceHub() {
           </div>
           {formKind === 'channel' && (
             <div className="mb-4">
-              <ConfigPanel kind="channel" types={channelTypes} onCancel={() => setFormKind(null)} onSaved={reloadAfterSave} />
+              <ConfigPanel
+                kind="channel"
+                types={channelTypes.filter(item => item.implemented)}
+                initialChannelId={editingChannelId}
+                onCancel={() => { setFormKind(null); setEditingChannelId(null) }}
+                onSaved={reloadAfterSave}
+              />
             </div>
           )}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

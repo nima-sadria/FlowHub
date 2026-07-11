@@ -1788,6 +1788,151 @@ def test_tapsishop_channel_settings_mask_separate_outbound_and_webhook_tokens(cl
     assert detail.json()["credential_status"] == "configured"
 
 
+def test_marketplace_configuration_metadata_is_sanitized_and_blank_secret_keeps_existing(client, auth_headers, db):
+    secret_value = "snapp-secret-value"
+    saved = client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "Primary SnappShop",
+            "enabled": True,
+            "access_mode": "read_only",
+            "settings": {
+                "base_url": "https://apix.snappshop.ir/automation/v1",
+                "agent_identifier": "flowhub-agent",
+                "agent_header_name": "User-Agent",
+                "request_timeout": "20",
+                "vendor_id": "vendor-1",
+            },
+            "secrets": {"token": secret_value},
+        },
+    )
+    assert saved.status_code == 200
+
+    configuration = client.get(
+        "/api/v2/commerce/channels/snappshop:main/configuration", headers=auth_headers
+    )
+    assert configuration.status_code == 200
+    data = configuration.json()
+    assert data["configured"] is True
+    assert data["enabled"] is True
+    assert data["access_mode"] == "read_only"
+    assert data["settings"]["agent_identifier"] == "flowhub-agent"
+    assert data["token_configured"] is True
+    assert data["credentials_returned"] is False
+    assert secret_value not in configuration.text
+
+    updated = client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "Primary SnappShop",
+            "enabled": True,
+            "access_mode": "read_only",
+            "settings": {"agent_identifier": "flowhub-agent-2", "vendor_id": "vendor-1"},
+            "secrets": {"token": ""},
+        },
+    )
+    assert updated.status_code == 200
+    assert updated.json()["secrets"]["token"]["status"] == "configured"
+    assert client.get(
+        "/api/v2/commerce/channels/snappshop:main/configuration", headers=auth_headers
+    ).json()["token_configured"] is True
+
+    from app.flowhub.integration_platform.models import IntegrationConnectorEvent
+    audit = db.query(IntegrationConnectorEvent).filter_by(
+        connector_id="snappshop:main", event_name="channel_configuration_changed"
+    ).order_by(IntegrationConnectorEvent.id.desc()).first()
+    assert audit is not None
+    assert audit.metadata_json["actor"].startswith("commerceadmin_")
+    assert secret_value not in str(audit.metadata_json)
+    assert secret_value not in audit.message
+
+
+def test_tapsishop_configuration_reports_separate_secret_states_and_webhook_path(client, auth_headers):
+    response = client.put(
+        "/api/v2/commerce/channels/tapsishop:main/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"request_timeout": 15, "selected_vendor_id": "42"},
+            "secrets": {"token": "outbound-only"},
+        },
+    )
+    assert response.status_code == 200
+
+    configuration = client.get(
+        "/api/v2/commerce/channels/tapsishop:main/configuration", headers=auth_headers
+    )
+    data = configuration.json()
+    assert data["token_configured"] is True
+    assert data["webhook_token_configured"] is False
+    assert data["webhook_path"] == "/api/v2/webhooks/tapsishop/tapsishop:main"
+    assert "outbound-only" not in configuration.text
+
+
+def test_marketplace_configuration_requires_admin_and_valid_required_fields(client, auth_headers, db):
+    from app.flowhub.auth.jwt_service import create_access_token
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.auth.password import hash_password
+
+    viewer = FlowHubUser(username=f"viewer_{uuid.uuid4().hex}", hashed_password=hash_password("password123"), role="viewer")
+    db.add(viewer)
+    db.commit()
+    db.refresh(viewer)
+    viewer_headers = {"Authorization": f"Bearer {create_access_token(viewer.id, viewer.username, viewer.role)}"}
+
+    assert client.get(
+        "/api/v2/commerce/channels/snappshop:main/configuration", headers=viewer_headers
+    ).status_code == 403
+    assert client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=viewer_headers,
+        json={"settings": {"agent_identifier": "agent"}, "secrets": {"token": "secret"}},
+    ).status_code == 403
+    invalid = client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={"settings": {"base_url": "not-a-url"}, "secrets": {}},
+    )
+    assert invalid.status_code == 422
+    assert client.get("/api/v2/commerce/channels/snappshop:main", headers=auth_headers).json()["credential_status"] == "not_configured"
+
+
+def test_snappshop_unsaved_credentials_can_test_and_return_vendor_choices(client, auth_headers, monkeypatch):
+    class FakeResponse:
+        status_code = 200
+        headers = {}
+
+        def json(self):
+            return {"status": True, "data": [{"id": "vendor-1", "title": "Primary Vendor"}]}
+
+    class FakeAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def request(self, *args, **kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr("app.flowhub.channels.snappshop.httpx.AsyncClient", lambda **kwargs: FakeAsyncClient())
+    response = client.post(
+        "/api/v2/commerce/channels/snappshop:main/test",
+        headers=auth_headers,
+        json={
+            "settings": {"agent_identifier": "flowhub-agent", "request_timeout": 5},
+            "secrets": {"token": "unsaved-secret"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert response.json()["vendors"] == [{"id": "vendor-1", "name": "Primary Vendor", "store_url": None, "reference_code": "vendor-1"}]
+    assert "unsaved-secret" not in response.text
+
+
 def test_source_settings_preserve_credential_masking(client, auth_headers):
     response = client.put(
         "/api/v2/commerce/sources/erp:api-import/settings",

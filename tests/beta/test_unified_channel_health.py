@@ -222,6 +222,36 @@ def test_channel_health_endpoint_and_refresh_suppress_concurrent_provider_checks
     asyncio.run(locked_refresh())
 
 
+def test_all_unconfigured_channels_return_normalized_disabled_health(client, auth_headers):
+    response = client.get("/api/v2/diagnostics/channels/health", headers=auth_headers)
+
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert {item["channelId"] for item in items}.issuperset({"woocommerce:primary", "snappshop:main", "tapsishop:main"})
+    assert all(item["status"] == "Disabled" for item in items)
+
+
+def test_channel_health_report_isolates_one_channel_exception(db, monkeypatch, caplog):
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+
+    original = ChannelHealthReporter._channel_shape
+
+    def fail_one(self, channel_id):
+        if channel_id == "snappshop:main":
+            raise RuntimeError("token=should-not-leak")
+        return original(self, channel_id)
+
+    monkeypatch.setattr(ChannelHealthReporter, "_channel_shape", fail_one)
+    payload = ChannelHealthReporter(db).report()
+    failed = _item(payload, "snappshop:main")
+
+    assert failed["status"] == "Unable to check"
+    assert failed["lastErrorCategory"] == "diagnostic_unavailable"
+    assert "should-not-leak" not in json.dumps(payload)
+    assert "should-not-leak" not in caplog.text
+    assert _item(payload, "tapsishop:main")["status"] == "Disabled"
+
+
 def _seed_channel(db, channel_id: str, connector_type: str, *, enabled: bool, settings: dict) -> None:
     from app.flowhub.integration_platform.models import IntegrationConnectorInstance, IntegrationConnectorSetting
 

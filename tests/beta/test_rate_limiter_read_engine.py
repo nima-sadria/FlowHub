@@ -585,6 +585,60 @@ def test_diagnostics_status_full_payload_uses_null_for_unavailable_metrics(clien
         assert connector["health"]["latency_ms"] is None
 
 
+def test_diagnostics_status_uses_data_layer_health_detail_without_http_500(client, auth_headers, db):
+    from app.flowhub.data_layer.models import DlConnectorHealth
+    from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+
+    now = datetime.utcnow()
+    db.add(IntegrationConnectorInstance(
+        id="snappshop:main", connector_type="snappshop", name="Snapp Shop",
+        version="1.0.0", enabled=False, read_only=True, status="disabled",
+        created_at=now, updated_at=now,
+    ))
+    db.add(DlConnectorHealth(
+        connector_id="snappshop:main", connector_type="channel", status="unknown",
+        detail="Channel is not configured.", checked_at=now,
+    ))
+    db.commit()
+
+    response = client.get("/api/v2/diagnostics/status", headers=auth_headers)
+
+    assert response.status_code == 200
+    connector = next(item for item in response.json()["connectors"] if item["id"] == "snappshop:main")
+    assert connector["health"]["message"] == "Channel is not configured."
+
+
+def test_diagnostics_status_isolates_one_connector_contract_failure(client, auth_headers, db, monkeypatch, caplog):
+    from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+    from app.flowhub.integration_platform.service import IntegrationPlatformService
+
+    now = datetime.utcnow()
+    for channel_id, connector_type in (("snappshop:main", "snappshop"), ("tapsishop:main", "tapsishop")):
+        db.add(IntegrationConnectorInstance(
+            id=channel_id, connector_type=connector_type, name=channel_id,
+            version="1.0.0", enabled=False, read_only=True, status="disabled",
+            created_at=now, updated_at=now,
+        ))
+    db.commit()
+    original = IntegrationPlatformService._instance_to_contract
+
+    def fail_one(self, row):
+        if row.id == "snappshop:main":
+            raise RuntimeError("Authorization: Bearer should-not-leak")
+        return original(self, row)
+
+    monkeypatch.setattr(IntegrationPlatformService, "_instance_to_contract", fail_one)
+    response = client.get("/api/v2/diagnostics/status", headers=auth_headers)
+
+    assert response.status_code == 200
+    items = response.json()["connectors"]
+    failed = next(item for item in items if item["id"] == "snappshop:main")
+    assert failed["health"]["error_code"] == "diagnostic_unavailable"
+    assert "should-not-leak" not in response.text
+    assert "should-not-leak" not in caplog.text
+    assert any(item["id"] == "tapsishop:main" for item in items)
+
+
 def test_integration_platform_test_connection_returns_null_latency_when_unmeasured(client, auth_headers, db):
     from app.flowhub.setup.service import AppConfigService
 

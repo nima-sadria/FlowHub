@@ -8,6 +8,8 @@ existing Data Layer connector health table.
 from __future__ import annotations
 
 import asyncio
+import logging
+import traceback
 from datetime import datetime, timedelta
 from time import monotonic
 from typing import Any
@@ -32,6 +34,7 @@ HEALTH_CACHE_SECONDS = 60
 EXTERNAL_CHECK_TIMEOUT_SECONDS = 8.0
 STALE_SYNC_AFTER = timedelta(hours=24)
 _REFRESH_LOCKS: dict[str, asyncio.Lock] = {}
+logger = logging.getLogger(__name__)
 
 
 class ChannelHealthReporter:
@@ -39,13 +42,55 @@ class ChannelHealthReporter:
         self.db = db
 
     def report(self) -> dict:
-        items = [self._channel_shape(channel_id) for channel_id in self._channel_ids()]
+        items = []
+        for channel_id in self._channel_ids():
+            try:
+                items.append(self._channel_shape(channel_id))
+            except Exception as exc:
+                logger.error(
+                    "channel_health_report_failed",
+                    extra={
+                        "channel_id": channel_id,
+                        "channel_type": channel_id.split(":", 1)[0],
+                        "exception_type": type(exc).__name__,
+                        "traceback_frames": [
+                            {"file": frame.filename, "line": frame.lineno, "function": frame.name}
+                            for frame in traceback.extract_tb(exc.__traceback__)
+                        ],
+                    },
+                )
+                items.append(self._unavailable_channel_shape(channel_id))
         return {
             "checkedAt": _iso(datetime.utcnow()),
             "summary": _summary(items),
             "items": items,
             "orderSyncRunner": self._runner_state(),
             "external_call_performed": False,
+        }
+
+    def _unavailable_channel_shape(self, channel_id: str) -> dict:
+        connector_type = channel_id.split(":", 1)[0]
+        unavailable = _dimension("Unable to check", "Channel diagnostics are temporarily unavailable.")
+        return {
+            "channelId": channel_id,
+            "channelType": connector_type,
+            "enabled": False,
+            "accessMode": "read_only",
+            "status": "Unable to check",
+            "summary": "Channel diagnostics are temporarily unavailable.",
+            "lastChecked": None,
+            "latency": None,
+            "lastSuccessfulOperation": None,
+            "lastErrorCategory": "diagnostic_unavailable",
+            "capabilityState": {},
+            "nextRecommendedAction": "Retry the diagnostic check.",
+            "dimensions": {"configuration": unavailable, "externalApi": unavailable},
+            "lastProductRead": None,
+            "lastProductWrite": None,
+            "lastOrderSync": None,
+            "polling": {"cursor": None, "lastRunAt": None},
+            "orderSync": {"lastRunPerSource": {}, "lastSuccess": None, "lastFailure": None, "lastFailureCategory": None, "nextScheduledRun": None},
+            "webhooks": {"supported": connector_type == "tapsishop", "received": 0, "queued": 0, "processed": 0, "deadLetter": 0, "lastReceivedAt": None, "lastProcessedAt": None},
         }
 
     async def refresh(self, channel_id: str | None = None) -> dict:

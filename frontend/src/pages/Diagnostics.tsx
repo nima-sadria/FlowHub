@@ -326,7 +326,7 @@ export default function Diagnostics() {
         ) : connectors.length === 0 ? (
           <Empty
             title="No connectors configured"
-            description="Connector setup is available from Settings."
+            description="Connector setup is available from Commerce Hub."
           />
         ) : connectors.map(connector => {
           const status = connectorHealth(connector)

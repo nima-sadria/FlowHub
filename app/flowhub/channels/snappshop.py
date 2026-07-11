@@ -172,6 +172,11 @@ class SnappShopConnector(BaseMarketplaceConnector):
         except SnappShopConnectorError as exc:
             return ChannelHealth(status="unhealthy", checked_at=_iso(_utcnow()), error=exc.error)
 
+    async def list_vendors(self) -> list[ChannelVendor]:
+        payload = await self._request("GET", "/vendors")
+        data = _expect_list(payload, self._error("Malformed vendor list response."))
+        return [_vendor_from_payload(self.channel_id, item) for item in data if isinstance(item, dict)]
+
     async def get_vendor_information(self) -> ChannelVendor:
         vendor_id = await self._selected_vendor_id()
         payload = await self._request("GET", f"/vendors/{vendor_id}")

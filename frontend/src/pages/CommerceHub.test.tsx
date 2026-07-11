@@ -145,6 +145,28 @@ const commerce: CommerceService = {
       ],
     }
   },
+  async getChannelConfiguration(channelId) {
+    const provider = channelId.split(':')[0]
+    const schemas = (await this.getChannelTypes()).items
+    const option = schemas.find(item => item.id === channelId)
+    return {
+      channel_id: channelId,
+      provider,
+      display_name: option?.name ?? channelId,
+      configured: false,
+      enabled: false,
+      access_mode: 'read_only' as const,
+      settings: Object.fromEntries((option?.settings_schema ?? [])
+        .filter(field => !field.secret && field.default !== undefined)
+        .map(field => [field.key, field.default])),
+      secrets: {},
+      token_configured: false,
+      webhook_token_configured: false,
+      settings_schema: option?.settings_schema ?? [],
+      webhook_path: provider === 'tapsishop' ? `/api/v2/webhooks/tapsishop/${channelId}` : null,
+      credentials_returned: false as const,
+    }
+  },
   async saveSource() {
     return {
       settings: {},
@@ -324,6 +346,8 @@ function channel(id: string, name: string, placeholder: boolean) {
     write_blocked: true,
     runtime_write_blocked: true,
     credential_status: 'not_configured',
+    token_configured: false,
+    webhook_token_configured: false,
     last_health_check: null,
     health: { status: 'unknown', message: '', latency_ms: null, error_code: null },
     capabilities: { read_products: true },
@@ -455,11 +479,12 @@ describe('CommerceHub', () => {
     expect(c.textContent).not.toContain('Apply')
   })
 
-  it('shows the single cache refresh action and cache status only on WooCommerce', async () => {
+  it('shows configuration actions only for implemented channels', async () => {
     const c = await renderPage()
 
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Refresh product cache')).toHaveLength(1)
-    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Settings')).toHaveLength(1)
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Settings')).toHaveLength(0)
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')).toHaveLength(3)
     expect(c.textContent).toContain('Cached products: 2')
     expect(c.textContent).toContain('Cached variations: 2')
     expect(c.textContent).toContain('Refresh status: Completed')
@@ -472,6 +497,167 @@ describe('CommerceHub', () => {
 
     expect(c.textContent).not.toContain('Refresh product cache')
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Read now')).toHaveLength(1)
+  })
+
+  it('shows Settings for configured marketplaces and no Configure action for planned channels', async () => {
+    const configuredCommerce: CommerceService = {
+      ...commerce,
+      async getChannels() {
+        const original = await commerce.getChannels()
+        return {
+          ...original,
+          items: original.items.map(item => item.provider === 'snappshop'
+            ? { ...item, credential_status: 'configured', token_configured: true }
+            : item),
+        }
+      },
+    }
+    const c = await renderPage(adminUser, configuredCommerce)
+
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Settings')).toHaveLength(1)
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')).toHaveLength(2)
+    for (const planned of ['Digikala', 'Technolife', 'Shopify']) {
+      const card = Array.from(c.querySelectorAll('h3')).find(item => item.textContent === planned)?.closest('.fh-card')
+      expect(Array.from(card?.querySelectorAll('button') ?? [])).toHaveLength(0)
+    }
+  })
+
+  it('loads sanitized SnappShop settings, masks the token, and discovers vendors from unsaved test values', async () => {
+    let testedPayload: Parameters<CommerceService['testChannel']>[1]
+    const snappCommerce: CommerceService = {
+      ...commerce,
+      async getChannelConfiguration(channelId) {
+        const base = await commerce.getChannelConfiguration(channelId)
+        return {
+          ...base,
+          display_name: 'Primary SnappShop',
+          settings: {
+            base_url: 'https://apix.snappshop.ir/automation/v1',
+            agent_identifier: 'flowhub-agent',
+            agent_header_name: 'User-Agent',
+            request_timeout: '20',
+            vendor_id: '',
+          },
+          secrets: { token: { status: 'configured', replaced_at: '2026-07-12T00:00:00Z' } },
+          token_configured: true,
+        }
+      },
+      async testChannel(_channelId, payload) {
+        testedPayload = payload
+        return {
+          ok: true,
+          status: 'connected',
+          message: 'Connected to SnappShop.',
+          external_call_performed: true,
+          read_only: true,
+          runtime_write_blocked: true,
+          write_blocked: true,
+          vendors: [{ id: 'vendor-1', name: 'Primary Vendor' }],
+        }
+      },
+    }
+    const c = await renderPage(adminUser, snappCommerce)
+    const configure = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')[1]
+    await act(async () => {
+      configure.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(c.textContent).toContain('Configure Snapp Shop')
+    expect(c.textContent).toContain('Agent identifier')
+    expect(c.textContent).toContain('Agent header name')
+    expect(c.textContent).toContain('Request timeout seconds')
+    const token = c.querySelector('input[type="password"]') as HTMLInputElement
+    expect(token.value).toBe('')
+    expect(c.textContent).toContain('Configured; leave blank to keep unchanged.')
+
+    const test = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
+    expect((test as HTMLButtonElement).disabled).toBe(false)
+    await act(async () => {
+      test?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+    expect(testedPayload?.settings.agent_identifier).toBe('flowhub-agent')
+    expect(testedPayload?.secrets.token).toBeUndefined()
+    expect(Array.from(c.querySelectorAll('option')).some(option => option.textContent === 'Primary Vendor')).toBe(true)
+  })
+
+  it('renders separate TapsiShop secrets and the webhook registration URL', async () => {
+    const tapsiCommerce: CommerceService = {
+      ...commerce,
+      async getChannelConfiguration(channelId) {
+        const base = await commerce.getChannelConfiguration(channelId)
+        return {
+          ...base,
+          settings: { base_url: 'https://vendorgw.tapsi.shop/Web/Hub/vendors/v1', request_timeout: '30' },
+          secrets: {
+            token: { status: 'configured', replaced_at: null },
+            webhook_token: { status: 'configured', replaced_at: null },
+          },
+          token_configured: true,
+          webhook_token_configured: true,
+        }
+      },
+    }
+    const c = await renderPage(adminUser, tapsiCommerce)
+    const configure = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')[2]
+    await act(async () => {
+      configure.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const secretInputs = Array.from(c.querySelectorAll('input[type="password"]')) as HTMLInputElement[]
+    expect(secretInputs).toHaveLength(2)
+    expect(secretInputs.every(input => input.value === '')).toBe(true)
+    expect(c.textContent).toContain('Webhook registration')
+    expect(c.textContent).toContain('Webhook credential: Configured')
+    expect((inputByLabel(c, 'Webhook URL')).value).toContain('/api/v2/webhooks/tapsishop/tapsishop%3Amain')
+  })
+
+  it('refreshes a marketplace card from Configure to Settings after save', async () => {
+    let saved = false
+    const savingCommerce: CommerceService = {
+      ...commerce,
+      async getChannels() {
+        const original = await commerce.getChannels()
+        return {
+          ...original,
+          items: original.items.map(item => saved && item.provider === 'snappshop'
+            ? { ...item, credential_status: 'configured', token_configured: true }
+            : item),
+        }
+      },
+      async getChannelConfiguration(channelId) {
+        const base = await commerce.getChannelConfiguration(channelId)
+        return {
+          ...base,
+          settings: { agent_identifier: 'flowhub-agent' },
+          secrets: { token: { status: 'configured', replaced_at: null } },
+          token_configured: true,
+        }
+      },
+      async saveChannel(channelId, payload) {
+        saved = true
+        return commerce.saveChannel(channelId, payload)
+      },
+    }
+    const c = await renderPage(adminUser, savingCommerce)
+    const configure = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')[1]
+    await act(async () => {
+      configure.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Save configuration')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(Array.from(c.querySelectorAll('button')).some(button => button.textContent === 'Settings')).toBe(true)
   })
 
   it('shows cache refresh loading, success, and refreshed channel counts', async () => {
@@ -783,6 +969,13 @@ describe('CommerceHub', () => {
   it('shows backend detail for channel test errors', async () => {
     const failingCommerce: CommerceService = {
       ...commerce,
+      async getChannels() {
+        const original = await commerce.getChannels()
+        return {
+          ...original,
+          items: original.items.map((item, index) => index === 0 ? { ...item, credential_status: 'configured' } : item),
+        }
+      },
       async testChannel() {
         throw new ApiError(403, JSON.stringify({ detail: 'Admin permission required.' }))
       },

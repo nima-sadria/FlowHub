@@ -571,6 +571,8 @@ export interface CommerceChannel {
   write_blocked: boolean
   runtime_write_blocked: boolean
   credential_status: string
+  token_configured?: boolean
+  webhook_token_configured?: boolean
   last_health_check: string | null
   health: CommerceHealth
   capabilities: Record<string, boolean>

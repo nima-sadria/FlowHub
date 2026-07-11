@@ -3,6 +3,7 @@ import { authFetch } from '../../api/authFetch'
 import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeOption } from '../types'
 import type {
   CommerceConfigPayload,
+  CommerceChannelConfiguration,
   CommerceService,
   CommerceSettingsResult,
   ChannelCacheRefreshResult,
@@ -42,6 +43,13 @@ export class ApiCommerceService implements CommerceService {
     return apiFetch<TypeResponse>('/api/v2/commerce/channel-types', authFetch)
   }
 
+  async getChannelConfiguration(channelId: string): Promise<CommerceChannelConfiguration> {
+    return apiFetch<CommerceChannelConfiguration>(
+      `/api/v2/commerce/channels/${encodeURIComponent(channelId)}/configuration`,
+      authFetch,
+    )
+  }
+
   async saveSource(sourceId: string, payload: CommerceConfigPayload): Promise<CommerceSettingsResult> {
     return apiFetch<CommerceSettingsResult>(`/api/v2/commerce/sources/${encodeURIComponent(sourceId)}/settings`, authFetch, {
       method: 'PUT',
@@ -66,11 +74,11 @@ export class ApiCommerceService implements CommerceService {
     })
   }
 
-  async testChannel(channelId: string): Promise<ConnectionCheckResult> {
+  async testChannel(channelId: string, payload?: CommerceConfigPayload): Promise<ConnectionCheckResult> {
     return apiFetch<ConnectionCheckResult>(`/api/v2/commerce/channels/${encodeURIComponent(channelId)}/test`, authFetch, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify(payload ?? {}),
     })
   }
 

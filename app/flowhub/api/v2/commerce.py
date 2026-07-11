@@ -121,11 +121,12 @@ async def get_channel_detail(
 @router.post("/channels/{channel_id}/test")
 async def test_channel_connection(
     channel_id: str,
+    body: dict | None = None,
     user: FlowHubUser = Depends(get_current_user),
     service: CommerceHubService = Depends(_service),
 ) -> dict:
     _require_admin(user)
-    return await service.test_channel_connection(channel_id)
+    return await service.test_channel_connection(channel_id, body)
 
 
 @router.post("/channels/{channel_id}/refresh-cache")
@@ -164,4 +165,14 @@ async def update_channel_settings(
     service: CommerceHubService = Depends(_service),
 ) -> dict:
     _require_admin(user)
-    return service.update_channel_settings(channel_id, body)
+    return service.update_channel_settings(channel_id, body, actor=user.username)
+
+
+@router.get("/channels/{channel_id}/configuration")
+async def get_channel_configuration(
+    channel_id: str,
+    user: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    _require_admin(user)
+    return service.get_channel_configuration(channel_id)

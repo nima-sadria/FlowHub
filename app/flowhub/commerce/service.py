@@ -10,6 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from time import monotonic
+from urllib.parse import urlparse
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -18,8 +19,19 @@ from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.read.woocommerce import WooCommerceProductReadAdapter
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import ping as ping_woocommerce
-from app.flowhub.channels.snappshop import IntegrationSettingsOrderEventCursorStore, SnappShopConfig, SnappShopConnector
-from app.flowhub.channels.tapsishop import TAPSISHOP_BASE_URL, TapsiShopConfig, TapsiShopConnector
+from app.flowhub.channels.snappshop import (
+    SNAPPSHOP_BASE_URL,
+    IntegrationSettingsOrderEventCursorStore,
+    SnappShopConfig,
+    SnappShopConnector,
+    SnappShopConnectorError,
+)
+from app.flowhub.channels.tapsishop import (
+    TAPSISHOP_BASE_URL,
+    TapsiShopConfig,
+    TapsiShopConnector,
+    TapsiShopConnectorError,
+)
 from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
 from app.flowhub.data_layer.health_service import ConnectorHealthService
 from app.flowhub.integrations.errors import IntegrationError
@@ -222,19 +234,19 @@ class CommerceHubService:
             "capability_authorizes_write": False,
         }
 
-    async def test_channel_connection(self, channel_id: str) -> dict:
+    async def test_channel_connection(self, channel_id: str, body: dict | None = None) -> dict:
         meta = self._channel_meta(channel_id)
         item = self._channel_contract(meta)
-        configured = item["credential_status"] == "configured"
+        configured = item["credential_status"] == "configured" or self._has_submitted_credentials(meta, body)
         placeholder = bool(meta["placeholder"])
         if placeholder:
             return self._placeholder_connection_result()
         if str(meta["provider"]) == "woocommerce":
             return await self._test_woocommerce_channel_connection(configured)
         if str(meta["provider"]) == "snappshop":
-            return await self._test_snappshop_channel_connection(configured)
+            return await self._test_snappshop_channel_connection(configured, body)
         if str(meta["provider"]) == "tapsishop":
-            return await self._test_tapsishop_channel_connection(configured)
+            return await self._test_tapsishop_channel_connection(configured, body)
         return self._unsupported_connection_result()
 
     async def refresh_channel_cache(self, channel_id: str, actor: str) -> dict:
@@ -409,14 +421,16 @@ class CommerceHubService:
             "write_pipeline_eligible": False,
         }
 
-    def update_channel_settings(self, channel_id: str, body: dict) -> dict:
+    def update_channel_settings(self, channel_id: str, body: dict, *, actor: str = "system") -> dict:
         meta = self._channel_meta(channel_id)
         provider = str(meta["provider"])
         if registry.get_definition(provider) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel settings are not available.")
-        self._ensure_instance(meta)
+        if bool(meta.get("placeholder")):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel settings are not available.")
         access_mode = self._requested_channel_access_mode(meta, body)
-        self._update_instance_state(meta, body, access_mode=access_mode)
+        self._validate_channel_configuration(meta, body)
+        self._ensure_instance(meta)
         if provider == "woocommerce":
             self._persist_woocommerce_app_config(body)
         if provider == "snappshop":
@@ -424,6 +438,13 @@ class CommerceHubService:
         if provider == "tapsishop":
             self._persist_tapsishop_app_config(body)
         result = self.integration.update_settings_contract(channel_id, self._settings_body(body))
+        self._update_instance_state(meta, body, access_mode=access_mode)
+        self.integration.record_event(
+            connector_id=channel_id,
+            event_name="channel_configuration_changed",
+            message="Channel configuration was updated; credential values remain write-only.",
+            metadata={"actor": actor, "secret_values_returned": False},
+        )
         instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         effective_access_mode = self._access_mode(instance)
         write_pipeline_eligible = self._write_pipeline_eligible(meta, instance)
@@ -435,6 +456,45 @@ class CommerceHubService:
             "runtime_write_blocked": True,
             "write_blocked": not write_pipeline_eligible,
             "write_pipeline_eligible": write_pipeline_eligible,
+        }
+
+    def get_channel_configuration(self, channel_id: str) -> dict:
+        meta = self._channel_meta(channel_id)
+        if bool(meta.get("placeholder")) or registry.get_definition(str(meta["provider"])) is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel settings are not available.")
+        if meta["provider"] == "woocommerce":
+            self.integration.bootstrap_from_app_config()
+        instance = self.db.get(IntegrationConnectorInstance, channel_id)
+        definition = registry.get_definition(str(meta["provider"]))
+        settings: dict[str, object] = {
+            item.key: item.default
+            for item in definition.settings_schema
+            if not item.secret and item.default is not None
+        } if definition else {}
+        secret_status: dict[str, dict[str, str | None]] = {}
+        if instance is not None:
+            for item in instance.settings:
+                if item.secret:
+                    secret_status[item.key] = {
+                        "status": "configured" if item.configured else "not_configured",
+                        "replaced_at": self._iso(item.updated_at),
+                    }
+                else:
+                    settings[item.key] = item.value_json
+        return {
+            "channel_id": channel_id,
+            "provider": meta["provider"],
+            "display_name": instance.name if instance else meta["name"],
+            "configured": self._instance_configured(instance),
+            "enabled": bool(instance and instance.enabled),
+            "access_mode": self._access_mode(instance),
+            "settings": settings,
+            "secrets": secret_status,
+            "token_configured": secret_status.get("token", {}).get("status") == "configured",
+            "webhook_token_configured": secret_status.get("webhook_token", {}).get("status") == "configured",
+            "settings_schema": [item.model_dump() for item in definition.settings_schema] if definition else [],
+            "webhook_path": f"/api/v2/webhooks/tapsishop/{channel_id}" if meta["provider"] == "tapsishop" else None,
+            "credentials_returned": False,
         }
 
     def relationship_map(self) -> dict:
@@ -454,6 +514,7 @@ class CommerceHubService:
             instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         health = self._health(str(meta["id"]))
         configured = self._instance_configured(instance)
+        secret_status = self._secret_status(instance)
         read_status = SpreadsheetSourceReadService(self.db).read_status() if provider == "nextcloud" else None
         body = {
             **meta,
@@ -475,7 +536,7 @@ class CommerceHubService:
             body["settings_schema"] = [
                 item.model_dump() for item in definition.settings_schema
             ] if definition else []
-            body["secrets"] = self._secret_status(instance)
+            body["secrets"] = secret_status
         return body
 
     def _channel_contract(self, meta: dict, detail: bool = False) -> dict:
@@ -487,6 +548,7 @@ class CommerceHubService:
             instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         health = self._health(str(meta["id"]))
         configured = self._instance_configured(instance)
+        secret_status = self._secret_status(instance)
         access_mode = self._access_mode(instance)
         write_pipeline_eligible = self._write_pipeline_eligible(meta, instance)
         capabilities = definition.connector.capabilities if definition else ConnectorCapabilities()
@@ -523,6 +585,8 @@ class CommerceHubService:
             "write_pipeline_eligible": write_pipeline_eligible,
             "runtime_write_blocked": True,
             "credential_status": "configured" if configured else "not_configured",
+            "token_configured": secret_status.get("token", {}).get("status") == "configured",
+            "webhook_token_configured": secret_status.get("webhook_token", {}).get("status") == "configured",
             "last_health_check": self._iso(health.checked_at) if health else None,
             "health": self._health_contract(health),
             "capabilities": capabilities.model_dump(),
@@ -539,7 +603,7 @@ class CommerceHubService:
             body["settings_schema"] = [
                 item.model_dump() for item in definition.settings_schema
             ] if definition else []
-            body["secrets"] = self._secret_status(instance)
+            body["secrets"] = secret_status
         return body
 
     def _cache_refresh_result(
@@ -650,6 +714,9 @@ class CommerceHubService:
 
     def _settings_body(self, body: dict) -> dict:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
+        access_mode = body.get("access_mode", body.get("accessMode")) if isinstance(body, dict) else None
+        if access_mode not in (None, ""):
+            settings["access_mode"] = access_mode
         description = str(body.get("description") or "").strip() if isinstance(body, dict) else ""
         if description:
             settings["description"] = description
@@ -681,6 +748,78 @@ class CommerceHubService:
 
     def _write_pipeline_eligible(self, meta: dict, instance: IntegrationConnectorInstance | None) -> bool:
         return self._write_pipeline_supported(meta) and self._access_mode(instance) == ACCESS_MODE_WRITE_ENABLED
+
+    def _has_submitted_credentials(self, meta: dict, body: dict | None) -> bool:
+        if not isinstance(body, dict):
+            return False
+        settings = body.get("settings") if isinstance(body.get("settings"), dict) else {}
+        secrets = body.get("secrets") if isinstance(body.get("secrets"), dict) else {}
+        provider = str(meta["provider"])
+        if provider == "snappshop":
+            return bool(str(settings.get("agent_identifier") or self.integration.config.get("snappshop.agent_identifier") or "").strip()) and bool(
+                str(secrets.get("token") or self.integration.config.get("snappshop.token") or "").strip()
+            )
+        if provider == "tapsishop":
+            return bool(str(secrets.get("token") or self.integration.config.get("tapsishop.token") or "").strip())
+        return False
+
+    def _validate_channel_configuration(self, meta: dict, body: dict) -> None:
+        provider = str(meta["provider"])
+        if provider not in {"snappshop", "tapsishop"}:
+            return
+        settings, secrets = self._connector_values(provider, body)
+        base_url = str(settings.get("base_url") or "").strip()
+        parsed = urlparse(base_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A valid channel Base URL is required.")
+        try:
+            timeout = float(settings.get("request_timeout") or 30)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Request timeout must be numeric.") from exc
+        if timeout <= 0 or timeout > 120:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Request timeout must be between 0 and 120 seconds.")
+        try:
+            if provider == "snappshop":
+                SnappShopConfig.from_values(settings=settings, secrets=secrets)
+            else:
+                TapsiShopConfig.from_values(settings=settings, secrets=secrets)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+
+    def _connector_values(self, provider: str, body: dict | None) -> tuple[dict, dict]:
+        submitted_settings = body.get("settings") if isinstance(body, dict) and isinstance(body.get("settings"), dict) else {}
+        submitted_secrets = body.get("secrets") if isinstance(body, dict) and isinstance(body.get("secrets"), dict) else {}
+        setting_keys = {
+            "snappshop": ("base_url", "agent_identifier", "agent_header_name", "request_timeout", "vendor_id"),
+            "tapsishop": (
+                "base_url", "request_timeout", "selected_vendor_id", "token_refresh_enabled",
+                "token_refresh_name", "revoke_current_token", "token_refresh_expired_at",
+            ),
+        }.get(provider, ())
+        secret_keys = {"snappshop": ("token",), "tapsishop": ("token", "webhook_token")}.get(provider, ())
+        defaults = {
+            "snappshop": {"base_url": SNAPPSHOP_BASE_URL, "agent_header_name": "User-Agent", "request_timeout": 30},
+            "tapsishop": {"base_url": TAPSISHOP_BASE_URL, "request_timeout": 30},
+        }.get(provider, {})
+        settings = {
+            key: submitted_settings[key]
+            if key in submitted_settings
+            else self.integration.config.get(f"{provider}.{key}") or defaults.get(key)
+            for key in setting_keys
+        }
+        secrets = {
+            key: submitted_secrets.get(key) or self.integration.config.get(f"{provider}.{key}")
+            for key in secret_keys
+        }
+        return settings, secrets
+
+    def _vendor_contract(self, vendor) -> dict:
+        return {
+            "id": vendor.vendor_id,
+            "name": vendor.name,
+            "store_url": vendor.display_url,
+            "reference_code": vendor.identifiers.channel_reference_code,
+        }
 
     async def _test_woocommerce_channel_connection(self, configured: bool) -> dict:
         creds = self._woocommerce_credentials()
@@ -743,8 +882,8 @@ class CommerceHubService:
             return None
         return WooCommerceCredentials(url=url.rstrip("/"), key=key, secret=secret)
 
-    async def _test_snappshop_channel_connection(self, configured: bool) -> dict:
-        connector = self._snappshop_connector()
+    async def _test_snappshop_channel_connection(self, configured: bool, body: dict | None = None) -> dict:
+        connector = self._snappshop_connector(body)
         if not configured or connector is None:
             return {
                 **self._connection_base(),
@@ -758,33 +897,51 @@ class CommerceHubService:
                 "message": "SnappShop is not configured. No external call was performed.",
                 "external_call_performed": False,
             }
-        health = await connector.test_connection()
-        error = health.error
-        ok = health.status == "healthy"
+        started = monotonic()
+        try:
+            vendors = await connector.list_vendors()
+            if not vendors:
+                raise ValueError("No authorized SnappShop vendors were returned.")
+            if connector.config.vendor_id:
+                selected = await connector.get_vendor_information()
+                if selected.vendor_id != connector.config.vendor_id:
+                    raise ValueError("Selected SnappShop vendor was not returned.")
+            latency_ms = round((monotonic() - started) * 1000, 2)
+        except SnappShopConnectorError as exc:
+            error = exc.error
+            return {
+                **self._connection_base(), "ok": False, "connected": False,
+                "authenticated": error.category.value not in {"authentication", "authorization"},
+                "status": "authentication_failed" if error.category.value == "authentication" else "error",
+                "http_status": error.http_status, "latency_ms": round((monotonic() - started) * 1000, 2),
+                "checked_at": self._checked_at(), "message": error.message, "external_call_performed": True,
+            }
+        except ValueError as exc:
+            return {
+                **self._connection_base(), "ok": False, "connected": False, "authenticated": True,
+                "status": "error", "http_status": None, "latency_ms": round((monotonic() - started) * 1000, 2),
+                "checked_at": self._checked_at(), "message": str(exc), "external_call_performed": True,
+            }
         return {
             **self._connection_base(),
-            "ok": ok,
-            "connected": ok,
-            "authenticated": ok,
-            "status": "connected" if ok else "error",
-            "http_status": error.http_status if error else 200,
-            "latency_ms": health.latency_ms,
-            "checked_at": health.checked_at or self._checked_at(),
-            "message": "Connected to SnappShop. Vendor API probe succeeded." if ok else (error.message if error else "SnappShop connection test failed."),
+            "ok": True,
+            "connected": True,
+            "authenticated": True,
+            "status": "connected",
+            "http_status": 200,
+            "latency_ms": latency_ms,
+            "checked_at": self._checked_at(),
+            "message": "Connected to SnappShop. Vendor API probe succeeded.",
             "external_call_performed": True,
+            "vendors": [self._vendor_contract(item) for item in vendors],
         }
 
-    def _snappshop_connector(self) -> SnappShopConnector | None:
+    def _snappshop_connector(self, body: dict | None = None) -> SnappShopConnector | None:
+        settings, secrets = self._connector_values("snappshop", body)
         try:
             config = SnappShopConfig.from_values(
-                settings={
-                    "base_url": self.integration.config.get("snappshop.base_url"),
-                    "agent_identifier": self.integration.config.get("snappshop.agent_identifier"),
-                    "agent_header_name": self.integration.config.get("snappshop.agent_header_name"),
-                    "request_timeout": self.integration.config.get("snappshop.request_timeout"),
-                    "vendor_id": self.integration.config.get("snappshop.vendor_id"),
-                },
-                secrets={"token": self.integration.config.get("snappshop.token")},
+                settings=settings,
+                secrets=secrets,
             )
         except (TypeError, ValueError):
             return None
@@ -794,8 +951,8 @@ class CommerceHubService:
             cursor_store=IntegrationSettingsOrderEventCursorStore(self.db),
         )
 
-    async def _test_tapsishop_channel_connection(self, configured: bool) -> dict:
-        connector = self._tapsishop_connector()
+    async def _test_tapsishop_channel_connection(self, configured: bool, body: dict | None = None) -> dict:
+        connector = self._tapsishop_connector(body)
         if not configured or connector is None:
             return {
                 **self._connection_base(),
@@ -809,38 +966,47 @@ class CommerceHubService:
                 "message": "TapsiShop is not configured. No external call was performed.",
                 "external_call_performed": False,
             }
-        health = await connector.test_connection()
-        error = health.error
-        ok = health.status == "healthy"
+        started = monotonic()
+        try:
+            vendor = await connector.get_vendor_information()
+            if connector.config.selected_vendor_id and vendor.vendor_id != connector.config.selected_vendor_id:
+                raise ValueError("Selected TapsiShop vendor does not match vendor-information.")
+            latency_ms = round((monotonic() - started) * 1000, 2)
+        except TapsiShopConnectorError as exc:
+            error = exc.error
+            return {
+                **self._connection_base(), "ok": False, "connected": False,
+                "authenticated": error.category.value not in {"authentication", "authorization"},
+                "status": "authentication_failed" if error.category.value == "authentication" else "error",
+                "http_status": error.http_status, "latency_ms": round((monotonic() - started) * 1000, 2),
+                "checked_at": self._checked_at(), "message": error.message, "external_call_performed": True,
+            }
+        except ValueError as exc:
+            return {
+                **self._connection_base(), "ok": False, "connected": False, "authenticated": True,
+                "status": "error", "http_status": None, "latency_ms": round((monotonic() - started) * 1000, 2),
+                "checked_at": self._checked_at(), "message": str(exc), "external_call_performed": True,
+            }
         return {
             **self._connection_base(),
-            "ok": ok,
-            "connected": ok,
-            "authenticated": ok,
-            "status": "connected" if ok else "error",
-            "http_status": error.http_status if error else 200,
-            "latency_ms": health.latency_ms,
-            "checked_at": health.checked_at or self._checked_at(),
-            "message": "Connected to TapsiShop. Vendor information probe succeeded." if ok else (error.message if error else "TapsiShop connection test failed."),
+            "ok": True,
+            "connected": True,
+            "authenticated": True,
+            "status": "connected",
+            "http_status": 200,
+            "latency_ms": latency_ms,
+            "checked_at": self._checked_at(),
+            "message": "Connected to TapsiShop. Vendor information probe succeeded.",
             "external_call_performed": True,
+            "vendor_information": self._vendor_contract(vendor),
         }
 
-    def _tapsishop_connector(self) -> TapsiShopConnector | None:
+    def _tapsishop_connector(self, body: dict | None = None) -> TapsiShopConnector | None:
+        settings, secrets = self._connector_values("tapsishop", body)
         try:
             config = TapsiShopConfig.from_values(
-                settings={
-                    "base_url": self.integration.config.get("tapsishop.base_url"),
-                    "request_timeout": self.integration.config.get("tapsishop.request_timeout"),
-                    "token_refresh_enabled": self.integration.config.get("tapsishop.token_refresh_enabled"),
-                    "token_refresh_name": self.integration.config.get("tapsishop.token_refresh_name"),
-                    "revoke_current_token": self.integration.config.get("tapsishop.revoke_current_token"),
-                    "token_refresh_expired_at": self.integration.config.get("tapsishop.token_refresh_expired_at"),
-                    "selected_vendor_id": self.integration.config.get("tapsishop.selected_vendor_id"),
-                },
-                secrets={
-                    "token": self.integration.config.get("tapsishop.token"),
-                    "webhook_token": self.integration.config.get("tapsishop.webhook_token"),
-                },
+                settings=settings,
+                secrets=secrets,
             )
         except (TypeError, ValueError):
             return None
