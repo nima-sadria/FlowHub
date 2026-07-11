@@ -32,6 +32,7 @@ from app.flowhub.channels.tapsishop import (
     TapsiShopConnector,
     TapsiShopConnectorError,
 )
+from app.flowhub.config.values import parse_config_bool
 from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
 from app.flowhub.data_layer.health_service import ConnectorHealthService
 from app.flowhub.integrations.errors import IntegrationError
@@ -430,13 +431,17 @@ class CommerceHubService:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel settings are not available.")
         access_mode = self._requested_channel_access_mode(meta, body)
         self._validate_channel_configuration(meta, body)
+        if provider in {"snappshop", "tapsishop"}:
+            return self._update_marketplace_channel_settings(
+                channel_id,
+                meta,
+                body,
+                actor=actor,
+                access_mode=access_mode,
+            )
         self._ensure_instance(meta)
         if provider == "woocommerce":
             self._persist_woocommerce_app_config(body)
-        if provider == "snappshop":
-            self._persist_snappshop_app_config(body)
-        if provider == "tapsishop":
-            self._persist_tapsishop_app_config(body)
         result = self.integration.update_settings_contract(channel_id, self._settings_body(body))
         self._update_instance_state(meta, body, access_mode=access_mode)
         self.integration.record_event(
@@ -457,6 +462,66 @@ class CommerceHubService:
             "write_blocked": not write_pipeline_eligible,
             "write_pipeline_eligible": write_pipeline_eligible,
         }
+
+    def _update_marketplace_channel_settings(
+        self,
+        channel_id: str,
+        meta: dict,
+        body: dict,
+        *,
+        actor: str,
+        access_mode: str,
+    ) -> dict:
+        provider = str(meta["provider"])
+        changed_fields = self._configuration_changed_fields(body)
+        try:
+            self._ensure_instance(meta, commit=False)
+            if provider == "snappshop":
+                self._persist_snappshop_app_config(body, commit=False)
+            else:
+                self._persist_tapsishop_app_config(body, commit=False)
+            self.integration.stage_settings_contract(channel_id, self._settings_body(body))
+            self._update_instance_state(meta, body, access_mode=access_mode, commit=False)
+            self.integration.record_event(
+                connector_id=channel_id,
+                event_name="channel_configuration_changed",
+                message="Channel configuration was updated; credential values remain write-only.",
+                metadata={
+                    "actor": actor,
+                    "channel_id": channel_id,
+                    "changed_fields": changed_fields,
+                    "secret_values_returned": False,
+                },
+                commit=False,
+            )
+            self.db.flush()
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
+        result = self.integration.get_settings_contract(channel_id)
+        instance = self.db.get(IntegrationConnectorInstance, meta["id"])
+        effective_access_mode = self._access_mode(instance)
+        write_pipeline_eligible = self._write_pipeline_eligible(meta, instance)
+        return {
+            **result,
+            "channel_id": channel_id,
+            "access_mode": effective_access_mode,
+            "read_only": effective_access_mode == ACCESS_MODE_READ_ONLY,
+            "runtime_write_blocked": True,
+            "write_blocked": not write_pipeline_eligible,
+            "write_pipeline_eligible": write_pipeline_eligible,
+        }
+
+    def _configuration_changed_fields(self, body: dict) -> list[str]:
+        changed = set((body.get("settings") or {}).keys()) if isinstance(body.get("settings"), dict) else set()
+        changed.update(
+            key
+            for key in ("display_name", "enabled", "access_mode", "description")
+            if key in body
+        )
+        return sorted(str(key) for key in changed)
 
     def get_channel_configuration(self, channel_id: str) -> dict:
         meta = self._channel_meta(channel_id)
@@ -480,7 +545,9 @@ class CommerceHubService:
                         "replaced_at": self._iso(item.updated_at),
                     }
                 else:
-                    settings[item.key] = item.value_json
+                    settings[item.key] = self._configuration_setting_value(
+                        str(meta["provider"]), item.key, item.value_json
+                    )
         return {
             "channel_id": channel_id,
             "provider": meta["provider"],
@@ -496,6 +563,11 @@ class CommerceHubService:
             "webhook_path": f"/api/v2/webhooks/tapsishop/{channel_id}" if meta["provider"] == "tapsishop" else None,
             "credentials_returned": False,
         }
+
+    def _configuration_setting_value(self, provider: str, key: str, value: object) -> object:
+        if provider == "tapsishop" and key in {"token_refresh_enabled", "revoke_current_token"}:
+            return parse_config_bool(value)
+        return value
 
     def relationship_map(self) -> dict:
         return {
@@ -672,7 +744,7 @@ class CommerceHubService:
     def _safe_cache_refresh_error(self, exc: Exception) -> str:
         return str(normalize_upstream_error(exc, source="woocommerce")["message"])
 
-    def _ensure_instance(self, meta: dict) -> IntegrationConnectorInstance:
+    def _ensure_instance(self, meta: dict, *, commit: bool = True) -> IntegrationConnectorInstance:
         row = self.db.get(IntegrationConnectorInstance, meta["id"])
         if row is not None:
             return row
@@ -691,11 +763,21 @@ class CommerceHubService:
             updated_at=datetime.utcnow(),
         )
         self.db.add(row)
-        self.db.commit()
-        self.db.refresh(row)
+        if commit:
+            self.db.commit()
+            self.db.refresh(row)
+        else:
+            self.db.flush()
         return row
 
-    def _update_instance_state(self, meta: dict, body: dict, *, access_mode: str) -> None:
+    def _update_instance_state(
+        self,
+        meta: dict,
+        body: dict,
+        *,
+        access_mode: str,
+        commit: bool = True,
+    ) -> None:
         row = self.db.get(IntegrationConnectorInstance, meta["id"])
         if row is None:
             return
@@ -710,7 +792,10 @@ class CommerceHubService:
         row.read_only = access_mode != ACCESS_MODE_WRITE_ENABLED
         row.status = "disabled" if not row.enabled else "configured"
         row.updated_at = datetime.utcnow()
-        self.db.commit()
+        if commit:
+            self.db.commit()
+        else:
+            self.db.flush()
 
     def _settings_body(self, body: dict) -> dict:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
@@ -1306,7 +1391,7 @@ class CommerceHubService:
         if pairs:
             self.integration.config.set_many(pairs, updated_by="commerce_hub")
 
-    def _persist_snappshop_app_config(self, body: dict) -> None:
+    def _persist_snappshop_app_config(self, body: dict, *, commit: bool = True) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
         pairs: dict[str, str] = {}
@@ -1323,9 +1408,9 @@ class CommerceHubService:
         if secrets.get("token"):
             pairs["snappshop.token"] = str(secrets["token"])
         if pairs:
-            self.integration.config.set_many(pairs, updated_by="commerce_hub")
+            self.integration.config.set_many(pairs, updated_by="commerce_hub", commit=commit)
 
-    def _persist_tapsishop_app_config(self, body: dict) -> None:
+    def _persist_tapsishop_app_config(self, body: dict, *, commit: bool = True) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
         pairs: dict[str, str] = {
@@ -1340,13 +1425,16 @@ class CommerceHubService:
             ("selected_vendor_id", "tapsishop.selected_vendor_id"),
         ):
             if source_key in settings:
-                pairs[config_key] = str(settings.get(source_key) or "").strip()
+                if source_key in {"token_refresh_enabled", "revoke_current_token"}:
+                    pairs[config_key] = "true" if parse_config_bool(settings.get(source_key)) else "false"
+                else:
+                    pairs[config_key] = str(settings.get(source_key) or "").strip()
         if secrets.get("token"):
             pairs["tapsishop.token"] = str(secrets["token"])
         if secrets.get("webhook_token"):
             pairs["tapsishop.webhook_token"] = str(secrets["webhook_token"])
         if pairs:
-            self.integration.config.set_many(pairs, updated_by="commerce_hub")
+            self.integration.config.set_many(pairs, updated_by="commerce_hub", commit=commit)
 
     def _persist_nextcloud_app_config(self, body: dict) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}

@@ -45,7 +45,14 @@ class AppConfigService:
         row = self._db.get(FlowHubAppConfig, key)
         return row.value if row else None
 
-    def set(self, key: str, value: str | None, updated_by: str = "system") -> None:
+    def set(
+        self,
+        key: str,
+        value: str | None,
+        updated_by: str = "system",
+        *,
+        commit: bool = True,
+    ) -> None:
         now = _utcnow()
         row = self._db.get(FlowHubAppConfig, key)
         if row is None:
@@ -54,9 +61,18 @@ class AppConfigService:
             row.value = value
             row.updated_at = now
             row.updated_by = updated_by
-        self._db.commit()
+        if commit:
+            self._db.commit()
+        else:
+            self._db.flush()
 
-    def set_many(self, pairs: dict[str, str | None], updated_by: str = "system") -> None:
+    def set_many(
+        self,
+        pairs: dict[str, str | None],
+        updated_by: str = "system",
+        *,
+        commit: bool = True,
+    ) -> None:
         now = _utcnow()
         for key, value in pairs.items():
             row = self._db.get(FlowHubAppConfig, key)
@@ -66,7 +82,10 @@ class AppConfigService:
                 row.value = value
                 row.updated_at = now
                 row.updated_by = updated_by
-        self._db.commit()
+        if commit:
+            self._db.commit()
+        else:
+            self._db.flush()
 
     def is_setup_completed(self) -> bool:
         return self.get("setup.completed") == "true"

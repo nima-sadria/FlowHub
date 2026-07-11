@@ -123,6 +123,14 @@ selection. TapsiShop reports outbound and webhook credential state separately
 and displays a webhook URL that contains no secret. Leaving a secret input blank
 while editing preserves the stored credential.
 
+SnappShop and TapsiShop configuration updates are atomic. Credential values,
+non-secret connector settings, selected vendor or store, channel state, access
+mode, and the sanitized actor audit event share one database transaction. A
+failed settings or audit operation rolls back the complete update and preserves
+the previously committed configuration. TapsiShop refresh-policy values use
+explicit boolean parsing; supported true and false strings are never interpreted
+by Python string truthiness.
+
 ## Errors And Retries
 
 Connector errors use normalized categories:

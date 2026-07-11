@@ -1845,6 +1845,11 @@ def test_marketplace_configuration_metadata_is_sanitized_and_blank_secret_keeps_
     ).order_by(IntegrationConnectorEvent.id.desc()).first()
     assert audit is not None
     assert audit.metadata_json["actor"].startswith("commerceadmin_")
+    assert audit.metadata_json["channel_id"] == "snappshop:main"
+    assert set(audit.metadata_json["changed_fields"]).issuperset({
+        "agent_identifier", "vendor_id", "enabled", "access_mode"
+    })
+    assert audit.created_at is not None
     assert secret_value not in str(audit.metadata_json)
     assert secret_value not in audit.message
 
@@ -1867,6 +1872,8 @@ def test_tapsishop_configuration_reports_separate_secret_states_and_webhook_path
     data = configuration.json()
     assert data["token_configured"] is True
     assert data["webhook_token_configured"] is False
+    assert data["settings"]["token_refresh_enabled"] is False
+    assert data["settings"]["revoke_current_token"] is False
     assert data["webhook_path"] == "/api/v2/webhooks/tapsishop/tapsishop:main"
     assert "outbound-only" not in configuration.text
 
@@ -1931,6 +1938,367 @@ def test_snappshop_unsaved_credentials_can_test_and_return_vendor_choices(client
     assert response.json()["ok"] is True
     assert response.json()["vendors"] == [{"id": "vendor-1", "name": "Primary Vendor", "store_url": None, "reference_code": "vendor-1"}]
     assert "unsaved-secret" not in response.text
+
+
+def test_successful_snappshop_configuration_commits_state_and_sanitized_audit(
+    client, auth_headers, db
+):
+    from app.flowhub.integration_platform.models import IntegrationConnectorEvent, IntegrationConnectorInstance
+    from app.flowhub.setup.models import FlowHubAppConfig
+
+    token = "successful-snapp-token"
+    response = client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "Primary SnappShop",
+            "enabled": True,
+            "access_mode": "read_only",
+            "settings": {
+                "base_url": "https://apix.snappshop.ir/automation/v1",
+                "agent_identifier": "flowhub-agent",
+                "agent_header_name": "Agent-User",
+                "request_timeout": 22,
+                "vendor_id": "vendor-22",
+            },
+            "secrets": {"token": token},
+        },
+    )
+
+    assert response.status_code == 200
+    assert token not in response.text
+    db.expire_all()
+    assert db.get(FlowHubAppConfig, "snappshop.token").value == token
+    assert db.get(FlowHubAppConfig, "snappshop.agent_identifier").value == "flowhub-agent"
+    assert db.get(FlowHubAppConfig, "snappshop.vendor_id").value == "vendor-22"
+    instance = db.get(IntegrationConnectorInstance, "snappshop:main")
+    assert instance.name == "Primary SnappShop"
+    assert instance.enabled is True
+    assert instance.read_only is True
+    settings = {item.key: item.value_json for item in instance.settings if not item.secret}
+    assert settings["base_url"] == "https://apix.snappshop.ir/automation/v1"
+    assert settings["agent_identifier"] == "flowhub-agent"
+    assert settings["agent_header_name"] == "Agent-User"
+    assert settings["request_timeout"] == 22
+    assert settings["vendor_id"] == "vendor-22"
+    audit = db.query(IntegrationConnectorEvent).filter_by(
+        connector_id="snappshop:main", event_name="channel_configuration_changed"
+    ).one()
+    assert audit.metadata_json["actor"].startswith("commerceadmin_")
+    assert audit.metadata_json["channel_id"] == "snappshop:main"
+    assert set(audit.metadata_json["changed_fields"]).issuperset({
+        "base_url", "agent_identifier", "agent_header_name", "request_timeout",
+        "vendor_id", "enabled", "access_mode",
+    })
+    assert audit.created_at is not None
+    assert token not in str(audit.metadata_json)
+    assert "Authorization" not in str(audit.metadata_json)
+
+
+def test_successful_tapsishop_configuration_commits_state_and_sanitized_audit(
+    client, auth_headers, db
+):
+    from app.flowhub.integration_platform.models import IntegrationConnectorEvent, IntegrationConnectorInstance
+    from app.flowhub.setup.models import FlowHubAppConfig
+
+    outbound_token = "successful-outbound-token"
+    webhook_token = "successful-webhook-token"
+    response = client.put(
+        "/api/v2/commerce/channels/tapsishop:main/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "Primary TapsiShop",
+            "enabled": True,
+            "access_mode": "read_only",
+            "settings": {
+                "base_url": "https://vendorgw.tapsi.shop/Web/Hub/vendors/v1",
+                "request_timeout": 25,
+                "selected_vendor_id": "store-42",
+                "token_refresh_enabled": True,
+                "token_refresh_name": "FlowHub Refresh",
+                "revoke_current_token": False,
+                "token_refresh_expired_at": "2030-01-01T00:00:00Z",
+            },
+            "secrets": {"token": outbound_token, "webhook_token": webhook_token},
+        },
+    )
+
+    assert response.status_code == 200
+    assert outbound_token not in response.text
+    assert webhook_token not in response.text
+    db.expire_all()
+    assert db.get(FlowHubAppConfig, "tapsishop.token").value == outbound_token
+    assert db.get(FlowHubAppConfig, "tapsishop.webhook_token").value == webhook_token
+    instance = db.get(IntegrationConnectorInstance, "tapsishop:main")
+    assert instance.name == "Primary TapsiShop"
+    assert instance.enabled is True
+    assert instance.read_only is True
+    settings = {item.key: item.value_json for item in instance.settings if not item.secret}
+    assert settings["request_timeout"] == 25
+    assert settings["selected_vendor_id"] == "store-42"
+    assert settings["token_refresh_enabled"] is True
+    assert settings["revoke_current_token"] is False
+    audit = db.query(IntegrationConnectorEvent).filter_by(
+        connector_id="tapsishop:main", event_name="channel_configuration_changed"
+    ).one()
+    assert audit.metadata_json["actor"].startswith("commerceadmin_")
+    assert audit.metadata_json["channel_id"] == "tapsishop:main"
+    assert set(audit.metadata_json["changed_fields"]).issuperset({
+        "selected_vendor_id", "token_refresh_enabled", "revoke_current_token", "enabled", "access_mode"
+    })
+    assert audit.created_at is not None
+    assert outbound_token not in str(audit.metadata_json)
+    assert webhook_token not in str(audit.metadata_json)
+    assert "Authorization" not in str(audit.metadata_json)
+    configuration = client.get(
+        "/api/v2/commerce/channels/tapsishop:main/configuration", headers=auth_headers
+    ).json()
+    assert configuration["settings"]["token_refresh_enabled"] is True
+    assert configuration["settings"]["revoke_current_token"] is False
+
+
+def test_snappshop_configuration_rolls_back_after_credential_staging_failure(
+    client, auth_headers, db_engine, monkeypatch
+):
+    from fastapi import HTTPException
+    from sqlalchemy.orm import sessionmaker
+
+    from app.flowhub.integration_platform.models import (
+        IntegrationConnectorEvent,
+        IntegrationConnectorInstance,
+    )
+    from app.flowhub.integration_platform.service import IntegrationPlatformService
+    from app.flowhub.setup.models import FlowHubAppConfig
+
+    old_payload = {
+        "display_name": "Old SnappShop",
+        "enabled": False,
+        "access_mode": "read_only",
+        "settings": {
+            "base_url": "https://old.snappshop.example/v1",
+            "agent_identifier": "old-agent",
+            "agent_header_name": "User-Agent",
+            "request_timeout": 10,
+            "vendor_id": "old-vendor",
+        },
+        "secrets": {"token": "old-snapp-token"},
+    }
+    assert client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json=old_payload,
+    ).status_code == 200
+
+    def fail_settings(*args, **kwargs):
+        raise HTTPException(500, "simulated connector settings failure")
+
+    monkeypatch.setattr(IntegrationPlatformService, "stage_settings_contract", fail_settings)
+    response = client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "New SnappShop",
+            "enabled": True,
+            "access_mode": "read_only",
+            "settings": {
+                "base_url": "https://new.snappshop.example/v1",
+                "agent_identifier": "new-agent",
+                "agent_header_name": "Agent-User",
+                "request_timeout": 20,
+                "vendor_id": "new-vendor",
+            },
+            "secrets": {"token": "new-snapp-token"},
+        },
+    )
+    assert response.status_code == 500
+
+    session = sessionmaker(bind=db_engine)()
+    try:
+        assert session.get(FlowHubAppConfig, "snappshop.token").value == "old-snapp-token"
+        assert session.get(FlowHubAppConfig, "snappshop.base_url").value == "https://old.snappshop.example/v1"
+        assert session.get(FlowHubAppConfig, "snappshop.vendor_id").value == "old-vendor"
+        instance = session.get(IntegrationConnectorInstance, "snappshop:main")
+        assert instance.name == "Old SnappShop"
+        assert instance.enabled is False
+        settings = {item.key: item.value_json for item in instance.settings if not item.secret}
+        assert settings["agent_identifier"] == "old-agent"
+        assert settings["vendor_id"] == "old-vendor"
+        assert session.query(IntegrationConnectorEvent).filter_by(
+            connector_id="snappshop:main", event_name="channel_configuration_changed"
+        ).count() == 1
+        assert session.query(IntegrationConnectorEvent).filter_by(
+            connector_id="snappshop:main"
+        ).count() == 2
+    finally:
+        session.close()
+
+
+def test_first_marketplace_configuration_failure_leaves_no_state(
+    client, auth_headers, db_engine, monkeypatch
+):
+    from fastapi import HTTPException
+    from sqlalchemy.orm import sessionmaker
+
+    from app.flowhub.integration_platform.models import IntegrationConnectorEvent, IntegrationConnectorInstance
+    from app.flowhub.integration_platform.service import IntegrationPlatformService
+    from app.flowhub.setup.models import FlowHubAppConfig
+
+    def fail_settings(*args, **kwargs):
+        raise HTTPException(500, "simulated connector settings failure")
+
+    monkeypatch.setattr(IntegrationPlatformService, "stage_settings_contract", fail_settings)
+    response = client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"agent_identifier": "first-agent", "vendor_id": "first-vendor"},
+            "secrets": {"token": "first-token"},
+        },
+    )
+    assert response.status_code == 500
+
+    session = sessionmaker(bind=db_engine)()
+    try:
+        assert session.get(FlowHubAppConfig, "snappshop.token") is None
+        assert session.get(FlowHubAppConfig, "snappshop.agent_identifier") is None
+        assert session.get(IntegrationConnectorInstance, "snappshop:main") is None
+        assert session.query(IntegrationConnectorEvent).filter_by(
+            connector_id="snappshop:main"
+        ).count() == 0
+    finally:
+        session.close()
+
+
+def test_tapsishop_configuration_rolls_back_both_secrets_and_refresh_state(
+    client, auth_headers, db_engine, monkeypatch
+):
+    from fastapi import HTTPException
+    from sqlalchemy.orm import sessionmaker
+
+    from app.flowhub.integration_platform.models import IntegrationConnectorEvent, IntegrationConnectorInstance
+    from app.flowhub.integration_platform.service import IntegrationPlatformService
+    from app.flowhub.setup.models import FlowHubAppConfig
+
+    assert client.put(
+        "/api/v2/commerce/channels/tapsishop:main/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "Old TapsiShop",
+            "enabled": False,
+            "access_mode": "read_only",
+            "settings": {
+                "request_timeout": 10,
+                "selected_vendor_id": "old-store",
+                "token_refresh_enabled": False,
+                "token_refresh_name": "Old Refresh",
+                "revoke_current_token": False,
+            },
+            "secrets": {"token": "old-tapsi-token", "webhook_token": "old-webhook-token"},
+        },
+    ).status_code == 200
+
+    def fail_settings(*args, **kwargs):
+        raise HTTPException(500, "simulated connector settings failure")
+
+    monkeypatch.setattr(IntegrationPlatformService, "stage_settings_contract", fail_settings)
+    response = client.put(
+        "/api/v2/commerce/channels/tapsishop:main/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "New TapsiShop",
+            "enabled": True,
+            "access_mode": "read_only",
+            "settings": {
+                "request_timeout": 20,
+                "selected_vendor_id": "new-store",
+                "token_refresh_enabled": True,
+                "token_refresh_name": "New Refresh",
+                "revoke_current_token": True,
+            },
+            "secrets": {"token": "new-tapsi-token", "webhook_token": "new-webhook-token"},
+        },
+    )
+    assert response.status_code == 500
+
+    session = sessionmaker(bind=db_engine)()
+    try:
+        assert session.get(FlowHubAppConfig, "tapsishop.token").value == "old-tapsi-token"
+        assert session.get(FlowHubAppConfig, "tapsishop.webhook_token").value == "old-webhook-token"
+        assert session.get(FlowHubAppConfig, "tapsishop.token_refresh_enabled").value == "false"
+        instance = session.get(IntegrationConnectorInstance, "tapsishop:main")
+        assert instance.name == "Old TapsiShop"
+        assert instance.enabled is False
+        settings = {item.key: item.value_json for item in instance.settings if not item.secret}
+        assert settings["selected_vendor_id"] == "old-store"
+        assert settings["token_refresh_enabled"] is False
+        assert session.query(IntegrationConnectorEvent).filter_by(
+            connector_id="tapsishop:main", event_name="channel_configuration_changed"
+        ).count() == 1
+        assert session.query(IntegrationConnectorEvent).filter_by(
+            connector_id="tapsishop:main"
+        ).count() == 2
+    finally:
+        session.close()
+
+
+def test_marketplace_configuration_rolls_back_when_actor_audit_fails(
+    client, auth_headers, db_engine, monkeypatch
+):
+    from fastapi import HTTPException
+    from sqlalchemy.orm import sessionmaker
+
+    from app.flowhub.integration_platform.models import IntegrationConnectorEvent, IntegrationConnectorInstance
+    from app.flowhub.integration_platform.service import IntegrationPlatformService
+    from app.flowhub.setup.models import FlowHubAppConfig
+
+    assert client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "Audited SnappShop",
+            "enabled": False,
+            "settings": {"agent_identifier": "old-agent", "vendor_id": "old-vendor"},
+            "secrets": {"token": "old-audited-token"},
+        },
+    ).status_code == 200
+    original_record_event = IntegrationPlatformService.record_event
+
+    def fail_actor_audit(self, **kwargs):
+        if kwargs.get("event_name") == "channel_configuration_changed":
+            raise HTTPException(500, "simulated audit failure")
+        return original_record_event(self, **kwargs)
+
+    monkeypatch.setattr(IntegrationPlatformService, "record_event", fail_actor_audit)
+    response = client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "Unaudited SnappShop",
+            "enabled": True,
+            "settings": {"agent_identifier": "new-agent", "vendor_id": "new-vendor"},
+            "secrets": {"token": "new-unaudited-token"},
+        },
+    )
+    assert response.status_code == 500
+
+    session = sessionmaker(bind=db_engine)()
+    try:
+        assert session.get(FlowHubAppConfig, "snappshop.token").value == "old-audited-token"
+        instance = session.get(IntegrationConnectorInstance, "snappshop:main")
+        assert instance.name == "Audited SnappShop"
+        assert instance.enabled is False
+        settings = {item.key: item.value_json for item in instance.settings if not item.secret}
+        assert settings["agent_identifier"] == "old-agent"
+        assert settings["vendor_id"] == "old-vendor"
+        assert session.query(IntegrationConnectorEvent).filter_by(
+            connector_id="snappshop:main", event_name="channel_configuration_changed"
+        ).count() == 1
+        assert session.query(IntegrationConnectorEvent).filter_by(
+            connector_id="snappshop:main"
+        ).count() == 2
+    finally:
+        session.close()
 
 
 def test_source_settings_preserve_credential_masking(client, auth_headers):

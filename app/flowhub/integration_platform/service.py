@@ -329,6 +329,16 @@ class IntegrationPlatformService:
         }
 
     def update_settings_contract(self, connector_id: str, body: dict) -> dict:
+        try:
+            self.stage_settings_contract(connector_id, body)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+        return self.get_settings_contract(connector_id)
+
+    def stage_settings_contract(self, connector_id: str, body: dict) -> None:
+        """Stage connector settings and audit metadata without owning the transaction."""
         row = self.db.get(IntegrationConnectorInstance, connector_id)
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
@@ -339,12 +349,14 @@ class IntegrationPlatformService:
         )
         secrets = body.get("secrets") if isinstance(body, dict) else None
         if isinstance(settings, dict):
-            secret_keys = self._definition_secret_keys(self.get_registry_definition(row.connector_type))
+            definition = self.get_registry_definition(row.connector_type)
+            secret_keys = self._definition_secret_keys(definition)
+            non_secret_keys = self._definition_non_secret_keys(definition)
             entries.extend(
                 ConnectorSettingValue(
                     key=key,
                     value=value,
-                    secret=_is_secret_key(key) or key in secret_keys,
+                    secret=key in secret_keys or (_is_secret_key(key) and key not in non_secret_keys),
                     configured=value not in (None, ""),
                 )
                 for key, value in settings.items()
@@ -355,14 +367,15 @@ class IntegrationPlatformService:
                 for key, value in secrets.items()
                 if value not in (None, "")
             )
-        self._upsert_settings(row, entries)
+        self._upsert_settings(row, entries, commit=False)
         self.record_event(
             connector_id=connector_id,
             event_name="connector_settings_updated",
             message="Connector settings were updated; secrets remain write-only.",
             metadata={"secret_values_returned": False},
+            commit=False,
         )
-        return self.get_settings_contract(connector_id)
+        self.db.flush()
 
     def update_settings(self, connector_id: str, settings: list[ConnectorSettingValue]) -> ConnectorInstanceShape:
         row = self.db.get(IntegrationConnectorInstance, connector_id)
@@ -1026,9 +1039,11 @@ class IntegrationPlatformService:
         commit: bool = True,
     ) -> None:
         existing = {item.key: item for item in row.settings}
+        definition = registry.get_definition(row.connector_type)
+        non_secret_keys = self._definition_non_secret_keys(definition) if definition else set()
         now = datetime.utcnow()
         for item in settings:
-            secret = item.secret or _is_secret_key(item.key)
+            secret = item.secret or (_is_secret_key(item.key) and item.key not in non_secret_keys)
             configured = item.configured or item.value not in (None, "")
             value = item.value if secret and item.key == "webhook_secret" else None if secret else item.value
             setting = existing.get(item.key)
@@ -1170,6 +1185,9 @@ class IntegrationPlatformService:
 
     def _definition_secret_keys(self, definition: ConnectorDefinition) -> set[str]:
         return {item.key for item in definition.settings_schema if item.secret}
+
+    def _definition_non_secret_keys(self, definition: ConnectorDefinition) -> set[str]:
+        return {item.key for item in definition.settings_schema if not item.secret}
 
     def _diagnostic_status(self, status_value: str) -> str:
         if status_value == "ok":

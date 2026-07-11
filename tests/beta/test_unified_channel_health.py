@@ -252,6 +252,74 @@ def test_channel_health_report_isolates_one_channel_exception(db, monkeypatch, c
     assert _item(payload, "tapsishop:main")["status"] == "Disabled"
 
 
+@pytest.mark.parametrize(
+    ("stored_value", "expected_status", "expected_word"),
+    [
+        (True, "Operational", "enabled"),
+        (False, "Warning", "disabled"),
+        ("true", "Operational", "enabled"),
+        ("false", "Warning", "disabled"),
+        (1, "Operational", "enabled"),
+        (0, "Warning", "disabled"),
+        ("malformed", "Warning", "disabled"),
+    ],
+)
+def test_tapsishop_refresh_policy_uses_explicit_boolean_parsing(
+    db, stored_value, expected_status, expected_word
+):
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+
+    _seed_channel(
+        db,
+        "tapsishop:main",
+        "tapsishop",
+        enabled=True,
+        settings={"token": None, "token_refresh_enabled": stored_value},
+    )
+
+    refresh = _item(ChannelHealthReporter(db).report(), "tapsishop:main")["dimensions"]["tokenRefresh"]
+    assert refresh["status"] == expected_status
+    assert expected_word in refresh["message"].lower()
+
+
+def test_tapsishop_missing_refresh_policy_defaults_disabled_without_error(db):
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+
+    _seed_channel(
+        db,
+        "tapsishop:main",
+        "tapsishop",
+        enabled=True,
+        settings={"token": None},
+    )
+
+    refresh = _item(ChannelHealthReporter(db).report(), "tapsishop:main")["dimensions"]["tokenRefresh"]
+    assert refresh == {"status": "Warning", "message": "Refresh policy disabled."}
+
+
+def test_tapsishop_refresh_policy_values_are_isolated_by_channel(db):
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+
+    _seed_channel(
+        db,
+        "tapsishop:main",
+        "tapsishop",
+        enabled=True,
+        settings={"token": None, "token_refresh_enabled": "true"},
+    )
+    _seed_channel(
+        db,
+        "tapsishop:secondary",
+        "tapsishop",
+        enabled=True,
+        settings={"token": None, "token_refresh_enabled": "false"},
+    )
+
+    payload = ChannelHealthReporter(db).report()
+    assert _item(payload, "tapsishop:main")["dimensions"]["tokenRefresh"]["status"] == "Operational"
+    assert _item(payload, "tapsishop:secondary")["dimensions"]["tokenRefresh"]["status"] == "Warning"
+
+
 def _seed_channel(db, channel_id: str, connector_type: str, *, enabled: bool, settings: dict) -> None:
     from app.flowhub.integration_platform.models import IntegrationConnectorInstance, IntegrationConnectorSetting
 

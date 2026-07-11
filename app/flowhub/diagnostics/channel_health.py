@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.flowhub.channels.contracts import ConnectorErrorCategory
 from app.flowhub.commerce.service import CommerceHubService
+from app.flowhub.config.values import parse_config_bool
 from app.flowhub.data_layer.health_service import ConnectorHealthService
 from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
 from app.flowhub.integration_platform.models import IntegrationConnectorEvent, IntegrationConnectorInstance
@@ -337,7 +338,11 @@ class ChannelHealthReporter:
         if connector_type != "tapsishop":
             return _dimension("Disabled", "Token refresh is not supported for this channel.")
         settings = {item.key: item for item in instance.settings} if instance else {}
-        enabled = bool(settings.get("token_refresh_enabled") and settings["token_refresh_enabled"].value_json)
+        enabled = parse_config_bool(
+            settings["token_refresh_enabled"].value_json
+            if settings.get("token_refresh_enabled")
+            else None
+        )
         last_event = (
             self.db.query(IntegrationConnectorEvent)
             .filter(IntegrationConnectorEvent.connector_id == (instance.id if instance else ""), IntegrationConnectorEvent.event_name.ilike("%token%"))

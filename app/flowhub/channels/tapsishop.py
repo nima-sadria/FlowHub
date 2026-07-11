@@ -30,6 +30,7 @@ from app.flowhub.channels.contracts import (
     RetryMetadata,
 )
 from app.flowhub.channels.marketplace import BaseMarketplaceConnector, UnsupportedCapabilityError
+from app.flowhub.config.values import parse_config_bool
 
 
 TAPSISHOP_BASE_URL = "https://vendorgw.tapsi.shop/Web/Hub/vendors/v1"
@@ -64,15 +65,20 @@ class TapsiShopConfig:
         token = str(secrets.get("token") or settings.get("token") or "").strip()
         if not token:
             raise ValueError("TapsiShop authorization token is required.")
+        refresh_enabled = (
+            settings.get("token_refresh_enabled")
+            if "token_refresh_enabled" in settings
+            else settings.get("refresh_enabled")
+        )
         return cls(
             token=token,
             webhook_token=_blank_to_none(secrets.get("webhook_token") or settings.get("webhook_token")),
             base_url=str(settings.get("base_url") or TAPSISHOP_BASE_URL).strip().rstrip("/"),
             timeout_seconds=float(settings.get("request_timeout") or settings.get("timeout_seconds") or 30.0),
             enabled=bool(settings.get("enabled", True)),
-            refresh_enabled=_to_bool(settings.get("token_refresh_enabled") or settings.get("refresh_enabled")),
+            refresh_enabled=parse_config_bool(refresh_enabled),
             refresh_token_name=str(settings.get("token_refresh_name") or "FlowHub").strip() or "FlowHub",
-            refresh_revoke_current_token=_to_bool(settings.get("revoke_current_token")),
+            refresh_revoke_current_token=parse_config_bool(settings.get("revoke_current_token")),
             refresh_expired_at=_blank_to_none(settings.get("token_refresh_expired_at") or settings.get("expired_at")),
             selected_vendor_id=_blank_to_none(settings.get("selected_vendor_id") or settings.get("vendor_id")),
         )
@@ -540,14 +546,6 @@ def _header_value(headers: dict[str, str], name: str) -> str | None:
         if key.lower() == lowered:
             return value
     return None
-
-
-def _to_bool(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
-    if value is None:
-        return False
-    return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _optional_float(value: Any) -> float | None:
