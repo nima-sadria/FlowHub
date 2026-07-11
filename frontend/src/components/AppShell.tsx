@@ -89,7 +89,7 @@ export default function AppShell() {
   }
 
   return (
-    <div className="flex min-h-screen bg-bg-base overflow-hidden">
+    <div className="flex h-screen h-[100dvh] min-h-screen min-h-[100dvh] bg-bg-base overflow-hidden">
       <Sidebar
         open={sidebarOpen}
         collapsed={sidebarCollapsed}
@@ -97,14 +97,14 @@ export default function AppShell() {
         onToggleCollapse={handleToggleCollapse}
         user={user}
       />
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Topbar
           onMenuClick={() => setSidebarOpen(o => !o)}
           health={health}
           user={user}
           onLogout={handleLogout}
         />
-        <main className="flex-1 overflow-y-auto bg-bg-base">
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-bg-base">
           <Outlet />
         </main>
       </div>

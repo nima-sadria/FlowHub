@@ -47,7 +47,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
       <aside
         className={[
-          'flex flex-col bg-bg-card border-e border-border h-screen flex-shrink-0 shadow-sm',
+          'flex h-screen h-[100dvh] min-h-0 flex-shrink-0 flex-col bg-bg-card border-e border-border shadow-sm',
           'fixed md:sticky top-0 inset-y-0 start-0 z-30',
           'transition-all duration-300 ease-in-out',
           open ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full md:!translate-x-0',
@@ -104,7 +104,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
           </IconButton>
         </div>
 
-        <nav className="flex-1 px-5 py-5 overflow-y-auto no-scrollbar">
+        <nav className="min-h-0 flex-1 overflow-y-auto px-5 py-5 no-scrollbar">
           <p className={[collapsed ? 'md:hidden' : '', 'mb-4 text-xs font-semibold uppercase tracking-[0.08em] text-[color:var(--fh-gray-400)] leading-5 select-none'].join(' ')}>
             Main
           </p>
