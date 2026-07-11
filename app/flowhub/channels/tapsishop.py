@@ -482,7 +482,7 @@ def _order_detail_from_payload(channel_id: str, data: dict[str, Any]) -> Channel
     return ChannelOrder(
         channel_id=channel_id,
         connector_type="tapsishop",
-        identifiers=ChannelIdentifierSet(order_number=_string(order.get("orderNumber"))),
+        identifiers=ChannelIdentifierSet(order_number=_string(order.get("orderNumber")), external_product_id=_string(order.get("id") or order.get("orderId"))),
         status=_string(order.get("status")) or "UNKNOWN",
         created_at=_string(order.get("orderDate")),
         items=[_order_item_from_payload(item) for item in raw_items if isinstance(item, dict)],

@@ -32,6 +32,8 @@ def test_legacy_revision_and_core_tables_upgrade_without_data_loss(tmp_path, mon
     from app.flowhub.data_layer import models as _data_layer_models  # noqa: F401
     from app.flowhub.integration_platform import models as _integration_models  # noqa: F401
     from app.flowhub.logging_platform import models as _logging_models  # noqa: F401
+    from app.flowhub.webhooks import models as _webhook_models  # noqa: F401
+    from app.flowhub.orders import models as _order_models  # noqa: F401
 
     FlowHubBase.metadata.create_all(engine)
     with engine.begin() as conn:
@@ -103,5 +105,13 @@ def test_fresh_database_still_upgrades_to_head(tmp_path, monkeypatch):
         "webhook_receipts",
         "webhook_processing_attempts",
         "webhook_dead_letters",
+        "channel_orders",
+        "channel_order_items",
+        "channel_shipments",
+        "channel_invoices",
+        "channel_order_events",
+        "channel_inventory_effects",
+        "channel_order_sync_checkpoints",
+        "channel_order_sync_audit",
     } <= tables
     engine.dispose()

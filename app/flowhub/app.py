@@ -43,6 +43,8 @@ Active routes:
   GET  /api/v2/data-layer/refresh-jobs         - refresh job history
   GET  /api/v2/data-layer/invalidation-events  - invalidation event log
   POST /api/v2/webhooks/tapsishop/{channel_id} - durable TapsiShop webhook receiver
+  GET  /api/v2/orders                          - normalized channel order list
+  GET  /api/v2/orders/{internal_id}            - normalized channel order detail
   GET  /                                       - SPA entry point
   *    /{any}                                  - SPA fallback
 """
@@ -76,6 +78,7 @@ from app.flowhub.api.v2.logging import router as logging_router
 from app.flowhub.api.v2.read_engine import router as read_engine_router
 from app.flowhub.api.v2.users import router as users_router
 from app.flowhub.api.v2.webhooks import router as webhooks_router
+from app.flowhub.api.v2.orders import router as orders_router
 from app.flowhub.maintenance import (
     MAINTENANCE_ERROR_CODE,
     MAINTENANCE_ERROR_MESSAGE,
@@ -201,6 +204,7 @@ app.include_router(diagnostics_router, prefix="/api/v2")
 app.include_router(read_engine_router, prefix="/api/v2")
 app.include_router(data_layer_router, prefix="/api/v2")
 app.include_router(webhooks_router, prefix="/api/v2")
+app.include_router(orders_router, prefix="/api/v2")
 
 # Static assets (hashed filenames produced by Vite; only mounted if built)
 _assets_dir = _FRONTEND_DIST / "assets"

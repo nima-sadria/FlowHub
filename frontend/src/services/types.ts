@@ -376,6 +376,71 @@ export interface WritePipelineBatch {
   items: WritePipelineItem[]
 }
 
+// -- Orders --------------------------------------------------------------------
+
+export interface ChannelOrderListItem {
+  internalId: number
+  channelId: string
+  connectorType: string
+  providerOrderId: string
+  orderNumber: string | null
+  providerStatus: string
+  normalizedStatus: string
+  createdAtProvider: string | null
+  updatedAtProvider: string | null
+  currency: string | null
+  finalAmount: number | null
+  itemCount: number
+  synchronizationState: string
+  eventSource: string
+  errorState: string | null
+  lastSeenAt: string | null
+}
+
+export interface ChannelOrderItem {
+  providerItemId: string
+  externalProductId: string | null
+  sku: string | null
+  productNumber: string | null
+  parentProductNumber: string | null
+  name: string
+  quantity: number
+  canceledQuantity: number
+  deliverableQuantity: number | null
+  originalPrice: number | null
+  finalPrice: number | null
+  itemStatus: string | null
+  cancellationReason: string | null
+}
+
+export interface ChannelShipment {
+  shipmentNumber: string
+  statusCode: string | null
+  statusTitle: string | null
+  deliveryMethod: string | null
+  pickupOrSendWindow: string | null
+}
+
+export interface ChannelInvoice {
+  invoiceNumber: string
+  amount: number | null
+  currency: string | null
+}
+
+export interface ChannelOrderTimelineEvent {
+  eventName: string
+  message: string
+  createdAt: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface ChannelOrderDetail extends ChannelOrderListItem {
+  items: ChannelOrderItem[]
+  shipments: ChannelShipment[]
+  invoices: ChannelInvoice[]
+  timeline: ChannelOrderTimelineEvent[]
+}
+
 // -- Settings ------------------------------------------------------------------
 
 export interface AppSettings {

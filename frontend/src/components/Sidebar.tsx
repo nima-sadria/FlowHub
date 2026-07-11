@@ -133,6 +133,17 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
               </NavLink>
             )}
 
+            {hasPerm('can_fetch') && (
+              <NavLink to="/orders" className={linkCls} onClick={onClose}>
+                <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M7 4h10a2 2 0 0 1 2 2v14l-3-2-2 2-2-2-2 2-2-2-3 2V6a2 2 0 0 1 2-2Z" />
+                  <path d="M9 9h6" />
+                  <path d="M9 13h6" />
+                </svg>
+                <span className={collapsed ? 'md:hidden' : ''}>Orders</span>
+              </NavLink>
+            )}
+
             {hasPerm('can_access_site') && (
               <NavLink to="/commerce" className={linkCls} onClick={onClose}>
                 <svg viewBox="0 0 24 24" className="fh-menu-item-icon h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

@@ -2,10 +2,13 @@
 
 ## Current release head
 
-FlowHub 1.0.0 migration head is **`FLOWHUB_013`**.
+FlowHub 1.0.0 migration head is **`FLOWHUB_014`**.
 
-`FLOWHUB_013` follows `FLOWHUB_012` and creates durable webhook ingestion
-tables for immutable receipts, processing attempts, and dead letters.
+`FLOWHUB_014` follows `FLOWHUB_013` and creates normalized channel order,
+order item, shipment, invoice, provider event, proposed inventory effect,
+sync checkpoint, and order sync audit tables.
+`FLOWHUB_013` created durable webhook ingestion tables for immutable receipts,
+processing attempts, and dead letters.
 `FLOWHUB_012` created the protected multi-channel product price operation
 tables used by the Products Dry Run, Approval, Apply, and audit workflow. The
 release compatibility suite covers both a fresh database upgrade and the

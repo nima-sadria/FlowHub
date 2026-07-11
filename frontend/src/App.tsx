@@ -14,6 +14,7 @@ import { ApiSettingsService } from './services/settings/ApiSettingsService'
 import { ApiActivityService } from './services/activity/ApiActivityService'
 import { ApiCommerceService } from './services/commerce/ApiCommerceService'
 import { ApiWritePipelineService } from './services/writePipeline/ApiWritePipelineService'
+import { ApiOrderService } from './services/orders/ApiOrderService'
 import AppShell from './components/AppShell'
 import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
@@ -23,6 +24,7 @@ import Activity from './pages/Activity'
 import Diagnostics from './pages/Diagnostics'
 import Settings from './pages/Settings'
 import RateLimits from './pages/RateLimits'
+import Orders from './pages/Orders'
 import Login from './pages/Login'
 import Setup from './pages/Setup'
 import NotFound from './pages/NotFound'
@@ -37,6 +39,7 @@ const realServices = {
   activity:  new ApiActivityService(),
   commerce:  new ApiCommerceService(),
   writePipeline: new ApiWritePipelineService(),
+  orders: new ApiOrderService(),
 }
 
 function MaintenanceOverlay({ message }: { message?: string }) {
@@ -139,6 +142,7 @@ function SetupGate() {
       <Route element={<AuthGuard><AppShell /></AuthGuard>}>
         <Route path="/home" element={<RequirePermission permission="can_access_site"><Dashboard /></RequirePermission>} />
         <Route path="/products" element={<RequirePermission permission="can_fetch"><Products /></RequirePermission>} />
+        <Route path="/orders" element={<RequirePermission permission="can_fetch"><Orders /></RequirePermission>} />
         <Route path="/sources" element={<RequirePermission permission="can_access_site"><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
         <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
         <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />

@@ -93,6 +93,7 @@ function RouteMatrix({ initialPath }: { initialPath: string }) {
       <Routes>
         <Route path="/home" element={<RequirePermission permission="can_access_site"><span>home-page</span></RequirePermission>} />
         <Route path="/products" element={<RequirePermission permission="can_fetch"><span>products-page</span></RequirePermission>} />
+        <Route path="/orders" element={<RequirePermission permission="can_fetch"><span>orders-page</span></RequirePermission>} />
         <Route path="/sources" element={<RequirePermission permission="can_access_site"><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
         <Route path="/commerce" element={<RequirePermission permission="can_access_site"><span>commerce-page</span></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><span>workspace-page</span></RequirePermission>} />
@@ -267,6 +268,21 @@ describe('Router - /products', () => {
   })
 })
 
+// --- Router - /orders ---------------------------------------------------------
+
+describe('Router - /orders', () => {
+  it('renders Orders for allowed user', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/orders" />, makeAuth(allowedUser))
+    expect(c.textContent).toContain('orders-page')
+  })
+
+  it('shows Access Denied for denied user', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/orders" />, makeAuth(deniedUser))
+    expect(c.textContent).not.toContain('orders-page')
+    expect(c.textContent).toContain('Access Denied')
+  })
+})
+
 // --- Router - /commerce -------------------------------------------------------
 
 describe('Router - /commerce', () => {
@@ -384,6 +400,11 @@ describe('Sidebar - denied user (can_access_site=false)', () => {
     expect(c.querySelector('a[href="/products"]')).toBeNull()
   })
 
+  it('hides Orders link', () => {
+    const c = renderSidebar(deniedUser)
+    expect(c.querySelector('a[href="/orders"]')).toBeNull()
+  })
+
   it('hides Sources link', () => {
     const c = renderSidebar(deniedUser)
     expect(c.querySelector('a[href="/sources"]')).toBeNull()
@@ -431,6 +452,11 @@ describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => 
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
   })
 
+  it('shows Orders link', () => {
+    const c = renderSidebar(allowedUser)
+    expect(c.querySelector('a[href="/orders"]')).not.toBeNull()
+  })
+
   it('does not show separate Sources link', () => {
     const c = renderSidebar(allowedUser)
     expect(c.querySelector('a[href="/sources"]')).toBeNull()
@@ -467,6 +493,7 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     const c = renderSidebar(adminUser)
     expect(c.querySelector('a[href="/home"]')).not.toBeNull()
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/orders"]')).not.toBeNull()
     expect(c.querySelector('a[href="/sources"]')).toBeNull()
     expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
