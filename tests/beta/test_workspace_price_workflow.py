@@ -226,6 +226,45 @@ async def test_concurrent_identical_preview_reuses_one_source_read(
     assert configured_db.query(DlSourceReadReservation).count() == 1
 
 
+@pytest.mark.asyncio
+async def test_authorized_admin_reuses_shared_snapshot_with_owned_preview(
+    configured_db, monkeypatch
+):
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.auth.password import hash_password
+    from app.flowhub.data_layer.models import DlSourceReadReservation, DlWorkspacePreview
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.workspace.price_workflow import WorkspacePriceWorkflowService
+
+    _cache_product(configured_db, "101", "Test Product", "SKU-101", "100.00")
+    calls = 0
+
+    async def fake_download(self, path):
+        nonlocal calls
+        calls += 1
+        return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "etag-shared", "last_modified": "now"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    first_user = FlowHubUser(username="first-preview-admin", hashed_password=hash_password("password123"), role="admin")
+    second_user = FlowHubUser(username="second-preview-admin", hashed_password=hash_password("password123"), role="admin")
+    configured_db.add_all([first_user, second_user])
+    configured_db.commit()
+    service = WorkspacePriceWorkflowService(configured_db)
+
+    first = await service.preview_from_nextcloud(first_user)
+    second = await service.preview_from_nextcloud(second_user)
+
+    assert first.id != second.id
+    assert first.rows[0]["id"] == second.rows[0]["id"]
+    assert first.external_call_performed is True
+    assert second.external_call_performed is False
+    assert calls == 1
+    assert configured_db.query(DlSourceReadReservation).count() == 1
+    second_record = configured_db.get(DlWorkspacePreview, second.id)
+    assert second_record.owner_user_id == second_user.id
+    assert second_record.rows_json[0]["source"]["previewId"] == second.id
+
+
 def test_source_read_limit_returns_structured_429_and_retry_after(
     client, auth_headers, configured_db
 ):

@@ -60,7 +60,7 @@ class WorkspacePriceWorkflowService:
         self.integration = IntegrationPlatformService(db)
 
     async def preview_from_nextcloud(self, user: FlowHubUser) -> WorkspacePreviewResponse:
-        lock_key = f"{SOURCE_ID}:{user.id}"
+        lock_key = SOURCE_ID
         async with _preview_execution_lock(self.db, lock_key):
             source_config_hash = self._source_config_hash()
             self._require_channel_config()
@@ -74,6 +74,8 @@ class WorkspacePriceWorkflowService:
                 source_config_hash=source_config_hash,
             )
             if reusable is not None:
+                if int(reusable.owner_user_id) != int(user.id):
+                    reusable = self._clone_reusable_preview(reusable, user)
                 return self._reused_preview_response(reusable, user)
             return await self._create_preview_from_nextcloud(user, source_config_hash=source_config_hash)
 
@@ -152,6 +154,28 @@ class WorkspacePriceWorkflowService:
             duplicateWarnings=duplicate_warnings,
             runtime_write_blocked=True,
             external_call_performed=True,
+        )
+
+    def _clone_reusable_preview(self, preview: DlWorkspacePreview, user: FlowHubUser) -> DlWorkspacePreview:
+        source_snapshot = self.db.get(DlSourceSnapshot, preview.source_snapshot_id)
+        if source_snapshot is None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Cached source snapshot is no longer available.")
+        preview_id = f"wp_{uuid.uuid4().hex[:16]}"
+        rows = json.loads(_canonical_json(preview.rows_json if isinstance(preview.rows_json, list) else []))
+        for row in rows:
+            source = row.get("source")
+            if isinstance(source, dict):
+                source["previewId"] = preview_id
+            change = row.get("dry_run_change")
+            if isinstance(change, dict) and isinstance(change.get("source"), dict):
+                change["source"]["previewId"] = preview_id
+        return WorkspacePreviewStore(self.db).create(
+            preview_id=preview_id,
+            source_id=preview.source_id,
+            source_snapshot=source_snapshot,
+            owner=user,
+            rows=rows,
+            summary=preview.summary_json if isinstance(preview.summary_json, dict) else {},
         )
 
     def _reused_preview_response(self, preview: DlWorkspacePreview, user: FlowHubUser) -> WorkspacePreviewResponse:
