@@ -8,7 +8,7 @@ Nextcloud writes are exposed here.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.dependencies import get_current_user
@@ -18,6 +18,7 @@ from app.flowhub.database import get_db
 from app.flowhub.integration_platform.contracts import WorkspaceIntegrationSummary, WorkspacePreviewResponse
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.workspace.price_workflow import WorkspacePriceWorkflowService
+from app.flowhub.workspace.preview_store import PreviewValidationError
 
 router = APIRouter(prefix="/workspace", tags=["workspace"])
 
@@ -42,4 +43,7 @@ async def start_preview(
     user: FlowHubUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> WorkspacePreviewResponse:
-    return await WorkspacePriceWorkflowService(db).preview_from_nextcloud(user)
+    try:
+        return await WorkspacePriceWorkflowService(db).preview_from_nextcloud(user)
+    except PreviewValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, **(exc.detail or {})}) from exc

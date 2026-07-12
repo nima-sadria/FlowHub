@@ -345,7 +345,7 @@ def parse_source_price_rows(
                     row_errors.append("invalid_stock")
                     row_error_details.append(dict(_INVALID_STOCK))
 
-            row_number = getattr(product_id_cell or sku_cell or price_cell or stock_cell or name_cell, "row", None)
+            row_number = _physical_row_number(row)
             rows.append({
                 "source_id": "nextcloud:primary",
                 "source_type": "nextcloud_spreadsheet",
@@ -452,6 +452,14 @@ def _cell_at(row: tuple, column_index: int | None):
         return None
     offset = column_index - 1
     return row[offset] if offset < len(row) else None
+
+
+def _physical_row_number(row: tuple) -> int | None:
+    for cell in row:
+        row_number = getattr(cell, "row", None)
+        if isinstance(row_number, int):
+            return row_number
+    return None
 
 
 def _cell_text(cell: object | None) -> str:

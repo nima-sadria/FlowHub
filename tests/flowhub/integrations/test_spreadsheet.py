@@ -5,10 +5,12 @@ All tests use in-memory openpyxl workbooks - no file I/O needed.
 
 from __future__ import annotations
 
+from io import BytesIO
+
 import openpyxl
 import pytest
 
-from app.flowhub.integrations.spreadsheet import parse_price_list, _normalize_price_text
+from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_price_list, parse_source_price_rows, _normalize_price_text
 
 
 # -- _normalize_price_text -----------------------------------------------------
@@ -167,3 +169,30 @@ class TestParsePriceList:
         entries, duplicates = parse_price_list(wb)
         assert entries == {}
         assert duplicates == []
+
+
+class TestParseSourcePriceRows:
+    def test_sku_only_rows_keep_physical_row_numbers_in_read_only_workbook(self):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        assert ws is not None
+        ws.title = "Apple Acc"
+        ws.append(["Name", "Product ID", "Price", "SKU"])
+        ws.append(["", "", "", ""])
+        ws.append(["SKU Product A", None, "100.00", "SKU-A"])
+        ws.append(["SKU Product B", None, "120.00", "SKU-B"])
+        stream = BytesIO()
+        wb.save(stream)
+
+        read_only_wb = load_workbook_bytes(stream.getvalue())
+        rows, _ = parse_source_price_rows(
+            read_only_wb,
+            mapping={
+                "id": {"enabled": False, "column": "B"},
+                "price": {"enabled": True, "column": "C"},
+                "stock": {"enabled": False, "column": "D"},
+            },
+        )
+
+        assert [row["worksheet"] for row in rows] == ["Apple Acc", "Apple Acc"]
+        assert [row["row_number"] for row in rows] == [3, 4]

@@ -20,6 +20,7 @@ PREVIEW_TTL_MINUTES = 30
 class PreviewValidationError(Exception):
     code: str
     status_code: int
+    detail: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -175,10 +176,20 @@ def calculate_preview_hash(
 
 def _row_hashes(rows: list[dict]) -> dict[str, str]:
     hashes: dict[str, str] = {}
-    for row in rows:
+    for index, row in enumerate(rows):
         row_id = str(row.get("id") or "")
-        if not row_id or row_id in hashes:
-            raise ValueError("Workspace preview row IDs must be present and unique.")
+        if not row_id:
+            raise PreviewValidationError(
+                "PREVIEW_ROW_ID_INVALID",
+                422,
+                {"message": "Workspace preview row ID is missing.", "row_index": index},
+            )
+        if row_id in hashes:
+            raise PreviewValidationError(
+                "PREVIEW_ROW_ID_DUPLICATE",
+                422,
+                {"message": "Workspace preview row ID is duplicated.", "row_index": index, "row_id": row_id},
+            )
         hashes[row_id] = hashlib.sha256(_canonical_json(row).encode("utf-8")).hexdigest()
     return hashes
 

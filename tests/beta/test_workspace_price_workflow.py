@@ -406,6 +406,189 @@ def test_variation_row_matched_by_sku_if_safe(client, auth_headers, configured_d
     assert row["eligible_for_dry_run"] is True
 
 
+def test_workspace_preview_generates_distinct_ids_for_sku_only_source_rows(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(configured_db).set_many(
+        {
+            "nextcloud.source_mapping": (
+                '{"id":{"enabled":false,"column":"B"},'
+                '"price":{"enabled":true,"column":"C"},'
+                '"stock":{"enabled":false,"column":"D"}}'
+            )
+        },
+        updated_by="test",
+    )
+    _cache_product(configured_db, "301", "SKU Product A", "SKU-A", "100.00")
+    _cache_product(configured_db, "302", "SKU Product B", "SKU-B", "100.00")
+
+    async def fake_download(self, path):
+        assert path == "/prices.xlsx"
+        return _xlsx([
+            ["SKU Product A", None, "110.00", "SKU-A"],
+            ["SKU Product B", None, "120.00", "SKU-B"],
+        ]), {"etag": "sku-only", "last_modified": "now"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
+    assert preview.status_code == 200
+    data = preview.json()
+    row_ids = [row["id"] for row in data["rows"]]
+    assert len(row_ids) == 2
+    assert len(set(row_ids)) == 2
+    assert all(row_id.startswith("wpr_") for row_id in row_ids)
+    assert [row["source"]["rowNumber"] for row in data["rows"]] == [3, 4]
+
+    dry_run = client.post(
+        "/api/v2/write-pipeline/dry-run",
+        headers=auth_headers,
+        json={"previewId": data["id"], "selectedRowIds": [row_ids[0]]},
+    )
+    assert dry_run.status_code == 201
+    assert dry_run.json()["items"][0]["source"]["rowNumber"] == 3
+
+
+def test_workspace_preview_keeps_duplicate_business_identifiers_distinct(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    _cache_product(configured_db, "401", "Duplicate Product A", "DUP-A", "100.00")
+    _cache_product(configured_db, "402", "Duplicate Product B", "DUP-B", "100.00")
+
+    async def fake_download(self, path):
+        assert path == "/prices.xlsx"
+        return _xlsx([
+            ["Duplicate Product A", 401, "110.00", "DUP-A"],
+            ["Duplicate Product B", 401, "120.00", "DUP-B"],
+            ["Duplicate SKU A", 402, "130.00", "DUP-SKU"],
+            ["Duplicate SKU B", None, "140.00", "DUP-SKU"],
+        ]), {"etag": "duplicates", "last_modified": "now"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
+    assert preview.status_code == 200
+    rows = preview.json()["rows"]
+    row_ids = [row["id"] for row in rows]
+    assert len(rows) == 4
+    assert len(set(row_ids)) == 4
+    assert [row["source"]["rowNumber"] for row in rows] == [3, 4, 5, 6]
+    assert sum(1 for row in rows if "duplicate_product_id" in row["errors"]) == 2
+    assert sum(1 for row in rows if "duplicate_sku" in row["errors"]) == 2
+
+
+def test_workspace_preview_keeps_identical_content_on_different_rows_distinct(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(configured_db).set_many(
+        {
+            "nextcloud.source_mapping": (
+                '{"id":{"enabled":false,"column":"B"},'
+                '"price":{"enabled":true,"column":"C"},'
+                '"stock":{"enabled":false,"column":"D"}}'
+            )
+        },
+        updated_by="test",
+    )
+    _cache_product(configured_db, "501", "Same Row", "SAME-SKU", "100.00")
+
+    async def fake_download(self, path):
+        assert path == "/prices.xlsx"
+        return _xlsx([
+            ["Same Row", None, "110.00", "SAME-SKU"],
+            ["Same Row", None, "110.00", "SAME-SKU"],
+        ]), {"etag": "same-content", "last_modified": "now"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
+    assert preview.status_code == 200
+    rows = preview.json()["rows"]
+    assert len(rows) == 2
+    assert rows[0]["id"] != rows[1]["id"]
+    assert [row["source"]["rowNumber"] for row in rows] == [3, 4]
+
+
+def test_workspace_preview_distinguishes_same_row_number_across_sheets(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    _cache_product(configured_db, "601", "Sheet A Product", "SHEET-A", "100.00")
+    _cache_product(configured_db, "602", "Sheet B Product", "SHEET-B", "100.00")
+
+    async def fake_download(self, path):
+        assert path == "/prices.xlsx"
+        return _xlsx_two_sheets_same_row(), {"etag": "two-sheets", "last_modified": "now"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+
+    preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
+    assert preview.status_code == 200
+    rows = preview.json()["rows"]
+    assert len(rows) == 2
+    assert rows[0]["source"]["rowNumber"] == rows[1]["source"]["rowNumber"] == 3
+    assert {row["source"]["worksheet"] for row in rows} == {"SheetA", "SheetB"}
+    assert rows[0]["id"] != rows[1]["id"]
+
+
+def test_workspace_preview_returns_422_for_unidentifiable_source_row(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.data_layer.models import DlSourceSnapshot
+    from app.flowhub.sources.spreadsheet_source import SourceImportResult, SpreadsheetSourceReadService
+
+    _cache_product(configured_db, "701", "Bad Location", "BAD-LOC", "100.00")
+    snapshot = DlSourceSnapshot(
+        connector_id="nextcloud:primary",
+        file_path="/prices.xlsx",
+        version_seq=1,
+        integrity_hash="bad-location",
+        parsed_row_count=1,
+        snapshotted_at=datetime.utcnow(),
+    )
+    configured_db.add(snapshot)
+    configured_db.commit()
+    configured_db.refresh(snapshot)
+
+    async def fake_read(self, **_kwargs):
+        return SourceImportResult(
+            source_id="nextcloud:primary",
+            source_type="nextcloud_spreadsheet",
+            spreadsheet_path="/prices.xlsx",
+            rows=[{
+                "worksheet": "",
+                "row_number": None,
+                "product_id": "701",
+                "sku": "BAD-LOC",
+                "product_name": "Bad Location",
+                "proposed_price": 110.0,
+                "raw_price": "110.00",
+                "price_enabled": True,
+                "row_errors": [],
+                "row_warnings": [],
+            }],
+            duplicate_info={"duplicate_product_ids": [], "duplicate_skus": []},
+            snapshot=snapshot,
+            read_policy={},
+            stats={},
+        )
+
+    monkeypatch.setattr(SpreadsheetSourceReadService, "read_nextcloud_spreadsheet", fake_read)
+
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "WORKSPACE_PREVIEW_ROW_ID_INVALID"
+
+
 def test_variation_row_missing_parent_id_fails_closed(client, auth_headers, configured_db, monkeypatch):
     from app.flowhub.integrations.nextcloud import NextcloudClient
 
@@ -1021,6 +1204,24 @@ def _xlsx_multi_sheet() -> bytes:
     prices.append(["Name", "Product ID", "Price", "SKU"])
     prices.append(["", "", "", ""])
     prices.append(["Selected Product", 101, "120.00", "SKU-101"])
+    stream = BytesIO()
+    wb.save(stream)
+    return stream.getvalue()
+
+
+def _xlsx_two_sheets_same_row() -> bytes:
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "SheetA"
+    ws.append(["Name", "Product ID", "Price", "SKU"])
+    ws.append(["", "", "", ""])
+    ws.append(["Sheet A Product", 601, "110.00", "SHEET-A"])
+    sheet_b = wb.create_sheet("SheetB")
+    sheet_b.append(["Name", "Product ID", "Price", "SKU"])
+    sheet_b.append(["", "", "", ""])
+    sheet_b.append(["Sheet B Product", 602, "120.00", "SHEET-B"])
     stream = BytesIO()
     wb.save(stream)
     return stream.getvalue()

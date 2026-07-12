@@ -8,6 +8,8 @@ Pipeline dry-run endpoint.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import uuid
 from dataclasses import dataclass
@@ -179,7 +181,7 @@ class WorkspacePriceWorkflowService:
         duplicate_product_ids = set(duplicate_info["duplicate_product_ids"])
         duplicate_skus = set(duplicate_info["duplicate_skus"])
         preview_rows: list[dict] = []
-        for source_row in source_rows:
+        for row_index, source_row in enumerate(source_rows):
             errors: list[str] = []
             warnings: list[str] = []
             status_value = "valid_change"
@@ -302,15 +304,16 @@ class WorkspacePriceWorkflowService:
                     "parentProductName": matched.parent_row.name if matched.parent_row is not None else None,
                     "variationId": matched.row.product_id if _item_type(matched.row) == "variation" else None,
                     "variationAttributes": matched.variation_attributes,
-                    "source": _source_payload(source_row, preview_id, snapshot),
+                    "source": _source_payload(source_row, preview_id, snapshot, row_index),
                     "validationWarnings": warnings,
                 }
 
             errors = list(dict.fromkeys(errors))
             warnings = list(dict.fromkeys(warnings))
+            source_payload = _source_payload(source_row, preview_id, snapshot, row_index)
             preview_rows.append({
-                "id": f"{preview_id}:{source_row.get('worksheet')}:{source_row.get('row_number')}",
-                "source": _source_payload(source_row, preview_id, snapshot),
+                "id": _preview_row_id(source_row, snapshot, row_index),
+                "source": source_payload,
                 "matchedProduct": _matched_payload(matched),
                 "currentPrice": current_price,
                 "proposedPrice": proposed,
@@ -443,7 +446,7 @@ def _item_type(row: DlProductCache) -> str:
     return "variation" if (row.product_type or "").lower() == "variation" else "simple"
 
 
-def _source_payload(source_row: dict, preview_id: str, snapshot: DlSourceSnapshot) -> dict:
+def _source_payload(source_row: dict, preview_id: str, snapshot: DlSourceSnapshot, row_index: int | None = None) -> dict:
     return {
         "previewId": preview_id,
         "sourceId": SOURCE_ID,
@@ -453,6 +456,7 @@ def _source_payload(source_row: dict, preview_id: str, snapshot: DlSourceSnapsho
         "sourceFilePath": snapshot.file_path,
         "worksheet": source_row.get("worksheet"),
         "rowNumber": source_row.get("row_number"),
+        "sourceRowIndex": row_index,
         "productId": source_row.get("product_id"),
         "sku": source_row.get("sku") or "",
         "productName": source_row.get("product_name") or "",
@@ -462,6 +466,48 @@ def _source_payload(source_row: dict, preview_id: str, snapshot: DlSourceSnapsho
         "rawValues": source_row.get("raw_values") or {},
         "raw": source_row.get("raw") or {},
     }
+
+
+def _preview_row_id(source_row: dict, snapshot: DlSourceSnapshot, row_index: int) -> str:
+    sheet = str(source_row.get("worksheet") or source_row.get("sheet_name") or "").strip()
+    row_number = _positive_int(source_row.get("row_number"))
+    if sheet and row_number is not None:
+        location = {"sheet": sheet, "row_number": row_number, "fallback": False}
+    elif sheet:
+        location = {"sheet": sheet, "source_row_index": row_index, "fallback": True}
+    else:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            {
+                "code": "WORKSPACE_PREVIEW_ROW_ID_INVALID",
+                "message": "Source row location is missing.",
+                "row": {"source_row_index": row_index},
+            },
+        )
+    payload = {
+        "source_id": SOURCE_ID,
+        "source_type": SOURCE_TYPE,
+        "source_snapshot_id": snapshot.id,
+        "source_snapshot_version": snapshot.version_seq,
+        "source_integrity_hash": snapshot.integrity_hash,
+        "location": location,
+    }
+    digest = hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+    return f"wpr_{digest[:32]}"
+
+
+def _positive_int(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        parsed = int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def _canonical_json(value: object) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
 def _matched_payload(match: ProductMatch | None) -> dict | None:
