@@ -730,7 +730,7 @@ class CommerceHubService:
             "capabilities": capabilities.model_dump(),
             "capabilities_summary": self._capabilities_summary(capabilities),
             "settings_available": definition is not None,
-            "cached_products": len(cache_rows) - cached_variations,
+            "cached_products": len(cache_rows) if provider == "snappshop" else len(cache_rows) - cached_variations,
             "cached_variations": cached_variations,
             "last_cache_refresh": self._iso(
                 latest_refresh.completed_at or latest_refresh.started_at or latest_refresh.created_at

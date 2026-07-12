@@ -59,7 +59,15 @@ class FakeConnector:
         return response
 
 
-def product(product_id: str, *, sku: str, title: str, stock: int, price: int) -> ChannelProduct:
+def product(
+    product_id: str,
+    *,
+    sku: str,
+    title: str,
+    stock: int,
+    price: int,
+    parent_product_number: str | None = None,
+) -> ChannelProduct:
     return ChannelProduct(
         channel_id="snappshop:main",
         connector_type="snappshop",
@@ -67,7 +75,7 @@ def product(product_id: str, *, sku: str, title: str, stock: int, price: int) ->
             external_product_id=product_id,
             sku=sku,
             product_number=f"number-{product_id}",
-            parent_product_number=None,
+            parent_product_number=parent_product_number,
         ),
         name=title,
         current_price=float(price),
@@ -114,7 +122,16 @@ async def test_multi_page_sync_replaces_cache_atomically_and_products_filter_rea
     db.commit()
     connector = FakeConnector([
         page([product("p1", sku="SKU-1", title="Product 1", stock=4, price=1000)], number=1, total_pages=2, next_page=2),
-        page([product("p2", sku="SKU-2", title="Product 2", stock=0, price=2000)], number=2, total_pages=2),
+        page([
+            product(
+                "p2",
+                sku="SKU-2",
+                title="Product 2",
+                stock=0,
+                price=2000,
+                parent_product_number="parent-p2",
+            )
+        ], number=2, total_pages=2),
     ])
 
     result = await SnappShopProductSyncService(db).run(
@@ -137,6 +154,11 @@ async def test_multi_page_sync_replaces_cache_atomically_and_products_filter_rea
     assert listed.total == 2
     assert {item.connectorId for item in listed.items} == {"snappshop:main"}
     assert {item.currency for item in listed.items} == {"TMN"}
+    channel = next(
+        item for item in CommerceHubService(db).list_channels()["items"] if item["id"] == "snappshop:main"
+    )
+    assert channel["cached_products"] == 2
+    assert channel["cached_variations"] == 1
 
 
 @pytest.mark.asyncio
