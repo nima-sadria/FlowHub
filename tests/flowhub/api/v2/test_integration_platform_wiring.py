@@ -236,7 +236,13 @@ def test_products_route_reads_data_layer_records(client, auth_headers, db):
     assert data["runtime_write_blocked"] is True
 
 
-def test_products_route_uses_regular_price_when_cached_effective_price_is_zero(client, auth_headers, db):
+@pytest.mark.parametrize(
+    ("fallback_field", "fallback_value"),
+    [("regular_price", "235400000"), ("last_price", "235400000")],
+)
+def test_products_route_uses_nonzero_cached_fallback_when_effective_price_is_zero(
+    client, auth_headers, db, fallback_field, fallback_value
+):
     from app.flowhub.data_layer.product_service import ProductReadModelService
 
     _configure_woocommerce(db)
@@ -248,7 +254,7 @@ def test_products_route_uses_regular_price_when_cached_effective_price_is_zero(c
             "name": "Variation with stale zero effective price",
             "sku": "VAR-57396",
             "price": "0",
-            "regular_price": "235400000",
+            fallback_field: fallback_value,
             "product_type": "variation",
             "status": "publish",
         },

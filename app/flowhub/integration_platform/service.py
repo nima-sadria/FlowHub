@@ -1315,11 +1315,11 @@ def _float_or_zero(value: object) -> float:
 def _product_display_price(row: DlProductCache) -> float:
     effective = _float_or_none(row.price)
     regular = _float_or_none(row.regular_price)
-    if effective is not None and (effective != 0 or regular in (None, 0)):
+    last = _float_or_none(row.last_price)
+    fallback = regular if regular is not None else last
+    if effective is not None and (effective != 0 or fallback in (None, 0)):
         return effective
-    if regular is not None:
-        return regular
-    return _float_or_zero(row.last_price)
+    return fallback if fallback is not None else 0.0
 
 
 def _float_or_none(value: object) -> float | None:
