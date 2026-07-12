@@ -519,6 +519,7 @@ describe('CommerceHub', () => {
 
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Settings')).toHaveLength(1)
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')).toHaveLength(2)
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Refresh product cache')).toHaveLength(2)
     for (const planned of ['Digikala', 'Technolife', 'Shopify']) {
       const card = Array.from(c.querySelectorAll('h3')).find(item => item.textContent === planned)?.closest('.fh-card')
       expect(Array.from(card?.querySelectorAll('button') ?? [])).toHaveLength(0)
@@ -549,13 +550,14 @@ describe('CommerceHub', () => {
         testedPayload = payload
         return {
           ok: true,
-          status: 'connected',
+          status: 'credentials_verified',
           message: 'Connected to SnappShop.',
           external_call_performed: true,
           read_only: true,
           runtime_write_blocked: true,
           write_blocked: true,
-          vendors: [{ id: 'vendor-1', name: 'Primary Vendor' }],
+          vendors: [{ id: 'vendor-1', name: 'Primary Vendor', title: 'فروشگاه اصلی', title_en: 'Primary Vendor', status: 'ACTIVE' }],
+          suggested_vendor_id: 'vendor-1',
         }
       },
     }
@@ -571,6 +573,14 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Agent identifier')
     expect(c.textContent).toContain('Agent header name')
     expect(c.textContent).toContain('Request timeout seconds')
+    const advanced = c.querySelector('details') as HTMLDetailsElement
+    expect(advanced.open).toBe(false)
+    const timeout = c.querySelector('input[type="number"]') as HTMLInputElement
+    expect(timeout.step).toBe('1')
+    expect(timeout.min).toBe('1')
+    expect(timeout.value).toBe('20')
+    timeout.value = '29'
+    expect(timeout.checkValidity()).toBe(true)
     const token = c.querySelector('input[type="password"]') as HTMLInputElement
     expect(token.value).toBe('')
     expect(c.textContent).toContain('Configured; leave blank to keep unchanged.')
@@ -583,10 +593,69 @@ describe('CommerceHub', () => {
     })
     expect(testedPayload?.settings.agent_identifier).toBe('flowhub-agent')
     expect(testedPayload?.secrets.token).toBeUndefined()
-    expect(Array.from(c.querySelectorAll('option')).some(option => option.textContent === 'Primary Vendor')).toBe(true)
+    const vendorSelect = Array.from(c.querySelectorAll('select')).find(select => select.required) as HTMLSelectElement
+    expect(vendorSelect.value).toBe('vendor-1')
+    expect(vendorSelect.textContent).toContain('Primary Vendor')
     expect(c.textContent).toContain('Channel connected successfully')
     expect(c.textContent).toContain('SnappShop is ready to use.')
     expect(c.querySelector('[role="alert"] [data-icon="success"]')).not.toBeNull()
+  })
+
+  it('requires explicit vendor selection when multiple active SnappShop vendors are discovered', async () => {
+    const snappCommerce: CommerceService = {
+      ...commerce,
+      async getChannelConfiguration(channelId) {
+        const base = await commerce.getChannelConfiguration(channelId)
+        return {
+          ...base,
+          settings: { agent_identifier: 'flowhub-agent', request_timeout: 30, vendor_id: '' },
+          secrets: { token: { status: 'configured', replaced_at: null } },
+          token_configured: true,
+        }
+      },
+      async testChannel() {
+        return {
+          ok: true,
+          status: 'credentials_verified',
+          message: 'Verified',
+          external_call_performed: true,
+          read_only: true,
+          runtime_write_blocked: true,
+          write_blocked: true,
+          vendors: [
+            { id: 'vendor-1', name: 'Vendor One', status: 'ACTIVE' },
+            { id: 'vendor-2', name: 'Vendor Two', status: 'ACTIVE' },
+            { id: 'vendor-3', name: 'Vendor Three', status: 'INACTIVE' },
+          ],
+          suggested_vendor_id: null,
+        }
+      },
+    }
+    const c = await renderPage(adminUser, snappCommerce)
+    const configure = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')[1]
+    await act(async () => {
+      configure.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const vendorSelect = Array.from(c.querySelectorAll('select')).find(select => select.required) as HTMLSelectElement
+    const save = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Save configuration') as HTMLButtonElement
+    expect(vendorSelect.value).toBe('')
+    expect(save.disabled).toBe(true)
+    expect(Array.from(vendorSelect.options).find(option => option.value === 'vendor-3')?.disabled).toBe(true)
+
+    await act(async () => {
+      vendorSelect.value = 'vendor-2'
+      vendorSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(save.disabled).toBe(false)
   })
 
   it('renders separate TapsiShop secrets and the webhook registration URL', async () => {
@@ -639,7 +708,7 @@ describe('CommerceHub', () => {
         const base = await commerce.getChannelConfiguration(channelId)
         return {
           ...base,
-          settings: { agent_identifier: 'flowhub-agent' },
+          settings: { agent_identifier: 'flowhub-agent', vendor_id: 'vendor-1' },
           secrets: { token: { status: 'configured', replaced_at: null } },
           token_configured: true,
         }

@@ -4,8 +4,8 @@ import { useAuth } from '../auth'
 import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'
 import { useServices } from '../services/ServiceContext'
-import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeOption } from '../services/types'
-import type { CommerceChannelConfiguration, CommerceVendor, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
+import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeField, CommerceTypeOption } from '../services/types'
+import type { ChannelCacheRefreshResult, CommerceChannelConfiguration, CommerceVendor, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
 import Spinner from '../components/loading/Spinner'
 import { useNotification } from '../notifications/NotificationProvider'
 import Icon from '../components/Icon'
@@ -31,6 +31,14 @@ const DEFAULT_READ_POLICY: ReadPolicyDraft = {
 
 function prettyStatus(value: string): string {
   return value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+const SNAPPSHOP_ESSENTIAL_FIELDS = new Set(['token', 'agent_identifier'])
+const SNAPPSHOP_ADVANCED_FIELDS = new Set(['base_url', 'agent_header_name', 'request_timeout'])
+
+function snappShopVendorActive(status: string | null | undefined): boolean {
+  if (!status) return true
+  return ['ACTIVE', 'ENABLED', 'TRUE', '1'].includes(status.trim().toUpperCase())
 }
 
 function channelDisplayName(provider: string, fallback: string): string {
@@ -154,16 +162,18 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
   )
 }
 
-function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refreshing, canManage }: {
+function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refreshing, refreshResult, canManage }: {
   channel: CommerceChannel
   onTest: (channelId: string) => void
   onRefresh: (channelId: string) => void
   onConfigure: (channelId: string) => void
   testing: boolean
   refreshing: boolean
+  refreshResult?: ChannelCacheRefreshResult
   canManage: boolean
 }) {
   const isWooCommerce = channel.provider === 'woocommerce' && !channel.placeholder
+  const supportsProductCache = ['woocommerce', 'snappshop'].includes(channel.provider) && !channel.placeholder
   const isConfigurable = channel.implemented && !channel.placeholder && ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider)
   const isConfigured = channel.credential_status === 'configured'
   return (
@@ -184,6 +194,12 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
 
       <div className="fh-form-grid sm:grid-cols-2 fh-text-caption">
         <p><span className="text-wp-muted">Credential status: </span><span className="font-medium text-text-base">{prettyStatus(channel.credential_status)}</span></p>
+        {channel.provider === 'snappshop' && (
+          <>
+            <p><span className="text-wp-muted">Setup state: </span><span className="font-medium text-text-base">{prettyStatus(channel.configuration_state ?? 'not_configured')}</span></p>
+            <p><span className="text-wp-muted">Vendor selected: </span><span className="font-medium text-text-base">{channel.vendor_selected ? 'Yes' : 'No'}</span></p>
+          </>
+        )}
         <p><span className="text-wp-muted">Last health check: </span><span className="font-medium text-text-base">{channel.last_health_check ? new Date(channel.last_health_check).toLocaleString() : 'Not checked'}</span></p>
         <p><span className="text-wp-muted">Health: </span><span className="font-medium text-text-base">{prettyStatus(channel.health?.status ?? 'unknown')}</span></p>
         <p><span className="text-wp-muted">Capabilities: </span><span className="font-medium text-text-base">{channel.capabilities_summary.join(', ')}</span></p>
@@ -193,13 +209,21 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
             <p><span className="text-wp-muted">Webhook credentials: </span><span className="font-medium text-text-base">{channel.webhook_token_configured ? 'Configured' : 'Not configured'}</span></p>
           </>
         )}
-        {isWooCommerce && (
+        {supportsProductCache && (
           <>
             <p><span className="text-wp-muted">Cached products: </span><span className="font-medium text-text-base">{channel.cached_products}</span></p>
             <p><span className="text-wp-muted">Cached variations: </span><span className="font-medium text-text-base">{channel.cached_variations}</span></p>
             <p><span className="text-wp-muted">Last cache refresh: </span><span className="font-medium text-text-base">{channel.last_cache_refresh ? new Date(channel.last_cache_refresh).toLocaleString() : 'Not refreshed'}</span></p>
             <p><span className="text-wp-muted">Refresh status: </span><span className="font-medium text-text-base">{prettyStatus(channel.cache_refresh_status)}</span></p>
           </>
+        )}
+        {refreshResult && (
+          <p className="sm:col-span-2" role="status">
+            <span className="text-wp-muted">Latest result: </span>
+            <span className="font-medium text-text-base">
+              {refreshResult.pages_read ?? 0} page(s), {refreshResult.products_received ?? refreshResult.products_read} received, {refreshResult.products_stored ?? refreshResult.cache_rows_upserted} cached
+            </span>
+          </p>
         )}
       </div>
 
@@ -229,7 +253,7 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
                 {testing ? 'Testing' : 'Test connection'}
               </button>
             )}
-            {isWooCommerce && (
+            {supportsProductCache && (isWooCommerce || isConfigured) && (
               <button
                 onClick={() => onRefresh(channel.id)}
                 disabled={testing || refreshing}
@@ -511,6 +535,7 @@ function ConfigPanel({
       : selected.provider === 'woocommerce'
         ? Boolean(settings.url?.trim()) && hasSecret('key') && hasSecret('secret')
         : true
+  const canSave = selected.provider !== 'snappshop' || Boolean(settings.vendor_id?.trim())
 
   function configurationPayload() {
     return {
@@ -583,8 +608,18 @@ function ConfigPanel({
         ? await commerce.testSource(selected.id)
         : await commerce.testChannel(selected.id, configurationPayload())
       if (result.ok) {
-        setVendors(result.vendors ?? [])
+        const discoveredVendors = result.vendors ?? []
+        setVendors(discoveredVendors)
         setVendorInformation(result.vendor_information ?? null)
+        if (selected.provider === 'snappshop') {
+          const suggested = result.suggested_vendor_id
+            ?? (discoveredVendors.filter(vendor => snappShopVendorActive(vendor.status)).length === 1
+              ? discoveredVendors.find(vendor => snappShopVendorActive(vendor.status))?.id
+              : null)
+          if (suggested) {
+            setSettings(current => ({ ...current, vendor_id: current.vendor_id || suggested }))
+          }
+        }
         success(kind === 'source'
           ? {
               title: 'Source connected successfully',
@@ -649,6 +684,47 @@ function ConfigPanel({
       ...current,
       [field]: { ...current[field], ...patch },
     }))
+  }
+
+  function renderConnectionField(field: CommerceTypeField) {
+    return (
+      <label key={field.key} className="fh-field">
+        <span className="fh-help-text">{fieldLabel(kind, selected.provider, field.key, field.label)}</span>
+        {['token_refresh_enabled', 'revoke_current_token'].includes(field.key) ? (
+          <input
+            type="checkbox"
+            checked={settings[field.key] === 'true'}
+            onChange={event => setSettings(current => ({ ...current, [field.key]: String(event.target.checked) }))}
+          />
+        ) : (
+          <input
+            type={field.secret ? 'password' : field.key === 'request_timeout' ? 'number' : 'text'}
+            min={field.key === 'request_timeout' ? 1 : undefined}
+            max={field.key === 'request_timeout' ? 120 : undefined}
+            step={field.key === 'request_timeout' ? 1 : undefined}
+            value={field.secret ? secrets[field.key] ?? '' : settings[field.key] ?? ''}
+            onChange={event => {
+              const value = event.target.value
+              if (field.secret) setSecrets(current => ({ ...current, [field.key]: value }))
+              else setSettings(current => {
+                const next = { ...current, [field.key]: value }
+                if (selected.provider === 'nextcloud' && field.key === 'url' && !next.username) {
+                  const usernameFromUrl = webdavUsernameFromUrl(value)
+                  if (usernameFromUrl) next.username = usernameFromUrl
+                }
+                return next
+              })
+            }}
+            className="fh-input"
+            autoComplete={field.secret ? 'new-password' : undefined}
+          />
+        )}
+        {field.secret && configuredSecret(field.key) && <span className="fh-help-text">Configured; leave blank to keep unchanged.</span>}
+        {selected.provider === 'nextcloud' && field.key === 'url' && nextcloudUrlError && (
+          <span className="fh-field-error">{nextcloudUrlError}</span>
+        )}
+      </label>
+    )
   }
 
   if (loadingConfiguration) {
@@ -732,55 +808,60 @@ function ConfigPanel({
       <div className="fh-form-section">
         <div>
           <p className="fh-form-section-title">Connection Settings</p>
-          <p className="fh-form-section-description">Labels, help text, and validation states are normalized here without changing the underlying validation rules.</p>
+          <p className="fh-form-section-description">Enter the credentials required to verify this connection.</p>
         </div>
       <div className="fh-form-grid md:grid-cols-2">
         {selected.settings_schema
           .filter(field => !(kind === 'source' && selected.provider === 'nextcloud' && field.key === 'spreadsheet_path'))
-          .map(field => (
-          <label key={field.key} className="fh-field">
-            <span className="fh-help-text">{fieldLabel(kind, selected.provider, field.key, field.label)}</span>
-            {selected.provider === 'snappshop' && field.key === 'vendor_id' && vendors.length > 0 ? (
-              <select value={settings.vendor_id ?? ''} onChange={event => setSettings(current => ({ ...current, vendor_id: event.target.value }))} className="fh-select">
-                <option value="">Select vendor</option>
-                {vendors.map(vendor => <option key={vendor.id ?? vendor.name} value={vendor.id ?? ''}>{vendor.name}</option>)}
-              </select>
-            ) : ['token_refresh_enabled', 'revoke_current_token'].includes(field.key) ? (
-              <input
-                type="checkbox"
-                checked={settings[field.key] === 'true'}
-                onChange={event => setSettings(current => ({ ...current, [field.key]: String(event.target.checked) }))}
-              />
-            ) : (
-              <input
-                type={field.secret ? 'password' : field.key === 'request_timeout' ? 'number' : 'text'}
-                min={field.key === 'request_timeout' ? 0.1 : undefined}
-                max={field.key === 'request_timeout' ? 120 : undefined}
-                value={field.secret ? secrets[field.key] ?? '' : settings[field.key] ?? ''}
-                onChange={event => {
-                  const value = event.target.value
-                  if (field.secret) setSecrets(current => ({ ...current, [field.key]: value }))
-                  else setSettings(current => {
-                    const next = { ...current, [field.key]: value }
-                    if (selected.provider === 'nextcloud' && field.key === 'url' && !next.username) {
-                      const usernameFromUrl = webdavUsernameFromUrl(value)
-                      if (usernameFromUrl) next.username = usernameFromUrl
-                    }
-                    return next
-                  })
-                }}
-                className="fh-input"
-                autoComplete="new-password"
-              />
-            )}
-            {field.secret && configuredSecret(field.key) && <span className="fh-help-text">Configured; leave blank to keep unchanged.</span>}
-            {selected.provider === 'nextcloud' && field.key === 'url' && nextcloudUrlError && (
-              <span className="fh-field-error">{nextcloudUrlError}</span>
-            )}
+          .filter(field => selected.provider !== 'snappshop' || SNAPPSHOP_ESSENTIAL_FIELDS.has(field.key))
+          .map(renderConnectionField)}
+      </div>
+      </div>
+
+      {kind === 'channel' && selected.provider === 'snappshop' && (
+        <div className="fh-form-section">
+          <div>
+            <p className="fh-form-section-title">Vendor</p>
+            <p className="fh-form-section-description">Test the connection to load stores available to these credentials.</p>
+          </div>
+          <label className="fh-field">
+            <span className="fh-help-text">Vendor / store</span>
+            <select
+              value={settings.vendor_id ?? ''}
+              onChange={event => setSettings(current => ({ ...current, vendor_id: event.target.value }))}
+              className="fh-select"
+              disabled={vendors.length === 0 && !settings.vendor_id}
+              required
+            >
+              <option value="">{vendors.length ? 'Select vendor' : 'Test connection to load vendors'}</option>
+              {settings.vendor_id && !vendors.some(vendor => vendor.id === settings.vendor_id) && (
+                <option value={settings.vendor_id}>Saved vendor ({settings.vendor_id})</option>
+              )}
+              {vendors.map(vendor => (
+                <option
+                  key={vendor.id ?? vendor.name}
+                  value={vendor.id ?? ''}
+                  disabled={!snappShopVendorActive(vendor.status)}
+                >
+                  {vendor.title || vendor.name}{vendor.title_en && vendor.title_en !== vendor.title ? ` (${vendor.title_en})` : ''}{snappShopVendorActive(vendor.status) ? '' : ' - Inactive'}
+                </option>
+              ))}
+            </select>
           </label>
-        ))}
-      </div>
-      </div>
+        </div>
+      )}
+
+      {kind === 'channel' && selected.provider === 'snappshop' && (
+        <details className="fh-form-section">
+          <summary className="fh-form-section-title cursor-pointer">Advanced settings</summary>
+          <p className="fh-form-section-description">Defaults are suitable for normal SnappShop accounts.</p>
+          <div className="fh-form-grid md:grid-cols-2 mt-3">
+            {selected.settings_schema
+              .filter(field => SNAPPSHOP_ADVANCED_FIELDS.has(field.key))
+              .map(renderConnectionField)}
+          </div>
+        </details>
+      )}
 
       {kind === 'channel' && selected.provider === 'tapsishop' && (
         <div className="fh-form-section">
@@ -940,7 +1021,7 @@ function ConfigPanel({
           {!testing && <Icon name="testConnection" />}
           {testing ? 'Testing' : 'Test connection'}
         </button>
-        <button type="submit" disabled={saving} className="fh-button-primary px-4">
+        <button type="submit" disabled={saving || !canSave} className="fh-button-primary px-4">
           {saving && <Spinner size="sm" />}
           {!saving && <Icon name="save" />}
           {saving ? 'Saving' : 'Save configuration'}
@@ -976,6 +1057,7 @@ export default function CommerceHub() {
   const [testingId, setTestingId] = useState<string | null>(null)
   const [readingId, setReadingId] = useState<string | null>(null)
   const [refreshingId, setRefreshingId] = useState<string | null>(null)
+  const [refreshResults, setRefreshResults] = useState<Record<string, ChannelCacheRefreshResult>>({})
   const [formKind, setFormKind] = useState<FormKind | null>(null)
   const [editingChannelId, setEditingChannelId] = useState<string | null>(null)
   const canManageCommerce = user?.is_admin === true
@@ -1079,10 +1161,13 @@ export default function CommerceHub() {
     setRefreshingId(channelId)
     try {
       const result = await commerce.refreshChannelCache(channelId)
+      setRefreshResults(current => ({ ...current, [channelId]: result }))
       if (result.ok) {
         success({
           title: 'Product cache refreshed successfully',
-          description: 'The latest product information has been loaded.',
+          description: result.pages_read !== undefined
+            ? `${result.products_stored ?? result.cache_rows_upserted} products were cached from ${result.pages_read} page(s).`
+            : 'The latest product information has been loaded.',
         })
       } else {
         notifyError({
@@ -1262,6 +1347,7 @@ export default function CommerceHub() {
                 onConfigure={handleChannelConfigure}
                 testing={testingId === channel.id}
                 refreshing={refreshingId === channel.id}
+                refreshResult={refreshResults[channel.id]}
                 canManage={canManageCommerce}
               />
             ))}

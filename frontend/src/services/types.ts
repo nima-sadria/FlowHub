@@ -59,6 +59,7 @@ export type ProductSyncStatus = 'synced' | 'pending' | 'stale' | 'error'
 
 export interface Product {
   id: string
+  connectorId?: string
   name: string
   sku: string
   currentPrice: number
@@ -571,6 +572,11 @@ export interface CommerceChannel {
   write_blocked: boolean
   runtime_write_blocked: boolean
   credential_status: string
+  configuration_state?: string
+  credentials_configured?: boolean
+  credentials_verified?: boolean
+  vendor_selected?: boolean
+  vendor_accessible?: boolean
   token_configured?: boolean
   webhook_token_configured?: boolean
   last_health_check: string | null
@@ -582,6 +588,7 @@ export interface CommerceChannel {
   cached_variations: number
   last_cache_refresh: string | null
   cache_refresh_status: string
+  product_sync_error_category?: string | null
 }
 
 export interface CommerceRelationshipMap {

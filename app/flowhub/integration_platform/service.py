@@ -1136,7 +1136,7 @@ class IntegrationPlatformService:
             sku=row.sku or "",
             currentPrice=_float_or_zero(row.price),
             sourcePrice=None,
-            currency=currency,
+            currency="TMN" if row.connector_id == "snappshop:main" else "IRR" if row.connector_id == "tapsishop:main" else currency,
             categoryNames=category_names,
             imageUrl=image_url,
             productType=row.product_type or "simple",

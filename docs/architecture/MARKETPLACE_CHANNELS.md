@@ -131,6 +131,14 @@ the previously committed configuration. TapsiShop refresh-policy values use
 explicit boolean parsing; supported true and false strings are never interpreted
 by Python string truthiness.
 
+SnappShop's normal setup asks only for the bearer token and agent identifier.
+FlowHub supplies the documented base URL, `User-Agent` header name, and a
+30-second integer timeout; operators may override those values under Advanced
+Settings. `GET /vendors` must succeed before save, and the selected active
+vendor is validated before the atomic configuration transaction begins. A
+token and agent identifier without a selected vendor are not a complete channel
+configuration.
+
 ## Errors And Retries
 
 Connector errors use normalized categories:
@@ -173,8 +181,18 @@ Documented defaults and configurable assumptions:
   `agent_header_name` as connector configuration because the wording is
   inconsistent.
 - Product list pagination is page-number based and documented as 20 products per
-  response. Full synchronization follows `meta.pagination.total_pages` with an
-  upper page bound.
+  response. Full synchronization follows both `meta.pagination.total_pages` and
+  `meta.pagination.links.next`, with an upper page bound.
+- Manual `Refresh product cache` reads every page before changing local state.
+  A successful run atomically replaces only the `snappshop:main` rows in
+  `dl_product_cache` and `dl_inventory_cache`; a page failure preserves the
+  previous complete cache. Products pages read this local cache and never call
+  SnappShop directly.
+- Product-read retries are bounded and apply only to safe timeout, rate-limit,
+  and upstream-unavailable failures. Authentication, authorization, and
+  validation failures are not retried.
+- `FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_MAX_PAGES` defaults to `250` and
+  `FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_RETRIES` defaults to `2`.
 - Product writes use `PATCH /vendors/{vendor_id}/products`, up to 50 items per
   request. Outbound items use either `sku` or `id`; FlowHub prefers `sku` when
   both are available because the document says SKU takes precedence.

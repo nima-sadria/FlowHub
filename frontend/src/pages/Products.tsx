@@ -34,6 +34,13 @@ function fmtValue(value: number | null | undefined, unit: string): string {
   return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit}`
 }
 
+function productChannelLabel(connectorId?: string): string {
+  if (connectorId === 'snappshop:main') return 'SnappShop'
+  if (connectorId === 'tapsishop:main') return 'TapsiShop'
+  if (connectorId === 'woocommerce:primary') return 'WooCommerce'
+  return connectorId ?? 'FlowHub'
+}
+
 function ProductRow({ product, onEditPrices }: { product: Product; onEditPrices: (product: Product) => void }) {
   return (
     <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
@@ -55,7 +62,10 @@ function ProductRow({ product, onEditPrices }: { product: Product; onEditPrices:
             <div className="fh-text-body font-medium truncate">
               <LocalizedText text={product.name} />
             </div>
-            <div className="fh-text-caption fh-text-mono mt-0.5">{product.sku || '-'}</div>
+            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+              <span className="fh-text-caption fh-text-mono">{product.sku || '-'}</span>
+              <Badge variant="neutral">{productChannelLabel(product.connectorId)}</Badge>
+            </div>
           </div>
         </div>
       </td>

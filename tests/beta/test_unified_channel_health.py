@@ -112,6 +112,46 @@ def test_disabled_channel_is_disabled_not_error(db):
     assert item["dimensions"]["credentials"]["status"] == "Disabled"
 
 
+def test_snappshop_diagnostics_separate_vendor_and_product_cache_state(db):
+    from app.flowhub.data_layer.models import DlRefreshJob
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+
+    now = datetime.utcnow()
+    _seed_channel(
+        db,
+        "snappshop:main",
+        "snappshop",
+        enabled=True,
+        settings={"token": None, "agent_identifier": "agent", "vendor_id": "vendor-1"},
+    )
+    _seed_health(db, "snappshop:main", "snappshop", "healthy", now, last_success_at=now)
+    _seed_product_read(db, "snappshop:main", now)
+    db.add(DlRefreshJob(
+        job_type="manual",
+        entity_type="products",
+        connector_id="snappshop:main",
+        status="completed",
+        created_at=now,
+        started_at=now,
+        completed_at=now,
+        meta={"products_stored": 1, "error_category": None},
+    ))
+    db.commit()
+
+    item = _item(ChannelHealthReporter(db).report(), "snappshop:main")
+
+    assert item["credentialsConfigured"] is True
+    assert item["credentialsVerified"] is True
+    assert item["vendorSelected"] is True
+    assert item["vendorAccessible"] is True
+    assert item["productReadStatus"] == "completed"
+    assert item["cachedProductCount"] == 1
+    assert item["lastProductSync"] is not None
+    assert item["lastSyncErrorCategory"] is None
+    assert item["dimensions"]["vendorSelection"]["status"] == "Operational"
+    assert item["dimensions"]["productCache"]["status"] == "Operational"
+
+
 def test_invalid_token_is_error_and_timeout_is_unable_to_check(db):
     from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
 

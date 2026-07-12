@@ -160,6 +160,9 @@ class ChannelHealthReporter:
         enabled = bool(instance and instance.enabled)
         configured = self._configured(instance)
         capability_state = definition.connector.capabilities.model_dump() if definition else {}
+        cached_product_count = self.db.query(DlProductCache).filter_by(connector_id=channel_id).count()
+        latest_product_refresh = self._latest_product_refresh(channel_id)
+        vendor_selected = self._setting_configured(instance, "vendor_id") if connector_type == "snappshop" else None
 
         dimensions = {
             "configuration": _dimension("Operational" if configured else "Warning", "Required configuration is present." if configured else "Required configuration is incomplete."),
@@ -175,6 +178,13 @@ class ChannelHealthReporter:
             "tokenRefresh": self._token_refresh_dimension(instance, connector_type),
             "polling": self._polling_dimension(connector_type, checkpoint),
         }
+        if connector_type == "snappshop":
+            dimensions["vendorSelection"] = (
+                _dimension("Disabled", "Channel is disabled.")
+                if not enabled
+                else _dimension("Operational" if vendor_selected else "Warning", "A vendor is selected." if vendor_selected else "Select a vendor before product synchronization.")
+            )
+            dimensions["productCache"] = self._product_cache_dimension(enabled, latest_product_refresh)
         status = "Disabled" if not enabled else _worst_dimension(dimensions)
         return {
             "channelId": channel_id,
@@ -191,6 +201,18 @@ class ChannelHealthReporter:
             "nextRecommendedAction": self._next_action(status, configured, health, webhook),
             "dimensions": dimensions,
             "lastProductRead": _iso(product_read),
+            "credentialsConfigured": self._credentials_configured(instance),
+            "credentialsVerified": bool(health and health.last_success_at),
+            "vendorSelected": vendor_selected,
+            "vendorAccessible": bool(vendor_selected and health and health.status == "healthy") if connector_type == "snappshop" else None,
+            "productReadStatus": latest_product_refresh.status if latest_product_refresh else "not_run",
+            "cachedProductCount": cached_product_count,
+            "lastProductSync": _iso(product_read),
+            "lastSyncErrorCategory": (
+                str((latest_product_refresh.meta or {}).get("error_category") or "") or None
+                if latest_product_refresh and latest_product_refresh.status == "failed"
+                else None
+            ),
             "lastProductWrite": _iso(product_write),
             "lastOrderSync": _iso(order_sync),
             "polling": {"cursor": checkpoint.cursor if checkpoint else None, "lastRunAt": _iso(checkpoint.last_run_at) if checkpoint else None},
@@ -216,11 +238,47 @@ class ChannelHealthReporter:
             return False
         required = {
             "woocommerce": {"url", "key", "secret"},
+            "snappshop": {"token", "agent_identifier", "vendor_id"},
+            "tapsishop": {"token"},
+        }.get(instance.connector_type, set())
+        settings = {item.key: item for item in instance.settings}
+        return bool(required) and all(settings.get(key) and settings[key].configured for key in required)
+
+    def _credentials_configured(self, instance: IntegrationConnectorInstance | None) -> bool:
+        if instance is None:
+            return False
+        required = {
+            "woocommerce": {"url", "key", "secret"},
             "snappshop": {"token", "agent_identifier"},
             "tapsishop": {"token"},
         }.get(instance.connector_type, set())
         settings = {item.key: item for item in instance.settings}
         return bool(required) and all(settings.get(key) and settings[key].configured for key in required)
+
+    def _setting_configured(self, instance: IntegrationConnectorInstance | None, key: str) -> bool:
+        if instance is None:
+            return False
+        row = next((item for item in instance.settings if item.key == key), None)
+        return bool(row and row.configured and str(row.value_json or "").strip())
+
+    def _latest_product_refresh(self, channel_id: str) -> DlRefreshJob | None:
+        return (
+            self.db.query(DlRefreshJob)
+            .filter_by(connector_id=channel_id, entity_type="products")
+            .order_by(DlRefreshJob.created_at.desc(), DlRefreshJob.id.desc())
+            .first()
+        )
+
+    def _product_cache_dimension(self, enabled: bool, refresh: DlRefreshJob | None) -> dict:
+        if not enabled:
+            return _dimension("Disabled", "Channel is disabled.")
+        if refresh is None:
+            return _dimension("Warning", "No product synchronization has been run.")
+        if refresh.status == "completed":
+            return _dimension("Operational", "The local product cache was refreshed successfully.")
+        if refresh.status == "failed":
+            return _dimension("Error", "The latest product synchronization failed; the previous cache was preserved.")
+        return _dimension("Warning", "Product synchronization has not completed.")
 
     def _access_mode(self, instance: IntegrationConnectorInstance | None) -> str:
         if instance is None:
@@ -285,10 +343,10 @@ class ChannelHealthReporter:
     def _credential_dimension(self, enabled: bool, configured: bool, health: DlConnectorHealth | None) -> dict:
         if not enabled:
             return _dimension("Disabled", "Channel is disabled.")
-        if not configured:
-            return _dimension("Warning", "Credentials are not fully configured.")
         if health and health.error_class in {"authentication", "authentication_failed"}:
             return _dimension("Error", "Credential validation failed.")
+        if not configured:
+            return _dimension("Warning", "Credentials are not fully configured.")
         return _dimension("Operational" if health and health.last_success_at else "Unable to check", "Credential validation uses the lightweight provider probe.")
 
     def _external_dimension(self, enabled: bool, configured: bool, health: DlConnectorHealth | None) -> dict:

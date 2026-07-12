@@ -132,6 +132,34 @@ async def test_vendor_listing_and_page_pagination():
 
 
 @pytest.mark.asyncio
+async def test_product_pagination_follows_next_link_when_total_pages_is_missing():
+    FakeAsyncClient.responses = [
+        FakeResponse(200, {
+            "status": True,
+            "data": [{"id": "p1", "title": "One", "price": 1000, "stock": 1}],
+            "meta": {
+                "pagination": {
+                    "count": 1,
+                    "per_page": 20,
+                    "current_page": 1,
+                    "links": {"next": "https://apix.snappshop.ir/automation/v1/vendors/vendor-1/products?page=2"},
+                }
+            },
+        }),
+        FakeResponse(200, {
+            "status": True,
+            "data": [{"id": "p2", "title": "Two", "price": 2000, "stock": 2}],
+            "meta": {"pagination": {"count": 1, "per_page": 20, "current_page": 2, "links": {"next": None}}},
+        }),
+    ]
+
+    products = await connector().list_all_products()
+
+    assert [item.identifiers.external_product_id for item in products] == ["p1", "p2"]
+    assert [request["params"] for request in FakeAsyncClient.requests] == [{"page": 1}, {"page": 2}]
+
+
+@pytest.mark.asyncio
 async def test_product_update_partial_failure_and_sku_precedence():
     FakeAsyncClient.responses = [
         FakeResponse(200, {

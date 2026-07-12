@@ -15,11 +15,16 @@ export interface ConnectionCheckResult {
   checked_at?: string
   vendors?: CommerceVendor[]
   vendor_information?: CommerceVendor
+  suggested_vendor_id?: string | null
+  selected_vendor_id?: string | null
 }
 
 export interface CommerceVendor {
   id: string | null
   name: string
+  title?: string | null
+  title_en?: string | null
+  status?: string | null
   store_url?: string | null
   reference_code?: string | null
 }
@@ -62,6 +67,12 @@ export interface ChannelCacheRefreshResult {
   variable_products_read: number
   variations_read: number
   cache_rows_upserted: number
+  pages_read?: number
+  products_received?: number
+  products_stored?: number
+  products_skipped?: number
+  failures?: string[]
+  duration_ms?: number
   warnings: string[]
   errors: string[]
   started_at: string

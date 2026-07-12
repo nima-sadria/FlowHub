@@ -160,6 +160,8 @@ class PageNumberPagination(BaseModel):
     page_size: int = 50
     total: int | None = None
     total_pages: int | None = None
+    has_more: bool = False
+    next_page: int | None = None
 
 
 class CursorPagination(BaseModel):

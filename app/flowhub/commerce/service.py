@@ -7,6 +7,7 @@ executes external marketplace writes.
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import datetime
 from time import monotonic
@@ -21,11 +22,13 @@ from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import ping as ping_woocommerce
 from app.flowhub.channels.snappshop import (
     SNAPPSHOP_BASE_URL,
+    SNAPPSHOP_DEFAULT_AGENT_HEADER,
     IntegrationSettingsOrderEventCursorStore,
     SnappShopConfig,
     SnappShopConnector,
     SnappShopConnectorError,
 )
+from app.flowhub.channels.snappshop_product_sync import SnappShopProductSyncService
 from app.flowhub.channels.tapsishop import (
     TAPSISHOP_BASE_URL,
     TapsiShopConfig,
@@ -252,7 +255,10 @@ class CommerceHubService:
 
     async def refresh_channel_cache(self, channel_id: str, actor: str) -> dict:
         meta = self._channel_meta(channel_id)
-        if str(meta["provider"]) != "woocommerce" or bool(meta.get("placeholder")):
+        provider = str(meta["provider"])
+        if provider == "snappshop" and not bool(meta.get("placeholder")):
+            return await self._refresh_snappshop_channel_cache(channel_id, actor)
+        if provider != "woocommerce" or bool(meta.get("placeholder")):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Product cache refresh is not available for this channel.")
         instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         if instance is None or not instance.enabled:
@@ -306,6 +312,7 @@ class CommerceHubService:
                 metadata={**result, "actor": actor, "external_write": False},
             )
             return result
+
         except Exception as exc:
             completed = datetime.utcnow()
             cache_rows_upserted, result_status = self._mark_latest_refresh_failed(channel_id, exc, completed)
@@ -330,6 +337,57 @@ class CommerceHubService:
                 metadata={**result, "actor": actor, "external_write": False},
             )
             return result
+
+    async def _refresh_snappshop_channel_cache(self, channel_id: str, actor: str) -> dict:
+        meta = self._channel_meta(channel_id)
+        instance = self.db.get(IntegrationConnectorInstance, channel_id)
+        if instance is None or not instance.enabled:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {"code": "CHANNEL_DISABLED", "message": "SnappShop channel is disabled."},
+            )
+        if not self._instance_configured(instance):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {"code": "CHANNEL_NOT_CONFIGURED", "message": "Select and save a SnappShop vendor before refreshing products."},
+            )
+        connector = self._snappshop_connector()
+        if connector is None or not connector.config.vendor_id:
+            raise HTTPException(status.HTTP_409_CONFLICT, "SnappShop configuration is incomplete.")
+
+        result = await SnappShopProductSyncService(self.db).run(
+            connector,
+            actor=actor,
+            max_pages=_env_int("FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_MAX_PAGES", 250, minimum=1, maximum=5_000),
+            retry_attempts=_env_int("FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_RETRIES", 2, minimum=0, maximum=5),
+        )
+        payload = {
+            **result.as_dict(),
+            "products_read": result.products_received,
+            "variable_products_read": 0,
+            "variations_read": 0,
+            "cache_rows_upserted": result.products_stored,
+            "warnings": [],
+            "errors": list(result.failures),
+        }
+        if result.failures:
+            latest = self._latest_product_refresh(channel_id)
+            category = str((latest.meta or {}).get("error_category") or "unexpected_response") if latest else "unexpected_response"
+            ConnectorHealthService(self.db).upsert(
+                channel_id,
+                "snappshop",
+                "unhealthy",
+                detail="SnappShop product synchronization failed.",
+                error_class=category,
+            )
+        else:
+            ConnectorHealthService(self.db).upsert(
+                channel_id,
+                "snappshop",
+                "healthy",
+                detail="SnappShop vendor and product reads completed successfully.",
+            )
+        return payload
 
     async def test_source_connection(self, source_id: str) -> dict:
         meta = self._source_meta(source_id)
@@ -422,7 +480,7 @@ class CommerceHubService:
             "write_pipeline_eligible": False,
         }
 
-    def update_channel_settings(self, channel_id: str, body: dict, *, actor: str = "system") -> dict:
+    async def update_channel_settings(self, channel_id: str, body: dict, *, actor: str = "system") -> dict:
         meta = self._channel_meta(channel_id)
         provider = str(meta["provider"])
         if registry.get_definition(provider) is None:
@@ -431,6 +489,8 @@ class CommerceHubService:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel settings are not available.")
         access_mode = self._requested_channel_access_mode(meta, body)
         self._validate_channel_configuration(meta, body)
+        if provider == "snappshop":
+            await self._validate_snappshop_vendor_selection(body)
         if provider in {"snappshop", "tapsishop"}:
             return self._update_marketplace_channel_settings(
                 channel_id,
@@ -567,6 +627,11 @@ class CommerceHubService:
     def _configuration_setting_value(self, provider: str, key: str, value: object) -> object:
         if provider == "tapsishop" and key in {"token_refresh_enabled", "revoke_current_token"}:
             return parse_config_bool(value)
+        if provider == "snappshop":
+            if key == "request_timeout":
+                return _safe_integer_timeout(value)
+            if key == "agent_header_name":
+                return str(value or SNAPPSHOP_DEFAULT_AGENT_HEADER)
         return value
 
     def relationship_map(self) -> dict:
@@ -628,21 +693,10 @@ class CommerceHubService:
             self.db.query(DlProductCache)
             .filter(DlProductCache.connector_id == str(meta["id"]), DlProductCache.exists.is_(True))
             .all()
-            if provider == "woocommerce"
-            else []
         )
         cached_variations = sum(1 for row in cache_rows if (row.product_type or "").lower() == "variation")
-        latest_refresh = (
-            self.db.query(DlRefreshJob)
-            .filter(
-                DlRefreshJob.connector_id == str(meta["id"]),
-                DlRefreshJob.entity_type == "products",
-            )
-            .order_by(DlRefreshJob.created_at.desc(), DlRefreshJob.id.desc())
-            .first()
-            if provider == "woocommerce"
-            else None
-        )
+        latest_refresh = self._latest_product_refresh(str(meta["id"]))
+        configuration_state = self._channel_configuration_state(instance, health, latest_refresh)
         body = {
             "id": meta["id"],
             "provider": provider,
@@ -651,12 +705,18 @@ class CommerceHubService:
             "status": self._status(meta, instance, health),
             "implemented": meta["implemented"],
             "placeholder": meta["placeholder"],
+            "enabled": bool(instance and instance.enabled),
             "access_mode": access_mode,
             "read_only": access_mode == ACCESS_MODE_READ_ONLY,
             "write_blocked": not write_pipeline_eligible,
             "write_pipeline_eligible": write_pipeline_eligible,
             "runtime_write_blocked": True,
             "credential_status": "configured" if configured else "not_configured",
+            "configuration_state": configuration_state,
+            "credentials_configured": self._credentials_configured(instance),
+            "credentials_verified": bool(health and health.last_success_at),
+            "vendor_selected": self._vendor_selected(instance),
+            "vendor_accessible": bool(configured and health and health.status == "healthy"),
             "token_configured": secret_status.get("token", {}).get("status") == "configured",
             "webhook_token_configured": secret_status.get("webhook_token", {}).get("status") == "configured",
             "last_health_check": self._iso(health.checked_at) if health else None,
@@ -670,6 +730,11 @@ class CommerceHubService:
                 latest_refresh.completed_at or latest_refresh.started_at or latest_refresh.created_at
             ) if latest_refresh else None,
             "cache_refresh_status": latest_refresh.status if latest_refresh else "not_run",
+            "product_sync_error_category": (
+                str((latest_refresh.meta or {}).get("error_category") or "") or None
+                if latest_refresh and latest_refresh.status == "failed"
+                else None
+            ),
         }
         if detail:
             body["settings_schema"] = [
@@ -710,6 +775,49 @@ class CommerceHubService:
             "apply_executed": False,
             "credentials_returned": False,
         }
+
+    def _latest_product_refresh(self, channel_id: str) -> DlRefreshJob | None:
+        return (
+            self.db.query(DlRefreshJob)
+            .filter(DlRefreshJob.connector_id == channel_id, DlRefreshJob.entity_type == "products")
+            .order_by(DlRefreshJob.created_at.desc(), DlRefreshJob.id.desc())
+            .first()
+        )
+
+    def _credentials_configured(self, instance: IntegrationConnectorInstance | None) -> bool:
+        if instance is None:
+            return False
+        settings = {item.key: item for item in instance.settings}
+        required = {
+            "woocommerce": {"url", "key", "secret"},
+            "snappshop": {"token", "agent_identifier"},
+            "tapsishop": {"token"},
+        }.get(instance.connector_type, set())
+        return bool(required) and all(settings.get(key) and settings[key].configured for key in required)
+
+    def _vendor_selected(self, instance: IntegrationConnectorInstance | None) -> bool:
+        if instance is None or instance.connector_type != "snappshop":
+            return False
+        row = next((item for item in instance.settings if item.key == "vendor_id"), None)
+        return bool(row and row.configured and str(row.value_json or "").strip())
+
+    def _channel_configuration_state(
+        self,
+        instance: IntegrationConnectorInstance | None,
+        health: DlConnectorHealth | None,
+        refresh: DlRefreshJob | None,
+    ) -> str:
+        if instance is None or not self._credentials_configured(instance):
+            return "not_configured"
+        if health and health.status == "unhealthy":
+            return "error"
+        if instance.connector_type == "snappshop" and not self._instance_configured(instance):
+            return "credentials_verified" if health and health.last_success_at else "not_configured"
+        if refresh and refresh.status == "failed":
+            return "error"
+        if refresh and refresh.status == "completed":
+            return "operational"
+        return "configured"
 
     def _mark_latest_refresh_status(self, channel_id: str, status_value: str, completed: datetime) -> None:
         job = (
@@ -857,12 +965,15 @@ class CommerceHubService:
         parsed = urlparse(base_url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A valid channel Base URL is required.")
+        timeout = settings.get("request_timeout") or 30
+        if isinstance(timeout, bool):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Request timeout must be a whole number of seconds.")
         try:
-            timeout = float(settings.get("request_timeout") or 30)
+            timeout_value = float(timeout)
         except (TypeError, ValueError) as exc:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Request timeout must be numeric.") from exc
-        if timeout <= 0 or timeout > 120:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Request timeout must be between 0 and 120 seconds.")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Request timeout must be a whole number of seconds.") from exc
+        if not timeout_value.is_integer() or timeout_value < 1 or timeout_value > 120:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Request timeout must be an integer between 1 and 120 seconds.")
         try:
             if provider == "snappshop":
                 SnappShopConfig.from_values(settings=settings, secrets=secrets)
@@ -892,6 +1003,13 @@ class CommerceHubService:
             else self.integration.config.get(f"{provider}.{key}") or defaults.get(key)
             for key in setting_keys
         }
+        if provider == "snappshop":
+            settings["base_url"] = str(settings.get("base_url") or SNAPPSHOP_BASE_URL).strip().rstrip("/")
+            settings["agent_header_name"] = str(
+                settings.get("agent_header_name") or SNAPPSHOP_DEFAULT_AGENT_HEADER
+            ).strip()
+            if "request_timeout" not in submitted_settings:
+                settings["request_timeout"] = _safe_integer_timeout(settings.get("request_timeout"))
         secrets = {
             key: submitted_secrets.get(key) or self.integration.config.get(f"{provider}.{key}")
             for key in secret_keys
@@ -902,9 +1020,53 @@ class CommerceHubService:
         return {
             "id": vendor.vendor_id,
             "name": vendor.name,
+            "title": vendor.metadata.get("title"),
+            "title_en": vendor.metadata.get("title_en"),
+            "status": vendor.metadata.get("status"),
             "store_url": vendor.display_url,
             "reference_code": vendor.identifiers.channel_reference_code,
         }
+
+    async def _validate_snappshop_vendor_selection(self, body: dict) -> None:
+        settings, _ = self._connector_values("snappshop", body)
+        selected_vendor_id = str(settings.get("vendor_id") or "").strip()
+        if not selected_vendor_id:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {"code": "SNAPPSHOP_VENDOR_REQUIRED", "message": "Select a SnappShop vendor after testing the connection."},
+            )
+        connector = self._snappshop_connector(body)
+        if connector is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "SnappShop credentials are incomplete.")
+        try:
+            vendors = await connector.list_vendors()
+        except SnappShopConnectorError as exc:
+            error = exc.error
+            if error.category.value in {"authentication", "authorization", "validation"}:
+                response_status = status.HTTP_422_UNPROCESSABLE_ENTITY
+            elif error.category.value == "timeout":
+                response_status = status.HTTP_504_GATEWAY_TIMEOUT
+            else:
+                response_status = status.HTTP_502_BAD_GATEWAY
+            raise HTTPException(
+                response_status,
+                {
+                    "code": f"SNAPPSHOP_{error.category.value.upper()}",
+                    "message": error.message,
+                    "upstream_status": error.http_status,
+                },
+            ) from exc
+        selected = next((vendor for vendor in vendors if vendor.vendor_id == selected_vendor_id), None)
+        if selected is None:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {"code": "SNAPPSHOP_VENDOR_INVALID", "message": "The selected SnappShop vendor is not available for these credentials."},
+            )
+        if not _snappshop_vendor_is_active(selected.metadata.get("status")):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {"code": "SNAPPSHOP_VENDOR_INACTIVE", "message": "The selected SnappShop vendor is inactive."},
+            )
 
     async def _test_woocommerce_channel_connection(self, configured: bool) -> dict:
         creds = self._woocommerce_credentials()
@@ -988,8 +1150,8 @@ class CommerceHubService:
             if not vendors:
                 raise ValueError("No authorized SnappShop vendors were returned.")
             if connector.config.vendor_id:
-                selected = await connector.get_vendor_information()
-                if selected.vendor_id != connector.config.vendor_id:
+                selected = next((vendor for vendor in vendors if vendor.vendor_id == connector.config.vendor_id), None)
+                if selected is None:
                     raise ValueError("Selected SnappShop vendor was not returned.")
             latency_ms = round((monotonic() - started) * 1000, 2)
         except SnappShopConnectorError as exc:
@@ -1012,13 +1174,15 @@ class CommerceHubService:
             "ok": True,
             "connected": True,
             "authenticated": True,
-            "status": "connected",
+            "status": "configured" if connector.config.vendor_id else "credentials_verified",
             "http_status": 200,
             "latency_ms": latency_ms,
             "checked_at": self._checked_at(),
-            "message": "Connected to SnappShop. Vendor API probe succeeded.",
+            "message": "SnappShop credentials were verified successfully.",
             "external_call_performed": True,
             "vendors": [self._vendor_contract(item) for item in vendors],
+            "suggested_vendor_id": _single_active_vendor_id(vendors),
+            "selected_vendor_id": connector.config.vendor_id,
         }
 
     def _snappshop_connector(self, body: dict | None = None) -> SnappShopConnector | None:
@@ -1398,11 +1562,12 @@ class CommerceHubService:
         pairs["snappshop.base_url"] = str(
             settings.get("base_url") or "https://apix.snappshop.ir/automation/v1"
         ).strip().rstrip("/")
-        pairs["snappshop.agent_header_name"] = str(settings.get("agent_header_name") or "User-Agent").strip()
+        pairs["snappshop.agent_header_name"] = str(
+            settings.get("agent_header_name") or SNAPPSHOP_DEFAULT_AGENT_HEADER
+        ).strip()
         if settings.get("agent_identifier"):
             pairs["snappshop.agent_identifier"] = str(settings["agent_identifier"]).strip()
-        if settings.get("request_timeout"):
-            pairs["snappshop.request_timeout"] = str(settings["request_timeout"]).strip()
+        pairs["snappshop.request_timeout"] = str(_safe_integer_timeout(settings.get("request_timeout")))
         if "vendor_id" in settings:
             pairs["snappshop.vendor_id"] = str(settings.get("vendor_id") or "").strip()
         if secrets.get("token"):
@@ -1562,7 +1727,7 @@ class CommerceHubService:
         if instance.connector_type == "woocommerce":
             required = {"url", "key", "secret"}
         elif instance.connector_type == "snappshop":
-            required = {"token", "agent_identifier"}
+            required = {"token", "agent_identifier", "vendor_id"}
         elif instance.connector_type == "tapsishop":
             required = {"token"}
         elif instance.connector_type in {"digikala", "technolife", "shopify"}:
@@ -1628,3 +1793,34 @@ class CommerceHubService:
         if value is None:
             return None
         return value.isoformat() + "Z"
+
+
+def _safe_integer_timeout(value: object, default: int = 30) -> int:
+    if isinstance(value, bool):
+        return default
+    try:
+        parsed = float(value if value not in (None, "") else default)
+    except (TypeError, ValueError):
+        return default
+    if not parsed.is_integer() or parsed < 1 or parsed > 120:
+        return default
+    return int(parsed)
+
+
+def _snappshop_vendor_is_active(value: object) -> bool:
+    if value is None:
+        return True
+    return str(value).strip().upper() in {"ACTIVE", "ENABLED", "TRUE", "1"}
+
+
+def _single_active_vendor_id(vendors: list) -> str | None:
+    active = [vendor for vendor in vendors if vendor.vendor_id and _snappshop_vendor_is_active(vendor.metadata.get("status"))]
+    return active[0].vendor_id if len(active) == 1 else None
+
+
+def _env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if minimum <= value <= maximum else default

@@ -70,6 +70,22 @@ def client(db_engine):
     app.dependency_overrides.clear()
 
 
+@pytest.fixture(autouse=True)
+def avoid_live_snappshop_vendor_validation(monkeypatch):
+    """Configuration persistence tests must not call the real marketplace."""
+    from fastapi import HTTPException, status
+
+    async def validate(_self, body):
+        settings = body.get("settings") if isinstance(body, dict) else {}
+        if not isinstance(settings, dict) or not str(settings.get("vendor_id") or "").strip():
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Select a SnappShop vendor.")
+
+    monkeypatch.setattr(
+        "app.flowhub.commerce.service.CommerceHubService._validate_snappshop_vendor_selection",
+        validate,
+    )
+
+
 @pytest.fixture()
 def auth_headers(client, db):
     from app.flowhub.auth.models import FlowHubUser
@@ -308,7 +324,7 @@ def test_snappshop_connection_test_performs_vendor_probe_without_secret_leakage(
     assert request_calls[0]["url"] == "https://apix.snappshop.ir/automation/v1/vendors"
     assert request_calls[0]["headers"]["Authorization"] == "Bearer snapp-secret-value"
     assert request_calls[0]["headers"]["User-Agent"] == "flowhub-agent"
-    assert request_calls[1]["url"] == "https://apix.snappshop.ir/automation/v1/vendors/vendor-1"
+    assert len(request_calls) == 1
 
 
 def test_placeholder_connection_test_does_not_call_external_system(client, auth_headers, monkeypatch):
@@ -1936,8 +1952,97 @@ def test_snappshop_unsaved_credentials_can_test_and_return_vendor_choices(client
 
     assert response.status_code == 200
     assert response.json()["ok"] is True
-    assert response.json()["vendors"] == [{"id": "vendor-1", "name": "Primary Vendor", "store_url": None, "reference_code": "vendor-1"}]
+    assert response.json()["vendors"] == [{
+        "id": "vendor-1",
+        "name": "Primary Vendor",
+        "title": "Primary Vendor",
+        "title_en": None,
+        "status": None,
+        "store_url": None,
+        "reference_code": "vendor-1",
+    }]
+    assert response.json()["suggested_vendor_id"] == "vendor-1"
     assert "unsaved-secret" not in response.text
+
+
+def test_snappshop_refresh_cache_fetches_all_pages_and_products_api_filters_local_cache(
+    client, auth_headers, monkeypatch
+):
+    save = client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "SnappShop",
+            "enabled": True,
+            "access_mode": "read_only",
+            "settings": {"agent_identifier": "flowhub-agent", "vendor_id": "vendor-1", "request_timeout": 29},
+            "secrets": {"token": "snapp-secret"},
+        },
+    )
+    assert save.status_code == 200
+
+    class FakeResponse:
+        status_code = 200
+        headers = {}
+
+        def __init__(self, payload):
+            self.payload = payload
+
+        def json(self):
+            return self.payload
+
+    class FakeAsyncClient:
+        responses = [
+            FakeResponse({
+                "status": True,
+                "data": [{"id": "p-1", "sku": "SKU-1", "title": "Product One", "price": 1000, "stock": 4, "active": True}],
+                "meta": {"pagination": {"total": 2, "count": 1, "per_page": 20, "current_page": 1, "total_pages": 2, "links": {"next": "https://apix.snappshop.ir/automation/v1/vendors/vendor-1/products?page=2"}}},
+            }),
+            FakeResponse({
+                "status": True,
+                "data": [{"id": "p-2", "sku": "SKU-2", "title": "Product Two", "price": 2000, "stock": 0, "active": True}],
+                "meta": {"pagination": {"total": 2, "count": 1, "per_page": 20, "current_page": 2, "total_pages": 2, "links": {"next": None}}},
+            }),
+        ]
+        requests = []
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def request(self, method, url, *, headers=None, params=None, json=None):
+            self.requests.append({"method": method, "url": url, "headers": headers, "params": params})
+            return self.responses.pop(0)
+
+    monkeypatch.setattr("app.flowhub.channels.snappshop.httpx.AsyncClient", FakeAsyncClient)
+
+    refresh = client.post(
+        "/api/v2/commerce/channels/snappshop:main/refresh-cache",
+        headers=auth_headers,
+    )
+
+    assert refresh.status_code == 200
+    result = refresh.json()
+    assert result["ok"] is True
+    assert result["pages_read"] == 2
+    assert result["products_received"] == 2
+    assert result["products_stored"] == 2
+    assert result["external_write"] is False
+    assert [item["params"] for item in FakeAsyncClient.requests] == [{"page": 1}, {"page": 2}]
+
+    products = client.get(
+        "/api/v2/products?channelId=snappshop:main&page=1&pageSize=20",
+        headers=auth_headers,
+    )
+    assert products.status_code == 200
+    assert products.json()["total"] == 2
+    assert {item["connectorId"] for item in products.json()["items"]} == {"snappshop:main"}
+    assert {item["currency"] for item in products.json()["items"]} == {"TMN"}
 
 
 def test_successful_snappshop_configuration_commits_state_and_sanitized_audit(

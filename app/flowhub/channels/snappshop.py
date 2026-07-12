@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Protocol
-from urllib.parse import urljoin
+from urllib.parse import parse_qs, urljoin, urlparse
 
 import httpx
 from sqlalchemy.orm import Session
@@ -57,7 +57,7 @@ class SnappShopConfig:
     vendor_id: str | None = None
     base_url: str = SNAPPSHOP_BASE_URL
     agent_header_name: str = SNAPPSHOP_DEFAULT_AGENT_HEADER
-    timeout_seconds: float = 30.0
+    timeout_seconds: int = 30
     enabled: bool = True
 
     @classmethod
@@ -79,7 +79,9 @@ class SnappShopConfig:
             vendor_id=_blank_to_none(settings.get("vendor_id") or settings.get("vendor_selection")),
             base_url=str(settings.get("base_url") or SNAPPSHOP_BASE_URL).rstrip("/"),
             agent_header_name=str(settings.get("agent_header_name") or SNAPPSHOP_DEFAULT_AGENT_HEADER).strip(),
-            timeout_seconds=float(settings.get("request_timeout") or settings.get("timeout_seconds") or 30.0),
+            timeout_seconds=_timeout_seconds(
+                settings.get("request_timeout") or settings.get("timeout_seconds") or 30
+            ),
             enabled=bool(settings.get("enabled", True)),
         )
 
@@ -192,13 +194,18 @@ class SnappShopConnector(BaseMarketplaceConnector):
         payload = await self._request("GET", f"/vendors/{vendor_id}/products", params={"page": page})
         data = _expect_list(payload, self._error("Malformed product list response."))
         page_meta = _page_meta(payload)
+        next_page = _next_page_from_link(page_meta)
+        current_page = int(page_meta.get("current_page") or page)
+        total_pages = _optional_int(page_meta.get("total_pages"))
         return PaginatedResult(
             items=[_product_from_payload(self.channel_id, item) for item in data],
             pagination=PageNumberPagination(
-                page=int(page_meta.get("current_page") or page),
+                page=current_page,
                 page_size=int(page_meta.get("per_page") or SNAPPSHOP_PRODUCTS_PER_PAGE),
                 total=_optional_int(page_meta.get("total")),
-                total_pages=_optional_int(page_meta.get("total_pages")),
+                total_pages=total_pages,
+                has_more=(next_page is not None) or (total_pages is not None and current_page < total_pages),
+                next_page=next_page,
             ),
         )
 
@@ -209,9 +216,9 @@ class SnappShopConnector(BaseMarketplaceConnector):
             result = await self.list_products(PageNumberPagination(page=page, page_size=SNAPPSHOP_PRODUCTS_PER_PAGE))
             products.extend(result.items)
             pagination = result.pagination
-            if not isinstance(pagination, PageNumberPagination) or not pagination.total_pages or page >= pagination.total_pages:
+            if not isinstance(pagination, PageNumberPagination) or not pagination.has_more:
                 break
-            page += 1
+            page = pagination.next_page or (page + 1)
         return products
 
     async def get_product(self, identifiers: dict[str, str]) -> ChannelProduct:
@@ -637,6 +644,15 @@ def _next_cursor_from_link(pagination: dict[str, Any]) -> str | None:
     return next_link.split("cursor=", 1)[1].split("&", 1)[0] or None
 
 
+def _next_page_from_link(pagination: dict[str, Any]) -> int | None:
+    links = pagination.get("links") if isinstance(pagination.get("links"), dict) else {}
+    next_link = links.get("next")
+    if not isinstance(next_link, str) or not next_link.strip():
+        return None
+    values = parse_qs(urlparse(next_link).query).get("page") or []
+    return _optional_int(values[0]) if values else None
+
+
 def _optional_int(value: Any) -> int | None:
     try:
         return int(value) if value is not None else None
@@ -660,6 +676,18 @@ def _string(value: Any) -> str | None:
 
 def _blank_to_none(value: Any) -> str | None:
     return _string(value)
+
+
+def _timeout_seconds(value: Any) -> int:
+    if isinstance(value, bool):
+        raise ValueError("SnappShop request timeout must be a whole number of seconds.")
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("SnappShop request timeout must be a whole number of seconds.") from exc
+    if not parsed.is_integer() or parsed < 1 or parsed > 120:
+        raise ValueError("SnappShop request timeout must be an integer between 1 and 120 seconds.")
+    return int(parsed)
 
 
 def _iso(value: datetime) -> str:
