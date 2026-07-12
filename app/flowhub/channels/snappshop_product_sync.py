@@ -92,11 +92,15 @@ class SnappShopProductSyncService:
         actor: str,
         max_pages: int,
         retry_attempts: int = 2,
+        page_delay_seconds: float = 1.1,
+        rate_limit_backoff_seconds: float = 30.0,
     ) -> SnappShopProductSyncResult:
         if not connector.config.vendor_id:
             raise ValueError("A selected SnappShop vendor is required before product synchronization.")
         if max_pages < 1:
             raise ValueError("SnappShop product synchronization page limit must be positive.")
+        if page_delay_seconds < 0 or rate_limit_backoff_seconds <= 0:
+            raise ValueError("SnappShop product synchronization delays must be positive.")
 
         started = _utcnow()
         job = DlRefreshJob(
@@ -119,6 +123,8 @@ class SnappShopProductSyncService:
                 connector,
                 max_pages=max_pages,
                 retry_attempts=retry_attempts,
+                page_delay_seconds=page_delay_seconds,
+                rate_limit_backoff_seconds=rate_limit_backoff_seconds,
             )
             completed = _utcnow()
             rows = [self._cache_row(connector, product, completed) for product in products]
@@ -221,6 +227,8 @@ class SnappShopProductSyncService:
         *,
         max_pages: int,
         retry_attempts: int,
+        page_delay_seconds: float,
+        rate_limit_backoff_seconds: float,
     ) -> tuple[list[ChannelProduct], int, int, int]:
         page_number = 1
         pages_read = 0
@@ -241,6 +249,7 @@ class SnappShopProductSyncService:
                     connector,
                     page_number=page_number,
                     retry_attempts=retry_attempts,
+                    rate_limit_backoff_seconds=rate_limit_backoff_seconds,
                 )
             except Exception as exc:
                 raise SnappShopProductFetchError(
@@ -268,6 +277,8 @@ class SnappShopProductSyncService:
             if not isinstance(pagination, PageNumberPagination) or not pagination.has_more:
                 break
             page_number = pagination.next_page or (page_number + 1)
+            if page_delay_seconds:
+                await asyncio.sleep(page_delay_seconds)
 
         return products, pages_read, received, skipped
 
@@ -277,6 +288,7 @@ class SnappShopProductSyncService:
         *,
         page_number: int,
         retry_attempts: int,
+        rate_limit_backoff_seconds: float,
     ):
         for attempt in range(retry_attempts + 1):
             try:
@@ -286,8 +298,11 @@ class SnappShopProductSyncService:
             except SnappShopConnectorError as exc:
                 if exc.error.category not in _RETRYABLE_READ_ERRORS or attempt >= retry_attempts:
                     raise
-                delay = exc.error.retry.retry_after_seconds or float(attempt + 1)
-                await asyncio.sleep(min(max(delay, 0.0), 5.0))
+                if exc.error.category == ConnectorErrorCategory.RATE_LIMIT:
+                    delay = exc.error.retry.retry_after_seconds or rate_limit_backoff_seconds
+                else:
+                    delay = exc.error.retry.retry_after_seconds or float(attempt + 1)
+                await asyncio.sleep(min(max(delay, 0.0), 60.0))
         raise RuntimeError("SnappShop product read retry loop ended unexpectedly.")
 
     def _cache_row(

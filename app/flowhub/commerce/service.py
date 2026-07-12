@@ -360,6 +360,12 @@ class CommerceHubService:
             actor=actor,
             max_pages=_env_int("FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_MAX_PAGES", 250, minimum=1, maximum=5_000),
             retry_attempts=_env_int("FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_RETRIES", 2, minimum=0, maximum=5),
+            page_delay_seconds=_env_float(
+                "FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_PAGE_DELAY_SECONDS", 1.1, minimum=0.0, maximum=10.0
+            ),
+            rate_limit_backoff_seconds=_env_float(
+                "FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_RATE_LIMIT_BACKOFF_SECONDS", 30.0, minimum=1.0, maximum=60.0
+            ),
         )
         payload = {
             **result.as_dict(),
@@ -1821,6 +1827,14 @@ def _single_active_vendor_id(vendors: list) -> str | None:
 def _env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
     try:
         value = int(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if minimum <= value <= maximum else default
+
+
+def _env_float(name: str, default: float, *, minimum: float, maximum: float) -> float:
+    try:
+        value = float(os.environ.get(name, str(default)))
     except (TypeError, ValueError):
         return default
     return value if minimum <= value <= maximum else default

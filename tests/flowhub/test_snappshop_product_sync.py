@@ -117,7 +117,9 @@ async def test_multi_page_sync_replaces_cache_atomically_and_products_filter_rea
         page([product("p2", sku="SKU-2", title="Product 2", stock=0, price=2000)], number=2, total_pages=2),
     ])
 
-    result = await SnappShopProductSyncService(db).run(connector, actor="admin", max_pages=10, retry_attempts=0)
+    result = await SnappShopProductSyncService(db).run(
+        connector, actor="admin", max_pages=10, retry_attempts=0, page_delay_seconds=0
+    )
 
     assert result.failures == []
     assert result.pages_read == 2
@@ -156,7 +158,9 @@ async def test_partial_page_failure_preserves_previous_cache(db):
         error,
     ])
 
-    result = await SnappShopProductSyncService(db).run(connector, actor="admin", max_pages=10, retry_attempts=2)
+    result = await SnappShopProductSyncService(db).run(
+        connector, actor="admin", max_pages=10, retry_attempts=2, page_delay_seconds=0
+    )
 
     assert result.failures == ["SnappShop authentication failed."]
     assert result.pages_read == 1
@@ -167,6 +171,67 @@ async def test_partial_page_failure_preserves_previous_cache(db):
     latest = db.query(DlRefreshJob).order_by(DlRefreshJob.id.desc()).first()
     assert latest.status == "failed"
     assert latest.meta["error_category"] == "authentication"
+
+
+@pytest.mark.asyncio
+async def test_product_sync_paces_pages_below_upstream_rate_limit(db, monkeypatch):
+    delays: list[float] = []
+
+    async def record_sleep(seconds: float) -> None:
+        delays.append(seconds)
+
+    monkeypatch.setattr("app.flowhub.channels.snappshop_product_sync.asyncio.sleep", record_sleep)
+    connector = FakeConnector([
+        page([product("p1", sku="SKU-1", title="Product 1", stock=4, price=1000)], number=1, total_pages=2, next_page=2),
+        page([product("p2", sku="SKU-2", title="Product 2", stock=2, price=2000)], number=2, total_pages=2),
+    ])
+
+    result = await SnappShopProductSyncService(db).run(
+        connector,
+        actor="admin",
+        max_pages=10,
+        retry_attempts=0,
+        page_delay_seconds=1.1,
+    )
+
+    assert result.failures == []
+    assert delays == [1.1]
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_without_retry_after_uses_bounded_read_backoff(db, monkeypatch):
+    delays: list[float] = []
+
+    async def record_sleep(seconds: float) -> None:
+        delays.append(seconds)
+
+    monkeypatch.setattr("app.flowhub.channels.snappshop_product_sync.asyncio.sleep", record_sleep)
+    rate_limit = SnappShopConnectorError(
+        ConnectorError(
+            category=ConnectorErrorCategory.RATE_LIMIT,
+            message="SnappShop rate limit was reached.",
+            connector_type="snappshop",
+            channel_id="snappshop:main",
+            http_status=429,
+            retry=RetryMetadata(retryable=True, retry_after_seconds=None, safe_to_retry=False),
+        )
+    )
+    connector = FakeConnector([
+        rate_limit,
+        page([product("p1", sku="SKU-1", title="Product 1", stock=4, price=1000)], number=1, total_pages=1),
+    ])
+
+    result = await SnappShopProductSyncService(db).run(
+        connector,
+        actor="admin",
+        max_pages=10,
+        retry_attempts=1,
+        page_delay_seconds=0,
+        rate_limit_backoff_seconds=30,
+    )
+
+    assert result.failures == []
+    assert delays == [30]
 
 
 def test_snappshop_defaults_and_integer_timeout_contract():

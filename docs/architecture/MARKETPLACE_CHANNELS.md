@@ -193,6 +193,10 @@ Documented defaults and configurable assumptions:
   validation failures are not retried.
 - `FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_MAX_PAGES` defaults to `250` and
   `FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_RETRIES` defaults to `2`.
+- Page reads are paced by `FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_PAGE_DELAY_SECONDS`
+  (1.1 seconds by default). A 429 response uses `Retry-After` when supplied or
+  the bounded `FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_RATE_LIMIT_BACKOFF_SECONDS`
+  fallback (30 seconds by default).
 - Product writes use `PATCH /vendors/{vendor_id}/products`, up to 50 items per
   request. Outbound items use either `sku` or `id`; FlowHub prefers `sku` when
   both are available because the document says SKU takes precedence.
