@@ -6,9 +6,11 @@ import type {
   DraftChangeInput,
   DraftRevisionResource,
   ReviewResource,
+  ReviewSelectionResource,
   UnifiedWorkspaceResource,
   WorkspaceGridPage,
   WorkspacePreferences,
+  WorkspaceGridQuery,
 } from './types'
 
 function json(method: 'POST' | 'PUT', body: unknown, headers?: Record<string, string>): RequestInit {
@@ -24,9 +26,11 @@ export class ApiUnifiedWorkspaceService implements UnifiedWorkspaceService {
     return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}`, authFetch)
   }
 
-  getGrid(id: string, page: number, pageSize: number, search?: string): Promise<WorkspaceGridPage> {
-    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), sort: 'name:asc' })
-    if (search) params.set('search', search)
+  getGrid(id: string, page: number, pageSize: number, query: WorkspaceGridQuery = {}): Promise<WorkspaceGridPage> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), sort: query.sort ?? 'name:asc' })
+    for (const [key, value] of Object.entries(query)) {
+      if (key !== 'sort' && value !== undefined && value !== '') params.set(key, String(value))
+    }
     return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/grid?${params}`, authFetch)
   }
 
@@ -38,12 +42,12 @@ export class ApiUnifiedWorkspaceService implements UnifiedWorkspaceService {
     return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/reviews`, authFetch, json('POST', { draft_revision_id: revisionId }))
   }
 
-  async saveSelection(id: string, reviewId: string, itemIds: string[]): Promise<void> {
-    await apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/reviews/${encodeURIComponent(reviewId)}/selection`, authFetch, json('PUT', { review_item_ids: itemIds }))
+  saveSelection(id: string, reviewId: string, itemIds: string[]): Promise<ReviewSelectionResource> {
+    return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/reviews/${encodeURIComponent(reviewId)}/selection`, authFetch, json('PUT', { review_item_ids: itemIds }))
   }
 
-  applySelected(id: string, reviewId: string, idempotencyKey: string): Promise<ApplyResource> {
-    return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/apply`, authFetch, json('POST', { review_id: reviewId, confirmed: true }, { 'Idempotency-Key': idempotencyKey }))
+  applySelected(id: string, reviewId: string, selectionChecksum: string, idempotencyKey: string): Promise<ApplyResource> {
+    return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/apply`, authFetch, json('POST', { review_id: reviewId, expected_selection_checksum: selectionChecksum, confirmed: true }, { 'Idempotency-Key': idempotencyKey }))
   }
 
   getPreferences(): Promise<WorkspacePreferences> {

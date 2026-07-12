@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { type FormEvent, useMemo, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { HotTable } from '@handsontable/react-wrapper'
+import { HotTable, type HotTableRef } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/styles/handsontable.min.css'
@@ -11,6 +11,7 @@ import Icon from '../components/Icon'
 import Spinner from '../components/loading/Spinner'
 import { useServices } from '../services/ServiceContext'
 import { useUnifiedWorkspaceController } from '../features/unifiedWorkspace/useUnifiedWorkspaceController'
+import { sanitizeGridHtml, sourceRecordAtVisualRow } from '../features/unifiedWorkspace/handsontableIdentity'
 
 registerAllModules()
 
@@ -27,6 +28,10 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
   const { unifiedWorkspace } = useServices()
   const controller = useUnifiedWorkspaceController(workspaceId, unifiedWorkspace!)
   const tableHeight = useMemo(() => Math.min(760, Math.max(420, (controller.definition.records.length + 3) * 30)), [controller.definition.records.length])
+  const hotRef = useRef<HotTableRef>(null)
+  const configuredLicense = import.meta.env.VITE_HANDSONTABLE_LICENSE_KEY?.trim()
+  const handsontableLicense = configuredLicense
+    || (import.meta.env.DEV || import.meta.env.MODE === 'test' ? 'non-commercial-and-evaluation' : '')
 
   if (controller.loading) {
     return <PageShell><div className="fh-card fh-card-pad flex items-center gap-3"><Spinner size="sm" /> Loading immutable Workspace Snapshot...</div></PageShell>
@@ -130,6 +135,32 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
       )}
 
       <section className="fh-card overflow-hidden" aria-label="Unified multi-channel product editor">
+        <form
+          className="grid gap-3 border-b border-slate-200 p-4 md:grid-cols-5"
+          aria-label="Server-side Workspace filters"
+          onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault()
+            const values = new FormData(event.currentTarget)
+            const numberValue = (name: string) => {
+              const value = String(values.get(name) ?? '').trim()
+              const parsed = Number(value)
+              return value === '' || !Number.isFinite(parsed) ? undefined : parsed
+            }
+            controller.updateGridQuery({
+              search: String(values.get('search') ?? '').trim() || undefined,
+              channelId: String(values.get('channelId') ?? '').trim() || undefined,
+              channelStatus: String(values.get('channelStatus') ?? '').trim() || undefined,
+              minPrice: numberValue('minPrice'),
+              maxPrice: numberValue('maxPrice'),
+            })
+          }}
+        >
+          <label className="fh-field-label">Search<input className="fh-input mt-1" name="search" type="search" /></label>
+          <label className="fh-field-label">Channel<input className="fh-input mt-1" name="channelId" /></label>
+          <label className="fh-field-label">Status<input className="fh-input mt-1" name="channelStatus" /></label>
+          <label className="fh-field-label">Price range<span className="mt-1 flex gap-2"><input aria-label="Minimum price" className="fh-input" name="minPrice" type="number" min="0" /><input aria-label="Maximum price" className="fh-input" name="maxPrice" type="number" min="0" /></span></label>
+          <span className="flex items-end gap-2"><button className="fh-button-secondary fh-button-sm" type="submit">Filter server data</button><button className="fh-button-secondary fh-button-sm" type="reset" onClick={() => controller.updateGridQuery({ search: undefined, channelId: undefined, channelStatus: undefined, minPrice: undefined, maxPrice: undefined })}>Clear</button></span>
+        </form>
         <div className="fh-panel-header">
           <div>
             <p className="fh-section-title">Workspace Grid</p>
@@ -142,8 +173,15 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
             <button type="button" className="fh-button-secondary fh-button-sm" disabled={controller.page >= controller.totalPages} onClick={() => controller.setPage(controller.page + 1)}>Next</button>
           </div>
         </div>
-        <div className="ht-theme-main fh-handsontable" role="region" aria-label="Virtualized multi-channel Workspace Grid" tabIndex={0}>
+        {!handsontableLicense && (
+          <div className="fh-alert fh-alert-danger m-4" role="alert">
+            <Icon name="alert" />
+            <span>Production Grid is disabled. Configure a valid commercial Handsontable license.</span>
+          </div>
+        )}
+        {handsontableLicense && <div className="ht-theme-main fh-handsontable" role="region" aria-label="Virtualized multi-channel Workspace Grid" tabIndex={0}>
           <HotTable
+            ref={hotRef}
             data={controller.definition.records}
             columns={controller.definition.columns}
             nestedHeaders={controller.definition.nestedHeaders}
@@ -155,32 +193,49 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
             manualColumnMove
             manualColumnResize
             multiColumnSorting
-            filters
-            dropdownMenu={['filter_by_condition', 'filter_by_value', 'filter_action_bar']}
             copyPaste={{ pasteMode: 'overwrite' }}
-            licenseKey="non-commercial-and-evaluation"
+            licenseKey={handsontableLicense}
+            sanitizer={sanitizeGridHtml}
             cells={(row: number, column: number) => {
               const settings = {} as Handsontable.CellProperties
               const columnSetting = controller.definition.columns[column]
               const prop = typeof columnSetting?.data === 'string' ? columnSetting.data : ''
               const meta = controller.definition.columnMeta.get(prop)
-              const record = controller.definition.records[row]
+              const physicalRow = hotRef.current?.hotInstance?.toPhysicalRow(row) ?? row
+              const record = hotRef.current?.hotInstance?.getSourceDataAtRow(physicalRow) as Record<string, unknown> | undefined
               if (meta?.kind === 'target' && meta.channelId && meta.field && record) {
                 const statusKey = prop.replace(/__target$/, '__status')
                 const status = String(record[statusKey] ?? 'unavailable')
                 settings.className = `fh-cell-status fh-cell-status-${status}`
                 settings.title = `Cell status: ${status.replace(/_/g, ' ')}`
+                const renderer: Handsontable.renderers.BaseRenderer = (instance, td, visualRow, visualColumn, cellProp, value, properties) => {
+                  Handsontable.renderers.TextRenderer(instance, td, visualRow, visualColumn, cellProp, value, properties)
+                  td.dataset.cellStatus = status.replace(/_/g, ' ')
+                  td.setAttribute('aria-label', `${String(value ?? '')}; status ${status.replace(/_/g, ' ')}`)
+                }
+                settings.renderer = renderer
               }
               return settings
             }}
             afterChange={(changes: Handsontable.CellChange[] | null, source: Handsontable.ChangeSource) => {
               if (!changes || source === 'loadData') return
               for (const [row, prop, _oldValue, value] of changes) {
-                controller.editCell(row, String(prop), value)
+                const identity = sourceRecordAtVisualRow(hotRef.current?.hotInstance, row)
+                if (identity) controller.editCell(identity.listingId, String(prop), value)
               }
             }}
+            afterColumnSort={((_current, destination) => {
+              const sort = destination.map(item => {
+                const setting = controller.definition.columns[item.column]
+                const prop = typeof setting?.data === 'string' ? setting.data : ''
+                const meta = controller.definition.columnMeta.get(prop)
+                const field = meta?.field ?? ({ canonicalName: 'name', productType: 'product_type', mappingState: 'mapping_state', listingLabel: 'listing_id' } as Record<string, string>)[prop]
+                return field ? `${field}:${item.sortOrder}` : null
+              }).filter((item): item is string => item !== null).join(',')
+              if (sort) controller.updateGridQuery({ sort })
+            }) as NonNullable<Handsontable.GridSettings['afterColumnSort']>}
           />
-        </div>
+        </div>}
       </section>
     </PageShell>
   )

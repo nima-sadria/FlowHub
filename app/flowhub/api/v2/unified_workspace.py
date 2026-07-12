@@ -70,6 +70,7 @@ class ReviewSelectionRequest(StrictModel):
 
 class ApplyRequest(StrictModel):
     review_id: str = Field(min_length=1, max_length=36)
+    expected_selection_checksum: str = Field(min_length=64, max_length=64, pattern=r"^[a-f0-9]{64}$")
     confirmed: bool
 
 
@@ -123,7 +124,7 @@ def create_manual_workspace(
     user: FlowHubUser = Depends(require_workspace_permission("workspace.create")),
     service: UnifiedWorkspaceService = Depends(_service),
     correlation_id: str = Depends(_correlation),
-):
+) -> dict[str, Any]:
     return service.create_manual_workspace(
         name=body.name,
         selections=[item.model_dump() for item in body.selections],
@@ -138,7 +139,7 @@ async def create_source_workspace(
     user: FlowHubUser = Depends(require_workspace_permission("workspace.create")),
     service: UnifiedWorkspaceService = Depends(_service),
     correlation_id: str = Depends(_correlation),
-):
+) -> dict[str, Any]:
     return await service.create_source_workspace(
         name=body.name,
         source_currency=body.currency,
@@ -152,7 +153,7 @@ async def create_source_workspace(
 def get_preferences(
     user: FlowHubUser = Depends(require_workspace_permission("workspace.read")),
     service: UnifiedWorkspaceService = Depends(_service),
-):
+) -> dict[str, Any]:
     return service.preference(user)
 
 
@@ -161,7 +162,7 @@ def save_preferences(
     body: PreferenceRequest,
     user: FlowHubUser = Depends(require_workspace_permission("workspace.read")),
     service: UnifiedWorkspaceService = Depends(_service),
-):
+) -> dict[str, Any]:
     payload = body.model_dump(exclude={"expected_version"})
     return service.save_preference(payload, body.expected_version, user)
 
@@ -172,7 +173,7 @@ async def refresh_channel_cache(
     user: FlowHubUser = Depends(require_workspace_permission("channel_cache.refresh")),
     service: UnifiedWorkspaceService = Depends(_service),
     correlation_id: str = Depends(_correlation),
-):
+) -> dict[str, Any]:
     return await service.refresh_channel_cache(channel_id, user, correlation_id)
 
 
@@ -181,7 +182,7 @@ def get_workspace(
     workspace_id: str,
     user: FlowHubUser = Depends(require_workspace_permission("workspace.read")),
     service: UnifiedWorkspaceService = Depends(_service),
-):
+) -> dict[str, Any]:
     return service.workspace_shape(workspace_id, user)
 
 
@@ -205,7 +206,7 @@ def get_grid(
     sort: str = Query(default="name:asc", max_length=300),
     user: FlowHubUser = Depends(require_workspace_permission("workspace.read")),
     service: UnifiedWorkspaceService = Depends(_service),
-):
+) -> dict[str, Any]:
     sorts: list[tuple[str, str]] = []
     for raw in sort.split(","):
         field, _, direction = raw.partition(":")
@@ -238,7 +239,7 @@ def save_draft(
     user: FlowHubUser = Depends(require_workspace_permission("draft.save")),
     service: UnifiedWorkspaceService = Depends(_service),
     correlation_id: str = Depends(_correlation),
-):
+) -> dict[str, Any]:
     return service.save_draft(
         workspace_id,
         expected_version=body.expected_version,
@@ -256,7 +257,7 @@ def list_revisions(
     page_size: int = Query(default=50, alias="pageSize", ge=1, le=100),
     user: FlowHubUser = Depends(require_workspace_permission("workspace.read")),
     service: UnifiedWorkspaceService = Depends(_service),
-):
+) -> dict[str, Any]:
     return service.revisions(workspace_id, user, page=page, page_size=page_size)
 
 
@@ -268,7 +269,7 @@ def restore_revision(
     user: FlowHubUser = Depends(require_workspace_permission("draft.save")),
     service: UnifiedWorkspaceService = Depends(_service),
     correlation_id: str = Depends(_correlation),
-):
+) -> dict[str, Any]:
     return service.restore_revision(
         workspace_id,
         revision_id,
@@ -285,7 +286,7 @@ def create_review(
     user: FlowHubUser = Depends(require_workspace_permission("review.generate")),
     service: UnifiedWorkspaceService = Depends(_service),
     correlation_id: str = Depends(_correlation),
-):
+) -> dict[str, Any]:
     return service.generate_review(workspace_id, body.draft_revision_id, user, correlation_id)
 
 
@@ -295,7 +296,7 @@ def get_review(
     review_id: str,
     user: FlowHubUser = Depends(require_workspace_permission("workspace.read")),
     service: UnifiedWorkspaceService = Depends(_service),
-):
+) -> dict[str, Any]:
     result = service.review_shape(review_id, user)
     if result["workspaceId"] != workspace_id:
         from fastapi import HTTPException
@@ -312,7 +313,7 @@ def save_review_selection(
     user: FlowHubUser = Depends(require_workspace_permission("workspace.edit")),
     service: UnifiedWorkspaceService = Depends(_service),
     correlation_id: str = Depends(_correlation),
-):
+) -> dict[str, Any]:
     return service.select_review_items(
         workspace_id, review_id, body.review_item_ids, user, correlation_id
     )
@@ -326,11 +327,12 @@ async def apply_selected(
     user: FlowHubUser = Depends(require_write_operation_available),
     service: UnifiedWorkspaceService = Depends(_service),
     correlation_id: str = Depends(_correlation),
-):
+) -> dict[str, Any]:
     return await service.apply_selected(
         workspace_id,
         body.review_id,
         idempotency_key=idempotency_key,
+        expected_selection_checksum=body.expected_selection_checksum,
         confirmed=body.confirmed,
         user=user,
         correlation_id=correlation_id,
@@ -343,13 +345,24 @@ def get_apply(
     job_id: str,
     user: FlowHubUser = Depends(require_workspace_permission("workspace.read")),
     service: UnifiedWorkspaceService = Depends(_service),
-):
+) -> dict[str, Any]:
     result = service.apply_shape(job_id, user)
     if result["workspaceId"] != workspace_id:
         from fastapi import HTTPException
 
         raise HTTPException(404, {"code": "APPLY_NOT_FOUND", "message": "Apply job not found."})
     return result
+
+
+@router.post("/{workspace_id}/apply/{job_id}/reconcile")
+async def reconcile_apply(
+    workspace_id: str,
+    job_id: str,
+    user: FlowHubUser = Depends(require_write_operation_available),
+    service: UnifiedWorkspaceService = Depends(_service),
+    correlation_id: str = Depends(_correlation),
+) -> dict[str, Any]:
+    return await service.reconcile_apply(workspace_id, job_id, user, correlation_id)
 
 
 @router.get("/{workspace_id}/audit")
@@ -359,7 +372,7 @@ def get_audit(
     page_size: int = Query(default=100, alias="pageSize", ge=1, le=200),
     user: FlowHubUser = Depends(require_workspace_permission("audit.read")),
     service: UnifiedWorkspaceService = Depends(_service),
-):
+) -> dict[str, Any]:
     return service.audit(workspace_id, user, page=page, page_size=page_size)
 
 
@@ -371,7 +384,7 @@ def decide_mapping(
     user: FlowHubUser = Depends(require_workspace_permission("mapping.approve")),
     service: UnifiedWorkspaceService = Depends(_service),
     correlation_id: str = Depends(_correlation),
-):
+) -> dict[str, Any]:
     return service.approve_mapping(
         workspace_id,
         listing_id,

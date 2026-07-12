@@ -12,6 +12,7 @@ import math
 import uuid
 from datetime import datetime
 from hashlib import sha256
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -24,6 +25,7 @@ from app.flowhub.rate_limit.service import RateLimitService
 from app.flowhub.security.redaction import redact_sensitive
 from app.flowhub.security.upstream_errors import normalize_upstream_error
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.workspace.preview_store import PreviewValidationError, WorkspacePreviewStore
 from app.flowhub.write_pipeline.adapters import ChannelWriteAdapter, ChannelWriteContext
 from app.flowhub.write_pipeline.contracts import (
     WritePipelineApprovalRequest,
@@ -34,8 +36,16 @@ from app.flowhub.write_pipeline.contracts import (
     WritePipelinePriceChange,
 )
 from app.flowhub.write_pipeline.models import WriteBatch, WriteEvent, WriteItem
-from app.flowhub.write_pipeline.registry import ChannelWriteAdapterRegistry, default_write_adapter_registry
-from app.flowhub.workspace.preview_store import PreviewValidationError, WorkspacePreviewStore
+from app.flowhub.write_pipeline.registry import (
+    ChannelWriteAdapterRegistry,
+    default_write_adapter_registry,
+)
+from app.flowhub.write_pipeline.workspace_contracts import (
+    WorkspaceWriteBatchCommand,
+    WorkspaceWriteIntent,
+    WorkspaceWriteResult,
+    WriteOutcome,
+)
 
 MAX_ITEMS = 100
 MAX_DELTA_PERCENT = 50.0
@@ -73,7 +83,11 @@ class WritePipelineService:
         raw_changes = [change.model_dump() for change in changes]
         adapter = self._adapter_for(channel_id, operation_type)
         capabilities = adapter.get_capabilities()
-        preview_summary = selection.preview.summary_json if isinstance(selection.preview.summary_json, dict) else {}
+        preview_summary: dict[str, Any] = (
+            selection.preview.summary_json
+            if isinstance(selection.preview.summary_json, dict)
+            else {}
+        )
         safety = self._validate_changes(raw_changes, adapter, operation_type, body.previewId, preview_summary)
         safety["selected_row_ids"] = list(body.selectedRowIds)
         safety["preview_hash"] = selection.preview.preview_hash
@@ -374,6 +388,150 @@ class WritePipelineService:
         self.db.refresh(batch)
         return self._batch_shape(batch)
 
+    async def execute_workspace(
+        self,
+        command: WorkspaceWriteBatchCommand,
+        user: FlowHubUser,
+        *,
+        reconcile_only: bool = False,
+    ) -> list[WorkspaceWriteResult]:
+        """Sole provider-dispatch authority for immutable Workspace intents."""
+        from app.flowhub.commerce.service import CommerceHubService
+        from app.flowhub.product_pricing.service import ProductPricingService
+        from app.flowhub.unified_workspace.connectors import WorkspaceConnectorFactory
+        from app.flowhub.unified_workspace.models import ApplyAttempt, ApplyAttemptEvent
+
+        factory = WorkspaceConnectorFactory(
+            ProductPricingService(self.db), CommerceHubService(self.db)
+        )
+        rate_limits = RateLimitService(self.db)
+        attempts: dict[str, ApplyAttempt] = {}
+        prior_attempts: set[str] = set()
+        for intent in command.intents:
+            existing = (
+                self.db.query(ApplyAttempt)
+                .filter_by(
+                    apply_job_item_id=intent.apply_item_ids[0],
+                    payload_hash=intent.payload_hash,
+                )
+                .order_by(ApplyAttempt.attempt_number.desc())
+                .first()
+            )
+            if existing is not None:
+                attempts[intent.listing_id] = existing
+                prior_attempts.add(intent.listing_id)
+                continue
+            if reconcile_only:
+                raise ValueError(
+                    f"No durable dispatch intent exists for Listing {intent.listing_id}."
+                )
+            attempt = ApplyAttempt(
+                id=f"uat_{uuid.uuid4().hex[:28]}",
+                apply_job_id=intent.apply_job_id,
+                apply_job_item_id=intent.apply_item_ids[0],
+                listing_id=intent.listing_id,
+                channel_id=intent.channel_id,
+                normalized_payload_json=intent.normalized_payload(),
+                payload_hash=intent.payload_hash,
+                provider_idempotency_key=intent.idempotency_key,
+                attempt_number=1,
+                correlation_id=command.correlation_id,
+            )
+            self.db.add(attempt)
+            self.db.flush()
+            self.db.add(
+                ApplyAttemptEvent(
+                    id=f"uae_{uuid.uuid4().hex[:28]}",
+                    attempt_id=attempt.id,
+                    outcome=WriteOutcome.PENDING,
+                    provider_response_json={},
+                )
+            )
+            attempts[intent.listing_id] = attempt
+        self.db.commit()
+
+        grouped: dict[str, list[WorkspaceWriteIntent]] = {}
+        for intent in command.intents:
+            grouped.setdefault(intent.channel_id, []).append(intent)
+        results: list[WorkspaceWriteResult] = []
+        for channel_id, intents in grouped.items():
+            connector = factory.get(channel_id)
+            reconcile = reconcile_only or all(
+                intent.listing_id in prior_attempts for intent in intents
+            )
+            if not reconcile:
+                try:
+                    for _intent in intents:
+                        await rate_limits.acquire(
+                            channel_id,
+                            "write",
+                            connector_type=connector.capabilities().channel_id.split(":", 1)[0],
+                        )
+                except Exception as exc:
+                    channel_results = [
+                        WorkspaceWriteResult(
+                            listing_id=intent.listing_id,
+                            outcome=WriteOutcome.FAILED,
+                            error_category="rate_limit",
+                            error_message=str(exc),
+                            retry_eligible=True,
+                        )
+                        for intent in intents
+                    ]
+                else:
+                    for intent in intents:
+                        self.db.add(
+                            ApplyAttemptEvent(
+                                id=f"uae_{uuid.uuid4().hex[:28]}",
+                                attempt_id=attempts[intent.listing_id].id,
+                                outcome=WriteOutcome.DISPATCHED,
+                                provider_response_json={},
+                            )
+                        )
+                    self.db.commit()
+                    try:
+                        channel_results = await connector.apply_updates(
+                            intents, requested_by=command.requested_by
+                        )
+                    except Exception as exc:
+                        channel_results = [
+                            WorkspaceWriteResult(
+                                listing_id=intent.listing_id,
+                                outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                                error_category="provider_unknown",
+                                error_message=str(exc),
+                            )
+                            for intent in intents
+                        ]
+            else:
+                channel_results = await connector.verify_updates(
+                    intents, requested_by=command.requested_by
+                )
+            for result in channel_results:
+                attempt = attempts[result.listing_id]
+                if result.provider_accepted:
+                    self.db.add(
+                        ApplyAttemptEvent(
+                            id=f"uae_{uuid.uuid4().hex[:28]}",
+                            attempt_id=attempt.id,
+                            outcome=WriteOutcome.PROVIDER_ACCEPTED,
+                            provider_response_json=redact_sensitive(result.response),
+                        )
+                    )
+                self.db.add(
+                    ApplyAttemptEvent(
+                        id=f"uae_{uuid.uuid4().hex[:28]}",
+                        attempt_id=attempt.id,
+                        outcome=result.outcome,
+                        provider_response_json=redact_sensitive(result.response),
+                        error_category=result.error_category,
+                        error_message=result.error_message,
+                    )
+                )
+                results.append(result)
+            self.db.commit()
+        return results
+
     def get_batch(self, batch_id: str) -> WritePipelineBatchShape:
         return self._batch_shape(self._get_batch(batch_id))
 
@@ -421,12 +579,12 @@ class WritePipelineService:
 
     def _validate_changes(
         self,
-        raw_changes: list[dict],
+        raw_changes: list[dict[str, Any]],
         adapter: ChannelWriteAdapter,
         operation_type: str,
         preview_id: str,
-        preview_summary: dict,
-    ) -> dict:
+        preview_summary: dict[str, Any],
+    ) -> dict[str, Any]:
         if len(raw_changes) > MAX_ITEMS:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Dry Run is limited to {MAX_ITEMS} items.")
         if not preview_id:
@@ -559,7 +717,7 @@ class WritePipelineService:
         *,
         item_id: int | None = None,
         severity: str = "info",
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
         commit: bool = True,
     ) -> WriteEvent:
         event = WriteEvent(
@@ -647,7 +805,7 @@ class WritePipelineService:
         adapter: ChannelWriteAdapter,
         item: WriteItem,
         context: ChannelWriteContext,
-    ) -> dict:
+    ) -> dict[str, Any]:
         try:
             async with asyncio.timeout(VERIFY_TIMEOUT_SECONDS):
                 result = await adapter.verify_item(item, context)
@@ -679,7 +837,7 @@ class WritePipelineService:
                 "verification_error": normalize_upstream_error(exc, source="woocommerce")["message"],
             }
 
-    def _verification_skipped_result(self) -> dict:
+    def _verification_skipped_result(self) -> dict[str, Any]:
         return {
             "verified": False,
             "observed_price": None,
@@ -687,7 +845,7 @@ class WritePipelineService:
             "verification_error": "verification_skipped_batch_too_large",
         }
 
-    def _result_summary(self, row: WriteBatch) -> dict:
+    def _result_summary(self, row: WriteBatch) -> dict[str, Any]:
         attempted = len(row.items) if row.executed_at else 0
         success = sum(1 for item in row.items if item.status == "applied")
         failure = sum(1 for item in row.items if item.status == "failed")
@@ -712,11 +870,12 @@ class WritePipelineService:
         }
 
 
-def _safe_provider_result(result: dict) -> dict:
-    return redact_sensitive(result or {})
+def _safe_provider_result(result: dict[str, Any]) -> dict[str, Any]:
+    sanitized = redact_sensitive(result or {})
+    return dict(sanitized) if isinstance(sanitized, dict) else {}
 
 
-def _item_source(item: WriteItem) -> dict | None:
+def _item_source(item: WriteItem) -> dict[str, Any] | None:
     source = (item.pre_write_snapshot_json or {}).get("source")
     return source if isinstance(source, dict) else None
 
@@ -735,9 +894,9 @@ def _variation_id(item: WriteItem) -> str | None:
     return str(value) if value not in (None, "") else None
 
 
-def _variation_attributes(item: WriteItem) -> list[dict]:
+def _variation_attributes(item: WriteItem) -> list[dict[str, Any]]:
     value = (item.pre_write_snapshot_json or {}).get("variation_attributes")
-    return value if isinstance(value, list) else []
+    return [dict(entry) for entry in value if isinstance(entry, dict)] if isinstance(value, list) else []
 
 
 def _source_fingerprint(source: object) -> str:

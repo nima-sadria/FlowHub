@@ -12,8 +12,11 @@ from fastapi import HTTPException, status
 
 from app.connectors.common.auth import AuthConfig
 from app.connectors.destinations.woocommerce.connector import WooCommerceConnector
-from app.flowhub.write_pipeline.adapters import ChannelWriteCapabilities, ChannelWriteContext
-from app.flowhub.write_pipeline.models import WriteItem
+from app.flowhub.write_pipeline.adapters import (
+    ChannelWriteCapabilities,
+    ChannelWriteContext,
+    WriteItemContract,
+)
 
 
 class WooCommercePriceWriteAdapter:
@@ -43,15 +46,20 @@ class WooCommercePriceWriteAdapter:
             if not parent_product_id.isdigit():
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "WooCommerce variation rows require a numeric parent product ID.")
 
-    async def execute_item(self, item: WriteItem, context: ChannelWriteContext) -> dict:
+    async def execute_item(
+        self, item: WriteItemContract, context: ChannelWriteContext
+    ) -> dict[str, object]:
         connector = await self._connected_connector(context)
-        return await connector.update_price(
+        result = await connector.update_price(
             int(item.channel_product_id),
             item.proposed_price,
             parent_product_id=_parent_product_id(item),
         )
+        return {str(key): value for key, value in result.items()}
 
-    async def verify_item(self, item: WriteItem, context: ChannelWriteContext) -> dict:
+    async def verify_item(
+        self, item: WriteItemContract, context: ChannelWriteContext
+    ) -> dict[str, object]:
         connector = await self._connected_connector(context)
         observed = await connector.read_product_price(
             int(item.channel_product_id),
@@ -64,11 +72,24 @@ class WooCommercePriceWriteAdapter:
             observed_price = None
         expected = float(item.proposed_price)
         verified = observed_price is not None and abs(observed_price - expected) < 0.005
+        expected_parent_id = _parent_product_id(item)
+        expected_product_id = int(item.channel_product_id)
+        identity_verified = (
+            observed.get("provider") == "woocommerce"
+            and observed.get("product_id") == expected_product_id
+            and observed.get("parent_product_id") == expected_parent_id
+            and observed.get("variation_id")
+            == (expected_product_id if expected_parent_id is not None else None)
+        )
+        verified = verified and identity_verified
         return {
             "provider": "woocommerce",
             "verified": verified,
             "observed_price": observed_price,
             "expected_price": expected,
+            "product_id": observed.get("product_id"),
+            "parent_product_id": observed.get("parent_product_id"),
+            "variation_id": observed.get("variation_id"),
             "verification_error": None if verified else "observed_price_mismatch",
         }
 
@@ -86,10 +107,11 @@ class WooCommercePriceWriteAdapter:
         return connector
 
 
-def _parent_product_id(item: WriteItem) -> int | None:
+def _parent_product_id(item: WriteItemContract) -> int | None:
     if not isinstance(item.pre_write_snapshot_json, dict):
         return None
     if item.pre_write_snapshot_json.get("item_type") != "variation":
         return None
     raw_parent = item.pre_write_snapshot_json.get("parent_product_id")
-    return int(raw_parent) if str(raw_parent or "").isdigit() else None
+    parent_text = str(raw_parent or "")
+    return int(parent_text) if parent_text.isdigit() else None

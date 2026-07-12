@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import cast as typing_cast
+
 from sqlalchemy import Numeric, asc, cast, desc
 from sqlalchemy.orm import Session
 
@@ -119,7 +122,11 @@ class WorkspaceRepository:
             .limit(page_size)
             .all()
         )
-        return rows, total
+        typed_rows = typing_cast(
+            list[tuple[SnapshotRow, CanonicalProduct | None, Listing | None, ChannelCache | None]],
+            rows,
+        )
+        return typed_rows, total
 
 
 class DraftRepository:
@@ -187,6 +194,9 @@ class ApplyRepository:
     def by_idempotency(self, key: str) -> ApplyJob | None:
         return self.db.query(ApplyJob).filter_by(idempotency_key=key).first()
 
+    def by_logical_operation(self, key: str) -> ApplyJob | None:
+        return self.db.query(ApplyJob).filter_by(logical_operation_key=key).first()
+
     def items(self, job_id: str) -> list[ApplyJobItem]:
         return (
             self.db.query(ApplyJobItem)
@@ -196,12 +206,11 @@ class ApplyRepository:
         )
 
     def overlapping_locks(
-        self, workspace_id: str, listing_ids: list[str], now
+        self, listing_ids: list[str], now: datetime
     ) -> list[WorkspaceLock]:
         return (
             self.db.query(WorkspaceLock)
             .filter(
-                WorkspaceLock.workspace_id == workspace_id,
                 WorkspaceLock.listing_id.in_(listing_ids),
                 WorkspaceLock.expires_at > now,
             )

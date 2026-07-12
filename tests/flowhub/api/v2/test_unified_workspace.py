@@ -417,6 +417,7 @@ def test_apply_is_selected_only_idempotent_and_patches_verified_cache(
 ):
     from app.flowhub.unified_workspace.connectors import ListingUpdateResult
     from app.flowhub.unified_workspace.models import ChannelCache
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
 
     workspace, review = _saved_review(client, auth_headers, db, second_product=True)
     selected = review["items"][0]
@@ -433,12 +434,11 @@ def test_apply_is_selected_only_idempotent_and_patches_verified_cache(
         update = updates[0]
         return [
             ListingUpdateResult(
-                update.listing_id,
-                True,
-                {"id": "provider-1"},
+                listing_id=update.listing_id,
+                outcome=WriteOutcome.VERIFIED_APPLIED,
+                response={"id": "provider-1"},
                 external_response_id="provider-1",
                 accepted_price=update.target_price,
-                cache_verified=True,
             )
         ]
 
@@ -454,7 +454,11 @@ def test_apply_is_selected_only_idempotent_and_patches_verified_cache(
     applied = client.post(
         f"/api/v2/unified-workspaces/{workspace['id']}/apply",
         headers=headers,
-        json={"review_id": review["id"], "confirmed": True},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": selection.json()["selectionChecksum"],
+            "confirmed": True,
+        },
     )
     assert applied.status_code == 202, applied.text
     result = applied.json()
@@ -466,7 +470,11 @@ def test_apply_is_selected_only_idempotent_and_patches_verified_cache(
     repeated = client.post(
         f"/api/v2/unified-workspaces/{workspace['id']}/apply",
         headers=headers,
-        json={"review_id": review["id"], "confirmed": True},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": selection.json()["selectionChecksum"],
+            "confirmed": True,
+        },
     )
     assert repeated.status_code == 202
     assert repeated.json()["id"] == result["id"]
@@ -477,14 +485,12 @@ def test_cache_change_marks_review_stale_and_blocks_apply(client, auth_headers, 
 
     workspace, review = _saved_review(client, auth_headers, db)
     item = review["items"][0]
-    assert (
-        client.put(
+    selection = client.put(
             f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
             headers=auth_headers,
             json={"review_item_ids": [item["id"]]},
-        ).status_code
-        == 200
     )
+    assert selection.status_code == 200
     cache = db.query(ChannelCache).filter_by(listing_id=item["listingId"]).one()
     cache.cache_version += 1
     cache.checksum = "changed-after-review"
@@ -492,7 +498,11 @@ def test_cache_change_marks_review_stale_and_blocks_apply(client, auth_headers, 
     response = client.post(
         f"/api/v2/unified-workspaces/{workspace['id']}/apply",
         headers={**auth_headers, "Idempotency-Key": "stale-1"},
-        json={"review_id": review["id"], "confirmed": True},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": selection.json()["selectionChecksum"],
+            "confirmed": True,
+        },
     )
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "STALE_REVIEW"
@@ -777,19 +787,20 @@ def test_apply_partial_failure_is_auditable_and_retry_safe(client, auth_headers,
     assert selected.status_code == 200
 
     async def partial(_self, updates, *, requested_by):
+        from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
         assert requested_by
         return [
             ListingUpdateResult(
-                updates[0].listing_id,
-                True,
-                {"id": "success-1"},
+                listing_id=updates[0].listing_id,
+                outcome=WriteOutcome.VERIFIED_APPLIED,
+                response={"id": "success-1"},
                 accepted_price=updates[0].target_price,
-                cache_verified=True,
             ),
             ListingUpdateResult(
-                updates[1].listing_id,
-                False,
-                {"request_id": "failed-2"},
+                listing_id=updates[1].listing_id,
+                outcome=WriteOutcome.FAILED,
+                response={"request_id": "failed-2"},
                 error_category="rate_limit",
                 error_message="try again",
                 retry_eligible=True,
@@ -803,7 +814,11 @@ def test_apply_partial_failure_is_auditable_and_retry_safe(client, auth_headers,
     response = client.post(
         f"/api/v2/unified-workspaces/{workspace['id']}/apply",
         headers={**auth_headers, "Idempotency-Key": "partial-apply-1"},
-        json={"review_id": review["id"], "confirmed": True},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": selected.json()["selectionChecksum"],
+            "confirmed": True,
+        },
     )
     assert response.status_code == 202, response.text
     job = response.json()
@@ -816,3 +831,351 @@ def test_apply_partial_failure_is_auditable_and_retry_safe(client, auth_headers,
         headers=auth_headers,
     )
     assert fetched.status_code == 200
+
+
+def test_shared_write_pipeline_authority_and_selection_checksum_conflict(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.write_pipeline.workspace_contracts import WorkspaceWriteResult, WriteOutcome
+
+    workspace, review = _saved_review(client, auth_headers, db, second_product=True)
+    first, second = review["items"]
+    confirmed = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [first["id"]]},
+    )
+    assert confirmed.status_code == 200
+    checksum_a = confirmed.json()["selectionChecksum"]
+    replaced = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [second["id"]]},
+    )
+    assert replaced.status_code == 200
+    calls = []
+
+    async def pipeline(_self, command, _user, *, reconcile_only=False):
+        calls.append((command, reconcile_only))
+        return [
+            WorkspaceWriteResult(
+                listing_id=intent.listing_id,
+                outcome=WriteOutcome.VERIFIED_APPLIED,
+                accepted_price=intent.target_price,
+            )
+            for intent in command.intents
+        ]
+
+    monkeypatch.setattr(
+        "app.flowhub.write_pipeline.service.WritePipelineService.execute_workspace", pipeline
+    )
+    stale = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "selection-tab-a"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": checksum_a,
+            "confirmed": True,
+        },
+    )
+    assert stale.status_code == 409
+    assert stale.json()["detail"]["code"] == "APPLY_SELECTION_CHECKSUM_MISMATCH"
+    assert calls == []
+
+    current_checksum = replaced.json()["selectionChecksum"]
+    applied = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "selection-tab-b"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": current_checksum,
+            "confirmed": True,
+        },
+    )
+    assert applied.status_code == 202, applied.text
+    assert len(calls) == 1
+    command, reconcile_only = calls[0]
+    assert reconcile_only is False
+    assert command.selection_checksum == current_checksum
+    assert [intent.listing_id for intent in command.intents] == [second["listingId"]]
+
+
+@pytest.mark.parametrize("stale_dependency", ["ruleset", "cache_age"])
+def test_ruleset_and_cache_max_age_block_apply_before_dispatch(
+    client, auth_headers, db, monkeypatch, stale_dependency
+):
+    from datetime import timedelta
+
+    from app.flowhub.unified_workspace.models import ChannelCache, Review
+    from app.flowhub.unified_workspace.services import utcnow
+
+    workspace, review = _saved_review(client, auth_headers, db)
+    item = review["items"][0]
+    confirmed = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [item["id"]]},
+    )
+    assert confirmed.status_code == 200
+    if stale_dependency == "ruleset":
+        db.get(Review, review["id"]).ruleset_version = "retired-ruleset"
+    else:
+        cache = db.query(ChannelCache).filter_by(listing_id=item["listingId"]).one()
+        cache.fetched_at = utcnow() - timedelta(days=14)
+    db.commit()
+
+    async def forbidden(*_args, **_kwargs):
+        pytest.fail("stale Review reached the Write Pipeline")
+
+    monkeypatch.setattr(
+        "app.flowhub.write_pipeline.service.WritePipelineService.execute_workspace", forbidden
+    )
+    response = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": f"stale-{stale_dependency}"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": confirmed.json()["selectionChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "STALE_REVIEW"
+
+
+def test_reconciliation_required_is_durable_and_never_marks_success(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.unified_workspace.connectors import ListingUpdateResult
+    from app.flowhub.unified_workspace.models import (
+        ApplyAttempt,
+        ApplyAttemptEvent,
+        ChannelCache,
+        UnifiedAuditEntry,
+        WorkspaceLock,
+    )
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
+    workspace, review = _saved_review(client, auth_headers, db)
+    item = review["items"][0]
+    confirmed = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [item["id"]]},
+    )
+    before = db.query(ChannelCache).filter_by(listing_id=item["listingId"]).one().price_raw
+
+    async def uncertain(_self, updates, *, requested_by):
+        return [
+            ListingUpdateResult(
+                listing_id=updates[0].listing_id,
+                outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                error_category="readback_timeout",
+                error_message="provider may have committed",
+            )
+        ]
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.apply_updates",
+        uncertain,
+    )
+    response = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "uncertain-durable-1"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": confirmed.json()["selectionChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert response.status_code == 202, response.text
+    job = response.json()
+    assert job["status"] == "reconciliation_required"
+    assert job["items"][0]["status"] == "reconciliation_required"
+    assert db.query(ApplyAttempt).filter_by(apply_job_id=job["id"]).count() == 1
+    outcomes = {
+        row.outcome
+        for row in db.query(ApplyAttemptEvent)
+        .join(ApplyAttempt, ApplyAttempt.id == ApplyAttemptEvent.attempt_id)
+        .filter(ApplyAttempt.apply_job_id == job["id"])
+    }
+    assert {"pending", "dispatched", "reconciliation_required"} <= outcomes
+    assert db.query(WorkspaceLock).filter_by(apply_job_id=job["id"]).count() == 1
+    assert db.query(ChannelCache).filter_by(listing_id=item["listingId"]).one().price_raw == before
+    audit_types = {
+        row.event_type
+        for row in db.query(UnifiedAuditEntry).filter_by(apply_job_id=job["id"]).all()
+    }
+    assert "apply_item_succeeded" not in audit_types
+
+
+def test_apply_global_listing_lock_mapping_conflict_and_expired_reclaim(
+    client, auth_headers, db, monkeypatch
+):
+    from datetime import timedelta
+
+    from app.flowhub.unified_workspace.connectors import ListingUpdateResult
+    from app.flowhub.unified_workspace.models import ApplyJob, CanonicalProduct, WorkspaceLock
+    from app.flowhub.unified_workspace.services import utcnow
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
+    first_workspace, first_review = _saved_review(client, auth_headers, db)
+    first_item = first_review["items"][0]
+    first_selection = client.put(
+        f"/api/v2/unified-workspaces/{first_workspace['id']}/reviews/{first_review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [first_item["id"]]},
+    ).json()
+
+    async def uncertain(_self, updates, *, requested_by):
+        return [
+            ListingUpdateResult(
+                listing_id=updates[0].listing_id,
+                outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                error_message="unknown external outcome",
+            )
+        ]
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.apply_updates",
+        uncertain,
+    )
+    first_apply = client.post(
+        f"/api/v2/unified-workspaces/{first_workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "global-lock-first"},
+        json={
+            "review_id": first_review["id"],
+            "expected_selection_checksum": first_selection["selectionChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert first_apply.status_code == 202
+    assert first_apply.json()["status"] == "reconciliation_required"
+
+    proposed = CanonicalProduct(
+        id=str(uuid.uuid4()),
+        name="Lock conflict target",
+        product_type="simple",
+        status="active",
+    )
+    db.add(proposed)
+    db.commit()
+    mapping = client.post(
+        f"/api/v2/unified-workspaces/{first_workspace['id']}/mappings/{first_item['listingId']}/decisions",
+        headers=auth_headers,
+        json={
+            "proposed_canonical_product_id": proposed.id,
+            "decision": "approved",
+            "reason": "must be blocked while Apply owns Listing",
+            "evidence": {},
+        },
+    )
+    assert mapping.status_code == 409
+    assert mapping.json()["detail"]["code"] == "LISTING_MUTATION_LOCKED"
+
+    second_workspace = _create(client, auth_headers)
+    second_row = client.get(
+        f"/api/v2/unified-workspaces/{second_workspace['id']}/grid", headers=auth_headers
+    ).json()["items"][0]
+    revision = client.post(
+        f"/api/v2/unified-workspaces/{second_workspace['id']}/draft/revisions",
+        headers=auth_headers,
+        json={
+            "expected_version": 0,
+            "metadata": {},
+            "changes": [
+                {
+                    "canonical_product_id": second_row["canonicalProductId"],
+                    "listing_id": second_row["listingId"],
+                    "channel_id": second_row["channelId"],
+                    "field": "price",
+                    "target_value": "175",
+                    "currency": "EUR",
+                    "unit": "EUR",
+                }
+            ],
+        },
+    ).json()
+    second_review = client.post(
+        f"/api/v2/unified-workspaces/{second_workspace['id']}/reviews",
+        headers=auth_headers,
+        json={"draft_revision_id": revision["id"]},
+    ).json()
+    second_selection = client.put(
+        f"/api/v2/unified-workspaces/{second_workspace['id']}/reviews/{second_review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [second_review["items"][0]["id"]]},
+    ).json()
+    blocked = client.post(
+        f"/api/v2/unified-workspaces/{second_workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "global-lock-second"},
+        json={
+            "review_id": second_review["id"],
+            "expected_selection_checksum": second_selection["selectionChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["detail"]["code"] == "APPLY_SCOPE_LOCKED"
+
+    lock = db.query(WorkspaceLock).filter_by(listing_id=second_row["listingId"]).one()
+    lock.expires_at = utcnow() - timedelta(seconds=1)
+    db.commit()
+    expired_uncertain_selection = client.put(
+        f"/api/v2/unified-workspaces/{second_workspace['id']}/reviews/{second_review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [second_review["items"][0]["id"]]},
+    ).json()
+    expired_uncertain = client.post(
+        f"/api/v2/unified-workspaces/{second_workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "global-lock-expired-uncertain"},
+        json={
+            "review_id": second_review["id"],
+            "expected_selection_checksum": expired_uncertain_selection["selectionChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert expired_uncertain.status_code == 409
+    assert (
+        expired_uncertain.json()["detail"]["code"]
+        == "APPLY_SCOPE_RECONCILIATION_REQUIRED"
+    )
+    terminal_job = db.query(ApplyJob).filter_by(
+        idempotency_key="global-lock-expired-uncertain"
+    ).one()
+    assert terminal_job.status == "failed"
+    lock = db.query(WorkspaceLock).filter_by(listing_id=second_row["listingId"]).one()
+    lock.apply_job_id = terminal_job.id
+    lock.workspace_id = second_workspace["id"]
+    db.commit()
+    reconfirmed = client.put(
+        f"/api/v2/unified-workspaces/{second_workspace['id']}/reviews/{second_review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [second_review["items"][0]["id"]]},
+    ).json()
+
+    async def verified(_self, updates, *, requested_by):
+        return [
+            ListingUpdateResult(
+                listing_id=updates[0].listing_id,
+                outcome=WriteOutcome.VERIFIED_APPLIED,
+                accepted_price=updates[0].target_price,
+            )
+        ]
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.apply_updates",
+        verified,
+    )
+    reclaimed = client.post(
+        f"/api/v2/unified-workspaces/{second_workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "global-lock-reclaimed"},
+        json={
+            "review_id": second_review["id"],
+            "expected_selection_checksum": reconfirmed["selectionChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert reclaimed.status_code == 202, reclaimed.text
+    assert reclaimed.json()["status"] == "applied"
+    assert db.query(WorkspaceLock).filter_by(listing_id=second_row["listingId"]).count() == 0

@@ -137,6 +137,26 @@ export interface ApplyResource {
   }>
 }
 
+export interface ReviewSelectionResource {
+  reviewId: string
+  selectedItemIds: string[]
+  selectionChecksum: string
+  selectionVersion: number
+}
+
+export interface WorkspaceGridQuery {
+  search?: string
+  sort?: string
+  productType?: string
+  mappingState?: string
+  channelId?: string
+  sku?: string
+  channelStatus?: string
+  minPrice?: number
+  maxPrice?: number
+  stockQuantity?: number
+}
+
 export interface WorkspacePreferences {
   visibleChannelIds: string[]
   channelOrder: string[]

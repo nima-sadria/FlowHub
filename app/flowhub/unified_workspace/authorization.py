@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+
 from fastapi import Depends, HTTPException, status
 
 from app.flowhub.auth.dependencies import get_current_user
@@ -35,7 +37,9 @@ def has_workspace_permission(user: FlowHubUser, permission: str) -> bool:
     return permission in ROLE_WORKSPACE_PERMISSIONS.get(user.role, frozenset())
 
 
-def require_workspace_permission(permission: str):
+def require_workspace_permission(
+    permission: str,
+) -> Callable[[FlowHubUser], Awaitable[FlowHubUser]]:
     if permission not in WORKSPACE_PERMISSIONS:
         raise ValueError(f"Unknown Workspace permission: {permission}")
 

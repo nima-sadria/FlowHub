@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { apiErrorMessage } from '../../api/client'
+import { ApiError, apiErrorMessage } from '../../api/client'
 import type { UnifiedWorkspaceService } from '../../services/unifiedWorkspace/UnifiedWorkspaceService'
 import type {
   ApplyResource,
@@ -8,8 +8,9 @@ import type {
   UnifiedWorkspaceResource,
   WorkspaceGridPage,
   WorkspacePreferences,
+  WorkspaceGridQuery,
 } from '../../services/unifiedWorkspace/types'
-import { buildGridDefinition, draftChangeFromEdit } from './gridModel'
+import { buildGridDefinition, draftChangeFromEdit, key } from './gridModel'
 
 export function useUnifiedWorkspaceController(workspaceId: string, service: UnifiedWorkspaceService) {
   const [workspace, setWorkspace] = useState<UnifiedWorkspaceResource | null>(null)
@@ -23,6 +24,7 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [selectedListingIds, setSelectedListingIds] = useState<Set<string>>(new Set())
+  const [gridQuery, setGridQuery] = useState<WorkspaceGridQuery>({ sort: 'name:asc' })
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -30,7 +32,7 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     try {
       const [workspaceResult, gridResult, preferenceResult] = await Promise.all([
         service.getWorkspace(workspaceId),
-        service.getGrid(workspaceId, page, 500),
+        service.getGrid(workspaceId, page, 500, gridQuery),
         service.getPreferences(),
       ])
       setWorkspace(workspaceResult)
@@ -41,7 +43,7 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     } finally {
       setLoading(false)
     }
-  }, [page, service, workspaceId])
+  }, [gridQuery, page, service, workspaceId])
 
   useEffect(() => { void load() }, [load])
 
@@ -52,12 +54,18 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
       preferences?.visibleChannelIds ?? ['woocommerce:primary', 'snappshop:main'],
     )
     for (const record of built.records) record.selected = selectedListingIds.has(record.listingId)
+    for (const change of draftChanges.values()) {
+      const record = built.records.find(item => item.listingId === change.listing_id)
+      if (!record) continue
+      record[key(change.channel_id, change.field, 'target')] = change.target_value
+      record[key(change.channel_id, change.field, 'status')] = 'edited'
+    }
     return built
-  }, [grid, preferences, selectedListingIds])
+  }, [draftChanges, grid, preferences, selectedListingIds])
 
-  const editCell = useCallback((visualRow: number, prop: string, value: unknown) => {
+  const editCell = useCallback((listingId: string, prop: string, value: unknown) => {
     if (!grid) return
-    const row = grid.items[visualRow]
+    const row = grid.items.find(item => item.listingId === listingId)
     const meta = definition.columnMeta.get(prop)
     if (prop === 'selected' && row?.listingId) {
       setSelectedListingIds(current => {
@@ -72,8 +80,6 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     if (!row || !meta || !channel) return
     const change = draftChangeFromEdit(row, meta, value, channel)
     if (!change) return
-    const record = definition.records[visualRow]
-    if (record) record[prop.replace(/__target$/, '__status')] = 'edited'
     setDraftChanges(current => {
       const next = new Map(current)
       next.set(`${change.listing_id}:${change.field}`, change)
@@ -89,7 +95,7 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     setError(null)
     try {
       const revision = await service.saveDraft(workspace.id, grid.draftVersion, [...draftChanges.values()])
-      const refreshed = await service.getGrid(workspace.id, page, 500)
+      const refreshed = await service.getGrid(workspace.id, page, 500, gridQuery)
       setGrid(refreshed)
       setWorkspace(current => current ? { ...current, draft: { ...current.draft, version: revision.draftVersion, currentRevisionId: revision.id } } : current)
       setDraftChanges(new Map())
@@ -98,7 +104,7 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     } finally {
       setAction(null)
     }
-  }, [draftChanges, grid, page, service, workspace])
+  }, [draftChanges, grid, gridQuery, page, service, workspace])
 
   const createReview = useCallback(async () => {
     const revisionId = grid?.revisionId ?? workspace?.draft.currentRevisionId
@@ -125,16 +131,29 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     setAction('applying')
     setError(null)
     try {
-      await service.saveSelection(workspace.id, review.id, selectedItemIds)
-      const key = `${review.checksum}:${selectedItemIds.sort().join(',')}`
-      setApplyResult(await service.applySelected(workspace.id, review.id, key))
-      setGrid(await service.getGrid(workspace.id, page, 500))
+      const selection = await service.saveSelection(workspace.id, review.id, selectedItemIds)
+      const idempotencyKey = await workspaceApplyIdempotencyKey(
+        workspace.id,
+        review.id,
+        review.draftRevisionId,
+        selection.selectionChecksum,
+      )
+      setApplyResult(await service.applySelected(workspace.id, review.id, selection.selectionChecksum, idempotencyKey))
+      setGrid(await service.getGrid(workspace.id, page, 500, gridQuery))
     } catch (cause) {
+      if (cause instanceof ApiError && [
+        'STALE_REVIEW',
+        'REVIEW_NOT_READY',
+        'APPLY_SELECTION_CHECKSUM_MISMATCH',
+        'APPLY_REVISION_MISMATCH',
+      ].includes(cause.code ?? '')) {
+        setReview(null)
+      }
       setError(apiErrorMessage(cause, 'Unable to Apply selected changes.'))
     } finally {
       setAction(null)
     }
-  }, [page, review, selectedListingIds, service, workspace])
+  }, [gridQuery, page, review, selectedListingIds, service, workspace])
 
   const toggleChannel = useCallback(async (channelId: string) => {
     if (!preferences) return
@@ -153,11 +172,16 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     try {
       const saved = await service.savePreferences({ ...preferences, displayNameSource })
       setPreferences(saved)
-      setGrid(await service.getGrid(workspaceId, page, 500))
+      setGrid(await service.getGrid(workspaceId, page, 500, gridQuery))
     } catch (cause) {
       setError(apiErrorMessage(cause, 'Unable to save display-name source.'))
     }
-  }, [page, preferences, service, workspaceId])
+  }, [gridQuery, page, preferences, service, workspaceId])
+
+  const updateGridQuery = useCallback((next: WorkspaceGridQuery) => {
+    setPage(1)
+    setGridQuery(current => ({ ...current, ...next }))
+  }, [])
 
   return {
     workspace, grid, preferences, definition, review, applyResult, loading, action, error,
@@ -165,7 +189,27 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     page,
     totalPages: Math.max(1, Math.ceil((grid?.total ?? 0) / 500)),
     selectedListingCount: selectedListingIds.size,
-    setPage,
+    setPage, updateGridQuery,
     editCell, saveDraft, createReview, applySelected, toggleChannel, setDisplayNameSource, reload: load,
   }
+}
+
+export async function workspaceApplyIdempotencyKey(
+  workspaceId: string,
+  reviewId: string,
+  draftRevisionId: string,
+  selectionChecksum: string,
+): Promise<string> {
+  const canonical = JSON.stringify({
+    draftRevisionId,
+    operationVersion: 'workspace-apply-v2',
+    reviewId,
+    selectionChecksum,
+    workspaceId,
+  })
+  const digest = await globalThis.crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(canonical),
+  )
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
 }

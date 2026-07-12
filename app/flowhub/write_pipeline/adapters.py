@@ -6,7 +6,11 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
-from app.flowhub.write_pipeline.models import WriteItem
+
+class WriteItemContract(Protocol):
+    channel_product_id: str
+    proposed_price: float
+    pre_write_snapshot_json: dict[str, object]
 
 
 @dataclass(frozen=True)
@@ -35,8 +39,12 @@ class ChannelWriteAdapter(Protocol):
     def validate_item(self, item: Mapping[str, object]) -> None:
         """Validate provider-specific item requirements before a Dry Run is persisted."""
 
-    async def execute_item(self, item: WriteItem, context: ChannelWriteContext) -> dict:
+    async def execute_item(
+        self, item: WriteItemContract, context: ChannelWriteContext
+    ) -> dict[str, object]:
         """Execute one already-approved write item."""
 
-    async def verify_item(self, item: WriteItem, context: ChannelWriteContext) -> dict:
+    async def verify_item(
+        self, item: WriteItemContract, context: ChannelWriteContext
+    ) -> dict[str, object]:
         """Read back one updated item after a successful write."""

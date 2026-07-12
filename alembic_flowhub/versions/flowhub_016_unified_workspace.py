@@ -11,8 +11,10 @@ from __future__ import annotations
 from sqlalchemy import text
 
 from alembic import op
-from app.flowhub.database import FlowHubBase
-from app.flowhub.unified_workspace import models as _workspace_models  # noqa: F401
+from alembic_flowhub.flowhub_016_frozen_schema import (
+    POSTGRESQL_DDL,
+    SQLITE_DDL,
+)
 
 revision = "FLOWHUB_016"
 down_revision = "FLOWHUB_015"
@@ -20,6 +22,7 @@ branch_labels = None
 depends_on = None
 
 IMMUTABLE_TABLES = (
+    "uw_currency_profiles",
     "uw_workspace_snapshots",
     "uw_snapshot_rows",
     "uw_mapping_revisions",
@@ -28,15 +31,25 @@ IMMUTABLE_TABLES = (
     "uw_review_items",
     "uw_review_cache_versions",
     "uw_audit_entries",
+    "uw_apply_attempts",
+    "uw_apply_attempt_events",
 )
 
 
 def upgrade() -> None:
     bind = op.get_bind()
-    for table in FlowHubBase.metadata.sorted_tables:
-        if table.name.startswith("uw_"):
-            table.create(bind=bind, checkfirst=True)
-    if bind.dialect.name == "postgresql":
+    dialect_name = bind.dialect.name
+    if dialect_name == "postgresql":
+        statements = POSTGRESQL_DDL
+    elif dialect_name == "sqlite":
+        statements = SQLITE_DDL
+    else:
+        raise RuntimeError(
+            f"FLOWHUB_016 supports PostgreSQL and SQLite, not {dialect_name}."
+        )
+    for statement in statements:
+        bind.exec_driver_sql(statement)
+    if dialect_name == "postgresql":
         bind.execute(
             text(
                 """
@@ -57,7 +70,7 @@ def upgrade() -> None:
                     "FOR EACH ROW EXECUTE FUNCTION uw_reject_immutable_mutation()"
                 )
             )
-    elif bind.dialect.name == "sqlite":
+    elif dialect_name == "sqlite":
         for table_name in IMMUTABLE_TABLES:
             for operation in ("UPDATE", "DELETE"):
                 trigger_name = f"{table_name}_immutable_{operation.lower()}"

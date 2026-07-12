@@ -57,14 +57,12 @@
 }
 
 .fh-cell-status::after {
-  content: '';
-  position: absolute;
-  inset-inline-end: 4px;
-  top: 4px;
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  background: currentColor;
+  content: "● " attr(data-cell-status);
+  display: block;
+  font-size: 0.625rem;
+  line-height: 0.75rem;
+  opacity: 0.78;
+  text-transform: capitalize;
 }
 
 .fh-cell-status-edited,

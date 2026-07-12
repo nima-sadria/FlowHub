@@ -57,6 +57,18 @@ class ApplyState(StrEnum):
     CANCELLED = "cancelled"
     BLOCKED = "blocked"
     STALE = "stale"
+    RECONCILIATION_REQUIRED = "reconciliation_required"
+
+
+class ApplyItemOutcome(StrEnum):
+    """Authoritative lifecycle for a single external write attempt."""
+
+    PENDING = "pending"
+    DISPATCHED = "dispatched"
+    PROVIDER_ACCEPTED = "provider_accepted"
+    VERIFIED_APPLIED = "verified_applied"
+    FAILED = "failed"
+    RECONCILIATION_REQUIRED = "reconciliation_required"
 
 
 class CellStatus(StrEnum):

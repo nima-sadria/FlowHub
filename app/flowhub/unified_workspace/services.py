@@ -19,7 +19,7 @@ from app.flowhub.data_layer.models import DlProductCache
 from app.flowhub.product_pricing.service import ProductPricingService
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.unified_workspace.authorization import has_workspace_permission
-from app.flowhub.unified_workspace.connectors import ListingUpdate, WorkspaceConnectorFactory
+from app.flowhub.unified_workspace.connectors import WorkspaceConnectorFactory
 from app.flowhub.unified_workspace.domain import (
     ApplyState,
     ChannelCapabilities,
@@ -44,6 +44,8 @@ from app.flowhub.unified_workspace.events import (
     PersistenceAuditSubscriber,
 )
 from app.flowhub.unified_workspace.models import (
+    ApplyAttempt,
+    ApplyAttemptEvent,
     ApplyJob,
     ApplyJobItem,
     CanonicalProduct,
@@ -76,6 +78,13 @@ from app.flowhub.unified_workspace.repositories import (
     WorkspaceRepository,
 )
 from app.flowhub.workspace.price_workflow import WorkspacePriceWorkflowService
+from app.flowhub.write_pipeline.service import WritePipelineService
+from app.flowhub.write_pipeline.workspace_contracts import (
+    WorkspaceWriteBatchCommand,
+    WorkspaceWriteIntent,
+    WorkspaceWriteResult,
+    WriteOutcome,
+)
 
 SCHEMA_VERSION = "uw-snapshot-1"
 NORMALIZATION_VERSION = "uw-normalization-1"
@@ -109,8 +118,8 @@ class UnifiedWorkspaceService:
     # -- Workspace and snapshots ---------------------------------------------
 
     def create_manual_workspace(
-        self, *, name: str, selections: list[dict], user: FlowHubUser, correlation_id: str
-    ) -> dict:
+        self, *, name: str, selections: list[dict[str, Any]], user: FlowHubUser, correlation_id: str
+    ) -> dict[str, Any]:
         if not selections or len(selections) > MAX_SELECTION:
             raise self._unprocessable(
                 "WORKSPACE_SELECTION_INVALID", f"Select between 1 and {MAX_SELECTION} products."
@@ -140,7 +149,9 @@ class UnifiedWorkspaceService:
             )
             .all()
         )
-        found = {(row.connector_id, row.product_id): row for row in cache_rows}
+        found: dict[tuple[str, str], DlProductCache] = {
+            (str(row.connector_id), str(row.product_id)): row for row in cache_rows
+        }
         missing = [
             f"{connector}:{product}"
             for connector, product in normalized_selection
@@ -201,7 +212,7 @@ class UnifiedWorkspaceService:
             version=1,
         )
         self.db.add(workspace)
-        snapshot_payload: list[dict] = []
+        snapshot_payload: list[dict[str, Any]] = []
         staged_rows: list[SnapshotRow] = []
         for row_number, identity in enumerate(normalized_selection, start=1):
             cache_row = found[identity]
@@ -311,7 +322,7 @@ class UnifiedWorkspaceService:
         source_unit: str | None,
         user: FlowHubUser,
         correlation_id: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
         self._seed_channels()
         preview = await WorkspacePriceWorkflowService(self.db).preview_from_nextcloud(user)
         global_profile = self._global_currency_profile()
@@ -333,7 +344,7 @@ class UnifiedWorkspaceService:
         )
         self.db.add(workspace)
         staged_rows: list[SnapshotRow] = []
-        immutable_rows: list[dict] = []
+        immutable_rows: list[dict[str, Any]] = []
         preview_rows_data = [
             item.model_dump(mode="json") if hasattr(item, "model_dump") else dict(item)
             for item in preview.rows
@@ -386,9 +397,9 @@ class UnifiedWorkspaceService:
             .filter(WorkspaceChannel.id == "woocommerce:primary")
             .all()
         }
-        source_products = (
+        source_products: dict[str, DlProductCache] = (
             {
-                item.product_id: item
+                str(item.product_id): item
                 for item in self.db.query(DlProductCache)
                 .filter(
                     DlProductCache.connector_id == "woocommerce:primary",
@@ -462,7 +473,7 @@ class UnifiedWorkspaceService:
             },
             acquisition_metadata_json={
                 "read_once": True,
-                "acquired_at": preview.startedAt.isoformat(),
+                "acquired_at": str(preview.startedAt),
             },
         )
         draft = Draft(
@@ -494,7 +505,7 @@ class UnifiedWorkspaceService:
         self.db.commit()
         return self.workspace_shape(workspace_id, user)
 
-    def workspace_shape(self, workspace_id: str, user: FlowHubUser) -> dict:
+    def workspace_shape(self, workspace_id: str, user: FlowHubUser) -> dict[str, Any]:
         workspace = self._workspace_for_user(workspace_id, user)
         snapshot = self.workspaces.snapshot(workspace.id)
         draft = self.drafts.for_workspace(workspace.id)
@@ -543,7 +554,7 @@ class UnifiedWorkspaceService:
         max_price: float | None,
         stock_quantity: float | None,
         sorts: list[tuple[str, str]],
-    ) -> dict:
+    ) -> dict[str, Any]:
         workspace = self._workspace_for_user(workspace_id, user)
         snapshot = self.workspaces.snapshot(workspace.id)
         draft = self.drafts.for_workspace(workspace.id)
@@ -628,7 +639,7 @@ class UnifiedWorkspaceService:
                 )
                 continue
             capabilities = self._capabilities(listing.channel_id)
-            fields: dict[str, dict] = {}
+            fields: dict[str, dict[str, Any]] = {}
             current_values = {
                 "price": cache.price_raw if cache else None,
                 "stock": str(cache.stock_quantity)
@@ -718,11 +729,11 @@ class UnifiedWorkspaceService:
         workspace_id: str,
         *,
         expected_version: int,
-        raw_changes: list[dict],
-        metadata: dict,
+        raw_changes: list[dict[str, Any]],
+        metadata: dict[str, Any],
         user: FlowHubUser,
         correlation_id: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
         workspace = self._workspace_for_user(workspace_id, user, edit=True)
         draft = self.drafts.for_workspace(workspace.id)
         snapshot = self.workspaces.snapshot(workspace.id)
@@ -909,7 +920,7 @@ class UnifiedWorkspaceService:
         self.db.commit()
         return {**self._revision_shape(revision), "noOp": False, "draftVersion": draft.version}
 
-    def revisions(self, workspace_id: str, user: FlowHubUser, *, page: int, page_size: int) -> dict:
+    def revisions(self, workspace_id: str, user: FlowHubUser, *, page: int, page_size: int) -> dict[str, Any]:
         workspace = self._workspace_for_user(workspace_id, user)
         draft = self.drafts.for_workspace(workspace.id)
         if draft is None:
@@ -932,7 +943,7 @@ class UnifiedWorkspaceService:
         expected_version: int,
         user: FlowHubUser,
         correlation_id: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
         workspace = self._workspace_for_user(workspace_id, user, edit=True)
         draft = self.drafts.for_workspace(workspace.id)
         source = self.drafts.revision(revision_id)
@@ -999,7 +1010,7 @@ class UnifiedWorkspaceService:
 
     def generate_review(
         self, workspace_id: str, revision_id: str, user: FlowHubUser, correlation_id: str
-    ) -> dict:
+    ) -> dict[str, Any]:
         workspace = self._workspace_for_user(workspace_id, user, edit=True)
         snapshot = self.workspaces.snapshot(workspace.id)
         revision = self.drafts.revision(revision_id)
@@ -1036,11 +1047,11 @@ class UnifiedWorkspaceService:
             .filter(ChannelCache.listing_id.in_(review_listing_ids))
             .all()
         }
-        mapping_payload: list[dict] = []
-        capability_payload: list[dict] = []
-        currency_payload: list[dict] = []
-        cache_payload: list[dict] = []
-        prepared: list[dict] = []
+        mapping_payload: list[dict[str, Any]] = []
+        capability_payload: list[dict[str, Any]] = []
+        currency_payload: list[dict[str, Any]] = []
+        cache_payload: list[dict[str, Any]] = []
+        prepared: list[dict[str, Any]] = []
         blocking = 0
         warnings = 0
         for change in changes:
@@ -1241,7 +1252,7 @@ class UnifiedWorkspaceService:
         item_ids: list[str],
         user: FlowHubUser,
         correlation_id: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
         workspace = self._workspace_for_user(workspace_id, user, edit=True)
         review = self.reviews.get(review_id)
         if review is None or review.workspace_id != workspace.id:
@@ -1277,7 +1288,10 @@ class UnifiedWorkspaceService:
                     selected_by_user_id=user.id,
                 )
             )
-        selection_checksum = checksum({"review": review.checksum, "items": unique_ids})
+        review.selection_version += 1
+        selection_document = self._selection_document(review, items)
+        selection_checksum = checksum(selection_document)
+        review.selection_checksum = selection_checksum
         self._audit(
             "review_selection_saved",
             user,
@@ -1286,16 +1300,22 @@ class UnifiedWorkspaceService:
             snapshot_id=review.snapshot_id,
             draft_revision_id=review.draft_revision_id,
             review_id=review.id,
-            metadata={"selected_count": len(unique_ids), "selection_checksum": selection_checksum},
+            metadata={
+                "selected_count": len(unique_ids),
+                "selection_checksum": selection_checksum,
+                "selection_version": review.selection_version,
+                "canonical_selection": selection_document,
+            },
         )
         self.db.commit()
         return {
             "reviewId": review.id,
             "selectedItemIds": unique_ids,
             "selectionChecksum": selection_checksum,
+            "selectionVersion": review.selection_version,
         }
 
-    def review_shape(self, review_id: str, user: FlowHubUser) -> dict:
+    def review_shape(self, review_id: str, user: FlowHubUser) -> dict[str, Any]:
         review = self.reviews.get(review_id)
         if review is None:
             raise self._not_found("REVIEW_NOT_FOUND", "Review not found.")
@@ -1339,10 +1359,11 @@ class UnifiedWorkspaceService:
         review_id: str,
         *,
         idempotency_key: str,
+        expected_selection_checksum: str,
         confirmed: bool,
         user: FlowHubUser,
         correlation_id: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
         workspace = self._workspace_for_user(workspace_id, user, edit=True)
         if not has_workspace_permission(user, "apply.execute"):
             self._audit(
@@ -1372,8 +1393,6 @@ class UnifiedWorkspaceService:
         review = self.reviews.get(review_id)
         if review is None or review.workspace_id != workspace.id:
             raise self._not_found("REVIEW_NOT_FOUND", "Review not found.")
-        if review.status != ReviewState.READY:
-            raise self._conflict("REVIEW_NOT_READY", "Apply requires a non-stale ready Review.")
         draft = self.drafts.for_workspace(workspace.id)
         snapshot = self.workspaces.snapshot(workspace.id)
         if (
@@ -1386,7 +1405,6 @@ class UnifiedWorkspaceService:
                 "APPLY_REVISION_MISMATCH",
                 "Apply Review does not match the current Draft Revision and Snapshot.",
             )
-        self._assert_review_fresh(review, user, correlation_id)
         selections = self.reviews.selections(review.id)
         selected_ids = sorted(item.review_item_id for item in selections)
         if not selected_ids:
@@ -1405,15 +1423,39 @@ class UnifiedWorkspaceService:
             raise self._unprocessable(
                 "APPLY_SELECTION_INELIGIBLE", "Selected Review items are no longer eligible."
             )
-        listing_ids = sorted({item.listing_id for item in review_items})
-        overlapping = self.applies.overlapping_locks(workspace.id, listing_ids, utcnow())
-        if overlapping:
+        selection_checksum = checksum(self._selection_document(review, review_items))
+        expected_checksum = canonical_text(expected_selection_checksum)
+        if (
+            not expected_checksum
+            or expected_checksum != selection_checksum
+            or review.selection_checksum != selection_checksum
+        ):
             raise self._conflict(
-                "APPLY_SCOPE_LOCKED",
-                "Another Apply is running for one or more selected Listings.",
-                {"listingIds": [lock.listing_id for lock in overlapping]},
+                "APPLY_SELECTION_CHECKSUM_MISMATCH",
+                "The confirmed selection changed; confirm the current selection again.",
             )
-        selection_checksum = checksum({"review": review.checksum, "items": selected_ids})
+        logical_operation_key = checksum(
+            {
+                "workspace": workspace.id,
+                "snapshot": snapshot.id,
+                "draft_revision": review.draft_revision_id,
+                "review": review.id,
+                "selection": selection_checksum,
+                "operation_version": "workspace-apply-v2",
+            }
+        )
+        existing = self.applies.by_logical_operation(logical_operation_key)
+        if existing:
+            return self.apply_shape(existing.id, user)
+        listing_rows = {
+            row.id: row
+            for row in self.db.query(Listing)
+            .filter(Listing.id.in_({item.listing_id for item in review_items}))
+            .all()
+        }
+        lock_scope = sorted(
+            {(listing_rows[item.listing_id].channel_id, item.listing_id) for item in review_items}
+        )
         job = ApplyJob(
             id=_id(),
             workspace_id=workspace.id,
@@ -1422,6 +1464,7 @@ class UnifiedWorkspaceService:
             review_id=review.id,
             requested_by_user_id=user.id,
             idempotency_key=key,
+            logical_operation_key=logical_operation_key,
             correlation_id=correlation_id,
             selection_checksum=selection_checksum,
             request_json={"selected_review_item_ids": selected_ids, "confirmed": True},
@@ -1446,18 +1489,6 @@ class UnifiedWorkspaceService:
             )
             job_items[item.id] = job_item
             self.db.add(job_item)
-        expires = utcnow() + timedelta(minutes=LOCK_MINUTES)
-        for listing_id in listing_ids:
-            self.db.add(
-                WorkspaceLock(
-                    id=_id(),
-                    workspace_id=workspace.id,
-                    listing_id=listing_id,
-                    apply_job_id=job.id,
-                    acquired_at=utcnow(),
-                    expires_at=expires,
-                )
-            )
         self._audit(
             "apply_requested",
             user,
@@ -1482,49 +1513,100 @@ class UnifiedWorkspaceService:
             if existing:
                 return self.apply_shape(existing.id, user)
             raise
-
-        job.status = ApplyState.RUNNING
-        job.started_at = utcnow()
-        self._audit(
-            "apply_started",
-            user,
-            correlation_id,
-            workspace_id=workspace.id,
-            snapshot_id=snapshot.id,
-            draft_revision_id=review.draft_revision_id,
-            review_id=review.id,
-            apply_job_id=job.id,
-        )
-        self.db.commit()
-        grouped: dict[str, dict[str, list[ReviewItem]]] = defaultdict(lambda: defaultdict(list))
-        for item in review_items:
-            grouped[item.channel_id][item.listing_id].append(item)
+        try:
+            self._acquire_listing_locks(workspace.id, job.id, lock_scope)
+        except Exception as exc:
+            self.db.rollback()
+            durable_job = self.db.get(ApplyJob, job.id)
+            if durable_job is not None:
+                durable_job.status = ApplyState.FAILED
+                durable_job.completed_at = utcnow()
+                self._audit(
+                    "apply_lock_failed",
+                    user,
+                    correlation_id,
+                    workspace_id=workspace.id,
+                    snapshot_id=snapshot.id,
+                    draft_revision_id=job.draft_revision_id,
+                    review_id=job.review_id,
+                    apply_job_id=job.id,
+                    apply_result=ApplyState.FAILED,
+                    reason=canonical_text(exc)[:1000],
+                )
+                self.db.commit()
+            raise
         successful = 0
         failed = 0
+        reconciliation = 0
         try:
-            for channel_id, listings_by_id in grouped.items():
-                connector = self.connectors.get(channel_id)
-                updates: list[ListingUpdate] = []
-                for listing_id, items in listings_by_id.items():
-                    updates.append(self._listing_update(job, listing_id, items))
-                try:
-                    results = await connector.apply_updates(updates, requested_by=user.username)
-                except Exception as exc:
-                    results = []
-                    for update in updates:
-                        self._mark_listing_failed(job, update.listing_id, str(exc), user)
-                        failed += len(listings_by_id[update.listing_id])
-                for result in results:
-                    affected = listings_by_id[result.listing_id]
-                    if result.success:
-                        successful += len(affected)
-                        self._record_listing_success(job, result, affected, user)
-                    else:
-                        failed += len(affected)
-                        self._record_listing_failure(job, result, affected, user)
-                self.db.commit()
+            review = self.reviews.get(review.id)
+            if review is None or review.status != ReviewState.READY:
+                raise self._conflict("REVIEW_NOT_READY", "Apply requires a ready Review.")
+            self._assert_review_fresh(review, user, correlation_id)
+            current_selection = self.reviews.selections(review.id)
+            current_ids = sorted(item.review_item_id for item in current_selection)
+            if current_ids != selected_ids or checksum(
+                self._selection_document(review, review_items)
+            ) != expected_checksum:
+                raise self._conflict(
+                    "APPLY_SELECTION_CHECKSUM_MISMATCH",
+                    "The confirmed selection changed after lock acquisition.",
+                )
+            draft = self.drafts.for_workspace(workspace.id)
+            if draft is None or draft.current_revision_id != review.draft_revision_id:
+                raise self._conflict(
+                    "APPLY_REVISION_MISMATCH", "Draft Revision changed before dispatch."
+                )
+            job.status = ApplyState.RUNNING
+            job.started_at = utcnow()
+            self._audit(
+                "apply_started",
+                user,
+                correlation_id,
+                workspace_id=workspace.id,
+                snapshot_id=snapshot.id,
+                draft_revision_id=review.draft_revision_id,
+                review_id=review.id,
+                apply_job_id=job.id,
+            )
+            self.db.commit()
+            grouped: dict[str, list[ReviewItem]] = defaultdict(list)
+            for item in review_items:
+                grouped[item.listing_id].append(item)
+            intents = tuple(
+                self._write_intent(job, listing_id, items, selection_checksum)
+                for listing_id, items in sorted(grouped.items())
+            )
+            results = await WritePipelineService(self.db).execute_workspace(
+                WorkspaceWriteBatchCommand(
+                    workspace_id=workspace.id,
+                    snapshot_id=snapshot.id,
+                    draft_revision_id=job.draft_revision_id,
+                    review_id=job.review_id,
+                    selection_checksum=selection_checksum,
+                    correlation_id=correlation_id,
+                    requested_by=user.username,
+                    intents=intents,
+                ),
+                user,
+            )
+            for result in results:
+                affected = grouped[result.listing_id]
+                if result.outcome is WriteOutcome.VERIFIED_APPLIED:
+                    successful += len(affected)
+                    self._record_listing_success(job, result, affected, user)
+                elif result.outcome is WriteOutcome.RECONCILIATION_REQUIRED:
+                    reconciliation += len(affected)
+                    self._record_listing_reconciliation(job, result, affected, user)
+                else:
+                    failed += len(affected)
+                    self._record_listing_failure(job, result, affected, user)
+            self.db.commit()
             job.completed_at = utcnow()
             job.status = (
+                ApplyState.RECONCILIATION_REQUIRED
+                if reconciliation
+                else
                 ApplyState.APPLIED
                 if failed == 0
                 else ApplyState.PARTIALLY_APPLIED
@@ -1543,26 +1625,127 @@ class UnifiedWorkspaceService:
                 review_id=review.id,
                 apply_job_id=job.id,
                 apply_result=job.status,
-                metadata={"success_count": successful, "failure_count": failed},
+                metadata={
+                    "success_count": successful,
+                    "failure_count": failed,
+                    "reconciliation_count": reconciliation,
+                },
             )
-            self.db.query(WorkspaceLock).filter_by(apply_job_id=job.id).delete(
-                synchronize_session=False
-            )
+            if reconciliation == 0:
+                self._release_listing_locks(job.id)
             self.db.commit()
-        except Exception:
+        except Exception as exc:
             self.db.rollback()
             durable_job = self.db.get(ApplyJob, job.id)
             if durable_job:
-                durable_job.status = ApplyState.FAILED
+                dispatched = (
+                    self.db.query(ApplyAttemptEvent.id)
+                    .join(ApplyAttempt, ApplyAttempt.id == ApplyAttemptEvent.attempt_id)
+                    .filter(
+                        ApplyAttempt.apply_job_id == job.id,
+                        ApplyAttemptEvent.outcome != WriteOutcome.PENDING.value,
+                    )
+                    .first()
+                    is not None
+                )
+                durable_job.status = (
+                    ApplyState.RECONCILIATION_REQUIRED if dispatched else ApplyState.FAILED
+                )
                 durable_job.completed_at = utcnow()
-                self.db.query(WorkspaceLock).filter_by(apply_job_id=job.id).delete(
-                    synchronize_session=False
+                if not dispatched:
+                    self._release_listing_locks(job.id)
+                self._audit(
+                    "apply_reconciliation_required" if dispatched else "apply_pre_dispatch_failed",
+                    user,
+                    correlation_id,
+                    workspace_id=workspace.id,
+                    snapshot_id=snapshot.id,
+                    draft_revision_id=job.draft_revision_id,
+                    review_id=job.review_id,
+                    apply_job_id=job.id,
+                    apply_result=durable_job.status,
+                    reason=canonical_text(exc)[:1000],
                 )
                 self.db.commit()
             raise
         return self.apply_shape(job.id, user)
 
-    def apply_shape(self, job_id: str, user: FlowHubUser) -> dict:
+    async def reconcile_apply(
+        self,
+        workspace_id: str,
+        job_id: str,
+        user: FlowHubUser,
+        correlation_id: str,
+    ) -> dict[str, Any]:
+        workspace = self._workspace_for_user(workspace_id, user, edit=True)
+        if not has_workspace_permission(user, "apply.execute"):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Apply permission is required.")
+        job = self.applies.get(job_id)
+        if job is None or job.workspace_id != workspace.id:
+            raise self._not_found("APPLY_NOT_FOUND", "Apply job not found.")
+        if job.status != ApplyState.RECONCILIATION_REQUIRED:
+            raise self._conflict(
+                "APPLY_RECONCILIATION_NOT_REQUIRED",
+                "Only an uncertain Apply may be reconciled.",
+            )
+        review_items = (
+            self.db.query(ReviewItem)
+            .join(ApplyJobItem, ApplyJobItem.review_item_id == ReviewItem.id)
+            .filter(ApplyJobItem.apply_job_id == job.id)
+            .all()
+        )
+        grouped: dict[str, list[ReviewItem]] = defaultdict(list)
+        for item in review_items:
+            grouped[item.listing_id].append(item)
+        intents = tuple(
+            self._write_intent(job, listing_id, items, job.selection_checksum)
+            for listing_id, items in sorted(grouped.items())
+        )
+        results = await WritePipelineService(self.db).execute_workspace(
+            WorkspaceWriteBatchCommand(
+                workspace_id=job.workspace_id,
+                snapshot_id=job.snapshot_id,
+                draft_revision_id=job.draft_revision_id,
+                review_id=job.review_id,
+                selection_checksum=job.selection_checksum,
+                correlation_id=correlation_id,
+                requested_by=user.username,
+                intents=intents,
+            ),
+            user,
+            reconcile_only=True,
+        )
+        unresolved = 0
+        for result in results:
+            affected = grouped[result.listing_id]
+            if result.outcome is WriteOutcome.VERIFIED_APPLIED:
+                self._record_listing_success(job, result, affected, user)
+            else:
+                unresolved += len(affected)
+                self._record_listing_reconciliation(job, result, affected, user)
+        if unresolved == 0:
+            job.status = ApplyState.APPLIED
+            job.completed_at = utcnow()
+            draft = self.drafts.for_workspace(job.workspace_id)
+            if draft is not None:
+                draft.status = "applied"
+            self._release_listing_locks(job.id)
+        self._audit(
+            "apply_reconciled" if unresolved == 0 else "apply_reconciliation_pending",
+            user,
+            correlation_id,
+            workspace_id=job.workspace_id,
+            snapshot_id=job.snapshot_id,
+            draft_revision_id=job.draft_revision_id,
+            review_id=job.review_id,
+            apply_job_id=job.id,
+            apply_result=job.status,
+            metadata={"unresolved_count": unresolved},
+        )
+        self.db.commit()
+        return self.apply_shape(job.id, user)
+
+    def apply_shape(self, job_id: str, user: FlowHubUser) -> dict[str, Any]:
         job = self.applies.get(job_id)
         if job is None:
             raise self._not_found("APPLY_NOT_FOUND", "Apply job not found.")
@@ -1601,7 +1784,7 @@ class UnifiedWorkspaceService:
 
     # -- Preferences, audit, mapping ----------------------------------------
 
-    def preference(self, user: FlowHubUser) -> dict:
+    def preference(self, user: FlowHubUser) -> dict[str, Any]:
         row = self.preferences.for_user(user.id)
         if row is None:
             return {
@@ -1613,7 +1796,7 @@ class UnifiedWorkspaceService:
             }
         return self._preference_shape(row)
 
-    def save_preference(self, payload: dict, expected_version: int, user: FlowHubUser) -> dict:
+    def save_preference(self, payload: dict[str, Any], expected_version: int, user: FlowHubUser) -> dict[str, Any]:
         allowed = {item.channel_id for item in self.connectors.implemented()}
         visible = [str(item) for item in payload.get("visibleChannelIds") or []]
         order = [str(item) for item in payload.get("channelOrder") or []]
@@ -1652,7 +1835,7 @@ class UnifiedWorkspaceService:
         self.db.commit()
         return self._preference_shape(row)
 
-    def audit(self, workspace_id: str, user: FlowHubUser, *, page: int, page_size: int) -> dict:
+    def audit(self, workspace_id: str, user: FlowHubUser, *, page: int, page_size: int) -> dict[str, Any]:
         self._workspace_for_user(workspace_id, user)
         items, total = self.audits.list(
             workspace_id, page=max(page, 1), page_size=min(max(page_size, 1), 200)
@@ -1671,10 +1854,10 @@ class UnifiedWorkspaceService:
         proposed_product_id: str,
         decision: str,
         reason: str,
-        evidence: dict,
+        evidence: dict[str, Any],
         user: FlowHubUser,
         correlation_id: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
         workspace = self._workspace_for_user(workspace_id, user, edit=True)
         if decision not in {"approved", "rejected"}:
             raise self._unprocessable(
@@ -1694,6 +1877,7 @@ class UnifiedWorkspaceService:
             raise self._not_found(
                 "MAPPING_NOT_FOUND", "Workspace Listing or proposed Canonical Product not found."
             )
+        self._assert_listing_unlocked(listing.channel_id, listing.id)
         revision_number = listing.mapping_version + 1
         revision = MappingRevision(
             id=_id(),
@@ -1747,7 +1931,7 @@ class UnifiedWorkspaceService:
 
     async def refresh_channel_cache(
         self, channel_id: str, user: FlowHubUser, correlation_id: str
-    ) -> dict:
+    ) -> dict[str, Any]:
         self._seed_channels()
         channel = self.db.get(WorkspaceChannel, channel_id)
         if channel is None or channel.implementation_state != "implemented":
@@ -1766,6 +1950,17 @@ class UnifiedWorkspaceService:
                 "Channel Cache cannot refresh while overlapping Apply locks are active.",
             )
         result = await self.commerce.refresh_channel_cache(channel_id, user.username)
+        active_locks = (
+            self.db.query(WorkspaceLock)
+            .join(Listing, Listing.id == WorkspaceLock.listing_id)
+            .filter(Listing.channel_id == channel_id, WorkspaceLock.expires_at > utcnow())
+            .count()
+        )
+        if active_locks:
+            raise self._conflict(
+                "CACHE_REFRESH_APPLY_CONFLICT",
+                "Apply acquired a Listing lock while cache refresh was in progress.",
+            )
         synchronized = 0
         for row in self.db.query(DlProductCache).filter_by(connector_id=channel_id).all():
             listing = (
@@ -1774,6 +1969,7 @@ class UnifiedWorkspaceService:
                 .first()
             )
             if listing is not None:
+                self._assert_listing_unlocked(channel_id, listing.id)
                 self._materialize_cache_identity(row)
                 synchronized += 1
         self._audit(
@@ -1952,22 +2148,24 @@ class UnifiedWorkspaceService:
         cache_map: dict[str, ChannelCache] | None = None,
         channel_map: dict[str, WorkspaceChannel] | None = None,
     ) -> tuple[CanonicalProduct, Listing, ChannelCache]:
+        connector_id = str(row.connector_id)
+        product_id = str(row.product_id)
         channel = (
-            channel_map.get(row.connector_id)
+            channel_map.get(connector_id)
             if channel_map is not None
-            else self.db.get(WorkspaceChannel, row.connector_id)
+            else self.db.get(WorkspaceChannel, connector_id)
         )
         if channel is None or channel.implementation_state != "implemented":
             raise self._unprocessable(
                 "CHANNEL_NOT_IMPLEMENTED",
-                f"{row.connector_id} is not an implemented Workspace Channel.",
+                f"{connector_id} is not an implemented Workspace Channel.",
             )
-        identity = (row.connector_id, row.product_id)
+        identity = (connector_id, product_id)
         listing = (
             listing_map.get(identity)
             if listing_map is not None
             else self.db.query(Listing)
-            .filter_by(channel_id=row.connector_id, external_primary_id=row.product_id)
+            .filter_by(channel_id=connector_id, external_primary_id=product_id)
             .first()
         )
         if listing:
@@ -1981,16 +2179,17 @@ class UnifiedWorkspaceService:
                     "CANONICAL_PRODUCT_MISSING", "Persisted Listing has no Canonical Product."
                 )
         else:
-            product_type = (row.product_type or "simple").lower()
+            product_type = str(row.product_type or "simple").lower()
             if product_type not in {item.value for item in ProductKind}:
                 product_type = ProductKind.SIMPLE
+            raw_data: dict[str, Any] = row.raw_data if isinstance(row.raw_data, dict) else {}
             canonical = CanonicalProduct(
                 id=_id(),
-                name=canonical_text(row.name or row.product_id),
+                name=canonical_text(row.name or product_id),
                 sku=canonical_text(row.sku) or None,
                 product_type=product_type,
                 parent_id=None,
-                brand=canonical_text((row.raw_data or {}).get("brand")) or None,
+                brand=canonical_text(raw_data.get("brand")) or None,
                 category=self._first_category(row.categories),
                 status="active",
             )
@@ -1999,14 +2198,14 @@ class UnifiedWorkspaceService:
             listing = Listing(
                 id=_id(),
                 canonical_product_id=canonical.id,
-                channel_id=row.connector_id,
-                external_primary_id=row.product_id,
+                channel_id=connector_id,
+                external_primary_id=product_id,
                 external_id_type="product_or_variation_id"
-                if row.connector_id == "woocommerce:primary"
+                if connector_id == "woocommerce:primary"
                 else "product_number",
                 secondary_identifiers_json=self._secondary_identifiers(row),
                 sku=canonical_text(row.sku) or None,
-                label=canonical_text(row.name or row.product_id),
+                label=canonical_text(row.name or product_id),
                 mapping_state=MappingState.RESOLVED,
                 mapping_version=1,
                 capability_state_json=channel.capabilities_json,
@@ -2023,8 +2222,8 @@ class UnifiedWorkspaceService:
                     decision="automatic",
                     evidence_json={
                         "method": "exact_channel_primary_identifier",
-                        "connector_id": row.connector_id,
-                        "external_primary_id": row.product_id,
+                        "connector_id": connector_id,
+                        "external_primary_id": product_id,
                     },
                     reason="Canonical Product created from exact Channel primary identity.",
                     approved_by_user_id=None,
@@ -2066,8 +2265,8 @@ class UnifiedWorkspaceService:
         self.db.flush()
         return canonical, listing, cache
 
-    def _cache_payload(self, row: DlProductCache, listing_id: str) -> dict:
-        capabilities = self._capabilities(row.connector_id)
+    def _cache_payload(self, row: DlProductCache, listing_id: str) -> dict[str, Any]:
+        capabilities = self._capabilities(str(row.connector_id))
         price = row.regular_price or row.price or row.last_price
         payload = {
             "listing": listing_id,
@@ -2098,9 +2297,12 @@ class UnifiedWorkspaceService:
 
     def _assert_review_fresh(self, review: Review, user: FlowHubUser, correlation_id: str) -> None:
         stale_reasons: list[str] = []
-        mapping_payload: list[dict] = []
-        capability_payload: list[dict] = []
-        currency_payload: list[dict] = []
+        mapping_payload: list[dict[str, Any]] = []
+        capability_payload: list[dict[str, Any]] = []
+        currency_payload: list[dict[str, Any]] = []
+        max_age_minutes = self._cache_max_age_minutes()
+        if review.ruleset_version != VALIDATION_VERSION:
+            stale_reasons.append("validation_ruleset")
         for captured in self.reviews.cache_versions(review.id):
             listing = self.db.get(Listing, captured.listing_id)
             cache = self.db.query(ChannelCache).filter_by(listing_id=captured.listing_id).first()
@@ -2111,6 +2313,8 @@ class UnifiedWorkspaceService:
                 or cache.checksum != captured.cache_checksum
             ):
                 stale_reasons.append(f"cache:{captured.listing_id}")
+            elif cache.fetched_at < utcnow() - timedelta(minutes=max_age_minutes):
+                stale_reasons.append(f"cache_age:{captured.listing_id}")
             if listing is None or listing.mapping_version != captured.mapping_version:
                 stale_reasons.append(f"mapping:{captured.listing_id}")
             if capabilities.version != captured.capability_version:
@@ -2162,9 +2366,119 @@ class UnifiedWorkspaceService:
                 {"reasons": stale_reasons},
             )
 
-    def _listing_update(
-        self, job: ApplyJob, listing_id: str, items: list[ReviewItem]
-    ) -> ListingUpdate:
+    def _selection_document(
+        self, review: Review, items: list[ReviewItem]
+    ) -> dict[str, object]:
+        ordered = sorted(items, key=lambda item: (item.channel_id, item.listing_id, item.field, item.id))
+        return {
+            "workspace_id": review.workspace_id,
+            "snapshot_id": review.snapshot_id,
+            "draft_revision_id": review.draft_revision_id,
+            "review_id": review.id,
+            "review_checksum": review.checksum,
+            "selection_version": review.selection_version,
+            "channel_ids": sorted({item.channel_id for item in ordered}),
+            "listing_ids": sorted({item.listing_id for item in ordered}),
+            "review_item_ids": [item.id for item in ordered],
+            "field_changes": [
+                {"listing_id": item.listing_id, "channel_id": item.channel_id, "field": item.field}
+                for item in ordered
+            ],
+        }
+
+    def _acquire_listing_locks(
+        self,
+        workspace_id: str,
+        apply_job_id: str,
+        scopes: list[tuple[str, str]],
+    ) -> None:
+        now = utcnow()
+        expires = now + timedelta(minutes=LOCK_MINUTES)
+        ordered = sorted(scopes)
+        try:
+            for channel_id, listing_id in ordered:
+                existing = (
+                    self.db.query(WorkspaceLock)
+                    .filter_by(channel_id=channel_id, listing_id=listing_id)
+                    .with_for_update()
+                    .first()
+                )
+                if existing is not None and existing.expires_at > now:
+                    raise self._conflict(
+                        "APPLY_SCOPE_LOCKED",
+                        "Another Apply is running for a selected Listing.",
+                        {"listingIds": [listing_id]},
+                    )
+                if existing is not None:
+                    owner_job = self.db.get(ApplyJob, existing.apply_job_id)
+                    if owner_job is not None and owner_job.status in {
+                        ApplyState.PENDING,
+                        ApplyState.RUNNING,
+                        ApplyState.RECONCILIATION_REQUIRED,
+                    }:
+                        raise self._conflict(
+                            "APPLY_SCOPE_RECONCILIATION_REQUIRED",
+                            "An expired Listing lock belongs to an unfinished or uncertain Apply.",
+                            {"listingIds": [listing_id], "applyJobId": owner_job.id},
+                        )
+                    self.db.delete(existing)
+                    self.db.flush()
+                self.db.add(
+                    WorkspaceLock(
+                        id=_id(),
+                        workspace_id=workspace_id,
+                        channel_id=channel_id,
+                        listing_id=listing_id,
+                        apply_job_id=apply_job_id,
+                        acquired_at=now,
+                        expires_at=expires,
+                    )
+                )
+                self.db.flush()
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            raise self._conflict(
+                "APPLY_SCOPE_LOCKED", "Another Apply acquired the selected Listing."
+            ) from exc
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def _assert_listing_unlocked(self, channel_id: str, listing_id: str) -> None:
+        active = (
+            self.db.query(WorkspaceLock)
+            .filter_by(channel_id=channel_id, listing_id=listing_id)
+            .filter(WorkspaceLock.expires_at > utcnow())
+            .first()
+        )
+        if active is not None:
+            raise self._conflict(
+                "LISTING_MUTATION_LOCKED",
+                "Listing Mapping or Cache cannot change during Apply.",
+                {"listingId": listing_id},
+            )
+
+    def _release_listing_locks(self, apply_job_id: str) -> None:
+        self.db.query(WorkspaceLock).filter_by(apply_job_id=apply_job_id).delete(
+            synchronize_session=False
+        )
+
+    def _cache_max_age_minutes(self) -> int:
+        raw = self.config.get("workspace.channel_cache_max_age_minutes") or "60"
+        try:
+            value = int(raw)
+        except ValueError:
+            value = 60
+        return min(max(value, 1), 10_080)
+
+    def _write_intent(
+        self,
+        job: ApplyJob,
+        listing_id: str,
+        items: list[ReviewItem],
+        selection_checksum: str,
+    ) -> WorkspaceWriteIntent:
         listing = self.db.get(Listing, listing_id)
         cache = self.db.query(ChannelCache).filter_by(listing_id=listing_id).first()
         product = self.db.get(CanonicalProduct, listing.canonical_product_id) if listing else None
@@ -2180,8 +2494,39 @@ class UnifiedWorkspaceService:
                 .first()
             )
             parent_external_id = parent_listing.external_primary_id if parent_listing else None
-        return ListingUpdate(
+        capabilities = self._capabilities(listing.channel_id)
+        job_item_ids = tuple(
+            row.id
+            for row in self.db.query(ApplyJobItem)
+            .filter(
+                ApplyJobItem.apply_job_id == job.id,
+                ApplyJobItem.review_item_id.in_([item.id for item in items]),
+            )
+            .order_by(ApplyJobItem.id)
+            .all()
+        )
+        payload = {
+            "listing": listing.id,
+            "channel": listing.channel_id,
+            "targets": targets,
+            "mapping_version": listing.mapping_version,
+            "cache_version": cache.cache_version,
+            "cache_checksum": cache.checksum,
+            "capability_version": capabilities.version,
+        }
+        review = self.db.get(Review, job.review_id)
+        if review is None:
+            raise WorkspaceDomainError("Apply Review state is unavailable.")
+        return WorkspaceWriteIntent(
+            apply_job_id=job.id,
+            apply_item_ids=job_item_ids,
+            workspace_id=job.workspace_id,
+            snapshot_id=job.snapshot_id,
+            draft_revision_id=job.draft_revision_id,
+            review_id=job.review_id,
+            selection_checksum=selection_checksum,
             listing_id=listing.id,
+            channel_id=listing.channel_id,
             external_primary_id=listing.external_primary_id,
             sku=listing.sku,
             product_type=product.product_type,
@@ -2196,11 +2541,23 @@ class UnifiedWorkspaceService:
             if price_item
             else cache.price_currency,
             unit=price_item.normalized_value_json.get("unit") if price_item else cache.price_unit,
-            idempotency_key=f"{job.idempotency_key}:{listing.id}",
+            mapping_version=listing.mapping_version,
+            cache_version=cache.cache_version,
+            cache_checksum=cache.checksum,
+            capability_version=capabilities.version,
+            currency_digest=review.currency_digest,
+            idempotency_key=checksum(
+                {"logical_operation": job.logical_operation_key, "listing": listing.id}
+            ),
+            payload_hash=checksum(payload),
         )
 
     def _record_listing_success(
-        self, job: ApplyJob, result, affected: list[ReviewItem], user: FlowHubUser
+        self,
+        job: ApplyJob,
+        result: WorkspaceWriteResult,
+        affected: list[ReviewItem],
+        user: FlowHubUser,
     ) -> None:
         cache = self.db.query(ChannelCache).filter_by(listing_id=result.listing_id).first()
         cache_patched = False
@@ -2215,9 +2572,7 @@ class UnifiedWorkspaceService:
             job_item.connector_response_json = dict(result.response)
             job_item.external_response_id = result.external_response_id
             job_item.retry_eligible = False
-            job_item.cache_sync_status = (
-                "patched_verified" if result.cache_verified else "verification_required"
-            )
+            job_item.cache_sync_status = "patched_verified"
             job_item.started_at = job.started_at
             job_item.completed_at = utcnow()
             if cache:
@@ -2225,7 +2580,7 @@ class UnifiedWorkspaceService:
                     cache.price_raw = _number_text(result.accepted_price)
                     cache_patched = True
                 elif item.field == "stock" and result.accepted_stock is not None:
-                    cache.stock_quantity = result.accepted_stock
+                    cache.stock_quantity = Decimal(str(result.accepted_stock))
                     cache_patched = True
                 elif item.field == "status" and result.accepted_status is not None:
                     cache.status = result.accepted_status
@@ -2263,7 +2618,11 @@ class UnifiedWorkspaceService:
             cache.fetched_at = utcnow()
 
     def _record_listing_failure(
-        self, job: ApplyJob, result, affected: list[ReviewItem], user: FlowHubUser
+        self,
+        job: ApplyJob,
+        result: WorkspaceWriteResult,
+        affected: list[ReviewItem],
+        user: FlowHubUser,
     ) -> None:
         for item in affected:
             job_item = (
@@ -2297,6 +2656,48 @@ class UnifiedWorkspaceService:
                 target_value=item.target_value,
                 apply_result="failed",
                 reason=result.error_message,
+            )
+
+    def _record_listing_reconciliation(
+        self,
+        job: ApplyJob,
+        result: WorkspaceWriteResult,
+        affected: list[ReviewItem],
+        user: FlowHubUser,
+    ) -> None:
+        for item in affected:
+            job_item = (
+                self.db.query(ApplyJobItem)
+                .filter_by(apply_job_id=job.id, review_item_id=item.id)
+                .one()
+            )
+            job_item.status = WriteOutcome.RECONCILIATION_REQUIRED
+            job_item.attempt_number += 1
+            job_item.connector_response_json = dict(result.response)
+            job_item.external_response_id = result.external_response_id
+            job_item.error_category = result.error_category or "provider_unknown"
+            job_item.error_message = result.error_message
+            job_item.retry_eligible = False
+            job_item.cache_sync_status = "reconciliation_required"
+            job_item.started_at = job.started_at
+            job_item.completed_at = utcnow()
+            self._audit(
+                "apply_item_reconciliation_required",
+                user,
+                job.correlation_id,
+                workspace_id=job.workspace_id,
+                snapshot_id=job.snapshot_id,
+                draft_revision_id=job.draft_revision_id,
+                review_id=job.review_id,
+                apply_job_id=job.id,
+                canonical_product_id=item.canonical_product_id,
+                listing_id=item.listing_id,
+                channel_id=item.channel_id,
+                changed_field=item.field,
+                previous_value=item.current_value,
+                target_value=item.target_value,
+                apply_result=WriteOutcome.RECONCILIATION_REQUIRED,
+                reason=result.error_message or "Provider outcome requires reconciliation.",
             )
 
     def _mark_listing_failed(
@@ -2374,7 +2775,7 @@ class UnifiedWorkspaceService:
 
     def _normalized_target(
         self, change: DraftRevisionChange, capabilities: ChannelCapabilities
-    ) -> dict:
+    ) -> dict[str, Any]:
         if change.field == "price":
             return self._money(change.target_value, capabilities).as_dict()
         return {"raw_value": change.target_value, "field": change.field}
@@ -2390,7 +2791,7 @@ class UnifiedWorkspaceService:
     @staticmethod
     def _normalized_snapshot_data(
         product: CanonicalProduct, listing: Listing, cache: ChannelCache
-    ) -> dict:
+    ) -> dict[str, Any]:
         return {
             "canonical_product_id": product.id,
             "canonical_name": product.name,
@@ -2404,8 +2805,8 @@ class UnifiedWorkspaceService:
         }
 
     @staticmethod
-    def _secondary_identifiers(row: DlProductCache) -> dict:
-        raw = row.raw_data if isinstance(row.raw_data, dict) else {}
+    def _secondary_identifiers(row: DlProductCache) -> dict[str, Any]:
+        raw: dict[str, Any] = row.raw_data if isinstance(row.raw_data, dict) else {}
         return {
             key: raw[key]
             for key in ("product_number", "parent_product_number")
@@ -2422,7 +2823,7 @@ class UnifiedWorkspaceService:
         return canonical_text(first) or None
 
     @staticmethod
-    def _channel_shape(capabilities: ChannelCapabilities) -> dict:
+    def _channel_shape(capabilities: ChannelCapabilities) -> dict[str, Any]:
         return {
             "channelId": capabilities.channel_id,
             "readPrice": capabilities.read_price,
@@ -2448,7 +2849,7 @@ class UnifiedWorkspaceService:
         }
 
     @staticmethod
-    def _revision_shape(revision: DraftRevision) -> dict:
+    def _revision_shape(revision: DraftRevision) -> dict[str, Any]:
         return {
             "id": revision.id,
             "draftId": revision.draft_id,
@@ -2464,7 +2865,7 @@ class UnifiedWorkspaceService:
         }
 
     @staticmethod
-    def _preference_shape(row: UserWorkspacePreference) -> dict:
+    def _preference_shape(row: UserWorkspacePreference) -> dict[str, Any]:
         return {
             "visibleChannelIds": row.visible_channel_ids_json,
             "channelOrder": row.channel_order_json,
@@ -2474,7 +2875,7 @@ class UnifiedWorkspaceService:
         }
 
     @staticmethod
-    def _audit_shape(row: UnifiedAuditEntry) -> dict:
+    def _audit_shape(row: UnifiedAuditEntry) -> dict[str, Any]:
         return {
             "id": row.id,
             "correlationId": row.correlation_id,
@@ -2527,16 +2928,16 @@ class UnifiedWorkspaceService:
 
     @staticmethod
     def _error(
-        status_code: int, code: str, message: str, context: dict | None = None
+        status_code: int, code: str, message: str, context: dict[str, Any] | None = None
     ) -> HTTPException:
         return HTTPException(
             status_code, {"code": code, "message": message, "context": context or {}}
         )
 
-    def _unprocessable(self, code: str, message: str, context: dict | None = None) -> HTTPException:
+    def _unprocessable(self, code: str, message: str, context: dict[str, Any] | None = None) -> HTTPException:
         return self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, code, message, context)
 
-    def _conflict(self, code: str, message: str, context: dict | None = None) -> HTTPException:
+    def _conflict(self, code: str, message: str, context: dict[str, Any] | None = None) -> HTTPException:
         return self._error(status.HTTP_409_CONFLICT, code, message, context)
 
     def _not_found(self, code: str, message: str) -> HTTPException:
@@ -2547,7 +2948,7 @@ class UnifiedWorkspaceService:
 from sqlalchemy import tuple_  # noqa: E402
 
 
-def _unique_dicts(items: list[dict]) -> list[dict]:
+def _unique_dicts(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     by_value = {stable_json(item): item for item in items}
     return [by_value[key] for key in sorted(by_value)]
 

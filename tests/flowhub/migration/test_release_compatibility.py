@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import sqlalchemy as sa
-from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
+from alembic import command
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -26,16 +26,22 @@ def test_legacy_revision_and_core_tables_upgrade_without_data_loss(tmp_path, mon
     db_url = f"sqlite:///{db_path}"
     engine = sa.create_engine(db_url)
 
-    from app.flowhub.database import FlowHubBase
     from app.flowhub.auth import models as _auth_models  # noqa: F401
-    from app.flowhub.setup import models as _setup_models  # noqa: F401
     from app.flowhub.data_layer import models as _data_layer_models  # noqa: F401
+    from app.flowhub.database import FlowHubBase
     from app.flowhub.integration_platform import models as _integration_models  # noqa: F401
     from app.flowhub.logging_platform import models as _logging_models  # noqa: F401
-    from app.flowhub.webhooks import models as _webhook_models  # noqa: F401
     from app.flowhub.orders import models as _order_models  # noqa: F401
+    from app.flowhub.setup import models as _setup_models  # noqa: F401
+    from app.flowhub.webhooks import models as _webhook_models  # noqa: F401
 
-    FlowHubBase.metadata.create_all(engine)
+    # A legacy beta_007 database cannot contain future Unified Workspace tables.
+    # Test collection imports current models globally, so exclude those tables from
+    # this historical fixture instead of accidentally pre-creating the migration target.
+    legacy_tables = [
+        table for table in FlowHubBase.metadata.sorted_tables if not table.name.startswith("uw_")
+    ]
+    FlowHubBase.metadata.create_all(engine, tables=legacy_tables)
     with engine.begin() as conn:
         conn.execute(sa.text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
         conn.execute(sa.text("INSERT INTO alembic_version (version_num) VALUES ('beta_007')"))

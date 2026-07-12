@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -18,7 +20,8 @@ from sqlalchemy import (
     UniqueConstraint,
     event,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.engine import Connection
+from sqlalchemy.orm import Mapped, Mapper, mapped_column, relationship
 
 from app.flowhub.database import FlowHubBase
 from app.flowhub.unified_workspace.domain import ImmutableRecordError, utcnow
@@ -64,7 +67,7 @@ class CurrencyProfile(FlowHubBase):
     unit: Mapped[str] = mapped_column(String(24), nullable=False)
     normalization_currency: Mapped[str] = mapped_column(String(12), nullable=False)
     normalization_unit: Mapped[str] = mapped_column(String(24), nullable=False)
-    conversion_factor: Mapped[object] = mapped_column(Numeric(24, 8), nullable=False)
+    conversion_factor: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
     conversion_rule: Mapped[str] = mapped_column(String(120), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -95,8 +98,8 @@ class WorkspaceSnapshot(FlowHubBase):
     currency_profile_id: Mapped[str] = mapped_column(
         ForeignKey("uw_currency_profiles.id", ondelete="RESTRICT"), nullable=False
     )
-    source_metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    acquisition_metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    source_metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    acquisition_metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
 
     workspace: Mapped[UnifiedWorkspace] = relationship(
@@ -137,7 +140,7 @@ class WorkspaceChannel(FlowHubBase):
     connector_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     implementation_state: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
-    capabilities_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    capabilities_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     capability_version: Mapped[str] = mapped_column(String(40), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
@@ -166,12 +169,12 @@ class Listing(FlowHubBase):
     )
     external_primary_id: Mapped[str] = mapped_column(String(255), nullable=False)
     external_id_type: Mapped[str] = mapped_column(String(80), nullable=False)
-    secondary_identifiers_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    secondary_identifiers_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     sku: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     label: Mapped[str] = mapped_column(String(500), nullable=False)
     mapping_state: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     mapping_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    capability_state_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    capability_state_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
@@ -191,10 +194,14 @@ class MappingRevision(FlowHubBase):
         ForeignKey("uw_listings.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     revision_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    previous_canonical_product_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    proposed_canonical_product_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    previous_canonical_product_id: Mapped[str | None] = mapped_column(
+        ForeignKey("uw_canonical_products.id", ondelete="RESTRICT"), nullable=True
+    )
+    proposed_canonical_product_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_canonical_products.id", ondelete="RESTRICT"), nullable=False
+    )
     decision: Mapped[str] = mapped_column(String(20), nullable=False)
-    evidence_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    evidence_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     approved_by_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("flowhub_users.id", ondelete="RESTRICT"), nullable=True
@@ -217,7 +224,7 @@ class ChannelCache(FlowHubBase):
     price_raw: Mapped[str | None] = mapped_column(String(100), nullable=True)
     price_currency: Mapped[str | None] = mapped_column(String(12), nullable=True)
     price_unit: Mapped[str | None] = mapped_column(String(24), nullable=True)
-    stock_quantity: Mapped[object | None] = mapped_column(Numeric(20, 4), nullable=True)
+    stock_quantity: Mapped[Decimal | None] = mapped_column(Numeric(20, 4), nullable=True)
     status: Mapped[str | None] = mapped_column(String(80), nullable=True)
     manage_stock: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     cache_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -250,8 +257,8 @@ class SnapshotRow(FlowHubBase):
         ForeignKey("uw_listings.id", ondelete="RESTRICT"), nullable=True, index=True
     )
     mapping_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    raw_data_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    normalized_data_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    raw_data_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    normalized_data_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     row_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
 
     snapshot: Mapped[WorkspaceSnapshot] = relationship("WorkspaceSnapshot", back_populates="rows")
@@ -273,7 +280,9 @@ class Draft(FlowHubBase):
     owner_user_id: Mapped[int] = mapped_column(
         ForeignKey("flowhub_users.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    current_revision_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    current_revision_id: Mapped[str | None] = mapped_column(
+        ForeignKey("uw_draft_revisions.id", ondelete="RESTRICT", use_alter=True), nullable=True
+    )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
@@ -308,7 +317,7 @@ class DraftRevision(FlowHubBase):
         ForeignKey("flowhub_users.id", ondelete="RESTRICT"), nullable=False
     )
     checksum: Mapped[str] = mapped_column(String(64), nullable=False)
-    metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
 
 
@@ -364,10 +373,12 @@ class Review(FlowHubBase):
     currency_digest: Mapped[str] = mapped_column(String(64), nullable=False)
     mapping_digest: Mapped[str] = mapped_column(String(64), nullable=False)
     checksum: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    summary_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    summary_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
     invalidated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     stale_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    selection_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    selection_checksum: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class ReviewItem(FlowHubBase):
@@ -384,17 +395,23 @@ class ReviewItem(FlowHubBase):
     draft_change_id: Mapped[str] = mapped_column(
         ForeignKey("uw_draft_revision_changes.id", ondelete="RESTRICT"), nullable=False
     )
-    canonical_product_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    listing_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    channel_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    canonical_product_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_canonical_products.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    listing_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_listings.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    channel_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_channels.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
     field: Mapped[str] = mapped_column(String(20), nullable=False)
     current_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     target_value: Mapped[str] = mapped_column(Text, nullable=False)
-    normalized_value_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    payload_summary_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    normalized_value_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    payload_summary_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     validation_state: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
-    warnings_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    errors_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    warnings_json: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    errors_json: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
     eligible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     selected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
@@ -409,8 +426,12 @@ class ReviewCacheVersion(FlowHubBase):
     review_id: Mapped[str] = mapped_column(
         ForeignKey("uw_reviews.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    listing_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    channel_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    listing_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_listings.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    channel_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_channels.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
     cache_version: Mapped[int] = mapped_column(Integer, nullable=False)
     cache_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
     mapping_version: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -440,18 +461,23 @@ class ApplyJob(FlowHubBase):
     __tablename__ = "uw_apply_jobs"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending','running','partially_applied','applied','failed','cancelled','blocked','stale')",
+            "status IN ('pending','running','partially_applied','applied','failed','cancelled','blocked','stale','reconciliation_required')",
             name="ck_uw_apply_status",
         ),
         UniqueConstraint("idempotency_key", name="uq_uw_apply_idempotency"),
+        UniqueConstraint("logical_operation_key", name="uq_uw_apply_logical_operation"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     workspace_id: Mapped[str] = mapped_column(
         ForeignKey("uw_workspaces.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    snapshot_id: Mapped[str] = mapped_column(String(36), nullable=False)
-    draft_revision_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    snapshot_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_workspace_snapshots.id", ondelete="RESTRICT"), nullable=False
+    )
+    draft_revision_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_draft_revisions.id", ondelete="RESTRICT"), nullable=False
+    )
     review_id: Mapped[str] = mapped_column(
         ForeignKey("uw_reviews.id", ondelete="RESTRICT"), nullable=False, index=True
     )
@@ -459,9 +485,10 @@ class ApplyJob(FlowHubBase):
         ForeignKey("flowhub_users.id", ondelete="RESTRICT"), nullable=False
     )
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    logical_operation_key: Mapped[str] = mapped_column(String(64), nullable=False)
     correlation_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     selection_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
-    request_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    request_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -478,16 +505,24 @@ class ApplyJobItem(FlowHubBase):
     apply_job_id: Mapped[str] = mapped_column(
         ForeignKey("uw_apply_jobs.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    review_item_id: Mapped[str] = mapped_column(String(36), nullable=False)
-    canonical_product_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    listing_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    channel_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    review_item_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_review_items.id", ondelete="RESTRICT"), nullable=False
+    )
+    canonical_product_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_canonical_products.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    listing_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_listings.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    channel_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_channels.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
     field: Mapped[str] = mapped_column(String(20), nullable=False)
     payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     attempt_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     retry_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    connector_response_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    connector_response_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     external_response_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     error_category: Mapped[str | None] = mapped_column(String(80), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -503,16 +538,28 @@ class ValidationIssue(FlowHubBase):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    workspace_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    snapshot_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    review_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
-    canonical_product_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    listing_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    channel_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_workspaces.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    snapshot_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_workspace_snapshots.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    review_id: Mapped[str | None] = mapped_column(
+        ForeignKey("uw_reviews.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    canonical_product_id: Mapped[str | None] = mapped_column(
+        ForeignKey("uw_canonical_products.id", ondelete="RESTRICT"), nullable=True
+    )
+    listing_id: Mapped[str | None] = mapped_column(
+        ForeignKey("uw_listings.id", ondelete="RESTRICT"), nullable=True
+    )
+    channel_id: Mapped[str | None] = mapped_column(
+        ForeignKey("uw_channels.id", ondelete="RESTRICT"), nullable=True
+    )
     code: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     severity: Mapped[str] = mapped_column(String(20), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
-    metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
 
 
@@ -542,21 +589,82 @@ class UnifiedAuditEntry(FlowHubBase):
     review_result: Mapped[str | None] = mapped_column(String(30), nullable=True)
     apply_result: Mapped[str | None] = mapped_column(String(30), nullable=True)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-    request_metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    request_metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     metadata_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
 class WorkspaceLock(FlowHubBase):
     __tablename__ = "uw_workspace_locks"
-    __table_args__ = (UniqueConstraint("workspace_id", "listing_id", name="uq_uw_lock_scope"),)
+    __table_args__ = (UniqueConstraint("channel_id", "listing_id", name="uq_uw_lock_scope"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    workspace_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    listing_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    apply_job_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_workspaces.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    channel_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_channels.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    listing_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_listings.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    apply_job_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_apply_jobs.id", ondelete="CASCADE"), nullable=False
+    )
     acquired_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+
+class ApplyAttempt(FlowHubBase):
+    """Immutable external dispatch intent committed before provider I/O."""
+
+    __tablename__ = "uw_apply_attempts"
+    __table_args__ = (
+        UniqueConstraint("apply_job_item_id", "attempt_number", name="uq_uw_attempt_number"),
+        UniqueConstraint("provider_idempotency_key", name="uq_uw_attempt_provider_key"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    apply_job_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_apply_jobs.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    apply_job_item_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_apply_job_items.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    listing_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_listings.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    channel_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_channels.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    normalized_payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider_idempotency_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    correlation_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class ApplyAttemptEvent(FlowHubBase):
+    """Append-only outcome evidence for an immutable dispatch intent."""
+
+    __tablename__ = "uw_apply_attempt_events"
+    __table_args__ = (
+        CheckConstraint(
+            "outcome IN ('pending','dispatched','provider_accepted','verified_applied','failed','reconciliation_required')",
+            name="ck_uw_attempt_event_outcome",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_apply_attempts.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    outcome: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    provider_response_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    error_category: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
 
 
 class UserWorkspacePreference(FlowHubBase):
@@ -567,9 +675,9 @@ class UserWorkspacePreference(FlowHubBase):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("flowhub_users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    visible_channel_ids_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    channel_order_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    visible_fields_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    visible_channel_ids_json: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    channel_order_json: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    visible_fields_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     display_name_source: Mapped[str] = mapped_column(
         String(120), nullable=False, default="canonical"
     )
@@ -578,6 +686,7 @@ class UserWorkspacePreference(FlowHubBase):
 
 
 _IMMUTABLE_MODELS = (
+    CurrencyProfile,
     WorkspaceSnapshot,
     SnapshotRow,
     MappingRevision,
@@ -586,10 +695,14 @@ _IMMUTABLE_MODELS = (
     ReviewItem,
     ReviewCacheVersion,
     UnifiedAuditEntry,
+    ApplyAttempt,
+    ApplyAttemptEvent,
 )
 
 
-def _reject_immutable_change(_mapper, _connection, target) -> None:
+def _reject_immutable_change(
+    _mapper: Mapper[Any], _connection: Connection, target: Any
+) -> None:
     raise ImmutableRecordError(f"{target.__class__.__name__} records are immutable.")
 
 

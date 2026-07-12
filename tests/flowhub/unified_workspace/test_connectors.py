@@ -21,6 +21,7 @@ from app.flowhub.unified_workspace.connectors import (
     WorkspaceConnectorFactory,
 )
 from app.flowhub.unified_workspace.domain import WorkspaceDomainError
+from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
 
 
 class _Config:
@@ -83,7 +84,13 @@ async def test_woocommerce_adapter_validates_verifies_and_redacts_provider_failu
 
     async def verify(_self, item, _context):
         assert item.proposed_price == 125.0
-        return {"verified": True}
+        return {
+            "provider": "woocommerce",
+            "verified": True,
+            "product_id": 101,
+            "parent_product_id": None,
+            "variation_id": None,
+        }
 
     monkeypatch.setattr(
         "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.execute_item",
@@ -94,8 +101,7 @@ async def test_woocommerce_adapter_validates_verifies_and_redacts_provider_failu
         verify,
     )
     result = (await connector.apply_updates([_update()], requested_by="admin"))[0]
-    assert result.success is True
-    assert result.cache_verified is True
+    assert result.outcome is WriteOutcome.VERIFIED_APPLIED
     assert result.accepted_price == 125.0
     assert result.external_response_id == "101"
 
@@ -107,9 +113,95 @@ async def test_woocommerce_adapter_validates_verifies_and_redacts_provider_failu
         fail,
     )
     failed = (await connector.apply_updates([_update()], requested_by="admin"))[0]
-    assert failed.success is False
+    assert failed.outcome is WriteOutcome.RECONCILIATION_REQUIRED
     assert failed.error_category == "provider"
     assert failed.error_message == "provider failed"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "verification",
+    [
+        {
+            "provider": "woocommerce",
+            "verified": True,
+            "product_id": 999,
+            "parent_product_id": None,
+            "variation_id": None,
+        },
+        {
+            "provider": "snappshop",
+            "verified": True,
+            "product_id": 101,
+            "parent_product_id": None,
+            "variation_id": None,
+        },
+        {
+            "provider": "woocommerce",
+            "verified": False,
+            "product_id": 101,
+            "parent_product_id": None,
+            "variation_id": None,
+        },
+    ],
+)
+async def test_woocommerce_never_accepts_stale_wrong_or_cross_channel_readback(
+    monkeypatch, verification
+):
+    async def execute(_self, _item, _context):
+        return {"id": 101}
+
+    async def verify(_self, _item, _context):
+        return verification
+
+    monkeypatch.setattr(
+        "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.execute_item",
+        execute,
+    )
+    monkeypatch.setattr(
+        "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.verify_item",
+        verify,
+    )
+    result = (
+        await WooCommerceWorkspaceConnector(_Pricing()).apply_updates(
+            [_update()], requested_by="admin"
+        )
+    )[0]
+    assert result.outcome is WriteOutcome.RECONCILIATION_REQUIRED
+    assert result.accepted_price is None
+
+
+@pytest.mark.asyncio
+async def test_woocommerce_variation_cannot_verify_against_parent_readback(monkeypatch):
+    async def execute(_self, _item, _context):
+        return {"id": 501}
+
+    async def parent_readback(_self, _item, _context):
+        return {
+            "provider": "woocommerce",
+            "verified": True,
+            "product_id": 500,
+            "parent_product_id": None,
+            "variation_id": None,
+        }
+
+    monkeypatch.setattr(
+        "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.execute_item",
+        execute,
+    )
+    monkeypatch.setattr(
+        "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.verify_item",
+        parent_readback,
+    )
+    update = _update(
+        product_type="variation", external_primary_id="501", parent_external_id="500"
+    )
+    result = (
+        await WooCommerceWorkspaceConnector(_Pricing()).apply_updates(
+            [update], requested_by="admin"
+        )
+    )[0]
+    assert result.outcome is WriteOutcome.RECONCILIATION_REQUIRED
 
 
 class _SnappProvider:
@@ -137,6 +229,8 @@ class _SnappProvider:
             ),
             name="Verified",
             current_price=125.0,
+            currency="IRR",
+            price_unit="toman",
             stock_quantity=4.0,
         )
 
@@ -163,7 +257,7 @@ async def test_snappshop_adapter_batches_at_fifty_and_only_accepts_verified_stat
     results = await connector.apply_updates(updates, requested_by="admin")
     assert provider.batch_sizes == [50, 1]
     assert len(results) == 51
-    assert all(item.cache_verified for item in results)
+    assert all(item.outcome is WriteOutcome.VERIFIED_APPLIED for item in results)
     assert results[0].accepted_price == 125.0
     assert results[0].accepted_stock == 4.0
 
@@ -177,6 +271,35 @@ async def test_snappshop_adapter_batches_at_fifty_and_only_accepts_verified_stat
         )
     with pytest.raises(WorkspaceDomainError):
         connector.validate_update(_update(target_status="inactive", currency="IRR", unit="TOMAN"))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["timeout", "wrong_listing", "wrong_channel", "wrong_unit"])
+async def test_snappshop_never_accepts_uncertain_or_mismatched_readback(failure):
+    class Provider(_SnappProvider):
+        async def get_product(self, identifiers):
+            if failure == "timeout":
+                raise TimeoutError("read-back timed out")
+            product = await super().get_product(identifiers)
+            if failure == "wrong_listing":
+                product.identifiers.external_product_id = "unrelated"
+            elif failure == "wrong_channel":
+                product.channel_id = "woocommerce:primary"
+            elif failure == "wrong_unit":
+                product.price_unit = "rial"
+            return product
+
+    connector = SnappShopWorkspaceConnector(
+        SimpleNamespace(_snappshop_connector=lambda: Provider())
+    )
+    result = (
+        await connector.apply_updates(
+            [_update(target_stock=4, currency="IRR", unit="TOMAN")], requested_by="admin"
+        )
+    )[0]
+    assert result.outcome is WriteOutcome.RECONCILIATION_REQUIRED
+    assert result.accepted_price is None
+    assert result.accepted_stock is None
 
 
 @pytest.mark.asyncio
@@ -213,7 +336,7 @@ async def test_snappshop_adapter_preserves_retry_metadata_and_rejects_unconfigur
     assert result.retry_eligible is True
     assert result.error_category == "rate_limit"
     assert result.external_response_id == "req-1"
-    assert result.cache_verified is False
+    assert result.outcome is WriteOutcome.FAILED
 
     unavailable = SnappShopWorkspaceConnector(SimpleNamespace(_snappshop_connector=lambda: None))
     assert unavailable.capabilities().health_state == "unconfigured"

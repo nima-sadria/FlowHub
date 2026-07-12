@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -11,6 +12,43 @@ from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.product_pricing.service import ProductPricingService
 from app.flowhub.unified_workspace.domain import ChannelCapabilities, WorkspaceDomainError
 from app.flowhub.write_pipeline.adapters import ChannelWriteContext
+from app.flowhub.write_pipeline.workspace_contracts import (
+    WorkspaceWriteResult as ListingUpdateResult,
+)
+from app.flowhub.write_pipeline.workspace_contracts import (
+    WriteOutcome,
+)
+
+
+class ListingUpdateLike(Protocol):
+    @property
+    def listing_id(self) -> str: ...
+    @property
+    def external_primary_id(self) -> str: ...
+    @property
+    def sku(self) -> str | None: ...
+    @property
+    def product_type(self) -> str: ...
+    @property
+    def parent_external_id(self) -> str | None: ...
+    @property
+    def current_price(self) -> float | None: ...
+    @property
+    def current_stock(self) -> float | None: ...
+    @property
+    def current_status(self) -> str | None: ...
+    @property
+    def target_price(self) -> float | None: ...
+    @property
+    def target_stock(self) -> float | None: ...
+    @property
+    def target_status(self) -> str | None: ...
+    @property
+    def currency(self) -> str | None: ...
+    @property
+    def unit(self) -> str | None: ...
+    @property
+    def idempotency_key(self) -> str: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,30 +69,19 @@ class ListingUpdate:
     idempotency_key: str
 
 
-@dataclass(frozen=True, slots=True)
-class ListingUpdateResult:
-    listing_id: str
-    success: bool
-    response: dict
-    external_response_id: str | None = None
-    error_category: str | None = None
-    error_message: str | None = None
-    retry_eligible: bool = False
-    accepted_price: float | None = None
-    accepted_stock: float | None = None
-    accepted_status: str | None = None
-    cache_verified: bool = False
-
-
 class WorkspaceChannelConnector(Protocol):
     channel_id: str
 
     def capabilities(self) -> ChannelCapabilities: ...
 
-    def validate_update(self, update: ListingUpdate) -> None: ...
+    def validate_update(self, update: ListingUpdateLike) -> None: ...
 
     async def apply_updates(
-        self, updates: list[ListingUpdate], *, requested_by: str
+        self, updates: Sequence[ListingUpdateLike], *, requested_by: str
+    ) -> list[ListingUpdateResult]: ...
+
+    async def verify_updates(
+        self, updates: Sequence[ListingUpdateLike], *, requested_by: str
     ) -> list[ListingUpdateResult]: ...
 
 
@@ -93,7 +120,7 @@ class WooCommerceWorkspaceConnector:
             version="uw-1.2",
         )
 
-    def validate_update(self, update: ListingUpdate) -> None:
+    def validate_update(self, update: ListingUpdateLike) -> None:
         if update.target_stock is not None or update.target_status is not None:
             raise WorkspaceDomainError(
                 "WooCommerce stock and status writes are unavailable in the approved existing connector contract."
@@ -104,7 +131,7 @@ class WooCommerceWorkspaceConnector:
             raise WorkspaceDomainError("WooCommerce primary identifier must be numeric.")
 
     async def apply_updates(
-        self, updates: list[ListingUpdate], *, requested_by: str
+        self, updates: Sequence[ListingUpdateLike], *, requested_by: str
     ) -> list[ListingUpdateResult]:
         adapter = WooCommercePriceWriteAdapter()
         context = ChannelWriteContext(
@@ -118,26 +145,106 @@ class WooCommerceWorkspaceConnector:
             except Exception as exc:
                 results.append(
                     ListingUpdateResult(
-                        update.listing_id,
-                        False,
-                        {},
+                        listing_id=update.listing_id,
+                        outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                        response={},
                         error_category="provider",
                         error_message=self.pricing._safe_error(exc),
                     )
                 )
             else:
-                verification = await adapter.verify_item(_WooWriteItem(update), context)
-                verified = verification.get("verified") is True
+                try:
+                    verification = await adapter.verify_item(_WooWriteItem(update), context)
+                except Exception as exc:
+                    results.append(
+                        ListingUpdateResult(
+                            listing_id=update.listing_id,
+                            outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                            provider_accepted=True,
+                            response={**response, "verification": {"verified": False}},
+                            external_response_id=_response_id(response),
+                            error_category="verification",
+                            error_message=self.pricing._safe_error(exc),
+                        )
+                    )
+                    continue
+                expected_product_id = int(update.external_primary_id)
+                expected_parent_id = (
+                    int(update.parent_external_id)
+                    if update.product_type == "variation" and update.parent_external_id
+                    else None
+                )
+                verified = (
+                    verification.get("verified") is True
+                    and verification.get("provider") == "woocommerce"
+                    and verification.get("product_id") == expected_product_id
+                    and verification.get("parent_product_id") == expected_parent_id
+                    and verification.get("variation_id")
+                    == (expected_product_id if expected_parent_id is not None else None)
+                )
                 results.append(
                     ListingUpdateResult(
-                        update.listing_id,
-                        True,
-                        {**response, "verification": verification},
+                        listing_id=update.listing_id,
+                        outcome=(
+                            WriteOutcome.VERIFIED_APPLIED
+                            if verified
+                            else WriteOutcome.RECONCILIATION_REQUIRED
+                        ),
+                        provider_accepted=True,
+                        response={**response, "verification": verification},
                         external_response_id=_response_id(response),
                         accepted_price=update.target_price if verified else None,
-                        cache_verified=verified,
                     )
                 )
+        return results
+
+    async def verify_updates(
+        self, updates: Sequence[ListingUpdateLike], *, requested_by: str
+    ) -> list[ListingUpdateResult]:
+        adapter = WooCommercePriceWriteAdapter()
+        context = ChannelWriteContext(
+            get_setting=self.pricing.config.get, requested_by=requested_by
+        )
+        results: list[ListingUpdateResult] = []
+        for update in updates:
+            try:
+                verification = await adapter.verify_item(_WooWriteItem(update), context)
+            except Exception as exc:
+                results.append(
+                    ListingUpdateResult(
+                        listing_id=update.listing_id,
+                        outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                        error_category="verification",
+                        error_message=self.pricing._safe_error(exc),
+                    )
+                )
+                continue
+            expected_id = int(update.external_primary_id)
+            expected_parent = (
+                int(update.parent_external_id)
+                if update.product_type == "variation" and update.parent_external_id
+                else None
+            )
+            verified = (
+                verification.get("verified") is True
+                and verification.get("provider") == "woocommerce"
+                and verification.get("product_id") == expected_id
+                and verification.get("parent_product_id") == expected_parent
+                and verification.get("variation_id")
+                == (expected_id if expected_parent is not None else None)
+            )
+            results.append(
+                ListingUpdateResult(
+                    listing_id=update.listing_id,
+                    outcome=(
+                        WriteOutcome.VERIFIED_APPLIED
+                        if verified
+                        else WriteOutcome.RECONCILIATION_REQUIRED
+                    ),
+                    response={"verification": verification},
+                    accepted_price=update.target_price if verified else None,
+                )
+            )
         return results
 
 
@@ -174,7 +281,7 @@ class SnappShopWorkspaceConnector:
             version="uw-1.2",
         )
 
-    def validate_update(self, update: ListingUpdate) -> None:
+    def validate_update(self, update: ListingUpdateLike) -> None:
         if update.target_status is not None:
             raise WorkspaceDomainError(
                 "SnappShop status writes are unavailable in the current official connector contract."
@@ -187,7 +294,7 @@ class SnappShopWorkspaceConnector:
             raise WorkspaceDomainError("SnappShop prices require currency IRR and unit TOMAN.")
 
     async def apply_updates(
-        self, updates: list[ListingUpdate], *, requested_by: str
+        self, updates: Sequence[ListingUpdateLike], *, requested_by: str
     ) -> list[ListingUpdateResult]:
         connector = self.commerce._snappshop_connector()
         if connector is None:
@@ -237,15 +344,32 @@ class SnappShopWorkspaceConnector:
                             else update.current_stock
                         )
                         verified = (
-                            observed.current_price == expected_price
+                            observed.channel_id == self.channel_id
+                            and observed.identifiers.external_product_id
+                            == update.external_primary_id
+                            and (
+                                update.parent_external_id is None
+                                or observed.identifiers.parent_product_number
+                                == update.parent_external_id
+                            )
+                            and observed.current_price == expected_price
                             and observed.stock_quantity == expected_stock
+                            and observed.currency == "IRR"
+                            and str(observed.price_unit or "").lower() == "toman"
                         )
                     except Exception:
                         verified = False
                 output.append(
                     ListingUpdateResult(
                         listing_id=update.listing_id,
-                        success=result.success,
+                        outcome=(
+                            WriteOutcome.VERIFIED_APPLIED
+                            if result.success and verified
+                            else WriteOutcome.RECONCILIATION_REQUIRED
+                            if result.success
+                            else WriteOutcome.FAILED
+                        ),
+                        provider_accepted=result.success,
                         response={**result.raw, "verification": {"verified": verified}},
                         external_response_id=_response_id(result.raw),
                         error_category=error.category.value if error else None,
@@ -261,9 +385,65 @@ class SnappShopWorkspaceConnector:
                             if verified and update.target_stock is not None
                             else None
                         ),
-                        cache_verified=verified,
                     )
                 )
+        return output
+
+    async def verify_updates(
+        self, updates: Sequence[ListingUpdateLike], *, requested_by: str
+    ) -> list[ListingUpdateResult]:
+        del requested_by
+        connector = self.commerce._snappshop_connector()
+        if connector is None:
+            raise WorkspaceDomainError("SnappShop connector is not configured.")
+        output: list[ListingUpdateResult] = []
+        for update in updates:
+            try:
+                observed = await connector.get_product(
+                    {"external_product_id": update.external_primary_id}
+                )
+                expected_price = (
+                    update.target_price
+                    if update.target_price is not None
+                    else update.current_price
+                )
+                expected_stock = (
+                    update.target_stock
+                    if update.target_stock is not None
+                    else update.current_stock
+                )
+                verified = (
+                    observed.channel_id == self.channel_id
+                    and observed.identifiers.external_product_id
+                    == update.external_primary_id
+                    and observed.current_price == expected_price
+                    and observed.stock_quantity == expected_stock
+                    and observed.currency == "IRR"
+                    and str(observed.price_unit or "").lower() == "toman"
+                )
+            except Exception as exc:
+                output.append(
+                    ListingUpdateResult(
+                        listing_id=update.listing_id,
+                        outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                        error_category="verification",
+                        error_message=str(exc),
+                    )
+                )
+                continue
+            output.append(
+                ListingUpdateResult(
+                    listing_id=update.listing_id,
+                    outcome=(
+                        WriteOutcome.VERIFIED_APPLIED
+                        if verified
+                        else WriteOutcome.RECONCILIATION_REQUIRED
+                    ),
+                    response={"verification": {"verified": verified}},
+                    accepted_price=update.target_price if verified else None,
+                    accepted_stock=update.target_stock if verified else None,
+                )
+            )
         return output
 
 
@@ -287,16 +467,16 @@ class WorkspaceConnectorFactory:
 
 
 class _WooWriteItem:
-    def __init__(self, update: ListingUpdate) -> None:
+    def __init__(self, update: ListingUpdateLike) -> None:
         self.channel_product_id = update.external_primary_id
         self.proposed_price = float(update.target_price or 0)
-        self.pre_write_snapshot_json = {
+        self.pre_write_snapshot_json: dict[str, object] = {
             "item_type": update.product_type,
             "parent_product_id": update.parent_external_id,
         }
 
 
-def _response_id(response: dict) -> str | None:
+def _response_id(response: dict[str, object]) -> str | None:
     for key in ("id", "request_id", "reference", "referenceCode"):
         if response.get(key) not in (None, ""):
             return str(response[key])

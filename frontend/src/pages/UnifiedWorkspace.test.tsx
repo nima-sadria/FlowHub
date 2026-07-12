@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from 'react'
+import { act, forwardRef, useImperativeHandle } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,11 +8,22 @@ import type { WorkspaceGridPage, WorkspacePreferences } from '../services/unifie
 import UnifiedWorkspace from './UnifiedWorkspace'
 
 vi.mock('@handsontable/react-wrapper', () => ({
-  HotTable: (props: { afterChange?: (changes: Array<[number, string, unknown, unknown]>, source: string) => void }) => (
-    <button aria-label="Mock virtualized Workspace Grid" onClick={() => props.afterChange?.([[0, 'woocommerce_primary__price__target', '100', '125']], 'edit')}>
-      Virtualized Grid
-    </button>
-  ),
+  HotTable: forwardRef(function MockHotTable(
+    props: { afterChange?: (changes: Array<[number, string, unknown, unknown]>, source: string) => void },
+    ref,
+  ) {
+    useImperativeHandle(ref, () => ({
+      hotInstance: {
+        toPhysicalRow: (row: number) => row,
+        getSourceDataAtRow: () => ({ listingId: 'listing-1' }),
+      },
+    }))
+    return (
+      <button aria-label="Mock virtualized Workspace Grid" onClick={() => props.afterChange?.([[0, 'woocommerce_primary__price__target', '100', '125']], 'edit')}>
+        Virtualized Grid
+      </button>
+    )
+  }),
 }))
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -78,7 +89,14 @@ function services(): Services {
       async getGrid() { return grid },
       async saveDraft() { return { id: 'revision-1', revisionNumber: 1, checksum: 'rev', draftVersion: 1 } },
       async createReview() { throw new Error('not used') },
-      async saveSelection() {},
+      async saveSelection(_id, reviewId, itemIds) {
+        return {
+          reviewId,
+          selectedItemIds: itemIds,
+          selectionChecksum: 'a'.repeat(64),
+          selectionVersion: 1,
+        }
+      },
       async applySelected() { throw new Error('not used') },
       async getPreferences() { return preferences },
       async savePreferences(value) { return { ...value, version: value.version + 1 } },
