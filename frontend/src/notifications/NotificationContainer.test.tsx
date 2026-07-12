@@ -57,4 +57,35 @@ describe('NotificationContainer', () => {
     act(() => { root.unmount() })
     container.remove()
   })
+
+  it('renders notifications when crypto.randomUUID is unavailable', () => {
+    const originalCrypto = globalThis.crypto
+    Object.defineProperty(globalThis, 'crypto', { value: {}, configurable: true })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    try {
+      act(() => {
+        root.render(
+          <NotificationProvider>
+            <NotificationActions />
+            <NotificationContainer />
+          </NotificationProvider>,
+        )
+      })
+      act(() => {
+        Array.from(container.querySelectorAll('button'))
+          .find(button => button.textContent === 'Success')
+          ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      })
+
+      expect(container.querySelector('[data-notification-type="success"]')).not.toBeNull()
+      expect(container.textContent).toContain('Saved successfully')
+    } finally {
+      act(() => { root.unmount() })
+      container.remove()
+      Object.defineProperty(globalThis, 'crypto', { value: originalCrypto, configurable: true })
+    }
+  })
 })

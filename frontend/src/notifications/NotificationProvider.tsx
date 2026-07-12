@@ -27,6 +27,14 @@ export const NotificationContext = createContext<NotificationContextValue | null
 
 const MAX_NOTIFICATIONS = 5
 const DEFAULT_DURATION = 4000
+let notificationIdCounter = 0
+
+function nextNotificationId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID
+  if (typeof randomUUID === 'function') return randomUUID.call(globalThis.crypto)
+  notificationIdCounter += 1
+  return `notification-${Date.now().toString(36)}-${notificationIdCounter.toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -39,7 +47,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const show = useCallback((type: NotificationType, content: NotificationInput, duration = DEFAULT_DURATION) => {
-    const id = crypto.randomUUID()
+    const id = nextNotificationId()
     const { title, description } = typeof content === 'string' ? { title: content } : content
     const notification: Notification = { id, type, title, description, duration }
     setNotifications(prev => {
