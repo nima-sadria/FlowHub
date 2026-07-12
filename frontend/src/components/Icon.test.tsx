@@ -19,10 +19,10 @@ describe('Icon', () => {
     expect(icon?.getAttribute('aria-label')).toBe('Next page')
     expect(icon?.getAttribute('data-rtl-mirror')).toBe('true')
     expect(icon?.className).toContain('fh-svg-icon')
-    expect(icon?.className).toContain('fh-image-icon')
+    expect(icon?.className).toContain('fh-inline-svg-icon')
     expect(icon?.getAttribute('style')).toContain('/static/icons/angle-right.svg')
     expect(icon?.getAttribute('style')).toContain('--fh-icon-url')
-    expect(icon?.querySelector('img')?.getAttribute('src')).toBe('/static/icons/angle-right.svg')
+    expect(icon?.querySelector('svg path')).not.toBeNull()
 
     act(() => { root.unmount() })
     container.remove()

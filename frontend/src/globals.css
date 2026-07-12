@@ -1124,28 +1124,6 @@ select,
     color: currentColor;
   }
 
-  .fh-image-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: transparent !important;
-    background-image: none !important;
-    -webkit-mask-image: none !important;
-    mask-image: none !important;
-  }
-
-  .fh-icon-img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    pointer-events: none;
-  }
-
-  .fh-button-primary .fh-icon-img {
-    filter: brightness(0) invert(1);
-  }
-
   .fh-notification {
     pointer-events: auto;
     display: flex;
