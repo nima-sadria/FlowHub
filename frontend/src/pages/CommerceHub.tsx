@@ -542,19 +542,29 @@ function ConfigPanel({
       const payload = configurationPayload()
       if (kind === 'source') await commerce.saveSource(selected.id, payload)
       else await commerce.saveChannel(selected.id, payload)
-      success(configurationWasConfigured
-        ? {
-            title: 'Channel settings updated successfully',
-            description: 'Your changes have been saved.',
-          }
-        : {
-            title: 'Channel configured successfully',
-            description: 'The channel is ready to use.',
-          })
+      success(kind === 'source'
+        ? configurationWasConfigured
+          ? {
+              title: 'Source settings updated successfully',
+              description: 'Your changes have been saved.',
+            }
+          : {
+              title: 'Source configured successfully',
+              description: 'The source is ready to use.',
+            }
+        : configurationWasConfigured
+          ? {
+              title: 'Channel settings updated successfully',
+              description: 'Your changes have been saved.',
+            }
+          : {
+              title: 'Channel configured successfully',
+              description: 'The channel is ready to use.',
+            })
       await onSaved()
     } catch {
       notifyError({
-        title: 'Unable to save channel settings',
+        title: kind === 'source' ? 'Unable to save source settings' : 'Unable to save channel settings',
         description: 'Please review your changes and try again.',
       })
     } finally {
@@ -575,18 +585,23 @@ function ConfigPanel({
       if (result.ok) {
         setVendors(result.vendors ?? [])
         setVendorInformation(result.vendor_information ?? null)
-        success({
-          title: 'Channel connected successfully',
-          description: `${channelDisplayName(selected.provider, selected.name)} is ready to use.`,
-        })
+        success(kind === 'source'
+          ? {
+              title: 'Source connected successfully',
+              description: `${selected.name} is ready to use.`,
+            }
+          : {
+              title: 'Channel connected successfully',
+              description: `${channelDisplayName(selected.provider, selected.name)} is ready to use.`,
+            })
       }
       else notifyError({
-        title: 'Unable to connect to the channel',
+        title: kind === 'source' ? 'Unable to connect to the source' : 'Unable to connect to the channel',
         description: 'Please verify your credentials and try again.',
       })
     } catch {
       notifyError({
-        title: 'Unable to connect to the channel',
+        title: kind === 'source' ? 'Unable to connect to the source' : 'Unable to connect to the channel',
         description: 'Please verify your credentials and try again.',
       })
     } finally {
@@ -1010,17 +1025,17 @@ export default function CommerceHub() {
       const result = await commerce.testSource(sourceId)
       const source = sources.find(item => item.id === sourceId)
       if (result.ok) success({
-        title: 'Channel connected successfully',
+        title: 'Source connected successfully',
         description: `${source?.name ?? 'The source'} is ready to use.`,
       })
       else notifyError({
-        title: 'Unable to connect to the channel',
+        title: 'Unable to connect to the source',
         description: 'Please verify your credentials and try again.',
       })
       await loadCommerce()
     } catch {
       notifyError({
-        title: 'Unable to connect to the channel',
+        title: 'Unable to connect to the source',
         description: 'Please verify your credentials and try again.',
       })
     } finally {

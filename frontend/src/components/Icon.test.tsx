@@ -20,6 +20,7 @@ describe('Icon', () => {
     expect(icon?.getAttribute('data-rtl-mirror')).toBe('true')
     expect(icon?.className).toContain('fh-svg-icon')
     expect(icon?.getAttribute('style')).toContain('/static/icons/angle-right.svg')
+    expect(icon?.getAttribute('style')).toContain('--fh-icon-url')
 
     act(() => { root.unmount() })
     container.remove()

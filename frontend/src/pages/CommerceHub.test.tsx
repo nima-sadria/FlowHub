@@ -839,8 +839,10 @@ describe('CommerceHub', () => {
       await Promise.resolve()
     })
 
-    expect(c.textContent).toContain('Channel connected successfully')
+    expect(c.textContent).toContain('Source connected successfully')
     expect(c.textContent).toContain('Nextcloud is ready to use.')
+    expect(c.textContent).not.toContain('Channel connected successfully')
+    expect(c.querySelector('[data-notification-type="success"] .fh-notification-icon [data-icon="success"]')).not.toBeNull()
     expect(c.textContent).toContain('Healthy')
     expect(c.textContent).toContain('Configured')
   })
@@ -872,8 +874,9 @@ describe('CommerceHub', () => {
       await Promise.resolve()
     })
 
-    expect(c.textContent).toContain('Unable to connect to the channel')
+    expect(c.textContent).toContain('Unable to connect to the source')
     expect(c.textContent).toContain('Please verify your credentials and try again.')
+    expect(c.textContent).not.toContain('Unable to connect to the channel')
   })
 
   it('opens Source and Channel forms without rendering secrets', async () => {
@@ -939,6 +942,31 @@ describe('CommerceHub', () => {
       max_reads_per_24h: 5,
       manual_read_allowed: true,
     })
+    expect(c.textContent).toContain('Source configured successfully')
+    expect(c.textContent).toContain('The source is ready to use.')
+    expect(c.querySelector('[data-notification-type="success"] .fh-notification-icon [data-icon="success"]')).not.toBeNull()
+  })
+
+  it('renders visible centralized icons with labels on source workflow actions', async () => {
+    const c = await renderPage(adminUser)
+    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
+    await act(async () => {
+      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    const configure = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Settings')
+    const test = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
+    const read = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Read now')
+    const add = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add Source')
+
+    expect(configure?.querySelector('[data-icon="settings"]')).not.toBeNull()
+    expect(test?.querySelector('[data-icon="testConnection"]')).not.toBeNull()
+    expect(read?.querySelector('[data-icon="sync"]')).not.toBeNull()
+    expect(add?.querySelector('[data-icon="add"]')).not.toBeNull()
+    expect(configure?.textContent).toContain('Settings')
+    expect(test?.textContent).toContain('Test connection')
+    expect(read?.textContent).toContain('Read now')
+    expect(add?.textContent).toContain('Add Source')
   })
 
   it('runs Read now for Nextcloud and renders the read result', async () => {

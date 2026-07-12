@@ -44,6 +44,13 @@ describe('NotificationContainer', () => {
     expect(container.querySelector('[data-icon="error"]')).not.toBeNull()
     expect(container.querySelector('[data-icon="warning"]')).not.toBeNull()
     expect(container.querySelector('[data-icon="info"]')).not.toBeNull()
+    expect(container.querySelector('[data-notification-type="success"]')?.className).toContain('fh-notification-success')
+    expect(container.querySelector('[data-notification-type="error"]')?.className).toContain('fh-notification-error')
+    expect(container.querySelector('[data-notification-type="warning"]')?.className).toContain('fh-notification-warning')
+    expect(container.querySelector('[data-notification-type="info"]')?.className).toContain('fh-notification-info')
+    expect(container.querySelector('.fh-notification-icon-success [data-icon="success"]')).not.toBeNull()
+    expect(container.querySelector('.fh-notification-title')?.textContent).toContain('Update available')
+    expect(container.querySelector('.fh-notification-description')?.textContent).toContain('New information has been loaded.')
     expect(container.textContent).toContain('Your changes have been applied.')
     expect(container.querySelector('button[aria-label="Close notification"] [data-icon="close"]')).not.toBeNull()
 

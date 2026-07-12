@@ -245,12 +245,14 @@ export default function SourceWizard() {
                 onClick={() => navigate('/products')}
                 className="fh-button-secondary flex-1"
               >
+                <Icon name="products" />
                 View Products
               </button>
               <button
                 onClick={() => navigate('/sources')}
                 className="fh-button-primary flex-1"
               >
+                <Icon name="previous" mirrorRtl />
                 Back to Sources
               </button>
             </div>

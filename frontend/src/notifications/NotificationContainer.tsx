@@ -3,11 +3,27 @@ import Icon, { type IconName } from '../components/Icon'
 import IconButton from '../components/IconButton'
 import { NotificationContext, type NotificationType } from './NotificationProvider'
 
-const TYPE_STYLES: Record<NotificationType, { border: string; icon: string; bg: string }> = {
-  info: { border: 'border-s-[var(--color-accent)]', icon: 'text-[var(--color-accent)]', bg: 'bg-bg-card' },
-  success: { border: 'border-s-[var(--color-wp-green)]', icon: 'text-[var(--color-wp-green)]', bg: 'bg-bg-card' },
-  warning: { border: 'border-s-[var(--color-wp-yellow)]', icon: 'text-[var(--color-wp-yellow)]', bg: 'bg-bg-card' },
-  error: { border: 'border-s-[var(--color-wp-red)]', icon: 'text-[var(--color-wp-red)]', bg: 'bg-bg-card' },
+const TYPE_STYLES: Record<NotificationType, { card: string; iconWrap: string; icon: string }> = {
+  info: {
+    card: 'fh-notification-info',
+    iconWrap: 'fh-notification-icon-info',
+    icon: 'text-[var(--color-accent)]',
+  },
+  success: {
+    card: 'fh-notification-success',
+    iconWrap: 'fh-notification-icon-success',
+    icon: 'text-[var(--color-wp-green)]',
+  },
+  warning: {
+    card: 'fh-notification-warning',
+    iconWrap: 'fh-notification-icon-warning',
+    icon: 'text-[var(--color-wp-yellow)]',
+  },
+  error: {
+    card: 'fh-notification-error',
+    iconWrap: 'fh-notification-icon-error',
+    icon: 'text-[var(--color-wp-red)]',
+  },
 }
 
 const TYPE_ICONS: Record<NotificationType, IconName> = {
@@ -33,23 +49,22 @@ export default function NotificationContainer() {
         return (
           <div
             key={n.id}
-            className={[
-              'flex items-start gap-3 p-3 rounded-lg border border-border border-s-4 shadow-card pointer-events-auto',
-              styles.border,
-              styles.bg,
-            ].join(' ')}
+            className={['fh-notification', styles.card].join(' ')}
+            data-notification-type={n.type}
             role="alert"
           >
-            <Icon name={TYPE_ICONS[n.type]} className={`mt-0.5 flex-shrink-0 ${styles.icon}`} />
+            <span className={['fh-notification-icon', styles.iconWrap].join(' ')}>
+              <Icon name={TYPE_ICONS[n.type]} size="md" className={styles.icon} />
+            </span>
             <div className="min-w-0 flex-1">
-              <p className="fh-text-body font-semibold leading-snug text-text-base">{n.title}</p>
+              <p className="fh-notification-title">{n.title}</p>
               {n.description && (
-                <p className="fh-text-caption mt-1 leading-snug text-wp-muted">{n.description}</p>
+                <p className="fh-notification-description">{n.description}</p>
               )}
             </div>
             <IconButton
               onClick={() => dismiss(n.id)}
-              className="flex-shrink-0 border-transparent bg-transparent shadow-none"
+              className="fh-notification-close"
               label="Close notification"
               size="sm"
             >
