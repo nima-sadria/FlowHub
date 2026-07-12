@@ -1107,6 +1107,23 @@ select,
     transform: scaleX(-1);
   }
 
+  .fh-inline-svg-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent !important;
+    background-image: none !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+  }
+
+  .fh-inline-svg-icon svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    color: currentColor;
+  }
+
   .fh-notification {
     pointer-events: auto;
     display: flex;
