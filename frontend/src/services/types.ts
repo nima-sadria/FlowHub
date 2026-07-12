@@ -69,7 +69,7 @@ export interface Product {
   lastSynced: Date | null
   categoryNames: string[]
   imageUrl?: string | null
-  productType?: 'simple' | 'variable'
+  productType?: 'simple' | 'variable' | 'variation'
 }
 
 export interface ProductFilter {
@@ -78,7 +78,7 @@ export interface ProductFilter {
   page: number
   pageSize: number
   categoryId?: number | null
-  productType?: 'simple' | 'variable' | null
+  productType?: 'simple' | 'variable' | 'variation' | null
   channelId?: string | null
 }
 
@@ -496,6 +496,7 @@ export interface AppSettings {
   syncIntervalMinutes: number
   timezone: string
   currency: string
+  currencyUnit?: string
   environment: string
   wcConfigured?: boolean
   ncConfigured?: boolean

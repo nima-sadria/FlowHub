@@ -37,9 +37,12 @@ function productChannelLabel(connectorId?: string): string {
   return connectorId ?? 'FlowHub'
 }
 
-function ProductRow({ product, onEditPrices }: { product: Product; onEditPrices: (product: Product) => void }) {
+function ProductRow({ product, onEditPrices, selected, onSelected }: { product: Product; onEditPrices: (product: Product) => void; selected: boolean; onSelected: (selected: boolean) => void }) {
   return (
     <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
+      <td className="px-3 py-3 text-center">
+        <input type="checkbox" checked={selected} onChange={event => onSelected(event.target.checked)} aria-label={`Select ${product.name} for Workspace`} />
+      </td>
       <td className="px-4 py-3 min-w-0 max-w-[260px]">
         <div className="flex items-center gap-3 min-w-0">
           {product.imageUrl ? (
@@ -355,12 +358,12 @@ function OperationResult({ operation }: { operation: ProductChannelPriceOperatio
 }
 
 export default function Products() {
-  const { products: productService } = useServices()
+  const { products: productService, unifiedWorkspace } = useServices()
 
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [categoryId, setCategoryId] = useState<number | null>(null)
-  const [productType, setProductType] = useState<'all' | 'simple' | 'variable'>('all')
+  const [productType, setProductType] = useState<'all' | 'simple' | 'variable' | 'variation'>('all')
   const [channelId, setChannelId] = useState('')
   const [page, setPage] = useState(1)
 
@@ -375,6 +378,9 @@ export default function Products() {
   const [draftValues, setDraftValues] = useState<Record<string, string>>({})
   const [editorLoading, setEditorLoading] = useState(false)
   const [editorError, setEditorError] = useState<string | null>(null)
+  const [workspaceSelection, setWorkspaceSelection] = useState<Map<string, Product>>(new Map())
+  const [workspaceCreating, setWorkspaceCreating] = useState(false)
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null)
 
   useEffect(() => {
     if (productService.getCategories) {
@@ -509,6 +515,23 @@ export default function Products() {
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const end = Math.min(page * PAGE_SIZE, total)
 
+  const createManualWorkspace = useCallback(async () => {
+    if (!unifiedWorkspace || workspaceSelection.size === 0) return
+    setWorkspaceCreating(true)
+    setWorkspaceError(null)
+    try {
+      const workspace = await unifiedWorkspace.createManual(
+        `Manual Workspace ${new Date().toLocaleDateString()}`,
+        [...workspaceSelection.values()].map(product => ({ connector_id: product.connectorId ?? '', product_id: product.id })),
+      )
+      window.location.href = `/workspace/${workspace.id}`
+    } catch (error) {
+      setWorkspaceError(apiErrorMessage(error, 'Unable to create Manual Workspace.'))
+    } finally {
+      setWorkspaceCreating(false)
+    }
+  }, [unifiedWorkspace, workspaceSelection])
+
   if (!loading && configured === false) {
     return (
       <PageShell>
@@ -536,7 +559,15 @@ export default function Products() {
             {loading ? 'Loading...' : `${total} product${total !== 1 ? 's' : ''}`}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="fh-text-caption">{workspaceSelection.size} selected</span>
+          <button type="button" className="fh-button-primary" disabled={!unifiedWorkspace || workspaceSelection.size === 0 || workspaceCreating} onClick={() => void createManualWorkspace()}>
+            <Icon name="workspace" /> {workspaceCreating ? 'Creating...' : 'Create Workspace'}
+          </button>
+        </div>
       </div>
+
+      {workspaceError && <div className="fh-alert fh-alert-danger" role="alert"><Icon name="alert" /><span>{workspaceError}</span></div>}
 
       <div className="fh-card fh-card-pad flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[180px]">
@@ -574,7 +605,7 @@ export default function Products() {
         )}
 
         <div className="fh-segmented">
-          {(['all', 'simple', 'variable'] as const).map(t => (
+          {(['all', 'simple', 'variation', 'variable'] as const).map(t => (
             <button
               key={t}
               onClick={() => setProductType(t)}
@@ -636,7 +667,7 @@ export default function Products() {
           <table className="fh-table min-w-[560px]">
             <thead>
               <tr>
-                {['Product', 'Type', 'Price', 'Categories', 'Actions'].map(h => (
+                {['Select', 'Product', 'Type', 'Price', 'Categories', 'Actions'].map(h => (
                   <th key={h}>{h}</th>
                 ))}
               </tr>
@@ -647,12 +678,28 @@ export default function Products() {
                 : items.length === 0
                   ? (
                     <tr>
-                      <td colSpan={5}>
+                      <td colSpan={6}>
                         <Empty title="No products match" description="Try adjusting the search or filter." />
                       </td>
                     </tr>
                     )
-                  : items.map(p => <ProductRow key={p.id} product={p} onEditPrices={openPriceEditor} />)}
+                  : items.map(p => {
+                    const selectionKey = `${p.connectorId ?? ''}:${p.id}`
+                    return (
+                      <ProductRow
+                        key={selectionKey}
+                        product={p}
+                        onEditPrices={openPriceEditor}
+                        selected={workspaceSelection.has(selectionKey)}
+                        onSelected={selected => setWorkspaceSelection(current => {
+                          const next = new Map(current)
+                          if (selected) next.set(selectionKey, p)
+                          else next.delete(selectionKey)
+                          return next
+                        })}
+                      />
+                    )
+                  })}
             </tbody>
           </table>
         </div>

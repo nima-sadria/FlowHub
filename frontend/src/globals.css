@@ -31,6 +31,54 @@
 @tailwind components;
 @tailwind utilities;
 
+.fh-workspace-dirty {
+  @apply inline-flex items-center rounded-full border border-border px-3 py-1 text-xs text-wp-muted;
+}
+
+.fh-workspace-dirty-active {
+  @apply border-wp-yellow bg-bg-subtle text-wp-yellow;
+}
+
+.fh-channel-toggle {
+  @apply inline-flex cursor-pointer items-center gap-2 rounded border border-border bg-bg-base px-3 py-2 text-xs text-text-base;
+}
+
+.fh-handsontable {
+  direction: ltr;
+  overflow: hidden;
+}
+
+.fh-handsontable .handsontable {
+  font-family: inherit;
+}
+
+.fh-cell-status {
+  position: relative;
+}
+
+.fh-cell-status::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: 4px;
+  top: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+}
+
+.fh-cell-status-edited,
+.fh-cell-status-warning { color: #d69e2e !important; }
+.fh-cell-status-error,
+.fh-cell-status-failed { color: #e53e3e !important; }
+.fh-cell-status-ready,
+.fh-cell-status-applied,
+.fh-cell-status-draft_saved { color: #38a169 !important; }
+.fh-cell-status-read_only,
+.fh-cell-status-unavailable,
+.fh-cell-status-unchanged { color: #718096 !important; }
+.fh-cell-status-stale_review { color: #805ad5 !important; }
+
 /* =========================================================
    Design tokens
    ========================================================= */

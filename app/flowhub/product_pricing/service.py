@@ -7,7 +7,6 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
-from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -15,11 +14,15 @@ from sqlalchemy.orm import Session
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
 from app.flowhub.auth.models import FlowHubUser
-from app.flowhub.channels.contracts import ChannelCapability, ChannelIdentifierSet, ChannelProductUpdate
+from app.flowhub.channels.contracts import (
+    ChannelCapability,
+    ChannelIdentifierSet,
+    ChannelProductUpdate,
+)
 from app.flowhub.channels.registry import default_marketplace_registry
 from app.flowhub.channels.snappshop import SnappShopConnectorError
 from app.flowhub.channels.tapsishop import TapsiShopConnectorError
-from app.flowhub.commerce.service import ACCESS_MODE_WRITE_ENABLED, CommerceHubService
+from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.service import IntegrationPlatformService
@@ -28,7 +31,6 @@ from app.flowhub.security.redaction import redact_sensitive
 from app.flowhub.security.upstream_errors import normalize_upstream_error
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.write_pipeline.adapters import ChannelWriteContext
-
 
 CHANNELS = (
     ("woocommerce:primary", "WooCommerce", "woocommerce", "store currency"),
@@ -62,7 +64,12 @@ class ProductPricingService:
         if canonical is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found.")
         channel_rows = self._channel_rows(canonical)
-        channels = [self._channel_state(channel_id, name, connector_type, unit, channel_rows.get(channel_id)) for channel_id, name, connector_type, unit in CHANNELS]
+        channels = [
+            self._channel_state(
+                channel_id, name, connector_type, unit, channel_rows.get(channel_id)
+            )
+            for channel_id, name, connector_type, unit in CHANNELS
+        ]
         return {
             "product": self._product_identity(canonical),
             "version": self._version(channels),
@@ -82,11 +89,24 @@ class ProductPricingService:
         states = self.load(product_id)
         proposals = self._proposals(body)
         if str(body.get("version") or "") != states["version"]:
-            raise HTTPException(status.HTTP_409_CONFLICT, {"code": "STALE_PRODUCT_PRICE_STATE", "message": "Product channel prices changed after the editor was opened."})
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "STALE_PRODUCT_PRICE_STATE",
+                    "message": "Product channel prices changed after the editor was opened.",
+                },
+            )
         validated = self._validate_proposals(states, proposals, persist=True)
-        changed = [item for item in validated if item["pendingChange"] and item["validationState"] == "valid"]
+        changed = [
+            item
+            for item in validated
+            if item["pendingChange"] and item["validationState"] == "valid"
+        ]
         if not changed:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "No valid channel price changes were submitted.")
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "No valid channel price changes were submitted.",
+            )
         operation_id = f"mcp_{uuid.uuid4().hex[:16]}"
         op = ProductPriceOperation(
             id=operation_id,
@@ -100,23 +120,25 @@ class ProductPricingService:
         )
         self.db.add(op)
         for item in changed:
-            self.db.add(ProductPriceOperationItem(
-                operation_id=operation_id,
-                channel_id=item["channelId"],
-                connector_type=item["connectorType"],
-                channel_product_id=item["channelProductId"],
-                sku=item["sku"] or "",
-                current_value=float(item["currentValue"]),
-                proposed_value=float(item["proposedValue"]),
-                currency=item["currency"],
-                unit=item["unit"],
-                outbound_value=float(item["outboundValue"]),
-                outbound_unit=item["outboundUnit"],
-                stale_token=item["staleToken"],
-                status="pending",
-                validation_state=item["validationState"],
-                result_json={"dry_run": True, "external_write": False},
-            ))
+            self.db.add(
+                ProductPriceOperationItem(
+                    operation_id=operation_id,
+                    channel_id=item["channelId"],
+                    connector_type=item["connectorType"],
+                    channel_product_id=item["channelProductId"],
+                    sku=item["sku"] or "",
+                    current_value=float(item["currentValue"]),
+                    proposed_value=float(item["proposedValue"]),
+                    currency=item["currency"],
+                    unit=item["unit"],
+                    outbound_value=float(item["outboundValue"]),
+                    outbound_unit=item["outboundUnit"],
+                    stale_token=item["staleToken"],
+                    status="pending",
+                    validation_state=item["validationState"],
+                    result_json={"dry_run": True, "external_write": False},
+                )
+            )
             self._audit(
                 "multi_channel_price_dry_run_item",
                 "Multi-channel price Dry Run item recorded. No external write was executed.",
@@ -144,13 +166,24 @@ class ProductPricingService:
     def approve(self, operation_id: str, body: dict, user: FlowHubUser) -> dict:
         op = self._operation(operation_id)
         if op.status != "dry_run_ready":
-            raise HTTPException(status.HTTP_409_CONFLICT, "Only a completed Dry Run can be approved.")
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "Only a completed Dry Run can be approved."
+            )
         self._assert_still_current(op)
         op.status = "approved"
         op.approved_by = user.username
         op.approved_at = datetime.utcnow()
         op.approval_reason = str(body.get("reason") or "").strip() or None
-        self._audit("multi_channel_price_approved", "Multi-channel price operation approved. Apply was not started.", user=user, product=self._operation_product(op), channel=None, result="approved", upstream_reference=op.id, commit=False)
+        self._audit(
+            "multi_channel_price_approved",
+            "Multi-channel price operation approved. Apply was not started.",
+            user=user,
+            product=self._operation_product(op),
+            channel=None,
+            result="approved",
+            upstream_reference=op.id,
+            commit=False,
+        )
         self.db.commit()
         self.db.refresh(op)
         return self.operation(op.id)
@@ -158,7 +191,9 @@ class ProductPricingService:
     async def apply(self, operation_id: str, user: FlowHubUser) -> dict:
         op = self._operation(operation_id)
         if op.status != "approved":
-            raise HTTPException(status.HTTP_409_CONFLICT, "Apply requires a separate approved Dry Run.")
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "Apply requires a separate approved Dry Run."
+            )
         self._assert_still_current(op)
         product = self._operation_product(op)
         success = 0
@@ -171,17 +206,44 @@ class ProductPricingService:
                 item.status = "failed"
                 item.error_message = self._safe_error(exc)
                 item.result_json = {"success": False, "message": item.error_message}
-                self._audit("multi_channel_price_item_failed", item.error_message, user=user, product=product, channel=self._item_channel_shape(item), result="failed", upstream_reference=None, commit=False)
+                self._audit(
+                    "multi_channel_price_item_failed",
+                    item.error_message,
+                    user=user,
+                    product=product,
+                    channel=self._item_channel_shape(item),
+                    result="failed",
+                    upstream_reference=None,
+                    commit=False,
+                )
             else:
                 success += 1
                 item.status = "applied"
                 item.result_json = redact_sensitive(result)
                 self._update_cache_after_success(item)
-                self._audit("multi_channel_price_item_applied", "Channel price update applied.", user=user, product=product, channel=self._item_channel_shape(item), result="applied", upstream_reference=_reference(result), commit=False)
+                self._audit(
+                    "multi_channel_price_item_applied",
+                    "Channel price update applied.",
+                    user=user,
+                    product=product,
+                    channel=self._item_channel_shape(item),
+                    result="applied",
+                    upstream_reference=_reference(result),
+                    commit=False,
+                )
         op.applied_at = datetime.utcnow()
         op.status = "applied" if failure == 0 else "partially_failed" if success else "failed"
         op.summary_json = self._operation_summary(op)
-        self._audit("multi_channel_price_apply_finished", "Multi-channel price Apply finished.", user=user, product=product, channel=None, result=op.status, upstream_reference=op.id, commit=False)
+        self._audit(
+            "multi_channel_price_apply_finished",
+            "Multi-channel price Apply finished.",
+            user=user,
+            product=product,
+            channel=None,
+            result=op.status,
+            upstream_reference=op.id,
+            commit=False,
+        )
         self.db.commit()
         self.db.refresh(op)
         return self.operation(op.id)
@@ -211,21 +273,47 @@ class ProductPricingService:
         return (
             self.db.query(DlProductCache)
             .filter(DlProductCache.product_id == product_id)
-            .order_by((DlProductCache.connector_id == "woocommerce:primary").desc(), DlProductCache.id.asc())
+            .order_by(
+                (DlProductCache.connector_id == "woocommerce:primary").desc(),
+                DlProductCache.id.asc(),
+            )
             .first()
         )
 
     def _channel_rows(self, canonical: DlProductCache) -> dict[str, DlProductCache]:
-        rows = self.db.query(DlProductCache).filter(DlProductCache.connector_id.in_([item[0] for item in CHANNELS])).all()
+        rows = (
+            self.db.query(DlProductCache)
+            .filter(DlProductCache.connector_id.in_([item[0] for item in CHANNELS]))
+            .all()
+        )
         by_channel: dict[str, DlProductCache] = {}
-        for row in rows:
-            if row.product_id == canonical.product_id or (canonical.sku and row.sku == canonical.sku):
-                by_channel.setdefault(row.connector_id, row)
+        for channel_id, *_ in CHANNELS:
+            candidates = [row for row in rows if row.connector_id == channel_id]
+            exact = next(
+                (row for row in candidates if row.product_id == canonical.product_id), None
+            )
+            sku_match = next(
+                (row for row in candidates if canonical.sku and row.sku == canonical.sku), None
+            )
+            selected = exact or sku_match
+            if selected is not None:
+                by_channel[channel_id] = selected
         return by_channel
 
-    def _channel_state(self, channel_id: str, name: str, connector_type: str, default_unit: str, row: DlProductCache | None) -> dict:
+    def _channel_state(
+        self,
+        channel_id: str,
+        name: str,
+        connector_type: str,
+        default_unit: str,
+        row: DlProductCache | None,
+    ) -> dict:
         instance = self.db.get(IntegrationConnectorInstance, channel_id)
-        health = self.db.query(DlConnectorHealth).filter(DlConnectorHealth.connector_id == channel_id).first()
+        health = (
+            self.db.query(DlConnectorHealth)
+            .filter(DlConnectorHealth.connector_id == channel_id)
+            .first()
+        )
         registry = default_marketplace_registry()
         can_read = registry.supports(channel_id, ChannelCapability.PRODUCTS_READ)
         capability = CHANNEL_CAPABILITY[channel_id]
@@ -251,15 +339,25 @@ class ProductPricingService:
             "writeCapability": capability.value,
             "currentValue": current,
             "proposedValue": current,
-            "currency": _currency_for_channel(channel_id, self.config.get("server.currency") or "EUR"),
+            "currency": _currency_for_channel(
+                channel_id, self.config.get("server.currency") or "EUR"
+            ),
             "unit": unit,
             "normalizedValue": _normalized_value(channel_id, current),
-            "normalizedCurrency": "IRR" if channel_id in {"snappshop:main", "tapsishop:main"} else (self.config.get("server.currency") or "EUR"),
-            "normalizedUnit": "rial" if channel_id in {"snappshop:main", "tapsishop:main"} else default_unit,
+            "normalizedCurrency": "IRR"
+            if channel_id in {"snappshop:main", "tapsishop:main"}
+            else (self.config.get("server.currency") or "EUR"),
+            "normalizedUnit": "rial"
+            if channel_id in {"snappshop:main", "tapsishop:main"}
+            else default_unit,
             "freshness": row.freshness if row else "missing",
             "lastSyncedAt": _iso(row.last_successful_read or row.last_fetched_at) if row else None,
             "validationState": "valid" if can_write else "read_only" if row else "disconnected",
-            "validationMessage": None if can_write else "Channel is not writable from this editor." if row else "Channel has no synchronized product row.",
+            "validationMessage": None
+            if can_write
+            else "Channel is not writable from this editor."
+            if row
+            else "Channel has no synchronized product row.",
             "pendingChange": False,
             "staleToken": stale_token,
         }
@@ -292,29 +390,45 @@ class ProductPricingService:
             try:
                 proposed = float(raw.get("proposedValue"))
             except (TypeError, ValueError):
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Price must be numeric.") from None
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY, "Price must be numeric."
+                ) from None
             special = raw.get("specialPrice")
             try:
                 special_value = None if special in (None, "") else float(special)
             except (TypeError, ValueError):
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Special price must be numeric.") from None
-            proposals.append(PriceProposal(
-                channel_id=str(raw.get("channelId") or ""),
-                proposed_value=proposed,
-                unit=str(raw.get("unit") or "").strip() or None,
-                stale_token=str(raw.get("staleToken") or ""),
-                special_price=special_value,
-            ))
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY, "Special price must be numeric."
+                ) from None
+            proposals.append(
+                PriceProposal(
+                    channel_id=str(raw.get("channelId") or ""),
+                    proposed_value=proposed,
+                    unit=str(raw.get("unit") or "").strip() or None,
+                    stale_token=str(raw.get("staleToken") or ""),
+                    special_price=special_value,
+                )
+            )
         return proposals
 
-    def _validate_proposals(self, states: dict, proposals: list[PriceProposal], *, persist: bool) -> list[dict]:
+    def _validate_proposals(
+        self, states: dict, proposals: list[PriceProposal], *, persist: bool
+    ) -> list[dict]:
         by_channel = {item["channelId"]: dict(item) for item in states["channels"]}
         for proposal in proposals:
             state = by_channel.get(proposal.channel_id)
             if state is None:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Unknown channel: {proposal.channel_id}")
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY, f"Unknown channel: {proposal.channel_id}"
+                )
             if proposal.stale_token != state["staleToken"]:
-                raise HTTPException(status.HTTP_409_CONFLICT, {"code": "STALE_CHANNEL_PRICE_STATE", "message": f"{proposal.channel_id} changed after the editor was opened."})
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {
+                        "code": "STALE_CHANNEL_PRICE_STATE",
+                        "message": f"{proposal.channel_id} changed after the editor was opened.",
+                    },
+                )
             errors = []
             if not state["canWrite"]:
                 errors.append("Channel is disabled, disconnected, or read-only.")
@@ -323,23 +437,41 @@ class ProductPricingService:
                 errors.append("Price must be numeric and non-negative.")
             elif not proposal.proposed_value.is_integer():
                 errors.append("Price must be a whole number.")
-            if proposal.special_price is not None and proposal.special_price > proposal.proposed_value:
+            if (
+                proposal.special_price is not None
+                and proposal.special_price > proposal.proposed_value
+            ):
                 errors.append("Special price must not exceed regular price.")
             expected_unit = state["unit"]
             if proposal.unit and proposal.unit != expected_unit:
                 errors.append(f"Expected {expected_unit} for {proposal.channel_id}.")
-            if proposed_is_finite and proposal.channel_id == "snappshop:main" and int(proposal.proposed_value) != proposal.proposed_value:
+            if (
+                proposed_is_finite
+                and proposal.channel_id == "snappshop:main"
+                and int(proposal.proposed_value) != proposal.proposed_value
+            ):
                 errors.append("SnappShop toman values must be whole numbers.")
             if proposed_is_finite and proposal.channel_id == "tapsishop:main":
                 if int(proposal.proposed_value) != proposal.proposed_value:
                     errors.append("TapsiShop rial values must be whole numbers.")
                 elif int(proposal.proposed_value) % 10 != 0:
-                    errors.append("TapsiShop rial values must preserve toman/rial precision and be divisible by 10.")
+                    errors.append(
+                        "TapsiShop rial values must preserve toman/rial precision and be divisible by 10."
+                    )
             state["proposedValue"] = proposal.proposed_value
-            state["outboundValue"] = proposal.proposed_value if errors else self._outbound_value(proposal.channel_id, proposal.proposed_value)
+            state["outboundValue"] = (
+                proposal.proposed_value
+                if errors
+                else self._outbound_value(proposal.channel_id, proposal.proposed_value)
+            )
             state["outboundUnit"] = _outbound_unit(proposal.channel_id)
-            state["normalizedValue"] = _normalized_value(proposal.channel_id, proposal.proposed_value)
-            state["pendingChange"] = state["currentValue"] is None or abs(float(state["currentValue"]) - proposal.proposed_value) > 0.0001
+            state["normalizedValue"] = _normalized_value(
+                proposal.channel_id, proposal.proposed_value
+            )
+            state["pendingChange"] = (
+                state["currentValue"] is None
+                or abs(float(state["currentValue"]) - proposal.proposed_value) > 0.0001
+            )
             state["validationState"] = "error" if errors else "valid"
             state["validationMessage"] = "; ".join(errors) if errors else None
         return list(by_channel.values())
@@ -347,13 +479,20 @@ class ProductPricingService:
     def _outbound_value(self, channel_id: str, value: float) -> float:
         if channel_id == "snappshop:main":
             if int(value) != value:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "SnappShop toman values must be integers.")
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY, "SnappShop toman values must be integers."
+                )
             return value
         if channel_id == "tapsishop:main":
             if int(value) != value:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "TapsiShop rial values must be integers.")
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY, "TapsiShop rial values must be integers."
+                )
             if int(value) % 10 != 0:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "TapsiShop rial values must be divisible by 10.")
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    "TapsiShop rial values must be divisible by 10.",
+                )
             return value
         return value
 
@@ -381,10 +520,16 @@ class ProductPricingService:
             context = ChannelWriteContext(get_setting=self.config.get, requested_by=user.username)
             transient = _TransientWriteItem(item)
             return await adapter.execute_item(transient, context)
-        current = self.db.query(DlProductCache).filter_by(connector_id=item.channel_id, product_id=item.channel_product_id).first()
+        current = (
+            self.db.query(DlProductCache)
+            .filter_by(connector_id=item.channel_id, product_id=item.channel_product_id)
+            .first()
+        )
         update = ChannelProductUpdate(
             channel_id=item.channel_id,
-            identifiers=ChannelIdentifierSet(external_product_id=item.channel_product_id, sku=item.sku or None),
+            identifiers=ChannelIdentifierSet(
+                external_product_id=item.channel_product_id, sku=item.sku or None
+            ),
             price=item.proposed_value,
             stock_quantity=current.stock_qty if current is not None else None,
             currency="TMN" if item.channel_id == "snappshop:main" else "IRR",
@@ -392,21 +537,35 @@ class ProductPricingService:
             idempotency_key=f"{item.operation_id}-{item.id}",
         )
         commerce = CommerceHubService(self.db)
-        connector = commerce._snappshop_connector() if item.channel_id == "snappshop:main" else commerce._tapsishop_connector()
+        connector = (
+            commerce._snappshop_connector()
+            if item.channel_id == "snappshop:main"
+            else commerce._tapsishop_connector()
+        )
         if connector is None:
             raise HTTPException(status.HTTP_409_CONFLICT, "Channel connector is not configured.")
         results = await connector.update_products([update])
         result = results[0] if results else None
         if result is None or not result.success:
             message = result.error.message if result and result.error else "Channel update failed."
-            raise ConnectorError(ConnectorErrorCode.PROVIDER_ERROR, message, provider=item.connector_type)
+            raise ConnectorError(
+                ConnectorErrorCode.PROVIDER_ERROR, message, provider=item.connector_type
+            )
         return result.raw
 
     def _update_cache_after_success(self, item: ProductPriceOperationItem) -> None:
-        row = self.db.query(DlProductCache).filter_by(connector_id=item.channel_id, product_id=item.channel_product_id).first()
+        row = (
+            self.db.query(DlProductCache)
+            .filter_by(connector_id=item.channel_id, product_id=item.channel_product_id)
+            .first()
+        )
         if row is None:
             return
-        stored_price = str(int(item.proposed_value)) if item.proposed_value.is_integer() else str(item.proposed_value)
+        stored_price = (
+            str(int(item.proposed_value))
+            if item.proposed_value.is_integer()
+            else str(item.proposed_value)
+        )
         row.regular_price = stored_price
         row.price = stored_price
         row.freshness = "fresh"
@@ -418,7 +577,13 @@ class ProductPricingService:
         current = {item["channelId"]: item["staleToken"] for item in states["channels"]}
         for item in op.items:
             if current.get(item.channel_id) != item.stale_token:
-                raise HTTPException(status.HTTP_409_CONFLICT, {"code": "STALE_CHANNEL_PRICE_STATE", "message": f"{item.channel_id} changed after Dry Run."})
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {
+                        "code": "STALE_CHANNEL_PRICE_STATE",
+                        "message": f"{item.channel_id} changed after Dry Run.",
+                    },
+                )
 
     def _operation(self, operation_id: str) -> ProductPriceOperation:
         op = self.db.get(ProductPriceOperation, operation_id)
@@ -463,7 +628,18 @@ class ProductPricingService:
             "staleToken": item.stale_token,
         }
 
-    def _audit(self, event_name: str, message: str, *, user: FlowHubUser, product: dict, channel: dict | None, result: str, upstream_reference: str | None, commit: bool) -> None:
+    def _audit(
+        self,
+        event_name: str,
+        message: str,
+        *,
+        user: FlowHubUser,
+        product: dict,
+        channel: dict | None,
+        result: str,
+        upstream_reference: str | None,
+        commit: bool,
+    ) -> None:
         metadata = {
             "actor": user.username,
             "product": product,
@@ -493,7 +669,9 @@ class ProductPricingService:
         return str(normalize_upstream_error(exc, source="channel")["message"])
 
     def _version(self, channels: list[dict]) -> str:
-        parts = [f"{item['channelId']}:{item['staleToken']}:{item['currentValue']}" for item in channels]
+        parts = [
+            f"{item['channelId']}:{item['staleToken']}:{item['currentValue']}" for item in channels
+        ]
         return sha256("|".join(parts).encode("utf-8")).hexdigest()
 
 
@@ -524,21 +702,30 @@ def _image_url(row: DlProductCache) -> str | None:
 def _stale_token(row: DlProductCache | None) -> str:
     if row is None:
         return "missing"
-    return sha256("|".join(str(value or "") for value in (
-        row.connector_id,
-        row.product_id,
-        row.sku,
-        row.regular_price,
-        row.price,
-        row.sale_price,
-        row.freshness,
-        row.last_successful_read,
-        row.record_hash,
-    )).encode("utf-8")).hexdigest()
+    return sha256(
+        "|".join(
+            str(value or "")
+            for value in (
+                row.connector_id,
+                row.product_id,
+                row.sku,
+                row.regular_price,
+                row.price,
+                row.sale_price,
+                row.freshness,
+                row.last_successful_read,
+                row.record_hash,
+            )
+        ).encode("utf-8")
+    ).hexdigest()
 
 
 def _row_hash(row: DlProductCache) -> str:
-    return sha256("|".join(str(value or "") for value in (row.product_id, row.sku, row.regular_price, row.price)).encode("utf-8")).hexdigest()
+    return sha256(
+        "|".join(
+            str(value or "") for value in (row.product_id, row.sku, row.regular_price, row.price)
+        ).encode("utf-8")
+    ).hexdigest()
 
 
 def _currency_for_channel(channel_id: str, default: str) -> str:

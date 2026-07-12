@@ -45,6 +45,11 @@ Active routes:
   POST /api/v2/webhooks/tapsishop/{channel_id} - durable TapsiShop webhook receiver
   GET  /api/v2/orders                          - normalized channel order list
   GET  /api/v2/orders/{internal_id}            - normalized channel order detail
+  POST /api/v2/unified-workspaces/manual       - create Manual Workspace and immutable Snapshot
+  GET  /api/v2/unified-workspaces/{id}/grid    - virtualized multi-channel Grid data
+  POST /api/v2/unified-workspaces/{id}/draft/revisions - save immutable Draft revision
+  POST /api/v2/unified-workspaces/{id}/reviews - generate deterministic Review
+  POST /api/v2/unified-workspaces/{id}/apply   - Apply selected Review items only
   GET  /                                       - SPA entry point
   *    /{any}                                  - SPA fallback
 """
@@ -79,6 +84,7 @@ from app.flowhub.api.v2.read_engine import router as read_engine_router
 from app.flowhub.api.v2.users import router as users_router
 from app.flowhub.api.v2.webhooks import router as webhooks_router
 from app.flowhub.api.v2.orders import router as orders_router
+from app.flowhub.api.v2.unified_workspace import router as unified_workspace_router
 from app.flowhub.maintenance import (
     MAINTENANCE_ERROR_CODE,
     MAINTENANCE_ERROR_MESSAGE,
@@ -92,6 +98,7 @@ from app.flowhub.security.upstream_errors import (
     normalize_upstream_error,
     upstream_http_status,
 )
+from app.flowhub.unified_workspace.domain import ConcurrencyConflict, ImmutableRecordError, WorkspaceDomainError
 
 _VERSION = os.getenv("FLOWHUB_VERSION", "1.0.0")
 
@@ -184,6 +191,12 @@ async def safe_http_exception_handler(request: Request, exc: HTTPException):
         )
     return await http_exception_handler(request, exc)
 
+
+@app.exception_handler(WorkspaceDomainError)
+async def workspace_domain_error_handler(_: Request, exc: WorkspaceDomainError) -> JSONResponse:
+    status_code = status.HTTP_409_CONFLICT if isinstance(exc, (ConcurrencyConflict, ImmutableRecordError)) else status.HTTP_422_UNPROCESSABLE_ENTITY
+    return JSONResponse(status_code=status_code, content={"code": exc.code, "message": str(exc), "detail": str(exc)})
+
 # API routers - registered before the SPA catch-all so they take priority
 app.include_router(health_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
@@ -205,6 +218,7 @@ app.include_router(read_engine_router, prefix="/api/v2")
 app.include_router(data_layer_router, prefix="/api/v2")
 app.include_router(webhooks_router, prefix="/api/v2")
 app.include_router(orders_router, prefix="/api/v2")
+app.include_router(unified_workspace_router, prefix="/api/v2")
 
 # Static assets (hashed filenames produced by Vite; only mounted if built)
 _assets_dir = _FRONTEND_DIST / "assets"

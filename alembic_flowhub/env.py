@@ -38,6 +38,8 @@ from app.flowhub.integration_platform import models as _integration_platform_mod
 from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: E402, F401
 from app.flowhub.webhooks import models as _webhook_models  # noqa: E402, F401
 from app.flowhub.orders import models as _order_models  # noqa: E402, F401
+from app.flowhub.product_pricing import models as _product_pricing_models  # noqa: E402, F401
+from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: E402, F401
 
 target_metadata = FlowHubBase.metadata
 

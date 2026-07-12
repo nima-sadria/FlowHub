@@ -221,7 +221,13 @@ export default function Settings() {
               label="Currency"
               value={draft.currency}
               options={CURRENCIES}
-              onChange={v => updateDraft({ currency: v })}
+              onChange={v => updateDraft({ currency: v, currencyUnit: v === 'IRR' ? 'RIAL' : v })}
+            />
+            <SelectField
+              label="Pricing unit"
+              value={draft.currencyUnit ?? draft.currency}
+              options={draft.currency === 'IRR' ? ['RIAL', 'TOMAN'] : [draft.currency]}
+              onChange={v => updateDraft({ currencyUnit: v })}
             />
           </>
         )}

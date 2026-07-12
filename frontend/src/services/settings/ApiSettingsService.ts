@@ -9,6 +9,7 @@ interface RawSettings {
   syncIntervalMinutes: number
   timezone: string
   currency: string
+  currencyUnit: string
   environment: string
   wcConfigured?: boolean
   ncConfigured?: boolean
@@ -23,6 +24,7 @@ export class ApiSettingsService implements SettingsService {
       syncIntervalMinutes: data.syncIntervalMinutes,
       timezone: data.timezone,
       currency: data.currency,
+      currencyUnit: data.currencyUnit,
       environment: data.environment,
       wcConfigured: data.wcConfigured ?? false,
       ncConfigured: data.ncConfigured ?? false,
@@ -36,6 +38,7 @@ export class ApiSettingsService implements SettingsService {
       body: JSON.stringify({
         timezone: patch.timezone,
         currency: patch.currency,
+        currencyUnit: patch.currencyUnit,
         syncIntervalMinutes: patch.syncIntervalMinutes,
       }),
     })

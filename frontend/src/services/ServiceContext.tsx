@@ -8,6 +8,7 @@ import type { ActivityService } from './activity/ActivityService'
 import type { CommerceService } from './commerce/CommerceService'
 import type { WritePipelineService } from './writePipeline/WritePipelineService'
 import type { OrderService } from './orders/OrderService'
+import type { UnifiedWorkspaceService } from './unifiedWorkspace/UnifiedWorkspaceService'
 
 export interface Services {
   health: HealthService
@@ -19,6 +20,7 @@ export interface Services {
   commerce: CommerceService
   writePipeline: WritePipelineService
   orders?: OrderService
+  unifiedWorkspace?: UnifiedWorkspaceService
 }
 
 const ServiceContext = createContext<Services | null>(null)

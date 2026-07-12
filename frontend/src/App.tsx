@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, RequirePermission, AccessState, useAuth } from './auth'
 import { DirectionProvider } from './direction'
@@ -15,6 +15,7 @@ import { ApiActivityService } from './services/activity/ApiActivityService'
 import { ApiCommerceService } from './services/commerce/ApiCommerceService'
 import { ApiWritePipelineService } from './services/writePipeline/ApiWritePipelineService'
 import { ApiOrderService } from './services/orders/ApiOrderService'
+import { ApiUnifiedWorkspaceService } from './services/unifiedWorkspace/ApiUnifiedWorkspaceService'
 import AppShell from './components/AppShell'
 import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
@@ -28,6 +29,8 @@ import Orders from './pages/Orders'
 import Login from './pages/Login'
 import Setup from './pages/Setup'
 import NotFound from './pages/NotFound'
+
+const UnifiedWorkspace = lazy(() => import('./pages/UnifiedWorkspace'))
 import type { SetupStatus } from './api/types'
 
 const realServices = {
@@ -40,6 +43,7 @@ const realServices = {
   commerce:  new ApiCommerceService(),
   writePipeline: new ApiWritePipelineService(),
   orders: new ApiOrderService(),
+  unifiedWorkspace: new ApiUnifiedWorkspaceService(),
 }
 
 function MaintenanceOverlay({ message }: { message?: string }) {
@@ -147,6 +151,7 @@ function SetupGate() {
         <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
         <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
+        <Route path="/workspace/:workspaceId" element={<RequirePermission permission="can_fetch"><Suspense fallback={<div className="fh-card fh-card-pad">Loading Workspace Grid...</div>}><UnifiedWorkspace /></Suspense></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
         <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
