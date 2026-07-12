@@ -1559,29 +1559,46 @@ select,
   .fh-menu-item-icon {
     flex: 0 0 auto;
     color: var(--fh-gray-500);
+    background-color: transparent !important;
+    background-image: var(--fh-icon-url);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 20px 20px;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+    opacity: 0.74;
     transition:
-      color 150ms ease,
+      filter 150ms ease,
+      opacity 150ms ease,
       transform 150ms ease;
   }
 
   .fh-menu-item:hover .fh-menu-item-icon {
     color: var(--fh-gray-700);
+    opacity: 0.94;
   }
 
   .fh-menu-item-active .fh-menu-item-icon {
     color: var(--fh-brand-500);
+    filter: invert(38%) sepia(92%) saturate(2048%) hue-rotate(217deg) brightness(101%) contrast(101%);
+    opacity: 1;
   }
 
   .dark .fh-menu-item-icon {
     color: var(--fh-gray-400);
+    filter: invert(1);
+    opacity: 0.72;
   }
 
   .dark .fh-menu-item:hover .fh-menu-item-icon {
     color: var(--fh-gray-300);
+    opacity: 0.92;
   }
 
   .dark .fh-menu-item-active .fh-menu-item-icon {
     color: var(--fh-brand-400);
+    filter: invert(46%) sepia(91%) saturate(1623%) hue-rotate(213deg) brightness(103%) contrast(101%);
+    opacity: 1;
   }
 
   /* Tables */

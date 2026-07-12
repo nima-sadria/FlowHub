@@ -505,7 +505,10 @@ describe('Sidebar - admin user (is_admin=true)', () => {
 
   it('renders centralized icons for active navigation links', () => {
     const c = renderSidebar(adminUser)
-    expect(c.querySelector('a[href="/home"] [data-icon="dashboard"]')).not.toBeNull()
+    const dashboardIcon = c.querySelector('a[href="/home"] [data-icon="dashboard"]')
+    expect(dashboardIcon).not.toBeNull()
+    expect(dashboardIcon?.className).toContain('fh-menu-item-icon')
+    expect(dashboardIcon?.getAttribute('style')).toContain('--fh-icon-url')
     expect(c.querySelector('a[href="/products"] [data-icon="products"]')).not.toBeNull()
     expect(c.querySelector('a[href="/orders"] [data-icon="orders"]')).not.toBeNull()
     expect(c.querySelector('a[href="/commerce"] [data-icon="commerce"]')).not.toBeNull()
