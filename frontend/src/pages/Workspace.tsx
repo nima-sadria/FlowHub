@@ -229,7 +229,7 @@ function ResultItemRow({ item }: { item: WritePipelineItem }) {
 
 export default function Workspace() {
   const { workspace, settings, writePipeline } = useServices()
-  const { info } = useNotification()
+  const { info, success } = useNotification()
 
   const [phase, setPhase] = useState<Phase>('idle')
   const [preview, setPreview] = useState<WorkspacePreview | null>(null)
@@ -266,7 +266,10 @@ export default function Workspace() {
       setSelectedRowIds(new Set(p.rows.filter(row => row.eligible_for_dry_run).map(row => row.id)))
       setBatch(null)
       setPhase('preview_ready')
-      info(`Preview ready - ${p.totalChanges} product${p.totalChanges !== 1 ? 's' : ''} with pending price changes`)
+      info({
+        title: 'Preview prepared successfully',
+        description: `${p.totalChanges} product${p.totalChanges !== 1 ? 's' : ''} ready for review.`,
+      })
     } catch (e) {
       const message = workspaceErrorMessage(e, 'Failed to start preview')
       setErrorMsg(message)
@@ -285,7 +288,10 @@ export default function Workspace() {
       const b = await writePipeline.createDryRun(preview.id, selected)
       setBatch(b)
       setPhase('dry_run_ready')
-      info(`Dry Run ready - ${b.itemCount} price change${b.itemCount !== 1 ? 's' : ''} validated`)
+      success({
+        title: 'Dry run completed successfully',
+        description: 'No changes have been applied.',
+      })
     } catch (e) {
       setErrorMsg(workspaceErrorMessage(e, 'Failed to create Dry Run'))
       setPhase('error')
@@ -300,7 +306,10 @@ export default function Workspace() {
       const b = await writePipeline.approve(batch.id, 'Approved from Workspace')
       setBatch(b)
       setPhase('approved')
-      info('Approved. Apply to WooCommerce still requires a separate action.')
+      info({
+        title: 'Changes approved successfully',
+        description: 'Apply is still required before changes are made.',
+      })
     } catch (e) {
       setErrorMsg(workspaceErrorMessage(e, 'Failed to approve'))
       setPhase('error')
@@ -315,12 +324,15 @@ export default function Workspace() {
       const b = await writePipeline.applyToWooCommerce(batch.id)
       setBatch(b)
       setPhase('result')
-      info('WooCommerce apply finished')
+      success({
+        title: 'Changes applied successfully',
+        description: 'All approved updates have been completed.',
+      })
     } catch (e) {
       setErrorMsg(workspaceErrorMessage(e, 'Failed to apply to WooCommerce'))
       setPhase('error')
     }
-  }, [batch, writePipeline, info])
+  }, [batch, writePipeline, success])
 
   const cancelPreview = useCallback(async () => {
     if (preview) await workspace.cancelPreview(preview.id)

@@ -33,6 +33,13 @@ function prettyStatus(value: string): string {
   return value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
+function channelDisplayName(provider: string, fallback: string): string {
+  if (provider === 'snappshop') return 'SnappShop'
+  if (provider === 'tapsishop') return 'TapsiShop'
+  if (provider === 'woocommerce') return 'WooCommerce'
+  return fallback
+}
+
 function SafetyBadges({ readOnly, writeBlocked }: { readOnly: boolean; writeBlocked: boolean }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -411,7 +418,7 @@ function ConfigPanel({
   onSaved: () => Promise<void>
 }) {
   const { commerce } = useServices()
-  const { info, error: notifyError } = useNotification()
+  const { success, error: notifyError } = useNotification()
   const [selectedId, setSelectedId] = useState(initialChannelId ?? types[0]?.id ?? '')
   const selected = useMemo(
     () => types.find(item => item.id === selectedId) ?? types[0],
@@ -427,6 +434,7 @@ function ConfigPanel({
   const [testing, setTesting] = useState(false)
   const [loadingConfiguration, setLoadingConfiguration] = useState(Boolean(initialChannelId))
   const [secretStatus, setSecretStatus] = useState<CommerceChannelConfiguration['secrets']>({})
+  const [configurationWasConfigured, setConfigurationWasConfigured] = useState(false)
   const [vendors, setVendors] = useState<CommerceVendor[]>([])
   const [vendorInformation, setVendorInformation] = useState<CommerceVendor | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -452,6 +460,7 @@ function ConfigPanel({
     setSecrets({})
     setAccessMode('read_only')
     setSecretStatus({})
+    setConfigurationWasConfigured(false)
     setVendors([])
     setVendorInformation(null)
     setPickerOpen(false)
@@ -477,9 +486,13 @@ function ConfigPanel({
         setSettings(Object.fromEntries(Object.entries(configuration.settings).map(([key, value]) => [key, value == null ? '' : String(value)])))
         setSecrets({})
         setSecretStatus(configuration.secrets)
+        setConfigurationWasConfigured(configuration.configured)
       })
-      .catch(error => {
-        if (active) notifyError(apiErrorMessage(error, 'Unable to load channel configuration'))
+      .catch(() => {
+        if (active) notifyError({
+          title: 'Unable to load channel settings',
+          description: 'Please try again.',
+        })
       })
       .finally(() => {
         if (active) setLoadingConfiguration(false)
@@ -529,10 +542,21 @@ function ConfigPanel({
       const payload = configurationPayload()
       if (kind === 'source') await commerce.saveSource(selected.id, payload)
       else await commerce.saveChannel(selected.id, payload)
-      info(`${selected.name} configuration saved. Secrets remain write-only.`)
+      success(configurationWasConfigured
+        ? {
+            title: 'Channel settings updated successfully',
+            description: 'Your changes have been saved.',
+          }
+        : {
+            title: 'Channel configured successfully',
+            description: 'The channel is ready to use.',
+          })
       await onSaved()
-    } catch (error) {
-      notifyError(apiErrorMessage(error, `Unable to save ${kind} configuration`))
+    } catch {
+      notifyError({
+        title: 'Unable to save channel settings',
+        description: 'Please review your changes and try again.',
+      })
     } finally {
       setSaving(false)
     }
@@ -551,11 +575,20 @@ function ConfigPanel({
       if (result.ok) {
         setVendors(result.vendors ?? [])
         setVendorInformation(result.vendor_information ?? null)
-        info(result.message)
+        success({
+          title: 'Channel connected successfully',
+          description: `${channelDisplayName(selected.provider, selected.name)} is ready to use.`,
+        })
       }
-      else notifyError(result.message)
-    } catch (error) {
-      notifyError(apiErrorMessage(error, 'Unable to test connection'))
+      else notifyError({
+        title: 'Unable to connect to the channel',
+        description: 'Please verify your credentials and try again.',
+      })
+    } catch {
+      notifyError({
+        title: 'Unable to connect to the channel',
+        description: 'Please verify your credentials and try again.',
+      })
     } finally {
       setTesting(false)
     }
@@ -916,7 +949,7 @@ function ConfigPanel({
 export default function CommerceHub() {
   const { commerce } = useServices()
   const { user } = useAuth()
-  const { info, error: notifyError } = useNotification()
+  const { success, error: notifyError } = useNotification()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'sources' ? 'sources' : 'channels')
   const [sources, setSources] = useState<CommerceSource[]>([])
@@ -953,7 +986,10 @@ export default function CommerceHub() {
 
   useEffect(() => {
     loadCommerce()
-      .catch(() => notifyError('Unable to load Commerce Hub'))
+      .catch(() => notifyError({
+        title: 'Unable to load Commerce Hub',
+        description: 'Please try again.',
+      }))
       .finally(() => setLoading(false))
   }, [commerce])
 
@@ -972,11 +1008,21 @@ export default function CommerceHub() {
     setTestingId(sourceId)
     try {
       const result = await commerce.testSource(sourceId)
-      if (result.ok) info(result.message)
-      else notifyError(result.message)
+      const source = sources.find(item => item.id === sourceId)
+      if (result.ok) success({
+        title: 'Channel connected successfully',
+        description: `${source?.name ?? 'The source'} is ready to use.`,
+      })
+      else notifyError({
+        title: 'Unable to connect to the channel',
+        description: 'Please verify your credentials and try again.',
+      })
       await loadCommerce()
-    } catch (error) {
-      notifyError(apiErrorMessage(error, 'Unable to test connection'))
+    } catch {
+      notifyError({
+        title: 'Unable to connect to the channel',
+        description: 'Please verify your credentials and try again.',
+      })
     } finally {
       setTestingId(null)
     }
@@ -990,11 +1036,21 @@ export default function CommerceHub() {
     setTestingId(channelId)
     try {
       const result = await commerce.testChannel(channelId)
-      if (result.ok) info(result.message)
-      else notifyError(result.message)
+      const channel = channels.find(item => item.id === channelId)
+      if (result.ok) success({
+        title: 'Channel connected successfully',
+        description: `${channel ? channelDisplayName(channel.provider, channel.name) : 'The channel'} is ready to use.`,
+      })
+      else notifyError({
+        title: 'Unable to connect to the channel',
+        description: 'Please verify your credentials and try again.',
+      })
       await loadCommerce()
-    } catch (error) {
-      notifyError(apiErrorMessage(error, 'Unable to test connection'))
+    } catch {
+      notifyError({
+        title: 'Unable to connect to the channel',
+        description: 'Please verify your credentials and try again.',
+      })
     } finally {
       setTestingId(null)
     }
@@ -1009,13 +1065,22 @@ export default function CommerceHub() {
     try {
       const result = await commerce.refreshChannelCache(channelId)
       if (result.ok) {
-        info('WooCommerce product cache updated. Workspace Preview is now available.')
+        success({
+          title: 'Product cache refreshed successfully',
+          description: 'The latest product information has been loaded.',
+        })
       } else {
-        notifyError(result.errors[0] || 'Unable to refresh WooCommerce product cache')
+        notifyError({
+          title: 'Unable to refresh the product cache',
+          description: 'Please try again.',
+        })
       }
       await loadCommerce()
-    } catch (error) {
-      notifyError(apiErrorMessage(error, 'Unable to refresh WooCommerce product cache'))
+    } catch {
+      notifyError({
+        title: 'Unable to refresh the product cache',
+        description: 'Please try again.',
+      })
     } finally {
       setRefreshingId(null)
     }
@@ -1030,13 +1095,22 @@ export default function CommerceHub() {
     try {
       const result = await commerce.readSource(sourceId)
       if (result.ok) {
-        info(`Read complete - ${result.rows_read} row${result.rows_read !== 1 ? 's' : ''} read; ${result.reads_remaining} read${result.reads_remaining !== 1 ? 's' : ''} remaining today.`)
+        success({
+          title: 'Source refreshed successfully',
+          description: `${result.rows_read} row${result.rows_read !== 1 ? 's' : ''} loaded.`,
+        })
       } else {
-        notifyError('Source read failed.')
+        notifyError({
+          title: 'Unable to refresh the source',
+          description: 'Please try again.',
+        })
       }
       await loadCommerce()
-    } catch (error) {
-      notifyError(apiErrorMessage(error, 'Unable to read source'))
+    } catch {
+      notifyError({
+        title: 'Unable to refresh the source',
+        description: 'Please try again.',
+      })
     } finally {
       setReadingId(null)
     }

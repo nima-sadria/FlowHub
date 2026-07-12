@@ -2,16 +2,24 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error'
 
+export interface NotificationContent {
+  title: string
+  description?: string
+}
+
+export type NotificationInput = string | NotificationContent
+
 export interface Notification {
   id: string
   type: NotificationType
-  message: string
+  title: string
+  description?: string
   duration: number
 }
 
 interface NotificationContextValue {
   notifications: Notification[]
-  show: (type: NotificationType, message: string, duration?: number) => void
+  show: (type: NotificationType, content: NotificationInput, duration?: number) => void
   dismiss: (id: string) => void
 }
 
@@ -30,11 +38,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => prev.filter(n => n.id !== id))
   }, [])
 
-  const show = useCallback((type: NotificationType, message: string, duration = DEFAULT_DURATION) => {
+  const show = useCallback((type: NotificationType, content: NotificationInput, duration = DEFAULT_DURATION) => {
     const id = crypto.randomUUID()
-    const notification: Notification = { id, type, message, duration }
+    const { title, description } = typeof content === 'string' ? { title: content } : content
+    const notification: Notification = { id, type, title, description, duration }
     setNotifications(prev => {
-      const duplicate = prev.find(n => n.type === type && n.message === message)
+      const duplicate = prev.find(n => (
+        n.type === type && n.title === title && n.description === description
+      ))
       if (duplicate) {
         clearTimeout(timersRef.current[duplicate.id])
         delete timersRef.current[duplicate.id]
@@ -59,10 +70,10 @@ export function useNotification() {
   if (!ctx) throw new Error('useNotification must be used inside NotificationProvider')
   const { show, dismiss } = ctx
   return useMemo(() => ({
-    info: (msg: string, dur?: number) => show('info', msg, dur),
-    success: (msg: string, dur?: number) => show('success', msg, dur),
-    warning: (msg: string, dur?: number) => show('warning', msg, dur),
-    error: (msg: string, dur?: number) => show('error', msg, dur),
+    info: (content: NotificationInput, dur?: number) => show('info', content, dur),
+    success: (content: NotificationInput, dur?: number) => show('success', content, dur),
+    warning: (content: NotificationInput, dur?: number) => show('warning', content, dur),
+    error: (content: NotificationInput, dur?: number) => show('error', content, dur),
     dismiss,
   }), [show, dismiss])
 }

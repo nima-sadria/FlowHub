@@ -156,9 +156,15 @@ export default function Settings() {
       await settings.updateSettings(draft)
       setAppSettings(draft)
       setDirty(false)
-      success('Settings saved')
+      success({
+        title: 'Settings saved successfully',
+        description: 'Your changes have been applied.',
+      })
     } catch {
-      notifyError('Failed to save settings')
+      notifyError({
+        title: 'Unable to save settings',
+        description: 'Please try again.',
+      })
     } finally {
       setSaving(false)
     }

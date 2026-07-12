@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import type { AuthUser } from '../auth'
 import { useAuth } from '../auth'
-import Icon from './Icon'
+import Icon, { routeIconMap } from './Icon'
 import IconButton from './IconButton'
 import { effectiveHasPerm } from '../utils/permissions'
 
@@ -101,56 +101,56 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
           <div className="flex flex-col gap-2">
             {hasPerm('can_access_site') && (
               <NavLink to="/home" className={linkCls} onClick={onClose}>
-                <Icon name="dashboard" className="fh-menu-item-icon h-6 w-6" />
+                <Icon name={routeIconMap.Dashboard} className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Dashboard</span>
               </NavLink>
             )}
 
             {hasPerm('can_fetch') && (
               <NavLink to="/products" className={linkCls} onClick={onClose}>
-                <Icon name="products" className="fh-menu-item-icon h-6 w-6" />
+                <Icon name={routeIconMap.Products} className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Products</span>
               </NavLink>
             )}
 
             {hasPerm('can_fetch') && (
               <NavLink to="/orders" className={linkCls} onClick={onClose}>
-                <Icon name="orders" className="fh-menu-item-icon h-6 w-6" />
+                <Icon name={routeIconMap.Orders} className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Orders</span>
               </NavLink>
             )}
 
             {hasPerm('can_access_site') && (
               <NavLink to="/commerce" className={linkCls} onClick={onClose}>
-                <Icon name="commerce" className="fh-menu-item-icon h-6 w-6" />
+                <Icon name={routeIconMap['Commerce Hub']} className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Commerce Hub</span>
               </NavLink>
             )}
 
             {hasPerm('can_fetch') && (
               <NavLink to="/workspace" className={linkCls} onClick={onClose}>
-                <Icon name="workspace" className="fh-menu-item-icon h-6 w-6" />
+                <Icon name={routeIconMap.Workspace} className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Workspace</span>
               </NavLink>
             )}
 
             {hasPerm('can_view_logs') && (
               <NavLink to="/activity" className={linkCls} onClick={onClose}>
-                <Icon name="activity" className="fh-menu-item-icon h-6 w-6" />
+                <Icon name={routeIconMap.Activity} className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Activity</span>
               </NavLink>
             )}
 
             {hasPerm('can_view_settings') && (
               <NavLink to="/diagnostics" className={linkCls} onClick={onClose}>
-                <Icon name="diagnostics" className="fh-menu-item-icon h-6 w-6" />
+                <Icon name={routeIconMap.Diagnostics} className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Diagnostics</span>
               </NavLink>
             )}
 
             {hasPerm('can_view_settings') && (
               <NavLink to="/settings" className={linkCls} onClick={onClose}>
-                <Icon name="settings" className="fh-menu-item-icon h-6 w-6" />
+                <Icon name={routeIconMap.Settings} className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Settings</span>
               </NavLink>
             )}

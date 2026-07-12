@@ -47,4 +47,29 @@ describe('Icon', () => {
       expect(`/static/icons/${asset}`).toMatch(/^\/static\/icons\/.+\.svg$/)
     }
   })
+
+  it('resolves all notification states through the centralized icon assets', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    act(() => {
+      root.render(
+        <>
+          <Icon name="success" />
+          <Icon name="error" />
+          <Icon name="warning" />
+          <Icon name="info" />
+        </>,
+      )
+    })
+
+    expect(container.querySelector('[data-icon="success"]')?.getAttribute('style')).toContain('check-circle.svg')
+    expect(container.querySelector('[data-icon="error"]')?.getAttribute('style')).toContain('info-error.svg')
+    expect(container.querySelector('[data-icon="warning"]')?.getAttribute('style')).toContain('alert.svg')
+    expect(container.querySelector('[data-icon="info"]')?.getAttribute('style')).toContain('info.svg')
+
+    act(() => { root.unmount() })
+    container.remove()
+  })
 })

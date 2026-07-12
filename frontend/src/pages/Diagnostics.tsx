@@ -151,7 +151,10 @@ export default function Diagnostics() {
       setHealth(healthData)
       setDiag(diagnosticsData)
       setCheckedAt(new Date())
-      success('Diagnostics refreshed')
+      success({
+        title: 'Diagnostics updated',
+        description: 'Latest system status has been loaded.',
+      })
     } catch (e) {
       const msg = e instanceof ApiError
         ? `Diagnostics unavailable (HTTP ${e.status})`
@@ -159,7 +162,10 @@ export default function Diagnostics() {
           ? 'Unable to check diagnostics. Request timed out.'
           : 'Unable to check diagnostics.'
       setErr(msg)
-      notifyError(msg)
+      notifyError({
+        title: 'Unable to update diagnostics',
+        description: 'Please try again.',
+      })
     } finally {
       setLoading(false)
     }
@@ -180,14 +186,15 @@ export default function Diagnostics() {
       )
       setDiag(current => current ? { ...current, channelHealth: data } : current)
       setCheckedAt(new Date())
-      success('Channel health refreshed')
-    } catch (e) {
-      const msg = e instanceof ApiError
-        ? `Channel health refresh failed (HTTP ${e.status})`
-        : e instanceof Error && e.message === 'request_timeout'
-          ? 'Channel health refresh timed out.'
-          : 'Channel health refresh failed.'
-      notifyError(msg)
+      success({
+        title: 'Diagnostics updated',
+        description: 'Latest system status has been loaded.',
+      })
+    } catch {
+      notifyError({
+        title: 'Unable to update diagnostics',
+        description: 'Please try again.',
+      })
     } finally {
       setRefreshingChannel(null)
     }

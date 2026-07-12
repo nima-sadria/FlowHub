@@ -5,6 +5,7 @@ import Empty from '../components/Empty'
 import { SkeletonCard } from '../components/loading/Skeleton'
 import { useNotification } from '../notifications/NotificationProvider'
 import PageShell from '../components/PageShell'
+import Icon from '../components/Icon'
 import { useServices } from '../services/ServiceContext'
 import type { Source } from '../services/types'
 
@@ -40,9 +41,13 @@ function SourceCard({ source }: { source: Source }) {
           <p className="fh-text-caption fh-text-mono mt-0.5 truncate">{source.displayUrl}</p>
         </div>
         <button
-          onClick={() => info('Configuration editing available in a future phase.')}
+          onClick={() => info({
+            title: 'Editing is not available yet',
+            description: 'This source cannot be changed from this page.',
+          })}
           className="fh-button-secondary flex-shrink-0"
         >
+          <Icon name="edit" />
           Edit
         </button>
       </div>
@@ -88,9 +93,7 @@ export default function Sources() {
           onClick={() => navigate('/sources/new')}
           className="fh-button-primary flex-shrink-0"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" className="fh-icon-sm" aria-hidden="true">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
+          <Icon name="add" />
           Add Source
         </button>
       </div>

@@ -169,7 +169,7 @@ describe('Diagnostics', () => {
     })
 
     const refreshedToasts = Array.from(c.querySelectorAll('[role="alert"]'))
-      .filter(alert => alert.textContent?.includes('Diagnostics refreshed'))
+      .filter(alert => alert.textContent?.includes('Diagnostics updated'))
     expect(refreshedToasts).toHaveLength(1)
   })
 

@@ -64,7 +64,10 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
         setReadRpm(data.read_requests_per_minute)
         setWriteRpm(data.write_requests_per_minute)
       } catch {
-        if (active) notifyError('Failed to load rate limits')
+        if (active) notifyError({
+          title: 'Unable to load settings',
+          description: 'Please try again.',
+        })
       } finally {
         if (active) setLoading(false)
       }
@@ -94,9 +97,15 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
       setCurrent(updated)
       setReadRpm(updated.read_requests_per_minute)
       setWriteRpm(updated.write_requests_per_minute)
-      success('Rate limits saved')
+      success({
+        title: 'Settings saved successfully',
+        description: 'Your changes have been applied.',
+      })
     } catch {
-      notifyError('Failed to save rate limits')
+      notifyError({
+        title: 'Unable to save settings',
+        description: 'Please try again.',
+      })
     } finally {
       setSaving(false)
     }

@@ -6,6 +6,7 @@ import Spinner from '../components/loading/Spinner'
 import { useNotification } from '../notifications/NotificationProvider'
 import { inputHint } from '../utils/inputHint'
 import PageShell from '../components/PageShell'
+import Icon from '../components/Icon'
 
 type Step = 1 | 2 | 3 | 4
 
@@ -24,11 +25,7 @@ function StepIndicator({ current, total }: { current: Step; total: number }) {
               done    ? 'bg-wp-green/20 text-wp-green' :
               'bg-bg-base border border-border text-wp-muted',
             ].join(' ')}>
-              {done ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3.5 h-3.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              ) : step}
+              {done ? <Icon name="success" /> : step}
             </div>
             {i < total - 1 && (
               <div className={['w-10 h-px', done ? 'bg-wp-green/40' : 'bg-border'].join(' ')} />
@@ -89,7 +86,10 @@ export default function SourceWizard() {
     setSaving(true)
     try {
       await sources.createSource(config)
-      success(`Source "${config.name}" added successfully`)
+      success({
+        title: 'Source added successfully',
+        description: `${config.name} is ready to use.`,
+      })
       setStep(4)
     } finally {
       setSaving(false)
@@ -138,12 +138,7 @@ export default function SourceWizard() {
               className="fh-card flex w-full items-start gap-4 border-accent bg-accent/5 p-4 text-start transition-colors hover:bg-accent/10"
             >
               <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-accent">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                </svg>
+                <Icon name="file" className="text-accent" />
               </div>
               <div>
                 <div className="fh-text-body font-semibold">Nextcloud Excel</div>
@@ -168,6 +163,7 @@ export default function SourceWizard() {
                 onClick={() => setStep(1)}
                 className="fh-button-secondary flex-1"
               >
+                <Icon name="previous" mirrorRtl />
                 Back
               </button>
               <button
@@ -176,6 +172,7 @@ export default function SourceWizard() {
                 className="fh-button-primary flex-1"
               >
                 {testing && <Spinner size="sm" className="text-white" />}
+                {!testing && <Icon name="testConnection" />}
                 {testing ? 'Testing...' : 'Test Connection'}
               </button>
             </div>
@@ -187,9 +184,7 @@ export default function SourceWizard() {
           <div className="flex flex-col gap-4">
             {testResult?.success ? (
               <div className="fh-alert fh-alert-success">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-wp-green flex-shrink-0 mt-0.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+                <Icon name="success" className="mt-0.5 flex-shrink-0 text-wp-green" />
                 <div>
                   <p className="fh-text-body font-medium text-wp-green">Connection successful</p>
                   <p className="fh-text-caption mt-0.5">{testResult.message}</p>
@@ -197,9 +192,7 @@ export default function SourceWizard() {
               </div>
             ) : testResult && !testResult.success ? (
               <div className="fh-alert fh-alert-danger">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-wp-red flex-shrink-0 mt-0.5">
-                  <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
-                </svg>
+                <Icon name="error" className="mt-0.5 flex-shrink-0 text-wp-red" />
                 <p className="fh-text-body text-wp-red">{testResult.message}</p>
               </div>
             ) : null}
@@ -209,6 +202,7 @@ export default function SourceWizard() {
                 onClick={() => { setStep(2); setTestResult(null) }}
                 className="fh-button-secondary flex-1"
               >
+                <Icon name="previous" mirrorRtl />
                 Back
               </button>
               {testResult?.success && (
@@ -218,6 +212,7 @@ export default function SourceWizard() {
                   className="fh-button-primary flex-1"
                 >
                   {saving && <Spinner size="sm" className="text-white" />}
+                  {!saving && <Icon name="save" />}
                   {saving ? 'Saving...' : 'Save Source'}
                 </button>
               )}
@@ -227,6 +222,7 @@ export default function SourceWizard() {
                   disabled={testing}
                   className="fh-button-secondary flex-1"
                 >
+                  <Icon name="retry" />
                   Retry
                 </button>
               )}
@@ -238,9 +234,7 @@ export default function SourceWizard() {
         {step === 4 && (
           <div className="flex flex-col items-center gap-5 py-4 text-center">
             <div className="w-14 h-14 rounded-full bg-wp-green/10 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-7 h-7 text-wp-green">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              <Icon name="success" size="lg" className="text-wp-green" />
             </div>
             <div>
               <p className="fh-section-title">{config.name} added</p>

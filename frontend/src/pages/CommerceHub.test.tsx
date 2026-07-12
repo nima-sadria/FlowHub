@@ -488,6 +488,9 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Cached products: 2')
     expect(c.textContent).toContain('Cached variations: 2')
     expect(c.textContent).toContain('Refresh status: Completed')
+    expect(c.querySelector('button [data-icon="edit"]')).not.toBeNull()
+    expect(c.querySelector('button [data-icon="testConnection"]')).not.toBeNull()
+    expect(c.querySelector('button [data-icon="refresh"]')).not.toBeNull()
 
     await act(async () => {
       Array.from(c.querySelectorAll('button'))
@@ -581,6 +584,9 @@ describe('CommerceHub', () => {
     expect(testedPayload?.settings.agent_identifier).toBe('flowhub-agent')
     expect(testedPayload?.secrets.token).toBeUndefined()
     expect(Array.from(c.querySelectorAll('option')).some(option => option.textContent === 'Primary Vendor')).toBe(true)
+    expect(c.textContent).toContain('Channel connected successfully')
+    expect(c.textContent).toContain('SnappShop is ready to use.')
+    expect(c.querySelector('[role="alert"] [data-icon="success"]')).not.toBeNull()
   })
 
   it('renders separate TapsiShop secrets and the webhook registration URL', async () => {
@@ -703,7 +709,8 @@ describe('CommerceHub', () => {
       await Promise.resolve()
     })
 
-    expect(c.textContent).toContain('WooCommerce product cache updated. Workspace Preview is now available.')
+    expect(c.textContent).toContain('Product cache refreshed successfully')
+    expect(c.textContent).toContain('The latest product information has been loaded.')
     expect(c.textContent).toContain('Cached products: 7')
     expect(c.textContent).toContain('Cached variations: 3')
   })
@@ -729,7 +736,8 @@ describe('CommerceHub', () => {
       await Promise.resolve()
     })
 
-    expect(c.textContent).toContain('WooCommerce authentication failed.')
+    expect(c.textContent).toContain('Unable to refresh the product cache')
+    expect(c.textContent).toContain('Please try again.')
     expect(c.textContent).not.toContain('ck_live_secret')
     expect(c.textContent).not.toContain('cs_live_secret')
   })
@@ -831,7 +839,8 @@ describe('CommerceHub', () => {
       await Promise.resolve()
     })
 
-    expect(c.textContent).toContain('Connection successful. Spreadsheet found.')
+    expect(c.textContent).toContain('Channel connected successfully')
+    expect(c.textContent).toContain('Nextcloud is ready to use.')
     expect(c.textContent).toContain('Healthy')
     expect(c.textContent).toContain('Configured')
   })
@@ -863,7 +872,8 @@ describe('CommerceHub', () => {
       await Promise.resolve()
     })
 
-    expect(c.textContent).toContain('Authentication failed.')
+    expect(c.textContent).toContain('Unable to connect to the channel')
+    expect(c.textContent).toContain('Please verify your credentials and try again.')
   })
 
   it('opens Source and Channel forms without rendering secrets', async () => {
@@ -945,7 +955,8 @@ describe('CommerceHub', () => {
       await Promise.resolve()
     })
 
-    expect(c.textContent).toContain('Read complete - 1 row read; 9 reads remaining today.')
+    expect(c.textContent).toContain('Source refreshed successfully')
+    expect(c.textContent).toContain('1 row loaded.')
   })
 
   it('keeps channel management controls admin-only', async () => {
@@ -966,7 +977,7 @@ describe('CommerceHub', () => {
     expect(c.textContent).not.toContain('Add Source')
   })
 
-  it('shows backend detail for channel test errors', async () => {
+  it('shows a user-facing channel test error without backend detail', async () => {
     const failingCommerce: CommerceService = {
       ...commerce,
       async getChannels() {
@@ -988,11 +999,12 @@ describe('CommerceHub', () => {
       await Promise.resolve()
     })
 
-    expect(c.textContent).toContain('Admin permission required.')
-    expect(c.textContent).not.toContain('Unable to test connection')
+    expect(c.textContent).toContain('Unable to connect to the channel')
+    expect(c.textContent).toContain('Please verify your credentials and try again.')
+    expect(c.textContent).not.toContain('Admin permission required.')
   })
 
-  it('shows backend detail for save errors without rendering secret values', async () => {
+  it('shows a user-facing save error without rendering secret values', async () => {
     const failingCommerce: CommerceService = {
       ...commerce,
       async saveChannel() {
@@ -1013,8 +1025,9 @@ describe('CommerceHub', () => {
       await Promise.resolve()
     })
 
-    expect(c.textContent).toContain('Invalid credential')
-    expect(c.textContent).toContain('[REDACTED]')
+    expect(c.textContent).toContain('Unable to save channel settings')
+    expect(c.textContent).toContain('Please review your changes and try again.')
+    expect(c.textContent).not.toContain('Invalid credential')
     expect(c.textContent).not.toContain('cs_live_secret')
     expect(c.textContent).not.toContain('snapp-secret-value')
     expect(c.textContent).not.toContain('eyJhbGci')
