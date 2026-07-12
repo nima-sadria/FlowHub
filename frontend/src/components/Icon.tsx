@@ -146,9 +146,17 @@ export default function Icon({
       aria-hidden={label ? undefined : true}
       data-icon={name}
       data-rtl-mirror={mirrorRtl ? 'true' : undefined}
-      className={iconClass}
+      className={`${iconClass} fh-image-icon`}
       style={iconStyle}
       {...props}
-    />
+    >
+      <img
+        aria-hidden="true"
+        alt=""
+        className="fh-icon-img"
+        draggable={false}
+        src={`/static/icons/${ICON_PATHS[name]}`}
+      />
+    </span>
   )
 }
