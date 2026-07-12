@@ -4,6 +4,35 @@ This document defines audit expectations for Codex and other agents reviewing
 FlowHub changes. FlowHub is a production application, so production-bound work
 requires a Production Audit before final release acceptance.
 
+## Audit Target Resolution Policy
+
+Before beginning any audit, always determine the current repository HEAD.
+
+If the requested audit commit is not the current HEAD:
+
+1. Report the mismatch.
+2. Determine whether the newer commits only affect documentation or other
+   unrelated files.
+3. If the audited scope is unaffected, automatically continue auditing the
+   current HEAD and clearly state that the audit was performed on the effective
+   production revision.
+4. Only return HOLD for a commit mismatch if the newer commits modify files
+   within the requested audit scope.
+
+Documentation-only commits, README updates, AI agent documents, comments,
+formatting changes, or unrelated files must never cause a HOLD by themselves.
+
+Always include:
+
+- Requested Commit
+- Actual HEAD
+- Files changed between them
+- Whether those files affect the requested audit scope
+
+If the changed files do not affect the requested audit scope, continue the audit
+and issue the final PASS, REVISE, or HOLD based on the actual findings rather
+than the commit mismatch.
+
 ## Repository Audit
 
 Repository audits verify implementation quality only:
