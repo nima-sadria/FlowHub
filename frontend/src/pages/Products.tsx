@@ -16,6 +16,7 @@ import type {
 } from '../services/types'
 import type { Category } from '../services/products/ProductService'
 import { inputHint } from '../utils/inputHint'
+import { formatMoney, formatMoneyInput, normalizeMoneyInteger, parseMoneyInput } from '../utils/price'
 
 const PAGE_SIZE = 20
 const CHANNEL_OPTIONS = [
@@ -25,13 +26,8 @@ const CHANNEL_OPTIONS = [
   { id: 'tapsishop:main', label: 'Tapsi Shop' },
 ]
 
-function fmtPrice(p: number, currency: string): string {
-  return `${currency} ${p.toFixed(2)}`
-}
-
 function fmtValue(value: number | null | undefined, unit: string): string {
-  if (value === null || value === undefined || Number.isNaN(value)) return '-'
-  return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit}`
+  return formatMoney(value, { unit })
 }
 
 function productChannelLabel(connectorId?: string): string {
@@ -73,7 +69,7 @@ function ProductRow({ product, onEditPrices }: { product: Product; onEditPrices:
         <Badge className="capitalize" variant="neutral">{product.productType ?? 'simple'}</Badge>
       </td>
       <td className="px-4 py-3 fh-text-body font-medium font-mono">
-        {fmtPrice(product.currentPrice, product.currency)}
+        {formatMoney(product.currentPrice, { currency: product.currency, position: 'prefix' })}
       </td>
       <td className="px-4 py-3">
         {(product.categoryNames ?? []).slice(0, 2).map(c => (
@@ -258,11 +254,20 @@ function ChannelPriceRow({
       <td className="px-4 py-3 min-w-[180px]">
         <div className="flex items-center gap-2">
           <input
-            type="number"
-            min="0"
-            step={channel.unit === 'rial' || channel.unit === 'toman' ? '1' : '0.01'}
+            type="text"
+            inputMode="numeric"
             value={draftValue}
-            onChange={event => onDraftChange(channel.channelId, event.target.value)}
+            onChange={event => {
+              const raw = event.target.value
+              if (raw.trim() === '') {
+                onDraftChange(channel.channelId, '')
+                return
+              }
+              const normalized = normalizeMoneyInteger(raw)
+              if (normalized !== null && !normalized.startsWith('-')) {
+                onDraftChange(channel.channelId, formatMoneyInput(normalized))
+              }
+            }}
             disabled={!editable}
             aria-label={`${channel.channelName} proposed price`}
             className="fh-input h-9 w-28 font-mono"
@@ -413,8 +418,8 @@ export default function Products() {
     return priceState.channels
       .map(channel => {
         const raw = draftValues[channel.channelId]
-        const value = raw === undefined || raw.trim() === '' ? channel.proposedValue : Number(raw)
-        if (value === null || value === undefined || Number.isNaN(value)) return null
+        const value = raw === undefined || raw.trim() === '' ? channel.proposedValue : parseMoneyInput(raw)
+        if (value === null || value === undefined) return null
         const current = channel.currentValue
         if (current !== null && current !== undefined && Math.abs(current - value) < 0.0001) return null
         return {
@@ -436,7 +441,7 @@ export default function Products() {
         setPriceState(state)
         setDraftValues(Object.fromEntries(state.channels.map(channel => [
           channel.channelId,
-          channel.proposedValue === null || channel.proposedValue === undefined ? '' : String(channel.proposedValue),
+          formatMoneyInput(channel.proposedValue),
         ])))
       })
       .catch(error => setEditorError(apiErrorMessage(error, 'Unable to load channel prices.')))
@@ -480,21 +485,25 @@ export default function Products() {
     productService.applyChannelPriceOperation(priceOperation.id)
       .then(operation => {
         setPriceOperation(operation)
+        const failedChannels = new Set(operation.items.filter(item => item.status === 'failed').map(item => item.channelId))
         if (priceState) {
           productService.getChannelPrices(priceState.product.id)
             .then(state => {
               setPriceState(state)
-              setDraftValues(current => ({ ...current, ...Object.fromEntries(state.channels.map(channel => [
+              setDraftValues(current => Object.fromEntries(state.channels.map(channel => [
                 channel.channelId,
-                current[channel.channelId] ?? String(channel.proposedValue ?? ''),
-              ])) }))
+                failedChannels.has(channel.channelId)
+                  ? current[channel.channelId] ?? formatMoneyInput(channel.currentValue)
+                  : formatMoneyInput(channel.currentValue),
+              ])))
             })
             .catch(() => {})
         }
+        fetchProducts()
       })
       .catch(error => setEditorError(apiErrorMessage(error, 'Unable to apply channel prices.')))
       .finally(() => setEditorLoading(false))
-  }, [priceOperation, priceState, productService])
+  }, [fetchProducts, priceOperation, priceState, productService])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1

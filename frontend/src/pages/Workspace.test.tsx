@@ -26,6 +26,43 @@ afterEach(() => {
 })
 
 describe('Workspace source-driven preview', () => {
+  it('prevents duplicate preview submissions before React rerenders', async () => {
+    const preview = makePreview({ withError: false })
+    let resolvePreview: (value: WorkspacePreview) => void = () => {}
+    const pending = new Promise<WorkspacePreview>(resolve => { resolvePreview = resolve })
+    const startPreview = vi.fn(async () => pending)
+    await renderWorkspace(preview, vi.fn(), startPreview)
+
+    const start = button('Start Preview')
+    expect(start).not.toBeNull()
+    await act(async () => {
+      start!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      start!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(startPreview).toHaveBeenCalledTimes(1)
+    await act(async () => { resolvePreview(preview); await pending })
+    await flush()
+    expect(container.textContent).toContain('Preview -')
+  })
+
+  it('shows structured source-limit recovery guidance without raw backend text', async () => {
+    await renderWorkspaceWithPreviewError(new ApiError(
+      429,
+      'raw limiter exception',
+      'SOURCE_READ_LIMIT_REACHED',
+      { limit: 6, usage: 6, resetAt: '2026-07-12T11:08:08Z', retryAfterSeconds: 600 },
+    ))
+
+    await click('Start Preview')
+
+    expect(container.textContent).toContain('Source read limit reached')
+    expect(container.textContent).toContain('6 of 6 source reads have been used')
+    expect(container.textContent).toContain('Try again after')
+    expect(container.textContent).not.toContain('raw limiter exception')
+  })
+
   it('guides cache-empty preview failures to the WooCommerce Channel refresh action', async () => {
     await renderWorkspaceWithPreviewError(new ApiError(
       409,
@@ -163,13 +200,14 @@ describe('Workspace source-driven preview', () => {
     expect(persianNodes.some(node => node.textContent === 'Color: آبی')).toBe(true)
     expect(container.querySelector('.fh-text-mono[lang="fa"]')).toBeNull()
     expect(container.textContent).toContain('SKU-101')
-    expect(container.textContent).toContain('EUR 100.00')
+    expect(container.textContent).toContain('EUR 100')
   })
 })
 
 async function renderWorkspace(
   preview: WorkspacePreview,
   createDryRun: ReturnType<typeof vi.fn>,
+  startPreview: () => Promise<WorkspacePreview> = async () => preview,
 ) {
   const services = {
     settings: {
@@ -188,7 +226,7 @@ async function renderWorkspace(
     },
     workspace: {
       async getState() { return 'idle' as const },
-      async startPreview() { return preview },
+      startPreview,
       async cancelPreview() {},
     },
     writePipeline: {

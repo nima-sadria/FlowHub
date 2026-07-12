@@ -37,6 +37,7 @@ describe('Orders page', () => {
     expect(container.textContent).toContain('tapsishop')
     expect(container.textContent).toContain('cancelled')
     expect(container.textContent).toContain('IRR')
+    expect(container.textContent).toContain('27,000 IRR')
     expect(container.querySelector('.overflow-x-auto table')?.className).toContain('min-w-[1180px]')
 
     const detailButton = container.querySelector('button')
@@ -47,6 +48,7 @@ describe('Orders page', () => {
 
     expect(container.textContent).toContain('tap-item-1')
     expect(container.textContent).toContain('No SKU product')
+    expect(container.textContent).toContain('9,000 IRR')
     expect(container.textContent).not.toContain('national')
   })
 })

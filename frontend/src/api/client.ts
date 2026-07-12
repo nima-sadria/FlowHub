@@ -3,10 +3,18 @@ export class ApiError extends Error {
     public readonly status: number,
     message: string,
     public readonly code?: string,
+    public readonly details: ApiErrorDetails = {},
   ) {
     super(message)
     this.name = 'ApiError'
   }
+}
+
+export type ApiErrorDetails = {
+  limit?: number
+  usage?: number
+  resetAt?: string
+  retryAfterSeconds?: number
 }
 
 type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -21,6 +29,12 @@ type SafeErrorPayload = {
   detail?: unknown
   title?: unknown
   errors?: unknown
+  limit?: unknown
+  usage?: unknown
+  reset_at?: unknown
+  resetAt?: unknown
+  retry_after_seconds?: unknown
+  retryAfterSeconds?: unknown
 }
 
 function redactSensitiveText(value: string): string {
@@ -58,7 +72,7 @@ function errorStrings(value: unknown): unknown[] {
   return []
 }
 
-function safePayload(value: unknown): { message: string; code?: string } {
+function safePayload(value: unknown): { message: string; code?: string; details: ApiErrorDetails } {
   const payload = value && typeof value === 'object' ? value as SafeErrorPayload : {}
   const detail = payload.detail && typeof payload.detail === 'object'
     ? payload.detail as SafeErrorPayload
@@ -71,7 +85,22 @@ function safePayload(value: unknown): { message: string; code?: string } {
     ?? UPSTREAM_FALLBACK
   const rawCode = safeMessage(detail?.code ?? payload.code)
   const code = rawCode && /^[A-Z0-9_.-]{1,100}$/i.test(rawCode) ? rawCode : undefined
-  return { message, code }
+  const numberField = (raw: unknown): number | undefined => (
+    typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : undefined
+  )
+  const resetAt = safeMessage(detail?.reset_at ?? detail?.resetAt ?? payload.reset_at ?? payload.resetAt)
+  return {
+    message,
+    code,
+    details: {
+      limit: numberField(detail?.limit ?? payload.limit),
+      usage: numberField(detail?.usage ?? payload.usage),
+      resetAt: resetAt && /^\d{4}-\d{2}-\d{2}T/.test(resetAt) ? resetAt : undefined,
+      retryAfterSeconds: numberField(
+        detail?.retry_after_seconds ?? detail?.retryAfterSeconds ?? payload.retry_after_seconds ?? payload.retryAfterSeconds,
+      ),
+    },
+  }
 }
 
 export function apiErrorMessage(error: unknown, fallback: string): string {
@@ -109,7 +138,7 @@ export async function apiFetch<T>(
         payload = await r.json().catch(() => null)
       }
       const safe = safePayload(payload)
-      throw new ApiError(r.status, safe.message, safe.code)
+      throw new ApiError(r.status, safe.message, safe.code, safe.details)
     }
     return r.json() as Promise<T>
   } catch (error) {

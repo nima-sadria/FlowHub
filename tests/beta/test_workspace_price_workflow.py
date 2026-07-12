@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import os
+import asyncio
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 
 import pytest
@@ -190,6 +191,96 @@ def test_nextcloud_spreadsheet_import_success_generates_preview_and_dry_run(
     execute = client.post(f"/api/v2/write-pipeline/batches/{batch['id']}/execute", headers=auth_headers)
     assert execute.status_code == 409
     assert "approved Dry Run" in execute.text
+
+
+@pytest.mark.asyncio
+async def test_concurrent_identical_preview_reuses_one_source_read(
+    auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.data_layer.models import DlSourceReadReservation
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.workspace.price_workflow import WorkspacePriceWorkflowService
+
+    _cache_product(configured_db, "101", "Test Product", "SKU-101", "100.00")
+    calls = 0
+
+    async def fake_download(self, path):
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(0.05)
+        return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "etag-1", "last_modified": "now"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    user = configured_db.query(FlowHubUser).filter(FlowHubUser.role == "admin").one()
+    service = WorkspacePriceWorkflowService(configured_db)
+
+    first, second = await asyncio.gather(
+        service.preview_from_nextcloud(user),
+        service.preview_from_nextcloud(user),
+    )
+
+    assert first.id == second.id
+    assert {first.external_call_performed, second.external_call_performed} == {True, False}
+    assert calls == 1
+    assert configured_db.query(DlSourceReadReservation).count() == 1
+
+
+def test_source_read_limit_returns_structured_429_and_retry_after(
+    client, auth_headers, configured_db
+):
+    from app.flowhub.data_layer.models import DlSourceReadReservation
+    from app.flowhub.setup.service import AppConfigService
+
+    _cache_product(configured_db, "101", "Test Product", "SKU-101", "100.00")
+    AppConfigService(configured_db).set(
+        "nextcloud.source_read_policy",
+        '{"enabled": true, "manual_read_allowed": true, "max_reads_per_24h": 1}',
+    )
+    configured_db.add(DlSourceReadReservation(
+        id="srr_existing",
+        source_id="nextcloud:primary",
+        user_id="existing",
+        reserved_at=datetime.utcnow() - timedelta(minutes=5),
+        completed_at=datetime.utcnow() - timedelta(minutes=5),
+        status="succeeded",
+    ))
+    configured_db.commit()
+
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+
+    assert response.status_code == 429
+    detail = response.json()["detail"]
+    assert detail["code"] == "SOURCE_READ_LIMIT_REACHED"
+    assert detail["limit"] == 1
+    assert detail["usage"] == 1
+    assert detail["reset_at"]
+    assert detail["retry_after_seconds"] > 0
+    assert int(response.headers["Retry-After"]) == detail["retry_after_seconds"]
+    assert configured_db.query(DlSourceReadReservation).count() == 1
+
+
+def test_failed_preview_validation_consumes_one_completed_read_without_automatic_retry(
+    client, auth_headers, configured_db, monkeypatch
+):
+    from app.flowhub.data_layer.models import DlSourceReadReservation
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+
+    _cache_product(configured_db, "101", "Test Product", "SKU-101", "100.00")
+    calls = 0
+
+    async def empty_download(self, path):
+        nonlocal calls
+        calls += 1
+        return _xlsx([]), {"etag": "etag-empty", "last_modified": "now"}
+
+    monkeypatch.setattr(NextcloudClient, "download_file", empty_download)
+
+    response = client.post("/api/v2/workspace/preview", headers=auth_headers)
+
+    assert response.status_code == 422
+    assert calls == 1
+    assert configured_db.query(DlSourceReadReservation).count() == 1
 
 
 def test_workspace_preview_succeeds_after_woocommerce_channel_cache_refresh(

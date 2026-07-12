@@ -88,7 +88,7 @@ async def get_product(
 ) -> dict:
     page = IntegrationPlatformService(db).list_products(search=product_id, page=1, page_size=200)
     for item in page.items:
-        if item.id == product_id:
+        if item.productId == product_id or item.id == product_id:
             return item.model_dump()
     from fastapi import HTTPException, status
     raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found.")

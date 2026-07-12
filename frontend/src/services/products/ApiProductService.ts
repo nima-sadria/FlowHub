@@ -12,6 +12,7 @@ import { authFetch } from '../../api/authFetch'
 
 interface RawProduct {
   id: string
+  productId: string
   connectorId: string
   wcId?: number
   name: string
@@ -36,7 +37,7 @@ interface RawPage {
 
 function mapProduct(r: RawProduct): Product {
   return {
-    id: r.id,
+    id: r.productId,
     connectorId: r.connectorId,
     name: r.name,
     sku: r.sku,

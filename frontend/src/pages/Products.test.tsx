@@ -37,8 +37,23 @@ describe('Products multi-channel price editor', () => {
     expect(container.textContent).toContain('toman')
     expect(container.textContent).toContain('rial')
     expect(container.textContent).toContain('source unit: toman')
+    expect(input('Snapp Shop proposed price')?.value).toBe('100,000')
+    expect(input('Tapsi Shop proposed price')?.value).toBe('1,000,000')
     expect(container.querySelector('[aria-label="Channel price comparison table"]')?.getAttribute('tabindex')).toBe('0')
     expect(container.querySelector('.min-w-\\[1120px\\]')).not.toBeNull()
+  })
+
+  it('submits a human-formatted price as an integer business value', async () => {
+    const createDryRun = vi.fn(async () => makeOperation('dry_run_ready', 'snappshop:main'))
+    await renderProducts(servicesFor(makePriceState(), { createDryRun }))
+
+    await click('Edit prices')
+    await changeInput('Snapp Shop proposed price', '1,250,000')
+    await click('Preview / Dry Run')
+
+    const payload = (createDryRun.mock.calls[0] as unknown[])[1] as { changes: Array<{ proposedValue: number }> }
+    expect(payload.changes[0].proposedValue).toBe(1250000)
+    expect(Number.isInteger(payload.changes[0].proposedValue)).toBe(true)
   })
 
   it('keeps disconnected and read-only channels non-editable while another channel can dry run', async () => {

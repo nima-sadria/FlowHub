@@ -73,6 +73,33 @@ describe('apiFetch', () => {
     expect(apiErrorMessage(new ApiError(502, '<html>proxy</html>'), 'fallback')).toBe('fallback')
   })
 
+  it('retains only structured source-limit recovery metadata', async () => {
+    let err: ApiError | null = null
+    try {
+      await apiFetch('/api/v2/workspace/preview', makeJsonFailFetch(429, {
+        detail: {
+          code: 'SOURCE_READ_LIMIT_REACHED',
+          message: 'Source read limit reached.',
+          limit: 6,
+          usage: 6,
+          reset_at: '2026-07-12T11:08:08Z',
+          retry_after_seconds: 120,
+          token: 'must-not-survive',
+        },
+      }))
+    } catch (error) {
+      err = error as ApiError
+    }
+
+    expect(err?.details).toEqual({
+      limit: 6,
+      usage: 6,
+      resetAt: '2026-07-12T11:08:08Z',
+      retryAfterSeconds: 120,
+    })
+    expect(JSON.stringify(err?.details)).not.toContain('must-not-survive')
+  })
+
   it.each([
     ['Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.private.signature', 'Authorization: [REDACTED]'],
     ['authorization=Basic dXNlcjpwYXNz', 'authorization=[REDACTED]'],

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Badge from '../components/Badge'
 import { useServices } from '../services/ServiceContext'
 import type { WorkspacePreview, PriceChange, WorkspacePreviewRow, WritePipelineBatch, WritePipelineItem } from '../services/types'
@@ -8,12 +8,29 @@ import Empty from '../components/Empty'
 import Icon from '../components/Icon'
 import LocalizedText from '../components/LocalizedText'
 import PageShell from '../components/PageShell'
-import { apiErrorMessage } from '../api/client'
+import { ApiError, apiErrorMessage } from '../api/client'
+import { formatMoney } from '../utils/price'
 
 const workspaceErrorMessage = apiErrorMessage
 
+function previewErrorContent(error: unknown): { title: string; description: string } {
+  if (error instanceof ApiError && error.status === 429 && error.code === 'SOURCE_READ_LIMIT_REACHED') {
+    const usage = error.details.usage
+    const limit = error.details.limit
+    const reset = error.details.resetAt ? new Date(error.details.resetAt) : null
+    const allowance = usage !== undefined && limit !== undefined ? `${usage} of ${limit} source reads have been used. ` : ''
+    const recovery = reset && !Number.isNaN(reset.getTime())
+      ? `Try again after ${reset.toLocaleString()}.`
+      : error.details.retryAfterSeconds !== undefined
+        ? `Try again in about ${Math.ceil(error.details.retryAfterSeconds / 60)} minute(s).`
+        : 'Try again after the rolling allowance resets.'
+    return { title: 'Source read limit reached', description: `${allowance}${recovery}` }
+  }
+  return { title: 'Unable to start preview', description: workspaceErrorMessage(error, 'Failed to start preview') }
+}
+
 function fmtPrice(p: number, currency: string): string {
-  return `${currency} ${p.toFixed(2)}`
+  return formatMoney(p, { currency, position: 'prefix' })
 }
 
 function ChangePct({ pct }: { pct: number }) {
@@ -234,6 +251,7 @@ export default function Workspace() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [preview, setPreview] = useState<WorkspacePreview | null>(null)
   const [batch, setBatch] = useState<WritePipelineBatch | null>(null)
+  const [errorTitle, setErrorTitle] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [cacheEmptyError, setCacheEmptyError] = useState(false)
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
@@ -242,6 +260,7 @@ export default function Workspace() {
   const [wcConfigured, setWcConfigured] = useState<boolean | null>(null)
   const [ncConfigured, setNcConfigured] = useState<boolean | null>(null)
   const [configLoading, setConfigLoading] = useState(true)
+  const previewRequestInFlight = useRef(false)
 
   useEffect(() => {
     settings.getSettings()
@@ -257,7 +276,10 @@ export default function Workspace() {
   }, [settings])
 
   const startPreview = useCallback(async () => {
+    if (previewRequestInFlight.current) return
+    previewRequestInFlight.current = true
     setPhase('previewing')
+    setErrorTitle(null)
     setErrorMsg(null)
     setCacheEmptyError(false)
     try {
@@ -271,10 +293,13 @@ export default function Workspace() {
         description: `${p.totalChanges} product${p.totalChanges !== 1 ? 's' : ''} ready for review.`,
       })
     } catch (e) {
-      const message = workspaceErrorMessage(e, 'Failed to start preview')
-      setErrorMsg(message)
-      setCacheEmptyError(message.includes('WooCommerce product cache is empty'))
+      const error = previewErrorContent(e)
+      setErrorTitle(error.title)
+      setErrorMsg(error.description)
+      setCacheEmptyError(error.description.includes('WooCommerce product cache is empty'))
       setPhase('error')
+    } finally {
+      previewRequestInFlight.current = false
     }
   }, [workspace, info])
 
@@ -680,7 +705,10 @@ export default function Workspace() {
         <div className="fh-card fh-card-pad flex flex-col gap-4">
           <div className="fh-alert fh-alert-danger">
             <Icon name="disconnect" className="mt-0.5 h-5 w-5 text-wp-red" />
-            <p className="fh-text-body text-wp-red">{errorMsg ?? 'An error occurred.'}</p>
+            <div>
+              <p className="fh-text-body font-semibold text-wp-red">{errorTitle ?? 'An error occurred'}</p>
+              <p className="fh-text-body text-wp-red">{errorMsg ?? 'Please try again.'}</p>
+            </div>
           </div>
           <button
             onClick={() => setPhase('idle')}

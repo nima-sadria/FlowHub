@@ -156,6 +156,51 @@ def test_validation_failure_and_stale_conflict_are_server_side(client, auth_head
     assert conflict.status_code == 409
 
 
+def test_fractional_and_non_finite_prices_are_rejected_without_server_error(client, auth_headers, db):
+    _seed_product(db)
+    loaded = client.get("/api/v2/products/101/channel-prices", headers=auth_headers).json()
+    woo = next(item for item in loaded["channels"] if item["channelId"] == "woocommerce:primary")
+
+    fractional = client.post(
+        "/api/v2/products/101/channel-prices/validate",
+        headers=auth_headers,
+        json={"changes": [{"channelId": "woocommerce:primary", "proposedValue": 100.5, "unit": "EUR", "staleToken": woo["staleToken"]}]},
+    )
+
+    assert fractional.status_code == 200
+    state = next(item for item in fractional.json()["channels"] if item["channelId"] == "woocommerce:primary")
+    assert state["validationState"] == "error"
+    assert "whole number" in state["validationMessage"]
+
+
+def test_successful_apply_updates_cached_price_as_integer(client, auth_headers, db, monkeypatch):
+    _seed_product(db)
+    loaded = client.get("/api/v2/products/101/channel-prices", headers=auth_headers).json()
+    tapsi = next(item for item in loaded["channels"] if item["channelId"] == "tapsishop:main")
+
+    class SuccessConnector:
+        async def update_products(self, updates):
+            from app.flowhub.channels.contracts import ChannelProductUpdateResult
+            return [ChannelProductUpdateResult(channel_id=updates[0].channel_id, identifiers=updates[0].identifiers, success=True)]
+
+    monkeypatch.setattr("app.flowhub.commerce.service.CommerceHubService._tapsishop_connector", lambda self: SuccessConnector())
+    dry = client.post(
+        "/api/v2/products/101/channel-prices/dry-run",
+        headers=auth_headers,
+        json={"version": loaded["version"], "changes": [{"channelId": "tapsishop:main", "proposedValue": 1250000, "unit": "rial", "staleToken": tapsi["staleToken"]}]},
+    )
+    op_id = dry.json()["id"]
+    assert client.post(f"/api/v2/products/channel-price-operations/{op_id}/approve", headers=auth_headers, json={"reason": "test"}).status_code == 200
+    assert client.post(f"/api/v2/products/channel-price-operations/{op_id}/apply", headers=auth_headers).status_code == 200
+
+    row = db.query(_data_layer_models.DlProductCache).filter_by(connector_id="tapsishop:main", product_id="tap-101").one()
+    db.refresh(row)
+    assert row.price == "1250000"
+    reopened = client.get("/api/v2/products/101/channel-prices", headers=auth_headers).json()
+    reopened_tapsi = next(item for item in reopened["channels"] if item["channelId"] == "tapsishop:main")
+    assert reopened_tapsi["currentValue"] == 1250000
+
+
 def test_dry_run_performs_no_external_write_and_apply_requires_approval(client, auth_headers, db, monkeypatch):
     _seed_product(db)
     loaded = client.get("/api/v2/products/101/channel-prices", headers=auth_headers).json()
@@ -221,6 +266,12 @@ def test_apply_reports_channel_specific_partial_failure(client, auth_headers, db
     assert by_channel["tapsishop:main"]["status"] == "applied"
     assert data["summary"]["success"] == 1
     assert data["summary"]["failed"] == 1
+    snapp_row = db.query(_data_layer_models.DlProductCache).filter_by(connector_id="snappshop:main", product_id="snap-101").one()
+    tapsi_row = db.query(_data_layer_models.DlProductCache).filter_by(connector_id="tapsishop:main", product_id="tap-101").one()
+    db.refresh(snapp_row)
+    db.refresh(tapsi_row)
+    assert snapp_row.price == "100000"
+    assert tapsi_row.price == "1200000"
 
 
 def _seed_product(db, *, tapsi: bool = True, snapp_read_only: bool = False) -> None:

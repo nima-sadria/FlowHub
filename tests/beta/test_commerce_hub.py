@@ -1145,7 +1145,13 @@ def test_nextcloud_source_read_rate_limit_is_enforced(client, auth_headers, monk
     assert first.status_code == 200
     assert first.json()["reads_remaining"] == 0
     assert second.status_code == 429
-    assert "Source read limit exceeded" in second.text
+    detail = second.json()["detail"]
+    assert detail["code"] == "SOURCE_READ_LIMIT_REACHED"
+    assert detail["limit"] == 1
+    assert detail["usage"] == 1
+    assert detail["reset_at"]
+    assert detail["retry_after_seconds"] > 0
+    assert second.headers["Retry-After"] == str(detail["retry_after_seconds"])
 
 
 def test_failed_outbound_source_read_consumes_reserved_quota(client, auth_headers, db, monkeypatch):

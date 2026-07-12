@@ -318,16 +318,19 @@ class ProductPricingService:
             errors = []
             if not state["canWrite"]:
                 errors.append("Channel is disabled, disconnected, or read-only.")
-            if not math.isfinite(proposal.proposed_value) or proposal.proposed_value < 0:
+            proposed_is_finite = math.isfinite(proposal.proposed_value)
+            if not proposed_is_finite or proposal.proposed_value < 0:
                 errors.append("Price must be numeric and non-negative.")
+            elif not proposal.proposed_value.is_integer():
+                errors.append("Price must be a whole number.")
             if proposal.special_price is not None and proposal.special_price > proposal.proposed_value:
                 errors.append("Special price must not exceed regular price.")
             expected_unit = state["unit"]
             if proposal.unit and proposal.unit != expected_unit:
                 errors.append(f"Expected {expected_unit} for {proposal.channel_id}.")
-            if proposal.channel_id == "snappshop:main" and int(proposal.proposed_value) != proposal.proposed_value:
+            if proposed_is_finite and proposal.channel_id == "snappshop:main" and int(proposal.proposed_value) != proposal.proposed_value:
                 errors.append("SnappShop toman values must be whole numbers.")
-            if proposal.channel_id == "tapsishop:main":
+            if proposed_is_finite and proposal.channel_id == "tapsishop:main":
                 if int(proposal.proposed_value) != proposal.proposed_value:
                     errors.append("TapsiShop rial values must be whole numbers.")
                 elif int(proposal.proposed_value) % 10 != 0:
@@ -403,8 +406,9 @@ class ProductPricingService:
         row = self.db.query(DlProductCache).filter_by(connector_id=item.channel_id, product_id=item.channel_product_id).first()
         if row is None:
             return
-        row.regular_price = str(item.proposed_value)
-        row.price = str(item.proposed_value)
+        stored_price = str(int(item.proposed_value)) if item.proposed_value.is_integer() else str(item.proposed_value)
+        row.regular_price = stored_price
+        row.price = stored_price
         row.freshness = "fresh"
         row.last_successful_read = datetime.utcnow()
         row.record_hash = _row_hash(row)

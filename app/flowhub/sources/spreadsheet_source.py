@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import uuid
 from dataclasses import dataclass
@@ -325,7 +326,7 @@ class SpreadsheetSourceReadService:
         if manual and not state["manual_read_allowed"]:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Manual source read is disabled by source read policy.")
         if state["enabled"] and state["reads_remaining"] <= 0:
-            raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Source read limit exceeded.")
+            raise _source_read_limit_exception(state)
         return state
 
     def reserve_read_slot(self, user_id: str, *, manual: bool) -> DlSourceReadReservation:
@@ -375,17 +376,11 @@ class SpreadsheetSourceReadService:
         lock.updated_at = now
         self.db.flush()
 
-        cutoff = now - timedelta(hours=24)
-        reserved_count = (
-            self.db.query(DlSourceReadReservation)
-            .filter(DlSourceReadReservation.source_id == SOURCE_ID)
-            .filter(DlSourceReadReservation.reserved_at >= cutoff)
-            .count()
-        )
-        legacy_count = len(_recent_history(self.config.get(_HISTORY_KEY), now))
-        if policy["enabled"] and reserved_count + legacy_count >= int(policy["max_reads_per_24h"]):
+        state = self.read_policy_state(now=now)
+        if state["enabled"] and state["reads_remaining"] <= 0:
+            error = _source_read_limit_exception(state, now=now)
             self.db.rollback()
-            raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Source read limit exceeded.")
+            raise error
 
         reservation = DlSourceReadReservation(
             id=f"srr_{uuid.uuid4().hex[:20]}",
@@ -641,6 +636,28 @@ def _recent_history(value: str | None, now: datetime) -> list[datetime]:
         if parsed >= cutoff:
             history.append(parsed)
     return sorted(history)
+
+
+def _source_read_limit_exception(state: dict, *, now: datetime | None = None) -> HTTPException:
+    current = now or datetime.utcnow()
+    reset_at = str(state.get("reset_at") or "") or None
+    retry_after = 0
+    if reset_at:
+        try:
+            reset_time = datetime.fromisoformat(reset_at.replace("Z", ""))
+            retry_after = max(1, math.ceil((reset_time - current).total_seconds()))
+        except ValueError:
+            retry_after = 0
+    detail = {
+        "code": "SOURCE_READ_LIMIT_REACHED",
+        "message": "The source read allowance has been used.",
+        "limit": int(state.get("max_reads_per_24h") or 0),
+        "usage": int(state.get("reads_used_last_24h") or 0),
+        "reset_at": reset_at,
+        "retry_after_seconds": retry_after or None,
+    }
+    headers = {"Retry-After": str(retry_after)} if retry_after else None
+    return HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail, headers=headers)
 
 
 def _iso(value: datetime) -> str:

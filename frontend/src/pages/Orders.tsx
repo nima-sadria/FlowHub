@@ -5,11 +5,7 @@ import { SkeletonCard } from '../components/loading/Skeleton'
 import PageShell from '../components/PageShell'
 import { useServices } from '../services/ServiceContext'
 import type { ChannelOrderDetail, ChannelOrderListItem } from '../services/types'
-
-function formatMoney(value: number | null, currency: string | null) {
-  if (value === null || value === undefined) return '-'
-  return `${value.toLocaleString()} ${currency || ''}`.trim()
-}
+import { formatMoney } from '../utils/price'
 
 function formatTime(value: string | null) {
   if (!value) return '-'
@@ -54,7 +50,7 @@ function OrderDetail({ order }: { order: ChannelOrderDetail }) {
                     <td>{item.quantity}</td>
                     <td>{item.canceledQuantity}</td>
                     <td>{item.deliverableQuantity ?? '-'}</td>
-                    <td>{formatMoney(item.finalPrice, order.currency)}</td>
+                    <td>{formatMoney(item.finalPrice, { currency: order.currency })}</td>
                     <td>{item.itemStatus || '-'}</td>
                   </tr>
                 ))}
@@ -192,7 +188,7 @@ export default function Orders() {
                       <td>{formatTime(order.createdAtProvider)}</td>
                       <td>{formatTime(order.updatedAtProvider || order.lastSeenAt)}</td>
                       <td>{order.itemCount}</td>
-                      <td>{formatMoney(order.finalAmount, order.currency)}</td>
+                      <td>{formatMoney(order.finalAmount, { currency: order.currency })}</td>
                       <td>{order.synchronizationState}</td>
                       <td>{order.eventSource}</td>
                       <td>{order.errorState || '-'}</td>

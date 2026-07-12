@@ -80,6 +80,81 @@ class WorkspacePreviewStore:
         self.db.refresh(record)
         return record
 
+    def latest_reusable(
+        self,
+        *,
+        source_id: str,
+        owner: FlowHubUser,
+        source_config_hash: str,
+        now: datetime | None = None,
+    ) -> DlWorkspacePreview | None:
+        current_time = now or datetime.utcnow()
+        preview = (
+            self.db.query(DlWorkspacePreview)
+            .filter(DlWorkspacePreview.source_id == source_id)
+            .filter(DlWorkspacePreview.owner_user_id == int(owner.id))
+            .filter(DlWorkspacePreview.expires_at > current_time)
+            .order_by(DlWorkspacePreview.created_at.desc())
+            .first()
+        )
+        if preview is None:
+            return None
+        rows = preview.rows_json if isinstance(preview.rows_json, list) else []
+        if not rows or any(
+            not isinstance(row.get("source"), dict)
+            or row["source"].get("sourceConfigHash") != source_config_hash
+            for row in rows
+        ):
+            return None
+        try:
+            calculated_hashes = _row_hashes(rows)
+        except PreviewValidationError:
+            return None
+        source_snapshot = self.db.get(DlSourceSnapshot, preview.source_snapshot_id)
+        expected_hash = calculate_preview_hash(
+            preview_id=preview.id,
+            source_id=preview.source_id,
+            source_snapshot_id=preview.source_snapshot_id,
+            source_integrity_hash=preview.source_integrity_hash,
+            owner_user_id=preview.owner_user_id,
+            expires_at=preview.expires_at,
+            row_hashes=calculated_hashes,
+            summary=preview.summary_json if isinstance(preview.summary_json, dict) else {},
+        )
+        if (
+            source_snapshot is None
+            or str(source_snapshot.integrity_hash or "") != preview.source_integrity_hash
+            or calculated_hashes != preview.row_hashes_json
+            or expected_hash != preview.preview_hash
+        ):
+            return None
+
+        changes = [
+            row.get("dry_run_change")
+            for row in rows
+            if row.get("eligible_for_dry_run") is True and isinstance(row.get("dry_run_change"), dict)
+        ]
+        product_ids = {str(change.get("productId") or "") for change in changes if change}
+        products = (
+            self.db.query(DlProductCache)
+            .filter(DlProductCache.connector_id == "woocommerce:primary")
+            .filter(DlProductCache.product_id.in_(product_ids))
+            .all()
+            if product_ids
+            else []
+        )
+        by_id = {row.product_id: row for row in products}
+        for change in changes:
+            product_id = str(change.get("productId") or "")
+            current_price = _cached_price(by_id.get(product_id))
+            try:
+                expected_price = float(change.get("currentPrice"))
+            except (TypeError, ValueError):
+                return None
+            if current_price is None or current_price != expected_price:
+                return None
+        return preview
+
     def validate_selection(
         self,
         *,

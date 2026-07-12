@@ -8,19 +8,23 @@ Pipeline dry-run endpoint.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import math
 import uuid
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from time import monotonic
 from typing import Any
 
 from fastapi import HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
-from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob, DlSourceSnapshot
+from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob, DlSourceSnapshot, DlWorkspacePreview
 from app.flowhub.integration_platform.contracts import WorkspacePreviewResponse
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.setup.service import AppConfigService
@@ -35,6 +39,7 @@ LARGE_CHANGE_WARNING_PERCENT = 30.0
 SUSPICIOUS_LOW_PRICE = 1.0
 SUSPICIOUS_HIGH_PRICE = 100_000.0
 SUPPORTED_WRITE_PRODUCT_TYPES = frozenset({"simple", "variation"})
+_LOCAL_PREVIEW_LOCKS: dict[str, asyncio.Lock] = {}
 
 
 @dataclass(frozen=True)
@@ -55,6 +60,29 @@ class WorkspacePriceWorkflowService:
         self.integration = IntegrationPlatformService(db)
 
     async def preview_from_nextcloud(self, user: FlowHubUser) -> WorkspacePreviewResponse:
+        lock_key = f"{SOURCE_ID}:{user.id}"
+        async with _preview_execution_lock(self.db, lock_key):
+            source_config_hash = self._source_config_hash()
+            self._require_channel_config()
+            latest_refresh = self._latest_cache_refresh()
+            self._ensure_cache_refresh_ready(latest_refresh)
+            if not self._load_products():
+                raise HTTPException(status.HTTP_409_CONFLICT, "WooCommerce product cache is empty. Run a manual read first.")
+            reusable = WorkspacePreviewStore(self.db).latest_reusable(
+                source_id=SOURCE_ID,
+                owner=user,
+                source_config_hash=source_config_hash,
+            )
+            if reusable is not None:
+                return self._reused_preview_response(reusable, user)
+            return await self._create_preview_from_nextcloud(user, source_config_hash=source_config_hash)
+
+    async def _create_preview_from_nextcloud(
+        self,
+        user: FlowHubUser,
+        *,
+        source_config_hash: str | None = None,
+    ) -> WorkspacePreviewResponse:
         started = datetime.utcnow()
         preview_id = f"wp_{uuid.uuid4().hex[:16]}"
         self._required_config("nextcloud.spreadsheet_path")
@@ -70,7 +98,14 @@ class WorkspacePriceWorkflowService:
             triggered_by_id=user.id,
             manual=False,
         )
-        rows = self._build_preview_rows(imported.rows, imported.duplicate_info, products, preview_id, imported.snapshot)
+        rows = self._build_preview_rows(
+            imported.rows,
+            imported.duplicate_info,
+            products,
+            preview_id,
+            imported.snapshot,
+            source_config_hash or self._source_config_hash(),
+        )
         summary = _summary(rows)
         eligible_changes = [row["dry_run_change"] for row in rows if row["eligible_for_dry_run"]]
         duplicate_warnings = _duplicate_warnings(imported.duplicate_info)
@@ -119,11 +154,56 @@ class WorkspacePriceWorkflowService:
             external_call_performed=True,
         )
 
+    def _reused_preview_response(self, preview: DlWorkspacePreview, user: FlowHubUser) -> WorkspacePreviewResponse:
+        rows = preview.rows_json if isinstance(preview.rows_json, list) else []
+        summary = preview.summary_json if isinstance(preview.summary_json, dict) else {}
+        changes = [
+            row["dry_run_change"]
+            for row in rows
+            if row.get("eligible_for_dry_run") is True and isinstance(row.get("dry_run_change"), dict)
+        ]
+        source_path = ""
+        if rows and isinstance(rows[0].get("source"), dict):
+            source_path = str(rows[0]["source"].get("sourceFilePath") or "")
+        self.integration.record_event(
+            connector_id=SOURCE_ID,
+            event_name="preview_reused",
+            message="Recent immutable Workspace preview reused without another source read.",
+            metadata={
+                "preview_id": preview.id,
+                "source_id": SOURCE_ID,
+                "actor": user.username,
+                "source_read_performed": False,
+            },
+        )
+        return WorkspacePreviewResponse(
+            id=preview.id,
+            sourceId=SOURCE_ID,
+            sourceName=f"Nextcloud Spreadsheet: {source_path}" if source_path else "Nextcloud Spreadsheet",
+            state="preview_ready",
+            totalChanges=len(changes),
+            changes=changes,
+            rows=rows,
+            summary=summary,
+            startedAt=preview.created_at.isoformat(),
+            duplicateWarnings=[],
+            runtime_write_blocked=True,
+            external_call_performed=False,
+        )
+
     def _required_config(self, key: str) -> str:
         value = self.config.get(key)
         if not value:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Missing required setting: {key}")
         return value
+
+    def _source_config_hash(self) -> str:
+        payload = {
+            "spreadsheet_path": self._required_config("nextcloud.spreadsheet_path"),
+            "mapping": self.source_reader.mapping(),
+            "worksheet": self.source_reader.worksheet_selection(),
+        }
+        return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
 
     def _require_channel_config(self) -> None:
         for key in ("woocommerce.url", "woocommerce.key", "woocommerce.secret"):
@@ -171,6 +251,7 @@ class WorkspacePriceWorkflowService:
         products: list[DlProductCache],
         preview_id: str,
         snapshot: DlSourceSnapshot,
+        source_config_hash: str,
     ) -> list[dict]:
         by_product_id = {row.product_id: row for row in products if row.product_id}
         by_sku: dict[str, list[DlProductCache]] = {}
@@ -304,13 +385,13 @@ class WorkspacePriceWorkflowService:
                     "parentProductName": matched.parent_row.name if matched.parent_row is not None else None,
                     "variationId": matched.row.product_id if _item_type(matched.row) == "variation" else None,
                     "variationAttributes": matched.variation_attributes,
-                    "source": _source_payload(source_row, preview_id, snapshot, row_index),
+                    "source": _source_payload(source_row, preview_id, snapshot, row_index, source_config_hash),
                     "validationWarnings": warnings,
                 }
 
             errors = list(dict.fromkeys(errors))
             warnings = list(dict.fromkeys(warnings))
-            source_payload = _source_payload(source_row, preview_id, snapshot, row_index)
+            source_payload = _source_payload(source_row, preview_id, snapshot, row_index, source_config_hash)
             preview_rows.append({
                 "id": _preview_row_id(source_row, snapshot, row_index),
                 "source": source_payload,
@@ -446,13 +527,58 @@ def _item_type(row: DlProductCache) -> str:
     return "variation" if (row.product_type or "").lower() == "variation" else "simple"
 
 
-def _source_payload(source_row: dict, preview_id: str, snapshot: DlSourceSnapshot, row_index: int | None = None) -> dict:
+@asynccontextmanager
+async def _preview_execution_lock(db: Session, key: str):
+    if db.get_bind().dialect.name != "postgresql":
+        lock = _LOCAL_PREVIEW_LOCKS.setdefault(key, asyncio.Lock())
+        async with lock:
+            yield
+        return
+
+    connection = db.get_bind().connect()
+    acquired = False
+    deadline = monotonic() + 120.0
+    try:
+        while monotonic() < deadline:
+            acquired = bool(
+                connection.execute(
+                    text("SELECT pg_try_advisory_lock(hashtextextended(:lock_key, 0))"),
+                    {"lock_key": key},
+                ).scalar()
+            )
+            if acquired:
+                break
+            await asyncio.sleep(0.1)
+        if not acquired:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {"code": "PREVIEW_IN_PROGRESS", "message": "A preview is already being prepared. Try again shortly."},
+                headers={"Retry-After": "2"},
+            )
+        yield
+    finally:
+        if acquired:
+            connection.execute(
+                text("SELECT pg_advisory_unlock(hashtextextended(:lock_key, 0))"),
+                {"lock_key": key},
+            )
+        connection.close()
+
+
+def _source_payload(
+    source_row: dict,
+    preview_id: str,
+    snapshot: DlSourceSnapshot,
+    row_index: int | None = None,
+    source_config_hash: str = "",
+) -> dict:
     return {
         "previewId": preview_id,
         "sourceId": SOURCE_ID,
         "sourceType": SOURCE_TYPE,
         "sourceSnapshotId": snapshot.id,
         "sourceSnapshotVersion": snapshot.version_seq,
+        "sourceConfigHash": source_config_hash,
         "sourceFilePath": snapshot.file_path,
         "worksheet": source_row.get("worksheet"),
         "rowNumber": source_row.get("row_number"),
