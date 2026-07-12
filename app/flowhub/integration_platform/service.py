@@ -1134,7 +1134,7 @@ class IntegrationPlatformService:
             productId=row.product_id,
             name=row.name or "",
             sku=row.sku or "",
-            currentPrice=_float_or_zero(row.price),
+            currentPrice=_product_display_price(row),
             sourcePrice=None,
             currency="TMN" if row.connector_id == "snappshop:main" else "IRR" if row.connector_id == "tapsishop:main" else currency,
             categoryNames=category_names,
@@ -1310,6 +1310,23 @@ def _float_or_zero(value: object) -> float:
         return float(value or 0)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _product_display_price(row: DlProductCache) -> float:
+    effective = _float_or_none(row.price)
+    regular = _float_or_none(row.regular_price)
+    if effective is not None and (effective != 0 or regular in (None, 0)):
+        return effective
+    if regular is not None:
+        return regular
+    return _float_or_zero(row.last_price)
+
+
+def _float_or_none(value: object) -> float | None:
+    try:
+        return float(str(value).replace(",", "").strip())
+    except (TypeError, ValueError):
+        return None
 
 
 def _product_has_category(row: DlProductCache, category_id: int) -> bool:

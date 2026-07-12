@@ -236,6 +236,30 @@ def test_products_route_reads_data_layer_records(client, auth_headers, db):
     assert data["runtime_write_blocked"] is True
 
 
+def test_products_route_uses_regular_price_when_cached_effective_price_is_zero(client, auth_headers, db):
+    from app.flowhub.data_layer.product_service import ProductReadModelService
+
+    _configure_woocommerce(db)
+    ProductReadModelService(db).upsert(
+        "woocommerce:primary",
+        "57396",
+        {
+            "external_id": 57396,
+            "name": "Variation with stale zero effective price",
+            "sku": "VAR-57396",
+            "price": "0",
+            "regular_price": "235400000",
+            "product_type": "variation",
+            "status": "publish",
+        },
+    )
+
+    response = client.get("/api/v2/products?productType=variation", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["currentPrice"] == 235400000
+
+
 def _seed_product(
     db,
     *,
