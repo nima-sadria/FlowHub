@@ -7,7 +7,7 @@ import uuid
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
@@ -43,9 +43,11 @@ from app.flowhub.unified_workspace.events import (
     DomainEventBus,
     PersistenceAuditSubscriber,
 )
+from app.flowhub.unified_workspace.listing_guard import (
+    ListingGuardConflict,
+    acquire_listing_guard,
+)
 from app.flowhub.unified_workspace.models import (
-    ApplyAttempt,
-    ApplyAttemptEvent,
     ApplyJob,
     ApplyJobItem,
     CanonicalProduct,
@@ -78,6 +80,10 @@ from app.flowhub.unified_workspace.repositories import (
     WorkspaceRepository,
 )
 from app.flowhub.workspace.price_workflow import WorkspacePriceWorkflowService
+from app.flowhub.write_pipeline.models import (
+    ProviderWriteAttempt,
+    ProviderWriteAttemptEvent,
+)
 from app.flowhub.write_pipeline.service import WritePipelineService
 from app.flowhub.write_pipeline.workspace_contracts import (
     WorkspaceWriteBatchCommand,
@@ -89,9 +95,11 @@ from app.flowhub.write_pipeline.workspace_contracts import (
 SCHEMA_VERSION = "uw-snapshot-1"
 NORMALIZATION_VERSION = "uw-normalization-1"
 VALIDATION_VERSION = "uw-validation-1"
+CURRENCY_RULESET_VERSION = "uw-currency-1"
 MAX_SELECTION = 10_000
 MAX_DRAFT_CHANGES = 30_000
 LOCK_MINUTES = 15
+STALE_APPLY_MINUTES = 5
 logger = logging.getLogger("flowhub.unified_workspace")
 
 
@@ -920,7 +928,9 @@ class UnifiedWorkspaceService:
         self.db.commit()
         return {**self._revision_shape(revision), "noOp": False, "draftVersion": draft.version}
 
-    def revisions(self, workspace_id: str, user: FlowHubUser, *, page: int, page_size: int) -> dict[str, Any]:
+    def revisions(
+        self, workspace_id: str, user: FlowHubUser, *, page: int, page_size: int
+    ) -> dict[str, Any]:
         workspace = self._workspace_for_user(workspace_id, user)
         draft = self.drafts.for_workspace(workspace.id)
         if draft is None:
@@ -1141,6 +1151,15 @@ class UnifiedWorkspaceService:
         mapping_digest = checksum(mapping_payload)
         capability_digest = checksum(capability_payload)
         currency_digest = checksum(currency_payload)
+        currency_profile = self.db.get(CurrencyProfile, snapshot.currency_profile_id)
+        if currency_profile is None:
+            raise self._conflict(
+                "CURRENCY_PROFILE_MISSING",
+                "Snapshot Currency Profile is unavailable.",
+            )
+        channel_currency_references = sorted(
+            f"{item['channel']}:{item['currency']}:{item['unit']}" for item in currency_payload
+        )
         review_checksum = checksum(
             {
                 "snapshot": snapshot.content_checksum,
@@ -1148,6 +1167,10 @@ class UnifiedWorkspaceService:
                 "mapping": mapping_digest,
                 "capability": capability_digest,
                 "currency": currency_digest,
+                "currency_profile": currency_profile.id,
+                "currency_profile_version": currency_profile.version,
+                "currency_profile_checksum": currency_profile.checksum,
+                "currency_ruleset": CURRENCY_RULESET_VERSION,
                 "cache": cache_payload,
                 "ruleset": VALIDATION_VERSION,
             }
@@ -1162,6 +1185,14 @@ class UnifiedWorkspaceService:
             ruleset_version=VALIDATION_VERSION,
             capability_digest=capability_digest,
             currency_digest=currency_digest,
+            currency_profile_id=currency_profile.id,
+            currency_profile_version=currency_profile.version,
+            currency_profile_checksum=currency_profile.checksum,
+            currency_source_reference=(
+                f"{currency_profile.scope}:{currency_profile.scope_reference}"
+            ),
+            currency_channel_references_json=channel_currency_references,
+            currency_ruleset_version=CURRENCY_RULESET_VERSION,
             mapping_digest=mapping_digest,
             checksum=review_checksum,
             summary_json={
@@ -1276,6 +1307,18 @@ class UnifiedWorkspaceService:
                 "REVIEW_SELECTION_INELIGIBLE",
                 "Selection contains missing or ineligible Review items.",
             )
+        selected_channel_ids = sorted({item.channel_id for item in items})
+        preference = self.preferences.for_user(user.id)
+        visible_channel_ids = set(
+            preference.visible_channel_ids_json
+            if preference is not None
+            else ["woocommerce:primary", "snappshop:main"]
+        )
+        if not set(selected_channel_ids).issubset(visible_channel_ids):
+            raise self._conflict(
+                "SELECTION_CHANGED",
+                "Hidden Channels cannot participate in Apply selection.",
+            )
         self.db.query(ReviewSelection).filter_by(review_id=review.id).delete(
             synchronize_session=False
         )
@@ -1289,6 +1332,7 @@ class UnifiedWorkspaceService:
                 )
             )
         review.selection_version += 1
+        review.selected_channel_ids_json = selected_channel_ids
         selection_document = self._selection_document(review, items)
         selection_checksum = checksum(selection_document)
         review.selection_checksum = selection_checksum
@@ -1389,6 +1433,7 @@ class UnifiedWorkspaceService:
             )
         existing = self.applies.by_idempotency(key)
         if existing:
+            self._recover_job_if_stale(existing, user, correlation_id)
             return self.apply_shape(existing.id, user)
         review = self.reviews.get(review_id)
         if review is None or review.workspace_id != workspace.id:
@@ -1423,6 +1468,12 @@ class UnifiedWorkspaceService:
             raise self._unprocessable(
                 "APPLY_SELECTION_INELIGIBLE", "Selected Review items are no longer eligible."
             )
+        selected_channel_ids = sorted({item.channel_id for item in review_items})
+        if selected_channel_ids != sorted(review.selected_channel_ids_json):
+            raise self._conflict(
+                "SELECTION_CHANGED",
+                "The confirmed Channel scope changed; confirm selection again.",
+            )
         selection_checksum = checksum(self._selection_document(review, review_items))
         expected_checksum = canonical_text(expected_selection_checksum)
         if (
@@ -1446,6 +1497,7 @@ class UnifiedWorkspaceService:
         )
         existing = self.applies.by_logical_operation(logical_operation_key)
         if existing:
+            self._recover_job_if_stale(existing, user, correlation_id)
             return self.apply_shape(existing.id, user)
         listing_rows = {
             row.id: row
@@ -1469,6 +1521,7 @@ class UnifiedWorkspaceService:
             selection_checksum=selection_checksum,
             request_json={"selected_review_item_ids": selected_ids, "confirmed": True},
             status=ApplyState.PENDING,
+            operation_checksum=logical_operation_key,
         )
         self.db.add(job)
         job_items: dict[str, ApplyJobItem] = {}
@@ -1545,9 +1598,10 @@ class UnifiedWorkspaceService:
             self._assert_review_fresh(review, user, correlation_id)
             current_selection = self.reviews.selections(review.id)
             current_ids = sorted(item.review_item_id for item in current_selection)
-            if current_ids != selected_ids or checksum(
-                self._selection_document(review, review_items)
-            ) != expected_checksum:
+            if (
+                current_ids != selected_ids
+                or checksum(self._selection_document(review, review_items)) != expected_checksum
+            ):
                 raise self._conflict(
                     "APPLY_SELECTION_CHECKSUM_MISMATCH",
                     "The confirmed selection changed after lock acquisition.",
@@ -1559,6 +1613,8 @@ class UnifiedWorkspaceService:
                 )
             job.status = ApplyState.RUNNING
             job.started_at = utcnow()
+            job.heartbeat_at = job.started_at
+            job.worker_id = correlation_id
             self._audit(
                 "apply_started",
                 user,
@@ -1590,6 +1646,7 @@ class UnifiedWorkspaceService:
                 ),
                 user,
             )
+            job.heartbeat_at = utcnow()
             for result in results:
                 affected = grouped[result.listing_id]
                 if result.outcome is WriteOutcome.VERIFIED_APPLIED:
@@ -1606,8 +1663,7 @@ class UnifiedWorkspaceService:
             job.status = (
                 ApplyState.RECONCILIATION_REQUIRED
                 if reconciliation
-                else
-                ApplyState.APPLIED
+                else ApplyState.APPLIED
                 if failed == 0
                 else ApplyState.PARTIALLY_APPLIED
                 if successful
@@ -1639,11 +1695,21 @@ class UnifiedWorkspaceService:
             durable_job = self.db.get(ApplyJob, job.id)
             if durable_job:
                 dispatched = (
-                    self.db.query(ApplyAttemptEvent.id)
-                    .join(ApplyAttempt, ApplyAttempt.id == ApplyAttemptEvent.attempt_id)
+                    self.db.query(ProviderWriteAttemptEvent.id)
+                    .join(
+                        ProviderWriteAttempt,
+                        ProviderWriteAttempt.id == ProviderWriteAttemptEvent.attempt_id,
+                    )
                     .filter(
-                        ApplyAttempt.apply_job_id == job.id,
-                        ApplyAttemptEvent.outcome != WriteOutcome.PENDING.value,
+                        ProviderWriteAttempt.apply_job_id == job.id,
+                        ProviderWriteAttemptEvent.outcome.in_(
+                            [
+                                WriteOutcome.DISPATCHED.value,
+                                WriteOutcome.PROVIDER_ACCEPTED.value,
+                                WriteOutcome.VERIFIED_APPLIED.value,
+                                WriteOutcome.RECONCILIATION_REQUIRED.value,
+                            ]
+                        ),
                     )
                     .first()
                     is not None
@@ -1683,24 +1749,47 @@ class UnifiedWorkspaceService:
         job = self.applies.get(job_id)
         if job is None or job.workspace_id != workspace.id:
             raise self._not_found("APPLY_NOT_FOUND", "Apply job not found.")
-        if job.status != ApplyState.RECONCILIATION_REQUIRED:
+        self._recover_job_if_stale(job, user, correlation_id)
+        if job.status not in {
+            ApplyState.RECONCILIATION_REQUIRED,
+        }:
             raise self._conflict(
                 "APPLY_RECONCILIATION_NOT_REQUIRED",
                 "Only an uncertain Apply may be reconciled.",
             )
+        uncertain_job_items = (
+            self.db.query(ApplyJobItem)
+            .filter(
+                ApplyJobItem.apply_job_id == job.id,
+                ApplyJobItem.status.in_(
+                    ["reconciliation_required", "dispatched", "provider_accepted", "recovering"]
+                ),
+            )
+            .all()
+        )
+        uncertain_item_ids = [item.id for item in uncertain_job_items]
+        if not uncertain_item_ids:
+            raise self._conflict(
+                "APPLY_RECONCILIATION_EMPTY",
+                "No uncertain Apply items are eligible for reconciliation.",
+            )
         review_items = (
             self.db.query(ReviewItem)
             .join(ApplyJobItem, ApplyJobItem.review_item_id == ReviewItem.id)
-            .filter(ApplyJobItem.apply_job_id == job.id)
+            .filter(ApplyJobItem.id.in_(uncertain_item_ids))
             .all()
         )
         grouped: dict[str, list[ReviewItem]] = defaultdict(list)
         for item in review_items:
             grouped[item.listing_id].append(item)
         intents = tuple(
-            self._write_intent(job, listing_id, items, job.selection_checksum)
-            for listing_id, items in sorted(grouped.items())
+            self._intent_from_immutable_attempt(job, listing_id) for listing_id in sorted(grouped)
         )
+        job.heartbeat_at = utcnow()
+        job.worker_id = correlation_id
+        for uncertain_item in uncertain_job_items:
+            uncertain_item.status = "recovering"
+        self.db.commit()
         results = await WritePipelineService(self.db).execute_workspace(
             WorkspaceWriteBatchCommand(
                 workspace_id=job.workspace_id,
@@ -1723,9 +1812,14 @@ class UnifiedWorkspaceService:
             else:
                 unresolved += len(affected)
                 self._record_listing_reconciliation(job, result, affected, user)
-        if unresolved == 0:
-            job.status = ApplyState.APPLIED
+        job.status = self._apply_status_from_items(job.id)
+        if job.status in {
+            ApplyState.APPLIED,
+            ApplyState.PARTIALLY_APPLIED,
+            ApplyState.FAILED,
+        }:
             job.completed_at = utcnow()
+        if job.status == ApplyState.APPLIED:
             draft = self.drafts.for_workspace(job.workspace_id)
             if draft is not None:
                 draft.status = "applied"
@@ -1744,6 +1838,28 @@ class UnifiedWorkspaceService:
         )
         self.db.commit()
         return self.apply_shape(job.id, user)
+
+    def recover_stale_applies(self, user: FlowHubUser, correlation_id: str) -> dict[str, Any]:
+        if not has_workspace_permission(user, "apply.execute"):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Apply permission is required.")
+        cutoff = utcnow() - timedelta(minutes=STALE_APPLY_MINUTES)
+        candidates = (
+            self.db.query(ApplyJob)
+            .filter(
+                ApplyJob.status == ApplyState.RUNNING,
+                ApplyJob.heartbeat_at.isnot(None),
+                ApplyJob.heartbeat_at < cutoff,
+            )
+            .order_by(ApplyJob.id.asc())
+            .with_for_update(skip_locked=True)
+            .all()
+        )
+        recovered: list[str] = []
+        for job in candidates:
+            if self._recover_job_if_stale(job, user, correlation_id):
+                recovered.append(job.id)
+        self.db.commit()
+        return {"recoveredJobIds": recovered, "count": len(recovered)}
 
     def apply_shape(self, job_id: str, user: FlowHubUser) -> dict[str, Any]:
         job = self.applies.get(job_id)
@@ -1796,7 +1912,9 @@ class UnifiedWorkspaceService:
             }
         return self._preference_shape(row)
 
-    def save_preference(self, payload: dict[str, Any], expected_version: int, user: FlowHubUser) -> dict[str, Any]:
+    def save_preference(
+        self, payload: dict[str, Any], expected_version: int, user: FlowHubUser
+    ) -> dict[str, Any]:
         allowed = {item.channel_id for item in self.connectors.implemented()}
         visible = [str(item) for item in payload.get("visibleChannelIds") or []]
         order = [str(item) for item in payload.get("channelOrder") or []]
@@ -1826,16 +1944,53 @@ class UnifiedWorkspaceService:
                 )
             row = UserWorkspacePreference(id=_id(), user_id=user.id, version=0)
             self.db.add(row)
+        previously_visible = set(row.visible_channel_ids_json or [])
+        hidden = previously_visible.difference(visible)
         row.visible_channel_ids_json = visible
         row.channel_order_json = order
         row.visible_fields_json = dict(payload.get("visibleFields") or {})
         row.display_name_source = display
         row.version += 1
         row.updated_at = utcnow()
+        if hidden:
+            affected_reviews = (
+                self.db.query(Review)
+                .join(ReviewSelection, ReviewSelection.review_id == Review.id)
+                .join(ReviewItem, ReviewItem.id == ReviewSelection.review_item_id)
+                .filter(
+                    ReviewSelection.selected_by_user_id == user.id,
+                    ReviewItem.channel_id.in_(hidden),
+                )
+                .distinct()
+                .all()
+            )
+            for review in affected_reviews:
+                self.db.query(ReviewSelection).filter(
+                    ReviewSelection.review_id == review.id,
+                    ReviewSelection.review_item_id.in_(
+                        self.db.query(ReviewItem.id).filter(
+                            ReviewItem.review_id == review.id,
+                            ReviewItem.channel_id.in_(hidden),
+                        )
+                    ),
+                ).delete(synchronize_session=False)
+                remaining_items = (
+                    self.db.query(ReviewItem)
+                    .join(ReviewSelection, ReviewSelection.review_item_id == ReviewItem.id)
+                    .filter(ReviewSelection.review_id == review.id)
+                    .all()
+                )
+                review.selection_version += 1
+                review.selection_checksum = None
+                review.selected_channel_ids_json = sorted(
+                    {item.channel_id for item in remaining_items}
+                )
         self.db.commit()
         return self._preference_shape(row)
 
-    def audit(self, workspace_id: str, user: FlowHubUser, *, page: int, page_size: int) -> dict[str, Any]:
+    def audit(
+        self, workspace_id: str, user: FlowHubUser, *, page: int, page_size: int
+    ) -> dict[str, Any]:
         self._workspace_for_user(workspace_id, user)
         items, total = self.audits.list(
             workspace_id, page=max(page, 1), page_size=min(max(page_size, 1), 200)
@@ -1863,7 +2018,7 @@ class UnifiedWorkspaceService:
             raise self._unprocessable(
                 "MAPPING_DECISION_INVALID", "Mapping decision must be approved or rejected."
             )
-        listing = self.db.get(Listing, listing_id)
+        listing = self.db.query(Listing).filter_by(id=listing_id).with_for_update().first()
         product = self.db.get(CanonicalProduct, proposed_product_id)
         snapshot = self.workspaces.snapshot(workspace.id)
         if (
@@ -1877,7 +2032,15 @@ class UnifiedWorkspaceService:
             raise self._not_found(
                 "MAPPING_NOT_FOUND", "Workspace Listing or proposed Canonical Product not found."
             )
-        self._assert_listing_unlocked(listing.channel_id, listing.id)
+        try:
+            listing = acquire_listing_guard(self.db, listing.channel_id, listing.id)
+        except ListingGuardConflict as exc:
+            self.db.rollback()
+            raise self._conflict(
+                "LISTING_MUTATION_LOCKED",
+                "Listing Mapping cannot change during Apply.",
+                {"listingId": listing_id},
+            ) from exc
         revision_number = listing.mapping_version + 1
         revision = MappingRevision(
             id=_id(),
@@ -2072,6 +2235,19 @@ class UnifiedWorkspaceService:
                 normalization_unit="RIAL" if currency == "IRR" else unit,
                 conversion_factor=factor,
                 conversion_rule="explicit-unit-v1",
+                checksum=checksum(
+                    {
+                        "scope": "global",
+                        "reference": "default",
+                        "currency": currency,
+                        "unit": unit,
+                        "normalization_currency": currency,
+                        "normalization_unit": "RIAL" if currency == "IRR" else unit,
+                        "factor": str(factor),
+                        "rule": "explicit-unit-v1",
+                        "version": 1,
+                    }
+                ),
                 version=1,
                 enabled=True,
             )
@@ -2089,6 +2265,19 @@ class UnifiedWorkspaceService:
                 normalization_unit="RIAL" if currency == "IRR" else unit,
                 conversion_factor=factor,
                 conversion_rule="explicit-unit-v1",
+                checksum=checksum(
+                    {
+                        "scope": "global",
+                        "reference": "default",
+                        "currency": currency,
+                        "unit": unit,
+                        "normalization_currency": currency,
+                        "normalization_unit": "RIAL" if currency == "IRR" else unit,
+                        "factor": str(factor),
+                        "rule": "explicit-unit-v1",
+                        "version": next_version,
+                    }
+                ),
                 version=next_version,
                 enabled=True,
             )
@@ -2132,7 +2321,20 @@ class UnifiedWorkspaceService:
             normalization_unit="RIAL" if currency_value == "IRR" else unit_value,
             conversion_factor=factor,
             conversion_rule="explicit-source-unit-v1",
-            version=(latest.version + 1 if latest else 1),
+            version=(next_version := latest.version + 1 if latest else 1),
+            checksum=checksum(
+                {
+                    "scope": "source",
+                    "reference": source_id,
+                    "currency": currency_value,
+                    "unit": unit_value,
+                    "normalization_currency": currency_value,
+                    "normalization_unit": "RIAL" if currency_value == "IRR" else unit_value,
+                    "factor": str(factor),
+                    "rule": "explicit-source-unit-v1",
+                    "version": next_version,
+                }
+            ),
             enabled=True,
         )
         self.db.add(row)
@@ -2303,6 +2505,29 @@ class UnifiedWorkspaceService:
         max_age_minutes = self._cache_max_age_minutes()
         if review.ruleset_version != VALIDATION_VERSION:
             stale_reasons.append("validation_ruleset")
+        profile = self.db.get(CurrencyProfile, review.currency_profile_id)
+        latest_profile = None
+        if profile is not None:
+            latest_profile = (
+                self.db.query(CurrencyProfile)
+                .filter_by(
+                    scope=profile.scope,
+                    scope_reference=profile.scope_reference,
+                    enabled=True,
+                )
+                .order_by(CurrencyProfile.version.desc())
+                .first()
+            )
+        if (
+            profile is None
+            or latest_profile is None
+            or latest_profile.id != review.currency_profile_id
+            or profile.version != review.currency_profile_version
+            or profile.checksum != review.currency_profile_checksum
+            or review.currency_source_reference != f"{profile.scope}:{profile.scope_reference}"
+            or review.currency_ruleset_version != CURRENCY_RULESET_VERSION
+        ):
+            stale_reasons.append("currency_profile")
         for captured in self.reviews.cache_versions(review.id):
             listing = self.db.get(Listing, captured.listing_id)
             cache = self.db.query(ChannelCache).filter_by(listing_id=captured.listing_id).first()
@@ -2343,6 +2568,12 @@ class UnifiedWorkspaceService:
             or checksum(_unique_dicts(currency_payload)) != review.currency_digest
         ):
             stale_reasons.append("configuration_digest")
+        current_channel_references = sorted(
+            f"{item['channel']}:{item['currency']}:{item['unit']}"
+            for item in _unique_dicts(currency_payload)
+        )
+        if current_channel_references != sorted(review.currency_channel_references_json):
+            stale_reasons.append("currency_channel_override")
         # Capability digest includes field write decisions and is checked per captured version above.
         if stale_reasons:
             review.status = ReviewState.STALE
@@ -2366,10 +2597,10 @@ class UnifiedWorkspaceService:
                 {"reasons": stale_reasons},
             )
 
-    def _selection_document(
-        self, review: Review, items: list[ReviewItem]
-    ) -> dict[str, object]:
-        ordered = sorted(items, key=lambda item: (item.channel_id, item.listing_id, item.field, item.id))
+    def _selection_document(self, review: Review, items: list[ReviewItem]) -> dict[str, object]:
+        ordered = sorted(
+            items, key=lambda item: (item.channel_id, item.listing_id, item.field, item.id)
+        )
         return {
             "workspace_id": review.workspace_id,
             "snapshot_id": review.snapshot_id,
@@ -2386,6 +2617,142 @@ class UnifiedWorkspaceService:
             ],
         }
 
+    def _recover_job_if_stale(self, job: ApplyJob, user: FlowHubUser, correlation_id: str) -> bool:
+        if job.status != ApplyState.RUNNING:
+            return False
+        heartbeat = job.heartbeat_at or job.started_at
+        if heartbeat is None or heartbeat >= utcnow() - timedelta(minutes=STALE_APPLY_MINUTES):
+            return False
+        attempts = (
+            self.db.query(ProviderWriteAttempt)
+            .filter(ProviderWriteAttempt.apply_job_id == job.id)
+            .order_by(ProviderWriteAttempt.listing_id.asc())
+            .all()
+        )
+        if not attempts:
+            return False
+        uncertain_item_ids: set[str] = set()
+        recovered_verified_item_ids: set[str] = set()
+        for attempt in attempts:
+            latest = (
+                self.db.query(ProviderWriteAttemptEvent)
+                .filter_by(attempt_id=attempt.id)
+                .order_by(
+                    ProviderWriteAttemptEvent.occurred_at.desc(),
+                    ProviderWriteAttemptEvent.id.desc(),
+                )
+                .first()
+            )
+            payload = dict(attempt.normalized_payload_json)
+            attempt_item_ids = [str(value) for value in payload.get("apply_item_ids", [])]
+            attempt_items: list[ApplyJobItem] = [
+                item
+                for item_id in attempt_item_ids
+                if (item := self.db.get(ApplyJobItem, item_id)) is not None
+            ]
+            if latest is not None and latest.outcome == WriteOutcome.VERIFIED_APPLIED.value:
+                if not all(item.status == "applied" for item in attempt_items):
+                    intent = WorkspaceWriteIntent.from_persisted_payload(payload)
+                    result = WorkspaceWriteResult(
+                        listing_id=intent.listing_id,
+                        outcome=WriteOutcome.VERIFIED_APPLIED,
+                        provider_accepted=True,
+                        response=dict(latest.provider_response_json),
+                        accepted_price=intent.target_price,
+                        accepted_stock=intent.target_stock,
+                        accepted_status=intent.target_status,
+                    )
+                    review_items = (
+                        self.db.query(ReviewItem)
+                        .filter(ReviewItem.id.in_([item.review_item_id for item in attempt_items]))
+                        .all()
+                    )
+                    self._record_listing_success(job, result, review_items, user)
+                recovered_verified_item_ids.update(attempt_item_ids)
+            elif latest is not None and latest.outcome in {
+                WriteOutcome.DISPATCHED.value,
+                WriteOutcome.PROVIDER_ACCEPTED.value,
+                WriteOutcome.RECONCILIATION_REQUIRED.value,
+                WriteOutcome.RECOVERING.value,
+            }:
+                uncertain_item_ids.update(attempt_item_ids)
+            else:
+                for item in attempt_items:
+                    if item.status != "applied":
+                        item.status = "failed"
+                        item.error_category = "stale_before_dispatch"
+                        item.error_message = "Worker stopped before provider dispatch."
+                        item.retry_eligible = False
+        for item in self.applies.items(job.id):
+            if item.id in uncertain_item_ids and item.status not in {
+                "applied",
+                "failed",
+                "cancelled",
+            }:
+                item.status = "reconciliation_required"
+                item.retry_eligible = False
+        job.status = self._apply_status_from_items(job.id)
+        job.worker_id = None
+        job.heartbeat_at = utcnow()
+        if job.status != ApplyState.RECONCILIATION_REQUIRED:
+            job.completed_at = utcnow()
+            self._release_listing_locks(job.id)
+        self._audit(
+            "apply_stale_running_recovered",
+            user,
+            correlation_id,
+            workspace_id=job.workspace_id,
+            snapshot_id=job.snapshot_id,
+            draft_revision_id=job.draft_revision_id,
+            review_id=job.review_id,
+            apply_job_id=job.id,
+            apply_result=job.status,
+            metadata={
+                "uncertain_item_ids": sorted(uncertain_item_ids),
+                "recovered_verified_item_ids": sorted(recovered_verified_item_ids),
+                "redispatch_allowed": False,
+            },
+        )
+        self.db.commit()
+        return True
+
+    def _intent_from_immutable_attempt(
+        self, job: ApplyJob, listing_id: str
+    ) -> WorkspaceWriteIntent:
+        attempt = (
+            self.db.query(ProviderWriteAttempt)
+            .filter_by(apply_job_id=job.id, listing_id=listing_id)
+            .order_by(ProviderWriteAttempt.attempt_number.desc())
+            .first()
+        )
+        if attempt is None:
+            raise self._conflict(
+                "APPLY_ATTEMPT_MISSING",
+                "Reconciliation requires an immutable dispatch attempt.",
+            )
+        try:
+            return WorkspaceWriteIntent.from_persisted_payload(
+                dict(attempt.normalized_payload_json)
+            )
+        except (TypeError, ValueError) as exc:
+            raise self._conflict(
+                "APPLY_ATTEMPT_PAYLOAD_INVALID",
+                "Immutable dispatch evidence is incomplete and cannot be reconciled safely.",
+            ) from exc
+
+    def _apply_status_from_items(self, job_id: str) -> ApplyState:
+        states = [item.status for item in self.applies.items(job_id)]
+        if states and all(state == "applied" for state in states):
+            return ApplyState.APPLIED
+        if any(
+            state in {"reconciliation_required", "recovering", "dispatched", "provider_accepted"}
+            for state in states
+        ):
+            return ApplyState.RECONCILIATION_REQUIRED
+        if any(state == "applied" for state in states):
+            return ApplyState.PARTIALLY_APPLIED
+        return ApplyState.FAILED
+
     def _acquire_listing_locks(
         self,
         workspace_id: str,
@@ -2396,7 +2763,23 @@ class UnifiedWorkspaceService:
         expires = now + timedelta(minutes=LOCK_MINUTES)
         ordered = sorted(scopes)
         try:
+            # Serialize Apply lock creation with Mapping and cache commits on
+            # the stable Listing rows. This closes the read-check/write TOCTOU.
+            listings = {
+                item.id: item
+                for item in self.db.query(Listing)
+                .filter(Listing.id.in_([listing_id for _, listing_id in ordered]))
+                .order_by(Listing.channel_id.asc(), Listing.id.asc())
+                .with_for_update()
+                .all()
+            }
             for channel_id, listing_id in ordered:
+                listing = listings.get(listing_id)
+                if listing is None or listing.channel_id != channel_id:
+                    raise self._conflict(
+                        "APPLY_LISTING_IDENTITY_CHANGED",
+                        "Selected Listing identity changed before lock acquisition.",
+                    )
                 existing = (
                     self.db.query(WorkspaceLock)
                     .filter_by(channel_id=channel_id, listing_id=listing_id)
@@ -2777,7 +3160,7 @@ class UnifiedWorkspaceService:
         self, change: DraftRevisionChange, capabilities: ChannelCapabilities
     ) -> dict[str, Any]:
         if change.field == "price":
-            return self._money(change.target_value, capabilities).as_dict()
+            return cast(dict[str, Any], self._money(change.target_value, capabilities).as_dict())
         return {"raw_value": change.target_value, "field": change.field}
 
     @staticmethod
@@ -2934,10 +3317,14 @@ class UnifiedWorkspaceService:
             status_code, {"code": code, "message": message, "context": context or {}}
         )
 
-    def _unprocessable(self, code: str, message: str, context: dict[str, Any] | None = None) -> HTTPException:
+    def _unprocessable(
+        self, code: str, message: str, context: dict[str, Any] | None = None
+    ) -> HTTPException:
         return self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, code, message, context)
 
-    def _conflict(self, code: str, message: str, context: dict[str, Any] | None = None) -> HTTPException:
+    def _conflict(
+        self, code: str, message: str, context: dict[str, Any] | None = None
+    ) -> HTTPException:
         return self._error(status.HTTP_409_CONFLICT, code, message, context)
 
     def _not_found(self, code: str, message: str) -> HTTPException:

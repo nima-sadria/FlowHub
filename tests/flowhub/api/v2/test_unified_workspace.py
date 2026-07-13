@@ -20,6 +20,7 @@ from app.flowhub.integration_platform import models as _integration_models  # no
 from app.flowhub.product_pricing import models as _pricing_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
 from app.flowhub.unified_workspace import models as _workspace_models  # noqa: F401
+from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: F401
 
 
 @pytest.fixture()
@@ -947,12 +948,10 @@ def test_reconciliation_required_is_durable_and_never_marks_success(
     client, auth_headers, db, monkeypatch
 ):
     from app.flowhub.unified_workspace.connectors import ListingUpdateResult
-    from app.flowhub.unified_workspace.models import (
-        ApplyAttempt,
-        ApplyAttemptEvent,
-        ChannelCache,
-        UnifiedAuditEntry,
-        WorkspaceLock,
+    from app.flowhub.unified_workspace.models import ChannelCache, UnifiedAuditEntry, WorkspaceLock
+    from app.flowhub.write_pipeline.models import (
+        ProviderWriteAttempt,
+        ProviderWriteAttemptEvent,
     )
     from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
 
@@ -992,14 +991,17 @@ def test_reconciliation_required_is_durable_and_never_marks_success(
     job = response.json()
     assert job["status"] == "reconciliation_required"
     assert job["items"][0]["status"] == "reconciliation_required"
-    assert db.query(ApplyAttempt).filter_by(apply_job_id=job["id"]).count() == 1
+    assert db.query(ProviderWriteAttempt).filter_by(apply_job_id=job["id"]).count() == 1
     outcomes = {
         row.outcome
-        for row in db.query(ApplyAttemptEvent)
-        .join(ApplyAttempt, ApplyAttempt.id == ApplyAttemptEvent.attempt_id)
-        .filter(ApplyAttempt.apply_job_id == job["id"])
+        for row in db.query(ProviderWriteAttemptEvent)
+        .join(
+            ProviderWriteAttempt,
+            ProviderWriteAttempt.id == ProviderWriteAttemptEvent.attempt_id,
+        )
+        .filter(ProviderWriteAttempt.apply_job_id == job["id"])
     }
-    assert {"pending", "dispatched", "reconciliation_required"} <= outcomes
+    assert {"dispatch_intent_recorded", "dispatched", "reconciliation_required"} <= outcomes
     assert db.query(WorkspaceLock).filter_by(apply_job_id=job["id"]).count() == 1
     assert db.query(ChannelCache).filter_by(listing_id=item["listingId"]).one().price_raw == before
     audit_types = {

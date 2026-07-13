@@ -129,6 +129,12 @@ class WooCommerceWorkspaceConnector:
             raise WorkspaceDomainError("WooCommerce update requires a target price.")
         if not update.external_primary_id.isdigit():
             raise WorkspaceDomainError("WooCommerce primary identifier must be numeric.")
+        if update.product_type == "variation" and not str(
+            update.parent_external_id or ""
+        ).isdigit():
+            raise WorkspaceDomainError(
+                "WooCommerce variation writes require a mapped numeric parent product ID."
+            )
 
     async def apply_updates(
         self, updates: Sequence[ListingUpdateLike], *, requested_by: str
@@ -347,11 +353,8 @@ class SnappShopWorkspaceConnector:
                             observed.channel_id == self.channel_id
                             and observed.identifiers.external_product_id
                             == update.external_primary_id
-                            and (
-                                update.parent_external_id is None
-                                or observed.identifiers.parent_product_number
-                                == update.parent_external_id
-                            )
+                            and observed.identifiers.parent_product_number
+                            == update.parent_external_id
                             and observed.current_price == expected_price
                             and observed.stock_quantity == expected_stock
                             and observed.currency == "IRR"
@@ -416,6 +419,8 @@ class SnappShopWorkspaceConnector:
                     observed.channel_id == self.channel_id
                     and observed.identifiers.external_product_id
                     == update.external_primary_id
+                    and observed.identifiers.parent_product_number
+                    == update.parent_external_id
                     and observed.current_price == expected_price
                     and observed.stock_quantity == expected_stock
                     and observed.currency == "IRR"
@@ -447,11 +452,141 @@ class SnappShopWorkspaceConnector:
         return output
 
 
+class TapsiShopProductPricingConnector:
+    """Compatibility strategy kept outside the Unified Workspace channel set.
+
+    TapsiShop has no exact product read-back endpoint in the current connector
+    contract.  A successful transport response therefore remains uncertain and
+    is never promoted to ``VERIFIED_APPLIED``.
+    """
+
+    channel_id = "tapsishop:main"
+
+    def __init__(self, commerce: CommerceHubService) -> None:
+        self.commerce = commerce
+
+    def capabilities(self) -> ChannelCapabilities:
+        return ChannelCapabilities(
+            channel_id=self.channel_id,
+            read_price=False,
+            write_price=True,
+            read_stock=False,
+            write_stock=False,
+            read_status=False,
+            write_status=False,
+            supports_bulk_update=True,
+            supports_partial_update=False,
+            supports_multiple_listings=True,
+            supports_variations=False,
+            requires_stock_management=False,
+            maximum_batch_size=1,
+            rate_limit_per_minute=None,
+            health_state=(
+                "configured"
+                if self.commerce._tapsishop_connector() is not None
+                else "unconfigured"
+            ),
+            primary_identifier_type="tapsishop_product_id",
+            supported_statuses=(),
+            currency="IRR",
+            unit="RIAL",
+            write_available=True,
+            version="product-pricing-compatibility-1",
+        )
+
+    def validate_update(self, update: ListingUpdateLike) -> None:
+        if update.target_price is None:
+            raise WorkspaceDomainError("TapsiShop update requires a target price.")
+        if update.currency != "IRR" or str(update.unit or "").upper() != "RIAL":
+            raise WorkspaceDomainError("TapsiShop prices require currency IRR and unit RIAL.")
+        if update.target_stock is not None or update.target_status is not None:
+            raise WorkspaceDomainError("TapsiShop compatibility writes support price only.")
+
+    async def apply_updates(
+        self, updates: Sequence[ListingUpdateLike], *, requested_by: str
+    ) -> list[ListingUpdateResult]:
+        del requested_by
+        connector = self.commerce._tapsishop_connector()
+        if connector is None:
+            raise WorkspaceDomainError("TapsiShop connector is not configured.")
+        output: list[ListingUpdateResult] = []
+        for update in updates:
+            self.validate_update(update)
+            provider_results = await connector.update_products(
+                [
+                    ChannelProductUpdate(
+                        channel_id=self.channel_id,
+                        identifiers=ChannelIdentifierSet(
+                            external_product_id=update.external_primary_id,
+                            sku=update.sku,
+                        ),
+                        price=update.target_price,
+                        currency="IRR",
+                        price_unit="rial",
+                        idempotency_key=update.idempotency_key,
+                    )
+                ]
+            )
+            if len(provider_results) != 1:
+                output.append(
+                    ListingUpdateResult(
+                        listing_id=update.listing_id,
+                        outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                        error_category="provider_contract",
+                        error_message="TapsiShop returned an ambiguous item count.",
+                    )
+                )
+                continue
+            result = provider_results[0]
+            error = result.error
+            output.append(
+                ListingUpdateResult(
+                    listing_id=update.listing_id,
+                    outcome=(
+                        WriteOutcome.RECONCILIATION_REQUIRED
+                        if result.success
+                        else WriteOutcome.FAILED
+                    ),
+                    provider_accepted=result.success,
+                    response={**(result.raw or {}), "verification": {"verified": False}},
+                    external_response_id=_response_id(result.raw or {}),
+                    error_category=error.category.value if error else None,
+                    error_message=(
+                        error.message
+                        if error
+                        else "TapsiShop accepted the write but exact read-back is unavailable."
+                    ),
+                    retry_eligible=False,
+                )
+            )
+        return output
+
+    async def verify_updates(
+        self, updates: Sequence[ListingUpdateLike], *, requested_by: str
+    ) -> list[ListingUpdateResult]:
+        del requested_by
+        return [
+            ListingUpdateResult(
+                listing_id=update.listing_id,
+                outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                provider_accepted=True,
+                error_category="verification_unavailable",
+                error_message="TapsiShop has no exact product read-back endpoint.",
+                retry_eligible=False,
+            )
+            for update in updates
+        ]
+
+
 class WorkspaceConnectorFactory:
     def __init__(self, pricing: ProductPricingService, commerce: CommerceHubService) -> None:
         self._connectors: dict[str, WorkspaceChannelConnector] = {
             "woocommerce:primary": WooCommerceWorkspaceConnector(pricing),
             "snappshop:main": SnappShopWorkspaceConnector(commerce),
+        }
+        self._product_pricing_connectors: dict[str, WorkspaceChannelConnector] = {
+            **self._connectors,
+            "tapsishop:main": TapsiShopProductPricingConnector(commerce),
         }
 
     def get(self, channel_id: str) -> WorkspaceChannelConnector:
@@ -464,6 +599,12 @@ class WorkspaceConnectorFactory:
 
     def implemented(self) -> tuple[WorkspaceChannelConnector, ...]:
         return tuple(self._connectors.values())
+
+    def get_product_pricing(self, channel_id: str) -> WorkspaceChannelConnector:
+        connector = self._product_pricing_connectors.get(channel_id)
+        if connector is None:
+            raise WorkspaceDomainError(f"Channel {channel_id} has no approved write strategy.")
+        return connector
 
 
 class _WooWriteItem:

@@ -6,7 +6,7 @@ import asyncio
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from time import monotonic
 from typing import Any
 
@@ -24,7 +24,6 @@ from app.flowhub.channels.snappshop import (
 )
 from app.flowhub.data_layer.models import DlInventoryCache, DlProductCache, DlRefreshJob
 from app.flowhub.integration_platform.models import IntegrationConnectorEvent
-
 
 _RETRYABLE_READ_ERRORS = frozenset(
     {
@@ -132,6 +131,11 @@ class SnappShopProductSyncService:
 
             self.db.rollback()
             with self.db.begin():
+                from app.flowhub.unified_workspace.listing_guard import (
+                    acquire_channel_listing_guards,
+                )
+
+                acquire_channel_listing_guards(self.db, connector.channel_id)
                 self.db.query(DlProductCache).filter_by(connector_id=connector.channel_id).delete(
                     synchronize_session=False
                 )
@@ -414,4 +418,4 @@ def _iso(value: datetime) -> str:
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)

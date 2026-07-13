@@ -177,6 +177,16 @@ async def refresh_channel_cache(
     return await service.refresh_channel_cache(channel_id, user, correlation_id)
 
 
+@router.post("/apply-jobs/recover-stale")
+def recover_stale_apply_jobs(
+    user: FlowHubUser = Depends(require_write_operation_available),
+    service: UnifiedWorkspaceService = Depends(_service),
+    correlation_id: str = Depends(_correlation),
+) -> dict[str, Any]:
+    """Atomically surface stale dispatched jobs for verification-only recovery."""
+    return service.recover_stale_applies(user, correlation_id)
+
+
 @router.get("/{workspace_id}", response_model=WorkspaceResource)
 def get_workspace(
     workspace_id: str,

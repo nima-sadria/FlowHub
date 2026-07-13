@@ -457,7 +457,18 @@ def test_execution_requires_second_action_after_approval(client, auth_headers, m
         calls["count"] += 1
         return {"provider": "woocommerce", "product_id": item.channel_product_id, "regular_price": "110.00"}
 
+    async def fake_verify(_adapter, item, _context):
+        return {
+            "verified": True,
+            "provider": "woocommerce",
+            "product_id": int(item.channel_product_id),
+            "parent_product_id": None,
+            "variation_id": None,
+            "regular_price": "110.00",
+        }
+
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
+    monkeypatch.setattr(WooCommercePriceWriteAdapter, "verify_item", fake_verify)
     created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
 
     blocked = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
@@ -1015,7 +1026,9 @@ def test_partial_failure_is_recorded_with_safe_provider_error(client, auth_heade
 def test_future_channel_approved_batch_fails_closed_on_execute(client, auth_headers, db):
     from app.flowhub.write_pipeline.models import WriteBatch, WriteItem
 
-    batch_hash = sha256("snappshop:main\nprice_update\n101|100.0000|110.0000|EUR||simple||".encode("utf-8")).hexdigest()
+    batch_hash = sha256(
+        b"snappshop:main\nprice_update\n101|100.0000|110.0000|EUR||simple||"
+    ).hexdigest()
     batch = WriteBatch(
         id="wb_snapp_closed",
         channel_id="snappshop:main",

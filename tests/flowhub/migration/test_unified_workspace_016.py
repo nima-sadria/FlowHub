@@ -130,9 +130,10 @@ def test_postgresql_immutability_and_foreign_keys(monkeypatch: pytest.MonkeyPatc
             sa.text(
                 "INSERT INTO uw_currency_profiles "
                 "(id,scope,scope_reference,currency,unit,normalization_currency,"
-                "normalization_unit,conversion_factor,conversion_rule,version,enabled,created_at) "
+                "normalization_unit,conversion_factor,conversion_rule,version,enabled,checksum,created_at) "
                 "VALUES ('pg-currency','global','default','IRR','TOMAN','IRR','RIAL',10,"
-                "'explicit-v1',1,true,CURRENT_TIMESTAMP)"
+                "'explicit-v1',1,true,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',"
+                "CURRENT_TIMESTAMP)"
             )
         )
     for statement in (

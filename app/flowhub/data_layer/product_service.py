@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -39,7 +38,7 @@ class ProductReadModelService:
 
     def list(
         self,
-        connector_id: Optional[str] = None,
+        connector_id: str | None = None,
         page: int = 1,
         page_size: int = 50,
     ) -> dict:
@@ -63,9 +62,17 @@ class ProductReadModelService:
         product_id: str,
         data: dict,
         freshness: str = "fresh",
-        expires_at: Optional[datetime.datetime] = None,
+        expires_at: datetime.datetime | None = None,
     ) -> DlProductCache:
         """Insert or update a product cache entry."""
+        # Cache mutation participates in the same stable Listing-row protocol
+        # as Apply and Mapping. If Apply owns the Listing this raises before any
+        # authoritative cache value is changed.
+        from app.flowhub.unified_workspace.listing_guard import (
+            acquire_external_listing_guard,
+        )
+
+        acquire_external_listing_guard(self._db, connector_id, product_id)
         row = (
             self._db.query(DlProductCache)
             .filter_by(connector_id=connector_id, product_id=product_id)
@@ -86,7 +93,7 @@ class ProductReadModelService:
         self._db.refresh(row)
         return row
 
-    def mark_stale(self, connector_id: Optional[str] = None) -> int:
+    def mark_stale(self, connector_id: str | None = None) -> int:
         """Mark product cache entries as stale. Returns count updated."""
         q = self._db.query(DlProductCache)
         if connector_id:
@@ -120,5 +127,5 @@ def _product_to_dict(p: DlProductCache) -> dict:
     }
 
 
-def _iso(dt: Optional[datetime.datetime]) -> Optional[str]:
+def _iso(dt: datetime.datetime | None) -> str | None:
     return dt.isoformat() + "Z" if dt is not None else None

@@ -75,7 +75,7 @@ class WooCommerceConnector(DestinationConnector):
             await ping(self._creds)
             latency = (time.monotonic() - t0) * 1000
             return HealthResult(status=HealthStatus.HEALTHY, latency_ms=round(latency, 1))
-        except ConnectorError as exc:
+        except ConnectorError:
             latency = (time.monotonic() - t0) * 1000
             return HealthResult(
                 status=HealthStatus.UNHEALTHY,
@@ -98,14 +98,14 @@ class WooCommerceConnector(DestinationConnector):
                 message=f"Connected to WooCommerce store ({count} product(s) found)",
                 latency_ms=round(latency, 1),
             )
-        except ConnectorError as exc:
+        except ConnectorError:
             latency = (time.monotonic() - t0) * 1000
             return ConnectionTestResult(
                 ok=False,
                 message="WooCommerce connection failed.",
                 latency_ms=round(latency, 1),
             )
-        except Exception as exc:
+        except Exception:
             latency = (time.monotonic() - t0) * 1000
             return ConnectionTestResult(
                 ok=False,
@@ -165,11 +165,17 @@ class WooCommerceConnector(DestinationConnector):
             product = await get_product(creds, product_id)
         else:
             product = await get_variation(creds, parent_product_id, product_id)
+        observed_id = product.get("id")
+        observed_parent = product.get("parent_id") if parent_product_id is not None else None
         return {
             "provider": "woocommerce",
-            "product_id": product.get("id", product_id),
-            "parent_product_id": parent_product_id,
-            "variation_id": product_id if parent_product_id is not None else None,
+            # Identity must be provider-observed. Never repair a missing provider
+            # response with values copied from the write request.
+            "product_id": observed_id,
+            "parent_product_id": observed_parent,
+            "variation_id": observed_id if parent_product_id is not None else None,
+            "identity_complete": observed_id is not None
+            and (parent_product_id is None or observed_parent is not None),
             "regular_price": product.get("regular_price"),
             "price": product.get("price"),
             "sale_price": product.get("sale_price"),

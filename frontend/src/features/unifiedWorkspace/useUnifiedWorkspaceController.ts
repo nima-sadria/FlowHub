@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, apiErrorMessage } from '../../api/client'
 import type { UnifiedWorkspaceService } from '../../services/unifiedWorkspace/UnifiedWorkspaceService'
 import type {
@@ -25,8 +25,12 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
   const [page, setPage] = useState(1)
   const [selectedListingIds, setSelectedListingIds] = useState<Set<string>>(new Set())
   const [gridQuery, setGridQuery] = useState<WorkspaceGridQuery>({ sort: 'name:asc' })
+  const loadGeneration = useRef(0)
+  const reviewGeneration = useRef(0)
+  const preferenceGeneration = useRef(0)
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current
     setLoading(true)
     setError(null)
     try {
@@ -35,13 +39,17 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
         service.getGrid(workspaceId, page, 500, gridQuery),
         service.getPreferences(),
       ])
-      setWorkspace(workspaceResult)
-      setGrid(gridResult)
-      setPreferences(preferenceResult)
+      if (generation === loadGeneration.current) {
+        setWorkspace(workspaceResult)
+        setGrid(gridResult)
+        setPreferences(preferenceResult)
+      }
     } catch (cause) {
-      setError(apiErrorMessage(cause, 'Unable to load Workspace.'))
+      if (generation === loadGeneration.current) {
+        setError(apiErrorMessage(cause, 'Unable to load Workspace.'))
+      }
     } finally {
-      setLoading(false)
+      if (generation === loadGeneration.current) setLoading(false)
     }
   }, [gridQuery, page, service, workspaceId])
 
@@ -85,6 +93,7 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
       next.set(`${change.listing_id}:${change.field}`, change)
       return next
     })
+    reviewGeneration.current += 1
     setReview(null)
     setApplyResult(null)
   }, [definition.columnMeta, grid])
@@ -93,16 +102,20 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     if (!workspace || !grid || draftChanges.size === 0) return
     setAction('saving')
     setError(null)
+    const generation = ++loadGeneration.current
     try {
       const revision = await service.saveDraft(workspace.id, grid.draftVersion, [...draftChanges.values()])
       const refreshed = await service.getGrid(workspace.id, page, 500, gridQuery)
+      if (generation !== loadGeneration.current) return
       setGrid(refreshed)
       setWorkspace(current => current ? { ...current, draft: { ...current.draft, version: revision.draftVersion, currentRevisionId: revision.id } } : current)
       setDraftChanges(new Map())
     } catch (cause) {
-      setError(apiErrorMessage(cause, 'Unable to save Draft.'))
+      if (generation === loadGeneration.current) {
+        setError(apiErrorMessage(cause, 'Unable to save Draft.'))
+      }
     } finally {
-      setAction(null)
+      if (generation === loadGeneration.current) setAction(null)
     }
   }, [draftChanges, grid, gridQuery, page, service, workspace])
 
@@ -111,25 +124,34 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     if (!workspace || !revisionId || draftChanges.size > 0) return
     setAction('reviewing')
     setError(null)
+    const generation = ++reviewGeneration.current
     try {
-      setReview(await service.createReview(workspace.id, revisionId))
+      const created = await service.createReview(workspace.id, revisionId)
+      if (generation !== reviewGeneration.current) return
+      setReview(created)
       setApplyResult(null)
     } catch (cause) {
-      setError(apiErrorMessage(cause, 'Unable to generate Review.'))
+      if (generation === reviewGeneration.current) {
+        setError(apiErrorMessage(cause, 'Unable to generate Review.'))
+      }
     } finally {
-      setAction(null)
+      if (generation === reviewGeneration.current) setAction(null)
     }
   }, [draftChanges.size, grid?.revisionId, service, workspace])
 
   const applySelected = useCallback(async () => {
     if (!workspace || !review) return
-    const selectedItemIds = review.items.filter(item => item.eligible && selectedListingIds.has(item.listingId)).map(item => item.id)
+    const visibleChannels = new Set(preferences?.visibleChannelIds ?? [])
+    const selectedItemIds = review.items
+      .filter(item => item.eligible && visibleChannels.has(item.channelId) && selectedListingIds.has(item.listingId))
+      .map(item => item.id)
     if (selectedItemIds.length === 0) {
       setError('Select at least one eligible Listing in the Grid before Apply.')
       return
     }
     setAction('applying')
     setError(null)
+    const generation = ++reviewGeneration.current
     try {
       const selection = await service.saveSelection(workspace.id, review.id, selectedItemIds)
       const idempotencyKey = await workspaceApplyIdempotencyKey(
@@ -138,9 +160,13 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
         review.draftRevisionId,
         selection.selectionChecksum,
       )
-      setApplyResult(await service.applySelected(workspace.id, review.id, selection.selectionChecksum, idempotencyKey))
-      setGrid(await service.getGrid(workspace.id, page, 500, gridQuery))
+      const applied = await service.applySelected(workspace.id, review.id, selection.selectionChecksum, idempotencyKey)
+      const refreshed = await service.getGrid(workspace.id, page, 500, gridQuery)
+      if (generation !== reviewGeneration.current) return
+      setApplyResult(applied)
+      setGrid(refreshed)
     } catch (cause) {
+      if (generation !== reviewGeneration.current) return
       if (cause instanceof ApiError && [
         'STALE_REVIEW',
         'REVIEW_NOT_READY',
@@ -151,30 +177,72 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
       }
       setError(apiErrorMessage(cause, 'Unable to Apply selected changes.'))
     } finally {
-      setAction(null)
+      if (generation === reviewGeneration.current) setAction(null)
     }
-  }, [gridQuery, page, review, selectedListingIds, service, workspace])
+  }, [gridQuery, page, preferences?.visibleChannelIds, review, selectedListingIds, service, workspace])
 
   const toggleChannel = useCallback(async (channelId: string) => {
     if (!preferences) return
     const visible = preferences.visibleChannelIds.includes(channelId)
       ? preferences.visibleChannelIds.filter(item => item !== channelId)
       : [...preferences.visibleChannelIds, channelId]
-    try {
-      setPreferences(await service.savePreferences({ ...preferences, visibleChannelIds: visible }))
-    } catch (cause) {
-      setError(apiErrorMessage(cause, 'Unable to save Channel visibility.'))
+    if (preferences.visibleChannelIds.includes(channelId)) {
+      reviewGeneration.current += 1
+      setSelectedListingIds(current => {
+        const hiddenListingIds = new Set(
+          review?.items.filter(item => item.channelId === channelId).map(item => item.listingId)
+          ?? grid?.items.filter(item => item.channelId === channelId).map(item => item.listingId)
+          ?? [],
+        )
+        return new Set([...current].filter(listingId => !hiddenListingIds.has(listingId)))
+      })
+      setReview(null)
+      setApplyResult(null)
     }
-  }, [preferences, service])
+    const generation = ++preferenceGeneration.current
+    try {
+      const saved = await service.savePreferences({ ...preferences, visibleChannelIds: visible })
+      if (generation === preferenceGeneration.current) setPreferences(saved)
+    } catch (cause) {
+      if (generation === preferenceGeneration.current) {
+        setError(apiErrorMessage(cause, 'Unable to save Channel visibility.'))
+      }
+    }
+  }, [grid?.items, preferences, review?.items, service])
+
+  const reconcileApply = useCallback(async () => {
+    if (!workspace || !applyResult || applyResult.status !== 'reconciliation_required') return
+    setAction('reconciling')
+    setError(null)
+    const generation = ++reviewGeneration.current
+    try {
+      const reconciled = await service.reconcileApply(workspace.id, applyResult.id)
+      const refreshed = await service.getGrid(workspace.id, page, 500, gridQuery)
+      if (generation !== reviewGeneration.current) return
+      setApplyResult(reconciled)
+      setGrid(refreshed)
+    } catch (cause) {
+      if (generation === reviewGeneration.current) {
+        setError(apiErrorMessage(cause, 'Unable to reconcile uncertain Listings.'))
+      }
+    } finally {
+      if (generation === reviewGeneration.current) setAction(null)
+    }
+  }, [applyResult, gridQuery, page, service, workspace])
 
   const setDisplayNameSource = useCallback(async (displayNameSource: string) => {
     if (!preferences) return
+    const generation = ++preferenceGeneration.current
     try {
       const saved = await service.savePreferences({ ...preferences, displayNameSource })
+      if (generation !== preferenceGeneration.current) return
       setPreferences(saved)
-      setGrid(await service.getGrid(workspaceId, page, 500, gridQuery))
+      const refreshed = await service.getGrid(workspaceId, page, 500, gridQuery)
+      if (generation === preferenceGeneration.current) setGrid(refreshed)
     } catch (cause) {
-      setError(apiErrorMessage(cause, 'Unable to save display-name source.'))
+      if (generation === preferenceGeneration.current) {
+        setError(apiErrorMessage(cause, 'Unable to save display-name source.'))
+      }
     }
   }, [gridQuery, page, preferences, service, workspaceId])
 
@@ -190,7 +258,7 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     totalPages: Math.max(1, Math.ceil((grid?.total ?? 0) / 500)),
     selectedListingCount: selectedListingIds.size,
     setPage, updateGridQuery,
-    editCell, saveDraft, createReview, applySelected, toggleChannel, setDisplayNameSource, reload: load,
+    editCell, saveDraft, createReview, applySelected, reconcileApply, toggleChannel, setDisplayNameSource, reload: load,
   }
 }
 

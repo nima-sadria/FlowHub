@@ -64,11 +64,13 @@ class ApplyItemOutcome(StrEnum):
     """Authoritative lifecycle for a single external write attempt."""
 
     PENDING = "pending"
+    DISPATCH_INTENT_RECORDED = "dispatch_intent_recorded"
     DISPATCHED = "dispatched"
     PROVIDER_ACCEPTED = "provider_accepted"
     VERIFIED_APPLIED = "verified_applied"
     FAILED = "failed"
     RECONCILIATION_REQUIRED = "reconciliation_required"
+    RECOVERING = "recovering"
 
 
 class CellStatus(StrEnum):

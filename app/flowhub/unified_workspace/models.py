@@ -69,6 +69,7 @@ class CurrencyProfile(FlowHubBase):
     normalization_unit: Mapped[str] = mapped_column(String(24), nullable=False)
     conversion_factor: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
     conversion_rule: Mapped[str] = mapped_column(String(120), nullable=False)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
@@ -371,6 +372,16 @@ class Review(FlowHubBase):
     ruleset_version: Mapped[str] = mapped_column(String(40), nullable=False)
     capability_digest: Mapped[str] = mapped_column(String(64), nullable=False)
     currency_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    currency_profile_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_currency_profiles.id", ondelete="RESTRICT"), nullable=False
+    )
+    currency_profile_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency_profile_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    currency_source_reference: Mapped[str] = mapped_column(String(160), nullable=False)
+    currency_channel_references_json: Mapped[list[Any]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    currency_ruleset_version: Mapped[str] = mapped_column(String(40), nullable=False)
     mapping_digest: Mapped[str] = mapped_column(String(64), nullable=False)
     checksum: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     summary_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
@@ -379,6 +390,9 @@ class Review(FlowHubBase):
     stale_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     selection_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     selection_checksum: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    selected_channel_ids_json: Mapped[list[Any]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
 
 
 class ReviewItem(FlowHubBase):
@@ -492,6 +506,9 @@ class ApplyJob(FlowHubBase):
     status: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    worker_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    operation_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
@@ -651,7 +668,7 @@ class ApplyAttemptEvent(FlowHubBase):
     __tablename__ = "uw_apply_attempt_events"
     __table_args__ = (
         CheckConstraint(
-            "outcome IN ('pending','dispatched','provider_accepted','verified_applied','failed','reconciliation_required')",
+            "outcome IN ('pending','dispatched','provider_accepted','verified_applied','failed','reconciliation_required','recovering')",
             name="ck_uw_attempt_event_outcome",
         ),
     )

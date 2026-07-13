@@ -98,6 +98,8 @@ function services(): Services {
         }
       },
       async applySelected() { throw new Error('not used') },
+      async getApply() { throw new Error('not used') },
+      async reconcileApply() { throw new Error('not used') },
       async getPreferences() { return preferences },
       async savePreferences(value) { return { ...value, version: value.version + 1 } },
     },

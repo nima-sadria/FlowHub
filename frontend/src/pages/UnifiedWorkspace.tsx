@@ -12,6 +12,7 @@ import Spinner from '../components/loading/Spinner'
 import { useServices } from '../services/ServiceContext'
 import { useUnifiedWorkspaceController } from '../features/unifiedWorkspace/useUnifiedWorkspaceController'
 import { sanitizeGridHtml, sourceRecordAtVisualRow } from '../features/unifiedWorkspace/handsontableIdentity'
+import { resolveHandsontableLicense } from '../features/unifiedWorkspace/handsontableLicense'
 
 registerAllModules()
 
@@ -29,9 +30,11 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
   const controller = useUnifiedWorkspaceController(workspaceId, unifiedWorkspace!)
   const tableHeight = useMemo(() => Math.min(760, Math.max(420, (controller.definition.records.length + 3) * 30)), [controller.definition.records.length])
   const hotRef = useRef<HotTableRef>(null)
-  const configuredLicense = import.meta.env.VITE_HANDSONTABLE_LICENSE_KEY?.trim()
-  const handsontableLicense = configuredLicense
-    || (import.meta.env.DEV || import.meta.env.MODE === 'test' ? 'non-commercial-and-evaluation' : '')
+  const license = resolveHandsontableLicense(
+    import.meta.env.VITE_HANDSONTABLE_LICENSE_KEY,
+    import.meta.env.PROD,
+  )
+  const handsontableLicense = license.licenseKey
 
   if (controller.loading) {
     return <PageShell><div className="fh-card fh-card-pad flex items-center gap-3"><Spinner size="sm" /> Loading immutable Workspace Snapshot...</div></PageShell>
@@ -123,6 +126,16 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
         <section className="fh-card fh-card-pad" aria-label="Apply results">
           <p className="fh-section-title">Apply {controller.applyResult.status}</p>
           <p className="fh-text-caption">Correlation {controller.applyResult.correlationId}</p>
+          {controller.applyResult.status === 'reconciliation_required' && (
+            <button
+              type="button"
+              className="fh-button-secondary mt-3"
+              disabled={controller.action !== null}
+              onClick={() => void controller.reconcileApply()}
+            >
+              Verify uncertain Listings
+            </button>
+          )}
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {controller.applyResult.items.map(item => (
               <div key={item.id} className="rounded border border-border p-3 fh-text-caption">
@@ -193,7 +206,10 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
             manualColumnMove
             manualColumnResize
             multiColumnSorting
+            filters
+            dropdownMenu={['filter_by_condition', 'filter_by_value', 'filter_action_bar']}
             copyPaste={{ pasteMode: 'overwrite' }}
+            fillHandle={{ autoInsertRow: false }}
             licenseKey={handsontableLicense}
             sanitizer={sanitizeGridHtml}
             cells={(row: number, column: number) => {
@@ -223,6 +239,13 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
                 const identity = sourceRecordAtVisualRow(hotRef.current?.hotInstance, row)
                 if (identity) controller.editCell(identity.listingId, String(prop), value)
               }
+            }}
+            afterRenderer={(td: HTMLTableCellElement, row: number, column: number) => {
+              const identity = sourceRecordAtVisualRow(hotRef.current?.hotInstance, row)
+              const setting = controller.definition.columns[column]
+              const prop = typeof setting?.data === 'string' ? setting.data : ''
+              if (identity) td.dataset.listingId = identity.listingId
+              if (prop) td.dataset.columnProp = prop
             }}
             afterColumnSort={((_current, destination) => {
               const sort = destination.map(item => {

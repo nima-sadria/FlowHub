@@ -76,6 +76,7 @@ class WooCommercePriceWriteAdapter:
         expected_product_id = int(item.channel_product_id)
         identity_verified = (
             observed.get("provider") == "woocommerce"
+            and observed.get("identity_complete") is True
             and observed.get("product_id") == expected_product_id
             and observed.get("parent_product_id") == expected_parent_id
             and observed.get("variation_id")
@@ -114,4 +115,6 @@ def _parent_product_id(item: WriteItemContract) -> int | None:
         return None
     raw_parent = item.pre_write_snapshot_json.get("parent_product_id")
     parent_text = str(raw_parent or "")
-    return int(parent_text) if parent_text.isdigit() else None
+    if not parent_text.isdigit():
+        raise ValueError("WooCommerce variation writes require a numeric parent product ID.")
+    return int(parent_text)

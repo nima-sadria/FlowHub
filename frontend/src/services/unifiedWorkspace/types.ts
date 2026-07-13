@@ -121,18 +121,24 @@ export interface ReviewResource {
   staleReason: string | null
 }
 
+export type ApplyJobStatus = 'pending' | 'running' | 'reconciliation_required' | 'partially_applied' | 'applied' | 'failed' | 'cancelled' | 'blocked' | 'stale'
+export type ApplyItemStatus = 'pending' | 'dispatched' | 'provider_accepted' | 'recovering' | 'reconciliation_required' | 'applied' | 'failed' | 'cancelled'
+
 export interface ApplyResource {
   id: string
   workspaceId: string
-  status: string
+  status: ApplyJobStatus
   correlationId: string
   items: Array<{
     id: string
     listingId: string
     channelId: string
     field: string
-    status: string
+    status: ApplyItemStatus
     errorMessage: string | null
+    errorCategory?: string | null
+    retryEligible?: boolean
+    attemptNumber?: number
     cacheSyncStatus: string | null
   }>
 }
@@ -155,6 +161,9 @@ export interface WorkspaceGridQuery {
   minPrice?: number
   maxPrice?: number
   stockQuantity?: number
+  category?: string
+  brand?: string
+  listingId?: string
 }
 
 export interface WorkspacePreferences {

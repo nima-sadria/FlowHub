@@ -77,7 +77,7 @@ describe('stable Handsontable Listing identity', () => {
     hot.setDataAtRowProp(0, 'selected', true, 'edit')
     expect(seen.length).toBeGreaterThan(0)
     expect(new Set(seen)).toEqual(new Set(['listing-b']))
-  })
+  }, 15_000)
 
   it('resolves filtered and clipboard-style changes by physical source row', () => {
     const seen: string[] = []

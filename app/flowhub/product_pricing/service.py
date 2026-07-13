@@ -11,18 +11,11 @@ from hashlib import sha256
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
-from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
 from app.flowhub.auth.models import FlowHubUser
-from app.flowhub.channels.contracts import (
-    ChannelCapability,
-    ChannelIdentifierSet,
-    ChannelProductUpdate,
-)
+from app.flowhub.channels.contracts import ChannelCapability
 from app.flowhub.channels.registry import default_marketplace_registry
 from app.flowhub.channels.snappshop import SnappShopConnectorError
 from app.flowhub.channels.tapsishop import TapsiShopConnectorError
-from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.service import IntegrationPlatformService
@@ -30,7 +23,8 @@ from app.flowhub.product_pricing.models import ProductPriceOperation, ProductPri
 from app.flowhub.security.redaction import redact_sensitive
 from app.flowhub.security.upstream_errors import normalize_upstream_error
 from app.flowhub.setup.service import AppConfigService
-from app.flowhub.write_pipeline.adapters import ChannelWriteContext
+from app.flowhub.write_pipeline.service import WritePipelineService
+from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
 
 CHANNELS = (
     ("woocommerce:primary", "WooCommerce", "woocommerce", "store currency"),
@@ -190,7 +184,7 @@ class ProductPricingService:
 
     async def apply(self, operation_id: str, user: FlowHubUser) -> dict:
         op = self._operation(operation_id)
-        if op.status != "approved":
+        if op.status not in {"approved", "reconciliation_required"}:
             raise HTTPException(
                 status.HTTP_409_CONFLICT, "Apply requires a separate approved Dry Run."
             )
@@ -198,9 +192,17 @@ class ProductPricingService:
         product = self._operation_product(op)
         success = 0
         failure = 0
-        for item in op.items:
+        reconciliation = 0
+        eligible_items = (
+            op.items
+            if op.status == "approved"
+            else [item for item in op.items if item.status == "reconciliation_required"]
+        )
+        for item in eligible_items:
             try:
-                result = await self._apply_item(item, user)
+                result = await WritePipelineService(self.db).execute_product_pricing_item(
+                    item, user
+                )
             except Exception as exc:
                 failure += 1
                 item.status = "failed"
@@ -217,10 +219,46 @@ class ProductPricingService:
                     commit=False,
                 )
             else:
+                if result.outcome is not WriteOutcome.VERIFIED_APPLIED:
+                    if result.outcome is WriteOutcome.RECONCILIATION_REQUIRED:
+                        reconciliation += 1
+                    else:
+                        failure += 1
+                    item.status = result.outcome.value
+                    item.error_message = result.error_message
+                    dispatch_intent = dict(item.result_json).get("dispatch_intent")
+                    item.result_json = redact_sensitive(
+                        {
+                            "dispatch_intent": dispatch_intent,
+                            "outcome": result.outcome,
+                            "providerAccepted": result.provider_accepted,
+                            "response": result.response,
+                            "errorCategory": result.error_category,
+                            "errorMessage": result.error_message,
+                        }
+                    )
+                    self._audit(
+                        "multi_channel_price_item_reconciliation_required"
+                        if result.outcome is WriteOutcome.RECONCILIATION_REQUIRED
+                        else "multi_channel_price_item_failed",
+                        result.error_message or "Provider state was not exactly verified.",
+                        user=user,
+                        product=product,
+                        channel=self._item_channel_shape(item),
+                        result=result.outcome.value,
+                        upstream_reference=result.external_response_id,
+                        commit=False,
+                    )
+                    continue
                 success += 1
                 item.status = "applied"
-                item.result_json = redact_sensitive(result)
-                self._update_cache_after_success(item)
+                item.result_json = redact_sensitive(
+                    {
+                        "dispatch_intent": dict(item.result_json).get("dispatch_intent"),
+                        "outcome": result.outcome,
+                        "response": result.response,
+                    }
+                )
                 self._audit(
                     "multi_channel_price_item_applied",
                     "Channel price update applied.",
@@ -228,11 +266,19 @@ class ProductPricingService:
                     product=product,
                     channel=self._item_channel_shape(item),
                     result="applied",
-                    upstream_reference=_reference(result),
+                    upstream_reference=result.external_response_id,
                     commit=False,
                 )
         op.applied_at = datetime.utcnow()
-        op.status = "applied" if failure == 0 else "partially_failed" if success else "failed"
+        op.status = (
+            "reconciliation_required"
+            if reconciliation
+            else "applied"
+            if failure == 0
+            else "partially_failed"
+            if success
+            else "failed"
+        )
         op.summary_json = self._operation_summary(op)
         self._audit(
             "multi_channel_price_apply_finished",
@@ -511,66 +557,11 @@ class ProductPricingService:
             "pending": sum(1 for item in op.items if item.status == "pending"),
             "success": sum(1 for item in op.items if item.status == "applied"),
             "failed": sum(1 for item in op.items if item.status == "failed"),
+            "reconciliationRequired": sum(
+                1 for item in op.items if item.status == "reconciliation_required"
+            ),
             "external_write_performed": op.applied_at is not None,
         }
-
-    async def _apply_item(self, item: ProductPriceOperationItem, user: FlowHubUser) -> dict:
-        if item.channel_id == "woocommerce:primary":
-            adapter = WooCommercePriceWriteAdapter()
-            context = ChannelWriteContext(get_setting=self.config.get, requested_by=user.username)
-            transient = _TransientWriteItem(item)
-            return await adapter.execute_item(transient, context)
-        current = (
-            self.db.query(DlProductCache)
-            .filter_by(connector_id=item.channel_id, product_id=item.channel_product_id)
-            .first()
-        )
-        update = ChannelProductUpdate(
-            channel_id=item.channel_id,
-            identifiers=ChannelIdentifierSet(
-                external_product_id=item.channel_product_id, sku=item.sku or None
-            ),
-            price=item.proposed_value,
-            stock_quantity=current.stock_qty if current is not None else None,
-            currency="TMN" if item.channel_id == "snappshop:main" else "IRR",
-            price_unit="toman" if item.channel_id == "snappshop:main" else "rial",
-            idempotency_key=f"{item.operation_id}-{item.id}",
-        )
-        commerce = CommerceHubService(self.db)
-        connector = (
-            commerce._snappshop_connector()
-            if item.channel_id == "snappshop:main"
-            else commerce._tapsishop_connector()
-        )
-        if connector is None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Channel connector is not configured.")
-        results = await connector.update_products([update])
-        result = results[0] if results else None
-        if result is None or not result.success:
-            message = result.error.message if result and result.error else "Channel update failed."
-            raise ConnectorError(
-                ConnectorErrorCode.PROVIDER_ERROR, message, provider=item.connector_type
-            )
-        return result.raw
-
-    def _update_cache_after_success(self, item: ProductPriceOperationItem) -> None:
-        row = (
-            self.db.query(DlProductCache)
-            .filter_by(connector_id=item.channel_id, product_id=item.channel_product_id)
-            .first()
-        )
-        if row is None:
-            return
-        stored_price = (
-            str(int(item.proposed_value))
-            if item.proposed_value.is_integer()
-            else str(item.proposed_value)
-        )
-        row.regular_price = stored_price
-        row.price = stored_price
-        row.freshness = "fresh"
-        row.last_successful_read = datetime.utcnow()
-        row.record_hash = _row_hash(row)
 
     def _assert_still_current(self, op: ProductPriceOperation) -> None:
         states = self.load(op.product_id)
@@ -675,13 +666,6 @@ class ProductPricingService:
         return sha256("|".join(parts).encode("utf-8")).hexdigest()
 
 
-class _TransientWriteItem:
-    def __init__(self, item: ProductPriceOperationItem) -> None:
-        self.channel_product_id = item.channel_product_id
-        self.proposed_price = item.proposed_value
-        self.pre_write_snapshot_json = {}
-
-
 def _price(row: DlProductCache | None) -> float | None:
     if row is None:
         return None
@@ -716,14 +700,6 @@ def _stale_token(row: DlProductCache | None) -> str:
                 row.last_successful_read,
                 row.record_hash,
             )
-        ).encode("utf-8")
-    ).hexdigest()
-
-
-def _row_hash(row: DlProductCache) -> str:
-    return sha256(
-        "|".join(
-            str(value or "") for value in (row.product_id, row.sku, row.regular_price, row.price)
         ).encode("utf-8")
     ).hexdigest()
 

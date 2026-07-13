@@ -14,6 +14,7 @@ from app.flowhub.data_layer import models as _data_layer_models  # noqa: F401
 from app.flowhub.integration_platform import models as _integration_platform_models  # noqa: F401
 from app.flowhub.product_pricing import models as _product_pricing_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
+from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
 
 
 @pytest.fixture()
@@ -298,7 +299,9 @@ def test_fractional_and_non_finite_prices_are_rejected_without_server_error(
     assert "whole number" in state["validationMessage"]
 
 
-def test_successful_apply_updates_cached_price_as_integer(client, auth_headers, db, monkeypatch):
+def test_unverifiable_tapsishop_apply_requires_reconciliation_without_cache_patch(
+    client, auth_headers, db, monkeypatch
+):
     _seed_product(db)
     loaded = client.get("/api/v2/products/101/channel-prices", headers=auth_headers).json()
     tapsi = next(item for item in loaded["channels"] if item["channelId"] == "tapsishop:main")
@@ -356,12 +359,17 @@ def test_successful_apply_updates_cached_price_as_integer(client, auth_headers, 
         .one()
     )
     db.refresh(row)
-    assert row.price == "1250000"
-    reopened = client.get("/api/v2/products/101/channel-prices", headers=auth_headers).json()
-    reopened_tapsi = next(
-        item for item in reopened["channels"] if item["channelId"] == "tapsishop:main"
-    )
-    assert reopened_tapsi["currentValue"] == 1250000
+    assert row.price == "1000000"
+    operation = client.get(
+        f"/api/v2/products/channel-price-operations/{op_id}", headers=auth_headers
+    ).json()
+    assert operation["status"] == "reconciliation_required"
+    from app.flowhub.write_pipeline.models import ProviderWriteAttempt
+
+    attempt = db.query(ProviderWriteAttempt).filter_by(operation_id=op_id).one()
+    assert attempt.source_workflow == "product_pricing"
+    assert attempt.external_identity == "tap-101"
+    assert operation["items"][0]["status"] == "reconciliation_required"
 
 
 def test_dry_run_performs_no_external_write_and_apply_requires_approval(
@@ -484,11 +492,12 @@ def test_apply_reports_channel_specific_partial_failure(client, auth_headers, db
 
     assert applied.status_code == 200
     data = applied.json()
-    assert data["status"] == "partially_failed"
+    assert data["status"] == "reconciliation_required"
     by_channel = {item["channelId"]: item for item in data["items"]}
     assert by_channel["snappshop:main"]["status"] == "failed"
-    assert by_channel["tapsishop:main"]["status"] == "applied"
-    assert data["summary"]["success"] == 1
+    assert by_channel["tapsishop:main"]["status"] == "reconciliation_required"
+    assert data["summary"]["success"] == 0
+    assert data["summary"]["reconciliationRequired"] == 1
     assert data["summary"]["failed"] == 1
     snapp_row = (
         db.query(_data_layer_models.DlProductCache)
@@ -503,7 +512,7 @@ def test_apply_reports_channel_specific_partial_failure(client, auth_headers, db
     db.refresh(snapp_row)
     db.refresh(tapsi_row)
     assert snapp_row.price == "100000"
-    assert tapsi_row.price == "1200000"
+    assert tapsi_row.price == "1000000"
 
 
 def _seed_product(db, *, tapsi: bool = True, snapp_read_only: bool = False) -> None:

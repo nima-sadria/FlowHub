@@ -8,11 +8,12 @@ registered channel write adapter.
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import uuid
 from datetime import datetime
 from hashlib import sha256
-from typing import Any
+from typing import Any, Protocol, cast
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -35,7 +36,13 @@ from app.flowhub.write_pipeline.contracts import (
     WritePipelineItemShape,
     WritePipelinePriceChange,
 )
-from app.flowhub.write_pipeline.models import WriteBatch, WriteEvent, WriteItem
+from app.flowhub.write_pipeline.models import (
+    ProviderWriteAttempt,
+    ProviderWriteAttemptEvent,
+    WriteBatch,
+    WriteEvent,
+    WriteItem,
+)
 from app.flowhub.write_pipeline.registry import (
     ChannelWriteAdapterRegistry,
     default_write_adapter_registry,
@@ -49,13 +56,37 @@ from app.flowhub.write_pipeline.workspace_contracts import (
 
 MAX_ITEMS = 100
 MAX_DELTA_PERCENT = 50.0
-VERIFY_SMALL_BATCH_LIMIT = 25
 VERIFY_TIMEOUT_SECONDS = 10.0
-FORBIDDEN_STOCK_KEYS = frozenset({
-    "stock", "stock_status", "stockstatus", "stock_quantity", "stockquantity", "inventory", "manage_stock", "managestock"
-})
-STOCK_OPERATION_TYPES = frozenset({"stock_update", "inventory_update", "write_inventory", "update_stock"})
-AUTOMATIC_APPLY_KEYS = frozenset({"automaticApply", "automatic_apply", "applyNow", "apply_now", "scheduler", "scheduled"})
+FORBIDDEN_STOCK_KEYS = frozenset(
+    {
+        "stock",
+        "stock_status",
+        "stockstatus",
+        "stock_quantity",
+        "stockquantity",
+        "inventory",
+        "manage_stock",
+        "managestock",
+    }
+)
+STOCK_OPERATION_TYPES = frozenset(
+    {"stock_update", "inventory_update", "write_inventory", "update_stock"}
+)
+AUTOMATIC_APPLY_KEYS = frozenset(
+    {"automaticApply", "automatic_apply", "applyNow", "apply_now", "scheduler", "scheduled"}
+)
+
+
+class _ProductCacheView(Protocol):
+    product_id: str
+    sku: str | None
+    regular_price: str | None
+    price: str | None
+    stock_qty: int | None
+    stock_status: str | None
+    freshness: str
+    last_successful_read: datetime | None
+    record_hash: str
 
 
 class WritePipelineService:
@@ -65,7 +96,9 @@ class WritePipelineService:
         self.registry = registry or default_write_adapter_registry()
         self.integration = IntegrationPlatformService(db)
 
-    def create_dry_run(self, body: WritePipelineDryRunRequest, user: FlowHubUser) -> WritePipelineBatchShape:
+    def create_dry_run(
+        self, body: WritePipelineDryRunRequest, user: FlowHubUser
+    ) -> WritePipelineBatchShape:
         self._validate_request_controls(body, user)
         try:
             selection = WorkspacePreviewStore(self.db).validate_selection(
@@ -88,7 +121,9 @@ class WritePipelineService:
             if isinstance(selection.preview.summary_json, dict)
             else {}
         )
-        safety = self._validate_changes(raw_changes, adapter, operation_type, body.previewId, preview_summary)
+        safety = self._validate_changes(
+            raw_changes, adapter, operation_type, body.previewId, preview_summary
+        )
         safety["selected_row_ids"] = list(body.selectedRowIds)
         safety["preview_hash"] = selection.preview.preview_hash
         batch_id = f"wb_{uuid.uuid4().hex[:16]}"
@@ -180,10 +215,14 @@ class WritePipelineService:
         self.db.refresh(batch)
         return self._batch_shape(batch)
 
-    def approve(self, batch_id: str, body: WritePipelineApprovalRequest, user: FlowHubUser) -> WritePipelineBatchShape:
+    def approve(
+        self, batch_id: str, body: WritePipelineApprovalRequest, user: FlowHubUser
+    ) -> WritePipelineBatchShape:
         batch = self._get_batch(batch_id)
         if batch.status != "dry_run_ready":
-            raise HTTPException(status.HTTP_409_CONFLICT, "Only a completed Dry Run can be approved.")
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "Only a completed Dry Run can be approved."
+            )
         self._assert_batch_hash_matches(batch)
         batch.status = "approved"
         batch.approved_by = user.username
@@ -210,7 +249,9 @@ class WritePipelineService:
     async def execute(self, batch_id: str, user: FlowHubUser) -> WritePipelineBatchShape:
         batch = self._get_batch(batch_id)
         if batch.status != "approved":
-            raise HTTPException(status.HTTP_409_CONFLICT, "Apply requires a separate approved Dry Run.")
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "Apply requires a separate approved Dry Run."
+            )
         self._assert_batch_hash_matches(batch)
         adapter = self._adapter_for(batch.channel_id, batch.operation_type)
         self._assert_channel_write_enabled(batch)
@@ -232,16 +273,19 @@ class WritePipelineService:
         verified_count = 0
         unverified_count = 0
         verification_warning_count = 0
-        verification_enabled = batch.item_count <= VERIFY_SMALL_BATCH_LIMIT
         for item in batch.items:
             try:
-                await rate_limits.acquire(batch.channel_id, "write", connector_type=capabilities.channel_type)
+                await rate_limits.acquire(
+                    batch.channel_id, "write", connector_type=capabilities.channel_type
+                )
                 provider_result = _safe_provider_result(await adapter.execute_item(item, context))
             except ConnectorError as exc:
                 failure_count += 1
                 item.status = "failed"
                 item.error_code = exc.code.value
-                item.error_message = str(normalize_upstream_error(exc, source="woocommerce")["message"])
+                item.error_message = str(
+                    normalize_upstream_error(exc, source="woocommerce")["message"]
+                )
                 self._record_event(
                     batch.id,
                     "item_failed",
@@ -271,7 +315,9 @@ class WritePipelineService:
                 failure_count += 1
                 item.status = "failed"
                 item.error_code = "unexpected_error"
-                item.error_message = str(normalize_upstream_error(exc, source="woocommerce")["message"])
+                item.error_message = str(
+                    normalize_upstream_error(exc, source="woocommerce")["message"]
+                )
                 self._record_event(
                     batch.id,
                     "item_failed",
@@ -297,44 +343,38 @@ class WritePipelineService:
                     commit=False,
                 )
             else:
-                verification = self._verification_skipped_result()
-                if verification_enabled:
-                    verification = await self._verify_applied_item(adapter, item, context)
-                    if verification.get("verified") is True:
-                        verified_count += 1
-                    else:
-                        unverified_count += 1
-                        verification_warning_count += 1
-                        self._record_event(
-                            batch.id,
-                            "item_verification_warning",
-                            "Price read-back verification did not confirm the expected value.",
-                            item_id=item.id,
-                            severity="warning",
-                            metadata={
-                                "actor": user.username,
-                                "channel_id": batch.channel_id,
-                                "batch_id": batch.id,
-                                "product_id": item.channel_product_id,
-                                "sku": item.sku,
-                                "old_price": item.current_price,
-                                "new_price": item.proposed_price,
-                                "status": item.status,
-                                "verification": verification,
-                                "source": _item_source(item),
-                                "item_type": _item_type(item),
-                                "parent_product_id": _parent_product_id(item),
-                                "variation_id": _variation_id(item),
-                                "variation_attributes": _variation_attributes(item),
-                            },
-                            commit=False,
-                        )
-                else:
-                    unverified_count += 1
-                success_count += 1
-                item.status = "applied"
+                verification = await self._verify_applied_item(adapter, item, context)
                 provider_result["verification"] = verification
                 item.provider_result_json = _safe_provider_result(provider_result)
+                if verification.get("verified") is not True:
+                    failure_count += 1
+                    unverified_count += 1
+                    verification_warning_count += 1
+                    item.status = "reconciliation_required"
+                    item.error_code = "read_back_unverified"
+                    item.error_message = (
+                        "Provider accepted the write, but exact read-back verification failed."
+                    )
+                    self._record_event(
+                        batch.id,
+                        "item_reconciliation_required",
+                        item.error_message,
+                        item_id=item.id,
+                        severity="error",
+                        metadata={
+                            "actor": user.username,
+                            "channel_id": batch.channel_id,
+                            "batch_id": batch.id,
+                            "product_id": item.channel_product_id,
+                            "verification": verification,
+                            "provider_accepted": True,
+                        },
+                        commit=False,
+                    )
+                    continue
+                success_count += 1
+                verified_count += 1
+                item.status = "applied"
                 self._record_event(
                     batch.id,
                     "item_applied",
@@ -363,7 +403,9 @@ class WritePipelineService:
                 )
 
         batch.executed_at = datetime.utcnow()
-        batch.status = "applied" if failure_count == 0 else "partially_failed" if success_count else "failed"
+        batch.status = (
+            "applied" if failure_count == 0 else "partially_failed" if success_count else "failed"
+        )
         self._record_event(
             batch.id,
             "execution_finished",
@@ -399,22 +441,23 @@ class WritePipelineService:
         from app.flowhub.commerce.service import CommerceHubService
         from app.flowhub.product_pricing.service import ProductPricingService
         from app.flowhub.unified_workspace.connectors import WorkspaceConnectorFactory
-        from app.flowhub.unified_workspace.models import ApplyAttempt, ApplyAttemptEvent
 
         factory = WorkspaceConnectorFactory(
             ProductPricingService(self.db), CommerceHubService(self.db)
         )
         rate_limits = RateLimitService(self.db)
-        attempts: dict[str, ApplyAttempt] = {}
+        attempts: dict[str, ProviderWriteAttempt] = {}
         prior_attempts: set[str] = set()
         for intent in command.intents:
             existing = (
-                self.db.query(ApplyAttempt)
+                self.db.query(ProviderWriteAttempt)
                 .filter_by(
-                    apply_job_item_id=intent.apply_item_ids[0],
+                    source_workflow="unified_workspace",
+                    operation_id=intent.apply_job_id,
+                    logical_item_id=intent.apply_item_ids[0],
                     payload_hash=intent.payload_hash,
                 )
-                .order_by(ApplyAttempt.attempt_number.desc())
+                .order_by(ProviderWriteAttempt.attempt_number.desc())
                 .first()
             )
             if existing is not None:
@@ -425,12 +468,17 @@ class WritePipelineService:
                 raise ValueError(
                     f"No durable dispatch intent exists for Listing {intent.listing_id}."
                 )
-            attempt = ApplyAttempt(
-                id=f"uat_{uuid.uuid4().hex[:28]}",
+            attempt = ProviderWriteAttempt(
+                id=f"pwa_{uuid.uuid4().hex[:28]}",
+                source_workflow="unified_workspace",
+                operation_id=intent.apply_job_id,
+                logical_item_id=intent.apply_item_ids[0],
+                workspace_id=intent.workspace_id,
                 apply_job_id=intent.apply_job_id,
                 apply_job_item_id=intent.apply_item_ids[0],
                 listing_id=intent.listing_id,
                 channel_id=intent.channel_id,
+                external_identity=intent.external_primary_id,
                 normalized_payload_json=intent.normalized_payload(),
                 payload_hash=intent.payload_hash,
                 provider_idempotency_key=intent.idempotency_key,
@@ -440,10 +488,10 @@ class WritePipelineService:
             self.db.add(attempt)
             self.db.flush()
             self.db.add(
-                ApplyAttemptEvent(
-                    id=f"uae_{uuid.uuid4().hex[:28]}",
+                ProviderWriteAttemptEvent(
+                    id=f"pwe_{uuid.uuid4().hex[:28]}",
                     attempt_id=attempt.id,
-                    outcome=WriteOutcome.PENDING,
+                    outcome=WriteOutcome.DISPATCH_INTENT_RECORDED,
                     provider_response_json={},
                 )
             )
@@ -481,8 +529,8 @@ class WritePipelineService:
                 else:
                     for intent in intents:
                         self.db.add(
-                            ApplyAttemptEvent(
-                                id=f"uae_{uuid.uuid4().hex[:28]}",
+                            ProviderWriteAttemptEvent(
+                                id=f"pwe_{uuid.uuid4().hex[:28]}",
                                 attempt_id=attempts[intent.listing_id].id,
                                 outcome=WriteOutcome.DISPATCHED,
                                 provider_response_json={},
@@ -511,16 +559,16 @@ class WritePipelineService:
                 attempt = attempts[result.listing_id]
                 if result.provider_accepted:
                     self.db.add(
-                        ApplyAttemptEvent(
-                            id=f"uae_{uuid.uuid4().hex[:28]}",
+                        ProviderWriteAttemptEvent(
+                            id=f"pwe_{uuid.uuid4().hex[:28]}",
                             attempt_id=attempt.id,
                             outcome=WriteOutcome.PROVIDER_ACCEPTED,
                             provider_response_json=redact_sensitive(result.response),
                         )
                     )
                 self.db.add(
-                    ApplyAttemptEvent(
-                        id=f"uae_{uuid.uuid4().hex[:28]}",
+                    ProviderWriteAttemptEvent(
+                        id=f"pwe_{uuid.uuid4().hex[:28]}",
                         attempt_id=attempt.id,
                         outcome=result.outcome,
                         provider_response_json=redact_sensitive(result.response),
@@ -531,6 +579,252 @@ class WritePipelineService:
                 results.append(result)
             self.db.commit()
         return results
+
+    async def execute_product_pricing_item(
+        self,
+        item: Any,
+        user: FlowHubUser,
+    ) -> WorkspaceWriteResult:
+        """Execute a compatibility Product Pricing item through the shared authority.
+
+        The Product Pricing operation item is the durable pre-dispatch intent for this
+        compatibility facade.  A repeated call is verification-only: an uncertain
+        provider outcome is never automatically dispatched again.
+        """
+        from app.flowhub.commerce.service import CommerceHubService
+        from app.flowhub.data_layer.models import DlProductCache
+        from app.flowhub.product_pricing.service import ProductPricingService
+        from app.flowhub.unified_workspace.connectors import (
+            ListingUpdate,
+            WorkspaceConnectorFactory,
+        )
+        from app.flowhub.unified_workspace.listing_guard import acquire_listing_guard
+        from app.flowhub.unified_workspace.models import Listing
+
+        listing = (
+            self.db.query(Listing)
+            .filter(
+                Listing.channel_id == item.channel_id,
+                Listing.external_primary_id == item.channel_product_id,
+            )
+            .with_for_update()
+            .one_or_none()
+        )
+        if listing is not None:
+            acquire_listing_guard(self.db, listing.channel_id, listing.id)
+        cache = (
+            self.db.query(DlProductCache)
+            .filter_by(
+                connector_id=item.channel_id,
+                product_id=item.channel_product_id,
+            )
+            .one_or_none()
+        )
+        typed_cache = cast(_ProductCacheView | None, cache)
+        identity = f"{item.channel_id}:{item.channel_product_id}"
+        payload = {
+            "operation_id": item.operation_id,
+            "source_workflow": "product_pricing",
+            "channel_id": item.channel_id,
+            "listing_id": listing.id if listing is not None else identity,
+            "external_primary_id": item.channel_product_id,
+            "sku": item.sku or None,
+            "field_changes": {"price": item.proposed_value},
+            "normalized_target": {
+                "price": item.outbound_value,
+                "currency": item.currency,
+                "unit": item.outbound_unit,
+            },
+            "expected_cache_token": item.stale_token,
+            "actor": user.username,
+        }
+        payload_hash = sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        attempt = (
+            self.db.query(ProviderWriteAttempt)
+            .filter_by(
+                source_workflow="product_pricing",
+                operation_id=item.operation_id,
+                logical_item_id=str(item.id),
+                payload_hash=payload_hash,
+            )
+            .order_by(ProviderWriteAttempt.attempt_number.desc())
+            .first()
+        )
+        repeat = attempt is not None
+        if attempt is None:
+            provider_key = sha256(
+                f"product-pricing:{item.operation_id}:{item.id}:{payload_hash}".encode()
+            ).hexdigest()
+            attempt = ProviderWriteAttempt(
+                id=f"pwa_{uuid.uuid4().hex[:28]}",
+                source_workflow="product_pricing",
+                operation_id=item.operation_id,
+                logical_item_id=str(item.id),
+                workspace_id=None,
+                apply_job_id=None,
+                apply_job_item_id=None,
+                listing_id=listing.id if listing is not None else identity,
+                channel_id=item.channel_id,
+                external_identity=item.channel_product_id,
+                normalized_payload_json=payload,
+                payload_hash=payload_hash,
+                provider_idempotency_key=provider_key,
+                attempt_number=1,
+                correlation_id=f"product-pricing:{item.operation_id}",
+            )
+            self.db.add(attempt)
+            self.db.flush()
+            self.db.add(
+                ProviderWriteAttemptEvent(
+                    id=f"pwe_{uuid.uuid4().hex[:28]}",
+                    attempt_id=attempt.id,
+                    outcome=WriteOutcome.DISPATCH_INTENT_RECORDED,
+                    provider_response_json={},
+                )
+            )
+            item.result_json = {
+                "dispatch_intent": {
+                    "payload": payload,
+                    "payload_hash": payload_hash,
+                    "attempt_id": attempt.id,
+                    "idempotency_key": provider_key,
+                    "state": WriteOutcome.PENDING,
+                    "created_at": datetime.utcnow().isoformat(),
+                }
+            }
+            self.db.commit()
+            if listing is not None:
+                listing = (
+                    self.db.query(Listing).filter(Listing.id == listing.id).with_for_update().one()
+                )
+                acquire_listing_guard(self.db, listing.channel_id, listing.id)
+
+        update = ListingUpdate(
+            listing_id=listing.id if listing is not None else identity,
+            external_primary_id=item.channel_product_id,
+            sku=item.sku or None,
+            product_type="simple",
+            parent_external_id=None,
+            current_price=item.current_value,
+            current_stock=(
+                float(typed_cache.stock_qty)
+                if typed_cache is not None and typed_cache.stock_qty is not None
+                else None
+            ),
+            current_status=typed_cache.stock_status if typed_cache is not None else None,
+            target_price=item.outbound_value,
+            target_stock=None,
+            target_status=None,
+            currency=item.currency,
+            unit=item.outbound_unit,
+            idempotency_key=attempt.provider_idempotency_key,
+        )
+        connector = WorkspaceConnectorFactory(
+            ProductPricingService(self.db), CommerceHubService(self.db)
+        ).get_product_pricing(item.channel_id)
+        try:
+            if repeat:
+                results = await connector.verify_updates([update], requested_by=user.username)
+            else:
+                await RateLimitService(self.db).acquire(
+                    item.channel_id,
+                    "write",
+                    connector_type=item.connector_type,
+                )
+                self.db.add(
+                    ProviderWriteAttemptEvent(
+                        id=f"pwe_{uuid.uuid4().hex[:28]}",
+                        attempt_id=attempt.id,
+                        outcome=WriteOutcome.DISPATCHED,
+                        provider_response_json={},
+                    )
+                )
+                self.db.commit()
+                results = await connector.apply_updates([update], requested_by=user.username)
+        except Exception as exc:
+            result = WorkspaceWriteResult(
+                listing_id=update.listing_id,
+                outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                error_category="provider_unknown",
+                error_message=str(exc),
+                retry_eligible=False,
+            )
+            self.db.add(
+                ProviderWriteAttemptEvent(
+                    id=f"pwe_{uuid.uuid4().hex[:28]}",
+                    attempt_id=attempt.id,
+                    outcome=result.outcome,
+                    provider_response_json={},
+                    error_category=result.error_category,
+                    error_message=result.error_message,
+                )
+            )
+            self.db.commit()
+            return result
+        if len(results) != 1:
+            result = WorkspaceWriteResult(
+                listing_id=update.listing_id,
+                outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                error_category="provider_contract",
+                error_message="Provider returned an ambiguous item count.",
+            )
+            self.db.add(
+                ProviderWriteAttemptEvent(
+                    id=f"pwe_{uuid.uuid4().hex[:28]}",
+                    attempt_id=attempt.id,
+                    outcome=result.outcome,
+                    provider_response_json={},
+                    error_category=result.error_category,
+                    error_message=result.error_message,
+                )
+            )
+            self.db.commit()
+            return result
+        result = results[0]
+        if result.provider_accepted:
+            self.db.add(
+                ProviderWriteAttemptEvent(
+                    id=f"pwe_{uuid.uuid4().hex[:28]}",
+                    attempt_id=attempt.id,
+                    outcome=WriteOutcome.PROVIDER_ACCEPTED,
+                    provider_response_json=redact_sensitive(result.response),
+                )
+            )
+        self.db.add(
+            ProviderWriteAttemptEvent(
+                id=f"pwe_{uuid.uuid4().hex[:28]}",
+                attempt_id=attempt.id,
+                outcome=result.outcome,
+                provider_response_json=redact_sensitive(result.response),
+                error_category=result.error_category,
+                error_message=result.error_message,
+            )
+        )
+        self.db.commit()
+        if result.outcome is WriteOutcome.VERIFIED_APPLIED and typed_cache is not None:
+            stored_price = (
+                str(int(item.proposed_value))
+                if float(item.proposed_value).is_integer()
+                else str(item.proposed_value)
+            )
+            typed_cache.regular_price = stored_price
+            typed_cache.price = stored_price
+            typed_cache.freshness = "fresh"
+            typed_cache.last_successful_read = datetime.utcnow()
+            typed_cache.record_hash = sha256(
+                "|".join(
+                    str(value or "")
+                    for value in (
+                        typed_cache.product_id,
+                        typed_cache.sku,
+                        typed_cache.regular_price,
+                        typed_cache.price,
+                    )
+                ).encode("utf-8")
+            ).hexdigest()
+        return result
 
     def get_batch(self, batch_id: str) -> WritePipelineBatchShape:
         return self._batch_shape(self._get_batch(batch_id))
@@ -556,22 +850,34 @@ class WritePipelineService:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "unsafe_write_capability")
         return adapter
 
-    def _validate_request_controls(self, body: WritePipelineDryRunRequest, user: FlowHubUser) -> None:
+    def _validate_request_controls(
+        self, body: WritePipelineDryRunRequest, user: FlowHubUser
+    ) -> None:
         extras = getattr(body, "model_extra", None) or {}
         if AUTOMATIC_APPLY_KEYS.intersection(extras):
-            self._record_preview_rejection(body.previewId, body.selectedRowIds, user, "automatic_apply_disabled")
+            self._record_preview_rejection(
+                body.previewId, body.selectedRowIds, user, "automatic_apply_disabled"
+            )
             raise HTTPException(status.HTTP_403_FORBIDDEN, "automatic_apply_disabled")
         if extras.get("channelId") not in (None, "woocommerce:primary"):
-            self._record_preview_rejection(body.previewId, body.selectedRowIds, user, "unsupported_channel_write")
+            self._record_preview_rejection(
+                body.previewId, body.selectedRowIds, user, "unsupported_channel_write"
+            )
             raise HTTPException(status.HTTP_403_FORBIDDEN, "unsupported_channel_write")
         if STOCK_OPERATION_TYPES.intersection({str(extras.get("operationType") or "").lower()}):
-            self._record_preview_rejection(body.previewId, body.selectedRowIds, user, "stock_writes_disabled")
+            self._record_preview_rejection(
+                body.previewId, body.selectedRowIds, user, "stock_writes_disabled"
+            )
             raise HTTPException(status.HTTP_403_FORBIDDEN, "stock_writes_disabled")
         if FORBIDDEN_STOCK_KEYS.intersection({str(key).lower() for key in extras}):
-            self._record_preview_rejection(body.previewId, body.selectedRowIds, user, "stock_writes_disabled")
+            self._record_preview_rejection(
+                body.previewId, body.selectedRowIds, user, "stock_writes_disabled"
+            )
             raise HTTPException(status.HTTP_403_FORBIDDEN, "stock_writes_disabled")
         if extras:
-            self._record_preview_rejection(body.previewId, body.selectedRowIds, user, "DRY_RUN_REQUEST_FIELDS_INVALID")
+            self._record_preview_rejection(
+                body.previewId, body.selectedRowIds, user, "DRY_RUN_REQUEST_FIELDS_INVALID"
+            )
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
                 "DRY_RUN_REQUEST_FIELDS_INVALID: submit only previewId and selectedRowIds.",
@@ -586,42 +892,76 @@ class WritePipelineService:
         preview_summary: dict[str, Any],
     ) -> dict[str, Any]:
         if len(raw_changes) > MAX_ITEMS:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Dry Run is limited to {MAX_ITEMS} items.")
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, f"Dry Run is limited to {MAX_ITEMS} items."
+            )
         if not preview_id:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Dry Run requires a Workspace preview ID.")
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, "Dry Run requires a Workspace preview ID."
+            )
         currencies: set[str] = set()
         max_delta = 0.0
         product_ids: set[str] = set()
         for change in raw_changes:
             source = change.get("source")
             if not isinstance(source, dict) or source.get("previewId") != preview_id:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Dry Run changes must come from the active Workspace preview.")
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    "Dry Run changes must come from the active Workspace preview.",
+                )
             if change.get("eligible_for_dry_run") is not True:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Rows with validation errors cannot enter Dry Run.")
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    "Rows with validation errors cannot enter Dry Run.",
+                )
             if change.get("status") == "error" or change.get("validationStatus") == "error":
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Rows with validation errors cannot enter Dry Run.")
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    "Rows with validation errors cannot enter Dry Run.",
+                )
             forbidden = FORBIDDEN_STOCK_KEYS.intersection({key.lower() for key in change})
             if forbidden:
-                raise HTTPException(status.HTTP_403_FORBIDDEN, "Stock updates are blocked in FlowHub 1.0.0.")
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN, "Stock updates are blocked in FlowHub 1.0.0."
+                )
             current = float(change["currentPrice"])
             proposed = float(change["proposedPrice"])
             if not math.isfinite(current) or not math.isfinite(proposed):
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Prices must be finite numbers.")
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY, "Prices must be finite numbers."
+                )
             if current < 0 or proposed <= 0:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Prices must be positive.")
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY, "Prices must be positive."
+                )
             delta_pct = abs(self._delta_percent(current, proposed))
             max_delta = max(max_delta, delta_pct)
             if delta_pct > MAX_DELTA_PERCENT:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Price change exceeds the 50% safety gate.")
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    "Price change exceeds the 50% safety gate.",
+                )
             currencies.add(str(change.get("currency") or ""))
             product_ids.add(str(change.get("productId") or ""))
             adapter.validate_item(change)
         if len(currencies) > 1:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Dry Run must use a single currency.")
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, "Dry Run must use a single currency."
+            )
         capabilities = adapter.get_capabilities()
-        skipped_rows = int(preview_summary.get("unchanged_rows") or 0) if isinstance(preview_summary, dict) else 0
-        blocked_rows = int(preview_summary.get("error_rows") or 0) if isinstance(preview_summary, dict) else 0
-        warning_rows = int(preview_summary.get("warning_rows") or 0) if isinstance(preview_summary, dict) else 0
+        skipped_rows = (
+            int(preview_summary.get("unchanged_rows") or 0)
+            if isinstance(preview_summary, dict)
+            else 0
+        )
+        blocked_rows = (
+            int(preview_summary.get("error_rows") or 0) if isinstance(preview_summary, dict) else 0
+        )
+        warning_rows = (
+            int(preview_summary.get("warning_rows") or 0)
+            if isinstance(preview_summary, dict)
+            else 0
+        )
         return {
             "operation": operation_type,
             "channel_id": capabilities.channel_ids[0] if capabilities.channel_ids else "",
@@ -772,7 +1112,9 @@ class WritePipelineService:
             errorCode=row.error_code,
             errorMessage=row.error_message,
             source=_item_source(row),
-            validationWarnings=list((row.pre_write_snapshot_json or {}).get("validation_warnings") or []),
+            validationWarnings=list(
+                (row.pre_write_snapshot_json or {}).get("validation_warnings") or []
+            ),
             itemType=_item_type(row),
             parentProductId=_parent_product_id(row),
             parentProductName=(row.pre_write_snapshot_json or {}).get("parent_product_name"),
@@ -809,18 +1151,22 @@ class WritePipelineService:
         try:
             async with asyncio.timeout(VERIFY_TIMEOUT_SECONDS):
                 result = await adapter.verify_item(item, context)
-            return _safe_provider_result({
-                "verified": bool(result.get("verified")),
-                "observed_price": result.get("observed_price"),
-                "expected_price": result.get("expected_price", item.proposed_price),
-                "verification_error": result.get("verification_error"),
-            })
+            return _safe_provider_result(
+                {
+                    "verified": bool(result.get("verified")),
+                    "observed_price": result.get("observed_price"),
+                    "expected_price": result.get("expected_price", item.proposed_price),
+                    "verification_error": result.get("verification_error"),
+                }
+            )
         except ConnectorError as exc:
             return {
                 "verified": False,
                 "observed_price": None,
                 "expected_price": item.proposed_price,
-                "verification_error": normalize_upstream_error(exc, source="woocommerce")["message"],
+                "verification_error": normalize_upstream_error(exc, source="woocommerce")[
+                    "message"
+                ],
             }
         except TimeoutError:
             return {
@@ -834,7 +1180,9 @@ class WritePipelineService:
                 "verified": False,
                 "observed_price": None,
                 "expected_price": item.proposed_price,
-                "verification_error": normalize_upstream_error(exc, source="woocommerce")["message"],
+                "verification_error": normalize_upstream_error(exc, source="woocommerce")[
+                    "message"
+                ],
             }
 
     def _verification_skipped_result(self) -> dict[str, Any]:
@@ -849,11 +1197,17 @@ class WritePipelineService:
         attempted = len(row.items) if row.executed_at else 0
         success = sum(1 for item in row.items if item.status == "applied")
         failure = sum(1 for item in row.items if item.status == "failed")
-        verified = sum(1 for item in row.items if (item.provider_result_json or {}).get("verification", {}).get("verified") is True)
+        verified = sum(
+            1
+            for item in row.items
+            if (item.provider_result_json or {}).get("verification", {}).get("verified") is True
+        )
         unverified = sum(
             1
             for item in row.items
-            if item.status == "applied" and (item.provider_result_json or {}).get("verification", {}).get("verified") is not True
+            if item.status == "applied"
+            and (item.provider_result_json or {}).get("verification", {}).get("verified")
+            is not True
         )
         safety = row.safety_summary_json or {}
         warning_count = int(safety.get("warning_rows") or 0) + unverified
@@ -866,7 +1220,9 @@ class WritePipelineService:
             "warning_count": warning_count,
             "verified_count": verified,
             "unverified_count": unverified,
-            "estimated_affected_products": int(safety.get("estimated_affected_products") or row.item_count),
+            "estimated_affected_products": int(
+                safety.get("estimated_affected_products") or row.item_count
+            ),
         }
 
 
@@ -896,7 +1252,11 @@ def _variation_id(item: WriteItem) -> str | None:
 
 def _variation_attributes(item: WriteItem) -> list[dict[str, Any]]:
     value = (item.pre_write_snapshot_json or {}).get("variation_attributes")
-    return [dict(entry) for entry in value if isinstance(entry, dict)] if isinstance(value, list) else []
+    return (
+        [dict(entry) for entry in value if isinstance(entry, dict)]
+        if isinstance(value, list)
+        else []
+    )
 
 
 def _source_fingerprint(source: object) -> str:
@@ -904,5 +1264,12 @@ def _source_fingerprint(source: object) -> str:
         return ""
     return "|".join(
         str(source.get(key) or "")
-        for key in ("previewId", "sourceSnapshotId", "sourceSnapshotVersion", "sourceFilePath", "worksheet", "rowNumber")
+        for key in (
+            "previewId",
+            "sourceSnapshotId",
+            "sourceSnapshotVersion",
+            "sourceFilePath",
+            "worksheet",
+            "rowNumber",
+        )
     )

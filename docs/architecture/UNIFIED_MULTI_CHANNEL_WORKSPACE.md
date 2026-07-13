@@ -49,9 +49,11 @@ Administrators configure the global unit with `server.currency_unit` through Set
 
 Current values are mutable `ChannelCache` state with explicit version/checksum metadata. Draft targets never mutate Current. A Review captures each participating Listing cache version and Mapping/capability versions. Any relevant change makes Apply stale and requires Review regeneration without source reread. Apply also rejects a cache older than `workspace.channel_cache_max_age_minutes` (default 60, bounded to 1–10,080 minutes), even when its checksum is unchanged.
 
-Unified Workspace never calls a provider adapter. It creates typed immutable intents for `WritePipelineService`, which is the sole external write authority and owns limiter use, durable pre-dispatch attempts, provider dispatch, and result recording. Provider adapters translate protocol and transport only. WooCommerce uses the existing price adapter; SnappShop batches at most 50 updates.
+Unified Workspace, Product Pricing, and the legacy Apply facade all submit typed commands to `WritePipelineService`. It is the sole active external write authority and owns authorization context, maintenance enforcement, limiter use, durable pre-dispatch attempts, provider dispatch, exact verification, verified-only cache mutation, and result evidence. No application service calls a provider write method. Provider strategies translate protocol and transport only. WooCommerce uses the existing price adapter; SnappShop batches at most 50 updates. TapsiShop compatibility writes remain `RECONCILIATION_REQUIRED` because the current provider contract has no exact product read-back endpoint.
 
-Only `VERIFIED_APPLIED` means success. HTTP acceptance without an exact Channel, external Listing/variation identity, normalized value, and current-attempt read-back becomes `RECONCILIATION_REQUIRED`; it does not patch cache or emit success audit. Providers without native idempotency use a stable persisted item key plus read-before-retry reconciliation. An uncertain attempt is never blindly redispatched, and its global Listing lock remains until controlled reconciliation verifies the target.
+Every caller uses the same immutable `ProviderWriteAttempt` and append-only attempt-event model. Dispatch intent is committed before provider I/O. Only `VERIFIED_APPLIED` means success. HTTP acceptance without an exact Channel, external Listing/variation identity, normalized value, and current-attempt read-back becomes `RECONCILIATION_REQUIRED`; it does not patch cache or emit success audit. Providers without native idempotency use a stable persisted item key plus read-before-retry reconciliation. An uncertain attempt is never blindly redispatched, and its global Listing lock remains until controlled reconciliation verifies the target.
+
+Running Apply jobs carry worker identity, heartbeat, operation checksum, and lock ownership. Stale-job recovery classifies the latest immutable attempt outcome. Verified items stay verified and complete local cache/audit persistence from the immutable verified payload; dispatched or provider-accepted items become reconciliation-only; pre-dispatch items terminate without provider I/O. Recovery never automatically redispatches.
 
 ## Handsontable
 
@@ -61,7 +63,9 @@ Handsontable is dual-licensed. Development/test may use the vendor's evaluation 
 
 ## Migration guarantees
 
-`FLOWHUB_016` is an additive migration from `FLOWHUB_015`. Its SQLite and PostgreSQL DDL is frozen in a migration-local module and never imports live ORM metadata. Historical snapshots, revisions, review dependencies, currency-profile versions, dispatch attempts/events, and audit entries have database update/delete rejection triggers on both supported databases. Currency configuration changes create new immutable version rows. The downgrade is deliberately non-destructive.
+`FLOWHUB_017` is the additive, forward-only repair migration over `FLOWHUB_016`; migration history is not rewritten. Revision 017 uses explicit migration-local DDL and schema inspection to repair the expected 016 schema and the known earlier 016 variant without importing live ORM metadata. It adds the shared Listing guard, recovery ownership fields, generic provider attempt/event tables, Review currency dependencies, missing integrity constraints, indexes, and mutation-rejection triggers. Historical snapshots, revisions, currency-profile versions, attempts/events, and audit evidence are retained. Currency changes create new immutable profile versions. Downgrade is deliberately non-destructive.
+
+SQLite migration tests are portability evidence only. Production approval requires successful fresh and upgrade execution, trigger checks, foreign-key rejection, and concurrency barriers on a disposable live PostgreSQL instance.
 
 ## Compatibility
 
