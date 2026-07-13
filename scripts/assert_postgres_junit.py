@@ -1,0 +1,54 @@
+"""Fail CI when the PostgreSQL safety manifest is empty, skipped, or incomplete."""
+
+from __future__ import annotations
+
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+REQUIRED_TESTS = (
+    "test_flowhub_017_is_additive_frozen_and_forward_only",
+    "test_flowhub_017_backfills_profiles_preserves_sentinel_and_enforces_immutability",
+    "test_flowhub_017_repairs_legacy_016",
+    "test_flowhub_017_repairs_legacy_business_reference_inventory",
+    "test_flowhub_017_fails_with_precise_orphan_diagnostic",
+    "test_postgresql_immutability_and_foreign_keys",
+    "test_postgresql_upgrade_from_015_preserves_sentinel",
+    "test_postgresql_global_lock_uniqueness_under_concurrency",
+    "test_concurrent_acquisition_has_one_winner_and_loser_cannot_advance",
+    "test_different_channels_acquire_concurrently",
+    "test_hard_process_provider_commit_recovers_without_duplicate_write",
+    "test_hard_process_before_dispatch_is_recoverable_without_provider_write",
+)
+
+
+def main() -> int:
+    report = Path(sys.argv[1] if len(sys.argv) > 1 else "postgres-junit.xml")
+    root = ET.parse(report).getroot()
+    cases = list(root.iter("testcase"))
+    skipped = [case for case in cases if case.find("skipped") is not None]
+    failed = [case for case in cases if case.find("failure") is not None or case.find("error") is not None]
+    names = "\n".join(f"{case.attrib.get('classname', '')}::{case.attrib.get('name', '')}" for case in cases)
+    missing = [needle for needle in REQUIRED_TESTS if needle not in names]
+    print(f"postgres_manifest tests={len(cases)} passed={len(cases)-len(skipped)-len(failed)} failed={len(failed)} skipped={len(skipped)}")
+    if not cases:
+        print("ERROR: PostgreSQL safety manifest collected zero tests")
+        return 1
+    if skipped:
+        print("ERROR: PostgreSQL safety tests were skipped:")
+        for case in skipped:
+            print(f"  {case.attrib.get('classname')}::{case.attrib.get('name')}")
+        return 1
+    if missing:
+        print("ERROR: mandatory PostgreSQL tests were not executed:")
+        for item in missing:
+            print(f"  {item}")
+        return 1
+    if failed:
+        print("ERROR: PostgreSQL safety tests failed")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

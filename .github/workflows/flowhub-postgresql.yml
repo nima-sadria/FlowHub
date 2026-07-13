@@ -24,12 +24,15 @@ jobs:
           --health-retries 20
     env:
       FLOWHUB_ENV: test
+      DATABASE_URL: postgresql+psycopg://flowhub_test:flowhub_test_local_only@127.0.0.1:5432/flowhub_test
       FLOWHUB_DATABASE_URL: postgresql+psycopg://flowhub_test:flowhub_test_local_only@127.0.0.1:5432/flowhub_test
       FLOWHUB_TEST_POSTGRES_URL: postgresql+psycopg://flowhub_test:flowhub_test_local_only@127.0.0.1:5432/flowhub_test
       WC_URL: http://example.invalid
       SNAPPSHOP_BASE_URL: http://example.invalid
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -45,11 +48,36 @@ jobs:
           assert db.path.lstrip('/') == 'flowhub_test'
           assert os.environ['WC_URL'].endswith('.invalid')
           assert os.environ['SNAPPSHOP_BASE_URL'].endswith('.invalid')
+          assert os.environ['FLOWHUB_ENV'] == 'test'
+          print(f"postgres_host={db.hostname} postgres_port={db.port or 5432} postgres_database={db.path.lstrip('/')}")
           print('isolated PostgreSQL and provider targets confirmed')
           PY
+      - name: Wait for PostgreSQL and print version
+        run: |
+          python - <<'PY'
+          import os
+          import psycopg
+          from urllib.parse import urlparse
+          parsed = urlparse(os.environ['FLOWHUB_TEST_POSTGRES_URL'])
+          with psycopg.connect(os.environ['FLOWHUB_TEST_POSTGRES_URL']) as connection:
+              print(connection.execute('SELECT version()').fetchone()[0])
+              print(f"effective_host={parsed.hostname} effective_port={parsed.port or 5432} effective_database={parsed.path.lstrip('/')}")
+          PY
       - name: Migration and PostgreSQL safety tests
-        run: >-
-          python -m pytest -q -m postgres
-          tests/flowhub/migration/test_unified_workspace_016.py
-          tests/flowhub/migration/test_unified_workspace_017.py
-          tests/flowhub/orders/test_order_sync_postgres.py
+        id: postgres-tests
+        run: |
+          python -m pytest -q -ra --strict-markers --junitxml=postgres-junit.xml \
+            tests/flowhub/migration/test_unified_workspace_016.py \
+            tests/flowhub/migration/test_unified_workspace_017.py \
+            tests/flowhub/orders/test_order_sync_postgres.py \
+            tests/flowhub/write_pipeline/test_crash_recovery_process.py
+          python scripts/assert_postgres_junit.py postgres-junit.xml
+      - name: Upload PostgreSQL test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flowhub-postgresql-safety-${{ github.run_id }}
+          path: |
+            postgres-junit.xml
+            .pytest_cache
+          if-no-files-found: warn

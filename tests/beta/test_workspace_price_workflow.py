@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import os
 import asyncio
+import os
 import uuid
 from datetime import datetime, timedelta
 from io import BytesIO
@@ -674,7 +674,10 @@ def test_workspace_preview_returns_422_for_unidentifiable_source_row(
     client, auth_headers, configured_db, monkeypatch
 ):
     from app.flowhub.data_layer.models import DlSourceSnapshot
-    from app.flowhub.sources.spreadsheet_source import SourceImportResult, SpreadsheetSourceReadService
+    from app.flowhub.sources.spreadsheet_source import (
+        SourceImportResult,
+        SpreadsheetSourceReadService,
+    )
 
     _cache_product(configured_db, "701", "Bad Location", "BAD-LOC", "100.00")
     snapshot = DlSourceSnapshot(
@@ -769,6 +772,14 @@ def test_simple_woocommerce_price_workflow_end_to_end_with_mocked_adapter(
         return {
             "provider": "woocommerce",
             "verified": True,
+            # A successful provider read-back must contain the same identity
+            # evidence as the production adapter.  This fixture intentionally
+            # models an exact observation; incomplete observations are covered
+            # by the fail-closed verification regressions elsewhere.
+            "identity_complete": True,
+            "product_id": int(item.channel_product_id),
+            "parent_product_id": None,
+            "variation_id": None,
             "observed_price": item.proposed_price,
             "expected_price": item.proposed_price,
             "verification_error": None,
