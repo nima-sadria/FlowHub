@@ -508,6 +508,13 @@ class ApplyJob(FlowHubBase):
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
     worker_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Monotonic ownership fencing prevents a stale worker from finalizing a
+    # recovered operation.  The token is persisted with the job and must be
+    # presented by every state transition after provider I/O.
+    fencing_token: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lease_token: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    recovery_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     operation_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 

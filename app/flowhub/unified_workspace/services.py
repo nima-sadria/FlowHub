@@ -100,6 +100,7 @@ MAX_SELECTION = 10_000
 MAX_DRAFT_CHANGES = 30_000
 LOCK_MINUTES = 15
 STALE_APPLY_MINUTES = 5
+LEASE_MINUTES = 15
 logger = logging.getLogger("flowhub.unified_workspace")
 
 
@@ -1614,7 +1615,7 @@ class UnifiedWorkspaceService:
             job.status = ApplyState.RUNNING
             job.started_at = utcnow()
             job.heartbeat_at = job.started_at
-            job.worker_id = correlation_id
+            lease_token = self._claim_job_lease(job, correlation_id)
             self._audit(
                 "apply_started",
                 user,
@@ -1643,10 +1644,15 @@ class UnifiedWorkspaceService:
                     correlation_id=correlation_id,
                     requested_by=user.username,
                     intents=intents,
+                    fencing_token=job.fencing_token,
+                    lease_token=lease_token,
                 ),
                 user,
             )
+            self._assert_job_fence(job.id, job.fencing_token, job.lease_token)
+            self._assert_job_lease(job.id, correlation_id, lease_token)
             job.heartbeat_at = utcnow()
+            job.lease_expires_at = utcnow() + timedelta(minutes=LEASE_MINUTES)
             for result in results:
                 affected = grouped[result.listing_id]
                 if result.outcome is WriteOutcome.VERIFIED_APPLIED:
@@ -1660,6 +1666,9 @@ class UnifiedWorkspaceService:
                     self._record_listing_failure(job, result, affected, user)
             self.db.commit()
             job.completed_at = utcnow()
+            job.worker_id = None
+            job.lease_token = None
+            job.lease_expires_at = None
             job.status = (
                 ApplyState.RECONCILIATION_REQUIRED
                 if reconciliation
@@ -1694,6 +1703,17 @@ class UnifiedWorkspaceService:
             self.db.rollback()
             durable_job = self.db.get(ApplyJob, job.id)
             if durable_job:
+                # A recovery worker may have taken ownership while the old
+                # worker was awaiting provider I/O.  The stale worker must not
+                # alter status, locks, cache, or audit after fencing changes.
+                if (
+                    job.fencing_token
+                    and durable_job.fencing_token != job.fencing_token
+                ):
+                    raise self._conflict(
+                        "APPLY_WORKER_FENCED",
+                        "Apply worker ownership changed during execution.",
+                    ) from exc
                 dispatched = (
                     self.db.query(ProviderWriteAttemptEvent.id)
                     .join(
@@ -1785,8 +1805,7 @@ class UnifiedWorkspaceService:
         intents = tuple(
             self._intent_from_immutable_attempt(job, listing_id) for listing_id in sorted(grouped)
         )
-        job.heartbeat_at = utcnow()
-        job.worker_id = correlation_id
+        lease_token = self._claim_job_lease(job, correlation_id)
         for uncertain_item in uncertain_job_items:
             uncertain_item.status = "recovering"
         self.db.commit()
@@ -1800,10 +1819,13 @@ class UnifiedWorkspaceService:
                 correlation_id=correlation_id,
                 requested_by=user.username,
                 intents=intents,
+                fencing_token=job.fencing_token,
+                lease_token=lease_token,
             ),
             user,
             reconcile_only=True,
         )
+        self._assert_job_lease(job.id, correlation_id, lease_token)
         unresolved = 0
         for result in results:
             affected = grouped[result.listing_id]
@@ -1845,10 +1867,23 @@ class UnifiedWorkspaceService:
         cutoff = utcnow() - timedelta(minutes=STALE_APPLY_MINUTES)
         candidates = (
             self.db.query(ApplyJob)
+            .filter(ApplyJob.status.in_([ApplyState.PENDING, ApplyState.RUNNING]))
             .filter(
-                ApplyJob.status == ApplyState.RUNNING,
-                ApplyJob.heartbeat_at.isnot(None),
-                ApplyJob.heartbeat_at < cutoff,
+                (
+                    ApplyJob.lease_expires_at.isnot(None)
+                    & (ApplyJob.lease_expires_at < utcnow())
+                )
+                | (
+                    ApplyJob.lease_expires_at.is_(None)
+                    & (
+                        (ApplyJob.heartbeat_at.isnot(None) & (ApplyJob.heartbeat_at < cutoff))
+                        | (
+                            ApplyJob.heartbeat_at.is_(None)
+                            & ApplyJob.created_at.isnot(None)
+                            & (ApplyJob.created_at < cutoff)
+                        )
+                    )
+                )
             )
             .order_by(ApplyJob.id.asc())
             .with_for_update(skip_locked=True)
@@ -2066,6 +2101,19 @@ class UnifiedWorkspaceService:
         )
         self.db.add(revision)
         if decision == "approved":
+            # Mapping mutations are serialized against Apply and cache writes by
+            # the same stable Listing row guard.  The guard deliberately ignores
+            # lock expiry: an uncertain Apply continues to own the Listing until
+            # reconciliation has completed.
+            try:
+                acquire_listing_guard(self.db, listing.channel_id, listing.id)
+            except ListingGuardConflict as exc:
+                self.db.rollback()
+                raise self._conflict(
+                    "LISTING_MUTATION_LOCKED",
+                    "Listing Mapping cannot change while an Apply owns the Listing.",
+                    {"listingId": listing.id, "channelId": listing.channel_id},
+                ) from exc
             listing.canonical_product_id = product.id
             listing.mapping_state = MappingState.RESOLVED
             listing.mapping_version = revision_number
@@ -2101,18 +2149,39 @@ class UnifiedWorkspaceService:
             raise self._unprocessable(
                 "CHANNEL_NOT_IMPLEMENTED", "Coming Soon Channels cannot refresh cache."
             )
-        active_locks = (
-            self.db.query(WorkspaceLock)
-            .join(Listing, Listing.id == WorkspaceLock.listing_id)
-            .filter(Listing.channel_id == channel_id, WorkspaceLock.expires_at > utcnow())
-            .count()
-        )
-        if active_locks:
-            raise self._conflict(
-                "CACHE_REFRESH_APPLY_CONFLICT",
-                "Channel Cache cannot refresh while overlapping Apply locks are active.",
+        def _guard_cache_row(connector_id: str, external_id: str) -> None:
+            listing = (
+                self.db.query(Listing)
+                .filter_by(channel_id=connector_id, external_primary_id=external_id)
+                .with_for_update()
+                .first()
             )
-        result = await self.commerce.refresh_channel_cache(channel_id, user.username)
+            if listing is not None:
+                try:
+                    acquire_listing_guard(self.db, connector_id, listing.id)
+                except ListingGuardConflict as exc:
+                    raise self._conflict(
+                        "CACHE_REFRESH_APPLY_CONFLICT",
+                        "Channel Cache cannot commit while an Apply owns a Listing.",
+                        {"listingId": listing.id, "channelId": connector_id},
+                    ) from exc
+
+        # The lower Commerce/read engine invokes this hook immediately before
+        # each cache upsert.  It runs in the same SQLAlchemy transaction and
+        # therefore holds the stable Listing row guard through that commit.
+        try:
+            result = await self.commerce.refresh_channel_cache(
+                channel_id,
+                user.username,
+                before_cache_write=_guard_cache_row,
+            )
+        except TypeError as exc:
+            # Keep compatibility with injected legacy Commerce implementations that still
+            # expose the two-argument method.  Real CommerceHubService supports
+            # the guard hook; unrelated provider TypeErrors are never hidden.
+            if "before_cache_write" not in str(exc):
+                raise
+            result = await self.commerce.refresh_channel_cache(channel_id, user.username)
         active_locks = (
             self.db.query(WorkspaceLock)
             .join(Listing, Listing.id == WorkspaceLock.listing_id)
@@ -2132,7 +2201,19 @@ class UnifiedWorkspaceService:
                 .first()
             )
             if listing is not None:
-                self._assert_listing_unlocked(channel_id, listing.id)
+                # Re-acquire the stable Listing row immediately before the
+                # authoritative materialization.  This closes the TOCTOU window
+                # between provider I/O and local cache commit and treats expired
+                # uncertain ownership as still protected.
+                try:
+                    acquire_listing_guard(self.db, channel_id, listing.id)
+                except ListingGuardConflict as exc:
+                    self.db.rollback()
+                    raise self._conflict(
+                        "CACHE_REFRESH_APPLY_CONFLICT",
+                        "Channel Cache cannot commit while an Apply owns a Listing.",
+                        {"listingId": listing.id, "channelId": channel_id},
+                    ) from exc
                 self._materialize_cache_identity(row)
                 synchronized += 1
         self._audit(
@@ -2151,6 +2232,26 @@ class UnifiedWorkspaceService:
         return {"channelId": channel_id, "synchronizedListings": synchronized, "result": result}
 
     # -- Internal policies ----------------------------------------------------
+
+    def _claim_job_lease(self, job: ApplyJob, worker_id: str) -> str:
+        """Take ownership with a monotonic fencing token before provider I/O."""
+        token = f"{worker_id}:{uuid.uuid4().hex}"
+        job.worker_id = worker_id
+        job.lease_token = token
+        job.fencing_token = int(job.fencing_token or 0) + 1
+        job.lease_expires_at = utcnow() + timedelta(minutes=STALE_APPLY_MINUTES * 2)
+        job.recovery_attempts = int(job.recovery_attempts or 0) + 1
+        self.db.flush()
+        return token
+
+    def _assert_job_lease(self, job_id: str, worker_id: str, lease_token: str) -> None:
+        row = self.db.query(ApplyJob).filter_by(id=job_id).one_or_none()
+        if row is None or row.worker_id != worker_id or row.lease_token != lease_token:
+            raise self._conflict(
+                "APPLY_WORKER_FENCED",
+                "Apply worker lease was superseded by recovery.",
+                {"applyJobId": job_id},
+            )
 
     def _seed_channels(self) -> None:
         definitions = {
@@ -2618,9 +2719,14 @@ class UnifiedWorkspaceService:
         }
 
     def _recover_job_if_stale(self, job: ApplyJob, user: FlowHubUser, correlation_id: str) -> bool:
-        if job.status != ApplyState.RUNNING:
+        # PENDING and RUNNING are both recoverable states.  A process can die
+        # after either the job row or the Listing locks are committed but before
+        # the first ProviderWriteAttempt exists.  Never leave those jobs inert:
+        # without durable dispatch evidence they are deterministically safe to
+        # terminate and release their locks.
+        if job.status not in {ApplyState.PENDING, ApplyState.RUNNING}:
             return False
-        heartbeat = job.heartbeat_at or job.started_at
+        heartbeat = job.heartbeat_at or job.started_at or job.created_at
         if heartbeat is None or heartbeat >= utcnow() - timedelta(minutes=STALE_APPLY_MINUTES):
             return False
         attempts = (
@@ -2630,9 +2736,28 @@ class UnifiedWorkspaceService:
             .all()
         )
         if not attempts:
-            return False
+            self._claim_job_lease(job, correlation_id)
+            job.status = ApplyState.FAILED
+            job.completed_at = utcnow()
+            self._release_listing_locks(job.id)
+            self._audit(
+                "apply_stale_pre_dispatch_recovered",
+                user,
+                correlation_id,
+                workspace_id=job.workspace_id,
+                snapshot_id=job.snapshot_id,
+                draft_revision_id=job.draft_revision_id,
+                review_id=job.review_id,
+                apply_job_id=job.id,
+                apply_result=ApplyState.FAILED,
+                reason="Worker stopped before durable provider dispatch intent.",
+                metadata={"redispatch_allowed": False},
+            )
+            self.db.commit()
+            return True
         uncertain_item_ids: set[str] = set()
         recovered_verified_item_ids: set[str] = set()
+        self._claim_job_lease(job, correlation_id)
         for attempt in attempts:
             latest = (
                 self.db.query(ProviderWriteAttemptEvent)
@@ -2693,6 +2818,8 @@ class UnifiedWorkspaceService:
                 item.retry_eligible = False
         job.status = self._apply_status_from_items(job.id)
         job.worker_id = None
+        job.lease_token = None
+        job.lease_expires_at = None
         job.heartbeat_at = utcnow()
         if job.status != ApplyState.RECONCILIATION_REQUIRED:
             job.completed_at = utcnow()
@@ -2829,23 +2956,37 @@ class UnifiedWorkspaceService:
             raise
 
     def _assert_listing_unlocked(self, channel_id: str, listing_id: str) -> None:
-        active = (
-            self.db.query(WorkspaceLock)
-            .filter_by(channel_id=channel_id, listing_id=listing_id)
-            .filter(WorkspaceLock.expires_at > utcnow())
-            .first()
-        )
-        if active is not None:
+        try:
+            acquire_listing_guard(self.db, channel_id, listing_id)
+        except ListingGuardConflict as exc:
             raise self._conflict(
                 "LISTING_MUTATION_LOCKED",
                 "Listing Mapping or Cache cannot change during Apply.",
-                {"listingId": listing_id},
-            )
+                {"listingId": listing_id, "channelId": channel_id},
+            ) from exc
 
     def _release_listing_locks(self, apply_job_id: str) -> None:
         self.db.query(WorkspaceLock).filter_by(apply_job_id=apply_job_id).delete(
             synchronize_session=False
         )
+
+    def _assert_job_fence(
+        self, job_id: str, fencing_token: int | None, lease_token: str | None
+    ) -> None:
+        """Fail closed when a recovery worker has superseded this worker."""
+        if fencing_token is None or not lease_token:
+            return
+        job = self.db.get(ApplyJob, job_id)
+        if (
+            job is None
+            or job.fencing_token != fencing_token
+            or job.lease_token != lease_token
+            or job.worker_id is None
+        ):
+            raise self._conflict(
+                "APPLY_WORKER_FENCED",
+                "Apply worker ownership changed; the operation requires recovery.",
+            )
 
     def _cache_max_age_minutes(self) -> int:
         raw = self.config.get("workspace.channel_cache_max_age_minutes") or "60"

@@ -45,6 +45,32 @@ def test_all_active_workflows_use_the_provider_neutral_attempt_model() -> None:
     assert "ApplyAttempt(" not in pipeline
 
 
+def test_legacy_execute_is_only_a_compatibility_facade() -> None:
+    """The legacy endpoint must not contain a second provider state machine."""
+    pipeline = (ROOT / "app/flowhub/write_pipeline/service.py").read_text(
+        encoding="utf-8"
+    )
+    execute_start = pipeline.index("    async def execute(")
+    execute_end = pipeline.index("    def _legacy_listing_id", execute_start)
+    legacy_body = pipeline[execute_start:execute_end]
+    assert "execute_workspace(" in legacy_body
+    assert ".execute_item(" not in legacy_body
+    assert "ProviderWriteAttempt(" not in legacy_body
+    assert "ProviderWriteAttemptEvent(" not in legacy_body
+
+
+def test_legacy_adapter_payload_has_stable_attempt_identity() -> None:
+    pipeline = (ROOT / "app/flowhub/write_pipeline/service.py").read_text(
+        encoding="utf-8"
+    )
+    helper_start = pipeline.index("    def _legacy_batch_command(")
+    helper_end = pipeline.index("    async def execute_workspace(", helper_start)
+    helper = pipeline[helper_start:helper_end]
+    assert "payload_hash" in helper
+    assert "idempotency_key" in helper
+    assert 'source_workflow="legacy_write_pipeline"' in helper
+
+
 def test_production_entrypoint_excludes_legacy_compatibility_writes() -> None:
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     assert "app.flowhub.app:app" in dockerfile

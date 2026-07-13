@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from app.connectors.common.errors import ConnectorError
 from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
 from app.flowhub.channels.contracts import ChannelIdentifierSet, ChannelProductUpdate
 from app.flowhub.commerce.service import CommerceHubService
@@ -148,6 +149,28 @@ class WooCommerceWorkspaceConnector:
             self.validate_update(update)
             try:
                 response = await adapter.execute_item(_WooWriteItem(update), context)
+            except ConnectorError as exc:
+                # Deterministic provider rejections (authentication,
+                # permission, validation, or not-found) did not create an
+                # external state transition and are terminal failures.  Only
+                # transport/timeout uncertainty requires verification-only
+                # reconciliation.
+                deterministic = exc.code.value in {
+                    "auth_failed",
+                    "permission",
+                    "not_found",
+                    "provider_error",
+                }
+                results.append(
+                    ListingUpdateResult(
+                        listing_id=update.listing_id,
+                        outcome=(WriteOutcome.FAILED if deterministic else WriteOutcome.RECONCILIATION_REQUIRED),
+                        response={},
+                        error_category=exc.code.value,
+                        error_message=self.pricing._safe_error(exc),
+                        retry_eligible=bool(exc.retryable),
+                    )
+                )
             except Exception as exc:
                 results.append(
                     ListingUpdateResult(

@@ -4,7 +4,6 @@ import re
 import subprocess
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 TERMS = [
     "be" + "ta",
@@ -61,6 +60,15 @@ INTERNAL_TERM_PATTERNS = {
     ),
     "frontend/src/services/types.ts": (
         r'\bplaceholder:\s*boolean\b',
+    ),
+    # This exact Handsontable evaluation token is a security validation
+    # constant: the resolver must reject it in Production while permitting it
+    # only in development/test.  Allowing this one line does not weaken the
+    # repository-wide release-term scan for other production literals.
+    "frontend/src/features/unifiedWorkspace/handsontableLicense.ts": (
+        r"EVALUATION_KEY",
+        r"non-commercial-and-evaluation",
+        r"placeholder",
     ),
 }
 

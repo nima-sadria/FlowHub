@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from collections.abc import Callable
 from datetime import datetime
 from time import monotonic
 from urllib.parse import urlparse
@@ -17,9 +18,9 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
-from app.connectors.read.woocommerce import WooCommerceProductReadAdapter
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import ping as ping_woocommerce
+from app.connectors.read.woocommerce import WooCommerceProductReadAdapter
 from app.flowhub.channels.snappshop import (
     SNAPPSHOP_BASE_URL,
     SNAPPSHOP_DEFAULT_AGENT_HEADER,
@@ -35,16 +36,16 @@ from app.flowhub.channels.tapsishop import (
     TapsiShopConnector,
     TapsiShopConnectorError,
 )
-from app.flowhub.config.values import parse_config_bool
-from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
-from app.flowhub.data_layer.health_service import ConnectorHealthService
-from app.flowhub.integrations.errors import IntegrationError
-from app.flowhub.integrations.nextcloud import NextcloudClient
 from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
+from app.flowhub.config.values import parse_config_bool
+from app.flowhub.data_layer.health_service import ConnectorHealthService
+from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
 from app.flowhub.integration_platform.contracts import ConnectorCapabilities
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.registry import registry
 from app.flowhub.integration_platform.service import IntegrationPlatformService
+from app.flowhub.integrations.errors import IntegrationError
+from app.flowhub.integrations.nextcloud import NextcloudClient
 from app.flowhub.read_engine.manual import ManualReadService
 from app.flowhub.read_engine.service import IncrementalReadEngine
 from app.flowhub.security.upstream_errors import UpstreamServiceError, normalize_upstream_error
@@ -253,7 +254,13 @@ class CommerceHubService:
             return await self._test_tapsishop_channel_connection(configured, body)
         return self._unsupported_connection_result()
 
-    async def refresh_channel_cache(self, channel_id: str, actor: str) -> dict:
+    async def refresh_channel_cache(
+        self,
+        channel_id: str,
+        actor: str,
+        *,
+        before_cache_write: Callable[[str, str], None] | None = None,
+    ) -> dict:
         meta = self._channel_meta(channel_id)
         provider = str(meta["provider"])
         if provider == "snappshop" and not bool(meta.get("placeholder")):
@@ -290,6 +297,7 @@ class CommerceHubService:
                 adapter,
                 triggered_by=actor,
                 force_full=True,
+                before_cache_write=before_cache_write,
             )
             warnings = list(adapter.warnings)
             result_status = "completed_with_warnings" if warnings else "completed"
@@ -339,7 +347,6 @@ class CommerceHubService:
             return result
 
     async def _refresh_snappshop_channel_cache(self, channel_id: str, actor: str) -> dict:
-        meta = self._channel_meta(channel_id)
         instance = self.db.get(IntegrationConnectorInstance, channel_id)
         if instance is None or not instance.enabled:
             raise HTTPException(

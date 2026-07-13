@@ -23,6 +23,7 @@ from app.flowhub.product_pricing.models import ProductPriceOperation, ProductPri
 from app.flowhub.security.redaction import redact_sensitive
 from app.flowhub.security.upstream_errors import normalize_upstream_error
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: F401
 from app.flowhub.write_pipeline.service import WritePipelineService
 from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
 

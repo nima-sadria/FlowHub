@@ -890,6 +890,9 @@ def test_apply_records_read_back_verification_and_audit_metadata(client, auth_he
         return {
             "provider": "woocommerce",
             "verified": True,
+            "product_id": int(item.channel_product_id),
+            "parent_product_id": None,
+            "variation_id": None,
             "observed_price": 110.0,
             "expected_price": item.proposed_price,
             "verification_error": None,
@@ -948,6 +951,9 @@ def test_apply_records_variation_audit_metadata(client, auth_headers, db, monkey
         return {
             "provider": "woocommerce",
             "verified": True,
+            "product_id": 201,
+            "parent_product_id": 100,
+            "variation_id": 201,
             "observed_price": 132.0,
             "expected_price": item.proposed_price,
             "verification_error": None,
@@ -1001,7 +1007,15 @@ def test_partial_failure_is_recorded_with_safe_provider_error(client, auth_heade
         return {"provider": "woocommerce", "product_id": item.channel_product_id, "regular_price": "110.00"}
 
     async def fake_verify(_adapter, item, _context):
-        return {"verified": True, "observed_price": 110.0, "expected_price": item.proposed_price}
+        return {
+            "provider": "woocommerce",
+            "verified": True,
+            "product_id": int(item.channel_product_id),
+            "parent_product_id": None,
+            "variation_id": None,
+            "observed_price": 110.0,
+            "expected_price": item.proposed_price,
+        }
 
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "verify_item", fake_verify)

@@ -4,10 +4,16 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.flowhub.database import FlowHubBase
+from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: F401
+
+# Register the shared durable-attempt tables whenever the Product Pricing
+# aggregate is imported.  Product Pricing is a compatibility façade over the
+# shared Write Pipeline, so isolated metadata creation (including tests and
+# operator tooling) must include those tables as well.
 
 
 def _utcnow() -> datetime:
@@ -31,7 +37,7 @@ class ProductPriceOperation(FlowHubBase):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     applied_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    items: Mapped[list["ProductPriceOperationItem"]] = relationship(
+    items: Mapped[list[ProductPriceOperationItem]] = relationship(
         "ProductPriceOperationItem",
         back_populates="operation",
         cascade="all, delete-orphan",

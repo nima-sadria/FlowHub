@@ -7,6 +7,7 @@ schedule, auto-sync, or retry in a loop.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from hashlib import sha256
@@ -33,6 +34,9 @@ class ReadProgress:
     products_stored: int
     remaining_queue: int
     estimated_completion_seconds: float | None
+    # Number of rows is intentionally not the authoritative cache state; this
+    # optional staging hook is invoked immediately before each upsert so callers
+    # can hold their Listing guard through the transaction commit.
 
 
 class IncrementalReadEngine:
@@ -68,6 +72,7 @@ class IncrementalReadEngine:
         *,
         triggered_by: str = "manual",
         force_full: bool = False,
+        before_cache_write: Callable[[str, str], None] | None = None,
     ) -> ReadProgress:
         strategy = "initial_full_read" if force_full else self.determine_strategy(adapter)
         job = self._resume_or_create_job(
@@ -106,6 +111,8 @@ class IncrementalReadEngine:
                     product_id = self._product_id(item)
                     if not product_id or product_id in seen_product_ids:
                         continue
+                    if before_cache_write is not None:
+                        before_cache_write(adapter.connector_id, product_id)
                     self._store_product(adapter.connector_id, item)
                     seen_product_ids.add(product_id)
                     products_stored += 1

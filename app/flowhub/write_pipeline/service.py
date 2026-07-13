@@ -13,7 +13,7 @@ import math
 import uuid
 from datetime import datetime
 from hashlib import sha256
-from typing import Any, Protocol, cast
+from typing import Any, Protocol
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -247,164 +247,132 @@ class WritePipelineService:
         return self._batch_shape(batch)
 
     async def execute(self, batch_id: str, user: FlowHubUser) -> WritePipelineBatchShape:
+        """Execute an approved legacy batch through the shared durable engine.
+
+        This method intentionally remains a compatibility facade for the v1
+        Write Pipeline API.  It creates immutable provider-neutral intents and
+        delegates all provider I/O, verification, attempt persistence, and
+        reconciliation to :meth:`execute_workspace`.
+        """
         batch = self._get_batch(batch_id)
-        if batch.status != "approved":
+        resumable_status = batch.status in {"executing", "reconciliation_required"}
+        if batch.status != "approved" and not resumable_status:
             raise HTTPException(
                 status.HTTP_409_CONFLICT, "Apply requires a separate approved Dry Run."
             )
         self._assert_batch_hash_matches(batch)
-        adapter = self._adapter_for(batch.channel_id, batch.operation_type)
-        self._assert_channel_write_enabled(batch)
-        capabilities = adapter.get_capabilities()
-        context = ChannelWriteContext(get_setting=self.config.get, requested_by=user.username)
-        rate_limits = RateLimitService(self.db)
-        batch.status = "executing"
-        self._record_event(
-            batch.id,
-            "execution_started",
-            "Apply started from an approved Dry Run.",
-            metadata={"approved_by": batch.approved_by, "requested_by": user.username},
-            commit=False,
+        # Resolve capability before access mode so unsupported channels fail
+        # closed consistently with the historical endpoint contract.
+        self._adapter_for(batch.channel_id, batch.operation_type)
+        correlation_id = self._legacy_correlation_id(batch) or f"corr_{uuid.uuid4().hex[:28]}"
+        if not resumable_status:
+            # Keep the state transition in the same transaction as the first
+            # immutable ProviderWriteAttempt.  A process death here therefore
+            # leaves the approved batch retryable, never an inert executing
+            # batch without durable dispatch evidence.
+            batch.status = "executing"
+            self._record_event(
+                batch.id,
+                "execution_started",
+                "Apply started from an approved Dry Run.",
+                metadata={
+                    "approved_by": batch.approved_by,
+                    "requested_by": user.username,
+                    "correlation_id": correlation_id,
+                    "source_workflow": "legacy_write_pipeline",
+                },
+                correlation_id=correlation_id,
+                commit=False,
+            )
+        command = self._legacy_batch_command(batch, user, correlation_id)
+        has_attempts = (
+            self.db.query(ProviderWriteAttempt.id)
+            .filter(
+                ProviderWriteAttempt.source_workflow == "legacy_write_pipeline",
+                ProviderWriteAttempt.operation_id == batch.id,
+            )
+            .first()
+            is not None
         )
-        self.db.commit()
-
-        success_count = 0
-        failure_count = 0
-        verified_count = 0
-        unverified_count = 0
-        verification_warning_count = 0
+        # Recovery is verification-only when durable dispatch evidence exists;
+        # it must remain possible even if a channel has since been switched to
+        # read-only mode.  A resumable batch without an attempt still needs the
+        # original write gate before it can create a new dispatch intent.
+        if not resumable_status or not has_attempts:
+            self._assert_channel_write_enabled(batch)
+        results = await self.execute_workspace(
+            command,
+            user,
+            reconcile_only=resumable_status and has_attempts,
+        )
+        results_by_listing = {result.listing_id: result for result in results}
+        success_count = failure_count = reconciliation_count = 0
         for item in batch.items:
-            try:
-                await rate_limits.acquire(
-                    batch.channel_id, "write", connector_type=capabilities.channel_type
-                )
-                provider_result = _safe_provider_result(await adapter.execute_item(item, context))
-            except ConnectorError as exc:
-                failure_count += 1
+            result = results_by_listing.get(self._legacy_listing_id(item, batch.channel_id))
+            if result is None:
                 item.status = "failed"
-                item.error_code = exc.code.value
-                item.error_message = str(
-                    normalize_upstream_error(exc, source="woocommerce")["message"]
-                )
-                self._record_event(
-                    batch.id,
-                    "item_failed",
-                    item.error_message,
-                    item_id=item.id,
-                    severity="error",
-                    metadata={
-                        "provider": exc.provider,
-                        "http_status": exc.http_status,
-                        "actor": user.username,
-                        "channel_id": batch.channel_id,
-                        "batch_id": batch.id,
-                        "product_id": item.channel_product_id,
-                        "sku": item.sku,
-                        "old_price": item.current_price,
-                        "new_price": item.proposed_price,
-                        "status": item.status,
-                        "source": _item_source(item),
-                        "item_type": _item_type(item),
-                        "parent_product_id": _parent_product_id(item),
-                        "variation_id": _variation_id(item),
-                        "variation_attributes": _variation_attributes(item),
-                    },
-                    commit=False,
-                )
-            except Exception as exc:  # pragma: no cover - defensive adapter boundary
+                item.error_code = "provider_contract"
+                item.error_message = "Shared Write Pipeline returned no result for the item."
                 failure_count += 1
-                item.status = "failed"
-                item.error_code = "unexpected_error"
-                item.error_message = str(
-                    normalize_upstream_error(exc, source="woocommerce")["message"]
-                )
-                self._record_event(
-                    batch.id,
-                    "item_failed",
-                    item.error_message,
-                    item_id=item.id,
-                    severity="error",
-                    metadata={
-                        "provider": capabilities.channel_type,
-                        "actor": user.username,
-                        "channel_id": batch.channel_id,
-                        "batch_id": batch.id,
-                        "product_id": item.channel_product_id,
-                        "sku": item.sku,
-                        "old_price": item.current_price,
-                        "new_price": item.proposed_price,
-                        "status": item.status,
-                        "source": _item_source(item),
-                        "item_type": _item_type(item),
-                        "parent_product_id": _parent_product_id(item),
-                        "variation_id": _variation_id(item),
-                        "variation_attributes": _variation_attributes(item),
-                    },
-                    commit=False,
-                )
-            else:
-                verification = await self._verify_applied_item(adapter, item, context)
-                provider_result["verification"] = verification
-                item.provider_result_json = _safe_provider_result(provider_result)
-                if verification.get("verified") is not True:
-                    failure_count += 1
-                    unverified_count += 1
-                    verification_warning_count += 1
-                    item.status = "reconciliation_required"
-                    item.error_code = "read_back_unverified"
-                    item.error_message = (
-                        "Provider accepted the write, but exact read-back verification failed."
-                    )
-                    self._record_event(
-                        batch.id,
-                        "item_reconciliation_required",
-                        item.error_message,
-                        item_id=item.id,
-                        severity="error",
-                        metadata={
-                            "actor": user.username,
-                            "channel_id": batch.channel_id,
-                            "batch_id": batch.id,
-                            "product_id": item.channel_product_id,
-                            "verification": verification,
-                            "provider_accepted": True,
-                        },
-                        commit=False,
-                    )
-                    continue
-                success_count += 1
-                verified_count += 1
+                event_type = "item_failed"
+            elif result.outcome is WriteOutcome.VERIFIED_APPLIED:
                 item.status = "applied"
-                self._record_event(
-                    batch.id,
-                    "item_applied",
-                    "Channel price update applied.",
-                    item_id=item.id,
-                    metadata={
-                        "provider": capabilities.channel_type,
-                        "stock_update": False,
-                        "actor": user.username,
-                        "channel_id": batch.channel_id,
-                        "batch_id": batch.id,
-                        "product_id": item.channel_product_id,
-                        "sku": item.sku,
-                        "old_price": item.current_price,
-                        "new_price": item.proposed_price,
-                        "status": item.status,
-                        "result": _safe_provider_result(provider_result),
-                        "verification": verification,
-                        "source": _item_source(item),
-                        "item_type": _item_type(item),
-                        "parent_product_id": _parent_product_id(item),
-                        "variation_id": _variation_id(item),
-                        "variation_attributes": _variation_attributes(item),
-                    },
-                    commit=False,
-                )
-
+                item.error_code = None
+                item.error_message = None
+                item.provider_result_json = _safe_provider_result(result.response)
+                success_count += 1
+                event_type = "item_applied"
+            elif result.outcome is WriteOutcome.RECONCILIATION_REQUIRED:
+                item.status = "reconciliation_required"
+                item.error_code = result.error_category or "read_back_unverified"
+                item.error_message = result.error_message or "Provider state requires reconciliation."
+                item.provider_result_json = _safe_provider_result(result.response)
+                reconciliation_count += 1
+                event_type = "item_reconciliation_required"
+            else:
+                item.status = "failed"
+                item.error_code = result.error_category or "provider_error"
+                item.error_message = result.error_message or "Provider write failed."
+                item.provider_result_json = _safe_provider_result(result.response)
+                failure_count += 1
+                event_type = "item_failed"
+            self._record_event(
+                batch.id,
+                event_type,
+                item.error_message or "Channel price update applied.",
+                item_id=item.id,
+                severity="error" if event_type != "item_applied" else "info",
+                metadata={
+                    "provider": batch.channel_type,
+                    "actor": user.username,
+                    "channel_id": batch.channel_id,
+                    "batch_id": batch.id,
+                    "product_id": item.channel_product_id,
+                    "sku": item.sku,
+                    "old_price": item.current_price,
+                    "new_price": item.proposed_price,
+                    "status": item.status,
+                    "result": _safe_provider_result(result.response) if result else {},
+                    "verification": _safe_provider_result(result.response).get("verification") if result else None,
+                    "source": _item_source(item),
+                    "item_type": _item_type(item),
+                    "parent_product_id": _parent_product_id(item),
+                    "variation_id": _variation_id(item),
+                    "variation_attributes": _variation_attributes(item),
+                    "correlation_id": correlation_id,
+                },
+                correlation_id=correlation_id,
+                commit=False,
+            )
         batch.executed_at = datetime.utcnow()
         batch.status = (
-            "applied" if failure_count == 0 else "partially_failed" if success_count else "failed"
+            "applied"
+            if failure_count == 0 and reconciliation_count == 0
+            else "reconciliation_required"
+            if reconciliation_count and success_count == 0
+            else "partially_failed"
+            if success_count
+            else "failed"
         )
         self._record_event(
             batch.id,
@@ -416,19 +384,104 @@ class WritePipelineService:
                 "batch_id": batch.id,
                 "success_count": success_count,
                 "failure_count": failure_count,
-                "warning_count": verification_warning_count,
-                "verified_count": verified_count,
-                "unverified_count": unverified_count,
+                "warning_count": reconciliation_count,
+                "verified_count": success_count,
+                "unverified_count": reconciliation_count,
                 "skipped_count": (batch.safety_summary_json or {}).get("skipped_rows", 0),
                 "scheduler_started": False,
                 "automatic_apply": False,
                 "stock_update": False,
             },
+            correlation_id=correlation_id,
             commit=False,
         )
         self.db.commit()
         self.db.refresh(batch)
         return self._batch_shape(batch)
+
+    def _legacy_correlation_id(self, batch: WriteBatch) -> str | None:
+        """Recover the original correlation id after a worker restart."""
+        for event in reversed(batch.events):
+            if event.correlation_id:
+                return event.correlation_id
+            metadata = event.metadata_json or {}
+            value = metadata.get("correlation_id")
+            if isinstance(value, str) and value:
+                return value
+        return None
+
+    def _legacy_listing_id(self, item: WriteItem, channel_id: str | None = None) -> str:
+        """Return a stable listing identity for a legacy batch item."""
+        return f"legacy:{channel_id or 'woocommerce:primary'}:{item.channel_product_id}"
+
+    def _legacy_batch_command(
+        self, batch: WriteBatch, user: FlowHubUser, correlation_id: str
+    ) -> WorkspaceWriteBatchCommand:
+        """Adapt approved legacy rows to immutable provider-neutral intents."""
+        intents: list[WorkspaceWriteIntent] = []
+        for item in batch.items:
+            listing_id = self._legacy_listing_id(item, batch.channel_id)
+            snapshot = item.pre_write_snapshot_json or {}
+            payload_seed = {
+                "batch_id": batch.id,
+                "item_id": str(item.id),
+                "listing_id": listing_id,
+                "channel_id": batch.channel_id,
+                "external_primary_id": item.channel_product_id,
+                "field": "price",
+                "target_price": item.proposed_price,
+                "currency": item.currency,
+                "source_fingerprint": snapshot.get("source_fingerprint", ""),
+            }
+            payload_hash = sha256(
+                json.dumps(payload_seed, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            idempotency_key = sha256(
+                f"legacy-write-pipeline:{batch.id}:{item.id}:{payload_hash}".encode()
+            ).hexdigest()
+            intents.append(
+                WorkspaceWriteIntent(
+                    apply_job_id=batch.id,
+                    apply_item_ids=(str(item.id),),
+                    workspace_id=f"legacy:{batch.id}",
+                    snapshot_id=batch.source_preview_id or batch.batch_hash,
+                    draft_revision_id=batch.id,
+                    review_id=batch.source_preview_id or batch.id,
+                    selection_checksum=batch.batch_hash,
+                    listing_id=listing_id,
+                    channel_id=batch.channel_id,
+                    external_primary_id=item.channel_product_id,
+                    sku=item.sku or None,
+                    product_type=_item_type(item),
+                    parent_external_id=_parent_product_id(item),
+                    current_price=item.current_price,
+                    current_stock=None,
+                    current_status=None,
+                    target_price=item.proposed_price,
+                    target_stock=None,
+                    target_status=None,
+                    currency=item.currency,
+                    unit=item.currency,
+                    mapping_version=0,
+                    cache_version=0,
+                    cache_checksum=str(snapshot.get("source_fingerprint") or ""),
+                    capability_version="legacy-write-pipeline-v1",
+                    currency_digest=sha256(item.currency.encode()).hexdigest(),
+                    idempotency_key=idempotency_key,
+                    payload_hash=payload_hash,
+                )
+            )
+        return WorkspaceWriteBatchCommand(
+            workspace_id=f"legacy:{batch.id}",
+            snapshot_id=batch.source_preview_id or batch.batch_hash,
+            draft_revision_id=batch.id,
+            review_id=batch.source_preview_id or batch.id,
+            selection_checksum=batch.batch_hash,
+            correlation_id=correlation_id,
+            requested_by=user.username,
+            intents=tuple(intents),
+            source_workflow="legacy_write_pipeline",
+        )
 
     async def execute_workspace(
         self,
@@ -445,6 +498,10 @@ class WritePipelineService:
         factory = WorkspaceConnectorFactory(
             ProductPricingService(self.db), CommerceHubService(self.db)
         )
+        self._assert_workspace_fence(command)
+        # Canonical Workspace attempts use source_workflow="unified_workspace";
+        # compatibility callers override it without creating another engine.
+        workflow = command.source_workflow or "unified_workspace"
         rate_limits = RateLimitService(self.db)
         attempts: dict[str, ProviderWriteAttempt] = {}
         prior_attempts: set[str] = set()
@@ -452,7 +509,7 @@ class WritePipelineService:
             existing = (
                 self.db.query(ProviderWriteAttempt)
                 .filter_by(
-                    source_workflow="unified_workspace",
+                    source_workflow=workflow,
                     operation_id=intent.apply_job_id,
                     logical_item_id=intent.apply_item_ids[0],
                     payload_hash=intent.payload_hash,
@@ -470,12 +527,21 @@ class WritePipelineService:
                 )
             attempt = ProviderWriteAttempt(
                 id=f"pwa_{uuid.uuid4().hex[:28]}",
-                source_workflow="unified_workspace",
+                source_workflow=workflow,
                 operation_id=intent.apply_job_id,
                 logical_item_id=intent.apply_item_ids[0],
-                workspace_id=intent.workspace_id,
-                apply_job_id=intent.apply_job_id,
-                apply_job_item_id=intent.apply_item_ids[0],
+                workspace_id=(
+                    intent.workspace_id if workflow == "unified_workspace" else None
+                ),
+                # Legacy/Product Pricing operations are not rows in the
+                # Workspace Apply aggregate.  Keep the provider-neutral
+                # operation identity in operation_id while leaving the
+                # optional Workspace foreign keys NULL so PostgreSQL FK
+                # enforcement remains valid for compatibility callers.
+                apply_job_id=(intent.apply_job_id if workflow == "unified_workspace" else None),
+                apply_job_item_id=(
+                    intent.apply_item_ids[0] if workflow == "unified_workspace" else None
+                ),
                 listing_id=intent.listing_id,
                 channel_id=intent.channel_id,
                 external_identity=intent.external_primary_id,
@@ -503,13 +569,24 @@ class WritePipelineService:
             grouped.setdefault(intent.channel_id, []).append(intent)
         results: list[WorkspaceWriteResult] = []
         for channel_id, intents in grouped.items():
-            connector = factory.get(channel_id)
-            reconcile = reconcile_only or all(
-                intent.listing_id in prior_attempts for intent in intents
+            connector = (
+                factory.get_product_pricing(channel_id)
+                if workflow == "product_pricing"
+                else factory.get(channel_id)
             )
-            if not reconcile:
+            # A mixed retry must never redispatch an item whose durable intent
+            # already exists.  Dispatch only new intents and verify prior ones
+            # independently, even when they share a provider batch.
+            pending_intents = [
+                intent for intent in intents if intent.listing_id not in prior_attempts
+            ]
+            prior_intents = [
+                intent for intent in intents if intent.listing_id in prior_attempts
+            ]
+            channel_results: list[WorkspaceWriteResult] = []
+            if pending_intents and not reconcile_only:
                 try:
-                    for _intent in intents:
+                    for _intent in pending_intents:
                         await rate_limits.acquire(
                             channel_id,
                             "write",
@@ -524,10 +601,10 @@ class WritePipelineService:
                             error_message=str(exc),
                             retry_eligible=True,
                         )
-                        for intent in intents
+                        for intent in pending_intents
                     ]
                 else:
-                    for intent in intents:
+                    for intent in pending_intents:
                         self.db.add(
                             ProviderWriteAttemptEvent(
                                 id=f"pwe_{uuid.uuid4().hex[:28]}",
@@ -539,7 +616,7 @@ class WritePipelineService:
                     self.db.commit()
                     try:
                         channel_results = await connector.apply_updates(
-                            intents, requested_by=command.requested_by
+                            pending_intents, requested_by=command.requested_by
                         )
                     except Exception as exc:
                         channel_results = [
@@ -549,13 +626,20 @@ class WritePipelineService:
                                 error_category="provider_unknown",
                                 error_message=str(exc),
                             )
-                            for intent in intents
+                            for intent in pending_intents
                         ]
-            else:
-                channel_results = await connector.verify_updates(
-                    intents, requested_by=command.requested_by
+            if prior_intents or reconcile_only:
+                verify_intents = intents if reconcile_only else prior_intents
+                channel_results.extend(
+                    await connector.verify_updates(
+                        verify_intents, requested_by=command.requested_by
+                    )
                 )
             for result in channel_results:
+                # Provider I/O may outlive the original worker lease.  Recheck
+                # ownership before persisting any outcome so a stale worker
+                # cannot finalize an operation after recovery has fenced it.
+                self._assert_workspace_fence(command)
                 attempt = attempts[result.listing_id]
                 if result.provider_accepted:
                     self.db.add(
@@ -580,24 +664,28 @@ class WritePipelineService:
             self.db.commit()
         return results
 
+    def _assert_workspace_fence(self, command: WorkspaceWriteBatchCommand) -> None:
+        """Fail closed when Apply ownership changed during provider I/O."""
+        if command.fencing_token is None or not command.lease_token:
+            return
+        from app.flowhub.unified_workspace.models import ApplyJob
+
+        job = self.db.get(ApplyJob, command.intents[0].apply_job_id) if command.intents else None
+        if (
+            job is None
+            or job.fencing_token != command.fencing_token
+            or job.lease_token != command.lease_token
+            or job.worker_id is None
+        ):
+            raise RuntimeError("workspace_apply_worker_fenced")
+
     async def execute_product_pricing_item(
         self,
         item: Any,
         user: FlowHubUser,
     ) -> WorkspaceWriteResult:
-        """Execute a compatibility Product Pricing item through the shared authority.
-
-        The Product Pricing operation item is the durable pre-dispatch intent for this
-        compatibility facade.  A repeated call is verification-only: an uncertain
-        provider outcome is never automatically dispatched again.
-        """
-        from app.flowhub.commerce.service import CommerceHubService
+        """Adapt one Product Pricing item to the shared durable engine."""
         from app.flowhub.data_layer.models import DlProductCache
-        from app.flowhub.product_pricing.service import ProductPricingService
-        from app.flowhub.unified_workspace.connectors import (
-            ListingUpdate,
-            WorkspaceConnectorFactory,
-        )
         from app.flowhub.unified_workspace.listing_guard import acquire_listing_guard
         from app.flowhub.unified_workspace.models import Listing
 
@@ -620,13 +708,14 @@ class WritePipelineService:
             )
             .one_or_none()
         )
-        typed_cache = cast(_ProductCacheView | None, cache)
+        typed_cache = cache
         identity = f"{item.channel_id}:{item.channel_product_id}"
+        listing_id = listing.id if listing is not None else identity
         payload = {
             "operation_id": item.operation_id,
             "source_workflow": "product_pricing",
             "channel_id": item.channel_id,
-            "listing_id": listing.id if listing is not None else identity,
+            "listing_id": listing_id,
             "external_primary_id": item.channel_product_id,
             "sku": item.sku or None,
             "field_changes": {"price": item.proposed_value},
@@ -641,68 +730,19 @@ class WritePipelineService:
         payload_hash = sha256(
             json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
-        attempt = (
-            self.db.query(ProviderWriteAttempt)
-            .filter_by(
-                source_workflow="product_pricing",
-                operation_id=item.operation_id,
-                logical_item_id=str(item.id),
-                payload_hash=payload_hash,
-            )
-            .order_by(ProviderWriteAttempt.attempt_number.desc())
-            .first()
-        )
-        repeat = attempt is not None
-        if attempt is None:
-            provider_key = sha256(
-                f"product-pricing:{item.operation_id}:{item.id}:{payload_hash}".encode()
-            ).hexdigest()
-            attempt = ProviderWriteAttempt(
-                id=f"pwa_{uuid.uuid4().hex[:28]}",
-                source_workflow="product_pricing",
-                operation_id=item.operation_id,
-                logical_item_id=str(item.id),
-                workspace_id=None,
-                apply_job_id=None,
-                apply_job_item_id=None,
-                listing_id=listing.id if listing is not None else identity,
-                channel_id=item.channel_id,
-                external_identity=item.channel_product_id,
-                normalized_payload_json=payload,
-                payload_hash=payload_hash,
-                provider_idempotency_key=provider_key,
-                attempt_number=1,
-                correlation_id=f"product-pricing:{item.operation_id}",
-            )
-            self.db.add(attempt)
-            self.db.flush()
-            self.db.add(
-                ProviderWriteAttemptEvent(
-                    id=f"pwe_{uuid.uuid4().hex[:28]}",
-                    attempt_id=attempt.id,
-                    outcome=WriteOutcome.DISPATCH_INTENT_RECORDED,
-                    provider_response_json={},
-                )
-            )
-            item.result_json = {
-                "dispatch_intent": {
-                    "payload": payload,
-                    "payload_hash": payload_hash,
-                    "attempt_id": attempt.id,
-                    "idempotency_key": provider_key,
-                    "state": WriteOutcome.PENDING,
-                    "created_at": datetime.utcnow().isoformat(),
-                }
-            }
-            self.db.commit()
-            if listing is not None:
-                listing = (
-                    self.db.query(Listing).filter(Listing.id == listing.id).with_for_update().one()
-                )
-                acquire_listing_guard(self.db, listing.channel_id, listing.id)
-
-        update = ListingUpdate(
-            listing_id=listing.id if listing is not None else identity,
+        provider_key = sha256(
+            f"product-pricing:{item.operation_id}:{item.id}:{payload_hash}".encode()
+        ).hexdigest()
+        intent = WorkspaceWriteIntent(
+            apply_job_id=item.operation_id,
+            apply_item_ids=(str(item.id),),
+            workspace_id=f"product-pricing:{item.operation_id}",
+            snapshot_id=item.stale_token,
+            draft_revision_id=item.operation_id,
+            review_id=item.operation_id,
+            selection_checksum=payload_hash,
+            listing_id=listing_id,
+            channel_id=item.channel_id,
             external_primary_id=item.channel_product_id,
             sku=item.sku or None,
             product_type="simple",
@@ -719,90 +759,69 @@ class WritePipelineService:
             target_status=None,
             currency=item.currency,
             unit=item.outbound_unit,
-            idempotency_key=attempt.provider_idempotency_key,
+            mapping_version=0,
+            cache_version=0,
+            cache_checksum=item.stale_token,
+            capability_version="product-pricing-v1",
+            currency_digest=sha256(item.currency.encode()).hexdigest(),
+            idempotency_key=provider_key,
+            payload_hash=payload_hash,
         )
-        connector = WorkspaceConnectorFactory(
-            ProductPricingService(self.db), CommerceHubService(self.db)
-        ).get_product_pricing(item.channel_id)
+        command = WorkspaceWriteBatchCommand(
+            workspace_id=intent.workspace_id,
+            snapshot_id=intent.snapshot_id,
+            draft_revision_id=intent.draft_revision_id,
+            review_id=intent.review_id,
+            selection_checksum=intent.selection_checksum,
+            correlation_id=f"product-pricing:{item.operation_id}",
+            requested_by=user.username,
+            intents=(intent,),
+            source_workflow="product_pricing",
+        )
         try:
-            if repeat:
-                results = await connector.verify_updates([update], requested_by=user.username)
-            else:
-                await RateLimitService(self.db).acquire(
-                    item.channel_id,
-                    "write",
-                    connector_type=item.connector_type,
-                )
-                self.db.add(
-                    ProviderWriteAttemptEvent(
-                        id=f"pwe_{uuid.uuid4().hex[:28]}",
-                        attempt_id=attempt.id,
-                        outcome=WriteOutcome.DISPATCHED,
-                        provider_response_json={},
-                    )
-                )
-                self.db.commit()
-                results = await connector.apply_updates([update], requested_by=user.username)
+            results = await self.execute_workspace(command, user)
         except Exception as exc:
-            result = WorkspaceWriteResult(
-                listing_id=update.listing_id,
+            # A compatibility provider exception is inherently ambiguous once
+            # the durable intent exists; recovery must verify, never dispatch
+            # blindly a second time.
+            return WorkspaceWriteResult(
+                listing_id=listing_id,
                 outcome=WriteOutcome.RECONCILIATION_REQUIRED,
                 error_category="provider_unknown",
                 error_message=str(exc),
                 retry_eligible=False,
             )
-            self.db.add(
-                ProviderWriteAttemptEvent(
-                    id=f"pwe_{uuid.uuid4().hex[:28]}",
-                    attempt_id=attempt.id,
-                    outcome=result.outcome,
-                    provider_response_json={},
-                    error_category=result.error_category,
-                    error_message=result.error_message,
-                )
-            )
-            self.db.commit()
-            return result
         if len(results) != 1:
-            result = WorkspaceWriteResult(
-                listing_id=update.listing_id,
+            return WorkspaceWriteResult(
+                listing_id=listing_id,
                 outcome=WriteOutcome.RECONCILIATION_REQUIRED,
                 error_category="provider_contract",
                 error_message="Provider returned an ambiguous item count.",
+                retry_eligible=False,
             )
-            self.db.add(
-                ProviderWriteAttemptEvent(
-                    id=f"pwe_{uuid.uuid4().hex[:28]}",
-                    attempt_id=attempt.id,
-                    outcome=result.outcome,
-                    provider_response_json={},
-                    error_category=result.error_category,
-                    error_message=result.error_message,
-                )
-            )
-            self.db.commit()
-            return result
         result = results[0]
-        if result.provider_accepted:
-            self.db.add(
-                ProviderWriteAttemptEvent(
-                    id=f"pwe_{uuid.uuid4().hex[:28]}",
-                    attempt_id=attempt.id,
-                    outcome=WriteOutcome.PROVIDER_ACCEPTED,
-                    provider_response_json=redact_sensitive(result.response),
-                )
+        attempt = (
+            self.db.query(ProviderWriteAttempt)
+            .filter_by(
+                source_workflow="product_pricing",
+                operation_id=item.operation_id,
+                logical_item_id=str(item.id),
+                payload_hash=payload_hash,
             )
-        self.db.add(
-            ProviderWriteAttemptEvent(
-                id=f"pwe_{uuid.uuid4().hex[:28]}",
-                attempt_id=attempt.id,
-                outcome=result.outcome,
-                provider_response_json=redact_sensitive(result.response),
-                error_category=result.error_category,
-                error_message=result.error_message,
-            )
+            .order_by(ProviderWriteAttempt.attempt_number.desc())
+            .first()
         )
-        self.db.commit()
+        if attempt is not None:
+            item.result_json = {
+                "dispatch_intent": {
+                    "payload": attempt.normalized_payload_json,
+                    "payload_hash": attempt.payload_hash,
+                    "attempt_id": attempt.id,
+                    "idempotency_key": attempt.provider_idempotency_key,
+                    "state": result.outcome,
+                    "created_at": attempt.created_at.isoformat(),
+                }
+            }
         if result.outcome is WriteOutcome.VERIFIED_APPLIED and typed_cache is not None:
             stored_price = (
                 str(int(item.proposed_value))
@@ -1058,6 +1077,7 @@ class WritePipelineService:
         item_id: int | None = None,
         severity: str = "info",
         metadata: dict[str, Any] | None = None,
+        correlation_id: str | None = None,
         commit: bool = True,
     ) -> WriteEvent:
         event = WriteEvent(
@@ -1067,7 +1087,7 @@ class WritePipelineService:
             severity=severity,
             message=message,
             metadata_json=redact_sensitive(metadata or {}),
-            correlation_id=f"corr_{uuid.uuid4().hex[:12]}",
+            correlation_id=correlation_id or f"corr_{uuid.uuid4().hex[:12]}",
         )
         self.db.add(event)
         if commit:
@@ -1197,6 +1217,9 @@ class WritePipelineService:
         attempted = len(row.items) if row.executed_at else 0
         success = sum(1 for item in row.items if item.status == "applied")
         failure = sum(1 for item in row.items if item.status == "failed")
+        reconciliation = sum(
+            1 for item in row.items if item.status == "reconciliation_required"
+        )
         verified = sum(
             1
             for item in row.items
@@ -1215,6 +1238,7 @@ class WritePipelineService:
             "total_attempted": attempted,
             "success_count": success,
             "failure_count": failure,
+            "reconciliation_count": reconciliation,
             "skipped_count": int(safety.get("skipped_rows") or 0),
             "blocked_count": int(safety.get("blocked_rows") or 0),
             "warning_count": warning_count,

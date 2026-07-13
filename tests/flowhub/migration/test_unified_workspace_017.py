@@ -177,3 +177,70 @@ def test_flowhub_017_repairs_legacy_016(tmp_path: Path) -> None:
         column["name"] for column in inspector.get_columns("uw_workspace_locks")
     }
     engine.dispose()
+
+
+def test_flowhub_017_repairs_legacy_business_reference_inventory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every semantic 016 relationship is guarded on SQLite as well.
+
+    SQLite cannot add a foreign key to an existing table without a table
+    rebuild.  FLOWHUB_017 therefore installs equivalent INSERT/UPDATE guards;
+    asserting their presence prevents a partial repair from silently passing
+    the migration tests while production PostgreSQL receives the real FKs.
+    """
+
+    url = _url(tmp_path / "reference-inventory.sqlite")
+    monkeypatch.setenv("FLOWHUB_DATABASE_URL", url)
+    config = _config()
+    command.upgrade(config, "FLOWHUB_017")
+    engine = sa.create_engine(url)
+    expected = (
+        ("uw_drafts", "current_revision_id"),
+        ("uw_validation_issues", "workspace_id"),
+        ("uw_validation_issues", "snapshot_id"),
+        ("uw_validation_issues", "review_id"),
+        ("uw_validation_issues", "canonical_product_id"),
+        ("uw_validation_issues", "listing_id"),
+        ("uw_validation_issues", "channel_id"),
+        ("uw_workspace_locks", "workspace_id"),
+        ("uw_workspace_locks", "apply_job_id"),
+    )
+    with engine.begin() as connection:
+        names = {
+            row[0]
+            for row in connection.execute(
+                sa.text(
+                    "SELECT name FROM sqlite_master "
+                    "WHERE type='trigger' AND name LIKE 'fk017_%'"
+                )
+            )
+        }
+    for table, column in expected:
+        assert f"fk017_{table}_{column}_insert" in names
+        assert f"fk017_{table}_{column}_update" in names
+    engine.dispose()
+
+
+def test_flowhub_017_fails_with_precise_orphan_diagnostic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = _url(tmp_path / "orphan.sqlite")
+    monkeypatch.setenv("FLOWHUB_DATABASE_URL", url)
+    config = _config()
+    command.upgrade(config, "FLOWHUB_016")
+    engine = sa.create_engine(url)
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "INSERT INTO uw_validation_issues "
+                "(id,workspace_id,snapshot_id,code,severity,message,metadata_json,created_at) "
+                "VALUES ('orphan-issue','missing-workspace','missing-snapshot',"
+                "'test','error','orphan','{}',CURRENT_TIMESTAMP)"
+            )
+        )
+    with pytest.raises(RuntimeError, match=r"uw_validation_issues\.workspace_id"):
+        command.upgrade(config, "FLOWHUB_017")
+    engine.dispose()

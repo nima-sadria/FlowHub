@@ -158,6 +158,14 @@ class WorkspaceWriteBatchCommand:
     correlation_id: str
     requested_by: str
     intents: tuple[WorkspaceWriteIntent, ...]
+    # Optional worker fencing identity.  Compatibility callers created before
+    # v1.2 may omit it; Workspace Apply supplies it and validates ownership
+    # before and after provider I/O.
+    fencing_token: int | None = None
+    lease_token: str | None = None
+    # Compatibility callers (legacy Write Pipeline and Product Pricing) use the
+    # same provider-neutral engine while retaining their source-workflow label.
+    source_workflow: str = "unified_workspace"
 
 
 @dataclass(frozen=True, slots=True)

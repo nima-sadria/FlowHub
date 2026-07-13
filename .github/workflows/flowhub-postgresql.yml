@@ -1,0 +1,55 @@
+name: FlowHub PostgreSQL safety
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  postgres-safety:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: flowhub_test
+          POSTGRES_USER: flowhub_test
+          POSTGRES_PASSWORD: flowhub_test_local_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U flowhub_test -d flowhub_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      FLOWHUB_ENV: test
+      FLOWHUB_DATABASE_URL: postgresql+psycopg://flowhub_test:flowhub_test_local_only@127.0.0.1:5432/flowhub_test
+      FLOWHUB_TEST_POSTGRES_URL: postgresql+psycopg://flowhub_test:flowhub_test_local_only@127.0.0.1:5432/flowhub_test
+      WC_URL: http://example.invalid
+      SNAPPSHOP_BASE_URL: http://example.invalid
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --upgrade pip
+      - run: pip install -r requirements.txt psycopg[binary]
+      - name: Verify isolated test targets
+        run: |
+          python - <<'PY'
+          import os
+          from urllib.parse import urlparse
+          db = urlparse(os.environ['FLOWHUB_DATABASE_URL'])
+          assert db.hostname in {'127.0.0.1', 'localhost'}
+          assert db.path.lstrip('/') == 'flowhub_test'
+          assert os.environ['WC_URL'].endswith('.invalid')
+          assert os.environ['SNAPPSHOP_BASE_URL'].endswith('.invalid')
+          print('isolated PostgreSQL and provider targets confirmed')
+          PY
+      - name: Migration and PostgreSQL safety tests
+        run: >-
+          python -m pytest -q -m postgres
+          tests/flowhub/migration/test_unified_workspace_016.py
+          tests/flowhub/migration/test_unified_workspace_017.py
+          tests/flowhub/orders/test_order_sync_postgres.py

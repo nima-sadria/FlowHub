@@ -42,18 +42,6 @@ def _add(table: str, column: sa.Column[Any]) -> None:
         op.add_column(table, column)
 
 
-def _constraint_names(table: str) -> set[str]:
-    inspector = _inspector()
-    names = {str(item["name"]) for item in inspector.get_foreign_keys(table) if item.get("name")}
-    names.update(
-        str(item["name"]) for item in inspector.get_unique_constraints(table) if item.get("name")
-    )
-    names.update(
-        str(item["name"]) for item in inspector.get_check_constraints(table) if item.get("name")
-    )
-    return names
-
-
 def _profile_checksum(row: sa.Row[Any]) -> str:
     payload = {
         "currency": row.currency,
@@ -235,6 +223,22 @@ def _backfill_logical_keys() -> None:
         )
 
 
+def _foreign_key_signature(item: dict[str, Any]) -> tuple[tuple[str, ...], str, tuple[str, ...]]:
+    """Return the structural identity of an FK.
+
+    Constraint names are not stable across the historical 016 variants (the
+    metadata-driven migration generated names differently on different
+    dialects).  The endpoint columns are therefore the authority for deciding
+    whether a relationship already exists.
+    """
+
+    return (
+        tuple(str(column) for column in item.get("constrained_columns", ())),
+        str(item.get("referred_table", "")),
+        tuple(str(column) for column in item.get("referred_columns", ())),
+    )
+
+
 def _add_postgresql_fk(
     table: str,
     name: str,
@@ -242,8 +246,45 @@ def _add_postgresql_fk(
     remote_table: str,
     remote: str = "id",
 ) -> None:
-    if name not in _constraint_names(table):
-        op.create_foreign_key(name, table, remote_table, [local], [remote], ondelete="RESTRICT")
+    """Create a missing FK using structural, not name-based, detection.
+
+    A differently named equivalent FK is considered already repaired.  This
+    keeps 017 idempotent and avoids duplicate constraints when upgrading a
+    partially repaired database.  Existing referential actions are preserved;
+    017 never drops a historical constraint or rewrites business data.
+    """
+
+    if table not in _tables() or remote_table not in _tables():
+        return
+    if local not in _columns(table) or remote not in _columns(remote_table):
+        return
+    expected = ((local,), remote_table, (remote,))
+    for item in _inspector().get_foreign_keys(table):
+        if _foreign_key_signature(item) == expected:
+            return
+    op.create_foreign_key(name, table, remote_table, [local], [remote], ondelete="RESTRICT")
+
+
+def _assert_no_orphans(table: str, local: str, remote_table: str, remote: str) -> None:
+    """Fail with a precise diagnostic before installing a new relationship."""
+
+    if table not in _tables() or remote_table not in _tables():
+        return
+    if local not in _columns(table) or remote not in _columns(remote_table):
+        return
+    bind = op.get_bind()
+    orphan = bind.execute(
+        sa.text(
+            f"SELECT 1 FROM {table} AS source "
+            f"LEFT JOIN {remote_table} AS target ON source.{local}=target.{remote} "
+            f"WHERE source.{local} IS NOT NULL AND target.{remote} IS NULL LIMIT 1"
+        )
+    ).first()
+    if orphan is not None:
+        raise RuntimeError(
+            "FLOWHUB_017 cannot add foreign key "
+            f"{table}.{local} -> {remote_table}.{remote}: orphaned reference exists"
+        )
 
 
 def _sqlite_reference_triggers(
@@ -358,6 +399,10 @@ def upgrade() -> None:
     _add("uw_apply_jobs", sa.Column("logical_operation_key", sa.String(64), nullable=True))
     _add("uw_apply_jobs", sa.Column("heartbeat_at", sa.DateTime(), nullable=True))
     _add("uw_apply_jobs", sa.Column("worker_id", sa.String(120), nullable=True))
+    _add("uw_apply_jobs", sa.Column("fencing_token", sa.Integer(), nullable=False, server_default="0"))
+    _add("uw_apply_jobs", sa.Column("lease_token", sa.String(120), nullable=True))
+    _add("uw_apply_jobs", sa.Column("lease_expires_at", sa.DateTime(), nullable=True))
+    _add("uw_apply_jobs", sa.Column("recovery_attempts", sa.Integer(), nullable=False, server_default="0"))
     _add("uw_apply_jobs", sa.Column("operation_checksum", sa.String(64), nullable=True))
     _backfill_logical_keys()
     _repair_apply_status_constraint(dialect)
@@ -382,11 +427,36 @@ def upgrade() -> None:
         "CREATE INDEX IF NOT EXISTS ix_uw_apply_recovery ON uw_apply_jobs(status,heartbeat_at)"
     )
     bind.exec_driver_sql(
+        "CREATE INDEX IF NOT EXISTS ix_uw_apply_lease ON uw_apply_jobs(lease_expires_at,worker_id)"
+    )
+    bind.exec_driver_sql(
         "CREATE INDEX IF NOT EXISTS ix_uw_currency_profile_checksum "
         "ON uw_currency_profiles(checksum)"
     )
+    for statement in (
+        "CREATE INDEX IF NOT EXISTS ix_uw_drafts_current_revision "
+        "ON uw_drafts(current_revision_id)",
+        "CREATE INDEX IF NOT EXISTS ix_uw_issue_product "
+        "ON uw_validation_issues(canonical_product_id)",
+        "CREATE INDEX IF NOT EXISTS ix_uw_issue_listing "
+        "ON uw_validation_issues(listing_id)",
+        "CREATE INDEX IF NOT EXISTS ix_uw_issue_channel "
+        "ON uw_validation_issues(channel_id)",
+        "CREATE INDEX IF NOT EXISTS ix_uw_lock_workspace "
+        "ON uw_workspace_locks(workspace_id)",
+        "CREATE INDEX IF NOT EXISTS ix_uw_lock_apply_job "
+        "ON uw_workspace_locks(apply_job_id)",
+        "CREATE INDEX IF NOT EXISTS ix_provider_attempt_workspace "
+        "ON flowhub_provider_write_attempts(workspace_id)",
+    ):
+        bind.exec_driver_sql(statement)
 
     references = (
+        # Semantic dependencies that were omitted by the earliest 016
+        # metadata-driven schema.  Keep this inventory explicit: it is the
+        # contract repaired by this migration and must not depend on current
+        # ORM metadata.
+        ("uw_drafts", "current_revision_id", "uw_draft_revisions", True),
         ("uw_reviews", "currency_profile_id", "uw_currency_profiles", False),
         ("uw_mapping_revisions", "previous_canonical_product_id", "uw_canonical_products", True),
         ("uw_mapping_revisions", "proposed_canonical_product_id", "uw_canonical_products", False),
@@ -401,9 +471,26 @@ def upgrade() -> None:
         ("uw_apply_job_items", "canonical_product_id", "uw_canonical_products", False),
         ("uw_apply_job_items", "listing_id", "uw_listings", False),
         ("uw_apply_job_items", "channel_id", "uw_channels", False),
+        ("uw_validation_issues", "workspace_id", "uw_workspaces", False),
+        ("uw_validation_issues", "snapshot_id", "uw_workspace_snapshots", False),
+        ("uw_validation_issues", "review_id", "uw_reviews", True),
+        ("uw_validation_issues", "canonical_product_id", "uw_canonical_products", True),
+        ("uw_validation_issues", "listing_id", "uw_listings", True),
+        ("uw_validation_issues", "channel_id", "uw_channels", True),
+        ("uw_workspace_locks", "workspace_id", "uw_workspaces", False),
+        ("uw_workspace_locks", "apply_job_id", "uw_apply_jobs", False),
         ("uw_workspace_locks", "channel_id", "uw_channels", False),
         ("uw_workspace_locks", "listing_id", "uw_listings", False),
+        # Provider-neutral attempts are shared by Workspace and legacy
+        # workflows.  The nullable workspace identity is relational whenever
+        # a Workspace operation owns the attempt; legacy operations leave it
+        # NULL.  Item/listing/channel identifiers remain provider-neutral
+        # scalar identities because legacy workflows may use non-Workspace
+        # listing identifiers.
+        ("flowhub_provider_write_attempts", "workspace_id", "uw_workspaces", True),
     )
+    for table, column, remote_table, _nullable in references:
+        _assert_no_orphans(table, column, remote_table, "id")
     if dialect == "postgresql":
         bind.exec_driver_sql("ALTER TABLE uw_currency_profiles ALTER COLUMN checksum SET NOT NULL")
         for column in (
@@ -422,6 +509,7 @@ def upgrade() -> None:
         bind.exec_driver_sql("ALTER TABLE uw_workspace_locks ALTER COLUMN channel_id SET NOT NULL")
         fk_names = {
             ("uw_reviews", "currency_profile_id"): "fk_uw_review_currency_profile",
+            ("uw_drafts", "current_revision_id"): "fk_uw_draft_current_revision",
             (
                 "uw_mapping_revisions",
                 "previous_canonical_product_id",
@@ -441,8 +529,17 @@ def upgrade() -> None:
             ("uw_apply_job_items", "canonical_product_id"): "fk_uw_apply_item_product",
             ("uw_apply_job_items", "listing_id"): "fk_uw_apply_item_listing",
             ("uw_apply_job_items", "channel_id"): "fk_uw_apply_item_channel",
+            ("uw_validation_issues", "workspace_id"): "fk_uw_issue_workspace",
+            ("uw_validation_issues", "snapshot_id"): "fk_uw_issue_snapshot",
+            ("uw_validation_issues", "review_id"): "fk_uw_issue_review",
+            ("uw_validation_issues", "canonical_product_id"): "fk_uw_issue_product",
+            ("uw_validation_issues", "listing_id"): "fk_uw_issue_listing",
+            ("uw_validation_issues", "channel_id"): "fk_uw_issue_channel",
+            ("uw_workspace_locks", "workspace_id"): "fk_uw_lock_workspace",
+            ("uw_workspace_locks", "apply_job_id"): "fk_uw_lock_apply_job",
             ("uw_workspace_locks", "channel_id"): "fk_uw_lock_channel",
             ("uw_workspace_locks", "listing_id"): "fk_uw_lock_listing",
+            ("flowhub_provider_write_attempts", "workspace_id"): "fk_provider_attempt_workspace",
         }
         for table, column, remote, _nullable in references:
             _add_postgresql_fk(table, fk_names[(table, column)], column, remote)
