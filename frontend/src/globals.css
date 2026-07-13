@@ -43,9 +43,18 @@
   @apply inline-flex cursor-pointer items-center gap-2 rounded border border-border bg-bg-base px-3 py-2 text-xs text-text-base;
 }
 
+.fh-grid-scroll {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
 .fh-handsontable {
   direction: ltr;
-  overflow: hidden;
+  min-width: max-content;
+  overflow: visible;
 }
 
 .fh-handsontable .handsontable {
@@ -57,12 +66,17 @@
 }
 
 .fh-cell-status::after {
-  content: "● " attr(data-cell-status);
+  content: attr(data-cell-icon) " " attr(data-cell-status);
   display: block;
   font-size: 0.625rem;
   line-height: 0.75rem;
   opacity: 0.78;
   text-transform: capitalize;
+}
+
+.fh-cell-status[data-cell-critical="true"]::after {
+  font-weight: 700;
+  opacity: 1;
 }
 
 .fh-cell-status-edited,
@@ -76,6 +90,7 @@
 .fh-cell-status-unavailable,
 .fh-cell-status-unchanged { color: #718096 !important; }
 .fh-cell-status-stale_review { color: #805ad5 !important; }
+.fh-cell-status-reconciliation_required { color: #b54708 !important; }
 
 /* =========================================================
    Design tokens

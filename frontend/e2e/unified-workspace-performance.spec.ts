@@ -276,6 +276,6 @@ test('keeps visible Listing identity through sort, filter, paging, keyboard and 
   const checkbox = page.locator('.ht_clone_inline_start td[data-listing-id="listing-b"][data-column-prop="selected"] input').first()
   await checkbox.click()
   await expect(page.getByText('1 Listing selected')).toBeVisible()
-  await page.getByLabel(channels[0].channelId).click()
+  await page.locator('.fh-channel-toggle').filter({ hasText: 'Configured Channel 1' }).locator('input').click()
   await expect(page.getByText('0 Listings selected')).toBeVisible()
 })

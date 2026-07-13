@@ -23,8 +23,8 @@ describe('Unified Workspace grid model', () => {
     const definition = buildGridDefinition([ROW], CHANNELS, CHANNELS.map(item => item.channelId))
     expect(definition.nestedHeaders[0]).toEqual([
       { label: 'Canonical Product / Listing', colspan: 5 },
-      { label: 'woocommerce:primary', colspan: 7 },
-      { label: 'snappshop:main', colspan: 7 },
+      { label: 'WooCommerce', colspan: 7 },
+      { label: 'SnappShop', colspan: 7 },
     ])
     expect(definition.records[0].listingId).toBe('listing-1')
     expect(definition.records[0][key('woocommerce:primary', 'price', 'current')]).toBe('100')

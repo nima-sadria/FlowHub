@@ -17,6 +17,15 @@ const PAGE_TITLES: Record<string, string> = {
   '/settings': 'Settings',
 }
 
+export function resolvePageTitle(pathname: string, workspaceName?: string | null): string {
+  const staticTitle = PAGE_TITLES[pathname]
+  if (staticTitle) return staticTitle
+  if (/^\/(?:workspace|workspaces|unified-workspace)\/[^/]+(?:\/.*)?$/.test(pathname)) {
+    return workspaceName?.trim() || 'Workspace'
+  }
+  return 'FlowHub'
+}
+
 interface Props {
   onMenuClick: () => void
   health: 'ok' | 'error' | 'loading'
@@ -104,7 +113,7 @@ export default function Topbar({
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
-  const title = PAGE_TITLES[location.pathname] ?? 'FlowHub'
+  const title = resolvePageTitle(location.pathname)
 
   const healthLabel =
     health === 'ok'

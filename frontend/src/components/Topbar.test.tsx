@@ -4,7 +4,7 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '../theme/ThemeProvider'
-import Topbar from './Topbar'
+import Topbar, { resolvePageTitle } from './Topbar'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -21,6 +21,16 @@ afterEach(() => {
 })
 
 describe('Topbar', () => {
+  it('resolves static and dynamic route titles without treating dynamic ids as unknown routes', () => {
+    expect(resolvePageTitle('/products')).toBe('Products')
+    expect(resolvePageTitle('/workspace/ws-visual')).toBe('Workspace')
+    expect(resolvePageTitle('/workspaces/ws-visual')).toBe('Workspace')
+    expect(resolvePageTitle('/unified-workspace/ws-visual')).toBe('Workspace')
+    expect(resolvePageTitle('/workspace/ws-visual', 'Spring Campaign')).toBe('Spring Campaign')
+    expect(resolvePageTitle('/workspace')).toBe('Workspace')
+    expect(resolvePageTitle('/not-a-route')).toBe('FlowHub')
+  })
+
   it('does not render unavailable search or notification controls', () => {
     act(() => {
       root.render(

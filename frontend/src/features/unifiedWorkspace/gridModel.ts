@@ -4,6 +4,7 @@ import type {
   WorkspaceChannelDefinition,
   WorkspaceGridRow,
 } from '../../services/unifiedWorkspace/types'
+import { formatChannelDisplayName } from './channelDisplayName'
 
 export interface GridRecord extends Record<string, string | number | boolean | null | undefined> {
   rowId: string
@@ -79,7 +80,7 @@ export function buildGridDefinition(
   const secondHeader: string[] = ['Select', 'Product', 'Type', 'Listing', 'Mapping']
   const topHeader: Array<string | { label: string; colspan: number }> = [{ label: 'Canonical Product / Listing', colspan: 5 }]
   for (const channel of visible) {
-    topHeader.push({ label: channel.channelId, colspan: 7 })
+    topHeader.push({ label: formatChannelDisplayName(channel.channelId, channel), colspan: 7 })
     for (const field of Object.keys(FIELD_LABELS) as Array<keyof typeof FIELD_LABELS>) {
       const currentKey = key(channel.channelId, field, 'current')
       const targetKey = key(channel.channelId, field, 'target')

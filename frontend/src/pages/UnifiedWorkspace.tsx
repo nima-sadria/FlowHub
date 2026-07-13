@@ -13,6 +13,8 @@ import { useServices } from '../services/ServiceContext'
 import { useUnifiedWorkspaceController } from '../features/unifiedWorkspace/useUnifiedWorkspaceController'
 import { sanitizeGridHtml, sourceRecordAtVisualRow } from '../features/unifiedWorkspace/handsontableIdentity'
 import { resolveHandsontableLicense } from '../features/unifiedWorkspace/handsontableLicense'
+import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
+import { describeWorkspaceStatus } from '../features/unifiedWorkspace/statusDisplay'
 
 registerAllModules()
 
@@ -29,6 +31,7 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
   const { unifiedWorkspace } = useServices()
   const controller = useUnifiedWorkspaceController(workspaceId, unifiedWorkspace!)
   const tableHeight = useMemo(() => Math.min(760, Math.max(420, (controller.definition.records.length + 3) * 30)), [controller.definition.records.length])
+  const gridMinWidth = useMemo(() => Math.max(1100, controller.definition.columns.length * 110 + 560), [controller.definition.columns.length])
   const hotRef = useRef<HotTableRef>(null)
   const license = resolveHandsontableLicense(
     import.meta.env.VITE_HANDSONTABLE_LICENSE_KEY,
@@ -75,7 +78,7 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
                   checked={controller.preferences?.visibleChannelIds.includes(channel.channelId) ?? false}
                   onChange={() => void controller.toggleChannel(channel.channelId)}
                 />
-                <span>{channel.channelId}</span>
+                <span>{formatChannelDisplayName(channel.channelId, channel)}</span>
               </label>
             ))}
             <label className="fh-channel-toggle">
@@ -87,7 +90,7 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
                 className="bg-transparent"
               >
                 <option value="canonical">Canonical Product</option>
-                {controller.grid.channels.map(channel => <option key={channel.channelId} value={channel.channelId}>{channel.channelId}</option>)}
+                {controller.grid.channels.map(channel => <option key={channel.channelId} value={channel.channelId}>{formatChannelDisplayName(channel.channelId, channel)}</option>)}
               </select>
             </label>
           </div>
@@ -139,7 +142,7 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {controller.applyResult.items.map(item => (
               <div key={item.id} className="rounded border border-border p-3 fh-text-caption">
-                <span className="font-medium">{item.channelId} · {item.field}</span>
+                <span className="font-medium">{formatChannelDisplayName(item.channelId)} · {item.field}</span>
                 <span className="block">{item.status}{item.errorMessage ? ` — ${item.errorMessage}` : ''}</span>
               </div>
             ))}
@@ -147,9 +150,9 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
         </section>
       )}
 
-      <section className="fh-card overflow-hidden" aria-label="Unified multi-channel product editor">
+      <section className="fh-card" aria-label="Unified multi-channel product editor">
         <form
-          className="grid gap-3 border-b border-slate-200 p-4 md:grid-cols-5"
+          className="grid min-w-0 gap-3 border-b border-slate-200 p-4 md:grid-cols-5"
           aria-label="Server-side Workspace filters"
           onSubmit={(event: FormEvent<HTMLFormElement>) => {
             event.preventDefault()
@@ -168,11 +171,11 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
             })
           }}
         >
-          <label className="fh-field-label">Search<input className="fh-input mt-1" name="search" type="search" /></label>
-          <label className="fh-field-label">Channel<input className="fh-input mt-1" name="channelId" /></label>
-          <label className="fh-field-label">Status<input className="fh-input mt-1" name="channelStatus" /></label>
-          <label className="fh-field-label">Price range<span className="mt-1 flex gap-2"><input aria-label="Minimum price" className="fh-input" name="minPrice" type="number" min="0" /><input aria-label="Maximum price" className="fh-input" name="maxPrice" type="number" min="0" /></span></label>
-          <span className="flex items-end gap-2"><button className="fh-button-secondary fh-button-sm" type="submit">Filter server data</button><button className="fh-button-secondary fh-button-sm" type="reset" onClick={() => controller.updateGridQuery({ search: undefined, channelId: undefined, channelStatus: undefined, minPrice: undefined, maxPrice: undefined })}>Clear</button></span>
+          <label className="fh-field-label min-w-0">Search<input className="fh-input mt-1" name="search" type="search" /></label>
+          <label className="fh-field-label min-w-0">Channel<input className="fh-input mt-1" name="channelId" /></label>
+          <label className="fh-field-label min-w-0">Status<input className="fh-input mt-1" name="channelStatus" /></label>
+          <label className="fh-field-label min-w-0">Price range<span className="mt-1 flex min-w-0 gap-2"><input aria-label="Minimum price" className="fh-input min-w-0" name="minPrice" type="number" min="0" /><input aria-label="Maximum price" className="fh-input min-w-0" name="maxPrice" type="number" min="0" /></span></label>
+          <span className="flex min-w-0 flex-wrap items-end gap-2"><button className="fh-button-secondary fh-button-sm" type="submit">Filter server data</button><button className="fh-button-secondary fh-button-sm" type="reset" onClick={() => controller.updateGridQuery({ search: undefined, channelId: undefined, channelStatus: undefined, minPrice: undefined, maxPrice: undefined })}>Clear</button></span>
         </form>
         <div className="fh-panel-header">
           <div>
@@ -192,7 +195,8 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
             <span>Production Grid is disabled. Configure a valid commercial Handsontable license.</span>
           </div>
         )}
-        {handsontableLicense && <div className="ht-theme-main fh-handsontable" role="region" aria-label="Virtualized multi-channel Workspace Grid" tabIndex={0}>
+        {handsontableLicense && <div className="fh-grid-scroll" role="region" aria-label="Scrollable Workspace Grid">
+          <div className="ht-theme-main fh-handsontable" style={{ minWidth: gridMinWidth }} aria-label="Virtualized multi-channel Workspace Grid" tabIndex={0}>
           <HotTable
             ref={hotRef}
             data={controller.definition.records}
@@ -223,11 +227,14 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
                 const statusKey = prop.replace(/__target$/, '__status')
                 const status = String(record[statusKey] ?? 'unavailable')
                 settings.className = `fh-cell-status fh-cell-status-${status}`
-                settings.title = `Cell status: ${status.replace(/_/g, ' ')}`
+                const display = describeWorkspaceStatus(status)
+                settings.title = `Cell status: ${display.label}`
                 const renderer: Handsontable.renderers.BaseRenderer = (instance, td, visualRow, visualColumn, cellProp, value, properties) => {
                   Handsontable.renderers.TextRenderer(instance, td, visualRow, visualColumn, cellProp, value, properties)
-                  td.dataset.cellStatus = status.replace(/_/g, ' ')
-                  td.setAttribute('aria-label', `${String(value ?? '')}; status ${status.replace(/_/g, ' ')}`)
+                  td.dataset.cellStatus = display.label
+                  td.dataset.cellIcon = display.icon
+                  td.dataset.cellCritical = String(display.critical)
+                  td.setAttribute('aria-label', `${String(value ?? '')}; status ${display.label}`)
                 }
                 settings.renderer = renderer
               }
@@ -258,6 +265,7 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
               if (sort) controller.updateGridQuery({ sort })
             }) as NonNullable<Handsontable.GridSettings['afterColumnSort']>}
           />
+          </div>
         </div>}
       </section>
     </PageShell>

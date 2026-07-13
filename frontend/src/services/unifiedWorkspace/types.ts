@@ -1,9 +1,12 @@
 export type WorkspaceCellStatus =
   | 'unchanged' | 'edited' | 'draft_saved' | 'warning' | 'error' | 'ready'
   | 'applying' | 'applied' | 'failed' | 'read_only' | 'unavailable' | 'stale_review'
+  | 'reconciliation_required'
 
 export interface WorkspaceChannelDefinition {
   channelId: string
+  displayName?: string | null
+  instanceLabel?: string | null
   readPrice: boolean
   writePrice: boolean
   readStock: boolean
