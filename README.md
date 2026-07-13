@@ -3,14 +3,22 @@
 [![Build](https://img.shields.io/badge/build-ready_for_release-16a34a)](https://github.com/nima-sadria/FlowHub)
 [![Docker](https://img.shields.io/badge/docker-compose-2496ed)](docker-compose.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Latest Release](https://img.shields.io/badge/release-first_public_release-7c3aed)](RELEASE_NOTES.md)
+[![Latest Release](https://img.shields.io/badge/release-FlowHub_v1.2_Stable-7c3aed)](docs/releases/FLOWHUB_V1.2_STABLE.md)
 
-FlowHub 1.0.0 is a self-hosted WooCommerce price-management platform. It reads a
+FlowHub v1.2 Stable is the approved self-hosted multi-channel workspace release.
+The approved release commit is
+[`4a02fbbcf25f0d82d05f7dc5f0f1dd3efa322a0c`](docs/releases/FLOWHUB_V1.2_STABLE.md).
+
+FlowHub is a self-hosted WooCommerce price-management platform. It reads a
 Nextcloud-hosted spreadsheet through WebDAV, validates proposed price changes
 against a manually refreshed WooCommerce product cache, and performs only
 explicitly approved manual price updates.
 
 ## Architecture
+
+The v1.2 architecture is complete and frozen for normal feature development.
+See the [official v1.2 release registration](docs/releases/FLOWHUB_V1.2_STABLE.md)
+and [current architecture](docs/architecture/CURRENT_ARCHITECTURE.md).
 
 ```mermaid
 flowchart LR

@@ -1,4 +1,15 @@
-# FlowHub 1.0.0 Release Notes
+# FlowHub v1.2 Stable Release Notes
+
+The official stable release registration is documented in
+[docs/releases/FLOWHUB_V1.2_STABLE.md](docs/releases/FLOWHUB_V1.2_STABLE.md).
+
+- **Status:** Stable
+- **Approved commit:** `4a02fbbcf25f0d82d05f7dc5f0f1dd3efa322a0c`
+- **Production use:** Personal/Internal approved
+- **Commercial deployment:** Requires a Handsontable commercial license
+
+The capability notes below include the original 1.0 baseline and remain part of
+the historical release record.
 
 ## Included capabilities
 

@@ -1,6 +1,11 @@
 # Current Architecture
 
-Status: current first-release implementation.
+Status: current FlowHub v1.2 Stable implementation; architecture frozen.
+
+The approved stable release is registered in
+[`docs/releases/FLOWHUB_V1.2_STABLE.md`](../releases/FLOWHUB_V1.2_STABLE.md).
+Normal feature work must preserve the approved v1.2 invariants. Architectural
+changes require explicit Owner approval.
 
 FlowHub is a self-hosted FastAPI and React application deployed with Docker
 Compose. PostgreSQL is the canonical persistence layer. The Data Layer is the
