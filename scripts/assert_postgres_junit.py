@@ -33,6 +33,9 @@ def main() -> int:
     group = sys.argv[2] if len(sys.argv) > 2 else "migration"
     required_tests = {
         "016": REQUIRED_016_TESTS,
+        "016-immutability": REQUIRED_016_TESTS[:1],
+        "016-upgrade": REQUIRED_016_TESTS[1:2],
+        "016-lock": REQUIRED_016_TESTS[2:],
         "017": REQUIRED_017_TESTS,
         "orders": REQUIRED_ORDER_TESTS,
         "crash": REQUIRED_CRASH_TESTS,

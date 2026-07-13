@@ -65,20 +65,42 @@ jobs:
               print(connection.execute('SELECT version()').fetchone()[0])
               print(f"effective_host={parsed.hostname} effective_port={parsed.port or 5432} effective_database={parsed.path.lstrip('/')}")
           PY
-      - name: PostgreSQL FLOWHUB_016 migration and guard tests
-        id: postgres-016-tests
+      - name: PostgreSQL 016 immutability and FK test
+        id: postgres-016-immutability
         run: |
           set +e
           python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-junit.xml \
-            tests/flowhub/migration/test_unified_workspace_016.py 2>&1 | tee postgres-output.log
+            tests/flowhub/migration/test_unified_workspace_016.py::test_postgresql_immutability_and_foreign_keys 2>&1 | tee postgres-output.log
           pytest_status=${PIPESTATUS[0]}
           if [ -f postgres-junit.xml ]; then
-            python scripts/assert_postgres_junit.py postgres-junit.xml 016 | tee postgres-manifest.log
+            python scripts/assert_postgres_junit.py postgres-junit.xml 016-immutability | tee postgres-manifest.log
             manifest_status=${PIPESTATUS[0]}
           else
             echo 'pytest did not produce postgres-junit.xml' | tee postgres-manifest.log
             manifest_status=1
           fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
+      - name: PostgreSQL 015 to 016 preservation test
+        id: postgres-016-upgrade
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-016-upgrade-junit.xml \
+            tests/flowhub/migration/test_unified_workspace_016.py::test_postgresql_upgrade_from_015_preserves_sentinel 2>&1 | tee postgres-016-upgrade-output.log
+          pytest_status=${PIPESTATUS[0]}
+          python scripts/assert_postgres_junit.py postgres-016-upgrade-junit.xml 016-upgrade | tee postgres-016-upgrade-manifest.log
+          manifest_status=${PIPESTATUS[0]}
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
+      - name: PostgreSQL global Listing lock uniqueness test
+        id: postgres-016-lock
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-016-lock-junit.xml \
+            tests/flowhub/migration/test_unified_workspace_016.py::test_postgresql_global_lock_uniqueness_under_concurrency 2>&1 | tee postgres-016-lock-output.log
+          pytest_status=${PIPESTATUS[0]}
+          python scripts/assert_postgres_junit.py postgres-016-lock-junit.xml 016-lock | tee postgres-016-lock-manifest.log
+          manifest_status=${PIPESTATUS[0]}
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
       - name: PostgreSQL FLOWHUB_017 migration repair tests
@@ -138,6 +160,12 @@ jobs:
             postgres-junit.xml
             postgres-output.log
             postgres-manifest.log
+            postgres-016-upgrade-junit.xml
+            postgres-016-upgrade-output.log
+            postgres-016-upgrade-manifest.log
+            postgres-016-lock-junit.xml
+            postgres-016-lock-output.log
+            postgres-016-lock-manifest.log
             postgres-017-junit.xml
             postgres-017-output.log
             postgres-017-manifest.log
