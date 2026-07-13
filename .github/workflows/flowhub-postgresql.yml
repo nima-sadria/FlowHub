@@ -72,6 +72,7 @@ jobs:
           python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-junit.xml \
             tests/flowhub/migration/test_unified_workspace_016.py::test_postgresql_immutability_and_foreign_keys 2>&1 | tee postgres-output.log
           pytest_status=${PIPESTATUS[0]}
+          if [ "$pytest_status" -ne 0 ]; then detail=$(tail -120 postgres-output.log | tr '\n' ' ' | cut -c1-6000); echo "::error title=PostgreSQL 016 failure::$detail"; fi
           if [ -f postgres-junit.xml ]; then
             python scripts/assert_postgres_junit.py postgres-junit.xml 016-immutability | tee postgres-manifest.log
             manifest_status=${PIPESTATUS[0]}
