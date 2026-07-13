@@ -65,20 +65,50 @@ jobs:
               print(connection.execute('SELECT version()').fetchone()[0])
               print(f"effective_host={parsed.hostname} effective_port={parsed.port or 5432} effective_database={parsed.path.lstrip('/')}")
           PY
-      - name: Migration and PostgreSQL safety tests
-        id: postgres-migration-tests
+      - name: PostgreSQL FLOWHUB_016 migration and guard tests
+        id: postgres-016-tests
         run: |
           set +e
           python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-junit.xml \
-            tests/flowhub/migration/test_unified_workspace_016.py \
-            tests/flowhub/migration/test_unified_workspace_017.py \
-            tests/flowhub/orders/test_order_sync_postgres.py 2>&1 | tee postgres-output.log
+            tests/flowhub/migration/test_unified_workspace_016.py 2>&1 | tee postgres-output.log
           pytest_status=${PIPESTATUS[0]}
           if [ -f postgres-junit.xml ]; then
-            python scripts/assert_postgres_junit.py postgres-junit.xml migration | tee postgres-manifest.log
+            python scripts/assert_postgres_junit.py postgres-junit.xml 016 | tee postgres-manifest.log
             manifest_status=${PIPESTATUS[0]}
           else
             echo 'pytest did not produce postgres-junit.xml' | tee postgres-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
+      - name: PostgreSQL FLOWHUB_017 migration repair tests
+        id: postgres-017-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-017-junit.xml \
+            tests/flowhub/migration/test_unified_workspace_017.py 2>&1 | tee postgres-017-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-017-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-017-junit.xml 017 | tee postgres-017-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-017-junit.xml' | tee postgres-017-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
+      - name: PostgreSQL order and concurrency tests
+        id: postgres-order-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-orders-junit.xml \
+            tests/flowhub/orders/test_order_sync_postgres.py 2>&1 | tee postgres-orders-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-orders-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-orders-junit.xml orders | tee postgres-orders-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-orders-junit.xml' | tee postgres-orders-manifest.log
             manifest_status=1
           fi
           test "$pytest_status" -eq 0
@@ -108,6 +138,12 @@ jobs:
             postgres-junit.xml
             postgres-output.log
             postgres-manifest.log
+            postgres-017-junit.xml
+            postgres-017-output.log
+            postgres-017-manifest.log
+            postgres-orders-junit.xml
+            postgres-orders-output.log
+            postgres-orders-manifest.log
             postgres-crash-junit.xml
             postgres-crash-output.log
             postgres-crash-manifest.log
