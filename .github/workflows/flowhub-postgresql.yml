@@ -143,6 +143,7 @@ jobs:
           python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-crash-junit.xml \
             tests/flowhub/write_pipeline/test_crash_recovery_process.py 2>&1 | tee postgres-crash-output.log
           pytest_status=${PIPESTATUS[0]}
+          if [ "$pytest_status" -ne 0 ]; then detail=$(tail -120 postgres-crash-output.log | tr '\n' ' ' | cut -c1-6000); echo "::error title=PostgreSQL crash recovery failure::$detail"; fi
           if [ -f postgres-crash-junit.xml ]; then
             python scripts/assert_postgres_junit.py postgres-crash-junit.xml crash | tee postgres-crash-manifest.log
             manifest_status=${PIPESTATUS[0]}
