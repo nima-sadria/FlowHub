@@ -62,6 +62,10 @@ def main() -> int:
         return 1
     if failed:
         print("ERROR: PostgreSQL safety tests failed")
+        for case in failed:
+            detail = (case.findtext("failure") or case.findtext("error") or "").strip()
+            message = f"{case.attrib.get('classname')}::{case.attrib.get('name')}: {detail}".replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+            print(f"::error title=PostgreSQL test failure::{message}")
         return 1
     return 0
 

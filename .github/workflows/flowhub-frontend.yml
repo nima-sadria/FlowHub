@@ -37,7 +37,18 @@ jobs:
         run: npm run build
       - name: Browser E2E benchmark
         working-directory: frontend
-        run: npm run test:e2e -- --grep "virtualizes" --reporter=line --trace on
+        run: |
+          set +e
+          npm run test:e2e -- --grep "virtualizes" --reporter=line --trace on 2>&1 | tee e2e-benchmark.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            detail=$(tail -80 e2e-benchmark.log | tr '\n' ' ' | cut -c1-6000)
+            detail=${detail//'%'/'%25'}
+            detail=${detail//$'\r'/'%0D'}
+            detail=${detail//$'\n'/'%0A'}
+            echo "::error title=Browser benchmark failure::$detail"
+          fi
+          exit "$status"
       - name: Browser E2E identity interactions
         working-directory: frontend
         run: npm run test:e2e -- --grep "keeps visible Listing identity" --reporter=line --trace on
@@ -49,5 +60,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: flowhub-frontend-e2e-${{ github.run_id }}
-          path: frontend/test-results
+          path: |
+            frontend/test-results
+            frontend/e2e-benchmark.log
           if-no-files-found: warn
