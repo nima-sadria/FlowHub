@@ -51,6 +51,9 @@ def _crash_worker(url: str, schema: str, batch_id: str, mode: str) -> None:
     from app.flowhub.write_pipeline.service import WritePipelineService
 
     class FakeLimiter:
+        def __init__(self, *args, **kwargs):
+            pass
+
         async def acquire(self, *args, **kwargs):
             return None
 
