@@ -111,8 +111,16 @@ test('virtualizes a paged 10,000-product, five-channel Workspace in Chromium', a
     if (response.status() >= 400) console.log(`browser-response:${response.status()}:${response.url()}`)
   })
   const started = performance.now()
-  await page.goto('/workspace/browser-benchmark')
-  await expect(page.getByText('10,000 Product Benchmark')).toBeVisible()
+  const workspaceResponse = page.waitForResponse(response => {
+    const url = new URL(response.url())
+    return url.pathname === '/api/v2/unified-workspaces/browser-benchmark'
+  })
+  await page.goto('/workspace/browser-benchmark', { waitUntil: 'domcontentloaded' })
+  expect((await workspaceResponse).status()).toBe(200)
+  // CI browsers can spend several seconds compiling the Handsontable chunk;
+  // wait for the API-backed readiness signal rather than racing the default
+  // five-second locator timeout.
+  await expect(page.getByText('10,000 Product Benchmark')).toBeVisible({ timeout: 30_000 })
   await expect(page.getByLabel('Virtualized multi-channel Workspace Grid')).toBeVisible()
   const readyMs = Math.round(performance.now() - started)
   const initialRows = await page.locator('.ht_master tbody tr').count()
