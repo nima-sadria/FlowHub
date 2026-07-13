@@ -58,8 +58,10 @@ jobs:
           import os
           import psycopg
           from urllib.parse import urlparse
-          parsed = urlparse(os.environ['FLOWHUB_TEST_POSTGRES_URL'])
-          with psycopg.connect(os.environ['FLOWHUB_TEST_POSTGRES_URL']) as connection:
+          sqlalchemy_url = os.environ['FLOWHUB_TEST_POSTGRES_URL']
+          psycopg_url = sqlalchemy_url.replace('postgresql+psycopg://', 'postgresql://', 1)
+          parsed = urlparse(psycopg_url)
+          with psycopg.connect(psycopg_url) as connection:
               print(connection.execute('SELECT version()').fetchone()[0])
               print(f"effective_host={parsed.hostname} effective_port={parsed.port or 5432} effective_database={parsed.path.lstrip('/')}")
           PY
