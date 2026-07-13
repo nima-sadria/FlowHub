@@ -68,12 +68,22 @@ jobs:
       - name: Migration and PostgreSQL safety tests
         id: postgres-tests
         run: |
-          python -m pytest -q -ra --strict-markers --junitxml=postgres-junit.xml \
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-junit.xml \
             tests/flowhub/migration/test_unified_workspace_016.py \
             tests/flowhub/migration/test_unified_workspace_017.py \
             tests/flowhub/orders/test_order_sync_postgres.py \
-            tests/flowhub/write_pipeline/test_crash_recovery_process.py
-          python scripts/assert_postgres_junit.py postgres-junit.xml
+            tests/flowhub/write_pipeline/test_crash_recovery_process.py 2>&1 | tee postgres-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-junit.xml | tee postgres-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-junit.xml' | tee postgres-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: Upload PostgreSQL test evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -81,5 +91,7 @@ jobs:
           name: flowhub-postgresql-safety-${{ github.run_id }}
           path: |
             postgres-junit.xml
+            postgres-output.log
+            postgres-manifest.log
             .pytest_cache
           if-no-files-found: warn
