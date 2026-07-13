@@ -6,7 +6,7 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-REQUIRED_TESTS = (
+REQUIRED_MIGRATION_TESTS = (
     "test_flowhub_017_is_additive_frozen_and_forward_only",
     "test_flowhub_017_backfills_profiles_preserves_sentinel_and_enforces_immutability",
     "test_flowhub_017_repairs_legacy_016",
@@ -17,6 +17,8 @@ REQUIRED_TESTS = (
     "test_postgresql_global_lock_uniqueness_under_concurrency",
     "test_concurrent_acquisition_has_one_winner_and_loser_cannot_advance",
     "test_different_channels_acquire_concurrently",
+)
+REQUIRED_CRASH_TESTS = (
     "test_hard_process_provider_commit_recovers_without_duplicate_write",
     "test_hard_process_before_dispatch_is_recoverable_without_provider_write",
 )
@@ -24,12 +26,14 @@ REQUIRED_TESTS = (
 
 def main() -> int:
     report = Path(sys.argv[1] if len(sys.argv) > 1 else "postgres-junit.xml")
+    group = sys.argv[2] if len(sys.argv) > 2 else "migration"
+    required_tests = REQUIRED_CRASH_TESTS if group == "crash" else REQUIRED_MIGRATION_TESTS
     root = ET.parse(report).getroot()
     cases = list(root.iter("testcase"))
     skipped = [case for case in cases if case.find("skipped") is not None]
     failed = [case for case in cases if case.find("failure") is not None or case.find("error") is not None]
     names = "\n".join(f"{case.attrib.get('classname', '')}::{case.attrib.get('name', '')}" for case in cases)
-    missing = [needle for needle in REQUIRED_TESTS if needle not in names]
+    missing = [needle for needle in required_tests if needle not in names]
     print(f"postgres_manifest tests={len(cases)} passed={len(cases)-len(skipped)-len(failed)} failed={len(failed)} skipped={len(skipped)}")
     if not cases:
         print("ERROR: PostgreSQL safety manifest collected zero tests")

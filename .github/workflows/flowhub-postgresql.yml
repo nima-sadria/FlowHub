@@ -66,20 +66,35 @@ jobs:
               print(f"effective_host={parsed.hostname} effective_port={parsed.port or 5432} effective_database={parsed.path.lstrip('/')}")
           PY
       - name: Migration and PostgreSQL safety tests
-        id: postgres-tests
+        id: postgres-migration-tests
         run: |
           set +e
           python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-junit.xml \
             tests/flowhub/migration/test_unified_workspace_016.py \
             tests/flowhub/migration/test_unified_workspace_017.py \
-            tests/flowhub/orders/test_order_sync_postgres.py \
-            tests/flowhub/write_pipeline/test_crash_recovery_process.py 2>&1 | tee postgres-output.log
+            tests/flowhub/orders/test_order_sync_postgres.py 2>&1 | tee postgres-output.log
           pytest_status=${PIPESTATUS[0]}
           if [ -f postgres-junit.xml ]; then
-            python scripts/assert_postgres_junit.py postgres-junit.xml | tee postgres-manifest.log
+            python scripts/assert_postgres_junit.py postgres-junit.xml migration | tee postgres-manifest.log
             manifest_status=${PIPESTATUS[0]}
           else
             echo 'pytest did not produce postgres-junit.xml' | tee postgres-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
+      - name: Hard-process crash recovery tests
+        id: postgres-crash-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-crash-junit.xml \
+            tests/flowhub/write_pipeline/test_crash_recovery_process.py 2>&1 | tee postgres-crash-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-crash-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-crash-junit.xml crash | tee postgres-crash-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-crash-junit.xml' | tee postgres-crash-manifest.log
             manifest_status=1
           fi
           test "$pytest_status" -eq 0
@@ -93,5 +108,8 @@ jobs:
             postgres-junit.xml
             postgres-output.log
             postgres-manifest.log
+            postgres-crash-junit.xml
+            postgres-crash-output.log
+            postgres-crash-manifest.log
             .pytest_cache
           if-no-files-found: warn
