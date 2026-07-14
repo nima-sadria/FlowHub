@@ -3,13 +3,13 @@
 [![Build](https://img.shields.io/badge/build-ready_for_release-16a34a)](https://github.com/nima-sadria/FlowHub)
 [![Docker](https://img.shields.io/badge/docker-compose-2496ed)](docker-compose.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Latest Release](https://img.shields.io/badge/release-FlowHub_v1.2_Stable-7c3aed)](docs/releases/FLOWHUB_V1.2_STABLE.md)
+[![Latest Release](https://img.shields.io/badge/release-FlowHub_v1.3_Beta-7c3aed)](docs/releases/FLOWHUB_V1.3_BETA.md)
 
-FlowHub v1.2 Stable is the approved self-hosted multi-channel workspace release.
-The approved release commit is
-[`4a02fbbcf25f0d82d05f7dc5f0f1dd3efa322a0c`](docs/releases/FLOWHUB_V1.2_STABLE.md).
+FlowHub v1.3 Beta is the official development baseline for the self-hosted
+multi-channel pricing workspace. The approved release commit is
+[`fe953bdb3139f3135692cd3b3b3a221c6c371de6`](docs/releases/FLOWHUB_V1.3_BETA.md).
 
-FlowHub v1.3 development adds a [Source-centric pricing Workspace](docs/architecture/SOURCE_CENTRIC_PRICING_WORKSPACE.md), explicit per-Channel Source mappings, Data Quality workflow, and a managed internal FlowHub Sheet while preserving the frozen v1.2 safety pipeline.
+The release includes a [Source-centric pricing Workspace](docs/architecture/SOURCE_CENTRIC_PRICING_WORKSPACE.md), explicit per-Channel Source mappings, Data Quality workflow, a managed internal FlowHub Sheet, safe formulas, spreadsheet import, and complete English/Persian localization with RTL support.
 
 FlowHub is a self-hosted WooCommerce price-management platform. It reads a
 Nextcloud-hosted spreadsheet through WebDAV, validates proposed price changes
@@ -18,9 +18,9 @@ explicitly approved manual price updates.
 
 ## Architecture
 
-The v1.2 architecture is complete and frozen for normal feature development.
-See the [official v1.2 release registration](docs/releases/FLOWHUB_V1.2_STABLE.md)
-and [current architecture](docs/architecture/CURRENT_ARCHITECTURE.md).
+The v1.3 architecture is stable and frozen for normal feature development.
+See the [official v1.3 Beta release registration](docs/releases/FLOWHUB_V1.3_BETA.md)
+and [Source-centric architecture](docs/architecture/SOURCE_CENTRIC_PRICING_WORKSPACE.md).
 
 ```mermaid
 flowchart LR
@@ -281,11 +281,11 @@ flowhub health
 
 ## Screenshots
 
-Current release UI previews are stored in `docs/assets/screenshots/`.
+Current release UI previews are stored in `docs/screenshots/v1.3/`.
 
-| Dashboard | Workspace | Settings |
-| --- | --- |
-| ![Dashboard](docs/assets/screenshots/dashboard.svg) | ![Workspace](docs/assets/screenshots/workspace.svg) | ![Settings](docs/assets/screenshots/settings.svg) |
+| Source Configuration | Workspace | FlowHub Sheet |
+| --- | --- | --- |
+| ![Source Configuration](docs/screenshots/v1.3/source-configuration.png) | ![Workspace](docs/screenshots/v1.3/workspace-1440x900.png) | ![FlowHub Sheet](docs/screenshots/v1.3/flowhub-sheet.png) |
 
 ## Documentation
 
@@ -301,19 +301,25 @@ Current release UI previews are stored in `docs/assets/screenshots/`.
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [FAQ](docs/FAQ.md)
 - [Release Checklist](docs/RELEASE_CHECKLIST.md)
-- [Roadmap](ROADMAP.md)
+- [FlowHub v1.3 Beta Release](docs/releases/FLOWHUB_V1.3_BETA.md)
+- [Next Priorities](docs/roadmap/NEXT.md)
+- [Roadmap Archive](ROADMAP.md)
 - [Support](SUPPORT.md)
 
 ## Current vs Planned
 
 Current:
 
-- FlowHub web app, installer, CLI, setup wizard, Data Layer, Integration Platform, Unified Logging Platform, Diagnostics, Settings, and read-only connector management.
+- FlowHub web app, installer, CLI, setup wizard, Source-centric Workspace,
+  FlowHub Sheet, Formula Engine, spreadsheet import, Data Quality, English/Persian
+  localization, Data Layer, shared Write Pipeline, Recovery, Reconciliation,
+  Diagnostics, Settings, and connector management.
 
 Planned:
 
 - Additional connectors including Shopify, Magento, ERP, CSV, Google Sheets, and custom APIs.
-- Scheduler execution, Apply flows, and write automation only after Owner approval and new safety review.
+- Additional scheduler and write automation only after Owner approval and a
+  targeted safety review.
 - Live logging tail and advanced telemetry visualizations.
 
 ## Contributing

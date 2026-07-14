@@ -1,17 +1,19 @@
 # Changelog
 
-## FlowHub v1.3 — Source-Centric Pricing Workspace
+## FlowHub v1.3 Beta
 
-- Added immutable Source and per-Channel Mapping revisions.
-- Added Source Product grouped Workspace rows with independent Listing children.
-- Added automatic selection of eligible changed Review items and a separate Data
-  Quality workflow for blocked rows.
-- Added the internal FlowHub Sheet, deterministic formula engine, and CSV/XLSX
-  import with checksummed metadata.
-- Added forward-only migration `FLOWHUB_018` without changing v1.2 history or the
-  shared Write Pipeline.
-- Added isolated browser coverage at four desktop viewports and a 10,000-row
-  virtualized data set.
+- Added the Source-centric Workspace with grouped Source Products and independent
+  multi-channel Listings.
+- Added immutable Source Mapping and per-Channel Mapping revisions.
+- Added the internal FlowHub Sheet and deterministic Formula Engine.
+- Added the XLSX/CSV Import Wizard with checksummed import metadata.
+- Added a dedicated Data Quality workflow for blocked Source and Listing issues.
+- Added centralized internationalization, English and Persian catalogs, and RTL
+  layout support.
+- Added forward-only PostgreSQL migration `FLOWHUB_018` while preserving v1.2
+  history and the shared Write Pipeline.
+- Strengthened durable Recovery and uncertain-only Reconciliation coverage.
+- Passed browser E2E, PostgreSQL CI, and virtualized 10,000-product coverage.
 
 ## First Public Release
 
