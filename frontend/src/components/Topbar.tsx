@@ -10,6 +10,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/products': 'Products',
   '/sources': 'Sources',
   '/sources/new': 'Add Source',
+  '/sources/import': 'Import Spreadsheet',
+  '/data-quality': 'Data Quality',
   '/commerce': 'Commerce Hub',
   '/activity': 'Activity',
   '/diagnostics': 'Diagnostics',
@@ -23,6 +25,8 @@ export function resolvePageTitle(pathname: string, workspaceName?: string | null
   if (/^\/(?:workspace|workspaces|unified-workspace)\/[^/]+(?:\/.*)?$/.test(pathname)) {
     return workspaceName?.trim() || 'Workspace'
   }
+  if (/^\/sources\/[^/]+$/.test(pathname)) return 'Source Configuration'
+  if (/^\/sheets\/[^/]+$/.test(pathname)) return 'FlowHub Sheet'
   return 'FlowHub'
 }
 

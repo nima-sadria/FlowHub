@@ -26,6 +26,10 @@ REQUIRED_CRASH_TESTS = (
     "test_hard_process_provider_commit_recovers_without_duplicate_write",
     "test_hard_process_before_dispatch_is_recoverable_without_provider_write",
 )
+REQUIRED_018_TESTS = (
+    "test_postgresql_018_fresh_schema_foreign_keys_and_immutability",
+    "test_postgresql_017_to_018_preserves_v12_sentinel",
+)
 
 
 def main() -> int:
@@ -37,6 +41,7 @@ def main() -> int:
         "016-upgrade": REQUIRED_016_TESTS[1:2],
         "016-lock": REQUIRED_016_TESTS[2:],
         "017": REQUIRED_017_TESTS,
+        "018": REQUIRED_018_TESTS,
         "orders": REQUIRED_ORDER_TESTS,
         "crash": REQUIRED_CRASH_TESTS,
     }.get(group, REQUIRED_017_TESTS)

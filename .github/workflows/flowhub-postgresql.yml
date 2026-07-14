@@ -120,6 +120,24 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
+      - name: PostgreSQL FLOWHUB_018 source workspace migration tests
+        id: postgres-018-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-018-junit.xml \
+            tests/flowhub/migration/test_source_workspace_018.py::test_postgresql_018_fresh_schema_foreign_keys_and_immutability \
+            tests/flowhub/migration/test_source_workspace_018.py::test_postgresql_017_to_018_preserves_v12_sentinel \
+            2>&1 | tee postgres-018-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-018-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-018-junit.xml 018 | tee postgres-018-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-018-junit.xml' | tee postgres-018-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: PostgreSQL order and concurrency tests
         id: postgres-order-tests
         run: |
@@ -171,6 +189,9 @@ jobs:
             postgres-017-junit.xml
             postgres-017-output.log
             postgres-017-manifest.log
+            postgres-018-junit.xml
+            postgres-018-output.log
+            postgres-018-manifest.log
             postgres-orders-junit.xml
             postgres-orders-output.log
             postgres-orders-manifest.log

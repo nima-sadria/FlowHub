@@ -61,44 +61,49 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exception_handlers import http_exception_handler
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from app.connectors.common.errors import ConnectorError
 from app.flowhub.api.health import router as health_router
-from app.flowhub.auth.router import router as auth_router
-from app.flowhub.api.v2.setup import router as setup_router
-from app.flowhub.api.v2.config import router as config_router
-from app.flowhub.api.v2.products import router as products_router
-from app.flowhub.api.v2.sources import router as sources_router
-from app.flowhub.api.v2.workspace import router as workspace_router
-from app.flowhub.api.v2.write_pipeline import router as write_pipeline_router
-from app.flowhub.api.v2.settings_routes import router as settings_router
-from app.flowhub.api.v2.commerce import router as commerce_router
 from app.flowhub.api.v2.activity import router as activity_router
-from app.flowhub.api.v2.diagnostics import router as diagnostics_router
+from app.flowhub.api.v2.commerce import router as commerce_router
+from app.flowhub.api.v2.config import router as config_router
 from app.flowhub.api.v2.data_layer_routes import router as data_layer_router
-from app.flowhub.api.v2.integrations import router as integrations_router
+from app.flowhub.api.v2.diagnostics import router as diagnostics_router
 from app.flowhub.api.v2.integration_platform import router as integration_platform_router
+from app.flowhub.api.v2.integrations import router as integrations_router
 from app.flowhub.api.v2.logging import router as logging_router
+from app.flowhub.api.v2.orders import router as orders_router
+from app.flowhub.api.v2.products import router as products_router
 from app.flowhub.api.v2.read_engine import router as read_engine_router
+from app.flowhub.api.v2.settings_routes import router as settings_router
+from app.flowhub.api.v2.setup import router as setup_router
+from app.flowhub.api.v2.source_workspace import router as source_workspace_router
+from app.flowhub.api.v2.sources import router as sources_router
+from app.flowhub.api.v2.unified_workspace import router as unified_workspace_router
 from app.flowhub.api.v2.users import router as users_router
 from app.flowhub.api.v2.webhooks import router as webhooks_router
-from app.flowhub.api.v2.orders import router as orders_router
-from app.flowhub.api.v2.unified_workspace import router as unified_workspace_router
+from app.flowhub.api.v2.workspace import router as workspace_router
+from app.flowhub.api.v2.write_pipeline import router as write_pipeline_router
+from app.flowhub.auth.router import router as auth_router
+from app.flowhub.integrations.errors import IntegrationError
 from app.flowhub.maintenance import (
     MAINTENANCE_ERROR_CODE,
     MAINTENANCE_ERROR_MESSAGE,
     MaintenanceModeActiveError,
 )
-from app.connectors.common.errors import ConnectorError
-from app.flowhub.integrations.errors import IntegrationError
 from app.flowhub.security.upstream_errors import (
     UpstreamServiceError,
     is_unsafe_upstream_content,
     normalize_upstream_error,
     upstream_http_status,
 )
-from app.flowhub.unified_workspace.domain import ConcurrencyConflict, ImmutableRecordError, WorkspaceDomainError
+from app.flowhub.unified_workspace.domain import (
+    ConcurrencyConflict,
+    ImmutableRecordError,
+    WorkspaceDomainError,
+)
 
 _VERSION = os.getenv("FLOWHUB_VERSION", "1.0.0")
 
@@ -183,7 +188,7 @@ async def integration_error_handler(_: Request, exc: IntegrationError) -> JSONRe
 
 
 @app.exception_handler(HTTPException)
-async def safe_http_exception_handler(request: Request, exc: HTTPException):
+async def safe_http_exception_handler(request: Request, exc: HTTPException) -> Response:
     if is_unsafe_upstream_content(exc.detail):
         return JSONResponse(
             status_code=exc.status_code,
@@ -219,6 +224,7 @@ app.include_router(data_layer_router, prefix="/api/v2")
 app.include_router(webhooks_router, prefix="/api/v2")
 app.include_router(orders_router, prefix="/api/v2")
 app.include_router(unified_workspace_router, prefix="/api/v2")
+app.include_router(source_workspace_router, prefix="/api/v2")
 
 # Static assets (hashed filenames produced by Vite; only mounted if built)
 _assets_dir = _FRONTEND_DIST / "assets"

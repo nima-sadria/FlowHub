@@ -9,6 +9,8 @@ FlowHub v1.2 Stable is the approved self-hosted multi-channel workspace release.
 The approved release commit is
 [`4a02fbbcf25f0d82d05f7dc5f0f1dd3efa322a0c`](docs/releases/FLOWHUB_V1.2_STABLE.md).
 
+FlowHub v1.3 development adds a [Source-centric pricing Workspace](docs/architecture/SOURCE_CENTRIC_PRICING_WORKSPACE.md), explicit per-Channel Source mappings, Data Quality workflow, and a managed internal FlowHub Sheet while preserving the frozen v1.2 safety pipeline.
+
 FlowHub is a self-hosted WooCommerce price-management platform. It reads a
 Nextcloud-hosted spreadsheet through WebDAV, validates proposed price changes
 against a manually refreshed WooCommerce product cache, and performs only
@@ -47,6 +49,11 @@ flowchart TD
 
 ## Features
 
+- Source Product parent rows group independent Channel Listings for daily pricing.
+- Explicit Source Product and per-Channel mappings support irregular spreadsheets.
+- FlowHub Sheet provides versioned rows, safe formulas, CSV/XLSX import, and a
+  virtualized 10,000-row editor independent of Handsontable functionality.
+- Data Quality separates blocked technical issues from eligible daily changes.
 - First-run setup creates the initial owner account, then locks setup.
 - Nextcloud Sources are read-only: test WebDAV access, browse/select a workbook,
   map columns, select worksheets, and manually read within a source quota.

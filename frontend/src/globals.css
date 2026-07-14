@@ -51,6 +51,126 @@
   overscroll-behavior-x: contain;
 }
 
+/* FlowHub-owned Sheet UI: permissive application code with no Handsontable dependency. */
+.fh-sheet-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  border-top: 1px solid var(--fh-border);
+}
+
+.fh-sheet-header,
+.fh-sheet-row {
+  display: grid;
+  min-width: max-content;
+}
+
+.fh-sheet-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--fh-bg-base);
+  color: var(--fh-text-base);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fh-sheet-header > span,
+.fh-sheet-row-number {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 10px;
+  border-inline-end: 1px solid var(--fh-border);
+  border-bottom: 1px solid var(--fh-border);
+}
+
+.fh-sheet-column-name {
+  min-width: 0;
+  border: 0;
+  border-inline-end: 1px solid var(--fh-border);
+  border-bottom: 1px solid var(--fh-border);
+  background: transparent;
+  padding: 0 10px;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.fh-sheet-column-name:focus {
+  box-shadow: inset 0 0 0 2px var(--fh-accent);
+  background: var(--fh-bg-card);
+}
+
+.fh-sheet-viewport {
+  min-width: 0;
+  overflow: auto;
+  contain: strict;
+}
+
+.fh-sheet-row {
+  border-bottom: 1px solid var(--fh-border);
+}
+
+.fh-sheet-row-number {
+  justify-content: center;
+  background: var(--fh-bg-base);
+  color: var(--fh-gray-500);
+  font-size: 12px;
+}
+
+.fh-sheet-cell {
+  min-width: 0;
+  border: 0;
+  border-inline-end: 1px solid var(--fh-border);
+  background: transparent;
+  padding: 0 10px;
+  color: var(--fh-text-base);
+  outline: none;
+}
+
+.fh-sheet-cell:focus {
+  box-shadow: inset 0 0 0 2px var(--fh-accent);
+  background: var(--fh-bg-card);
+}
+
+.fh-sheet-cell-error {
+  box-shadow: inset 3px 0 0 var(--fh-red);
+}
+
+.fh-status-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  border: 1px solid var(--fh-border);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.fh-status-ready { color: var(--fh-green); }
+.fh-status-blocked { color: var(--fh-red); }
+.fh-status-unchanged { color: var(--fh-gray-500); }
+
+.fh-readonly-value {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--fh-border);
+  background: var(--fh-bg-base);
+  padding: 0 10px;
+  color: var(--fh-gray-500);
+  font-size: 12px;
+}
+
+.fh-step-active {
+  color: var(--fh-text-base);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .fh-handsontable {
   direction: ltr;
   min-width: max-content;

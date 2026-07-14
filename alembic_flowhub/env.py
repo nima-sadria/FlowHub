@@ -15,8 +15,10 @@ from __future__ import annotations
 import os
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, inspect, pool, text
+from sqlalchemy.engine import Connection
+
+from alembic import context
 
 config = context.config
 
@@ -30,16 +32,19 @@ if database_url:
 # Import models so their tables are registered on FlowHubBase.metadata before
 # Alembic inspects it.  The import chain is: models -> database (FlowHubBase).
 # The database module is safe to import without a live connection.
-from app.flowhub.database import FlowHubBase  # noqa: E402
 from app.flowhub.auth import models as _auth_models  # noqa: E402, F401
-from app.flowhub.setup import models as _setup_models  # noqa: E402, F401
 from app.flowhub.data_layer import models as _data_layer_models  # noqa: E402, F401
-from app.flowhub.integration_platform import models as _integration_platform_models  # noqa: E402, F401
-from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: E402, F401
-from app.flowhub.webhooks import models as _webhook_models  # noqa: E402, F401
+from app.flowhub.database import FlowHubBase  # noqa: E402
+from app.flowhub.integration_platform import (  # noqa: E402
+    models as _integration_platform_models,  # noqa: E402, F401
+)
 from app.flowhub.orders import models as _order_models  # noqa: E402, F401
 from app.flowhub.product_pricing import models as _product_pricing_models  # noqa: E402, F401
+from app.flowhub.setup import models as _setup_models  # noqa: E402, F401
+from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: E402, F401
 from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: E402, F401
+from app.flowhub.webhooks import models as _webhook_models  # noqa: E402, F401
+from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: E402, F401
 
 target_metadata = FlowHubBase.metadata
 
@@ -69,13 +74,13 @@ def _quote_identifier(dialect_name: str, name: str) -> str:
     return f'"{escaped}"'
 
 
-def _rename_table(connection, old_name: str, new_name: str) -> None:
+def _rename_table(connection: Connection, old_name: str, new_name: str) -> None:
     old = _quote_identifier(connection.dialect.name, old_name)
     new = _quote_identifier(connection.dialect.name, new_name)
     connection.execute(text(f"ALTER TABLE {old} RENAME TO {new}"))
 
 
-def _normalize_legacy_revision_state(connection) -> None:
+def _normalize_legacy_revision_state(connection: Connection) -> None:
     """Bridge one release of old internal revision/table names.
 
     This runs before Alembic resolves the current revision, so installations

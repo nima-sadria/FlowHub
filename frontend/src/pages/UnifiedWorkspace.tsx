@@ -15,6 +15,7 @@ import { sanitizeGridHtml, sourceRecordAtVisualRow } from '../features/unifiedWo
 import { resolveHandsontableLicense } from '../features/unifiedWorkspace/handsontableLicense'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { describeWorkspaceStatus } from '../features/unifiedWorkspace/statusDisplay'
+import SourceCentricWorkspace from '../features/sourceWorkspace/SourceCentricWorkspace'
 
 registerAllModules()
 
@@ -44,6 +45,9 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
   }
   if (!controller.workspace || !controller.grid) {
     return <PageShell><Empty title="Workspace unavailable" description={controller.error ?? 'The Workspace could not be loaded.'} /></PageShell>
+  }
+  if (controller.workspace.entryPoint === 'source') {
+    return <SourceCentricWorkspace workspace={controller.workspace} service={unifiedWorkspace!} />
   }
 
   return (

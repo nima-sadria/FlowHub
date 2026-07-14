@@ -457,9 +457,10 @@ describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => 
     expect(c.querySelector('a[href="/orders"]')).not.toBeNull()
   })
 
-  it('does not show separate Sources link', () => {
+  it('shows the source-centric Sources link', () => {
     const c = renderSidebar(allowedUser)
-    expect(c.querySelector('a[href="/sources"]')).toBeNull()
+    expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
   })
 
   it('shows Commerce Hub link', () => {
@@ -494,7 +495,8 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/home"]')).not.toBeNull()
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
     expect(c.querySelector('a[href="/orders"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/sources"]')).toBeNull()
+    expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
     expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
@@ -527,7 +529,8 @@ describe('Sidebar - super admin (is_super_admin=true, is_admin=false)', () => {
     expect(c.querySelector('a[href="/home"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/sources"]')).toBeNull()
+    expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
     expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()

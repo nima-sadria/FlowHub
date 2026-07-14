@@ -128,6 +128,73 @@ class WorkspaceRepository:
         )
         return typed_rows, total
 
+    def grouped_rows(
+        self,
+        snapshot_id: str,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        include_product_ids: set[str] | None = None,
+        exclude_product_ids: set[str] | None = None,
+    ) -> tuple[
+        list[tuple[SnapshotRow, CanonicalProduct, Listing, ChannelCache | None]], int
+    ]:
+        products = (
+            self.db.query(CanonicalProduct.id, CanonicalProduct.name)
+            .join(SnapshotRow, SnapshotRow.canonical_product_id == CanonicalProduct.id)
+            .filter(
+                SnapshotRow.snapshot_id == snapshot_id,
+                SnapshotRow.listing_id.is_not(None),
+            )
+        )
+        if search:
+            products = products.filter(CanonicalProduct.name.ilike(f"%{search.strip()}%"))
+        if include_product_ids is not None:
+            if not include_product_ids:
+                return [], 0
+            products = products.filter(CanonicalProduct.id.in_(include_product_ids))
+        if exclude_product_ids:
+            products = products.filter(CanonicalProduct.id.not_in(exclude_product_ids))
+        products = products.distinct()
+        total = products.count()
+        product_ids = [
+            item[0]
+            for item in products.order_by(CanonicalProduct.name, CanonicalProduct.id)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        ]
+        if not product_ids:
+            return [], total
+        rows = (
+            self.db.query(SnapshotRow, CanonicalProduct, Listing, ChannelCache)
+            .join(CanonicalProduct, CanonicalProduct.id == SnapshotRow.canonical_product_id)
+            .join(Listing, Listing.id == SnapshotRow.listing_id)
+            .outerjoin(ChannelCache, ChannelCache.listing_id == Listing.id)
+            .filter(
+                SnapshotRow.snapshot_id == snapshot_id,
+                CanonicalProduct.id.in_(product_ids),
+            )
+            .order_by(CanonicalProduct.name, CanonicalProduct.id, Listing.channel_id, Listing.label)
+            .all()
+        )
+        return typing_cast(
+            list[tuple[SnapshotRow, CanonicalProduct, Listing, ChannelCache | None]], rows
+        ), total
+
+    def grouped_product_count(self, snapshot_id: str) -> int:
+        return (
+            self.db.query(CanonicalProduct.id)
+            .join(SnapshotRow, SnapshotRow.canonical_product_id == CanonicalProduct.id)
+            .filter(
+                SnapshotRow.snapshot_id == snapshot_id,
+                SnapshotRow.listing_id.is_not(None),
+            )
+            .distinct()
+            .count()
+        )
+
 
 class DraftRepository:
     def __init__(self, db: Session) -> None:

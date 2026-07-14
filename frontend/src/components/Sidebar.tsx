@@ -121,6 +121,13 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
             )}
 
             {hasPerm('can_access_site') && (
+              <NavLink to="/sources" className={linkCls} onClick={onClose}>
+                <Icon name="file" className="fh-menu-item-icon h-6 w-6" />
+                <span className={collapsed ? 'md:hidden' : ''}>Sources</span>
+              </NavLink>
+            )}
+
+            {hasPerm('can_access_site') && (
               <NavLink to="/commerce" className={linkCls} onClick={onClose}>
                 <Icon name={routeIconMap['Commerce Hub']} className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Commerce Hub</span>
@@ -131,6 +138,13 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
               <NavLink to="/workspace" className={linkCls} onClick={onClose}>
                 <Icon name={routeIconMap.Workspace} className="fh-menu-item-icon h-6 w-6" />
                 <span className={collapsed ? 'md:hidden' : ''}>Workspace</span>
+              </NavLink>
+            )}
+
+            {hasPerm('can_fetch') && (
+              <NavLink to="/data-quality" className={linkCls} onClick={onClose}>
+                <Icon name="alert" className="fh-menu-item-icon h-6 w-6" />
+                <span className={collapsed ? 'md:hidden' : ''}>Data Quality</span>
               </NavLink>
             )}
 

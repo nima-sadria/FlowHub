@@ -35,11 +35,14 @@ def test_legacy_revision_and_core_tables_upgrade_without_data_loss(tmp_path, mon
     from app.flowhub.setup import models as _setup_models  # noqa: F401
     from app.flowhub.webhooks import models as _webhook_models  # noqa: F401
 
-    # A legacy beta_007 database cannot contain future Unified Workspace tables.
+    # A legacy beta_007 database cannot contain future Unified Workspace or
+    # Source-Centric Workspace tables.
     # Test collection imports current models globally, so exclude those tables from
     # this historical fixture instead of accidentally pre-creating the migration target.
     legacy_tables = [
-        table for table in FlowHubBase.metadata.sorted_tables if not table.name.startswith("uw_")
+        table
+        for table in FlowHubBase.metadata.sorted_tables
+        if not table.name.startswith(("uw_", "sc_"))
     ]
     FlowHubBase.metadata.create_all(engine, tables=legacy_tables)
     with engine.begin() as conn:

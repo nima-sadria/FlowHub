@@ -36,6 +36,7 @@ class ManualWorkspaceCreateRequest(StrictModel):
 
 class SourceWorkspaceCreateRequest(StrictModel):
     name: str = Field(default="Source Workspace", min_length=1, max_length=240)
+    source_id: str | None = Field(default=None, min_length=1, max_length=36)
     currency: str | None = Field(default=None, min_length=3, max_length=12)
     unit: str | None = Field(default=None, min_length=3, max_length=24)
 
@@ -142,6 +143,7 @@ async def create_source_workspace(
 ) -> dict[str, Any]:
     return await service.create_source_workspace(
         name=body.name,
+        source_id=body.source_id,
         source_currency=body.currency,
         source_unit=body.unit,
         user=user,
@@ -239,6 +241,26 @@ def get_grid(
         max_price=max_price,
         stock_quantity=stock_quantity,
         sorts=sorts,
+    )
+
+
+@router.get("/{workspace_id}/grouped-grid")
+def get_grouped_grid(
+    workspace_id: str,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=100, alias="pageSize", ge=1, le=200),
+    search: str | None = Query(default=None, max_length=240),
+    view: Literal["changed", "ready", "blocked", "unchanged", "all"] = Query(default="changed"),
+    user: FlowHubUser = Depends(require_workspace_permission("workspace.read")),
+    service: UnifiedWorkspaceService = Depends(_service),
+) -> dict[str, Any]:
+    return service.grouped_grid(
+        workspace_id,
+        user,
+        page=page,
+        page_size=page_size,
+        search=search,
+        view=view,
     )
 
 

@@ -29,6 +29,11 @@ import Orders from './pages/Orders'
 import Login from './pages/Login'
 import Setup from './pages/Setup'
 import NotFound from './pages/NotFound'
+import SourceCenter from './pages/SourceCenter'
+import SourceConfiguration from './pages/SourceConfiguration'
+import SourceImportWizard from './pages/SourceImportWizard'
+import FlowHubSheet from './pages/FlowHubSheet'
+import DataQuality from './pages/DataQuality'
 
 const UnifiedWorkspace = lazy(() => import('./pages/UnifiedWorkspace'))
 import type { SetupStatus } from './api/types'
@@ -147,8 +152,12 @@ function SetupGate() {
         <Route path="/home" element={<RequirePermission permission="can_access_site"><Dashboard /></RequirePermission>} />
         <Route path="/products" element={<RequirePermission permission="can_fetch"><Products /></RequirePermission>} />
         <Route path="/orders" element={<RequirePermission permission="can_fetch"><Orders /></RequirePermission>} />
-        <Route path="/sources" element={<RequirePermission permission="can_access_site"><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
-        <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
+        <Route path="/sources" element={<RequirePermission permission="can_access_site"><SourceCenter /></RequirePermission>} />
+        <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><SourceCenter /></RequirePermission>} />
+        <Route path="/sources/import" element={<RequirePermission permission="can_access_site"><SourceImportWizard /></RequirePermission>} />
+        <Route path="/sources/:sourceId" element={<RequirePermission permission="can_access_site"><SourceConfiguration /></RequirePermission>} />
+        <Route path="/sheets/:sheetId" element={<RequirePermission permission="can_fetch"><FlowHubSheet /></RequirePermission>} />
+        <Route path="/data-quality" element={<RequirePermission permission="can_fetch"><DataQuality /></RequirePermission>} />
         <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
         <Route path="/workspace/:workspaceId" element={<RequirePermission permission="can_fetch"><Suspense fallback={<div className="fh-card fh-card-pad">Loading Workspace Grid...</div>}><UnifiedWorkspace /></Suspense></RequirePermission>} />

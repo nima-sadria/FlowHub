@@ -18,6 +18,8 @@ from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.data_layer.models import DlProductCache
 from app.flowhub.product_pricing.service import ProductPricingService
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.source_workspace.models import SourceDataQualityIssue
+from app.flowhub.source_workspace.service import SourceWorkspaceService
 from app.flowhub.unified_workspace.authorization import has_workspace_permission
 from app.flowhub.unified_workspace.connectors import WorkspaceConnectorFactory
 from app.flowhub.unified_workspace.domain import (
@@ -331,7 +333,15 @@ class UnifiedWorkspaceService:
         source_unit: str | None,
         user: FlowHubUser,
         correlation_id: str,
+        source_id: str | None = None,
     ) -> dict[str, Any]:
+        if source_id:
+            return self._create_managed_source_workspace(
+                name=name,
+                source_id=source_id,
+                user=user,
+                correlation_id=correlation_id,
+            )
         self._seed_channels()
         preview = await WorkspacePriceWorkflowService(self.db).preview_from_nextcloud(user)
         global_profile = self._global_currency_profile()
@@ -513,6 +523,237 @@ class UnifiedWorkspaceService:
         )
         self.db.commit()
         return self.workspace_shape(workspace_id, user)
+
+    def _create_managed_source_workspace(
+        self,
+        *,
+        name: str,
+        source_id: str,
+        user: FlowHubUser,
+        correlation_id: str,
+    ) -> dict[str, Any]:
+        """Create a v1.2 Workspace from a saved, immutable internal Sheet revision."""
+        self._seed_channels()
+        analysis = SourceWorkspaceService(self.db).snapshot_candidates(source_id, user)
+        currency_profile = self._global_currency_profile()
+        workspace_id = _id()
+        snapshot_id = _id()
+        workspace = UnifiedWorkspace(
+            id=workspace_id,
+            name=canonical_text(name) or str(analysis["source"]["name"]),
+            entry_point=EntryPoint.SOURCE,
+            source_type=str(analysis["source"]["sourceKind"]),
+            owner_user_id=user.id,
+            status="active",
+            version=1,
+        )
+        self.db.add(workspace)
+        staged_rows: list[SnapshotRow] = []
+        snapshot_document: list[dict[str, Any]] = []
+        draft_changes: list[dict[str, Any]] = []
+        issue_payloads = list(analysis["issues"])
+        for row_number, candidate in enumerate(analysis["candidates"], start=1):
+            immutable = {
+                "source_row_key": candidate["sourceRowKey"],
+                "source_row_number": candidate["sourceRowNumber"],
+                "source_product": candidate["sourceProduct"],
+                "canonical_product_id": candidate["canonicalProductId"],
+                "listing_id": candidate["listingId"],
+                "channel_id": candidate["channelId"],
+                "mapping_version": candidate["mappingVersion"],
+                "cache_version": candidate["cacheVersion"],
+                "targets": candidate["targets"],
+            }
+            snapshot_document.append(immutable)
+            staged_rows.append(
+                SnapshotRow(
+                    id=_id(),
+                    snapshot_id=snapshot_id,
+                    row_number=row_number,
+                    canonical_product_id=candidate["canonicalProductId"],
+                    listing_id=candidate["listingId"],
+                    mapping_version=candidate["mappingVersion"],
+                    raw_data_json={
+                        "source_row_key": candidate["sourceRowKey"],
+                        "source_row_number": candidate["sourceRowNumber"],
+                    },
+                    normalized_data_json=immutable,
+                    row_checksum=checksum(immutable),
+                )
+            )
+            product = self.db.get(CanonicalProduct, candidate["canonicalProductId"])
+            listing = self.db.get(Listing, candidate["listingId"])
+            capabilities = self._capabilities(candidate["channelId"])
+            if product is None or listing is None or product.product_type == ProductKind.VARIABLE:
+                issue_payloads.append(
+                    {
+                        "sourceRowKey": candidate["sourceRowKey"],
+                        "sourceRowNumber": candidate["sourceRowNumber"],
+                        "channelId": candidate["channelId"],
+                        "category": "unsupported_product",
+                        "severity": "blocked",
+                        "code": "VARIABLE_PARENT_READ_ONLY",
+                        "summary": "Variable parent products cannot be edited.",
+                        "recommendedAction": "Map the sellable variation instead.",
+                        "technicalDetails": {"listing_id": candidate["listingId"]},
+                    }
+                )
+                continue
+            for field, target in candidate["targets"].items():
+                if not capabilities.can_write(field):
+                    issue_payloads.append(
+                        {
+                            "sourceRowKey": candidate["sourceRowKey"],
+                            "sourceRowNumber": candidate["sourceRowNumber"],
+                            "channelId": candidate["channelId"],
+                            "category": "unavailable_capability",
+                            "severity": "blocked",
+                            "code": "FIELD_CAPABILITY_UNAVAILABLE",
+                            "summary": f"{field.title()} is not writable for this Channel.",
+                            "recommendedAction": "Disable this mapped field or configure a supported connector capability.",
+                            "technicalDetails": {"listing_id": listing.id, "field": field},
+                        }
+                    )
+                    continue
+                draft_changes.append(
+                    {
+                        "canonical_product_id": product.id,
+                        "listing_id": listing.id,
+                        "channel_id": listing.channel_id,
+                        "field": field,
+                        "target_value": target,
+                        "currency": capabilities.currency if field == "price" else None,
+                        "unit": capabilities.unit if field == "price" else None,
+                    }
+                )
+        snapshot_checksum = checksum(
+            {
+                "source": analysis["source"]["id"],
+                "source_version": analysis["source"]["version"],
+                "mapping": analysis["mapping"]["checksum"],
+                "sheet_revision": analysis["sheetRevision"]["checksum"],
+                "rows": snapshot_document,
+                "normalization": NORMALIZATION_VERSION,
+                "validation": VALIDATION_VERSION,
+            }
+        )
+        snapshot = WorkspaceSnapshot(
+            id=snapshot_id,
+            workspace_id=workspace_id,
+            entry_point=EntryPoint.SOURCE,
+            source_type=str(analysis["source"]["sourceKind"]),
+            creator_user_id=user.id,
+            schema_version=SCHEMA_VERSION,
+            content_checksum=snapshot_checksum,
+            normalization_version=NORMALIZATION_VERSION,
+            validation_ruleset_version=VALIDATION_VERSION,
+            mapping_version=int(analysis["mapping"]["version"]),
+            currency_profile_id=currency_profile.id,
+            source_metadata_json={
+                "source_id": analysis["source"]["id"],
+                "source_name": analysis["source"]["name"],
+                "source_version": analysis["source"]["version"],
+                "mapping_revision_id": analysis["mapping"]["id"],
+                "mapping_checksum": analysis["mapping"]["checksum"],
+                "sheet_revision_id": analysis["sheetRevision"]["id"],
+                "sheet_revision_checksum": analysis["sheetRevision"]["checksum"],
+                "formula_engine_version": analysis["sheetRevision"]["formulaEngineVersion"],
+            },
+            acquisition_metadata_json={
+                "read_once": True,
+                "internal_revision": True,
+                "acquired_at": utcnow().isoformat(),
+            },
+        )
+        draft = Draft(
+            id=_id(),
+            workspace_id=workspace_id,
+            snapshot_id=snapshot_id,
+            owner_user_id=user.id,
+            version=0,
+            status="draft",
+        )
+        self.db.add_all([snapshot, *staged_rows, draft])
+        for issue in issue_payloads:
+            issue_listing_id = (issue.get("technicalDetails") or {}).get("listing_id")
+            issue_listing = self.db.get(Listing, issue_listing_id) if issue_listing_id else None
+            self.db.add(
+                SourceDataQualityIssue(
+                    id=_id(),
+                    source_id=source_id,
+                    snapshot_id=snapshot_id,
+                    worksheet_name=analysis["source"].get("worksheetName"),
+                    source_row_key=issue.get("sourceRowKey"),
+                    source_product_name=issue.get("sourceProductName"),
+                    mapping_state=issue.get("mappingState"),
+                    channel_id=issue.get("channelId"),
+                    canonical_product_id=(
+                        issue_listing.canonical_product_id if issue_listing else None
+                    ),
+                    category=issue["category"],
+                    severity=issue["severity"],
+                    code=issue["code"],
+                    summary=issue["summary"],
+                    recommended_action=issue["recommendedAction"],
+                    technical_details_json=issue.get("technicalDetails") or {},
+                )
+            )
+        self._audit(
+            "workspace_created",
+            user,
+            correlation_id,
+            workspace_id=workspace_id,
+            snapshot_id=snapshot_id,
+            draft_id=draft.id,
+            metadata={
+                "entry_point": "source",
+                "source_id": source_id,
+                "read_once": True,
+                "candidate_count": len(staged_rows),
+                "blocked_count": len(issue_payloads),
+            },
+        )
+        self._audit(
+            "snapshot_created",
+            user,
+            correlation_id,
+            workspace_id=workspace_id,
+            snapshot_id=snapshot_id,
+            metadata={"checksum": snapshot_checksum, "read_once": True},
+        )
+        self.db.commit()
+        result = self.workspace_shape(workspace_id, user)
+        result["sourceAnalysis"] = {
+            **analysis["summary"],
+            "detectedChanges": len(draft_changes),
+            "automaticallySelected": 0,
+        }
+        if not draft_changes:
+            return result
+        saved = self.save_draft(
+            workspace_id,
+            expected_version=0,
+            raw_changes=draft_changes,
+            metadata={"source_generated": True, "source_id": source_id},
+            user=user,
+            correlation_id=correlation_id,
+        )
+        review = self.generate_review(workspace_id, saved["id"], user, correlation_id)
+        eligible_ids = [item["id"] for item in review["items"] if item["eligible"]]
+        selection = None
+        if review["status"] == ReviewState.READY and eligible_ids:
+            selection = self.select_review_items(
+                workspace_id, review["id"], eligible_ids, user, correlation_id
+            )
+        result = self.workspace_shape(workspace_id, user)
+        result["sourceAnalysis"] = {
+            **analysis["summary"],
+            "detectedChanges": int(review["summary"]["eligible"]),
+            "automaticallySelected": len(eligible_ids),
+            "reviewId": review["id"],
+            "selectionChecksum": selection["selectionChecksum"] if selection else None,
+        }
+        return result
 
     def workspace_shape(self, workspace_id: str, user: FlowHubUser) -> dict[str, Any]:
         workspace = self._workspace_for_user(workspace_id, user)
@@ -729,6 +970,213 @@ class UnifiedWorkspaceService:
             "channels": channels,
             "draftVersion": draft.version,
             "revisionId": draft.current_revision_id,
+        }
+
+    def grouped_grid(
+        self,
+        workspace_id: str,
+        user: FlowHubUser,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None,
+        view: str,
+    ) -> dict[str, Any]:
+        """Return one visible parent per Source Product with Listing children."""
+        workspace = self._workspace_for_user(workspace_id, user)
+        snapshot = self.workspaces.snapshot(workspace.id)
+        draft = self.drafts.for_workspace(workspace.id)
+        if snapshot is None or draft is None:
+            raise self._conflict("WORKSPACE_INCOMPLETE", "Workspace persistence is incomplete.")
+        if workspace.entry_point != EntryPoint.SOURCE:
+            raise self._unprocessable(
+                "SOURCE_WORKSPACE_REQUIRED", "Grouped Source Product view requires a Source Workspace."
+            )
+        page_size = min(max(page_size, 1), 200)
+        changes = self.drafts.changes(draft.current_revision_id) if draft.current_revision_id else []
+        changes_by_listing: dict[str, dict[str, DraftRevisionChange]] = defaultdict(dict)
+        for change in changes:
+            changes_by_listing[change.listing_id][change.field] = change
+        latest_review = (
+            self.db.query(Review)
+            .filter(
+                Review.workspace_id == workspace.id,
+                Review.draft_revision_id == draft.current_revision_id,
+            )
+            .order_by(Review.created_at.desc(), Review.id.desc())
+            .first()
+            if draft.current_revision_id
+            else None
+        )
+        selected_listing_ids: set[str] = set()
+        selected_item_count = 0
+        review_items_by_listing: dict[str, list[ReviewItem]] = defaultdict(list)
+        ready_product_ids: set[str] = set()
+        blocked_product_ids: set[str] = {
+            item[0]
+            for item in self.db.query(SourceDataQualityIssue.canonical_product_id)
+            .filter(
+                SourceDataQualityIssue.snapshot_id == snapshot.id,
+                SourceDataQualityIssue.canonical_product_id.is_not(None),
+            )
+            .all()
+        }
+        changed_product_ids = {item.canonical_product_id for item in changes}
+        if latest_review:
+            selected_ids = {
+                item.review_item_id for item in self.reviews.selections(latest_review.id)
+            }
+            selected_item_count = len(selected_ids)
+            review_items = self.reviews.items(latest_review.id)
+            listing_products = {
+                item.id: item.canonical_product_id
+                for item in self.db.query(Listing)
+                .filter(Listing.id.in_({item.listing_id for item in review_items}))
+                .all()
+            }
+            for item in review_items:
+                review_items_by_listing[item.listing_id].append(item)
+                product_id = listing_products.get(item.listing_id)
+                if product_id:
+                    (ready_product_ids if item.eligible else blocked_product_ids).add(product_id)
+                if item.id in selected_ids:
+                    selected_listing_ids.add(item.listing_id)
+        else:
+            ready_product_ids = set(changed_product_ids)
+        include_product_ids: set[str] | None = None
+        exclude_product_ids: set[str] | None = None
+        if view == "changed":
+            include_product_ids = changed_product_ids | blocked_product_ids
+        elif view == "ready":
+            include_product_ids = ready_product_ids
+        elif view == "blocked":
+            include_product_ids = blocked_product_ids
+        elif view == "unchanged":
+            exclude_product_ids = changed_product_ids | blocked_product_ids
+        rows, total = self.workspaces.grouped_rows(
+            snapshot.id,
+            page=max(page, 1),
+            page_size=page_size,
+            search=search,
+            include_product_ids=include_product_ids,
+            exclude_product_ids=exclude_product_ids,
+        )
+        all_product_count = self.workspaces.grouped_product_count(snapshot.id)
+        parents: dict[str, dict[str, Any]] = {}
+        for snapshot_row, product, listing, cache in rows:
+            source_product = snapshot_row.normalized_data_json.get("source_product") or {}
+            parent = parents.setdefault(
+                product.id,
+                {
+                    "sourceProductId": product.id,
+                    "name": source_product.get("name") or product.name,
+                    "sourceKey": source_product.get("source_key"),
+                    "cost": source_product.get("cost"),
+                    "category": source_product.get("category") or product.category,
+                    "brand": source_product.get("brand") or product.brand,
+                    "productType": product.product_type,
+                    "children": [],
+                },
+            )
+            listing_changes = changes_by_listing.get(listing.id, {})
+            source_targets = snapshot_row.normalized_data_json.get("targets") or {}
+            capabilities = self._capabilities(listing.channel_id)
+            fields: dict[str, dict[str, Any]] = {}
+            blocked = False
+            changed = False
+            for field, current in {
+                "price": cache.price_raw if cache else None,
+                "stock": str(cache.stock_quantity) if cache and cache.stock_quantity is not None else None,
+                "status": cache.status if cache else None,
+            }.items():
+                saved = listing_changes.get(field)
+                target = saved.target_value if saved else source_targets.get(field, current)
+                writable = (
+                    product.product_type != ProductKind.VARIABLE
+                    and listing.mapping_state == MappingState.RESOLVED
+                    and capabilities.can_write(field)
+                )
+                field_changed = bool(
+                    target is not None and not values_equal(field, current, str(target))
+                )
+                field_blocked = bool(
+                    field_changed
+                    and (
+                        not writable
+                        or cache is None
+                        or cache.freshness != "fresh"
+                        or cache.fetch_status != "success"
+                    )
+                )
+                changed = changed or field_changed
+                blocked = blocked or field_blocked
+                fields[field] = {
+                    "current": current,
+                    "target": target,
+                    "changed": field_changed,
+                    "readOnly": not writable,
+                    "status": "blocked" if field_blocked else "ready" if field_changed else "unchanged",
+                    "currency": saved.currency if saved else cache.price_currency if cache and field == "price" else None,
+                    "unit": saved.unit if saved else cache.price_unit if cache and field == "price" else None,
+                }
+            review_items = review_items_by_listing.get(listing.id, [])
+            child_state = "blocked" if blocked else "ready" if changed else "unchanged"
+            parent["children"].append(
+                {
+                    "listingId": listing.id,
+                    "channelId": listing.channel_id,
+                    "listingLabel": listing.label,
+                    "externalId": listing.external_primary_id,
+                    "externalIdType": listing.external_id_type,
+                    "sku": listing.sku,
+                    "mappingState": listing.mapping_state,
+                    "cacheFreshness": cache.freshness if cache else "missing",
+                    "state": child_state,
+                    "changedFields": [name for name, item in fields.items() if item["changed"]],
+                    "selected": listing.id in selected_listing_ids,
+                    "reviewItemIds": [item.id for item in review_items if item.eligible],
+                    "fields": fields,
+                }
+            )
+        items = []
+        for parent in parents.values():
+            children = parent["children"]
+            parent["mappedChannelCount"] = len({item["channelId"] for item in children})
+            parent["listingCount"] = len(children)
+            parent["changedListingCount"] = sum(item["state"] != "unchanged" for item in children)
+            parent["selectedListingCount"] = sum(item["selected"] for item in children)
+            parent["state"] = (
+                "blocked"
+                if any(item["state"] == "blocked" for item in children)
+                else "ready"
+                if any(item["state"] == "ready" for item in children)
+                else "unchanged"
+            )
+            items.append(parent)
+        review_summary = latest_review.summary_json if latest_review else {}
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "pageSize": page_size,
+            "view": view,
+            "summary": {
+                "ready": int(review_summary.get("eligible") or 0),
+                "blocked": int(review_summary.get("blocked") or 0),
+                "unchanged": max(
+                    all_product_count - len(changed_product_ids | blocked_product_ids), 0
+                ),
+                "selected": selected_item_count,
+            },
+            "channels": [
+                self._channel_shape(connector.capabilities())
+                for connector in self.connectors.implemented()
+            ],
+            "draftVersion": draft.version,
+            "revisionId": draft.current_revision_id,
+            "reviewId": latest_review.id if latest_review else None,
+            "reviewStatus": latest_review.status if latest_review else None,
+            "selectionChecksum": latest_review.selection_checksum if latest_review else None,
         }
 
     # -- Draft revisions ------------------------------------------------------
@@ -1176,13 +1624,16 @@ class UnifiedWorkspaceService:
                 "ruleset": VALIDATION_VERSION,
             }
         )
+        eligible_count = sum(1 for item in prepared if item["eligible"])
         review = Review(
             id=_id(),
             workspace_id=workspace.id,
             snapshot_id=snapshot.id,
             draft_revision_id=revision.id,
             created_by_user_id=user.id,
-            status=ReviewState.BLOCKED if blocking else ReviewState.READY,
+            # Blocked items are excluded from selection; they do not prevent
+            # unrelated, eligible Listings from proceeding through Review.
+            status=ReviewState.READY if eligible_count else ReviewState.BLOCKED,
             ruleset_version=VALIDATION_VERSION,
             capability_digest=capability_digest,
             currency_digest=currency_digest,
@@ -1198,7 +1649,7 @@ class UnifiedWorkspaceService:
             checksum=review_checksum,
             summary_json={
                 "total": len(prepared),
-                "eligible": sum(1 for item in prepared if item["eligible"]),
+                "eligible": eligible_count,
                 "blocked": blocking,
                 "warnings": warnings,
             },
