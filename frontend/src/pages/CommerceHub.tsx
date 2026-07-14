@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth'
@@ -10,6 +11,8 @@ import Spinner from '../components/loading/Spinner'
 import { useNotification } from '../notifications/NotificationProvider'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
+import { formatDateTime } from '../i18n/format'
+import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 
 type Tab = 'sources' | 'channels'
 type FormKind = 'source' | 'channel'
@@ -42,24 +45,24 @@ function snappShopVendorActive(status: string | null | undefined): boolean {
 }
 
 function channelDisplayName(provider: string, fallback: string): string {
-  if (provider === 'snappshop') return 'SnappShop'
-  if (provider === 'tapsishop') return 'TapsiShop'
-  if (provider === 'woocommerce') return 'WooCommerce'
+  if (['woocommerce', 'snappshop', 'tapsishop', 'shopify'].includes(provider)) {
+    return formatChannelDisplayName(`${provider}:primary`)
+  }
   return fallback
 }
 
 function SafetyBadges({ readOnly, writeBlocked }: { readOnly: boolean; writeBlocked: boolean }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {readOnly && <Badge variant="neutral">Read-only mode</Badge>}
-      {writeBlocked && <Badge variant="danger">Writes blocked</Badge>}
+      {readOnly && <Badge variant="neutral">{translate('commerce:commerceHub.readOnlyMode')}</Badge>}
+      {writeBlocked && <Badge variant="danger">{translate('commerce:commerceHub.writesBlocked')}</Badge>}
     </div>
   )
 }
 
 function RelationshipMap({ map }: { map: CommerceRelationshipMap | null }) {
-  const nodes = map?.nodes ?? ['Source', 'FlowHub / Data Layer', 'Channel']
-  const example = map?.example ?? ['Nextcloud', 'Data Layer', 'WooCommerce']
+  const nodes = map?.nodes ?? [translate('commerce:commerceHub.source'), translate('commerce:commerceHub.flowhubDataLayer'), translate('commerce:commerceHub.channel')]
+  const example = map?.example ?? ['Nextcloud', translate('commerce:commerceHub.dataLayer'), 'WooCommerce']
   return (
     <div className="fh-card fh-card-pad">
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto_1fr] gap-3 items-center text-center">
@@ -69,7 +72,7 @@ function RelationshipMap({ map }: { map: CommerceRelationshipMap | null }) {
         </div>
         <div className="text-xl text-wp-muted">/</div>
         <div className="fh-stat-tile">
-          <p className="fh-stat-tile-label">FlowHub</p>
+          <p className="fh-stat-tile-label">{translate('commerce:commerceHub.flowhub')}</p>
           <p className="fh-text-body font-semibold">{example[1]}</p>
         </div>
         <div className="text-xl text-wp-muted">/</div>
@@ -99,10 +102,10 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="fh-section-title">{source.name}</h3>
-            <Badge variant={source.status === 'degraded' ? 'warning' : ['healthy', 'configured', 'current'].includes(source.status) ? 'success' : ['planned', 'future', 'not_configured', 'unknown'].includes(source.status) ? 'neutral' : 'danger'}>
+            <Badge variant={source.status === "degraded" ? "warning" : ["healthy", "configured", "current"].includes(source.status) ? "success" : ["planned", "future", "not_configured", "unknown"].includes(source.status) ? "neutral" : "danger"}>
               {prettyStatus(source.status)}
             </Badge>
-            {source.placeholder && <Badge variant="neutral">Planned source</Badge>}
+            {source.placeholder && <Badge variant="neutral">{translate('commerce:commerceHub.plannedSource')}</Badge>}
           </div>
           <p className="fh-text-caption mt-1">{source.data_role}</p>
         </div>
@@ -110,16 +113,16 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
       </div>
 
       <div className="fh-form-grid sm:grid-cols-2 fh-text-caption">
-        <p><span className="text-wp-muted">Credential status: </span><span className="font-medium text-text-base">{prettyStatus(source.credential_status)}</span></p>
-        <p><span className="text-wp-muted">Last health check: </span><span className="font-medium text-text-base">{source.last_health_check ? new Date(source.last_health_check).toLocaleString() : 'Not checked'}</span></p>
-        <p><span className="text-wp-muted">Health: </span><span className="font-medium text-text-base">{prettyStatus(source.health?.status ?? 'unknown')}</span></p>
-        <p><span className="text-wp-muted">Data role: </span><span className="font-medium text-text-base">{source.data_role}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.credentialStatus')} </span><span className="font-medium text-text-base">{prettyStatus(source.credential_status)}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastHealthCheck')} </span><span className="font-medium text-text-base">{source.last_health_check ? formatDateTime(source.last_health_check) : translate('commerce:commerceHub.notChecked')}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.health')} </span><span className="font-medium text-text-base">{prettyStatus(source.health?.status ?? "unknown")}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.dataRole')} </span><span className="font-medium text-text-base">{source.data_role}</span></p>
         {readStatus && (
           <>
-            <p><span className="text-wp-muted">Last read: </span><span className="font-medium text-text-base">{readStatus.last_read_at ? new Date(readStatus.last_read_at).toLocaleString() : 'Not read'}</span></p>
-            <p><span className="text-wp-muted">Reads remaining: </span><span className="font-medium text-text-base">{readStatus.reads_remaining}</span></p>
-            <p><span className="text-wp-muted">Last read status: </span><span className="font-medium text-text-base">{readStatus.last_read_status ? prettyStatus(readStatus.last_read_status) : 'Not read'}</span></p>
-            <p><span className="text-wp-muted">Last row count: </span><span className="font-medium text-text-base">{readStatus.last_row_count ?? '-'}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastRead')} </span><span className="font-medium text-text-base">{readStatus.last_read_at ? formatDateTime(readStatus.last_read_at) : translate('commerce:commerceHub.notRead')}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.readsRemaining')} </span><span className="font-medium text-text-base">{readStatus.reads_remaining}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastReadStatus')} </span><span className="font-medium text-text-base">{readStatus.last_read_status ? prettyStatus(readStatus.last_read_status) : translate('commerce:commerceHub.notRead')}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastRowCount')} </span><span className="font-medium text-text-base">{readStatus.last_row_count ?? '-'}</span></p>
           </>
         )}
       </div>
@@ -130,12 +133,12 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              aria-label="Source settings"
+              aria-label={translate('commerce:commerceHub.sourceSettings')}
               onClick={() => onConfigure(source.id)}
               className="fh-button-secondary"
             >
               <Icon name="settings" />
-              Settings
+              {translate('commerce:commerceHub.settings')}
             </button>
             <button
               onClick={() => onTest(source.id)}
@@ -144,7 +147,7 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
             >
               {testing && <Spinner size="sm" />}
               {!testing && <Icon name="testConnection" />}
-              {testing ? 'Testing' : 'Test connection'}
+              {testing ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection')}
             </button>
             <button
               onClick={() => onRead(source.id)}
@@ -153,7 +156,7 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
             >
               {reading && <Spinner size="sm" />}
               {!reading && <Icon name="sync" />}
-              {reading ? 'Reading' : 'Read now'}
+              {reading ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow')}
             </button>
           </div>
         )}
@@ -182,10 +185,10 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="fh-section-title">{channel.name}</h3>
-            <Badge variant={channel.status === 'degraded' ? 'warning' : ['healthy', 'configured', 'current'].includes(channel.status) ? 'success' : ['planned', 'future', 'not_configured', 'unknown'].includes(channel.status) ? 'neutral' : 'danger'}>
+            <Badge variant={channel.status === "degraded" ? "warning" : ["healthy", "configured", "current"].includes(channel.status) ? "success" : ["planned", "future", "not_configured", "unknown"].includes(channel.status) ? "neutral" : "danger"}>
               {prettyStatus(channel.status)}
             </Badge>
-            {channel.placeholder && <Badge variant="neutral">Planned channel</Badge>}
+            {channel.placeholder && <Badge variant="neutral">{translate('commerce:commerceHub.plannedChannel')}</Badge>}
           </div>
           <p className="fh-text-caption mt-1">{channel.capabilities_summary.join(', ')}</p>
         </div>
@@ -193,35 +196,35 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
       </div>
 
       <div className="fh-form-grid sm:grid-cols-2 fh-text-caption">
-        <p><span className="text-wp-muted">Credential status: </span><span className="font-medium text-text-base">{prettyStatus(channel.credential_status)}</span></p>
-        {channel.provider === 'snappshop' && (
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.credentialStatus')} </span><span className="font-medium text-text-base">{prettyStatus(channel.credential_status)}</span></p>
+        {channel.provider === "snappshop" && (
           <>
-            <p><span className="text-wp-muted">Setup state: </span><span className="font-medium text-text-base">{prettyStatus(channel.configuration_state ?? 'not_configured')}</span></p>
-            <p><span className="text-wp-muted">Vendor selected: </span><span className="font-medium text-text-base">{channel.vendor_selected ? 'Yes' : 'No'}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.setupState')} </span><span className="font-medium text-text-base">{prettyStatus(channel.configuration_state ?? "not_configured")}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.vendorSelected')} </span><span className="font-medium text-text-base">{channel.vendor_selected ? translate('commerce:commerceHub.yes') : translate('commerce:commerceHub.no')}</span></p>
           </>
         )}
-        <p><span className="text-wp-muted">Last health check: </span><span className="font-medium text-text-base">{channel.last_health_check ? new Date(channel.last_health_check).toLocaleString() : 'Not checked'}</span></p>
-        <p><span className="text-wp-muted">Health: </span><span className="font-medium text-text-base">{prettyStatus(channel.health?.status ?? 'unknown')}</span></p>
-        <p><span className="text-wp-muted">Capabilities: </span><span className="font-medium text-text-base">{channel.capabilities_summary.join(', ')}</span></p>
-        {channel.provider === 'tapsishop' && (
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastHealthCheck')} </span><span className="font-medium text-text-base">{channel.last_health_check ? formatDateTime(channel.last_health_check) : translate('commerce:commerceHub.notChecked')}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.health')} </span><span className="font-medium text-text-base">{prettyStatus(channel.health?.status ?? "unknown")}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.capabilities')} </span><span className="font-medium text-text-base">{channel.capabilities_summary.join(', ')}</span></p>
+        {channel.provider === "tapsishop" && (
           <>
-            <p><span className="text-wp-muted">API credentials: </span><span className="font-medium text-text-base">{channel.token_configured ? 'Configured' : 'Not configured'}</span></p>
-            <p><span className="text-wp-muted">Webhook credentials: </span><span className="font-medium text-text-base">{channel.webhook_token_configured ? 'Configured' : 'Not configured'}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.apiCredentials')} </span><span className="font-medium text-text-base">{channel.token_configured ? translate('commerce:commerceHub.configured') : translate('commerce:commerceHub.notConfigured2')}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.webhookCredentials')} </span><span className="font-medium text-text-base">{channel.webhook_token_configured ? translate('commerce:commerceHub.configured') : translate('commerce:commerceHub.notConfigured2')}</span></p>
           </>
         )}
         {supportsProductCache && (
           <>
-            <p><span className="text-wp-muted">Cached products: </span><span className="font-medium text-text-base">{channel.cached_products}</span></p>
-            <p><span className="text-wp-muted">Cached variations: </span><span className="font-medium text-text-base">{channel.cached_variations}</span></p>
-            <p><span className="text-wp-muted">Last cache refresh: </span><span className="font-medium text-text-base">{channel.last_cache_refresh ? new Date(channel.last_cache_refresh).toLocaleString() : 'Not refreshed'}</span></p>
-            <p><span className="text-wp-muted">Refresh status: </span><span className="font-medium text-text-base">{prettyStatus(channel.cache_refresh_status)}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.cachedProducts')} </span><span className="font-medium text-text-base">{channel.cached_products}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.cachedVariations')} </span><span className="font-medium text-text-base">{channel.cached_variations}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastCacheRefresh')} </span><span className="font-medium text-text-base">{channel.last_cache_refresh ? formatDateTime(channel.last_cache_refresh) : translate('commerce:commerceHub.notRefreshed')}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.refreshStatus')} </span><span className="font-medium text-text-base">{prettyStatus(channel.cache_refresh_status)}</span></p>
           </>
         )}
         {refreshResult && (
           <p className="sm:col-span-2" role="status">
-            <span className="text-wp-muted">Latest result: </span>
+            <span className="text-wp-muted">{translate('commerce:commerceHub.latestResult')} </span>
             <span className="font-medium text-text-base">
-              {refreshResult.pages_read ?? 0} page(s), {refreshResult.products_received ?? refreshResult.products_read} received, {refreshResult.products_stored ?? refreshResult.cache_rows_upserted} cached
+              {refreshResult.pages_read ?? 0} {translate('commerce:commerceHub.pageS')} {refreshResult.products_received ?? refreshResult.products_read} {translate('commerce:commerceHub.received')} {refreshResult.products_stored ?? refreshResult.cache_rows_upserted} {translate('commerce:commerceHub.cached')}
             </span>
           </p>
         )}
@@ -238,8 +241,8 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
                 disabled={testing || refreshing}
                 className="fh-button-secondary"
               >
-                <Icon name={isConfigured ? 'settings' : 'edit'} />
-                {isConfigured ? 'Settings' : 'Configure'}
+                <Icon name={isConfigured ? "settings" : "edit"} />
+                {isConfigured ? translate('commerce:commerceHub.settings') : translate('commerce:commerceHub.configure')}
               </button>
             )}
             {isConfigurable && (
@@ -250,7 +253,7 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
               >
                 {testing && <Spinner size="sm" />}
                 {!testing && <Icon name="testConnection" />}
-                {testing ? 'Testing' : 'Test connection'}
+                {testing ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection')}
               </button>
             )}
             {supportsProductCache && (isWooCommerce || isConfigured) && (
@@ -261,7 +264,7 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
               >
                 {refreshing && <Spinner size="sm" />}
                 {!refreshing && <Icon name="refresh" />}
-                {refreshing ? 'Refreshing' : 'Refresh product cache'}
+                {refreshing ? translate('commerce:commerceHub.refreshing') : translate('commerce:commerceHub.refreshProductCache')}
               </button>
             )}
           </div>
@@ -272,13 +275,13 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
 }
 
 function fieldLabel(kind: FormKind, provider: string, key: string, fallback: string): string {
-  if (kind === 'source' && provider === 'nextcloud' && key === 'url') return 'Nextcloud server URL'
-  if (kind === 'source' && provider === 'nextcloud' && key === 'password') return 'App password / token'
-  if (kind === 'channel' && provider === 'woocommerce' && key === 'url') return 'Store URL'
-  if (kind === 'channel' && provider === 'woocommerce' && key === 'key') return 'Consumer Key'
-  if (kind === 'channel' && provider === 'woocommerce' && key === 'secret') return 'Consumer Secret'
-  if (['seller_id', 'merchant_id'].includes(key)) return 'Seller/store ID'
-  if (['api_key', 'api_token'].includes(key)) return 'API key/token'
+  if (kind === 'source' && provider === 'nextcloud' && key === 'url') return translate('commerce:commerceHub.fields.nextcloudServerUrl')
+  if (kind === 'source' && provider === 'nextcloud' && key === 'password') return translate('commerce:commerceHub.fields.appPasswordToken')
+  if (kind === 'channel' && provider === 'woocommerce' && key === 'url') return translate('commerce:commerceHub.fields.storeUrl')
+  if (kind === 'channel' && provider === 'woocommerce' && key === 'key') return translate('commerce:commerceHub.fields.consumerKey')
+  if (kind === 'channel' && provider === 'woocommerce' && key === 'secret') return translate('commerce:commerceHub.fields.consumerSecret')
+  if (['seller_id', 'merchant_id'].includes(key)) return translate('commerce:commerceHub.fields.sellerStoreId')
+  if (['api_key', 'api_token'].includes(key)) return translate('commerce:commerceHub.fields.apiKeyToken')
   return fallback
 }
 
@@ -296,21 +299,21 @@ function validateNextcloudBaseUrl(value: string): string | null {
       path.startsWith('/s/') ||
       path.includes('/s/')
     ) {
-      return 'Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL.'
+      return translate('commerce:commerceHub.validation.publicShareUnsupported')
     }
     if (path.includes('/public.php/dav/files')) {
-      return 'Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL.'
+      return translate('commerce:commerceHub.validation.publicShareUnsupported')
     }
     const marker = '/remote.php/dav/files/'
     if (path.includes(marker) && !url.search && !url.hash) {
       const username = path.slice(path.indexOf(marker) + marker.length).split('/')[0]
-      return username ? null : 'Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.'
+      return username ? null : translate('commerce:commerceHub.validation.useNextcloudRootOrWebdav')
     }
     if (path.includes('/remote.php/dav/files') || path.includes('/remote.php/dav') || path.includes('/apps/files') || url.search || url.hash) {
-      return 'Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.'
+      return translate('commerce:commerceHub.validation.useNextcloudRootOrWebdav')
     }
   } catch {
-    return 'Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings.'
+    return translate('commerce:commerceHub.validation.useNextcloudRootOrWebdav')
   }
   return null
 }
@@ -332,7 +335,7 @@ function webdavUsernameFromUrl(value: string): string {
 function webdavUrlUsernameMismatch(value: string, username: string): string | null {
   const usernameFromUrl = webdavUsernameFromUrl(value)
   if (usernameFromUrl && username.trim() && username.trim() !== usernameFromUrl) {
-    return 'WebDAV URL username does not match configured username.'
+    return translate('commerce:commerceHub.validation.webdavUsernameMismatch')
   }
   return null
 }
@@ -371,24 +374,24 @@ function NextcloudFilePicker({
       <div className="fh-card w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
         <div className="fh-panel-header !min-h-0 !items-start">
           <div>
-            <h3 className="fh-section-title">Browse Nextcloud</h3>
+            <h3 className="fh-section-title">{translate('commerce:commerceHub.browseNextcloud')}</h3>
             <p className="fh-section-subtitle mt-1">{currentPath}</p>
           </div>
           <button type="button" onClick={onClose} className="fh-button-secondary">
             <Icon name="close" />
-            Close
+            {translate('commerce:commerceHub.close')}
           </button>
         </div>
         <div className="overflow-auto p-4">
           {error && <div className="fh-error-alert mb-3">{error}</div>}
           {loading ? (
-            <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />Loading files</div>
+            <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />{translate('commerce:commerceHub.loadingFiles')}</div>
           ) : (
             <div className="flex flex-col gap-2">
               {parentPath !== null && (
                 <button type="button" onClick={() => onOpenDirectory(parentPath || '/')} className="fh-button-secondary justify-start">
                   <Icon name="previous" mirrorRtl />
-                  Up one folder
+                  {translate('commerce:commerceHub.upOneFolder')}
                 </button>
               )}
               {data?.directories.map(directory => (
@@ -414,11 +417,11 @@ function NextcloudFilePicker({
                     <Icon name="file" />
                     <span className="truncate">{file.name}</span>
                   </span>
-                  <span className="fh-text-caption">{file.supported ? 'Spreadsheet' : 'Unsupported'}</span>
+                  <span className="fh-text-caption">{file.supported ? translate('commerce:commerceHub.spreadsheet') : translate('commerce:commerceHub.unsupported')}</span>
                 </button>
               ))}
               {!loading && data && data.directories.length === 0 && data.files.length === 0 && (
-                <p className="fh-text-body-sm">No spreadsheet files in this folder.</p>
+                <p className="fh-text-body-sm">{translate('commerce:commerceHub.noSpreadsheetFilesInThisFolder')}</p>
               )}
             </div>
           )}
@@ -514,8 +517,8 @@ function ConfigPanel({
       })
       .catch(() => {
         if (active) notifyError({
-          title: 'Unable to load channel settings',
-          description: 'Please try again.',
+          title: translate('commerce:commerceHub.unableToLoadChannelSettings'),
+          description: translate('commerce:commerceHub.pleaseTryAgain'),
         })
       })
       .finally(() => {
@@ -570,27 +573,27 @@ function ConfigPanel({
       success(kind === 'source'
         ? configurationWasConfigured
           ? {
-              title: 'Source settings updated successfully',
-              description: 'Your changes have been saved.',
+              title: translate('commerce:commerceHub.sourceSettingsUpdatedSuccessfully'),
+              description: translate('commerce:commerceHub.yourChangesHaveBeenSaved'),
             }
           : {
-              title: 'Source configured successfully',
-              description: 'The source is ready to use.',
+              title: translate('commerce:commerceHub.sourceConfiguredSuccessfully'),
+              description: translate('commerce:commerceHub.theSourceIsReadyToUse'),
             }
         : configurationWasConfigured
           ? {
-              title: 'Channel settings updated successfully',
-              description: 'Your changes have been saved.',
+              title: translate('commerce:commerceHub.channelSettingsUpdatedSuccessfully'),
+              description: translate('commerce:commerceHub.yourChangesHaveBeenSaved'),
             }
           : {
-              title: 'Channel configured successfully',
-              description: 'The channel is ready to use.',
+              title: translate('commerce:commerceHub.channelConfiguredSuccessfully'),
+              description: translate('commerce:commerceHub.theChannelIsReadyToUse'),
             })
       await onSaved()
     } catch {
       notifyError({
-        title: kind === 'source' ? 'Unable to save source settings' : 'Unable to save channel settings',
-        description: 'Please review your changes and try again.',
+        title: kind === 'source' ? translate('commerce:commerceHub.unableToSaveSourceSettings') : translate('commerce:commerceHub.unableToSaveChannelSettings'),
+        description: translate('commerce:commerceHub.pleaseReviewYourChangesAndTryAgain'),
       })
     } finally {
       setSaving(false)
@@ -622,22 +625,22 @@ function ConfigPanel({
         }
         success(kind === 'source'
           ? {
-              title: 'Source connected successfully',
-              description: `${selected.name} is ready to use.`,
+              title: translate('commerce:commerceHub.sourceConnectedSuccessfully'),
+              description: translate('commerce:commerceHub.isReadyToUse', { value1: selected.name }),
             }
           : {
-              title: 'Channel connected successfully',
-              description: `${channelDisplayName(selected.provider, selected.name)} is ready to use.`,
+              title: translate('commerce:commerceHub.channelConnectedSuccessfully'),
+              description: translate('commerce:commerceHub.isReadyToUse', { value1: channelDisplayName(selected.provider, selected.name) }),
             })
       }
       else notifyError({
-        title: kind === 'source' ? 'Unable to connect to the source' : 'Unable to connect to the channel',
-        description: 'Please verify your credentials and try again.',
+        title: kind === 'source' ? translate('commerce:commerceHub.unableToConnectToTheSource') : translate('commerce:commerceHub.unableToConnectToTheChannel'),
+        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
       })
     } catch {
       notifyError({
-        title: kind === 'source' ? 'Unable to connect to the source' : 'Unable to connect to the channel',
-        description: 'Please verify your credentials and try again.',
+        title: kind === 'source' ? translate('commerce:commerceHub.unableToConnectToTheSource') : translate('commerce:commerceHub.unableToConnectToTheChannel'),
+        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
       })
     } finally {
       setTesting(false)
@@ -651,7 +654,7 @@ function ConfigPanel({
       return
     }
     if (!settings.url || !hasNextcloudUsername(settings) || !secrets.password) {
-      const message = 'Enter Nextcloud server URL, Username, and App password / token before browsing Nextcloud.'
+      const message = translate('commerce:commerceHub.validation.nextcloudCredentialsRequired')
       setPickerError(message)
       notifyError(message)
       return
@@ -690,18 +693,18 @@ function ConfigPanel({
     return (
       <label key={field.key} className="fh-field">
         <span className="fh-help-text">{fieldLabel(kind, selected.provider, field.key, field.label)}</span>
-        {['token_refresh_enabled', 'revoke_current_token'].includes(field.key) ? (
+        {["token_refresh_enabled", "revoke_current_token"].includes(field.key) ? (
           <input
             type="checkbox"
-            checked={settings[field.key] === 'true'}
+            checked={settings[field.key] === "true"}
             onChange={event => setSettings(current => ({ ...current, [field.key]: String(event.target.checked) }))}
           />
         ) : (
           <input
-            type={field.secret ? 'password' : field.key === 'request_timeout' ? 'number' : 'text'}
-            min={field.key === 'request_timeout' ? 1 : undefined}
-            max={field.key === 'request_timeout' ? 120 : undefined}
-            step={field.key === 'request_timeout' ? 1 : undefined}
+            type={field.secret ? "password" : field.key === "request_timeout" ? "number" : "text"}
+            min={field.key === "request_timeout" ? 1 : undefined}
+            max={field.key === "request_timeout" ? 120 : undefined}
+            step={field.key === "request_timeout" ? 1 : undefined}
             value={field.secret ? secrets[field.key] ?? '' : settings[field.key] ?? ''}
             onChange={event => {
               const value = event.target.value
@@ -716,11 +719,11 @@ function ConfigPanel({
               })
             }}
             className="fh-input"
-            autoComplete={field.secret ? 'new-password' : undefined}
+            autoComplete={field.secret ? "new-password" : undefined}
           />
         )}
-        {field.secret && configuredSecret(field.key) && <span className="fh-help-text">Configured; leave blank to keep unchanged.</span>}
-        {selected.provider === 'nextcloud' && field.key === 'url' && nextcloudUrlError && (
+        {field.secret && configuredSecret(field.key) && <span className="fh-help-text">{translate('commerce:commerceHub.configuredLeaveBlankToKeepUnchanged')}</span>}
+        {selected.provider === "nextcloud" && field.key === "url" && nextcloudUrlError && (
           <span className="fh-field-error">{nextcloudUrlError}</span>
         )}
       </label>
@@ -728,7 +731,7 @@ function ConfigPanel({
   }
 
   if (loadingConfiguration) {
-    return <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />Loading channel configuration</div>
+    return <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />{translate('commerce:commerceHub.loadingChannelConfiguration')}</div>
   }
 
   return (
@@ -736,27 +739,27 @@ function ConfigPanel({
       <div className="fh-panel-header !items-start">
         <div>
           <h3 className="fh-section-title">
-            {initialChannelId ? `Configure ${selected.name}` : kind === 'source' ? 'Add Source' : 'Add Channel'}
+            {initialChannelId ? translate('commerce:commerceHub.configure2', { value1: selected.name }) : kind === "source" ? translate('commerce:commerceHub.addSource') : translate('commerce:commerceHub.addChannel')}
           </h3>
           <p className="fh-section-subtitle mt-1">
-            Credentials are stored server-side and never returned to this form.
+            {translate('commerce:commerceHub.credentialsAreStoredServerSideAndNever')}
           </p>
         </div>
         <button type="button" onClick={onCancel} className="fh-button-secondary">
           <Icon name="close" />
-          Close
+          {translate('commerce:commerceHub.close')}
         </button>
       </div>
 
       <div className="fh-panel-body fh-stack">
       <div className="fh-form-section">
         <div>
-          <p className="fh-form-section-title">General</p>
-          <p className="fh-form-section-description">Define the connector type, display name, and local FlowHub state.</p>
+          <p className="fh-form-section-title">{translate('commerce:commerceHub.general')}</p>
+          <p className="fh-form-section-description">{translate('commerce:commerceHub.defineTheConnectorTypeDisplayNameAnd')}</p>
         </div>
         <div className="fh-form-grid md:grid-cols-2">
         <label className="fh-field">
-          <span className="fh-help-text">{kind === 'source' ? 'Source type' : 'Channel type'}</span>
+          <span className="fh-help-text">{kind === "source" ? translate('commerce:commerceHub.sourceType') : translate('commerce:commerceHub.channelType')}</span>
           <select
             value={selected.id}
             onChange={event => setSelectedId(event.target.value)}
@@ -767,19 +770,19 @@ function ConfigPanel({
           </select>
         </label>
         <label className="fh-field">
-          <span className="fh-help-text">Display name</span>
+          <span className="fh-help-text">{translate('commerce:commerceHub.displayName')}</span>
           <input value={displayName} onChange={event => setDisplayName(event.target.value)} className="fh-input" />
         </label>
         <label className="fh-field md:col-span-2">
-          <span className="fh-help-text">Description optional</span>
+          <span className="fh-help-text">{translate('commerce:commerceHub.descriptionOptional')}</span>
           <input value={description} onChange={event => setDescription(event.target.value)} className="fh-input" />
         </label>
         {kind === 'channel' && (
           <label className="fh-field">
-            <span className="fh-help-text">Access mode</span>
+            <span className="fh-help-text">{translate('commerce:commerceHub.accessMode')}</span>
             <select value={accessMode} onChange={event => setAccessMode(event.target.value as 'read_only' | 'write_enabled')} className="fh-select">
-              <option value="read_only">Read only</option>
-              {selected.provider === 'woocommerce' && <option value="write_enabled">Write enabled</option>}
+              <option value="read_only">{translate('commerce:commerceHub.readOnly2')}</option>
+              {selected.provider === 'woocommerce' && <option value="write_enabled">{translate('commerce:commerceHub.writeEnabled2')}</option>}
             </select>
           </label>
         )}
@@ -793,39 +796,39 @@ function ConfigPanel({
             disabled={selected.placeholder}
             onChange={event => setEnabled(event.target.checked)}
           />
-          Enabled
+          {translate('commerce:commerceHub.enabled')}
         </label>
         <SafetyBadges readOnly={selected.read_only} writeBlocked={selected.runtime_write_blocked} />
         {selected.placeholder && (
           <Badge variant="neutral">
-            {kind === 'source' ? 'Planned source' : 'Planned channel'}
+            {kind === "source" ? translate('commerce:commerceHub.plannedSource') : translate('commerce:commerceHub.plannedChannel')}
           </Badge>
         )}
-        {selected.placeholder && <Badge variant="neutral">Not configured</Badge>}
+        {selected.placeholder && <Badge variant="neutral">{translate('commerce:commerceHub.notConfigured2')}</Badge>}
         </div>
       </div>
 
       <div className="fh-form-section">
         <div>
-          <p className="fh-form-section-title">Connection Settings</p>
-          <p className="fh-form-section-description">Enter the credentials required to verify this connection.</p>
+          <p className="fh-form-section-title">{translate('commerce:commerceHub.connectionSettings')}</p>
+          <p className="fh-form-section-description">{translate('commerce:commerceHub.enterTheCredentialsRequiredToVerifyThis')}</p>
         </div>
       <div className="fh-form-grid md:grid-cols-2">
         {selected.settings_schema
-          .filter(field => !(kind === 'source' && selected.provider === 'nextcloud' && field.key === 'spreadsheet_path'))
-          .filter(field => selected.provider !== 'snappshop' || SNAPPSHOP_ESSENTIAL_FIELDS.has(field.key))
+          .filter(field => !(kind === "source" && selected.provider === "nextcloud" && field.key === "spreadsheet_path"))
+          .filter(field => selected.provider !== "snappshop" || SNAPPSHOP_ESSENTIAL_FIELDS.has(field.key))
           .map(renderConnectionField)}
       </div>
       </div>
 
-      {kind === 'channel' && selected.provider === 'snappshop' && (
+      {kind === "channel" && selected.provider === "snappshop" && (
         <div className="fh-form-section">
           <div>
-            <p className="fh-form-section-title">Vendor</p>
-            <p className="fh-form-section-description">Test the connection to load stores available to these credentials.</p>
+            <p className="fh-form-section-title">{translate('commerce:commerceHub.vendor')}</p>
+            <p className="fh-form-section-description">{translate('commerce:commerceHub.testTheConnectionToLoadStoresAvailable')}</p>
           </div>
           <label className="fh-field">
-            <span className="fh-help-text">Vendor / store</span>
+            <span className="fh-help-text">{translate('commerce:commerceHub.vendorStore')}</span>
             <select
               value={settings.vendor_id ?? ''}
               onChange={event => setSettings(current => ({ ...current, vendor_id: event.target.value }))}
@@ -833,9 +836,9 @@ function ConfigPanel({
               disabled={vendors.length === 0 && !settings.vendor_id}
               required
             >
-              <option value="">{vendors.length ? 'Select vendor' : 'Test connection to load vendors'}</option>
+              <option value="">{vendors.length ? translate('commerce:commerceHub.selectVendor') : translate('commerce:commerceHub.testConnectionToLoadVendors')}</option>
               {settings.vendor_id && !vendors.some(vendor => vendor.id === settings.vendor_id) && (
-                <option value={settings.vendor_id}>Saved vendor ({settings.vendor_id})</option>
+                <option value={settings.vendor_id}>{translate('commerce:commerceHub.savedVendor')}{settings.vendor_id})</option>
               )}
               {vendors.map(vendor => (
                 <option
@@ -843,7 +846,7 @@ function ConfigPanel({
                   value={vendor.id ?? ''}
                   disabled={!snappShopVendorActive(vendor.status)}
                 >
-                  {vendor.title || vendor.name}{vendor.title_en && vendor.title_en !== vendor.title ? ` (${vendor.title_en})` : ''}{snappShopVendorActive(vendor.status) ? '' : ' - Inactive'}
+                  {vendor.title || vendor.name}{vendor.title_en && vendor.title_en !== vendor.title ? translate('commerce:commerceHub.alternateTitle', { title: vendor.title_en }) : ''}{snappShopVendorActive(vendor.status) ? '' : translate('commerce:commerceHub.inactive')}
                 </option>
               ))}
             </select>
@@ -851,10 +854,10 @@ function ConfigPanel({
         </div>
       )}
 
-      {kind === 'channel' && selected.provider === 'snappshop' && (
+      {kind === "channel" && selected.provider === "snappshop" && (
         <details className="fh-form-section">
-          <summary className="fh-form-section-title cursor-pointer">Advanced settings</summary>
-          <p className="fh-form-section-description">Defaults are suitable for normal SnappShop accounts.</p>
+          <summary className="fh-form-section-title cursor-pointer">{translate('commerce:commerceHub.advancedSettings')}</summary>
+          <p className="fh-form-section-description">{translate('commerce:commerceHub.defaultsAreSuitableForNormalSnappshopAccounts')}</p>
           <div className="fh-form-grid md:grid-cols-2 mt-3">
             {selected.settings_schema
               .filter(field => SNAPPSHOP_ADVANCED_FIELDS.has(field.key))
@@ -863,37 +866,37 @@ function ConfigPanel({
         </details>
       )}
 
-      {kind === 'channel' && selected.provider === 'tapsishop' && (
+      {kind === "channel" && selected.provider === "tapsishop" && (
         <div className="fh-form-section">
           <div>
-            <p className="fh-form-section-title">Webhook registration</p>
-            <p className="fh-form-section-description">Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token.</p>
+            <p className="fh-form-section-title">{translate('commerce:commerceHub.webhookRegistration')}</p>
+            <p className="fh-form-section-description">{translate('commerce:commerceHub.registerThisUrlInTapsishopTheWebhook')}</p>
           </div>
           <label className="fh-field">
-            <span className="fh-help-text">Webhook URL</span>
+            <span className="fh-help-text">{translate('commerce:commerceHub.webhookUrl')}</span>
             <input readOnly value={`${window.location.origin}/api/v2/webhooks/tapsishop/${encodeURIComponent(selected.id)}`} className="fh-input" />
           </label>
-          <p className="fh-help-text">Webhook credential: {configuredSecret('webhook_token') ? 'Configured' : 'Not configured'}</p>
+          <p className="fh-help-text">{translate('commerce:commerceHub.webhookCredential')} {configuredSecret("webhook_token") ? translate('commerce:commerceHub.configured') : translate('commerce:commerceHub.notConfigured2')}</p>
           {vendorInformation && (
             <div className="rounded-md border border-border bg-bg-subtle p-3 fh-text-body-sm">
               <p className="font-medium text-text-base">{vendorInformation.name}</p>
-              <p className="fh-text-caption">Vendor ID: {vendorInformation.id ?? 'Unavailable'}</p>
-              {vendorInformation.reference_code && <p className="fh-text-caption">Store number: {vendorInformation.reference_code}</p>}
+              <p className="fh-text-caption">{translate('commerce:commerceHub.vendorId')} {vendorInformation.id ?? "Unavailable"}</p>
+              {vendorInformation.reference_code && <p className="fh-text-caption">{translate('commerce:commerceHub.storeNumber')} {vendorInformation.reference_code}</p>}
             </div>
           )}
         </div>
       )}
 
-      {kind === 'source' && selected.provider === 'nextcloud' && (
+      {kind === "source" && selected.provider === "nextcloud" && (
         <div className="fh-stack">
           <div className="fh-form-section">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <p className="fh-form-section-title">Nextcloud spreadsheet file</p>
-                <p className="fh-form-section-description">Use WebDAV with your app password. Public share links are not required.</p>
-                <p className="mt-3 fh-help-text">Selected file</p>
+                <p className="fh-form-section-title">{translate('commerce:commerceHub.nextcloudSpreadsheetFile')}</p>
+                <p className="fh-form-section-description">{translate('commerce:commerceHub.useWebdavWithYourAppPasswordPublic')}</p>
+                <p className="mt-3 fh-help-text">{translate('commerce:commerceHub.selectedFile')}</p>
                 <div className="mt-1 min-h-10 rounded-md border border-border bg-bg-subtle px-3 py-2 fh-text-body">
-                  {settings.spreadsheet_path || 'No spreadsheet file selected'}
+                  {settings.spreadsheet_path || "No spreadsheet file selected"}
                 </div>
               </div>
               <button
@@ -901,18 +904,18 @@ function ConfigPanel({
                 onClick={() => void browseNextcloud('/')}
                 className="fh-button-secondary px-4"
               >
-                Browse Nextcloud
+                {translate('commerce:commerceHub.browseNextcloud')}
               </button>
             </div>
           </div>
 
           <div className="fh-form-section">
             <div>
-              <p className="fh-form-section-title">Column Mapping</p>
-              <p className="fh-form-section-description">Enabled fields require a spreadsheet column letter or header name.</p>
+              <p className="fh-form-section-title">{translate('commerce:commerceHub.columnMapping')}</p>
+              <p className="fh-form-section-description">{translate('commerce:commerceHub.enabledFieldsRequireASpreadsheetColumnLetter')}</p>
             </div>
             <div className="fh-form-grid md:grid-cols-3">
-              {(['id', 'price', 'stock'] as const).map(field => (
+              {(["id", "price", "stock"] as const).map(field => (
                 <div key={field} className="rounded-md border border-border bg-bg-subtle p-3">
                   <label className="fh-inline-check capitalize">
                     <input
@@ -920,10 +923,10 @@ function ConfigPanel({
                       checked={sourceMapping[field].enabled}
                       onChange={event => updateMappingField(field, { enabled: event.target.checked })}
                     />
-                    {field === 'id' ? 'Product ID' : field}
+                    {field === "id" ? translate('commerce:commerceHub.productId') : field}
                   </label>
                   <label className="fh-field mt-2">
-                    <span className="fh-help-text">Column</span>
+                    <span className="fh-help-text">{translate('commerce:commerceHub.column')}</span>
                     <input
                       value={sourceMapping[field].column}
                       onChange={event => updateMappingField(field, { column: event.target.value })}
@@ -939,34 +942,34 @@ function ConfigPanel({
           <div className="fh-form-grid md:grid-cols-2">
             <div className="fh-form-section">
               <div>
-                <p className="fh-form-section-title">Worksheet</p>
-                <p className="fh-form-section-description">Choose whether FlowHub should read every worksheet or a single named worksheet.</p>
+                <p className="fh-form-section-title">{translate('commerce:commerceHub.worksheet')}</p>
+                <p className="fh-form-section-description">{translate('commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet')}</p>
               </div>
               <div className="flex flex-col gap-2 fh-text-body">
                 <label className="fh-inline-check">
                   <input
                     type="radio"
                     name="worksheet_mode"
-                    checked={worksheetMode === 'all'}
-                    onChange={() => setWorksheetMode('all')}
+                    checked={worksheetMode === "all"}
+                    onChange={() => setWorksheetMode("all")}
                   />
-                  All worksheets
+                  {translate('commerce:commerceHub.allWorksheets')}
                 </label>
                 <label className="fh-inline-check">
                   <input
                     type="radio"
                     name="worksheet_mode"
-                    checked={worksheetMode === 'selected'}
-                    onChange={() => setWorksheetMode('selected')}
+                    checked={worksheetMode === "selected"}
+                    onChange={() => setWorksheetMode("selected")}
                   />
-                  Selected worksheet
+                  {translate('commerce:commerceHub.selectedWorksheet')}
                 </label>
                 <label className="fh-field">
-                  <span className="fh-help-text">Worksheet name</span>
+                  <span className="fh-help-text">{translate('commerce:commerceHub.worksheetName')}</span>
                   <input
                     value={worksheetName}
                     onChange={event => setWorksheetName(event.target.value)}
-                    disabled={worksheetMode !== 'selected'}
+                    disabled={worksheetMode !== "selected"}
                     className="fh-input"
                   />
                 </label>
@@ -975,8 +978,8 @@ function ConfigPanel({
 
             <div className="fh-form-section">
               <div>
-                <p className="fh-form-section-title">Read Policy</p>
-                <p className="fh-form-section-description">These controls only affect source read policy presentation and action placement.</p>
+                <p className="fh-form-section-title">{translate('commerce:commerceHub.readPolicy')}</p>
+                <p className="fh-form-section-description">{translate('commerce:commerceHub.theseControlsOnlyAffectSourceReadPolicy')}</p>
               </div>
               <div className="flex flex-col gap-3">
                 <label className="fh-inline-check">
@@ -985,7 +988,7 @@ function ConfigPanel({
                     checked={readPolicy.enabled}
                     onChange={event => setReadPolicy(current => ({ ...current, enabled: event.target.checked }))}
                   />
-                  Limit source reads
+                  {translate('commerce:commerceHub.limitSourceReads')}
                 </label>
                 <label className="fh-inline-check">
                   <input
@@ -993,10 +996,10 @@ function ConfigPanel({
                     checked={readPolicy.manual_read_allowed}
                     onChange={event => setReadPolicy(current => ({ ...current, manual_read_allowed: event.target.checked }))}
                   />
-                  Manual Read now allowed
+                  {translate('commerce:commerceHub.manualReadNowAllowed')}
                 </label>
                 <label className="fh-field">
-                  <span className="fh-help-text">Max reads per 24 hours</span>
+                  <span className="fh-help-text">{translate('commerce:commerceHub.maxReadsPer24Hours')}</span>
                   <input
                     type="number"
                     min={1}
@@ -1019,12 +1022,12 @@ function ConfigPanel({
         <button type="button" onClick={() => void testConnection()} disabled={testing || !canTest} className="fh-button-secondary px-4">
           {testing && <Spinner size="sm" />}
           {!testing && <Icon name="testConnection" />}
-          {testing ? 'Testing' : 'Test connection'}
+          {testing ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection')}
         </button>
         <button type="submit" disabled={saving || !canSave} className="fh-button-primary px-4">
           {saving && <Spinner size="sm" />}
           {!saving && <Icon name="save" />}
-          {saving ? 'Saving' : 'Save configuration'}
+          {saving ? translate('commerce:commerceHub.saving') : translate('commerce:commerceHub.saveConfiguration')}
         </button>
       </div>
       </div>
@@ -1084,8 +1087,8 @@ export default function CommerceHub() {
   useEffect(() => {
     loadCommerce()
       .catch(() => notifyError({
-        title: 'Unable to load Commerce Hub',
-        description: 'Please try again.',
+        title: translate('commerce:commerceHub.unableToLoadCommerceHub'),
+        description: translate('commerce:commerceHub.pleaseTryAgain'),
       }))
       .finally(() => setLoading(false))
   }, [commerce])
@@ -1099,7 +1102,7 @@ export default function CommerceHub() {
 
   async function handleSourceTest(sourceId: string) {
     if (!canManageCommerce) {
-      notifyError('Admin permission required.')
+      notifyError(translate('commerce:commerceHub.adminPermissionRequired'))
       return
     }
     setTestingId(sourceId)
@@ -1107,18 +1110,18 @@ export default function CommerceHub() {
       const result = await commerce.testSource(sourceId)
       const source = sources.find(item => item.id === sourceId)
       if (result.ok) success({
-        title: 'Source connected successfully',
-        description: `${source?.name ?? 'The source'} is ready to use.`,
+        title: translate('commerce:commerceHub.sourceConnectedSuccessfully'),
+        description: translate('commerce:commerceHub.isReadyToUse', { value1: source?.name ?? 'The source' }),
       })
       else notifyError({
-        title: 'Unable to connect to the source',
-        description: 'Please verify your credentials and try again.',
+        title: translate('commerce:commerceHub.unableToConnectToTheSource'),
+        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
       })
       await loadCommerce()
     } catch {
       notifyError({
-        title: 'Unable to connect to the source',
-        description: 'Please verify your credentials and try again.',
+        title: translate('commerce:commerceHub.unableToConnectToTheSource'),
+        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
       })
     } finally {
       setTestingId(null)
@@ -1127,7 +1130,7 @@ export default function CommerceHub() {
 
   async function handleChannelTest(channelId: string) {
     if (!canManageCommerce) {
-      notifyError('Admin permission required.')
+      notifyError(translate('commerce:commerceHub.adminPermissionRequired'))
       return
     }
     setTestingId(channelId)
@@ -1135,18 +1138,20 @@ export default function CommerceHub() {
       const result = await commerce.testChannel(channelId)
       const channel = channels.find(item => item.id === channelId)
       if (result.ok) success({
-        title: 'Channel connected successfully',
-        description: `${channel ? channelDisplayName(channel.provider, channel.name) : 'The channel'} is ready to use.`,
+        title: translate('commerce:commerceHub.channelConnectedSuccessfully'),
+        description: channel
+          ? translate('commerce:commerceHub.isReadyToUse', { value1: channelDisplayName(channel.provider, channel.name) })
+          : translate('commerce:commerceHub.theChannelIsReadyToUse'),
       })
       else notifyError({
-        title: 'Unable to connect to the channel',
-        description: 'Please verify your credentials and try again.',
+        title: translate('commerce:commerceHub.unableToConnectToTheChannel'),
+        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
       })
       await loadCommerce()
     } catch {
       notifyError({
-        title: 'Unable to connect to the channel',
-        description: 'Please verify your credentials and try again.',
+        title: translate('commerce:commerceHub.unableToConnectToTheChannel'),
+        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
       })
     } finally {
       setTestingId(null)
@@ -1155,7 +1160,7 @@ export default function CommerceHub() {
 
   async function handleChannelCacheRefresh(channelId: string) {
     if (!canManageCommerce) {
-      notifyError('Admin permission required.')
+      notifyError(translate('commerce:commerceHub.adminPermissionRequired'))
       return
     }
     setRefreshingId(channelId)
@@ -1164,22 +1169,22 @@ export default function CommerceHub() {
       setRefreshResults(current => ({ ...current, [channelId]: result }))
       if (result.ok) {
         success({
-          title: 'Product cache refreshed successfully',
+          title: translate('commerce:commerceHub.productCacheRefreshedSuccessfully'),
           description: result.pages_read !== undefined
-            ? `${result.products_stored ?? result.cache_rows_upserted} products were cached from ${result.pages_read} page(s).`
-            : 'The latest product information has been loaded.',
+            ? translate('commerce:commerceHub.productsWereCachedFromPageS', { value1: result.products_stored ?? result.cache_rows_upserted, value2: result.pages_read })
+            : translate('commerce:commerceHub.theLatestProductInformationHasBeenLoaded'),
         })
       } else {
         notifyError({
-          title: 'Unable to refresh the product cache',
-          description: 'Please try again.',
+          title: translate('commerce:commerceHub.unableToRefreshTheProductCache'),
+          description: translate('commerce:commerceHub.pleaseTryAgain'),
         })
       }
       await loadCommerce()
     } catch {
       notifyError({
-        title: 'Unable to refresh the product cache',
-        description: 'Please try again.',
+        title: translate('commerce:commerceHub.unableToRefreshTheProductCache'),
+        description: translate('commerce:commerceHub.pleaseTryAgain'),
       })
     } finally {
       setRefreshingId(null)
@@ -1188,7 +1193,7 @@ export default function CommerceHub() {
 
   async function handleSourceRead(sourceId: string) {
     if (!canManageCommerce) {
-      notifyError('Admin permission required.')
+      notifyError(translate('commerce:commerceHub.adminPermissionRequired'))
       return
     }
     setReadingId(sourceId)
@@ -1196,20 +1201,20 @@ export default function CommerceHub() {
       const result = await commerce.readSource(sourceId)
       if (result.ok) {
         success({
-          title: 'Source refreshed successfully',
-          description: `${result.rows_read} row${result.rows_read !== 1 ? 's' : ''} loaded.`,
+          title: translate('commerce:commerceHub.sourceRefreshedSuccessfully'),
+          description: translate('commerce:commerceHub.rowsLoaded', { count: result.rows_read }),
         })
       } else {
         notifyError({
-          title: 'Unable to refresh the source',
-          description: 'Please try again.',
+          title: translate('commerce:commerceHub.unableToRefreshTheSource'),
+          description: translate('commerce:commerceHub.pleaseTryAgain'),
         })
       }
       await loadCommerce()
     } catch {
       notifyError({
-        title: 'Unable to refresh the source',
-        description: 'Please try again.',
+        title: translate('commerce:commerceHub.unableToRefreshTheSource'),
+        description: translate('commerce:commerceHub.pleaseTryAgain'),
       })
     } finally {
       setReadingId(null)
@@ -1218,7 +1223,7 @@ export default function CommerceHub() {
 
   function handleSourceConfigure(_sourceId: string) {
     if (!canManageCommerce) {
-      notifyError('Admin permission required.')
+      notifyError(translate('commerce:commerceHub.adminPermissionRequired'))
       return
     }
     setTab('sources')
@@ -1228,7 +1233,7 @@ export default function CommerceHub() {
 
   function handleChannelConfigure(channelId: string) {
     if (!canManageCommerce) {
-      notifyError('Admin permission required.')
+      notifyError(translate('commerce:commerceHub.adminPermissionRequired'))
       return
     }
     setTab('channels')
@@ -1247,8 +1252,8 @@ export default function CommerceHub() {
     <PageShell>
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">Commerce Hub</h1>
-          <p className="fh-page-subtitle">Read-only source and channel overview</p>
+          <h1 className="fh-page-title">{translate('commerce:commerceHub.commerceHub')}</h1>
+          <p className="fh-page-subtitle">{translate('commerce:commerceHub.readOnlySourceAndChannelOverview')}</p>
         </div>
         <SafetyBadges readOnly writeBlocked />
       </div>
@@ -1256,41 +1261,41 @@ export default function CommerceHub() {
       <RelationshipMap map={map} />
 
       <div className="fh-segmented w-fit">
-        {(['sources', 'channels'] as const).map(item => (
+        {(["sources", "channels"] as const).map(item => (
           <button
             key={item}
             onClick={() => selectTab(item)}
             className={[
-              'fh-segmented-button capitalize',
-              tab === item ? 'fh-segmented-button-active' : '',
+              "fh-segmented-button capitalize",
+              tab === item ? "fh-segmented-button-active" : '',
             ].join(' ')}
           >
-            {item === 'sources' ? 'Sources' : 'Channels'}
+            {item === "sources" ? translate('commerce:commerceHub.sources2') : translate('commerce:commerceHub.channels2')}
           </button>
         ))}
       </div>
 
       {loading ? (
           <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm">
-            <Spinner size="sm" />Loading Commerce Hub
+            <Spinner size="sm" />{translate('commerce:commerceHub.loadingCommerceHub')}
           </div>
-      ) : tab === 'sources' ? (
+      ) : tab === "sources" ? (
         <section>
           <div className="fh-page-toolbar mb-4">
             <div>
-              <h2 className="fh-section-title">Sources</h2>
-              <p className="fh-section-subtitle mt-1">Input systems that feed FlowHub / Data Layer.</p>
+              <h2 className="fh-section-title">{translate('commerce:commerceHub.sources2')}</h2>
+              <p className="fh-section-subtitle mt-1">{translate('commerce:commerceHub.inputSystemsThatFeedFlowhubDataLayer')}</p>
             </div>
             {canManageCommerce ? (
-              <button onClick={() => setFormKind('source')} className="fh-button-primary px-4">
+              <button onClick={() => setFormKind("source")} className="fh-button-primary px-4">
                 <Icon name="add" />
-                Add Source
+                {translate('commerce:commerceHub.addSource')}
               </button>
             ) : (
-              <Badge variant="neutral">Admin permission required</Badge>
+              <Badge variant="neutral">{translate('commerce:commerceHub.adminPermissionRequired')}</Badge>
             )}
           </div>
-          {formKind === 'source' && (
+          {formKind === "source" && (
             <div className="mb-4">
               <ConfigPanel kind="source" types={sourceTypes} onCancel={() => setFormKind(null)} onSaved={reloadAfterSave} />
             </div>
@@ -1314,19 +1319,19 @@ export default function CommerceHub() {
         <section>
           <div className="fh-page-toolbar mb-4">
             <div>
-              <h2 className="fh-section-title">Channels</h2>
-              <p className="fh-section-subtitle mt-1">Commerce systems that receive catalog visibility from FlowHub.</p>
+              <h2 className="fh-section-title">{translate('commerce:commerceHub.channels2')}</h2>
+              <p className="fh-section-subtitle mt-1">{translate('commerce:commerceHub.commerceSystemsThatReceiveCatalogVisibilityFrom')}</p>
             </div>
             {canManageCommerce ? (
               <button onClick={() => { setEditingChannelId(null); setFormKind('channel') }} className="fh-button-primary px-4">
                 <Icon name="add" />
-                Add Channel
+                {translate('commerce:commerceHub.addChannel')}
               </button>
             ) : (
-              <Badge variant="neutral">Admin permission required</Badge>
+              <Badge variant="neutral">{translate('commerce:commerceHub.adminPermissionRequired')}</Badge>
             )}
           </div>
-          {formKind === 'channel' && (
+          {formKind === "channel" && (
             <div className="mb-4">
               <ConfigPanel
                 kind="channel"

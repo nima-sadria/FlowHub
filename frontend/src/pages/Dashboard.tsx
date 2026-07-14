@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
@@ -9,18 +10,13 @@ import { SkeletonCard } from '../components/loading/Skeleton'
 import PageShell from '../components/PageShell'
 import { useServices } from '../services/ServiceContext'
 import type { ActivityEvent, ChannelHealthResponse, Source } from '../services/types'
+import { formatRelativeTime } from '../i18n/format'
 
 type Indicator = 'ok' | 'warning' | 'error' | 'loading'
 
 function relTime(d: Date | null): string {
   if (!d) return '-'
-  const s = Math.floor((Date.now() - d.getTime()) / 1000)
-  if (s < 60) return 'just now'
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
+  return formatRelativeTime(d)
 }
 
 function StatCard({ label, value, sub, indicator }: {
@@ -41,7 +37,7 @@ function StatCard({ label, value, sub, indicator }: {
       <div className="flex items-center gap-3">
         <div className="fh-stat-card-icon">
           {dot ? (
-            <span className={['h-2.5 w-2.5 rounded-full flex-shrink-0', dot].join(' ')} />
+            <span className={["h-2.5 w-2.5 rounded-full flex-shrink-0", dot].join(' ')} />
           ) : (
             <span className="h-2.5 w-2.5 rounded-full bg-border" />
           )}
@@ -127,13 +123,13 @@ export default function Dashboard() {
     <PageShell>
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">Dashboard</h1>
-          <p className="fh-page-subtitle">System overview</p>
+          <h1 className="fh-page-title">{translate('dashboard:dashboard.dashboard')}</h1>
+          <p className="fh-page-subtitle">{translate('dashboard:dashboard.systemOverview')}</p>
         </div>
       </div>
 
       <div className="fh-card fh-card-pad">
-        <p className="fh-section-label mb-3">Logged In</p>
+        <p className="fh-section-label mb-3">{translate('dashboard:dashboard.loggedIn')}</p>
         <div className="flex items-center gap-3">
           <div className="fh-user-avatar flex-shrink-0">{initial}</div>
           <div>
@@ -145,23 +141,23 @@ export default function Dashboard() {
 
       <div className="fh-stat-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
-          label="Backend"
-          value={health ? 'Online' : healthLoading ? 'Loading' : 'Unavailable'}
+          label={translate('dashboard:dashboard.backend')}
+          value={health ? "Online" : healthLoading ? "Loading" : "Unavailable"}
           indicator={backendInd}
         />
         <StatCard
-          label="Database"
-          value={backendInd === 'ok' ? 'Connected' : backendInd === 'loading' ? 'Loading' : 'Unavailable'}
+          label={translate('dashboard:dashboard.database')}
+          value={backendInd === "ok" ? "Connected" : backendInd === "loading" ? "Loading" : "Unavailable"}
           indicator={backendInd}
         />
         <StatCard
-          label="Application"
-          value={backendInd === 'ok' ? 'Running' : backendInd === 'loading' ? 'Loading' : 'Unavailable'}
+          label={translate('dashboard:dashboard.application')}
+          value={backendInd === "ok" ? "Running" : backendInd === "loading" ? "Loading" : "Unavailable"}
           indicator={backendInd}
         />
         <StatCard
-          label="Channels"
-          value={channelOverall ?? (healthLoading ? 'Loading' : 'Unable to check')}
+          label={translate('dashboard:dashboard.channels')}
+          value={channelOverall ?? (healthLoading ? "Loading" : "Unable to check")}
           sub={channelHealth ? `${channelHealth.items.length} monitored destinations` : undefined}
           indicator={channelInd}
         />
@@ -175,25 +171,25 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="fh-stat-grid grid-cols-1 sm:grid-cols-3">
-          <StatCard label="Total Products" value={totalProducts !== null ? String(totalProducts) : '-'} sub="across connected channels" />
-          <StatCard label="Active Sources" value={String(activeSources.length)} sub={activeSources.length === 1 ? '1 connected' : `${activeSources.length} configured`} />
-          <StatCard label="Last Preview" value={lastSync ? relTime(lastSync) : '-'} />
+          <StatCard label={translate('dashboard:dashboard.totalProducts')} value={totalProducts !== null ? String(totalProducts) : '-'} sub="across connected channels" />
+          <StatCard label={translate('dashboard:dashboard.activeSources')} value={String(activeSources.length)} sub={activeSources.length === 1 ? "1 connected" : `${activeSources.length} configured`} />
+          <StatCard label={translate('dashboard:dashboard.lastPreview')} value={lastSync ? relTime(lastSync) : '-'} />
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="fh-card">
           <div className="fh-panel-header">
-            <p className="fh-section-title">Channels</p>
-            <button onClick={() => navigate('/diagnostics')} className="fh-toolbar-link">
-              Diagnostics
+            <p className="fh-section-title">{translate('dashboard:dashboard.channels')}</p>
+            <button onClick={() => navigate("/diagnostics")} className="fh-toolbar-link">
+              {translate('dashboard:dashboard.diagnostics2')}
             </button>
           </div>
           <div className="fh-panel-body !py-3">
             {healthLoading && !channelHealth ? (
               <SkeletonCard />
             ) : !channelHealth || channelHealth.items.length === 0 ? (
-              <Empty title="No channels monitored" />
+              <Empty title={translate('dashboard:dashboard.noChannelsMonitored')} />
             ) : (
               channelHealth.items.map(channel => (
                 <div key={channel.channelId} className="flex items-center justify-between gap-3 border-b border-border py-2.5 last:border-0">
@@ -203,7 +199,7 @@ export default function Dashboard() {
                   </div>
                   <Badge
                     className="capitalize flex-shrink-0"
-                    variant={channel.status === 'Operational' ? 'success' : channel.status === 'Error' ? 'error' : 'warning'}
+                    variant={channel.status === "Operational" ? "success" : channel.status === "Error" ? "error" : "warning"}
                   >
                     {channel.status}
                   </Badge>
@@ -215,9 +211,9 @@ export default function Dashboard() {
 
         <div className="fh-card">
           <div className="fh-panel-header">
-            <p className="fh-section-title">Sources</p>
-            <button onClick={() => navigate('/sources/new')} className="fh-toolbar-link">
-              Add Source
+            <p className="fh-section-title">{translate('dashboard:dashboard.sources')}</p>
+            <button onClick={() => navigate("/sources/new")} className="fh-toolbar-link">
+              {translate('dashboard:dashboard.addSource')}
             </button>
           </div>
           <div className="fh-panel-body !py-3">
@@ -225,17 +221,17 @@ export default function Dashboard() {
               <SkeletonCard />
             ) : sourceList.length === 0 ? (
               <Empty
-                title="No sources yet"
-                action={{ label: 'Add your first source', onClick: () => navigate('/sources/new') }}
+                title={translate('dashboard:dashboard.noSourcesYet')}
+                action={{ label: translate('dashboard:dashboard.addYourFirstSource'), onClick: () => navigate("/sources/new") }}
               />
             ) : (
               sourceList.map(source => (
                 <div key={source.id} className="flex items-center justify-between border-b border-border py-2.5 last:border-0">
                   <div>
                     <p className="fh-text-body font-medium">{source.name}</p>
-                    <p className="fh-text-caption">{`${relTime(source.lastSynced)} · ${source.productCount} products`}</p>
+                    <p className="fh-text-caption">{translate('dashboard:dashboard.products', { value1: relTime(source.lastSynced), value2: source.productCount })}</p>
                   </div>
-                  <Badge className="capitalize" variant={source.status === 'active' ? 'success' : 'error'}>{source.status}</Badge>
+                  <Badge className="capitalize" variant={source.status === "active" ? "success" : "error"}>{source.status}</Badge>
                 </div>
               ))
             )}
@@ -244,9 +240,9 @@ export default function Dashboard() {
 
         <div className="fh-card">
           <div className="fh-panel-header">
-            <p className="fh-section-title">Recent Activity</p>
-            <button onClick={() => navigate('/activity')} className="fh-toolbar-link">
-              View all
+            <p className="fh-section-title">{translate('dashboard:dashboard.recentActivity')}</p>
+            <button onClick={() => navigate("/activity")} className="fh-toolbar-link">
+              {translate('dashboard:dashboard.viewAll')}
             </button>
           </div>
           <div className="fh-panel-body !pt-0">
@@ -255,17 +251,17 @@ export default function Dashboard() {
                 <SkeletonCard />
               </div>
             ) : recentEvents.length === 0 ? (
-              <Empty title="No events yet" />
+              <Empty title={translate('dashboard:dashboard.noEventsYet')} />
             ) : (
               recentEvents.map(event => (
                 <div key={event.id} className="flex items-center gap-3 border-b border-border py-2.5 last:border-0">
                   <span
                     className={[
-                      'h-2 w-2 rounded-full flex-shrink-0',
-                      event.level === 'success' ? 'bg-wp-green' :
-                      event.level === 'error' ? 'bg-wp-red' :
-                      event.level === 'warning' ? 'bg-wp-yellow' :
-                      'bg-accent',
+                      "h-2 w-2 rounded-full flex-shrink-0",
+                      event.level === "success" ? "bg-wp-green" :
+                      event.level === "error" ? "bg-wp-red" :
+                      event.level === "warning" ? "bg-wp-yellow" :
+                      "bg-accent",
                     ].join(' ')}
                   />
                   <p className="fh-text-caption flex-1 truncate text-text-base">{formatAction(event.action)}</p>

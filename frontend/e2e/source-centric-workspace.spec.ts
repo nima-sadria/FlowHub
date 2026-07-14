@@ -1,8 +1,10 @@
 import path from 'node:path'
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { expect, test, type Page, type Route } from '@playwright/test'
 
 const screenshotRoot = path.resolve('..', 'docs', 'screenshots', 'v1.3')
+const i18nScreenshotRoot = path.join(screenshotRoot, 'i18n')
+mkdirSync(i18nScreenshotRoot, { recursive: true })
 const mockLogo = readFileSync(path.resolve('public', 'flowhub-logo.png'))
 const viewports = [
   { width: 1280, height: 720 },
@@ -16,7 +18,10 @@ function fields(current: string, target: string, status: 'ready' | 'blocked' | '
 }
 
 async function installMockApi(page: Page) {
-  await page.addInitScript(() => localStorage.setItem('wp_token', 'source-centric-isolated-token'))
+  await page.addInitScript(() => {
+    if (location.pathname === '/login') localStorage.removeItem('wp_token')
+    else localStorage.setItem('wp_token', 'source-centric-isolated-token')
+  })
   await page.route('**/*', async (route: Route) => {
     const url = new URL(route.request().url())
     if (url.pathname.startsWith('/static/logos/')) return route.fulfill({ status: 200, contentType: 'image/png', body: mockLogo })
@@ -101,4 +106,54 @@ test('Source configuration, FlowHub Sheet, import, and Data Quality render from 
   await page.getByText('stale cache', { exact: true }).click()
   await expect(page.getByText('SnappShop cache is too old for a safe Review.')).toBeVisible()
   await page.screenshot({ path: path.join(screenshotRoot, 'data-quality.png'), fullPage: true })
+})
+
+test('English LTR and isolated pseudo-RTL pages remain usable and preserve business identifiers', async ({ page }) => {
+  // This visual matrix performs 19 full-page navigations and screenshots in one browser session.
+  test.setTimeout(90_000)
+  await installMockApi(page)
+  await page.setViewportSize({ width: 1440, height: 900 })
+
+  const routes = [
+    ['login', '/login'],
+    ['dashboard', '/home'],
+    ['workspace', '/workspace/source-visual-workspace'],
+    ['flowhub-sheet', '/sheets/sheet-visual'],
+    ['import-wizard', '/sources/import'],
+    ['products', '/products'],
+    ['sources', '/sources'],
+    ['data-quality', '/data-quality'],
+    ['settings', '/settings'],
+  ] as const
+
+  for (const [name, route] of routes) {
+    await page.goto(route)
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
+    if (name === 'workspace') await expect(page.getByText('iPhone Cable')).toBeVisible()
+    else if (name === 'flowhub-sheet') await expect(page.getByText('Daily multi-channel prices')).toBeVisible()
+    else await page.waitForTimeout(250)
+    await page.screenshot({ path: path.join(i18nScreenshotRoot, `en-${name}.png`), fullPage: true })
+  }
+
+  await page.evaluate(() => localStorage.setItem('flowhub.locale', 'fa'))
+  for (const [name, route] of routes) {
+    await page.goto(route)
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+    if (name === 'workspace') await expect(page.getByText('iPhone Cable')).toBeVisible()
+    else if (name === 'flowhub-sheet') await expect(page.getByText('Daily multi-channel prices')).toBeVisible()
+    else await page.waitForTimeout(250)
+    await page.screenshot({ path: path.join(i18nScreenshotRoot, `rtl-${name}.png`), fullPage: true })
+  }
+
+  await page.goto('/workspace/source-visual-workspace')
+  await expect(page.getByText('iPhone Cable')).toBeVisible()
+  await expect(page.getByText('CABLE-01', { exact: false })).toBeVisible()
+  const sidebar = page.locator('aside').first()
+  const sidebarBox = await sidebar.boundingBox()
+  expect(sidebarBox).not.toBeNull()
+  expect(sidebarBox!.x).toBeGreaterThan(1000)
+  await page.getByRole('button', { name: /Apply.*26/ }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.screenshot({ path: path.join(i18nScreenshotRoot, 'rtl-apply-confirmation.png'), fullPage: true })
 })

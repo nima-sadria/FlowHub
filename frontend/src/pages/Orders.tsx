@@ -1,3 +1,5 @@
+import { translate } from '../i18n'
+import { formatDateTime } from '../i18n/format'
 import { useEffect, useState } from 'react'
 import Badge from '../components/Badge'
 import Empty from '../components/Empty'
@@ -10,7 +12,7 @@ import { formatMoney } from '../utils/price'
 function formatTime(value: string | null) {
   if (!value) return '-'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+  return Number.isNaN(date.getTime()) ? value : formatDateTime(date)
 }
 
 function statusVariant(status: string): 'info' | 'success' | 'warning' | 'danger' {
@@ -26,19 +28,19 @@ function OrderDetail({ order }: { order: ChannelOrderDetail }) {
     <div className="border-t border-border bg-bg-base/50 px-4 py-4">
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <section>
-          <h3 className="fh-section-title mb-3">Items</h3>
+          <h3 className="fh-section-title mb-3">{translate('orders:orders.items')}</h3>
           <div className="overflow-x-auto">
             <table className="fh-table min-w-[720px]">
               <thead>
                 <tr>
                   <th>SKU</th>
-                  <th>Name</th>
-                  <th>Provider item</th>
-                  <th>Qty</th>
-                  <th>Canceled</th>
-                  <th>Deliverable</th>
-                  <th>Final price</th>
-                  <th>Status</th>
+                  <th>{translate('orders:orders.name')}</th>
+                  <th>{translate('orders:orders.providerItem')}</th>
+                  <th>{translate('orders:orders.qty')}</th>
+                  <th>{translate('orders:orders.canceled')}</th>
+                  <th>{translate('orders:orders.deliverable')}</th>
+                  <th>{translate('orders:orders.finalPrice')}</th>
+                  <th>{translate('orders:orders.status')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -60,9 +62,9 @@ function OrderDetail({ order }: { order: ChannelOrderDetail }) {
         </section>
 
         <section>
-          <h3 className="fh-section-title mb-3">Shipments</h3>
+          <h3 className="fh-section-title mb-3">{translate('orders:orders.shipments')}</h3>
           {order.shipments.length === 0 ? (
-            <p className="fh-text-caption">No shipment data</p>
+            <p className="fh-text-caption">{translate('orders:orders.noShipmentData')}</p>
           ) : (
             <div className="space-y-2">
               {order.shipments.map(item => (
@@ -77,7 +79,7 @@ function OrderDetail({ order }: { order: ChannelOrderDetail }) {
         </section>
 
         <section>
-          <h3 className="fh-section-title mb-3">Timeline</h3>
+          <h3 className="fh-section-title mb-3">{translate('orders:orders.timeline')}</h3>
           <div className="space-y-2">
             {order.timeline.map((event, index) => (
               <div className="rounded-md border border-border bg-bg-card p-3" key={`${event.eventName}-${index}`}>
@@ -134,14 +136,14 @@ export default function Orders() {
     <PageShell>
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">Orders</h1>
-          <p className="fh-page-subtitle">Normalized marketplace order synchronization</p>
+          <h1 className="fh-page-title">{translate('orders:orders.orders')}</h1>
+          <p className="fh-page-subtitle">{translate('orders:orders.normalizedMarketplaceOrderSynchronization')}</p>
         </div>
       </div>
 
       <div className="fh-card">
         <div className="fh-panel-header">
-          <span className="fh-section-title">{loading ? 'Loading...' : `${total} orders`}</span>
+          <span className="fh-section-title">{loading ? translate('orders:orders.loading') : translate('orders:orders.orders2', { value1: total })}</span>
         </div>
         <div className="fh-panel-body !p-0">
           {loading ? (
@@ -151,24 +153,24 @@ export default function Orders() {
             </div>
           ) : items.length === 0 ? (
             <div className="p-6">
-              <Empty title="No synchronized orders" description="Marketplace orders will appear after webhook processing or polling synchronization runs." />
+              <Empty title={translate('orders:orders.noSynchronizedOrders')} description={translate('orders:orders.marketplaceOrdersWillAppearAfterWebhookProcessing')} />
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="fh-table min-w-[1180px]">
                 <thead>
                   <tr>
-                    <th className="sticky left-0 bg-bg-card z-10">Order</th>
-                    <th>Channel</th>
-                    <th>Provider status</th>
-                    <th>Normalized status</th>
-                    <th>Created</th>
-                    <th>Latest update</th>
-                    <th>Items</th>
-                    <th>Final amount</th>
-                    <th>Sync state</th>
-                    <th>Source</th>
-                    <th>Error</th>
+                    <th className="sticky left-0 bg-bg-card z-10">{translate('orders:orders.order')}</th>
+                    <th>{translate('orders:orders.channel')}</th>
+                    <th>{translate('orders:orders.providerStatus')}</th>
+                    <th>{translate('orders:orders.normalizedStatus')}</th>
+                    <th>{translate('orders:orders.created')}</th>
+                    <th>{translate('orders:orders.latestUpdate')}</th>
+                    <th>{translate('orders:orders.items')}</th>
+                    <th>{translate('orders:orders.finalAmount')}</th>
+                    <th>{translate('orders:orders.syncState')}</th>
+                    <th>{translate('orders:orders.source')}</th>
+                    <th>{translate('orders:orders.error')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -201,7 +203,7 @@ export default function Orders() {
         </div>
         {detailLoading && (
           <div className="fh-panel-footer !justify-start">
-            <span className="fh-text-caption">Loading order detail...</span>
+            <span className="fh-text-caption">{translate('orders:orders.loadingOrderDetail')}</span>
           </div>
         )}
         {selected && !detailLoading && <OrderDetail order={selected} />}

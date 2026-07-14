@@ -1,3 +1,4 @@
+import { translate } from '../../i18n'
 import type { Source, SourceConfig, ConnectionTestResult } from '../types'
 import type { SourceService } from './SourceService'
 import { apiFetch } from '../../api/client'
@@ -33,7 +34,7 @@ export class ApiSourceService implements SourceService {
 
   async testConnection(_config: SourceConfig): Promise<ConnectionTestResult> {
     // Connection testing is handled by Settings; this method is not used.
-    return { success: false, message: 'Use Settings to configure connectors.' }
+    return { success: false, message: translate('common:apiSourceService.useSettingsToConfigureConnectors') }
   }
 
   async createSource(_config: SourceConfig): Promise<Source> {

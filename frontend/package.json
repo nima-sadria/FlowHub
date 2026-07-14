@@ -9,13 +9,18 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "benchmark:e2e": "playwright test e2e/unified-workspace-performance.spec.ts --reporter=line"
+    "benchmark:e2e": "playwright test e2e/unified-workspace-performance.spec.ts --reporter=line",
+    "i18n:extract": "node scripts/i18n.mjs extract",
+    "i18n:validate": "node scripts/i18n.mjs validate",
+    "i18n:compile": "node scripts/i18n.mjs compile"
   },
   "dependencies": {
     "@handsontable/react-wrapper": "^18.0.0",
     "handsontable": "^18.0.0",
+    "i18next": "^26.3.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.9",
     "react-router-dom": "^6.27.0"
   },
   "devDependencies": {
@@ -24,6 +29,8 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.4.20",
+    "gettext-parser": "^9.1.1",
+    "glob": "^13.0.6",
     "jsdom": "^25.0.1",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",

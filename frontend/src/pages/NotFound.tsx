@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { useNavigate } from 'react-router-dom'
 
 export default function NotFound() {
@@ -8,13 +9,13 @@ export default function NotFound() {
         <div className="mx-auto flex min-h-[70vh] w-full max-w-2xl items-center justify-center">
           <div className="fh-card fh-card-pad w-full text-center">
             <p className="text-7xl font-semibold text-border leading-none mb-4 select-none">404</p>
-            <h1 className="fh-page-title mb-2">Page not found</h1>
-            <p className="fh-page-subtitle mb-8">This page doesn't exist.</p>
+            <h1 className="fh-page-title mb-2">{translate('common:notFound.pageNotFound')}</h1>
+            <p className="fh-page-subtitle mb-8">{translate('common:notFound.thisPageDoesnTExist')}</p>
             <button
-              onClick={() => navigate('/home')}
+              onClick={() => navigate("/home")}
               className="fh-button-primary"
             >
-              Return to Dashboard
+              {translate('common:notFound.returnToDashboard')}
             </button>
           </div>
         </div>

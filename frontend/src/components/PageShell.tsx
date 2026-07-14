@@ -10,7 +10,7 @@ interface PageShellProps {
 export default function PageShell({ children, className = '' }: PageShellProps) {
   return (
     <div className="fh-page">
-      <div className={['fh-page-inner', className].filter(Boolean).join(' ')}>
+      <div className={["fh-page-inner", className].filter(Boolean).join(' ')}>
         {children}
       </div>
     </div>

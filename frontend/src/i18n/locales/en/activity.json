@@ -1,0 +1,14 @@
+{
+  "activity.activity": "Activity",
+  "activity.by": "by",
+  "activity.error": "Error",
+  "activity.events": "{{value1}} events",
+  "activity.eventsWillAppearHereAsTheSystem": "Events will appear here as the system runs.",
+  "activity.info": "Info",
+  "activity.loading": "Loading...",
+  "activity.loadMoreRemaining": "Load more ({{value1}} remaining)",
+  "activity.noActivityYet": "No activity yet",
+  "activity.success": "Success",
+  "activity.systemEventsAndUserActions": "System events and user actions",
+  "activity.warning": "Warning"
+}

@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Badge from '../components/Badge'
@@ -8,22 +9,17 @@ import PageShell from '../components/PageShell'
 import Icon from '../components/Icon'
 import { useServices } from '../services/ServiceContext'
 import type { Source } from '../services/types'
+import { formatRelativeTime } from '../i18n/format'
 
 function relTime(d: Date | null): string {
   if (!d) return '-'
-  const s = Math.floor((Date.now() - d.getTime()) / 1000)
-  if (s < 60) return 'just now'
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
+  return formatRelativeTime(d)
 }
 
-const STATUS_BADGE: Record<Source['status'], { variant: 'success' | 'danger' | 'neutral'; label: string }> = {
-  active: { variant: 'success', label: 'Active' },
-  error: { variant: 'danger', label: 'Error' },
-  unconfigured: { variant: 'neutral', label: 'Unconfigured' },
+const STATUS_BADGE: Record<Source['status'], { variant: 'success' | 'danger' | 'neutral'; labelKey: string }> = {
+  active: { variant: 'success', labelKey: 'sources:sources.active' },
+  error: { variant: 'danger', labelKey: 'sources:sources.error' },
+  unconfigured: { variant: 'neutral', labelKey: 'sources:sources.unconfigured' },
 }
 
 function SourceCard({ source }: { source: Source }) {
@@ -36,33 +32,33 @@ function SourceCard({ source }: { source: Source }) {
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="fh-text-body font-medium truncate">{source.name}</span>
-            <Badge variant={badge.variant}>{badge.label}</Badge>
+            <Badge variant={badge.variant}>{translate(badge.labelKey)}</Badge>
           </div>
           <p className="fh-text-caption fh-text-mono mt-0.5 truncate">{source.displayUrl}</p>
         </div>
         <button
           onClick={() => info({
-            title: 'Editing is not available yet',
-            description: 'This source cannot be changed from this page.',
+            title: translate('sources:sources.editingIsNotAvailableYet'),
+            description: translate('sources:sources.thisSourceCannotBeChangedFromThis'),
           })}
           className="fh-button-secondary flex-shrink-0"
         >
           <Icon name="edit" />
-          Edit
+          {translate('sources:sources.edit')}
         </button>
       </div>
 
       <div className="flex flex-wrap gap-x-5 gap-y-1.5 fh-text-caption">
         <span>
-          <span className="text-wp-muted">Type: </span>
+          <span className="text-wp-muted">{translate('sources:sources.type')} </span>
           <span className="font-medium text-text-base capitalize">{source.type.replace(/_/g, ' ')}</span>
         </span>
         <span>
-          <span className="text-wp-muted">Products: </span>
+          <span className="text-wp-muted">{translate('sources:sources.products')} </span>
           <span className="font-medium text-text-base">{source.productCount}</span>
         </span>
         <span>
-          <span className="text-wp-muted">Last synced: </span>
+          <span className="text-wp-muted">{translate('sources:sources.lastSynced')} </span>
           <span className="text-text-base">{relTime(source.lastSynced)}</span>
         </span>
       </div>
@@ -86,15 +82,15 @@ export default function Sources() {
     <PageShell>
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">Sources</h1>
-          <p className="fh-page-subtitle">Data sources for price synchronisation</p>
+          <h1 className="fh-page-title">{translate('sources:sourceCenter.sources')}</h1>
+          <p className="fh-page-subtitle">{translate('sources:sources.dataSourcesForPriceSynchronisation')}</p>
         </div>
         <button
-          onClick={() => navigate('/sources/new')}
+          onClick={() => navigate("/sources/new")}
           className="fh-button-primary flex-shrink-0"
         >
           <Icon name="add" />
-          Add Source
+          {translate('sources:sources.addSource')}
         </button>
       </div>
 
@@ -106,9 +102,9 @@ export default function Sources() {
       ) : items.length === 0 ? (
         <div className="fh-card">
           <Empty
-            title="No sources configured"
-            description="Add a source to start comparing prices."
-            action={{ label: 'Add Source', onClick: () => navigate('/sources/new') }}
+            title={translate('sources:sources.noSourcesConfigured')}
+            description={translate('sources:sources.addASourceToStartComparingPrices')}
+            action={{ label: translate('sources:sources.addSource'), onClick: () => navigate("/sources/new") }}
           />
         </div>
       ) : (

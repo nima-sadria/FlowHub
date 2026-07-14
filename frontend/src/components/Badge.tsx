@@ -48,8 +48,8 @@ export default function Badge({
   variant = 'neutral',
 }: BadgeProps) {
   return (
-    <span className={['fh-badge', VARIANT_CLASS[variant], className].filter(Boolean).join(' ')}>
-      {dot && <span aria-hidden="true" className={['fh-status-dot', DOT_CLASS[variant]].join(' ')} />}
+    <span className={["fh-badge", VARIANT_CLASS[variant], className].filter(Boolean).join(' ')}>
+      {dot && <span aria-hidden="true" className={["fh-status-dot", DOT_CLASS[variant]].join(' ')} />}
       {icon}
       {children}
     </span>

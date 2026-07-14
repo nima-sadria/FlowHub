@@ -29,8 +29,8 @@ export default function LocalizedText({
   return (
     <span
       className={classes || undefined}
-      dir={hasPersian ? 'auto' : undefined}
-      lang={hasPersian ? 'fa' : undefined}
+      dir={hasPersian ? "auto" : undefined}
+      lang={hasPersian ? "fa" : undefined}
     >
       {content}
     </span>

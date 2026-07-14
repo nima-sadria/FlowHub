@@ -1,4 +1,6 @@
+import { translate } from './i18n'
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, RequirePermission, AccessState, useAuth } from './auth'
 import { DirectionProvider } from './direction'
@@ -63,15 +65,15 @@ function MaintenanceOverlay({ message }: { message?: string }) {
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
         </div>
-        <h2 className="text-[18px] font-bold text-text-base mb-2">Maintenance Mode</h2>
+        <h2 className="text-[18px] font-bold text-text-base mb-2">{translate('common:app.maintenanceMode')}</h2>
         <p className="text-[13px] text-wp-muted mb-6">
-          {message || 'FlowHub is temporarily in maintenance mode. Please try again later.'}
+          {message || "FlowHub is temporarily in maintenance mode. Please try again later."}
         </p>
         <button
           onClick={() => { clearAuth() }}
           className="fh-button-primary px-5"
         >
-          Sign out
+          {translate('common:app.signOut')}
         </button>
       </div>
     </div>
@@ -83,7 +85,7 @@ function AuthGuard({ children }: { children: ReactNode }) {
   if (status === 'loading') {
     return (
       <div className="min-h-screen bg-bg-base flex items-center justify-center">
-        <span className="text-[13px] text-wp-muted">Loading...</span>
+        <span className="text-[13px] text-wp-muted">{translate('common:app.loading')}</span>
       </div>
     )
   }
@@ -100,7 +102,7 @@ function GuestOnly({ children }: { children: ReactNode }) {
   if (status === 'loading') {
     return (
       <div className="min-h-screen bg-bg-base flex items-center justify-center">
-        <span className="text-[13px] text-wp-muted">Loading...</span>
+        <span className="text-[13px] text-wp-muted">{translate('common:app.loading')}</span>
       </div>
     )
   }
@@ -126,7 +128,7 @@ function SetupGate() {
   if (setupComplete === null) {
     return (
       <div className="min-h-screen bg-bg-base flex items-center justify-center">
-        <span className="text-[13px] text-wp-muted">Loading...</span>
+        <span className="text-[13px] text-wp-muted">{translate('common:app.loading')}</span>
       </div>
     )
   }
@@ -160,7 +162,7 @@ function SetupGate() {
         <Route path="/data-quality" element={<RequirePermission permission="can_fetch"><DataQuality /></RequirePermission>} />
         <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
-        <Route path="/workspace/:workspaceId" element={<RequirePermission permission="can_fetch"><Suspense fallback={<div className="fh-card fh-card-pad">Loading Workspace Grid...</div>}><UnifiedWorkspace /></Suspense></RequirePermission>} />
+        <Route path="/workspace/:workspaceId" element={<RequirePermission permission="can_fetch"><Suspense fallback={<div className="fh-card fh-card-pad">{translate('common:app.loadingWorkspaceGrid')}</div>}><UnifiedWorkspace /></Suspense></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
         <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
@@ -174,6 +176,7 @@ function SetupGate() {
 // -- App root ------------------------------------------------------------------
 
 export default function App() {
+  useTranslation()
   return (
     <BrowserRouter>
       <ThemeProvider>

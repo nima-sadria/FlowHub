@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { effectiveHasPerm } from './utils/permissions'
+import { translate } from './i18n'
 
 type PermissionMap = Record<string, boolean>
 
@@ -184,14 +185,14 @@ export function AccessState({
   status: Exclude<AuthStatus, 'authenticated'>
   message?: string
 }) {
-  const title = status === 'permission_denied' ? 'Access Denied' : status === 'loading' ? 'Verifying Access' : 'Login Required'
+  const title = status === 'permission_denied' ? translate('authentication:access.accessDenied') : status === 'loading' ? translate('authentication:access.verifyingAccess') : translate('authentication:access.loginRequired')
   const body =
     message ??
     (status === 'permission_denied'
-      ? 'Your account does not have permission to view this content.'
+      ? translate('authentication:access.permissionDeniedDescription')
       : status === 'loading'
-        ? 'Verifying your session with the server.'
-        : 'Please sign in to continue.')
+        ? translate('authentication:access.verifyingSession')
+        : translate('authentication:access.signInToContinue'))
 
   return (
     <div className="p-7">

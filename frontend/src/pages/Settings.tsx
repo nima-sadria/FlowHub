@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth'
 import { useServices } from '../services/ServiceContext'
@@ -9,6 +10,8 @@ import Icon from '../components/Icon'
 import Spinner from '../components/loading/Spinner'
 import PageShell from '../components/PageShell'
 import { RateLimitsPanel } from './RateLimits'
+import { useTranslation } from 'react-i18next'
+import { changeLocale, localeMetadata, type FlowHubLocale } from '../i18n'
 
 const TIMEZONES = [
   'UTC',
@@ -110,6 +113,8 @@ export default function Settings() {
   const { authFetch: ctxAuthFetch } = useAuth()
   const { settings } = useServices()
   const { success, error: notifyError } = useNotification()
+  const { i18n: translationEngine } = useTranslation()
+  const language = translationEngine.resolvedLanguage ?? 'en'
 
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [healthLoading, setHealthLoading] = useState(true)
@@ -157,13 +162,13 @@ export default function Settings() {
       setAppSettings(draft)
       setDirty(false)
       success({
-        title: 'Settings saved successfully',
-        description: 'Your changes have been applied.',
+        title: translate('settings:rateLimits.settingsSavedSuccessfully'),
+        description: translate('settings:rateLimits.yourChangesHaveBeenApplied'),
       })
     } catch {
       notifyError({
-        title: 'Unable to save settings',
-        description: 'Please try again.',
+        title: translate('settings:rateLimits.unableToSaveSettings'),
+        description: translate('settings:rateLimits.pleaseTryAgain'),
       })
     } finally {
       setSaving(false)
@@ -174,8 +179,8 @@ export default function Settings() {
     <PageShell>
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">Settings</h1>
-          <p className="fh-page-subtitle">Application settings</p>
+          <h1 className="fh-page-title">{translate('settings:settings.settings')}</h1>
+          <p className="fh-page-subtitle">{translate('settings:settings.applicationSettings')}</p>
         </div>
         {dirty && (
           <div className="fh-actions">
@@ -184,7 +189,7 @@ export default function Settings() {
               className="fh-button-secondary"
             >
               <Icon name="close" />
-              Discard
+              {translate('settings:rateLimits.discard')}
             </button>
             <button
               onClick={() => void handleSave()}
@@ -193,38 +198,48 @@ export default function Settings() {
             >
               {saving && <Spinner size="sm" className="text-white" />}
               {!saving && <Icon name="save" />}
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? translate('settings:rateLimits.saving') : translate('settings:rateLimits.saveChanges')}
             </button>
           </div>
         )}
       </div>
 
-      <Section title="General" description="Configure display and synchronization preferences">
+      <Section title={translate('settings:language.title')} description={translate('settings:language.description')}>
+        <label className="fh-field">
+          <span className="fh-help-text">{translate('settings:language.label')}</span>
+          <select className="fh-select" value={language.startsWith('fa') ? 'fa' : 'en'} onChange={event => void changeLocale(event.target.value as FlowHubLocale)}>
+            <option value="en">{translate('settings:language.english')}</option>
+            <option value="fa" disabled={!localeMetadata.fa.complete}>{localeMetadata.fa.complete ? translate('settings:language.persian') : translate('settings:language.persianUnavailable')}</option>
+          </select>
+        </label>
+      </Section>
+
+      <Section title={translate('settings:settings.general')} description={translate('settings:settings.configureDisplayAndSynchronizationPreferences')}>
         {!draft ? (
-          <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />Loading...</div>
+          <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />{translate('settings:rateLimits.loading')}</div>
         ) : (
           <>
             <NumberField
-              label="Sync interval (minutes)"
+              label={translate('settings:settings.syncIntervalMinutes')}
               value={draft.syncIntervalMinutes}
               min={5}
               max={1440}
               onChange={v => updateDraft({ syncIntervalMinutes: v })}
             />
             <SelectField
-              label="Timezone"
+              label={translate('settings:settings.timezone')}
               value={draft.timezone}
               options={TIMEZONES}
               onChange={v => updateDraft({ timezone: v })}
             />
             <SelectField
-              label="Currency"
+              label={translate('settings:settings.currency')}
               value={draft.currency}
               options={CURRENCIES}
               onChange={v => updateDraft({ currency: v, currencyUnit: v === 'IRR' ? 'RIAL' : v })}
             />
             <SelectField
-              label="Pricing unit"
+              label={translate('settings:settings.pricingUnit')}
               value={draft.currencyUnit ?? draft.currency}
               options={draft.currency === 'IRR' ? ['RIAL', 'TOMAN'] : [draft.currency]}
               onChange={v => updateDraft({ currencyUnit: v })}
@@ -235,21 +250,21 @@ export default function Settings() {
 
       <RateLimitsPanel embedded />
 
-      <Section title="About" description="Application information">
+      <Section title={translate('settings:settings.about')} description={translate('settings:settings.applicationInformation')}>
         {healthLoading ? (
-          <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />Loading...</div>
+          <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />{translate('settings:rateLimits.loading')}</div>
         ) : healthErr ? (
           <div className="flex items-center justify-between">
-            <p className="fh-text-body-sm text-wp-red">Backend unavailable</p>
+            <p className="fh-text-body-sm text-wp-red">{translate('settings:settings.backendUnavailable')}</p>
             <button onClick={() => void fetchHealth()} className="fh-toolbar-link">
               <Icon name="retry" />
-              Retry
+              {translate('settings:settings.retry')}
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <ReadOnlyField label="Version" value={`v${health?.version ?? '-'}`} />
-            <ReadOnlyField label="Status" value={health?.status ?? '-'} />
+            <ReadOnlyField label={translate('settings:settings.version')} value={`v${health?.version ?? '-'}`} />
+            <ReadOnlyField label={translate('settings:settings.status')} value={health?.status ?? '-'} />
           </div>
         )}
       </Section>

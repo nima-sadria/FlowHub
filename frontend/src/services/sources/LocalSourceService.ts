@@ -1,3 +1,4 @@
+import { translate } from '../../i18n'
 import type { Source, SourceConfig, ConnectionTestResult } from '../types'
 import type { SourceService } from './SourceService'
 
@@ -43,7 +44,7 @@ export class LocalSourceService implements SourceService {
     await delay(1500)
     return {
       success: true,
-      message: 'Connected successfully. 12 products found.',
+      message: translate('common:localSourceService.connectedSuccessfully12ProductsFound'),
       discoveredProductCount: 12,
     }
   }

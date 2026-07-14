@@ -25,9 +25,9 @@ export default function IconButton({
       aria-label={label}
       title={props.title ?? label}
       className={[
-        'fh-icon-button',
-        size === 'sm' ? 'fh-icon-button-sm' : '',
-        tone === 'danger' ? 'fh-icon-button-danger' : '',
+        "fh-icon-button",
+        size === "sm" ? "fh-icon-button-sm" : '',
+        tone === "danger" ? "fh-icon-button-danger" : '',
         className,
       ].filter(Boolean).join(' ')}
       {...props}

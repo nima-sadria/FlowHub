@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
@@ -56,15 +57,15 @@ export default function Login() {
         <div className="mb-8 text-center">
           <img
             src="/static/logos/FlowHub.webp"
-            alt="FlowHub"
+            alt={translate('authentication:login.flowhub')}
             className="mx-auto mb-6 h-auto w-[220px] max-w-full object-contain sm:w-[310px]"
           />
         </div>
 
         <div className="fh-login-card p-8 sm:p-10">
           <div className="mb-8 text-center">
-            <h1 className="fh-page-title">FlowHub</h1>
-            <p className="fh-page-subtitle mt-1">Sign in to FlowHub</p>
+            <h1 className="fh-page-title">{translate('authentication:login.flowhub')}</h1>
+            <p className="fh-page-subtitle mt-1">{translate('authentication:login.signInToFlowhub')}</p>
           </div>
 
           {error && (
@@ -76,7 +77,7 @@ export default function Login() {
           <form onSubmit={(e) => { void handleSubmit(e) }} className="flex flex-col gap-4">
             <div className="fh-field">
               <label htmlFor="login-username" className="fh-label">
-                Username
+                {translate('authentication:login.username')}
               </label>
               <input
                 id="login-username"
@@ -94,7 +95,7 @@ export default function Login() {
 
             <div className="fh-field">
               <label htmlFor="login-password" className="fh-label">
-                Password
+                {translate('authentication:login.password')}
               </label>
               <input
                 id="login-password"
@@ -114,7 +115,7 @@ export default function Login() {
               disabled={loading}
               className="fh-button-primary mt-2 w-full"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? translate('authentication:login.signingIn') : translate('authentication:login.signIn')}
             </button>
           </form>
         </div>

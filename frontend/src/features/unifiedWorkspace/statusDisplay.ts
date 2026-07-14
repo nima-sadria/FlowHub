@@ -1,3 +1,5 @@
+import { translate } from '../../i18n'
+
 export type WorkspaceStatusKey =
   | 'unchanged' | 'edited' | 'draft_saved' | 'warning' | 'error' | 'ready'
   | 'applying' | 'applied' | 'failed' | 'read_only' | 'unavailable'
@@ -8,25 +10,28 @@ export interface WorkspaceStatusDisplay {
   icon: string
   critical: boolean
 }
-const STATUS_DISPLAY: Record<WorkspaceStatusKey, WorkspaceStatusDisplay> = {
-  unchanged: { label: 'Unchanged', icon: '•', critical: false },
-  edited: { label: 'Edited', icon: '✎', critical: false },
-  draft_saved: { label: 'Draft Saved', icon: '✓', critical: false },
-  warning: { label: 'Warning', icon: '!', critical: true },
-  error: { label: 'Error', icon: '×', critical: true },
-  ready: { label: 'Ready', icon: '✓', critical: false },
-  applying: { label: 'Applying', icon: '↻', critical: false },
-  applied: { label: 'Applied', icon: '✓', critical: false },
-  failed: { label: 'Failed', icon: '×', critical: true },
-  read_only: { label: 'Read-only', icon: '🔒', critical: false },
-  unavailable: { label: 'Unavailable', icon: '—', critical: true },
-  stale_review: { label: 'Stale Review', icon: '⟳', critical: true },
-  reconciliation_required: { label: 'Reconciliation Required', icon: '⚠', critical: true },
+
+const STATUS_DISPLAY: Record<WorkspaceStatusKey, { labelKey: string; icon: string; critical: boolean }> = {
+  unchanged: { labelKey: 'workspace:statusDisplay.unchanged', icon: '\u2022', critical: false },
+  edited: { labelKey: 'workspace:statusDisplay.edited', icon: '\u270e', critical: false },
+  draft_saved: { labelKey: 'workspace:statusDisplay.draftSaved', icon: '\u2713', critical: false },
+  warning: { labelKey: 'workspace:statusDisplay.warning', icon: '!', critical: true },
+  error: { labelKey: 'workspace:statusDisplay.error', icon: '\u00d7', critical: true },
+  ready: { labelKey: 'workspace:statusDisplay.ready', icon: '\u2713', critical: false },
+  applying: { labelKey: 'workspace:statusDisplay.applying', icon: '\u21bb', critical: false },
+  applied: { labelKey: 'workspace:statusDisplay.applied', icon: '\u2713', critical: false },
+  failed: { labelKey: 'workspace:statusDisplay.failed', icon: '\u00d7', critical: true },
+  read_only: { labelKey: 'workspace:statusDisplay.readOnly', icon: '\ud83d\udd12', critical: false },
+  unavailable: { labelKey: 'workspace:statusDisplay.unavailable', icon: '\u2014', critical: true },
+  stale_review: { labelKey: 'workspace:statusDisplay.staleReview', icon: '\u27f3', critical: true },
+  reconciliation_required: { labelKey: 'workspace:statusDisplay.reconciliationRequired', icon: '\u26a0', critical: true },
 }
 
 export function describeWorkspaceStatus(value: string): WorkspaceStatusDisplay {
-  return STATUS_DISPLAY[value as WorkspaceStatusKey] ?? {
-    label: value.replace(/_/g, ' ') || 'Unknown',
+  const display = STATUS_DISPLAY[value as WorkspaceStatusKey]
+  if (display) return { label: translate(display.labelKey), icon: display.icon, critical: display.critical }
+  return {
+    label: value.replace(/_/g, ' ') || translate('common:status.unknown'),
     icon: '?',
     critical: true,
   }

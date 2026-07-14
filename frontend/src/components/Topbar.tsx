@@ -1,33 +1,34 @@
+import { translate } from '../i18n'
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import Badge from './Badge'
 import IconButton from './IconButton'
 import { useTheme } from '../theme/ThemeProvider'
 
-const PAGE_TITLES: Record<string, string> = {
-  '/home': 'Dashboard',
-  '/workspace': 'Workspace',
-  '/products': 'Products',
-  '/sources': 'Sources',
-  '/sources/new': 'Add Source',
-  '/sources/import': 'Import Spreadsheet',
-  '/data-quality': 'Data Quality',
-  '/commerce': 'Commerce Hub',
-  '/activity': 'Activity',
-  '/diagnostics': 'Diagnostics',
-  '/rate-limits': 'Global API Rate Limits',
-  '/settings': 'Settings',
+const PAGE_TITLE_KEYS: Record<string, string> = {
+  '/home': 'navigation:topbar.dashboard',
+  '/workspace': 'navigation:topbar.workspace',
+  '/products': 'navigation:topbar.products',
+  '/sources': 'navigation:topbar.sources',
+  '/sources/new': 'navigation:topbar.addSource',
+  '/sources/import': 'navigation:topbar.importSpreadsheet',
+  '/data-quality': 'navigation:topbar.dataQuality',
+  '/commerce': 'navigation:topbar.commerceHub',
+  '/activity': 'navigation:topbar.activity',
+  '/diagnostics': 'navigation:topbar.diagnostics',
+  '/rate-limits': 'navigation:topbar.globalApiRateLimits',
+  '/settings': 'navigation:topbar.settings',
 }
 
 export function resolvePageTitle(pathname: string, workspaceName?: string | null): string {
-  const staticTitle = PAGE_TITLES[pathname]
-  if (staticTitle) return staticTitle
+  const staticTitleKey = PAGE_TITLE_KEYS[pathname]
+  if (staticTitleKey) return translate(staticTitleKey)
   if (/^\/(?:workspace|workspaces|unified-workspace)\/[^/]+(?:\/.*)?$/.test(pathname)) {
-    return workspaceName?.trim() || 'Workspace'
+    return workspaceName?.trim() || translate('navigation:topbar.workspace')
   }
-  if (/^\/sources\/[^/]+$/.test(pathname)) return 'Source Configuration'
-  if (/^\/sheets\/[^/]+$/.test(pathname)) return 'FlowHub Sheet'
-  return 'FlowHub'
+  if (/^\/sources\/[^/]+$/.test(pathname)) return translate('navigation:topbar.sourceConfiguration')
+  if (/^\/sheets\/[^/]+$/.test(pathname)) return translate('navigation:topbar.flowhubSheet')
+  return translate('navigation:topbar.flowhub')
 }
 
 interface Props {
@@ -145,13 +146,13 @@ export default function Topbar({
           <IconButton
             onClick={onMenuClick}
             className="md:hidden"
-            label="Open navigation"
+            label={translate('navigation:topbar.openNavigation')}
           >
             <MenuIcon />
           </IconButton>
 
           <div className="min-w-0">
-            <div className="fh-text-caption">FlowHub / {title}</div>
+            <div className="fh-text-caption">{translate('navigation:topbar.brandPrefix')} {title}</div>
             <p className="truncate text-[20px] font-semibold leading-7 text-text-base">
               {title}
             </p>
@@ -168,13 +169,13 @@ export default function Topbar({
           <IconButton
             onClick={toggleTheme}
             label={
-              theme === 'dark'
-                ? 'Switch to light mode'
-                : 'Switch to dark mode'
+              theme === "dark"
+                ? "Switch to light mode"
+                : "Switch to dark mode"
             }
             size="sm"
           >
-            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+            {theme === "dark" ? <SunIcon /> : <MoonIcon />}
           </IconButton>
 
           {user && (
@@ -193,7 +194,7 @@ export default function Topbar({
               <button
                 type="button"
                 onClick={() => setMenuOpen((open) => !open)}
-                aria-label="User menu"
+                aria-label={translate('navigation:topbar.userMenu')}
                 aria-expanded={menuOpen}
                 className="fh-user-chip"
               >
@@ -217,7 +218,7 @@ export default function Topbar({
                     <div className="text-[13px] font-medium leading-5 text-text-base">
                       {user.username}
                     </div>
-                    <div className="fh-text-caption mt-0.5">Signed in</div>
+                    <div className="fh-text-caption mt-0.5">{translate('navigation:topbar.signedIn')}</div>
                   </div>
 
                   <button
@@ -228,7 +229,7 @@ export default function Topbar({
                     <span className="fh-icon-md">
                       <SignOutIcon />
                     </span>
-                    Sign out
+                    {translate('navigation:sidebar.signOut')}
                   </button>
                 </div>
               )}

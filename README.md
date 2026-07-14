@@ -293,6 +293,8 @@ Current release UI previews are stored in `docs/assets/screenshots/`.
 - [Integration Platform](docs/architecture/INTEGRATION_PLATFORM.md)
 - [Unified Logging Platform](docs/architecture/UNIFIED_LOGGING_PLATFORM.md)
 - [Installer Architecture](docs/platform/INSTALLER_ARCHITECTURE.md)
+- [Internationalization Architecture](docs/i18n/INTERNATIONALIZATION.md)
+- [Translator and Poedit Guide](docs/i18n/TRANSLATOR_GUIDE.md)
 - [Installation Guide](docs/INSTALLATION.md)
 - [Upgrade Guide](docs/UPGRADE.md)
 - [Backup and Restore](docs/BACKUP_RESTORE.md)

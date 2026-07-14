@@ -1,0 +1,4659 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: FlowHub 1.3\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"mime-version: 1.0\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"x-generator: FlowHub deterministic i18n extractor\n"
+
+#: frontend/src/pages/CommerceHub.tsx:849
+msgctxt "commerce:commerceHub.alternateTitle"
+msgid " ({{title}})"
+msgstr " ({{title}})"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
+msgctxt "workspace:sourceCentricWorkspace.fieldUnit"
+msgid " ({{unit}})"
+msgstr " ({{unit}})"
+
+#: frontend/src/pages/CommerceHub.tsx:849
+msgctxt "commerce:commerceHub.inactive"
+msgid "- Inactive"
+msgstr "- Inactive"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
+msgctxt "workspace:sourceCentricWorkspace.1ChangesDetected"
+msgid "1 · Changes detected"
+msgstr "1 · Changes detected"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
+#. Review is the immutable validation result required before Apply.
+msgctxt "workspace:sourceCentricWorkspace.2ReviewDryRun"
+msgid "2 · Review & Dry Run"
+msgstr "2 · Review & Dry Run"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
+msgctxt "workspace:sourceCentricWorkspace.3Approve"
+msgid "3 · Approve"
+msgstr "3 · Approve"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:sourceCentricWorkspace.4ApplySelected"
+msgid "4 · Apply selected"
+msgstr "4 · Apply selected"
+
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "errors:codes.REVIEW_REQUIRED"
+msgid "A fresh Review is required before Apply."
+msgstr "A fresh Review is required before Apply."
+
+#: frontend/src/pages/SourceConfiguration.tsx:105
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated"
+msgid "A new immutable Mapping revision was created."
+msgstr "A new immutable Mapping revision was created."
+
+msgctxt "settings:setup.aedUaeDirham"
+msgid "AED - UAE Dirham"
+msgstr "AED - UAE Dirham"
+
+#: frontend/src/pages/CommerceHub.tsx:211
+msgctxt "commerce:commerceHub.apiCredentials"
+msgid "API credentials:"
+msgstr "API credentials:"
+
+#: frontend/src/pages/CommerceHub.tsx:284
+msgctxt "commerce:commerceHub.fields.apiKeyToken"
+msgid "API key/token"
+msgstr "API key/token"
+
+msgctxt "settings:setup.audAustralianDollar"
+msgid "AUD - Australian Dollar"
+msgstr "AUD - Australian Dollar"
+
+#: frontend/src/pages/Diagnostics.tsx:395
+msgctxt "diagnostics:diagnostics.about"
+msgid "About"
+msgstr "About"
+
+#: frontend/src/pages/Settings.tsx:253
+msgctxt "settings:settings.about"
+msgid "About"
+msgstr "About"
+
+#: frontend/src/auth.tsx:188
+msgctxt "authentication:access.accessDenied"
+msgid "Access Denied"
+msgstr "Access Denied"
+
+#: frontend/src/pages/CommerceHub.tsx:782
+msgctxt "commerce:commerceHub.accessMode"
+msgid "Access mode"
+msgstr "Access mode"
+
+msgctxt "sources:sources.active"
+msgid "Active"
+msgstr "Active"
+
+#: frontend/src/pages/Dashboard.tsx:175
+msgctxt "dashboard:dashboard.activeSources"
+msgid "Active Sources"
+msgstr "Active Sources"
+
+#: frontend/src/pages/Activity.tsx:89
+msgctxt "activity:activity.activity"
+msgid "Activity"
+msgstr "Activity"
+
+#: frontend/src/components/Sidebar.tsx:155
+msgctxt "navigation:sidebar.activity"
+msgid "Activity"
+msgstr "Activity"
+
+msgctxt "navigation:topbar.activity"
+msgid "Activity"
+msgstr "Activity"
+
+#: frontend/src/pages/FlowHubSheet.tsx:101
+msgctxt "flowhubSheet:flowHubSheet.add20Rows"
+msgid "Add 20 rows"
+msgstr "Add 20 rows"
+
+#: frontend/src/pages/CommerceHub.tsx:1328 frontend/src/pages/CommerceHub.tsx:742
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "commerce:commerceHub.addChannel"
+msgid "Add Channel"
+msgstr "Add Channel"
+
+#: frontend/src/pages/CommerceHub.tsx:1292 frontend/src/pages/CommerceHub.tsx:742
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.addSource"
+msgid "Add Source"
+msgstr "Add Source"
+
+#: frontend/src/pages/Dashboard.tsx:216
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.addSource"
+msgid "Add Source"
+msgstr "Add Source"
+
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "navigation:topbar.addSource"
+msgid "Add Source"
+msgstr "Add Source"
+
+#: frontend/src/pages/Sources.tsx:107 frontend/src/pages/Sources.tsx:93
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sources.addSource"
+msgid "Add Source"
+msgstr "Add Source"
+
+#: frontend/src/pages/SourceWizard.tsx:129
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceWizard.addASource"
+msgid "Add a Source"
+msgstr "Add a Source"
+
+#: frontend/src/pages/Sources.tsx:106
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sources.addASourceToStartComparingPrices"
+msgid "Add a source to start comparing prices."
+msgstr "Add a source to start comparing prices."
+
+#: frontend/src/pages/Dashboard.tsx:225
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.addYourFirstSource"
+msgid "Add your first source"
+msgstr "Add your first source"
+
+#: frontend/src/pages/CommerceHub.tsx:1105 frontend/src/pages/CommerceHub.tsx:1133 frontend/src/pages/CommerceHub.tsx:1163 frontend/src/pages/CommerceHub.tsx:1196 frontend/src/pages/CommerceHub.tsx:1226 frontend/src/pages/CommerceHub.tsx:1236 frontend/src/pages/CommerceHub.tsx:1295 frontend/src/pages/CommerceHub.tsx:1331
+msgctxt "commerce:commerceHub.adminPermissionRequired"
+msgid "Admin permission required"
+msgstr "Admin permission required"
+
+#: frontend/src/pages/SourceCenter.tsx:65
+msgctxt "sources:sourceCenter.advanced"
+msgid "Advanced"
+msgstr "Advanced"
+
+#: frontend/src/pages/CommerceHub.tsx:859
+msgctxt "commerce:commerceHub.advancedSettings"
+msgid "Advanced settings"
+msgstr "Advanced settings"
+
+#: frontend/src/pages/SourceImportWizard.tsx:67
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceImportWizard.afterImportMapSourceProductFieldsAnd"
+msgid "After import, map Source Product fields and each enabled Channel explicitly. FlowHub does not infer business fields from headers."
+msgstr "After import, map Source Product fields and each enabled Channel explicitly. FlowHub does not infer business fields from headers."
+
+#: frontend/src/pages/Products.tsx:602
+msgctxt "products:products.allCategories"
+msgid "All Categories"
+msgstr "All Categories"
+
+#: frontend/src/pages/DataQuality.tsx:41 frontend/src/pages/DataQuality.tsx:42
+msgctxt "dataQuality:dataQuality.allChannels"
+msgid "All Channels"
+msgstr "All Channels"
+
+msgctxt "products:products.allChannels"
+msgid "All Channels"
+msgstr "All Channels"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.allSources"
+msgid "All Sources"
+msgstr "All Sources"
+
+#: frontend/src/pages/Products.tsx:619
+msgctxt "products:products.allTypes"
+msgid "All Types"
+msgstr "All Types"
+
+#: frontend/src/pages/Workspace.tsx:368
+msgctxt "workspace:workspace.allApprovedUpdatesHaveBeenCompleted"
+msgid "All approved updates have been completed."
+msgstr "All approved updates have been completed."
+
+#: frontend/src/pages/DataQuality.tsx:41
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "dataQuality:dataQuality.allMappingStates"
+msgid "All mapping states"
+msgstr "All mapping states"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.allSeverities"
+msgid "All severities"
+msgstr "All severities"
+
+#: frontend/src/pages/CommerceHub.tsx:956
+msgctxt "commerce:commerceHub.allWorksheets"
+msgid "All worksheets"
+msgstr "All worksheets"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.allWorksheets"
+msgid "All worksheets"
+msgstr "All worksheets"
+
+#: frontend/src/pages/SourceConfiguration.tsx:129
+msgctxt "sources:sourceConfiguration.allWorksheets"
+msgid "All worksheets"
+msgstr "All worksheets"
+
+#: frontend/src/components/ErrorBoundary.tsx:36
+msgctxt "common:errorBoundary.anUnexpectedErrorOccurredOnThisPage"
+msgid "An unexpected error occurred on this page."
+msgstr "An unexpected error occurred on this page."
+
+#: frontend/src/pages/CommerceHub.tsx:279
+msgctxt "commerce:commerceHub.fields.appPasswordToken"
+msgid "App password / token"
+msgstr "App password / token"
+
+#: frontend/src/pages/Dashboard.tsx:154
+msgctxt "dashboard:dashboard.application"
+msgid "Application"
+msgstr "Application"
+
+#: frontend/src/pages/Settings.tsx:253
+msgctxt "settings:settings.applicationInformation"
+msgid "Application information"
+msgstr "Application information"
+
+#: frontend/src/pages/Diagnostics.tsx:210
+msgctxt "diagnostics:diagnostics.applicationServiceResponding"
+msgid "Application service is responding"
+msgstr "Application service is responding"
+
+#: frontend/src/pages/Settings.tsx:183
+msgctxt "settings:settings.applicationSettings"
+msgid "Application settings"
+msgstr "Application settings"
+
+msgctxt "common:status.applied"
+msgid "Applied"
+msgstr "Applied"
+
+msgctxt "workspace:statusDisplay.applied"
+msgid "Applied"
+msgstr "Applied"
+
+#: frontend/src/pages/Products.tsx:215
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "products:products.apply"
+msgid "Apply"
+msgstr "Apply"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97 frontend/src/pages/UnifiedWorkspace.tsx:135
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:sourceCentricWorkspace.apply"
+msgid "Apply"
+msgstr "Apply"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:111
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:unifiedWorkspace.applySelectedOnly"
+msgid "Apply Selected Only"
+msgstr "Apply Selected Only"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:102
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:sourceCentricWorkspace.applyConfirmation"
+msgid "Apply confirmation"
+msgstr "Apply confirmation"
+
+#: frontend/src/pages/Workspace.tsx:350
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:workspace.applyIsStillRequiredBeforeChangesAre"
+msgid "Apply is still required before changes are made."
+msgstr "Apply is still required before changes are made."
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:81
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:sourceCentricWorkspace.applyRemainsDisabledUnlessAtLeastOne"
+msgid "Apply remains disabled unless at least one eligible Review item is selected."
+msgstr "Apply remains disabled unless at least one eligible Review item is selected."
+
+#: frontend/src/pages/Workspace.tsx:690
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:workspace.applyRequiresDryRunAndApprovalFirst"
+msgid "Apply requires Dry Run and Approval first"
+msgstr "Apply requires Dry Run and Approval first"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:103 frontend/src/pages/UnifiedWorkspace.tsx:134
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:sourceCentricWorkspace.applyResults"
+msgid "Apply results"
+msgstr "Apply results"
+
+#: frontend/src/pages/Workspace.tsx:581
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:workspace.applyToWoocommerce"
+msgid "Apply to WooCommerce"
+msgstr "Apply to WooCommerce"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:66
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:sourceCentricWorkspace.applyWasBlocked"
+msgid "Apply was blocked"
+msgstr "Apply was blocked"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:103
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:sourceCentricWorkspace.applyResultStatus"
+msgid "Apply — {{status}}"
+msgstr "Apply — {{status}}"
+
+msgctxt "common:status.applying"
+msgid "Applying"
+msgstr "Applying"
+
+msgctxt "workspace:statusDisplay.applying"
+msgid "Applying"
+msgstr "Applying"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:61
+msgctxt "workspace:sourceCentricWorkspace.applyingSelectedListings"
+msgid "Applying selected Listings"
+msgstr "Applying selected Listings"
+
+#: frontend/src/pages/Products.tsx:211
+msgctxt "products:products.approve"
+msgid "Approve"
+msgstr "Approve"
+
+#: frontend/src/pages/Workspace.tsx:575
+msgctxt "workspace:workspace.approve"
+msgid "Approve"
+msgstr "Approve"
+
+#: frontend/src/pages/Workspace.tsx:195
+msgctxt "workspace:workspace.steps.approve"
+msgid "Approve"
+msgstr "Approve"
+
+#: frontend/src/pages/Workspace.tsx:552
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:workspace.automaticApply"
+msgid "Automatic apply"
+msgstr "Automatic apply"
+
+#: frontend/src/pages/Workspace.tsx:481
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:workspace.automaticApplyIsDisabled"
+msgid "Automatic apply is disabled."
+msgstr "Automatic apply is disabled."
+
+#: frontend/src/pages/RateLimits.tsx:168
+msgctxt "settings:rateLimits.automaticSync"
+msgid "Automatic sync"
+msgstr "Automatic sync"
+
+#: frontend/src/pages/Setup.tsx:480
+msgctxt "settings:setup.back"
+msgid "Back"
+msgstr "Back"
+
+#: frontend/src/pages/SourceWizard.tsx:173 frontend/src/pages/SourceWizard.tsx:212
+msgctxt "sources:sourceWizard.back"
+msgid "Back"
+msgstr "Back"
+
+#: frontend/src/pages/SourceWizard.tsx:262
+msgctxt "sources:sourceWizard.backToSources"
+msgid "Back to Sources"
+msgstr "Back to Sources"
+
+#: frontend/src/pages/Dashboard.tsx:144
+msgctxt "dashboard:dashboard.backend"
+msgid "Backend"
+msgstr "Backend"
+
+#: frontend/src/pages/Diagnostics.tsx:207
+msgctxt "diagnostics:diagnostics.backend"
+msgid "Backend"
+msgstr "Backend"
+
+#: frontend/src/pages/Settings.tsx:258
+msgctxt "settings:settings.backendUnavailable"
+msgid "Backend unavailable"
+msgstr "Backend unavailable"
+
+msgctxt "sources:sourceConfiguration.valueType.blank"
+msgid "Blank"
+msgstr "Blank"
+
+msgctxt "common:status.blocked"
+msgid "Blocked"
+msgstr "Blocked"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.blocked"
+msgid "Blocked"
+msgstr "Blocked"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:126 frontend/src/pages/Workspace.tsx:545
+msgctxt "workspace:unifiedWorkspace.blocked"
+msgid "Blocked"
+msgstr "Blocked"
+
+msgctxt "sources:sourceConfiguration.blockedIssue"
+msgid "Blocked issue"
+msgstr "Blocked issue"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:95
+msgctxt "workspace:sourceCentricWorkspace.blockedRows"
+msgid "Blocked rows"
+msgstr "Blocked rows"
+
+#: frontend/src/pages/Workspace.tsx:663
+msgctxt "workspace:workspace.blocked"
+msgid "Blocked:"
+msgstr "Blocked:"
+
+msgctxt "sources:sourceConfiguration.brand"
+msgid "Brand"
+msgstr "Brand"
+
+#: frontend/src/pages/SourceCenter.tsx:59
+msgctxt "sources:sourceCenter.bringAnExistingXlsxOrCsvFile"
+msgid "Bring an existing XLSX or CSV file into FlowHub without changing the original."
+msgstr "Bring an existing XLSX or CSV file into FlowHub without changing the original."
+
+#: frontend/src/pages/CommerceHub.tsx:377 frontend/src/pages/CommerceHub.tsx:907
+msgctxt "commerce:commerceHub.browseNextcloud"
+msgid "Browse Nextcloud"
+msgstr "Browse Nextcloud"
+
+msgctxt "settings:setup.cadCanadianDollar"
+msgid "CAD - Canadian Dollar"
+msgstr "CAD - Canadian Dollar"
+
+msgctxt "settings:setup.chfSwissFranc"
+msgid "CHF - Swiss Franc"
+msgstr "CHF - Swiss Franc"
+
+#: frontend/src/pages/Workspace.tsx:489
+msgctxt "workspace:workspace.csvAndGoogleSheetsAreNotAvailable"
+msgid "CSV and Google Sheets are not available in 1.0.0."
+msgstr "CSV and Google Sheets are not available in 1.0.0."
+
+#: frontend/src/pages/CommerceHub.tsx:217
+msgctxt "commerce:commerceHub.cachedProducts"
+msgid "Cached products:"
+msgstr "Cached products:"
+
+#: frontend/src/pages/CommerceHub.tsx:218
+msgctxt "commerce:commerceHub.cachedVariations"
+msgid "Cached variations:"
+msgstr "Cached variations:"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:102
+msgctxt "workspace:sourceCentricWorkspace.cancel"
+msgid "Cancel"
+msgstr "Cancel"
+
+#: frontend/src/pages/Orders.tsx:40
+msgctxt "orders:orders.canceled"
+msgid "Canceled"
+msgstr "Canceled"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:97
+msgctxt "workspace:unifiedWorkspace.canonicalProduct"
+msgid "Canonical Product"
+msgstr "Canonical Product"
+
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:92
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "workspace:gridModel.canonicalProductListing"
+msgid "Canonical Product / Listing"
+msgstr "Canonical Product / Listing"
+
+#: frontend/src/services/products/LocalProductService.ts:150
+msgctxt "common:localProductService.canonicalBusinessPrice"
+msgid "Canonical/business price"
+msgstr "Canonical/business price"
+
+#: frontend/src/pages/Products.tsx:168
+msgctxt "products:products.canonicalBusinessPrice"
+msgid "Canonical/business price"
+msgstr "Canonical/business price"
+
+#: frontend/src/pages/CommerceHub.tsx:208
+msgctxt "commerce:commerceHub.capabilities"
+msgid "Capabilities:"
+msgstr "Capabilities:"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.category"
+msgid "Category"
+msgstr "Category"
+
+msgctxt "sources:sourceConfiguration.category"
+msgid "Category"
+msgstr "Category"
+
+#: frontend/src/pages/Workspace.tsx:367
+msgctxt "workspace:workspace.changesAppliedSuccessfully"
+msgid "Changes applied successfully"
+msgstr "Changes applied successfully"
+
+#: frontend/src/pages/Workspace.tsx:349
+msgctxt "workspace:workspace.changesApprovedSuccessfully"
+msgid "Changes approved successfully"
+msgstr "Changes approved successfully"
+
+#: frontend/src/pages/CommerceHub.tsx:64
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "commerce:commerceHub.channel"
+msgid "Channel"
+msgstr "Channel"
+
+#: frontend/src/features/unifiedWorkspace/channelDisplayName.ts:31
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "common:labels.channel"
+msgid "Channel"
+msgstr "Channel"
+
+#: frontend/src/pages/DataQuality.tsx:41
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "dataQuality:dataQuality.channel"
+msgid "Channel"
+msgstr "Channel"
+
+#: frontend/src/pages/Orders.tsx:164
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "orders:orders.channel"
+msgid "Channel"
+msgstr "Channel"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:180 frontend/src/pages/Workspace.tsx:540
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "workspace:unifiedWorkspace.channel"
+msgid "Channel"
+msgstr "Channel"
+
+#: frontend/src/pages/Diagnostics.tsx:255
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "diagnostics:diagnostics.channelHealth"
+msgid "Channel Health"
+msgstr "Channel Health"
+
+#. Review is the immutable validation result required before Apply.
+msgctxt "errors:codes.CAPABILITY_CHANGED"
+msgid "Channel capabilities changed. Create a new Review."
+msgstr "Channel capabilities changed. Create a new Review."
+
+#: frontend/src/pages/CommerceHub.tsx:589
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "commerce:commerceHub.channelConfiguredSuccessfully"
+msgid "Channel configured successfully"
+msgstr "Channel configured successfully"
+
+#: frontend/src/pages/CommerceHub.tsx:1141 frontend/src/pages/CommerceHub.tsx:632
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "commerce:commerceHub.channelConnectedSuccessfully"
+msgid "Channel connected successfully"
+msgstr "Channel connected successfully"
+
+#. Review is the immutable validation result required before Apply.
+msgctxt "errors:codes.CACHE_STALE"
+msgid "Channel data is stale. Refresh it and create a new Review."
+msgstr "Channel data is stale. Refresh it and create a new Review."
+
+#: frontend/src/pages/Products.tsx:173
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.channelPriceComparisonTable"
+msgid "Channel price comparison table"
+msgstr "Channel price comparison table"
+
+#: frontend/src/pages/Products.tsx:317
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.channelPriceOperationResult"
+msgid "Channel price operation result"
+msgstr "Channel price operation result"
+
+#: frontend/src/pages/Products.tsx:149
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.channelPrices"
+msgid "Channel prices"
+msgstr "Channel prices"
+
+#: frontend/src/pages/CommerceHub.tsx:585
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "commerce:commerceHub.channelSettingsUpdatedSuccessfully"
+msgid "Channel settings updated successfully"
+msgstr "Channel settings updated successfully"
+
+#: frontend/src/pages/CommerceHub.tsx:762
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "commerce:commerceHub.channelType"
+msgid "Channel type"
+msgstr "Channel type"
+
+#: frontend/src/pages/CommerceHub.tsx:1273 frontend/src/pages/CommerceHub.tsx:1322
+msgctxt "commerce:commerceHub.channels2"
+msgid "Channels"
+msgstr "Channels"
+
+#: frontend/src/pages/Dashboard.tsx:159 frontend/src/pages/Dashboard.tsx:183
+msgctxt "dashboard:dashboard.channels"
+msgid "Channels"
+msgstr "Channels"
+
+msgctxt "workspace:sourceCentricWorkspace.channels"
+msgid "Channels"
+msgstr "Channels"
+
+msgctxt "workspace:sourceCentricWorkspace.checkDataQualityIssues"
+msgid "Check Data Quality issues."
+msgstr "Check Data Quality issues."
+
+#: frontend/src/pages/Setup.tsx:686
+msgctxt "settings:setup.checkDatabase"
+msgid "Check Database"
+msgstr "Check Database"
+
+msgctxt "sources:sourceConfiguration.checkTheMappedFields"
+msgid "Check the mapped fields."
+msgstr "Check the mapped fields."
+
+#: frontend/src/pages/Diagnostics.tsx:257
+msgctxt "diagnostics:diagnostics.checked"
+msgid "Checked"
+msgstr "Checked"
+
+#: frontend/src/pages/SourceImportWizard.tsx:63
+msgctxt "sources:sourceImportWizard.chooseXlsxOrCsv"
+msgid "Choose XLSX or CSV"
+msgstr "Choose XLSX or CSV"
+
+msgctxt "sources:sourceImportWizard.chooseAValidXlsxOrCsvFile"
+msgid "Choose a valid XLSX or CSV file."
+msgstr "Choose a valid XLSX or CSV file."
+
+#: frontend/src/pages/Settings.tsx:207
+msgctxt "settings:language.description"
+msgid "Choose the language used by FlowHub. Direction and locale formatting update immediately."
+msgstr "Choose the language used by FlowHub. Direction and locale formatting update immediately."
+
+#: frontend/src/pages/SourceCenter.tsx:40
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceCenter.chooseWhereSourceProductsAndChannelTargets"
+msgid "Choose where Source Products and Channel targets are managed."
+msgstr "Choose where Source Products and Channel targets are managed."
+
+#: frontend/src/pages/CommerceHub.tsx:946
+msgctxt "commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet"
+msgid "Choose whether FlowHub should read every worksheet or a single named worksheet."
+msgstr "Choose whether FlowHub should read every worksheet or a single named worksheet."
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:183
+msgctxt "workspace:unifiedWorkspace.clear"
+msgid "Clear"
+msgstr "Clear"
+
+#: frontend/src/pages/Setup.tsx:686
+msgctxt "settings:setup.click"
+msgid "Click"
+msgstr "Click"
+
+#: frontend/src/pages/CommerceHub.tsx:382 frontend/src/pages/CommerceHub.tsx:750
+msgctxt "commerce:commerceHub.close"
+msgid "Close"
+msgstr "Close"
+
+#: frontend/src/pages/Products.tsx:154
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.closeChannelPriceEditor"
+msgid "Close channel price editor"
+msgstr "Close channel price editor"
+
+#: frontend/src/components/Sidebar.tsx:68
+msgctxt "navigation:sidebar.closeNavigation"
+msgid "Close navigation"
+msgstr "Close navigation"
+
+#: frontend/src/notifications/NotificationContainer.tsx:69
+msgctxt "notifications:notificationContainer.closeNotification"
+msgid "Close notification"
+msgstr "Close notification"
+
+#: frontend/src/components/Sidebar.tsx:90
+msgctxt "navigation:sidebar.collapseSidebar"
+msgid "Collapse sidebar"
+msgstr "Collapse sidebar"
+
+#: frontend/src/pages/CommerceHub.tsx:929
+msgctxt "commerce:commerceHub.column"
+msgid "Column"
+msgstr "Column"
+
+#: frontend/src/pages/CommerceHub.tsx:914
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "commerce:commerceHub.columnMapping"
+msgid "Column Mapping"
+msgstr "Column Mapping"
+
+#: frontend/src/pages/SourceConfiguration.tsx:48
+msgctxt "sources:sourceConfiguration.columnLetter"
+msgid "Column letter"
+msgstr "Column letter"
+
+#: frontend/src/pages/FlowHubSheet.tsx:103
+msgctxt "flowhubSheet:flowHubSheet.columnName"
+msgid "Column name: {{column}}"
+msgstr "Column name: {{column}}"
+
+#: frontend/src/pages/SourceImportWizard.tsx:66
+msgctxt "sources:sourceImportWizard.column"
+msgid "Column {{value1}}"
+msgstr "Column {{value1}}"
+
+#: frontend/src/pages/CommerceHub.tsx:1255
+msgctxt "commerce:commerceHub.commerceHub"
+msgid "Commerce Hub"
+msgstr "Commerce Hub"
+
+#: frontend/src/components/Sidebar.tsx:134
+msgctxt "navigation:sidebar.commerceHub"
+msgid "Commerce Hub"
+msgstr "Commerce Hub"
+
+msgctxt "navigation:topbar.commerceHub"
+msgid "Commerce Hub"
+msgstr "Commerce Hub"
+
+#: frontend/src/pages/CommerceHub.tsx:1323
+msgctxt "commerce:commerceHub.commerceSystemsThatReceiveCatalogVisibilityFrom"
+msgid "Commerce systems that receive catalog visibility from FlowHub."
+msgstr "Commerce systems that receive catalog visibility from FlowHub."
+
+msgctxt "settings:setup.completeSetupAndOpenTheFlowhubWorkspace"
+msgid "Complete setup and open the FlowHub workspace."
+msgstr "Complete setup and open the FlowHub workspace."
+
+#: frontend/src/pages/Setup.tsx:450
+msgctxt "settings:setup.completed"
+msgid "Completed"
+msgstr "Completed"
+
+#: frontend/src/pages/CommerceHub.tsx:245
+msgctxt "commerce:commerceHub.configure"
+msgid "Configure"
+msgstr "Configure"
+
+#: frontend/src/pages/SourceCenter.tsx:89
+msgctxt "sources:sourceCenter.configure"
+msgid "Configure"
+msgstr "Configure"
+
+msgctxt "sources:sourceWizard.configure"
+msgid "Configure"
+msgstr "Configure"
+
+#: frontend/src/pages/FlowHubSheet.tsx:99
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "flowhubSheet:flowHubSheet.configureMapping"
+msgid "Configure Mapping"
+msgstr "Configure Mapping"
+
+#: frontend/src/pages/Settings.tsx:217
+msgctxt "settings:settings.configureDisplayAndSynchronizationPreferences"
+msgid "Configure display and synchronization preferences"
+msgstr "Configure display and synchronization preferences"
+
+#: frontend/src/pages/CommerceHub.tsx:742
+msgctxt "commerce:commerceHub.configure2"
+msgid "Configure {{value1}}"
+msgstr "Configure {{value1}}"
+
+#: frontend/src/pages/CommerceHub.tsx:211 frontend/src/pages/CommerceHub.tsx:212 frontend/src/pages/CommerceHub.tsx:879
+msgctxt "commerce:commerceHub.configured"
+msgid "Configured"
+msgstr "Configured"
+
+#: frontend/src/pages/CommerceHub.tsx:725
+msgctxt "commerce:commerceHub.configuredLeaveBlankToKeepUnchanged"
+msgid "Configured; leave blank to keep unchanged."
+msgstr "Configured; leave blank to keep unchanged."
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:102
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:sourceCentricWorkspace.confirmApply"
+msgid "Confirm Apply"
+msgstr "Confirm Apply"
+
+#: frontend/src/pages/Setup.tsx:836
+msgctxt "settings:setup.confirmPassword"
+msgid "Confirm password"
+msgstr "Confirm password"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:102
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:sourceCentricWorkspace.confirmSelectedApply"
+msgid "Confirm selected Apply"
+msgstr "Confirm selected Apply"
+
+msgctxt "settings:setup.confirmThatTheDatabaseConnectionAndSchema"
+msgid "Confirm that the database connection and schema are ready."
+msgstr "Confirm that the database connection and schema are ready."
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.conflict"
+msgid "Conflict"
+msgstr "Conflict"
+
+#: frontend/src/pages/Products.tsx:547
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "products:products.connectAProductSourceFromSourcesTo"
+msgid "Connect a product source from Sources to browse products."
+msgstr "Connect a product source from Sources to browse products."
+
+#: frontend/src/pages/Workspace.tsx:420
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:workspace.connectAProductSourceFromSourcesTo"
+msgid "Connect a product source from Sources to use Workspace."
+msgstr "Connect a product source from Sources to use Workspace."
+
+#: frontend/src/services/sources/LocalSourceService.ts:47
+msgctxt "common:localSourceService.connectedSuccessfully12ProductsFound"
+msgid "Connected successfully. 12 products found."
+msgstr "Connected successfully. 12 products found."
+
+#: frontend/src/pages/Setup.tsx:693
+msgctxt "settings:setup.connection"
+msgid "Connection"
+msgstr "Connection"
+
+#: frontend/src/pages/CommerceHub.tsx:813
+msgctxt "commerce:commerceHub.connectionSettings"
+msgid "Connection Settings"
+msgstr "Connection Settings"
+
+#: frontend/src/pages/SourceWizard.tsx:195
+msgctxt "sources:sourceWizard.connectionSuccessful"
+msgid "Connection successful"
+msgstr "Connection successful"
+
+#: frontend/src/pages/Diagnostics.tsx:332
+msgctxt "diagnostics:diagnostics.connectorSetupIsAvailableFromCommerceHub"
+msgid "Connector setup is available from Commerce Hub."
+msgstr "Connector setup is available from Commerce Hub."
+
+#: frontend/src/pages/Diagnostics.tsx:324
+msgctxt "diagnostics:diagnostics.connectors"
+msgid "Connectors"
+msgstr "Connectors"
+
+#: frontend/src/pages/CommerceHub.tsx:281
+msgctxt "commerce:commerceHub.fields.consumerKey"
+msgid "Consumer Key"
+msgstr "Consumer Key"
+
+#: frontend/src/pages/CommerceHub.tsx:282
+msgctxt "commerce:commerceHub.fields.consumerSecret"
+msgid "Consumer Secret"
+msgstr "Consumer Secret"
+
+#: frontend/src/components/Sidebar.tsx:84
+msgctxt "navigation:sidebar.controlCenter"
+msgid "Control Center"
+msgstr "Control Center"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:136
+msgctxt "workspace:unifiedWorkspace.correlation"
+msgid "Correlation"
+msgstr "Correlation"
+
+msgctxt "sources:sourceConfiguration.cost"
+msgid "Cost"
+msgstr "Cost"
+
+#: frontend/src/pages/SourceImportWizard.tsx:68
+msgctxt "sources:sourceImportWizard.createFlowhubSheet"
+msgid "Create FlowHub Sheet"
+msgstr "Create FlowHub Sheet"
+
+#: frontend/src/pages/SourceCenter.tsx:53
+msgctxt "sources:sourceCenter.createSheet"
+msgid "Create Sheet"
+msgstr "Create Sheet"
+
+#: frontend/src/pages/Products.tsx:567
+msgctxt "products:products.createWorkspace"
+msgid "Create Workspace"
+msgstr "Create Workspace"
+
+msgctxt "settings:setup.createOrConfirmTheInitialOwnerAccount"
+msgid "Create or confirm the initial owner account."
+msgstr "Create or confirm the initial owner account."
+
+#: frontend/src/pages/Orders.tsx:167
+msgctxt "orders:orders.created"
+msgid "Created"
+msgstr "Created"
+
+#: frontend/src/pages/Products.tsx:567
+msgctxt "products:products.creating"
+msgid "Creating..."
+msgstr "Creating..."
+
+#: frontend/src/pages/SourceCenter.tsx:53
+msgctxt "sources:sourceCenter.creating"
+msgid "Creating..."
+msgstr "Creating..."
+
+#: frontend/src/pages/CommerceHub.tsx:116 frontend/src/pages/CommerceHub.tsx:199
+msgctxt "commerce:commerceHub.credentialStatus"
+msgid "Credential status:"
+msgstr "Credential status:"
+
+#: frontend/src/pages/CommerceHub.tsx:745
+msgctxt "commerce:commerceHub.credentialsAreStoredServerSideAndNever"
+msgid "Credentials are stored server-side and never returned to this form."
+msgstr "Credentials are stored server-side and never returned to this form."
+
+#: frontend/src/pages/Settings.tsx:236 frontend/src/pages/Setup.tsx:639
+msgctxt "settings:settings.currency"
+msgid "Currency"
+msgstr "Currency"
+
+#. Review is the immutable validation result required before Apply.
+msgctxt "errors:codes.CURRENCY_CONFIGURATION_CHANGED"
+msgid "Currency configuration changed. Create a new Review."
+msgstr "Currency configuration changed. Create a new Review."
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
+#. Current is the latest verified or cached Channel value.
+msgctxt "workspace:sourceCentricWorkspace.current"
+msgid "Current"
+msgstr "Current"
+
+#: frontend/src/pages/Setup.tsx:943
+#. Current is the latest verified or cached Channel value.
+msgctxt "settings:setup.currentStep"
+msgid "Current Step"
+msgstr "Current Step"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
+msgctxt "workspace:sourceCentricWorkspace.dailyActionSequence"
+msgid "Daily action sequence"
+msgstr "Daily action sequence"
+
+msgctxt "sources:sourceConfiguration.valueType.dash"
+msgid "Dash"
+msgstr "Dash"
+
+#: frontend/src/pages/Dashboard.tsx:126
+msgctxt "dashboard:dashboard.dashboard"
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#: frontend/src/components/Sidebar.tsx:106
+msgctxt "navigation:sidebar.dashboard"
+msgid "Dashboard"
+msgstr "Dashboard"
+
+msgctxt "navigation:topbar.dashboard"
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#: frontend/src/pages/CommerceHub.tsx:65
+msgctxt "commerce:commerceHub.dataLayer"
+msgid "Data Layer"
+msgstr "Data Layer"
+
+#: frontend/src/pages/DataQuality.tsx:40
+msgctxt "dataQuality:dataQuality.dataQuality"
+msgid "Data Quality"
+msgstr "Data Quality"
+
+#: frontend/src/components/Sidebar.tsx:148
+msgctxt "navigation:sidebar.dataQuality"
+msgid "Data Quality"
+msgstr "Data Quality"
+
+msgctxt "navigation:topbar.dataQuality"
+msgid "Data Quality"
+msgstr "Data Quality"
+
+#: frontend/src/pages/SourceCenter.tsx:43
+msgctxt "sources:sourceCenter.dataQuality2"
+msgid "Data Quality"
+msgstr "Data Quality"
+
+#: frontend/src/pages/CommerceHub.tsx:119
+msgctxt "commerce:commerceHub.dataRole"
+msgid "Data role:"
+msgstr "Data role:"
+
+#: frontend/src/pages/Sources.tsx:86
+msgctxt "sources:sources.dataSourcesForPriceSynchronisation"
+msgid "Data sources for price synchronisation"
+msgstr "Data sources for price synchronisation"
+
+#: frontend/src/pages/SourceConfiguration.tsx:129 frontend/src/pages/SourceImportWizard.tsx:65
+msgctxt "sources:sourceConfiguration.dataStartsAtRow"
+msgid "Data starts at row"
+msgstr "Data starts at row"
+
+#: frontend/src/pages/Dashboard.tsx:149
+msgctxt "dashboard:dashboard.database"
+msgid "Database"
+msgstr "Database"
+
+#: frontend/src/pages/Setup.tsx:679
+msgctxt "settings:setup.database"
+msgid "Database"
+msgstr "Database"
+
+#: frontend/src/pages/Setup.tsx:700
+msgctxt "settings:setup.databaseSchemaVersion"
+msgid "Database Schema Version"
+msgstr "Database Schema Version"
+
+#: frontend/src/pages/CommerceHub.tsx:860
+msgctxt "commerce:commerceHub.defaultsAreSuitableForNormalSnappshopAccounts"
+msgid "Defaults are suitable for normal SnappShop accounts."
+msgstr "Defaults are suitable for normal SnappShop accounts."
+
+#: frontend/src/pages/CommerceHub.tsx:758
+msgctxt "commerce:commerceHub.defineTheConnectorTypeDisplayNameAnd"
+msgid "Define the connector type, display name, and local FlowHub state."
+msgstr "Define the connector type, display name, and local FlowHub state."
+
+#: frontend/src/pages/Diagnostics.tsx:357 frontend/src/pages/Diagnostics.tsx:363
+msgctxt "diagnostics:diagnostics.delayMilliseconds"
+msgid "Delay {{value}} ms"
+msgstr "Delay {{value}} ms"
+
+#: frontend/src/pages/Orders.tsx:41
+msgctxt "orders:orders.deliverable"
+msgid "Deliverable"
+msgstr "Deliverable"
+
+#: frontend/src/pages/Workspace.tsx:642
+msgctxt "workspace:workspace.denseValidationRowsRemainScrollableButNow"
+msgid "Dense validation rows remain scrollable, but now use the shared table surface and spacing."
+msgstr "Dense validation rows remain scrollable, but now use the shared table surface and spacing."
+
+#: frontend/src/pages/CommerceHub.tsx:777
+msgctxt "commerce:commerceHub.descriptionOptional"
+msgid "Description optional"
+msgstr "Description optional"
+
+#: frontend/src/pages/Workspace.tsx:655
+msgctxt "workspace:workspace.deselectAll"
+msgid "Deselect all"
+msgstr "Deselect all"
+
+#: frontend/src/pages/SourceImportWizard.tsx:65
+msgctxt "sources:sourceImportWizard.detected"
+msgid "Detected"
+msgstr "Detected"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:122
+#. Draft is a saved immutable revision of proposed changes.
+msgctxt "workspace:unifiedWorkspace.deterministicComparisonOfCurrentCacheValuesAnd"
+msgid "Deterministic comparison of Current cache values and saved Draft targets."
+msgstr "Deterministic comparison of Current cache values and saved Draft targets."
+
+#: frontend/src/pages/Dashboard.tsx:185
+msgctxt "dashboard:dashboard.diagnostics2"
+msgid "Diagnostics"
+msgstr "Diagnostics"
+
+#: frontend/src/pages/Diagnostics.tsx:213 frontend/src/pages/Diagnostics.tsx:224
+msgctxt "diagnostics:diagnostics.diagnostics"
+msgid "Diagnostics"
+msgstr "Diagnostics"
+
+#: frontend/src/components/Sidebar.tsx:162
+msgctxt "navigation:sidebar.diagnostics"
+msgid "Diagnostics"
+msgstr "Diagnostics"
+
+msgctxt "navigation:topbar.diagnostics"
+msgid "Diagnostics"
+msgstr "Diagnostics"
+
+#: frontend/src/pages/Diagnostics.tsx:151 frontend/src/pages/Diagnostics.tsx:186
+msgctxt "diagnostics:diagnostics.diagnosticsUpdated"
+msgid "Diagnostics updated"
+msgstr "Diagnostics updated"
+
+#: frontend/src/pages/Diagnostics.tsx:341
+msgctxt "common:status.disabled"
+msgid "Disabled"
+msgstr "Disabled"
+
+#: frontend/src/pages/Workspace.tsx:549 frontend/src/pages/Workspace.tsx:553
+msgctxt "workspace:workspace.disabled"
+msgid "Disabled"
+msgstr "Disabled"
+
+#: frontend/src/pages/RateLimits.tsx:126 frontend/src/pages/Settings.tsx:192
+msgctxt "settings:rateLimits.discard"
+msgid "Discard"
+msgstr "Discard"
+
+#: frontend/src/pages/CommerceHub.tsx:773
+msgctxt "commerce:commerceHub.displayName"
+msgid "Display name"
+msgstr "Display name"
+
+#: frontend/src/pages/Setup.tsx:620
+msgctxt "settings:setup.domain"
+msgid "Domain"
+msgstr "Domain"
+
+msgctxt "sources:sourceWizard.done"
+msgid "Done"
+msgstr "Done"
+
+#. Draft is a saved immutable revision of proposed changes.
+msgctxt "common:status.draftSaved"
+msgid "Draft Saved"
+msgstr "Draft Saved"
+
+#. Draft is a saved immutable revision of proposed changes.
+msgctxt "workspace:statusDisplay.draftSaved"
+msgid "Draft Saved"
+msgstr "Draft Saved"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:93
+#. Draft is a saved immutable revision of proposed changes.
+msgctxt "workspace:sourceCentricWorkspace.draftSaved"
+msgid "Draft saved"
+msgstr "Draft saved"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:65
+#. Draft is a saved immutable revision of proposed changes.
+msgctxt "workspace:unifiedWorkspace.draftSaved"
+msgid "Draft saved"
+msgstr "Draft saved"
+
+#: frontend/src/pages/Products.tsx:169
+msgctxt "products:products.dryRun"
+msgid "Dry Run"
+msgstr "Dry Run"
+
+#: frontend/src/pages/Workspace.tsx:700
+msgctxt "workspace:workspace.dryRun"
+msgid "Dry Run"
+msgstr "Dry Run"
+
+#: frontend/src/pages/Workspace.tsx:194
+msgctxt "workspace:workspace.steps.dryRun"
+msgid "Dry Run"
+msgstr "Dry Run"
+
+#: frontend/src/pages/Workspace.tsx:330
+msgctxt "workspace:workspace.dryRunCompletedSuccessfully"
+msgid "Dry run completed successfully"
+msgstr "Dry run completed successfully"
+
+msgctxt "settings:setup.eurEuro"
+msgid "EUR - Euro"
+msgstr "EUR - Euro"
+
+#: frontend/src/pages/SourceConfiguration.tsx:135
+msgctxt "sources:sourceConfiguration.eachSpecialValueIsInterpretedExplicitlyCurrency"
+msgid "Each special value is interpreted explicitly. Currency and unit are never inferred."
+msgstr "Each special value is interpreted explicitly. Currency and unit are never inferred."
+
+#: frontend/src/pages/Sources.tsx:47
+msgctxt "sources:sources.edit"
+msgid "Edit"
+msgstr "Edit"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:188
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "workspace:unifiedWorkspace.editTargetCellsInlineCurrentValuesIdentities"
+msgid "Edit Target cells inline. Current values, identities, SKUs, and Mapping are read-only."
+msgstr "Edit Target cells inline. Current values, identities, SKUs, and Mapping are read-only."
+
+#: frontend/src/pages/Products.tsx:95
+msgctxt "products:products.editPrices"
+msgid "Edit prices"
+msgstr "Edit prices"
+
+#: frontend/src/pages/Products.tsx:279
+msgctxt "products:products.editableValueUnit"
+msgid "Editable value unit: {{unit}}"
+msgstr "Editable value unit: {{unit}}"
+
+msgctxt "common:status.edited"
+msgid "Edited"
+msgstr "Edited"
+
+msgctxt "workspace:statusDisplay.edited"
+msgid "Edited"
+msgstr "Edited"
+
+#: frontend/src/pages/Products.tsx:198
+msgctxt "products:products.editingFieldsOnlyCreatesLocalPendingChanges"
+msgid "Editing fields only creates local pending changes. Dry Run performs validation without external writes."
+msgstr "Editing fields only creates local pending changes. Dry Run performs validation without external writes."
+
+#: frontend/src/pages/Sources.tsx:41
+msgctxt "sources:sources.editingIsNotAvailableYet"
+msgid "Editing is not available yet"
+msgstr "Editing is not available yet"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:125
+msgctxt "workspace:unifiedWorkspace.eligible"
+msgid "Eligible"
+msgstr "Eligible"
+
+#: frontend/src/pages/Workspace.tsx:662
+msgctxt "workspace:workspace.eligible"
+msgid "Eligible:"
+msgstr "Eligible:"
+
+#: frontend/src/pages/Setup.tsx:815
+msgctxt "settings:setup.email"
+msgid "Email"
+msgstr "Email"
+
+#: frontend/src/pages/CommerceHub.tsx:799
+msgctxt "commerce:commerceHub.enabled"
+msgid "Enabled"
+msgstr "Enabled"
+
+#: frontend/src/pages/CommerceHub.tsx:915
+msgctxt "commerce:commerceHub.enabledFieldsRequireASpreadsheetColumnLetter"
+msgid "Enabled fields require a spreadsheet column letter or header name."
+msgstr "Enabled fields require a spreadsheet column letter or header name."
+
+#: frontend/src/pages/Settings.tsx:211
+msgctxt "settings:language.english"
+msgid "English"
+msgstr "English"
+
+#: frontend/src/pages/CommerceHub.tsx:657
+msgctxt "commerce:commerceHub.validation.nextcloudCredentialsRequired"
+msgid "Enter Nextcloud server URL, Username, and App password / token before browsing Nextcloud."
+msgstr "Enter Nextcloud server URL, Username, and App password / token before browsing Nextcloud."
+
+msgctxt "validation:setup.validEmailRequired"
+msgid "Enter a valid email address."
+msgstr "Enter a valid email address."
+
+#: frontend/src/pages/CommerceHub.tsx:814
+msgctxt "commerce:commerceHub.enterTheCredentialsRequiredToVerifyThis"
+msgid "Enter the credentials required to verify this connection."
+msgstr "Enter the credentials required to verify this connection."
+
+msgctxt "activity:activity.error"
+msgid "Error"
+msgstr "Error"
+
+#: frontend/src/pages/Diagnostics.tsx:214 frontend/src/pages/Diagnostics.tsx:92 frontend/src/pages/Workspace.tsx:92
+msgctxt "common:status.error"
+msgid "Error"
+msgstr "Error"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.error"
+msgid "Error"
+msgstr "Error"
+
+#: frontend/src/pages/Orders.tsx:173
+msgctxt "orders:orders.error"
+msgid "Error"
+msgstr "Error"
+
+msgctxt "sources:sources.error"
+msgid "Error"
+msgstr "Error"
+
+msgctxt "workspace:statusDisplay.error"
+msgid "Error"
+msgstr "Error"
+
+#: frontend/src/pages/Diagnostics.tsx:315
+msgctxt "diagnostics:diagnostics.errorCategory"
+msgid "Error category:"
+msgstr "Error category:"
+
+#: frontend/src/pages/Workspace.tsx:665
+msgctxt "workspace:workspace.estimatedWoocommerceCalls"
+msgid "Estimated WooCommerce calls:"
+msgstr "Estimated WooCommerce calls:"
+
+#: frontend/src/pages/Activity.tsx:108
+msgctxt "activity:activity.eventsWillAppearHereAsTheSystem"
+msgid "Events will appear here as the system runs."
+msgstr "Events will appear here as the system runs."
+
+#: frontend/src/pages/SourceConfiguration.tsx:52
+msgctxt "sources:sourceConfiguration.exactColumnReference"
+msgid "Exact column reference"
+msgstr "Exact column reference"
+
+#: frontend/src/pages/SourceConfiguration.tsx:49
+msgctxt "sources:sourceConfiguration.exactHeader"
+msgid "Exact header"
+msgstr "Exact header"
+
+#: frontend/src/pages/SourceConfiguration.tsx:52
+msgctxt "sources:sourceConfiguration.exampleColumn"
+msgid "Example: C"
+msgstr "Example: C"
+
+#: frontend/src/components/Sidebar.tsx:90
+msgctxt "navigation:sidebar.expandSidebar"
+msgid "Expand sidebar"
+msgstr "Expand sidebar"
+
+msgctxt "sources:sourceConfiguration.explicitZero"
+msgid "Explicit zero"
+msgstr "Explicit zero"
+
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "sources:sourceConfiguration.externalListingId"
+msgid "External Listing ID"
+msgstr "External Listing ID"
+
+#: frontend/src/pages/Products.tsx:328
+msgctxt "products:products.externalWritePerformed"
+msgid "External write performed"
+msgstr "External write performed"
+
+msgctxt "common:status.failed"
+msgid "Failed"
+msgstr "Failed"
+
+#: frontend/src/pages/Products.tsx:326
+msgctxt "products:products.failed2"
+msgid "Failed"
+msgstr "Failed"
+
+msgctxt "workspace:statusDisplay.failed"
+msgid "Failed"
+msgstr "Failed"
+
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:workspace.failedToApplyToWooCommerce"
+msgid "Failed to apply to WooCommerce."
+msgstr "Failed to apply to WooCommerce."
+
+msgctxt "workspace:workspace.failedToApprove"
+msgid "Failed to approve."
+msgstr "Failed to approve."
+
+msgctxt "workspace:workspace.failedToCreateDryRun"
+msgid "Failed to create Dry Run."
+msgstr "Failed to create Dry Run."
+
+#: frontend/src/pages/SourceWizard.tsx:73
+msgctxt "validation:source.filePathRequired"
+msgid "File path is required."
+msgstr "File path is required."
+
+#: frontend/src/pages/FlowHubSheet.tsx:101
+msgctxt "flowhubSheet:flowHubSheet.fillDown"
+msgid "Fill down"
+msgstr "Fill down"
+
+#: frontend/src/pages/FlowHubSheet.tsx:101
+msgctxt "flowhubSheet:flowHubSheet.filterSheetRows"
+msgid "Filter Sheet rows"
+msgstr "Filter Sheet rows"
+
+#: frontend/src/pages/FlowHubSheet.tsx:101
+msgctxt "flowhubSheet:flowHubSheet.filterRows"
+msgid "Filter rows"
+msgstr "Filter rows"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:183
+msgctxt "workspace:unifiedWorkspace.filterServerData"
+msgid "Filter server data"
+msgstr "Filter server data"
+
+#: frontend/src/pages/Orders.tsx:170
+msgctxt "orders:orders.finalAmount"
+msgid "Final amount"
+msgstr "Final amount"
+
+#: frontend/src/pages/Orders.tsx:42
+msgctxt "orders:orders.finalPrice"
+msgid "Final price"
+msgstr "Final price"
+
+#: frontend/src/pages/Setup.tsx:880
+msgctxt "settings:setup.finish"
+msgid "Finish"
+msgstr "Finish"
+
+#: frontend/src/pages/Products.tsx:713
+msgctxt "products:products.firstPage"
+msgid "First page"
+msgstr "First page"
+
+#: frontend/src/pages/Login.tsx:60 frontend/src/pages/Login.tsx:67
+msgctxt "authentication:login.flowhub"
+msgid "FlowHub"
+msgstr "FlowHub"
+
+#: frontend/src/pages/CommerceHub.tsx:75
+msgctxt "commerce:commerceHub.flowhub"
+msgid "FlowHub"
+msgstr "FlowHub"
+
+#: frontend/src/components/Sidebar.tsx:83
+msgctxt "navigation:sidebar.flowhub"
+msgid "FlowHub"
+msgstr "FlowHub"
+
+#: frontend/src/components/Topbar.tsx:31
+msgctxt "navigation:topbar.flowhub"
+msgid "FlowHub"
+msgstr "FlowHub"
+
+#: frontend/src/pages/Setup.tsx:938
+msgctxt "settings:setup.flowhub"
+msgid "FlowHub"
+msgstr "FlowHub"
+
+#: frontend/src/components/Topbar.tsx:155
+msgctxt "navigation:topbar.brandPrefix"
+msgid "FlowHub /"
+msgstr "FlowHub /"
+
+#: frontend/src/pages/CommerceHub.tsx:64
+msgctxt "commerce:commerceHub.flowhubDataLayer"
+msgid "FlowHub / Data Layer"
+msgstr "FlowHub / Data Layer"
+
+#: frontend/src/components/Topbar.tsx:30
+msgctxt "navigation:topbar.flowhubSheet"
+msgid "FlowHub Sheet"
+msgstr "FlowHub Sheet"
+
+#: frontend/src/pages/SourceCenter.tsx:50
+msgctxt "sources:sourceCenter.flowhubSheet"
+msgid "FlowHub Sheet"
+msgstr "FlowHub Sheet"
+
+#: frontend/src/pages/FlowHubSheet.tsx:100
+msgctxt "flowhubSheet:flowHubSheet.flowhubSheetEditor"
+msgid "FlowHub Sheet editor"
+msgstr "FlowHub Sheet editor"
+
+msgctxt "flowhubSheet:flowHubSheet.flowhubSheetRevision"
+msgid "FlowHub Sheet · Revision"
+msgstr "FlowHub Sheet · Revision"
+
+#: frontend/src/pages/FlowHubSheet.tsx:99
+msgctxt "flowhubSheet:flowHubSheet.revisionSummary"
+msgid "FlowHub Sheet · Revision {{revision}} · {{rows}} rows"
+msgstr "FlowHub Sheet · Revision {{revision}} · {{rows}} rows"
+
+#: frontend/src/pages/Setup.tsx:801
+msgctxt "settings:setup.flowhubAlreadyHasAnOwnerOrAdministrator"
+msgid "FlowHub already has an owner or administrator account. Continue to finish setup."
+msgstr "FlowHub already has an owner or administrator account. Continue to finish setup."
+
+#: frontend/src/pages/Workspace.tsx:440
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:workspace.flowhubWillFetchProductsFromTheConnected"
+msgid "FlowHub will fetch products from the connected channel and compare them against the configured source data. No changes will be applied."
+msgstr "FlowHub will fetch products from the connected channel and compare them against the configured source data. No changes will be applied."
+
+#: frontend/src/pages/SourceCenter.tsx:67
+msgctxt "sources:sourceCenter.forWorkflowsThatRemainManagedOutsideFlowhub"
+msgid "For workflows that remain managed outside FlowHub. Sources are read once per Workspace Snapshot."
+msgstr "For workflows that remain managed outside FlowHub. Sources are read once per Workspace Snapshot."
+
+msgctxt "sources:sourceConfiguration.valueType.formula"
+msgid "Formula"
+msgstr "Formula"
+
+#: frontend/src/pages/FlowHubSheet.tsx:101
+msgctxt "flowhubSheet:flowHubSheet.formulasAreCalculatedByTheDeterministicFlowhub"
+msgid "Formulas are calculated by the deterministic FlowHub formula engine. Arbitrary scripts and external functions are not supported."
+msgstr "Formulas are calculated by the deterministic FlowHub formula engine. Arbitrary scripts and external functions are not supported."
+
+msgctxt "settings:setup.gbpBritishPound"
+msgid "GBP - British Pound"
+msgstr "GBP - British Pound"
+
+#: frontend/src/pages/CommerceHub.tsx:757
+msgctxt "commerce:commerceHub.general"
+msgid "General"
+msgstr "General"
+
+#: frontend/src/pages/Settings.tsx:217
+msgctxt "settings:settings.general"
+msgid "General"
+msgstr "General"
+
+#. Review is the immutable validation result required before Apply.
+msgctxt "workspace:sourceCentricWorkspace.generateAFreshReview"
+msgid "Generate a fresh Review."
+msgstr "Generate a fresh Review."
+
+msgctxt "navigation:topbar.globalApiRateLimits"
+msgid "Global API Rate Limits"
+msgstr "Global API Rate Limits"
+
+#: frontend/src/pages/RateLimits.tsx:179 frontend/src/pages/RateLimits.tsx:193
+msgctxt "settings:rateLimits.globalApiRateLimits"
+msgid "Global API Rate Limits"
+msgstr "Global API Rate Limits"
+
+#: frontend/src/pages/Workspace.tsx:740
+msgctxt "workspace:workspace.goToCommerceHubChannelsAndRefresh"
+msgid "Go to Commerce Hub → Channels and refresh the WooCommerce product cache."
+msgstr "Go to Commerce Hub → Channels and refresh the WooCommerce product cache."
+
+#: frontend/src/pages/CommerceHub.tsx:118 frontend/src/pages/CommerceHub.tsx:207
+msgctxt "commerce:commerceHub.health"
+msgid "Health:"
+msgstr "Health:"
+
+#: frontend/src/pages/Products.tsx:251
+msgctxt "products:products.health"
+msgid "Health:"
+msgstr "Health:"
+
+#: frontend/src/pages/Products.tsx:251
+msgctxt "products:products.healthStatus"
+msgid "Health: {{status}}"
+msgstr "Health: {{status}}"
+
+msgctxt "settings:setup.irrIranianRial"
+msgid "IRR - Iranian Rial"
+msgstr "IRR - Iranian Rial"
+
+msgctxt "settings:setup.irtIranianToman"
+msgid "IRT - Iranian Toman"
+msgstr "IRT - Iranian Toman"
+
+#: frontend/src/pages/SourceConfiguration.tsx:139
+msgctxt "sources:sourceConfiguration.ignoredRow"
+msgid "Ignored row"
+msgstr "Ignored row"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:60
+msgctxt "workspace:unifiedWorkspace.immutableSnapshot"
+msgid "Immutable Snapshot"
+msgstr "Immutable Snapshot"
+
+msgctxt "navigation:topbar.importSpreadsheet"
+msgid "Import Spreadsheet"
+msgstr "Import Spreadsheet"
+
+#: frontend/src/pages/SourceImportWizard.tsx:56
+msgctxt "sources:sourceImportWizard.importFailed"
+msgid "Import failed"
+msgstr "Import failed"
+
+#: frontend/src/pages/SourceImportWizard.tsx:46
+msgctxt "sources:sourceImportWizard.importPreviewFailed"
+msgid "Import preview failed"
+msgstr "Import preview failed"
+
+#: frontend/src/pages/SourceCenter.tsx:61 frontend/src/pages/SourceImportWizard.tsx:61
+msgctxt "sources:sourceCenter.importSpreadsheet"
+msgid "Import spreadsheet"
+msgstr "Import spreadsheet"
+
+#: frontend/src/pages/SourceCenter.tsx:58
+msgctxt "sources:sourceCenter.importYourSpreadsheet"
+msgid "Import your spreadsheet"
+msgstr "Import your spreadsheet"
+
+msgctxt "sources:sourceCenter.importedSpreadsheet"
+msgid "Imported spreadsheet"
+msgstr "Imported spreadsheet"
+
+msgctxt "common:status.inProgress"
+msgid "In progress"
+msgstr "In progress"
+
+#: frontend/src/pages/Setup.tsx:450
+msgctxt "settings:setup.inProgress"
+msgid "In progress"
+msgstr "In progress"
+
+msgctxt "activity:activity.info"
+msgid "Info"
+msgstr "Info"
+
+msgctxt "common:status.info"
+msgid "Information"
+msgstr "Information"
+
+#: frontend/src/pages/RateLimits.tsx:180 frontend/src/pages/RateLimits.tsx:194
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "settings:rateLimits.inheritedByEverySourceAndChannel"
+msgid "Inherited by every Source and Channel"
+msgstr "Inherited by every Source and Channel"
+
+#: frontend/src/pages/CommerceHub.tsx:1287
+msgctxt "commerce:commerceHub.inputSystemsThatFeedFlowhubDataLayer"
+msgid "Input systems that feed FlowHub / Data Layer."
+msgstr "Input systems that feed FlowHub / Data Layer."
+
+#: frontend/src/pages/Settings.tsx:209
+msgctxt "settings:language.label"
+msgid "Interface language"
+msgstr "Interface language"
+
+#: frontend/src/pages/SourceConfiguration.tsx:50
+msgctxt "sources:sourceConfiguration.internalColumn"
+msgid "Internal column"
+msgstr "Internal column"
+
+msgctxt "sources:sourceConfiguration.valueType.invalid"
+msgid "Invalid value"
+msgstr "Invalid value"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.issueCategory"
+msgid "Issue category"
+msgstr "Issue category"
+
+#: frontend/src/pages/Orders.tsx:169 frontend/src/pages/Orders.tsx:31
+msgctxt "orders:orders.items"
+msgid "Items"
+msgstr "Items"
+
+msgctxt "settings:setup.jpyJapaneseYen"
+msgid "JPY - Japanese Yen"
+msgstr "JPY - Japanese Yen"
+
+#: frontend/src/pages/SourceCenter.tsx:66
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceCenter.keepAnExternalSourceLinked"
+msgid "Keep an external Source linked"
+msgstr "Keep an external Source linked"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:81
+msgctxt "workspace:sourceCentricWorkspace.keepOneSelectedChange"
+msgid "Keep one selected change"
+msgstr "Keep one selected change"
+
+#: frontend/src/pages/Settings.tsx:207
+msgctxt "settings:language.title"
+msgid "Language"
+msgstr "Language"
+
+#: frontend/src/pages/Dashboard.tsx:176
+msgctxt "dashboard:dashboard.lastPreview"
+msgid "Last Preview"
+msgstr "Last Preview"
+
+#: frontend/src/pages/CommerceHub.tsx:219
+msgctxt "commerce:commerceHub.lastCacheRefresh"
+msgid "Last cache refresh:"
+msgstr "Last cache refresh:"
+
+#: frontend/src/pages/Diagnostics.tsx:216 frontend/src/pages/Diagnostics.tsx:343
+msgctxt "diagnostics:diagnostics.lastCheckedAt"
+msgid "Last checked {{date}}"
+msgstr "Last checked {{date}}"
+
+#: frontend/src/pages/Diagnostics.tsx:226
+msgctxt "diagnostics:diagnostics.lastChecked2"
+msgid "Last checked {{value1}}"
+msgstr "Last checked {{value1}}"
+
+#: frontend/src/pages/Diagnostics.tsx:312
+msgctxt "diagnostics:diagnostics.lastChecked"
+msgid "Last checked:"
+msgstr "Last checked:"
+
+#: frontend/src/pages/CommerceHub.tsx:117 frontend/src/pages/CommerceHub.tsx:206
+msgctxt "commerce:commerceHub.lastHealthCheck"
+msgid "Last health check:"
+msgstr "Last health check:"
+
+#: frontend/src/pages/Products.tsx:723
+msgctxt "products:products.lastPage"
+msgid "Last page"
+msgstr "Last page"
+
+#: frontend/src/pages/CommerceHub.tsx:124
+msgctxt "commerce:commerceHub.lastReadStatus"
+msgid "Last read status:"
+msgstr "Last read status:"
+
+#: frontend/src/pages/CommerceHub.tsx:122
+msgctxt "commerce:commerceHub.lastRead"
+msgid "Last read:"
+msgstr "Last read:"
+
+#: frontend/src/pages/CommerceHub.tsx:125
+msgctxt "commerce:commerceHub.lastRowCount"
+msgid "Last row count:"
+msgstr "Last row count:"
+
+#: frontend/src/pages/Diagnostics.tsx:314
+msgctxt "diagnostics:diagnostics.lastSuccess"
+msgid "Last success:"
+msgstr "Last success:"
+
+#: frontend/src/pages/Sources.tsx:61
+msgctxt "sources:sources.lastSynced"
+msgid "Last synced:"
+msgstr "Last synced:"
+
+#: frontend/src/pages/Diagnostics.tsx:389
+msgctxt "diagnostics:diagnostics.lastAt"
+msgid "Last {{date}}"
+msgstr "Last {{date}}"
+
+#: frontend/src/pages/Diagnostics.tsx:313
+msgctxt "diagnostics:diagnostics.latency"
+msgid "Latency:"
+msgstr "Latency:"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "workspace:sourceCentricWorkspace.latestChannelCache"
+msgid "Latest Channel Cache"
+msgstr "Latest Channel Cache"
+
+#: frontend/src/pages/CommerceHub.tsx:225
+msgctxt "commerce:commerceHub.latestResult"
+msgid "Latest result:"
+msgstr "Latest result:"
+
+#: frontend/src/pages/Diagnostics.tsx:152 frontend/src/pages/Diagnostics.tsx:187
+msgctxt "diagnostics:diagnostics.latestSystemStatusHasBeenLoaded"
+msgid "Latest system status has been loaded."
+msgstr "Latest system status has been loaded."
+
+#: frontend/src/pages/Orders.tsx:168
+msgctxt "orders:orders.latestUpdate"
+msgid "Latest update"
+msgstr "Latest update"
+
+#: frontend/src/pages/CommerceHub.tsx:991
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.limitSourceReads"
+msgid "Limit source reads"
+msgstr "Limit source reads"
+
+#: frontend/src/pages/Diagnostics.tsx:376
+msgctxt "diagnostics:diagnostics.limiterDelay"
+msgid "Limiter delay"
+msgstr "Limiter delay"
+
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceCenter.linkedExternalSource"
+msgid "Linked external Source"
+msgstr "Linked external Source"
+
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:89
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "workspace:gridModel.listing"
+msgid "Listing"
+msgstr "Listing"
+
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "workspace:unifiedWorkspace.listing"
+msgid "Listing"
+msgstr "Listing"
+
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "workspace:unifiedWorkspace.listingRow"
+msgid "Listing row"
+msgstr "Listing row"
+
+msgctxt "workspace:sourceCentricWorkspace.listingsAcross"
+msgid "Listings across"
+msgstr "Listings across"
+
+#: frontend/src/pages/Activity.tsx:122
+msgctxt "activity:activity.loadMoreRemaining"
+msgid "Load more ({{value1}} remaining)"
+msgstr "Load more ({{value1}} remaining)"
+
+#: frontend/src/components/loading/Spinner.tsx:17
+msgctxt "common:spinner.loading"
+msgid "Loading"
+msgstr "Loading"
+
+#: frontend/src/pages/Diagnostics.tsx:208 frontend/src/pages/Diagnostics.tsx:214 frontend/src/pages/Diagnostics.tsx:355 frontend/src/pages/Diagnostics.tsx:361 frontend/src/pages/Diagnostics.tsx:367 frontend/src/pages/Diagnostics.tsx:372 frontend/src/pages/Diagnostics.tsx:377 frontend/src/pages/Diagnostics.tsx:382 frontend/src/pages/Diagnostics.tsx:387 frontend/src/pages/Diagnostics.tsx:93
+msgctxt "common:status.loading"
+msgid "Loading"
+msgstr "Loading"
+
+#: frontend/src/pages/Diagnostics.tsx:226 frontend/src/pages/Diagnostics.tsx:237
+msgctxt "diagnostics:diagnostics.loading"
+msgid "Loading"
+msgstr "Loading"
+
+#: frontend/src/pages/CommerceHub.tsx:1280
+msgctxt "commerce:commerceHub.loadingCommerceHub"
+msgid "Loading Commerce Hub"
+msgstr "Loading Commerce Hub"
+
+#: frontend/src/pages/FlowHubSheet.tsx:96
+msgctxt "flowhubSheet:flowHubSheet.loadingFlowhubSheet"
+msgid "Loading FlowHub Sheet..."
+msgstr "Loading FlowHub Sheet..."
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:90
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:sourceCentricWorkspace.loadingSourceProductWorkspace"
+msgid "Loading Source Product Workspace..."
+msgstr "Loading Source Product Workspace..."
+
+#: frontend/src/pages/SourceConfiguration.tsx:125
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.loadingSourceConfiguration"
+msgid "Loading Source configuration..."
+msgstr "Loading Source configuration..."
+
+#: frontend/src/pages/SourceCenter.tsx:78
+msgctxt "sources:sourceCenter.loadingSources"
+msgid "Loading Sources..."
+msgstr "Loading Sources..."
+
+#: frontend/src/App.tsx:165
+msgctxt "common:app.loadingWorkspaceGrid"
+msgid "Loading Workspace Grid..."
+msgstr "Loading Workspace Grid..."
+
+#: frontend/src/pages/CommerceHub.tsx:734
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "commerce:commerceHub.loadingChannelConfiguration"
+msgid "Loading channel configuration"
+msgstr "Loading channel configuration"
+
+#: frontend/src/pages/Diagnostics.tsx:268
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "diagnostics:diagnostics.loadingChannelHealth"
+msgid "Loading channel health"
+msgstr "Loading channel health"
+
+#: frontend/src/pages/Workspace.tsx:410
+msgctxt "workspace:workspace.loadingConfiguration"
+msgid "Loading configuration..."
+msgstr "Loading configuration..."
+
+#: frontend/src/pages/Diagnostics.tsx:327
+msgctxt "diagnostics:diagnostics.loadingConnectors"
+msgid "Loading connectors"
+msgstr "Loading connectors"
+
+#: frontend/src/pages/CommerceHub.tsx:388
+msgctxt "commerce:commerceHub.loadingFiles"
+msgid "Loading files"
+msgstr "Loading files"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:45
+msgctxt "workspace:unifiedWorkspace.loadingImmutableWorkspaceSnapshot"
+msgid "Loading immutable Workspace Snapshot..."
+msgstr "Loading immutable Workspace Snapshot..."
+
+#: frontend/src/pages/Orders.tsx:206
+msgctxt "orders:orders.loadingOrderDetail"
+msgid "Loading order detail..."
+msgstr "Loading order detail..."
+
+#: frontend/src/pages/Products.tsx:151
+msgctxt "products:products.loadingProductPriceState"
+msgid "Loading product price state..."
+msgstr "Loading product price state..."
+
+#: frontend/src/pages/Setup.tsx:922
+msgctxt "settings:setup.loadingSetupStatus"
+msgid "Loading setup status..."
+msgstr "Loading setup status..."
+
+#: frontend/src/pages/Activity.tsx:122 frontend/src/pages/Activity.tsx:97
+msgctxt "activity:activity.loading"
+msgid "Loading..."
+msgstr "Loading..."
+
+#: frontend/src/App.tsx:105 frontend/src/App.tsx:131 frontend/src/App.tsx:88
+msgctxt "common:app.loading"
+msgid "Loading..."
+msgstr "Loading..."
+
+#: frontend/src/pages/Orders.tsx:146
+msgctxt "orders:orders.loading"
+msgid "Loading..."
+msgstr "Loading..."
+
+#: frontend/src/pages/Products.tsx:561 frontend/src/pages/Products.tsx:653
+msgctxt "products:products.loading"
+msgid "Loading..."
+msgstr "Loading..."
+
+#: frontend/src/pages/RateLimits.tsx:144 frontend/src/pages/Settings.tsx:219 frontend/src/pages/Settings.tsx:255
+msgctxt "settings:rateLimits.loading"
+msgid "Loading..."
+msgstr "Loading..."
+
+#: frontend/src/pages/SourceConfiguration.tsx:139
+msgctxt "sources:sourceConfiguration.loading"
+msgid "Loading..."
+msgstr "Loading..."
+
+#: frontend/src/pages/Dashboard.tsx:132
+msgctxt "dashboard:dashboard.loggedIn"
+msgid "Logged In"
+msgstr "Logged In"
+
+#: frontend/src/auth.tsx:188
+msgctxt "authentication:access.loginRequired"
+msgid "Login Required"
+msgstr "Login Required"
+
+#: frontend/src/components/Sidebar.tsx:99
+msgctxt "navigation:sidebar.main"
+msgid "Main"
+msgstr "Main"
+
+#: frontend/src/App.tsx:68
+msgctxt "common:app.maintenanceMode"
+msgid "Maintenance Mode"
+msgstr "Maintenance Mode"
+
+#: frontend/src/pages/SourceCenter.tsx:69
+msgctxt "sources:sourceCenter.manageExternalSources"
+msgid "Manage external Sources"
+msgstr "Manage external Sources"
+
+#: frontend/src/pages/SourceCenter.tsx:74 frontend/src/pages/SourceCenter.tsx:76
+msgctxt "sources:sourceCenter.managedSources"
+msgid "Managed Sources"
+msgstr "Managed Sources"
+
+#: frontend/src/pages/CommerceHub.tsx:999
+msgctxt "commerce:commerceHub.manualReadNowAllowed"
+msgid "Manual Read now allowed"
+msgstr "Manual Read now allowed"
+
+#: frontend/src/pages/Products.tsx:526
+msgctxt "products:products.manualWorkspaceDated"
+msgid "Manual Workspace {{date}}"
+msgstr "Manual Workspace {{date}}"
+
+#: frontend/src/pages/SourceConfiguration.tsx:127
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.mapSourceProductIdentityFirstThenEach"
+msgid "Map Source Product identity first, then each destination Channel independently."
+msgstr "Map Source Product identity first, then each destination Channel independently."
+
+#: frontend/src/pages/SourceConfiguration.tsx:139
+msgctxt "sources:sourceConfiguration.mappedChannels"
+msgid "Mapped Channels"
+msgstr "Mapped Channels"
+
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:90
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "workspace:gridModel.mapping"
+msgid "Mapping"
+msgstr "Mapping"
+
+#: frontend/src/pages/DataQuality.tsx:41
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "dataQuality:dataQuality.mappingState"
+msgid "Mapping state"
+msgstr "Mapping state"
+
+#: frontend/src/pages/SourceConfiguration.tsx:108
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "sources:sourceConfiguration.mappingWasNotSaved"
+msgid "Mapping was not saved"
+msgstr "Mapping was not saved"
+
+#: frontend/src/pages/DataQuality.tsx:42
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "dataQuality:dataQuality.mapping"
+msgid "Mapping:"
+msgstr "Mapping:"
+
+#: frontend/src/pages/Orders.tsx:156
+msgctxt "orders:orders.marketplaceOrdersWillAppearAfterWebhookProcessing"
+msgid "Marketplace orders will appear after webhook processing or polling synchronization runs."
+msgstr "Marketplace orders will appear after webhook processing or polling synchronization runs."
+
+#: frontend/src/pages/CommerceHub.tsx:1002
+msgctxt "commerce:commerceHub.maxReadsPer24Hours"
+msgid "Max reads per 24 hours"
+msgstr "Max reads per 24 hours"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:182
+msgctxt "workspace:unifiedWorkspace.maximumPrice"
+msgid "Maximum price"
+msgstr "Maximum price"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:182
+msgctxt "workspace:unifiedWorkspace.minimumPrice"
+msgid "Minimum price"
+msgstr "Minimum price"
+
+#: frontend/src/pages/Products.tsx:146
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.multiChannelPriceEditor"
+msgid "Multi-channel price editor"
+msgstr "Multi-channel price editor"
+
+#: frontend/src/pages/SourceCenter.tsx:28
+msgctxt "sources:sourceCenter.defaultPricingSheetName"
+msgid "My pricing sheet"
+msgstr "My pricing sheet"
+
+#: frontend/src/pages/Orders.tsx:37
+msgctxt "orders:orders.name"
+msgid "Name"
+msgstr "Name"
+
+#: frontend/src/pages/SourceWizard.tsx:69
+msgctxt "validation:source.nameRequired"
+msgid "Name is required."
+msgstr "Name is required."
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:90
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:unifiedWorkspace.nameSource"
+msgid "Name source"
+msgstr "Name source"
+
+#: frontend/src/pages/Products.tsx:291
+msgctxt "products:products.neverSynced"
+msgid "Never synced"
+msgstr "Never synced"
+
+#: frontend/src/pages/Workspace.tsx:708
+msgctxt "workspace:workspace.newPreview"
+msgid "New Preview"
+msgstr "New Preview"
+
+#: frontend/src/pages/FlowHubSheet.tsx:116
+msgctxt "flowhubSheet:flowHubSheet.next"
+msgid "Next"
+msgstr "Next"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:100 frontend/src/pages/UnifiedWorkspace.tsx:194
+msgctxt "workspace:sourceCentricWorkspace.next"
+msgid "Next"
+msgstr "Next"
+
+#: frontend/src/pages/Diagnostics.tsx:286
+msgctxt "diagnostics:diagnostics.nextAction"
+msgid "Next action:"
+msgstr "Next action:"
+
+#: frontend/src/pages/Products.tsx:661 frontend/src/pages/Products.tsx:720
+msgctxt "products:products.nextPage"
+msgid "Next page"
+msgstr "Next page"
+
+#: frontend/src/pages/SourceWizard.tsx:150
+msgctxt "sources:sourceWizard.nextcloudExcel"
+msgid "Nextcloud Excel"
+msgstr "Nextcloud Excel"
+
+#: frontend/src/pages/CommerceHub.tsx:278
+msgctxt "commerce:commerceHub.fields.nextcloudServerUrl"
+msgid "Nextcloud server URL"
+msgstr "Nextcloud server URL"
+
+#: frontend/src/pages/CommerceHub.tsx:895
+msgctxt "commerce:commerceHub.nextcloudSpreadsheetFile"
+msgid "Nextcloud spreadsheet file"
+msgstr "Nextcloud spreadsheet file"
+
+#: frontend/src/pages/CommerceHub.tsx:203
+msgctxt "commerce:commerceHub.no"
+msgid "No"
+msgstr "No"
+
+#: frontend/src/pages/DataQuality.tsx:42
+msgctxt "dataQuality:dataQuality.noDataQualityIssues"
+msgid "No Data Quality issues"
+msgstr "No Data Quality issues"
+
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "sources:sourceConfiguration.noListingUnavailable"
+msgid "No Listing / unavailable"
+msgstr "No Listing / unavailable"
+
+#. Target is the proposed value that may be applied after Review.
+msgctxt "sources:sourceConfiguration.noTargetChange"
+msgid "No Target change"
+msgstr "No Target change"
+
+#: frontend/src/pages/Activity.tsx:108
+msgctxt "activity:activity.noActivityYet"
+msgid "No activity yet"
+msgstr "No activity yet"
+
+#: frontend/src/pages/Workspace.tsx:331
+msgctxt "workspace:workspace.noChangesHaveBeenApplied"
+msgid "No changes have been applied."
+msgstr "No changes have been applied."
+
+#: frontend/src/pages/Diagnostics.tsx:271
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "diagnostics:diagnostics.noChannelHealthData"
+msgid "No channel health data"
+msgstr "No channel health data"
+
+#: frontend/src/pages/Dashboard.tsx:192
+msgctxt "dashboard:dashboard.noChannelsMonitored"
+msgid "No channels monitored"
+msgstr "No channels monitored"
+
+#: frontend/src/pages/Diagnostics.tsx:331
+msgctxt "diagnostics:diagnostics.noConnectorsConfigured"
+msgid "No connectors configured"
+msgstr "No connectors configured"
+
+#: frontend/src/pages/Dashboard.tsx:254
+msgctxt "dashboard:dashboard.noEventsYet"
+msgid "No events yet"
+msgstr "No events yet"
+
+#: frontend/src/pages/Products.tsx:328
+msgctxt "products:products.noExternalWrite"
+msgid "No external write"
+msgstr "No external write"
+
+#: frontend/src/pages/SourceCenter.tsx:79
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceCenter.noManagedSourceYetCreateAFlowhub"
+msgid "No managed Source yet. Create a FlowHub Sheet or import a spreadsheet."
+msgstr "No managed Source yet. Create a FlowHub Sheet or import a spreadsheet."
+
+#: frontend/src/pages/Workspace.tsx:464
+msgctxt "workspace:workspace.noMarketplaceChangeIsAppliedInThis"
+msgid "No marketplace change is applied in this step."
+msgstr "No marketplace change is applied in this step."
+
+#: frontend/src/pages/Setup.tsx:310
+msgctxt "settings:setup.noMatches"
+msgid "No matches"
+msgstr "No matches"
+
+#: frontend/src/pages/Products.tsx:546
+msgctxt "products:products.noProductConnectorConfigured"
+msgid "No product connector configured"
+msgstr "No product connector configured"
+
+#: frontend/src/pages/Products.tsx:653
+msgctxt "products:products.noProductsFound"
+msgid "No products found"
+msgstr "No products found"
+
+#: frontend/src/pages/Products.tsx:684
+msgctxt "products:products.noProductsMatch"
+msgid "No products match"
+msgstr "No products match"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
+msgctxt "workspace:sourceCentricWorkspace.noProductsMatchThisView"
+msgid "No products match this view."
+msgstr "No products match this view."
+
+#: frontend/src/pages/Orders.tsx:67
+msgctxt "orders:orders.noShipmentData"
+msgid "No shipment data"
+msgstr "No shipment data"
+
+#: frontend/src/pages/Sources.tsx:105
+msgctxt "sources:sources.noSourcesConfigured"
+msgid "No sources configured"
+msgstr "No sources configured"
+
+#: frontend/src/pages/Dashboard.tsx:224
+msgctxt "dashboard:dashboard.noSourcesYet"
+msgid "No sources yet"
+msgstr "No sources yet"
+
+#: frontend/src/pages/CommerceHub.tsx:424
+msgctxt "commerce:commerceHub.noSpreadsheetFilesInThisFolder"
+msgid "No spreadsheet files in this folder."
+msgstr "No spreadsheet files in this folder."
+
+#: frontend/src/pages/Orders.tsx:156
+msgctxt "orders:orders.noSynchronizedOrders"
+msgid "No synchronized orders"
+msgstr "No synchronized orders"
+
+#: frontend/src/pages/Diagnostics.tsx:315 frontend/src/pages/SourceConfiguration.tsx:139
+msgctxt "common:status.none"
+msgid "None"
+msgstr "None"
+
+#: frontend/src/pages/Orders.tsx:140
+msgctxt "orders:orders.normalizedMarketplaceOrderSynchronization"
+msgid "Normalized marketplace order synchronization"
+msgstr "Normalized marketplace order synchronization"
+
+#: frontend/src/pages/Orders.tsx:166
+msgctxt "orders:orders.normalizedStatus"
+msgid "Normalized status"
+msgstr "Normalized status"
+
+#: frontend/src/pages/CommerceHub.tsx:117 frontend/src/pages/CommerceHub.tsx:206
+msgctxt "commerce:commerceHub.notChecked"
+msgid "Not checked"
+msgstr "Not checked"
+
+#: frontend/src/pages/CommerceHub.tsx:211 frontend/src/pages/CommerceHub.tsx:212 frontend/src/pages/CommerceHub.tsx:807 frontend/src/pages/CommerceHub.tsx:879
+msgctxt "commerce:commerceHub.notConfigured2"
+msgid "Not configured"
+msgstr "Not configured"
+
+msgctxt "common:status.notConfigured"
+msgid "Not configured"
+msgstr "Not configured"
+
+#: frontend/src/pages/SourceCenter.tsx:86 frontend/src/pages/SourceConfiguration.tsx:47
+msgctxt "sources:sourceConfiguration.notConfigured"
+msgid "Not configured"
+msgstr "Not configured"
+
+#: frontend/src/pages/CommerceHub.tsx:122 frontend/src/pages/CommerceHub.tsx:124
+msgctxt "commerce:commerceHub.notRead"
+msgid "Not read"
+msgstr "Not read"
+
+#: frontend/src/pages/CommerceHub.tsx:219
+msgctxt "commerce:commerceHub.notRefreshed"
+msgid "Not refreshed"
+msgstr "Not refreshed"
+
+#: frontend/src/notifications/NotificationContainer.tsx:46
+msgctxt "notifications:notificationContainer.notifications"
+msgid "Notifications"
+msgstr "Notifications"
+
+msgctxt "common:status.ok"
+msgid "OK"
+msgstr "OK"
+
+#: frontend/src/pages/Diagnostics.tsx:208
+msgctxt "common:status.online"
+msgid "Online"
+msgstr "Online"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:102
+msgctxt "workspace:sourceCentricWorkspace.only"
+msgid "Only"
+msgstr "Only"
+
+#: frontend/src/pages/Workspace.tsx:482
+msgctxt "workspace:workspace.onlyApprovedBatchesCanBeApplied"
+msgid "Only approved batches can be applied."
+msgstr "Only approved batches can be applied."
+
+#: frontend/src/pages/SourceConfiguration.tsx:133
+msgctxt "sources:sourceConfiguration.onlyEnabledChannelsWithAnImplementedConnector"
+msgid "Only enabled Channels with an implemented connector are available."
+msgstr "Only enabled Channels with an implemented connector are available."
+
+#: frontend/src/pages/Workspace.tsx:428
+msgctxt "workspace:workspace.openSettings"
+msgid "Open Settings"
+msgstr "Open Settings"
+
+#: frontend/src/pages/SourceCenter.tsx:88
+msgctxt "sources:sourceCenter.openSheet"
+msgid "Open Sheet"
+msgstr "Open Sheet"
+
+#: frontend/src/pages/Products.tsx:548
+msgctxt "products:products.openSources"
+msgid "Open Sources"
+msgstr "Open Sources"
+
+#: frontend/src/pages/Workspace.tsx:421
+msgctxt "workspace:workspace.openSources"
+msgid "Open Sources"
+msgstr "Open Sources"
+
+#: frontend/src/pages/SourceConfiguration.tsx:127
+msgctxt "sources:sourceConfiguration.openWorkspace"
+msgid "Open Workspace"
+msgstr "Open Workspace"
+
+#: frontend/src/components/Topbar.tsx:149
+msgctxt "navigation:topbar.openNavigation"
+msgid "Open navigation"
+msgstr "Open navigation"
+
+#: frontend/src/pages/Products.tsx:320
+msgctxt "products:products.operation"
+msgid "Operation"
+msgstr "Operation"
+
+#: frontend/src/pages/Diagnostics.tsx:214 frontend/src/pages/Diagnostics.tsx:90
+msgctxt "common:status.operational"
+msgid "Operational"
+msgstr "Operational"
+
+#: frontend/src/pages/Orders.tsx:163
+msgctxt "orders:orders.order"
+msgid "Order"
+msgstr "Order"
+
+#: frontend/src/components/Sidebar.tsx:120
+msgctxt "navigation:sidebar.orders"
+msgid "Orders"
+msgstr "Orders"
+
+#: frontend/src/pages/Orders.tsx:139
+msgctxt "orders:orders.orders"
+msgid "Orders"
+msgstr "Orders"
+
+#: frontend/src/pages/Workspace.tsx:483
+msgctxt "workspace:workspace.otherChannelsAreReadOnlyUnavailableFor"
+msgid "Other channels are read-only/unavailable for this workflow."
+msgstr "Other channels are read-only/unavailable for this workflow."
+
+#: frontend/src/pages/RateLimits.tsx:166
+msgctxt "settings:rateLimits.overrides"
+msgid "Overrides"
+msgstr "Overrides"
+
+#: frontend/src/pages/Setup.tsx:795
+msgctxt "settings:setup.ownerAccount"
+msgid "Owner Account"
+msgstr "Owner Account"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:100 frontend/src/pages/UnifiedWorkspace.tsx:193
+msgctxt "workspace:sourceCentricWorkspace.page"
+msgid "Page"
+msgstr "Page"
+
+#: frontend/src/pages/NotFound.tsx:12
+msgctxt "common:notFound.pageNotFound"
+msgid "Page not found"
+msgstr "Page not found"
+
+#: frontend/src/pages/Workspace.tsx:140 frontend/src/pages/Workspace.tsx:232
+msgctxt "workspace:workspace.parent"
+msgid "Parent"
+msgstr "Parent"
+
+#: frontend/src/pages/Login.tsx:98
+msgctxt "authentication:login.password"
+msgid "Password"
+msgstr "Password"
+
+#: frontend/src/pages/Setup.tsx:827
+msgctxt "settings:setup.password"
+msgid "Password"
+msgstr "Password"
+
+#: frontend/src/pages/SourceWizard.tsx:72
+msgctxt "validation:source.passwordRequired"
+msgid "Password is required."
+msgstr "Password is required."
+
+msgctxt "common:status.pending"
+msgid "Pending"
+msgstr "Pending"
+
+#: frontend/src/pages/Setup.tsx:450
+msgctxt "settings:setup.pending"
+msgid "Pending"
+msgstr "Pending"
+
+#: frontend/src/pages/Products.tsx:170
+msgctxt "products:products.pendingEdits"
+msgid "Pending edits"
+msgstr "Pending edits"
+
+#: frontend/src/pages/Settings.tsx:212
+msgctxt "settings:language.persian"
+msgid "Persian"
+msgstr "Persian"
+
+#: frontend/src/pages/Settings.tsx:212
+msgctxt "settings:language.persianUnavailable"
+msgid "Persian — translation catalog required"
+msgstr "Persian — translation catalog required"
+
+#: frontend/src/pages/CommerceHub.tsx:191 frontend/src/pages/CommerceHub.tsx:804
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "commerce:commerceHub.plannedChannel"
+msgid "Planned channel"
+msgstr "Planned channel"
+
+#: frontend/src/pages/CommerceHub.tsx:108 frontend/src/pages/CommerceHub.tsx:804
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.plannedSource"
+msgid "Planned source"
+msgstr "Planned source"
+
+#: frontend/src/pages/CommerceHub.tsx:596
+#. Review is the immutable validation result required before Apply.
+msgctxt "commerce:commerceHub.pleaseReviewYourChangesAndTryAgain"
+msgid "Please review your changes and try again."
+msgstr "Please review your changes and try again."
+
+#: frontend/src/auth.tsx:195
+msgctxt "authentication:access.signInToContinue"
+msgid "Please sign in to continue."
+msgstr "Please sign in to continue."
+
+msgctxt "errors:codes.AUTHENTICATION_REQUIRED"
+msgid "Please sign in to continue."
+msgstr "Please sign in to continue."
+
+#: frontend/src/pages/CommerceHub.tsx:1091 frontend/src/pages/CommerceHub.tsx:1180 frontend/src/pages/CommerceHub.tsx:1187 frontend/src/pages/CommerceHub.tsx:1210 frontend/src/pages/CommerceHub.tsx:1217 frontend/src/pages/CommerceHub.tsx:521
+msgctxt "commerce:commerceHub.pleaseTryAgain"
+msgid "Please try again."
+msgstr "Please try again."
+
+#: frontend/src/pages/Diagnostics.tsx:163 frontend/src/pages/Diagnostics.tsx:192
+msgctxt "diagnostics:diagnostics.pleaseTryAgain"
+msgid "Please try again."
+msgstr "Please try again."
+
+#: frontend/src/pages/RateLimits.tsx:108 frontend/src/pages/RateLimits.tsx:70 frontend/src/pages/Settings.tsx:171
+msgctxt "settings:rateLimits.pleaseTryAgain"
+msgid "Please try again."
+msgstr "Please try again."
+
+#: frontend/src/pages/CommerceHub.tsx:1118 frontend/src/pages/CommerceHub.tsx:1124 frontend/src/pages/CommerceHub.tsx:1148 frontend/src/pages/CommerceHub.tsx:1154 frontend/src/pages/CommerceHub.tsx:638 frontend/src/pages/CommerceHub.tsx:643
+msgctxt "commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain"
+msgid "Please verify your credentials and try again."
+msgstr "Please verify your credentials and try again."
+
+#: frontend/src/pages/Setup.tsx:490
+msgctxt "settings:setup.pleaseWait"
+msgid "Please wait..."
+msgstr "Please wait..."
+
+#: frontend/src/pages/RateLimits.tsx:163
+msgctxt "settings:rateLimits.policy"
+msgid "Policy"
+msgstr "Policy"
+
+#: frontend/src/pages/Workspace.tsx:193
+msgctxt "workspace:workspace.steps.preview"
+msgid "Preview"
+msgstr "Preview"
+
+#: frontend/src/pages/Workspace.tsx:640
+msgctxt "workspace:workspace.preview2"
+msgid "Preview -"
+msgstr "Preview -"
+
+#: frontend/src/pages/Products.tsx:207
+msgctxt "products:products.previewDryRun"
+msgid "Preview / Dry Run"
+msgstr "Preview / Dry Run"
+
+#: frontend/src/pages/SourceImportWizard.tsx:61
+msgctxt "sources:sourceImportWizard.previewAnXlsxOrCsvThenCreate"
+msgid "Preview an XLSX or CSV, then create an internal managed FlowHub Sheet."
+msgstr "Preview an XLSX or CSV, then create an internal managed FlowHub Sheet."
+
+#: frontend/src/pages/Workspace.tsx:500
+msgctxt "workspace:workspace.previewFirstThenRunSafetyChecksBefore"
+msgid "Preview first, then run safety checks before approval. Rows with errors cannot enter Dry Run."
+msgstr "Preview first, then run safety checks before approval. Rows with errors cannot enter Dry Run."
+
+#: frontend/src/pages/Workspace.tsx:301
+msgctxt "workspace:workspace.previewPreparedSuccessfully"
+msgid "Preview prepared successfully"
+msgstr "Preview prepared successfully"
+
+#: frontend/src/pages/Workspace.tsx:402
+msgctxt "workspace:workspace.previewPriceChangesFromYourSources"
+msgid "Preview price changes from your sources"
+msgstr "Preview price changes from your sources"
+
+#: frontend/src/pages/SourceConfiguration.tsx:139
+msgctxt "sources:sourceConfiguration.previewRecognizedRows"
+msgid "Preview recognized rows"
+msgstr "Preview recognized rows"
+
+#: frontend/src/pages/FlowHubSheet.tsx:116
+msgctxt "flowhubSheet:flowHubSheet.previous"
+msgid "Previous"
+msgstr "Previous"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:100 frontend/src/pages/UnifiedWorkspace.tsx:192
+msgctxt "workspace:sourceCentricWorkspace.previous"
+msgid "Previous"
+msgstr "Previous"
+
+#: frontend/src/pages/Products.tsx:657 frontend/src/pages/Products.tsx:716
+msgctxt "products:products.previousPage"
+msgid "Previous page"
+msgstr "Previous page"
+
+msgctxt "common:field.price"
+msgid "Price"
+msgstr "Price"
+
+#: frontend/src/pages/Workspace.tsx:91
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "workspace:workspace.status.priceAndStock"
+msgid "Price + Stock"
+msgstr "Price + Stock"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:182
+msgctxt "workspace:unifiedWorkspace.priceRange"
+msgid "Price range"
+msgstr "Price range"
+
+#: frontend/src/pages/Settings.tsx:242
+msgctxt "settings:settings.pricingUnit"
+msgid "Pricing unit"
+msgstr "Pricing unit"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.product"
+msgid "Product"
+msgstr "Product"
+
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:87
+msgctxt "workspace:gridModel.product"
+msgid "Product"
+msgstr "Product"
+
+#: frontend/src/pages/CommerceHub.tsx:926
+msgctxt "commerce:commerceHub.productId"
+msgid "Product ID"
+msgstr "Product ID"
+
+#. Review is the immutable validation result required before Apply.
+msgctxt "errors:codes.MAPPING_CHANGED"
+msgid "Product Mapping changed. Create a new Review."
+msgstr "Product Mapping changed. Create a new Review."
+
+#: frontend/src/pages/FlowHubSheet.tsx:101
+msgctxt "flowhubSheet:flowHubSheet.productAndPricingSheet"
+msgid "Product and pricing sheet"
+msgstr "Product and pricing sheet"
+
+#: frontend/src/pages/CommerceHub.tsx:1172
+msgctxt "commerce:commerceHub.productCacheRefreshedSuccessfully"
+msgid "Product cache refreshed successfully"
+msgstr "Product cache refreshed successfully"
+
+#: frontend/src/pages/Products.tsx:542
+msgctxt "products:products.productCatalog"
+msgid "Product catalog"
+msgstr "Product catalog"
+
+#: frontend/src/pages/Workspace.tsx:419
+msgctxt "workspace:workspace.productConnectorRequired"
+msgid "Product connector required"
+msgstr "Product connector required"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:94
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:unifiedWorkspace.productDisplayNameSource"
+msgid "Product display name source"
+msgstr "Product display name source"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
+msgctxt "workspace:sourceCentricWorkspace.productStatus"
+msgid "Product status: {{status}}"
+msgstr "Product status: {{status}}"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:200
+msgctxt "workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid"
+msgid "Production Grid is disabled. Configure a valid commercial Handsontable license."
+msgstr "Production Grid is disabled. Configure a valid commercial Handsontable license."
+
+#: frontend/src/components/Sidebar.tsx:113
+msgctxt "navigation:sidebar.products"
+msgid "Products"
+msgstr "Products"
+
+msgctxt "navigation:topbar.products"
+msgid "Products"
+msgstr "Products"
+
+#: frontend/src/pages/Products.tsx:541 frontend/src/pages/Products.tsx:559
+msgctxt "products:products.products"
+msgid "Products"
+msgstr "Products"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:98
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "workspace:sourceCentricWorkspace.productsAreParentsEachChannelListingRemains"
+msgid "Products are parents. Each Channel Listing remains independently identifiable and selectable."
+msgstr "Products are parents. Each Channel Listing remains independently identifiable and selectable."
+
+#: frontend/src/pages/Sources.tsx:57
+msgctxt "sources:sources.products"
+msgid "Products:"
+msgstr "Products:"
+
+#: frontend/src/pages/Orders.tsx:38
+msgctxt "orders:orders.providerItem"
+msgid "Provider item"
+msgstr "Provider item"
+
+#: frontend/src/pages/Orders.tsx:165
+msgctxt "orders:orders.providerStatus"
+msgid "Provider status"
+msgstr "Provider status"
+
+#: frontend/src/pages/CommerceHub.tsx:302 frontend/src/pages/CommerceHub.tsx:305
+msgctxt "commerce:commerceHub.validation.publicShareUnsupported"
+msgid "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL."
+msgstr "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL."
+
+#: frontend/src/pages/Orders.tsx:39
+msgctxt "orders:orders.qty"
+msgid "Qty"
+msgstr "Qty"
+
+#: frontend/src/pages/Diagnostics.tsx:366
+msgctxt "diagnostics:diagnostics.queueLength"
+msgid "Queue length"
+msgstr "Queue length"
+
+#: frontend/src/pages/Diagnostics.tsx:351
+msgctxt "diagnostics:diagnostics.rateLimiter"
+msgid "Rate Limiter"
+msgstr "Rate Limiter"
+
+#: frontend/src/pages/Diagnostics.tsx:237
+msgctxt "diagnostics:diagnostics.reCheck"
+msgid "Re-check"
+msgstr "Re-check"
+
+#: frontend/src/pages/CommerceHub.tsx:981
+msgctxt "commerce:commerceHub.readPolicy"
+msgid "Read Policy"
+msgstr "Read Policy"
+
+#: frontend/src/pages/Diagnostics.tsx:354
+msgctxt "diagnostics:diagnostics.readRequestsMinute"
+msgid "Read Requests / Minute"
+msgstr "Read Requests / Minute"
+
+#: frontend/src/pages/RateLimits.tsx:147
+msgctxt "settings:rateLimits.readRequestsMinute"
+msgid "Read Requests / Minute"
+msgstr "Read Requests / Minute"
+
+#: frontend/src/pages/RateLimits.tsx:81
+msgctxt "validation:rateLimits.readRequestsRange"
+msgid "Read Requests / Minute must be between {{min}} and {{max}}."
+msgstr "Read Requests / Minute must be between {{min}} and {{max}}."
+
+#: frontend/src/pages/RateLimits.tsx:155
+msgctxt "settings:rateLimits.readDelay"
+msgid "Read delay"
+msgstr "Read delay"
+
+#: frontend/src/pages/CommerceHub.tsx:159
+msgctxt "commerce:commerceHub.readNow"
+msgid "Read now"
+msgstr "Read now"
+
+#: frontend/src/pages/CommerceHub.tsx:784
+msgctxt "commerce:commerceHub.readOnly2"
+msgid "Read only"
+msgstr "Read only"
+
+#: frontend/src/pages/SourceWizard.tsx:152
+msgctxt "sources:sourceWizard.readPricesFromAnExcelSpreadsheetHosted"
+msgid "Read prices from an Excel spreadsheet hosted on Nextcloud or a compatible WebDAV server."
+msgstr "Read prices from an Excel spreadsheet hosted on Nextcloud or a compatible WebDAV server."
+
+msgctxt "common:status.readOnly"
+msgid "Read-only"
+msgstr "Read-only"
+
+#: frontend/src/pages/Products.tsx:254
+msgctxt "products:products.readOnly"
+msgid "Read-only"
+msgstr "Read-only"
+
+msgctxt "workspace:statusDisplay.readOnly"
+msgid "Read-only"
+msgstr "Read-only"
+
+#: frontend/src/pages/CommerceHub.tsx:57
+msgctxt "commerce:commerceHub.readOnlyMode"
+msgid "Read-only mode"
+msgstr "Read-only mode"
+
+#: frontend/src/pages/CommerceHub.tsx:1256
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.readOnlySourceAndChannelOverview"
+msgid "Read-only source and channel overview"
+msgstr "Read-only source and channel overview"
+
+#: frontend/src/pages/Products.tsx:254
+msgctxt "products:products.readWrite"
+msgid "Read/write"
+msgstr "Read/write"
+
+#: frontend/src/pages/CommerceHub.tsx:159
+msgctxt "commerce:commerceHub.reading"
+msgid "Reading"
+msgstr "Reading"
+
+#: frontend/src/pages/CommerceHub.tsx:123
+msgctxt "commerce:commerceHub.readsRemaining"
+msgid "Reads remaining:"
+msgstr "Reads remaining:"
+
+msgctxt "common:status.ready"
+msgid "Ready"
+msgstr "Ready"
+
+#: frontend/src/pages/Workspace.tsx:438
+msgctxt "workspace:statusDisplay.ready"
+msgid "Ready"
+msgstr "Ready"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:95
+msgctxt "workspace:sourceCentricWorkspace.readyChanges"
+msgid "Ready changes"
+msgstr "Ready changes"
+
+#: frontend/src/pages/Dashboard.tsx:243
+msgctxt "dashboard:dashboard.recentActivity"
+msgid "Recent Activity"
+msgstr "Recent Activity"
+
+#: frontend/src/pages/SourceConfiguration.tsx:139
+msgctxt "sources:sourceConfiguration.recognition"
+msgid "Recognition"
+msgstr "Recognition"
+
+#: frontend/src/pages/SourceCenter.tsx:49
+msgctxt "sources:sourceCenter.recommended"
+msgid "Recommended"
+msgstr "Recommended"
+
+#: frontend/src/pages/DataQuality.tsx:42
+msgctxt "dataQuality:dataQuality.recommendedAction"
+msgid "Recommended action:"
+msgstr "Recommended action:"
+
+#: frontend/src/pages/SourceCenter.tsx:51
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "sources:sourceCenter.recommendedForEasierMappingSafeFormulasAnd"
+msgid "Recommended for easier mapping, safe formulas, and multi-channel pricing."
+msgstr "Recommended for easier mapping, safe formulas, and multi-channel pricing."
+
+#: frontend/src/pages/SourceCenter.tsx:57
+msgctxt "sources:sourceCenter.recommendedMigrationPath"
+msgid "Recommended migration path"
+msgstr "Recommended migration path"
+
+#. Reconciliation verifies an uncertain external write without blindly redispatching it.
+msgctxt "common:status.reconciliationRequired"
+msgid "Reconciliation Required"
+msgstr "Reconciliation Required"
+
+#. Reconciliation verifies an uncertain external write without blindly redispatching it.
+msgctxt "workspace:statusDisplay.reconciliationRequired"
+msgid "Reconciliation Required"
+msgstr "Reconciliation Required"
+
+#: frontend/src/pages/Workspace.tsx:533
+msgctxt "workspace:workspace.reference"
+msgid "Reference"
+msgstr "Reference"
+
+#: frontend/src/pages/Diagnostics.tsx:295
+msgctxt "diagnostics:diagnostics.refresh"
+msgid "Refresh"
+msgstr "Refresh"
+
+#: frontend/src/pages/CommerceHub.tsx:267
+msgctxt "commerce:commerceHub.refreshProductCache"
+msgid "Refresh product cache"
+msgstr "Refresh product cache"
+
+#: frontend/src/pages/CommerceHub.tsx:220
+msgctxt "commerce:commerceHub.refreshStatus"
+msgid "Refresh status:"
+msgstr "Refresh status:"
+
+#: frontend/src/pages/CommerceHub.tsx:267
+msgctxt "commerce:commerceHub.refreshing"
+msgid "Refreshing"
+msgstr "Refreshing"
+
+#: frontend/src/pages/CommerceHub.tsx:873
+msgctxt "commerce:commerceHub.registerThisUrlInTapsishopTheWebhook"
+msgid "Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token."
+msgstr "Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token."
+
+#: frontend/src/pages/Diagnostics.tsx:371
+msgctxt "diagnostics:diagnostics.requestDuration"
+msgid "Request duration"
+msgstr "Request duration"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.resolved"
+msgid "Resolved"
+msgstr "Resolved"
+
+#: frontend/src/pages/Workspace.tsx:196
+msgctxt "workspace:workspace.steps.result"
+msgid "Result"
+msgstr "Result"
+
+#: frontend/src/pages/Settings.tsx:261
+msgctxt "settings:settings.retry"
+msgid "Retry"
+msgstr "Retry"
+
+#: frontend/src/pages/SourceWizard.tsx:232
+msgctxt "sources:sourceWizard.retry"
+msgid "Retry"
+msgstr "Retry"
+
+#: frontend/src/pages/NotFound.tsx:18
+msgctxt "common:notFound.returnToDashboard"
+msgid "Return to Dashboard"
+msgstr "Return to Dashboard"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:121
+#. Review is the immutable validation result required before Apply.
+msgctxt "workspace:unifiedWorkspace.review"
+msgid "Review"
+msgstr "Review"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
+#. Review is the immutable validation result required before Apply.
+msgctxt "workspace:sourceCentricWorkspace.reviewDryRun"
+msgid "Review & Dry Run"
+msgstr "Review & Dry Run"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:108
+#. Review is the immutable validation result required before Apply.
+msgctxt "workspace:unifiedWorkspace.reviewChanges"
+msgid "Review Changes"
+msgstr "Review Changes"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:55
+#. Review is the immutable validation result required before Apply.
+msgctxt "workspace:sourceCentricWorkspace.reviewAndDryRunComplete"
+msgid "Review and Dry Run complete"
+msgstr "Review and Dry Run complete"
+
+#: frontend/src/pages/Workspace.tsx:427
+#. Review is the immutable validation result required before Apply.
+msgctxt "workspace:workspace.reviewConnectorSettingsBeforeUsingWorkspace"
+msgid "Review connector settings before using Workspace."
+msgstr "Review connector settings before using Workspace."
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:56
+#. Review is the immutable validation result required before Apply.
+msgctxt "workspace:sourceCentricWorkspace.reviewCouldNotBeCompleted"
+msgid "Review could not be completed"
+msgstr "Review could not be completed"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:118
+#. Review is the immutable validation result required before Apply.
+msgctxt "workspace:unifiedWorkspace.reviewResults"
+msgid "Review results"
+msgstr "Review results"
+
+#. Review is the immutable validation result required before Apply.
+msgctxt "settings:setup.reviewTheInstallationPathBeforeFlowhubIs"
+msgid "Review the installation path before FlowHub is enabled."
+msgstr "Review the installation path before FlowHub is enabled."
+
+#: frontend/src/pages/FlowHubSheet.tsx:86
+msgctxt "flowhubSheet:flowHubSheet.revisionIsImmutableAndReadyForSnapshot"
+msgid "Revision {{value1}} is immutable and ready for Snapshot creation."
+msgstr "Revision {{value1}} is immutable and ready for Snapshot creation."
+
+#: frontend/src/pages/SourceConfiguration.tsx:139
+msgctxt "sources:sourceConfiguration.row"
+msgid "Row"
+msgstr "Row"
+
+#: frontend/src/pages/FlowHubSheet.tsx:101
+msgctxt "flowhubSheet:flowHubSheet.rowOrder"
+msgid "Row order"
+msgstr "Row order"
+
+#: frontend/src/pages/FlowHubSheet.tsx:110
+msgctxt "flowhubSheet:flowHubSheet.rowColumn"
+msgid "Row {{row}}, {{column}}"
+msgstr "Row {{row}}, {{column}}"
+
+#: frontend/src/pages/RateLimits.tsx:135 frontend/src/pages/Settings.tsx:201
+msgctxt "settings:rateLimits.saveChanges"
+msgid "Save Changes"
+msgstr "Save Changes"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:105
+#. Draft is a saved immutable revision of proposed changes.
+msgctxt "workspace:unifiedWorkspace.saveDraft"
+msgid "Save Draft"
+msgstr "Save Draft"
+
+#: frontend/src/pages/SourceConfiguration.tsx:137
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "sources:sourceConfiguration.saveMappingRevision"
+msgid "Save Mapping Revision"
+msgstr "Save Mapping Revision"
+
+#: frontend/src/pages/FlowHubSheet.tsx:99
+msgctxt "flowhubSheet:flowHubSheet.saveRevision"
+msgid "Save Revision"
+msgstr "Save Revision"
+
+#: frontend/src/pages/SourceWizard.tsx:222
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceWizard.saveSource"
+msgid "Save Source"
+msgstr "Save Source"
+
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "sources:sourceConfiguration.saveAValidMappingAndSheetRevision"
+msgid "Save a valid Mapping and Sheet revision first."
+msgstr "Save a valid Mapping and Sheet revision first."
+
+#: frontend/src/pages/CommerceHub.tsx:1030
+msgctxt "commerce:commerceHub.saveConfiguration"
+msgid "Save configuration"
+msgstr "Save configuration"
+
+#: frontend/src/pages/CommerceHub.tsx:841
+msgctxt "commerce:commerceHub.savedVendor"
+msgid "Saved vendor ("
+msgstr "Saved vendor ("
+
+#: frontend/src/pages/CommerceHub.tsx:1030
+msgctxt "commerce:commerceHub.saving"
+msgid "Saving"
+msgstr "Saving"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:48
+#. Draft is a saved immutable revision of proposed changes.
+msgctxt "workspace:sourceCentricWorkspace.savingDraft"
+msgid "Saving Draft"
+msgstr "Saving Draft"
+
+#: frontend/src/pages/RateLimits.tsx:135 frontend/src/pages/Settings.tsx:201
+msgctxt "settings:rateLimits.saving"
+msgid "Saving..."
+msgstr "Saving..."
+
+#: frontend/src/pages/SourceConfiguration.tsx:137 frontend/src/pages/SourceWizard.tsx:222
+msgctxt "sources:sourceConfiguration.saving"
+msgid "Saving..."
+msgstr "Saving..."
+
+#: frontend/src/pages/RateLimits.tsx:167
+msgctxt "settings:rateLimits.scheduler"
+msgid "Scheduler"
+msgstr "Scheduler"
+
+#: frontend/src/pages/Workspace.tsx:548
+msgctxt "workspace:workspace.scheduler"
+msgid "Scheduler"
+msgstr "Scheduler"
+
+#: frontend/src/pages/Setup.tsx:708
+msgctxt "settings:setup.schemaStatus"
+msgid "Schema status"
+msgstr "Schema status"
+
+#: frontend/src/pages/RateLimits.tsx:165
+msgctxt "settings:rateLimits.scope"
+msgid "Scope"
+msgstr "Scope"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:203
+msgctxt "workspace:unifiedWorkspace.scrollableWorkspaceGrid"
+msgid "Scrollable Workspace Grid"
+msgstr "Scrollable Workspace Grid"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:179
+msgctxt "workspace:unifiedWorkspace.search"
+msgid "Search"
+msgstr "Search"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:98
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:sourceCentricWorkspace.searchSourceProducts"
+msgid "Search Source Products"
+msgstr "Search Source Products"
+
+#: frontend/src/pages/Products.tsx:581
+msgctxt "products:products.searchNameOrSku"
+msgid "Search name or SKU..."
+msgstr "Search name or SKU..."
+
+#: frontend/src/pages/Setup.tsx:302
+msgctxt "settings:setup.search"
+msgid "Search {{value1}}..."
+msgstr "Search {{value1}}..."
+
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:86
+msgctxt "workspace:gridModel.select"
+msgid "Select"
+msgstr "Select"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
+msgctxt "workspace:sourceCentricWorkspace.select"
+msgid "Select"
+msgstr "Select"
+
+msgctxt "sources:sourceWizard.selectType"
+msgid "Select Type"
+msgstr "Select Type"
+
+#: frontend/src/pages/Workspace.tsx:651
+msgctxt "workspace:workspace.selectAllEligible"
+msgid "Select all eligible"
+msgstr "Select all eligible"
+
+#: frontend/src/pages/SourceWizard.tsx:141
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceWizard.selectTheTypeOfDataSourceTo"
+msgid "Select the type of data source to connect."
+msgstr "Select the type of data source to connect."
+
+#: frontend/src/pages/CommerceHub.tsx:839
+msgctxt "commerce:commerceHub.selectVendor"
+msgid "Select vendor"
+msgstr "Select vendor"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "workspace:sourceCentricWorkspace.selectListing"
+msgid "Select {{channel}} {{listing}}"
+msgstr "Select {{channel}} {{listing}}"
+
+#: frontend/src/pages/Workspace.tsx:124
+msgctxt "workspace:workspace.selectProduct"
+msgid "Select {{product}}"
+msgstr "Select {{product}}"
+
+#: frontend/src/pages/Products.tsx:45
+msgctxt "products:products.selectProductForWorkspace"
+msgid "Select {{product}} for Workspace"
+msgstr "Select {{product}} for Workspace"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:95
+msgctxt "workspace:sourceCentricWorkspace.selectedChanges"
+msgid "Selected changes"
+msgstr "Selected changes"
+
+#: frontend/src/pages/CommerceHub.tsx:897
+msgctxt "commerce:commerceHub.selectedFile"
+msgid "Selected file"
+msgstr "Selected file"
+
+#: frontend/src/pages/CommerceHub.tsx:965
+msgctxt "commerce:commerceHub.selectedWorksheet"
+msgid "Selected worksheet"
+msgstr "Selected worksheet"
+
+#: frontend/src/pages/SourceConfiguration.tsx:129
+msgctxt "sources:sourceConfiguration.selectedWorksheet"
+msgid "Selected worksheet"
+msgstr "Selected worksheet"
+
+#: frontend/src/pages/Workspace.tsx:661
+msgctxt "workspace:workspace.selected"
+msgid "Selected:"
+msgstr "Selected:"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:86
+msgctxt "workspace:sourceCentricWorkspace.selectionWasNotSaved"
+msgid "Selection was not saved"
+msgstr "Selection was not saved"
+
+#: frontend/src/pages/CommerceHub.tsx:283
+msgctxt "commerce:commerceHub.fields.sellerStoreId"
+msgid "Seller/store ID"
+msgstr "Seller/store ID"
+
+#: frontend/src/pages/Setup.tsx:614
+msgctxt "settings:setup.serverProfile"
+msgid "Server Profile"
+msgstr "Server Profile"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:161
+msgctxt "workspace:unifiedWorkspace.serverSideWorkspaceFilters"
+msgid "Server-side Workspace filters"
+msgstr "Server-side Workspace filters"
+
+msgctxt "settings:setup.setTheDomainTimezoneAndDefaultCurrency"
+msgid "Set the domain, timezone, and default currency for this installation."
+msgstr "Set the domain, timezone, and default currency for this installation."
+
+#: frontend/src/pages/CommerceHub.tsx:141 frontend/src/pages/CommerceHub.tsx:245
+msgctxt "commerce:commerceHub.settings"
+msgid "Settings"
+msgstr "Settings"
+
+#: frontend/src/components/Sidebar.tsx:169
+msgctxt "navigation:sidebar.settings"
+msgid "Settings"
+msgstr "Settings"
+
+msgctxt "navigation:topbar.settings"
+msgid "Settings"
+msgstr "Settings"
+
+#: frontend/src/pages/Settings.tsx:182
+msgctxt "settings:settings.settings"
+msgid "Settings"
+msgstr "Settings"
+
+#: frontend/src/pages/RateLimits.tsx:102 frontend/src/pages/Settings.tsx:165
+msgctxt "settings:rateLimits.settingsSavedSuccessfully"
+msgid "Settings saved successfully"
+msgstr "Settings saved successfully"
+
+#: frontend/src/pages/Setup.tsx:939
+msgctxt "settings:setup.setupConsole"
+msgid "Setup console"
+msgstr "Setup console"
+
+#: frontend/src/pages/Setup.tsx:883
+msgctxt "settings:setup.setupIsReadyToBeFinalizedConnector"
+msgid "Setup is ready to be finalized. Connector configuration is available from Settings after sign-in."
+msgstr "Setup is ready to be finalized. Connector configuration is available from Settings after sign-in."
+
+#: frontend/src/pages/Setup.tsx:400 frontend/src/pages/Setup.tsx:423
+msgctxt "settings:setup.setupProgress"
+msgid "Setup progress"
+msgstr "Setup progress"
+
+#: frontend/src/pages/CommerceHub.tsx:202
+msgctxt "commerce:commerceHub.setupState"
+msgid "Setup state:"
+msgstr "Setup state:"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.severity"
+msgid "Severity"
+msgstr "Severity"
+
+#: frontend/src/pages/FlowHubSheet.tsx:86
+msgctxt "flowhubSheet:flowHubSheet.sheetRevisionSaved"
+msgid "Sheet revision saved"
+msgstr "Sheet revision saved"
+
+#: frontend/src/pages/FlowHubSheet.tsx:87
+msgctxt "flowhubSheet:flowHubSheet.sheetWasNotSaved"
+msgid "Sheet was not saved"
+msgstr "Sheet was not saved"
+
+#: frontend/src/pages/Orders.tsx:65
+msgctxt "orders:orders.shipments"
+msgid "Shipments"
+msgstr "Shipments"
+
+#: frontend/src/pages/Products.tsx:653
+msgctxt "products:products.showingOf"
+msgid "Showing {{value1}}-{{value2}} of {{value3}}"
+msgstr "Showing {{value1}}-{{value2}} of {{value3}}"
+
+#: frontend/src/pages/SourceConfiguration.tsx:139
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.showsWhichRowsTheSavedMappingCurrently"
+msgid "Shows which rows the saved Mapping currently recognizes as Source Products."
+msgstr "Shows which rows the saved Mapping currently recognizes as Source Products."
+
+#: frontend/src/pages/Login.tsx:118
+msgctxt "authentication:login.signIn"
+msgid "Sign in"
+msgstr "Sign in"
+
+#: frontend/src/pages/Login.tsx:68
+msgctxt "authentication:login.signInToFlowhub"
+msgid "Sign in to FlowHub"
+msgstr "Sign in to FlowHub"
+
+#: frontend/src/App.tsx:76
+msgctxt "common:app.signOut"
+msgid "Sign out"
+msgstr "Sign out"
+
+#: frontend/src/components/Sidebar.tsx:193 frontend/src/components/Sidebar.tsx:194 frontend/src/components/Topbar.tsx:232
+msgctxt "navigation:sidebar.signOut"
+msgid "Sign out"
+msgstr "Sign out"
+
+#: frontend/src/components/Topbar.tsx:221
+msgctxt "navigation:topbar.signedIn"
+msgid "Signed in"
+msgstr "Signed in"
+
+#: frontend/src/pages/Login.tsx:118
+msgctxt "authentication:login.signingIn"
+msgid "Signing in..."
+msgstr "Signing in..."
+
+#: frontend/src/pages/Workspace.tsx:486
+msgctxt "workspace:workspace.simpleAndVariationWoocommercePriceUpdatesAre"
+msgid "Simple and variation WooCommerce price updates are supported."
+msgstr "Simple and variation WooCommerce price updates are supported."
+
+msgctxt "products:products.snappShop"
+msgid "Snapp Shop"
+msgstr "Snapp Shop"
+
+#: frontend/src/components/ErrorBoundary.tsx:34
+msgctxt "common:errorBoundary.somethingWentWrong"
+msgid "Something went wrong"
+msgstr "Something went wrong"
+
+#: frontend/src/pages/FlowHubSheet.tsx:101
+msgctxt "flowhubSheet:flowHubSheet.sort"
+msgid "Sort"
+msgstr "Sort"
+
+#: frontend/src/pages/FlowHubSheet.tsx:101
+msgctxt "flowhubSheet:flowHubSheet.sortSheetByColumn"
+msgid "Sort Sheet by column"
+msgstr "Sort Sheet by column"
+
+#: frontend/src/pages/CommerceHub.tsx:64
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.source"
+msgid "Source"
+msgstr "Source"
+
+#: frontend/src/pages/DataQuality.tsx:41
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dataQuality:dataQuality.source"
+msgid "Source"
+msgstr "Source"
+
+#: frontend/src/pages/Orders.tsx:172
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "orders:orders.source"
+msgid "Source"
+msgstr "Source"
+
+#: frontend/src/components/Topbar.tsx:29
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "navigation:topbar.sourceConfiguration"
+msgid "Source Configuration"
+msgstr "Source Configuration"
+
+#: frontend/src/pages/SourceConfiguration.tsx:105
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.sourceMappingSaved"
+msgid "Source Mapping saved"
+msgstr "Source Mapping saved"
+
+#: frontend/src/pages/SourceConfiguration.tsx:139
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.sourcePreview"
+msgid "Source Preview"
+msgstr "Source Preview"
+
+#: frontend/src/pages/SourceConfiguration.tsx:121
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.sourcePreviewUnavailable"
+msgid "Source Preview unavailable"
+msgstr "Source Preview unavailable"
+
+#: frontend/src/pages/SourceConfiguration.tsx:139
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.sourceProduct"
+msgid "Source Product"
+msgstr "Source Product"
+
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.sourceProductKey"
+msgid "Source Product Key"
+msgstr "Source Product Key"
+
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.sourceProductName"
+msgid "Source Product Name"
+msgstr "Source Product Name"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:93
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:sourceCentricWorkspace.sourceProductWorkspaceImmutableSnapshot"
+msgid "Source Product Workspace · Immutable Snapshot"
+msgstr "Source Product Workspace · Immutable Snapshot"
+
+#: frontend/src/pages/SourceConfiguration.tsx:130
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.sourceProductFields"
+msgid "Source Product fields"
+msgstr "Source Product fields"
+
+#: frontend/src/pages/SourceCenter.tsx:76
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "sources:sourceCenter.sourceProductIdentityStaysSeparateFromChannel"
+msgid "Source Product identity stays separate from Channel Listing identity."
+msgstr "Source Product identity stays separate from Channel Listing identity."
+
+#: frontend/src/pages/DataQuality.tsx:41
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dataQuality:dataQuality.sourceProductName"
+msgid "Source Product name"
+msgstr "Source Product name"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:98
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:sourceCentricWorkspace.sourceProducts"
+msgid "Source Products"
+msgstr "Source Products"
+
+#: frontend/src/pages/SourceWizard.tsx:96
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceWizard.sourceAddedSuccessfully"
+msgid "Source added successfully"
+msgstr "Source added successfully"
+
+#: frontend/src/pages/DataQuality.tsx:42
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dataQuality:dataQuality.sourceAnalysisHasNotRecordedAnyMatching"
+msgid "Source analysis has not recorded any matching issues."
+msgstr "Source analysis has not recorded any matching issues."
+
+#: frontend/src/pages/CommerceHub.tsx:580
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.sourceConfiguredSuccessfully"
+msgid "Source configured successfully"
+msgstr "Source configured successfully"
+
+#: frontend/src/pages/CommerceHub.tsx:1113 frontend/src/pages/CommerceHub.tsx:628
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.sourceConnectedSuccessfully"
+msgid "Source connected successfully"
+msgstr "Source connected successfully"
+
+#: frontend/src/pages/Workspace.tsx:426
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:workspace.sourceConnectorRequired"
+msgid "Source connector required"
+msgstr "Source connector required"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:sourceCentricWorkspace.sourceKey"
+msgid "Source key {{value1}} ·"
+msgstr "Source key {{value1}} ·"
+
+#: frontend/src/pages/SourceCenter.tsx:47
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceCenter.sourceOptions"
+msgid "Source options"
+msgstr "Source options"
+
+#: frontend/src/pages/Workspace.tsx:30
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:workspace.sourceReadLimitReached"
+msgid "Source read limit reached"
+msgstr "Source read limit reached"
+
+#: frontend/src/pages/CommerceHub.tsx:1204
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.sourceRefreshedSuccessfully"
+msgid "Source refreshed successfully"
+msgstr "Source refreshed successfully"
+
+#: frontend/src/pages/CommerceHub.tsx:136
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.sourceSettings"
+msgid "Source settings"
+msgstr "Source settings"
+
+#: frontend/src/pages/CommerceHub.tsx:576
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.sourceSettingsUpdatedSuccessfully"
+msgid "Source settings updated successfully"
+msgstr "Source settings updated successfully"
+
+#: frontend/src/pages/CommerceHub.tsx:762
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.sourceType"
+msgid "Source type"
+msgstr "Source type"
+
+#: frontend/src/pages/Workspace.tsx:646
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:workspace.source"
+msgid "Source:"
+msgstr "Source:"
+
+#: frontend/src/pages/CommerceHub.tsx:1273 frontend/src/pages/CommerceHub.tsx:1286
+msgctxt "commerce:commerceHub.sources2"
+msgid "Sources"
+msgstr "Sources"
+
+#: frontend/src/pages/Dashboard.tsx:214
+msgctxt "dashboard:dashboard.sources"
+msgid "Sources"
+msgstr "Sources"
+
+#: frontend/src/components/Sidebar.tsx:127
+msgctxt "navigation:sidebar.sources"
+msgid "Sources"
+msgstr "Sources"
+
+msgctxt "navigation:topbar.sources"
+msgid "Sources"
+msgstr "Sources"
+
+#: frontend/src/pages/SourceCenter.tsx:39 frontend/src/pages/Sources.tsx:85
+msgctxt "sources:sourceCenter.sources"
+msgid "Sources"
+msgstr "Sources"
+
+#: frontend/src/pages/CommerceHub.tsx:420
+msgctxt "commerce:commerceHub.spreadsheet"
+msgid "Spreadsheet"
+msgstr "Spreadsheet"
+
+#: frontend/src/pages/Workspace.tsx:628
+msgctxt "workspace:workspace.spreadsheetWarnings"
+msgid "Spreadsheet Warnings ("
+msgstr "Spreadsheet Warnings ("
+
+#. Review is the immutable validation result required before Apply.
+msgctxt "common:status.staleReview"
+msgid "Stale Review"
+msgstr "Stale Review"
+
+#. Review is the immutable validation result required before Apply.
+msgctxt "workspace:statusDisplay.staleReview"
+msgid "Stale Review"
+msgstr "Stale Review"
+
+#: frontend/src/pages/Workspace.tsx:448
+msgctxt "workspace:workspace.startPreview"
+msgid "Start Preview"
+msgstr "Start Preview"
+
+msgctxt "common:field.status"
+msgid "Status"
+msgstr "Status"
+
+#: frontend/src/pages/Orders.tsx:43
+msgctxt "orders:orders.status"
+msgid "Status"
+msgstr "Status"
+
+#: frontend/src/pages/Settings.tsx:267
+msgctxt "settings:settings.status"
+msgid "Status"
+msgstr "Status"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:181
+msgctxt "workspace:unifiedWorkspace.status"
+msgid "Status"
+msgstr "Status"
+
+#: frontend/src/pages/Diagnostics.tsx:397
+msgctxt "diagnostics:diagnostics.status"
+msgid "Status:"
+msgstr "Status:"
+
+#: frontend/src/pages/Products.tsx:321
+msgctxt "products:products.status"
+msgid "Status:"
+msgstr "Status:"
+
+#: frontend/src/pages/Setup.tsx:965
+msgctxt "settings:setup.step2"
+msgid "Step"
+msgstr "Step"
+
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "common:field.stock"
+msgid "Stock"
+msgstr "Stock"
+
+#: frontend/src/pages/Workspace.tsx:544
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "workspace:workspace.stock"
+msgid "Stock"
+msgstr "Stock"
+
+#: frontend/src/pages/Workspace.tsx:90
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "workspace:workspace.status.stockOnly"
+msgid "Stock only"
+msgstr "Stock only"
+
+#: frontend/src/pages/Workspace.tsx:488
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "workspace:workspace.stockUpdatesAreNotSupported"
+msgid "Stock updates are not supported."
+msgstr "Stock updates are not supported."
+
+#: frontend/src/pages/Workspace.tsx:480
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "workspace:workspace.stockWillNotBeChanged"
+msgid "Stock will not be changed."
+msgstr "Stock will not be changed."
+
+#: frontend/src/pages/Workspace.tsx:664
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "workspace:workspace.stockOnly"
+msgid "Stock-only:"
+msgstr "Stock-only:"
+
+#: frontend/src/pages/CommerceHub.tsx:280
+msgctxt "commerce:commerceHub.fields.storeUrl"
+msgid "Store URL"
+msgstr "Store URL"
+
+#: frontend/src/pages/CommerceHub.tsx:884
+msgctxt "commerce:commerceHub.storeNumber"
+msgid "Store number:"
+msgstr "Store number:"
+
+msgctxt "activity:activity.success"
+msgid "Success"
+msgstr "Success"
+
+msgctxt "common:status.success"
+msgid "Success"
+msgstr "Success"
+
+#: frontend/src/pages/Products.tsx:325
+msgctxt "products:products.success2"
+msgid "Success"
+msgstr "Success"
+
+#: frontend/src/pages/Settings.tsx:223
+msgctxt "settings:settings.syncIntervalMinutes"
+msgid "Sync interval (minutes)"
+msgstr "Sync interval (minutes)"
+
+#: frontend/src/pages/Orders.tsx:171
+msgctxt "orders:orders.syncState"
+msgid "Sync state"
+msgstr "Sync state"
+
+#: frontend/src/pages/Diagnostics.tsx:248
+msgctxt "diagnostics:diagnostics.system"
+msgid "System"
+msgstr "System"
+
+#: frontend/src/pages/Activity.tsx:90
+msgctxt "activity:activity.systemEventsAndUserActions"
+msgid "System events and user actions"
+msgstr "System events and user actions"
+
+#: frontend/src/pages/Dashboard.tsx:127
+msgctxt "dashboard:dashboard.systemOverview"
+msgid "System overview"
+msgstr "System overview"
+
+msgctxt "settings:setup.tryTurkishLira"
+msgid "TRY - Turkish Lira"
+msgstr "TRY - Turkish Lira"
+
+msgctxt "products:products.tapsiShop"
+msgid "Tapsi Shop"
+msgstr "Tapsi Shop"
+
+#: frontend/src/pages/DataQuality.tsx:42
+msgctxt "dataQuality:dataQuality.technicalDetails"
+msgid "Technical details"
+msgstr "Technical details"
+
+#: frontend/src/pages/DataQuality.tsx:40
+msgctxt "dataQuality:dataQuality.technicalIssuesAreSeparatedFromTheDaily"
+msgid "Technical issues are separated from the daily pricing workflow. One blocked row never blocks unrelated valid products."
+msgstr "Technical issues are separated from the daily pricing workflow. One blocked row never blocks unrelated valid products."
+
+#: frontend/src/pages/SourceWizard.tsx:182
+msgctxt "sources:sourceWizard.testConnection"
+msgid "Test Connection"
+msgstr "Test Connection"
+
+#: frontend/src/pages/CommerceHub.tsx:1025 frontend/src/pages/CommerceHub.tsx:150 frontend/src/pages/CommerceHub.tsx:256
+msgctxt "commerce:commerceHub.testConnection"
+msgid "Test connection"
+msgstr "Test connection"
+
+#: frontend/src/pages/CommerceHub.tsx:839
+msgctxt "commerce:commerceHub.testConnectionToLoadVendors"
+msgid "Test connection to load vendors"
+msgstr "Test connection to load vendors"
+
+#: frontend/src/pages/CommerceHub.tsx:828
+msgctxt "commerce:commerceHub.testTheConnectionToLoadStoresAvailable"
+msgid "Test the connection to load stores available to these credentials."
+msgstr "Test the connection to load stores available to these credentials."
+
+#: frontend/src/pages/CommerceHub.tsx:1025 frontend/src/pages/CommerceHub.tsx:150 frontend/src/pages/CommerceHub.tsx:256
+msgctxt "commerce:commerceHub.testing"
+msgid "Testing"
+msgstr "Testing"
+
+#: frontend/src/pages/SourceWizard.tsx:182
+msgctxt "sources:sourceWizard.testing"
+msgid "Testing..."
+msgstr "Testing..."
+
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "errors:codes.SOURCE_READ_LIMIT_REACHED"
+msgid "The Source read limit was reached. Try again after the allowance resets."
+msgstr "The Source read limit was reached. Try again after the allowance resets."
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:27
+msgctxt "workspace:unifiedWorkspace.theUnifiedWorkspaceServiceIsNotConfigured"
+msgid "The Unified Workspace service is not configured."
+msgstr "The Unified Workspace service is not configured."
+
+#: frontend/src/pages/CommerceHub.tsx:1144 frontend/src/pages/CommerceHub.tsx:590
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "commerce:commerceHub.theChannelIsReadyToUse"
+msgid "The channel is ready to use."
+msgstr "The channel is ready to use."
+
+#. Review is the immutable validation result required before Apply.
+msgctxt "errors:codes.SELECTION_CHECKSUM_MISMATCH"
+msgid "The confirmed selection changed. Review and confirm it again."
+msgstr "The confirmed selection changed. Review and confirm it again."
+
+#: frontend/src/pages/CommerceHub.tsx:1175
+msgctxt "commerce:commerceHub.theLatestProductInformationHasBeenLoaded"
+msgid "The latest product information has been loaded."
+msgstr "The latest product information has been loaded."
+
+#: frontend/src/pages/SourceImportWizard.tsx:63
+msgctxt "sources:sourceImportWizard.theOriginalFileIsReadOnlyAnd"
+msgid "The original file is read only and never modified."
+msgstr "The original file is read only and never modified."
+
+msgctxt "sources:sourceImportWizard.theOriginalFileWasNotChanged"
+msgid "The original file was not changed."
+msgstr "The original file was not changed."
+
+msgctxt "errors:codes.UNKNOWN"
+msgid "The request could not be completed."
+msgstr "The request could not be completed."
+
+#: frontend/src/pages/CommerceHub.tsx:581
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.theSourceIsReadyToUse"
+msgid "The source is ready to use."
+msgstr "The source is ready to use."
+
+#: frontend/src/pages/Workspace.tsx:477
+msgctxt "workspace:workspace.theUnderlyingWorkflowIsUnchangedTheseSurfaces"
+msgid "The underlying workflow is unchanged. These surfaces are normalized for readability only."
+msgstr "The underlying workflow is unchanged. These surfaces are normalized for readability only."
+
+#: frontend/src/pages/CommerceHub.tsx:982
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.theseControlsOnlyAffectSourceReadPolicy"
+msgid "These controls only affect source read policy presentation and action placement."
+msgstr "These controls only affect source read policy presentation and action placement."
+
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "errors:codes.STALE_REVIEW"
+msgid "This Review is stale. Generate a new Review before Apply."
+msgstr "This Review is stale. Generate a new Review before Apply."
+
+#: frontend/src/pages/SourceConfiguration.tsx:133
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.thisSourceManages"
+msgid "This Source manages"
+msgstr "This Source manages"
+
+#: frontend/src/pages/Workspace.tsx:464
+msgctxt "workspace:workspace.thisIsTheOnlyStepThatWrites"
+msgid "This is the only step that writes to WooCommerce."
+msgstr "This is the only step that writes to WooCommerce."
+
+#: frontend/src/pages/NotFound.tsx:13
+msgctxt "common:notFound.thisPageDoesnTExist"
+msgid "This page doesn't exist."
+msgstr "This page doesn't exist."
+
+#: frontend/src/pages/Sources.tsx:42
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sources.thisSourceCannotBeChangedFromThis"
+msgid "This source cannot be changed from this page."
+msgstr "This source cannot be changed from this page."
+
+#: frontend/src/pages/Diagnostics.tsx:386
+msgctxt "diagnostics:diagnostics.throttleEvents"
+msgid "Throttle events"
+msgstr "Throttle events"
+
+#: frontend/src/pages/Orders.tsx:82
+msgctxt "orders:orders.timeline"
+msgid "Timeline"
+msgstr "Timeline"
+
+#: frontend/src/pages/Settings.tsx:230 frontend/src/pages/Setup.tsx:630
+msgctxt "settings:settings.timezone"
+msgid "Timezone"
+msgstr "Timezone"
+
+#: frontend/src/pages/Products.tsx:324
+msgctxt "products:products.total"
+msgid "Total"
+msgstr "Total"
+
+#: frontend/src/pages/Dashboard.tsx:174
+msgctxt "dashboard:dashboard.totalProducts"
+msgid "Total Products"
+msgstr "Total Products"
+
+#: frontend/src/pages/Products.tsx:684
+msgctxt "products:products.tryAdjustingTheSearchOrFilter"
+msgid "Try adjusting the search or filter."
+msgstr "Try adjusting the search or filter."
+
+#: frontend/src/components/ErrorBoundary.tsx:42
+msgctxt "common:errorBoundary.tryAgain"
+msgid "Try again"
+msgstr "Try again"
+
+#: frontend/src/pages/Workspace.tsx:731
+msgctxt "workspace:workspace.tryAgain"
+msgid "Try again"
+msgstr "Try again"
+
+#: frontend/src/pages/Workspace.tsx:29
+msgctxt "workspace:workspace.tryAgainAfterAllowanceReset"
+msgid "Try again after the rolling allowance resets."
+msgstr "Try again after the rolling allowance resets."
+
+#: frontend/src/pages/Workspace.tsx:26
+msgctxt "workspace:workspace.tryAgainAfter"
+msgid "Try again after {{date}}."
+msgstr "Try again after {{date}}."
+
+#: frontend/src/pages/Workspace.tsx:28
+msgctxt "workspace:workspace.tryAgainInMinutes"
+msgid "Try again in about {{count}} minute."
+msgid_plural "Try again in about {{count}} minutes."
+msgstr[0] "Try again in about {{count}} minute."
+msgstr[1] "Try again in about {{count}} minutes."
+
+msgctxt "flowhubSheet:flowHubSheet.tryAgain"
+msgid "Try again."
+msgstr "Try again."
+
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:88
+msgctxt "workspace:gridModel.type"
+msgid "Type"
+msgstr "Type"
+
+#: frontend/src/pages/Sources.tsx:53
+msgctxt "sources:sources.type"
+msgid "Type:"
+msgstr "Type:"
+
+#: frontend/src/pages/SourceWizard.tsx:70
+msgctxt "validation:source.urlRequired"
+msgid "URL is required."
+msgstr "URL is required."
+
+msgctxt "settings:setup.usdUsDollar"
+msgid "USD - US Dollar"
+msgstr "USD - US Dollar"
+
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "products:products.unableToApplyChannelPrices"
+msgid "Unable to apply Channel prices."
+msgstr "Unable to apply Channel prices."
+
+msgctxt "products:products.unableToApproveDryRun"
+msgid "Unable to approve Dry Run."
+msgstr "Unable to approve Dry Run."
+
+#: frontend/src/pages/Diagnostics.tsx:214 frontend/src/pages/Diagnostics.tsx:226 frontend/src/pages/Diagnostics.tsx:94
+msgctxt "diagnostics:diagnostics.unableToCheck"
+msgid "Unable to check"
+msgstr "Unable to check"
+
+#: frontend/src/pages/CommerceHub.tsx:1147 frontend/src/pages/CommerceHub.tsx:1153 frontend/src/pages/CommerceHub.tsx:637 frontend/src/pages/CommerceHub.tsx:642
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "commerce:commerceHub.unableToConnectToTheChannel"
+msgid "Unable to connect to the channel"
+msgstr "Unable to connect to the channel"
+
+#: frontend/src/pages/CommerceHub.tsx:1117 frontend/src/pages/CommerceHub.tsx:1123 frontend/src/pages/CommerceHub.tsx:637 frontend/src/pages/CommerceHub.tsx:642
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.unableToConnectToTheSource"
+msgid "Unable to connect to the source"
+msgstr "Unable to connect to the source"
+
+msgctxt "products:products.unableToCreateDryRun"
+msgid "Unable to create Dry Run."
+msgstr "Unable to create Dry Run."
+
+msgctxt "products:products.unableToCreateManualWorkspace"
+msgid "Unable to create Manual Workspace."
+msgstr "Unable to create Manual Workspace."
+
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.unableToLoadChannelPrices"
+msgid "Unable to load Channel prices."
+msgstr "Unable to load Channel prices."
+
+#: frontend/src/pages/CommerceHub.tsx:1090
+msgctxt "commerce:commerceHub.unableToLoadCommerceHub"
+msgid "Unable to load Commerce Hub"
+msgstr "Unable to load Commerce Hub"
+
+#: frontend/src/pages/CommerceHub.tsx:520
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "commerce:commerceHub.unableToLoadChannelSettings"
+msgid "Unable to load channel settings"
+msgstr "Unable to load channel settings"
+
+#: frontend/src/pages/RateLimits.tsx:69
+msgctxt "settings:rateLimits.unableToLoadSettings"
+msgid "Unable to load settings"
+msgstr "Unable to load settings"
+
+#: frontend/src/pages/CommerceHub.tsx:1179 frontend/src/pages/CommerceHub.tsx:1186
+msgctxt "commerce:commerceHub.unableToRefreshTheProductCache"
+msgid "Unable to refresh the product cache"
+msgstr "Unable to refresh the product cache"
+
+#: frontend/src/pages/CommerceHub.tsx:1209 frontend/src/pages/CommerceHub.tsx:1216
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.unableToRefreshTheSource"
+msgid "Unable to refresh the source"
+msgstr "Unable to refresh the source"
+
+#: frontend/src/pages/CommerceHub.tsx:595
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "commerce:commerceHub.unableToSaveChannelSettings"
+msgid "Unable to save channel settings"
+msgstr "Unable to save channel settings"
+
+#: frontend/src/pages/RateLimits.tsx:107 frontend/src/pages/Settings.tsx:170
+msgctxt "settings:rateLimits.unableToSaveSettings"
+msgid "Unable to save settings"
+msgstr "Unable to save settings"
+
+#: frontend/src/pages/CommerceHub.tsx:595
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.unableToSaveSourceSettings"
+msgid "Unable to save source settings"
+msgstr "Unable to save source settings"
+
+#: frontend/src/pages/Workspace.tsx:32
+msgctxt "workspace:workspace.unableToStartPreview"
+msgid "Unable to start preview"
+msgstr "Unable to start preview"
+
+#: frontend/src/pages/Diagnostics.tsx:162 frontend/src/pages/Diagnostics.tsx:191
+msgctxt "diagnostics:diagnostics.unableToUpdateDiagnostics"
+msgid "Unable to update diagnostics"
+msgstr "Unable to update diagnostics"
+
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.unableToValidateChannelPrices"
+msgid "Unable to validate Channel prices."
+msgstr "Unable to validate Channel prices."
+
+#: frontend/src/pages/Diagnostics.tsx:114 frontend/src/pages/Diagnostics.tsx:208
+msgctxt "common:status.unavailable"
+msgid "Unavailable"
+msgstr "Unavailable"
+
+#: frontend/src/pages/Diagnostics.tsx:312 frontend/src/pages/Diagnostics.tsx:314
+msgctxt "diagnostics:diagnostics.unavailable"
+msgid "Unavailable"
+msgstr "Unavailable"
+
+#: frontend/src/pages/Products.tsx:254
+msgctxt "products:products.unavailable"
+msgid "Unavailable"
+msgstr "Unavailable"
+
+msgctxt "workspace:statusDisplay.unavailable"
+msgid "Unavailable"
+msgstr "Unavailable"
+
+#: frontend/src/pages/Workspace.tsx:89
+msgctxt "common:status.unchanged"
+msgid "Unchanged"
+msgstr "Unchanged"
+
+msgctxt "workspace:statusDisplay.unchanged"
+msgid "Unchanged"
+msgstr "Unchanged"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:95
+msgctxt "workspace:sourceCentricWorkspace.unchangedProducts"
+msgid "Unchanged products"
+msgstr "Unchanged products"
+
+msgctxt "sources:sources.unconfigured"
+msgid "Unconfigured"
+msgstr "Unconfigured"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:158
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "workspace:unifiedWorkspace.unifiedMultiChannelProductEditor"
+msgid "Unified multi-channel product editor"
+msgstr "Unified multi-channel product editor"
+
+#: frontend/src/features/unifiedWorkspace/statusDisplay.ts:34
+msgctxt "common:status.unknown"
+msgid "Unknown"
+msgstr "Unknown"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.unmapped"
+msgid "Unmapped"
+msgstr "Unmapped"
+
+#: frontend/src/pages/SourceConfiguration.tsx:130
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "sources:sourceConfiguration.unmappedColumnsAreIgnoredHeaderSuggestionsNever"
+msgid "Unmapped columns are ignored. Header suggestions never override this saved Mapping."
+msgstr "Unmapped columns are ignored. Header suggestions never override this saved Mapping."
+
+#: frontend/src/pages/Workspace.tsx:113
+msgctxt "workspace:workspace.unmatchedProduct"
+msgid "Unmatched product"
+msgstr "Unmatched product"
+
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:53
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "workspace:gridModel.unresolvedListing"
+msgid "Unresolved Listing"
+msgstr "Unresolved Listing"
+
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:51
+msgctxt "workspace:gridModel.unresolvedProduct"
+msgid "Unresolved Product"
+msgstr "Unresolved Product"
+
+#: frontend/src/pages/CommerceHub.tsx:420
+msgctxt "commerce:commerceHub.unsupported"
+msgid "Unsupported"
+msgstr "Unsupported"
+
+#: frontend/src/pages/CommerceHub.tsx:394
+msgctxt "commerce:commerceHub.upOneFolder"
+msgid "Up one folder"
+msgstr "Up one folder"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:71
+msgctxt "workspace:sourceCentricWorkspace.updatingSelectedChanges"
+msgid "Updating selected changes"
+msgstr "Updating selected changes"
+
+#: frontend/src/services/sources/ApiSourceService.ts:37
+msgctxt "common:apiSourceService.useSettingsToConfigureConnectors"
+msgid "Use Settings to configure connectors."
+msgstr "Use Settings to configure connectors."
+
+#: frontend/src/pages/SourceConfiguration.tsx:134
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.useSourceWorksheet"
+msgid "Use Source worksheet"
+msgstr "Use Source worksheet"
+
+#: frontend/src/pages/CommerceHub.tsx:896
+msgctxt "commerce:commerceHub.useWebdavWithYourAppPasswordPublic"
+msgid "Use WebDAV with your app password. Public share links are not required."
+msgstr "Use WebDAV with your app password. Public share links are not required."
+
+msgctxt "sources:sourceConfiguration.useEvaluatedResult"
+msgid "Use evaluated result"
+msgstr "Use evaluated result"
+
+#: frontend/src/pages/CommerceHub.tsx:310 frontend/src/pages/CommerceHub.tsx:313 frontend/src/pages/CommerceHub.tsx:316
+msgctxt "commerce:commerceHub.validation.useNextcloudRootOrWebdav"
+msgid "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings."
+msgstr "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings."
+
+#: frontend/src/components/Topbar.tsx:197
+msgctxt "navigation:topbar.userMenu"
+msgid "User menu"
+msgstr "User menu"
+
+#: frontend/src/pages/Login.tsx:80
+msgctxt "authentication:login.username"
+msgid "Username"
+msgstr "Username"
+
+#: frontend/src/pages/Setup.tsx:807
+msgctxt "settings:setup.username"
+msgid "Username"
+msgstr "Username"
+
+#: frontend/src/pages/SourceWizard.tsx:71
+msgctxt "validation:source.usernameRequired"
+msgid "Username is required."
+msgstr "Username is required."
+
+#: frontend/src/pages/Workspace.tsx:87
+msgctxt "workspace:workspace.status.valid"
+msgid "Valid"
+msgstr "Valid"
+
+#: frontend/src/pages/Products.tsx:203
+msgctxt "products:products.validate"
+msgid "Validate"
+msgstr "Validate"
+
+#: frontend/src/pages/SourceConfiguration.tsx:135
+msgctxt "sources:sourceConfiguration.valueHandling"
+msgid "Value handling"
+msgstr "Value handling"
+
+#: frontend/src/pages/Workspace.tsx:133 frontend/src/pages/Workspace.tsx:227
+msgctxt "workspace:workspace.variation"
+msgid "Variation"
+msgstr "Variation"
+
+#: frontend/src/pages/Workspace.tsx:487
+msgctxt "workspace:workspace.variationRowsRequireCachedParentProductMetadata"
+msgid "Variation rows require cached parent product metadata."
+msgstr "Variation rows require cached parent product metadata."
+
+#: frontend/src/pages/CommerceHub.tsx:827
+msgctxt "commerce:commerceHub.vendor"
+msgid "Vendor"
+msgstr "Vendor"
+
+#: frontend/src/pages/CommerceHub.tsx:831
+msgctxt "commerce:commerceHub.vendorStore"
+msgid "Vendor / store"
+msgstr "Vendor / store"
+
+#: frontend/src/pages/CommerceHub.tsx:883
+msgctxt "commerce:commerceHub.vendorId"
+msgid "Vendor ID:"
+msgstr "Vendor ID:"
+
+#: frontend/src/pages/CommerceHub.tsx:203
+msgctxt "commerce:commerceHub.vendorSelected"
+msgid "Vendor selected:"
+msgstr "Vendor selected:"
+
+#: frontend/src/pages/Workspace.tsx:249
+msgctxt "workspace:workspace.verifiedAt"
+msgid "Verified at {{value1}}"
+msgstr "Verified at {{value1}}"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:103
+#. Reconciliation verifies an uncertain external write without blindly redispatching it.
+msgctxt "workspace:sourceCentricWorkspace.verifiedSuccessIsShownOnlyAfterExact"
+msgid "Verified success is shown only after exact provider verification. Uncertain outcomes require reconciliation."
+msgstr "Verified success is shown only after exact provider verification. Uncertain outcomes require reconciliation."
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:144
+msgctxt "workspace:unifiedWorkspace.verifyUncertainListings"
+msgid "Verify uncertain Listings"
+msgstr "Verify uncertain Listings"
+
+#: frontend/src/auth.tsx:188
+msgctxt "authentication:access.verifyingAccess"
+msgid "Verifying Access"
+msgstr "Verifying Access"
+
+#: frontend/src/auth.tsx:194
+msgctxt "authentication:access.verifyingSession"
+msgid "Verifying your session with the server."
+msgstr "Verifying your session with the server."
+
+#: frontend/src/pages/Settings.tsx:266
+msgctxt "settings:settings.version"
+msgid "Version"
+msgstr "Version"
+
+#: frontend/src/pages/SourceWizard.tsx:255
+msgctxt "sources:sourceWizard.viewProducts"
+msgid "View Products"
+msgstr "View Products"
+
+#: frontend/src/pages/Dashboard.tsx:245
+msgctxt "dashboard:dashboard.viewAll"
+msgid "View all"
+msgstr "View all"
+
+#: frontend/src/pages/FlowHubSheet.tsx:102
+msgctxt "flowhubSheet:flowHubSheet.virtualizedFlowhubSheet"
+msgid "Virtualized FlowHub Sheet"
+msgstr "Virtualized FlowHub Sheet"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:204
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "workspace:unifiedWorkspace.virtualizedMultiChannelWorkspaceGrid"
+msgid "Virtualized multi-channel Workspace Grid"
+msgstr "Virtualized multi-channel Workspace Grid"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:76
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "workspace:unifiedWorkspace.visibilityChangesPresentationOnlyAndNeverSelects"
+msgid "Visibility changes presentation only and never selects a Channel for Apply."
+msgstr "Visibility changes presentation only and never selects a Channel for Apply."
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:75
+msgctxt "workspace:unifiedWorkspace.visibleChannels"
+msgid "Visible Channels"
+msgstr "Visible Channels"
+
+msgctxt "activity:activity.warning"
+msgid "Warning"
+msgstr "Warning"
+
+#: frontend/src/pages/Diagnostics.tsx:91 frontend/src/pages/Workspace.tsx:88
+msgctxt "common:status.warning"
+msgid "Warning"
+msgstr "Warning"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.warning"
+msgid "Warning"
+msgstr "Warning"
+
+msgctxt "workspace:statusDisplay.warning"
+msgid "Warning"
+msgstr "Warning"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:127
+msgctxt "workspace:unifiedWorkspace.warnings"
+msgid "Warnings"
+msgstr "Warnings"
+
+#: frontend/src/pages/CommerceHub.tsx:338
+msgctxt "commerce:commerceHub.validation.webdavUsernameMismatch"
+msgid "WebDAV URL username does not match configured username."
+msgstr "WebDAV URL username does not match configured username."
+
+#: frontend/src/pages/CommerceHub.tsx:876
+msgctxt "commerce:commerceHub.webhookUrl"
+msgid "Webhook URL"
+msgstr "Webhook URL"
+
+#: frontend/src/pages/CommerceHub.tsx:879
+msgctxt "commerce:commerceHub.webhookCredential"
+msgid "Webhook credential:"
+msgstr "Webhook credential:"
+
+#: frontend/src/pages/CommerceHub.tsx:212
+msgctxt "commerce:commerceHub.webhookCredentials"
+msgid "Webhook credentials:"
+msgstr "Webhook credentials:"
+
+#: frontend/src/pages/CommerceHub.tsx:872
+msgctxt "commerce:commerceHub.webhookRegistration"
+msgid "Webhook registration"
+msgstr "Webhook registration"
+
+msgctxt "settings:setup.welcome"
+msgid "Welcome"
+msgstr "Welcome"
+
+#: frontend/src/pages/Setup.tsx:553
+msgctxt "settings:setup.welcomeToFlowhub"
+msgid "Welcome to FlowHub"
+msgstr "Welcome to FlowHub"
+
+msgctxt "products:products.woocommerce"
+msgid "WooCommerce"
+msgstr "WooCommerce"
+
+#: frontend/src/pages/Workspace.tsx:541
+msgctxt "workspace:workspace.woocommerce"
+msgid "WooCommerce"
+msgstr "WooCommerce"
+
+#: frontend/src/pages/Workspace.tsx:476
+msgctxt "workspace:workspace.workflowGuardrails"
+msgid "Workflow Guardrails"
+msgstr "Workflow Guardrails"
+
+#: frontend/src/pages/CommerceHub.tsx:945
+msgctxt "commerce:commerceHub.worksheet"
+msgid "Worksheet"
+msgstr "Worksheet"
+
+#: frontend/src/pages/DataQuality.tsx:41
+msgctxt "dataQuality:dataQuality.worksheet"
+msgid "Worksheet"
+msgstr "Worksheet"
+
+#: frontend/src/pages/SourceConfiguration.tsx:129 frontend/src/pages/SourceImportWizard.tsx:65
+msgctxt "sources:sourceConfiguration.worksheet"
+msgid "Worksheet"
+msgstr "Worksheet"
+
+#: frontend/src/pages/CommerceHub.tsx:968
+msgctxt "commerce:commerceHub.worksheetName"
+msgid "Worksheet name"
+msgstr "Worksheet name"
+
+#: frontend/src/pages/SourceConfiguration.tsx:134
+msgctxt "sources:sourceConfiguration.worksheetOverride"
+msgid "Worksheet override"
+msgstr "Worksheet override"
+
+#: frontend/src/pages/SourceConfiguration.tsx:129
+msgctxt "sources:sourceConfiguration.worksheetPolicy"
+msgid "Worksheet policy"
+msgstr "Worksheet policy"
+
+#: frontend/src/components/Sidebar.tsx:141
+msgctxt "navigation:sidebar.workspace"
+msgid "Workspace"
+msgstr "Workspace"
+
+#: frontend/src/components/Topbar.tsx:27
+msgctxt "navigation:topbar.workspace"
+msgid "Workspace"
+msgstr "Workspace"
+
+#: frontend/src/pages/Workspace.tsx:401
+msgctxt "workspace:workspace.workspace"
+msgid "Workspace"
+msgstr "Workspace"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:187
+msgctxt "workspace:unifiedWorkspace.workspaceGrid"
+msgid "Workspace Grid"
+msgstr "Workspace Grid"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:94
+msgctxt "workspace:sourceCentricWorkspace.workspaceChangeSummary"
+msgid "Workspace change summary"
+msgstr "Workspace change summary"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:72
+msgctxt "workspace:unifiedWorkspace.workspaceControls"
+msgid "Workspace controls"
+msgstr "Workspace controls"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:27
+msgctxt "workspace:unifiedWorkspace.workspaceServiceUnavailable"
+msgid "Workspace service unavailable"
+msgstr "Workspace service unavailable"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:48
+msgctxt "workspace:unifiedWorkspace.workspaceUnavailable"
+msgid "Workspace unavailable"
+msgstr "Workspace unavailable"
+
+#: frontend/src/pages/Diagnostics.tsx:360
+msgctxt "diagnostics:diagnostics.writeRequestsMinute"
+msgid "Write Requests / Minute"
+msgstr "Write Requests / Minute"
+
+#: frontend/src/pages/RateLimits.tsx:148
+msgctxt "settings:rateLimits.writeRequestsMinute"
+msgid "Write Requests / Minute"
+msgstr "Write Requests / Minute"
+
+#: frontend/src/pages/RateLimits.tsx:82
+msgctxt "validation:rateLimits.writeRequestsRange"
+msgid "Write Requests / Minute must be between {{min}} and {{max}}."
+msgstr "Write Requests / Minute must be between {{min}} and {{max}}."
+
+#: frontend/src/pages/RateLimits.tsx:156
+msgctxt "settings:rateLimits.writeDelay"
+msgid "Write delay"
+msgstr "Write delay"
+
+#: frontend/src/pages/CommerceHub.tsx:785
+msgctxt "commerce:commerceHub.writeEnabled2"
+msgid "Write enabled"
+msgstr "Write enabled"
+
+#: frontend/src/pages/CommerceHub.tsx:58
+msgctxt "commerce:commerceHub.writesBlocked"
+msgid "Writes blocked"
+msgstr "Writes blocked"
+
+msgctxt "sources:sourceConfiguration.valueType.x"
+msgid "X marker"
+msgstr "X marker"
+
+#: frontend/src/pages/CommerceHub.tsx:203
+msgctxt "commerce:commerceHub.yes"
+msgid "Yes"
+msgstr "Yes"
+
+msgctxt "errors:codes.PERMISSION_DENIED"
+msgid "You do not have permission to perform this action."
+msgstr "You do not have permission to perform this action."
+
+#: frontend/src/auth.tsx:192
+msgctxt "authentication:access.permissionDeniedDescription"
+msgid "Your account does not have permission to view this content."
+msgstr "Your account does not have permission to view this content."
+
+#: frontend/src/pages/RateLimits.tsx:103 frontend/src/pages/Settings.tsx:166
+msgctxt "settings:rateLimits.yourChangesHaveBeenApplied"
+msgid "Your changes have been applied."
+msgstr "Your changes have been applied."
+
+#: frontend/src/pages/CommerceHub.tsx:577 frontend/src/pages/CommerceHub.tsx:586
+msgctxt "commerce:commerceHub.yourChangesHaveBeenSaved"
+msgid "Your changes have been saved."
+msgstr "Your changes have been saved."
+
+#: frontend/src/pages/SourceWizard.tsx:247
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceWizard.yourSourceIsActiveAndReadyTo"
+msgid "Your source is active and ready to sync."
+msgstr "Your source is active and ready to sync."
+
+msgctxt "sources:sourceConfiguration.valueType.zero"
+msgid "Zero"
+msgstr "Zero"
+
+#: frontend/src/pages/SourceWizard.tsx:246
+msgctxt "sources:sourceWizard.added"
+msgid "added"
+msgstr "added"
+
+#: frontend/src/pages/Workspace.tsx:497
+msgctxt "workspace:workspace.blockingError"
+msgid "blocking error"
+msgstr "blocking error"
+
+#: frontend/src/pages/Activity.tsx:39
+msgctxt "activity:activity.by"
+msgid "by"
+msgstr "by"
+
+#: frontend/src/pages/CommerceHub.tsx:227
+msgctxt "commerce:commerceHub.cached"
+msgid "cached"
+msgstr "cached"
+
+#: frontend/src/pages/SourceImportWizard.tsx:65
+msgctxt "sources:sourceImportWizard.columns"
+msgid "columns"
+msgstr "columns"
+
+#: frontend/src/pages/Workspace.tsx:497
+msgctxt "workspace:workspace.eligibleRow"
+msgid "eligible row"
+msgstr "eligible row"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:102
+msgctxt "workspace:sourceCentricWorkspace.explicitlySelectedReviewedChangesWillEnterThe"
+msgid "explicitly selected, Reviewed changes will enter the shared Write Pipeline. Blocked and hidden changes remain excluded."
+msgstr "explicitly selected, Reviewed changes will enter the shared Write Pipeline. Blocked and hidden changes remain excluded."
+
+#: frontend/src/pages/Workspace.tsx:533
+msgctxt "workspace:workspace.forWoocommerce"
+msgid "for WooCommerce."
+msgstr "for WooCommerce."
+
+#: frontend/src/pages/SourceConfiguration.tsx:139
+msgctxt "sources:sourceConfiguration.ignored"
+msgid "ignored"
+msgstr "ignored"
+
+#: frontend/src/pages/FlowHubSheet.tsx:116
+msgctxt "flowhubSheet:flowHubSheet.of"
+msgid "of"
+msgstr "of"
+
+#: frontend/src/pages/Products.tsx:711
+msgctxt "products:products.of"
+msgid "of"
+msgstr "of"
+
+#: frontend/src/pages/Setup.tsx:965
+msgctxt "settings:setup.of"
+msgid "of"
+msgstr "of"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:100
+msgctxt "workspace:sourceCentricWorkspace.of"
+msgid "of"
+msgstr "of"
+
+#: frontend/src/pages/CommerceHub.tsx:227
+msgctxt "commerce:commerceHub.pageS"
+msgid "page(s),"
+msgstr "page(s),"
+
+#: frontend/src/pages/Products.tsx:299
+msgctxt "products:products.pending"
+msgid "pending"
+msgstr "pending"
+
+#: frontend/src/pages/Workspace.tsx:533
+msgctxt "workspace:workspace.priceChange"
+msgid "price change"
+msgstr "price change"
+
+#: frontend/src/pages/CommerceHub.tsx:227
+msgctxt "commerce:commerceHub.received"
+msgid "received,"
+msgstr "received,"
+
+#: frontend/src/pages/SourceConfiguration.tsx:139
+msgctxt "sources:sourceConfiguration.recognized"
+msgid "recognized"
+msgstr "recognized"
+
+#: frontend/src/pages/FlowHubSheet.tsx:116
+msgctxt "flowhubSheet:flowHubSheet.renamedColumnsPage"
+msgid "renamed columns · Page"
+msgstr "renamed columns · Page"
+
+msgctxt "flowhubSheet:flowHubSheet.rows"
+msgid "rows"
+msgstr "rows"
+
+#: frontend/src/pages/SourceImportWizard.tsx:65
+msgctxt "sources:sourceImportWizard.rows"
+msgid "rows ·"
+msgstr "rows ·"
+
+#: frontend/src/pages/Products.tsx:565
+msgctxt "products:products.selected"
+msgid "selected"
+msgstr "selected"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
+msgctxt "workspace:sourceCentricWorkspace.selected"
+msgid "selected"
+msgstr "selected"
+
+#: frontend/src/pages/Workspace.tsx:640
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:workspace.sourceRows"
+msgid "source rows"
+msgstr "source rows"
+
+#: frontend/src/pages/Products.tsx:286
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "products:products.sourceUnit"
+msgid "source unit:"
+msgstr "source unit:"
+
+#: frontend/src/pages/Setup.tsx:686
+msgctxt "settings:setup.toVerifyTheConnection"
+msgid "to verify the connection."
+msgstr "to verify the connection."
+
+#: frontend/src/pages/Products.tsx:299
+msgctxt "products:products.unchanged"
+msgid "unchanged"
+msgstr "unchanged"
+
+#: frontend/src/pages/FlowHubSheet.tsx:116
+msgctxt "flowhubSheet:flowHubSheet.unsavedCells"
+msgid "unsaved cells ·"
+msgstr "unsaved cells ·"
+
+#: frontend/src/pages/Workspace.tsx:30
+msgctxt "workspace:workspace.sourceReadRecovery"
+msgid "{{allowance}}{{recovery}}"
+msgstr "{{allowance}}{{recovery}}"
+
+#: frontend/src/pages/Products.tsx:276
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.proposedPrice"
+msgid "{{channel}} proposed price"
+msgstr "{{channel}} proposed price"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "workspace:sourceCentricWorkspace.targetField"
+msgid "{{channel}} {{field}} Target"
+msgstr "{{channel}} {{field}} Target"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:60
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "workspace:unifiedWorkspace.listingRows"
+msgid "{{count}} Listing row"
+msgid_plural "{{count}} Listing rows"
+msgstr[0] "{{count}} Listing row"
+msgstr[1] "{{count}} Listing rows"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:191
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "workspace:unifiedWorkspace.listingsSelected"
+msgid "{{count}} Listing selected"
+msgid_plural "{{count}} Listings selected"
+msgstr[0] "{{count}} Listing selected"
+msgstr[1] "{{count}} Listings selected"
+
+#: frontend/src/pages/Products.tsx:561
+msgctxt "products:products.productCount"
+msgid "{{count}} product"
+msgid_plural "{{count}} products"
+msgstr[0] "{{count}} product"
+msgstr[1] "{{count}} products"
+
+#: frontend/src/pages/Workspace.tsx:302
+#. Review is the immutable validation result required before Apply.
+msgctxt "workspace:workspace.productReadyForReview"
+msgid "{{count}} product ready for Review."
+msgid_plural "{{count}} products ready for Review."
+msgstr[0] "{{count}} product ready for Review."
+msgstr[1] "{{count}} products ready for Review."
+
+#: frontend/src/pages/CommerceHub.tsx:1205
+msgctxt "commerce:commerceHub.rowsLoaded"
+msgid "{{count}} row loaded."
+msgid_plural "{{count}} rows loaded."
+msgstr[0] "{{count}} row loaded."
+msgstr[1] "{{count}} rows loaded."
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:65
+msgctxt "workspace:unifiedWorkspace.unsavedEdits"
+msgid "{{count}} unsaved edit"
+msgid_plural "{{count}} unsaved edits"
+msgstr[0] "{{count}} unsaved edit"
+msgstr[1] "{{count}} unsaved edits"
+
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:107
+#. Current is the latest verified or cached Channel value.
+msgctxt "workspace:gridModel.currentField"
+msgid "{{field}} Current"
+msgstr "{{field}} Current"
+
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:108
+#. Target is the proposed value that may be applied after Review.
+msgctxt "workspace:gridModel.targetField"
+msgid "{{field}} Target"
+msgstr "{{field}} Target"
+
+#: frontend/src/pages/SourceConfiguration.tsx:52
+msgctxt "sources:sourceConfiguration.columnReference"
+msgid "{{field}} column reference"
+msgstr "{{field}} column reference"
+
+#: frontend/src/pages/SourceConfiguration.tsx:46
+msgctxt "sources:sourceConfiguration.referenceType"
+msgid "{{field}} reference type"
+msgstr "{{field}} reference type"
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
+msgctxt "workspace:sourceCentricWorkspace.listingChannelSummary"
+msgid "{{listings}} Listings across {{channels}} Channels"
+msgstr "{{listings}} Listings across {{channels}} Channels"
+
+#: frontend/src/pages/SourceConfiguration.tsx:114
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.pricingWorkspaceName"
+msgid "{{source}} pricing"
+msgstr "{{source}} pricing"
+
+#: frontend/src/pages/Workspace.tsx:24
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "workspace:workspace.sourceReadsUsed"
+msgid "{{usage}} of {{limit}} source reads have been used. "
+msgstr "{{usage}} of {{limit}} source reads have been used. "
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:55
+msgctxt "workspace:sourceCentricWorkspace.eligibleChangesWereAutomaticallySelectedBlockedItems"
+msgid "{{value1}} eligible changes were automatically selected. Blocked items remain excluded."
+msgstr "{{value1}} eligible changes were automatically selected. Blocked items remain excluded."
+
+#: frontend/src/pages/Activity.tsx:97
+msgctxt "activity:activity.events"
+msgid "{{value1}} events"
+msgstr "{{value1}} events"
+
+#: frontend/src/pages/CommerceHub.tsx:1114 frontend/src/pages/CommerceHub.tsx:1143 frontend/src/pages/CommerceHub.tsx:629 frontend/src/pages/CommerceHub.tsx:633
+msgctxt "commerce:commerceHub.isReadyToUse"
+msgid "{{value1}} is ready to use."
+msgstr "{{value1}} is ready to use."
+
+#: frontend/src/pages/SourceWizard.tsx:97
+msgctxt "sources:sourceWizard.isReadyToUse"
+msgid "{{value1}} is ready to use."
+msgstr "{{value1}} is ready to use."
+
+#: frontend/src/pages/Orders.tsx:146
+msgctxt "orders:orders.orders2"
+msgid "{{value1}} orders"
+msgstr "{{value1}} orders"
+
+#: frontend/src/pages/CommerceHub.tsx:1174
+msgctxt "commerce:commerceHub.productsWereCachedFromPageS"
+msgid "{{value1}} products were cached from {{value2}} page(s)."
+msgstr "{{value1}} products were cached from {{value2}} page(s)."
+
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:93
+msgctxt "workspace:sourceCentricWorkspace.unsavedEdits"
+msgid "{{value1}} unsaved edits"
+msgstr "{{value1}} unsaved edits"
+
+#: frontend/src/pages/Dashboard.tsx:232
+msgctxt "dashboard:dashboard.products"
+msgid "{{value1}} · {{value2}} products"
+msgstr "{{value1}} · {{value2}} products"
+
+msgctxt "common:units.tomanAmount"
+msgid "{{value}} Toman"
+msgstr "{{value}} Toman"
+
+#: frontend/src/pages/SourceCenter.tsx:86
+#. Mapping links Source fields and products to Channel Listing identities.
+msgctxt "sources:sourceCenter.mappingV"
+msgid "· Mapping v"
+msgstr "· Mapping v"
+
+#: frontend/src/pages/UnifiedWorkspace.tsx:151
+msgctxt "workspace:unifiedWorkspace.errorDetail"
+msgid "— {{message}}"
+msgstr "— {{message}}"

@@ -1,3 +1,4 @@
+import { translate } from '../../i18n'
 import type { ColumnSettings } from 'handsontable/settings'
 import type {
   DraftChangeInput,
@@ -32,7 +33,11 @@ export interface GridDefinition {
   columnMeta: Map<string, GridColumnMeta>
 }
 
-const FIELD_LABELS = { price: 'Price', stock: 'Stock', status: 'Status' } as const
+const FIELD_LABELS = {
+  price: 'common:field.price',
+  stock: 'common:field.stock',
+  status: 'common:field.status',
+} as const
 
 export function buildGridDefinition(
   rows: WorkspaceGridRow[],
@@ -43,9 +48,9 @@ export function buildGridDefinition(
   const records: GridRecord[] = rows.map(row => {
     const record: GridRecord = {
       rowId: row.rowId,
-      canonicalName: row.displayName ?? row.canonicalName ?? 'Unresolved product',
+      canonicalName: row.displayName ?? row.canonicalName ?? translate('workspace:gridModel.unresolvedProduct'),
       productType: row.productType ?? 'unresolved',
-      listingLabel: row.listingLabel ?? 'Unresolved listing',
+      listingLabel: row.listingLabel ?? translate('workspace:gridModel.unresolvedListing'),
       listingId: row.listingId ?? '',
       channelId: row.channelId ?? '',
       sku: row.sku ?? '',
@@ -77,8 +82,14 @@ export function buildGridDefinition(
     ['listingLabel', { key: 'listingLabel', kind: 'identity' }],
     ['mappingState', { key: 'mappingState', kind: 'identity' }],
   ])
-  const secondHeader: string[] = ['Select', 'Product', 'Type', 'Listing', 'Mapping']
-  const topHeader: Array<string | { label: string; colspan: number }> = [{ label: 'Canonical Product / Listing', colspan: 5 }]
+  const secondHeader: string[] = [
+    translate('workspace:gridModel.select'),
+    translate('workspace:gridModel.product'),
+    translate('workspace:gridModel.type'),
+    translate('workspace:gridModel.listing'),
+    translate('workspace:gridModel.mapping'),
+  ]
+  const topHeader: Array<string | { label: string; colspan: number }> = [{ label: translate('workspace:gridModel.canonicalProductListing'), colspan: 5 }]
   for (const channel of visible) {
     topHeader.push({ label: formatChannelDisplayName(channel.channelId, channel), colspan: 7 })
     for (const field of Object.keys(FIELD_LABELS) as Array<keyof typeof FIELD_LABELS>) {
@@ -92,7 +103,10 @@ export function buildGridDefinition(
         width: 110,
         allowInvalid: false,
       })
-      secondHeader.push(`${FIELD_LABELS[field]} Current`, `${FIELD_LABELS[field]} Target`)
+      secondHeader.push(
+        translate('workspace:gridModel.currentField', { field: translate(FIELD_LABELS[field]) }),
+        translate('workspace:gridModel.targetField', { field: translate(FIELD_LABELS[field]) }),
+      )
       columnMeta.set(currentKey, { key: currentKey, channelId: channel.channelId, field, kind: 'current' })
       columnMeta.set(targetKey, { key: targetKey, channelId: channel.channelId, field, kind: 'target' })
     }

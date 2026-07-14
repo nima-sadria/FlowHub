@@ -1,0 +1,13 @@
+{
+  "codes.AUTHENTICATION_REQUIRED": "Please sign in to continue.",
+  "codes.CACHE_STALE": "Channel data is stale. Refresh it and create a new Review.",
+  "codes.CAPABILITY_CHANGED": "Channel capabilities changed. Create a new Review.",
+  "codes.CURRENCY_CONFIGURATION_CHANGED": "Currency configuration changed. Create a new Review.",
+  "codes.MAPPING_CHANGED": "Product Mapping changed. Create a new Review.",
+  "codes.PERMISSION_DENIED": "You do not have permission to perform this action.",
+  "codes.REVIEW_REQUIRED": "A fresh Review is required before Apply.",
+  "codes.SELECTION_CHECKSUM_MISMATCH": "The confirmed selection changed. Review and confirm it again.",
+  "codes.SOURCE_READ_LIMIT_REACHED": "The Source read limit was reached. Try again after the allowance resets.",
+  "codes.STALE_REVIEW": "This Review is stale. Generate a new Review before Apply.",
+  "codes.UNKNOWN": "The request could not be completed."
+}

@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { useContext } from 'react'
 import Icon, { type IconName } from '../components/Icon'
 import IconButton from '../components/IconButton'
@@ -42,18 +43,18 @@ export default function NotificationContainer() {
     <div
       className="fixed top-4 end-4 z-50 flex flex-col gap-2 w-full max-w-sm pointer-events-none"
       role="region"
-      aria-label="Notifications"
+      aria-label={translate('notifications:notificationContainer.notifications')}
     >
       {notifications.map(n => {
         const styles = TYPE_STYLES[n.type]
         return (
           <div
             key={n.id}
-            className={['fh-notification', styles.card].join(' ')}
+            className={["fh-notification", styles.card].join(' ')}
             data-notification-type={n.type}
             role="alert"
           >
-            <span className={['fh-notification-icon', styles.iconWrap].join(' ')}>
+            <span className={["fh-notification-icon", styles.iconWrap].join(' ')}>
               <Icon name={TYPE_ICONS[n.type]} size="md" className={styles.icon} />
             </span>
             <div className="min-w-0 flex-1">
@@ -65,7 +66,7 @@ export default function NotificationContainer() {
             <IconButton
               onClick={() => dismiss(n.id)}
               className="fh-notification-close"
-              label="Close notification"
+              label={translate('notifications:notificationContainer.closeNotification')}
               size="sm"
             >
               <Icon name="close" />

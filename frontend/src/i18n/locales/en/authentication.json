@@ -1,0 +1,14 @@
+{
+  "access.accessDenied": "Access Denied",
+  "access.loginRequired": "Login Required",
+  "access.permissionDeniedDescription": "Your account does not have permission to view this content.",
+  "access.signInToContinue": "Please sign in to continue.",
+  "access.verifyingAccess": "Verifying Access",
+  "access.verifyingSession": "Verifying your session with the server.",
+  "login.flowhub": "FlowHub",
+  "login.password": "Password",
+  "login.signIn": "Sign in",
+  "login.signingIn": "Signing in...",
+  "login.signInToFlowhub": "Sign in to FlowHub",
+  "login.username": "Username"
+}

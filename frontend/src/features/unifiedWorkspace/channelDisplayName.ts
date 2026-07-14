@@ -28,8 +28,9 @@ export function formatChannelDisplayName(
 
   const [rawType, ...rawInstanceParts] = channelId.split(':')
   const type = rawType.trim().toLowerCase()
-  const base = CHANNEL_TYPE_LABELS[type] ?? (humanize(rawType) || 'Channel')
+  const base = CHANNEL_TYPE_LABELS[type] ?? (humanize(rawType) || translate('common:labels.channel'))
   const instance = metadata.instanceLabel?.trim() || humanize(rawInstanceParts.join(':'))
   if (!instance || ['primary', 'main'].includes(instance.toLowerCase())) return base
   return `${base} — ${instance}`
 }
+import { translate } from '../../i18n'

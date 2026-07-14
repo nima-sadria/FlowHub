@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useServices } from '../services/ServiceContext'
@@ -20,15 +21,15 @@ function StepIndicator({ current, total }: { current: Step; total: number }) {
         return (
           <div key={step} className="flex items-center gap-2">
             <div className={[
-              'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors',
-              active  ? 'bg-accent text-white' :
-              done    ? 'bg-wp-green/20 text-wp-green' :
-              'bg-bg-base border border-border text-wp-muted',
+              "w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors",
+              active  ? "bg-accent text-white" :
+              done    ? "bg-wp-green/20 text-wp-green" :
+              "bg-bg-base border border-border text-wp-muted",
             ].join(' ')}>
               {done ? <Icon name="success" /> : step}
             </div>
             {i < total - 1 && (
-              <div className={['w-10 h-px', done ? 'bg-wp-green/40' : 'bg-border'].join(' ')} />
+              <div className={["w-10 h-px", done ? "bg-wp-green/40" : "bg-border"].join(' ')} />
             )}
           </div>
         )
@@ -37,7 +38,12 @@ function StepIndicator({ current, total }: { current: Step; total: number }) {
   )
 }
 
-const STEP_LABELS = ['Select Type', 'Configure', 'Test Connection', 'Done']
+const STEP_LABEL_KEYS = [
+  'sources:sourceWizard.selectType',
+  'sources:sourceWizard.configure',
+  'sources:sourceWizard.testConnection',
+  'sources:sourceWizard.done',
+]
 
 export default function SourceWizard() {
   const { sources } = useServices()
@@ -60,11 +66,11 @@ export default function SourceWizard() {
 
   function validateStep2(): boolean {
     const errs: typeof errors = {}
-    if (!config.name.trim()) errs.name = 'Name is required'
-    if (!config.url.trim()) errs.url = 'URL is required'
-    if (!config.username.trim()) errs.username = 'Username is required'
-    if (!config.password.trim()) errs.password = 'Password is required'
-    if (!config.filePath.trim()) errs.filePath = 'File path is required'
+    if (!config.name.trim()) errs.name = translate('validation:source.nameRequired')
+    if (!config.url.trim()) errs.url = translate('validation:source.urlRequired')
+    if (!config.username.trim()) errs.username = translate('validation:source.usernameRequired')
+    if (!config.password.trim()) errs.password = translate('validation:source.passwordRequired')
+    if (!config.filePath.trim()) errs.filePath = translate('validation:source.filePathRequired')
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -87,8 +93,8 @@ export default function SourceWizard() {
     try {
       await sources.createSource(config)
       success({
-        title: 'Source added successfully',
-        description: `${config.name} is ready to use.`,
+        title: translate('sources:sourceWizard.sourceAddedSuccessfully'),
+        description: translate('sources:sourceWizard.isReadyToUse', { value1: config.name }),
       })
       setStep(4)
     } finally {
@@ -105,10 +111,10 @@ export default function SourceWizard() {
           value={config[name] as string}
           onChange={e => { setConfig(c => ({ ...c, [name]: e.target.value })); setErrors(ev => ({ ...ev, [name]: undefined })) }}
           {...inputHint(template_variable)}
-          autoComplete={type === 'password' ? 'new-password' : undefined}
+          autoComplete={type === "password" ? "new-password" : undefined}
           className={[
-            'fh-input',
-            errors[name] ? 'fh-input-error' : '',
+            "fh-input",
+            errors[name] ? "fh-input-error" : '',
           ].join(' ')}
         />
         {errors[name] && <p className="fh-field-error">{errors[name]}</p>}
@@ -120,8 +126,8 @@ export default function SourceWizard() {
     <PageShell className="max-w-3xl">
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">Add a Source</h1>
-          <p className="fh-page-subtitle">{STEP_LABELS[step - 1]}</p>
+          <h1 className="fh-page-title">{translate('sources:sourceWizard.addASource')}</h1>
+          <p className="fh-page-subtitle">{translate(STEP_LABEL_KEYS[step - 1])}</p>
         </div>
       </div>
 
@@ -132,7 +138,7 @@ export default function SourceWizard() {
         {/* Step 1 - Select type */}
         {step === 1 && (
           <div className="flex flex-col gap-4">
-            <p className="fh-text-body-sm">Select the type of data source to connect.</p>
+            <p className="fh-text-body-sm">{translate('sources:sourceWizard.selectTheTypeOfDataSourceTo')}</p>
             <button
               onClick={() => setStep(2)}
               className="fh-card flex w-full items-start gap-4 border-accent bg-accent/5 p-4 text-start transition-colors hover:bg-accent/10"
@@ -141,9 +147,9 @@ export default function SourceWizard() {
                 <Icon name="file" className="text-accent" />
               </div>
               <div>
-                <div className="fh-text-body font-semibold">Nextcloud Excel</div>
+                <div className="fh-text-body font-semibold">{translate('sources:sourceWizard.nextcloudExcel')}</div>
                 <div className="fh-text-caption mt-0.5">
-                  Read prices from an Excel spreadsheet hosted on Nextcloud or a compatible WebDAV server.
+                  {translate('sources:sourceWizard.readPricesFromAnExcelSpreadsheetHosted')}
                 </div>
               </div>
             </button>
@@ -153,18 +159,18 @@ export default function SourceWizard() {
         {/* Step 2 - Configure */}
         {step === 2 && (
           <div className="flex flex-col gap-4">
-            {field('name', 'Source name', 'text', 'My Price List')}
-            {field('url', 'Nextcloud URL', 'url', 'https://cloud.example.com')}
-            {field('username', 'Username')}
-            {field('password', 'Password', 'password')}
-            {field('filePath', 'File path', 'text', '/Price_List.xlsx')}
+            {field("name", "Source name", "text", "My Price List")}
+            {field("url", "Nextcloud URL", "url", 'https://cloud.example.com')}
+            {field("username", "Username")}
+            {field("password", "Password", "password")}
+            {field("filePath", "File path", "text", "/Price_List.xlsx")}
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setStep(1)}
                 className="fh-button-secondary flex-1"
               >
                 <Icon name="previous" mirrorRtl />
-                Back
+                {translate('sources:sourceWizard.back')}
               </button>
               <button
                 onClick={() => void handleTest()}
@@ -173,7 +179,7 @@ export default function SourceWizard() {
               >
                 {testing && <Spinner size="sm" className="text-white" />}
                 {!testing && <Icon name="testConnection" />}
-                {testing ? 'Testing...' : 'Test Connection'}
+                {testing ? translate('sources:sourceWizard.testing') : translate('sources:sourceWizard.testConnection')}
               </button>
             </div>
           </div>
@@ -186,7 +192,7 @@ export default function SourceWizard() {
               <div className="fh-alert fh-alert-success">
                 <Icon name="success" className="mt-0.5 flex-shrink-0 text-wp-green" />
                 <div>
-                  <p className="fh-text-body font-medium text-wp-green">Connection successful</p>
+                  <p className="fh-text-body font-medium text-wp-green">{translate('sources:sourceWizard.connectionSuccessful')}</p>
                   <p className="fh-text-caption mt-0.5">{testResult.message}</p>
                 </div>
               </div>
@@ -203,7 +209,7 @@ export default function SourceWizard() {
                 className="fh-button-secondary flex-1"
               >
                 <Icon name="previous" mirrorRtl />
-                Back
+                {translate('sources:sourceWizard.back')}
               </button>
               {testResult?.success && (
                 <button
@@ -213,7 +219,7 @@ export default function SourceWizard() {
                 >
                   {saving && <Spinner size="sm" className="text-white" />}
                   {!saving && <Icon name="save" />}
-                  {saving ? 'Saving...' : 'Save Source'}
+                  {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceWizard.saveSource')}
                 </button>
               )}
               {testResult && !testResult.success && (
@@ -223,7 +229,7 @@ export default function SourceWizard() {
                   className="fh-button-secondary flex-1"
                 >
                   <Icon name="retry" />
-                  Retry
+                  {translate('sources:sourceWizard.retry')}
                 </button>
               )}
             </div>
@@ -237,23 +243,23 @@ export default function SourceWizard() {
               <Icon name="success" size="lg" className="text-wp-green" />
             </div>
             <div>
-              <p className="fh-section-title">{config.name} added</p>
-              <p className="fh-text-body-sm mt-1">Your source is active and ready to sync.</p>
+              <p className="fh-section-title">{config.name} {translate('sources:sourceWizard.added')}</p>
+              <p className="fh-text-body-sm mt-1">{translate('sources:sourceWizard.yourSourceIsActiveAndReadyTo')}</p>
             </div>
             <div className="flex gap-3 w-full">
               <button
-                onClick={() => navigate('/products')}
+                onClick={() => navigate("/products")}
                 className="fh-button-secondary flex-1"
               >
                 <Icon name="products" />
-                View Products
+                {translate('sources:sourceWizard.viewProducts')}
               </button>
               <button
-                onClick={() => navigate('/sources')}
+                onClick={() => navigate("/sources")}
                 className="fh-button-primary flex-1"
               >
                 <Icon name="previous" mirrorRtl />
-                Back to Sources
+                {translate('sources:sourceWizard.backToSources')}
               </button>
             </div>
           </div>

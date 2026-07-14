@@ -1,0 +1,22 @@
+{
+  "dashboard.activeSources": "Active Sources",
+  "dashboard.addSource": "Add Source",
+  "dashboard.addYourFirstSource": "Add your first source",
+  "dashboard.application": "Application",
+  "dashboard.backend": "Backend",
+  "dashboard.channels": "Channels",
+  "dashboard.dashboard": "Dashboard",
+  "dashboard.database": "Database",
+  "dashboard.diagnostics2": "Diagnostics",
+  "dashboard.lastPreview": "Last Preview",
+  "dashboard.loggedIn": "Logged In",
+  "dashboard.noChannelsMonitored": "No channels monitored",
+  "dashboard.noEventsYet": "No events yet",
+  "dashboard.noSourcesYet": "No sources yet",
+  "dashboard.products": "{{value1}} · {{value2}} products",
+  "dashboard.recentActivity": "Recent Activity",
+  "dashboard.sources": "Sources",
+  "dashboard.systemOverview": "System overview",
+  "dashboard.totalProducts": "Total Products",
+  "dashboard.viewAll": "View all"
+}

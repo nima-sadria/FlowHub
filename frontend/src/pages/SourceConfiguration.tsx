@@ -1,3 +1,5 @@
+import { translate } from '../i18n'
+import { localizedApiError } from '../i18n/errors'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import PageShell from '../components/PageShell'
@@ -8,26 +10,26 @@ import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 import type { FieldMapping, ReferenceType, SourceChannel, SourceMapping, SourceProfile } from '../features/sourceWorkspace/types'
 
 const SOURCE_FIELDS = [
-  ['name', 'Source Product Name', true],
-  ['source_key', 'Source Product Key', false],
-  ['category', 'Category', false],
-  ['brand', 'Brand', false],
-  ['cost', 'Cost', false],
+  ['name', 'sources:sourceConfiguration.sourceProductName', true],
+  ['source_key', 'sources:sourceConfiguration.sourceProductKey', false],
+  ['category', 'sources:sourceConfiguration.category', false],
+  ['brand', 'sources:sourceConfiguration.brand', false],
+  ['cost', 'sources:sourceConfiguration.cost', false],
 ] as const
 const CHANNEL_FIELDS = [
-  ['external_id', 'External Listing ID'],
-  ['price', 'Price'],
-  ['stock', 'Stock'],
-  ['status', 'Status'],
+  ['external_id', 'sources:sourceConfiguration.externalListingId'],
+  ['price', 'common:field.price'],
+  ['stock', 'common:field.stock'],
+  ['status', 'common:field.status'],
 ] as const
 const DEFAULT_VALUE_POLICY: Record<string, string> = { blank: 'no_change', x: 'unavailable', dash: 'no_change', zero: 'explicit_zero', formula: 'calculated_value', invalid: 'blocked' }
 const POLICY_OPTIONS: Record<string, Array<[string, string]>> = {
-  blank: [['no_change', 'No target change'], ['blocked', 'Blocked issue']],
-  x: [['unavailable', 'No listing / unavailable'], ['no_change', 'No target change'], ['blocked', 'Blocked issue']],
-  dash: [['no_change', 'No target change'], ['unavailable', 'Unavailable'], ['blocked', 'Blocked issue']],
-  zero: [['explicit_zero', 'Explicit zero'], ['no_change', 'No target change'], ['blocked', 'Blocked issue']],
-  formula: [['calculated_value', 'Use evaluated result'], ['blocked', 'Blocked issue']],
-  invalid: [['blocked', 'Blocked issue']],
+  blank: [['no_change', 'sources:sourceConfiguration.noTargetChange'], ['blocked', 'sources:sourceConfiguration.blockedIssue']],
+  x: [['unavailable', 'sources:sourceConfiguration.noListingUnavailable'], ['no_change', 'sources:sourceConfiguration.noTargetChange'], ['blocked', 'sources:sourceConfiguration.blockedIssue']],
+  dash: [['no_change', 'sources:sourceConfiguration.noTargetChange'], ['unavailable', 'common:status.unavailable'], ['blocked', 'sources:sourceConfiguration.blockedIssue']],
+  zero: [['explicit_zero', 'sources:sourceConfiguration.explicitZero'], ['no_change', 'sources:sourceConfiguration.noTargetChange'], ['blocked', 'sources:sourceConfiguration.blockedIssue']],
+  formula: [['calculated_value', 'sources:sourceConfiguration.useEvaluatedResult'], ['blocked', 'sources:sourceConfiguration.blockedIssue']],
+  invalid: [['blocked', 'sources:sourceConfiguration.blockedIssue']],
 }
 
 interface SourcePreview {
@@ -41,13 +43,13 @@ const emptyMapping = (field: string, required = false): FieldMapping => ({ field
 
 function MappingControl({ mapping, onChange }: { mapping: FieldMapping; onChange: (value: FieldMapping) => void }) {
   return <div className="grid min-w-0 gap-2 sm:grid-cols-[160px_minmax(0,1fr)]">
-    <select className="fh-input" aria-label={`${mapping.field} reference type`} value={mapping.referenceType} onChange={event => onChange({ ...mapping, referenceType: event.target.value as ReferenceType, referenceValue: event.target.value === 'disabled' ? null : mapping.referenceValue })}>
-      <option value="disabled">Not configured</option>
-      <option value="column_letter">Column letter</option>
-      <option value="header_name">Exact header</option>
-      <option value="column_id">Internal column</option>
+    <select className="fh-input" aria-label={translate('sources:sourceConfiguration.referenceType', { field: mapping.field })} value={mapping.referenceType} onChange={event => onChange({ ...mapping, referenceType: event.target.value as ReferenceType, referenceValue: event.target.value === "disabled" ? null : mapping.referenceValue })}>
+      <option value="disabled">{translate('sources:sourceConfiguration.notConfigured')}</option>
+      <option value="column_letter">{translate('sources:sourceConfiguration.columnLetter')}</option>
+      <option value="header_name">{translate('sources:sourceConfiguration.exactHeader')}</option>
+      <option value="column_id">{translate('sources:sourceConfiguration.internalColumn')}</option>
     </select>
-    <input className="fh-input" aria-label={`${mapping.field} column reference`} disabled={mapping.referenceType === 'disabled'} value={mapping.referenceValue ?? ''} onChange={event => onChange({ ...mapping, referenceValue: event.target.value })} placeholder={mapping.referenceType === 'column_letter' ? 'Example: C' : 'Exact column reference'} />
+    <input className="fh-input" aria-label={translate('sources:sourceConfiguration.columnReference', { field: mapping.field })} disabled={mapping.referenceType === "disabled"} value={mapping.referenceValue ?? ''} onChange={event => onChange({ ...mapping, referenceValue: event.target.value })} placeholder={mapping.referenceType === "column_letter" ? translate('sources:sourceConfiguration.exampleColumn') : translate('sources:sourceConfiguration.exactColumnReference')} />
   </div>
 }
 
@@ -100,40 +102,40 @@ export default function SourceConfiguration() {
         channel_mappings: selectedChannels.map(channelId => ({ channel_id: channelId, worksheet_name: channelWorksheets[channelId] || null, fields: (channelFields[channelId] ?? []).map(item => ({ field: item.field, reference_type: item.referenceType, reference_value: item.referenceValue, required: false })) })),
         value_policy: valuePolicy,
       })
-      notify.success({ title: 'Source Mapping saved', description: 'A new immutable Mapping revision was created.' })
+      notify.success({ title: translate('sources:sourceConfiguration.sourceMappingSaved'), description: translate('sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated') })
       setSource(await sourceWorkspaceApi.source(source.id))
     } catch (error) {
-      notify.error({ title: 'Mapping was not saved', description: error instanceof Error ? error.message : 'Check the mapped fields.' })
+      notify.error({ title: translate('sources:sourceConfiguration.mappingWasNotSaved'), description: localizedApiError(error, 'sources:sourceConfiguration.checkTheMappedFields') })
     } finally { setSaving(false) }
   }
 
   async function createWorkspace() {
     if (!source) return
-    const workspace = await sourceWorkspaceApi.createWorkspace(source.id, `${source.name} pricing`)
+    const workspace = await sourceWorkspaceApi.createWorkspace(source.id, translate('sources:sourceConfiguration.pricingWorkspaceName', { source: source.name }))
     navigate(`/workspace/${workspace.id}`)
   }
 
   async function loadPreview() {
     setPreviewing(true)
     try { setPreview(await sourceWorkspaceApi.previewSource(sourceId) as unknown as SourcePreview) }
-    catch (error) { notify.error({ title: 'Source Preview unavailable', description: error instanceof Error ? error.message : 'Save a valid Mapping and Sheet revision first.' }) }
+    catch (error) { notify.error({ title: translate('sources:sourceConfiguration.sourcePreviewUnavailable'), description: localizedApiError(error, 'sources:sourceConfiguration.saveAValidMappingAndSheetRevision') }) }
     finally { setPreviewing(false) }
   }
 
-  if (!source) return <PageShell><p className="fh-card fh-card-pad">Loading Source configuration...</p></PageShell>
+  if (!source) return <PageShell><p className="fh-card fh-card-pad">{translate('sources:sourceConfiguration.loadingSourceConfiguration')}</p></PageShell>
   return <PageShell>
-    <div className="fh-page-header"><div><h1 className="fh-page-title">{source.name}</h1><p className="fh-page-subtitle">Map Source Product identity first, then each destination Channel independently.</p></div><button className="fh-button-primary" type="button" disabled={!source.mapping} onClick={() => void createWorkspace()}><Icon name="workspace" /> Open Workspace</button></div>
+    <div className="fh-page-header"><div><h1 className="fh-page-title">{source.name}</h1><p className="fh-page-subtitle">{translate('sources:sourceConfiguration.mapSourceProductIdentityFirstThenEach')}</p></div><button className="fh-button-primary" type="button" disabled={!source.mapping} onClick={() => void createWorkspace()}><Icon name="workspace" /> {translate('sources:sourceConfiguration.openWorkspace')}</button></div>
     <section className="fh-card fh-card-pad space-y-4">
-      <div className="grid gap-4 sm:grid-cols-3"><label className="fh-field-label">Worksheet policy<select className="fh-input mt-1" value={worksheetMode} onChange={event => setWorksheetMode(event.target.value as 'all' | 'selected')}><option value="selected">Selected worksheet</option><option value="all">All worksheets</option></select></label><label className="fh-field-label">Worksheet<input className="fh-input mt-1" disabled={worksheetMode === 'all'} value={worksheetName} onChange={event => setWorksheetName(event.target.value)} /></label><label className="fh-field-label">Data starts at row<input className="fh-input mt-1" type="number" min="1" value={dataStartRow} onChange={event => setDataStartRow(Number(event.target.value))} /></label></div>
-      <div><h2 className="fh-section-title">Source Product fields</h2><p className="fh-text-caption">Unmapped columns are ignored. Header suggestions never override this saved Mapping.</p></div>
-      <div className="grid gap-3">{SOURCE_FIELDS.map(([field, label]) => <label className="grid gap-1" key={field}><span className="fh-field-label">{label}</span><MappingControl mapping={sourceFields.find(item => item.field === field)!} onChange={value => updateSourceField(field, value)} /></label>)}</div>
+      <div className="grid gap-4 sm:grid-cols-3"><label className="fh-field-label">{translate('sources:sourceConfiguration.worksheetPolicy')}<select className="fh-input mt-1" value={worksheetMode} onChange={event => setWorksheetMode(event.target.value as 'all' | 'selected')}><option value="selected">{translate('sources:sourceConfiguration.selectedWorksheet')}</option><option value="all">{translate('sources:sourceConfiguration.allWorksheets')}</option></select></label><label className="fh-field-label">{translate('sources:sourceConfiguration.worksheet')}<input className="fh-input mt-1" disabled={worksheetMode === "all"} value={worksheetName} onChange={event => setWorksheetName(event.target.value)} /></label><label className="fh-field-label">{translate('sources:sourceConfiguration.dataStartsAtRow')}<input className="fh-input mt-1" type="number" min="1" value={dataStartRow} onChange={event => setDataStartRow(Number(event.target.value))} /></label></div>
+      <div><h2 className="fh-section-title">{translate('sources:sourceConfiguration.sourceProductFields')}</h2><p className="fh-text-caption">{translate('sources:sourceConfiguration.unmappedColumnsAreIgnoredHeaderSuggestionsNever')}</p></div>
+      <div className="grid gap-3">{SOURCE_FIELDS.map(([field, labelKey]) => <label className="grid gap-1" key={field}><span className="fh-field-label">{translate(labelKey)}</span><MappingControl mapping={sourceFields.find(item => item.field === field)!} onChange={value => updateSourceField(field, value)} /></label>)}</div>
     </section>
-    <section className="fh-card fh-card-pad mt-5 space-y-4"><div><h2 className="fh-section-title">This Source manages</h2><p className="fh-text-caption">Only enabled Channels with an implemented connector are available.</p></div><div className="flex flex-wrap gap-2">{channels.map(channel => <label className="fh-channel-toggle" key={channel.channelId}><input type="checkbox" checked={selectedChannels.includes(channel.channelId)} onChange={() => toggleChannel(channel.channelId)} /><span>{formatChannelDisplayName(channel.channelId, { displayName: channel.name })}</span></label>)}</div>
-      {selectedChannels.map(channelId => <article className="rounded-xl border border-border p-4" key={channelId}><div className="flex flex-wrap items-center gap-3"><h3 className="font-semibold text-text-base">{formatChannelDisplayName(channelId, { displayName: channelMap.get(channelId)?.name })}</h3><label className="fh-field-label ms-auto">Worksheet override<input className="fh-input mt-1" value={channelWorksheets[channelId] ?? ''} onChange={event => setChannelWorksheets(current => ({ ...current, [channelId]: event.target.value }))} placeholder="Use Source worksheet" /></label></div><div className="mt-3 grid gap-3">{CHANNEL_FIELDS.map(([field, label]) => <label className="grid gap-1" key={field}><span className="fh-field-label">{label}</span><MappingControl mapping={(channelFields[channelId] ?? CHANNEL_FIELDS.map(([name]) => emptyMapping(name))).find(item => item.field === field)!} onChange={value => updateChannelField(channelId, field, value)} /></label>)}</div></article>)}
-      <div><h2 className="fh-section-title">Value handling</h2><p className="fh-text-caption">Each special value is interpreted explicitly. Currency and unit are never inferred.</p></div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(POLICY_OPTIONS).map(([key, options]) => <label className="fh-field-label capitalize" key={key}>{key}<select className="fh-input mt-1" value={valuePolicy[key]} onChange={event => setValuePolicy(current => ({ ...current, [key]: event.target.value }))}>{options.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>)}</div>
-      <div className="flex justify-end"><button className="fh-button-primary" type="button" disabled={saving} onClick={() => void save()}><Icon name="save" /> {saving ? 'Saving...' : 'Save Mapping Revision'}</button></div>
+    <section className="fh-card fh-card-pad mt-5 space-y-4"><div><h2 className="fh-section-title">{translate('sources:sourceConfiguration.thisSourceManages')}</h2><p className="fh-text-caption">{translate('sources:sourceConfiguration.onlyEnabledChannelsWithAnImplementedConnector')}</p></div><div className="flex flex-wrap gap-2">{channels.map(channel => <label className="fh-channel-toggle" key={channel.channelId}><input type="checkbox" checked={selectedChannels.includes(channel.channelId)} onChange={() => toggleChannel(channel.channelId)} /><span>{formatChannelDisplayName(channel.channelId, { displayName: channel.name })}</span></label>)}</div>
+      {selectedChannels.map(channelId => <article className="rounded-xl border border-border p-4" key={channelId}><div className="flex flex-wrap items-center gap-3"><h3 className="font-semibold text-text-base">{formatChannelDisplayName(channelId, { displayName: channelMap.get(channelId)?.name })}</h3><label className="fh-field-label ms-auto">{translate('sources:sourceConfiguration.worksheetOverride')}<input className="fh-input mt-1" value={channelWorksheets[channelId] ?? ''} onChange={event => setChannelWorksheets(current => ({ ...current, [channelId]: event.target.value }))} placeholder={translate('sources:sourceConfiguration.useSourceWorksheet')} /></label></div><div className="mt-3 grid gap-3">{CHANNEL_FIELDS.map(([field, labelKey]) => <label className="grid gap-1" key={field}><span className="fh-field-label">{translate(labelKey)}</span><MappingControl mapping={(channelFields[channelId] ?? CHANNEL_FIELDS.map(([name]) => emptyMapping(name))).find(item => item.field === field)!} onChange={value => updateChannelField(channelId, field, value)} /></label>)}</div></article>)}
+      <div><h2 className="fh-section-title">{translate('sources:sourceConfiguration.valueHandling')}</h2><p className="fh-text-caption">{translate('sources:sourceConfiguration.eachSpecialValueIsInterpretedExplicitlyCurrency')}</p></div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(POLICY_OPTIONS).map(([key, options]) => <label className="fh-field-label capitalize" key={key}>{translate(`sources:sourceConfiguration.valueType.${key}`)}<select className="fh-input mt-1" value={valuePolicy[key]} onChange={event => setValuePolicy(current => ({ ...current, [key]: event.target.value }))}>{options.map(([value, labelKey]) => <option value={value} key={value}>{translate(labelKey)}</option>)}</select></label>)}</div>
+      <div className="flex justify-end"><button className="fh-button-primary" type="button" disabled={saving} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button></div>
     </section>
-    <section className="fh-card mt-5" aria-label="Source Preview"><div className="fh-panel-header"><div><h2 className="fh-section-title">Source Preview</h2><p className="fh-text-caption">Shows which rows the saved Mapping currently recognizes as Source Products.</p></div><button className="fh-button-secondary" type="button" disabled={!source.mapping || previewing} onClick={() => void loadPreview()}>{previewing ? 'Loading...' : 'Preview recognized rows'}</button></div>{preview && <><div className="grid grid-cols-2 gap-3 border-t border-border p-4"><div><strong className="text-text-base">{preview.recognized}</strong><span className="fh-text-caption ms-2">recognized</span></div><div><strong className="text-text-base">{preview.ignored}</strong><span className="fh-text-caption ms-2">ignored</span></div></div><div className="overflow-x-auto"><table className="min-w-full text-sm"><thead><tr><th className="p-3 text-start">Row</th><th className="p-3 text-start">Source Product</th><th className="p-3 text-start">Recognition</th><th className="p-3 text-start">Mapped Channels</th></tr></thead><tbody>{preview.items.slice(0, 25).map(item => <tr className="border-t border-border" key={item.rowKey}><td className="p-3">{item.rowNumber}</td><td className="p-3">{item.sourceProduct.name || item.sourceProduct.source_key || '—'}</td><td className="p-3">{item.recognized ? 'Source Product' : 'Ignored row'}</td><td className="p-3">{item.channels.map(channel => formatChannelDisplayName(channel.channelId)).join(', ') || 'None'}</td></tr>)}</tbody></table></div></>}</section>
+    <section className="fh-card mt-5" aria-label={translate('sources:sourceConfiguration.sourcePreview')}><div className="fh-panel-header"><div><h2 className="fh-section-title">{translate('sources:sourceConfiguration.sourcePreview')}</h2><p className="fh-text-caption">{translate('sources:sourceConfiguration.showsWhichRowsTheSavedMappingCurrently')}</p></div><button className="fh-button-secondary" type="button" disabled={!source.mapping || previewing} onClick={() => void loadPreview()}>{previewing ? translate('sources:sourceConfiguration.loading') : translate('sources:sourceConfiguration.previewRecognizedRows')}</button></div>{preview && <><div className="grid grid-cols-2 gap-3 border-t border-border p-4"><div><strong className="text-text-base">{preview.recognized}</strong><span className="fh-text-caption ms-2">{translate('sources:sourceConfiguration.recognized')}</span></div><div><strong className="text-text-base">{preview.ignored}</strong><span className="fh-text-caption ms-2">{translate('sources:sourceConfiguration.ignored')}</span></div></div><div className="overflow-x-auto"><table className="min-w-full text-sm"><thead><tr><th className="p-3 text-start">{translate('sources:sourceConfiguration.row')}</th><th className="p-3 text-start">{translate('sources:sourceConfiguration.sourceProduct')}</th><th className="p-3 text-start">{translate('sources:sourceConfiguration.recognition')}</th><th className="p-3 text-start">{translate('sources:sourceConfiguration.mappedChannels')}</th></tr></thead><tbody>{preview.items.slice(0, 25).map(item => <tr className="border-t border-border" key={item.rowKey}><td className="p-3">{item.rowNumber}</td><td className="p-3">{item.sourceProduct.name || item.sourceProduct.source_key || '—'}</td><td className="p-3">{item.recognized ? translate('sources:sourceConfiguration.sourceProduct') : translate('sources:sourceConfiguration.ignoredRow')}</td><td className="p-3">{item.channels.map(channel => formatChannelDisplayName(channel.channelId)).join(', ') || translate('common:status.none')}</td></tr>)}</tbody></table></div></>}</section>
   </PageShell>
 }

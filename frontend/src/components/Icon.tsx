@@ -136,11 +136,11 @@ export default function Icon({
   if (inlineIcon) {
     return (
       <span
-        role={label ? 'img' : undefined}
+        role={label ? "img" : undefined}
         aria-label={label}
         aria-hidden={label ? undefined : true}
         data-icon={name}
-        data-rtl-mirror={mirrorRtl ? 'true' : undefined}
+        data-rtl-mirror={mirrorRtl ? "true" : undefined}
         className={iconClass}
         style={iconStyle}
         {...props}
@@ -155,11 +155,11 @@ export default function Icon({
   }
   return (
     <span
-      role={label ? 'img' : undefined}
+      role={label ? "img" : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
       data-icon={name}
-      data-rtl-mirror={mirrorRtl ? 'true' : undefined}
+      data-rtl-mirror={mirrorRtl ? "true" : undefined}
       className={iconClass}
       style={iconStyle}
       {...props}

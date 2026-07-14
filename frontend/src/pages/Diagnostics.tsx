@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth'
 import { apiFetch, ApiError } from '../api/client'
@@ -9,16 +10,14 @@ import Empty from '../components/Empty'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
 import type { ChannelHealthItem, ChannelHealthResponse, ChannelHealthLevel } from '../services/types'
+import { formatDateTime, formatRelativeTime } from '../i18n/format'
+import { formatStatus } from '../i18n/display'
+import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 
 const REQUEST_TIMEOUT_MS = 10_000
 
 function relTime(d: Date): string {
-  const s = Math.floor((Date.now() - d.getTime()) / 1000)
-  if (s < 5) return 'just now'
-  if (s < 60) return `${s}s ago`
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  return `${Math.floor(m / 60)}h ago`
+  return formatRelativeTime(d)
 }
 
 interface ConnectorStatus {
@@ -88,11 +87,11 @@ function Row({ row }: { row: StatusRowData }) {
     'bg-border'
 
   const label =
-    row.status === 'ok'      ? 'Operational' :
-    row.status === 'warning' ? 'Warning' :
-    row.status === 'error'   ? 'Error' :
-    row.status === 'loading' ? 'Loading' :
-    'Unable to check'
+    row.status === 'ok'      ? translate('common:status.operational') :
+    row.status === 'warning' ? translate('common:status.warning') :
+    row.status === 'error'   ? translate('common:status.error') :
+    row.status === 'loading' ? translate('common:status.loading') :
+    translate('diagnostics:diagnostics.unableToCheck')
 
   return (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-border last:border-0">
@@ -103,7 +102,7 @@ function Row({ row }: { row: StatusRowData }) {
       <div className="flex items-center gap-2 flex-shrink-0">
         <span className="fh-text-body font-medium">{row.value}</span>
         <div className="flex items-center gap-1.5">
-          <span className={['w-2 h-2 rounded-full flex-shrink-0', dot].join(' ')} />
+          <span className={["w-2 h-2 rounded-full flex-shrink-0", dot].join(' ')} />
           <span className="fh-text-caption">{label}</span>
         </div>
       </div>
@@ -112,15 +111,12 @@ function Row({ row }: { row: StatusRowData }) {
 }
 
 function metricValue(value: number | null | undefined, suffix = ''): string {
-  if (value === null || value === undefined) return 'Unavailable'
+  if (value === null || value === undefined) return translate('common:status.unavailable')
   return `${value}${suffix}`
 }
 
 function channelLabel(channel: ChannelHealthItem): string {
-  if (channel.channelType === 'woocommerce') return 'WooCommerce'
-  if (channel.channelType === 'snappshop') return 'SnappShop'
-  if (channel.channelType === 'tapsishop') return 'TapsiShop'
-  return channel.channelType
+  return formatChannelDisplayName(channel.channelId || `${channel.channelType}:primary`)
 }
 
 function statusBadgeClass(status: ChannelHealthLevel): string {
@@ -152,8 +148,8 @@ export default function Diagnostics() {
       setDiag(diagnosticsData)
       setCheckedAt(new Date())
       success({
-        title: 'Diagnostics updated',
-        description: 'Latest system status has been loaded.',
+        title: translate('diagnostics:diagnostics.diagnosticsUpdated'),
+        description: translate('diagnostics:diagnostics.latestSystemStatusHasBeenLoaded'),
       })
     } catch (e) {
       const msg = e instanceof ApiError
@@ -163,8 +159,8 @@ export default function Diagnostics() {
           : 'Unable to check diagnostics.'
       setErr(msg)
       notifyError({
-        title: 'Unable to update diagnostics',
-        description: 'Please try again.',
+        title: translate('diagnostics:diagnostics.unableToUpdateDiagnostics'),
+        description: translate('diagnostics:diagnostics.pleaseTryAgain'),
       })
     } finally {
       setLoading(false)
@@ -187,13 +183,13 @@ export default function Diagnostics() {
       setDiag(current => current ? { ...current, channelHealth: data } : current)
       setCheckedAt(new Date())
       success({
-        title: 'Diagnostics updated',
-        description: 'Latest system status has been loaded.',
+        title: translate('diagnostics:diagnostics.diagnosticsUpdated'),
+        description: translate('diagnostics:diagnostics.latestSystemStatusHasBeenLoaded'),
       })
     } catch {
       notifyError({
-        title: 'Unable to update diagnostics',
-        description: 'Please try again.',
+        title: translate('diagnostics:diagnostics.unableToUpdateDiagnostics'),
+        description: translate('diagnostics:diagnostics.pleaseTryAgain'),
       })
     } finally {
       setRefreshingChannel(null)
@@ -208,16 +204,16 @@ export default function Diagnostics() {
   const limiter = diag?.rateLimiter
   const systemRows: StatusRowData[] = [
     {
-      label: 'Backend',
-      value: loading ? 'Loading' : health ? 'Online' : 'Unavailable',
+      label: translate('diagnostics:diagnostics.backend'),
+      value: loading ? translate('common:status.loading') : health ? translate('common:status.online') : translate('common:status.unavailable'),
       status: backendStatus,
-      detail: health ? 'Application service is responding' : undefined,
+      detail: health ? translate('diagnostics:diagnostics.applicationServiceResponding') : undefined,
     },
     {
-      label: 'Diagnostics',
-      value: loading ? 'Loading' : err ? 'Unable to check' : diag?.overall_status === 'error' ? 'Error' : 'Operational',
+      label: translate('diagnostics:diagnostics.diagnostics'),
+      value: loading ? translate('common:status.loading') : err ? translate('diagnostics:diagnostics.unableToCheck') : diag?.overall_status === 'error' ? translate('common:status.error') : translate('common:status.operational'),
       status: loading ? 'loading' : normalizeStatus(diag?.overall_status ?? (err ? 'error' : 'ok')),
-      detail: diag?.checkedAt ? `Last checked ${new Date(diag.checkedAt).toLocaleString()}` : undefined,
+      detail: diag?.checkedAt ? translate('diagnostics:diagnostics.lastCheckedAt', { date: formatDateTime(diag.checkedAt) }) : undefined,
     },
   ]
 
@@ -225,9 +221,9 @@ export default function Diagnostics() {
     <PageShell>
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">Diagnostics</h1>
+          <h1 className="fh-page-title">{translate('diagnostics:diagnostics.diagnostics')}</h1>
           <p className="fh-page-subtitle">
-            {checkedAt ? `Last checked ${relTime(checkedAt)}` : loading ? 'Loading' : 'Unable to check'}
+            {checkedAt ? translate('diagnostics:diagnostics.lastChecked2', { value1: relTime(checkedAt) }) : loading ? translate('diagnostics:diagnostics.loading') : translate('diagnostics:diagnostics.unableToCheck')}
           </p>
         </div>
         <button
@@ -238,7 +234,7 @@ export default function Diagnostics() {
           {loading ? <Spinner size="sm" /> : (
             <Icon name="refresh" />
           )}
-          {loading ? 'Loading' : 'Re-check'}
+          {loading ? translate('diagnostics:diagnostics.loading') : translate('diagnostics:diagnostics.reCheck')}
         </button>
       </div>
 
@@ -249,30 +245,30 @@ export default function Diagnostics() {
       )}
 
       <div className="fh-card fh-card-pad">
-        <p className="fh-section-label mb-3">System</p>
+        <p className="fh-section-label mb-3">{translate('diagnostics:diagnostics.system')}</p>
         {systemRows.map(row => <Row key={row.label} row={row} />)}
       </div>
 
       <div className="fh-card fh-card-pad">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div>
-            <p className="fh-section-label">Channel Health</p>
+            <p className="fh-section-label">{translate('diagnostics:diagnostics.channelHealth')}</p>
             {channelHealth?.checkedAt && (
-              <p className="fh-text-caption mt-1">Checked {new Date(channelHealth.checkedAt).toLocaleString()}</p>
+              <p className="fh-text-caption mt-1">{translate('diagnostics:diagnostics.checked')} {formatDateTime(channelHealth.checkedAt)}</p>
             )}
           </div>
           {channelHealth && (
-            <span className={['inline-flex rounded-full border px-2.5 py-1 fh-text-caption font-medium', statusBadgeClass(channelHealth.summary.overall)].join(' ')}>
-              {channelHealth.summary.overall}
+            <span className={["inline-flex rounded-full border px-2.5 py-1 fh-text-caption font-medium", statusBadgeClass(channelHealth.summary.overall)].join(' ')}>
+              {formatStatus(channelHealth.summary.overall)}
             </span>
           )}
         </div>
         {loading && !channelHealth ? (
           <div className="flex items-center gap-2 py-2 fh-text-body-sm">
-            <Spinner size="sm" />Loading channel health
+            <Spinner size="sm" />{translate('diagnostics:diagnostics.loadingChannelHealth')}
           </div>
         ) : !channelHealth || channelHealth.items.length === 0 ? (
-          <Empty title="No channel health data" />
+          <Empty title={translate('diagnostics:diagnostics.noChannelHealthData')} />
         ) : (
           <div className="space-y-3">
             {channelHealth.items.map(channel => (
@@ -281,13 +277,13 @@ export default function Diagnostics() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="fh-text-body font-semibold">{channelLabel(channel)}</p>
-                      <span className={['inline-flex rounded-full border px-2 py-0.5 fh-text-caption font-medium', statusBadgeClass(channel.status)].join(' ')}>
-                        {channel.status}
+                      <span className={["inline-flex rounded-full border px-2 py-0.5 fh-text-caption font-medium", statusBadgeClass(channel.status)].join(' ')}>
+                        {formatStatus(channel.status)}
                       </span>
-                      <span className="fh-text-caption">{channel.accessMode}</span>
+                      <span className="fh-text-caption">{formatStatus(channel.accessMode)}</span>
                     </div>
                     <p className="fh-text-caption mt-1">{channel.summary}</p>
-                    <p className="fh-text-caption mt-1">Next action: {channel.nextRecommendedAction}</p>
+                    <p className="fh-text-caption mt-1">{translate('diagnostics:diagnostics.nextAction')} {channel.nextRecommendedAction}</p>
                   </div>
                   <button
                     type="button"
@@ -296,7 +292,7 @@ export default function Diagnostics() {
                     className="fh-button-secondary self-start"
                   >
                     {refreshingChannel === channel.channelId ? <Spinner size="sm" /> : <Icon name="refresh" />}
-                    Refresh
+                    {translate('diagnostics:diagnostics.refresh')}
                   </button>
                 </div>
                 <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
@@ -304,8 +300,8 @@ export default function Diagnostics() {
                     <div key={key} className="rounded border border-border px-3 py-2">
                       <div className="flex items-center justify-between gap-2">
                         <span className="fh-text-caption font-medium text-text-base">{key}</span>
-                        <span className={['inline-flex rounded-full border px-2 py-0.5 fh-text-caption', statusBadgeClass(dimension.status)].join(' ')}>
-                          {dimension.status}
+                        <span className={["inline-flex rounded-full border px-2 py-0.5 fh-text-caption", statusBadgeClass(dimension.status)].join(' ')}>
+                          {formatStatus(dimension.status)}
                         </span>
                       </div>
                       {dimension.message && <p className="fh-text-caption mt-1">{dimension.message}</p>}
@@ -313,10 +309,10 @@ export default function Diagnostics() {
                   ))}
                 </div>
                 <div className="mt-3 grid grid-cols-1 gap-2 fh-text-caption sm:grid-cols-2 lg:grid-cols-4">
-                  <span>Last checked: {channel.lastChecked ? new Date(channel.lastChecked).toLocaleString() : 'Unavailable'}</span>
-                  <span>Latency: {metricValue(channel.latency, ' ms')}</span>
-                  <span>Last success: {channel.lastSuccessfulOperation ? new Date(channel.lastSuccessfulOperation).toLocaleString() : 'Unavailable'}</span>
-                  <span>Error category: {channel.lastErrorCategory ?? 'None'}</span>
+                  <span>{translate('diagnostics:diagnostics.lastChecked')} {channel.lastChecked ? formatDateTime(channel.lastChecked) : translate('diagnostics:diagnostics.unavailable')}</span>
+                  <span>{translate('diagnostics:diagnostics.latency')} {metricValue(channel.latency, "ms")}</span>
+                  <span>{translate('diagnostics:diagnostics.lastSuccess')} {channel.lastSuccessfulOperation ? formatDateTime(channel.lastSuccessfulOperation) : translate('diagnostics:diagnostics.unavailable')}</span>
+                  <span>{translate('diagnostics:diagnostics.errorCategory')} {channel.lastErrorCategory ? formatStatus(channel.lastErrorCategory) : translate('common:status.none')}</span>
                 </div>
               </div>
             ))}
@@ -325,26 +321,26 @@ export default function Diagnostics() {
       </div>
 
       <div className="fh-card fh-card-pad">
-        <p className="fh-section-label mb-3">Connectors</p>
+        <p className="fh-section-label mb-3">{translate('diagnostics:diagnostics.connectors')}</p>
         {loading && !diag ? (
           <div className="flex items-center gap-2 py-2 fh-text-body-sm">
-            <Spinner size="sm" />Loading connectors
+            <Spinner size="sm" />{translate('diagnostics:diagnostics.loadingConnectors')}
           </div>
         ) : connectors.length === 0 ? (
           <Empty
-            title="No connectors configured"
-            description="Connector setup is available from Commerce Hub."
+            title={translate('diagnostics:diagnostics.noConnectorsConfigured')}
+            description={translate('diagnostics:diagnostics.connectorSetupIsAvailableFromCommerceHub')}
           />
         ) : connectors.map(connector => {
           const status = connectorHealth(connector)
           return (
             <Row
-              key={connector.id ?? connector.name ?? connector.connector_type ?? 'connector'}
+              key={connector.id ?? connector.name ?? connector.connector_type ?? "connector"}
               row={{
-                label: connector.name ?? connector.connector_type ?? 'Connector',
-                value: connector.enabled === false ? 'Disabled' : status ?? 'Unknown',
-                status: connector.enabled === false ? 'pending' : normalizeStatus(status),
-                detail: connector.last_checked_at ? `Last checked ${new Date(connector.last_checked_at).toLocaleString()}` : undefined,
+                label: connector.name ?? connector.connector_type ?? "Connector",
+                value: connector.enabled === false ? translate('common:status.disabled') : formatStatus(status),
+                status: connector.enabled === false ? "pending" : normalizeStatus(status),
+                detail: connector.last_checked_at ? translate('diagnostics:diagnostics.lastCheckedAt', { date: formatDateTime(connector.last_checked_at) }) : undefined,
               }}
             />
           )
@@ -352,53 +348,53 @@ export default function Diagnostics() {
       </div>
 
       <div className="fh-card fh-card-pad">
-        <p className="fh-section-label mb-3">Rate Limiter</p>
+        <p className="fh-section-label mb-3">{translate('diagnostics:diagnostics.rateLimiter')}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Row row={{
-            label: 'Read Requests / Minute',
-            value: loading ? 'Loading' : String(limiter?.settings?.read_requests_per_minute ?? '-'),
-            status: loading ? 'loading' : 'ok',
-            detail: limiter?.settings?.read_delay_ms ? `Delay ${limiter.settings.read_delay_ms} ms` : undefined,
+            label: translate('diagnostics:diagnostics.readRequestsMinute'),
+            value: loading ? translate('common:status.loading') : String(limiter?.settings?.read_requests_per_minute ?? '-'),
+            status: loading ? "loading" : "ok",
+            detail: limiter?.settings?.read_delay_ms ? translate('diagnostics:diagnostics.delayMilliseconds', { value: limiter.settings.read_delay_ms }) : undefined,
           }} />
           <Row row={{
-            label: 'Write Requests / Minute',
-            value: loading ? 'Loading' : String(limiter?.settings?.write_requests_per_minute ?? '-'),
-            status: loading ? 'loading' : 'ok',
-            detail: limiter?.settings?.write_delay_ms ? `Delay ${limiter.settings.write_delay_ms} ms` : undefined,
+            label: translate('diagnostics:diagnostics.writeRequestsMinute'),
+            value: loading ? translate('common:status.loading') : String(limiter?.settings?.write_requests_per_minute ?? '-'),
+            status: loading ? "loading" : "ok",
+            detail: limiter?.settings?.write_delay_ms ? translate('diagnostics:diagnostics.delayMilliseconds', { value: limiter.settings.write_delay_ms }) : undefined,
           }} />
           <Row row={{
-            label: 'Queue length',
-            value: loading ? 'Loading' : String(limiter?.queue_length ?? 0),
-            status: loading ? 'loading' : 'ok',
+            label: translate('diagnostics:diagnostics.queueLength'),
+            value: loading ? translate('common:status.loading') : String(limiter?.queue_length ?? 0),
+            status: loading ? "loading" : "ok",
           }} />
           <Row row={{
-            label: 'Request duration',
-            value: loading ? 'Loading' : metricValue(limiter?.average_request_duration_ms, ' ms'),
-            status: loading ? 'loading' : 'pending',
+            label: translate('diagnostics:diagnostics.requestDuration'),
+            value: loading ? translate('common:status.loading') : metricValue(limiter?.average_request_duration_ms, "ms"),
+            status: loading ? "loading" : "pending",
           }} />
           <Row row={{
-            label: 'Limiter delay',
-            value: loading ? 'Loading' : metricValue(limiter?.last_limiter_delay_ms ?? limiter?.last_connector_delay_ms, ' ms'),
-            status: loading ? 'loading' : (limiter?.last_limiter_delay_ms ? 'warning' : 'ok'),
+            label: translate('diagnostics:diagnostics.limiterDelay'),
+            value: loading ? translate('common:status.loading') : metricValue(limiter?.last_limiter_delay_ms ?? limiter?.last_connector_delay_ms, "ms"),
+            status: loading ? "loading" : (limiter?.last_limiter_delay_ms ? "warning" : "ok"),
           }} />
           <Row row={{
             label: 'ETA',
-            value: loading ? 'Loading' : metricValue(limiter?.estimated_completion_seconds, ' s'),
-            status: loading ? 'loading' : 'pending',
+            value: loading ? translate('common:status.loading') : metricValue(limiter?.estimated_completion_seconds, ' s'),
+            status: loading ? "loading" : "pending",
           }} />
           <Row row={{
-            label: 'Throttle events',
-            value: loading ? 'Loading' : String(limiter?.throttle_count ?? 0),
-            status: loading ? 'loading' : (limiter?.throttle_count ? 'warning' : 'ok'),
-            detail: limiter?.last_throttle ? `Last ${new Date(limiter.last_throttle).toLocaleString()}` : undefined,
+            label: translate('diagnostics:diagnostics.throttleEvents'),
+            value: loading ? translate('common:status.loading') : String(limiter?.throttle_count ?? 0),
+            status: loading ? "loading" : (limiter?.throttle_count ? "warning" : "ok"),
+            detail: limiter?.last_throttle ? translate('diagnostics:diagnostics.lastAt', { date: formatDateTime(limiter.last_throttle) }) : undefined,
           }} />
         </div>
       </div>
 
       <div className="fh-card fh-card-pad">
-        <p className="fh-section-label mb-2">About</p>
+        <p className="fh-section-label mb-2">{translate('diagnostics:diagnostics.about')}</p>
         <p className="fh-text-body mt-1">
-          <span className="text-wp-muted">Status: </span>
+          <span className="text-wp-muted">{translate('diagnostics:diagnostics.status')} </span>
           <span className="font-medium">{health?.status ?? '-'}</span>
         </p>
       </div>

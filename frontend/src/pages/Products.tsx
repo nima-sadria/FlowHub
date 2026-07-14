@@ -1,5 +1,6 @@
+import { translate } from '../i18n'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { apiErrorMessage } from '../api/client'
+import { localizedApiError } from '../i18n/errors'
 import Badge from '../components/Badge'
 import Empty from '../components/Empty'
 import Icon from '../components/Icon'
@@ -17,13 +18,16 @@ import type {
 import type { Category } from '../services/products/ProductService'
 import { inputHint } from '../utils/inputHint'
 import { formatMoney, formatMoneyInput, normalizeMoneyInteger, parseMoneyInput } from '../utils/price'
+import { formatDate, formatDateTime } from '../i18n/format'
+import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
+import { formatStatus } from '../i18n/display'
 
 const PAGE_SIZE = 20
 const CHANNEL_OPTIONS = [
-  { id: '', label: 'All Channels' },
-  { id: 'woocommerce:primary', label: 'WooCommerce' },
-  { id: 'snappshop:main', label: 'Snapp Shop' },
-  { id: 'tapsishop:main', label: 'Tapsi Shop' },
+  { id: '', labelKey: 'products:products.allChannels' },
+  { id: 'woocommerce:primary', labelKey: 'products:products.woocommerce' },
+  { id: 'snappshop:main', labelKey: 'products:products.snappShop' },
+  { id: 'tapsishop:main', labelKey: 'products:products.tapsiShop' },
 ]
 
 function fmtValue(value: number | null | undefined, unit: string): string {
@@ -31,17 +35,14 @@ function fmtValue(value: number | null | undefined, unit: string): string {
 }
 
 function productChannelLabel(connectorId?: string): string {
-  if (connectorId === 'snappshop:main') return 'SnappShop'
-  if (connectorId === 'tapsishop:main') return 'TapsiShop'
-  if (connectorId === 'woocommerce:primary') return 'WooCommerce'
-  return connectorId ?? 'FlowHub'
+  return connectorId ? formatChannelDisplayName(connectorId) : 'FlowHub'
 }
 
 function ProductRow({ product, onEditPrices, selected, onSelected }: { product: Product; onEditPrices: (product: Product) => void; selected: boolean; onSelected: (selected: boolean) => void }) {
   return (
     <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
       <td className="px-3 py-3 text-center">
-        <input type="checkbox" checked={selected} onChange={event => onSelected(event.target.checked)} aria-label={`Select ${product.name} for Workspace`} />
+        <input type="checkbox" checked={selected} onChange={event => onSelected(event.target.checked)} aria-label={translate('products:products.selectProductForWorkspace', { product: product.name })} />
       </td>
       <td className="px-4 py-3 min-w-0 max-w-[260px]">
         <div className="flex items-center gap-3 min-w-0">
@@ -69,10 +70,10 @@ function ProductRow({ product, onEditPrices, selected, onSelected }: { product: 
         </div>
       </td>
       <td className="px-4 py-3">
-        <Badge className="capitalize" variant="neutral">{product.productType ?? 'simple'}</Badge>
+        <Badge className="capitalize" variant="neutral">{product.productType ?? "simple"}</Badge>
       </td>
       <td className="px-4 py-3 fh-text-body font-medium font-mono">
-        {formatMoney(product.currentPrice, { currency: product.currency, position: 'prefix' })}
+        {formatMoney(product.currentPrice, { currency: product.currency, position: "prefix" })}
       </td>
       <td className="px-4 py-3">
         {(product.categoryNames ?? []).slice(0, 2).map(c => (
@@ -91,7 +92,7 @@ function ProductRow({ product, onEditPrices, selected, onSelected }: { product: 
           onClick={() => onEditPrices(product)}
         >
           <Icon name="edit" />
-          Edit prices
+          {translate('products:products.editPrices')}
         </button>
       </td>
     </tr>
@@ -142,15 +143,15 @@ function ProductPriceEditor({
   const canApply = operation?.status === 'approved' && !loading
 
   return (
-    <section className="fh-card fh-card-pad space-y-4" aria-label="Multi-channel price editor">
+    <section className="fh-card fh-card-pad space-y-4" aria-label={translate('products:products.multiChannelPriceEditor')}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="fh-section-title">Channel prices</h2>
+          <h2 className="fh-section-title">{translate('products:products.channelPrices')}</h2>
           <p className="fh-text-caption">
-            {state ? <><LocalizedText text={state.product.name} /> <span className="fh-text-mono">({state.product.sku || state.product.id})</span></> : 'Loading product price state...'}
+            {state ? <><LocalizedText text={state.product.name} /> <span className="fh-text-mono">({state.product.sku || state.product.id})</span></> : translate('products:products.loadingProductPriceState')}
           </p>
         </div>
-        <IconButton label="Close channel price editor" onClick={onClose} size="sm">
+        <IconButton label={translate('products:products.closeChannelPriceEditor')} onClick={onClose} size="sm">
           <Icon name="close" />
         </IconButton>
       </div>
@@ -164,16 +165,16 @@ function ProductPriceEditor({
       {state && (
         <>
           <div className="grid gap-3 sm:grid-cols-3">
-            <InfoTile label="Canonical/business price" value={fmtValue(state.canonical.value, state.canonical.currency)} />
-            <InfoTile label="Dry Run" value={state.dryRunRequired ? 'Required before Apply' : 'Optional'} />
-            <InfoTile label="Pending edits" value={String(selectedCount)} />
+            <InfoTile label={translate('products:products.canonicalBusinessPrice')} value={fmtValue(state.canonical.value, state.canonical.currency)} />
+            <InfoTile label={translate('products:products.dryRun')} value={state.dryRunRequired ? "Required before Apply" : "Optional"} />
+            <InfoTile label={translate('products:products.pendingEdits')} value={String(selectedCount)} />
           </div>
 
-          <div className="overflow-x-auto rounded border border-border" tabIndex={0} aria-label="Channel price comparison table">
+          <div className="overflow-x-auto rounded border border-border" tabIndex={0} aria-label={translate('products:products.channelPriceComparisonTable')}>
             <table className="fh-table min-w-[1120px]">
               <thead>
                 <tr>
-                  {['Channel', 'State', 'Capability', 'Current', 'Proposed', 'Unit', 'Normalized', 'Freshness', 'Validation', 'Pending'].map(label => (
+                  {["Channel", "State", "Capability", "Current", "Proposed", "Unit", "Normalized", "Freshness", "Validation", "Pending"].map(label => (
                     <th key={label}>{label}</th>
                   ))}
                 </tr>
@@ -194,24 +195,24 @@ function ProductPriceEditor({
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="fh-text-caption">
-              Editing fields only creates local pending changes. Dry Run performs validation without external writes.
+              {translate('products:products.editingFieldsOnlyCreatesLocalPendingChanges')}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className="fh-button fh-button-secondary" onClick={onValidate} disabled={loading || selectedCount === 0}>
                 <Icon name="testConnection" />
-                Validate
+                {translate('products:products.validate')}
               </button>
               <button type="button" className="fh-button fh-button-primary" onClick={onDryRun} disabled={!canDryRun}>
                 <Icon name="dryRun" />
-                Preview / Dry Run
+                {translate('products:products.previewDryRun')}
               </button>
               <button type="button" className="fh-button fh-button-secondary" onClick={onApprove} disabled={!canApprove}>
                 <Icon name="apply" />
-                Approve
+                {translate('products:products.approve')}
               </button>
               <button type="button" className="fh-button fh-button-danger" onClick={onApply} disabled={!canApply}>
                 <Icon name="apply" />
-                Apply
+                {translate('products:products.apply')}
               </button>
             </div>
           </div>
@@ -246,11 +247,11 @@ function ChannelPriceRow({
         <div className="fh-text-caption fh-text-mono">{channel.channelId}</div>
       </td>
       <td className="px-4 py-3">
-        <Badge variant={connectionVariant} dot>{channel.connectionState}</Badge>
-        <div className="fh-text-caption mt-1" title={`Health: ${channel.healthStatus}`}>Health: {channel.healthStatus}</div>
+        <Badge variant={connectionVariant} dot>{formatStatus(channel.connectionState)}</Badge>
+        <div className="fh-text-caption mt-1" title={translate('products:products.healthStatus', { status: formatStatus(channel.healthStatus) })}>{translate('products:products.health')} {formatStatus(channel.healthStatus)}</div>
       </td>
       <td className="px-4 py-3">
-        <Badge variant={editable ? 'success' : 'warning'}>{editable ? 'Read/write' : channel.readOnly ? 'Read-only' : 'Unavailable'}</Badge>
+        <Badge variant={editable ? "success" : "warning"}>{editable ? translate('products:products.readWrite') : channel.readOnly ? translate('products:products.readOnly') : translate('products:products.unavailable')}</Badge>
         <div className="fh-text-caption mt-1">{channel.writeCapability}</div>
       </td>
       <td className="px-4 py-3 fh-text-mono">{fmtValue(channel.currentValue, channel.unit)}</td>
@@ -272,30 +273,30 @@ function ChannelPriceRow({
               }
             }}
             disabled={!editable}
-            aria-label={`${channel.channelName} proposed price`}
+            aria-label={translate('products:products.proposedPrice', { channel: channel.channelName })}
             className="fh-input h-9 w-28 font-mono"
           />
-          <span className="fh-text-caption" title={`Editable value unit: ${channel.unit}`}>{channel.unit}</span>
+          <span className="fh-text-caption" title={translate('products:products.editableValueUnit', { unit: channel.unit })}>{channel.unit}</span>
         </div>
       </td>
       <td className="px-4 py-3">{channel.unit}</td>
       <td className="px-4 py-3">
         <div className="fh-text-mono">{fmtValue(channel.normalizedValue, channel.normalizedUnit)}</div>
         {channel.unit !== channel.normalizedUnit && (
-          <div className="fh-text-caption">source unit: {channel.unit}</div>
+          <div className="fh-text-caption">{translate('products:products.sourceUnit')} {channel.unit}</div>
         )}
       </td>
       <td className="px-4 py-3">
-        <Badge variant={channel.freshness === 'fresh' ? 'success' : 'warning'}>{channel.freshness}</Badge>
-        <div className="fh-text-caption mt-1">{channel.lastSyncedAt ? new Date(channel.lastSyncedAt).toLocaleString() : 'Never synced'}</div>
+        <Badge variant={channel.freshness === "fresh" ? "success" : "warning"}>{channel.freshness}</Badge>
+        <div className="fh-text-caption mt-1">{channel.lastSyncedAt ? formatDateTime(channel.lastSyncedAt) : translate('products:products.neverSynced')}</div>
       </td>
       <td className="px-4 py-3 min-w-[180px]">
         <Badge variant={validationVariant}>{channel.validationState}</Badge>
-        <div className="fh-text-caption mt-1">{operationItem?.errorMessage ?? channel.validationMessage ?? operationItem?.status ?? 'Ready'}</div>
+        <div className="fh-text-caption mt-1">{operationItem?.errorMessage ?? channel.validationMessage ?? operationItem?.status ?? "Ready"}</div>
       </td>
       <td className="px-4 py-3">
-        <Badge variant={operationItem?.status === 'failed' ? 'error' : channel.pendingChange ? 'warning' : operationItem?.status === 'applied' ? 'success' : 'neutral'}>
-          {operationItem?.status ?? (channel.pendingChange ? 'pending' : 'unchanged')}
+        <Badge variant={operationItem?.status === "failed" ? "error" : channel.pendingChange ? "warning" : operationItem?.status === "applied" ? "success" : "neutral"}>
+          {operationItem?.status ?? (channel.pendingChange ? translate('products:products.pending') : translate('products:products.unchanged'))}
         </Badge>
       </td>
     </tr>
@@ -313,18 +314,18 @@ function InfoTile({ label, value }: { label: string; value: string }) {
 
 function OperationResult({ operation }: { operation: ProductChannelPriceOperation }) {
   return (
-    <div className="rounded border border-border bg-bg-base px-3 py-3" aria-label="Channel price operation result">
+    <div className="rounded border border-border bg-bg-base px-3 py-3" aria-label={translate('products:products.channelPriceOperationResult')}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="fh-text-body font-semibold">Operation {operation.id}</div>
-          <div className="fh-text-caption">Status: {operation.status}</div>
+          <div className="fh-text-body font-semibold">{translate('products:products.operation')} {operation.id}</div>
+          <div className="fh-text-caption">{translate('products:products.status')} {operation.status}</div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Badge variant="neutral">Total {operation.summary.total}</Badge>
-          <Badge variant="success">Success {operation.summary.success}</Badge>
-          <Badge variant={operation.summary.failed ? 'error' : 'neutral'}>Failed {operation.summary.failed}</Badge>
-          <Badge variant={operation.externalWritePerformed ? 'warning' : 'success'}>
-            {operation.externalWritePerformed ? 'External write performed' : 'No external write'}
+          <Badge variant="neutral">{translate('products:products.total')} {operation.summary.total}</Badge>
+          <Badge variant="success">{translate('products:products.success2')} {operation.summary.success}</Badge>
+          <Badge variant={operation.summary.failed ? "error" : "neutral"}>{translate('products:products.failed2')} {operation.summary.failed}</Badge>
+          <Badge variant={operation.externalWritePerformed ? "warning" : "success"}>
+            {operation.externalWritePerformed ? translate('products:products.externalWritePerformed') : translate('products:products.noExternalWrite')}
           </Badge>
         </div>
       </div>
@@ -333,7 +334,7 @@ function OperationResult({ operation }: { operation: ProductChannelPriceOperatio
           <table className="fh-table min-w-[760px]">
             <thead>
               <tr>
-                {['Channel', 'Previous', 'Proposed', 'Outbound', 'Result'].map(label => <th key={label}>{label}</th>)}
+                {["Channel", "Previous", "Proposed", "Outbound", "Result"].map(label => <th key={label}>{label}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -344,7 +345,7 @@ function OperationResult({ operation }: { operation: ProductChannelPriceOperatio
                   <td className="px-4 py-2">{fmtValue(item.proposedValue, item.unit)}</td>
                   <td className="px-4 py-2">{fmtValue(item.outboundValue, item.outboundUnit)}</td>
                   <td className="px-4 py-2">
-                    <Badge variant={item.status === 'failed' ? 'error' : item.status === 'applied' ? 'success' : 'warning'}>{item.status}</Badge>
+                    <Badge variant={item.status === "failed" ? "error" : item.status === "applied" ? "success" : "warning"}>{item.status}</Badge>
                     {item.errorMessage && <div className="fh-text-caption mt-1">{item.errorMessage}</div>}
                   </td>
                 </tr>
@@ -450,7 +451,7 @@ export default function Products() {
           formatMoneyInput(channel.proposedValue),
         ])))
       })
-      .catch(error => setEditorError(apiErrorMessage(error, 'Unable to load channel prices.')))
+      .catch(error => setEditorError(localizedApiError(error, 'products:products.unableToLoadChannelPrices')))
       .finally(() => setEditorLoading(false))
   }, [productService])
 
@@ -460,7 +461,7 @@ export default function Products() {
     setEditorError(null)
     productService.validateChannelPrices(priceState.product.id, { changes: selectedChanges })
       .then(setPriceState)
-      .catch(error => setEditorError(apiErrorMessage(error, 'Unable to validate channel prices.')))
+      .catch(error => setEditorError(localizedApiError(error, 'products:products.unableToValidateChannelPrices')))
       .finally(() => setEditorLoading(false))
   }, [priceState, productService, selectedChanges])
 
@@ -470,7 +471,7 @@ export default function Products() {
     setEditorError(null)
     productService.createChannelPriceDryRun(priceState.product.id, { version: priceState.version, changes: selectedChanges })
       .then(setPriceOperation)
-      .catch(error => setEditorError(apiErrorMessage(error, 'Unable to create Dry Run.')))
+      .catch(error => setEditorError(localizedApiError(error, 'products:products.unableToCreateDryRun')))
       .finally(() => setEditorLoading(false))
   }, [priceState, productService, selectedChanges])
 
@@ -478,9 +479,10 @@ export default function Products() {
     if (!priceOperation) return
     setEditorLoading(true)
     setEditorError(null)
-    productService.approveChannelPriceOperation(priceOperation.id, 'Approved from Products multi-channel price editor')
+    productService.approveChannelPriceOperation(priceOperation.id,
+      /* i18n-ignore -- stable API audit reason, never displayed as interface copy */ 'Approved from Products multi-channel price editor')
       .then(setPriceOperation)
-      .catch(error => setEditorError(apiErrorMessage(error, 'Unable to approve Dry Run.')))
+      .catch(error => setEditorError(localizedApiError(error, 'products:products.unableToApproveDryRun')))
       .finally(() => setEditorLoading(false))
   }, [priceOperation, productService])
 
@@ -507,7 +509,7 @@ export default function Products() {
         }
         fetchProducts()
       })
-      .catch(error => setEditorError(apiErrorMessage(error, 'Unable to apply channel prices.')))
+      .catch(error => setEditorError(localizedApiError(error, 'products:products.unableToApplyChannelPrices')))
       .finally(() => setEditorLoading(false))
   }, [fetchProducts, priceOperation, priceState, productService])
 
@@ -521,12 +523,12 @@ export default function Products() {
     setWorkspaceError(null)
     try {
       const workspace = await unifiedWorkspace.createManual(
-        `Manual Workspace ${new Date().toLocaleDateString()}`,
+        translate('products:products.manualWorkspaceDated', { date: formatDate(new Date()) }),
         [...workspaceSelection.values()].map(product => ({ connector_id: product.connectorId ?? '', product_id: product.id })),
       )
       window.location.href = `/workspace/${workspace.id}`
     } catch (error) {
-      setWorkspaceError(apiErrorMessage(error, 'Unable to create Manual Workspace.'))
+      setWorkspaceError(localizedApiError(error, 'products:products.unableToCreateManualWorkspace'))
     } finally {
       setWorkspaceCreating(false)
     }
@@ -536,14 +538,14 @@ export default function Products() {
     return (
       <PageShell>
         <div>
-          <h1 className="fh-page-title">Products</h1>
-          <p className="fh-page-subtitle">Product catalog</p>
+          <h1 className="fh-page-title">{translate('products:products.products')}</h1>
+          <p className="fh-page-subtitle">{translate('products:products.productCatalog')}</p>
         </div>
         <div className="fh-card">
           <Empty
-            title="No product connector configured"
-            description="Connect a product source from Sources to browse products."
-            action={{ label: 'Open Sources', onClick: () => { window.location.href = '/sources' } }}
+            title={translate('products:products.noProductConnectorConfigured')}
+            description={translate('products:products.connectAProductSourceFromSourcesTo')}
+            action={{ label: translate('products:products.openSources'), onClick: () => { window.location.href = '/sources' } }}
           />
         </div>
       </PageShell>
@@ -554,15 +556,15 @@ export default function Products() {
     <PageShell>
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">Products</h1>
+          <h1 className="fh-page-title">{translate('products:products.products')}</h1>
           <p className="fh-page-subtitle">
-            {loading ? 'Loading...' : `${total} product${total !== 1 ? 's' : ''}`}
+            {loading ? translate('products:products.loading') : translate('products:products.productCount', { count: total })}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="fh-text-caption">{workspaceSelection.size} selected</span>
+          <span className="fh-text-caption">{workspaceSelection.size} {translate('products:products.selected')}</span>
           <button type="button" className="fh-button-primary" disabled={!unifiedWorkspace || workspaceSelection.size === 0 || workspaceCreating} onClick={() => void createManualWorkspace()}>
-            <Icon name="workspace" /> {workspaceCreating ? 'Creating...' : 'Create Workspace'}
+            <Icon name="workspace" /> {workspaceCreating ? translate('products:products.creating') : translate('products:products.createWorkspace')}
           </button>
         </div>
       </div>
@@ -576,7 +578,7 @@ export default function Products() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            {...inputHint('Search name or SKU...')}
+            {...inputHint(translate('products:products.searchNameOrSku'))}
             className="fh-input pl-8"
           />
         </div>
@@ -587,7 +589,7 @@ export default function Products() {
           className="fh-select w-auto min-w-[150px]"
         >
           {CHANNEL_OPTIONS.map(channel => (
-            <option key={channel.id || 'all'} value={channel.id}>{channel.label}</option>
+            <option key={channel.id || "all"} value={channel.id}>{translate(channel.labelKey)}</option>
           ))}
         </select>
 
@@ -597,7 +599,7 @@ export default function Products() {
             onChange={e => setCategoryId(e.target.value ? Number(e.target.value) : null)}
             className="fh-select w-auto min-w-[170px]"
           >
-            <option value="">All Categories</option>
+            <option value="">{translate('products:products.allCategories')}</option>
             {categories.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -605,16 +607,16 @@ export default function Products() {
         )}
 
         <div className="fh-segmented">
-          {(['all', 'simple', 'variation', 'variable'] as const).map(t => (
+          {(["all", "simple", "variation", "variable"] as const).map(t => (
             <button
               key={t}
               onClick={() => setProductType(t)}
               className={[
-                'fh-segmented-button capitalize',
-                productType === t ? 'fh-segmented-button-active' : '',
+                "fh-segmented-button capitalize",
+                productType === t ? "fh-segmented-button-active" : '',
               ].join(' ')}
             >
-              {t === 'all' ? 'All Types' : t}
+              {t === "all" ? translate('products:products.allTypes') : t}
             </button>
           ))}
         </div>
@@ -648,15 +650,15 @@ export default function Products() {
       <div className="fh-table-wrapper">
         <div className="fh-panel-header">
           <span className="fh-text-body font-semibold">
-            {loading ? 'Loading...' : total === 0 ? 'No products found' : `Showing ${start}-${end} of ${total}`}
+            {loading ? translate('products:products.loading') : total === 0 ? translate('products:products.noProductsFound') : translate('products:products.showingOf', { value1: start, value2: end, value3: total })}
           </span>
           {totalPages > 1 && (
             <div className="flex items-center gap-1">
-              <IconButton label="Previous page" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} size="sm">
+              <IconButton label={translate('products:products.previousPage')} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} size="sm">
                 <Icon name="previous" mirrorRtl />
               </IconButton>
               <span className="fh-text-caption px-1">{page} / {totalPages}</span>
-              <IconButton label="Next page" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} size="sm">
+              <IconButton label={translate('products:products.nextPage')} onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} size="sm">
                 <Icon name="next" mirrorRtl />
               </IconButton>
             </div>
@@ -667,19 +669,19 @@ export default function Products() {
           <table className="fh-table min-w-[560px]">
             <thead>
               <tr>
-                {['Select', 'Product', 'Type', 'Price', 'Categories', 'Actions'].map(h => (
+                {["Select", "Product", "Type", "Price", "Categories", "Actions"].map(h => (
                   <th key={h}>{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className={loading ? 'opacity-40 pointer-events-none' : ''}>
+            <tbody className={loading ? "opacity-40 pointer-events-none" : ''}>
               {loading && items.length === 0
                 ? Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonRow key={i} />)
                 : items.length === 0
                   ? (
                     <tr>
                       <td colSpan={6}>
-                        <Empty title="No products match" description="Try adjusting the search or filter." />
+                        <Empty title={translate('products:products.noProductsMatch')} description={translate('products:products.tryAdjustingTheSearchOrFilter')} />
                       </td>
                     </tr>
                     )
@@ -706,19 +708,19 @@ export default function Products() {
 
         {!loading && totalPages > 1 && (
           <div className="fh-panel-footer !justify-between">
-            <span className="fh-text-caption">{start}-{end} of {total}</span>
+            <span className="fh-text-caption">{start}-{end} {translate('products:products.of')} {total}</span>
             <div className="flex items-center gap-1">
-              <IconButton label="First page" onClick={() => setPage(1)} disabled={page === 1} size="sm">
+              <IconButton label={translate('products:products.firstPage')} onClick={() => setPage(1)} disabled={page === 1} size="sm">
                 <span aria-hidden="true" className="fh-text-caption">«</span>
               </IconButton>
-              <IconButton label="Previous page" onClick={() => setPage(p => p - 1)} disabled={page === 1} size="sm">
+              <IconButton label={translate('products:products.previousPage')} onClick={() => setPage(p => p - 1)} disabled={page === 1} size="sm">
                 <Icon name="previous" mirrorRtl />
               </IconButton>
               <span className="fh-text-caption px-1.5">{page} / {totalPages}</span>
-              <IconButton label="Next page" onClick={() => setPage(p => p + 1)} disabled={page === totalPages} size="sm">
+              <IconButton label={translate('products:products.nextPage')} onClick={() => setPage(p => p + 1)} disabled={page === totalPages} size="sm">
                 <Icon name="next" mirrorRtl />
               </IconButton>
-              <IconButton label="Last page" onClick={() => setPage(totalPages)} disabled={page === totalPages} size="sm">
+              <IconButton label={translate('products:products.lastPage')} onClick={() => setPage(totalPages)} disabled={page === totalPages} size="sm">
                 <span aria-hidden="true" className="fh-text-caption">»</span>
               </IconButton>
             </div>

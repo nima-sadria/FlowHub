@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { useEffect, useMemo, useState } from 'react'
 import { useServices } from '../services/ServiceContext'
 import type { RateLimitSettings } from '../services/types'
@@ -65,8 +66,8 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
         setWriteRpm(data.write_requests_per_minute)
       } catch {
         if (active) notifyError({
-          title: 'Unable to load settings',
-          description: 'Please try again.',
+          title: translate('settings:rateLimits.unableToLoadSettings'),
+          description: translate('settings:rateLimits.pleaseTryAgain'),
         })
       } finally {
         if (active) setLoading(false)
@@ -77,8 +78,8 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
   }, [settings])
 
   const validation = useMemo(() => {
-    if (readRpm < MIN_RPM || readRpm > MAX_RPM) return 'Read Requests / Minute must be between 1 and 1000.'
-    if (writeRpm < MIN_RPM || writeRpm > MAX_RPM) return 'Write Requests / Minute must be between 1 and 1000.'
+    if (readRpm < MIN_RPM || readRpm > MAX_RPM) return translate('validation:rateLimits.readRequestsRange', { min: MIN_RPM, max: MAX_RPM })
+    if (writeRpm < MIN_RPM || writeRpm > MAX_RPM) return translate('validation:rateLimits.writeRequestsRange', { min: MIN_RPM, max: MAX_RPM })
     return null
   }, [readRpm, writeRpm])
 
@@ -98,13 +99,13 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
       setReadRpm(updated.read_requests_per_minute)
       setWriteRpm(updated.write_requests_per_minute)
       success({
-        title: 'Settings saved successfully',
-        description: 'Your changes have been applied.',
+        title: translate('settings:rateLimits.settingsSavedSuccessfully'),
+        description: translate('settings:rateLimits.yourChangesHaveBeenApplied'),
       })
     } catch {
       notifyError({
-        title: 'Unable to save settings',
-        description: 'Please try again.',
+        title: translate('settings:rateLimits.unableToSaveSettings'),
+        description: translate('settings:rateLimits.pleaseTryAgain'),
       })
     } finally {
       setSaving(false)
@@ -122,7 +123,7 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
         className="fh-button-secondary"
       >
         <Icon name="close" />
-        Discard
+        {translate('settings:rateLimits.discard')}
       </button>
       <button
         onClick={() => void save()}
@@ -131,7 +132,7 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
       >
         {saving && <Spinner size="sm" className="text-white" />}
         {!saving && <Icon name="save" />}
-        {saving ? 'Saving...' : 'Save Changes'}
+        {saving ? translate('settings:rateLimits.saving') : translate('settings:rateLimits.saveChanges')}
       </button>
     </div>
   )
@@ -140,31 +141,31 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
     <>
       <div className="fh-card fh-card-pad">
         {loading ? (
-          <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />Loading...</div>
+          <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />{translate('settings:rateLimits.loading')}</div>
         ) : (
           <div className="flex flex-col gap-4">
-            <NumberField label="Read Requests / Minute" value={readRpm} onChange={setReadRpm} />
-            <NumberField label="Write Requests / Minute" value={writeRpm} onChange={setWriteRpm} />
+            <NumberField label={translate('settings:rateLimits.readRequestsMinute')} value={readRpm} onChange={setReadRpm} />
+            <NumberField label={translate('settings:rateLimits.writeRequestsMinute')} value={writeRpm} onChange={setWriteRpm} />
             {validation && (
               <div className="fh-alert fh-alert-danger">
                 {validation}
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Stat label="Read delay" value={delayLabel(readRpm)} />
-              <Stat label="Write delay" value={delayLabel(writeRpm)} />
+              <Stat label={translate('settings:rateLimits.readDelay')} value={delayLabel(readRpm)} />
+              <Stat label={translate('settings:rateLimits.writeDelay')} value={delayLabel(writeRpm)} />
             </div>
           </div>
         )}
       </div>
 
       <div className="fh-card fh-card-pad">
-        <p className="fh-section-label mb-3">Policy</p>
+        <p className="fh-section-label mb-3">{translate('settings:rateLimits.policy')}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Stat label="Scope" value="Global" />
-          <Stat label="Overrides" value="Disabled" />
-          <Stat label="Scheduler" value="Disabled" />
-          <Stat label="Automatic sync" value="Disabled" />
+          <Stat label={translate('settings:rateLimits.scope')} value="Global" />
+          <Stat label={translate('settings:rateLimits.overrides')} value="Disabled" />
+          <Stat label={translate('settings:rateLimits.scheduler')} value="Disabled" />
+          <Stat label={translate('settings:rateLimits.automaticSync')} value="Disabled" />
         </div>
       </div>
     </>
@@ -175,8 +176,8 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
       <section id="rate-limits" className="flex flex-col gap-4">
         <div className="fh-page-header">
           <div>
-            <h2 className="fh-section-title">Global API Rate Limits</h2>
-            <p className="fh-section-subtitle mt-0.5">Inherited by every Source and Channel</p>
+            <h2 className="fh-section-title">{translate('settings:rateLimits.globalApiRateLimits')}</h2>
+            <p className="fh-section-subtitle mt-0.5">{translate('settings:rateLimits.inheritedByEverySourceAndChannel')}</p>
           </div>
           {actions}
         </div>
@@ -189,8 +190,8 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
     <PageShell>
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">Global API Rate Limits</h1>
-          <p className="fh-page-subtitle">Inherited by every Source and Channel</p>
+          <h1 className="fh-page-title">{translate('settings:rateLimits.globalApiRateLimits')}</h1>
+          <p className="fh-page-subtitle">{translate('settings:rateLimits.inheritedByEverySourceAndChannel')}</p>
         </div>
         {actions}
       </div>

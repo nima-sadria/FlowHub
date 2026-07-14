@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { useCallback, useEffect, useState } from 'react'
 import Badge from '../components/Badge'
 import Empty from '../components/Empty'
@@ -6,22 +7,17 @@ import { SkeletonCard } from '../components/loading/Skeleton'
 import PageShell from '../components/PageShell'
 import { useServices } from '../services/ServiceContext'
 import type { ActivityEvent, ActivityLevel } from '../services/types'
+import { formatRelativeTime } from '../i18n/format'
 
 function relTime(d: Date): string {
-  const s = Math.floor((Date.now() - d.getTime()) / 1000)
-  if (s < 60) return `${s}s ago`
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
+  return formatRelativeTime(d)
 }
 
-const LEVEL_STYLES: Record<ActivityLevel, { dot: string; variant: 'info' | 'success' | 'warning' | 'danger'; label: string }> = {
-  info: { dot: 'fh-status-dot-info', variant: 'info', label: 'Info' },
-  success: { dot: 'fh-status-dot-success', variant: 'success', label: 'Success' },
-  warning: { dot: 'fh-status-dot-warning', variant: 'warning', label: 'Warning' },
-  error: { dot: 'fh-status-dot-danger', variant: 'danger', label: 'Error' },
+const LEVEL_STYLES: Record<ActivityLevel, { dot: string; variant: 'info' | 'success' | 'warning' | 'danger'; labelKey: string }> = {
+  info: { dot: 'fh-status-dot-info', variant: 'info', labelKey: 'activity:activity.info' },
+  success: { dot: 'fh-status-dot-success', variant: 'success', labelKey: 'activity:activity.success' },
+  warning: { dot: 'fh-status-dot-warning', variant: 'warning', labelKey: 'activity:activity.warning' },
+  error: { dot: 'fh-status-dot-danger', variant: 'danger', labelKey: 'activity:activity.error' },
 }
 
 function formatAction(action: string): string {
@@ -33,14 +29,14 @@ function EventRow({ event }: { event: ActivityEvent }) {
   return (
     <div className="flex items-start gap-3 py-3 border-b border-border last:border-0">
       <div className="flex-shrink-0 mt-1.5">
-        <span aria-hidden="true" className={['fh-status-dot', styles.dot].join(' ')} />
+        <span aria-hidden="true" className={["fh-status-dot", styles.dot].join(' ')} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-center gap-2 mb-0.5">
           <span className="fh-text-body font-medium text-text-base">{formatAction(event.action)}</span>
-          <Badge variant={styles.variant}>{styles.label}</Badge>
-          {event.kind === 'user_action' && (
-            <span className="fh-text-caption">by {event.actor}</span>
+          <Badge variant={styles.variant}>{translate(styles.labelKey)}</Badge>
+          {event.kind === "user_action" && (
+            <span className="fh-text-caption">{translate('activity:activity.by')} {event.actor}</span>
           )}
         </div>
         {event.detail && (
@@ -90,15 +86,15 @@ export default function Activity() {
     <PageShell>
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">Activity</h1>
-          <p className="fh-page-subtitle">System events and user actions</p>
+          <h1 className="fh-page-title">{translate('activity:activity.activity')}</h1>
+          <p className="fh-page-subtitle">{translate('activity:activity.systemEventsAndUserActions')}</p>
         </div>
       </div>
 
       <div className="fh-card">
         <div className="fh-panel-header">
           <span className="fh-section-title">
-            {loading ? 'Loading...' : `${total} events`}
+            {loading ? translate('activity:activity.loading') : translate('activity:activity.events', { value1: total })}
           </span>
         </div>
 
@@ -109,7 +105,7 @@ export default function Activity() {
               <SkeletonCard />
             </div>
           ) : events.length === 0 ? (
-            <Empty title="No activity yet" description="Events will appear here as the system runs." />
+            <Empty title={translate('activity:activity.noActivityYet')} description={translate('activity:activity.eventsWillAppearHereAsTheSystem')} />
           ) : (
             events.map(e => <EventRow key={e.id} event={e} />)
           )}
@@ -123,7 +119,7 @@ export default function Activity() {
               className="fh-button-secondary w-full"
             >
               <Icon name="download" />
-              {loadingMore ? 'Loading...' : `Load more (${total - events.length} remaining)`}
+              {loadingMore ? translate('activity:activity.loading') : translate('activity:activity.loadMoreRemaining', { value1: total - events.length })}
             </button>
           </div>
         )}

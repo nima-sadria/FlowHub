@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { type FormEvent, useMemo, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { HotTable, type HotTableRef } from '@handsontable/react-wrapper'
@@ -23,7 +24,7 @@ export default function UnifiedWorkspace() {
   const { workspaceId = '' } = useParams()
   const { unifiedWorkspace } = useServices()
   if (!unifiedWorkspace) {
-    return <PageShell><Empty title="Workspace service unavailable" description="The Unified Workspace service is not configured." /></PageShell>
+    return <PageShell><Empty title={translate('workspace:unifiedWorkspace.workspaceServiceUnavailable')} description={translate('workspace:unifiedWorkspace.theUnifiedWorkspaceServiceIsNotConfigured')} /></PageShell>
   }
   return <UnifiedWorkspaceContent workspaceId={workspaceId} />
 }
@@ -41,10 +42,10 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
   const handsontableLicense = license.licenseKey
 
   if (controller.loading) {
-    return <PageShell><div className="fh-card fh-card-pad flex items-center gap-3"><Spinner size="sm" /> Loading immutable Workspace Snapshot...</div></PageShell>
+    return <PageShell><div className="fh-card fh-card-pad flex items-center gap-3"><Spinner size="sm" /> {translate('workspace:unifiedWorkspace.loadingImmutableWorkspaceSnapshot')}</div></PageShell>
   }
   if (!controller.workspace || !controller.grid) {
-    return <PageShell><Empty title="Workspace unavailable" description={controller.error ?? 'The Workspace could not be loaded.'} /></PageShell>
+    return <PageShell><Empty title={translate('workspace:unifiedWorkspace.workspaceUnavailable')} description={controller.error ?? "The Workspace could not be loaded."} /></PageShell>
   }
   if (controller.workspace.entryPoint === 'source') {
     return <SourceCentricWorkspace workspace={controller.workspace} service={unifiedWorkspace!} />
@@ -56,23 +57,23 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
         <div>
           <h1 className="fh-page-title">{controller.workspace.name}</h1>
           <p className="fh-page-subtitle">
-            Immutable Snapshot {controller.workspace.snapshot.id.slice(0, 8)} · {controller.grid.total} Listing row{controller.grid.total === 1 ? '' : 's'}
+            {translate('workspace:unifiedWorkspace.immutableSnapshot')} {controller.workspace.snapshot.id.slice(0, 8)} · {translate('workspace:unifiedWorkspace.listingRows', { count: controller.grid.total })}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`fh-workspace-dirty ${controller.dirtyCount ? 'fh-workspace-dirty-active' : ''}`} aria-live="polite">
-            {controller.dirtyCount ? `${controller.dirtyCount} unsaved edit${controller.dirtyCount === 1 ? '' : 's'}` : 'Draft saved'}
+          <span className={`fh-workspace-dirty ${controller.dirtyCount ? "fh-workspace-dirty-active" : ''}`} aria-live="polite">
+            {controller.dirtyCount ? translate('workspace:unifiedWorkspace.unsavedEdits', { count: controller.dirtyCount }) : translate('workspace:unifiedWorkspace.draftSaved')}
           </span>
         </div>
       </div>
 
       {controller.error && <div className="fh-alert fh-alert-danger" role="alert"><Icon name="alert" /><span>{controller.error}</span></div>}
 
-      <section className="fh-card fh-card-pad space-y-4" aria-label="Workspace controls">
+      <section className="fh-card fh-card-pad space-y-4" aria-label={translate('workspace:unifiedWorkspace.workspaceControls')}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="fh-section-title">Visible Channels</p>
-            <p className="fh-text-caption">Visibility changes presentation only and never selects a Channel for Apply.</p>
+            <p className="fh-section-title">{translate('workspace:unifiedWorkspace.visibleChannels')}</p>
+            <p className="fh-text-caption">{translate('workspace:unifiedWorkspace.visibilityChangesPresentationOnlyAndNeverSelects')}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {controller.grid.channels.map(channel => (
@@ -86,14 +87,14 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
               </label>
             ))}
             <label className="fh-channel-toggle">
-              <span>Name source</span>
+              <span>{translate('workspace:unifiedWorkspace.nameSource')}</span>
               <select
-                value={controller.preferences?.displayNameSource ?? 'canonical'}
+                value={controller.preferences?.displayNameSource ?? "canonical"}
                 onChange={event => void controller.setDisplayNameSource(event.target.value)}
-                aria-label="Product display name source"
+                aria-label={translate('workspace:unifiedWorkspace.productDisplayNameSource')}
                 className="bg-transparent"
               >
-                <option value="canonical">Canonical Product</option>
+                <option value="canonical">{translate('workspace:unifiedWorkspace.canonicalProduct')}</option>
                 {controller.grid.channels.map(channel => <option key={channel.channelId} value={channel.channelId}>{formatChannelDisplayName(channel.channelId, channel)}</option>)}
               </select>
             </label>
@@ -101,63 +102,63 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
           <button type="button" className="fh-button-primary" disabled={controller.dirtyCount === 0 || controller.action !== null} onClick={() => void controller.saveDraft()}>
-            <Icon name="apply" /> Save Draft
+            <Icon name="apply" /> {translate('workspace:unifiedWorkspace.saveDraft')}
           </button>
           <button type="button" className="fh-button-secondary" disabled={controller.dirtyCount > 0 || !controller.grid.revisionId || controller.action !== null} onClick={() => void controller.createReview()}>
-            <Icon name="preview" /> Review Changes
+            <Icon name="preview" /> {translate('workspace:unifiedWorkspace.reviewChanges')}
           </button>
-          <button type="button" className="fh-button-primary" disabled={!controller.review || controller.review.status !== 'ready' || controller.dirtyCount > 0 || controller.action !== null} onClick={() => void controller.applySelected()}>
-            <Icon name="apply" /> Apply Selected Only
+          <button type="button" className="fh-button-primary" disabled={!controller.review || controller.review.status !== "ready" || controller.dirtyCount > 0 || controller.action !== null} onClick={() => void controller.applySelected()}>
+            <Icon name="apply" /> {translate('workspace:unifiedWorkspace.applySelectedOnly')}
           </button>
           {controller.action && <span className="fh-text-caption" role="status">{controller.action}...</span>}
         </div>
       </section>
 
       {controller.review && (
-        <section className={`fh-card fh-card-pad ${controller.review.status === 'ready' ? 'border-success/30' : 'border-danger/30'}`} aria-label="Review results">
+        <section className={`fh-card fh-card-pad ${controller.review.status === "ready" ? "border-success/30" : "border-danger/30"}`} aria-label={translate('workspace:unifiedWorkspace.reviewResults')}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="fh-section-title">Review {controller.review.status}</p>
-              <p className="fh-text-caption">Deterministic comparison of Current cache values and saved Draft targets.</p>
+              <p className="fh-section-title">{translate('workspace:unifiedWorkspace.review')} {controller.review.status}</p>
+              <p className="fh-text-caption">{translate('workspace:unifiedWorkspace.deterministicComparisonOfCurrentCacheValuesAnd')}</p>
             </div>
             <div className="flex gap-2 fh-text-caption">
-              <span>Eligible {controller.review.summary.eligible}</span>
-              <span>Blocked {controller.review.summary.blocked}</span>
-              <span>Warnings {controller.review.summary.warnings}</span>
+              <span>{translate('workspace:unifiedWorkspace.eligible')} {controller.review.summary.eligible}</span>
+              <span>{translate('workspace:unifiedWorkspace.blocked')} {controller.review.summary.blocked}</span>
+              <span>{translate('workspace:unifiedWorkspace.warnings')} {controller.review.summary.warnings}</span>
             </div>
           </div>
         </section>
       )}
 
       {controller.applyResult && (
-        <section className="fh-card fh-card-pad" aria-label="Apply results">
-          <p className="fh-section-title">Apply {controller.applyResult.status}</p>
-          <p className="fh-text-caption">Correlation {controller.applyResult.correlationId}</p>
-          {controller.applyResult.status === 'reconciliation_required' && (
+        <section className="fh-card fh-card-pad" aria-label={translate('workspace:sourceCentricWorkspace.applyResults')}>
+          <p className="fh-section-title">{translate('workspace:sourceCentricWorkspace.apply')} {controller.applyResult.status}</p>
+          <p className="fh-text-caption">{translate('workspace:unifiedWorkspace.correlation')} {controller.applyResult.correlationId}</p>
+          {controller.applyResult.status === "reconciliation_required" && (
             <button
               type="button"
               className="fh-button-secondary mt-3"
               disabled={controller.action !== null}
               onClick={() => void controller.reconcileApply()}
             >
-              Verify uncertain Listings
+              {translate('workspace:unifiedWorkspace.verifyUncertainListings')}
             </button>
           )}
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {controller.applyResult.items.map(item => (
               <div key={item.id} className="rounded border border-border p-3 fh-text-caption">
                 <span className="font-medium">{formatChannelDisplayName(item.channelId)} · {item.field}</span>
-                <span className="block">{item.status}{item.errorMessage ? ` — ${item.errorMessage}` : ''}</span>
+                <span className="block">{item.status}{item.errorMessage ? translate('workspace:unifiedWorkspace.errorDetail', { message: item.errorMessage }) : ''}</span>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      <section className="fh-card" aria-label="Unified multi-channel product editor">
+      <section className="fh-card" aria-label={translate('workspace:unifiedWorkspace.unifiedMultiChannelProductEditor')}>
         <form
           className="grid min-w-0 gap-3 border-b border-slate-200 p-4 md:grid-cols-5"
-          aria-label="Server-side Workspace filters"
+          aria-label={translate('workspace:unifiedWorkspace.serverSideWorkspaceFilters')}
           onSubmit={(event: FormEvent<HTMLFormElement>) => {
             event.preventDefault()
             const values = new FormData(event.currentTarget)
@@ -175,32 +176,32 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
             })
           }}
         >
-          <label className="fh-field-label min-w-0">Search<input className="fh-input mt-1" name="search" type="search" /></label>
-          <label className="fh-field-label min-w-0">Channel<input className="fh-input mt-1" name="channelId" /></label>
-          <label className="fh-field-label min-w-0">Status<input className="fh-input mt-1" name="channelStatus" /></label>
-          <label className="fh-field-label min-w-0">Price range<span className="mt-1 flex min-w-0 gap-2"><input aria-label="Minimum price" className="fh-input min-w-0" name="minPrice" type="number" min="0" /><input aria-label="Maximum price" className="fh-input min-w-0" name="maxPrice" type="number" min="0" /></span></label>
-          <span className="flex min-w-0 flex-wrap items-end gap-2"><button className="fh-button-secondary fh-button-sm" type="submit">Filter server data</button><button className="fh-button-secondary fh-button-sm" type="reset" onClick={() => controller.updateGridQuery({ search: undefined, channelId: undefined, channelStatus: undefined, minPrice: undefined, maxPrice: undefined })}>Clear</button></span>
+          <label className="fh-field-label min-w-0">{translate('workspace:unifiedWorkspace.search')}<input className="fh-input mt-1" name="search" type="search" /></label>
+          <label className="fh-field-label min-w-0">{translate('workspace:unifiedWorkspace.channel')}<input className="fh-input mt-1" name="channelId" /></label>
+          <label className="fh-field-label min-w-0">{translate('workspace:unifiedWorkspace.status')}<input className="fh-input mt-1" name="channelStatus" /></label>
+          <label className="fh-field-label min-w-0">{translate('workspace:unifiedWorkspace.priceRange')}<span className="mt-1 flex min-w-0 gap-2"><input aria-label={translate('workspace:unifiedWorkspace.minimumPrice')} className="fh-input min-w-0" name="minPrice" type="number" min="0" /><input aria-label={translate('workspace:unifiedWorkspace.maximumPrice')} className="fh-input min-w-0" name="maxPrice" type="number" min="0" /></span></label>
+          <span className="flex min-w-0 flex-wrap items-end gap-2"><button className="fh-button-secondary fh-button-sm" type="submit">{translate('workspace:unifiedWorkspace.filterServerData')}</button><button className="fh-button-secondary fh-button-sm" type="reset" onClick={() => controller.updateGridQuery({ search: undefined, channelId: undefined, channelStatus: undefined, minPrice: undefined, maxPrice: undefined })}>{translate('workspace:unifiedWorkspace.clear')}</button></span>
         </form>
         <div className="fh-panel-header">
           <div>
-            <p className="fh-section-title">Workspace Grid</p>
-            <p className="fh-text-caption">Edit Target cells inline. Current values, identities, SKUs, and Mapping are read-only.</p>
+            <p className="fh-section-title">{translate('workspace:unifiedWorkspace.workspaceGrid')}</p>
+            <p className="fh-text-caption">{translate('workspace:unifiedWorkspace.editTargetCellsInlineCurrentValuesIdentities')}</p>
           </div>
           <div className="flex items-center gap-2 fh-text-caption">
-            <span>{controller.selectedListingCount} Listing{controller.selectedListingCount === 1 ? '' : 's'} selected</span>
-            <button type="button" className="fh-button-secondary fh-button-sm" disabled={controller.page <= 1} onClick={() => controller.setPage(controller.page - 1)}>Previous</button>
-            <span>Page {controller.page} / {controller.totalPages}</span>
-            <button type="button" className="fh-button-secondary fh-button-sm" disabled={controller.page >= controller.totalPages} onClick={() => controller.setPage(controller.page + 1)}>Next</button>
+            <span>{translate('workspace:unifiedWorkspace.listingsSelected', { count: controller.selectedListingCount })}</span>
+            <button type="button" className="fh-button-secondary fh-button-sm" disabled={controller.page <= 1} onClick={() => controller.setPage(controller.page - 1)}>{translate('workspace:sourceCentricWorkspace.previous')}</button>
+            <span>{translate('workspace:sourceCentricWorkspace.page')} {controller.page} / {controller.totalPages}</span>
+            <button type="button" className="fh-button-secondary fh-button-sm" disabled={controller.page >= controller.totalPages} onClick={() => controller.setPage(controller.page + 1)}>{translate('workspace:sourceCentricWorkspace.next')}</button>
           </div>
         </div>
         {!handsontableLicense && (
           <div className="fh-alert fh-alert-danger m-4" role="alert">
             <Icon name="alert" />
-            <span>Production Grid is disabled. Configure a valid commercial Handsontable license.</span>
+            <span>{translate('workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid')}</span>
           </div>
         )}
-        {handsontableLicense && <div className="fh-grid-scroll" role="region" aria-label="Scrollable Workspace Grid">
-          <div className="ht-theme-main fh-handsontable" style={{ minWidth: gridMinWidth }} aria-label="Virtualized multi-channel Workspace Grid" tabIndex={0}>
+        {handsontableLicense && <div className="fh-grid-scroll" role="region" aria-label={translate('workspace:unifiedWorkspace.scrollableWorkspaceGrid')}>
+          <div className="ht-theme-main fh-handsontable" style={{ minWidth: gridMinWidth }} aria-label={translate('workspace:unifiedWorkspace.virtualizedMultiChannelWorkspaceGrid')} tabIndex={0}>
           <HotTable
             ref={hotRef}
             data={controller.definition.records}
@@ -215,8 +216,8 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
             manualColumnResize
             multiColumnSorting
             filters
-            dropdownMenu={['filter_by_condition', 'filter_by_value', 'filter_action_bar']}
-            copyPaste={{ pasteMode: 'overwrite' }}
+            dropdownMenu={["filter_by_condition", "filter_by_value", "filter_action_bar"]}
+            copyPaste={{ pasteMode: "overwrite" }}
             fillHandle={{ autoInsertRow: false }}
             licenseKey={handsontableLicense}
             sanitizer={sanitizeGridHtml}

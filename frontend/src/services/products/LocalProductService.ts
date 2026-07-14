@@ -1,3 +1,4 @@
+import { translate } from '../../i18n'
 import type {
   Product,
   ProductChannelPriceOperation,
@@ -146,7 +147,7 @@ function makeChannelPrices(productId: string): ProductChannelPriceStateSet {
     product: { id: product.id, name: product.name, sku: product.sku, productType: product.productType ?? 'simple', imageUrl: product.imageUrl },
     version: `local-${product.id}-v1`,
     canonical: {
-      label: 'Canonical/business price',
+      label: translate('common:localProductService.canonicalBusinessPrice'),
       value: base,
       currency: product.currency,
       unit: 'store currency',
