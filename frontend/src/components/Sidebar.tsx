@@ -72,7 +72,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
           <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 bg-bg-base border border-border">
             <img
-              src="/static/logos/FlowHub%20favicon.png"
+              src="/static/logos/FlowHub%20favicon.png?v=4"
               alt=""
               aria-hidden="true"
               className="w-full h-full object-contain flex-shrink-0 select-none"

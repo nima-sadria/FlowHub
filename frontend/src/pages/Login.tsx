@@ -56,7 +56,7 @@ export default function Login() {
       <div className="w-full max-w-[420px]">
         <div className="mb-8 text-center">
           <img
-            src="/static/logos/FlowHub.webp"
+            src="/static/logos/FlowHub.webp?v=4"
             alt={translate('authentication:login.flowhub')}
             className="mx-auto mb-6 h-auto w-[220px] max-w-full object-contain sm:w-[310px]"
           />

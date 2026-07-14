@@ -118,7 +118,7 @@ _FRONTEND_UNAVAILABLE_HTML = """\
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FlowHub</title>
-  <link rel="icon" type="image/x-icon" href="/static/logos/favicon.ico?v=2">
+  <link rel="icon" type="image/x-icon" href="/static/logos/favicon.ico?v=4">
   <style>
     @font-face {{
       font-family: 'Outfit';
