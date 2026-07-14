@@ -1,0 +1,14 @@
+{
+  "access.accessDenied": "دسترسی مجاز نیست",
+  "access.loginRequired": "ورود الزامی است",
+  "access.permissionDeniedDescription": "حساب شما اجازه مشاهده این محتوا را ندارد.",
+  "access.signInToContinue": "برای ادامه وارد شوید.",
+  "access.verifyingAccess": "در حال بررسی دسترسی",
+  "access.verifyingSession": "در حال بررسی نشست شما با سرور.",
+  "login.flowhub": "FlowHub",
+  "login.password": "رمز عبور",
+  "login.signIn": "ورود",
+  "login.signingIn": "در حال ورود...",
+  "login.signInToFlowhub": "ورود به FlowHub",
+  "login.username": "نام کاربری"
+}

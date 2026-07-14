@@ -108,7 +108,7 @@ test('Source configuration, FlowHub Sheet, import, and Data Quality render from 
   await page.screenshot({ path: path.join(screenshotRoot, 'data-quality.png'), fullPage: true })
 })
 
-test('English LTR and isolated pseudo-RTL pages remain usable and preserve business identifiers', async ({ page }) => {
+test('English LTR and complete Persian RTL pages remain usable and preserve business identifiers', async ({ page }) => {
   // This visual matrix performs 19 full-page navigations and screenshots in one browser session.
   test.setTimeout(90_000)
   await installMockApi(page)
@@ -140,6 +140,9 @@ test('English LTR and isolated pseudo-RTL pages remain usable and preserve busin
     await page.goto(route)
     await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+    if (name === 'dashboard') await expect(page.getByText('داشبورد', { exact: true }).first()).toBeVisible()
+    if (name === 'sources') await expect(page.getByText('منابع', { exact: true }).first()).toBeVisible()
+    if (name === 'settings') await expect(page.getByText('تنظیمات', { exact: true }).first()).toBeVisible()
     if (name === 'workspace') await expect(page.getByText('iPhone Cable')).toBeVisible()
     else if (name === 'flowhub-sheet') await expect(page.getByText('Daily multi-channel prices')).toBeVisible()
     else await page.waitForTimeout(250)
@@ -153,7 +156,7 @@ test('English LTR and isolated pseudo-RTL pages remain usable and preserve busin
   const sidebarBox = await sidebar.boundingBox()
   expect(sidebarBox).not.toBeNull()
   expect(sidebarBox!.x).toBeGreaterThan(1000)
-  await page.getByRole('button', { name: /Apply.*26/ }).click()
+  await page.getByRole('button', { name: /اعمال.*26/ }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.screenshot({ path: path.join(i18nScreenshotRoot, 'rtl-apply-confirmation.png'), fullPage: true })
 })

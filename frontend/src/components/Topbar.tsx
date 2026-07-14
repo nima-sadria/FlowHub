@@ -1,4 +1,5 @@
 import { translate } from '../i18n'
+import { formatStatus } from '../i18n/display'
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import Badge from './Badge'
@@ -120,12 +121,13 @@ export default function Topbar({
   const { theme, toggleTheme } = useTheme()
   const title = resolvePageTitle(location.pathname)
 
-  const healthLabel =
+  const healthLabel = formatStatus(
     health === 'ok'
-      ? 'Connected'
+      ? 'connected'
       : health === 'error'
-        ? 'Offline'
-        : 'Checking'
+        ? 'offline'
+        : 'checking',
+  )
 
   const healthVariant =
     health === 'ok'
@@ -170,8 +172,8 @@ export default function Topbar({
             onClick={toggleTheme}
             label={
               theme === "dark"
-                ? "Switch to light mode"
-                : "Switch to dark mode"
+                ? translate('navigation:topbar.switchToLightMode')
+                : translate('navigation:topbar.switchToDarkMode')
             }
             size="sm"
           >

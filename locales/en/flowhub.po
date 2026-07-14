@@ -94,11 +94,20 @@ msgctxt "commerce:commerceHub.accessMode"
 msgid "Access mode"
 msgstr "Access mode"
 
+#: frontend/src/pages/Dashboard.tsx:175
+msgctxt "dashboard:dashboard.totalProductsAcrossChannels"
+msgid "Across connected Channels"
+msgstr "Across connected Channels"
+
+msgctxt "common:status.active"
+msgid "Active"
+msgstr "Active"
+
 msgctxt "sources:sources.active"
 msgid "Active"
 msgstr "Active"
 
-#: frontend/src/pages/Dashboard.tsx:175
+#: frontend/src/pages/Dashboard.tsx:176
 msgctxt "dashboard:dashboard.activeSources"
 msgid "Active Sources"
 msgstr "Active Sources"
@@ -134,7 +143,7 @@ msgctxt "commerce:commerceHub.addSource"
 msgid "Add Source"
 msgstr "Add Source"
 
-#: frontend/src/pages/Dashboard.tsx:216
+#: frontend/src/pages/Dashboard.tsx:217
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dashboard:dashboard.addSource"
 msgid "Add Source"
@@ -163,11 +172,15 @@ msgctxt "sources:sources.addASourceToStartComparingPrices"
 msgid "Add a source to start comparing prices."
 msgstr "Add a source to start comparing prices."
 
-#: frontend/src/pages/Dashboard.tsx:225
+#: frontend/src/pages/Dashboard.tsx:226
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dashboard:dashboard.addYourFirstSource"
 msgid "Add your first source"
 msgstr "Add your first source"
+
+msgctxt "common:role.admin"
+msgid "Admin"
+msgstr "Admin"
 
 #: frontend/src/pages/CommerceHub.tsx:1105 frontend/src/pages/CommerceHub.tsx:1133 frontend/src/pages/CommerceHub.tsx:1163 frontend/src/pages/CommerceHub.tsx:1196 frontend/src/pages/CommerceHub.tsx:1226 frontend/src/pages/CommerceHub.tsx:1236 frontend/src/pages/CommerceHub.tsx:1295 frontend/src/pages/CommerceHub.tsx:1331
 msgctxt "commerce:commerceHub.adminPermissionRequired"
@@ -255,7 +268,7 @@ msgctxt "commerce:commerceHub.fields.appPasswordToken"
 msgid "App password / token"
 msgstr "App password / token"
 
-#: frontend/src/pages/Dashboard.tsx:154
+#: frontend/src/pages/Dashboard.tsx:155
 msgctxt "dashboard:dashboard.application"
 msgid "Application"
 msgstr "Application"
@@ -409,7 +422,7 @@ msgctxt "sources:sourceWizard.backToSources"
 msgid "Back to Sources"
 msgstr "Back to Sources"
 
-#: frontend/src/pages/Dashboard.tsx:144
+#: frontend/src/pages/Dashboard.tsx:145
 msgctxt "dashboard:dashboard.backend"
 msgid "Backend"
 msgstr "Backend"
@@ -641,7 +654,7 @@ msgctxt "commerce:commerceHub.channels2"
 msgid "Channels"
 msgstr "Channels"
 
-#: frontend/src/pages/Dashboard.tsx:159 frontend/src/pages/Dashboard.tsx:183
+#: frontend/src/pages/Dashboard.tsx:160 frontend/src/pages/Dashboard.tsx:184
 msgctxt "dashboard:dashboard.channels"
 msgid "Channels"
 msgstr "Channels"
@@ -667,6 +680,10 @@ msgstr "Check the mapped fields."
 msgctxt "diagnostics:diagnostics.checked"
 msgid "Checked"
 msgstr "Checked"
+
+msgctxt "common:status.checking"
+msgid "Checking"
+msgstr "Checking"
 
 #: frontend/src/pages/SourceImportWizard.tsx:63
 msgctxt "sources:sourceImportWizard.chooseXlsxOrCsv"
@@ -861,6 +878,10 @@ msgctxt "workspace:workspace.connectAProductSourceFromSourcesTo"
 msgid "Connect a product source from Sources to use Workspace."
 msgstr "Connect a product source from Sources to use Workspace."
 
+msgctxt "common:status.connected"
+msgid "Connected"
+msgstr "Connected"
+
 #: frontend/src/services/sources/LocalSourceService.ts:47
 msgctxt "common:localSourceService.connectedSuccessfully12ProductsFound"
 msgid "Connected successfully. 12 products found."
@@ -990,7 +1011,7 @@ msgctxt "sources:sourceConfiguration.valueType.dash"
 msgid "Dash"
 msgstr "Dash"
 
-#: frontend/src/pages/Dashboard.tsx:126
+#: frontend/src/pages/Dashboard.tsx:127
 msgctxt "dashboard:dashboard.dashboard"
 msgid "Dashboard"
 msgstr "Dashboard"
@@ -1043,7 +1064,7 @@ msgctxt "sources:sourceConfiguration.dataStartsAtRow"
 msgid "Data starts at row"
 msgstr "Data starts at row"
 
-#: frontend/src/pages/Dashboard.tsx:149
+#: frontend/src/pages/Dashboard.tsx:150
 msgctxt "dashboard:dashboard.database"
 msgid "Database"
 msgstr "Database"
@@ -1104,7 +1125,7 @@ msgctxt "workspace:unifiedWorkspace.deterministicComparisonOfCurrentCacheValuesA
 msgid "Deterministic comparison of Current cache values and saved Draft targets."
 msgstr "Deterministic comparison of Current cache values and saved Draft targets."
 
-#: frontend/src/pages/Dashboard.tsx:185
+#: frontend/src/pages/Dashboard.tsx:186
 msgctxt "dashboard:dashboard.diagnostics2"
 msgid "Diagnostics"
 msgstr "Diagnostics"
@@ -1453,7 +1474,7 @@ msgctxt "navigation:sidebar.flowhub"
 msgid "FlowHub"
 msgstr "FlowHub"
 
-#: frontend/src/components/Topbar.tsx:31
+#: frontend/src/components/Topbar.tsx:32
 msgctxt "navigation:topbar.flowhub"
 msgid "FlowHub"
 msgstr "FlowHub"
@@ -1463,7 +1484,7 @@ msgctxt "settings:setup.flowhub"
 msgid "FlowHub"
 msgstr "FlowHub"
 
-#: frontend/src/components/Topbar.tsx:155
+#: frontend/src/components/Topbar.tsx:157
 msgctxt "navigation:topbar.brandPrefix"
 msgid "FlowHub /"
 msgstr "FlowHub /"
@@ -1473,7 +1494,7 @@ msgctxt "commerce:commerceHub.flowhubDataLayer"
 msgid "FlowHub / Data Layer"
 msgstr "FlowHub / Data Layer"
 
-#: frontend/src/components/Topbar.tsx:30
+#: frontend/src/components/Topbar.tsx:31
 msgctxt "navigation:topbar.flowhubSheet"
 msgid "FlowHub Sheet"
 msgstr "FlowHub Sheet"
@@ -1625,6 +1646,10 @@ msgctxt "settings:setup.inProgress"
 msgid "In progress"
 msgstr "In progress"
 
+msgctxt "common:status.inactive"
+msgid "Inactive"
+msgstr "Inactive"
+
 msgctxt "activity:activity.info"
 msgid "Info"
 msgstr "Info"
@@ -1688,7 +1713,7 @@ msgctxt "settings:language.title"
 msgid "Language"
 msgstr "Language"
 
-#: frontend/src/pages/Dashboard.tsx:176
+#: frontend/src/pages/Dashboard.tsx:177
 msgctxt "dashboard:dashboard.lastPreview"
 msgid "Last Preview"
 msgstr "Last Preview"
@@ -1944,7 +1969,7 @@ msgctxt "sources:sourceConfiguration.loading"
 msgid "Loading..."
 msgstr "Loading..."
 
-#: frontend/src/pages/Dashboard.tsx:132
+#: frontend/src/pages/Dashboard.tsx:133
 msgctxt "dashboard:dashboard.loggedIn"
 msgid "Logged In"
 msgstr "Logged In"
@@ -2147,7 +2172,7 @@ msgctxt "diagnostics:diagnostics.noChannelHealthData"
 msgid "No channel health data"
 msgstr "No channel health data"
 
-#: frontend/src/pages/Dashboard.tsx:192
+#: frontend/src/pages/Dashboard.tsx:193
 msgctxt "dashboard:dashboard.noChannelsMonitored"
 msgid "No channels monitored"
 msgstr "No channels monitored"
@@ -2157,7 +2182,7 @@ msgctxt "diagnostics:diagnostics.noConnectorsConfigured"
 msgid "No connectors configured"
 msgstr "No connectors configured"
 
-#: frontend/src/pages/Dashboard.tsx:254
+#: frontend/src/pages/Dashboard.tsx:255
 msgctxt "dashboard:dashboard.noEventsYet"
 msgid "No events yet"
 msgstr "No events yet"
@@ -2213,7 +2238,7 @@ msgctxt "sources:sources.noSourcesConfigured"
 msgid "No sources configured"
 msgstr "No sources configured"
 
-#: frontend/src/pages/Dashboard.tsx:224
+#: frontend/src/pages/Dashboard.tsx:225
 msgctxt "dashboard:dashboard.noSourcesYet"
 msgid "No sources yet"
 msgstr "No sources yet"
@@ -2281,6 +2306,10 @@ msgctxt "common:status.ok"
 msgid "OK"
 msgstr "OK"
 
+msgctxt "common:status.offline"
+msgid "Offline"
+msgstr "Offline"
+
 #: frontend/src/pages/Diagnostics.tsx:208
 msgctxt "common:status.online"
 msgid "Online"
@@ -2326,7 +2355,7 @@ msgctxt "sources:sourceConfiguration.openWorkspace"
 msgid "Open Workspace"
 msgstr "Open Workspace"
 
-#: frontend/src/components/Topbar.tsx:149
+#: frontend/src/components/Topbar.tsx:151
 msgctxt "navigation:topbar.openNavigation"
 msgid "Open navigation"
 msgstr "Open navigation"
@@ -2766,7 +2795,7 @@ msgctxt "workspace:sourceCentricWorkspace.readyChanges"
 msgid "Ready changes"
 msgstr "Ready changes"
 
-#: frontend/src/pages/Dashboard.tsx:243
+#: frontend/src/pages/Dashboard.tsx:244
 msgctxt "dashboard:dashboard.recentActivity"
 msgid "Recent Activity"
 msgstr "Recent Activity"
@@ -2933,6 +2962,10 @@ msgstr "Row order"
 msgctxt "flowhubSheet:flowHubSheet.rowColumn"
 msgid "Row {{row}}, {{column}}"
 msgstr "Row {{row}}, {{column}}"
+
+msgctxt "common:status.running"
+msgid "Running"
+msgstr "Running"
 
 #: frontend/src/pages/RateLimits.tsx:135 frontend/src/pages/Settings.tsx:201
 msgctxt "settings:rateLimits.saveChanges"
@@ -3229,12 +3262,12 @@ msgctxt "common:app.signOut"
 msgid "Sign out"
 msgstr "Sign out"
 
-#: frontend/src/components/Sidebar.tsx:193 frontend/src/components/Sidebar.tsx:194 frontend/src/components/Topbar.tsx:232
+#: frontend/src/components/Sidebar.tsx:193 frontend/src/components/Sidebar.tsx:194 frontend/src/components/Topbar.tsx:234
 msgctxt "navigation:sidebar.signOut"
 msgid "Sign out"
 msgstr "Sign out"
 
-#: frontend/src/components/Topbar.tsx:221
+#: frontend/src/components/Topbar.tsx:223
 msgctxt "navigation:topbar.signedIn"
 msgid "Signed in"
 msgstr "Signed in"
@@ -3286,7 +3319,7 @@ msgctxt "orders:orders.source"
 msgid "Source"
 msgstr "Source"
 
-#: frontend/src/components/Topbar.tsx:29
+#: frontend/src/components/Topbar.tsx:30
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "navigation:topbar.sourceConfiguration"
 msgid "Source Configuration"
@@ -3439,7 +3472,7 @@ msgctxt "commerce:commerceHub.sources2"
 msgid "Sources"
 msgstr "Sources"
 
-#: frontend/src/pages/Dashboard.tsx:214
+#: frontend/src/pages/Dashboard.tsx:215
 msgctxt "dashboard:dashboard.sources"
 msgid "Sources"
 msgstr "Sources"
@@ -3575,6 +3608,20 @@ msgctxt "products:products.success2"
 msgid "Success"
 msgstr "Success"
 
+msgctxt "common:role.superAdmin"
+msgid "Super Admin"
+msgstr "Super Admin"
+
+#: frontend/src/components/Topbar.tsx:176
+msgctxt "navigation:topbar.switchToDarkMode"
+msgid "Switch to dark mode"
+msgstr "Switch to dark mode"
+
+#: frontend/src/components/Topbar.tsx:175
+msgctxt "navigation:topbar.switchToLightMode"
+msgid "Switch to light mode"
+msgstr "Switch to light mode"
+
 #: frontend/src/pages/Settings.tsx:223
 msgctxt "settings:settings.syncIntervalMinutes"
 msgid "Sync interval (minutes)"
@@ -3595,7 +3642,7 @@ msgctxt "activity:activity.systemEventsAndUserActions"
 msgid "System events and user actions"
 msgstr "System events and user actions"
 
-#: frontend/src/pages/Dashboard.tsx:127
+#: frontend/src/pages/Dashboard.tsx:128
 msgctxt "dashboard:dashboard.systemOverview"
 msgid "System overview"
 msgstr "System overview"
@@ -3751,7 +3798,7 @@ msgctxt "products:products.total"
 msgid "Total"
 msgstr "Total"
 
-#: frontend/src/pages/Dashboard.tsx:174
+#: frontend/src/pages/Dashboard.tsx:175
 msgctxt "dashboard:dashboard.totalProducts"
 msgid "Total Products"
 msgstr "Total Products"
@@ -3819,6 +3866,10 @@ msgstr "Unable to apply Channel prices."
 msgctxt "products:products.unableToApproveDryRun"
 msgid "Unable to approve Dry Run."
 msgstr "Unable to approve Dry Run."
+
+msgctxt "common:status.unableToCheck"
+msgid "Unable to check"
+msgstr "Unable to check"
 
 #: frontend/src/pages/Diagnostics.tsx:214 frontend/src/pages/Diagnostics.tsx:226 frontend/src/pages/Diagnostics.tsx:94
 msgctxt "diagnostics:diagnostics.unableToCheck"
@@ -4024,7 +4075,11 @@ msgctxt "commerce:commerceHub.validation.useNextcloudRootOrWebdav"
 msgid "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings."
 msgstr "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings."
 
-#: frontend/src/components/Topbar.tsx:197
+msgctxt "common:role.user"
+msgid "User"
+msgstr "User"
+
+#: frontend/src/components/Topbar.tsx:199
 msgctxt "navigation:topbar.userMenu"
 msgid "User menu"
 msgstr "User menu"
@@ -4125,7 +4180,7 @@ msgctxt "sources:sourceWizard.viewProducts"
 msgid "View Products"
 msgstr "View Products"
 
-#: frontend/src/pages/Dashboard.tsx:245
+#: frontend/src/pages/Dashboard.tsx:246
 msgctxt "dashboard:dashboard.viewAll"
 msgid "View all"
 msgstr "View all"
@@ -4258,7 +4313,7 @@ msgctxt "navigation:sidebar.workspace"
 msgid "Workspace"
 msgstr "Workspace"
 
-#: frontend/src/components/Topbar.tsx:27
+#: frontend/src/components/Topbar.tsx:28
 msgctxt "navigation:topbar.workspace"
 msgid "Workspace"
 msgstr "Workspace"
@@ -4535,6 +4590,25 @@ msgid_plural "{{count}} Listings selected"
 msgstr[0] "{{count}} Listing selected"
 msgstr[1] "{{count}} Listings selected"
 
+msgctxt "dashboard:dashboard.configuredSources"
+msgid "{{count}} configured"
+msgid_plural "{{count}} configured"
+msgstr[0] "{{count}} configured"
+msgstr[1] "{{count}} configured"
+
+msgctxt "dashboard:dashboard.connectedSources"
+msgid "{{count}} connected"
+msgid_plural "{{count}} connected"
+msgstr[0] "{{count}} connected"
+msgstr[1] "{{count}} connected"
+
+#: frontend/src/pages/Dashboard.tsx:162
+msgctxt "dashboard:dashboard.monitoredDestinations"
+msgid "{{count}} monitored destination"
+msgid_plural "{{count}} monitored destinations"
+msgstr[0] "{{count}} monitored destination"
+msgstr[1] "{{count}} monitored destinations"
+
 #: frontend/src/pages/Products.tsx:561
 msgctxt "products:products.productCount"
 msgid "{{count}} product"
@@ -4638,7 +4712,7 @@ msgctxt "workspace:sourceCentricWorkspace.unsavedEdits"
 msgid "{{value1}} unsaved edits"
 msgstr "{{value1}} unsaved edits"
 
-#: frontend/src/pages/Dashboard.tsx:232
+#: frontend/src/pages/Dashboard.tsx:233
 msgctxt "dashboard:dashboard.products"
 msgid "{{value1}} · {{value2}} products"
 msgstr "{{value1}} · {{value2}} products"

@@ -33,6 +33,8 @@
   "topbar.signedIn": "Signed in",
   "topbar.sourceConfiguration": "Source Configuration",
   "topbar.sources": "Sources",
+  "topbar.switchToDarkMode": "Switch to dark mode",
+  "topbar.switchToLightMode": "Switch to light mode",
   "topbar.userMenu": "User menu",
   "topbar.workspace": "Workspace"
 }

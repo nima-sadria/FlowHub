@@ -10,7 +10,7 @@ FlowHub uses `i18next` and `react-i18next` for its React translation layer. Engl
 - `frontend/src/i18n/format.ts` owns locale-sensitive number, percent, date, time, relative-time, and price presentation. It does not change price units or currency-domain values.
 - `frontend/src/i18n/errors.ts` maps stable API error codes to translated messages. Backend prose remains a diagnostic fallback for legacy responses.
 - `frontend/src/i18n/display.ts` localizes common status and field labels without changing technical identifiers.
-- Persian is declared as the future RTL locale but is disabled until its PO catalog is complete. `VITE_ENABLE_PSEUDO_RTL=true` is allowed only for automated non-production visual tests.
+- Persian (`fa`) has a complete reviewed RTL catalog and is available from Settings. `VITE_ENABLE_PSEUDO_RTL=true` remains a non-production fallback for testing a future incomplete RTL catalog, but it never replaces a complete Persian catalog.
 
 Language resolution is:
 
@@ -44,6 +44,8 @@ npm run i18n:compile
 - `i18n:extract` deterministically rebuilds `locales/flowhub.pot` and the complete English `locales/en/flowhub.po`, including source references, plural forms, placeholders, contexts, and FlowHub terminology comments.
 - `i18n:validate` parses the POT, checks source keys and placeholders, and fails on unapproved hardcoded JSX, labels, placeholders, tooltips, accessibility text, notification text, dialogs, and rendered constants.
 - `i18n:compile` converts every `locales/<locale>/flowhub.po` into namespaced runtime JSON and a completion manifest. An incomplete locale remains unavailable in Settings while individual missing messages still safely fall back to English.
+
+The complete Persian translator catalog is `locales/fa/flowhub.po`. Its generated runtime resources are stored under `frontend/src/i18n/locales/fa/` and must not be edited independently of the PO catalog.
 
 The hardcoded-string exception is deliberately narrow. A technical or immutable diagnostic literal may use `i18n-ignore` only with an inline reason. Tests, fixtures, API constants, technical IDs, and developer diagnostics are excluded from source extraction. User-facing copy must never use this exception.
 

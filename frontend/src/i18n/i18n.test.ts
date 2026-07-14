@@ -8,6 +8,7 @@ import i18n, {
   translate,
 } from './index'
 import { localizedApiError } from './errors'
+import { formatRole, formatStatus } from './display'
 import { formatDate, formatNumber, formatPercent } from './format'
 
 describe('FlowHub internationalization foundation', () => {
@@ -27,11 +28,14 @@ describe('FlowHub internationalization foundation', () => {
     expect(translate('common:keyThatDoesNotExist', { defaultValue: 'Safe fallback' })).toBe('Safe fallback')
   })
 
-  it('persists a supported language and rejects an incomplete production catalog', async () => {
+  it('persists complete English and Persian production catalogs', async () => {
     expect(await changeLocale('en')).toBe(true)
     expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('en')
-    expect(await changeLocale('fa')).toBe(false)
-    expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('en')
+    expect(await changeLocale('fa')).toBe(true)
+    expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('fa')
+    expect(translate('navigation:sidebar.dashboard')).toBe('داشبورد')
+    expect(document.documentElement.lang).toBe('fa')
+    expect(document.documentElement.dir).toBe('rtl')
   })
 
   it('updates document language and direction for a test RTL catalog', async () => {
@@ -39,6 +43,19 @@ describe('FlowHub internationalization foundation', () => {
     applyDocumentLocale('fa')
     expect(document.documentElement.lang).toBe('fa')
     expect(document.documentElement.dir).toBe('rtl')
+  })
+
+  it('translates interface copy without translating product and Listing identities', async () => {
+    await changeLocale('fa')
+    const label = translate('workspace:sourceCentricWorkspace.selectListing', {
+      channel: 'woocommerce:primary',
+      listing: 'SKU-FA-001',
+    })
+    expect(label).toContain('woocommerce:primary')
+    expect(label).toContain('SKU-FA-001')
+    expect(translate('workspace:sourceCentricWorkspace.apply')).toBe('اعمال')
+    expect(formatStatus('Unable to check')).toBe('بررسی ممکن نیست')
+    expect(formatRole('super_admin')).toBe('مدیر ارشد')
   })
 
   it('preserves interpolation values and applies English plural rules', () => {

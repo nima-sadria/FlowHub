@@ -6,13 +6,19 @@ The canonical English template is:
 locales/flowhub.pot
 ```
 
-## Create the Persian catalog with Poedit
+The complete Persian catalog is:
 
-1. Open `locales/flowhub.pot` in Poedit.
-2. Choose **Create new translation from POT/PO file** and select Persian (`fa`).
+```text
+locales/fa/flowhub.po
+```
+
+## Review the Persian catalog with Poedit
+
+1. Open `locales/fa/flowhub.po` in Poedit.
+2. Use `locales/flowhub.pot` as the English source template when updating the catalog.
 3. Preserve every placeholder exactly, including `{{count}}`, `{{channel}}`, `{{product}}`, and `{{date}}`.
 4. Review translator comments for FlowHub-specific terms such as Apply, Review, Draft, Listing, Source, Channel, Mapping, Current, Target, Stock, and Reconciliation.
-5. Save the catalog as `locales/fa/flowhub.po` using UTF-8.
+5. Save the reviewed catalog as `locales/fa/flowhub.po` using UTF-8.
 6. From `frontend/`, run:
 
    ```text
@@ -23,13 +29,13 @@ locales/flowhub.pot
    npm run test:e2e
    ```
 
-7. When all messages are translated and validation/RTL review passes, Persian becomes selectable in Settings. No manual copying of individual strings is required.
+7. A complete validated catalog remains selectable in Settings. No manual copying of individual strings is required.
 
-Do not place Persian translations in `flowhub.pot`. Do not machine-translate the production catalog. An incomplete PO is safe to compile for review, but its manifest keeps Persian unavailable to normal users and missing values fall back to English.
+Do not place Persian translations in `flowhub.pot`. The Persian catalog was written and reviewed as human UI copy; do not replace it with unreviewed machine translation. An incomplete PO is safe to compile for review, but its manifest keeps Persian unavailable to normal users and missing values fall back to English.
 
 ## Update an existing translation
 
-Regenerate the English template with `npm run i18n:extract`, then use Poedit’s **Update from POT file** action against `locales/flowhub.pot`. Resolve changed and obsolete entries, save `locales/fa/flowhub.po`, and compile again.
+Regenerate the English template with `npm run i18n:extract`, then use Poedit's **Update from POT file** action against `locales/flowhub.pot`. Resolve changed and obsolete entries, save `locales/fa/flowhub.po`, and compile again.
 
 ## Plurals and interpolation
 

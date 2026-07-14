@@ -11,6 +11,7 @@ import PageShell from '../components/PageShell'
 import { useServices } from '../services/ServiceContext'
 import type { ActivityEvent, ChannelHealthResponse, Source } from '../services/types'
 import { formatRelativeTime } from '../i18n/format'
+import { formatRole, formatStatus } from '../i18n/display'
 
 type Indicator = 'ok' | 'warning' | 'error' | 'loading'
 
@@ -134,7 +135,7 @@ export default function Dashboard() {
           <div className="fh-user-avatar flex-shrink-0">{initial}</div>
           <div>
             <div className="fh-text-body font-medium">{user?.username ?? '-'}</div>
-            <div className="fh-text-caption capitalize">{user?.role ?? '-'}</div>
+            <div className="fh-text-caption">{formatRole(user?.role)}</div>
           </div>
         </div>
       </div>
@@ -142,23 +143,23 @@ export default function Dashboard() {
       <div className="fh-stat-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label={translate('dashboard:dashboard.backend')}
-          value={health ? "Online" : healthLoading ? "Loading" : "Unavailable"}
+          value={formatStatus(health ? 'online' : healthLoading ? 'loading' : 'unavailable')}
           indicator={backendInd}
         />
         <StatCard
           label={translate('dashboard:dashboard.database')}
-          value={backendInd === "ok" ? "Connected" : backendInd === "loading" ? "Loading" : "Unavailable"}
+          value={formatStatus(backendInd === 'ok' ? 'connected' : backendInd === 'loading' ? 'loading' : 'unavailable')}
           indicator={backendInd}
         />
         <StatCard
           label={translate('dashboard:dashboard.application')}
-          value={backendInd === "ok" ? "Running" : backendInd === "loading" ? "Loading" : "Unavailable"}
+          value={formatStatus(backendInd === 'ok' ? 'running' : backendInd === 'loading' ? 'loading' : 'unavailable')}
           indicator={backendInd}
         />
         <StatCard
           label={translate('dashboard:dashboard.channels')}
-          value={channelOverall ?? (healthLoading ? "Loading" : "Unable to check")}
-          sub={channelHealth ? `${channelHealth.items.length} monitored destinations` : undefined}
+          value={formatStatus(channelOverall ?? (healthLoading ? 'loading' : 'unable_to_check'))}
+          sub={channelHealth ? translate('dashboard:dashboard.monitoredDestinations', { count: channelHealth.items.length }) : undefined}
           indicator={channelInd}
         />
       </div>
@@ -171,8 +172,8 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="fh-stat-grid grid-cols-1 sm:grid-cols-3">
-          <StatCard label={translate('dashboard:dashboard.totalProducts')} value={totalProducts !== null ? String(totalProducts) : '-'} sub="across connected channels" />
-          <StatCard label={translate('dashboard:dashboard.activeSources')} value={String(activeSources.length)} sub={activeSources.length === 1 ? "1 connected" : `${activeSources.length} configured`} />
+          <StatCard label={translate('dashboard:dashboard.totalProducts')} value={totalProducts !== null ? String(totalProducts) : '-'} sub={translate('dashboard:dashboard.totalProductsAcrossChannels')} />
+          <StatCard label={translate('dashboard:dashboard.activeSources')} value={String(activeSources.length)} sub={translate(activeSources.length === 1 ? 'dashboard:dashboard.connectedSources' : 'dashboard:dashboard.configuredSources', { count: activeSources.length })} />
           <StatCard label={translate('dashboard:dashboard.lastPreview')} value={lastSync ? relTime(lastSync) : '-'} />
         </div>
       )}
@@ -201,7 +202,7 @@ export default function Dashboard() {
                     className="capitalize flex-shrink-0"
                     variant={channel.status === "Operational" ? "success" : channel.status === "Error" ? "error" : "warning"}
                   >
-                    {channel.status}
+                    {formatStatus(channel.status)}
                   </Badge>
                 </div>
               ))
@@ -231,7 +232,7 @@ export default function Dashboard() {
                     <p className="fh-text-body font-medium">{source.name}</p>
                     <p className="fh-text-caption">{translate('dashboard:dashboard.products', { value1: relTime(source.lastSynced), value2: source.productCount })}</p>
                   </div>
-                  <Badge className="capitalize" variant={source.status === "active" ? "success" : "error"}>{source.status}</Badge>
+                  <Badge className="capitalize" variant={source.status === "active" ? "success" : "error"}>{formatStatus(source.status)}</Badge>
                 </div>
               ))
             )}

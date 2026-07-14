@@ -7,6 +7,14 @@ const statusAliases: Record<string, string> = {
   read_only: 'readOnly',
   reconciliation_required: 'reconciliationRequired',
   stale_review: 'staleReview',
+  unable_to_check: 'unableToCheck',
+}
+
+export function formatRole(value: string | null | undefined): string {
+  if (!value) return '-'
+  const normalized = value.trim().replace(/[-_]+(.)/g, (_, character: string) => character.toUpperCase())
+  const key = `common:role.${normalized}`
+  return i18n.exists(key) ? translate(key) : value
 }
 
 export function formatStatus(value: string | null | undefined): string {

@@ -4,4730 +4,4730 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "mime-version: 1.0\n"
-"Language: en\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"x-generator: FlowHub deterministic i18n extractor\n"
+"Language: fa\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"x-generator: FlowHub deterministic Persian catalog builder\n"
 
 #: frontend/src/pages/CommerceHub.tsx:849
 msgctxt "commerce:commerceHub.alternateTitle"
 msgid " ({{title}})"
-msgstr ""
+msgstr " ({{title}})"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
 msgctxt "workspace:sourceCentricWorkspace.fieldUnit"
 msgid " ({{unit}})"
-msgstr ""
+msgstr " ({{unit}})"
 
 #: frontend/src/pages/CommerceHub.tsx:849
 msgctxt "commerce:commerceHub.inactive"
 msgid "- Inactive"
-msgstr ""
+msgstr "— غیرفعال"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
 msgctxt "workspace:sourceCentricWorkspace.1ChangesDetected"
 msgid "1 · Changes detected"
-msgstr ""
+msgstr "۱ · تغییرات شناسایی‌شده"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.2ReviewDryRun"
 msgid "2 · Review & Dry Run"
-msgstr ""
+msgstr "۲ · بازبینی و اجرای آزمایشی"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
 msgctxt "workspace:sourceCentricWorkspace.3Approve"
 msgid "3 · Approve"
-msgstr ""
+msgstr "۳ · تأیید"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.4ApplySelected"
 msgid "4 · Apply selected"
-msgstr ""
+msgstr "۴ · اعمال موارد انتخاب‌شده"
 
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "errors:codes.REVIEW_REQUIRED"
 msgid "A fresh Review is required before Apply."
-msgstr ""
+msgstr "پیش از اعمال تغییرات، بازبینی تازه لازم است."
 
 #: frontend/src/pages/SourceConfiguration.tsx:105
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated"
 msgid "A new immutable Mapping revision was created."
-msgstr ""
+msgstr "یک نسخه تغییرناپذیر جدید از نگاشت ایجاد شد."
 
 msgctxt "settings:setup.aedUaeDirham"
 msgid "AED - UAE Dirham"
-msgstr ""
+msgstr "AED - درهم امارات"
 
 #: frontend/src/pages/CommerceHub.tsx:211
 msgctxt "commerce:commerceHub.apiCredentials"
 msgid "API credentials:"
-msgstr ""
+msgstr "اطلاعات ورود API:"
 
 #: frontend/src/pages/CommerceHub.tsx:284
 msgctxt "commerce:commerceHub.fields.apiKeyToken"
 msgid "API key/token"
-msgstr ""
+msgstr "کلید یا توکن API"
 
 msgctxt "settings:setup.audAustralianDollar"
 msgid "AUD - Australian Dollar"
-msgstr ""
+msgstr "AUD - دلار استرالیا"
 
 #: frontend/src/pages/Diagnostics.tsx:395
 msgctxt "diagnostics:diagnostics.about"
 msgid "About"
-msgstr ""
+msgstr "درباره"
 
 #: frontend/src/pages/Settings.tsx:253
 msgctxt "settings:settings.about"
 msgid "About"
-msgstr ""
+msgstr "درباره"
 
 #: frontend/src/auth.tsx:188
 msgctxt "authentication:access.accessDenied"
 msgid "Access Denied"
-msgstr ""
+msgstr "دسترسی مجاز نیست"
 
 #: frontend/src/pages/CommerceHub.tsx:782
 msgctxt "commerce:commerceHub.accessMode"
 msgid "Access mode"
-msgstr ""
+msgstr "حالت دسترسی"
 
 #: frontend/src/pages/Dashboard.tsx:175
 msgctxt "dashboard:dashboard.totalProductsAcrossChannels"
 msgid "Across connected Channels"
-msgstr ""
+msgstr "در کانال‌های متصل"
 
 msgctxt "common:status.active"
 msgid "Active"
-msgstr ""
+msgstr "فعال"
 
 msgctxt "sources:sources.active"
 msgid "Active"
-msgstr ""
+msgstr "فعال"
 
 #: frontend/src/pages/Dashboard.tsx:176
 msgctxt "dashboard:dashboard.activeSources"
 msgid "Active Sources"
-msgstr ""
+msgstr "منابع فعال"
 
 #: frontend/src/pages/Activity.tsx:89
 msgctxt "activity:activity.activity"
 msgid "Activity"
-msgstr ""
+msgstr "فعالیت‌ها"
 
 #: frontend/src/components/Sidebar.tsx:155
 msgctxt "navigation:sidebar.activity"
 msgid "Activity"
-msgstr ""
+msgstr "فعالیت‌ها"
 
 msgctxt "navigation:topbar.activity"
 msgid "Activity"
-msgstr ""
+msgstr "فعالیت‌ها"
 
 #: frontend/src/pages/FlowHubSheet.tsx:101
 msgctxt "flowhubSheet:flowHubSheet.add20Rows"
 msgid "Add 20 rows"
-msgstr ""
+msgstr "افزودن ۲۰ ردیف"
 
 #: frontend/src/pages/CommerceHub.tsx:1328 frontend/src/pages/CommerceHub.tsx:742
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.addChannel"
 msgid "Add Channel"
-msgstr ""
+msgstr "افزودن کانال"
 
 #: frontend/src/pages/CommerceHub.tsx:1292 frontend/src/pages/CommerceHub.tsx:742
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.addSource"
 msgid "Add Source"
-msgstr ""
+msgstr "افزودن منبع"
 
 #: frontend/src/pages/Dashboard.tsx:217
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dashboard:dashboard.addSource"
 msgid "Add Source"
-msgstr ""
+msgstr "افزودن منبع"
 
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "navigation:topbar.addSource"
 msgid "Add Source"
-msgstr ""
+msgstr "افزودن منبع"
 
 #: frontend/src/pages/Sources.tsx:107 frontend/src/pages/Sources.tsx:93
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sources.addSource"
 msgid "Add Source"
-msgstr ""
+msgstr "افزودن منبع"
 
 #: frontend/src/pages/SourceWizard.tsx:129
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceWizard.addASource"
 msgid "Add a Source"
-msgstr ""
+msgstr "افزودن منبع"
 
 #: frontend/src/pages/Sources.tsx:106
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sources.addASourceToStartComparingPrices"
 msgid "Add a source to start comparing prices."
-msgstr ""
+msgstr "برای شروع مقایسه قیمت‌ها یک منبع اضافه کنید."
 
 #: frontend/src/pages/Dashboard.tsx:226
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dashboard:dashboard.addYourFirstSource"
 msgid "Add your first source"
-msgstr ""
+msgstr "اولین منبع خود را اضافه کنید"
 
 msgctxt "common:role.admin"
 msgid "Admin"
-msgstr ""
+msgstr "مدیر"
 
 #: frontend/src/pages/CommerceHub.tsx:1105 frontend/src/pages/CommerceHub.tsx:1133 frontend/src/pages/CommerceHub.tsx:1163 frontend/src/pages/CommerceHub.tsx:1196 frontend/src/pages/CommerceHub.tsx:1226 frontend/src/pages/CommerceHub.tsx:1236 frontend/src/pages/CommerceHub.tsx:1295 frontend/src/pages/CommerceHub.tsx:1331
 msgctxt "commerce:commerceHub.adminPermissionRequired"
 msgid "Admin permission required"
-msgstr ""
+msgstr "دسترسی مدیر لازم است"
 
 #: frontend/src/pages/SourceCenter.tsx:65
 msgctxt "sources:sourceCenter.advanced"
 msgid "Advanced"
-msgstr ""
+msgstr "پیشرفته"
 
 #: frontend/src/pages/CommerceHub.tsx:859
 msgctxt "commerce:commerceHub.advancedSettings"
 msgid "Advanced settings"
-msgstr ""
+msgstr "تنظیمات پیشرفته"
 
 #: frontend/src/pages/SourceImportWizard.tsx:67
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceImportWizard.afterImportMapSourceProductFieldsAnd"
 msgid "After import, map Source Product fields and each enabled Channel explicitly. FlowHub does not infer business fields from headers."
-msgstr ""
+msgstr "پس از ورود، فیلدهای محصول منبع و هر کانال فعال را به‌صورت صریح نگاشت کنید. FlowHub فیلدهای کسب‌وکار را از روی سرستون‌ها حدس نمی‌زند."
 
 #: frontend/src/pages/Products.tsx:602
 msgctxt "products:products.allCategories"
 msgid "All Categories"
-msgstr ""
+msgstr "همه دسته‌ها"
 
 #: frontend/src/pages/DataQuality.tsx:41 frontend/src/pages/DataQuality.tsx:42
 msgctxt "dataQuality:dataQuality.allChannels"
 msgid "All Channels"
-msgstr ""
+msgstr "همه کانال‌ها"
 
 msgctxt "products:products.allChannels"
 msgid "All Channels"
-msgstr ""
+msgstr "همه کانال‌ها"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.allSources"
 msgid "All Sources"
-msgstr ""
+msgstr "همه منابع"
 
 #: frontend/src/pages/Products.tsx:619
 msgctxt "products:products.allTypes"
 msgid "All Types"
-msgstr ""
+msgstr "همه نوع‌ها"
 
 #: frontend/src/pages/Workspace.tsx:368
 msgctxt "workspace:workspace.allApprovedUpdatesHaveBeenCompleted"
 msgid "All approved updates have been completed."
-msgstr ""
+msgstr "همه به‌روزرسانی‌های تأییدشده تکمیل شدند."
 
 #: frontend/src/pages/DataQuality.tsx:41
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "dataQuality:dataQuality.allMappingStates"
 msgid "All mapping states"
-msgstr ""
+msgstr "همه وضعیت‌های نگاشت"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.allSeverities"
 msgid "All severities"
-msgstr ""
+msgstr "همه سطح‌ها"
 
 #: frontend/src/pages/CommerceHub.tsx:956
 msgctxt "commerce:commerceHub.allWorksheets"
 msgid "All worksheets"
-msgstr ""
+msgstr "همه کاربرگ‌ها"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.allWorksheets"
 msgid "All worksheets"
-msgstr ""
+msgstr "همه کاربرگ‌ها"
 
 #: frontend/src/pages/SourceConfiguration.tsx:129
 msgctxt "sources:sourceConfiguration.allWorksheets"
 msgid "All worksheets"
-msgstr ""
+msgstr "همه کاربرگ‌ها"
 
 #: frontend/src/components/ErrorBoundary.tsx:36
 msgctxt "common:errorBoundary.anUnexpectedErrorOccurredOnThisPage"
 msgid "An unexpected error occurred on this page."
-msgstr ""
+msgstr "خطایی پیش‌بینی‌نشده در این صفحه رخ داد."
 
 #: frontend/src/pages/CommerceHub.tsx:279
 msgctxt "commerce:commerceHub.fields.appPasswordToken"
 msgid "App password / token"
-msgstr ""
+msgstr "رمز برنامه یا توکن"
 
 #: frontend/src/pages/Dashboard.tsx:155
 msgctxt "dashboard:dashboard.application"
 msgid "Application"
-msgstr ""
+msgstr "برنامه"
 
 #: frontend/src/pages/Settings.tsx:253
 msgctxt "settings:settings.applicationInformation"
 msgid "Application information"
-msgstr ""
+msgstr "اطلاعات برنامه"
 
 #: frontend/src/pages/Diagnostics.tsx:210
 msgctxt "diagnostics:diagnostics.applicationServiceResponding"
 msgid "Application service is responding"
-msgstr ""
+msgstr "سرویس برنامه پاسخ‌گو است"
 
 #: frontend/src/pages/Settings.tsx:183
 msgctxt "settings:settings.applicationSettings"
 msgid "Application settings"
-msgstr ""
+msgstr "تنظیمات برنامه"
 
 msgctxt "common:status.applied"
 msgid "Applied"
-msgstr ""
+msgstr "اعمال‌شده"
 
 msgctxt "workspace:statusDisplay.applied"
 msgid "Applied"
-msgstr ""
+msgstr "اعمال‌شده"
 
 #: frontend/src/pages/Products.tsx:215
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "products:products.apply"
 msgid "Apply"
-msgstr ""
+msgstr "اعمال"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97 frontend/src/pages/UnifiedWorkspace.tsx:135
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.apply"
 msgid "Apply"
-msgstr ""
+msgstr "اعمال"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:111
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:unifiedWorkspace.applySelectedOnly"
 msgid "Apply Selected Only"
-msgstr ""
+msgstr "فقط اعمال موارد انتخاب‌شده"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:102
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyConfirmation"
 msgid "Apply confirmation"
-msgstr ""
+msgstr "تأیید اعمال تغییرات"
 
 #: frontend/src/pages/Workspace.tsx:350
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:workspace.applyIsStillRequiredBeforeChangesAre"
 msgid "Apply is still required before changes are made."
-msgstr ""
+msgstr "پیش از ایجاد تغییرات، هنوز اجرای اعمال لازم است."
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:81
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyRemainsDisabledUnlessAtLeastOne"
 msgid "Apply remains disabled unless at least one eligible Review item is selected."
-msgstr ""
+msgstr "تا زمانی که دست‌کم یک مورد واجد شرایط از بازبینی انتخاب نشده باشد، اعمال غیرفعال می‌ماند."
 
 #: frontend/src/pages/Workspace.tsx:690
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:workspace.applyRequiresDryRunAndApprovalFirst"
 msgid "Apply requires Dry Run and Approval first"
-msgstr ""
+msgstr "اعمال ابتدا به اجرای آزمایشی و تأیید نیاز دارد"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:103 frontend/src/pages/UnifiedWorkspace.tsx:134
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyResults"
 msgid "Apply results"
-msgstr ""
+msgstr "نتایج اعمال"
 
 #: frontend/src/pages/Workspace.tsx:581
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:workspace.applyToWoocommerce"
 msgid "Apply to WooCommerce"
-msgstr ""
+msgstr "اعمال در WooCommerce"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:66
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyWasBlocked"
 msgid "Apply was blocked"
-msgstr ""
+msgstr "اعمال مسدود شد"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:103
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyResultStatus"
 msgid "Apply — {{status}}"
-msgstr ""
+msgstr "اعمال — {{status}}"
 
 msgctxt "common:status.applying"
 msgid "Applying"
-msgstr ""
+msgstr "در حال اعمال"
 
 msgctxt "workspace:statusDisplay.applying"
 msgid "Applying"
-msgstr ""
+msgstr "در حال اعمال"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:61
 msgctxt "workspace:sourceCentricWorkspace.applyingSelectedListings"
 msgid "Applying selected Listings"
-msgstr ""
+msgstr "در حال اعمال لیستینگ‌های انتخاب‌شده"
 
 #: frontend/src/pages/Products.tsx:211
 msgctxt "products:products.approve"
 msgid "Approve"
-msgstr ""
+msgstr "تأیید"
 
 #: frontend/src/pages/Workspace.tsx:575
 msgctxt "workspace:workspace.approve"
 msgid "Approve"
-msgstr ""
+msgstr "تأیید"
 
 #: frontend/src/pages/Workspace.tsx:195
 msgctxt "workspace:workspace.steps.approve"
 msgid "Approve"
-msgstr ""
+msgstr "تأیید"
 
 #: frontend/src/pages/Workspace.tsx:552
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:workspace.automaticApply"
 msgid "Automatic apply"
-msgstr ""
+msgstr "اعمال خودکار"
 
 #: frontend/src/pages/Workspace.tsx:481
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:workspace.automaticApplyIsDisabled"
 msgid "Automatic apply is disabled."
-msgstr ""
+msgstr "اعمال خودکار غیرفعال است."
 
 #: frontend/src/pages/RateLimits.tsx:168
 msgctxt "settings:rateLimits.automaticSync"
 msgid "Automatic sync"
-msgstr ""
+msgstr "همگام‌سازی خودکار"
 
 #: frontend/src/pages/Setup.tsx:480
 msgctxt "settings:setup.back"
 msgid "Back"
-msgstr ""
+msgstr "بازگشت"
 
 #: frontend/src/pages/SourceWizard.tsx:173 frontend/src/pages/SourceWizard.tsx:212
 msgctxt "sources:sourceWizard.back"
 msgid "Back"
-msgstr ""
+msgstr "بازگشت"
 
 #: frontend/src/pages/SourceWizard.tsx:262
 msgctxt "sources:sourceWizard.backToSources"
 msgid "Back to Sources"
-msgstr ""
+msgstr "بازگشت به منابع"
 
 #: frontend/src/pages/Dashboard.tsx:145
 msgctxt "dashboard:dashboard.backend"
 msgid "Backend"
-msgstr ""
+msgstr "بخش سرور"
 
 #: frontend/src/pages/Diagnostics.tsx:207
 msgctxt "diagnostics:diagnostics.backend"
 msgid "Backend"
-msgstr ""
+msgstr "بخش سرور"
 
 #: frontend/src/pages/Settings.tsx:258
 msgctxt "settings:settings.backendUnavailable"
 msgid "Backend unavailable"
-msgstr ""
+msgstr "بخش سرور دردسترس نیست"
 
 msgctxt "sources:sourceConfiguration.valueType.blank"
 msgid "Blank"
-msgstr ""
+msgstr "خالی"
 
 msgctxt "common:status.blocked"
 msgid "Blocked"
-msgstr ""
+msgstr "مسدود"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.blocked"
 msgid "Blocked"
-msgstr ""
+msgstr "مسدود"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:126 frontend/src/pages/Workspace.tsx:545
 msgctxt "workspace:unifiedWorkspace.blocked"
 msgid "Blocked"
-msgstr ""
+msgstr "مسدود"
 
 msgctxt "sources:sourceConfiguration.blockedIssue"
 msgid "Blocked issue"
-msgstr ""
+msgstr "مشکل مسدودکننده"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:95
 msgctxt "workspace:sourceCentricWorkspace.blockedRows"
 msgid "Blocked rows"
-msgstr ""
+msgstr "ردیف‌های مسدود"
 
 #: frontend/src/pages/Workspace.tsx:663
 msgctxt "workspace:workspace.blocked"
 msgid "Blocked:"
-msgstr ""
+msgstr "مسدود:"
 
 msgctxt "sources:sourceConfiguration.brand"
 msgid "Brand"
-msgstr ""
+msgstr "برند"
 
 #: frontend/src/pages/SourceCenter.tsx:59
 msgctxt "sources:sourceCenter.bringAnExistingXlsxOrCsvFile"
 msgid "Bring an existing XLSX or CSV file into FlowHub without changing the original."
-msgstr ""
+msgstr "یک فایل XLSX یا CSV موجود را بدون تغییر فایل اصلی به FlowHub بیاورید."
 
 #: frontend/src/pages/CommerceHub.tsx:377 frontend/src/pages/CommerceHub.tsx:907
 msgctxt "commerce:commerceHub.browseNextcloud"
 msgid "Browse Nextcloud"
-msgstr ""
+msgstr "مرور Nextcloud"
 
 msgctxt "settings:setup.cadCanadianDollar"
 msgid "CAD - Canadian Dollar"
-msgstr ""
+msgstr "CAD - دلار کانادا"
 
 msgctxt "settings:setup.chfSwissFranc"
 msgid "CHF - Swiss Franc"
-msgstr ""
+msgstr "CHF - فرانک سوئیس"
 
 #: frontend/src/pages/Workspace.tsx:489
 msgctxt "workspace:workspace.csvAndGoogleSheetsAreNotAvailable"
 msgid "CSV and Google Sheets are not available in 1.0.0."
-msgstr ""
+msgstr "CSV و Google Sheets در نسخه 1.0.0 در دسترس نیستند."
 
 #: frontend/src/pages/CommerceHub.tsx:217
 msgctxt "commerce:commerceHub.cachedProducts"
 msgid "Cached products:"
-msgstr ""
+msgstr "محصولات ذخیره‌شده در کش:"
 
 #: frontend/src/pages/CommerceHub.tsx:218
 msgctxt "commerce:commerceHub.cachedVariations"
 msgid "Cached variations:"
-msgstr ""
+msgstr "تنوع‌های ذخیره‌شده در کش:"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:102
 msgctxt "workspace:sourceCentricWorkspace.cancel"
 msgid "Cancel"
-msgstr ""
+msgstr "لغو"
 
 #: frontend/src/pages/Orders.tsx:40
 msgctxt "orders:orders.canceled"
 msgid "Canceled"
-msgstr ""
+msgstr "لغوشده"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:97
 msgctxt "workspace:unifiedWorkspace.canonicalProduct"
 msgid "Canonical Product"
-msgstr ""
+msgstr "محصول مرجع"
 
 #: frontend/src/features/unifiedWorkspace/gridModel.ts:92
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:gridModel.canonicalProductListing"
 msgid "Canonical Product / Listing"
-msgstr ""
+msgstr "محصول مرجع / لیستینگ"
 
 #: frontend/src/services/products/LocalProductService.ts:150
 msgctxt "common:localProductService.canonicalBusinessPrice"
 msgid "Canonical/business price"
-msgstr ""
+msgstr "قیمت مرجع کسب‌وکار"
 
 #: frontend/src/pages/Products.tsx:168
 msgctxt "products:products.canonicalBusinessPrice"
 msgid "Canonical/business price"
-msgstr ""
+msgstr "قیمت مرجع کسب‌وکار"
 
 #: frontend/src/pages/CommerceHub.tsx:208
 msgctxt "commerce:commerceHub.capabilities"
 msgid "Capabilities:"
-msgstr ""
+msgstr "قابلیت‌ها:"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.category"
 msgid "Category"
-msgstr ""
+msgstr "دسته‌بندی"
 
 msgctxt "sources:sourceConfiguration.category"
 msgid "Category"
-msgstr ""
+msgstr "دسته‌بندی"
 
 #: frontend/src/pages/Workspace.tsx:367
 msgctxt "workspace:workspace.changesAppliedSuccessfully"
 msgid "Changes applied successfully"
-msgstr ""
+msgstr "تغییرات با موفقیت اعمال شد"
 
 #: frontend/src/pages/Workspace.tsx:349
 msgctxt "workspace:workspace.changesApprovedSuccessfully"
 msgid "Changes approved successfully"
-msgstr ""
+msgstr "تغییرات با موفقیت تأیید شد"
 
 #: frontend/src/pages/CommerceHub.tsx:64
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channel"
 msgid "Channel"
-msgstr ""
+msgstr "کانال"
 
 #: frontend/src/features/unifiedWorkspace/channelDisplayName.ts:31
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "common:labels.channel"
 msgid "Channel"
-msgstr ""
+msgstr "کانال"
 
 #: frontend/src/pages/DataQuality.tsx:41
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dataQuality:dataQuality.channel"
 msgid "Channel"
-msgstr ""
+msgstr "کانال"
 
 #: frontend/src/pages/Orders.tsx:164
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "orders:orders.channel"
 msgid "Channel"
-msgstr ""
+msgstr "کانال"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:180 frontend/src/pages/Workspace.tsx:540
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:unifiedWorkspace.channel"
 msgid "Channel"
-msgstr ""
+msgstr "کانال"
 
 #: frontend/src/pages/Diagnostics.tsx:255
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:diagnostics.channelHealth"
 msgid "Channel Health"
-msgstr ""
+msgstr "سلامت کانال"
 
 #. Review is the immutable validation result required before Apply.
 msgctxt "errors:codes.CAPABILITY_CHANGED"
 msgid "Channel capabilities changed. Create a new Review."
-msgstr ""
+msgstr "قابلیت‌های کانال تغییر کرده است. بازبینی جدیدی بسازید."
 
 #: frontend/src/pages/CommerceHub.tsx:589
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelConfiguredSuccessfully"
 msgid "Channel configured successfully"
-msgstr ""
+msgstr "کانال با موفقیت پیکربندی شد"
 
 #: frontend/src/pages/CommerceHub.tsx:1141 frontend/src/pages/CommerceHub.tsx:632
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelConnectedSuccessfully"
 msgid "Channel connected successfully"
-msgstr ""
+msgstr "کانال با موفقیت متصل شد"
 
 #. Review is the immutable validation result required before Apply.
 msgctxt "errors:codes.CACHE_STALE"
 msgid "Channel data is stale. Refresh it and create a new Review."
-msgstr ""
+msgstr "داده‌های کانال قدیمی است. آن را تازه‌سازی کنید و بازبینی جدیدی بسازید."
 
 #: frontend/src/pages/Products.tsx:173
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.channelPriceComparisonTable"
 msgid "Channel price comparison table"
-msgstr ""
+msgstr "جدول مقایسه قیمت کانال‌ها"
 
 #: frontend/src/pages/Products.tsx:317
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.channelPriceOperationResult"
 msgid "Channel price operation result"
-msgstr ""
+msgstr "نتیجه عملیات قیمت کانال"
 
 #: frontend/src/pages/Products.tsx:149
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.channelPrices"
 msgid "Channel prices"
-msgstr ""
+msgstr "قیمت‌های کانال"
 
 #: frontend/src/pages/CommerceHub.tsx:585
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelSettingsUpdatedSuccessfully"
 msgid "Channel settings updated successfully"
-msgstr ""
+msgstr "تنظیمات کانال با موفقیت به‌روزرسانی شد"
 
 #: frontend/src/pages/CommerceHub.tsx:762
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelType"
 msgid "Channel type"
-msgstr ""
+msgstr "نوع کانال"
 
 #: frontend/src/pages/CommerceHub.tsx:1273 frontend/src/pages/CommerceHub.tsx:1322
 msgctxt "commerce:commerceHub.channels2"
 msgid "Channels"
-msgstr ""
+msgstr "کانال‌ها"
 
 #: frontend/src/pages/Dashboard.tsx:160 frontend/src/pages/Dashboard.tsx:184
 msgctxt "dashboard:dashboard.channels"
 msgid "Channels"
-msgstr ""
+msgstr "کانال‌ها"
 
 msgctxt "workspace:sourceCentricWorkspace.channels"
 msgid "Channels"
-msgstr ""
+msgstr "کانال‌ها"
 
 msgctxt "workspace:sourceCentricWorkspace.checkDataQualityIssues"
 msgid "Check Data Quality issues."
-msgstr ""
+msgstr "مشکلات کیفیت داده را بررسی کنید."
 
 #: frontend/src/pages/Setup.tsx:686
 msgctxt "settings:setup.checkDatabase"
 msgid "Check Database"
-msgstr ""
+msgstr "بررسی پایگاه داده"
 
 msgctxt "sources:sourceConfiguration.checkTheMappedFields"
 msgid "Check the mapped fields."
-msgstr ""
+msgstr "فیلدهای نگاشت‌شده را بررسی کنید."
 
 #: frontend/src/pages/Diagnostics.tsx:257
 msgctxt "diagnostics:diagnostics.checked"
 msgid "Checked"
-msgstr ""
+msgstr "بررسی‌شده"
 
 msgctxt "common:status.checking"
 msgid "Checking"
-msgstr ""
+msgstr "در حال بررسی"
 
 #: frontend/src/pages/SourceImportWizard.tsx:63
 msgctxt "sources:sourceImportWizard.chooseXlsxOrCsv"
 msgid "Choose XLSX or CSV"
-msgstr ""
+msgstr "انتخاب XLSX یا CSV"
 
 msgctxt "sources:sourceImportWizard.chooseAValidXlsxOrCsvFile"
 msgid "Choose a valid XLSX or CSV file."
-msgstr ""
+msgstr "یک فایل XLSX یا CSV معتبر انتخاب کنید."
 
 #: frontend/src/pages/Settings.tsx:207
 msgctxt "settings:language.description"
 msgid "Choose the language used by FlowHub. Direction and locale formatting update immediately."
-msgstr ""
+msgstr "زبان رابط FlowHub را انتخاب کنید. جهت صفحه و قالب‌بندی محلی بلافاصله به‌روزرسانی می‌شوند."
 
 #: frontend/src/pages/SourceCenter.tsx:40
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.chooseWhereSourceProductsAndChannelTargets"
 msgid "Choose where Source Products and Channel targets are managed."
-msgstr ""
+msgstr "مشخص کنید محصولات منبع و هدف‌های کانال‌ها کجا مدیریت شوند."
 
 #: frontend/src/pages/CommerceHub.tsx:946
 msgctxt "commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet"
 msgid "Choose whether FlowHub should read every worksheet or a single named worksheet."
-msgstr ""
+msgstr "انتخاب کنید FlowHub همه کاربرگ‌ها را بخواند یا فقط یک کاربرگ مشخص را."
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:183
 msgctxt "workspace:unifiedWorkspace.clear"
 msgid "Clear"
-msgstr ""
+msgstr "پاک‌کردن"
 
 #: frontend/src/pages/Setup.tsx:686
 msgctxt "settings:setup.click"
 msgid "Click"
-msgstr ""
+msgstr "کلیک کنید"
 
 #: frontend/src/pages/CommerceHub.tsx:382 frontend/src/pages/CommerceHub.tsx:750
 msgctxt "commerce:commerceHub.close"
 msgid "Close"
-msgstr ""
+msgstr "بستن"
 
 #: frontend/src/pages/Products.tsx:154
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.closeChannelPriceEditor"
 msgid "Close channel price editor"
-msgstr ""
+msgstr "بستن ویرایشگر قیمت کانال"
 
 #: frontend/src/components/Sidebar.tsx:68
 msgctxt "navigation:sidebar.closeNavigation"
 msgid "Close navigation"
-msgstr ""
+msgstr "بستن منو"
 
 #: frontend/src/notifications/NotificationContainer.tsx:69
 msgctxt "notifications:notificationContainer.closeNotification"
 msgid "Close notification"
-msgstr ""
+msgstr "بستن اعلان"
 
 #: frontend/src/components/Sidebar.tsx:90
 msgctxt "navigation:sidebar.collapseSidebar"
 msgid "Collapse sidebar"
-msgstr ""
+msgstr "جمع‌کردن نوار کناری"
 
 #: frontend/src/pages/CommerceHub.tsx:929
 msgctxt "commerce:commerceHub.column"
 msgid "Column"
-msgstr ""
+msgstr "ستون"
 
 #: frontend/src/pages/CommerceHub.tsx:914
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "commerce:commerceHub.columnMapping"
 msgid "Column Mapping"
-msgstr ""
+msgstr "نگاشت ستون‌ها"
 
 #: frontend/src/pages/SourceConfiguration.tsx:48
 msgctxt "sources:sourceConfiguration.columnLetter"
 msgid "Column letter"
-msgstr ""
+msgstr "حرف ستون"
 
 #: frontend/src/pages/FlowHubSheet.tsx:103
 msgctxt "flowhubSheet:flowHubSheet.columnName"
 msgid "Column name: {{column}}"
-msgstr ""
+msgstr "نام ستون: {{column}}"
 
 #: frontend/src/pages/SourceImportWizard.tsx:66
 msgctxt "sources:sourceImportWizard.column"
 msgid "Column {{value1}}"
-msgstr ""
+msgstr "ستون {{value1}}"
 
 #: frontend/src/pages/CommerceHub.tsx:1255
 msgctxt "commerce:commerceHub.commerceHub"
 msgid "Commerce Hub"
-msgstr ""
+msgstr "مرکز تجارت"
 
 #: frontend/src/components/Sidebar.tsx:134
 msgctxt "navigation:sidebar.commerceHub"
 msgid "Commerce Hub"
-msgstr ""
+msgstr "مرکز تجارت"
 
 msgctxt "navigation:topbar.commerceHub"
 msgid "Commerce Hub"
-msgstr ""
+msgstr "مرکز تجارت"
 
 #: frontend/src/pages/CommerceHub.tsx:1323
 msgctxt "commerce:commerceHub.commerceSystemsThatReceiveCatalogVisibilityFrom"
 msgid "Commerce systems that receive catalog visibility from FlowHub."
-msgstr ""
+msgstr "سامانه‌های تجاری که اطلاعات و نمایش کاتالوگ را از FlowHub دریافت می‌کنند."
 
 msgctxt "settings:setup.completeSetupAndOpenTheFlowhubWorkspace"
 msgid "Complete setup and open the FlowHub workspace."
-msgstr ""
+msgstr "راه‌اندازی را تکمیل و فضای کاری FlowHub را باز کنید."
 
 #: frontend/src/pages/Setup.tsx:450
 msgctxt "settings:setup.completed"
 msgid "Completed"
-msgstr ""
+msgstr "تکمیل‌شده"
 
 #: frontend/src/pages/CommerceHub.tsx:245
 msgctxt "commerce:commerceHub.configure"
 msgid "Configure"
-msgstr ""
+msgstr "پیکربندی"
 
 #: frontend/src/pages/SourceCenter.tsx:89
 msgctxt "sources:sourceCenter.configure"
 msgid "Configure"
-msgstr ""
+msgstr "پیکربندی"
 
 msgctxt "sources:sourceWizard.configure"
 msgid "Configure"
-msgstr ""
+msgstr "پیکربندی"
 
 #: frontend/src/pages/FlowHubSheet.tsx:99
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "flowhubSheet:flowHubSheet.configureMapping"
 msgid "Configure Mapping"
-msgstr ""
+msgstr "پیکربندی نگاشت"
 
 #: frontend/src/pages/Settings.tsx:217
 msgctxt "settings:settings.configureDisplayAndSynchronizationPreferences"
 msgid "Configure display and synchronization preferences"
-msgstr ""
+msgstr "تنظیم ترجیحات نمایش و همگام‌سازی"
 
 #: frontend/src/pages/CommerceHub.tsx:742
 msgctxt "commerce:commerceHub.configure2"
 msgid "Configure {{value1}}"
-msgstr ""
+msgstr "پیکربندی {{value1}}"
 
 #: frontend/src/pages/CommerceHub.tsx:211 frontend/src/pages/CommerceHub.tsx:212 frontend/src/pages/CommerceHub.tsx:879
 msgctxt "commerce:commerceHub.configured"
 msgid "Configured"
-msgstr ""
+msgstr "پیکربندی‌شده"
 
 #: frontend/src/pages/CommerceHub.tsx:725
 msgctxt "commerce:commerceHub.configuredLeaveBlankToKeepUnchanged"
 msgid "Configured; leave blank to keep unchanged."
-msgstr ""
+msgstr "پیکربندی شده است؛ برای حفظ مقدار فعلی، خالی بگذارید."
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:102
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.confirmApply"
 msgid "Confirm Apply"
-msgstr ""
+msgstr "تأیید اعمال"
 
 #: frontend/src/pages/Setup.tsx:836
 msgctxt "settings:setup.confirmPassword"
 msgid "Confirm password"
-msgstr ""
+msgstr "تکرار رمز عبور"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:102
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.confirmSelectedApply"
 msgid "Confirm selected Apply"
-msgstr ""
+msgstr "تأیید اعمال موارد انتخاب‌شده"
 
 msgctxt "settings:setup.confirmThatTheDatabaseConnectionAndSchema"
 msgid "Confirm that the database connection and schema are ready."
-msgstr ""
+msgstr "آماده‌بودن اتصال و ساختار پایگاه داده را تأیید کنید."
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.conflict"
 msgid "Conflict"
-msgstr ""
+msgstr "تعارض"
 
 #: frontend/src/pages/Products.tsx:547
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "products:products.connectAProductSourceFromSourcesTo"
 msgid "Connect a product source from Sources to browse products."
-msgstr ""
+msgstr "برای مرور محصولات، یک منبع محصول را از بخش منابع متصل کنید."
 
 #: frontend/src/pages/Workspace.tsx:420
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:workspace.connectAProductSourceFromSourcesTo"
 msgid "Connect a product source from Sources to use Workspace."
-msgstr ""
+msgstr "برای استفاده از فضای کاری، یک منبع محصول را از بخش منابع متصل کنید."
 
 msgctxt "common:status.connected"
 msgid "Connected"
-msgstr ""
+msgstr "متصل"
 
 #: frontend/src/services/sources/LocalSourceService.ts:47
 msgctxt "common:localSourceService.connectedSuccessfully12ProductsFound"
 msgid "Connected successfully. 12 products found."
-msgstr ""
+msgstr "اتصال موفق بود. ۱۲ محصول یافت شد."
 
 #: frontend/src/pages/Setup.tsx:693
 msgctxt "settings:setup.connection"
 msgid "Connection"
-msgstr ""
+msgstr "اتصال"
 
 #: frontend/src/pages/CommerceHub.tsx:813
 msgctxt "commerce:commerceHub.connectionSettings"
 msgid "Connection Settings"
-msgstr ""
+msgstr "تنظیمات اتصال"
 
 #: frontend/src/pages/SourceWizard.tsx:195
 msgctxt "sources:sourceWizard.connectionSuccessful"
 msgid "Connection successful"
-msgstr ""
+msgstr "اتصال موفق بود"
 
 #: frontend/src/pages/Diagnostics.tsx:332
 msgctxt "diagnostics:diagnostics.connectorSetupIsAvailableFromCommerceHub"
 msgid "Connector setup is available from Commerce Hub."
-msgstr ""
+msgstr "راه‌اندازی اتصال‌دهنده از مرکز تجارت دردسترس است."
 
 #: frontend/src/pages/Diagnostics.tsx:324
 msgctxt "diagnostics:diagnostics.connectors"
 msgid "Connectors"
-msgstr ""
+msgstr "اتصال‌دهنده‌ها"
 
 #: frontend/src/pages/CommerceHub.tsx:281
 msgctxt "commerce:commerceHub.fields.consumerKey"
 msgid "Consumer Key"
-msgstr ""
+msgstr "کلید مصرف‌کننده"
 
 #: frontend/src/pages/CommerceHub.tsx:282
 msgctxt "commerce:commerceHub.fields.consumerSecret"
 msgid "Consumer Secret"
-msgstr ""
+msgstr "رمز مصرف‌کننده"
 
 #: frontend/src/components/Sidebar.tsx:84
 msgctxt "navigation:sidebar.controlCenter"
 msgid "Control Center"
-msgstr ""
+msgstr "مرکز کنترل"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:136
 msgctxt "workspace:unifiedWorkspace.correlation"
 msgid "Correlation"
-msgstr ""
+msgstr "شناسه همبستگی"
 
 msgctxt "sources:sourceConfiguration.cost"
 msgid "Cost"
-msgstr ""
+msgstr "هزینه"
 
 #: frontend/src/pages/SourceImportWizard.tsx:68
 msgctxt "sources:sourceImportWizard.createFlowhubSheet"
 msgid "Create FlowHub Sheet"
-msgstr ""
+msgstr "ایجاد برگه FlowHub"
 
 #: frontend/src/pages/SourceCenter.tsx:53
 msgctxt "sources:sourceCenter.createSheet"
 msgid "Create Sheet"
-msgstr ""
+msgstr "ایجاد برگه"
 
 #: frontend/src/pages/Products.tsx:567
 msgctxt "products:products.createWorkspace"
 msgid "Create Workspace"
-msgstr ""
+msgstr "ایجاد فضای کاری"
 
 msgctxt "settings:setup.createOrConfirmTheInitialOwnerAccount"
 msgid "Create or confirm the initial owner account."
-msgstr ""
+msgstr "حساب مالک اولیه را ایجاد یا تأیید کنید."
 
 #: frontend/src/pages/Orders.tsx:167
 msgctxt "orders:orders.created"
 msgid "Created"
-msgstr ""
+msgstr "ایجادشده"
 
 #: frontend/src/pages/Products.tsx:567
 msgctxt "products:products.creating"
 msgid "Creating..."
-msgstr ""
+msgstr "در حال ایجاد..."
 
 #: frontend/src/pages/SourceCenter.tsx:53
 msgctxt "sources:sourceCenter.creating"
 msgid "Creating..."
-msgstr ""
+msgstr "در حال ایجاد..."
 
 #: frontend/src/pages/CommerceHub.tsx:116 frontend/src/pages/CommerceHub.tsx:199
 msgctxt "commerce:commerceHub.credentialStatus"
 msgid "Credential status:"
-msgstr ""
+msgstr "وضعیت اطلاعات ورود:"
 
 #: frontend/src/pages/CommerceHub.tsx:745
 msgctxt "commerce:commerceHub.credentialsAreStoredServerSideAndNever"
 msgid "Credentials are stored server-side and never returned to this form."
-msgstr ""
+msgstr "اطلاعات ورود در سمت سرور نگهداری می‌شود و هرگز به این فرم بازگردانده نمی‌شود."
 
 #: frontend/src/pages/Settings.tsx:236 frontend/src/pages/Setup.tsx:639
 msgctxt "settings:settings.currency"
 msgid "Currency"
-msgstr ""
+msgstr "واحد پول"
 
 #. Review is the immutable validation result required before Apply.
 msgctxt "errors:codes.CURRENCY_CONFIGURATION_CHANGED"
 msgid "Currency configuration changed. Create a new Review."
-msgstr ""
+msgstr "پیکربندی واحد پول تغییر کرده است. بازبینی جدیدی بسازید."
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
 #. Current is the latest verified or cached Channel value.
 msgctxt "workspace:sourceCentricWorkspace.current"
 msgid "Current"
-msgstr ""
+msgstr "فعلی"
 
 #: frontend/src/pages/Setup.tsx:943
 #. Current is the latest verified or cached Channel value.
 msgctxt "settings:setup.currentStep"
 msgid "Current Step"
-msgstr ""
+msgstr "مرحله فعلی"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
 msgctxt "workspace:sourceCentricWorkspace.dailyActionSequence"
 msgid "Daily action sequence"
-msgstr ""
+msgstr "مراحل کار روزانه"
 
 msgctxt "sources:sourceConfiguration.valueType.dash"
 msgid "Dash"
-msgstr ""
+msgstr "خط تیره"
 
 #: frontend/src/pages/Dashboard.tsx:127
 msgctxt "dashboard:dashboard.dashboard"
 msgid "Dashboard"
-msgstr ""
+msgstr "داشبورد"
 
 #: frontend/src/components/Sidebar.tsx:106
 msgctxt "navigation:sidebar.dashboard"
 msgid "Dashboard"
-msgstr ""
+msgstr "داشبورد"
 
 msgctxt "navigation:topbar.dashboard"
 msgid "Dashboard"
-msgstr ""
+msgstr "داشبورد"
 
 #: frontend/src/pages/CommerceHub.tsx:65
 msgctxt "commerce:commerceHub.dataLayer"
 msgid "Data Layer"
-msgstr ""
+msgstr "لایه داده"
 
 #: frontend/src/pages/DataQuality.tsx:40
 msgctxt "dataQuality:dataQuality.dataQuality"
 msgid "Data Quality"
-msgstr ""
+msgstr "کیفیت داده"
 
 #: frontend/src/components/Sidebar.tsx:148
 msgctxt "navigation:sidebar.dataQuality"
 msgid "Data Quality"
-msgstr ""
+msgstr "کیفیت داده"
 
 msgctxt "navigation:topbar.dataQuality"
 msgid "Data Quality"
-msgstr ""
+msgstr "کیفیت داده"
 
 #: frontend/src/pages/SourceCenter.tsx:43
 msgctxt "sources:sourceCenter.dataQuality2"
 msgid "Data Quality"
-msgstr ""
+msgstr "کیفیت داده"
 
 #: frontend/src/pages/CommerceHub.tsx:119
 msgctxt "commerce:commerceHub.dataRole"
 msgid "Data role:"
-msgstr ""
+msgstr "نقش داده:"
 
 #: frontend/src/pages/Sources.tsx:86
 msgctxt "sources:sources.dataSourcesForPriceSynchronisation"
 msgid "Data sources for price synchronisation"
-msgstr ""
+msgstr "منابع داده برای همگام‌سازی قیمت"
 
 #: frontend/src/pages/SourceConfiguration.tsx:129 frontend/src/pages/SourceImportWizard.tsx:65
 msgctxt "sources:sourceConfiguration.dataStartsAtRow"
 msgid "Data starts at row"
-msgstr ""
+msgstr "داده از ردیف آغاز می‌شود"
 
 #: frontend/src/pages/Dashboard.tsx:150
 msgctxt "dashboard:dashboard.database"
 msgid "Database"
-msgstr ""
+msgstr "پایگاه داده"
 
 #: frontend/src/pages/Setup.tsx:679
 msgctxt "settings:setup.database"
 msgid "Database"
-msgstr ""
+msgstr "پایگاه داده"
 
 #: frontend/src/pages/Setup.tsx:700
 msgctxt "settings:setup.databaseSchemaVersion"
 msgid "Database Schema Version"
-msgstr ""
+msgstr "نسخه ساختار پایگاه داده"
 
 #: frontend/src/pages/CommerceHub.tsx:860
 msgctxt "commerce:commerceHub.defaultsAreSuitableForNormalSnappshopAccounts"
 msgid "Defaults are suitable for normal SnappShop accounts."
-msgstr ""
+msgstr "مقادیر پیش‌فرض برای حساب‌های عادی SnappShop مناسب‌اند."
 
 #: frontend/src/pages/CommerceHub.tsx:758
 msgctxt "commerce:commerceHub.defineTheConnectorTypeDisplayNameAnd"
 msgid "Define the connector type, display name, and local FlowHub state."
-msgstr ""
+msgstr "نوع اتصال‌دهنده، نام نمایشی و وضعیت محلی آن در FlowHub را مشخص کنید."
 
 #: frontend/src/pages/Diagnostics.tsx:357 frontend/src/pages/Diagnostics.tsx:363
 msgctxt "diagnostics:diagnostics.delayMilliseconds"
 msgid "Delay {{value}} ms"
-msgstr ""
+msgstr "تأخیر {{value}} میلی‌ثانیه"
 
 #: frontend/src/pages/Orders.tsx:41
 msgctxt "orders:orders.deliverable"
 msgid "Deliverable"
-msgstr ""
+msgstr "قابل تحویل"
 
 #: frontend/src/pages/Workspace.tsx:642
 msgctxt "workspace:workspace.denseValidationRowsRemainScrollableButNow"
 msgid "Dense validation rows remain scrollable, but now use the shared table surface and spacing."
-msgstr ""
+msgstr "ردیف‌های فشرده اعتبارسنجی همچنان پیمایش‌پذیرند، اما اکنون از سطح و فاصله‌گذاری یکپارچه جدول استفاده می‌کنند."
 
 #: frontend/src/pages/CommerceHub.tsx:777
 msgctxt "commerce:commerceHub.descriptionOptional"
 msgid "Description optional"
-msgstr ""
+msgstr "توضیحات (اختیاری)"
 
 #: frontend/src/pages/Workspace.tsx:655
 msgctxt "workspace:workspace.deselectAll"
 msgid "Deselect all"
-msgstr ""
+msgstr "لغو انتخاب همه"
 
 #: frontend/src/pages/SourceImportWizard.tsx:65
 msgctxt "sources:sourceImportWizard.detected"
 msgid "Detected"
-msgstr ""
+msgstr "شناسایی‌شده"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:122
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:unifiedWorkspace.deterministicComparisonOfCurrentCacheValuesAnd"
 msgid "Deterministic comparison of Current cache values and saved Draft targets."
-msgstr ""
+msgstr "مقایسه قطعی مقادیر فعلی کش با هدف‌های ذخیره‌شده در پیش‌نویس."
 
 #: frontend/src/pages/Dashboard.tsx:186
 msgctxt "dashboard:dashboard.diagnostics2"
 msgid "Diagnostics"
-msgstr ""
+msgstr "عیب‌یابی"
 
 #: frontend/src/pages/Diagnostics.tsx:213 frontend/src/pages/Diagnostics.tsx:224
 msgctxt "diagnostics:diagnostics.diagnostics"
 msgid "Diagnostics"
-msgstr ""
+msgstr "عیب‌یابی"
 
 #: frontend/src/components/Sidebar.tsx:162
 msgctxt "navigation:sidebar.diagnostics"
 msgid "Diagnostics"
-msgstr ""
+msgstr "عیب‌یابی"
 
 msgctxt "navigation:topbar.diagnostics"
 msgid "Diagnostics"
-msgstr ""
+msgstr "عیب‌یابی"
 
 #: frontend/src/pages/Diagnostics.tsx:151 frontend/src/pages/Diagnostics.tsx:186
 msgctxt "diagnostics:diagnostics.diagnosticsUpdated"
 msgid "Diagnostics updated"
-msgstr ""
+msgstr "اطلاعات عیب‌یابی به‌روزرسانی شد"
 
 #: frontend/src/pages/Diagnostics.tsx:341
 msgctxt "common:status.disabled"
 msgid "Disabled"
-msgstr ""
+msgstr "غیرفعال"
 
 #: frontend/src/pages/Workspace.tsx:549 frontend/src/pages/Workspace.tsx:553
 msgctxt "workspace:workspace.disabled"
 msgid "Disabled"
-msgstr ""
+msgstr "غیرفعال"
 
 #: frontend/src/pages/RateLimits.tsx:126 frontend/src/pages/Settings.tsx:192
 msgctxt "settings:rateLimits.discard"
 msgid "Discard"
-msgstr ""
+msgstr "نادیده‌گرفتن تغییرات"
 
 #: frontend/src/pages/CommerceHub.tsx:773
 msgctxt "commerce:commerceHub.displayName"
 msgid "Display name"
-msgstr ""
+msgstr "نام نمایشی"
 
 #: frontend/src/pages/Setup.tsx:620
 msgctxt "settings:setup.domain"
 msgid "Domain"
-msgstr ""
+msgstr "دامنه"
 
 msgctxt "sources:sourceWizard.done"
 msgid "Done"
-msgstr ""
+msgstr "انجام شد"
 
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "common:status.draftSaved"
 msgid "Draft Saved"
-msgstr ""
+msgstr "پیش‌نویس ذخیره شد"
 
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:statusDisplay.draftSaved"
 msgid "Draft Saved"
-msgstr ""
+msgstr "پیش‌نویس ذخیره‌شده"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:93
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:sourceCentricWorkspace.draftSaved"
 msgid "Draft saved"
-msgstr ""
+msgstr "پیش‌نویس ذخیره شد"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:65
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:unifiedWorkspace.draftSaved"
 msgid "Draft saved"
-msgstr ""
+msgstr "پیش‌نویس ذخیره شد"
 
 #: frontend/src/pages/Products.tsx:169
 msgctxt "products:products.dryRun"
 msgid "Dry Run"
-msgstr ""
+msgstr "اجرای آزمایشی"
 
 #: frontend/src/pages/Workspace.tsx:700
 msgctxt "workspace:workspace.dryRun"
 msgid "Dry Run"
-msgstr ""
+msgstr "اجرای آزمایشی"
 
 #: frontend/src/pages/Workspace.tsx:194
 msgctxt "workspace:workspace.steps.dryRun"
 msgid "Dry Run"
-msgstr ""
+msgstr "اجرای آزمایشی"
 
 #: frontend/src/pages/Workspace.tsx:330
 msgctxt "workspace:workspace.dryRunCompletedSuccessfully"
 msgid "Dry run completed successfully"
-msgstr ""
+msgstr "اجرای آزمایشی با موفقیت کامل شد"
 
 msgctxt "settings:setup.eurEuro"
 msgid "EUR - Euro"
-msgstr ""
+msgstr "EUR - یورو"
 
 #: frontend/src/pages/SourceConfiguration.tsx:135
 msgctxt "sources:sourceConfiguration.eachSpecialValueIsInterpretedExplicitlyCurrency"
 msgid "Each special value is interpreted explicitly. Currency and unit are never inferred."
-msgstr ""
+msgstr "هر مقدار ویژه به‌صورت صریح تفسیر می‌شود. ارز و واحد هرگز حدس زده نمی‌شوند."
 
 #: frontend/src/pages/Sources.tsx:47
 msgctxt "sources:sources.edit"
 msgid "Edit"
-msgstr ""
+msgstr "ویرایش"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:188
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "workspace:unifiedWorkspace.editTargetCellsInlineCurrentValuesIdentities"
 msgid "Edit Target cells inline. Current values, identities, SKUs, and Mapping are read-only."
-msgstr ""
+msgstr "سلول‌های هدف را درجا ویرایش کنید. مقادیر فعلی، شناسه‌ها، SKUها و نگاشت فقط‌خواندنی هستند."
 
 #: frontend/src/pages/Products.tsx:95
 msgctxt "products:products.editPrices"
 msgid "Edit prices"
-msgstr ""
+msgstr "ویرایش قیمت‌ها"
 
 #: frontend/src/pages/Products.tsx:279
 msgctxt "products:products.editableValueUnit"
 msgid "Editable value unit: {{unit}}"
-msgstr ""
+msgstr "واحد مقدار قابل ویرایش: {{unit}}"
 
 msgctxt "common:status.edited"
 msgid "Edited"
-msgstr ""
+msgstr "ویرایش‌شده"
 
 msgctxt "workspace:statusDisplay.edited"
 msgid "Edited"
-msgstr ""
+msgstr "ویرایش‌شده"
 
 #: frontend/src/pages/Products.tsx:198
 msgctxt "products:products.editingFieldsOnlyCreatesLocalPendingChanges"
 msgid "Editing fields only creates local pending changes. Dry Run performs validation without external writes."
-msgstr ""
+msgstr "ویرایش فیلدها فقط تغییرات محلیِ در انتظار ایجاد می‌کند. اجرای آزمایشی بدون نوشتن خارجی اعتبارسنجی می‌کند."
 
 #: frontend/src/pages/Sources.tsx:41
 msgctxt "sources:sources.editingIsNotAvailableYet"
 msgid "Editing is not available yet"
-msgstr ""
+msgstr "ویرایش هنوز در دسترس نیست"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:125
 msgctxt "workspace:unifiedWorkspace.eligible"
 msgid "Eligible"
-msgstr ""
+msgstr "واجد شرایط"
 
 #: frontend/src/pages/Workspace.tsx:662
 msgctxt "workspace:workspace.eligible"
 msgid "Eligible:"
-msgstr ""
+msgstr "واجد شرایط:"
 
 #: frontend/src/pages/Setup.tsx:815
 msgctxt "settings:setup.email"
 msgid "Email"
-msgstr ""
+msgstr "ایمیل"
 
 #: frontend/src/pages/CommerceHub.tsx:799
 msgctxt "commerce:commerceHub.enabled"
 msgid "Enabled"
-msgstr ""
+msgstr "فعال"
 
 #: frontend/src/pages/CommerceHub.tsx:915
 msgctxt "commerce:commerceHub.enabledFieldsRequireASpreadsheetColumnLetter"
 msgid "Enabled fields require a spreadsheet column letter or header name."
-msgstr ""
+msgstr "فیلدهای فعال به حرف ستون یا نام سرستون در صفحه‌گسترده نیاز دارند."
 
 #: frontend/src/pages/Settings.tsx:211
 msgctxt "settings:language.english"
 msgid "English"
-msgstr ""
+msgstr "انگلیسی"
 
 #: frontend/src/pages/CommerceHub.tsx:657
 msgctxt "commerce:commerceHub.validation.nextcloudCredentialsRequired"
 msgid "Enter Nextcloud server URL, Username, and App password / token before browsing Nextcloud."
-msgstr ""
+msgstr "پیش از مرور Nextcloud، نشانی سرور، نام کاربری و رمز برنامه یا توکن را وارد کنید."
 
 msgctxt "validation:setup.validEmailRequired"
 msgid "Enter a valid email address."
-msgstr ""
+msgstr "یک نشانی ایمیل معتبر وارد کنید."
 
 #: frontend/src/pages/CommerceHub.tsx:814
 msgctxt "commerce:commerceHub.enterTheCredentialsRequiredToVerifyThis"
 msgid "Enter the credentials required to verify this connection."
-msgstr ""
+msgstr "اطلاعات ورود لازم برای بررسی این اتصال را وارد کنید."
 
 msgctxt "activity:activity.error"
 msgid "Error"
-msgstr ""
+msgstr "خطا"
 
 #: frontend/src/pages/Diagnostics.tsx:214 frontend/src/pages/Diagnostics.tsx:92 frontend/src/pages/Workspace.tsx:92
 msgctxt "common:status.error"
 msgid "Error"
-msgstr ""
+msgstr "خطا"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.error"
 msgid "Error"
-msgstr ""
+msgstr "خطا"
 
 #: frontend/src/pages/Orders.tsx:173
 msgctxt "orders:orders.error"
 msgid "Error"
-msgstr ""
+msgstr "خطا"
 
 msgctxt "sources:sources.error"
 msgid "Error"
-msgstr ""
+msgstr "خطا"
 
 msgctxt "workspace:statusDisplay.error"
 msgid "Error"
-msgstr ""
+msgstr "خطا"
 
 #: frontend/src/pages/Diagnostics.tsx:315
 msgctxt "diagnostics:diagnostics.errorCategory"
 msgid "Error category:"
-msgstr ""
+msgstr "دسته‌بندی خطا:"
 
 #: frontend/src/pages/Workspace.tsx:665
 msgctxt "workspace:workspace.estimatedWoocommerceCalls"
 msgid "Estimated WooCommerce calls:"
-msgstr ""
+msgstr "تعداد تقریبی فراخوانی‌های WooCommerce:"
 
 #: frontend/src/pages/Activity.tsx:108
 msgctxt "activity:activity.eventsWillAppearHereAsTheSystem"
 msgid "Events will appear here as the system runs."
-msgstr ""
+msgstr "رویدادها هنگام اجرای سیستم در اینجا نمایش داده می‌شوند."
 
 #: frontend/src/pages/SourceConfiguration.tsx:52
 msgctxt "sources:sourceConfiguration.exactColumnReference"
 msgid "Exact column reference"
-msgstr ""
+msgstr "مرجع دقیق ستون"
 
 #: frontend/src/pages/SourceConfiguration.tsx:49
 msgctxt "sources:sourceConfiguration.exactHeader"
 msgid "Exact header"
-msgstr ""
+msgstr "سرستون دقیق"
 
 #: frontend/src/pages/SourceConfiguration.tsx:52
 msgctxt "sources:sourceConfiguration.exampleColumn"
 msgid "Example: C"
-msgstr ""
+msgstr "نمونه: C"
 
 #: frontend/src/components/Sidebar.tsx:90
 msgctxt "navigation:sidebar.expandSidebar"
 msgid "Expand sidebar"
-msgstr ""
+msgstr "بازکردن نوار کناری"
 
 msgctxt "sources:sourceConfiguration.explicitZero"
 msgid "Explicit zero"
-msgstr ""
+msgstr "صفر صریح"
 
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "sources:sourceConfiguration.externalListingId"
 msgid "External Listing ID"
-msgstr ""
+msgstr "شناسه لیستینگ خارجی"
 
 #: frontend/src/pages/Products.tsx:328
 msgctxt "products:products.externalWritePerformed"
 msgid "External write performed"
-msgstr ""
+msgstr "نوشتن خارجی انجام شد"
 
 msgctxt "common:status.failed"
 msgid "Failed"
-msgstr ""
+msgstr "ناموفق"
 
 #: frontend/src/pages/Products.tsx:326
 msgctxt "products:products.failed2"
 msgid "Failed"
-msgstr ""
+msgstr "ناموفق"
 
 msgctxt "workspace:statusDisplay.failed"
 msgid "Failed"
-msgstr ""
+msgstr "ناموفق"
 
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:workspace.failedToApplyToWooCommerce"
 msgid "Failed to apply to WooCommerce."
-msgstr ""
+msgstr "اعمال در WooCommerce ناموفق بود."
 
 msgctxt "workspace:workspace.failedToApprove"
 msgid "Failed to approve."
-msgstr ""
+msgstr "تأیید ناموفق بود."
 
 msgctxt "workspace:workspace.failedToCreateDryRun"
 msgid "Failed to create Dry Run."
-msgstr ""
+msgstr "ایجاد اجرای آزمایشی ناموفق بود."
 
 #: frontend/src/pages/SourceWizard.tsx:73
 msgctxt "validation:source.filePathRequired"
 msgid "File path is required."
-msgstr ""
+msgstr "مسیر فایل الزامی است."
 
 #: frontend/src/pages/FlowHubSheet.tsx:101
 msgctxt "flowhubSheet:flowHubSheet.fillDown"
 msgid "Fill down"
-msgstr ""
+msgstr "پرکردن به پایین"
 
 #: frontend/src/pages/FlowHubSheet.tsx:101
 msgctxt "flowhubSheet:flowHubSheet.filterSheetRows"
 msgid "Filter Sheet rows"
-msgstr ""
+msgstr "فیلتر ردیف‌های برگه"
 
 #: frontend/src/pages/FlowHubSheet.tsx:101
 msgctxt "flowhubSheet:flowHubSheet.filterRows"
 msgid "Filter rows"
-msgstr ""
+msgstr "فیلتر ردیف‌ها"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:183
 msgctxt "workspace:unifiedWorkspace.filterServerData"
 msgid "Filter server data"
-msgstr ""
+msgstr "فیلتر داده‌های سرور"
 
 #: frontend/src/pages/Orders.tsx:170
 msgctxt "orders:orders.finalAmount"
 msgid "Final amount"
-msgstr ""
+msgstr "مبلغ نهایی"
 
 #: frontend/src/pages/Orders.tsx:42
 msgctxt "orders:orders.finalPrice"
 msgid "Final price"
-msgstr ""
+msgstr "قیمت نهایی"
 
 #: frontend/src/pages/Setup.tsx:880
 msgctxt "settings:setup.finish"
 msgid "Finish"
-msgstr ""
+msgstr "پایان"
 
 #: frontend/src/pages/Products.tsx:713
 msgctxt "products:products.firstPage"
 msgid "First page"
-msgstr ""
+msgstr "صفحه اول"
 
 #: frontend/src/pages/Login.tsx:60 frontend/src/pages/Login.tsx:67
 msgctxt "authentication:login.flowhub"
 msgid "FlowHub"
-msgstr ""
+msgstr "FlowHub"
 
 #: frontend/src/pages/CommerceHub.tsx:75
 msgctxt "commerce:commerceHub.flowhub"
 msgid "FlowHub"
-msgstr ""
+msgstr "FlowHub"
 
 #: frontend/src/components/Sidebar.tsx:83
 msgctxt "navigation:sidebar.flowhub"
 msgid "FlowHub"
-msgstr ""
+msgstr "FlowHub"
 
 #: frontend/src/components/Topbar.tsx:32
 msgctxt "navigation:topbar.flowhub"
 msgid "FlowHub"
-msgstr ""
+msgstr "FlowHub"
 
 #: frontend/src/pages/Setup.tsx:938
 msgctxt "settings:setup.flowhub"
 msgid "FlowHub"
-msgstr ""
+msgstr "FlowHub"
 
 #: frontend/src/components/Topbar.tsx:157
 msgctxt "navigation:topbar.brandPrefix"
 msgid "FlowHub /"
-msgstr ""
+msgstr "FlowHub /"
 
 #: frontend/src/pages/CommerceHub.tsx:64
 msgctxt "commerce:commerceHub.flowhubDataLayer"
 msgid "FlowHub / Data Layer"
-msgstr ""
+msgstr "FlowHub / لایه داده"
 
 #: frontend/src/components/Topbar.tsx:31
 msgctxt "navigation:topbar.flowhubSheet"
 msgid "FlowHub Sheet"
-msgstr ""
+msgstr "برگه FlowHub"
 
 #: frontend/src/pages/SourceCenter.tsx:50
 msgctxt "sources:sourceCenter.flowhubSheet"
 msgid "FlowHub Sheet"
-msgstr ""
+msgstr "برگه FlowHub"
 
 #: frontend/src/pages/FlowHubSheet.tsx:100
 msgctxt "flowhubSheet:flowHubSheet.flowhubSheetEditor"
 msgid "FlowHub Sheet editor"
-msgstr ""
+msgstr "ویرایشگر برگه FlowHub"
 
 msgctxt "flowhubSheet:flowHubSheet.flowhubSheetRevision"
 msgid "FlowHub Sheet · Revision"
-msgstr ""
+msgstr "برگه FlowHub · بازبینی"
 
 #: frontend/src/pages/FlowHubSheet.tsx:99
 msgctxt "flowhubSheet:flowHubSheet.revisionSummary"
 msgid "FlowHub Sheet · Revision {{revision}} · {{rows}} rows"
-msgstr ""
+msgstr "برگه FlowHub · بازبینی {{revision}} · {{rows}} ردیف"
 
 #: frontend/src/pages/Setup.tsx:801
 msgctxt "settings:setup.flowhubAlreadyHasAnOwnerOrAdministrator"
 msgid "FlowHub already has an owner or administrator account. Continue to finish setup."
-msgstr ""
+msgstr "FlowHub از قبل حساب مالک یا مدیر دارد. برای پایان راه‌اندازی ادامه دهید."
 
 #: frontend/src/pages/Workspace.tsx:440
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:workspace.flowhubWillFetchProductsFromTheConnected"
 msgid "FlowHub will fetch products from the connected channel and compare them against the configured source data. No changes will be applied."
-msgstr ""
+msgstr "FlowHub محصولات را از کانال متصل دریافت و با داده منبع پیکربندی‌شده مقایسه می‌کند. هیچ تغییری اعمال نخواهد شد."
 
 #: frontend/src/pages/SourceCenter.tsx:67
 msgctxt "sources:sourceCenter.forWorkflowsThatRemainManagedOutsideFlowhub"
 msgid "For workflows that remain managed outside FlowHub. Sources are read once per Workspace Snapshot."
-msgstr ""
+msgstr "برای فرایندهایی که خارج از FlowHub مدیریت می‌شوند. هر منبع برای هر اسنپ‌شات فضای کاری فقط یک‌بار خوانده می‌شود."
 
 msgctxt "sources:sourceConfiguration.valueType.formula"
 msgid "Formula"
-msgstr ""
+msgstr "فرمول"
 
 #: frontend/src/pages/FlowHubSheet.tsx:101
 msgctxt "flowhubSheet:flowHubSheet.formulasAreCalculatedByTheDeterministicFlowhub"
 msgid "Formulas are calculated by the deterministic FlowHub formula engine. Arbitrary scripts and external functions are not supported."
-msgstr ""
+msgstr "فرمول‌ها با موتور قطعی فرمول FlowHub محاسبه می‌شوند. اسکریپت دلخواه و تابع خارجی پشتیبانی نمی‌شود."
 
 msgctxt "settings:setup.gbpBritishPound"
 msgid "GBP - British Pound"
-msgstr ""
+msgstr "GBP - پوند بریتانیا"
 
 #: frontend/src/pages/CommerceHub.tsx:757
 msgctxt "commerce:commerceHub.general"
 msgid "General"
-msgstr ""
+msgstr "عمومی"
 
 #: frontend/src/pages/Settings.tsx:217
 msgctxt "settings:settings.general"
 msgid "General"
-msgstr ""
+msgstr "عمومی"
 
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.generateAFreshReview"
 msgid "Generate a fresh Review."
-msgstr ""
+msgstr "یک بازبینی تازه ایجاد کنید."
 
 msgctxt "navigation:topbar.globalApiRateLimits"
 msgid "Global API Rate Limits"
-msgstr ""
+msgstr "محدودیت سراسری درخواست‌های API"
 
 #: frontend/src/pages/RateLimits.tsx:179 frontend/src/pages/RateLimits.tsx:193
 msgctxt "settings:rateLimits.globalApiRateLimits"
 msgid "Global API Rate Limits"
-msgstr ""
+msgstr "محدودیت سراسری درخواست‌های API"
 
 #: frontend/src/pages/Workspace.tsx:740
 msgctxt "workspace:workspace.goToCommerceHubChannelsAndRefresh"
 msgid "Go to Commerce Hub → Channels and refresh the WooCommerce product cache."
-msgstr ""
+msgstr "به مرکز تجارت ← کانال‌ها بروید و کش محصولات WooCommerce را به‌روزرسانی کنید."
 
 #: frontend/src/pages/CommerceHub.tsx:118 frontend/src/pages/CommerceHub.tsx:207
 msgctxt "commerce:commerceHub.health"
 msgid "Health:"
-msgstr ""
+msgstr "سلامت:"
 
 #: frontend/src/pages/Products.tsx:251
 msgctxt "products:products.health"
 msgid "Health:"
-msgstr ""
+msgstr "سلامت:"
 
 #: frontend/src/pages/Products.tsx:251
 msgctxt "products:products.healthStatus"
 msgid "Health: {{status}}"
-msgstr ""
+msgstr "سلامت: {{status}}"
 
 msgctxt "settings:setup.irrIranianRial"
 msgid "IRR - Iranian Rial"
-msgstr ""
+msgstr "IRR - ریال ایران"
 
 msgctxt "settings:setup.irtIranianToman"
 msgid "IRT - Iranian Toman"
-msgstr ""
+msgstr "IRT - تومان ایران"
 
 #: frontend/src/pages/SourceConfiguration.tsx:139
 msgctxt "sources:sourceConfiguration.ignoredRow"
 msgid "Ignored row"
-msgstr ""
+msgstr "ردیف نادیده گرفته‌شده"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:60
 msgctxt "workspace:unifiedWorkspace.immutableSnapshot"
 msgid "Immutable Snapshot"
-msgstr ""
+msgstr "اسنپ‌شات تغییرناپذیر"
 
 msgctxt "navigation:topbar.importSpreadsheet"
 msgid "Import Spreadsheet"
-msgstr ""
+msgstr "درون‌ریزی صفحه‌گسترده"
 
 #: frontend/src/pages/SourceImportWizard.tsx:56
 msgctxt "sources:sourceImportWizard.importFailed"
 msgid "Import failed"
-msgstr ""
+msgstr "ورود فایل ناموفق بود"
 
 #: frontend/src/pages/SourceImportWizard.tsx:46
 msgctxt "sources:sourceImportWizard.importPreviewFailed"
 msgid "Import preview failed"
-msgstr ""
+msgstr "پیش‌نمایش ورود ناموفق بود"
 
 #: frontend/src/pages/SourceCenter.tsx:61 frontend/src/pages/SourceImportWizard.tsx:61
 msgctxt "sources:sourceCenter.importSpreadsheet"
 msgid "Import spreadsheet"
-msgstr ""
+msgstr "ورود صفحه‌گسترده"
 
 #: frontend/src/pages/SourceCenter.tsx:58
 msgctxt "sources:sourceCenter.importYourSpreadsheet"
 msgid "Import your spreadsheet"
-msgstr ""
+msgstr "صفحه‌گسترده خود را وارد کنید"
 
 msgctxt "sources:sourceCenter.importedSpreadsheet"
 msgid "Imported spreadsheet"
-msgstr ""
+msgstr "صفحه‌گسترده واردشده"
 
 msgctxt "common:status.inProgress"
 msgid "In progress"
-msgstr ""
+msgstr "در حال انجام"
 
 #: frontend/src/pages/Setup.tsx:450
 msgctxt "settings:setup.inProgress"
 msgid "In progress"
-msgstr ""
+msgstr "در حال انجام"
 
 msgctxt "common:status.inactive"
 msgid "Inactive"
-msgstr ""
+msgstr "غیرفعال"
 
 msgctxt "activity:activity.info"
 msgid "Info"
-msgstr ""
+msgstr "اطلاعات"
 
 msgctxt "common:status.info"
 msgid "Information"
-msgstr ""
+msgstr "اطلاعات"
 
 #: frontend/src/pages/RateLimits.tsx:180 frontend/src/pages/RateLimits.tsx:194
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "settings:rateLimits.inheritedByEverySourceAndChannel"
 msgid "Inherited by every Source and Channel"
-msgstr ""
+msgstr "برای همه منابع و کانال‌ها اعمال می‌شود"
 
 #: frontend/src/pages/CommerceHub.tsx:1287
 msgctxt "commerce:commerceHub.inputSystemsThatFeedFlowhubDataLayer"
 msgid "Input systems that feed FlowHub / Data Layer."
-msgstr ""
+msgstr "سامانه‌های ورودی که داده را به FlowHub و لایه داده می‌رسانند."
 
 #: frontend/src/pages/Settings.tsx:209
 msgctxt "settings:language.label"
 msgid "Interface language"
-msgstr ""
+msgstr "زبان رابط"
 
 #: frontend/src/pages/SourceConfiguration.tsx:50
 msgctxt "sources:sourceConfiguration.internalColumn"
 msgid "Internal column"
-msgstr ""
+msgstr "ستون داخلی"
 
 msgctxt "sources:sourceConfiguration.valueType.invalid"
 msgid "Invalid value"
-msgstr ""
+msgstr "مقدار نامعتبر"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.issueCategory"
 msgid "Issue category"
-msgstr ""
+msgstr "دسته‌بندی مشکل"
 
 #: frontend/src/pages/Orders.tsx:169 frontend/src/pages/Orders.tsx:31
 msgctxt "orders:orders.items"
 msgid "Items"
-msgstr ""
+msgstr "اقلام"
 
 msgctxt "settings:setup.jpyJapaneseYen"
 msgid "JPY - Japanese Yen"
-msgstr ""
+msgstr "JPY - ین ژاپن"
 
 #: frontend/src/pages/SourceCenter.tsx:66
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.keepAnExternalSourceLinked"
 msgid "Keep an external Source linked"
-msgstr ""
+msgstr "حفظ اتصال منبع خارجی"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:81
 msgctxt "workspace:sourceCentricWorkspace.keepOneSelectedChange"
 msgid "Keep one selected change"
-msgstr ""
+msgstr "یک تغییر را انتخاب‌شده نگه دارید"
 
 #: frontend/src/pages/Settings.tsx:207
 msgctxt "settings:language.title"
 msgid "Language"
-msgstr ""
+msgstr "زبان"
 
 #: frontend/src/pages/Dashboard.tsx:177
 msgctxt "dashboard:dashboard.lastPreview"
 msgid "Last Preview"
-msgstr ""
+msgstr "آخرین پیش‌نمایش"
 
 #: frontend/src/pages/CommerceHub.tsx:219
 msgctxt "commerce:commerceHub.lastCacheRefresh"
 msgid "Last cache refresh:"
-msgstr ""
+msgstr "آخرین به‌روزرسانی کش:"
 
 #: frontend/src/pages/Diagnostics.tsx:216 frontend/src/pages/Diagnostics.tsx:343
 msgctxt "diagnostics:diagnostics.lastCheckedAt"
 msgid "Last checked {{date}}"
-msgstr ""
+msgstr "آخرین بررسی در {{date}}"
 
 #: frontend/src/pages/Diagnostics.tsx:226
 msgctxt "diagnostics:diagnostics.lastChecked2"
 msgid "Last checked {{value1}}"
-msgstr ""
+msgstr "آخرین بررسی {{value1}}"
 
 #: frontend/src/pages/Diagnostics.tsx:312
 msgctxt "diagnostics:diagnostics.lastChecked"
 msgid "Last checked:"
-msgstr ""
+msgstr "آخرین بررسی:"
 
 #: frontend/src/pages/CommerceHub.tsx:117 frontend/src/pages/CommerceHub.tsx:206
 msgctxt "commerce:commerceHub.lastHealthCheck"
 msgid "Last health check:"
-msgstr ""
+msgstr "آخرین بررسی سلامت:"
 
 #: frontend/src/pages/Products.tsx:723
 msgctxt "products:products.lastPage"
 msgid "Last page"
-msgstr ""
+msgstr "صفحه آخر"
 
 #: frontend/src/pages/CommerceHub.tsx:124
 msgctxt "commerce:commerceHub.lastReadStatus"
 msgid "Last read status:"
-msgstr ""
+msgstr "وضعیت آخرین خواندن:"
 
 #: frontend/src/pages/CommerceHub.tsx:122
 msgctxt "commerce:commerceHub.lastRead"
 msgid "Last read:"
-msgstr ""
+msgstr "آخرین خواندن:"
 
 #: frontend/src/pages/CommerceHub.tsx:125
 msgctxt "commerce:commerceHub.lastRowCount"
 msgid "Last row count:"
-msgstr ""
+msgstr "تعداد ردیف در آخرین خواندن:"
 
 #: frontend/src/pages/Diagnostics.tsx:314
 msgctxt "diagnostics:diagnostics.lastSuccess"
 msgid "Last success:"
-msgstr ""
+msgstr "آخرین موفقیت:"
 
 #: frontend/src/pages/Sources.tsx:61
 msgctxt "sources:sources.lastSynced"
 msgid "Last synced:"
-msgstr ""
+msgstr "آخرین همگام‌سازی:"
 
 #: frontend/src/pages/Diagnostics.tsx:389
 msgctxt "diagnostics:diagnostics.lastAt"
 msgid "Last {{date}}"
-msgstr ""
+msgstr "آخرین {{date}}"
 
 #: frontend/src/pages/Diagnostics.tsx:313
 msgctxt "diagnostics:diagnostics.latency"
 msgid "Latency:"
-msgstr ""
+msgstr "تأخیر:"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:sourceCentricWorkspace.latestChannelCache"
 msgid "Latest Channel Cache"
-msgstr ""
+msgstr "آخرین کش کانال"
 
 #: frontend/src/pages/CommerceHub.tsx:225
 msgctxt "commerce:commerceHub.latestResult"
 msgid "Latest result:"
-msgstr ""
+msgstr "آخرین نتیجه:"
 
 #: frontend/src/pages/Diagnostics.tsx:152 frontend/src/pages/Diagnostics.tsx:187
 msgctxt "diagnostics:diagnostics.latestSystemStatusHasBeenLoaded"
 msgid "Latest system status has been loaded."
-msgstr ""
+msgstr "آخرین وضعیت سیستم بارگذاری شد."
 
 #: frontend/src/pages/Orders.tsx:168
 msgctxt "orders:orders.latestUpdate"
 msgid "Latest update"
-msgstr ""
+msgstr "آخرین به‌روزرسانی"
 
 #: frontend/src/pages/CommerceHub.tsx:991
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.limitSourceReads"
 msgid "Limit source reads"
-msgstr ""
+msgstr "محدودکردن خواندن منبع"
 
 #: frontend/src/pages/Diagnostics.tsx:376
 msgctxt "diagnostics:diagnostics.limiterDelay"
 msgid "Limiter delay"
-msgstr ""
+msgstr "تأخیر محدودکننده"
 
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.linkedExternalSource"
 msgid "Linked external Source"
-msgstr ""
+msgstr "منبع خارجی متصل"
 
 #: frontend/src/features/unifiedWorkspace/gridModel.ts:89
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:gridModel.listing"
 msgid "Listing"
-msgstr ""
+msgstr "لیستینگ"
 
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:unifiedWorkspace.listing"
 msgid "Listing"
-msgstr ""
+msgstr "لیستینگ"
 
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:unifiedWorkspace.listingRow"
 msgid "Listing row"
-msgstr ""
+msgstr "ردیف لیستینگ"
 
 msgctxt "workspace:sourceCentricWorkspace.listingsAcross"
 msgid "Listings across"
-msgstr ""
+msgstr "لیستینگ در"
 
 #: frontend/src/pages/Activity.tsx:122
 msgctxt "activity:activity.loadMoreRemaining"
 msgid "Load more ({{value1}} remaining)"
-msgstr ""
+msgstr "بارگذاری بیشتر ({{value1}} باقی‌مانده)"
 
 #: frontend/src/components/loading/Spinner.tsx:17
 msgctxt "common:spinner.loading"
 msgid "Loading"
-msgstr ""
+msgstr "در حال بارگذاری"
 
 #: frontend/src/pages/Diagnostics.tsx:208 frontend/src/pages/Diagnostics.tsx:214 frontend/src/pages/Diagnostics.tsx:355 frontend/src/pages/Diagnostics.tsx:361 frontend/src/pages/Diagnostics.tsx:367 frontend/src/pages/Diagnostics.tsx:372 frontend/src/pages/Diagnostics.tsx:377 frontend/src/pages/Diagnostics.tsx:382 frontend/src/pages/Diagnostics.tsx:387 frontend/src/pages/Diagnostics.tsx:93
 msgctxt "common:status.loading"
 msgid "Loading"
-msgstr ""
+msgstr "در حال بارگذاری"
 
 #: frontend/src/pages/Diagnostics.tsx:226 frontend/src/pages/Diagnostics.tsx:237
 msgctxt "diagnostics:diagnostics.loading"
 msgid "Loading"
-msgstr ""
+msgstr "در حال بارگذاری"
 
 #: frontend/src/pages/CommerceHub.tsx:1280
 msgctxt "commerce:commerceHub.loadingCommerceHub"
 msgid "Loading Commerce Hub"
-msgstr ""
+msgstr "در حال بارگذاری مرکز تجارت"
 
 #: frontend/src/pages/FlowHubSheet.tsx:96
 msgctxt "flowhubSheet:flowHubSheet.loadingFlowhubSheet"
 msgid "Loading FlowHub Sheet..."
-msgstr ""
+msgstr "در حال بارگذاری برگه FlowHub..."
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:90
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.loadingSourceProductWorkspace"
 msgid "Loading Source Product Workspace..."
-msgstr ""
+msgstr "در حال بارگذاری فضای کاری محصولات منبع..."
 
 #: frontend/src/pages/SourceConfiguration.tsx:125
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.loadingSourceConfiguration"
 msgid "Loading Source configuration..."
-msgstr ""
+msgstr "در حال بارگذاری پیکربندی منبع..."
 
 #: frontend/src/pages/SourceCenter.tsx:78
 msgctxt "sources:sourceCenter.loadingSources"
 msgid "Loading Sources..."
-msgstr ""
+msgstr "در حال بارگذاری منابع..."
 
 #: frontend/src/App.tsx:165
 msgctxt "common:app.loadingWorkspaceGrid"
 msgid "Loading Workspace Grid..."
-msgstr ""
+msgstr "در حال بارگذاری جدول فضای کاری..."
 
 #: frontend/src/pages/CommerceHub.tsx:734
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.loadingChannelConfiguration"
 msgid "Loading channel configuration"
-msgstr ""
+msgstr "در حال بارگذاری پیکربندی کانال"
 
 #: frontend/src/pages/Diagnostics.tsx:268
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:diagnostics.loadingChannelHealth"
 msgid "Loading channel health"
-msgstr ""
+msgstr "در حال بارگذاری سلامت کانال"
 
 #: frontend/src/pages/Workspace.tsx:410
 msgctxt "workspace:workspace.loadingConfiguration"
 msgid "Loading configuration..."
-msgstr ""
+msgstr "در حال بارگذاری پیکربندی..."
 
 #: frontend/src/pages/Diagnostics.tsx:327
 msgctxt "diagnostics:diagnostics.loadingConnectors"
 msgid "Loading connectors"
-msgstr ""
+msgstr "در حال بارگذاری اتصال‌دهنده‌ها"
 
 #: frontend/src/pages/CommerceHub.tsx:388
 msgctxt "commerce:commerceHub.loadingFiles"
 msgid "Loading files"
-msgstr ""
+msgstr "در حال بارگذاری فایل‌ها"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:45
 msgctxt "workspace:unifiedWorkspace.loadingImmutableWorkspaceSnapshot"
 msgid "Loading immutable Workspace Snapshot..."
-msgstr ""
+msgstr "در حال بارگذاری اسنپ‌شات تغییرناپذیر فضای کاری..."
 
 #: frontend/src/pages/Orders.tsx:206
 msgctxt "orders:orders.loadingOrderDetail"
 msgid "Loading order detail..."
-msgstr ""
+msgstr "در حال بارگذاری جزئیات سفارش..."
 
 #: frontend/src/pages/Products.tsx:151
 msgctxt "products:products.loadingProductPriceState"
 msgid "Loading product price state..."
-msgstr ""
+msgstr "در حال بارگذاری وضعیت قیمت محصول..."
 
 #: frontend/src/pages/Setup.tsx:922
 msgctxt "settings:setup.loadingSetupStatus"
 msgid "Loading setup status..."
-msgstr ""
+msgstr "در حال بارگذاری وضعیت راه‌اندازی..."
 
 #: frontend/src/pages/Activity.tsx:122 frontend/src/pages/Activity.tsx:97
 msgctxt "activity:activity.loading"
 msgid "Loading..."
-msgstr ""
+msgstr "در حال بارگذاری..."
 
 #: frontend/src/App.tsx:105 frontend/src/App.tsx:131 frontend/src/App.tsx:88
 msgctxt "common:app.loading"
 msgid "Loading..."
-msgstr ""
+msgstr "در حال بارگذاری..."
 
 #: frontend/src/pages/Orders.tsx:146
 msgctxt "orders:orders.loading"
 msgid "Loading..."
-msgstr ""
+msgstr "در حال بارگذاری..."
 
 #: frontend/src/pages/Products.tsx:561 frontend/src/pages/Products.tsx:653
 msgctxt "products:products.loading"
 msgid "Loading..."
-msgstr ""
+msgstr "در حال بارگذاری..."
 
 #: frontend/src/pages/RateLimits.tsx:144 frontend/src/pages/Settings.tsx:219 frontend/src/pages/Settings.tsx:255
 msgctxt "settings:rateLimits.loading"
 msgid "Loading..."
-msgstr ""
+msgstr "در حال بارگذاری..."
 
 #: frontend/src/pages/SourceConfiguration.tsx:139
 msgctxt "sources:sourceConfiguration.loading"
 msgid "Loading..."
-msgstr ""
+msgstr "در حال بارگذاری..."
 
 #: frontend/src/pages/Dashboard.tsx:133
 msgctxt "dashboard:dashboard.loggedIn"
 msgid "Logged In"
-msgstr ""
+msgstr "وارد شده"
 
 #: frontend/src/auth.tsx:188
 msgctxt "authentication:access.loginRequired"
 msgid "Login Required"
-msgstr ""
+msgstr "ورود الزامی است"
 
 #: frontend/src/components/Sidebar.tsx:99
 msgctxt "navigation:sidebar.main"
 msgid "Main"
-msgstr ""
+msgstr "اصلی"
 
 #: frontend/src/App.tsx:68
 msgctxt "common:app.maintenanceMode"
 msgid "Maintenance Mode"
-msgstr ""
+msgstr "حالت نگهداری"
 
 #: frontend/src/pages/SourceCenter.tsx:69
 msgctxt "sources:sourceCenter.manageExternalSources"
 msgid "Manage external Sources"
-msgstr ""
+msgstr "مدیریت منابع خارجی"
 
 #: frontend/src/pages/SourceCenter.tsx:74 frontend/src/pages/SourceCenter.tsx:76
 msgctxt "sources:sourceCenter.managedSources"
 msgid "Managed Sources"
-msgstr ""
+msgstr "منابع مدیریت‌شده"
 
 #: frontend/src/pages/CommerceHub.tsx:999
 msgctxt "commerce:commerceHub.manualReadNowAllowed"
 msgid "Manual Read now allowed"
-msgstr ""
+msgstr "خواندن دستی مجاز است"
 
 #: frontend/src/pages/Products.tsx:526
 msgctxt "products:products.manualWorkspaceDated"
 msgid "Manual Workspace {{date}}"
-msgstr ""
+msgstr "فضای کاری دستی {{date}}"
 
 #: frontend/src/pages/SourceConfiguration.tsx:127
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.mapSourceProductIdentityFirstThenEach"
 msgid "Map Source Product identity first, then each destination Channel independently."
-msgstr ""
+msgstr "ابتدا هویت محصول منبع و سپس هر کانال مقصد را جداگانه نگاشت کنید."
 
 #: frontend/src/pages/SourceConfiguration.tsx:139
 msgctxt "sources:sourceConfiguration.mappedChannels"
 msgid "Mapped Channels"
-msgstr ""
+msgstr "کانال‌های نگاشت‌شده"
 
 #: frontend/src/features/unifiedWorkspace/gridModel.ts:90
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "workspace:gridModel.mapping"
 msgid "Mapping"
-msgstr ""
+msgstr "نگاشت"
 
 #: frontend/src/pages/DataQuality.tsx:41
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "dataQuality:dataQuality.mappingState"
 msgid "Mapping state"
-msgstr ""
+msgstr "وضعیت نگاشت"
 
 #: frontend/src/pages/SourceConfiguration.tsx:108
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "sources:sourceConfiguration.mappingWasNotSaved"
 msgid "Mapping was not saved"
-msgstr ""
+msgstr "نگاشت ذخیره نشد"
 
 #: frontend/src/pages/DataQuality.tsx:42
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "dataQuality:dataQuality.mapping"
 msgid "Mapping:"
-msgstr ""
+msgstr "نگاشت:"
 
 #: frontend/src/pages/Orders.tsx:156
 msgctxt "orders:orders.marketplaceOrdersWillAppearAfterWebhookProcessing"
 msgid "Marketplace orders will appear after webhook processing or polling synchronization runs."
-msgstr ""
+msgstr "سفارش‌های بازارگاه پس از پردازش وب‌هوک یا اجرای همگام‌سازی دوره‌ای نمایش داده می‌شوند."
 
 #: frontend/src/pages/CommerceHub.tsx:1002
 msgctxt "commerce:commerceHub.maxReadsPer24Hours"
 msgid "Max reads per 24 hours"
-msgstr ""
+msgstr "حداکثر خواندن در ۲۴ ساعت"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:182
 msgctxt "workspace:unifiedWorkspace.maximumPrice"
 msgid "Maximum price"
-msgstr ""
+msgstr "بیشترین قیمت"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:182
 msgctxt "workspace:unifiedWorkspace.minimumPrice"
 msgid "Minimum price"
-msgstr ""
+msgstr "کمترین قیمت"
 
 #: frontend/src/pages/Products.tsx:146
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.multiChannelPriceEditor"
 msgid "Multi-channel price editor"
-msgstr ""
+msgstr "ویرایشگر قیمت چندکاناله"
 
 #: frontend/src/pages/SourceCenter.tsx:28
 msgctxt "sources:sourceCenter.defaultPricingSheetName"
 msgid "My pricing sheet"
-msgstr ""
+msgstr "برگه قیمت‌گذاری من"
 
 #: frontend/src/pages/Orders.tsx:37
 msgctxt "orders:orders.name"
 msgid "Name"
-msgstr ""
+msgstr "نام"
 
 #: frontend/src/pages/SourceWizard.tsx:69
 msgctxt "validation:source.nameRequired"
 msgid "Name is required."
-msgstr ""
+msgstr "نام الزامی است."
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:90
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:unifiedWorkspace.nameSource"
 msgid "Name source"
-msgstr ""
+msgstr "منبع نام"
 
 #: frontend/src/pages/Products.tsx:291
 msgctxt "products:products.neverSynced"
 msgid "Never synced"
-msgstr ""
+msgstr "هرگز همگام نشده"
 
 #: frontend/src/pages/Workspace.tsx:708
 msgctxt "workspace:workspace.newPreview"
 msgid "New Preview"
-msgstr ""
+msgstr "پیش‌نمایش جدید"
 
 #: frontend/src/pages/FlowHubSheet.tsx:116
 msgctxt "flowhubSheet:flowHubSheet.next"
 msgid "Next"
-msgstr ""
+msgstr "بعدی"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:100 frontend/src/pages/UnifiedWorkspace.tsx:194
 msgctxt "workspace:sourceCentricWorkspace.next"
 msgid "Next"
-msgstr ""
+msgstr "بعدی"
 
 #: frontend/src/pages/Diagnostics.tsx:286
 msgctxt "diagnostics:diagnostics.nextAction"
 msgid "Next action:"
-msgstr ""
+msgstr "اقدام بعدی:"
 
 #: frontend/src/pages/Products.tsx:661 frontend/src/pages/Products.tsx:720
 msgctxt "products:products.nextPage"
 msgid "Next page"
-msgstr ""
+msgstr "صفحه بعد"
 
 #: frontend/src/pages/SourceWizard.tsx:150
 msgctxt "sources:sourceWizard.nextcloudExcel"
 msgid "Nextcloud Excel"
-msgstr ""
+msgstr "فایل Excel در Nextcloud"
 
 #: frontend/src/pages/CommerceHub.tsx:278
 msgctxt "commerce:commerceHub.fields.nextcloudServerUrl"
 msgid "Nextcloud server URL"
-msgstr ""
+msgstr "نشانی سرور Nextcloud"
 
 #: frontend/src/pages/CommerceHub.tsx:895
 msgctxt "commerce:commerceHub.nextcloudSpreadsheetFile"
 msgid "Nextcloud spreadsheet file"
-msgstr ""
+msgstr "فایل صفحه‌گسترده Nextcloud"
 
 #: frontend/src/pages/CommerceHub.tsx:203
 msgctxt "commerce:commerceHub.no"
 msgid "No"
-msgstr ""
+msgstr "خیر"
 
 #: frontend/src/pages/DataQuality.tsx:42
 msgctxt "dataQuality:dataQuality.noDataQualityIssues"
 msgid "No Data Quality issues"
-msgstr ""
+msgstr "مشکلی در کیفیت داده وجود ندارد"
 
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "sources:sourceConfiguration.noListingUnavailable"
 msgid "No Listing / unavailable"
-msgstr ""
+msgstr "بدون لیستینگ / در دسترس نیست"
 
 #. Target is the proposed value that may be applied after Review.
 msgctxt "sources:sourceConfiguration.noTargetChange"
 msgid "No Target change"
-msgstr ""
+msgstr "بدون تغییر هدف"
 
 #: frontend/src/pages/Activity.tsx:108
 msgctxt "activity:activity.noActivityYet"
 msgid "No activity yet"
-msgstr ""
+msgstr "هنوز فعالیتی ثبت نشده است"
 
 #: frontend/src/pages/Workspace.tsx:331
 msgctxt "workspace:workspace.noChangesHaveBeenApplied"
 msgid "No changes have been applied."
-msgstr ""
+msgstr "هیچ تغییری اعمال نشده است."
 
 #: frontend/src/pages/Diagnostics.tsx:271
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:diagnostics.noChannelHealthData"
 msgid "No channel health data"
-msgstr ""
+msgstr "اطلاعات سلامت کانال وجود ندارد"
 
 #: frontend/src/pages/Dashboard.tsx:193
 msgctxt "dashboard:dashboard.noChannelsMonitored"
 msgid "No channels monitored"
-msgstr ""
+msgstr "هیچ کانالی پایش نمی‌شود"
 
 #: frontend/src/pages/Diagnostics.tsx:331
 msgctxt "diagnostics:diagnostics.noConnectorsConfigured"
 msgid "No connectors configured"
-msgstr ""
+msgstr "اتصال‌دهنده‌ای پیکربندی نشده است"
 
 #: frontend/src/pages/Dashboard.tsx:255
 msgctxt "dashboard:dashboard.noEventsYet"
 msgid "No events yet"
-msgstr ""
+msgstr "هنوز رویدادی ثبت نشده است"
 
 #: frontend/src/pages/Products.tsx:328
 msgctxt "products:products.noExternalWrite"
 msgid "No external write"
-msgstr ""
+msgstr "بدون نوشتن خارجی"
 
 #: frontend/src/pages/SourceCenter.tsx:79
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.noManagedSourceYetCreateAFlowhub"
 msgid "No managed Source yet. Create a FlowHub Sheet or import a spreadsheet."
-msgstr ""
+msgstr "هنوز منبع مدیریت‌شده‌ای ندارید. یک برگه FlowHub بسازید یا صفحه‌گسترده‌ای وارد کنید."
 
 #: frontend/src/pages/Workspace.tsx:464
 msgctxt "workspace:workspace.noMarketplaceChangeIsAppliedInThis"
 msgid "No marketplace change is applied in this step."
-msgstr ""
+msgstr "در این مرحله هیچ تغییری در بازارگاه اعمال نمی‌شود."
 
 #: frontend/src/pages/Setup.tsx:310
 msgctxt "settings:setup.noMatches"
 msgid "No matches"
-msgstr ""
+msgstr "موردی پیدا نشد"
 
 #: frontend/src/pages/Products.tsx:546
 msgctxt "products:products.noProductConnectorConfigured"
 msgid "No product connector configured"
-msgstr ""
+msgstr "اتصال‌دهنده محصولی پیکربندی نشده است"
 
 #: frontend/src/pages/Products.tsx:653
 msgctxt "products:products.noProductsFound"
 msgid "No products found"
-msgstr ""
+msgstr "محصولی پیدا نشد"
 
 #: frontend/src/pages/Products.tsx:684
 msgctxt "products:products.noProductsMatch"
 msgid "No products match"
-msgstr ""
+msgstr "محصول منطبقی وجود ندارد"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
 msgctxt "workspace:sourceCentricWorkspace.noProductsMatchThisView"
 msgid "No products match this view."
-msgstr ""
+msgstr "هیچ محصولی با این نما مطابقت ندارد."
 
 #: frontend/src/pages/Orders.tsx:67
 msgctxt "orders:orders.noShipmentData"
 msgid "No shipment data"
-msgstr ""
+msgstr "اطلاعات ارسالی وجود ندارد"
 
 #: frontend/src/pages/Sources.tsx:105
 msgctxt "sources:sources.noSourcesConfigured"
 msgid "No sources configured"
-msgstr ""
+msgstr "هیچ منبعی پیکربندی نشده است"
 
 #: frontend/src/pages/Dashboard.tsx:225
 msgctxt "dashboard:dashboard.noSourcesYet"
 msgid "No sources yet"
-msgstr ""
+msgstr "هنوز منبعی اضافه نشده است"
 
 #: frontend/src/pages/CommerceHub.tsx:424
 msgctxt "commerce:commerceHub.noSpreadsheetFilesInThisFolder"
 msgid "No spreadsheet files in this folder."
-msgstr ""
+msgstr "در این پوشه فایل صفحه‌گسترده‌ای وجود ندارد."
 
 #: frontend/src/pages/Orders.tsx:156
 msgctxt "orders:orders.noSynchronizedOrders"
 msgid "No synchronized orders"
-msgstr ""
+msgstr "سفارش همگام‌شده‌ای وجود ندارد"
 
 #: frontend/src/pages/Diagnostics.tsx:315 frontend/src/pages/SourceConfiguration.tsx:139
 msgctxt "common:status.none"
 msgid "None"
-msgstr ""
+msgstr "هیچ‌کدام"
 
 #: frontend/src/pages/Orders.tsx:140
 msgctxt "orders:orders.normalizedMarketplaceOrderSynchronization"
 msgid "Normalized marketplace order synchronization"
-msgstr ""
+msgstr "همگام‌سازی استانداردشده سفارش‌های بازارگاه"
 
 #: frontend/src/pages/Orders.tsx:166
 msgctxt "orders:orders.normalizedStatus"
 msgid "Normalized status"
-msgstr ""
+msgstr "وضعیت استاندارد"
 
 #: frontend/src/pages/CommerceHub.tsx:117 frontend/src/pages/CommerceHub.tsx:206
 msgctxt "commerce:commerceHub.notChecked"
 msgid "Not checked"
-msgstr ""
+msgstr "بررسی‌نشده"
 
 #: frontend/src/pages/CommerceHub.tsx:211 frontend/src/pages/CommerceHub.tsx:212 frontend/src/pages/CommerceHub.tsx:807 frontend/src/pages/CommerceHub.tsx:879
 msgctxt "commerce:commerceHub.notConfigured2"
 msgid "Not configured"
-msgstr ""
+msgstr "پیکربندی‌نشده"
 
 msgctxt "common:status.notConfigured"
 msgid "Not configured"
-msgstr ""
+msgstr "پیکربندی‌نشده"
 
 #: frontend/src/pages/SourceCenter.tsx:86 frontend/src/pages/SourceConfiguration.tsx:47
 msgctxt "sources:sourceConfiguration.notConfigured"
 msgid "Not configured"
-msgstr ""
+msgstr "پیکربندی‌نشده"
 
 #: frontend/src/pages/CommerceHub.tsx:122 frontend/src/pages/CommerceHub.tsx:124
 msgctxt "commerce:commerceHub.notRead"
 msgid "Not read"
-msgstr ""
+msgstr "خوانده‌نشده"
 
 #: frontend/src/pages/CommerceHub.tsx:219
 msgctxt "commerce:commerceHub.notRefreshed"
 msgid "Not refreshed"
-msgstr ""
+msgstr "به‌روزرسانی‌نشده"
 
 #: frontend/src/notifications/NotificationContainer.tsx:46
 msgctxt "notifications:notificationContainer.notifications"
 msgid "Notifications"
-msgstr ""
+msgstr "اعلان‌ها"
 
 msgctxt "common:status.ok"
 msgid "OK"
-msgstr ""
+msgstr "تأیید"
 
 msgctxt "common:status.offline"
 msgid "Offline"
-msgstr ""
+msgstr "آفلاین"
 
 #: frontend/src/pages/Diagnostics.tsx:208
 msgctxt "common:status.online"
 msgid "Online"
-msgstr ""
+msgstr "آنلاین"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:102
 msgctxt "workspace:sourceCentricWorkspace.only"
 msgid "Only"
-msgstr ""
+msgstr "فقط"
 
 #: frontend/src/pages/Workspace.tsx:482
 msgctxt "workspace:workspace.onlyApprovedBatchesCanBeApplied"
 msgid "Only approved batches can be applied."
-msgstr ""
+msgstr "فقط دسته‌های تأییدشده قابل اعمال هستند."
 
 #: frontend/src/pages/SourceConfiguration.tsx:133
 msgctxt "sources:sourceConfiguration.onlyEnabledChannelsWithAnImplementedConnector"
 msgid "Only enabled Channels with an implemented connector are available."
-msgstr ""
+msgstr "فقط کانال‌های فعال دارای اتصال‌دهنده پیاده‌سازی‌شده در دسترس‌اند."
 
 #: frontend/src/pages/Workspace.tsx:428
 msgctxt "workspace:workspace.openSettings"
 msgid "Open Settings"
-msgstr ""
+msgstr "بازکردن تنظیمات"
 
 #: frontend/src/pages/SourceCenter.tsx:88
 msgctxt "sources:sourceCenter.openSheet"
 msgid "Open Sheet"
-msgstr ""
+msgstr "بازکردن برگه"
 
 #: frontend/src/pages/Products.tsx:548
 msgctxt "products:products.openSources"
 msgid "Open Sources"
-msgstr ""
+msgstr "بازکردن منابع"
 
 #: frontend/src/pages/Workspace.tsx:421
 msgctxt "workspace:workspace.openSources"
 msgid "Open Sources"
-msgstr ""
+msgstr "بازکردن منابع"
 
 #: frontend/src/pages/SourceConfiguration.tsx:127
 msgctxt "sources:sourceConfiguration.openWorkspace"
 msgid "Open Workspace"
-msgstr ""
+msgstr "بازکردن فضای کاری"
 
 #: frontend/src/components/Topbar.tsx:151
 msgctxt "navigation:topbar.openNavigation"
 msgid "Open navigation"
-msgstr ""
+msgstr "بازکردن منو"
 
 #: frontend/src/pages/Products.tsx:320
 msgctxt "products:products.operation"
 msgid "Operation"
-msgstr ""
+msgstr "عملیات"
 
 #: frontend/src/pages/Diagnostics.tsx:214 frontend/src/pages/Diagnostics.tsx:90
 msgctxt "common:status.operational"
 msgid "Operational"
-msgstr ""
+msgstr "عملیاتی"
 
 #: frontend/src/pages/Orders.tsx:163
 msgctxt "orders:orders.order"
 msgid "Order"
-msgstr ""
+msgstr "سفارش"
 
 #: frontend/src/components/Sidebar.tsx:120
 msgctxt "navigation:sidebar.orders"
 msgid "Orders"
-msgstr ""
+msgstr "سفارش‌ها"
 
 #: frontend/src/pages/Orders.tsx:139
 msgctxt "orders:orders.orders"
 msgid "Orders"
-msgstr ""
+msgstr "سفارش‌ها"
 
 #: frontend/src/pages/Workspace.tsx:483
 msgctxt "workspace:workspace.otherChannelsAreReadOnlyUnavailableFor"
 msgid "Other channels are read-only/unavailable for this workflow."
-msgstr ""
+msgstr "کانال‌های دیگر برای این فرایند فقط‌خواندنی یا در دسترس نیستند."
 
 #: frontend/src/pages/RateLimits.tsx:166
 msgctxt "settings:rateLimits.overrides"
 msgid "Overrides"
-msgstr ""
+msgstr "استثناها"
 
 #: frontend/src/pages/Setup.tsx:795
 msgctxt "settings:setup.ownerAccount"
 msgid "Owner Account"
-msgstr ""
+msgstr "حساب مالک"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:100 frontend/src/pages/UnifiedWorkspace.tsx:193
 msgctxt "workspace:sourceCentricWorkspace.page"
 msgid "Page"
-msgstr ""
+msgstr "صفحه"
 
 #: frontend/src/pages/NotFound.tsx:12
 msgctxt "common:notFound.pageNotFound"
 msgid "Page not found"
-msgstr ""
+msgstr "صفحه پیدا نشد"
 
 #: frontend/src/pages/Workspace.tsx:140 frontend/src/pages/Workspace.tsx:232
 msgctxt "workspace:workspace.parent"
 msgid "Parent"
-msgstr ""
+msgstr "والد"
 
 #: frontend/src/pages/Login.tsx:98
 msgctxt "authentication:login.password"
 msgid "Password"
-msgstr ""
+msgstr "رمز عبور"
 
 #: frontend/src/pages/Setup.tsx:827
 msgctxt "settings:setup.password"
 msgid "Password"
-msgstr ""
+msgstr "رمز عبور"
 
 #: frontend/src/pages/SourceWizard.tsx:72
 msgctxt "validation:source.passwordRequired"
 msgid "Password is required."
-msgstr ""
+msgstr "رمز عبور الزامی است."
 
 msgctxt "common:status.pending"
 msgid "Pending"
-msgstr ""
+msgstr "در انتظار"
 
 #: frontend/src/pages/Setup.tsx:450
 msgctxt "settings:setup.pending"
 msgid "Pending"
-msgstr ""
+msgstr "در انتظار"
 
 #: frontend/src/pages/Products.tsx:170
 msgctxt "products:products.pendingEdits"
 msgid "Pending edits"
-msgstr ""
+msgstr "ویرایش‌های در انتظار"
 
 #: frontend/src/pages/Settings.tsx:212
 msgctxt "settings:language.persian"
 msgid "Persian"
-msgstr ""
+msgstr "فارسی"
 
 #: frontend/src/pages/Settings.tsx:212
 msgctxt "settings:language.persianUnavailable"
 msgid "Persian — translation catalog required"
-msgstr ""
+msgstr "فارسی — نیازمند کاتالوگ ترجمه"
 
 #: frontend/src/pages/CommerceHub.tsx:191 frontend/src/pages/CommerceHub.tsx:804
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.plannedChannel"
 msgid "Planned channel"
-msgstr ""
+msgstr "کانال برنامه‌ریزی‌شده"
 
 #: frontend/src/pages/CommerceHub.tsx:108 frontend/src/pages/CommerceHub.tsx:804
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.plannedSource"
 msgid "Planned source"
-msgstr ""
+msgstr "منبع برنامه‌ریزی‌شده"
 
 #: frontend/src/pages/CommerceHub.tsx:596
 #. Review is the immutable validation result required before Apply.
 msgctxt "commerce:commerceHub.pleaseReviewYourChangesAndTryAgain"
 msgid "Please review your changes and try again."
-msgstr ""
+msgstr "تغییرات را بررسی کرده و دوباره تلاش کنید."
 
 #: frontend/src/auth.tsx:195
 msgctxt "authentication:access.signInToContinue"
 msgid "Please sign in to continue."
-msgstr ""
+msgstr "برای ادامه وارد شوید."
 
 msgctxt "errors:codes.AUTHENTICATION_REQUIRED"
 msgid "Please sign in to continue."
-msgstr ""
+msgstr "برای ادامه وارد شوید."
 
 #: frontend/src/pages/CommerceHub.tsx:1091 frontend/src/pages/CommerceHub.tsx:1180 frontend/src/pages/CommerceHub.tsx:1187 frontend/src/pages/CommerceHub.tsx:1210 frontend/src/pages/CommerceHub.tsx:1217 frontend/src/pages/CommerceHub.tsx:521
 msgctxt "commerce:commerceHub.pleaseTryAgain"
 msgid "Please try again."
-msgstr ""
+msgstr "دوباره تلاش کنید."
 
 #: frontend/src/pages/Diagnostics.tsx:163 frontend/src/pages/Diagnostics.tsx:192
 msgctxt "diagnostics:diagnostics.pleaseTryAgain"
 msgid "Please try again."
-msgstr ""
+msgstr "دوباره تلاش کنید."
 
 #: frontend/src/pages/RateLimits.tsx:108 frontend/src/pages/RateLimits.tsx:70 frontend/src/pages/Settings.tsx:171
 msgctxt "settings:rateLimits.pleaseTryAgain"
 msgid "Please try again."
-msgstr ""
+msgstr "دوباره تلاش کنید."
 
 #: frontend/src/pages/CommerceHub.tsx:1118 frontend/src/pages/CommerceHub.tsx:1124 frontend/src/pages/CommerceHub.tsx:1148 frontend/src/pages/CommerceHub.tsx:1154 frontend/src/pages/CommerceHub.tsx:638 frontend/src/pages/CommerceHub.tsx:643
 msgctxt "commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain"
 msgid "Please verify your credentials and try again."
-msgstr ""
+msgstr "اطلاعات ورود را بررسی کرده و دوباره تلاش کنید."
 
 #: frontend/src/pages/Setup.tsx:490
 msgctxt "settings:setup.pleaseWait"
 msgid "Please wait..."
-msgstr ""
+msgstr "لطفاً صبر کنید..."
 
 #: frontend/src/pages/RateLimits.tsx:163
 msgctxt "settings:rateLimits.policy"
 msgid "Policy"
-msgstr ""
+msgstr "سیاست"
 
 #: frontend/src/pages/Workspace.tsx:193
 msgctxt "workspace:workspace.steps.preview"
 msgid "Preview"
-msgstr ""
+msgstr "پیش‌نمایش"
 
 #: frontend/src/pages/Workspace.tsx:640
 msgctxt "workspace:workspace.preview2"
 msgid "Preview -"
-msgstr ""
+msgstr "پیش‌نمایش —"
 
 #: frontend/src/pages/Products.tsx:207
 msgctxt "products:products.previewDryRun"
 msgid "Preview / Dry Run"
-msgstr ""
+msgstr "پیش‌نمایش / اجرای آزمایشی"
 
 #: frontend/src/pages/SourceImportWizard.tsx:61
 msgctxt "sources:sourceImportWizard.previewAnXlsxOrCsvThenCreate"
 msgid "Preview an XLSX or CSV, then create an internal managed FlowHub Sheet."
-msgstr ""
+msgstr "ابتدا فایل XLSX یا CSV را پیش‌نمایش کنید، سپس یک برگه داخلی مدیریت‌شده FlowHub بسازید."
 
 #: frontend/src/pages/Workspace.tsx:500
 msgctxt "workspace:workspace.previewFirstThenRunSafetyChecksBefore"
 msgid "Preview first, then run safety checks before approval. Rows with errors cannot enter Dry Run."
-msgstr ""
+msgstr "ابتدا پیش‌نمایش را ایجاد کنید، سپس پیش از تأیید، بررسی‌های ایمنی را اجرا کنید. ردیف‌های دارای خطا نمی‌توانند وارد اجرای آزمایشی شوند."
 
 #: frontend/src/pages/Workspace.tsx:301
 msgctxt "workspace:workspace.previewPreparedSuccessfully"
 msgid "Preview prepared successfully"
-msgstr ""
+msgstr "پیش‌نمایش با موفقیت آماده شد"
 
 #: frontend/src/pages/Workspace.tsx:402
 msgctxt "workspace:workspace.previewPriceChangesFromYourSources"
 msgid "Preview price changes from your sources"
-msgstr ""
+msgstr "پیش‌نمایش تغییرات قیمت از منابع شما"
 
 #: frontend/src/pages/SourceConfiguration.tsx:139
 msgctxt "sources:sourceConfiguration.previewRecognizedRows"
 msgid "Preview recognized rows"
-msgstr ""
+msgstr "پیش‌نمایش ردیف‌های شناسایی‌شده"
 
 #: frontend/src/pages/FlowHubSheet.tsx:116
 msgctxt "flowhubSheet:flowHubSheet.previous"
 msgid "Previous"
-msgstr ""
+msgstr "قبلی"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:100 frontend/src/pages/UnifiedWorkspace.tsx:192
 msgctxt "workspace:sourceCentricWorkspace.previous"
 msgid "Previous"
-msgstr ""
+msgstr "قبلی"
 
 #: frontend/src/pages/Products.tsx:657 frontend/src/pages/Products.tsx:716
 msgctxt "products:products.previousPage"
 msgid "Previous page"
-msgstr ""
+msgstr "صفحه قبل"
 
 msgctxt "common:field.price"
 msgid "Price"
-msgstr ""
+msgstr "قیمت"
 
 #: frontend/src/pages/Workspace.tsx:91
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "workspace:workspace.status.priceAndStock"
 msgid "Price + Stock"
-msgstr ""
+msgstr "قیمت و موجودی"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:182
 msgctxt "workspace:unifiedWorkspace.priceRange"
 msgid "Price range"
-msgstr ""
+msgstr "محدوده قیمت"
 
 #: frontend/src/pages/Settings.tsx:242
 msgctxt "settings:settings.pricingUnit"
 msgid "Pricing unit"
-msgstr ""
+msgstr "واحد قیمت‌گذاری"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.product"
 msgid "Product"
-msgstr ""
+msgstr "محصول"
 
 #: frontend/src/features/unifiedWorkspace/gridModel.ts:87
 msgctxt "workspace:gridModel.product"
 msgid "Product"
-msgstr ""
+msgstr "محصول"
 
 #: frontend/src/pages/CommerceHub.tsx:926
 msgctxt "commerce:commerceHub.productId"
 msgid "Product ID"
-msgstr ""
+msgstr "شناسه محصول"
 
 #. Review is the immutable validation result required before Apply.
 msgctxt "errors:codes.MAPPING_CHANGED"
 msgid "Product Mapping changed. Create a new Review."
-msgstr ""
+msgstr "نگاشت محصول تغییر کرده است. بازبینی جدیدی بسازید."
 
 #: frontend/src/pages/FlowHubSheet.tsx:101
 msgctxt "flowhubSheet:flowHubSheet.productAndPricingSheet"
 msgid "Product and pricing sheet"
-msgstr ""
+msgstr "برگه محصول و قیمت‌گذاری"
 
 #: frontend/src/pages/CommerceHub.tsx:1172
 msgctxt "commerce:commerceHub.productCacheRefreshedSuccessfully"
 msgid "Product cache refreshed successfully"
-msgstr ""
+msgstr "کش محصولات با موفقیت به‌روزرسانی شد"
 
 #: frontend/src/pages/Products.tsx:542
 msgctxt "products:products.productCatalog"
 msgid "Product catalog"
-msgstr ""
+msgstr "فهرست محصولات"
 
 #: frontend/src/pages/Workspace.tsx:419
 msgctxt "workspace:workspace.productConnectorRequired"
 msgid "Product connector required"
-msgstr ""
+msgstr "اتصال‌دهنده محصول لازم است"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:94
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:unifiedWorkspace.productDisplayNameSource"
 msgid "Product display name source"
-msgstr ""
+msgstr "منبع نام نمایشی محصول"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
 msgctxt "workspace:sourceCentricWorkspace.productStatus"
 msgid "Product status: {{status}}"
-msgstr ""
+msgstr "وضعیت محصول: {{status}}"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:200
 msgctxt "workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid"
 msgid "Production Grid is disabled. Configure a valid commercial Handsontable license."
-msgstr ""
+msgstr "گرید محیط عملیاتی غیرفعال است. یک مجوز تجاری معتبر Handsontable پیکربندی کنید."
 
 #: frontend/src/components/Sidebar.tsx:113
 msgctxt "navigation:sidebar.products"
 msgid "Products"
-msgstr ""
+msgstr "محصولات"
 
 msgctxt "navigation:topbar.products"
 msgid "Products"
-msgstr ""
+msgstr "محصولات"
 
 #: frontend/src/pages/Products.tsx:541 frontend/src/pages/Products.tsx:559
 msgctxt "products:products.products"
 msgid "Products"
-msgstr ""
+msgstr "محصولات"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:98
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.productsAreParentsEachChannelListingRemains"
 msgid "Products are parents. Each Channel Listing remains independently identifiable and selectable."
-msgstr ""
+msgstr "محصولات ردیف والد هستند. هویت و انتخاب هر لیستینگ کانال مستقل باقی می‌ماند."
 
 #: frontend/src/pages/Sources.tsx:57
 msgctxt "sources:sources.products"
 msgid "Products:"
-msgstr ""
+msgstr "محصولات:"
 
 #: frontend/src/pages/Orders.tsx:38
 msgctxt "orders:orders.providerItem"
 msgid "Provider item"
-msgstr ""
+msgstr "قلم ارائه‌دهنده"
 
 #: frontend/src/pages/Orders.tsx:165
 msgctxt "orders:orders.providerStatus"
 msgid "Provider status"
-msgstr ""
+msgstr "وضعیت ارائه‌دهنده"
 
 #: frontend/src/pages/CommerceHub.tsx:302 frontend/src/pages/CommerceHub.tsx:305
 msgctxt "commerce:commerceHub.validation.publicShareUnsupported"
 msgid "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL."
-msgstr ""
+msgstr "پیوندهای اشتراک‌گذاری عمومی پشتیبانی نمی‌شوند. از نشانی ریشه Nextcloud یا نشانی شخصی فایل‌های WebDAV خود استفاده کنید."
 
 #: frontend/src/pages/Orders.tsx:39
 msgctxt "orders:orders.qty"
 msgid "Qty"
-msgstr ""
+msgstr "تعداد"
 
 #: frontend/src/pages/Diagnostics.tsx:366
 msgctxt "diagnostics:diagnostics.queueLength"
 msgid "Queue length"
-msgstr ""
+msgstr "طول صف"
 
 #: frontend/src/pages/Diagnostics.tsx:351
 msgctxt "diagnostics:diagnostics.rateLimiter"
 msgid "Rate Limiter"
-msgstr ""
+msgstr "محدودکننده نرخ"
 
 #: frontend/src/pages/Diagnostics.tsx:237
 msgctxt "diagnostics:diagnostics.reCheck"
 msgid "Re-check"
-msgstr ""
+msgstr "بررسی دوباره"
 
 #: frontend/src/pages/CommerceHub.tsx:981
 msgctxt "commerce:commerceHub.readPolicy"
 msgid "Read Policy"
-msgstr ""
+msgstr "سیاست خواندن"
 
 #: frontend/src/pages/Diagnostics.tsx:354
 msgctxt "diagnostics:diagnostics.readRequestsMinute"
 msgid "Read Requests / Minute"
-msgstr ""
+msgstr "درخواست‌های خواندن در دقیقه"
 
 #: frontend/src/pages/RateLimits.tsx:147
 msgctxt "settings:rateLimits.readRequestsMinute"
 msgid "Read Requests / Minute"
-msgstr ""
+msgstr "درخواست‌های خواندن در دقیقه"
 
 #: frontend/src/pages/RateLimits.tsx:81
 msgctxt "validation:rateLimits.readRequestsRange"
 msgid "Read Requests / Minute must be between {{min}} and {{max}}."
-msgstr ""
+msgstr "تعداد درخواست‌های خواندن در دقیقه باید بین {{min}} و {{max}} باشد."
 
 #: frontend/src/pages/RateLimits.tsx:155
 msgctxt "settings:rateLimits.readDelay"
 msgid "Read delay"
-msgstr ""
+msgstr "تأخیر خواندن"
 
 #: frontend/src/pages/CommerceHub.tsx:159
 msgctxt "commerce:commerceHub.readNow"
 msgid "Read now"
-msgstr ""
+msgstr "اکنون بخوان"
 
 #: frontend/src/pages/CommerceHub.tsx:784
 msgctxt "commerce:commerceHub.readOnly2"
 msgid "Read only"
-msgstr ""
+msgstr "فقط‌خواندنی"
 
 #: frontend/src/pages/SourceWizard.tsx:152
 msgctxt "sources:sourceWizard.readPricesFromAnExcelSpreadsheetHosted"
 msgid "Read prices from an Excel spreadsheet hosted on Nextcloud or a compatible WebDAV server."
-msgstr ""
+msgstr "قیمت‌ها را از یک صفحه‌گسترده Excel میزبانی‌شده در Nextcloud یا سرور سازگار با WebDAV بخوانید."
 
 msgctxt "common:status.readOnly"
 msgid "Read-only"
-msgstr ""
+msgstr "فقط‌خواندنی"
 
 #: frontend/src/pages/Products.tsx:254
 msgctxt "products:products.readOnly"
 msgid "Read-only"
-msgstr ""
+msgstr "فقط‌خواندنی"
 
 msgctxt "workspace:statusDisplay.readOnly"
 msgid "Read-only"
-msgstr ""
+msgstr "فقط‌خواندنی"
 
 #: frontend/src/pages/CommerceHub.tsx:57
 msgctxt "commerce:commerceHub.readOnlyMode"
 msgid "Read-only mode"
-msgstr ""
+msgstr "حالت فقط‌خواندنی"
 
 #: frontend/src/pages/CommerceHub.tsx:1256
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.readOnlySourceAndChannelOverview"
 msgid "Read-only source and channel overview"
-msgstr ""
+msgstr "نمای کلی فقط‌خواندنی منابع و کانال‌ها"
 
 #: frontend/src/pages/Products.tsx:254
 msgctxt "products:products.readWrite"
 msgid "Read/write"
-msgstr ""
+msgstr "خواندن/نوشتن"
 
 #: frontend/src/pages/CommerceHub.tsx:159
 msgctxt "commerce:commerceHub.reading"
 msgid "Reading"
-msgstr ""
+msgstr "در حال خواندن"
 
 #: frontend/src/pages/CommerceHub.tsx:123
 msgctxt "commerce:commerceHub.readsRemaining"
 msgid "Reads remaining:"
-msgstr ""
+msgstr "خواندن باقی‌مانده:"
 
 msgctxt "common:status.ready"
 msgid "Ready"
-msgstr ""
+msgstr "آماده"
 
 #: frontend/src/pages/Workspace.tsx:438
 msgctxt "workspace:statusDisplay.ready"
 msgid "Ready"
-msgstr ""
+msgstr "آماده"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:95
 msgctxt "workspace:sourceCentricWorkspace.readyChanges"
 msgid "Ready changes"
-msgstr ""
+msgstr "تغییرات آماده"
 
 #: frontend/src/pages/Dashboard.tsx:244
 msgctxt "dashboard:dashboard.recentActivity"
 msgid "Recent Activity"
-msgstr ""
+msgstr "فعالیت‌های اخیر"
 
 #: frontend/src/pages/SourceConfiguration.tsx:139
 msgctxt "sources:sourceConfiguration.recognition"
 msgid "Recognition"
-msgstr ""
+msgstr "شناسایی"
 
 #: frontend/src/pages/SourceCenter.tsx:49
 msgctxt "sources:sourceCenter.recommended"
 msgid "Recommended"
-msgstr ""
+msgstr "پیشنهادی"
 
 #: frontend/src/pages/DataQuality.tsx:42
 msgctxt "dataQuality:dataQuality.recommendedAction"
 msgid "Recommended action:"
-msgstr ""
+msgstr "اقدام پیشنهادی:"
 
 #: frontend/src/pages/SourceCenter.tsx:51
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceCenter.recommendedForEasierMappingSafeFormulasAnd"
 msgid "Recommended for easier mapping, safe formulas, and multi-channel pricing."
-msgstr ""
+msgstr "برای نگاشت آسان‌تر، فرمول‌های امن و قیمت‌گذاری چندکاناله پیشنهاد می‌شود."
 
 #: frontend/src/pages/SourceCenter.tsx:57
 msgctxt "sources:sourceCenter.recommendedMigrationPath"
 msgid "Recommended migration path"
-msgstr ""
+msgstr "مسیر انتقال پیشنهادی"
 
 #. Reconciliation verifies an uncertain external write without blindly redispatching it.
 msgctxt "common:status.reconciliationRequired"
 msgid "Reconciliation Required"
-msgstr ""
+msgstr "نیازمند تطبیق مجدد"
 
 #. Reconciliation verifies an uncertain external write without blindly redispatching it.
 msgctxt "workspace:statusDisplay.reconciliationRequired"
 msgid "Reconciliation Required"
-msgstr ""
+msgstr "نیازمند تطبیق مجدد"
 
 #: frontend/src/pages/Workspace.tsx:533
 msgctxt "workspace:workspace.reference"
 msgid "Reference"
-msgstr ""
+msgstr "مرجع"
 
 #: frontend/src/pages/Diagnostics.tsx:295
 msgctxt "diagnostics:diagnostics.refresh"
 msgid "Refresh"
-msgstr ""
+msgstr "تازه‌سازی"
 
 #: frontend/src/pages/CommerceHub.tsx:267
 msgctxt "commerce:commerceHub.refreshProductCache"
 msgid "Refresh product cache"
-msgstr ""
+msgstr "به‌روزرسانی کش محصولات"
 
 #: frontend/src/pages/CommerceHub.tsx:220
 msgctxt "commerce:commerceHub.refreshStatus"
 msgid "Refresh status:"
-msgstr ""
+msgstr "وضعیت به‌روزرسانی:"
 
 #: frontend/src/pages/CommerceHub.tsx:267
 msgctxt "commerce:commerceHub.refreshing"
 msgid "Refreshing"
-msgstr ""
+msgstr "در حال به‌روزرسانی"
 
 #: frontend/src/pages/CommerceHub.tsx:873
 msgctxt "commerce:commerceHub.registerThisUrlInTapsishopTheWebhook"
 msgid "Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token."
-msgstr ""
+msgstr "این نشانی را در TapsiShop ثبت کنید. اطلاعات ورود webhook جدا از توکن API خروجی نگهداری می‌شود."
 
 #: frontend/src/pages/Diagnostics.tsx:371
 msgctxt "diagnostics:diagnostics.requestDuration"
 msgid "Request duration"
-msgstr ""
+msgstr "مدت درخواست"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.resolved"
 msgid "Resolved"
-msgstr ""
+msgstr "حل‌شده"
 
 #: frontend/src/pages/Workspace.tsx:196
 msgctxt "workspace:workspace.steps.result"
 msgid "Result"
-msgstr ""
+msgstr "نتیجه"
 
 #: frontend/src/pages/Settings.tsx:261
 msgctxt "settings:settings.retry"
 msgid "Retry"
-msgstr ""
+msgstr "تلاش دوباره"
 
 #: frontend/src/pages/SourceWizard.tsx:232
 msgctxt "sources:sourceWizard.retry"
 msgid "Retry"
-msgstr ""
+msgstr "تلاش دوباره"
 
 #: frontend/src/pages/NotFound.tsx:18
 msgctxt "common:notFound.returnToDashboard"
 msgid "Return to Dashboard"
-msgstr ""
+msgstr "بازگشت به داشبورد"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:121
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.review"
 msgid "Review"
-msgstr ""
+msgstr "بازبینی"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.reviewDryRun"
 msgid "Review & Dry Run"
-msgstr ""
+msgstr "بازبینی و اجرای آزمایشی"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:108
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.reviewChanges"
 msgid "Review Changes"
-msgstr ""
+msgstr "بازبینی تغییرات"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:55
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.reviewAndDryRunComplete"
 msgid "Review and Dry Run complete"
-msgstr ""
+msgstr "بازبینی و اجرای آزمایشی کامل شد"
 
 #: frontend/src/pages/Workspace.tsx:427
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:workspace.reviewConnectorSettingsBeforeUsingWorkspace"
 msgid "Review connector settings before using Workspace."
-msgstr ""
+msgstr "پیش از استفاده از فضای کاری، تنظیمات اتصال‌دهنده را بررسی کنید."
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:56
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.reviewCouldNotBeCompleted"
 msgid "Review could not be completed"
-msgstr ""
+msgstr "بازبینی کامل نشد"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:118
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.reviewResults"
 msgid "Review results"
-msgstr ""
+msgstr "نتایج بازبینی"
 
 #. Review is the immutable validation result required before Apply.
 msgctxt "settings:setup.reviewTheInstallationPathBeforeFlowhubIs"
 msgid "Review the installation path before FlowHub is enabled."
-msgstr ""
+msgstr "پیش از فعال‌شدن FlowHub، مسیر نصب را بازبینی کنید."
 
 #: frontend/src/pages/FlowHubSheet.tsx:86
 msgctxt "flowhubSheet:flowHubSheet.revisionIsImmutableAndReadyForSnapshot"
 msgid "Revision {{value1}} is immutable and ready for Snapshot creation."
-msgstr ""
+msgstr "بازبینی {{value1}} تغییرناپذیر و آماده ایجاد اسنپ‌شات است."
 
 #: frontend/src/pages/SourceConfiguration.tsx:139
 msgctxt "sources:sourceConfiguration.row"
 msgid "Row"
-msgstr ""
+msgstr "ردیف"
 
 #: frontend/src/pages/FlowHubSheet.tsx:101
 msgctxt "flowhubSheet:flowHubSheet.rowOrder"
 msgid "Row order"
-msgstr ""
+msgstr "ترتیب ردیف‌ها"
 
 #: frontend/src/pages/FlowHubSheet.tsx:110
 msgctxt "flowhubSheet:flowHubSheet.rowColumn"
 msgid "Row {{row}}, {{column}}"
-msgstr ""
+msgstr "ردیف {{row}}، {{column}}"
 
 msgctxt "common:status.running"
 msgid "Running"
-msgstr ""
+msgstr "در حال اجرا"
 
 #: frontend/src/pages/RateLimits.tsx:135 frontend/src/pages/Settings.tsx:201
 msgctxt "settings:rateLimits.saveChanges"
 msgid "Save Changes"
-msgstr ""
+msgstr "ذخیره تغییرات"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:105
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:unifiedWorkspace.saveDraft"
 msgid "Save Draft"
-msgstr ""
+msgstr "ذخیره پیش‌نویس"
 
 #: frontend/src/pages/SourceConfiguration.tsx:137
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "sources:sourceConfiguration.saveMappingRevision"
 msgid "Save Mapping Revision"
-msgstr ""
+msgstr "ذخیره نسخه نگاشت"
 
 #: frontend/src/pages/FlowHubSheet.tsx:99
 msgctxt "flowhubSheet:flowHubSheet.saveRevision"
 msgid "Save Revision"
-msgstr ""
+msgstr "ذخیره بازبینی"
 
 #: frontend/src/pages/SourceWizard.tsx:222
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceWizard.saveSource"
 msgid "Save Source"
-msgstr ""
+msgstr "ذخیره منبع"
 
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "sources:sourceConfiguration.saveAValidMappingAndSheetRevision"
 msgid "Save a valid Mapping and Sheet revision first."
-msgstr ""
+msgstr "ابتدا یک نگاشت معتبر و نسخه برگه را ذخیره کنید."
 
 #: frontend/src/pages/CommerceHub.tsx:1030
 msgctxt "commerce:commerceHub.saveConfiguration"
 msgid "Save configuration"
-msgstr ""
+msgstr "ذخیره پیکربندی"
 
 #: frontend/src/pages/CommerceHub.tsx:841
 msgctxt "commerce:commerceHub.savedVendor"
 msgid "Saved vendor ("
-msgstr ""
+msgstr "فروشنده ذخیره‌شده ("
 
 #: frontend/src/pages/CommerceHub.tsx:1030
 msgctxt "commerce:commerceHub.saving"
 msgid "Saving"
-msgstr ""
+msgstr "در حال ذخیره"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:48
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:sourceCentricWorkspace.savingDraft"
 msgid "Saving Draft"
-msgstr ""
+msgstr "در حال ذخیره پیش‌نویس"
 
 #: frontend/src/pages/RateLimits.tsx:135 frontend/src/pages/Settings.tsx:201
 msgctxt "settings:rateLimits.saving"
 msgid "Saving..."
-msgstr ""
+msgstr "در حال ذخیره..."
 
 #: frontend/src/pages/SourceConfiguration.tsx:137 frontend/src/pages/SourceWizard.tsx:222
 msgctxt "sources:sourceConfiguration.saving"
 msgid "Saving..."
-msgstr ""
+msgstr "در حال ذخیره..."
 
 #: frontend/src/pages/RateLimits.tsx:167
 msgctxt "settings:rateLimits.scheduler"
 msgid "Scheduler"
-msgstr ""
+msgstr "زمان‌بند"
 
 #: frontend/src/pages/Workspace.tsx:548
 msgctxt "workspace:workspace.scheduler"
 msgid "Scheduler"
-msgstr ""
+msgstr "زمان‌بند"
 
 #: frontend/src/pages/Setup.tsx:708
 msgctxt "settings:setup.schemaStatus"
 msgid "Schema status"
-msgstr ""
+msgstr "وضعیت ساختار"
 
 #: frontend/src/pages/RateLimits.tsx:165
 msgctxt "settings:rateLimits.scope"
 msgid "Scope"
-msgstr ""
+msgstr "دامنه"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:203
 msgctxt "workspace:unifiedWorkspace.scrollableWorkspaceGrid"
 msgid "Scrollable Workspace Grid"
-msgstr ""
+msgstr "گرید پیمایش‌پذیر فضای کاری"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:179
 msgctxt "workspace:unifiedWorkspace.search"
 msgid "Search"
-msgstr ""
+msgstr "جست‌وجو"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:98
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.searchSourceProducts"
 msgid "Search Source Products"
-msgstr ""
+msgstr "جست‌وجوی محصولات منبع"
 
 #: frontend/src/pages/Products.tsx:581
 msgctxt "products:products.searchNameOrSku"
 msgid "Search name or SKU..."
-msgstr ""
+msgstr "جست‌وجوی نام یا SKU..."
 
 #: frontend/src/pages/Setup.tsx:302
 msgctxt "settings:setup.search"
 msgid "Search {{value1}}..."
-msgstr ""
+msgstr "جست‌وجوی {{value1}}..."
 
 #: frontend/src/features/unifiedWorkspace/gridModel.ts:86
 msgctxt "workspace:gridModel.select"
 msgid "Select"
-msgstr ""
+msgstr "انتخاب"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
 msgctxt "workspace:sourceCentricWorkspace.select"
 msgid "Select"
-msgstr ""
+msgstr "انتخاب"
 
 msgctxt "sources:sourceWizard.selectType"
 msgid "Select Type"
-msgstr ""
+msgstr "انتخاب نوع"
 
 #: frontend/src/pages/Workspace.tsx:651
 msgctxt "workspace:workspace.selectAllEligible"
 msgid "Select all eligible"
-msgstr ""
+msgstr "انتخاب همه موارد واجد شرایط"
 
 #: frontend/src/pages/SourceWizard.tsx:141
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceWizard.selectTheTypeOfDataSourceTo"
 msgid "Select the type of data source to connect."
-msgstr ""
+msgstr "نوع منبع داده‌ای را که می‌خواهید متصل کنید انتخاب کنید."
 
 #: frontend/src/pages/CommerceHub.tsx:839
 msgctxt "commerce:commerceHub.selectVendor"
 msgid "Select vendor"
-msgstr ""
+msgstr "انتخاب فروشنده"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.selectListing"
 msgid "Select {{channel}} {{listing}}"
-msgstr ""
+msgstr "انتخاب {{channel}}، {{listing}}"
 
 #: frontend/src/pages/Workspace.tsx:124
 msgctxt "workspace:workspace.selectProduct"
 msgid "Select {{product}}"
-msgstr ""
+msgstr "انتخاب {{product}}"
 
 #: frontend/src/pages/Products.tsx:45
 msgctxt "products:products.selectProductForWorkspace"
 msgid "Select {{product}} for Workspace"
-msgstr ""
+msgstr "انتخاب {{product}} برای فضای کاری"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:95
 msgctxt "workspace:sourceCentricWorkspace.selectedChanges"
 msgid "Selected changes"
-msgstr ""
+msgstr "تغییرات انتخاب‌شده"
 
 #: frontend/src/pages/CommerceHub.tsx:897
 msgctxt "commerce:commerceHub.selectedFile"
 msgid "Selected file"
-msgstr ""
+msgstr "فایل انتخاب‌شده"
 
 #: frontend/src/pages/CommerceHub.tsx:965
 msgctxt "commerce:commerceHub.selectedWorksheet"
 msgid "Selected worksheet"
-msgstr ""
+msgstr "کاربرگ انتخاب‌شده"
 
 #: frontend/src/pages/SourceConfiguration.tsx:129
 msgctxt "sources:sourceConfiguration.selectedWorksheet"
 msgid "Selected worksheet"
-msgstr ""
+msgstr "کاربرگ انتخاب‌شده"
 
 #: frontend/src/pages/Workspace.tsx:661
 msgctxt "workspace:workspace.selected"
 msgid "Selected:"
-msgstr ""
+msgstr "انتخاب‌شده:"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:86
 msgctxt "workspace:sourceCentricWorkspace.selectionWasNotSaved"
 msgid "Selection was not saved"
-msgstr ""
+msgstr "انتخاب ذخیره نشد"
 
 #: frontend/src/pages/CommerceHub.tsx:283
 msgctxt "commerce:commerceHub.fields.sellerStoreId"
 msgid "Seller/store ID"
-msgstr ""
+msgstr "شناسه فروشنده یا فروشگاه"
 
 #: frontend/src/pages/Setup.tsx:614
 msgctxt "settings:setup.serverProfile"
 msgid "Server Profile"
-msgstr ""
+msgstr "مشخصات سرور"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:161
 msgctxt "workspace:unifiedWorkspace.serverSideWorkspaceFilters"
 msgid "Server-side Workspace filters"
-msgstr ""
+msgstr "فیلترهای سمت سرور فضای کاری"
 
 msgctxt "settings:setup.setTheDomainTimezoneAndDefaultCurrency"
 msgid "Set the domain, timezone, and default currency for this installation."
-msgstr ""
+msgstr "دامنه، منطقه زمانی و واحد پول پیش‌فرض این نصب را تعیین کنید."
 
 #: frontend/src/pages/CommerceHub.tsx:141 frontend/src/pages/CommerceHub.tsx:245
 msgctxt "commerce:commerceHub.settings"
 msgid "Settings"
-msgstr ""
+msgstr "تنظیمات"
 
 #: frontend/src/components/Sidebar.tsx:169
 msgctxt "navigation:sidebar.settings"
 msgid "Settings"
-msgstr ""
+msgstr "تنظیمات"
 
 msgctxt "navigation:topbar.settings"
 msgid "Settings"
-msgstr ""
+msgstr "تنظیمات"
 
 #: frontend/src/pages/Settings.tsx:182
 msgctxt "settings:settings.settings"
 msgid "Settings"
-msgstr ""
+msgstr "تنظیمات"
 
 #: frontend/src/pages/RateLimits.tsx:102 frontend/src/pages/Settings.tsx:165
 msgctxt "settings:rateLimits.settingsSavedSuccessfully"
 msgid "Settings saved successfully"
-msgstr ""
+msgstr "تنظیمات با موفقیت ذخیره شد"
 
 #: frontend/src/pages/Setup.tsx:939
 msgctxt "settings:setup.setupConsole"
 msgid "Setup console"
-msgstr ""
+msgstr "کنسول راه‌اندازی"
 
 #: frontend/src/pages/Setup.tsx:883
 msgctxt "settings:setup.setupIsReadyToBeFinalizedConnector"
 msgid "Setup is ready to be finalized. Connector configuration is available from Settings after sign-in."
-msgstr ""
+msgstr "راه‌اندازی آماده نهایی‌شدن است. پیکربندی اتصال‌دهنده پس از ورود از تنظیمات دردسترس خواهد بود."
 
 #: frontend/src/pages/Setup.tsx:400 frontend/src/pages/Setup.tsx:423
 msgctxt "settings:setup.setupProgress"
 msgid "Setup progress"
-msgstr ""
+msgstr "پیشرفت راه‌اندازی"
 
 #: frontend/src/pages/CommerceHub.tsx:202
 msgctxt "commerce:commerceHub.setupState"
 msgid "Setup state:"
-msgstr ""
+msgstr "وضعیت راه‌اندازی:"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.severity"
 msgid "Severity"
-msgstr ""
+msgstr "شدت"
 
 #: frontend/src/pages/FlowHubSheet.tsx:86
 msgctxt "flowhubSheet:flowHubSheet.sheetRevisionSaved"
 msgid "Sheet revision saved"
-msgstr ""
+msgstr "بازبینی برگه ذخیره شد"
 
 #: frontend/src/pages/FlowHubSheet.tsx:87
 msgctxt "flowhubSheet:flowHubSheet.sheetWasNotSaved"
 msgid "Sheet was not saved"
-msgstr ""
+msgstr "برگه ذخیره نشد"
 
 #: frontend/src/pages/Orders.tsx:65
 msgctxt "orders:orders.shipments"
 msgid "Shipments"
-msgstr ""
+msgstr "ارسال‌ها"
 
 #: frontend/src/pages/Products.tsx:653
 msgctxt "products:products.showingOf"
 msgid "Showing {{value1}}-{{value2}} of {{value3}}"
-msgstr ""
+msgstr "نمایش {{value1}} تا {{value2}} از {{value3}}"
 
 #: frontend/src/pages/SourceConfiguration.tsx:139
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.showsWhichRowsTheSavedMappingCurrently"
 msgid "Shows which rows the saved Mapping currently recognizes as Source Products."
-msgstr ""
+msgstr "نشان می‌دهد نگاشت ذخیره‌شده در حال حاضر کدام ردیف‌ها را به‌عنوان محصول منبع می‌شناسد."
 
 #: frontend/src/pages/Login.tsx:118
 msgctxt "authentication:login.signIn"
 msgid "Sign in"
-msgstr ""
+msgstr "ورود"
 
 #: frontend/src/pages/Login.tsx:68
 msgctxt "authentication:login.signInToFlowhub"
 msgid "Sign in to FlowHub"
-msgstr ""
+msgstr "ورود به FlowHub"
 
 #: frontend/src/App.tsx:76
 msgctxt "common:app.signOut"
 msgid "Sign out"
-msgstr ""
+msgstr "خروج"
 
 #: frontend/src/components/Sidebar.tsx:193 frontend/src/components/Sidebar.tsx:194 frontend/src/components/Topbar.tsx:234
 msgctxt "navigation:sidebar.signOut"
 msgid "Sign out"
-msgstr ""
+msgstr "خروج"
 
 #: frontend/src/components/Topbar.tsx:223
 msgctxt "navigation:topbar.signedIn"
 msgid "Signed in"
-msgstr ""
+msgstr "وارد شده"
 
 #: frontend/src/pages/Login.tsx:118
 msgctxt "authentication:login.signingIn"
 msgid "Signing in..."
-msgstr ""
+msgstr "در حال ورود..."
 
 #: frontend/src/pages/Workspace.tsx:486
 msgctxt "workspace:workspace.simpleAndVariationWoocommercePriceUpdatesAre"
 msgid "Simple and variation WooCommerce price updates are supported."
-msgstr ""
+msgstr "به‌روزرسانی قیمت محصولات ساده و تنوع‌های WooCommerce پشتیبانی می‌شود."
 
 msgctxt "products:products.snappShop"
 msgid "Snapp Shop"
-msgstr ""
+msgstr "SnappShop"
 
 #: frontend/src/components/ErrorBoundary.tsx:34
 msgctxt "common:errorBoundary.somethingWentWrong"
 msgid "Something went wrong"
-msgstr ""
+msgstr "مشکلی رخ داد"
 
 #: frontend/src/pages/FlowHubSheet.tsx:101
 msgctxt "flowhubSheet:flowHubSheet.sort"
 msgid "Sort"
-msgstr ""
+msgstr "مرتب‌سازی"
 
 #: frontend/src/pages/FlowHubSheet.tsx:101
 msgctxt "flowhubSheet:flowHubSheet.sortSheetByColumn"
 msgid "Sort Sheet by column"
-msgstr ""
+msgstr "مرتب‌سازی برگه بر اساس ستون"
 
 #: frontend/src/pages/CommerceHub.tsx:64
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.source"
 msgid "Source"
-msgstr ""
+msgstr "منبع"
 
 #: frontend/src/pages/DataQuality.tsx:41
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dataQuality:dataQuality.source"
 msgid "Source"
-msgstr ""
+msgstr "منبع"
 
 #: frontend/src/pages/Orders.tsx:172
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "orders:orders.source"
 msgid "Source"
-msgstr ""
+msgstr "منبع"
 
 #: frontend/src/components/Topbar.tsx:30
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "navigation:topbar.sourceConfiguration"
 msgid "Source Configuration"
-msgstr ""
+msgstr "پیکربندی منبع"
 
 #: frontend/src/pages/SourceConfiguration.tsx:105
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourceMappingSaved"
 msgid "Source Mapping saved"
-msgstr ""
+msgstr "نگاشت منبع ذخیره شد"
 
 #: frontend/src/pages/SourceConfiguration.tsx:139
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourcePreview"
 msgid "Source Preview"
-msgstr ""
+msgstr "پیش‌نمایش منبع"
 
 #: frontend/src/pages/SourceConfiguration.tsx:121
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourcePreviewUnavailable"
 msgid "Source Preview unavailable"
-msgstr ""
+msgstr "پیش‌نمایش منبع در دسترس نیست"
 
 #: frontend/src/pages/SourceConfiguration.tsx:139
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourceProduct"
 msgid "Source Product"
-msgstr ""
+msgstr "محصول منبع"
 
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourceProductKey"
 msgid "Source Product Key"
-msgstr ""
+msgstr "کلید محصول منبع"
 
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourceProductName"
 msgid "Source Product Name"
-msgstr ""
+msgstr "نام محصول منبع"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:93
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.sourceProductWorkspaceImmutableSnapshot"
 msgid "Source Product Workspace · Immutable Snapshot"
-msgstr ""
+msgstr "فضای کاری محصولات منبع · اسنپ‌شات تغییرناپذیر"
 
 #: frontend/src/pages/SourceConfiguration.tsx:130
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourceProductFields"
 msgid "Source Product fields"
-msgstr ""
+msgstr "فیلدهای محصول منبع"
 
 #: frontend/src/pages/SourceCenter.tsx:76
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "sources:sourceCenter.sourceProductIdentityStaysSeparateFromChannel"
 msgid "Source Product identity stays separate from Channel Listing identity."
-msgstr ""
+msgstr "هویت محصول منبع از هویت لیستینگ کانال جدا باقی می‌ماند."
 
 #: frontend/src/pages/DataQuality.tsx:41
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dataQuality:dataQuality.sourceProductName"
 msgid "Source Product name"
-msgstr ""
+msgstr "نام محصول منبع"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:98
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.sourceProducts"
 msgid "Source Products"
-msgstr ""
+msgstr "محصولات منبع"
 
 #: frontend/src/pages/SourceWizard.tsx:96
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceWizard.sourceAddedSuccessfully"
 msgid "Source added successfully"
-msgstr ""
+msgstr "منبع با موفقیت اضافه شد"
 
 #: frontend/src/pages/DataQuality.tsx:42
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dataQuality:dataQuality.sourceAnalysisHasNotRecordedAnyMatching"
 msgid "Source analysis has not recorded any matching issues."
-msgstr ""
+msgstr "تحلیل منبع هیچ مشکل منطبقی ثبت نکرده است."
 
 #: frontend/src/pages/CommerceHub.tsx:580
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceConfiguredSuccessfully"
 msgid "Source configured successfully"
-msgstr ""
+msgstr "منبع با موفقیت پیکربندی شد"
 
 #: frontend/src/pages/CommerceHub.tsx:1113 frontend/src/pages/CommerceHub.tsx:628
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceConnectedSuccessfully"
 msgid "Source connected successfully"
-msgstr ""
+msgstr "منبع با موفقیت متصل شد"
 
 #: frontend/src/pages/Workspace.tsx:426
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:workspace.sourceConnectorRequired"
 msgid "Source connector required"
-msgstr ""
+msgstr "اتصال‌دهنده منبع لازم است"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.sourceKey"
 msgid "Source key {{value1}} ·"
-msgstr ""
+msgstr "کلید منبع {{value1}} ·"
 
 #: frontend/src/pages/SourceCenter.tsx:47
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.sourceOptions"
 msgid "Source options"
-msgstr ""
+msgstr "گزینه‌های منبع"
 
 #: frontend/src/pages/Workspace.tsx:30
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:workspace.sourceReadLimitReached"
 msgid "Source read limit reached"
-msgstr ""
+msgstr "حد مجاز خواندن منبع به پایان رسیده است"
 
 #: frontend/src/pages/CommerceHub.tsx:1204
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceRefreshedSuccessfully"
 msgid "Source refreshed successfully"
-msgstr ""
+msgstr "منبع با موفقیت به‌روزرسانی شد"
 
 #: frontend/src/pages/CommerceHub.tsx:136
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceSettings"
 msgid "Source settings"
-msgstr ""
+msgstr "تنظیمات منبع"
 
 #: frontend/src/pages/CommerceHub.tsx:576
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceSettingsUpdatedSuccessfully"
 msgid "Source settings updated successfully"
-msgstr ""
+msgstr "تنظیمات منبع با موفقیت به‌روزرسانی شد"
 
 #: frontend/src/pages/CommerceHub.tsx:762
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceType"
 msgid "Source type"
-msgstr ""
+msgstr "نوع منبع"
 
 #: frontend/src/pages/Workspace.tsx:646
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:workspace.source"
 msgid "Source:"
-msgstr ""
+msgstr "منبع:"
 
 #: frontend/src/pages/CommerceHub.tsx:1273 frontend/src/pages/CommerceHub.tsx:1286
 msgctxt "commerce:commerceHub.sources2"
 msgid "Sources"
-msgstr ""
+msgstr "منابع"
 
 #: frontend/src/pages/Dashboard.tsx:215
 msgctxt "dashboard:dashboard.sources"
 msgid "Sources"
-msgstr ""
+msgstr "منابع"
 
 #: frontend/src/components/Sidebar.tsx:127
 msgctxt "navigation:sidebar.sources"
 msgid "Sources"
-msgstr ""
+msgstr "منابع"
 
 msgctxt "navigation:topbar.sources"
 msgid "Sources"
-msgstr ""
+msgstr "منابع"
 
 #: frontend/src/pages/SourceCenter.tsx:39 frontend/src/pages/Sources.tsx:85
 msgctxt "sources:sourceCenter.sources"
 msgid "Sources"
-msgstr ""
+msgstr "منابع"
 
 #: frontend/src/pages/CommerceHub.tsx:420
 msgctxt "commerce:commerceHub.spreadsheet"
 msgid "Spreadsheet"
-msgstr ""
+msgstr "صفحه‌گسترده"
 
 #: frontend/src/pages/Workspace.tsx:628
 msgctxt "workspace:workspace.spreadsheetWarnings"
 msgid "Spreadsheet Warnings ("
-msgstr ""
+msgstr "هشدارهای صفحه‌گسترده ("
 
 #. Review is the immutable validation result required before Apply.
 msgctxt "common:status.staleReview"
 msgid "Stale Review"
-msgstr ""
+msgstr "بازبینی منقضی‌شده"
 
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:statusDisplay.staleReview"
 msgid "Stale Review"
-msgstr ""
+msgstr "بازبینی منقضی"
 
 #: frontend/src/pages/Workspace.tsx:448
 msgctxt "workspace:workspace.startPreview"
 msgid "Start Preview"
-msgstr ""
+msgstr "شروع پیش‌نمایش"
 
 msgctxt "common:field.status"
 msgid "Status"
-msgstr ""
+msgstr "وضعیت"
 
 #: frontend/src/pages/Orders.tsx:43
 msgctxt "orders:orders.status"
 msgid "Status"
-msgstr ""
+msgstr "وضعیت"
 
 #: frontend/src/pages/Settings.tsx:267
 msgctxt "settings:settings.status"
 msgid "Status"
-msgstr ""
+msgstr "وضعیت"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:181
 msgctxt "workspace:unifiedWorkspace.status"
 msgid "Status"
-msgstr ""
+msgstr "وضعیت"
 
 #: frontend/src/pages/Diagnostics.tsx:397
 msgctxt "diagnostics:diagnostics.status"
 msgid "Status:"
-msgstr ""
+msgstr "وضعیت:"
 
 #: frontend/src/pages/Products.tsx:321
 msgctxt "products:products.status"
 msgid "Status:"
-msgstr ""
+msgstr "وضعیت:"
 
 #: frontend/src/pages/Setup.tsx:965
 msgctxt "settings:setup.step2"
 msgid "Step"
-msgstr ""
+msgstr "مرحله"
 
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "common:field.stock"
 msgid "Stock"
-msgstr ""
+msgstr "موجودی"
 
 #: frontend/src/pages/Workspace.tsx:544
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "workspace:workspace.stock"
 msgid "Stock"
-msgstr ""
+msgstr "موجودی"
 
 #: frontend/src/pages/Workspace.tsx:90
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "workspace:workspace.status.stockOnly"
 msgid "Stock only"
-msgstr ""
+msgstr "فقط موجودی"
 
 #: frontend/src/pages/Workspace.tsx:488
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "workspace:workspace.stockUpdatesAreNotSupported"
 msgid "Stock updates are not supported."
-msgstr ""
+msgstr "به‌روزرسانی موجودی پشتیبانی نمی‌شود."
 
 #: frontend/src/pages/Workspace.tsx:480
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "workspace:workspace.stockWillNotBeChanged"
 msgid "Stock will not be changed."
-msgstr ""
+msgstr "موجودی تغییر نخواهد کرد."
 
 #: frontend/src/pages/Workspace.tsx:664
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "workspace:workspace.stockOnly"
 msgid "Stock-only:"
-msgstr ""
+msgstr "فقط موجودی:"
 
 #: frontend/src/pages/CommerceHub.tsx:280
 msgctxt "commerce:commerceHub.fields.storeUrl"
 msgid "Store URL"
-msgstr ""
+msgstr "نشانی فروشگاه"
 
 #: frontend/src/pages/CommerceHub.tsx:884
 msgctxt "commerce:commerceHub.storeNumber"
 msgid "Store number:"
-msgstr ""
+msgstr "شماره فروشگاه:"
 
 msgctxt "activity:activity.success"
 msgid "Success"
-msgstr ""
+msgstr "موفق"
 
 msgctxt "common:status.success"
 msgid "Success"
-msgstr ""
+msgstr "موفق"
 
 #: frontend/src/pages/Products.tsx:325
 msgctxt "products:products.success2"
 msgid "Success"
-msgstr ""
+msgstr "موفق"
 
 msgctxt "common:role.superAdmin"
 msgid "Super Admin"
-msgstr ""
+msgstr "مدیر ارشد"
 
 #: frontend/src/components/Topbar.tsx:176
 msgctxt "navigation:topbar.switchToDarkMode"
 msgid "Switch to dark mode"
-msgstr ""
+msgstr "تغییر به حالت تیره"
 
 #: frontend/src/components/Topbar.tsx:175
 msgctxt "navigation:topbar.switchToLightMode"
 msgid "Switch to light mode"
-msgstr ""
+msgstr "تغییر به حالت روشن"
 
 #: frontend/src/pages/Settings.tsx:223
 msgctxt "settings:settings.syncIntervalMinutes"
 msgid "Sync interval (minutes)"
-msgstr ""
+msgstr "فاصله همگام‌سازی (دقیقه)"
 
 #: frontend/src/pages/Orders.tsx:171
 msgctxt "orders:orders.syncState"
 msgid "Sync state"
-msgstr ""
+msgstr "وضعیت همگام‌سازی"
 
 #: frontend/src/pages/Diagnostics.tsx:248
 msgctxt "diagnostics:diagnostics.system"
 msgid "System"
-msgstr ""
+msgstr "سیستم"
 
 #: frontend/src/pages/Activity.tsx:90
 msgctxt "activity:activity.systemEventsAndUserActions"
 msgid "System events and user actions"
-msgstr ""
+msgstr "رویدادهای سیستم و اقدامات کاربران"
 
 #: frontend/src/pages/Dashboard.tsx:128
 msgctxt "dashboard:dashboard.systemOverview"
 msgid "System overview"
-msgstr ""
+msgstr "نمای کلی سیستم"
 
 msgctxt "settings:setup.tryTurkishLira"
 msgid "TRY - Turkish Lira"
-msgstr ""
+msgstr "TRY - لیر ترکیه"
 
 msgctxt "products:products.tapsiShop"
 msgid "Tapsi Shop"
-msgstr ""
+msgstr "TapsiShop"
 
 #: frontend/src/pages/DataQuality.tsx:42
 msgctxt "dataQuality:dataQuality.technicalDetails"
 msgid "Technical details"
-msgstr ""
+msgstr "جزئیات فنی"
 
 #: frontend/src/pages/DataQuality.tsx:40
 msgctxt "dataQuality:dataQuality.technicalIssuesAreSeparatedFromTheDaily"
 msgid "Technical issues are separated from the daily pricing workflow. One blocked row never blocks unrelated valid products."
-msgstr ""
+msgstr "مشکلات فنی از گردش روزانه قیمت‌گذاری جدا هستند. یک ردیف مسدود، محصولات معتبر دیگر را متوقف نمی‌کند."
 
 #: frontend/src/pages/SourceWizard.tsx:182
 msgctxt "sources:sourceWizard.testConnection"
 msgid "Test Connection"
-msgstr ""
+msgstr "آزمایش اتصال"
 
 #: frontend/src/pages/CommerceHub.tsx:1025 frontend/src/pages/CommerceHub.tsx:150 frontend/src/pages/CommerceHub.tsx:256
 msgctxt "commerce:commerceHub.testConnection"
 msgid "Test connection"
-msgstr ""
+msgstr "آزمایش اتصال"
 
 #: frontend/src/pages/CommerceHub.tsx:839
 msgctxt "commerce:commerceHub.testConnectionToLoadVendors"
 msgid "Test connection to load vendors"
-msgstr ""
+msgstr "آزمایش اتصال برای بارگذاری فروشندگان"
 
 #: frontend/src/pages/CommerceHub.tsx:828
 msgctxt "commerce:commerceHub.testTheConnectionToLoadStoresAvailable"
 msgid "Test the connection to load stores available to these credentials."
-msgstr ""
+msgstr "اتصال را آزمایش کنید تا فروشگاه‌های در دسترس این اطلاعات ورود بارگذاری شوند."
 
 #: frontend/src/pages/CommerceHub.tsx:1025 frontend/src/pages/CommerceHub.tsx:150 frontend/src/pages/CommerceHub.tsx:256
 msgctxt "commerce:commerceHub.testing"
 msgid "Testing"
-msgstr ""
+msgstr "در حال آزمایش"
 
 #: frontend/src/pages/SourceWizard.tsx:182
 msgctxt "sources:sourceWizard.testing"
 msgid "Testing..."
-msgstr ""
+msgstr "در حال آزمایش..."
 
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "errors:codes.SOURCE_READ_LIMIT_REACHED"
 msgid "The Source read limit was reached. Try again after the allowance resets."
-msgstr ""
+msgstr "حد مجاز خواندن منبع پر شده است. پس از بازنشانی سهمیه دوباره تلاش کنید."
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:27
 msgctxt "workspace:unifiedWorkspace.theUnifiedWorkspaceServiceIsNotConfigured"
 msgid "The Unified Workspace service is not configured."
-msgstr ""
+msgstr "سرویس فضای کاری یکپارچه پیکربندی نشده است."
 
 #: frontend/src/pages/CommerceHub.tsx:1144 frontend/src/pages/CommerceHub.tsx:590
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.theChannelIsReadyToUse"
 msgid "The channel is ready to use."
-msgstr ""
+msgstr "کانال آماده استفاده است."
 
 #. Review is the immutable validation result required before Apply.
 msgctxt "errors:codes.SELECTION_CHECKSUM_MISMATCH"
 msgid "The confirmed selection changed. Review and confirm it again."
-msgstr ""
+msgstr "انتخاب تأییدشده تغییر کرده است. دوباره آن را بازبینی و تأیید کنید."
 
 #: frontend/src/pages/CommerceHub.tsx:1175
 msgctxt "commerce:commerceHub.theLatestProductInformationHasBeenLoaded"
 msgid "The latest product information has been loaded."
-msgstr ""
+msgstr "جدیدترین اطلاعات محصولات بارگذاری شد."
 
 #: frontend/src/pages/SourceImportWizard.tsx:63
 msgctxt "sources:sourceImportWizard.theOriginalFileIsReadOnlyAnd"
 msgid "The original file is read only and never modified."
-msgstr ""
+msgstr "فایل اصلی فقط خوانده می‌شود و هرگز تغییر نمی‌کند."
 
 msgctxt "sources:sourceImportWizard.theOriginalFileWasNotChanged"
 msgid "The original file was not changed."
-msgstr ""
+msgstr "فایل اصلی تغییر نکرد."
 
 msgctxt "errors:codes.UNKNOWN"
 msgid "The request could not be completed."
-msgstr ""
+msgstr "درخواست تکمیل نشد."
 
 #: frontend/src/pages/CommerceHub.tsx:581
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.theSourceIsReadyToUse"
 msgid "The source is ready to use."
-msgstr ""
+msgstr "منبع آماده استفاده است."
 
 #: frontend/src/pages/Workspace.tsx:477
 msgctxt "workspace:workspace.theUnderlyingWorkflowIsUnchangedTheseSurfaces"
 msgid "The underlying workflow is unchanged. These surfaces are normalized for readability only."
-msgstr ""
+msgstr "فرایند اصلی تغییری نکرده است. این بخش‌ها فقط برای خوانایی یکپارچه شده‌اند."
 
 #: frontend/src/pages/CommerceHub.tsx:982
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.theseControlsOnlyAffectSourceReadPolicy"
 msgid "These controls only affect source read policy presentation and action placement."
-msgstr ""
+msgstr "این کنترل‌ها فقط بر نمایش سیاست خواندن منبع و محل اقدام‌ها اثر می‌گذارند."
 
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "errors:codes.STALE_REVIEW"
 msgid "This Review is stale. Generate a new Review before Apply."
-msgstr ""
+msgstr "این بازبینی منقضی شده است. پیش از اعمال تغییرات، بازبینی جدیدی ایجاد کنید."
 
 #: frontend/src/pages/SourceConfiguration.tsx:133
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.thisSourceManages"
 msgid "This Source manages"
-msgstr ""
+msgstr "این منبع مدیریت می‌کند"
 
 #: frontend/src/pages/Workspace.tsx:464
 msgctxt "workspace:workspace.thisIsTheOnlyStepThatWrites"
 msgid "This is the only step that writes to WooCommerce."
-msgstr ""
+msgstr "این تنها مرحله‌ای است که در WooCommerce می‌نویسد."
 
 #: frontend/src/pages/NotFound.tsx:13
 msgctxt "common:notFound.thisPageDoesnTExist"
 msgid "This page doesn't exist."
-msgstr ""
+msgstr "این صفحه وجود ندارد."
 
 #: frontend/src/pages/Sources.tsx:42
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sources.thisSourceCannotBeChangedFromThis"
 msgid "This source cannot be changed from this page."
-msgstr ""
+msgstr "این منبع از این صفحه قابل تغییر نیست."
 
 #: frontend/src/pages/Diagnostics.tsx:386
 msgctxt "diagnostics:diagnostics.throttleEvents"
 msgid "Throttle events"
-msgstr ""
+msgstr "رویدادهای محدودسازی"
 
 #: frontend/src/pages/Orders.tsx:82
 msgctxt "orders:orders.timeline"
 msgid "Timeline"
-msgstr ""
+msgstr "خط زمانی"
 
 #: frontend/src/pages/Settings.tsx:230 frontend/src/pages/Setup.tsx:630
 msgctxt "settings:settings.timezone"
 msgid "Timezone"
-msgstr ""
+msgstr "منطقه زمانی"
 
 #: frontend/src/pages/Products.tsx:324
 msgctxt "products:products.total"
 msgid "Total"
-msgstr ""
+msgstr "مجموع"
 
 #: frontend/src/pages/Dashboard.tsx:175
 msgctxt "dashboard:dashboard.totalProducts"
 msgid "Total Products"
-msgstr ""
+msgstr "مجموع محصولات"
 
 #: frontend/src/pages/Products.tsx:684
 msgctxt "products:products.tryAdjustingTheSearchOrFilter"
 msgid "Try adjusting the search or filter."
-msgstr ""
+msgstr "جست‌وجو یا فیلتر را تغییر دهید."
 
 #: frontend/src/components/ErrorBoundary.tsx:42
 msgctxt "common:errorBoundary.tryAgain"
 msgid "Try again"
-msgstr ""
+msgstr "تلاش دوباره"
 
 #: frontend/src/pages/Workspace.tsx:731
 msgctxt "workspace:workspace.tryAgain"
 msgid "Try again"
-msgstr ""
+msgstr "تلاش دوباره"
 
 #: frontend/src/pages/Workspace.tsx:29
 msgctxt "workspace:workspace.tryAgainAfterAllowanceReset"
 msgid "Try again after the rolling allowance resets."
-msgstr ""
+msgstr "پس از بازنشانی سهمیه دوره‌ای دوباره تلاش کنید."
 
 #: frontend/src/pages/Workspace.tsx:26
 msgctxt "workspace:workspace.tryAgainAfter"
 msgid "Try again after {{date}}."
-msgstr ""
+msgstr "پس از {{date}} دوباره تلاش کنید."
 
 #: frontend/src/pages/Workspace.tsx:28
 msgctxt "workspace:workspace.tryAgainInMinutes"
 msgid "Try again in about {{count}} minute."
 msgid_plural "Try again in about {{count}} minutes."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "حدود {{count}} دقیقه دیگر دوباره تلاش کنید."
+msgstr[1] "حدود {{count}} دقیقه دیگر دوباره تلاش کنید."
 
 msgctxt "flowhubSheet:flowHubSheet.tryAgain"
 msgid "Try again."
-msgstr ""
+msgstr "دوباره تلاش کنید."
 
 #: frontend/src/features/unifiedWorkspace/gridModel.ts:88
 msgctxt "workspace:gridModel.type"
 msgid "Type"
-msgstr ""
+msgstr "نوع"
 
 #: frontend/src/pages/Sources.tsx:53
 msgctxt "sources:sources.type"
 msgid "Type:"
-msgstr ""
+msgstr "نوع:"
 
 #: frontend/src/pages/SourceWizard.tsx:70
 msgctxt "validation:source.urlRequired"
 msgid "URL is required."
-msgstr ""
+msgstr "نشانی URL الزامی است."
 
 msgctxt "settings:setup.usdUsDollar"
 msgid "USD - US Dollar"
-msgstr ""
+msgstr "USD - دلار آمریکا"
 
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "products:products.unableToApplyChannelPrices"
 msgid "Unable to apply Channel prices."
-msgstr ""
+msgstr "اعمال قیمت‌های کانال ممکن نیست."
 
 msgctxt "products:products.unableToApproveDryRun"
 msgid "Unable to approve Dry Run."
-msgstr ""
+msgstr "تأیید اجرای آزمایشی ممکن نیست."
 
 msgctxt "common:status.unableToCheck"
 msgid "Unable to check"
-msgstr ""
+msgstr "بررسی ممکن نیست"
 
 #: frontend/src/pages/Diagnostics.tsx:214 frontend/src/pages/Diagnostics.tsx:226 frontend/src/pages/Diagnostics.tsx:94
 msgctxt "diagnostics:diagnostics.unableToCheck"
 msgid "Unable to check"
-msgstr ""
+msgstr "امکان بررسی نیست"
 
 #: frontend/src/pages/CommerceHub.tsx:1147 frontend/src/pages/CommerceHub.tsx:1153 frontend/src/pages/CommerceHub.tsx:637 frontend/src/pages/CommerceHub.tsx:642
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.unableToConnectToTheChannel"
 msgid "Unable to connect to the channel"
-msgstr ""
+msgstr "اتصال به کانال ممکن نشد"
 
 #: frontend/src/pages/CommerceHub.tsx:1117 frontend/src/pages/CommerceHub.tsx:1123 frontend/src/pages/CommerceHub.tsx:637 frontend/src/pages/CommerceHub.tsx:642
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.unableToConnectToTheSource"
 msgid "Unable to connect to the source"
-msgstr ""
+msgstr "اتصال به منبع ممکن نشد"
 
 msgctxt "products:products.unableToCreateDryRun"
 msgid "Unable to create Dry Run."
-msgstr ""
+msgstr "ایجاد اجرای آزمایشی ممکن نیست."
 
 msgctxt "products:products.unableToCreateManualWorkspace"
 msgid "Unable to create Manual Workspace."
-msgstr ""
+msgstr "ایجاد فضای کاری دستی ممکن نیست."
 
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.unableToLoadChannelPrices"
 msgid "Unable to load Channel prices."
-msgstr ""
+msgstr "بارگذاری قیمت‌های کانال ممکن نیست."
 
 #: frontend/src/pages/CommerceHub.tsx:1090
 msgctxt "commerce:commerceHub.unableToLoadCommerceHub"
 msgid "Unable to load Commerce Hub"
-msgstr ""
+msgstr "بارگذاری مرکز تجارت ممکن نشد"
 
 #: frontend/src/pages/CommerceHub.tsx:520
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.unableToLoadChannelSettings"
 msgid "Unable to load channel settings"
-msgstr ""
+msgstr "بارگذاری تنظیمات کانال ممکن نشد"
 
 #: frontend/src/pages/RateLimits.tsx:69
 msgctxt "settings:rateLimits.unableToLoadSettings"
 msgid "Unable to load settings"
-msgstr ""
+msgstr "بارگذاری تنظیمات ممکن نیست"
 
 #: frontend/src/pages/CommerceHub.tsx:1179 frontend/src/pages/CommerceHub.tsx:1186
 msgctxt "commerce:commerceHub.unableToRefreshTheProductCache"
 msgid "Unable to refresh the product cache"
-msgstr ""
+msgstr "به‌روزرسانی کش محصولات ممکن نشد"
 
 #: frontend/src/pages/CommerceHub.tsx:1209 frontend/src/pages/CommerceHub.tsx:1216
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.unableToRefreshTheSource"
 msgid "Unable to refresh the source"
-msgstr ""
+msgstr "به‌روزرسانی منبع ممکن نشد"
 
 #: frontend/src/pages/CommerceHub.tsx:595
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.unableToSaveChannelSettings"
 msgid "Unable to save channel settings"
-msgstr ""
+msgstr "ذخیره تنظیمات کانال ممکن نشد"
 
 #: frontend/src/pages/RateLimits.tsx:107 frontend/src/pages/Settings.tsx:170
 msgctxt "settings:rateLimits.unableToSaveSettings"
 msgid "Unable to save settings"
-msgstr ""
+msgstr "ذخیره تنظیمات ممکن نیست"
 
 #: frontend/src/pages/CommerceHub.tsx:595
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.unableToSaveSourceSettings"
 msgid "Unable to save source settings"
-msgstr ""
+msgstr "ذخیره تنظیمات منبع ممکن نشد"
 
 #: frontend/src/pages/Workspace.tsx:32
 msgctxt "workspace:workspace.unableToStartPreview"
 msgid "Unable to start preview"
-msgstr ""
+msgstr "شروع پیش‌نمایش ممکن نشد"
 
 #: frontend/src/pages/Diagnostics.tsx:162 frontend/src/pages/Diagnostics.tsx:191
 msgctxt "diagnostics:diagnostics.unableToUpdateDiagnostics"
 msgid "Unable to update diagnostics"
-msgstr ""
+msgstr "به‌روزرسانی عیب‌یابی ممکن نیست"
 
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.unableToValidateChannelPrices"
 msgid "Unable to validate Channel prices."
-msgstr ""
+msgstr "اعتبارسنجی قیمت‌های کانال ممکن نیست."
 
 #: frontend/src/pages/Diagnostics.tsx:114 frontend/src/pages/Diagnostics.tsx:208
 msgctxt "common:status.unavailable"
 msgid "Unavailable"
-msgstr ""
+msgstr "دردسترس نیست"
 
 #: frontend/src/pages/Diagnostics.tsx:312 frontend/src/pages/Diagnostics.tsx:314
 msgctxt "diagnostics:diagnostics.unavailable"
 msgid "Unavailable"
-msgstr ""
+msgstr "دردسترس نیست"
 
 #: frontend/src/pages/Products.tsx:254
 msgctxt "products:products.unavailable"
 msgid "Unavailable"
-msgstr ""
+msgstr "دردسترس نیست"
 
 msgctxt "workspace:statusDisplay.unavailable"
 msgid "Unavailable"
-msgstr ""
+msgstr "در دسترس نیست"
 
 #: frontend/src/pages/Workspace.tsx:89
 msgctxt "common:status.unchanged"
 msgid "Unchanged"
-msgstr ""
+msgstr "بدون تغییر"
 
 msgctxt "workspace:statusDisplay.unchanged"
 msgid "Unchanged"
-msgstr ""
+msgstr "بدون تغییر"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:95
 msgctxt "workspace:sourceCentricWorkspace.unchangedProducts"
 msgid "Unchanged products"
-msgstr ""
+msgstr "محصولات بدون تغییر"
 
 msgctxt "sources:sources.unconfigured"
 msgid "Unconfigured"
-msgstr ""
+msgstr "پیکربندی‌نشده"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:158
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:unifiedWorkspace.unifiedMultiChannelProductEditor"
 msgid "Unified multi-channel product editor"
-msgstr ""
+msgstr "ویرایشگر یکپارچه محصولات چندکاناله"
 
 #: frontend/src/features/unifiedWorkspace/statusDisplay.ts:34
 msgctxt "common:status.unknown"
 msgid "Unknown"
-msgstr ""
+msgstr "نامشخص"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.unmapped"
 msgid "Unmapped"
-msgstr ""
+msgstr "بدون نگاشت"
 
 #: frontend/src/pages/SourceConfiguration.tsx:130
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "sources:sourceConfiguration.unmappedColumnsAreIgnoredHeaderSuggestionsNever"
 msgid "Unmapped columns are ignored. Header suggestions never override this saved Mapping."
-msgstr ""
+msgstr "ستون‌های نگاشت‌نشده نادیده گرفته می‌شوند. پیشنهادهای سرستون هرگز نگاشت ذخیره‌شده را بازنویسی نمی‌کنند."
 
 #: frontend/src/pages/Workspace.tsx:113
 msgctxt "workspace:workspace.unmatchedProduct"
 msgid "Unmatched product"
-msgstr ""
+msgstr "محصول تطبیق‌نیافته"
 
 #: frontend/src/features/unifiedWorkspace/gridModel.ts:53
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:gridModel.unresolvedListing"
 msgid "Unresolved Listing"
-msgstr ""
+msgstr "لیستینگ تطبیق‌نیافته"
 
 #: frontend/src/features/unifiedWorkspace/gridModel.ts:51
 msgctxt "workspace:gridModel.unresolvedProduct"
 msgid "Unresolved Product"
-msgstr ""
+msgstr "محصول تطبیق‌نیافته"
 
 #: frontend/src/pages/CommerceHub.tsx:420
 msgctxt "commerce:commerceHub.unsupported"
 msgid "Unsupported"
-msgstr ""
+msgstr "پشتیبانی‌نشده"
 
 #: frontend/src/pages/CommerceHub.tsx:394
 msgctxt "commerce:commerceHub.upOneFolder"
 msgid "Up one folder"
-msgstr ""
+msgstr "یک پوشه بالاتر"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:71
 msgctxt "workspace:sourceCentricWorkspace.updatingSelectedChanges"
 msgid "Updating selected changes"
-msgstr ""
+msgstr "در حال به‌روزرسانی تغییرات انتخاب‌شده"
 
 #: frontend/src/services/sources/ApiSourceService.ts:37
 msgctxt "common:apiSourceService.useSettingsToConfigureConnectors"
 msgid "Use Settings to configure connectors."
-msgstr ""
+msgstr "برای پیکربندی اتصال‌دهنده‌ها از تنظیمات استفاده کنید."
 
 #: frontend/src/pages/SourceConfiguration.tsx:134
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.useSourceWorksheet"
 msgid "Use Source worksheet"
-msgstr ""
+msgstr "استفاده از کاربرگ منبع"
 
 #: frontend/src/pages/CommerceHub.tsx:896
 msgctxt "commerce:commerceHub.useWebdavWithYourAppPasswordPublic"
 msgid "Use WebDAV with your app password. Public share links are not required."
-msgstr ""
+msgstr "از WebDAV همراه با رمز برنامه استفاده کنید. نیازی به پیوند اشتراک‌گذاری عمومی نیست."
 
 msgctxt "sources:sourceConfiguration.useEvaluatedResult"
 msgid "Use evaluated result"
-msgstr ""
+msgstr "استفاده از نتیجه محاسبه‌شده"
 
 #: frontend/src/pages/CommerceHub.tsx:310 frontend/src/pages/CommerceHub.tsx:313 frontend/src/pages/CommerceHub.tsx:316
 msgctxt "commerce:commerceHub.validation.useNextcloudRootOrWebdav"
 msgid "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings."
-msgstr ""
+msgstr "از نشانی ریشه Nextcloud یا نشانی فایل‌های WebDAV نمایش‌داده‌شده در تنظیمات Nextcloud Files استفاده کنید."
 
 msgctxt "common:role.user"
 msgid "User"
-msgstr ""
+msgstr "کاربر"
 
 #: frontend/src/components/Topbar.tsx:199
 msgctxt "navigation:topbar.userMenu"
 msgid "User menu"
-msgstr ""
+msgstr "منوی کاربر"
 
 #: frontend/src/pages/Login.tsx:80
 msgctxt "authentication:login.username"
 msgid "Username"
-msgstr ""
+msgstr "نام کاربری"
 
 #: frontend/src/pages/Setup.tsx:807
 msgctxt "settings:setup.username"
 msgid "Username"
-msgstr ""
+msgstr "نام کاربری"
 
 #: frontend/src/pages/SourceWizard.tsx:71
 msgctxt "validation:source.usernameRequired"
 msgid "Username is required."
-msgstr ""
+msgstr "نام کاربری الزامی است."
 
 #: frontend/src/pages/Workspace.tsx:87
 msgctxt "workspace:workspace.status.valid"
 msgid "Valid"
-msgstr ""
+msgstr "معتبر"
 
 #: frontend/src/pages/Products.tsx:203
 msgctxt "products:products.validate"
 msgid "Validate"
-msgstr ""
+msgstr "اعتبارسنجی"
 
 #: frontend/src/pages/SourceConfiguration.tsx:135
 msgctxt "sources:sourceConfiguration.valueHandling"
 msgid "Value handling"
-msgstr ""
+msgstr "نحوه تفسیر مقدار"
 
 #: frontend/src/pages/Workspace.tsx:133 frontend/src/pages/Workspace.tsx:227
 msgctxt "workspace:workspace.variation"
 msgid "Variation"
-msgstr ""
+msgstr "تنوع"
 
 #: frontend/src/pages/Workspace.tsx:487
 msgctxt "workspace:workspace.variationRowsRequireCachedParentProductMetadata"
 msgid "Variation rows require cached parent product metadata."
-msgstr ""
+msgstr "ردیف‌های تنوع به فراداده محصول والد در کش نیاز دارند."
 
 #: frontend/src/pages/CommerceHub.tsx:827
 msgctxt "commerce:commerceHub.vendor"
 msgid "Vendor"
-msgstr ""
+msgstr "فروشنده"
 
 #: frontend/src/pages/CommerceHub.tsx:831
 msgctxt "commerce:commerceHub.vendorStore"
 msgid "Vendor / store"
-msgstr ""
+msgstr "فروشنده / فروشگاه"
 
 #: frontend/src/pages/CommerceHub.tsx:883
 msgctxt "commerce:commerceHub.vendorId"
 msgid "Vendor ID:"
-msgstr ""
+msgstr "شناسه فروشنده:"
 
 #: frontend/src/pages/CommerceHub.tsx:203
 msgctxt "commerce:commerceHub.vendorSelected"
 msgid "Vendor selected:"
-msgstr ""
+msgstr "فروشنده انتخاب‌شده:"
 
 #: frontend/src/pages/Workspace.tsx:249
 msgctxt "workspace:workspace.verifiedAt"
 msgid "Verified at {{value1}}"
-msgstr ""
+msgstr "تأییدشده در {{value1}}"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:103
 #. Reconciliation verifies an uncertain external write without blindly redispatching it.
 msgctxt "workspace:sourceCentricWorkspace.verifiedSuccessIsShownOnlyAfterExact"
 msgid "Verified success is shown only after exact provider verification. Uncertain outcomes require reconciliation."
-msgstr ""
+msgstr "موفقیت تأییدشده فقط پس از بررسی دقیق ارائه‌دهنده نمایش داده می‌شود. نتیجه نامطمئن نیازمند تطبیق مجدد است."
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:144
 msgctxt "workspace:unifiedWorkspace.verifyUncertainListings"
 msgid "Verify uncertain Listings"
-msgstr ""
+msgstr "بررسی لیستینگ‌های نامطمئن"
 
 #: frontend/src/auth.tsx:188
 msgctxt "authentication:access.verifyingAccess"
 msgid "Verifying Access"
-msgstr ""
+msgstr "در حال بررسی دسترسی"
 
 #: frontend/src/auth.tsx:194
 msgctxt "authentication:access.verifyingSession"
 msgid "Verifying your session with the server."
-msgstr ""
+msgstr "در حال بررسی نشست شما با سرور."
 
 #: frontend/src/pages/Settings.tsx:266
 msgctxt "settings:settings.version"
 msgid "Version"
-msgstr ""
+msgstr "نسخه"
 
 #: frontend/src/pages/SourceWizard.tsx:255
 msgctxt "sources:sourceWizard.viewProducts"
 msgid "View Products"
-msgstr ""
+msgstr "مشاهده محصولات"
 
 #: frontend/src/pages/Dashboard.tsx:246
 msgctxt "dashboard:dashboard.viewAll"
 msgid "View all"
-msgstr ""
+msgstr "مشاهده همه"
 
 #: frontend/src/pages/FlowHubSheet.tsx:102
 msgctxt "flowhubSheet:flowHubSheet.virtualizedFlowhubSheet"
 msgid "Virtualized FlowHub Sheet"
-msgstr ""
+msgstr "برگه مجازی‌سازی‌شده FlowHub"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:204
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:unifiedWorkspace.virtualizedMultiChannelWorkspaceGrid"
 msgid "Virtualized multi-channel Workspace Grid"
-msgstr ""
+msgstr "گرید مجازی‌سازی‌شده فضای کاری چندکاناله"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:76
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:unifiedWorkspace.visibilityChangesPresentationOnlyAndNeverSelects"
 msgid "Visibility changes presentation only and never selects a Channel for Apply."
-msgstr ""
+msgstr "تغییر نمایش فقط بر ظاهر اثر می‌گذارد و هیچ کانالی را برای اعمال انتخاب نمی‌کند."
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:75
 msgctxt "workspace:unifiedWorkspace.visibleChannels"
 msgid "Visible Channels"
-msgstr ""
+msgstr "کانال‌های قابل مشاهده"
 
 msgctxt "activity:activity.warning"
 msgid "Warning"
-msgstr ""
+msgstr "هشدار"
 
 #: frontend/src/pages/Diagnostics.tsx:91 frontend/src/pages/Workspace.tsx:88
 msgctxt "common:status.warning"
 msgid "Warning"
-msgstr ""
+msgstr "هشدار"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.warning"
 msgid "Warning"
-msgstr ""
+msgstr "هشدار"
 
 msgctxt "workspace:statusDisplay.warning"
 msgid "Warning"
-msgstr ""
+msgstr "هشدار"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:127
 msgctxt "workspace:unifiedWorkspace.warnings"
 msgid "Warnings"
-msgstr ""
+msgstr "هشدارها"
 
 #: frontend/src/pages/CommerceHub.tsx:338
 msgctxt "commerce:commerceHub.validation.webdavUsernameMismatch"
 msgid "WebDAV URL username does not match configured username."
-msgstr ""
+msgstr "نام کاربری نشانی WebDAV با نام کاربری پیکربندی‌شده یکسان نیست."
 
 #: frontend/src/pages/CommerceHub.tsx:876
 msgctxt "commerce:commerceHub.webhookUrl"
 msgid "Webhook URL"
-msgstr ""
+msgstr "نشانی webhook"
 
 #: frontend/src/pages/CommerceHub.tsx:879
 msgctxt "commerce:commerceHub.webhookCredential"
 msgid "Webhook credential:"
-msgstr ""
+msgstr "اطلاعات ورود webhook:"
 
 #: frontend/src/pages/CommerceHub.tsx:212
 msgctxt "commerce:commerceHub.webhookCredentials"
 msgid "Webhook credentials:"
-msgstr ""
+msgstr "اطلاعات ورود webhook:"
 
 #: frontend/src/pages/CommerceHub.tsx:872
 msgctxt "commerce:commerceHub.webhookRegistration"
 msgid "Webhook registration"
-msgstr ""
+msgstr "ثبت webhook"
 
 msgctxt "settings:setup.welcome"
 msgid "Welcome"
-msgstr ""
+msgstr "خوش آمدید"
 
 #: frontend/src/pages/Setup.tsx:553
 msgctxt "settings:setup.welcomeToFlowhub"
 msgid "Welcome to FlowHub"
-msgstr ""
+msgstr "به FlowHub خوش آمدید"
 
 msgctxt "products:products.woocommerce"
 msgid "WooCommerce"
-msgstr ""
+msgstr "WooCommerce"
 
 #: frontend/src/pages/Workspace.tsx:541
 msgctxt "workspace:workspace.woocommerce"
 msgid "WooCommerce"
-msgstr ""
+msgstr "WooCommerce"
 
 #: frontend/src/pages/Workspace.tsx:476
 msgctxt "workspace:workspace.workflowGuardrails"
 msgid "Workflow Guardrails"
-msgstr ""
+msgstr "محدودیت‌های ایمنی فرایند"
 
 #: frontend/src/pages/CommerceHub.tsx:945
 msgctxt "commerce:commerceHub.worksheet"
 msgid "Worksheet"
-msgstr ""
+msgstr "کاربرگ"
 
 #: frontend/src/pages/DataQuality.tsx:41
 msgctxt "dataQuality:dataQuality.worksheet"
 msgid "Worksheet"
-msgstr ""
+msgstr "کاربرگ"
 
 #: frontend/src/pages/SourceConfiguration.tsx:129 frontend/src/pages/SourceImportWizard.tsx:65
 msgctxt "sources:sourceConfiguration.worksheet"
 msgid "Worksheet"
-msgstr ""
+msgstr "کاربرگ"
 
 #: frontend/src/pages/CommerceHub.tsx:968
 msgctxt "commerce:commerceHub.worksheetName"
 msgid "Worksheet name"
-msgstr ""
+msgstr "نام کاربرگ"
 
 #: frontend/src/pages/SourceConfiguration.tsx:134
 msgctxt "sources:sourceConfiguration.worksheetOverride"
 msgid "Worksheet override"
-msgstr ""
+msgstr "کاربرگ جایگزین"
 
 #: frontend/src/pages/SourceConfiguration.tsx:129
 msgctxt "sources:sourceConfiguration.worksheetPolicy"
 msgid "Worksheet policy"
-msgstr ""
+msgstr "سیاست کاربرگ"
 
 #: frontend/src/components/Sidebar.tsx:141
 msgctxt "navigation:sidebar.workspace"
 msgid "Workspace"
-msgstr ""
+msgstr "فضای کاری"
 
 #: frontend/src/components/Topbar.tsx:28
 msgctxt "navigation:topbar.workspace"
 msgid "Workspace"
-msgstr ""
+msgstr "فضای کاری"
 
 #: frontend/src/pages/Workspace.tsx:401
 msgctxt "workspace:workspace.workspace"
 msgid "Workspace"
-msgstr ""
+msgstr "فضای کاری"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:187
 msgctxt "workspace:unifiedWorkspace.workspaceGrid"
 msgid "Workspace Grid"
-msgstr ""
+msgstr "گرید فضای کاری"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:94
 msgctxt "workspace:sourceCentricWorkspace.workspaceChangeSummary"
 msgid "Workspace change summary"
-msgstr ""
+msgstr "خلاصه تغییرات فضای کاری"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:72
 msgctxt "workspace:unifiedWorkspace.workspaceControls"
 msgid "Workspace controls"
-msgstr ""
+msgstr "کنترل‌های فضای کاری"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:27
 msgctxt "workspace:unifiedWorkspace.workspaceServiceUnavailable"
 msgid "Workspace service unavailable"
-msgstr ""
+msgstr "سرویس فضای کاری در دسترس نیست"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:48
 msgctxt "workspace:unifiedWorkspace.workspaceUnavailable"
 msgid "Workspace unavailable"
-msgstr ""
+msgstr "فضای کاری در دسترس نیست"
 
 #: frontend/src/pages/Diagnostics.tsx:360
 msgctxt "diagnostics:diagnostics.writeRequestsMinute"
 msgid "Write Requests / Minute"
-msgstr ""
+msgstr "درخواست‌های نوشتن در دقیقه"
 
 #: frontend/src/pages/RateLimits.tsx:148
 msgctxt "settings:rateLimits.writeRequestsMinute"
 msgid "Write Requests / Minute"
-msgstr ""
+msgstr "درخواست‌های نوشتن در دقیقه"
 
 #: frontend/src/pages/RateLimits.tsx:82
 msgctxt "validation:rateLimits.writeRequestsRange"
 msgid "Write Requests / Minute must be between {{min}} and {{max}}."
-msgstr ""
+msgstr "تعداد درخواست‌های نوشتن در دقیقه باید بین {{min}} و {{max}} باشد."
 
 #: frontend/src/pages/RateLimits.tsx:156
 msgctxt "settings:rateLimits.writeDelay"
 msgid "Write delay"
-msgstr ""
+msgstr "تأخیر نوشتن"
 
 #: frontend/src/pages/CommerceHub.tsx:785
 msgctxt "commerce:commerceHub.writeEnabled2"
 msgid "Write enabled"
-msgstr ""
+msgstr "نوشتن فعال"
 
 #: frontend/src/pages/CommerceHub.tsx:58
 msgctxt "commerce:commerceHub.writesBlocked"
 msgid "Writes blocked"
-msgstr ""
+msgstr "نوشتن مسدود"
 
 msgctxt "sources:sourceConfiguration.valueType.x"
 msgid "X marker"
-msgstr ""
+msgstr "نشان X"
 
 #: frontend/src/pages/CommerceHub.tsx:203
 msgctxt "commerce:commerceHub.yes"
 msgid "Yes"
-msgstr ""
+msgstr "بله"
 
 msgctxt "errors:codes.PERMISSION_DENIED"
 msgid "You do not have permission to perform this action."
-msgstr ""
+msgstr "اجازه انجام این اقدام را ندارید."
 
 #: frontend/src/auth.tsx:192
 msgctxt "authentication:access.permissionDeniedDescription"
 msgid "Your account does not have permission to view this content."
-msgstr ""
+msgstr "حساب شما اجازه مشاهده این محتوا را ندارد."
 
 #: frontend/src/pages/RateLimits.tsx:103 frontend/src/pages/Settings.tsx:166
 msgctxt "settings:rateLimits.yourChangesHaveBeenApplied"
 msgid "Your changes have been applied."
-msgstr ""
+msgstr "تغییرات شما اعمال شد."
 
 #: frontend/src/pages/CommerceHub.tsx:577 frontend/src/pages/CommerceHub.tsx:586
 msgctxt "commerce:commerceHub.yourChangesHaveBeenSaved"
 msgid "Your changes have been saved."
-msgstr ""
+msgstr "تغییرات شما ذخیره شد."
 
 #: frontend/src/pages/SourceWizard.tsx:247
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceWizard.yourSourceIsActiveAndReadyTo"
 msgid "Your source is active and ready to sync."
-msgstr ""
+msgstr "منبع شما فعال و آماده همگام‌سازی است."
 
 msgctxt "sources:sourceConfiguration.valueType.zero"
 msgid "Zero"
-msgstr ""
+msgstr "صفر"
 
 #: frontend/src/pages/SourceWizard.tsx:246
 msgctxt "sources:sourceWizard.added"
 msgid "added"
-msgstr ""
+msgstr "اضافه شد"
 
 #: frontend/src/pages/Workspace.tsx:497
 msgctxt "workspace:workspace.blockingError"
 msgid "blocking error"
-msgstr ""
+msgstr "خطای مسدودکننده"
 
 #: frontend/src/pages/Activity.tsx:39
 msgctxt "activity:activity.by"
 msgid "by"
-msgstr ""
+msgstr "توسط"
 
 #: frontend/src/pages/CommerceHub.tsx:227
 msgctxt "commerce:commerceHub.cached"
 msgid "cached"
-msgstr ""
+msgstr "ذخیره‌شده در کش"
 
 #: frontend/src/pages/SourceImportWizard.tsx:65
 msgctxt "sources:sourceImportWizard.columns"
 msgid "columns"
-msgstr ""
+msgstr "ستون"
 
 #: frontend/src/pages/Workspace.tsx:497
 msgctxt "workspace:workspace.eligibleRow"
 msgid "eligible row"
-msgstr ""
+msgstr "ردیف واجد شرایط"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:102
 msgctxt "workspace:sourceCentricWorkspace.explicitlySelectedReviewedChangesWillEnterThe"
 msgid "explicitly selected, Reviewed changes will enter the shared Write Pipeline. Blocked and hidden changes remain excluded."
-msgstr ""
+msgstr "تغییر بازبینی‌شده و صراحتاً انتخاب‌شده وارد خط لوله مشترک نوشتن خواهد شد. تغییرات مسدود و پنهان کنار گذاشته می‌شوند."
 
 #: frontend/src/pages/Workspace.tsx:533
 msgctxt "workspace:workspace.forWoocommerce"
 msgid "for WooCommerce."
-msgstr ""
+msgstr "برای WooCommerce."
 
 #: frontend/src/pages/SourceConfiguration.tsx:139
 msgctxt "sources:sourceConfiguration.ignored"
 msgid "ignored"
-msgstr ""
+msgstr "نادیده گرفته‌شده"
 
 #: frontend/src/pages/FlowHubSheet.tsx:116
 msgctxt "flowhubSheet:flowHubSheet.of"
 msgid "of"
-msgstr ""
+msgstr "از"
 
 #: frontend/src/pages/Products.tsx:711
 msgctxt "products:products.of"
 msgid "of"
-msgstr ""
+msgstr "از"
 
 #: frontend/src/pages/Setup.tsx:965
 msgctxt "settings:setup.of"
 msgid "of"
-msgstr ""
+msgstr "از"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:100
 msgctxt "workspace:sourceCentricWorkspace.of"
 msgid "of"
-msgstr ""
+msgstr "از"
 
 #: frontend/src/pages/CommerceHub.tsx:227
 msgctxt "commerce:commerceHub.pageS"
 msgid "page(s),"
-msgstr ""
+msgstr "صفحه،"
 
 #: frontend/src/pages/Products.tsx:299
 msgctxt "products:products.pending"
 msgid "pending"
-msgstr ""
+msgstr "در انتظار"
 
 #: frontend/src/pages/Workspace.tsx:533
 msgctxt "workspace:workspace.priceChange"
 msgid "price change"
-msgstr ""
+msgstr "تغییر قیمت"
 
 #: frontend/src/pages/CommerceHub.tsx:227
 msgctxt "commerce:commerceHub.received"
 msgid "received,"
-msgstr ""
+msgstr "دریافت‌شده،"
 
 #: frontend/src/pages/SourceConfiguration.tsx:139
 msgctxt "sources:sourceConfiguration.recognized"
 msgid "recognized"
-msgstr ""
+msgstr "شناسایی‌شده"
 
 #: frontend/src/pages/FlowHubSheet.tsx:116
 msgctxt "flowhubSheet:flowHubSheet.renamedColumnsPage"
 msgid "renamed columns · Page"
-msgstr ""
+msgstr "ستون‌های تغییرنام‌یافته · صفحه"
 
 msgctxt "flowhubSheet:flowHubSheet.rows"
 msgid "rows"
-msgstr ""
+msgstr "ردیف"
 
 #: frontend/src/pages/SourceImportWizard.tsx:65
 msgctxt "sources:sourceImportWizard.rows"
 msgid "rows ·"
-msgstr ""
+msgstr "ردیف ·"
 
 #: frontend/src/pages/Products.tsx:565
 msgctxt "products:products.selected"
 msgid "selected"
-msgstr ""
+msgstr "انتخاب‌شده"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:97
 msgctxt "workspace:sourceCentricWorkspace.selected"
 msgid "selected"
-msgstr ""
+msgstr "انتخاب‌شده"
 
 #: frontend/src/pages/Workspace.tsx:640
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:workspace.sourceRows"
 msgid "source rows"
-msgstr ""
+msgstr "ردیف‌های منبع"
 
 #: frontend/src/pages/Products.tsx:286
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "products:products.sourceUnit"
 msgid "source unit:"
-msgstr ""
+msgstr "واحد منبع:"
 
 #: frontend/src/pages/Setup.tsx:686
 msgctxt "settings:setup.toVerifyTheConnection"
 msgid "to verify the connection."
-msgstr ""
+msgstr "تا اتصال بررسی شود."
 
 #: frontend/src/pages/Products.tsx:299
 msgctxt "products:products.unchanged"
 msgid "unchanged"
-msgstr ""
+msgstr "بدون تغییر"
 
 #: frontend/src/pages/FlowHubSheet.tsx:116
 msgctxt "flowhubSheet:flowHubSheet.unsavedCells"
 msgid "unsaved cells ·"
-msgstr ""
+msgstr "سلول ذخیره‌نشده ·"
 
 #: frontend/src/pages/Workspace.tsx:30
 msgctxt "workspace:workspace.sourceReadRecovery"
 msgid "{{allowance}}{{recovery}}"
-msgstr ""
+msgstr "{{allowance}}{{recovery}}"
 
 #: frontend/src/pages/Products.tsx:276
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.proposedPrice"
 msgid "{{channel}} proposed price"
-msgstr ""
+msgstr "قیمت پیشنهادی {{channel}}"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:sourceCentricWorkspace.targetField"
 msgid "{{channel}} {{field}} Target"
-msgstr ""
+msgstr "هدف {{field}} در {{channel}}"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:60
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:unifiedWorkspace.listingRows"
 msgid "{{count}} Listing row"
 msgid_plural "{{count}} Listing rows"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{{count}} ردیف لیستینگ"
+msgstr[1] "{{count}} ردیف لیستینگ"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:191
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:unifiedWorkspace.listingsSelected"
 msgid "{{count}} Listing selected"
 msgid_plural "{{count}} Listings selected"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{{count}} لیستینگ انتخاب‌شده"
+msgstr[1] "{{count}} لیستینگ انتخاب‌شده"
 
 msgctxt "dashboard:dashboard.configuredSources"
 msgid "{{count}} configured"
 msgid_plural "{{count}} configured"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{{count}} پیکربندی‌شده"
+msgstr[1] "{{count}} پیکربندی‌شده"
 
 msgctxt "dashboard:dashboard.connectedSources"
 msgid "{{count}} connected"
 msgid_plural "{{count}} connected"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{{count}} متصل"
+msgstr[1] "{{count}} متصل"
 
 #: frontend/src/pages/Dashboard.tsx:162
 msgctxt "dashboard:dashboard.monitoredDestinations"
 msgid "{{count}} monitored destination"
 msgid_plural "{{count}} monitored destinations"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{{count}} مقصد پایش‌شده"
+msgstr[1] "{{count}} مقصد پایش‌شده"
 
 #: frontend/src/pages/Products.tsx:561
 msgctxt "products:products.productCount"
 msgid "{{count}} product"
 msgid_plural "{{count}} products"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{{count}} محصول"
+msgstr[1] "{{count}} محصول"
 
 #: frontend/src/pages/Workspace.tsx:302
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:workspace.productReadyForReview"
 msgid "{{count}} product ready for Review."
 msgid_plural "{{count}} products ready for Review."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{{count}} محصول آماده بازبینی است."
+msgstr[1] "{{count}} محصول آماده بازبینی است."
 
 #: frontend/src/pages/CommerceHub.tsx:1205
 msgctxt "commerce:commerceHub.rowsLoaded"
 msgid "{{count}} row loaded."
 msgid_plural "{{count}} rows loaded."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{{count}} ردیف بارگذاری شد."
+msgstr[1] "{{count}} ردیف بارگذاری شد."
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:65
 msgctxt "workspace:unifiedWorkspace.unsavedEdits"
 msgid "{{count}} unsaved edit"
 msgid_plural "{{count}} unsaved edits"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{{count}} ویرایش ذخیره‌نشده"
+msgstr[1] "{{count}} ویرایش ذخیره‌نشده"
 
 #: frontend/src/features/unifiedWorkspace/gridModel.ts:107
 #. Current is the latest verified or cached Channel value.
 msgctxt "workspace:gridModel.currentField"
 msgid "{{field}} Current"
-msgstr ""
+msgstr "{{field}} فعلی"
 
 #: frontend/src/features/unifiedWorkspace/gridModel.ts:108
 #. Target is the proposed value that may be applied after Review.
 msgctxt "workspace:gridModel.targetField"
 msgid "{{field}} Target"
-msgstr ""
+msgstr "{{field}} هدف"
 
 #: frontend/src/pages/SourceConfiguration.tsx:52
 msgctxt "sources:sourceConfiguration.columnReference"
 msgid "{{field}} column reference"
-msgstr ""
+msgstr "مرجع ستون {{field}}"
 
 #: frontend/src/pages/SourceConfiguration.tsx:46
 msgctxt "sources:sourceConfiguration.referenceType"
 msgid "{{field}} reference type"
-msgstr ""
+msgstr "نوع مرجع {{field}}"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:99
 msgctxt "workspace:sourceCentricWorkspace.listingChannelSummary"
 msgid "{{listings}} Listings across {{channels}} Channels"
-msgstr ""
+msgstr "{{listings}} لیستینگ در {{channels}} کانال"
 
 #: frontend/src/pages/SourceConfiguration.tsx:114
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.pricingWorkspaceName"
 msgid "{{source}} pricing"
-msgstr ""
+msgstr "قیمت‌گذاری {{source}}"
 
 #: frontend/src/pages/Workspace.tsx:24
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:workspace.sourceReadsUsed"
 msgid "{{usage}} of {{limit}} source reads have been used. "
-msgstr ""
+msgstr "{{usage}} از {{limit}} خواندن منبع استفاده شده است. "
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:55
 msgctxt "workspace:sourceCentricWorkspace.eligibleChangesWereAutomaticallySelectedBlockedItems"
 msgid "{{value1}} eligible changes were automatically selected. Blocked items remain excluded."
-msgstr ""
+msgstr "{{value1}} تغییر واجد شرایط به‌طور خودکار انتخاب شد. موارد مسدود همچنان کنار گذاشته می‌شوند."
 
 #: frontend/src/pages/Activity.tsx:97
 msgctxt "activity:activity.events"
 msgid "{{value1}} events"
-msgstr ""
+msgstr "{{value1}} رویداد"
 
 #: frontend/src/pages/CommerceHub.tsx:1114 frontend/src/pages/CommerceHub.tsx:1143 frontend/src/pages/CommerceHub.tsx:629 frontend/src/pages/CommerceHub.tsx:633
 msgctxt "commerce:commerceHub.isReadyToUse"
 msgid "{{value1}} is ready to use."
-msgstr ""
+msgstr "{{value1}} آماده استفاده است."
 
 #: frontend/src/pages/SourceWizard.tsx:97
 msgctxt "sources:sourceWizard.isReadyToUse"
 msgid "{{value1}} is ready to use."
-msgstr ""
+msgstr "{{value1}} آماده استفاده است."
 
 #: frontend/src/pages/Orders.tsx:146
 msgctxt "orders:orders.orders2"
 msgid "{{value1}} orders"
-msgstr ""
+msgstr "{{value1}} سفارش"
 
 #: frontend/src/pages/CommerceHub.tsx:1174
 msgctxt "commerce:commerceHub.productsWereCachedFromPageS"
 msgid "{{value1}} products were cached from {{value2}} page(s)."
-msgstr ""
+msgstr "{{value1}} محصول از {{value2}} صفحه در کش ذخیره شد."
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:93
 msgctxt "workspace:sourceCentricWorkspace.unsavedEdits"
 msgid "{{value1}} unsaved edits"
-msgstr ""
+msgstr "{{value1}} ویرایش ذخیره‌نشده"
 
 #: frontend/src/pages/Dashboard.tsx:233
 msgctxt "dashboard:dashboard.products"
 msgid "{{value1}} · {{value2}} products"
-msgstr ""
+msgstr "{{value1}} · {{value2}} محصول"
 
 msgctxt "common:units.tomanAmount"
 msgid "{{value}} Toman"
-msgstr ""
+msgstr "{{value}} تومان"
 
 #: frontend/src/pages/SourceCenter.tsx:86
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "sources:sourceCenter.mappingV"
 msgid "· Mapping v"
-msgstr ""
+msgstr "· نسخه نگاشت "
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:151
 msgctxt "workspace:unifiedWorkspace.errorDetail"
 msgid "— {{message}}"
-msgstr ""
+msgstr "— {{message}}"

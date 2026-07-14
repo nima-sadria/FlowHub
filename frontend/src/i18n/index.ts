@@ -20,7 +20,8 @@ for (const [file, messages] of Object.entries(localeModules)) {
   resources[locale][namespace] = messages
 }
 
-const pseudoRtlEnabled = import.meta.env.VITE_ENABLE_PSEUDO_RTL === 'true'
+const persianCatalogComplete = Object.entries(manifestModules).some(([file, manifest]) => /\/fa\/manifest\.json$/.test(file) && manifest.complete === true)
+const pseudoRtlEnabled = import.meta.env.VITE_ENABLE_PSEUDO_RTL === 'true' && !persianCatalogComplete
 if (pseudoRtlEnabled) {
   resources.fa = Object.fromEntries(namespaces.map(namespace => [
     namespace,
@@ -32,7 +33,7 @@ export const localeMetadata: Record<FlowHubLocale, { direction: 'ltr' | 'rtl'; c
   en: { direction: 'ltr', complete: true },
   fa: {
     direction: 'rtl',
-    complete: pseudoRtlEnabled || Object.entries(manifestModules).some(([file, manifest]) => /\/fa\/manifest\.json$/.test(file) && manifest.complete === true),
+    complete: persianCatalogComplete || pseudoRtlEnabled,
   },
 }
 

@@ -1,0 +1,10 @@
+{
+  "rateLimits.readRequestsRange": "تعداد درخواست‌های خواندن در دقیقه باید بین {{min}} و {{max}} باشد.",
+  "rateLimits.writeRequestsRange": "تعداد درخواست‌های نوشتن در دقیقه باید بین {{min}} و {{max}} باشد.",
+  "setup.validEmailRequired": "یک نشانی ایمیل معتبر وارد کنید.",
+  "source.filePathRequired": "مسیر فایل الزامی است.",
+  "source.nameRequired": "نام الزامی است.",
+  "source.passwordRequired": "رمز عبور الزامی است.",
+  "source.urlRequired": "نشانی URL الزامی است.",
+  "source.usernameRequired": "نام کاربری الزامی است."
+}

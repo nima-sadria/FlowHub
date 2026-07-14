@@ -1,0 +1,14 @@
+{
+  "activity.activity": "فعالیت‌ها",
+  "activity.by": "توسط",
+  "activity.error": "خطا",
+  "activity.events": "{{value1}} رویداد",
+  "activity.eventsWillAppearHereAsTheSystem": "رویدادها هنگام اجرای سیستم در اینجا نمایش داده می‌شوند.",
+  "activity.info": "اطلاعات",
+  "activity.loading": "در حال بارگذاری...",
+  "activity.loadMoreRemaining": "بارگذاری بیشتر ({{value1}} باقی‌مانده)",
+  "activity.noActivityYet": "هنوز فعالیتی ثبت نشده است",
+  "activity.success": "موفق",
+  "activity.systemEventsAndUserActions": "رویدادهای سیستم و اقدامات کاربران",
+  "activity.warning": "هشدار"
+}
