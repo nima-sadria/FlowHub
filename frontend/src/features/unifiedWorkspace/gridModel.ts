@@ -6,6 +6,7 @@ import type {
   WorkspaceGridRow,
 } from '../../services/unifiedWorkspace/types'
 import { formatChannelDisplayName } from './channelDisplayName'
+import { prepareResourceCollection, workspaceChannelSignals } from '../resourceOrdering/resourceOrdering'
 
 export interface GridRecord extends Record<string, string | number | boolean | null | undefined> {
   rowId: string
@@ -44,7 +45,9 @@ export function buildGridDefinition(
   channels: WorkspaceChannelDefinition[],
   visibleChannelIds: string[],
 ): GridDefinition {
-  const visible = channels.filter(channel => visibleChannelIds.includes(channel.channelId))
+  const visible = prepareResourceCollection(channels, workspaceChannelSignals).ordered
+    .map(channel => channel.item)
+    .filter(channel => visibleChannelIds.includes(channel.channelId))
   const records: GridRecord[] = rows.map(row => {
     const record: GridRecord = {
       rowId: row.rowId,

@@ -61,7 +61,7 @@ describe('SourceCenter safe lifecycle', () => {
     const confirm = Array.from(container.querySelectorAll('[role="dialog"] button')).find(item => item.textContent?.includes('Archive Source')) as HTMLButtonElement
     await act(async () => { confirm.click(); await Promise.resolve(); await Promise.resolve() })
     expect(sourceWorkspaceApi.deleteSource).toHaveBeenCalledWith(source)
-    expect(container.textContent).toContain('Archived')
+    expect(container.textContent).toContain('Disabled')
     expect(container.textContent).toContain('Synthetic prices')
   })
 
@@ -86,13 +86,14 @@ describe('SourceCenter safe lifecycle', () => {
       : Promise.resolve({ sourceId: other.id, sourceName: other.name, sourceVersion: other.version, sourceStatus: 'active', action: 'delete', blockers: {}, protectedHistory: {} }))
     await render()
 
-    const triggers = Array.from(container.querySelectorAll('button')).filter(item => item.textContent?.includes('Delete Source')) as HTMLButtonElement[]
-    await act(async () => { triggers[0].click(); await Promise.resolve() })
+    const firstTrigger = container.querySelector('[data-resource-id="source-1"] .fh-button-danger') as HTMLButtonElement
+    const secondTrigger = container.querySelector('[data-resource-id="source-2"] .fh-button-danger') as HTMLButtonElement
+    await act(async () => { firstTrigger.click(); await Promise.resolve() })
     const cancel = Array.from(container.querySelectorAll('[role="dialog"] button')).find(item => item.textContent?.includes('Cancel')) as HTMLButtonElement
     await act(async () => { cancel.click(); await Promise.resolve() })
-    expect(document.activeElement).toBe(triggers[0])
+    expect(document.activeElement).toBe(firstTrigger)
 
-    await act(async () => { triggers[1].click(); await Promise.resolve(); await Promise.resolve() })
+    await act(async () => { secondTrigger.click(); await Promise.resolve(); await Promise.resolve() })
     expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Other prices')
     expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Delete unused Source')
 
@@ -108,5 +109,24 @@ describe('SourceCenter safe lifecycle', () => {
   it('does not expose the destructive control to an unauthorized viewer', async () => {
     await render(viewer)
     expect(container.textContent).not.toContain('Delete Source')
+  })
+
+  it('groups managed Sources consistently and sorts display names inside each group', async () => {
+    const activeZebra = { ...source, id: 'source-z', name: 'Zebra prices' }
+    const activeAlpha = { ...source, id: 'source-a', name: 'Alpha prices' }
+    const disabledBeta = { ...source, id: 'source-b', name: 'Beta archive', status: 'disabled', sheetId: null }
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({
+      items: [disabledBeta, activeZebra, activeAlpha],
+    })
+
+    await render()
+
+    expect(Array.from(container.querySelectorAll('[data-resource-id]')).map(item => item.getAttribute('data-resource-id')))
+      .toEqual(['source-a', 'source-z', 'source-b'])
+    expect(Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section')))
+      .toEqual(['active', 'disabled'])
+    expect(container.querySelector('[data-resource-id="source-a"]')?.textContent).toContain('Configured')
+    expect(container.querySelector('[data-resource-id="source-b"]')?.textContent).toContain('Disabled')
+    expect(container.textContent).not.toContain('Coming Soon')
   })
 })

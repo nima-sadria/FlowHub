@@ -1,5 +1,5 @@
 import { translate } from '../i18n'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { localizedApiError } from '../i18n/errors'
 import Badge from '../components/Badge'
 import Empty from '../components/Empty'
@@ -21,15 +21,17 @@ import { formatMoney, formatMoneyInput, normalizeMoneyInteger, parseMoneyInput }
 import { formatDate, formatDateTime } from '../i18n/format'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { formatCapability, formatProductType, formatStatus } from '../i18n/display'
+import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
+import type { SourceChannel } from '../features/sourceWorkspace/types'
+import { ResourceOptionGroups, ResourceStateBadge } from '../components/ResourceOrdering'
+import {
+  prepareResourceCollection,
+  productChannelSignals,
+  sourceChannelSignals,
+  type ResourceBadge,
+} from '../features/resourceOrdering/resourceOrdering'
 
 const PAGE_SIZE = 20
-const CHANNEL_OPTIONS = [
-  { id: '', labelKey: 'products:products.allChannels' },
-  { id: 'woocommerce:primary', labelKey: 'products:products.woocommerce' },
-  { id: 'snappshop:main', labelKey: 'products:products.snappShop' },
-  { id: 'tapsishop:main', labelKey: 'products:products.tapsiShop' },
-]
-
 function fmtValue(value: number | null | undefined, unit: string): string {
   return formatMoney(value, { unit })
 }
@@ -141,6 +143,7 @@ function ProductPriceEditor({
   const canDryRun = Boolean(state && selectedCount > 0 && !loading)
   const canApprove = operation?.status === 'dry_run_ready' && !loading
   const canApply = operation?.status === 'approved' && !loading
+  const channelResources = prepareResourceCollection(state?.channels ?? [], productChannelSignals)
 
   return (
     <section className="fh-card fh-card-pad space-y-4" aria-label={translate('products:products.multiChannelPriceEditor')}>
@@ -180,14 +183,24 @@ function ProductPriceEditor({
                 </tr>
               </thead>
               <tbody>
-                {state.channels.map(channel => (
-                  <ChannelPriceRow
-                    key={channel.channelId}
-                    channel={channel}
-                    draftValue={draftValues[channel.channelId] ?? ''}
-                    operationItem={operation?.items.find(item => item.channelId === channel.channelId)}
-                    onDraftChange={onDraftChange}
-                  />
+                {channelResources.sections.map(section => (
+                  <Fragment key={section.key}>
+                    <tr data-resource-section={section.key}>
+                      <th className="bg-bg-base px-4 py-2 text-start fh-text-caption" colSpan={10}>
+                        {translate(`common:resourceGroup.${section.key}`)}
+                      </th>
+                    </tr>
+                    {section.items.map(resource => (
+                      <ChannelPriceRow
+                        key={resource.id}
+                        channel={resource.item}
+                        resourceBadge={resource.badge}
+                        draftValue={draftValues[resource.id] ?? ''}
+                        operationItem={operation?.items.find(item => item.channelId === resource.id)}
+                        onDraftChange={onDraftChange}
+                      />
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -220,7 +233,7 @@ function ProductPriceEditor({
       )}
 
       {operation && (
-        <OperationResult operation={operation} />
+        <OperationResult operation={operation} channels={state?.channels ?? []} />
       )}
     </section>
   )
@@ -228,17 +241,18 @@ function ProductPriceEditor({
 
 function ChannelPriceRow({
   channel,
+  resourceBadge,
   draftValue,
   operationItem,
   onDraftChange,
 }: {
   channel: ProductChannelPriceState
+  resourceBadge: ResourceBadge
   draftValue: string
   operationItem?: ProductChannelPriceOperation['items'][number]
   onDraftChange: (channelId: string, value: string) => void
 }) {
   const validationVariant = channel.validationState === 'valid' ? 'success' : channel.validationState === 'error' ? 'error' : 'warning'
-  const connectionVariant = channel.connectionState === 'connected' ? 'success' : channel.connectionState === 'disconnected' ? 'warning' : 'neutral'
   const editable = channel.canWrite
   return (
     <tr className="border-b border-border">
@@ -247,7 +261,7 @@ function ChannelPriceRow({
         <div className="fh-text-caption fh-text-mono">{channel.channelId}</div>
       </td>
       <td className="px-4 py-3">
-        <Badge variant={connectionVariant} dot>{formatStatus(channel.connectionState)}</Badge>
+        <ResourceStateBadge badge={resourceBadge} />
         <div className="fh-text-caption mt-1" title={translate('products:products.healthStatus', { status: formatStatus(channel.healthStatus) })}>{translate('products:products.health')} {formatStatus(channel.healthStatus)}</div>
       </td>
       <td className="px-4 py-3">
@@ -312,7 +326,19 @@ function InfoTile({ label, value }: { label: string; value: string }) {
   )
 }
 
-function OperationResult({ operation }: { operation: ProductChannelPriceOperation }) {
+function OperationResult({ operation, channels }: { operation: ProductChannelPriceOperation; channels: ProductChannelPriceState[] }) {
+  const channelById = new Map(channels.map(channel => [channel.channelId, channel]))
+  const operationResources = prepareResourceCollection(operation.items, item => {
+    const channel = channelById.get(item.channelId)
+    return channel
+      ? productChannelSignals(channel)
+      : {
+          id: item.channelId,
+          displayName: formatChannelDisplayName(item.channelId),
+          configured: false,
+          implemented: true,
+        }
+  })
   return (
     <div className="rounded border border-border bg-bg-base px-3 py-3" aria-label={translate('products:products.channelPriceOperationResult')}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -338,17 +364,33 @@ function OperationResult({ operation }: { operation: ProductChannelPriceOperatio
               </tr>
             </thead>
             <tbody>
-              {operation.items.map(item => (
-                <tr key={item.id} className="border-b border-border">
-                  <td className="px-4 py-2 fh-text-mono">{item.channelId}</td>
-                  <td className="px-4 py-2">{fmtValue(item.currentValue, item.unit)}</td>
-                  <td className="px-4 py-2">{fmtValue(item.proposedValue, item.unit)}</td>
-                  <td className="px-4 py-2">{fmtValue(item.outboundValue, item.outboundUnit)}</td>
-                  <td className="px-4 py-2">
-                    <Badge variant={item.status === "failed" ? "error" : item.status === "applied" ? "success" : "warning"}>{formatStatus(item.status)}</Badge>
-                    {item.errorMessage && <div className="fh-text-caption mt-1">{item.errorMessage}</div>}
-                  </td>
-                </tr>
+              {operationResources.sections.map(section => (
+                <Fragment key={section.key}>
+                  <tr data-resource-section={section.key}>
+                    <th className="bg-bg-base px-4 py-2 text-start fh-text-caption" colSpan={5}>
+                      {translate(`common:resourceGroup.${section.key}`)}
+                    </th>
+                  </tr>
+                  {section.items.map(resource => {
+                    const item = resource.item
+                    return (
+                      <tr key={item.id} className="border-b border-border">
+                        <td className="px-4 py-2">
+                          <span className="font-medium text-text-base">{resource.displayName}</span>
+                          <div className="fh-text-caption fh-text-mono">{item.channelId}</div>
+                          <div className="mt-1"><ResourceStateBadge badge={resource.badge} /></div>
+                        </td>
+                        <td className="px-4 py-2">{fmtValue(item.currentValue, item.unit)}</td>
+                        <td className="px-4 py-2">{fmtValue(item.proposedValue, item.unit)}</td>
+                        <td className="px-4 py-2">{fmtValue(item.outboundValue, item.outboundUnit)}</td>
+                        <td className="px-4 py-2">
+                          <Badge variant={item.status === "failed" ? "error" : item.status === "applied" ? "success" : "warning"}>{formatStatus(item.status)}</Badge>
+                          {item.errorMessage && <div className="fh-text-caption mt-1">{item.errorMessage}</div>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -371,6 +413,8 @@ export default function Products() {
   const [items, setItems] = useState<Product[]>([])
   const [total, setTotal] = useState(0)
   const [configured, setConfigured] = useState<boolean | undefined>(undefined)
+  const [availableChannels, setAvailableChannels] = useState<SourceChannel[]>([])
+  const [channelInventoryUnavailable, setChannelInventoryUnavailable] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const [categories, setCategories] = useState<Category[]>([])
@@ -388,6 +432,18 @@ export default function Products() {
       productService.getCategories().then(setCategories).catch(() => {})
     }
   }, [productService])
+
+  useEffect(() => {
+    let mounted = true
+    sourceWorkspaceApi.channels()
+      .then(result => {
+        if (!mounted) return
+        setAvailableChannels(result.items)
+        setChannelInventoryUnavailable(false)
+      })
+      .catch(() => { if (mounted) setChannelInventoryUnavailable(true) })
+    return () => { mounted = false }
+  }, [])
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -516,6 +572,10 @@ export default function Products() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const end = Math.min(page * PAGE_SIZE, total)
+  const channelFilterResources = prepareResourceCollection(
+    availableChannels,
+    sourceChannelSignals,
+  )
 
   const createManualWorkspace = useCallback(async () => {
     if (!unifiedWorkspace || workspaceSelection.size === 0) return
@@ -588,9 +648,9 @@ export default function Products() {
           onChange={e => setChannelId(e.target.value)}
           className="fh-select w-auto min-w-[150px]"
         >
-          {CHANNEL_OPTIONS.map(channel => (
-            <option key={channel.id || "all"} value={channel.id}>{translate(channel.labelKey)}</option>
-          ))}
+          <option value="">{translate('products:products.allChannels')}</option>
+          {channelInventoryUnavailable && <option value="" disabled>{translate('common:status.unavailable')}</option>}
+          <ResourceOptionGroups resources={channelFilterResources} />
         </select>
 
         {categories.length > 0 && (

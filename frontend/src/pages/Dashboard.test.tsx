@@ -5,7 +5,7 @@ import { act } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthContext, type AuthContextValue, type AuthUser } from '../auth'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
-import type { ChannelHealthResponse } from '../services/types'
+import type { ChannelHealthResponse, Source } from '../services/types'
 import Dashboard from './Dashboard'
 
 let container: HTMLDivElement
@@ -137,5 +137,47 @@ describe('Dashboard', () => {
     expect(c.textContent).toContain('Channels')
     expect(c.textContent).toContain('Warning')
     expect(c.textContent).toContain('Webhook processing is delayed.')
+  })
+
+  it('uses the shared active, disabled, and attention ordering for dashboard resources', async () => {
+    const mockServices = services()
+    const originalHealth = await mockServices.health.getChannelHealth()
+    const healthy = originalHealth.items[0]
+    const warning = originalHealth.items[1]
+    const disabled = {
+      ...healthy,
+      channelId: 'snappshop:main',
+      channelType: 'snappshop',
+      enabled: false,
+      status: 'Disabled' as const,
+      summary: 'SnappShop is disabled.',
+    }
+    vi.mocked(mockServices.health.getChannelHealth).mockResolvedValue({
+      ...originalHealth,
+      items: [disabled, warning, healthy],
+    })
+    const sources: Source[] = [
+      { id: 'source-nextcloud', name: 'Nextcloud', type: 'nextcloud_excel', displayUrl: '', status: 'error', lastSynced: null, productCount: 0 },
+      { id: 'source-csv', name: 'CSV', type: 'nextcloud_excel', displayUrl: '', status: 'active', lastSynced: null, productCount: 5 },
+      { id: 'source-google', name: 'Google Sheets', type: 'nextcloud_excel', displayUrl: '', status: 'active', lastSynced: null, productCount: 8 },
+    ]
+    vi.mocked(mockServices.sources.getSources).mockResolvedValue(sources)
+
+    const { container: c } = await renderPage(mockServices)
+    const ids = Array.from(c.querySelectorAll<HTMLElement>('[data-resource-id]'))
+      .map(element => element.dataset.resourceId)
+
+    expect(ids).toEqual([
+      'woocommerce:primary',
+      'tapsishop:main',
+      'snappshop:main',
+      'source-csv',
+      'source-google',
+      'source-nextcloud',
+    ])
+    expect(c.querySelectorAll('[data-resource-section="disabled"]')).toHaveLength(1)
+    expect(c.textContent).toContain('Healthy')
+    expect(c.textContent).toContain('Warning')
+    expect(c.textContent).toContain('Disabled')
   })
 })

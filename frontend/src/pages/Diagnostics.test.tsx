@@ -312,6 +312,57 @@ describe('Diagnostics', () => {
     expect(calls.some(url => url.includes('/api/v2/diagnostics/channels/health/refresh'))).toBe(true)
   })
 
+  it('orders Source and Channel diagnostics with the shared policy', async () => {
+    const health = channelHealthPayload()
+    const disabledChannel = {
+      ...health.items[0],
+      channelId: 'snappshop:main',
+      channelType: 'snappshop',
+      enabled: false,
+      status: 'Disabled',
+      summary: 'SnappShop is disabled.',
+    }
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      const url = String(input)
+      if (url.includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: 'skip',
+          checkedAt: new Date().toISOString(),
+          checks: [],
+          connectors: [
+            { id: 'nextcloud:disabled', name: 'Nextcloud', connector_type: 'nextcloud', enabled: false, status: 'disabled', last_checked_at: null },
+            { id: 'erp:warning', name: 'ERP', connector_type: 'erp', enabled: true, status: 'degraded', last_checked_at: new Date().toISOString() },
+            { id: 'gsheets:healthy', name: 'Google Sheets', connector_type: 'gsheets', enabled: true, status: 'operational', last_checked_at: new Date().toISOString(), last_successful_operation: new Date().toISOString() },
+            { id: 'csv:healthy', name: 'CSV', connector_type: 'csv', enabled: true, status: 'healthy', last_checked_at: new Date().toISOString(), last_successful_operation: new Date().toISOString() },
+          ],
+          channelHealth: { ...health, items: [disabledChannel, health.items[1], health.items[0]] },
+          rateLimiter: null,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const channelSection = c.querySelector('#diagnostics-channels')?.closest('section')
+    const sourceSection = c.querySelector('#diagnostics-sources')?.closest('section')
+    const resourceIds = (scope: Element | null | undefined) => Array.from(scope?.querySelectorAll<HTMLElement>('[data-resource-id]') ?? [])
+      .map(element => element.dataset.resourceId)
+
+    expect(resourceIds(channelSection)).toEqual([
+      'woocommerce:primary',
+      'tapsishop:main',
+      'snappshop:main',
+    ])
+    expect(resourceIds(sourceSection)).toEqual([
+      'csv:healthy',
+      'gsheets:healthy',
+      'erp:warning',
+      'nextcloud:disabled',
+    ])
+    expect(channelSection?.querySelectorAll('[data-resource-section="comingSoon"]')).toHaveLength(0)
+    expect(sourceSection?.querySelectorAll('[data-resource-section="comingSoon"]')).toHaveLength(0)
+  })
+
   it('presents practical rate-limit information before technical details', async () => {
     const c = await renderPage()
 

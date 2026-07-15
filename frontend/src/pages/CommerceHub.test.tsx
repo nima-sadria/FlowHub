@@ -11,7 +11,7 @@ import { ServiceProvider } from '../services/ServiceContext'
 import type { Services } from '../services/ServiceContext'
 import type { CommerceService } from '../services/commerce/CommerceService'
 import CommerceHub from './CommerceHub'
-import { changeLocale } from '../i18n'
+import { changeLocale, translate } from '../i18n'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 
 let container: HTMLDivElement
@@ -445,6 +445,16 @@ function inputByLabel(c: HTMLElement, labelText: string): HTMLInputElement {
   return input as HTMLInputElement
 }
 
+function resourceAction(c: HTMLElement, resourceName: string, actionName: string): HTMLButtonElement {
+  const card = Array.from(c.querySelectorAll('h3'))
+    .find(item => item.textContent === resourceName)
+    ?.closest('.fh-card')
+  const action = Array.from(card?.querySelectorAll('button') ?? [])
+    .find(button => button.textContent === actionName)
+  expect(action).toBeTruthy()
+  return action as HTMLButtonElement
+}
+
 async function openNextcloudSourceForm(c: HTMLElement) {
   await act(async () => {
     Array.from(c.querySelectorAll('button'))
@@ -474,7 +484,7 @@ describe('CommerceHub', () => {
     const c = await renderPage()
 
     expect(c.textContent).toContain('کانال')
-    expect(c.textContent).toContain('پیکربندی‌شده')
+    expect(c.textContent).toContain(translate('common:resourceBadge.warning'))
     expect(c.textContent).toContain('خواندن محصولات')
     expect(c.textContent).toContain('حالت فقط‌خواندنی')
     expect(c.textContent).not.toContain('Product read')
@@ -489,7 +499,7 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('WooCommerce')
     expect(c.textContent).toContain('Snapp Shop')
     expect(c.textContent).toContain('Tapsi Shop')
-    expect(c.textContent).toContain('Planned channel')
+    expect(c.textContent).toContain('Coming Soon')
     expect(c.textContent).toContain('Read-only mode')
     expect(c.textContent).toContain('Writes blocked')
     expect(c.textContent).toContain('Add Channel')
@@ -579,7 +589,7 @@ describe('CommerceHub', () => {
       },
     }
     const c = await renderPage(adminUser, snappCommerce)
-    const configure = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')[1]
+    const configure = resourceAction(c, 'Snapp Shop', 'Configure')
     await act(async () => {
       configure.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
@@ -649,7 +659,7 @@ describe('CommerceHub', () => {
       },
     }
     const c = await renderPage(adminUser, snappCommerce)
-    const configure = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')[1]
+    const configure = resourceAction(c, 'Snapp Shop', 'Configure')
     await act(async () => {
       configure.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
@@ -693,7 +703,7 @@ describe('CommerceHub', () => {
       },
     }
     const c = await renderPage(adminUser, tapsiCommerce)
-    const configure = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')[2]
+    const configure = resourceAction(c, 'Tapsi Shop', 'Configure')
     await act(async () => {
       configure.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
@@ -736,7 +746,7 @@ describe('CommerceHub', () => {
       },
     }
     const c = await renderPage(adminUser, savingCommerce)
-    const configure = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')[1]
+    const configure = resourceAction(c, 'Snapp Shop', 'Configure')
     await act(async () => {
       configure.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
@@ -840,7 +850,7 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Google Sheets')
     expect(c.textContent).toContain('ERP / API Import')
     expect(c.textContent).toContain('Add Source')
-    expect(c.textContent).toContain('Planned source')
+    expect(c.textContent).toContain('Coming Soon')
     expect(c.textContent).not.toContain('Snapp Shop')
     expect(c.textContent).not.toContain('Tapsi Shop')
   })
@@ -972,7 +982,7 @@ describe('CommerceHub', () => {
       addChannel?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
     expect(c.textContent).toContain('Channel type')
-    expect(c.textContent).toContain('Consumer Secret')
+    expect(c.textContent).toContain('Bearer token')
 
     const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
     await act(async () => {
@@ -1117,7 +1127,7 @@ describe('CommerceHub', () => {
       },
     }
     const c = await renderPage(adminUser, failingCommerce)
-    const testButton = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
+    const testButton = resourceAction(c, 'WooCommerce', 'Test connection')
 
     await act(async () => {
       testButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -1142,6 +1152,13 @@ describe('CommerceHub', () => {
     const addChannel = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add Channel')
     await act(async () => {
       addChannel?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    const channelType = Array.from(c.querySelectorAll('label'))
+      .find(label => label.textContent?.includes('Channel type'))
+      ?.querySelector('select') as HTMLSelectElement
+    await act(async () => {
+      channelType.value = 'woocommerce:primary'
+      channelType.dispatchEvent(new Event('change', { bubbles: true }))
     })
     const save = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Save configuration')
 
@@ -1236,5 +1253,100 @@ describe('CommerceHub', () => {
 
     expect(c.textContent).toContain('/prices.xlsx')
     expect(c.textContent).not.toContain('https://softpple.business/remote.php/dav/files/woo/prices.xlsx')
+  })
+
+  it('groups Channel cards and orders healthy, warning, disabled, then Coming Soon resources', async () => {
+    const orderedCommerce: CommerceService = {
+      ...commerce,
+      async getChannels() {
+        return {
+          items: [
+            channel('future:main', 'Future Market', true),
+            { ...channel('disabled:main', 'Disabled Market', false), enabled: false },
+            channel('warning:main', 'Warning Market', false),
+            {
+              ...channel('healthy:main', 'Healthy Market', false),
+              status: 'healthy',
+              credential_status: 'configured',
+              health: { status: 'healthy', message: '', latency_ms: 4, error_code: null },
+            },
+          ],
+        }
+      },
+    }
+
+    const c = await renderPage(adminUser, orderedCommerce)
+
+    expect(Array.from(c.querySelectorAll('[data-resource-id]')).map(item => item.getAttribute('data-resource-id')))
+      .toEqual(['healthy:main', 'warning:main', 'disabled:main', 'future:main'])
+    expect(Array.from(c.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section')))
+      .toEqual(['active', 'disabled', 'comingSoon'])
+    expect(c.querySelector('[data-resource-id="healthy:main"]')?.textContent).toContain('Healthy')
+    expect(c.querySelector('[data-resource-id="warning:main"]')?.textContent).toContain('Warning')
+    expect(c.querySelector('[data-resource-id="disabled:main"]')?.textContent).toContain('Disabled')
+    expect(c.querySelector('[data-resource-id="future:main"]')?.textContent).toContain('Coming Soon')
+  })
+
+  it('groups Source cards and sorts Coming Soon items by display name', async () => {
+    const c = await renderPage()
+    await act(async () => {
+      Array.from(c.querySelectorAll('button'))
+        .find(button => button.textContent === 'Sources')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(Array.from(c.querySelectorAll('[data-resource-id]')).map(item => item.getAttribute('data-resource-id')))
+      .toEqual(['nextcloud:primary', 'csv:import', 'erp:api-import', 'gsheets:price-list'])
+    expect(Array.from(c.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section')))
+      .toEqual(['active', 'comingSoon'])
+  })
+
+  it('prefers the first Active configuration type and preserves an explicit edit selection', async () => {
+    const typesCommerce: CommerceService = {
+      ...commerce,
+      async getSourceTypes() {
+        return {
+          items: [
+            typeOption('csv:import', 'csv', 'CSV', 'Source', true, []),
+            typeOption('nextcloud:primary', 'nextcloud', 'Nextcloud', 'Source', false, []),
+          ],
+        }
+      },
+      async getChannels() {
+        const original = await commerce.getChannels()
+        return {
+          ...original,
+          items: original.items.map(item => item.provider === 'woocommerce'
+            ? { ...item, credential_status: 'configured' }
+            : item),
+        }
+      },
+    }
+    const c = await renderPage(adminUser, typesCommerce)
+
+    await act(async () => {
+      Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await act(async () => {
+      Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add Source')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    const sourceTypeSelect = Array.from(c.querySelectorAll('label')).find(label => label.textContent?.includes('Source type'))?.querySelector('select') as HTMLSelectElement
+    expect(sourceTypeSelect.value).toBe('nextcloud:primary')
+    expect(Array.from(sourceTypeSelect.querySelectorAll('optgroup')).map(group => group.label)).toEqual(['Active', 'Coming Soon'])
+
+    await act(async () => {
+      Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Channels')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await act(async () => {
+      Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Settings')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+    const channelTypeSelect = Array.from(c.querySelectorAll('label')).find(label => label.textContent?.includes('Channel type'))?.querySelector('select') as HTMLSelectElement
+    expect(channelTypeSelect.value).toBe('woocommerce:primary')
+    expect(channelTypeSelect.disabled).toBe(true)
   })
 })

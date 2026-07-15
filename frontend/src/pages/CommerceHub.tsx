@@ -15,6 +15,15 @@ import { formatDateTime } from '../i18n/format'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { formatCapabilityList, formatCommerceType, formatDataRole, formatStatus } from '../i18n/display'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
+import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
+import {
+  commerceChannelSignals,
+  commerceSourceSignals,
+  commerceTypeSignals,
+  prepareResourceCollection,
+  preferredResourceId,
+  type ResourceBadge,
+} from '../features/resourceOrdering/resourceOrdering'
 
 type Tab = 'sources' | 'channels'
 type FormKind = 'source' | 'channel'
@@ -75,8 +84,9 @@ function RelationshipMap({ map }: { map: CommerceRelationshipMap | null }) {
   )
 }
 
-function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, canManage }: {
+function SourceCard({ source, badge, onTest, onRead, onConfigure, testing, reading, canManage }: {
   source: CommerceSource
+  badge: ResourceBadge
   onTest: (sourceId: string) => void
   onRead: (sourceId: string) => void
   onConfigure: (sourceId: string) => void
@@ -92,10 +102,7 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="fh-section-title">{source.name}</h3>
-            <Badge variant={source.status === "degraded" ? "warning" : ["healthy", "configured", "current"].includes(source.status) ? "success" : ["planned", "future", "not_configured", "unknown"].includes(source.status) ? "neutral" : "danger"}>
-              {formatStatus(source.status)}
-            </Badge>
-            {source.placeholder && <Badge variant="neutral">{translate('commerce:commerceHub.plannedSource')}</Badge>}
+            <ResourceStateBadge badge={badge} />
           </div>
           <p className="fh-text-caption mt-1">{formatDataRole(source.data_role)}</p>
         </div>
@@ -155,8 +162,9 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
   )
 }
 
-function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refreshing, refreshResult, canManage }: {
+function ChannelCard({ channel, badge, onTest, onRefresh, onConfigure, testing, refreshing, refreshResult, canManage }: {
   channel: CommerceChannel
+  badge: ResourceBadge
   onTest: (channelId: string) => void
   onRefresh: (channelId: string) => void
   onConfigure: (channelId: string) => void
@@ -175,10 +183,7 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="fh-section-title">{channel.name}</h3>
-            <Badge variant={channel.status === "degraded" ? "warning" : ["healthy", "configured", "current"].includes(channel.status) ? "success" : ["planned", "future", "not_configured", "unknown"].includes(channel.status) ? "neutral" : "danger"}>
-              {formatStatus(channel.status)}
-            </Badge>
-            {channel.placeholder && <Badge variant="neutral">{translate('commerce:commerceHub.plannedChannel')}</Badge>}
+            <ResourceStateBadge badge={badge} />
           </div>
           <p className="fh-text-caption mt-1">{formatCapabilityList(channel.capabilities_summary)}</p>
         </div>
@@ -436,10 +441,16 @@ function ConfigPanel({
 }) {
   const { commerce } = useServices()
   const { success, error: notifyError } = useNotification()
-  const [selectedId, setSelectedId] = useState(initialChannelId ?? types[0]?.id ?? '')
+  const typeResources = useMemo(
+    () => prepareResourceCollection(types, commerceTypeSignals),
+    [types],
+  )
+  const [selectedId, setSelectedId] = useState(
+    () => preferredResourceId(initialChannelId, typeResources) ?? '',
+  )
   const selected = useMemo(
-    () => types.find(item => item.id === selectedId) ?? types[0],
-    [selectedId, types],
+    () => typeResources.ordered.find(item => item.id === selectedId)?.item,
+    [selectedId, typeResources],
   )
   const [displayName, setDisplayName] = useState(selected?.name ?? '')
   const [enabled, setEnabled] = useState(false)
@@ -516,6 +527,7 @@ function ConfigPanel({
   }, [commerce, initialChannelId, kind, notifyError])
 
   if (!selected) return null
+  const selectedType = selected
 
   const configuredSecret = (key: string) => secretStatus[key]?.status === 'configured'
   const hasSecret = (key: string) => Boolean(secrets[key]?.trim()) || configuredSecret(key)
@@ -531,10 +543,10 @@ function ConfigPanel({
   function configurationPayload() {
     return {
       display_name: displayName,
-      enabled: selected.placeholder ? false : enabled,
+      enabled: selectedType.placeholder ? false : enabled,
       access_mode: accessMode,
       description,
-      settings: kind === 'source' && selected.provider === 'nextcloud'
+      settings: kind === 'source' && selectedType.provider === 'nextcloud'
         ? {
             ...settings,
             source_read_policy: readPolicy,
@@ -555,8 +567,8 @@ function ConfigPanel({
     setSaving(true)
     try {
       const payload = configurationPayload()
-      if (kind === 'source') await commerce.saveSource(selected.id, payload)
-      else await commerce.saveChannel(selected.id, payload)
+      if (kind === 'source') await commerce.saveSource(selectedType.id, payload)
+      else await commerce.saveChannel(selectedType.id, payload)
       success(kind === 'source'
         ? configurationWasConfigured
           ? {
@@ -576,7 +588,7 @@ function ConfigPanel({
               title: translate('commerce:commerceHub.channelConfiguredSuccessfully'),
               description: translate('commerce:commerceHub.theChannelIsReadyToUse'),
             })
-      await onSaved({ kind, externalId: selected.id, name: displayName || selected.name })
+      await onSaved({ kind, externalId: selectedType.id, name: displayName || selectedType.name })
     } catch {
       notifyError({
         title: kind === 'source' ? translate('commerce:commerceHub.unableToSaveSourceSettings') : translate('commerce:commerceHub.unableToSaveChannelSettings'),
@@ -595,13 +607,13 @@ function ConfigPanel({
     setTesting(true)
     try {
       const result = kind === 'source'
-        ? await commerce.testSource(selected.id)
-        : await commerce.testChannel(selected.id, configurationPayload())
+        ? await commerce.testSource(selectedType.id)
+        : await commerce.testChannel(selectedType.id, configurationPayload())
       if (result.ok) {
         const discoveredVendors = result.vendors ?? []
         setVendors(discoveredVendors)
         setVendorInformation(result.vendor_information ?? null)
-        if (selected.provider === 'snappshop') {
+        if (selectedType.provider === 'snappshop') {
           const suggested = result.suggested_vendor_id
             ?? (discoveredVendors.filter(vendor => snappShopVendorActive(vendor.status)).length === 1
               ? discoveredVendors.find(vendor => snappShopVendorActive(vendor.status))?.id
@@ -613,11 +625,11 @@ function ConfigPanel({
         success(kind === 'source'
           ? {
               title: translate('commerce:commerceHub.sourceConnectedSuccessfully'),
-              description: translate('commerce:commerceHub.isReadyToUse', { value1: selected.name }),
+              description: translate('commerce:commerceHub.isReadyToUse', { value1: selectedType.name }),
             }
           : {
               title: translate('commerce:commerceHub.channelConnectedSuccessfully'),
-              description: translate('commerce:commerceHub.isReadyToUse', { value1: channelDisplayName(selected.provider, selected.name) }),
+              description: translate('commerce:commerceHub.isReadyToUse', { value1: channelDisplayName(selectedType.provider, selectedType.name) }),
             })
       }
       else notifyError({
@@ -650,7 +662,7 @@ function ConfigPanel({
     setPickerLoading(true)
     setPickerError(null)
     try {
-      const result = await commerce.browseNextcloud(selected.id, {
+      const result = await commerce.browseNextcloud(selectedType.id, {
         path,
         settings,
         secrets,
@@ -672,7 +684,7 @@ function ConfigPanel({
   function renderConnectionField(field: CommerceTypeField) {
     return (
       <label key={field.key} className="fh-field">
-        <span className="fh-help-text">{fieldLabel(kind, selected.provider, field.key, field.label)}</span>
+        <span className="fh-help-text">{fieldLabel(kind, selectedType.provider, field.key, field.label)}</span>
         {["token_refresh_enabled", "revoke_current_token"].includes(field.key) ? (
           <input
             type="checkbox"
@@ -691,7 +703,7 @@ function ConfigPanel({
               if (field.secret) setSecrets(current => ({ ...current, [field.key]: value }))
               else setSettings(current => {
                 const next = { ...current, [field.key]: value }
-                if (selected.provider === 'nextcloud' && field.key === 'url' && !next.username) {
+                if (selectedType.provider === 'nextcloud' && field.key === 'url' && !next.username) {
                   const usernameFromUrl = webdavUsernameFromUrl(value)
                   if (usernameFromUrl) next.username = usernameFromUrl
                 }
@@ -703,7 +715,7 @@ function ConfigPanel({
           />
         )}
         {field.secret && configuredSecret(field.key) && <span className="fh-help-text">{translate('commerce:commerceHub.configuredLeaveBlankToKeepUnchanged')}</span>}
-        {selected.provider === "nextcloud" && field.key === "url" && nextcloudUrlError && (
+        {selectedType.provider === "nextcloud" && field.key === "url" && nextcloudUrlError && (
           <span className="fh-field-error">{nextcloudUrlError}</span>
         )}
       </label>
@@ -746,7 +758,10 @@ function ConfigPanel({
             disabled={Boolean(initialChannelId)}
             className="fh-select"
           >
-            {types.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+            <ResourceOptionGroups
+              resources={typeResources}
+              isOptionDisabled={item => item.section === 'comingSoon'}
+            />
           </select>
         </label>
         <label className="fh-field">
@@ -1022,6 +1037,14 @@ export default function CommerceHub() {
   const [formKind, setFormKind] = useState<FormKind | null>(null)
   const [editingChannelId, setEditingChannelId] = useState<string | null>(null)
   const canManageCommerce = user?.is_admin === true
+  const sourceResources = useMemo(
+    () => prepareResourceCollection(sources, commerceSourceSignals),
+    [sources],
+  )
+  const channelResources = useMemo(
+    () => prepareResourceCollection(channels, commerceChannelSignals),
+    [channels],
+  )
 
   useEffect(() => {
     const queryTab = searchParams.get('tab')
@@ -1284,19 +1307,23 @@ export default function CommerceHub() {
               <ConfigPanel kind="source" types={sourceTypes} onCancel={() => setFormKind(null)} onSaved={reloadAfterSave} />
             </div>
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {sources.map(source => (
+          <div className="grid gap-5">
+            <ResourceSectionList
+              resources={sourceResources}
+              className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+              renderItem={resource => (
               <SourceCard
-                key={source.id}
-                source={source}
+                source={resource.item}
+                badge={resource.badge}
                 onTest={(id) => void handleSourceTest(id)}
                 onRead={(id) => void handleSourceRead(id)}
                 onConfigure={handleSourceConfigure}
-                testing={testingId === source.id}
-                reading={readingId === source.id}
+                testing={testingId === resource.id}
+                reading={readingId === resource.id}
                 canManage={canManageCommerce}
               />
-            ))}
+              )}
+            />
           </div>
         </section>
       ) : (
@@ -1319,27 +1346,31 @@ export default function CommerceHub() {
             <div className="mb-4">
               <ConfigPanel
                 kind="channel"
-                types={channelTypes.filter(item => item.implemented)}
+                types={channelTypes}
                 initialChannelId={editingChannelId}
                 onCancel={() => { setFormKind(null); setEditingChannelId(null) }}
                 onSaved={reloadAfterSave}
               />
             </div>
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {channels.map(channel => (
+          <div className="grid gap-5">
+            <ResourceSectionList
+              resources={channelResources}
+              className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+              renderItem={resource => (
               <ChannelCard
-                key={channel.id}
-                channel={channel}
+                channel={resource.item}
+                badge={resource.badge}
                 onTest={(id) => void handleChannelTest(id)}
                 onRefresh={(id) => void handleChannelCacheRefresh(id)}
                 onConfigure={handleChannelConfigure}
-                testing={testingId === channel.id}
-                refreshing={refreshingId === channel.id}
-                refreshResult={refreshResults[channel.id]}
+                testing={testingId === resource.id}
+                refreshing={refreshingId === resource.id}
+                refreshResult={refreshResults[resource.id]}
                 canManage={canManageCommerce}
               />
-            ))}
+              )}
+            />
           </div>
         </section>
       )}

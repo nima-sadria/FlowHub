@@ -8,6 +8,8 @@ import type { DataQualityScanState, DataQualitySummary, SourceChannel, SourcePro
 import { translate } from '../i18n'
 import { formatDataQualityCategory, formatDataQualityIssue, formatStatus } from '../i18n/display'
 import { formatDateTime, formatNumber } from '../i18n/format'
+import { ResourceOptionGroups } from '../components/ResourceOrdering'
+import { prepareResourceCollection, sourceChannelSignals, sourceProfileSignals } from '../features/resourceOrdering/resourceOrdering'
 
 type Issue = {
   id: string
@@ -137,6 +139,14 @@ export default function DataQuality() {
     ;(result[key] ??= []).push(issue)
     return result
   }, {})), [issues])
+  const sourceResources = useMemo(
+    () => prepareResourceCollection(sources, sourceProfileSignals),
+    [sources],
+  )
+  const channelResources = useMemo(
+    () => prepareResourceCollection(channels, sourceChannelSignals),
+    [channels],
+  )
 
   function showFilter(control: { current: HTMLElement | null }) {
     if (filtersRef.current) filtersRef.current.open = true
@@ -182,9 +192,9 @@ export default function DataQuality() {
       <details className="fh-card fh-card-pad mt-5" ref={filtersRef}>
         <summary className="flex cursor-pointer items-center gap-2 font-medium text-text-base"><Icon name="filter" /> {translate('dataQuality:dataQuality.filters')}</summary>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="fh-field-label">{translate('dataQuality:dataQuality.source')}<select className="fh-input mt-1" ref={sourceFilterRef} value={sourceId} onChange={event => setSourceId(event.target.value)}><option value="">{translate('dataQuality:dataQuality.allSources')}</option>{sources.map(source => <option value={source.id} key={source.id}>{source.name}</option>)}</select></label>
+          <label className="fh-field-label">{translate('dataQuality:dataQuality.source')}<select className="fh-input mt-1" ref={sourceFilterRef} value={sourceId} onChange={event => setSourceId(event.target.value)}><option value="">{translate('dataQuality:dataQuality.allSources')}</option><ResourceOptionGroups resources={sourceResources} /></select></label>
           <label className="fh-field-label">{translate('dataQuality:dataQuality.worksheet')}<input className="fh-input mt-1" value={worksheet} onChange={event => setWorksheet(event.target.value)} placeholder={translate('dataQuality:dataQuality.allWorksheets')} /></label>
-          <label className="fh-field-label">{translate('dataQuality:dataQuality.channel')}<select className="fh-input mt-1" ref={channelFilterRef} value={channelId} onChange={event => setChannelId(event.target.value)}><option value="">{translate('dataQuality:dataQuality.allChannels')}</option>{channels.map(channel => <option value={channel.channelId} key={channel.channelId}>{formatChannelDisplayName(channel.channelId, { displayName: channel.name })}</option>)}</select></label>
+          <label className="fh-field-label">{translate('dataQuality:dataQuality.channel')}<select className="fh-input mt-1" ref={channelFilterRef} value={channelId} onChange={event => setChannelId(event.target.value)}><option value="">{translate('dataQuality:dataQuality.allChannels')}</option><ResourceOptionGroups resources={channelResources} renderLabel={resource => formatChannelDisplayName(resource.id, { displayName: resource.displayName })} /></select></label>
           <label className="fh-field-label">{translate('dataQuality:dataQuality.product')}<input className="fh-input mt-1" ref={productFilterRef} value={product} onChange={event => setProduct(event.target.value)} placeholder={translate('dataQuality:dataQuality.sourceProductName')} /></label>
           <label className="fh-field-label">{translate('dataQuality:dataQuality.severity')}<select className="fh-input mt-1" value={severity} onChange={event => setSeverity(event.target.value)}><option value="">{translate('dataQuality:dataQuality.allSeverities')}</option><option value="blocked">{translate('dataQuality:dataQuality.blocked')}</option><option value="error">{translate('dataQuality:dataQuality.error')}</option><option value="warning">{translate('dataQuality:dataQuality.warning')}</option></select></label>
           <label className="fh-field-label">{translate('dataQuality:dataQuality.category')}<input className="fh-input mt-1" value={category} onChange={event => setCategory(event.target.value)} placeholder={translate('dataQuality:dataQuality.issueCategory')} /></label>

@@ -1,7 +1,8 @@
-import { useId, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import Icon from '../../components/Icon'
+import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../../components/ResourceOrdering'
+import { prepareResourceCollection, sourceChannelSignals } from '../../features/resourceOrdering/resourceOrdering'
 import type { FieldMapping, ReferenceType, SourceChannel, SourceWorksheetRule } from '../../features/sourceWorkspace/types'
-import { formatChannelDisplayName } from '../../features/unifiedWorkspace/channelDisplayName'
 import { translate } from '../../i18n'
 
 export const SOURCE_FIELD_DEFINITIONS = [
@@ -79,6 +80,10 @@ export default function WorksheetRuleEditor({ rule, channels, sourceKind, onChan
   const [copyFrom, setCopyFrom] = useState<Record<string, string>>({})
   const editorId = useId().replace(/:/g, '')
   const sourceErrorId = `${editorId}-required-product-column`
+  const channelResources = useMemo(
+    () => prepareResourceCollection(channels, sourceChannelSignals),
+    [channels],
+  )
   const missingSourceFields = rule.enabled ? rule.sourceFields.filter(sourceFieldMissing) : []
   const updateSource = (field: string, mapping: FieldMapping) => onChange({ ...rule, sourceFields: rule.sourceFields.map(item => item.field === field ? mapping : item) })
   const configured = (channelId: string) => rule.channels.find(item => item.channelId === channelId) ?? { channelId, worksheetName: rule.worksheetName, enabled: false, fields: emptyChannelFields() }
@@ -112,12 +117,45 @@ export default function WorksheetRuleEditor({ rule, channels, sourceKind, onChan
         </div>
         {missingSourceFields.length > 0 && <p className="fh-alert-warning mt-3" id={sourceErrorId} role="alert">{translate('sources:sourceConfiguration.sourceProductNameRequired')}</p>}
       </section>
-      <section><h3 className="fh-form-section-title">{translate('sources:sourceConfiguration.channelMappings')}</h3><div className="mt-3 grid gap-3">{channels.map(channelInfo => {
-        const channel = configured(channelInfo.channelId)
-        const disabled = !rule.enabled || !channelInfo.available || !channel.enabled
-        const issues = validationIssues(channel.fields, channel.enabled)
-        return <details className="rounded-lg border border-border bg-bg-subtle" key={channelInfo.channelId} open={channel.enabled}><summary className="flex cursor-pointer list-none items-center gap-3 p-3"><strong className="text-text-base">{formatChannelDisplayName(channelInfo.channelId, { showInstance: true })}</strong>{!channelInfo.available && <span className="fh-badge fh-badge-neutral">{translate('common:status.unavailable')}</span>}<label className="fh-inline-check ms-auto" onClick={event => event.stopPropagation()}><input type="checkbox" checked={channel.enabled} disabled={!rule.enabled || !channelInfo.available} onChange={event => updateChannel(channelInfo.channelId, { ...channel, enabled: event.target.checked })} />{channel.enabled ? translate('sources:sourceConfiguration.enabled') : translate('sources:sourceConfiguration.disabled')}</label></summary><div className="border-t border-border p-3"><div className="mb-3 flex flex-wrap items-end gap-2"><label className="fh-field-label min-w-[220px]">{translate('sources:sourceConfiguration.copyMappingFrom')}<select className="fh-input mt-1" disabled={disabled} value={copyFrom[channelInfo.channelId] ?? ''} onChange={event => setCopyFrom(current => ({ ...current, [channelInfo.channelId]: event.target.value }))}><option value="">{translate('sources:sourceConfiguration.selectChannel')}</option>{rule.channels.filter(item => item.channelId !== channelInfo.channelId).map(item => <option key={item.channelId} value={item.channelId}>{formatChannelDisplayName(item.channelId, { showInstance: true })}</option>)}</select></label><button className="fh-button-secondary fh-button-sm" type="button" disabled={disabled || !copyFrom[channelInfo.channelId]} onClick={() => copyColumns(channelInfo.channelId)}>{translate('sources:sourceConfiguration.copyMapping')}</button><button className="fh-button-secondary fh-button-sm" type="button" disabled={disabled} onClick={() => updateChannel(channelInfo.channelId, { ...channel, fields: emptyChannelFields() })}>{translate('sources:sourceConfiguration.clearMapping')}</button></div><div className="grid gap-3">{CHANNEL_FIELD_DEFINITIONS.map(([field, key]) => <label className="grid gap-1" key={field}><span className="fh-field-label">{translate(key)}</span><ColumnSelector mapping={channel.fields.find(item => item.field === field) ?? emptyFieldMapping(field)} disabled={disabled} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channelInfo.channelId, field, value)} /></label>)}</div>{issues.length > 0 && <ul className="fh-alert-warning mt-3 list-disc ps-5">{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}</div></details>
-      })}</div></section>
+      <section>
+        <h3 className="fh-form-section-title">{translate('sources:sourceConfiguration.channelMappings')}</h3>
+        <div className="mt-3 space-y-4">
+          <ResourceSectionList resources={channelResources} renderItem={orderedChannel => {
+            const channelInfo = orderedChannel.item
+            const channel = configured(channelInfo.channelId)
+            const disabled = !rule.enabled || !channelInfo.available || !channel.enabled
+            const issues = validationIssues(channel.fields, channel.enabled)
+            const copyResources = prepareResourceCollection(
+              channels.filter(candidate => candidate.channelId !== channelInfo.channelId && rule.channels.some(item => item.channelId === candidate.channelId)),
+              sourceChannelSignals,
+            )
+            return <details className="rounded-lg border border-border bg-bg-subtle" open={channel.enabled}>
+              <summary className="flex cursor-pointer list-none items-center gap-3 p-3">
+                <strong className="text-text-base">{orderedChannel.displayName}</strong>
+                <ResourceStateBadge badge={orderedChannel.badge} />
+                <label className="fh-inline-check ms-auto" onClick={event => event.stopPropagation()}>
+                  <input type="checkbox" checked={channel.enabled} disabled={!rule.enabled || !channelInfo.available} onChange={event => updateChannel(channelInfo.channelId, { ...channel, enabled: event.target.checked })} />
+                  {channel.enabled ? translate('sources:sourceConfiguration.enabled') : translate('sources:sourceConfiguration.disabled')}
+                </label>
+              </summary>
+              <div className="border-t border-border p-3">
+                <div className="mb-3 flex flex-wrap items-end gap-2">
+                  <label className="fh-field-label min-w-[220px]">{translate('sources:sourceConfiguration.copyMappingFrom')}
+                    <select className="fh-input mt-1" disabled={disabled} value={copyFrom[channelInfo.channelId] ?? ''} onChange={event => setCopyFrom(current => ({ ...current, [channelInfo.channelId]: event.target.value }))}>
+                      <option value="">{translate('sources:sourceConfiguration.selectChannel')}</option>
+                      <ResourceOptionGroups resources={copyResources} renderLabel={item => item.displayName} />
+                    </select>
+                  </label>
+                  <button className="fh-button-secondary fh-button-sm" type="button" disabled={disabled || !copyFrom[channelInfo.channelId]} onClick={() => copyColumns(channelInfo.channelId)}>{translate('sources:sourceConfiguration.copyMapping')}</button>
+                  <button className="fh-button-secondary fh-button-sm" type="button" disabled={disabled} onClick={() => updateChannel(channelInfo.channelId, { ...channel, fields: emptyChannelFields() })}>{translate('sources:sourceConfiguration.clearMapping')}</button>
+                </div>
+                <div className="grid gap-3">{CHANNEL_FIELD_DEFINITIONS.map(([field, key]) => <label className="grid gap-1" key={field}><span className="fh-field-label">{translate(key)}</span><ColumnSelector mapping={channel.fields.find(item => item.field === field) ?? emptyFieldMapping(field)} disabled={disabled} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channelInfo.channelId, field, value)} /></label>)}</div>
+                {issues.length > 0 && <ul className="fh-alert-warning mt-3 list-disc ps-5">{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
+              </div>
+            </details>
+          }} />
+        </div>
+      </section>
       <section><h3 className="fh-form-section-title">{translate('sources:sourceConfiguration.valueHandling')}</h3><p className="fh-form-section-description">{translate('sources:sourceConfiguration.eachSpecialValueIsInterpretedExplicitlyCurrency')}</p><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(POLICY_OPTIONS).map(([key, options]) => <label className="fh-field-label" key={key}>{translate(`sources:sourceConfiguration.valueType.${key}`)}<select className="fh-input mt-1" disabled={!rule.enabled} value={rule.valuePolicy[key] ?? DEFAULT_SOURCE_VALUE_POLICY[key]} onChange={event => onChange({ ...rule, valuePolicy: { ...rule.valuePolicy, [key]: event.target.value } })}>{options.map(([value, label]) => <option value={value} key={value}>{translate(label)}</option>)}</select></label>)}</div></section>
     </div>
   </details>

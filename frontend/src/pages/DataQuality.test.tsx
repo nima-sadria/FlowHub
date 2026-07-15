@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
-import type { DataQualitySummary } from '../features/sourceWorkspace/types'
+import type { DataQualitySummary, SourceChannel, SourceProfile } from '../features/sourceWorkspace/types'
 import DataQuality from './DataQuality'
 
 const base: DataQualitySummary = { state: 'never_checked', totalIssues: 0, blockingIssues: 0, warnings: 0, affectedProducts: 0, affectedChannels: 0, affectedSources: 0, resolvedSinceLastRead: 0, trendSinceLastRead: null, productsChecked: 0, sourcesChecked: 0, checkedAt: null, scanId: null, errorCode: null, categories: [] }
@@ -62,5 +62,49 @@ describe('DataQuality summary states', () => {
     await render()
     expect(container.textContent).toContain('You cannot view this data check')
     expect(container.textContent).not.toContain('No data problems found')
+  })
+
+  it('keeps All filters explicit while grouping and ordering Source and Channel options', async () => {
+    const source = (id: string, name: string, status = 'active'): SourceProfile => ({
+      id, name, status, sourceKind: 'flowhub_sheet', externalSourceId: null,
+      worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2,
+      version: 1, mappingVersion: 1, sheetId: null,
+    })
+    const channel = (
+      channelId: string,
+      name: string,
+      enabled: boolean,
+      implementationState: string = 'implemented',
+    ): SourceChannel => ({
+      channelId, name, enabled, implementationState, available: enabled,
+      connectorType: channelId.split(':')[0], capabilityVersion: '1', capabilities: {},
+    })
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [
+      source('disabled-source', 'Beta archive', 'disabled'),
+      source('z-source', 'Zebra prices'),
+      source('a-source', 'Alpha prices'),
+    ] })
+    vi.mocked(sourceWorkspaceApi.channels).mockResolvedValueOnce({ items: [
+      channel('future:main', 'Future Market', false, 'coming_soon'),
+      channel('woo:main', 'WooCommerce', true),
+      channel('snap:main', 'SnappShop', true),
+      channel('disabled:main', 'Disabled Market', false),
+    ] })
+    vi.spyOn(sourceWorkspaceApi, 'dataQuality').mockResolvedValue({
+      items: [{ id: 'i-1', category: 'invalid_value', severity: 'blocked', code: 'INVALID_NUMERIC_VALUE', summary: 'Invalid', recommendedAction: 'Correct', technicalDetails: {} }],
+      counts: { blocked: 1 }, total: 1,
+      summary: { ...base, state: 'issues_found', totalIssues: 1 },
+    })
+
+    await render()
+
+    const selects = Array.from(container.querySelectorAll('select'))
+    const sourceSelect = selects.find(select => select.querySelector('option[value="a-source"]')) as HTMLSelectElement
+    const channelSelect = selects.find(select => select.querySelector('option[value="woo:main"]')) as HTMLSelectElement
+    expect(sourceSelect.value).toBe('')
+    expect(channelSelect.value).toBe('')
+    expect(Array.from(sourceSelect.options).map(option => option.value)).toEqual(['', 'a-source', 'z-source', 'disabled-source'])
+    expect(Array.from(channelSelect.options).map(option => option.value)).toEqual(['', 'snap:main', 'woo:main', 'disabled:main', 'future:main'])
+    expect(Array.from(channelSelect.querySelectorAll('optgroup')).map(group => group.label)).toEqual(['Active', 'Disabled', 'Coming Soon'])
   })
 })

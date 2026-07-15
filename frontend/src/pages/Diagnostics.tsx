@@ -11,6 +11,12 @@ import type { ChannelHealthItem, ChannelHealthResponse } from '../services/types
 import { formatDateTime, formatNumber, formatRelativeTime } from '../i18n/format'
 import { formatDiagnosticDimension, formatDiagnosticMessage, formatStatus } from '../i18n/display'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
+import { ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
+import {
+  diagnosticChannelSignals,
+  diagnosticSourceSignals,
+  prepareResourceCollection,
+} from '../features/resourceOrdering/resourceOrdering'
 
 const REQUEST_TIMEOUT_MS = 10_000
 const SOURCE_CONNECTOR_TYPES = new Set(['nextcloud', 'csv', 'gsheets', 'erp'])
@@ -403,6 +409,20 @@ export default function Diagnostics() {
   )
   const channelHealth = diag?.channelHealth
   const channels = channelHealth?.items ?? []
+  const orderedSources = useMemo(
+    () => prepareResourceCollection(sourceConnectors, connector => diagnosticSourceSignals({
+      ...connector,
+      health: connectorHealth(connector),
+    })),
+    [sourceConnectors],
+  )
+  const orderedChannels = useMemo(
+    () => prepareResourceCollection(channels, channel => ({
+      ...diagnosticChannelSignals(channel),
+      displayName: channelLabel(channel),
+    })),
+    [channels],
+  )
   const limiter = diag?.rateLimiter
   const queueLength = limiter?.queue_length ?? null
   const failedChecks = (diag?.checks ?? []).filter(check => check.status === 'fail').length
@@ -526,16 +546,18 @@ export default function Diagnostics() {
         ) : channels.length === 0 ? (
           <Empty title={translate('diagnostics:diagnostics.noChannelHealthData')} />
         ) : (
-          <div className="space-y-3">
-            {channels.map(channel => {
-              const visualStatus = normalizeStatus(channel.status)
+          <ResourceSectionList
+            resources={orderedChannels}
+            className="space-y-3"
+            renderItem={resource => {
+              const channel = resource.item
               return (
-                <article key={channel.channelId} className="rounded-lg border border-border p-4">
+                <article className="rounded-lg border border-border p-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="fh-text-body font-semibold text-text-base">{channelLabel(channel)}</h3>
-                        <StatusBadge status={visualStatus} label={formatStatus(channel.status)} />
+                        <h3 className="fh-text-body font-semibold text-text-base">{resource.displayName}</h3>
+                        <ResourceStateBadge badge={resource.badge} />
                       </div>
                       <p className="mt-2 fh-text-body-sm">{formatDiagnosticMessage(channel.summary)}</p>
                       <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -564,8 +586,8 @@ export default function Diagnostics() {
                   <IntegrationDetails channel={channel} />
                 </article>
               )
-            })}
-          </div>
+            }}
+          />
         )}
       </section>
 
@@ -583,20 +605,20 @@ export default function Diagnostics() {
         ) : sourceConnectors.length === 0 ? (
           <Empty title={translate('diagnostics:diagnostics.noSourcesConfigured', { defaultValue: 'No sources configured' })} />
         ) : (
-          <div className="space-y-3">
-            {sourceConnectors.map(connector => {
+          <ResourceSectionList
+            resources={orderedSources}
+            className="space-y-3"
+            renderItem={resource => {
+              const connector = resource.item
               const presentation = sourcePresentation(connector)
               const lastChecked = connectorLastChecked(connector)
               return (
-                <article key={connector.id ?? connector.name ?? connector.connector_type} className="rounded-lg border border-border p-4">
+                <article className="rounded-lg border border-border p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="fh-text-body font-semibold text-text-base">{connector.name ?? connector.connector_type ?? translate('diagnostics:diagnostics.connector')}</h3>
-                        <StatusBadge
-                          status={presentation.status}
-                          label={presentation.label}
-                        />
+                        <h3 className="fh-text-body font-semibold text-text-base">{resource.displayName}</h3>
+                        <ResourceStateBadge badge={resource.badge} />
                       </div>
                       <p className="mt-2 fh-text-caption">
                         {presentation.description}
@@ -627,8 +649,8 @@ export default function Diagnostics() {
                   </details>
                 </article>
               )
-            })}
-          </div>
+            }}
+          />
         )}
       </section>
 

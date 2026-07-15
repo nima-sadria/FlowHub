@@ -1,5 +1,5 @@
 import { translate } from '../i18n'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageShell from '../components/PageShell'
 import Icon from '../components/Icon'
@@ -9,6 +9,8 @@ import { useAuth } from '../auth'
 import { effectiveHasPerm } from '../utils/permissions'
 import { useNotification } from '../notifications/NotificationProvider'
 import { localizedApiError } from '../i18n/errors'
+import { ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
+import { prepareResourceCollection, sourceProfileSignals } from '../features/resourceOrdering/resourceOrdering'
 
 const KIND_LABELS: Record<SourceProfile['sourceKind'], string> = {
   flowhub_sheet: 'sources:sourceCenter.flowhubSheet',
@@ -33,6 +35,10 @@ export default function SourceCenter() {
   const removalBusyRef = useRef(false)
   const impactRequestRef = useRef(0)
   const canManageSources = effectiveHasPerm(user, 'workspace.admin')
+  const sourceResources = useMemo(
+    () => prepareResourceCollection(sources, sourceProfileSignals),
+    [sources],
+  )
 
   removalBusyRef.current = deleting
 
@@ -204,19 +210,28 @@ export default function SourceCenter() {
         {loading ? <p className="fh-card-pad fh-text-caption">{translate('sources:sourceCenter.loadingSources')}</p> : sources.length === 0 ? (
           <p className="fh-card-pad fh-text-caption">{translate('sources:sourceCenter.noManagedSourceYetCreateAFlowhub')}</p>
         ) : (
-          <div className="divide-y divide-border">
-            {sources.map(source => (
-              <div className="flex flex-wrap items-center gap-3 p-4" key={source.id}>
+          <div className="fh-card-pad grid gap-5">
+            <ResourceSectionList
+              resources={sourceResources}
+              className="divide-y divide-border rounded-lg border border-border"
+              renderItem={resource => {
+                const source = resource.item
+                return (
+              <div className="flex flex-wrap items-center gap-3 p-4">
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-text-base">{source.name}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium text-text-base">{source.name}</p>
+                    <ResourceStateBadge badge={resource.badge} />
+                  </div>
                   <p className="fh-text-caption">{translate(KIND_LABELS[source.sourceKind])} {translate('sources:sourceCenter.columnSetupVersion')}{source.mappingVersion || translate('sources:sourceConfiguration.notConfigured')}</p>
-                  {source.status === 'disabled' && <span className="fh-badge fh-badge-neutral mt-2">{translate('sources:sourceCenter.archived')}</span>}
                 </div>
                 {source.status === 'active' && source.sheetId && <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => navigate(`/sheets/${source.sheetId}`)}>{translate('sources:sourceCenter.openSheet')}</button>}
                 {source.status === 'active' && <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => navigate(`/sources/${source.id}`)}>{translate('sources:sourceCenter.configureColumns')}</button>}
                 {canManageSources && source.status === 'active' && <button className="fh-button-danger fh-button-sm" type="button" onClick={event => { removalTriggerRef.current = event.currentTarget; void openRemoval(source) }}><Icon name="delete" /> {translate('sources:sourceCenter.deleteSource')}</button>}
               </div>
-            ))}
+                )
+              }}
+            />
           </div>
         )}
       </section>

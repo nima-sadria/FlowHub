@@ -17,6 +17,12 @@ import { resolveHandsontableLicense } from '../features/unifiedWorkspace/handson
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { describeWorkspaceStatus } from '../features/unifiedWorkspace/statusDisplay'
 import SourceCentricWorkspace from '../features/sourceWorkspace/SourceCentricWorkspace'
+import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
+import {
+  channelIdentitySignals,
+  prepareResourceCollection,
+  workspaceChannelSignals,
+} from '../features/resourceOrdering/resourceOrdering'
 
 registerAllModules()
 
@@ -32,6 +38,18 @@ export default function UnifiedWorkspace() {
 function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
   const { unifiedWorkspace } = useServices()
   const controller = useUnifiedWorkspaceController(workspaceId, unifiedWorkspace!)
+  const channelResources = useMemo(
+    () => prepareResourceCollection(controller.grid?.channels ?? [], workspaceChannelSignals),
+    [controller.grid?.channels],
+  )
+  const applyChannelResources = useMemo(() => {
+    const definitions = new Map((controller.grid?.channels ?? []).map(channel => [channel.channelId, channel]))
+    const resultChannels = [...new Set(controller.applyResult?.items.map(item => item.channelId) ?? [])]
+      .map(channelId => ({ channelId, definition: definitions.get(channelId) }))
+    return prepareResourceCollection(resultChannels, item => item.definition
+      ? workspaceChannelSignals(item.definition)
+      : channelIdentitySignals(item))
+  }, [controller.applyResult?.items, controller.grid?.channels])
   const tableHeight = useMemo(() => Math.min(760, Math.max(420, (controller.definition.records.length + 3) * 30)), [controller.definition.records.length])
   const gridMinWidth = useMemo(() => Math.max(1100, controller.definition.columns.length * 110 + 560), [controller.definition.columns.length])
   const hotRef = useRef<HotTableRef>(null)
@@ -75,17 +93,20 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
             <p className="fh-section-title">{translate('workspace:unifiedWorkspace.visibleChannels')}</p>
             <p className="fh-text-caption">{translate('workspace:unifiedWorkspace.visibilityChangesPresentationOnlyAndNeverSelects')}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {controller.grid.channels.map(channel => (
-              <label key={channel.channelId} className="fh-channel-toggle">
+          <div className="grid gap-3">
+            <ResourceSectionList resources={channelResources} className="flex flex-wrap gap-2" renderItem={orderedChannel => {
+              const channel = orderedChannel.item
+              return <label className="fh-channel-toggle">
                 <input
                   type="checkbox"
+                  disabled={orderedChannel.section !== 'active'}
                   checked={controller.preferences?.visibleChannelIds.includes(channel.channelId) ?? false}
                   onChange={() => void controller.toggleChannel(channel.channelId)}
                 />
                 <span>{formatChannelDisplayName(channel.channelId, channel)}</span>
+                <ResourceStateBadge badge={orderedChannel.badge} />
               </label>
-            ))}
+            }} />
             <label className="fh-channel-toggle">
               <span>{translate('workspace:unifiedWorkspace.nameSource')}</span>
               <select
@@ -95,7 +116,11 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
                 className="bg-transparent"
               >
                 <option value="canonical">{translate('workspace:unifiedWorkspace.canonicalProduct')}</option>
-                {controller.grid.channels.map(channel => <option key={channel.channelId} value={channel.channelId}>{formatChannelDisplayName(channel.channelId, channel)}</option>)}
+                <ResourceOptionGroups
+                  resources={channelResources}
+                  isOptionDisabled={item => item.section !== 'active'}
+                  renderLabel={item => formatChannelDisplayName(item.id, item.item)}
+                />
               </select>
             </label>
           </div>
@@ -144,13 +169,15 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
               {translate('workspace:unifiedWorkspace.verifyUncertainListings')}
             </button>
           )}
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {controller.applyResult.items.map(item => (
-              <div key={item.id} className="rounded border border-border p-3 fh-text-caption">
-                <span className="font-medium">{formatChannelDisplayName(item.channelId)} · {item.field}</span>
-                <span className="block">{item.status}{item.errorMessage ? translate('workspace:unifiedWorkspace.errorDetail', { message: item.errorMessage }) : ''}</span>
-              </div>
-            ))}
+          <div className="mt-3 grid gap-3">
+            <ResourceSectionList resources={applyChannelResources} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3" renderItem={orderedChannel => <>
+              {controller.applyResult!.items.filter(item => item.channelId === orderedChannel.id).map(item => (
+                <div key={item.id} className="rounded border border-border p-3 fh-text-caption">
+                  <span className="flex items-center gap-2 font-medium">{orderedChannel.displayName} · {item.field}<ResourceStateBadge badge={orderedChannel.badge} /></span>
+                  <span className="block">{item.status}{item.errorMessage ? translate('workspace:unifiedWorkspace.errorDetail', { message: item.errorMessage }) : ''}</span>
+                </div>
+              ))}
+            </>} />
           </div>
         </section>
       )}
@@ -177,7 +204,7 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
           }}
         >
           <label className="fh-field-label min-w-0">{translate('workspace:unifiedWorkspace.search')}<input className="fh-input mt-1" name="search" type="search" /></label>
-          <label className="fh-field-label min-w-0">{translate('workspace:unifiedWorkspace.channel')}<input className="fh-input mt-1" name="channelId" /></label>
+          <label className="fh-field-label min-w-0">{translate('workspace:unifiedWorkspace.channel')}<select className="fh-input mt-1" name="channelId" defaultValue=""><option value="">{translate('common:selector.allChannels')}</option><ResourceOptionGroups resources={channelResources} renderLabel={item => formatChannelDisplayName(item.id, item.item)} /></select></label>
           <label className="fh-field-label min-w-0">{translate('workspace:unifiedWorkspace.status')}<input className="fh-input mt-1" name="channelStatus" /></label>
           <label className="fh-field-label min-w-0">{translate('workspace:unifiedWorkspace.priceRange')}<span className="mt-1 flex min-w-0 gap-2"><input aria-label={translate('workspace:unifiedWorkspace.minimumPrice')} className="fh-input min-w-0" name="minPrice" type="number" min="0" /><input aria-label={translate('workspace:unifiedWorkspace.maximumPrice')} className="fh-input min-w-0" name="maxPrice" type="number" min="0" /></span></label>
           <span className="flex min-w-0 flex-wrap items-end gap-2"><button className="fh-button-secondary fh-button-sm" type="submit">{translate('workspace:unifiedWorkspace.filterServerData')}</button><button className="fh-button-secondary fh-button-sm" type="reset" onClick={() => controller.updateGridQuery({ search: undefined, channelId: undefined, channelStatus: undefined, minPrice: undefined, maxPrice: undefined })}>{translate('workspace:unifiedWorkspace.clear')}</button></span>

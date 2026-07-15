@@ -3,8 +3,9 @@ import { act, forwardRef, useImperativeHandle } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { changeLocale } from '../i18n'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
-import type { WorkspaceGridPage, WorkspacePreferences } from '../services/unifiedWorkspace/types'
+import type { WorkspaceChannelDefinition, WorkspaceGridPage, WorkspacePreferences } from '../services/unifiedWorkspace/types'
 import UnifiedWorkspace from './UnifiedWorkspace'
 
 vi.mock('@handsontable/react-wrapper', () => ({
@@ -37,10 +38,11 @@ beforeEach(() => {
   root = createRoot(container)
 })
 
-afterEach(() => {
+afterEach(async () => {
   act(() => root.unmount())
   container.remove()
   vi.restoreAllMocks()
+  await changeLocale('en')
 })
 
 describe('UnifiedWorkspace page', () => {
@@ -69,10 +71,60 @@ describe('UnifiedWorkspace page', () => {
     expect(button('Review Changes')?.disabled).toBe(true)
     expect(button('Apply Selected Only')?.disabled).toBe(true)
   })
+
+  it.each([
+    ['en', 'ltr'],
+    ['fa', 'rtl'],
+  ] as const)('renders the same grouped Channel order and safe options in %s (%s)', async (locale, direction) => {
+    await changeLocale(locale)
+    const grid = gridPage()
+    grid.channels = [
+      workspaceChannel('digikala:main', 'Digikala', 'coming_soon'),
+      workspaceChannel('woocommerce:primary', 'WooCommerce', 'healthy'),
+      workspaceChannel('shopify:secondary', 'Shopify Secondary', 'disabled'),
+      workspaceChannel('snappshop:main', 'SnappShop', 'warning'),
+      workspaceChannel('tapsishop:main', 'TapsiShop', 'healthy'),
+    ]
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={['/workspace/workspace-1']}>
+          <ServiceProvider services={services(grid)}>
+            <Routes><Route path="/workspace/:workspaceId" element={<UnifiedWorkspace />} /></Routes>
+          </ServiceProvider>
+        </MemoryRouter>,
+      )
+    })
+    await flush()
+
+    expect(document.documentElement.dir).toBe(direction)
+    const sections = Array.from(container.querySelectorAll<HTMLElement>('section[data-resource-section]'))
+    expect(sections.map(section => section.dataset.resourceSection)).toEqual(['active', 'disabled', 'comingSoon'])
+    const resourceIds = (section: HTMLElement) => Array.from(
+      section.querySelectorAll<HTMLElement>(':scope > div > [data-resource-id]'),
+      item => item.dataset.resourceId,
+    )
+    expect(resourceIds(sections[0])).toEqual(['tapsishop:main', 'woocommerce:primary', 'snappshop:main'])
+    expect(resourceIds(sections[1])).toEqual(['shopify:secondary'])
+    expect(resourceIds(sections[2])).toEqual(['digikala:main'])
+    expect(container.textContent).toContain('WooCommerce')
+    expect(container.textContent).not.toContain('woocommerce:primary')
+
+    const displayNameSource = container.querySelector('label.fh-channel-toggle select') as HTMLSelectElement
+    expect(Array.from(displayNameSource.options).map(option => option.value)).toEqual([
+      'canonical',
+      'tapsishop:main',
+      'woocommerce:primary',
+      'snappshop:main',
+      'shopify:secondary',
+      'digikala:main',
+    ])
+    expect((displayNameSource.querySelector('option[value="shopify:secondary"]') as HTMLOptionElement).disabled).toBe(true)
+    expect((displayNameSource.querySelector('option[value="digikala:main"]') as HTMLOptionElement).disabled).toBe(true)
+  })
 })
 
-function services(): Services {
-  const grid = gridPage()
+function services(grid = gridPage()): Services {
   const preferences: WorkspacePreferences = {
     visibleChannelIds: ['woocommerce:primary', 'snappshop:main'],
     channelOrder: ['woocommerce:primary', 'snappshop:main'],
@@ -106,6 +158,29 @@ function services(): Services {
     products: {} as Services['products'], health: {} as Services['health'], sources: {} as Services['sources'],
     workspace: {} as Services['workspace'], settings: {} as Services['settings'], activity: {} as Services['activity'],
     commerce: {} as Services['commerce'], writePipeline: {} as Services['writePipeline'],
+  }
+}
+
+function workspaceChannel(channelId: string, displayName: string, healthState: string): WorkspaceChannelDefinition {
+  return {
+    channelId,
+    displayName,
+    readPrice: true,
+    writePrice: true,
+    readStock: true,
+    writeStock: true,
+    readStatus: true,
+    writeStatus: true,
+    supportsMultipleListings: true,
+    maximumBatchSize: 50,
+    rateLimitPerMinute: null,
+    healthState,
+    primaryIdentifierType: 'external_id',
+    supportedStatuses: [],
+    currency: 'IRR',
+    unit: 'IRR',
+    writeAvailable: true,
+    version: '1',
   }
 }
 

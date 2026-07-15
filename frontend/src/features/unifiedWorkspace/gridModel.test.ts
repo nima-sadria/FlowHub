@@ -23,8 +23,8 @@ describe('Unified Workspace grid model', () => {
     const definition = buildGridDefinition([ROW], CHANNELS, CHANNELS.map(item => item.channelId))
     expect(definition.nestedHeaders[0]).toEqual([
       { label: 'Canonical Product / Listing', colspan: 5 },
-      { label: 'WooCommerce', colspan: 7 },
       { label: 'SnappShop', colspan: 7 },
+      { label: 'WooCommerce', colspan: 7 },
     ])
     expect(definition.records[0].listingId).toBe('listing-1')
     expect(definition.records[0][key('woocommerce:primary', 'price', 'current')]).toBe('100')
@@ -38,6 +38,20 @@ describe('Unified Workspace grid model', () => {
     expect(change).toEqual({ canonical_product_id: 'product-1', listing_id: 'listing-1', channel_id: 'woocommerce:primary', field: 'price', target_value: '125', currency: 'EUR', unit: 'EUR' })
   })
 
+  it('uses the shared configured, warning, disabled, and Coming Soon order for Channel columns', () => {
+    const channels: WorkspaceChannelDefinition[] = [
+      channel('digikala:main', 'Digikala', 'coming_soon'),
+      channel('woocommerce:primary', 'WooCommerce', 'healthy'),
+      channel('shopify:secondary', 'Shopify Secondary', 'disabled'),
+      channel('snappshop:main', 'SnappShop', 'warning'),
+      channel('tapsishop:main', 'TapsiShop', 'healthy'),
+    ]
+    const definition = buildGridDefinition([ROW], channels, channels.map(item => item.channelId))
+    const labels = definition.nestedHeaders[0].slice(1).map(header => typeof header === 'string' ? header : header.label)
+
+    expect(labels).toEqual(['TapsiShop', 'WooCommerce', 'SnappShop', 'Shopify Secondary', 'Digikala'])
+  })
+
   it('never creates edits for variable parents or another Channel', () => {
     const definition = buildGridDefinition([ROW], CHANNELS, CHANNELS.map(item => item.channelId))
     const variable = { ...ROW, productType: 'variable' as const }
@@ -45,3 +59,26 @@ describe('Unified Workspace grid model', () => {
     expect(draftChangeFromEdit(ROW, definition.columnMeta.get(key('snappshop:main', 'stock', 'target'))!, '5', CHANNELS[1])).toBeNull()
   })
 })
+
+function channel(channelId: string, displayName: string, healthState: string): WorkspaceChannelDefinition {
+  return {
+    channelId,
+    displayName,
+    readPrice: true,
+    writePrice: true,
+    readStock: true,
+    writeStock: true,
+    readStatus: true,
+    writeStatus: true,
+    supportsMultipleListings: true,
+    maximumBatchSize: 50,
+    rateLimitPerMinute: null,
+    healthState,
+    primaryIdentifierType: 'external_id',
+    supportedStatuses: [],
+    currency: 'IRR',
+    unit: 'IRR',
+    writeAvailable: true,
+    version: '1',
+  }
+}

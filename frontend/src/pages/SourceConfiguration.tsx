@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
@@ -16,6 +16,12 @@ import type {
 import { translate } from '../i18n'
 import { localizedApiError } from '../i18n/errors'
 import { useNotification } from '../notifications/NotificationProvider'
+import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
+import {
+  orderRelatedItems,
+  prepareResourceCollection,
+  sourceChannelSignals,
+} from '../features/resourceOrdering/resourceOrdering'
 import WorksheetRuleEditor, { createWorksheetRule } from './sourceConfiguration/WorksheetRuleEditor'
 
 const SOURCE_FIELDS = [
@@ -392,6 +398,18 @@ export default function SourceConfiguration() {
     }
   }
 
+  const channelResources = useMemo(
+    () => prepareResourceCollection(channels, sourceChannelSignals),
+    [channels],
+  )
+  const configuredChannelResources = useMemo(
+    () => prepareResourceCollection(
+      channels.filter(channel => configuredChannelIds.includes(channel.channelId)),
+      sourceChannelSignals,
+    ),
+    [channels, configuredChannelIds],
+  )
+
   if (!source) {
     return <PageShell><p className="fh-card fh-card-pad">{translate('sources:sourceConfiguration.loadingSourceConfiguration')}</p></PageShell>
   }
@@ -486,18 +504,25 @@ export default function SourceConfiguration() {
           <h2 className="fh-section-title">{translate('sources:sourceConfiguration.channelMappings')}</h2>
           <p className="fh-text-caption">{translate('sources:sourceConfiguration.channelMappingsAreIndependent')}</p>
         </div>
-        <div className="space-y-3">
-          {channels.map(channel => {
+        <div className="space-y-4">
+          <ResourceSectionList resources={channelResources} renderItem={orderedChannel => {
+            const channel = orderedChannel.item
             const enabled = Boolean(channelEnabled[channel.channelId])
             const fields = channelFields[channel.channelId] ?? emptyChannelFields()
             const issues = channelValidation(fields, enabled)
             const controlsDisabled = !channel.available || !enabled
+            const copyResources = prepareResourceCollection(
+              configuredChannelResources.ordered
+                .map(item => item.item)
+                .filter(item => item.channelId !== channel.channelId),
+              sourceChannelSignals,
+            )
             return (
               <details className="rounded-xl border border-border bg-bg-base" key={channel.channelId} open={enabled}>
                 <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-4">
                   <span aria-hidden="true">▾</span>
-                  <h3 className="font-semibold text-text-base">{formatChannelDisplayName(channel.channelId, { showInstance: true })}</h3>
-                  {!channel.available && <span className="fh-badge fh-badge-neutral">{channel.implementationState === 'coming_soon' ? translate('sources:sourceConfiguration.comingSoon') : translate('common:status.unavailable')}</span>}
+                  <h3 className="font-semibold text-text-base">{orderedChannel.displayName}</h3>
+                  <ResourceStateBadge badge={orderedChannel.badge} />
                   <label className="fh-inline-check ms-auto" onClick={event => event.stopPropagation()}>
                     <input
                       type="checkbox"
@@ -524,9 +549,10 @@ export default function SourceConfiguration() {
                       {translate('sources:sourceConfiguration.copyMappingFrom')}
                       <select className="fh-input mt-1" disabled={controlsDisabled} value={copyFrom[channel.channelId] ?? ''} onChange={event => setCopyFrom(current => ({ ...current, [channel.channelId]: event.target.value }))}>
                         <option value="">{translate('sources:sourceConfiguration.selectChannel')}</option>
-                        {configuredChannelIds.filter(item => item !== channel.channelId).map(item => (
-                          <option key={item} value={item}>{formatChannelDisplayName(item, { showInstance: true })}</option>
-                        ))}
+                        <ResourceOptionGroups
+                          resources={copyResources}
+                          renderLabel={item => item.displayName}
+                        />
                       </select>
                     </label>
                     <button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled || !copyFrom[channel.channelId]} onClick={() => copyMapping(channel.channelId)}>
@@ -557,7 +583,7 @@ export default function SourceConfiguration() {
                 </div>
               </details>
             )
-          })}
+          }} />
         </div>
 
         <div>
@@ -589,7 +615,7 @@ export default function SourceConfiguration() {
           <label className="fh-field-label ms-auto min-w-[280px]">{translate('sources:sourceConfiguration.duplicateProductPolicy')}<select className="fh-input mt-1" value={duplicateProductPolicy} onChange={event => setDuplicateProductPolicy(event.target.value as 'block' | 'last_sheet_wins')}><option value="block">{translate('sources:sourceConfiguration.blockDuplicates')}</option><option value="last_sheet_wins">{translate('sources:sourceConfiguration.lastWorksheetWins')}</option></select></label>
         </div>
         {duplicateProductPolicy === 'last_sheet_wins' && <p className="fh-alert-warning">{translate('sources:sourceConfiguration.lastWorksheetWinsWarning')}</p>}
-        <div className="space-y-3">{worksheetRules.map((rule, index) => <WorksheetRuleEditor key={rule.worksheetName} rule={rule} channels={channels} sourceKind={source.sourceKind} onChange={next => setWorksheetRules(current => current.map((item, itemIndex) => itemIndex === index ? next : item))} onRemove={() => setWorksheetRules(current => current.filter((_item, itemIndex) => itemIndex !== index))} />)}</div>
+        <div className="space-y-3">{worksheetRules.map((rule, index) => <WorksheetRuleEditor key={rule.worksheetName} rule={rule} channels={channelResources.ordered.map(item => item.item)} sourceKind={source.sourceKind} onChange={next => setWorksheetRules(current => current.map((item, itemIndex) => itemIndex === index ? next : item))} onRemove={() => setWorksheetRules(current => current.filter((_item, itemIndex) => itemIndex !== index))} />)}</div>
         {worksheetRules.length === 0 && <p className="fh-alert-warning">{translate('sources:sourceConfiguration.addAtLeastOneWorksheet')}</p>}
         <div className="flex justify-end"><button className="fh-button-primary" type="button" disabled={saving || !worksheetRulesValid} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button></div>
       </section>}
@@ -630,9 +656,9 @@ export default function SourceConfiguration() {
                         : translate('sources:sourceConfiguration.ignoredRow')}</span>
                   </div>
                   <div className="mt-3 grid gap-2 lg:grid-cols-3">
-                    {item.channels.map(channel => (
+                    {orderRelatedItems(item.channels, channelResources, channel => channel.channelId).map(channel => (
                       <div className="rounded-lg border border-border bg-bg-subtle p-3" key={channel.channelId}>
-                        <strong className="text-text-base">{formatChannelDisplayName(channel.channelId, { showInstance: true })}</strong>
+                        <strong className="text-text-base">{channelResources.ordered.find(resource => resource.id === channel.channelId)?.displayName ?? formatChannelDisplayName(channel.channelId, { showInstance: true })}</strong>
                         <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 fh-text-caption">
                           {CHANNEL_FIELDS.map(([field, labelKey]) => (
                             <div className="contents" key={field}>

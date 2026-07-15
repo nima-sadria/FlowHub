@@ -110,9 +110,9 @@ describe('SourceConfiguration per-Channel mappings', () => {
 
   it('renders dynamic friendly Channel sections and keeps unavailable Channels disabled', async () => {
     await renderPage()
-    expect(container.textContent).toContain('WooCommerce — Primary')
-    expect(container.textContent).toContain('SnappShop — Main')
-    expect(container.textContent).toContain('TapsiShop — Main')
+    expect(container.textContent).toContain('WooCommerce Primary')
+    expect(container.textContent).toContain('SnappShop Main')
+    expect(container.textContent).toContain('TapsiShop Main')
     expect(container.textContent).not.toContain('woocommerce:primary')
     expect(container.textContent).toContain('Coming Soon')
     const digikala = Array.from(container.querySelectorAll('details')).find(item => item.textContent?.includes('Digikala'))
@@ -120,6 +120,38 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).toContain('Column letter')
     expect(container.textContent).toContain('Exact header')
     expect(container.textContent).toContain('FlowHub Sheet column')
+  })
+
+  it.each([
+    ['en', 'ltr'],
+    ['fa', 'rtl'],
+  ] as const)('uses the same grouped Channel order in %s (%s)', async (locale, direction) => {
+    await changeLocale(locale)
+    vi.mocked(sourceWorkspaceApi.channels).mockResolvedValue({
+      items: [
+        channels[3],
+        channels[0],
+        { channelId: 'shopify:secondary', name: 'Shopify Secondary', connectorType: 'shopify', capabilityVersion: '1', capabilities: {}, enabled: false, implementationState: 'implemented', available: true },
+        channels[2],
+        channels[1],
+      ],
+    })
+
+    await renderPage()
+
+    expect(document.documentElement.dir).toBe(direction)
+    const sections = Array.from(container.querySelectorAll<HTMLElement>('section[data-resource-section]'))
+    expect(sections.map(section => section.dataset.resourceSection)).toEqual(['active', 'disabled', 'comingSoon'])
+    const resourceIds = (section: HTMLElement) => Array.from(
+      section.querySelectorAll<HTMLElement>(':scope > div > [data-resource-id]'),
+      item => item.dataset.resourceId,
+    )
+    expect(resourceIds(sections[0])).toEqual(['snappshop:main', 'tapsishop:main', 'woocommerce:primary'])
+    expect(resourceIds(sections[1])).toEqual(['shopify:secondary'])
+    expect(resourceIds(sections[2])).toEqual(['digikala:main'])
+    expect(container.textContent).toContain('WooCommerce')
+    expect(container.textContent).toContain('SnappShop')
+    expect(container.textContent).not.toContain('woocommerce:primary')
   })
 
   it('preserves technical Channel identities in the API payload and supports explicit enablement', async () => {

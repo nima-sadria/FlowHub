@@ -7,6 +7,8 @@ import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { Product, ProductChannelPriceOperation, ProductChannelPriceStateSet } from '../services/types'
 import Products from './Products'
 import { changeLocale } from '../i18n'
+import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
+import type { SourceChannel } from '../features/sourceWorkspace/types'
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -17,6 +19,7 @@ beforeEach(() => {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
+  vi.spyOn(sourceWorkspaceApi, 'channels').mockResolvedValue({ items: FILTER_CHANNELS })
 })
 
 afterEach(async () => {
@@ -59,6 +62,53 @@ describe('Products multi-channel price editor', () => {
     expect(input('Tapsi Shop proposed price')?.value).toBe('1,000,000')
     expect(container.querySelector('[aria-label="Channel price comparison table"]')?.getAttribute('tabindex')).toBe('0')
     expect(container.querySelector('.min-w-\\[1120px\\]')).not.toBeNull()
+  })
+
+  it('uses one Channel order in the filter, editor, and operation result', async () => {
+    const state = makePriceState()
+    state.channels[1] = { ...state.channels[1], healthStatus: 'warning' }
+    const createDryRun = vi.fn(async () => makeOperation(
+      'dry_run_ready',
+      'woocommerce:primary',
+      'snappshop:main',
+      'tapsishop:main',
+    ))
+    await renderProducts(servicesFor(state, { createDryRun }))
+
+    const channelFilter = Array.from(container.querySelectorAll('select')).find(select =>
+      Array.from(select.options).some(option => option.value === 'woocommerce:primary'),
+    )
+    expect(Array.from(channelFilter?.options ?? []).map(option => option.value)).toEqual([
+      '',
+      'snappshop:main',
+      'tapsishop:main',
+      'woocommerce:primary',
+    ])
+
+    await click('Edit prices')
+    const comparison = container.querySelector('[aria-label="Channel price comparison table"]')
+    const comparisonIds = Array.from(comparison?.querySelectorAll<HTMLElement>('tbody tr:not([data-resource-section]) td:first-child .fh-text-mono') ?? [])
+      .map(element => element.textContent?.trim())
+    expect(comparisonIds).toEqual([
+      'tapsishop:main',
+      'woocommerce:primary',
+      'snappshop:main',
+    ])
+    expect(comparison?.querySelectorAll('[data-resource-section="active"]')).toHaveLength(1)
+    expect(comparison?.querySelectorAll('[data-resource-section="disabled"]')).toHaveLength(0)
+    expect(comparison?.textContent).toContain('Warning')
+
+    await changeInput('WooCommerce proposed price', '120')
+    await click('Preview / Dry Run')
+
+    const operation = container.querySelector('[aria-label="Channel price operation result"]')
+    const operationIds = Array.from(operation?.querySelectorAll<HTMLElement>('tbody tr:not([data-resource-section]) td:first-child .fh-text-mono') ?? [])
+      .map(element => element.textContent?.trim())
+    expect(operationIds).toEqual([
+      'tapsishop:main',
+      'woocommerce:primary',
+      'snappshop:main',
+    ])
   })
 
   it('submits a human-formatted price as an integer business value', async () => {
@@ -197,6 +247,25 @@ const PRODUCT: Product = {
   lastSynced: new Date('2026-07-11T10:00:00Z'),
   categoryNames: ['Default'],
   productType: 'simple',
+}
+
+const FILTER_CHANNELS: SourceChannel[] = [
+  sourceChannel('woocommerce:primary', 'WooCommerce', 'woocommerce'),
+  sourceChannel('tapsishop:main', 'Tapsi Shop', 'tapsishop'),
+  sourceChannel('snappshop:main', 'Snapp Shop', 'snappshop'),
+]
+
+function sourceChannel(channelId: string, name: string, connectorType: string): SourceChannel {
+  return {
+    channelId,
+    name,
+    connectorType,
+    capabilityVersion: '1',
+    capabilities: { 'products.read': true },
+    enabled: true,
+    implementationState: 'implemented',
+    available: true,
+  }
 }
 
 function makePriceState(): ProductChannelPriceStateSet {

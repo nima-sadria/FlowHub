@@ -1,10 +1,9 @@
 import { translate } from '../i18n'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import type { HealthResponse } from '../api/types'
 import { useAuth } from '../auth'
-import Badge from '../components/Badge'
 import Empty from '../components/Empty'
 import { SkeletonCard } from '../components/loading/Skeleton'
 import PageShell from '../components/PageShell'
@@ -13,6 +12,12 @@ import type { ActivityEvent, ChannelHealthResponse, Source } from '../services/t
 import { formatRelativeTime } from '../i18n/format'
 import { formatDiagnosticMessage, formatRole, formatStatus } from '../i18n/display'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
+import { ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
+import {
+  diagnosticChannelSignals,
+  legacySourceSignals,
+  prepareResourceCollection,
+} from '../features/resourceOrdering/resourceOrdering'
 
 type Indicator = 'ok' | 'warning' | 'error' | 'loading'
 
@@ -114,6 +119,17 @@ export default function Dashboard() {
     channelOverall === 'Error' ? 'error' :
     healthErr ? 'error' : 'warning'
   const activeSources = sourceList.filter(s => s.status === 'active')
+  const orderedSources = useMemo(
+    () => prepareResourceCollection(sourceList, legacySourceSignals),
+    [sourceList],
+  )
+  const orderedChannels = useMemo(
+    () => prepareResourceCollection(channelHealth?.items ?? [], channel => ({
+      ...diagnosticChannelSignals(channel),
+      displayName: formatChannelDisplayName(channel.channelId || `${channel.channelType}:primary`),
+    })),
+    [channelHealth],
+  )
   const lastSync = activeSources.reduce<Date | null>((best, s) => {
     if (!s.lastSynced) return best
     return !best || s.lastSynced > best ? s.lastSynced : best
@@ -193,21 +209,23 @@ export default function Dashboard() {
             ) : !channelHealth || channelHealth.items.length === 0 ? (
               <Empty title={translate('dashboard:dashboard.noChannelsMonitored')} />
             ) : (
-              channelHealth.items.map(channel => (
-                <div key={channel.channelId} className="flex items-center justify-between gap-3 border-b border-border py-2.5 last:border-0">
-                  <div className="min-w-0">
-                    {/* i18n-ignore -- fallback is a technical Channel identity, not interface copy */}
-                    <p className="fh-text-body font-medium truncate">{formatChannelDisplayName(channel.channelId || `${channel.channelType}:primary`)}</p>
-                    <p className="fh-text-caption truncate">{formatDiagnosticMessage(channel.summary)}</p>
-                  </div>
-                  <Badge
-                    className="capitalize flex-shrink-0"
-                    variant={channel.status === "Operational" ? "success" : channel.status === "Error" ? "error" : "warning"}
-                  >
-                    {formatStatus(channel.status)}
-                  </Badge>
-                </div>
-              ))
+              <ResourceSectionList
+                resources={orderedChannels}
+                className="divide-y divide-border"
+                renderItem={resource => {
+                  const channel = resource.item
+                  return (
+                    <div className="flex items-center justify-between gap-3 py-2.5">
+                      <div className="min-w-0">
+                        {/* i18n-ignore -- fallback is a technical Channel identity, not interface copy */}
+                        <p className="fh-text-body font-medium truncate">{resource.displayName}</p>
+                        <p className="fh-text-caption truncate">{formatDiagnosticMessage(channel.summary)}</p>
+                      </div>
+                      <ResourceStateBadge badge={resource.badge} />
+                    </div>
+                  )
+                }}
+              />
             )}
           </div>
         </div>
@@ -228,15 +246,22 @@ export default function Dashboard() {
                 action={{ label: translate('dashboard:dashboard.addYourFirstSource'), onClick: () => navigate("/sources/new") }}
               />
             ) : (
-              sourceList.map(source => (
-                <div key={source.id} className="flex items-center justify-between border-b border-border py-2.5 last:border-0">
-                  <div>
-                    <p className="fh-text-body font-medium">{source.name}</p>
-                    <p className="fh-text-caption">{translate('dashboard:dashboard.products', { value1: relTime(source.lastSynced), value2: source.productCount })}</p>
-                  </div>
-                  <Badge className="capitalize" variant={source.status === "active" ? "success" : "error"}>{formatStatus(source.status)}</Badge>
-                </div>
-              ))
+              <ResourceSectionList
+                resources={orderedSources}
+                className="divide-y divide-border"
+                renderItem={resource => {
+                  const source = resource.item
+                  return (
+                    <div className="flex items-center justify-between gap-3 py-2.5">
+                      <div>
+                        <p className="fh-text-body font-medium">{source.name}</p>
+                        <p className="fh-text-caption">{translate('dashboard:dashboard.products', { value1: relTime(source.lastSynced), value2: source.productCount })}</p>
+                      </div>
+                      <ResourceStateBadge badge={resource.badge} />
+                    </div>
+                  )
+                }}
+              />
             )}
           </div>
         </div>
