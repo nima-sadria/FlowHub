@@ -12,6 +12,11 @@ export interface SourceProfile {
   version: number
   mappingVersion: number
   sheetId: string | null
+  legacyMapping?: {
+    primaryChannelId: string
+    fields: FieldMapping[]
+    requiresConfirmation: boolean
+  } | null
 }
 
 export interface SourceChannel {
@@ -20,6 +25,9 @@ export interface SourceChannel {
   connectorType: string
   capabilityVersion: string
   capabilities: Record<string, unknown>
+  enabled: boolean
+  implementationState: 'implemented' | 'coming_soon' | string
+  available: boolean
 }
 
 export interface FieldMapping {

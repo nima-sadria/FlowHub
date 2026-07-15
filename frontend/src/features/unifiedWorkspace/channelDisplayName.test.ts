@@ -10,6 +10,7 @@ describe('formatChannelDisplayName', () => {
   it('keeps multiple instances distinguishable', () => {
     expect(formatChannelDisplayName('woocommerce:store_eu')).toBe('WooCommerce — Store Eu')
     expect(formatChannelDisplayName('snappshop:main', { instanceLabel: 'Tehran' })).toBe('SnappShop — Tehran')
+    expect(formatChannelDisplayName('woocommerce:primary', { showInstance: true })).toBe('WooCommerce — Primary')
   })
 
   it('provides safe readable fallbacks for unknown or incomplete metadata', () => {

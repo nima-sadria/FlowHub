@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import { MemoryRouter } from 'react-router-dom'
@@ -12,6 +12,7 @@ import type { Services } from '../services/ServiceContext'
 import type { CommerceService } from '../services/commerce/CommerceService'
 import CommerceHub from './CommerceHub'
 import { changeLocale } from '../i18n'
+import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -408,6 +409,7 @@ afterEach(async () => {
   act(() => { root.unmount() })
   container.remove()
   await changeLocale('en')
+  vi.restoreAllMocks()
 })
 
 async function renderPage(user = adminUser, commerceOverride: CommerceService = commerce) {
@@ -982,12 +984,13 @@ describe('CommerceHub', () => {
     })
     expect(c.textContent).toContain('Source type')
     expect(c.textContent).toContain('App password / token')
-    expect(c.textContent).toContain('Column Mapping')
+    expect(c.textContent).toContain('Channel mappings')
+    expect(c.textContent).toContain('configured independently for each Channel')
     expect(c.textContent).toContain('Read Policy')
     expect(c.textContent).not.toContain('snapp-secret-value')
   })
 
-  it('saves Nextcloud source column mapping, worksheet, and read policy settings', async () => {
+  it('saves connector read settings without persisting a second global Source mapping', async () => {
     const captured: { payload: Parameters<CommerceService['saveSource']>[1] | null } = { payload: null }
     const savingCommerce: CommerceService = {
       ...commerce,
@@ -998,9 +1001,23 @@ describe('CommerceHub', () => {
     }
     const c = await renderPage(adminUser, savingCommerce)
     await openNextcloudSourceForm(c)
+    vi.spyOn(sourceWorkspaceApi, 'listSources').mockResolvedValue({
+      items: [{
+        id: 'managed-nextcloud',
+        name: 'Nextcloud',
+        sourceKind: 'external',
+        externalSourceId: 'nextcloud:primary',
+        worksheetMode: 'selected',
+        worksheetName: 'Prices',
+        dataStartRow: 2,
+        status: 'active',
+        version: 1,
+        mappingVersion: 0,
+        sheetId: null,
+      }],
+    })
 
     await act(async () => {
-      inputByLabel(c, 'stock').dispatchEvent(new MouseEvent('click', { bubbles: true }))
       inputByLabel(c, 'Selected worksheet').dispatchEvent(new MouseEvent('click', { bubbles: true }))
       setInputValue(inputByLabel(c, 'Worksheet name'), 'Prices')
       setInputValue(inputByLabel(c, 'Max reads per 24 hours'), '5')
@@ -1014,11 +1031,7 @@ describe('CommerceHub', () => {
 
     expect(captured.payload).toBeTruthy()
     if (!captured.payload) throw new Error('saveSource payload was not captured')
-    expect(captured.payload.settings.source_mapping).toEqual({
-      id: { enabled: true, column: 'B' },
-      price: { enabled: true, column: 'C' },
-      stock: { enabled: true, column: 'D' },
-    })
+    expect(captured.payload.settings).not.toHaveProperty('source_mapping')
     expect(captured.payload.settings.worksheet_mode).toBe('selected')
     expect(captured.payload.settings.worksheet_name).toBe('Prices')
     expect(captured.payload.settings.source_read_policy).toMatchObject({

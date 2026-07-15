@@ -16,13 +16,17 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
-from app.flowhub.data_layer.models import DlSourceReadLock, DlSourceReadReservation, DlSourceSnapshot
+from app.flowhub.data_layer.models import (
+    DlSourceReadLock,
+    DlSourceReadReservation,
+    DlSourceSnapshot,
+)
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.integrations.errors import IntegrationError
 from app.flowhub.integrations.nextcloud import NextcloudClient
 from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_source_price_rows
-from app.flowhub.setup.service import AppConfigService
 from app.flowhub.security.upstream_errors import UpstreamServiceError, normalize_upstream_error
+from app.flowhub.setup.service import AppConfigService
 
 SOURCE_ID = "nextcloud:primary"
 SOURCE_TYPE = "nextcloud_spreadsheet"
@@ -59,6 +63,7 @@ class SourceImportResult:
     snapshot: DlSourceSnapshot
     read_policy: dict
     stats: dict
+    worksheets: dict[str, list[list[Any]]] | None = None
 
 
 class SpreadsheetSourceReadService:
@@ -73,9 +78,10 @@ class SpreadsheetSourceReadService:
         triggered_by: str,
         triggered_by_id: str | int | None = None,
         manual: bool,
+        capture_raw_worksheets: bool = False,
     ) -> SourceImportResult:
         spreadsheet_path = self._required_config("nextcloud.spreadsheet_path")
-        mapping = self.mapping()
+        mapping = None if capture_raw_worksheets else self.mapping()
         worksheet = self.worksheet_selection()
         try:
             normalize_nextcloud_url(
@@ -113,21 +119,46 @@ class SpreadsheetSourceReadService:
         try:
             content, file_meta = await client.download_file(spreadsheet_path)
             workbook = load_workbook_bytes(content)
-            rows, duplicate_info = parse_source_price_rows(
-                workbook,
-                mapping=mapping,
-                worksheet_mode=worksheet["mode"],
-                worksheet_name=worksheet["name"],
+            raw_worksheets = (
+                {
+                    sheet.title: [list(row) for row in sheet.iter_rows(values_only=True)]
+                    for sheet in workbook.worksheets
+                }
+                if capture_raw_worksheets
+                else None
             )
-            if not rows:
+            if capture_raw_worksheets:
+                rows = []
+                duplicate_info: dict[str, Any] = {
+                    "duplicate_product_ids": [],
+                    "duplicate_skus": [],
+                }
+            else:
+                if mapping is None:
+                    raise RuntimeError("Legacy Source mapping was not loaded.")
+                rows, duplicate_info = parse_source_price_rows(
+                    workbook,
+                    mapping=mapping,
+                    worksheet_mode=worksheet["mode"],
+                    worksheet_name=worksheet["name"],
+                )
+            if not rows and not capture_raw_worksheets:
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Spreadsheet contains no importable source rows.")
+            persisted_row_count = (
+                sum(len(sheet_rows) for sheet_rows in raw_worksheets.values())
+                if raw_worksheets is not None
+                else len(rows)
+            )
             stats = source_row_stats(rows, duplicate_info)
+            if capture_raw_worksheets:
+                stats["total_rows"] = persisted_row_count
+                stats["valid_rows"] = persisted_row_count
             snapshot = self._upsert_source_snapshot(
                 file_path=spreadsheet_path,
                 content=content,
                 file_meta=file_meta,
                 sheet_names=list(workbook.sheetnames),
-                row_count=len(rows),
+                row_count=persisted_row_count,
                 duplicate_count=len(duplicate_info["duplicate_product_ids"]) + len(duplicate_info["duplicate_skus"]),
                 invalid_row_count=stats["error_rows"],
             )
@@ -140,7 +171,7 @@ class SpreadsheetSourceReadService:
                     "source_type": SOURCE_TYPE,
                     "spreadsheet_path": spreadsheet_path,
                     "worksheets": list(workbook.sheetnames),
-                    "row_count": len(rows),
+                    "row_count": persisted_row_count,
                     "valid_rows": stats["valid_rows"],
                     "warning_rows": stats["warning_rows"],
                     "error_rows": stats["error_rows"],
@@ -161,6 +192,7 @@ class SpreadsheetSourceReadService:
                 snapshot=snapshot,
                 read_policy=policy_state,
                 stats=stats,
+                worksheets=raw_worksheets,
             )
         except IntegrationError as exc:
             safe_error = normalize_upstream_error(exc, source="nextcloud")
@@ -584,7 +616,10 @@ def normalize_read_policy(raw: object | None) -> dict[str, object]:
     try:
         max_reads = int(data.get("max_reads_per_24h", DEFAULT_READ_POLICY["max_reads_per_24h"]))
     except (TypeError, ValueError):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "max_reads_per_24h must be a positive integer.")
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "max_reads_per_24h must be a positive integer.",
+        ) from None
     if max_reads < 1 or max_reads > 1000:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "max_reads_per_24h must be between 1 and 1000.")
     return {

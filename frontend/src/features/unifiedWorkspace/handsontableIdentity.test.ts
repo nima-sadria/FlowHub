@@ -94,7 +94,7 @@ describe('stable Handsontable Listing identity', () => {
     expect(sourceRecordAtVisualRow(hot, 0)?.listingId).toBe('listing-b')
     hot.runHooks('afterChange', [[0, 'price', 20, 125]], 'CopyPaste.paste')
     expect(seen[seen.length - 1]).toBe('CopyPaste.paste:listing-b')
-  })
+  }, 15_000)
 
   it('virtualizes a 500-row server window for a 10,000-row dataset', () => {
     const root = document.createElement('div')

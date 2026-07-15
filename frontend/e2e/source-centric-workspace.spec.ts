@@ -38,8 +38,25 @@ async function installMockApi(page: Page) {
     if (url.pathname === '/api/v2/commerce/source-types' || url.pathname === '/api/v2/commerce/channel-types') return json({ items: [] })
     if (url.pathname === '/api/v2/diagnostics/status') return json({ overall_status: 'operational', checkedAt: '2026-07-15T08:00:00Z', connectors: [{ id: 'woocommerce:primary', name: 'WooCommerce', connector_type: 'woocommerce', enabled: false, status: 'disabled', health: 'unknown', last_checked_at: null }], channelHealth: { checkedAt: '2026-07-15T08:00:00Z', summary: { overall: 'Operational', counts: { Operational: 0, Warning: 0, Error: 0, 'Unable to check': 0, Disabled: 1 } }, items: [], external_call_performed: false }, rateLimiter: { settings: { read_requests_per_minute: 60, write_requests_per_minute: 30, read_delay_ms: 250, write_delay_ms: 500 }, queue_length: 0, average_request_duration_ms: 120, average_latency_ms: 80, throttle_count: 0, last_throttle: null, last_connector_delay_ms: 250, last_limiter_delay_ms: 500, requests_completed: 42, requests_delayed: 2, estimated_completion_seconds: 6 }, external_call_performed: false })
     if (url.pathname === '/api/v2/source-profiles') return json({ items: [{ id: 'source-visual', name: 'Daily multi-channel prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 2, mappingVersion: 1, sheetId: 'sheet-visual' }] })
-    if (url.pathname === '/api/v2/source-profiles/channels') return json({ items: [{ channelId: 'woocommerce:primary', name: 'WooCommerce', connectorType: 'woocommerce', capabilityVersion: '1', capabilities: {} }, { channelId: 'snappshop:main', name: 'SnappShop', connectorType: 'snappshop', capabilityVersion: '1', capabilities: {} }, { channelId: 'tapsishop:main', name: 'TapsiShop', connectorType: 'tapsishop', capabilityVersion: '1', capabilities: {} }] })
-    if (url.pathname === '/api/v2/sources/source-visual/configuration') return json({ id: 'source-visual', name: 'Daily multi-channel prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 2, mappingVersion: 1, sheetId: 'sheet-visual', mapping: { id: 'mapping-1', version: 1, checksum: 'a'.repeat(64), worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, valuePolicy: { blank: 'no_change', x: 'unavailable', zero: 'explicit_zero' }, sourceFields: [{ field: 'name', referenceType: 'column_id', referenceValue: 'name', required: true }, { field: 'source_key', referenceType: 'column_id', referenceValue: 'key', required: false }], channels: [{ channelId: 'woocommerce:primary', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_id', referenceValue: 'wc-id' }, { field: 'price', referenceType: 'column_id', referenceValue: 'wc-price' }] }, { channelId: 'snappshop:main', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_id', referenceValue: 'snap-id' }, { field: 'price', referenceType: 'column_id', referenceValue: 'snap-price' }] }] } })
+    if (url.pathname === '/api/v2/source-profiles/channels') return json({ items: [
+      { channelId: 'woocommerce:primary', name: 'WooCommerce', connectorType: 'woocommerce', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
+      { channelId: 'snappshop:main', name: 'SnappShop', connectorType: 'snappshop', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
+      { channelId: 'tapsishop:main', name: 'TapsiShop', connectorType: 'tapsishop', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
+    ] })
+    if (url.pathname === '/api/v2/sources/source-visual/configuration') return json({ id: 'source-visual', name: 'Daily multi-channel prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 2, mappingVersion: 1, sheetId: 'sheet-visual', mapping: { id: 'mapping-1', version: 1, checksum: 'a'.repeat(64), worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, valuePolicy: { blank: 'no_change', x: 'unavailable', zero: 'explicit_zero' }, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }, { field: 'source_key', referenceType: 'disabled', referenceValue: null, required: false }], channels: [{ channelId: 'woocommerce:primary', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'C' }] }, { channelId: 'snappshop:main', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'O' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'G' }] }, { channelId: 'tapsishop:main', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'P' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'J' }] }] } })
+    if (url.pathname === '/api/v2/sources/source-visual/preview') return json({
+      items: [{
+        rowKey: 'Sheet1:2', rowNumber: 2, recognized: true,
+        sourceProduct: { name: 'iPhone Cable', source_key: 'CABLE-01' },
+        channels: [
+          { channelId: 'woocommerce:primary', fields: { external_id: '51550', price: '12500000' } },
+          { channelId: 'snappshop:main', fields: { external_id: '1826345203', price: '12900000' } },
+          { channelId: 'tapsishop:main', fields: { external_id: '7785746738', price: '12700000' } },
+        ],
+      }],
+      total: 1, recognized: 1, ignored: 0, issues: [],
+      sheetRevisionId: 'sheet-revision-4', mappingRevisionId: 'mapping-1',
+    })
     if (url.pathname === '/api/v2/sheets/sheet-visual') {
       const pageNumber = Number(url.searchParams.get('page') ?? 1)
       return json({ id: 'sheet-visual', sourceId: 'source-visual', name: 'Daily multi-channel prices', version: 4, revisionId: 'sheet-revision-4', revisionChecksum: 'b'.repeat(64), formulaEngineVersion: 'flowhub-formula-1', columns: [{ columnKey: 'name', name: 'Product Name', position: 1, dataType: 'text' }, { columnKey: 'key', name: 'Source Key', position: 2, dataType: 'text' }, { columnKey: 'cost', name: 'Cost', position: 3, dataType: 'number' }, { columnKey: 'target', name: 'Target Formula', position: 4, dataType: 'number' }], rows: Array.from({ length: 200 }, (_, index) => { const position = (pageNumber - 1) * 200 + index + 1; return { rowKey: `row-${position}`, position, cells: { name: { raw: `Product ${position}`, value: `Product ${position}`, formula: null, error: null }, key: { raw: `SRC-${position}`, value: `SRC-${position}`, formula: null, error: null }, cost: { raw: String(1000 + position), value: String(1000 + position), formula: null, error: null }, target: { raw: '=C1*1.2', value: String((1000 + position) * 1.2), formula: '=C1*1.2', error: null } } } }), total: 10_000, page: pageNumber, pageSize: 200 })
@@ -100,7 +117,13 @@ test('Source configuration, FlowHub Sheet, import, and Data Quality render from 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/sources/source-visual')
   await expect(page.getByText('Source Product fields')).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'WooCommerce' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'WooCommerce — Primary' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'SnappShop — Main' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'TapsiShop — Main' })).toBeVisible()
+  await page.getByRole('button', { name: 'Preview recognized rows' }).click()
+  await expect(page.getByText('12500000', { exact: true })).toBeVisible()
+  await expect(page.getByText('12900000', { exact: true })).toBeVisible()
+  await expect(page.getByText('12700000', { exact: true })).toBeVisible()
   await page.screenshot({ path: path.join(screenshotRoot, 'source-configuration.png'), fullPage: true })
   await page.goto('/sheets/sheet-visual')
   await expect(page.getByText('10,000 rows')).toBeVisible()

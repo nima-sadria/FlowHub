@@ -9,15 +9,18 @@ responses. UI row indexes are never accepted as resource identities.
 | Method | Route | Purpose |
 | --- | --- | --- |
 | `GET` | `/source-profiles` | List Sources owned by the current user |
-| `GET` | `/source-profiles/channels` | List enabled, implemented Channel capabilities |
+| `GET` | `/source-profiles/channels` | List Channel capabilities and participation availability |
 | `POST` | `/sources` | Create a managed or explicitly linked Source |
 | `GET` | `/sources/{source_id}/configuration` | Read the active immutable Mapping |
 | `PUT` | `/sources/{source_id}/mappings` | Create the next Mapping revision |
 | `GET` | `/sources/{source_id}/preview` | Preview recognized and ignored Source rows |
 
 Mapping writes require `expected_source_version`. A mismatch returns `409` and
-does not overwrite either configuration. Disabled mappings are explicit; absent
-or arbitrary columns are ignored.
+does not overwrite either configuration. Each Channel mapping contains an
+explicit `enabled` flag plus independent `external_id`, `price`, `stock`, and
+`status` references. Disabled Channel mappings and field references are
+preserved but excluded from new Source processing. Coming Soon and unavailable
+Channels cannot be enabled.
 
 ## FlowHub Sheet
 
@@ -46,12 +49,14 @@ request must repeat the preview checksum; mismatched bytes fail closed.
 
 ## Source Workspace
 
-`POST /unified-workspaces/source` accepts an optional `source_id`. A managed
-Source ID selects the v1.3 path; omitting it preserves the v1.2 external
-read-once behavior. The managed path snapshots the exact Sheet and Mapping
-revision, resolves Channel Listings, creates an immutable Draft and Review, and
-automatically saves only eligible Review items into the existing selection
-checksum model.
+`POST /unified-workspaces/source` accepts an optional `source_id`. A Source ID
+selects the v1.3 path for either an internal FlowHub Sheet or a linked external
+Source; omitting it preserves the v1.2 compatibility behavior. Internal Sources
+snapshot the exact Sheet and Mapping revision. External Sources acquire the
+workbook once, snapshot its integrity checksum, and resolve every Channel from
+that same acquisition. Both paths resolve Channel Listings, create an immutable
+Draft and Review, and automatically save only eligible Review items into the
+existing selection checksum model.
 
 `GET /unified-workspaces/{workspace_id}/grouped-grid` returns Source Product
 parents and stable Listing children. It supports `page`, `pageSize`, `search`,

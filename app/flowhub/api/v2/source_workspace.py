@@ -31,6 +31,7 @@ class ColumnReference(StrictModel):
 class ChannelMappingInput(StrictModel):
     channel_id: str = Field(min_length=1, max_length=120)
     worksheet_name: str | None = Field(default=None, max_length=240)
+    enabled: bool = True
     fields: list[ColumnReference] = Field(min_length=1, max_length=4)
 
 
@@ -178,14 +179,14 @@ def save_source_mapping(
 
 
 @router.get("/sources/{source_id}/preview")
-def preview_source_rows(
+async def preview_source_rows(
     source_id: str,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=200, alias="pageSize", ge=1, le=500),
     user: FlowHubUser = Depends(require_workspace_permission("workspace.read")),
     service: SourceWorkspaceService = Depends(_service),
 ) -> dict[str, Any]:
-    return service.source_preview(source_id, user, page=page, page_size=page_size)
+    return await service.source_preview(source_id, user, page=page, page_size=page_size)
 
 
 @router.post("/sheets", status_code=201)

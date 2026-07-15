@@ -336,7 +336,7 @@ class UnifiedWorkspaceService:
         source_id: str | None = None,
     ) -> dict[str, Any]:
         if source_id:
-            return self._create_managed_source_workspace(
+            return await self._create_managed_source_workspace(
                 name=name,
                 source_id=source_id,
                 user=user,
@@ -524,7 +524,7 @@ class UnifiedWorkspaceService:
         self.db.commit()
         return self.workspace_shape(workspace_id, user)
 
-    def _create_managed_source_workspace(
+    async def _create_managed_source_workspace(
         self,
         *,
         name: str,
@@ -534,7 +534,7 @@ class UnifiedWorkspaceService:
     ) -> dict[str, Any]:
         """Create a v1.2 Workspace from a saved, immutable internal Sheet revision."""
         self._seed_channels()
-        analysis = SourceWorkspaceService(self.db).snapshot_candidates(source_id, user)
+        analysis = await SourceWorkspaceService(self.db).snapshot_candidates(source_id, user)
         currency_profile = self._global_currency_profile()
         workspace_id = _id()
         snapshot_id = _id()
@@ -661,7 +661,7 @@ class UnifiedWorkspaceService:
             },
             acquisition_metadata_json={
                 "read_once": True,
-                "internal_revision": True,
+                "internal_revision": analysis["source"]["sourceKind"] != "external",
                 "acquired_at": utcnow().isoformat(),
             },
         )

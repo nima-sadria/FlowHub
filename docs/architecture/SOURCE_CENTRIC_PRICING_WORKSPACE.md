@@ -31,8 +31,10 @@ attempts, crash recovery, verification, and Audit behavior remain authoritative.
 
 Each immutable Mapping revision stores Source Product fields separately from
 per-Channel fields. Supported references are an Excel-style column letter, an
-exact header name, a managed Sheet column ID, or disabled. Header detection may
-help an operator, but it never overrides the saved Mapping.
+exact header name, a managed Sheet column ID where available, or disabled.
+Header detection may help an operator, but it never overrides the saved
+Mapping. Every Channel also has an explicit participation flag; disabling a
+Channel preserves its saved fields and excludes it from new analysis.
 
 Source fields are name, optional Source key, category, brand, and cost. Each
 enabled, implemented Channel may independently map an external Listing ID,
@@ -122,11 +124,16 @@ The uploaded bytes are checksummed and are never modified. Import metadata keeps
 the source filename, type, worksheet, timestamp, row count, Mapping version, and
 checksum.
 
-Existing external Sources are retained as the advanced workflow and continue to
-use their established read-once connector and immutable Snapshot path. The
-legacy Nextcloud `Product ID / Price / Stock` configuration is not silently
-reinterpreted as a marketplace mapping. Operators explicitly adopt a new
-per-Channel Mapping when they move that Source into the v1.3 managed model.
+Existing external Sources are retained as the advanced workflow. The connector
+downloads and parses the workbook once for a Workspace Snapshot, then resolves
+all enabled Channel mappings from that single acquired workbook. Each Channel's
+external identifier, price, stock, and status are read only from that Channel's
+saved mapping and compared only with its own Listing cache.
+
+The legacy Nextcloud `Product ID / Price / Stock` configuration is exposed as a
+WooCommerce-primary compatibility prefill only. It is not copied to other
+Channels and becomes active only after the operator explicitly saves a new
+per-Channel Mapping revision.
 
 ## Persistence and migration
 

@@ -845,6 +845,121 @@ msgctxt "sources:sourceConfiguration.columnLetter"
 msgid "Column letter"
 msgstr "حرف ستون"
 
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.channelMappings"
+msgid "Channel mappings"
+msgstr "نگاشت کانال‌ها"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.channelMappingsAreIndependent"
+msgid "Each Channel uses its own identifier, price, stock, and status columns. Mappings are never copied automatically."
+msgstr "هر کانال از ستون‌های شناسه، قیمت، موجودی و وضعیت مخصوص خود استفاده می‌کند. نگاشت‌ها هرگز خودکار کپی نمی‌شوند."
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.clearMapping"
+msgid "Clear mapping"
+msgstr "پاک‌کردن نگاشت"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.column"
+msgid "Column"
+msgstr "ستون"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.comingSoon"
+msgid "Coming Soon"
+msgstr "به‌زودی"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.conflictingColumnMapping"
+msgid "{{first}} and {{second}} use the same column. Confirm that this is intentional."
+msgstr "فیلدهای {{first}} و {{second}} از یک ستون استفاده می‌کنند. عمدی بودن این انتخاب را بررسی کنید."
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.copyMapping"
+msgid "Copy mapping"
+msgstr "کپی نگاشت"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.copyMappingFrom"
+msgid "Copy mapping from another Channel"
+msgstr "کپی نگاشت از کانال دیگر"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.disabled"
+msgid "Disabled"
+msgstr "غیرفعال"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.enabled"
+msgid "Enabled"
+msgstr "فعال"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.internalColumnId"
+msgid "Internal column ID"
+msgstr "شناسه داخلی ستون"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.legacyMappingAssignedToPrimaryChannel"
+msgid "The historical global mapping is shown only under WooCommerce — Primary. Review it and save a new revision; it will not be copied to other Channels."
+msgstr "نگاشت سراسری قدیمی فقط برای ووکامرس — اصلی نمایش داده شده است. آن را بررسی و به‌عنوان نسخه جدید ذخیره کنید؛ این نگاشت به کانال‌های دیگر کپی نمی‌شود."
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.legacyMappingDetected"
+msgid "Legacy Source mapping detected"
+msgstr "نگاشت قدیمی منبع شناسایی شد"
+
+#: frontend/src/pages/CommerceHub.tsx
+msgctxt "sources:sourceConfiguration.mappingConfiguredAfterConnection"
+msgid "Save the connection first. Product identifier, price, stock, and status columns are configured independently for each Channel on the Source page."
+msgstr "ابتدا اتصال را ذخیره کنید. ستون‌های شناسه محصول، قیمت، موجودی و وضعیت در صفحه منبع برای هر کانال جداگانه تنظیم می‌شوند."
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.mappingMethod"
+msgid "Mapping method"
+msgstr "روش نگاشت"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.mappingValidation"
+msgid "Mapping validation"
+msgstr "اعتبارسنجی نگاشت"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.previewShowsIndependentChannelValues"
+msgid "Preview the identifier and target values resolved independently for every Channel."
+msgstr "شناسه و مقادیر هدفی را که برای هر کانال جداگانه حل شده‌اند پیش‌نمایش کنید."
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.productIdentifier"
+msgid "Product identifier"
+msgstr "شناسه محصول"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.productIdentifierRequired"
+msgid "An enabled Channel requires a Product identifier mapping."
+msgstr "برای کانال فعال باید نگاشت شناسه محصول مشخص شود."
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.selectChannel"
+msgid "Select a Channel"
+msgstr "انتخاب کانال"
+
+#: frontend/src/pages/CommerceHub.tsx frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.sourceConfigurationUnavailable"
+msgid "Source configuration unavailable"
+msgstr "پیکربندی منبع در دسترس نیست"
+
+#: frontend/src/pages/SourceConfiguration.tsx
+msgctxt "sources:sourceConfiguration.tryAgain"
+msgid "Please try again."
+msgstr "لطفاً دوباره تلاش کنید."
+
+#: frontend/src/pages/CommerceHub.tsx
+msgctxt "sources:sourceConfiguration.tryAgainAfterSavingConnection"
+msgid "Save the Source connection, then open its Channel mappings again."
+msgstr "اتصال منبع را ذخیره کنید و سپس نگاشت کانال‌های آن را دوباره باز کنید."
+
 #: frontend/src/pages/FlowHubSheet.tsx:103
 msgctxt "flowhubSheet:flowHubSheet.columnName"
 msgid "Column name: {{column}}"

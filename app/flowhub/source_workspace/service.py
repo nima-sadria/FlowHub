@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import csv
 import io
+import json
 import re
 import uuid
 from collections import defaultdict
@@ -17,6 +18,7 @@ from sqlalchemy import tuple_
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
+from app.flowhub.setup.service import AppConfigService
 from app.flowhub.source_workspace.formula import (
     FORMULA_ENGINE_VERSION,
     FormulaResult,
@@ -41,12 +43,23 @@ from app.flowhub.source_workspace.repositories import (
     SheetRepository,
     SourceRepository,
 )
-from app.flowhub.unified_workspace.domain import checksum, utcnow
+from app.flowhub.sources.spreadsheet_source import (
+    SOURCE_ID as LEGACY_EXTERNAL_SOURCE_ID,
+)
+from app.flowhub.sources.spreadsheet_source import (
+    SourceImportResult,
+    SpreadsheetSourceReadService,
+    normalize_source_mapping,
+)
+from app.flowhub.unified_workspace.domain import ApplyState, ReviewState, checksum, utcnow
 from app.flowhub.unified_workspace.models import (
+    ApplyJob,
     CanonicalProduct,
     ChannelCache,
     Listing,
+    Review,
     WorkspaceChannel,
+    WorkspaceSnapshot,
 )
 
 MAX_SHEET_ROWS = 10_000
@@ -97,10 +110,6 @@ class SourceWorkspaceService:
         self._ensure_channels()
         channels = (
             self.db.query(WorkspaceChannel)
-            .filter(
-                WorkspaceChannel.enabled.is_(True),
-                WorkspaceChannel.implementation_state == "implemented",
-            )
             .order_by(WorkspaceChannel.name, WorkspaceChannel.id)
             .all()
         )
@@ -112,6 +121,9 @@ class SourceWorkspaceService:
                     "connectorType": item.connector_type,
                     "capabilityVersion": item.capability_version,
                     "capabilities": item.capabilities_json,
+                    "enabled": item.enabled,
+                    "implementationState": item.implementation_state,
+                    "available": item.enabled and item.implementation_state == "implemented",
                 }
                 for item in channels
             ]
@@ -167,6 +179,7 @@ class SourceWorkspaceService:
         result = self._source_shape(source)
         mapping = self.sources.latest_mapping(source.id)
         result["mapping"] = self._mapping_shape(mapping) if mapping else None
+        result["legacyMapping"] = self._legacy_mapping_shape(source) if mapping is None else None
         sheet = self.sheets.for_source(source.id)
         result["sheetId"] = sheet.id if sheet else None
         return result
@@ -196,6 +209,20 @@ class SourceWorkspaceService:
             source_fields, SOURCE_FIELDS, required_fields={"name"}
         )
         normalized_channels = self._normalize_channel_mappings(channel_mappings)
+        if source.source_kind == "external":
+            external_references = [
+                *normalized_source_fields,
+                *[
+                    field
+                    for channel in normalized_channels
+                    for field in channel["fields"]
+                ],
+            ]
+            if any(item["referenceType"] == "column_id" for item in external_references):
+                raise _unprocessable(
+                    "COLUMN_REFERENCE_UNAVAILABLE",
+                    "Internal FlowHub column IDs cannot be used for an external Source.",
+                )
         normalized_policy = self._normalize_value_policy(value_policy)
         latest = self.sources.latest_mapping(source.id)
         version = (latest.version if latest else 0) + 1
@@ -239,7 +266,7 @@ class SourceWorkspaceService:
                 mapping_revision_id=revision.id,
                 channel_id=channel["channelId"],
                 worksheet_name=channel["worksheetName"],
-                enabled=True,
+                enabled=bool(channel["enabled"]),
             )
             self.db.add(channel_mapping)
             self.db.flush()
@@ -258,13 +285,14 @@ class SourceWorkspaceService:
         source.worksheet_name = worksheet_name
         source.data_start_row = data_start_row
         source.updated_at = utcnow()
+        self._invalidate_source_reviews(source.id)
         self.db.commit()
         shape = self._mapping_shape(revision)
         if shape is None:
             raise RuntimeError("Mapping revision persistence failed")
         return shape
 
-    def source_preview(
+    async def source_preview(
         self, source_id: str, user: FlowHubUser, *, page: int, page_size: int
     ) -> dict[str, Any]:
         source = self._owned_source(source_id, user)
@@ -272,15 +300,17 @@ class SourceWorkspaceService:
         if mapping is None:
             raise _unprocessable("SOURCE_MAPPING_REQUIRED", "Configure Source mappings first.")
         sheet = self.sheets.for_source(source.id)
+        revision_id: str
         if sheet is None:
-            raise _unprocessable(
-                "SOURCE_PREVIEW_EXTERNAL",
-                "External Source preview is produced by its read-once connector.",
-            )
-        revision = self.sheets.latest_revision(sheet.id)
-        if revision is None:
-            return {"items": [], "total": 0, "recognized": 0, "ignored": 0, "issues": []}
-        records = self._mapped_sheet_records(revision, mapping)
+            imported = await self._read_external_source(source, user, manual=True)
+            records = self._mapped_external_records(imported.worksheets or {}, mapping)
+            revision_id = f"external:{imported.snapshot.id}:{imported.snapshot.version_seq}"
+        else:
+            revision = self.sheets.latest_revision(sheet.id)
+            if revision is None:
+                return {"items": [], "total": 0, "recognized": 0, "ignored": 0, "issues": []}
+            records = self._mapped_sheet_records(revision, mapping)
+            revision_id = revision.id
         start = (max(page, 1) - 1) * page_size
         page_records = records[start : start + min(max(page_size, 1), 500)]
         return {
@@ -289,30 +319,43 @@ class SourceWorkspaceService:
             "recognized": sum(1 for item in records if item["recognized"]),
             "ignored": sum(1 for item in records if not item["recognized"]),
             "issues": self._preview_issue_summary(records),
-            "sheetRevisionId": revision.id,
+            "sheetRevisionId": revision_id,
             "mappingRevisionId": mapping.id,
         }
 
-    def snapshot_candidates(self, source_id: str, user: FlowHubUser) -> dict[str, Any]:
-        """Resolve a saved internal Sheet revision into stable Listing-scoped candidates.
-
-        This method performs no provider I/O and no external mutation.  The caller
-        persists its result into the existing immutable Workspace Snapshot.
-        """
+    async def snapshot_candidates(self, source_id: str, user: FlowHubUser) -> dict[str, Any]:
+        """Read a Source once and resolve independent Listing-scoped Channel targets."""
         source = self._owned_source(source_id, user)
         mapping = self.sources.latest_mapping(source.id)
         sheet = self.sheets.for_source(source.id)
         if mapping is None:
             raise _unprocessable("SOURCE_MAPPING_REQUIRED", "Configure Source mappings first.")
         if sheet is None:
-            raise _unprocessable(
-                "SOURCE_EXTERNAL_READ_REQUIRED",
-                "External Sources must use their existing read-once connector.",
-            )
-        revision = self.sheets.latest_revision(sheet.id)
-        if revision is None:
-            raise _unprocessable("SHEET_REVISION_REQUIRED", "Save the FlowHub Sheet first.")
-        records = [item for item in self._mapped_sheet_records(revision, mapping) if item["recognized"]]
+            imported = await self._read_external_source(source, user, manual=False)
+            records = [
+                item
+                for item in self._mapped_external_records(imported.worksheets or {}, mapping)
+                if item["recognized"]
+            ]
+            revision_shape = {
+                "id": f"external:{imported.snapshot.id}:{imported.snapshot.version_seq}",
+                "version": int(imported.snapshot.version_seq or 1),
+                "checksum": str(imported.snapshot.integrity_hash or ""),
+                "formulaEngineVersion": "provider-evaluated-v1",
+            }
+        else:
+            revision = self.sheets.latest_revision(sheet.id)
+            if revision is None:
+                raise _unprocessable("SHEET_REVISION_REQUIRED", "Save the FlowHub Sheet first.")
+            records = [
+                item for item in self._mapped_sheet_records(revision, mapping) if item["recognized"]
+            ]
+            revision_shape = {
+                "id": revision.id,
+                "version": revision.version,
+                "checksum": revision.checksum,
+                "formulaEngineVersion": revision.formula_engine_version,
+            }
         identities = {
             (channel["channelId"], str(channel["fields"]["external_id"]).strip())
             for record in records
@@ -493,12 +536,7 @@ class SourceWorkspaceService:
         return {
             "source": self._source_shape(source),
             "mapping": self._mapping_shape(mapping),
-            "sheetRevision": {
-                "id": revision.id,
-                "version": revision.version,
-                "checksum": revision.checksum,
-                "formulaEngineVersion": revision.formula_engine_version,
-            },
+            "sheetRevision": revision_shape,
             "candidates": candidates,
             "issues": issues,
             "summary": {
@@ -1072,6 +1110,109 @@ class SourceWorkspaceService:
             "createdAt": revision.created_at,
         }
 
+    def _legacy_mapping_shape(self, source: SourceProfile) -> dict[str, Any] | None:
+        """Expose the historical global mapping as WooCommerce-only compatibility data.
+
+        It is never persisted into the revisioned Source mapping automatically. The
+        user must review and save the prefilled mapping explicitly.
+        """
+        if source.source_kind != "external" or source.external_source_id != LEGACY_EXTERNAL_SOURCE_ID:
+            return None
+        raw = AppConfigService(self.db).get("nextcloud.source_mapping")
+        if not raw:
+            return None
+        try:
+            parsed = json.loads(raw)
+        except (TypeError, ValueError):
+            return None
+        legacy = normalize_source_mapping(parsed)
+        field_names = {"id": "external_id", "price": "price", "stock": "stock"}
+        fields: list[dict[str, Any]] = []
+        for legacy_field, target_field in field_names.items():
+            item = legacy[legacy_field]
+            value = str(item.get("column") or "").strip()
+            fields.append(
+                {
+                    "field": target_field,
+                    "referenceType": (
+                        "disabled"
+                        if not item.get("enabled")
+                        else "column_letter"
+                        if re.fullmatch(r"[A-Za-z]{1,3}", value)
+                        else "header_name"
+                    ),
+                    "referenceValue": value or None,
+                    "required": False,
+                }
+            )
+        fields.append(
+            {
+                "field": "status",
+                "referenceType": "disabled",
+                "referenceValue": None,
+                "required": False,
+            }
+        )
+        return {
+            "primaryChannelId": "woocommerce:primary",
+            "fields": fields,
+            "requiresConfirmation": True,
+        }
+
+    def _invalidate_source_reviews(self, source_id: str) -> None:
+        """Invalidate prepared state tied to an older active Source mapping."""
+        snapshots = (
+            self.db.query(WorkspaceSnapshot)
+            .filter(WorkspaceSnapshot.entry_point == "source")
+            .all()
+        )
+        snapshot_ids = [
+            item.id
+            for item in snapshots
+            if str((item.source_metadata_json or {}).get("source_id") or "") == source_id
+        ]
+        if not snapshot_ids:
+            return
+        now = utcnow()
+        reviews = (
+            self.db.query(Review)
+            .filter(Review.snapshot_id.in_(snapshot_ids), Review.status != ReviewState.STALE)
+            .all()
+        )
+        review_ids: list[str] = []
+        for review in reviews:
+            review.status = ReviewState.STALE
+            review.invalidated_at = now
+            review.stale_reason = "source_mapping_revision_changed"
+            review.selection_checksum = None
+            review_ids.append(review.id)
+        if review_ids:
+            for job in (
+                self.db.query(ApplyJob)
+                .filter(
+                    ApplyJob.review_id.in_(review_ids),
+                    ApplyJob.status == ApplyState.PENDING,
+                )
+                .all()
+            ):
+                job.status = ApplyState.STALE
+                job.completed_at = now
+
+    async def _read_external_source(
+        self, source: SourceProfile, user: FlowHubUser, *, manual: bool
+    ) -> SourceImportResult:
+        if source.external_source_id != LEGACY_EXTERNAL_SOURCE_ID:
+            raise _unprocessable(
+                "EXTERNAL_SOURCE_UNSUPPORTED",
+                "This external Source connector does not support read-once Workspace acquisition.",
+            )
+        return await SpreadsheetSourceReadService(self.db).read_nextcloud_spreadsheet(
+            triggered_by="source_workspace",
+            triggered_by_id=user.id,
+            manual=manual,
+            capture_raw_worksheets=True,
+        )
+
     @staticmethod
     def _validate_worksheet(mode: str, name: str | None, data_start_row: int) -> None:
         if mode not in {"all", "selected"}:
@@ -1120,18 +1261,22 @@ class SourceWorkspaceService:
     def _normalize_channel_mappings(self, mappings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         result: list[dict[str, Any]] = []
         seen: set[str] = set()
+        enabled_count = 0
         for raw in mappings:
             channel_id = str(raw.get("channel_id") or raw.get("channelId") or "").strip()
             if not channel_id or channel_id in seen:
                 raise _unprocessable("CHANNEL_MAPPING_INVALID", "Channel mappings must be unique.")
             channel = self.db.get(WorkspaceChannel, channel_id)
-            if channel is None or not channel.enabled or channel.implementation_state != "implemented":
+            enabled = bool(raw.get("enabled", True))
+            if channel is None:
+                raise _unprocessable("CHANNEL_UNKNOWN", "The Channel mapping identity is unknown.")
+            if enabled and (not channel.enabled or channel.implementation_state != "implemented"):
                 raise _unprocessable(
                     "CHANNEL_UNAVAILABLE", "Only enabled Channels with official connectors may be mapped."
                 )
             fields = self._normalize_field_mappings(list(raw.get("fields") or []), CHANNEL_FIELDS)
             external = next((item for item in fields if item["field"] == "external_id"), None)
-            if external is None or external["referenceType"] == "disabled":
+            if enabled and (external is None or external["referenceType"] == "disabled"):
                 raise _unprocessable(
                     "CHANNEL_EXTERNAL_ID_REQUIRED", "Every enabled Channel requires an External Listing ID mapping."
                 )
@@ -1139,11 +1284,13 @@ class SourceWorkspaceService:
                 {
                     "channelId": channel_id,
                     "worksheetName": str(raw.get("worksheet_name") or raw.get("worksheetName") or "").strip() or None,
+                    "enabled": enabled,
                     "fields": fields,
                 }
             )
+            enabled_count += int(enabled)
             seen.add(channel_id)
-        if not result:
+        if not result or enabled_count == 0:
             raise _unprocessable("CHANNEL_MAPPING_REQUIRED", "Select at least one enabled Channel.")
         return sorted(result, key=lambda item: item["channelId"])
 
@@ -1270,6 +1417,159 @@ class SourceWorkspaceService:
             }
         raise _unprocessable("IMPORT_FORMAT_UNSUPPORTED", "Use an XLSX or CSV file.")
 
+    def _mapped_external_records(
+        self,
+        worksheets: dict[str, list[list[Any]]],
+        mapping: SourceMappingRevision,
+    ) -> list[dict[str, Any]]:
+        """Resolve an acquired workbook once into independent Channel values."""
+        if not worksheets:
+            return []
+        if mapping.worksheet_mode == "selected":
+            worksheet_names = [str(mapping.worksheet_name or "")]
+            if worksheet_names[0] not in worksheets:
+                raise _unprocessable(
+                    "WORKSHEET_NOT_FOUND",
+                    "The configured Source worksheet is not present in the acquired workbook.",
+                )
+        else:
+            worksheet_names = list(worksheets)
+
+        source_fields = self.sources.source_fields(mapping.id)
+        channels = self.sources.channel_mappings(mapping.id)
+        channel_fields = self.sources.channel_fields([item.id for item in channels])
+        fields_by_channel: dict[str, list[SourceChannelFieldMapping]] = defaultdict(list)
+        for item in channel_fields:
+            fields_by_channel[item.channel_mapping_id].append(item)
+        current_channels = {
+            item.id: item
+            for item in self.db.query(WorkspaceChannel)
+            .filter(WorkspaceChannel.id.in_([item.channel_id for item in channels]))
+            .all()
+        }
+        header_cache: dict[tuple[str, str], int | None] = {}
+
+        def column_index(
+            worksheet: str, reference_type: str, reference_value: str | None
+        ) -> int | None:
+            if reference_type == "column_letter":
+                try:
+                    return int(
+                        openpyxl.utils.column_index_from_string(str(reference_value or ""))
+                    ) - 1
+                except ValueError:
+                    return None
+            if reference_type != "header_name":
+                return None
+            normalized = str(reference_value or "").strip().casefold()
+            cache_key = (worksheet, normalized)
+            if cache_key in header_cache:
+                return header_cache[cache_key]
+            found = None
+            header_rows = worksheets.get(worksheet, [])[: max(mapping.data_start_row - 1, 0)]
+            for header_row in reversed(header_rows):
+                for index, value in enumerate(header_row):
+                    if str(value or "").strip().casefold() == normalized:
+                        found = index
+                        break
+                if found is not None:
+                    break
+            header_cache[cache_key] = found
+            return found
+
+        def read(
+            worksheet: str,
+            row_number: int,
+            reference_type: str,
+            reference_value: str | None,
+        ) -> Any:
+            index = column_index(worksheet, reference_type, reference_value)
+            rows = worksheets.get(worksheet, [])
+            if index is None or row_number < 1 or row_number > len(rows):
+                return None
+            row = rows[row_number - 1]
+            return row[index] if index < len(row) else None
+
+        records: list[dict[str, Any]] = []
+        policy = dict(DEFAULT_VALUE_POLICY) | dict(mapping.value_policy_json)
+        for worksheet_name in worksheet_names:
+            for row_number in range(mapping.data_start_row, len(worksheets[worksheet_name]) + 1):
+                row_issues: list[dict[str, str | None]] = []
+                source_data = {
+                    field.field: read(
+                        worksheet_name,
+                        row_number,
+                        field.reference_type,
+                        field.reference_value,
+                    )
+                    for field in source_fields
+                    if field.reference_type != "disabled"
+                }
+                name = str(source_data.get("name") or "").strip()
+                channel_data: list[dict[str, Any]] = []
+                for channel in channels:
+                    current = current_channels.get(channel.channel_id)
+                    if (
+                        not channel.enabled
+                        or current is None
+                        or not current.enabled
+                        or current.implementation_state != "implemented"
+                    ):
+                        continue
+                    channel_worksheet = channel.worksheet_name or worksheet_name
+                    fields = {
+                        item.field: read(
+                            channel_worksheet,
+                            row_number,
+                            item.reference_type,
+                            item.reference_value,
+                        )
+                        for item in fields_by_channel[channel.id]
+                        if item.reference_type != "disabled"
+                    }
+                    external_id = str(fields.get("external_id") or "").strip()
+                    marker = external_id.casefold()
+                    if marker == "x" and policy["x"] in {"unavailable", "no_change"}:
+                        continue
+                    if marker in {"-", "–", "—"} and policy["dash"] in {
+                        "unavailable",
+                        "no_change",
+                    }:
+                        continue
+                    if external_id:
+                        channel_data.append({"channelId": channel.channel_id, "fields": fields})
+                    elif any(value not in {None, ""} for value in fields.values()):
+                        row_issues.append(
+                            {
+                                "category": "missing_mapping_identity",
+                                "severity": "blocked",
+                                "channelId": channel.channel_id,
+                                "message": "Channel values exist but External Listing ID is missing.",
+                            }
+                        )
+                recognized = bool(name and channel_data)
+                if not name and channel_data:
+                    row_issues.append(
+                        {
+                            "category": "missing_source_identity",
+                            "severity": "blocked",
+                            "channelId": None,
+                            "message": "Source Product Name is required.",
+                        }
+                    )
+                records.append(
+                    {
+                        "rowKey": f"external:{worksheet_name}:{row_number}",
+                        "rowNumber": row_number,
+                        "worksheetName": worksheet_name,
+                        "recognized": recognized,
+                        "sourceProduct": source_data,
+                        "channels": channel_data,
+                        "issues": row_issues,
+                    }
+                )
+        return records
+
     def _mapped_sheet_records(
         self, revision: SheetRevision, mapping: SourceMappingRevision
     ) -> list[dict[str, Any]]:
@@ -1298,6 +1598,12 @@ class SourceWorkspaceService:
         fields_by_channel: dict[str, list[SourceChannelFieldMapping]] = defaultdict(list)
         for item in channel_fields:
             fields_by_channel[item.channel_mapping_id].append(item)
+        current_channels = {
+            item.id: item
+            for item in self.db.query(WorkspaceChannel)
+            .filter(WorkspaceChannel.id.in_([item.channel_id for item in channels]))
+            .all()
+        }
         records: list[dict[str, Any]] = []
         policy = dict(DEFAULT_VALUE_POLICY) | dict(mapping.value_policy_json)
         for row in rows:
@@ -1342,6 +1648,14 @@ class SourceWorkspaceService:
             name = str(source_data.get("name") or "").strip()
             channel_data = []
             for channel in channels:
+                current = current_channels.get(channel.channel_id)
+                if (
+                    not channel.enabled
+                    or current is None
+                    or not current.enabled
+                    or current.implementation_state != "implemented"
+                ):
+                    continue
                 fields = {
                     item.field: read(item.reference_type, item.reference_value)
                     for item in fields_by_channel[channel.id]

@@ -19,6 +19,14 @@ export const sourceWorkspaceApi = {
   listSources: () => apiFetch<{ items: SourceProfile[] }>('/api/v2/source-profiles', authFetch),
   channels: () => apiFetch<{ items: SourceChannel[] }>('/api/v2/source-profiles/channels', authFetch),
   source: (id: string) => apiFetch<SourceProfile & { mapping: SourceMapping | null }>(`/api/v2/sources/${encodeURIComponent(id)}/configuration`, authFetch),
+  createSource: (payload: {
+    name: string
+    source_kind: 'external'
+    external_source_id: string
+    worksheet_mode: 'all' | 'selected'
+    worksheet_name: string | null
+    data_start_row: number
+  }) => apiFetch<SourceProfile>('/api/v2/sources', authFetch, json('POST', payload)),
   createSheet: (name: string) => apiFetch<FlowHubSheetPage>('/api/v2/sheets', authFetch, json('POST', {
     name,
     columns: [

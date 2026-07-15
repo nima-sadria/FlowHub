@@ -1,6 +1,6 @@
 import { translate } from '../i18n'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'
@@ -14,18 +14,11 @@ import PageShell from '../components/PageShell'
 import { formatDateTime } from '../i18n/format'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { formatCapabilityList, formatCommerceType, formatDataRole, formatStatus } from '../i18n/display'
+import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 
 type Tab = 'sources' | 'channels'
 type FormKind = 'source' | 'channel'
-type SourceMappingField = { enabled: boolean; column: string }
-type SourceMappingDraft = Record<'id' | 'price' | 'stock', SourceMappingField>
 type ReadPolicyDraft = { enabled: boolean; max_reads_per_24h: number; manual_read_allowed: boolean }
-
-const DEFAULT_SOURCE_MAPPING: SourceMappingDraft = {
-  id: { enabled: true, column: 'B' },
-  price: { enabled: true, column: 'C' },
-  stock: { enabled: false, column: 'D' },
-}
 
 const DEFAULT_READ_POLICY: ReadPolicyDraft = {
   enabled: true,
@@ -439,7 +432,7 @@ function ConfigPanel({
   types: CommerceTypeOption[]
   initialChannelId?: string | null
   onCancel: () => void
-  onSaved: () => Promise<void>
+  onSaved: (saved: { kind: FormKind; externalId: string; name: string }) => Promise<void>
 }) {
   const { commerce } = useServices()
   const { success, error: notifyError } = useNotification()
@@ -465,7 +458,6 @@ function ConfigPanel({
   const [pickerLoading, setPickerLoading] = useState(false)
   const [pickerData, setPickerData] = useState<NextcloudBrowseResult | null>(null)
   const [pickerError, setPickerError] = useState<string | null>(null)
-  const [sourceMapping, setSourceMapping] = useState<SourceMappingDraft>(DEFAULT_SOURCE_MAPPING)
   const [worksheetMode, setWorksheetMode] = useState<'all' | 'selected'>('all')
   const [worksheetName, setWorksheetName] = useState('')
   const [readPolicy, setReadPolicy] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
@@ -490,7 +482,6 @@ function ConfigPanel({
     setPickerOpen(false)
     setPickerData(null)
     setPickerError(null)
-    setSourceMapping(DEFAULT_SOURCE_MAPPING)
     setWorksheetMode('all')
     setWorksheetName('')
     setReadPolicy(DEFAULT_READ_POLICY)
@@ -546,7 +537,6 @@ function ConfigPanel({
       settings: kind === 'source' && selected.provider === 'nextcloud'
         ? {
             ...settings,
-            source_mapping: sourceMapping,
             source_read_policy: readPolicy,
             worksheet_mode: worksheetMode,
             worksheet_name: worksheetName,
@@ -586,7 +576,7 @@ function ConfigPanel({
               title: translate('commerce:commerceHub.channelConfiguredSuccessfully'),
               description: translate('commerce:commerceHub.theChannelIsReadyToUse'),
             })
-      await onSaved()
+      await onSaved({ kind, externalId: selected.id, name: displayName || selected.name })
     } catch {
       notifyError({
         title: kind === 'source' ? translate('commerce:commerceHub.unableToSaveSourceSettings') : translate('commerce:commerceHub.unableToSaveChannelSettings'),
@@ -677,13 +667,6 @@ function ConfigPanel({
     if (!file.supported) return
     setSettings(current => ({ ...current, spreadsheet_path: file.path }))
     setPickerOpen(false)
-  }
-
-  function updateMappingField(field: keyof SourceMappingDraft, patch: Partial<SourceMappingField>) {
-    setSourceMapping(current => ({
-      ...current,
-      [field]: { ...current[field], ...patch },
-    }))
   }
 
   function renderConnectionField(field: CommerceTypeField) {
@@ -908,31 +891,8 @@ function ConfigPanel({
 
           <div className="fh-form-section">
             <div>
-              <p className="fh-form-section-title">{translate('commerce:commerceHub.columnMapping')}</p>
-              <p className="fh-form-section-description">{translate('commerce:commerceHub.enabledFieldsRequireASpreadsheetColumnLetter')}</p>
-            </div>
-            <div className="fh-form-grid md:grid-cols-3">
-              {(["id", "price", "stock"] as const).map(field => (
-                <div key={field} className="rounded-md border border-border bg-bg-subtle p-3">
-                  <label className="fh-inline-check capitalize">
-                    <input
-                      type="checkbox"
-                      checked={sourceMapping[field].enabled}
-                      onChange={event => updateMappingField(field, { enabled: event.target.checked })}
-                    />
-                    {field === "id" ? translate('commerce:commerceHub.productId') : field}
-                  </label>
-                  <label className="fh-field mt-2">
-                    <span className="fh-help-text">{translate('commerce:commerceHub.column')}</span>
-                    <input
-                      value={sourceMapping[field].column}
-                      onChange={event => updateMappingField(field, { column: event.target.value })}
-                      className="fh-input"
-                      autoComplete="off"
-                    />
-                  </label>
-                </div>
-              ))}
+              <p className="fh-form-section-title">{translate('sources:sourceConfiguration.channelMappings')}</p>
+              <p className="fh-form-section-description">{translate('sources:sourceConfiguration.mappingConfiguredAfterConnection')}</p>
             </div>
           </div>
 
@@ -1046,6 +1006,7 @@ export default function CommerceHub() {
   const { commerce } = useServices()
   const { user } = useAuth()
   const { success, error: notifyError } = useNotification()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'sources' ? 'sources' : 'channels')
   const [sources, setSources] = useState<CommerceSource[]>([])
@@ -1218,14 +1179,36 @@ export default function CommerceHub() {
     }
   }
 
-  function handleSourceConfigure(_sourceId: string) {
+  async function managedSourceFor(externalId: string, name: string) {
+    const existing = (await sourceWorkspaceApi.listSources()).items.find(
+      item => item.sourceKind === 'external' && item.externalSourceId === externalId,
+    )
+    if (existing) return existing
+    return sourceWorkspaceApi.createSource({
+      name,
+      source_kind: 'external',
+      external_source_id: externalId,
+      worksheet_mode: 'selected',
+      worksheet_name: 'Sheet1',
+      data_start_row: 2,
+    })
+  }
+
+  async function handleSourceConfigure(sourceId: string) {
     if (!canManageCommerce) {
       notifyError(translate('commerce:commerceHub.adminPermissionRequired'))
       return
     }
-    setTab('sources')
-    setSearchParams({ tab: 'sources' })
-    setFormKind('source')
+    const source = sources.find(item => item.id === sourceId)
+    try {
+      const managed = await managedSourceFor(sourceId, source?.name || sourceId)
+      navigate(`/sources/${managed.id}`)
+    } catch {
+      notifyError({
+        title: translate('sources:sourceConfiguration.sourceConfigurationUnavailable'),
+        description: translate('sources:sourceConfiguration.tryAgainAfterSavingConnection'),
+      })
+    }
   }
 
   function handleChannelConfigure(channelId: string) {
@@ -1239,10 +1222,14 @@ export default function CommerceHub() {
     setFormKind('channel')
   }
 
-  async function reloadAfterSave() {
+  async function reloadAfterSave(saved: { kind: FormKind; externalId: string; name: string }) {
     await loadCommerce()
     setFormKind(null)
     setEditingChannelId(null)
+    if (saved.kind === 'source') {
+      const managed = await managedSourceFor(saved.externalId, saved.name)
+      navigate(`/sources/${managed.id}`)
+    }
   }
 
   return (

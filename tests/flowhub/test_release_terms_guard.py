@@ -37,7 +37,18 @@ LEGACY_COMPATIBILITY_REFERENCE_FILES = {
     "alembic_flowhub/env.py",
     "installer/install.sh",
 }
+ALLOWED_RELEASE_TERM_PATHS = {
+    # Owner-approved release registration. The exemption is path-exact and
+    # does not permit release terms in application paths.
+    "docs/releases/FLOWHUB_V1.3_BETA.md",
+}
 INTERNAL_TERM_PATTERNS = {
+    "CHANGELOG.md": (r"FlowHub v1\.3 Beta",),
+    "README.md": (r"v1\.3 Beta", r"FLOWHUB_V1\.3_BETA"),
+    "docs/i18n/INTERNATIONALIZATION.md": (r"placeholders?",),
+    "docs/i18n/TRANSLATOR_GUIDE.md": (r"placeholder",),
+    "docs/releases/FLOWHUB_V1.3_BETA.md": (r"Beta",),
+    "docs/roadmap/NEXT.md": (r"FlowHub v1\.3 Beta",),
     "app/flowhub/commerce/service.py": (
         r'"placeholder":\s*(True|False|bool\(meta\["placeholder"\]\))',
         r'\bplaceholder\s*=\s*bool\(meta\["placeholder"\]\)',
@@ -58,6 +69,13 @@ INTERNAL_TERM_PATTERNS = {
         r'\bchannel\.placeholder\b',
         r'\bselected\.placeholder\b',
     ),
+    "frontend/scripts/i18n.mjs": (r"[Pp]laceholders?",),
+    "frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx": (
+        r"\bplaceholder=",
+    ),
+    "frontend/src/pages/DataQuality.tsx": (r"\bplaceholder=",),
+    "frontend/src/pages/FlowHubSheet.tsx": (r"\bplaceholder=",),
+    "frontend/src/pages/SourceConfiguration.tsx": (r"\bplaceholder=",),
     "frontend/src/services/types.ts": (
         r'\bplaceholder:\s*boolean\b',
     ),
@@ -131,7 +149,7 @@ def test_release_terms_do_not_appear_in_tracked_production_files() -> None:
         lower_path = normalized.lower()
         terms_for_path = TERMS
         for term in terms_for_path:
-            if term in lower_path:
+            if term in lower_path and normalized not in ALLOWED_RELEASE_TERM_PATHS:
                 violations.append(f"{normalized}: path contains {term!r}")
 
         if normalized in LEGACY_COMPATIBILITY_REFERENCE_FILES:
