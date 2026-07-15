@@ -1,4 +1,5 @@
 {
+  "action.cancel": "Cancel",
   "apiSourceService.useSettingsToConfigureConnectors": "Use Settings to configure connectors.",
   "app.loading": "Loading...",
   "app.loadingWorkspaceGrid": "Loading Workspace Grid...",

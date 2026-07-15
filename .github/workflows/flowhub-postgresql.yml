@@ -138,6 +138,23 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
+      - name: FLOWHUB_019 cross-dialect worksheet rule migration tests
+        id: postgres-019-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-019-junit.xml \
+            tests/flowhub/migration/test_source_workspace_019.py \
+            2>&1 | tee postgres-019-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-019-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-019-junit.xml 019 | tee postgres-019-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-019-junit.xml' | tee postgres-019-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: PostgreSQL order and concurrency tests
         id: postgres-order-tests
         run: |
@@ -192,6 +209,9 @@ jobs:
             postgres-018-junit.xml
             postgres-018-output.log
             postgres-018-manifest.log
+            postgres-019-junit.xml
+            postgres-019-output.log
+            postgres-019-manifest.log
             postgres-orders-junit.xml
             postgres-orders-output.log
             postgres-orders-manifest.log

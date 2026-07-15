@@ -255,7 +255,7 @@ def test_channel_health_endpoint_and_refresh_suppress_concurrent_provider_checks
                 json={"channelId": "snappshop:main"},
             )
             assert response.status_code == 200
-            assert response.json()["external_call_performed"] is True
+            assert response.json()["external_call_performed"] is False
         finally:
             lock.release()
 
@@ -269,6 +269,100 @@ def test_all_unconfigured_channels_return_normalized_disabled_health(client, aut
     items = response.json()["items"]
     assert {item["channelId"] for item in items}.issuperset({"woocommerce:primary", "snappshop:main", "tapsishop:main"})
     assert all(item["status"] == "Disabled" for item in items)
+
+
+def test_source_connector_instances_do_not_appear_in_channel_health(db):
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+
+    _seed_channel(
+        db,
+        "nextcloud:primary",
+        "nextcloud",
+        enabled=True,
+        settings={"url": "https://source.example.invalid", "username": "test", "password": None},
+    )
+
+    channel_ids = {item["channelId"] for item in ChannelHealthReporter(db).report()["items"]}
+
+    assert "nextcloud:primary" not in channel_ids
+    assert channel_ids.issuperset({"woocommerce:primary", "snappshop:main", "tapsishop:main"})
+
+
+def test_diagnostics_status_reports_last_successful_source_read(client, db, auth_headers):
+    from app.flowhub.data_layer.models import DlSourceSnapshot
+
+    read_at = datetime.utcnow() - timedelta(minutes=5)
+    _seed_channel(
+        db,
+        "nextcloud:primary",
+        "nextcloud",
+        enabled=True,
+        settings={"url": "https://source.example.invalid", "username": "test", "password": None},
+    )
+    db.add(DlSourceSnapshot(
+        connector_id="nextcloud:primary",
+        file_path="/synthetic/prices.xlsx",
+        integrity_hash="a" * 64,
+        snapshotted_at=read_at,
+    ))
+    db.commit()
+
+    response = client.get("/api/v2/diagnostics/status", headers=auth_headers)
+
+    assert response.status_code == 200
+    source = next(item for item in response.json()["connectors"] if item["id"] == "nextcloud:primary")
+    assert source["last_successful_operation"].startswith(read_at.isoformat())
+
+
+def test_refresh_reports_external_call_only_when_provider_boundary_was_used(db, monkeypatch):
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+
+    calls = 0
+
+    async def local_only_result(self, channel_id):
+        nonlocal calls
+        calls += 1
+        return {
+            "status": "not_configured",
+            "ok": False,
+            "external_call_performed": False,
+            "message": "No provider call was required.",
+        }
+
+    monkeypatch.setattr(
+        "app.flowhub.commerce.service.CommerceHubService.test_channel_connection",
+        local_only_result,
+    )
+
+    payload = asyncio.run(ChannelHealthReporter(db).refresh("woocommerce:primary"))
+
+    assert calls == 1
+    assert payload["external_call_performed"] is False
+
+    health = ChannelHealthReporter(db)._health("woocommerce:primary")
+    assert health is not None
+    health.checked_at = datetime.utcnow() - timedelta(minutes=2)
+    db.commit()
+
+    async def provider_result(self, channel_id):
+        nonlocal calls
+        calls += 1
+        return {
+            "status": "connected",
+            "ok": True,
+            "external_call_performed": True,
+            "message": "Fake provider check completed.",
+        }
+
+    monkeypatch.setattr(
+        "app.flowhub.commerce.service.CommerceHubService.test_channel_connection",
+        provider_result,
+    )
+
+    payload = asyncio.run(ChannelHealthReporter(db).refresh("woocommerce:primary"))
+
+    assert calls == 2
+    assert payload["external_call_performed"] is True
 
 
 def test_channel_health_report_isolates_one_channel_exception(db, monkeypatch, caplog):
@@ -361,7 +455,10 @@ def test_tapsishop_refresh_policy_values_are_isolated_by_channel(db):
 
 
 def _seed_channel(db, channel_id: str, connector_type: str, *, enabled: bool, settings: dict) -> None:
-    from app.flowhub.integration_platform.models import IntegrationConnectorInstance, IntegrationConnectorSetting
+    from app.flowhub.integration_platform.models import (
+        IntegrationConnectorInstance,
+        IntegrationConnectorSetting,
+    )
 
     now = datetime.utcnow()
     db.add(IntegrationConnectorInstance(

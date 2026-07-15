@@ -9,11 +9,14 @@ import type {
   ReferenceType,
   SourceChannel,
   SourceMapping,
+  SourcePreview,
   SourceProfile,
+  SourceWorksheetRule,
 } from '../features/sourceWorkspace/types'
 import { translate } from '../i18n'
 import { localizedApiError } from '../i18n/errors'
 import { useNotification } from '../notifications/NotificationProvider'
+import WorksheetRuleEditor, { createWorksheetRule } from './sourceConfiguration/WorksheetRuleEditor'
 
 const SOURCE_FIELDS = [
   ['name', 'sources:sourceConfiguration.sourceProductName', true],
@@ -48,19 +51,6 @@ const POLICY_OPTIONS: Record<string, Array<[string, string]>> = {
   invalid: [['blocked', 'sources:sourceConfiguration.blockedIssue']],
 }
 
-interface SourcePreview {
-  items: Array<{
-    rowKey: string
-    rowNumber: number
-    recognized: boolean
-    sourceProduct: Record<string, string | null>
-    channels: Array<{ channelId: string; fields: Record<string, string | null> }>
-  }>
-  recognized: number
-  ignored: number
-  issues: Array<{ category: string; severity: string; channelId: string | null; count: number }>
-}
-
 const emptyMapping = (field: string, required = false): FieldMapping => ({
   field,
   referenceType: 'disabled',
@@ -69,6 +59,13 @@ const emptyMapping = (field: string, required = false): FieldMapping => ({
 })
 
 const emptyChannelFields = (): FieldMapping[] => CHANNEL_FIELDS.map(([field]) => emptyMapping(field))
+
+function fieldDisplayName(field: string): string {
+  const sourceDefinition = SOURCE_FIELDS.find(([candidate]) => candidate === field)
+  const channelDefinition = CHANNEL_FIELDS.find(([candidate]) => candidate === field)
+  const translationKey = sourceDefinition?.[1] ?? channelDefinition?.[1]
+  return translationKey ? translate(translationKey) : field
+}
 
 function MappingControl({
   mapping,
@@ -87,7 +84,7 @@ function MappingControl({
         <span className="fh-text-caption">{translate('sources:sourceConfiguration.mappingMethod')}</span>
         <select
           className="fh-input"
-          aria-label={translate('sources:sourceConfiguration.referenceType', { field: mapping.field })}
+          aria-label={translate('sources:sourceConfiguration.referenceType', { field: fieldDisplayName(mapping.field) })}
           disabled={disabled}
           value={mapping.referenceType}
           onChange={event => onChange({
@@ -106,7 +103,7 @@ function MappingControl({
         <span className="fh-text-caption">{translate('sources:sourceConfiguration.column')}</span>
         <input
           className="fh-input"
-          aria-label={translate('sources:sourceConfiguration.columnReference', { field: mapping.field })}
+          aria-label={translate('sources:sourceConfiguration.columnReference', { field: fieldDisplayName(mapping.field) })}
           disabled={disabled || mapping.referenceType === 'disabled'}
           value={mapping.referenceValue ?? ''}
           onChange={event => onChange({ ...mapping, referenceValue: event.target.value })}
@@ -133,8 +130,8 @@ function channelValidation(fields: FieldMapping[], enabled: boolean): string[] {
     const previous = references.get(identity)
     if (previous) {
       issues.push(translate('sources:sourceConfiguration.conflictingColumnMapping', {
-        first: previous,
-        second: field.field,
+        first: fieldDisplayName(previous),
+        second: fieldDisplayName(field.field),
       }))
     } else {
       references.set(identity, field.field)
@@ -156,12 +153,20 @@ export default function SourceConfiguration() {
   const [configuredChannelIds, setConfiguredChannelIds] = useState<string[]>([])
   const [copyFrom, setCopyFrom] = useState<Record<string, string>>({})
   const [worksheetMode, setWorksheetMode] = useState<'all' | 'selected'>('selected')
+  const [worksheetRuleMode, setWorksheetRuleMode] = useState<'shared' | 'per_worksheet'>('shared')
+  const [duplicateProductPolicy, setDuplicateProductPolicy] = useState<'block' | 'last_sheet_wins'>('block')
+  const [worksheetRules, setWorksheetRules] = useState<SourceWorksheetRule[]>([])
+  const [detectedWorksheets, setDetectedWorksheets] = useState<Array<{ name: string; rowCount: number }>>([])
+  const [selectedWorksheetNames, setSelectedWorksheetNames] = useState<string[]>([])
+  const [newWorksheetName, setNewWorksheetName] = useState('')
+  const [detectingWorksheets, setDetectingWorksheets] = useState(false)
   const [dataStartRow, setDataStartRow] = useState(1)
   const [worksheetName, setWorksheetName] = useState('Sheet1')
   const [valuePolicy, setValuePolicy] = useState<Record<string, string>>(DEFAULT_VALUE_POLICY)
   const [preview, setPreview] = useState<SourcePreview | null>(null)
   const [previewing, setPreviewing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [previewFilter, setPreviewFilter] = useState<'all' | 'ready' | 'attention'>('all')
 
   useEffect(() => {
     let active = true
@@ -172,6 +177,23 @@ export default function SourceConfiguration() {
       setDataStartRow(loaded.mapping?.dataStartRow ?? loaded.dataStartRow)
       setWorksheetMode(loaded.mapping?.worksheetMode ?? loaded.worksheetMode)
       setWorksheetName(loaded.mapping?.worksheetName ?? loaded.worksheetName ?? 'Sheet1')
+      setSelectedWorksheetNames(
+        loaded.mapping?.selectedWorksheetNames?.length
+          ? loaded.mapping.selectedWorksheetNames
+          : loaded.mapping?.worksheetMode === 'selected' && loaded.mapping.worksheetName
+            ? [loaded.mapping.worksheetName]
+            : loaded.worksheetMode === 'selected' && loaded.worksheetName
+              ? [loaded.worksheetName]
+              : [],
+      )
+      setWorksheetRuleMode(loaded.mapping?.worksheetRuleMode ?? 'shared')
+      setDuplicateProductPolicy(loaded.mapping?.duplicateProductPolicy ?? 'block')
+      setWorksheetRules((loaded.mapping?.worksheetRules ?? []).map(rule => ({
+        ...rule,
+        valuePolicy: { ...DEFAULT_VALUE_POLICY, ...rule.valuePolicy },
+        sourceFields: SOURCE_FIELDS.map(([field, _label, required]) => rule.sourceFields.find(item => item.field === field) ?? emptyMapping(field, required)),
+        channels: rule.channels.map(channel => ({ ...channel, fields: CHANNEL_FIELDS.map(([field]) => channel.fields.find(item => item.field === field) ?? emptyMapping(field)) })),
+      })))
       setValuePolicy({ ...DEFAULT_VALUE_POLICY, ...loaded.mapping?.valuePolicy })
       if (loaded.mapping) {
         setSourceFields(SOURCE_FIELDS.map(([field, _label, required]) => loaded.mapping!.sourceFields.find(item => item.field === field) ?? emptyMapping(field, required)))
@@ -236,22 +258,74 @@ export default function SourceConfiguration() {
     }))
   }
 
+  function changeWorksheetRuleMode(mode: 'shared' | 'per_worksheet') {
+    setWorksheetRuleMode(mode)
+    if (mode === 'per_worksheet' && worksheetRules.length === 0) {
+      setWorksheetRules([{
+        ...createWorksheetRule(worksheetName || 'Sheet1'),
+        dataStartRow,
+        valuePolicy: { ...valuePolicy },
+        sourceFields: sourceFields.map(item => ({ ...item })),
+        channels: configuredChannelIds.map(channelId => ({
+          channelId,
+          worksheetName: worksheetName || null,
+          enabled: Boolean(channelEnabled[channelId]),
+          fields: (channelFields[channelId] ?? emptyChannelFields()).map(item => ({ ...item })),
+        })),
+      }])
+    }
+  }
+
+  function addWorksheetRule() {
+    const name = newWorksheetName.trim()
+    if (!name || worksheetRules.some(item => item.worksheetName === name)) return
+    setWorksheetRules(current => [...current, createWorksheetRule(name)])
+    setNewWorksheetName('')
+  }
+
+  async function detectWorksheets() {
+    setDetectingWorksheets(true)
+    try {
+      const result = await sourceWorkspaceApi.worksheets(sourceId)
+      setDetectedWorksheets(result.items)
+      if (worksheetRuleMode === 'shared' && worksheetMode === 'selected') {
+        setSelectedWorksheetNames(current => {
+          const available = new Set(result.items.map(item => item.name))
+          const preserved = current.filter(name => available.has(name))
+          if (preserved.length) return preserved
+          if (worksheetName && available.has(worksheetName)) return [worksheetName]
+          return result.items.map(item => item.name)
+        })
+      }
+      setWorksheetRules(current => {
+        const existing = new Set(current.map(item => item.worksheetName))
+        return [...current, ...result.items.filter(item => !existing.has(item.name)).map(item => ({ ...createWorksheetRule(item.name), enabled: false }))]
+      })
+      if (result.items.length === 1 && !worksheetRules.length) setWorksheetRules([{ ...createWorksheetRule(result.items[0].name), enabled: true }])
+    } catch (error) {
+      notify.error({ title: translate('sources:sourceConfiguration.worksheetDetectionFailed'), description: localizedApiError(error, 'sources:sourceConfiguration.tryAgain') })
+    } finally {
+      setDetectingWorksheets(false)
+    }
+  }
+
   async function save() {
     if (!source) return
     setSaving(true)
     try {
       await sourceWorkspaceApi.saveMapping(source.id, {
         expected_source_version: source.version,
-        worksheet_mode: worksheetMode,
-        worksheet_name: worksheetMode === 'selected' ? worksheetName : null,
-        data_start_row: dataStartRow,
-        source_fields: sourceFields.map(item => ({
+        worksheet_mode: worksheetRuleMode === 'per_worksheet' ? 'all' : worksheetMode,
+        worksheet_name: worksheetRuleMode === 'shared' && worksheetMode === 'selected' && selectedWorksheetNames.length === 1 ? selectedWorksheetNames[0] : null,
+        selected_worksheet_names: worksheetRuleMode === 'shared' && worksheetMode === 'selected' ? selectedWorksheetNames : [],
+        data_start_row: worksheetRuleMode === 'shared' ? dataStartRow : 1,
+        source_fields: (worksheetRuleMode === 'shared' ? sourceFields : []).map(item => ({
           field: item.field,
           reference_type: item.referenceType,
           reference_value: item.referenceValue,
           required: item.required ?? false,
         })),
-        channel_mappings: configuredChannelIds.map(channelId => ({
+        channel_mappings: (worksheetRuleMode === 'shared' ? configuredChannelIds : []).map(channelId => ({
           channel_id: channelId,
           worksheet_name: channelWorksheets[channelId] || null,
           enabled: Boolean(channelEnabled[channelId]),
@@ -263,6 +337,21 @@ export default function SourceConfiguration() {
           })),
         })),
         value_policy: valuePolicy,
+        worksheet_rule_mode: worksheetRuleMode,
+        duplicate_product_policy: duplicateProductPolicy,
+        worksheet_rules: worksheetRuleMode === 'per_worksheet' ? worksheetRules.map(rule => ({
+          worksheet_name: rule.worksheetName,
+          enabled: rule.enabled,
+          data_start_row: rule.dataStartRow,
+          value_policy: rule.valuePolicy,
+          source_fields: rule.sourceFields.map(item => ({ field: item.field, reference_type: item.referenceType, reference_value: item.referenceValue, required: item.required ?? false })),
+          channel_mappings: rule.channels.map(channel => ({
+            channel_id: channel.channelId,
+            worksheet_name: rule.worksheetName,
+            enabled: channel.enabled,
+            fields: channel.fields.map(item => ({ field: item.field, reference_type: item.referenceType, reference_value: item.referenceValue, required: false })),
+          })),
+        })) : [],
       })
       notify.success({
         title: translate('sources:sourceConfiguration.sourceMappingSaved'),
@@ -292,7 +381,7 @@ export default function SourceConfiguration() {
   async function loadPreview() {
     setPreviewing(true)
     try {
-      setPreview(await sourceWorkspaceApi.previewSource(sourceId) as unknown as SourcePreview)
+      setPreview(await sourceWorkspaceApi.previewSource(sourceId))
     } catch (error) {
       notify.error({
         title: translate('sources:sourceConfiguration.sourcePreviewUnavailable'),
@@ -306,6 +395,14 @@ export default function SourceConfiguration() {
   if (!source) {
     return <PageShell><p className="fh-card fh-card-pad">{translate('sources:sourceConfiguration.loadingSourceConfiguration')}</p></PageShell>
   }
+
+  const previewSummary = preview?.businessSummary ?? null
+  const previewItems = preview?.items.filter(item => previewFilter === 'all' || (previewFilter === 'ready' ? item.ready : item.hasIssues)) ?? []
+  const worksheetRulesValid = worksheetRules.some(rule => rule.enabled) && worksheetRules.every(rule => {
+    if (!rule.enabled) return true
+    const nameField = rule.sourceFields.find(field => field.field === 'name')
+    return Boolean(nameField && nameField.referenceType !== 'disabled' && nameField.referenceValue?.trim())
+  })
 
   return (
     <PageShell>
@@ -326,8 +423,22 @@ export default function SourceConfiguration() {
         </section>
       )}
 
-      <section className="fh-card fh-card-pad space-y-4">
-        <div className="grid gap-4 sm:grid-cols-3">
+      <section className="fh-card fh-card-pad mb-5" aria-labelledby="worksheet-rules-title">
+        <h2 className="fh-section-title" id="worksheet-rules-title">{translate('sources:sourceConfiguration.worksheetRules')}</h2>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'shared' ? 'border-accent bg-accent/5' : 'border-border'}`}>
+            <span className="flex items-center gap-2 font-medium text-text-base"><input type="radio" name="worksheet-rule-mode" value="shared" checked={worksheetRuleMode === 'shared'} onChange={() => changeWorksheetRuleMode('shared')} />{translate('sources:sourceConfiguration.sharedWorksheetRules')}</span>
+            <span className="fh-text-caption mt-2 block">{translate('sources:sourceConfiguration.sharedWorksheetRulesHelp')}</span>
+          </label>
+          <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'per_worksheet' ? 'border-accent bg-accent/5' : 'border-border'}`}>
+            <span className="flex items-center gap-2 font-medium text-text-base"><input type="radio" name="worksheet-rule-mode" value="per_worksheet" checked={worksheetRuleMode === 'per_worksheet'} onChange={() => changeWorksheetRuleMode('per_worksheet')} />{translate('sources:sourceConfiguration.separateWorksheetRules')}</span>
+            <span className="fh-text-caption mt-2 block">{translate('sources:sourceConfiguration.separateWorksheetRulesHelp')}</span>
+          </label>
+        </div>
+      </section>
+
+      <section className={`fh-card fh-card-pad space-y-4 ${worksheetRuleMode === 'per_worksheet' ? 'hidden' : ''}`}>
+        <div className="grid gap-4 sm:grid-cols-2">
           <label className="fh-field-label">
             {translate('sources:sourceConfiguration.worksheetPolicy')}
             <select className="fh-input mt-1" value={worksheetMode} onChange={event => setWorksheetMode(event.target.value as 'all' | 'selected')}>
@@ -336,14 +447,22 @@ export default function SourceConfiguration() {
             </select>
           </label>
           <label className="fh-field-label">
-            {translate('sources:sourceConfiguration.worksheet')}
-            <input className="fh-input mt-1" disabled={worksheetMode === 'all'} value={worksheetName} onChange={event => setWorksheetName(event.target.value)} />
-          </label>
-          <label className="fh-field-label">
             {translate('sources:sourceConfiguration.dataStartsAtRow')}
             <input className="fh-input mt-1" type="number" min="1" value={dataStartRow} onChange={event => setDataStartRow(Number(event.target.value))} />
           </label>
         </div>
+        {worksheetMode === 'selected' && <fieldset className="rounded-xl border border-border p-4">
+          <legend className="px-2 font-medium text-text-base">{translate('sources:sourceConfiguration.chooseParticipatingWorksheets')}</legend>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <button className="fh-button-secondary" type="button" disabled={detectingWorksheets} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
+            {detectedWorksheets.length === 0 && <label className="fh-field-label min-w-[260px]">{translate('sources:sourceConfiguration.worksheet')}<input className="fh-input mt-1" value={worksheetName} onChange={event => { setWorksheetName(event.target.value); setSelectedWorksheetNames(event.target.value.trim() ? [event.target.value.trim()] : []) }} /></label>}
+          </div>
+          {detectedWorksheets.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {detectedWorksheets.map(item => <label className="fh-inline-check rounded-lg border border-border p-3" key={item.name}><input type="checkbox" checked={selectedWorksheetNames.includes(item.name)} onChange={event => setSelectedWorksheetNames(current => event.target.checked ? [...new Set([...current, item.name])] : current.filter(name => name !== item.name))} /><span><strong className="block text-text-base">{item.name}</strong><small className="fh-text-caption">{translate('sources:sourceConfiguration.worksheetRowCount', { count: item.rowCount })}</small></span></label>)}
+          </div>}
+          {selectedWorksheetNames.length === 0 && <p className="fh-alert-warning mt-3" role="alert">{translate('sources:sourceConfiguration.selectAtLeastOneWorksheet')}</p>}
+        </fieldset>}
+        <p className="fh-text-caption">{translate('sources:sourceConfiguration.worksheetSellerHelp')}</p>
         <div>
           <h2 className="fh-section-title">{translate('sources:sourceConfiguration.sourceProductFields')}</h2>
           <p className="fh-text-caption">{translate('sources:sourceConfiguration.unmappedColumnsAreIgnoredHeaderSuggestionsNever')}</p>
@@ -362,7 +481,7 @@ export default function SourceConfiguration() {
         </div>
       </section>
 
-      <section className="fh-card fh-card-pad mt-5 space-y-4" aria-label={translate('sources:sourceConfiguration.channelMappings')}>
+      <section className={`fh-card fh-card-pad mt-5 space-y-4 ${worksheetRuleMode === 'per_worksheet' ? 'hidden' : ''}`} aria-label={translate('sources:sourceConfiguration.channelMappings')}>
         <div>
           <h2 className="fh-section-title">{translate('sources:sourceConfiguration.channelMappings')}</h2>
           <p className="fh-text-caption">{translate('sources:sourceConfiguration.channelMappingsAreIndependent')}</p>
@@ -456,11 +575,24 @@ export default function SourceConfiguration() {
           ))}
         </div>
         <div className="flex justify-end">
-          <button className="fh-button-primary" type="button" disabled={saving} onClick={() => void save()}>
+          <button className="fh-button-primary" type="button" disabled={saving || (worksheetMode === 'selected' && selectedWorksheetNames.length === 0)} onClick={() => void save()}>
             <Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}
           </button>
         </div>
       </section>
+
+      {worksheetRuleMode === 'per_worksheet' && <section className="fh-card fh-card-pad mt-5 space-y-4" aria-label={translate('sources:sourceConfiguration.separateWorksheetRules')}>
+        <div className="flex flex-wrap items-end gap-3">
+          <button className="fh-button-secondary" type="button" disabled={detectingWorksheets} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
+          <label className="fh-field-label min-w-[260px]">{translate('sources:sourceConfiguration.worksheetNamePrompt')}<input className="fh-input mt-1" value={newWorksheetName} onChange={event => setNewWorksheetName(event.target.value)} /></label>
+          <button className="fh-button-secondary" type="button" disabled={!newWorksheetName.trim() || worksheetRules.some(item => item.worksheetName === newWorksheetName.trim())} onClick={addWorksheetRule}><Icon name="add" /> {translate('sources:sourceConfiguration.addWorksheet')}</button>
+          <label className="fh-field-label ms-auto min-w-[280px]">{translate('sources:sourceConfiguration.duplicateProductPolicy')}<select className="fh-input mt-1" value={duplicateProductPolicy} onChange={event => setDuplicateProductPolicy(event.target.value as 'block' | 'last_sheet_wins')}><option value="block">{translate('sources:sourceConfiguration.blockDuplicates')}</option><option value="last_sheet_wins">{translate('sources:sourceConfiguration.lastWorksheetWins')}</option></select></label>
+        </div>
+        {duplicateProductPolicy === 'last_sheet_wins' && <p className="fh-alert-warning">{translate('sources:sourceConfiguration.lastWorksheetWinsWarning')}</p>}
+        <div className="space-y-3">{worksheetRules.map((rule, index) => <WorksheetRuleEditor key={rule.worksheetName} rule={rule} channels={channels} sourceKind={source.sourceKind} onChange={next => setWorksheetRules(current => current.map((item, itemIndex) => itemIndex === index ? next : item))} onRemove={() => setWorksheetRules(current => current.filter((_item, itemIndex) => itemIndex !== index))} />)}</div>
+        {worksheetRules.length === 0 && <p className="fh-alert-warning">{translate('sources:sourceConfiguration.addAtLeastOneWorksheet')}</p>}
+        <div className="flex justify-end"><button className="fh-button-primary" type="button" disabled={saving || !worksheetRulesValid} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button></div>
+      </section>}
 
       <section className="fh-card mt-5" aria-label={translate('sources:sourceConfiguration.sourcePreview')}>
         <div className="fh-panel-header">
@@ -474,17 +606,28 @@ export default function SourceConfiguration() {
         </div>
         {preview && (
           <>
-            <div className="grid grid-cols-2 gap-3 border-t border-border p-4">
-              <div><strong className="text-text-base">{preview.recognized}</strong><span className="fh-text-caption ms-2">{translate('sources:sourceConfiguration.recognized')}</span></div>
-              <div><strong className="text-text-base">{preview.ignored}</strong><span className="fh-text-caption ms-2">{translate('sources:sourceConfiguration.ignored')}</span></div>
-            </div>
+            {previewSummary && <div className="grid grid-cols-2 gap-4 border-t border-border p-4 xl:grid-cols-4">
+              <button className="fh-stat-card text-start" type="button" onClick={() => setPreviewFilter('all')}><span className="fh-text-caption">{translate('sources:sourceConfiguration.productsFound')}</span><strong className="mt-2 block text-2xl">{previewSummary.productsFound}</strong></button>
+              <button className="fh-stat-card text-start" type="button" onClick={() => setPreviewFilter('ready')}><span className="fh-text-caption">{translate('sources:sourceConfiguration.productsReady')}</span><strong className="mt-2 block text-2xl">{previewSummary.productsReady}</strong></button>
+              <div className="fh-stat-card"><span className="fh-text-caption">{translate('sources:sourceConfiguration.productsWithPriceChanges')}</span><strong className="mt-2 block text-2xl">{previewSummary.priceChanges ?? '—'}</strong>{previewSummary.priceChanges == null && <small className="fh-text-caption mt-1 block">{translate('sources:sourceConfiguration.calculatedInWorkspace')}</small>}</div>
+              <div className="fh-stat-card"><span className="fh-text-caption">{translate('sources:sourceConfiguration.productsWithStockChanges')}</span><strong className="mt-2 block text-2xl">{previewSummary.stockChanges ?? '—'}</strong>{previewSummary.stockChanges == null && <small className="fh-text-caption mt-1 block">{translate('sources:sourceConfiguration.calculatedInWorkspace')}</small>}</div>
+              <div className="fh-stat-card"><span className="fh-text-caption">{translate('sources:sourceConfiguration.unchangedProducts')}</span><strong className="mt-2 block text-2xl">{previewSummary.unchanged ?? '—'}</strong>{previewSummary.unchanged == null && <small className="fh-text-caption mt-1 block">{translate('sources:sourceConfiguration.calculatedInWorkspace')}</small>}</div>
+              <button className="fh-stat-card text-start" type="button" onClick={() => setPreviewFilter('attention')}><span className="fh-text-caption">{translate('sources:sourceConfiguration.productsNeedingAttention')}</span><strong className="mt-2 block text-2xl">{previewSummary.needsAttention}</strong></button>
+              <div className="fh-stat-card"><span className="fh-text-caption">{translate('sources:sourceConfiguration.channelsReady')}</span><strong className="mt-2 block text-2xl">{previewSummary.channelsReady}</strong></div>
+              <div className="fh-stat-card"><span className="fh-text-caption">{translate('sources:sourceConfiguration.channelsNotConfigured')}</span><strong className="mt-2 block text-2xl">{previewSummary.channelsNotConfigured}</strong></div>
+            </div>}
             <div className="divide-y divide-border border-t border-border">
-              {preview.items.slice(0, 25).map(item => (
+              {previewItems.slice(0, 25).map(item => (
                 <article className="p-4" key={item.rowKey}>
                   <div className="flex flex-wrap items-center gap-3">
+                    <span className="fh-badge fh-badge-neutral">{translate('sources:sourceConfiguration.worksheet')}: {item.worksheetName}</span>
                     <span className="fh-badge fh-badge-neutral">{translate('sources:sourceConfiguration.row')} {item.rowNumber}</span>
-                    <strong className="text-text-base">{item.sourceProduct.name || item.sourceProduct.source_key || '—'}</strong>
-                    <span className="fh-text-caption">{item.recognized ? translate('sources:sourceConfiguration.recognized') : translate('sources:sourceConfiguration.ignoredRow')}</span>
+                    <strong className="text-text-base">{String(item.sourceProduct.name || item.sourceProduct.source_key || '—')}</strong>
+                    <span className="fh-text-caption">{item.ready
+                      ? translate('common:status.ready')
+                      : item.hasIssues
+                        ? translate('sources:sourceConfiguration.productsNeedingAttention')
+                        : translate('sources:sourceConfiguration.ignoredRow')}</span>
                   </div>
                   <div className="mt-3 grid gap-2 lg:grid-cols-3">
                     {item.channels.map(channel => (
@@ -494,7 +637,7 @@ export default function SourceConfiguration() {
                           {CHANNEL_FIELDS.map(([field, labelKey]) => (
                             <div className="contents" key={field}>
                               <dt>{translate(labelKey)}</dt>
-                              <dd className="font-medium text-text-base">{channel.fields[field] ?? translate('sources:sourceConfiguration.notConfigured')}</dd>
+                              <dd className="font-medium text-text-base">{String(channel.fields[field] ?? translate('sources:sourceConfiguration.notConfigured'))}</dd>
                             </div>
                           ))}
                         </dl>
@@ -504,6 +647,7 @@ export default function SourceConfiguration() {
                 </article>
               ))}
             </div>
+            <details className="border-t border-border p-4"><summary className="cursor-pointer fh-text-caption">{translate('sources:sourceConfiguration.technicalDetails')}</summary><p className="fh-text-caption mt-2">{translate('sources:sourceConfiguration.recognized')}: {preview.recognized} · {translate('sources:sourceConfiguration.ignored')}: {preview.ignored}</p></details>
           </>
         )}
       </section>

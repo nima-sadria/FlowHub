@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session, aliased
 
 from app.flowhub.source_workspace.models import (
@@ -14,9 +14,16 @@ from app.flowhub.source_workspace.models import (
     SourceChannelFieldMapping,
     SourceChannelMapping,
     SourceDataQualityIssue,
+    SourceDataQualityScan,
+    SourceDataQualityScanSource,
     SourceFieldMapping,
     SourceMappingRevision,
     SourceProfile,
+    SourceWorksheetChannelFieldMapping,
+    SourceWorksheetChannelMapping,
+    SourceWorksheetFieldMapping,
+    SourceWorksheetRule,
+    SourceWorksheetRuleSet,
 )
 
 
@@ -66,6 +73,60 @@ class SourceRepository:
             self.db.query(SourceChannelFieldMapping)
             .filter(SourceChannelFieldMapping.channel_mapping_id.in_(channel_mapping_ids))
             .order_by(SourceChannelFieldMapping.channel_mapping_id, SourceChannelFieldMapping.field)
+            .all()
+        )
+
+    def worksheet_rule_set(self, revision_id: str) -> SourceWorksheetRuleSet | None:
+        return (
+            self.db.query(SourceWorksheetRuleSet)
+            .filter(SourceWorksheetRuleSet.mapping_revision_id == revision_id)
+            .first()
+        )
+
+    def worksheet_rules(self, rule_set_id: str) -> list[SourceWorksheetRule]:
+        return (
+            self.db.query(SourceWorksheetRule)
+            .filter(SourceWorksheetRule.rule_set_id == rule_set_id)
+            .order_by(SourceWorksheetRule.worksheet_name)
+            .all()
+        )
+
+    def worksheet_fields(self, rule_ids: list[str]) -> list[SourceWorksheetFieldMapping]:
+        if not rule_ids:
+            return []
+        return (
+            self.db.query(SourceWorksheetFieldMapping)
+            .filter(SourceWorksheetFieldMapping.worksheet_rule_id.in_(rule_ids))
+            .order_by(SourceWorksheetFieldMapping.worksheet_rule_id, SourceWorksheetFieldMapping.field)
+            .all()
+        )
+
+    def worksheet_channels(self, rule_ids: list[str]) -> list[SourceWorksheetChannelMapping]:
+        if not rule_ids:
+            return []
+        return (
+            self.db.query(SourceWorksheetChannelMapping)
+            .filter(SourceWorksheetChannelMapping.worksheet_rule_id.in_(rule_ids))
+            .order_by(SourceWorksheetChannelMapping.worksheet_rule_id, SourceWorksheetChannelMapping.channel_id)
+            .all()
+        )
+
+    def worksheet_channel_fields(
+        self, channel_mapping_ids: list[str]
+    ) -> list[SourceWorksheetChannelFieldMapping]:
+        if not channel_mapping_ids:
+            return []
+        return (
+            self.db.query(SourceWorksheetChannelFieldMapping)
+            .filter(
+                SourceWorksheetChannelFieldMapping.worksheet_channel_mapping_id.in_(
+                    channel_mapping_ids
+                )
+            )
+            .order_by(
+                SourceWorksheetChannelFieldMapping.worksheet_channel_mapping_id,
+                SourceWorksheetChannelFieldMapping.field,
+            )
             .all()
         )
 
@@ -168,6 +229,7 @@ class DataQualityRepository:
         self,
         *,
         user_id: int,
+        scan_id: str,
         source_id: str | None,
         channel_id: str | None,
         worksheet: str | None,
@@ -177,10 +239,14 @@ class DataQualityRepository:
         mapping_state: str | None,
         page: int,
         page_size: int,
-    ) -> tuple[list[SourceDataQualityIssue], int]:
+    ) -> tuple[list[SourceDataQualityIssue], int, dict[str, int]]:
         query = self.db.query(SourceDataQualityIssue).join(
-            SourceProfile, SourceProfile.id == SourceDataQualityIssue.source_id
-        ).filter(SourceProfile.owner_user_id == user_id)
+            SourceDataQualityScan,
+            SourceDataQualityScan.id == SourceDataQualityIssue.scan_id,
+        ).filter(
+            SourceDataQualityScan.owner_user_id == user_id,
+            SourceDataQualityIssue.scan_id == scan_id,
+        )
         if source_id:
             query = query.filter(SourceDataQualityIssue.source_id == source_id)
         if channel_id:
@@ -196,12 +262,130 @@ class DataQualityRepository:
         if mapping_state:
             query = query.filter(SourceDataQualityIssue.mapping_state == mapping_state)
         total = query.count()
+        category_counts = {
+            str(category): int(count)
+            for category, count in query.with_entities(
+                SourceDataQualityIssue.category,
+                func.count(SourceDataQualityIssue.id),
+            )
+            .group_by(SourceDataQualityIssue.category)
+            .all()
+        }
+        severity_priority = case(
+            (SourceDataQualityIssue.severity == "blocked", 0),
+            (SourceDataQualityIssue.severity == "error", 1),
+            (SourceDataQualityIssue.severity == "warning", 2),
+            else_=3,
+        )
         return (
             query.order_by(
-                SourceDataQualityIssue.severity.desc(), SourceDataQualityIssue.created_at.desc()
+                severity_priority.asc(),
+                SourceDataQualityIssue.created_at.desc(),
+                SourceDataQualityIssue.id.asc(),
             )
             .offset((page - 1) * page_size)
             .limit(page_size)
             .all(),
             total,
+            category_counts,
         )
+
+    def latest_scan(
+        self, *, user_id: int, source_id: str | None
+    ) -> SourceDataQualityScan | None:
+        query = self.db.query(SourceDataQualityScan).filter(
+            SourceDataQualityScan.owner_user_id == user_id
+        )
+        if source_id is None:
+            query = query.filter(SourceDataQualityScan.source_id.is_(None))
+        else:
+            query = query.join(
+                SourceDataQualityScanSource,
+                SourceDataQualityScanSource.scan_id == SourceDataQualityScan.id,
+            ).filter(SourceDataQualityScanSource.source_id == source_id)
+        return (
+            query.order_by(
+                SourceDataQualityScan.created_at.desc(),
+                SourceDataQualityScan.id.desc(),
+            )
+            .limit(1)
+            .one_or_none()
+        )
+
+    def previous_completed_scan(
+        self,
+        *,
+        user_id: int,
+        source_id: str | None,
+        exclude_scan_id: str,
+    ) -> SourceDataQualityScan | None:
+        query = self.db.query(SourceDataQualityScan).filter(
+            SourceDataQualityScan.owner_user_id == user_id,
+            SourceDataQualityScan.status == "completed",
+            SourceDataQualityScan.id != exclude_scan_id,
+        )
+        if source_id is None:
+            query = query.filter(SourceDataQualityScan.source_id.is_(None))
+        else:
+            query = query.join(
+                SourceDataQualityScanSource,
+                SourceDataQualityScanSource.scan_id == SourceDataQualityScan.id,
+            ).filter(SourceDataQualityScanSource.source_id == source_id)
+        return (
+            query.order_by(
+                SourceDataQualityScan.checked_at.desc(),
+                SourceDataQualityScan.id.desc(),
+            )
+            .limit(1)
+            .one_or_none()
+        )
+
+    def issue_identity_keys(
+        self, scan_id: str, *, source_id: str | None = None
+    ) -> set[tuple[str, str, str, str, str, str, str, str]]:
+        query = self.db.query(
+            SourceDataQualityIssue.source_id,
+            SourceDataQualityIssue.worksheet_name,
+            SourceDataQualityIssue.source_row_key,
+            SourceDataQualityIssue.source_product_name,
+            SourceDataQualityIssue.channel_id,
+            SourceDataQualityIssue.mapping_state,
+            SourceDataQualityIssue.category,
+            SourceDataQualityIssue.code,
+        ).filter(SourceDataQualityIssue.scan_id == scan_id)
+        if source_id is not None:
+            query = query.filter(SourceDataQualityIssue.source_id == source_id)
+        return {
+            (
+                str(issue_source_id or ""),
+                str(worksheet_name or ""),
+                str(source_row_key or ""),
+                str(source_product_name or ""),
+                str(channel_id or ""),
+                str(mapping_state or ""),
+                str(category or ""),
+                str(code or ""),
+            )
+            for (
+                issue_source_id,
+                worksheet_name,
+                source_row_key,
+                source_product_name,
+                channel_id,
+                mapping_state,
+                category,
+                code,
+            ) in query.all()
+        }
+
+    def categories(self, scan_id: str, *, source_id: str | None = None) -> dict[str, int]:
+        query = self.db.query(
+            SourceDataQualityIssue.category,
+            func.count(SourceDataQualityIssue.id),
+        ).filter(SourceDataQualityIssue.scan_id == scan_id)
+        if source_id is not None:
+            query = query.filter(SourceDataQualityIssue.source_id == source_id)
+        return {
+            str(category): int(count)
+            for category, count in query.group_by(SourceDataQualityIssue.category).all()
+        }

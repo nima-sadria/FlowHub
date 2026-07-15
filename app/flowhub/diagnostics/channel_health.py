@@ -12,7 +12,7 @@ import logging
 import traceback
 from datetime import datetime, timedelta
 from time import monotonic
-from typing import Any
+from typing import Any, cast
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, inspect
@@ -23,14 +23,17 @@ from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.config.values import parse_config_bool
 from app.flowhub.data_layer.health_service import ConnectorHealthService
 from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
-from app.flowhub.integration_platform.models import IntegrationConnectorEvent, IntegrationConnectorInstance
+from app.flowhub.integration_platform.models import (
+    IntegrationConnectorEvent,
+    IntegrationConnectorInstance,
+)
 from app.flowhub.integration_platform.registry import registry
 from app.flowhub.orders.models import ChannelOrderRecord, OrderSyncCheckpoint
 from app.flowhub.product_pricing.models import ProductPriceOperation, ProductPriceOperationItem
 from app.flowhub.webhooks.models import WebhookDeadLetter, WebhookReceipt
 
-
 DEFAULT_CHANNEL_IDS = ("woocommerce:primary", "snappshop:main", "tapsishop:main")
+SOURCE_CONNECTOR_TYPES = frozenset({"nextcloud", "csv", "gsheets", "erp"})
 HEALTH_CACHE_SECONDS = 60
 EXTERNAL_CHECK_TIMEOUT_SECONDS = 8.0
 STALE_SYNC_AFTER = timedelta(hours=24)
@@ -42,8 +45,8 @@ class ChannelHealthReporter:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def report(self) -> dict:
-        items = []
+    def report(self) -> dict[str, Any]:
+        items: list[dict[str, Any]] = []
         for channel_id in self._channel_ids():
             try:
                 items.append(self._channel_shape(channel_id))
@@ -69,7 +72,7 @@ class ChannelHealthReporter:
             "external_call_performed": False,
         }
 
-    def _unavailable_channel_shape(self, channel_id: str) -> dict:
+    def _unavailable_channel_shape(self, channel_id: str) -> dict[str, Any]:
         connector_type = channel_id.split(":", 1)[0]
         unavailable = _dimension("Unable to check", "Channel diagnostics are temporarily unavailable.")
         return {
@@ -94,9 +97,10 @@ class ChannelHealthReporter:
             "webhooks": {"supported": connector_type == "tapsishop", "received": 0, "queued": 0, "processed": 0, "deadLetter": 0, "lastReceivedAt": None, "lastProcessedAt": None},
         }
 
-    async def refresh(self, channel_id: str | None = None) -> dict:
+    async def refresh(self, channel_id: str | None = None) -> dict[str, Any]:
         known_ids = set(self._channel_ids())
         ids = [channel_id] if channel_id else list(known_ids)
+        external_call_performed = False
         for cid in ids:
             if cid not in known_ids:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel not found.")
@@ -107,22 +111,22 @@ class ChannelHealthReporter:
                 current = self._health(cid)
                 if current and current.checked_at > datetime.utcnow() - timedelta(seconds=HEALTH_CACHE_SECONDS):
                     continue
-                await self._refresh_one(cid)
+                external_call_performed = await self._refresh_one(cid) or external_call_performed
         payload = self.report()
-        payload["external_call_performed"] = True
+        payload["external_call_performed"] = external_call_performed
         return payload
 
-    async def _refresh_one(self, channel_id: str) -> None:
+    async def _refresh_one(self, channel_id: str) -> bool:
         service = CommerceHubService(self.db)
         started = monotonic()
         try:
             result = await asyncio.wait_for(service.test_channel_connection(channel_id), timeout=EXTERNAL_CHECK_TIMEOUT_SECONDS)
         except TimeoutError:
             self._record_health(channel_id, "unknown", (monotonic() - started) * 1000, "Lightweight channel health probe timed out.", "timeout")
-            return
+            return True
         except Exception:
             self._record_health(channel_id, "unhealthy", (monotonic() - started) * 1000, "Lightweight channel health probe failed.", "unexpected_response")
-            return
+            return True
 
         external_status = str(result.get("status") or "")
         error_class = _error_category_from_result(result)
@@ -146,8 +150,9 @@ class ChannelHealthReporter:
             _safe_message(str(result.get("message") or "Channel health probe completed.")),
             error_class,
         )
+        return bool(result.get("external_call_performed"))
 
-    def _channel_shape(self, channel_id: str) -> dict:
+    def _channel_shape(self, channel_id: str) -> dict[str, Any]:
         instance = self.db.get(IntegrationConnectorInstance, channel_id)
         connector_type = channel_id.split(":", 1)[0]
         definition = registry.get_definition(connector_type)
@@ -193,9 +198,16 @@ class ChannelHealthReporter:
             "accessMode": self._access_mode(instance),
             "status": status,
             "summary": self._summary(status, configured, health, product_read, order_sync, webhook),
-            "lastChecked": _iso(health.checked_at) if health else None,
+            "lastChecked": _iso(cast(datetime, health.checked_at)) if health else None,
             "latency": health.latency_ms if health else None,
-            "lastSuccessfulOperation": _iso(_max_dt(product_read, product_write, order_sync, health.last_success_at if health else None)),
+            "lastSuccessfulOperation": _iso(
+                _max_dt(
+                    product_read,
+                    product_write,
+                    order_sync,
+                    cast(datetime | None, health.last_success_at) if health else None,
+                )
+            ),
             "lastErrorCategory": health.error_class if health else None,
             "capabilityState": capability_state,
             "nextRecommendedAction": self._next_action(status, configured, health, webhook),
@@ -209,7 +221,7 @@ class ChannelHealthReporter:
             "cachedProductCount": cached_product_count,
             "lastProductSync": _iso(product_read),
             "lastSyncErrorCategory": (
-                str((latest_product_refresh.meta or {}).get("error_category") or "") or None
+                str(cast(dict[str, Any], latest_product_refresh.meta or {}).get("error_category") or "") or None
                 if latest_product_refresh and latest_product_refresh.status == "failed"
                 else None
             ),
@@ -269,7 +281,7 @@ class ChannelHealthReporter:
             .first()
         )
 
-    def _product_cache_dimension(self, enabled: bool, refresh: DlRefreshJob | None) -> dict:
+    def _product_cache_dimension(self, enabled: bool, refresh: DlRefreshJob | None) -> dict[str, str]:
         if not enabled:
             return _dimension("Disabled", "Channel is disabled.")
         if refresh is None:
@@ -298,11 +310,12 @@ class ChannelHealthReporter:
     def _last_product_write(self, channel_id: str) -> datetime | None:
         if not self._table_exists(ProductPriceOperation) or not self._table_exists(ProductPriceOperationItem):
             return None
-        return (
+        return cast(
+            datetime | None,
             self.db.query(func.max(ProductPriceOperation.applied_at))
             .join(ProductPriceOperationItem, ProductPriceOperationItem.operation_id == ProductPriceOperation.id)
             .filter(ProductPriceOperationItem.channel_id == channel_id, ProductPriceOperationItem.status == "applied")
-            .scalar()
+            .scalar(),
         )
 
     def _last_order_sync(self, channel_id: str) -> datetime | None:
@@ -322,7 +335,7 @@ class ChannelHealthReporter:
             .first()
         )
 
-    def _webhook_state(self, channel_id: str, connector_type: str) -> dict:
+    def _webhook_state(self, channel_id: str, connector_type: str) -> dict[str, Any]:
         if connector_type != "tapsishop":
             return {"supported": False, "received": 0, "queued": 0, "processed": 0, "deadLetter": 0, "lastReceivedAt": None, "lastProcessedAt": None}
         if not self._table_exists(WebhookReceipt) or not self._table_exists(WebhookDeadLetter):
@@ -340,7 +353,7 @@ class ChannelHealthReporter:
             "lastProcessedAt": _iso(max((item.processed_at for item in receipts if item.processed_at), default=None)),
         }
 
-    def _credential_dimension(self, enabled: bool, configured: bool, health: DlConnectorHealth | None) -> dict:
+    def _credential_dimension(self, enabled: bool, configured: bool, health: DlConnectorHealth | None) -> dict[str, str]:
         if not enabled:
             return _dimension("Disabled", "Channel is disabled.")
         if health and health.error_class in {"authentication", "authentication_failed"}:
@@ -349,7 +362,7 @@ class ChannelHealthReporter:
             return _dimension("Warning", "Credentials are not fully configured.")
         return _dimension("Operational" if health and health.last_success_at else "Unable to check", "Credential validation uses the lightweight provider probe.")
 
-    def _external_dimension(self, enabled: bool, configured: bool, health: DlConnectorHealth | None) -> dict:
+    def _external_dimension(self, enabled: bool, configured: bool, health: DlConnectorHealth | None) -> dict[str, str]:
         if not enabled:
             return _dimension("Disabled", "")
         if not configured:
@@ -357,42 +370,46 @@ class ChannelHealthReporter:
         if health is None:
             return _dimension("Unable to check", "No health check has been recorded.")
         if health.error_class == "timeout" or health.status == "unknown":
-            return _dimension("Unable to check", health.detail or "Provider probe was inconclusive.")
+            return _dimension("Unable to check", cast(str | None, health.detail) or "Provider probe was inconclusive.")
         if health.status == "healthy":
-            return _dimension("Operational", health.detail or "")
+            return _dimension("Operational", cast(str | None, health.detail) or "")
         if health.status == "degraded":
-            return _dimension("Warning", health.detail or "")
-        return _dimension("Error", health.detail or "Provider probe failed.")
+            return _dimension("Warning", cast(str | None, health.detail) or "")
+        return _dimension("Error", cast(str | None, health.detail) or "Provider probe failed.")
 
-    def _sync_dimension(self, last_at: datetime | None) -> dict:
+    def _sync_dimension(self, last_at: datetime | None) -> dict[str, str]:
         if last_at is None:
             return _dimension("Warning", "No successful sync has been recorded.")
         if last_at < datetime.utcnow() - STALE_SYNC_AFTER:
             return _dimension("Warning", "Last successful sync is stale.")
         return _dimension("Operational", "Recent successful sync recorded.")
 
-    def _webhook_receipt_dimension(self, state: dict) -> dict:
+    def _webhook_receipt_dimension(self, state: dict[str, Any]) -> dict[str, str]:
         if not state["supported"]:
             return _dimension("Disabled", "Channel does not use webhooks.")
         if state["received"] == 0:
             return _dimension("Warning", "No webhook receipt has been accepted yet.")
         return _dimension("Operational", "Webhook receipts are being accepted.")
 
-    def _webhook_processing_dimension(self, state: dict) -> dict:
+    def _webhook_processing_dimension(self, state: dict[str, Any]) -> dict[str, str]:
         if not state["supported"]:
             return _dimension("Disabled", "")
         if state["queued"] > 0:
             return _dimension("Warning", "Accepted webhook receipts are waiting for processing.")
         return _dimension("Operational" if state["processed"] else "Warning", "No processed webhook receipt yet." if not state["processed"] else "")
 
-    def _dead_letter_dimension(self, state: dict) -> dict:
+    def _dead_letter_dimension(self, state: dict[str, Any]) -> dict[str, str]:
         if not state["supported"]:
             return _dimension("Disabled", "")
         if state["deadLetter"] > 0:
             return _dimension("Error", "Webhook dead letters require operator review.")
         return _dimension("Operational", "No dead letters.")
 
-    def _token_refresh_dimension(self, instance: IntegrationConnectorInstance | None, connector_type: str) -> dict:
+    def _token_refresh_dimension(
+        self,
+        instance: IntegrationConnectorInstance | None,
+        connector_type: str,
+    ) -> dict[str, str]:
         if connector_type != "tapsishop":
             return _dimension("Disabled", "Token refresh is not supported for this channel.")
         settings = {item.key: item for item in instance.settings} if instance else {}
@@ -411,12 +428,16 @@ class ChannelHealthReporter:
         return _dimension("Operational" if enabled else "Warning", f"Refresh policy {'enabled' if enabled else 'disabled'}." + (f" Last event {event_label}." if event_label else ""))
 
     def _channel_ids(self) -> list[str]:
-        rows = self.db.query(IntegrationConnectorInstance.id).order_by(IntegrationConnectorInstance.id.asc()).all()
-        ids = {row[0] for row in rows}
+        rows = (
+            self.db.query(IntegrationConnectorInstance.id, IntegrationConnectorInstance.connector_type)
+            .order_by(IntegrationConnectorInstance.id.asc())
+            .all()
+        )
+        ids = {row.id for row in rows if _is_channel_connector_type(row.connector_type)}
         ids.update(DEFAULT_CHANNEL_IDS)
         return sorted(ids)
 
-    def _runner_state(self) -> dict:
+    def _runner_state(self) -> dict[str, Any]:
         event = (
             self.db.query(IntegrationConnectorEvent)
             .filter_by(connector_id="flowhub:order-sync-runner", event_name="order_sync_runner_heartbeat")
@@ -430,11 +451,21 @@ class ChannelHealthReporter:
             "runnerId": metadata.get("runner_id") if event else None,
         }
 
-    def _order_sync_state(self, channel_id: str) -> dict:
+    def _order_sync_state(self, channel_id: str) -> dict[str, Any]:
         checkpoints = self.db.query(OrderSyncCheckpoint).filter_by(channel_id=channel_id).all() if self._table_exists(OrderSyncCheckpoint) else []
-        last_failure = max((item.last_failure_at for item in checkpoints if item.last_failure_at), default=None)
-        last_success = max((item.last_success_at or item.last_run_at for item in checkpoints if item.last_success_at or item.last_run_at), default=None)
-        next_run = min((item.next_run_at for item in checkpoints if item.next_run_at), default=None)
+        last_failure = _max_dt(*(item.last_failure_at for item in checkpoints))
+        last_success = _max_dt(
+            *(
+                item.last_success_at or item.last_run_at
+                for item in checkpoints
+            )
+        )
+        next_run_values = [
+            value
+            for item in checkpoints
+            if (value := item.next_run_at) is not None
+        ]
+        next_run = min(next_run_values) if next_run_values else None
         last_failure_category = next((item.last_failure_category for item in sorted(checkpoints, key=lambda row: row.last_failure_at or datetime.min, reverse=True) if item.last_failure_category), None)
         return {
             "lastRunPerSource": {
@@ -458,14 +489,26 @@ class ChannelHealthReporter:
     def _table_exists(self, model: Any) -> bool:
         return inspect(self.db.get_bind()).has_table(model.__tablename__)
 
-    def _polling_dimension(self, connector_type: str, checkpoint: OrderSyncCheckpoint | None) -> dict:
+    def _polling_dimension(
+        self,
+        connector_type: str,
+        checkpoint: OrderSyncCheckpoint | None,
+    ) -> dict[str, str]:
         if connector_type != "snappshop":
             return _dimension("Disabled", "Order polling is not used for this channel.")
         if checkpoint is None or checkpoint.last_run_at is None:
             return _dimension("Warning", "No order event polling checkpoint has run.")
         return self._sync_dimension(checkpoint.last_run_at)
 
-    def _summary(self, status_value: str, configured: bool, health: DlConnectorHealth | None, product_read: datetime | None, order_sync: datetime | None, webhook: dict) -> str:
+    def _summary(
+        self,
+        status_value: str,
+        configured: bool,
+        health: DlConnectorHealth | None,
+        product_read: datetime | None,
+        order_sync: datetime | None,
+        webhook: dict[str, Any],
+    ) -> str:
         if status_value == "Disabled":
             return "Channel is disabled."
         if not configured:
@@ -478,7 +521,13 @@ class ChannelHealthReporter:
             return "Configured, but no recent product or order sync has been recorded."
         return "Channel health is derived from the unified diagnostics source."
 
-    def _next_action(self, status_value: str, configured: bool, health: DlConnectorHealth | None, webhook: dict) -> str:
+    def _next_action(
+        self,
+        status_value: str,
+        configured: bool,
+        health: DlConnectorHealth | None,
+        webhook: dict[str, Any],
+    ) -> str:
         if status_value == "Disabled":
             return "Enable the channel when it should be monitored."
         if not configured:
@@ -492,17 +541,17 @@ class ChannelHealthReporter:
         return "No immediate action required."
 
 
-def _dimension(status_value: str, message: str) -> dict:
+def _dimension(status_value: str, message: str) -> dict[str, str]:
     return {"status": status_value, "message": _safe_message(message)}
 
 
-def _worst_dimension(dimensions: dict[str, dict]) -> str:
+def _worst_dimension(dimensions: dict[str, dict[str, str]]) -> str:
     order = {"Error": 4, "Warning": 3, "Unable to check": 2, "Operational": 1, "Disabled": 0}
     active = [item["status"] for item in dimensions.values() if item["status"] != "Disabled"]
     return max(active or ["Disabled"], key=lambda item: order.get(item, 0))
 
 
-def _summary(items: list[dict]) -> dict:
+def _summary(items: list[dict[str, Any]]) -> dict[str, Any]:
     counts = {"Operational": 0, "Warning": 0, "Error": 0, "Unable to check": 0, "Disabled": 0}
     for item in items:
         counts[item["status"]] = counts.get(item["status"], 0) + 1
@@ -514,7 +563,7 @@ def _summary(items: list[dict]) -> dict:
     return {"overall": overall, "counts": counts}
 
 
-def _error_category_from_result(result: dict) -> str | None:
+def _error_category_from_result(result: dict[str, Any]) -> str | None:
     value = str(result.get("code") or result.get("error_code") or result.get("status") or "").lower()
     if "auth" in value or result.get("authenticated") is False:
         return ConnectorErrorCategory.AUTHENTICATION.value
@@ -543,3 +592,8 @@ def _safe_message(value: str) -> str:
     if any(word in lowered for word in blocked):
         return "Sanitized health detail is available in server logs."
     return text
+
+
+def _is_channel_connector_type(connector_type: str) -> bool:
+    """Keep Source-only connector instances out of marketplace channel health."""
+    return connector_type not in SOURCE_CONNECTOR_TYPES and registry.get_definition(connector_type) is not None

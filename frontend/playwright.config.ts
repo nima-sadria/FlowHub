@@ -1,4 +1,14 @@
 import { defineConfig, devices } from '@playwright/test'
+import fs from 'node:fs'
+
+const installedChromium = [
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  '/usr/bin/google-chrome',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+].find(candidate => candidate && fs.existsSync(candidate))
 
 export default defineConfig({
   testDir: './e2e',
@@ -11,8 +21,8 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:4188',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
-      ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+    launchOptions: installedChromium
+      ? { executablePath: installedChromium }
       : undefined,
     ...devices['Desktop Chrome'],
   },

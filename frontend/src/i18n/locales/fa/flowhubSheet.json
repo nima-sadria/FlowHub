@@ -1,7 +1,7 @@
 {
   "flowHubSheet.add20Rows": "افزودن ۲۰ ردیف",
   "flowHubSheet.columnName": "نام ستون: {{column}}",
-  "flowHubSheet.configureMapping": "پیکربندی نگاشت",
+  "flowHubSheet.configureMapping": "تنظیم ستون‌ها",
   "flowHubSheet.fillDown": "پرکردن به پایین",
   "flowHubSheet.filterRows": "فیلتر ردیف‌ها",
   "flowHubSheet.filterSheetRows": "فیلتر ردیف‌های برگه",

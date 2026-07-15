@@ -1,4 +1,5 @@
 {
+  "action.cancel": "انصراف",
   "apiSourceService.useSettingsToConfigureConnectors": "برای پیکربندی اتصال‌دهنده‌ها از تنظیمات استفاده کنید.",
   "app.loading": "در حال بارگذاری...",
   "app.loadingWorkspaceGrid": "در حال بارگذاری جدول فضای کاری...",

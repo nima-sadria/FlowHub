@@ -1,7 +1,7 @@
 {
   "flowHubSheet.add20Rows": "Add 20 rows",
   "flowHubSheet.columnName": "Column name: {{column}}",
-  "flowHubSheet.configureMapping": "Configure Mapping",
+  "flowHubSheet.configureMapping": "Column setup",
   "flowHubSheet.fillDown": "Fill down",
   "flowHubSheet.filterRows": "Filter rows",
   "flowHubSheet.filterSheetRows": "Filter Sheet rows",

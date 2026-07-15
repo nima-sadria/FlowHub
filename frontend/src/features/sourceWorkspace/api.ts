@@ -6,6 +6,10 @@ import type {
   SourceChannel,
   SourceMapping,
   SourceProfile,
+  SourceLifecycleResult,
+  SourceLifecycleImpact,
+  SourcePreview,
+  DataQualitySummary,
 } from './types'
 import type { ReviewResource } from '../../services/unifiedWorkspace/types'
 
@@ -19,6 +23,7 @@ export const sourceWorkspaceApi = {
   listSources: () => apiFetch<{ items: SourceProfile[] }>('/api/v2/source-profiles', authFetch),
   channels: () => apiFetch<{ items: SourceChannel[] }>('/api/v2/source-profiles/channels', authFetch),
   source: (id: string) => apiFetch<SourceProfile & { mapping: SourceMapping | null }>(`/api/v2/sources/${encodeURIComponent(id)}/configuration`, authFetch),
+  worksheets: (id: string) => apiFetch<{ sourceId: string; sourceRevisionId: string | null; items: Array<{ name: string; rowCount: number }> }>(`/api/v2/sources/${encodeURIComponent(id)}/worksheets`, authFetch),
   createSource: (payload: {
     name: string
     source_kind: 'external'
@@ -53,15 +58,22 @@ export const sourceWorkspaceApi = {
   })),
   appendRows: (sheet: FlowHubSheetPage, count = 20) => apiFetch<FlowHubSheetPage>(`/api/v2/sheets/${encodeURIComponent(sheet.id)}/rows`, authFetch, json('POST', { expected_version: sheet.version, count })),
   saveMapping: (sourceId: string, payload: unknown) => apiFetch<SourceMapping>(`/api/v2/sources/${encodeURIComponent(sourceId)}/mappings`, authFetch, json('PUT', payload)),
-  previewSource: (sourceId: string) => apiFetch<Record<string, unknown>>(`/api/v2/sources/${encodeURIComponent(sourceId)}/preview?page=1&pageSize=100`, authFetch),
+  previewSource: (sourceId: string) => apiFetch<SourcePreview>(`/api/v2/sources/${encodeURIComponent(sourceId)}/preview?page=1&pageSize=100`, authFetch),
   previewImport: (payload: unknown) => apiFetch<Record<string, unknown>>('/api/v2/sheet-imports/preview', authFetch, json('POST', payload)),
   importSheet: (payload: unknown) => apiFetch<FlowHubSheetPage>('/api/v2/sheets/import', authFetch, json('POST', payload)),
   createWorkspace: (sourceId: string, name: string) => apiFetch<{ id: string }>('/api/v2/unified-workspaces/source', authFetch, json('POST', { source_id: sourceId, name })),
+  deleteSource: (source: SourceProfile) => apiFetch<SourceLifecycleResult>(`/api/v2/sources/${encodeURIComponent(source.id)}`, authFetch, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expected_source_version: source.version, confirmation_name: source.name }),
+  }),
+  sourceLifecycle: (sourceId: string) => apiFetch<SourceLifecycleImpact>(`/api/v2/sources/${encodeURIComponent(sourceId)}/lifecycle`, authFetch),
   review: (workspaceId: string, reviewId: string) => apiFetch<ReviewResource>(`/api/v2/unified-workspaces/${encodeURIComponent(workspaceId)}/reviews/${encodeURIComponent(reviewId)}`, authFetch),
   groupedGrid: (workspaceId: string, page: number, view: string, search = '') => {
     const params = new URLSearchParams({ page: String(page), pageSize: '100', view })
     if (search) params.set('search', search)
     return apiFetch<GroupedWorkspacePage>(`/api/v2/unified-workspaces/${encodeURIComponent(workspaceId)}/grouped-grid?${params}`, authFetch)
   },
-  dataQuality: (params: URLSearchParams) => apiFetch<{ items: Array<Record<string, unknown>>; counts: Record<string, number>; total: number }>(`/api/v2/data-quality?${params}`, authFetch),
+  dataQuality: (params: URLSearchParams) => apiFetch<{ items: Array<Record<string, unknown>>; counts: Record<string, number>; total: number; summary: DataQualitySummary }>(`/api/v2/data-quality?${params}`, authFetch),
+  scanDataQuality: (sourceId?: string) => apiFetch<{ summary: DataQualitySummary }>('/api/v2/data-quality/scans', authFetch, json('POST', { source_id: sourceId || null })),
 }

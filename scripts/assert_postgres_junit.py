@@ -30,6 +30,15 @@ REQUIRED_018_TESTS = (
     "test_postgresql_018_fresh_schema_foreign_keys_and_immutability",
     "test_postgresql_017_to_018_preserves_v12_sentinel",
 )
+REQUIRED_019_TESTS = (
+    "test_flowhub_019_is_explicit_additive_and_forward_only",
+    "test_flowhub_019_offline_sql_contains_complete_trigger_ddl",
+    "test_runtime_sqlite_engine_enables_declared_foreign_keys",
+    "test_sqlite_018_to_019_preserves_mapping_and_enforces_rule_immutability",
+    "test_sqlite_migrated_schema_allows_service_to_finalize_scan",
+    "test_sqlite_019_tables_match_source_workspace_metadata",
+    "test_postgresql_019_foreign_keys_immutability_and_018_preservation",
+)
 
 
 def main() -> int:
@@ -42,6 +51,7 @@ def main() -> int:
         "016-lock": REQUIRED_016_TESTS[2:],
         "017": REQUIRED_017_TESTS,
         "018": REQUIRED_018_TESTS,
+        "019": REQUIRED_019_TESTS,
         "orders": REQUIRED_ORDER_TESTS,
         "crash": REQUIRED_CRASH_TESTS,
     }.get(group, REQUIRED_017_TESTS)

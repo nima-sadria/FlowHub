@@ -46,16 +46,18 @@ async function installMockApi(page: Page) {
     if (url.pathname === '/api/v2/sources/source-visual/configuration') return json({ id: 'source-visual', name: 'Daily multi-channel prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 2, mappingVersion: 1, sheetId: 'sheet-visual', mapping: { id: 'mapping-1', version: 1, checksum: 'a'.repeat(64), worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, valuePolicy: { blank: 'no_change', x: 'unavailable', zero: 'explicit_zero' }, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }, { field: 'source_key', referenceType: 'disabled', referenceValue: null, required: false }], channels: [{ channelId: 'woocommerce:primary', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'C' }] }, { channelId: 'snappshop:main', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'O' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'G' }] }, { channelId: 'tapsishop:main', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'P' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'J' }] }] } })
     if (url.pathname === '/api/v2/sources/source-visual/preview') return json({
       items: [{
-        rowKey: 'Sheet1:2', rowNumber: 2, recognized: true,
+        rowKey: 'Sheet1:2', rowNumber: 2, worksheetName: 'Sheet1', recognized: true, hasIssues: false, ready: true,
         sourceProduct: { name: 'iPhone Cable', source_key: 'CABLE-01' },
         channels: [
           { channelId: 'woocommerce:primary', fields: { external_id: '51550', price: '12500000' } },
           { channelId: 'snappshop:main', fields: { external_id: '1826345203', price: '12900000' } },
           { channelId: 'tapsishop:main', fields: { external_id: '7785746738', price: '12700000' } },
         ],
+        valuePolicy: {}, issues: [],
       }],
       total: 1, recognized: 1, ignored: 0, issues: [],
       sheetRevisionId: 'sheet-revision-4', mappingRevisionId: 'mapping-1',
+      businessSummary: { productsFound: 1, productsReady: 1, priceChanges: null, stockChanges: null, unchanged: null, needsAttention: 0, channelsReady: 3, channelsNotConfigured: 0 },
     })
     if (url.pathname === '/api/v2/sheets/sheet-visual') {
       const pageNumber = Number(url.searchParams.get('page') ?? 1)
@@ -189,8 +191,8 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
       await expect(page.getByText('محصولات ذخیره‌شده در کش', { exact: false })).toBeVisible()
     }
     if (name === 'diagnostics') {
-      await expect(page.getByText('۶ ثانیه', { exact: true })).toBeVisible()
-      await expect(page.getByText('غیرفعال', { exact: true }).first()).toBeVisible()
+      await expect(page.getByText('۶ ثانیه', { exact: true }).first()).toBeVisible()
+      await expect(page.getByText('هنوز بررسی نشده', { exact: true }).first()).toBeVisible()
     }
     if (name === 'workspace') await expect(page.getByText('iPhone Cable')).toBeVisible()
     else if (name === 'flowhub-sheet') await expect(page.getByText('Daily multi-channel prices')).toBeVisible()

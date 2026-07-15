@@ -502,16 +502,23 @@ export default function Workspace() {
             </div>
           </div>
 
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="fh-section-title">{translate('dataQuality:dataQuality.summary')}</h2>
+              <p className="fh-text-caption">{translate('dataQuality:dataQuality.summaryFirstDescription')}</p>
+            </div>
+            <a className="fh-button-secondary" href="/data-quality"><Icon name="alert" /> {translate('workspace:workspace.openDataQualityReport')}</a>
+          </div>
           <div className="fh-stat-grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
             {[
-              ["Rows", preview.summary.total_rows],
-              ["Valid", preview.summary.valid_changes],
-              ["Warnings", preview.summary.warning_rows],
-              ["Unchanged", preview.summary.unchanged_rows],
-              ["Errors", preview.summary.error_rows],
-              ["Duplicates", preview.summary.duplicate_rows],
-              ["Missing", preview.summary.missing_products],
-              ["Large", preview.summary.large_changes],
+              [translate('sources:sourceConfiguration.productsFound'), preview.summary.total_rows],
+              [translate('sources:sourceConfiguration.productsReady'), preview.summary.valid_changes],
+              [translate('dataQuality:dataQuality.warnings'), preview.summary.warning_rows],
+              [translate('sources:sourceConfiguration.unchangedProducts'), preview.summary.unchanged_rows],
+              [translate('dataQuality:dataQuality.blockingIssues'), preview.summary.error_rows],
+              [translate('dataQuality:category.duplicate_rows'), preview.summary.duplicate_rows],
+              [translate('workspace:workspace.productsMissingFromChannel'), preview.summary.missing_products],
+              [translate('workspace:workspace.largePriceChanges'), preview.summary.large_changes],
             ].map(([label, value]) => (
               <div key={label} className="fh-stat-tile">
                 <p className="fh-stat-tile-label">{label}</p>
@@ -623,14 +630,14 @@ export default function Workspace() {
 
           {/* Duplicate warnings */}
           {(preview.duplicateWarnings ?? []).length > 0 && (
-            <div className="fh-card fh-card-pad">
-              <p className="fh-section-label mb-3">
+            <details className="fh-card fh-card-pad">
+              <summary className="fh-section-label cursor-pointer">
                 {translate('workspace:workspace.spreadsheetWarnings')}{preview.duplicateWarnings!.length})
-              </p>
-              {preview.duplicateWarnings!.map((w, i) => (
+              </summary>
+              <div className="mt-3">{preview.duplicateWarnings!.map((w, i) => (
                 <p key={i} className="fh-text-caption py-1 border-b border-border last:border-0">{w}</p>
-              ))}
-            </div>
+              ))}</div>
+            </details>
           )}
 
           <div className="fh-card overflow-hidden">

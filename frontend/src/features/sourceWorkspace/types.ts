@@ -19,6 +19,79 @@ export interface SourceProfile {
   } | null
 }
 
+export interface SourceLifecycleImpact {
+  sourceId: string
+  sourceName: string
+  sourceVersion: number
+  sourceStatus: string
+  action: 'none' | 'delete' | 'archive' | 'blocked'
+  blockers: Record<string, number>
+  protectedHistory: Record<string, number>
+}
+
+export interface SourceLifecycleResult {
+  sourceId: string
+  sourceName: string
+  outcome: 'deleted' | 'archived'
+  source: SourceProfile | null
+  impact: SourceLifecycleImpact
+}
+
+export type SourcePreviewValue = string | number | boolean | null
+
+export interface SourcePreviewItem {
+  rowKey: string
+  rowNumber: number
+  worksheetName: string
+  recognized: boolean
+  hasIssues: boolean
+  ready: boolean
+  sourceProduct: Record<string, SourcePreviewValue>
+  channels: Array<{ channelId: string; fields: Record<string, SourcePreviewValue> }>
+  valuePolicy: Record<string, string>
+  issues: Array<{ category: string; severity: string; channelId: string | null; message: string }>
+}
+
+export interface SourcePreview {
+  items: SourcePreviewItem[]
+  total: number
+  recognized: number
+  ignored: number
+  issues: Array<{ category: string; severity: string; channelId: string | null; count: number }>
+  businessSummary: {
+    productsFound: number
+    productsReady: number
+    priceChanges: number | null
+    stockChanges: number | null
+    unchanged: number | null
+    needsAttention: number
+    channelsReady: number
+    channelsNotConfigured: number
+  }
+  sheetRevisionId: string | null
+  mappingRevisionId: string | null
+}
+
+export type DataQualityScanState = 'never_checked' | 'checking' | 'healthy' | 'issues_found' | 'failed' | 'permission_denied'
+
+export interface DataQualitySummary {
+  state: DataQualityScanState
+  totalIssues: number
+  blockingIssues: number
+  warnings: number
+  affectedProducts: number
+  affectedChannels: number
+  affectedSources: number
+  resolvedSinceLastRead: number
+  trendSinceLastRead: number | null
+  productsChecked: number
+  sourcesChecked: number
+  checkedAt: string | null
+  scanId: string | null
+  errorCode: string | null
+  categories: Array<{ category: string; count: number }>
+}
+
 export interface SourceChannel {
   channelId: string
   name: string
@@ -37,6 +110,15 @@ export interface FieldMapping {
   required?: boolean
 }
 
+export interface SourceWorksheetRule {
+  worksheetName: string
+  enabled: boolean
+  dataStartRow: number
+  valuePolicy: Record<string, string>
+  sourceFields: FieldMapping[]
+  channels: SourceMapping['channels']
+}
+
 export interface SourceMapping {
   id: string
   version: number
@@ -45,6 +127,10 @@ export interface SourceMapping {
   worksheetName: string | null
   dataStartRow: number
   valuePolicy: Record<string, string>
+  worksheetRuleMode?: 'shared' | 'per_worksheet'
+  selectedWorksheetNames?: string[]
+  duplicateProductPolicy?: 'block' | 'last_sheet_wins'
+  worksheetRules?: SourceWorksheetRule[]
   sourceFields: FieldMapping[]
   channels: Array<{
     channelId: string

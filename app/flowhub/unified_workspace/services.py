@@ -534,7 +534,16 @@ class UnifiedWorkspaceService:
     ) -> dict[str, Any]:
         """Create a v1.2 Workspace from a saved, immutable internal Sheet revision."""
         self._seed_channels()
-        analysis = await SourceWorkspaceService(self.db).snapshot_candidates(source_id, user)
+        source_service = SourceWorkspaceService(self.db)
+        analysis = await source_service.snapshot_candidates(source_id, user)
+        # Fence Source archival/deletion after acquisition and through the
+        # immutable Workspace/Snapshot commit. If lifecycle or configuration
+        # changed during an external read, no Workspace is created from it.
+        source_service.lock_source_for_workspace(
+            source_id,
+            user,
+            expected_source_version=int(analysis["source"]["version"]),
+        )
         currency_profile = self._global_currency_profile()
         workspace_id = _id()
         snapshot_id = _id()

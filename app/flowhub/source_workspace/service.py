@@ -34,9 +34,17 @@ from app.flowhub.source_workspace.models import (
     SheetRow,
     SourceChannelFieldMapping,
     SourceChannelMapping,
+    SourceDataQualityIssue,
+    SourceDataQualityScan,
+    SourceDataQualityScanSource,
     SourceFieldMapping,
     SourceMappingRevision,
     SourceProfile,
+    SourceWorksheetChannelFieldMapping,
+    SourceWorksheetChannelMapping,
+    SourceWorksheetFieldMapping,
+    SourceWorksheetRule,
+    SourceWorksheetRuleSet,
 )
 from app.flowhub.source_workspace.repositories import (
     DataQualityRepository,
@@ -52,12 +60,18 @@ from app.flowhub.sources.spreadsheet_source import (
     normalize_source_mapping,
 )
 from app.flowhub.unified_workspace.domain import ApplyState, ReviewState, checksum, utcnow
+from app.flowhub.unified_workspace.events import (
+    DomainEvent,
+    DomainEventBus,
+    PersistenceAuditSubscriber,
+)
 from app.flowhub.unified_workspace.models import (
     ApplyJob,
     CanonicalProduct,
     ChannelCache,
     Listing,
     Review,
+    UnifiedWorkspace,
     WorkspaceChannel,
     WorkspaceSnapshot,
 )
@@ -182,7 +196,169 @@ class SourceWorkspaceService:
         result["legacyMapping"] = self._legacy_mapping_shape(source) if mapping is None else None
         sheet = self.sheets.for_source(source.id)
         result["sheetId"] = sheet.id if sheet else None
+        if mapping is not None:
+            _, _, rules = self._worksheet_rule_configs(mapping)
+            result["configuredWorksheets"] = sorted(
+                item["worksheetName"]
+                for item in rules
+                if item["worksheetName"] != "*"
+            )
+        else:
+            result["configuredWorksheets"] = []
         return result
+
+    def source_lifecycle(self, source_id: str, user: FlowHubUser) -> dict[str, Any]:
+        """Describe the safe lifecycle action without mutating the Source."""
+        source = self._owned_source(source_id, user)
+        return self._source_lifecycle_impact(source)
+
+    def delete_or_archive_source(
+        self,
+        *,
+        source_id: str,
+        expected_source_version: int,
+        confirmation_name: str,
+        user: FlowHubUser,
+    ) -> dict[str, Any]:
+        """Delete a genuinely unused Source or archive it while preserving history.
+
+        The Source row is locked before the optimistic checks and stays locked
+        through the history decision, mutation, Audit append, and commit.
+        """
+        source = self._owned_source(source_id, user, lock=True)
+        if source.version != expected_source_version:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_VERSION_CONFLICT",
+                    "message": "Source configuration changed before confirmation.",
+                },
+            )
+        if confirmation_name.strip() != source.name:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_CONFIRMATION_MISMATCH",
+                    "message": "Enter the current Source name to confirm this action.",
+                },
+            )
+        if source.status != "active":
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_ALREADY_ARCHIVED",
+                    "message": "This Source is already archived.",
+                },
+            )
+
+        impact = self._source_lifecycle_impact(source)
+        if impact["action"] == "blocked":
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_ACTIVE_WORKSPACE",
+                    "message": "Archive the active Workspace before removing this Source.",
+                    "details": impact,
+                },
+            )
+
+        source_metadata = {
+            "sourceId": source.id,
+            "sourceName": source.name,
+            "sourceKind": source.source_kind,
+            "sourceVersion": source.version,
+            "protectedHistory": impact["protectedHistory"],
+        }
+        if impact["action"] == "archive":
+            source.status = "disabled"
+            source.version += 1
+            source.updated_at = utcnow()
+            self._append_source_lifecycle_audit(
+                event_type="source_archived",
+                user=user,
+                reason="protected_source_history_preserved",
+                metadata=source_metadata,
+            )
+            self.db.commit()
+            return {
+                "outcome": "archived",
+                "sourceId": source.id,
+                "sourceName": source.name,
+                "source": self._source_shape(source),
+                "impact": impact,
+            }
+
+        sheet = self.sheets.for_source(source.id)
+        if sheet is not None:
+            self.db.delete(sheet)
+            self.db.flush()
+        deleted_id = source.id
+        deleted_name = source.name
+        self.db.delete(source)
+        self._append_source_lifecycle_audit(
+            event_type="source_deleted",
+            user=user,
+            reason="unused_source_deleted",
+            metadata=source_metadata,
+        )
+        self.db.commit()
+        return {
+            "outcome": "deleted",
+            "sourceId": deleted_id,
+            "sourceName": deleted_name,
+            "source": None,
+            "impact": impact,
+        }
+
+    def lock_source_for_workspace(
+        self,
+        source_id: str,
+        user: FlowHubUser,
+        *,
+        expected_source_version: int,
+    ) -> SourceProfile:
+        """Fence Source lifecycle changes while a Workspace Snapshot is committed."""
+        source = self._owned_source(source_id, user, require_active=True, lock=True)
+        if source.version != expected_source_version:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_VERSION_CONFLICT",
+                    "message": "Source configuration changed during Workspace preparation.",
+                },
+            )
+        return source
+
+    async def list_source_worksheets(
+        self, source_id: str, user: FlowHubUser
+    ) -> dict[str, Any]:
+        """Acquire a workbook once and return its worksheet identities."""
+        source = self._owned_source(source_id, user, require_active=True)
+        sheet = self.sheets.for_source(source.id)
+        if sheet is not None:
+            revision = self.sheets.latest_revision(sheet.id)
+            return {
+                "sourceId": source.id,
+                "items": [
+                    {
+                        "name": "Sheet1",
+                        "rowCount": revision.row_count if revision else 0,
+                    }
+                ],
+                "sourceRevisionId": revision.id if revision else None,
+            }
+        imported = await self._read_external_source(source, user, manual=True)
+        worksheets = imported.worksheets or {}
+        return {
+            "sourceId": source.id,
+            "items": [
+                {"name": name, "rowCount": len(rows)}
+                for name, rows in worksheets.items()
+            ],
+            "sourceRevisionId": (
+                f"external:{imported.snapshot.id}:{imported.snapshot.version_seq}"
+            ),
+        }
 
     def save_mapping(
         self,
@@ -195,26 +371,111 @@ class SourceWorkspaceService:
         source_fields: list[dict[str, Any]],
         channel_mappings: list[dict[str, Any]],
         value_policy: dict[str, str],
+        worksheet_rule_mode: str = "shared",
+        selected_worksheet_names: list[str] | None = None,
+        duplicate_product_policy: str = "block",
+        worksheet_rules: list[dict[str, Any]] | None = None,
         user: FlowHubUser,
     ) -> dict[str, Any]:
         self._ensure_channels()
-        source = self._owned_source(source_id, user)
+        source = self._owned_source(source_id, user, require_active=True, lock=True)
         if source.version != expected_source_version:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
                 {"code": "SOURCE_VERSION_CONFLICT", "message": "Source configuration changed."},
             )
-        self._validate_worksheet(worksheet_mode, worksheet_name, data_start_row)
-        normalized_source_fields = self._normalize_field_mappings(
-            source_fields, SOURCE_FIELDS, required_fields={"name"}
+        if worksheet_rule_mode not in {"shared", "per_worksheet"}:
+            raise _unprocessable(
+                "WORKSHEET_RULE_MODE_INVALID",
+                "Use shared or per-worksheet Source rules.",
+            )
+        normalized_selected_worksheets = self._normalize_selected_worksheet_names(
+            selected_worksheet_names or []
         )
-        normalized_channels = self._normalize_channel_mappings(channel_mappings)
+        if worksheet_rule_mode == "shared":
+            if worksheet_mode == "all":
+                if normalized_selected_worksheets:
+                    raise _unprocessable(
+                        "WORKSHEET_SELECTION_INVALID",
+                        "Selected worksheet names require selected worksheet mode.",
+                    )
+                self._validate_worksheet("all", None, data_start_row)
+                effective_worksheet_name = None
+            else:
+                if not normalized_selected_worksheets and str(worksheet_name or "").strip():
+                    normalized_selected_worksheets = [str(worksheet_name).strip()]
+                if not normalized_selected_worksheets:
+                    raise _unprocessable(
+                        "WORKSHEET_REQUIRED",
+                        "Select at least one worksheet for the shared rules.",
+                    )
+                if (
+                    worksheet_name
+                    and str(worksheet_name).strip() not in normalized_selected_worksheets
+                ):
+                    raise _unprocessable(
+                        "WORKSHEET_SELECTION_INVALID",
+                        "The compatibility worksheet must be one of the selected worksheets.",
+                    )
+                for selected_name in normalized_selected_worksheets:
+                    self._validate_worksheet("selected", selected_name, data_start_row)
+                effective_worksheet_name = (
+                    normalized_selected_worksheets[0]
+                    if len(normalized_selected_worksheets) == 1
+                    else None
+                )
+        else:
+            if normalized_selected_worksheets:
+                raise _unprocessable(
+                    "WORKSHEET_SELECTION_INVALID",
+                    "Per-worksheet rules define their worksheet selection directly.",
+                )
+            self._validate_worksheet(worksheet_mode, worksheet_name, data_start_row)
+            effective_worksheet_name = worksheet_name
+        if duplicate_product_policy not in {"block", "last_sheet_wins"}:
+            raise _unprocessable(
+                "DUPLICATE_PRODUCT_POLICY_INVALID",
+                "Choose block or last-sheet-wins duplicate handling.",
+            )
+        normalized_source_fields = self._normalize_field_mappings(
+            source_fields,
+            SOURCE_FIELDS,
+            required_fields={"name"} if worksheet_rule_mode == "shared" else set(),
+        )
+        normalized_channels = self._normalize_channel_mappings(
+            channel_mappings,
+            require_enabled=worksheet_rule_mode == "shared",
+        )
+        normalized_policy = self._normalize_value_policy(value_policy)
+        normalized_worksheet_rules: list[dict[str, Any]]
+        if worksheet_rule_mode == "shared":
+            shared_rule_names = normalized_selected_worksheets or ["*"]
+            normalized_worksheet_rules = [
+                {
+                    "worksheetName": shared_rule_name,
+                    "enabled": True,
+                    "dataStartRow": data_start_row,
+                    "sourceFields": normalized_source_fields,
+                    "channels": normalized_channels,
+                    "valuePolicy": normalized_policy,
+                }
+                for shared_rule_name in shared_rule_names
+            ]
+        else:
+            normalized_worksheet_rules = self._normalize_worksheet_rules(
+                worksheet_rules or []
+            )
         if source.source_kind == "external":
             external_references = [
-                *normalized_source_fields,
                 *[
                     field
-                    for channel in normalized_channels
+                    for rule in normalized_worksheet_rules
+                    for field in rule["sourceFields"]
+                ],
+                *[
+                    field
+                    for rule in normalized_worksheet_rules
+                    for channel in rule["channels"]
                     for field in channel["fields"]
                 ],
             ]
@@ -223,18 +484,21 @@ class SourceWorkspaceService:
                     "COLUMN_REFERENCE_UNAVAILABLE",
                     "Internal FlowHub column IDs cannot be used for an external Source.",
                 )
-        normalized_policy = self._normalize_value_policy(value_policy)
         latest = self.sources.latest_mapping(source.id)
         version = (latest.version if latest else 0) + 1
         document = {
             "sourceId": source.id,
             "version": version,
             "worksheetMode": worksheet_mode,
-            "worksheetName": worksheet_name,
+            "worksheetName": effective_worksheet_name,
+            "selectedWorksheetNames": normalized_selected_worksheets,
             "dataStartRow": data_start_row,
             "sourceFields": normalized_source_fields,
             "channels": normalized_channels,
             "valuePolicy": normalized_policy,
+            "worksheetRuleMode": worksheet_rule_mode,
+            "duplicateProductPolicy": duplicate_product_policy,
+            "worksheetRules": normalized_worksheet_rules,
         }
         revision = SourceMappingRevision(
             id=_id(),
@@ -242,7 +506,7 @@ class SourceWorkspaceService:
             version=version,
             checksum=checksum(document),
             worksheet_mode=worksheet_mode,
-            worksheet_name=worksheet_name,
+            worksheet_name=effective_worksheet_name,
             data_start_row=data_start_row,
             value_policy_json=normalized_policy,
             created_by_user_id=user.id,
@@ -280,9 +544,15 @@ class SourceWorkspaceService:
                         reference_value=field["referenceValue"],
                     )
                 )
+        self._persist_worksheet_rule_set(
+            revision=revision,
+            mode=worksheet_rule_mode,
+            duplicate_product_policy=duplicate_product_policy,
+            rules=normalized_worksheet_rules,
+        )
         source.version += 1
         source.worksheet_mode = worksheet_mode
-        source.worksheet_name = worksheet_name
+        source.worksheet_name = effective_worksheet_name
         source.data_start_row = data_start_row
         source.updated_at = utcnow()
         self._invalidate_source_reviews(source.id)
@@ -295,7 +565,7 @@ class SourceWorkspaceService:
     async def source_preview(
         self, source_id: str, user: FlowHubUser, *, page: int, page_size: int
     ) -> dict[str, Any]:
-        source = self._owned_source(source_id, user)
+        source = self._owned_source(source_id, user, require_active=True)
         mapping = self.sources.latest_mapping(source.id)
         if mapping is None:
             raise _unprocessable("SOURCE_MAPPING_REQUIRED", "Configure Source mappings first.")
@@ -308,35 +578,44 @@ class SourceWorkspaceService:
         else:
             revision = self.sheets.latest_revision(sheet.id)
             if revision is None:
-                return {"items": [], "total": 0, "recognized": 0, "ignored": 0, "issues": []}
+                return {
+                    "items": [],
+                    "total": 0,
+                    "recognized": 0,
+                    "ignored": 0,
+                    "issues": [],
+                    "businessSummary": self._preview_business_summary([], mapping),
+                }
             records = self._mapped_sheet_records(revision, mapping)
             revision_id = revision.id
         start = (max(page, 1) - 1) * page_size
-        page_records = records[start : start + min(max(page_size, 1), 500)]
+        page_records: list[dict[str, Any]] = []
+        for record in records[start : start + min(max(page_size, 1), 500)]:
+            shaped = dict(record)
+            shaped["hasIssues"] = bool(record.get("issues"))
+            shaped["ready"] = bool(record.get("recognized")) and not shaped["hasIssues"]
+            page_records.append(shaped)
         return {
             "items": page_records,
             "total": len(records),
             "recognized": sum(1 for item in records if item["recognized"]),
             "ignored": sum(1 for item in records if not item["recognized"]),
             "issues": self._preview_issue_summary(records),
+            "businessSummary": self._preview_business_summary(records, mapping),
             "sheetRevisionId": revision_id,
             "mappingRevisionId": mapping.id,
         }
 
     async def snapshot_candidates(self, source_id: str, user: FlowHubUser) -> dict[str, Any]:
         """Read a Source once and resolve independent Listing-scoped Channel targets."""
-        source = self._owned_source(source_id, user)
+        source = self._owned_source(source_id, user, require_active=True)
         mapping = self.sources.latest_mapping(source.id)
         sheet = self.sheets.for_source(source.id)
         if mapping is None:
             raise _unprocessable("SOURCE_MAPPING_REQUIRED", "Configure Source mappings first.")
         if sheet is None:
             imported = await self._read_external_source(source, user, manual=False)
-            records = [
-                item
-                for item in self._mapped_external_records(imported.worksheets or {}, mapping)
-                if item["recognized"]
-            ]
+            records = self._mapped_external_records(imported.worksheets or {}, mapping)
             revision_shape = {
                 "id": f"external:{imported.snapshot.id}:{imported.snapshot.version_seq}",
                 "version": int(imported.snapshot.version_seq or 1),
@@ -347,9 +626,7 @@ class SourceWorkspaceService:
             revision = self.sheets.latest_revision(sheet.id)
             if revision is None:
                 raise _unprocessable("SHEET_REVISION_REQUIRED", "Save the FlowHub Sheet first.")
-            records = [
-                item for item in self._mapped_sheet_records(revision, mapping) if item["recognized"]
-            ]
+            records = self._mapped_sheet_records(revision, mapping)
             revision_shape = {
                 "id": revision.id,
                 "version": revision.version,
@@ -359,6 +636,7 @@ class SourceWorkspaceService:
         identities = {
             (channel["channelId"], str(channel["fields"]["external_id"]).strip())
             for record in records
+            if record["recognized"]
             for channel in record["channels"]
         }
         listings = {
@@ -388,7 +666,6 @@ class SourceWorkspaceService:
         product_identity: dict[str, str] = {}
         source_channel_listings: dict[tuple[str, str], set[str]] = defaultdict(set)
         seen_listing_ids: set[str] = set()
-        policy = dict(DEFAULT_VALUE_POLICY) | dict(mapping.value_policy_json)
         for record in records:
             source_product = record["sourceProduct"]
             group_key = str(source_product.get("source_key") or source_product.get("name") or "").strip().casefold()
@@ -413,6 +690,11 @@ class SourceWorkspaceService:
                 )
             if global_block:
                 continue
+            if not record["recognized"]:
+                continue
+            policy = dict(DEFAULT_VALUE_POLICY) | dict(
+                record.get("valuePolicy") or mapping.value_policy_json
+            )
             for channel in record["channels"]:
                 channel_id = channel["channelId"]
                 if channel_id in blocked_channels:
@@ -655,6 +937,7 @@ class SourceWorkspaceService:
         user: FlowHubUser,
     ) -> dict[str, Any]:
         sheet = self._owned_sheet(sheet_id, user)
+        self._owned_source(sheet.source_id, user, require_active=True, lock=True)
         if sheet.current_version != expected_version:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
@@ -971,6 +1254,256 @@ class SourceWorkspaceService:
 
     # -- Data Quality -------------------------------------------------------
 
+    async def scan_data_quality(
+        self,
+        *,
+        user: FlowHubUser,
+        source_id: str | None,
+    ) -> dict[str, Any]:
+        """Evaluate each selected Source once and persist an explicit scan result."""
+        if source_id:
+            sources = [self._owned_source(source_id, user, require_active=True)]
+        else:
+            sources = [
+                source
+                for source in self.sources.list_for_user(user.id)
+                if source.status == "active"
+            ]
+        source_ids = [source.id for source in sources]
+        scan = SourceDataQualityScan(
+            id=_id(),
+            owner_user_id=user.id,
+            source_id=source_id,
+            source_ids_json=source_ids,
+            source_results_json={},
+            status="checking",
+            sources_checked=0,
+            products_checked=0,
+            issue_count=0,
+            blocking_issue_count=0,
+            warning_count=0,
+            affected_product_count=0,
+            affected_channel_count=0,
+            affected_source_count=0,
+            previous_issue_count=None,
+            resolved_since_previous=0,
+            error_code=None,
+            created_at=utcnow(),
+            checked_at=None,
+        )
+        self.db.add(scan)
+        self.db.add_all(
+            SourceDataQualityScanSource(scan_id=scan.id, source_id=item)
+            for item in source_ids
+        )
+        self.db.commit()
+
+        try:
+            pending_issues: list[SourceDataQualityIssue] = []
+            all_product_rows: set[tuple[str, str]] = set()
+            affected_products: set[tuple[str, str]] = set()
+            affected_channels: set[str] = set()
+            affected_sources: set[str] = set()
+            source_results: dict[str, dict[str, int]] = {}
+            blocking_count = 0
+            warning_count = 0
+
+            for source in sources:
+                # snapshot_candidates owns the single acquisition and the shared
+                # normalization/validation path.  No scan-specific Source read exists.
+                try:
+                    analysis = await self.snapshot_candidates(source.id, user)
+                except HTTPException as exc:
+                    detail: dict[str, Any] = (
+                        exc.detail if isinstance(exc.detail, dict) else {}
+                    )
+                    code = str(detail.get("code") or "")
+                    configuration_issues = {
+                        "SOURCE_MAPPING_REQUIRED": (
+                            "mapping_not_configured",
+                            "Source columns have not been configured.",
+                            "Choose the Source Product and Channel columns before running the check.",
+                        ),
+                        "SHEET_REVISION_REQUIRED": (
+                            "source_not_saved",
+                            "The FlowHub Sheet has not been saved yet.",
+                            "Save the Sheet, then run the Data Quality check again.",
+                        ),
+                    }
+                    if code not in configuration_issues:
+                        raise
+                    category, summary, action = configuration_issues[code]
+                    analysis = {
+                        "candidates": [],
+                        "issues": [
+                            {
+                                "sourceRowKey": None,
+                                "sourceRowNumber": None,
+                                "worksheetName": source.worksheet_name,
+                                "channelId": None,
+                                "sourceProductName": None,
+                                "mappingState": "unmapped",
+                                "category": category,
+                                "severity": "blocked",
+                                "code": code,
+                                "summary": summary,
+                                "recommendedAction": action,
+                                "technicalDetails": {},
+                            }
+                        ],
+                    }
+                analysis_issues = [dict(item) for item in analysis.get("issues", [])]
+                source_product_rows: set[str] = {
+                    str(item.get("sourceRowKey") or "")
+                    for item in analysis.get("candidates", [])
+                    if item.get("sourceRowKey")
+                }
+                source_product_rows.update(
+                    str(item.get("sourceRowKey") or "")
+                    for item in analysis_issues
+                    if item.get("sourceRowKey")
+                )
+                all_product_rows.update((source.id, row_key) for row_key in source_product_rows)
+
+                source_blocking = 0
+                source_warnings = 0
+                source_affected_products: set[str] = set()
+                source_affected_channels: set[str] = set()
+                for issue in analysis_issues:
+                    severity = str(issue.get("severity") or "blocked")
+                    if severity not in {"warning", "error", "blocked"}:
+                        severity = "blocked"
+                    if severity == "warning":
+                        source_warnings += 1
+                        warning_count += 1
+                    else:
+                        source_blocking += 1
+                        blocking_count += 1
+                    row_key = str(issue.get("sourceRowKey") or "")
+                    if row_key:
+                        source_affected_products.add(row_key)
+                        affected_products.add((source.id, row_key))
+                    channel_id = str(issue.get("channelId") or "").strip() or None
+                    if channel_id:
+                        source_affected_channels.add(channel_id)
+                        affected_channels.add(channel_id)
+                    affected_sources.add(source.id)
+                    technical_details = dict(issue.get("technicalDetails") or {})
+                    listing_id = str(technical_details.get("listing_id") or "").strip()
+                    listing = self.db.get(Listing, listing_id) if listing_id else None
+                    pending_issues.append(
+                        SourceDataQualityIssue(
+                            id=_id(),
+                            scan_id=scan.id,
+                            source_id=source.id,
+                            snapshot_id=None,
+                            worksheet_name=(
+                                str(issue.get("worksheetName"))[:240]
+                                if issue.get("worksheetName") is not None
+                                else None
+                            ),
+                            source_row_key=self._data_quality_source_row_key(
+                                issue.get("sourceRowKey")
+                            ),
+                            source_product_name=(
+                                str(issue.get("sourceProductName"))[:240]
+                                if issue.get("sourceProductName") is not None
+                                else None
+                            ),
+                            mapping_state=(
+                                str(issue.get("mappingState"))[:40]
+                                if issue.get("mappingState") is not None
+                                else None
+                            ),
+                            channel_id=channel_id,
+                            canonical_product_id=(
+                                listing.canonical_product_id if listing is not None else None
+                            ),
+                            category=str(issue.get("category") or "validation")[:80],
+                            severity=severity,
+                            code=str(issue.get("code") or "SOURCE_VALIDATION_FAILED")[:120],
+                            summary=str(issue.get("summary") or "Source validation failed.")[:500],
+                            recommended_action=str(
+                                issue.get("recommendedAction")
+                                or "Review the Source row and its configured columns."
+                            )[:1000],
+                            technical_details_json=technical_details,
+                            created_at=utcnow(),
+                        )
+                    )
+                source_results[source.id] = {
+                    "productsChecked": len(source_product_rows),
+                    "issueCount": len(analysis_issues),
+                    "blockingIssues": source_blocking,
+                    "warnings": source_warnings,
+                    "affectedProducts": len(source_affected_products),
+                    "affectedChannels": len(source_affected_channels),
+                    "affectedSources": 1 if analysis_issues else 0,
+                }
+
+            previous = self.issues.previous_completed_scan(
+                user_id=user.id,
+                source_id=source_id,
+                exclude_scan_id=scan.id,
+            )
+            previous_issue_count: int | None = None
+            previous_issue_identities: set[
+                tuple[str, str, str, str, str, str, str, str]
+            ] = set()
+            if previous is not None:
+                if source_id is not None and previous.source_id is None:
+                    previous_source_result = dict(
+                        previous.source_results_json.get(source_id) or {}
+                    )
+                    previous_issue_count = int(
+                        previous_source_result.get("issueCount", 0)
+                    )
+                else:
+                    previous_issue_count = previous.issue_count
+                previous_issue_identities = self.issues.issue_identity_keys(
+                    previous.id,
+                    source_id=source_id,
+                )
+            current_issue_identities = {
+                self._data_quality_issue_identity(item) for item in pending_issues
+            }
+            persisted_scan = self.db.get(SourceDataQualityScan, scan.id)
+            if persisted_scan is None:
+                raise RuntimeError("Data Quality scan persistence was lost")
+            scan = persisted_scan
+            scan.sources_checked = len(sources)
+            scan.products_checked = len(all_product_rows)
+            scan.issue_count = len(pending_issues)
+            scan.blocking_issue_count = blocking_count
+            scan.warning_count = warning_count
+            scan.affected_product_count = len(affected_products)
+            scan.affected_channel_count = len(affected_channels)
+            scan.affected_source_count = len(affected_sources)
+            scan.previous_issue_count = previous_issue_count
+            scan.resolved_since_previous = len(
+                previous_issue_identities - current_issue_identities
+            )
+            scan.source_results_json = source_results
+            self.db.add_all(pending_issues)
+            # Issue rows must be persisted while the durable scan is still in
+            # its only mutable state.  The database seals terminal scans and
+            # rejects any issue appended after this flush.
+            self.db.flush()
+            scan.status = "completed"
+            scan.checked_at = utcnow()
+            self.db.commit()
+            return {"summary": self._data_quality_summary(scan, source_id=source_id)}
+        except Exception as exc:
+            self.db.rollback()
+            persisted = self.db.get(SourceDataQualityScan, scan.id)
+            if persisted is not None:
+                persisted.status = "failed"
+                persisted.sources_checked = len(sources)
+                persisted.error_code = self._data_quality_error_code(exc)
+                persisted.checked_at = utcnow()
+                self.db.commit()
+            raise
+
     def data_quality(
         self,
         *,
@@ -985,26 +1518,43 @@ class SourceWorkspaceService:
         page: int,
         page_size: int,
     ) -> dict[str, Any]:
-        items, total = self.issues.list(
+        normalized_source = self._data_quality_filter(source_id)
+        normalized_channel = self._data_quality_filter(channel_id)
+        normalized_worksheet = self._data_quality_filter(worksheet)
+        normalized_category = self._data_quality_filter(category)
+        normalized_severity = self._data_quality_filter(severity)
+        normalized_product = self._data_quality_filter(product)
+        normalized_mapping_state = self._data_quality_filter(mapping_state)
+        scan = self.issues.latest_scan(user_id=user.id, source_id=normalized_source)
+        if scan is None:
+            return {
+                "items": [],
+                "counts": {},
+                "total": 0,
+                "page": page,
+                "pageSize": page_size,
+                "summary": self._data_quality_summary(None, source_id=normalized_source),
+            }
+        items, total, counts = self.issues.list(
             user_id=user.id,
-            source_id=source_id,
-            channel_id=channel_id,
-            worksheet=worksheet,
-            category=category,
-            severity=severity,
-            product=product,
-            mapping_state=mapping_state,
+            scan_id=scan.id,
+            source_id=normalized_source,
+            channel_id=normalized_channel,
+            worksheet=normalized_worksheet,
+            category=normalized_category,
+            severity=normalized_severity,
+            product=normalized_product,
+            mapping_state=normalized_mapping_state,
             page=max(page, 1),
             page_size=min(max(page_size, 1), 200),
         )
-        counts: dict[str, int] = defaultdict(int)
-        for item in items:
-            counts[item.category] += 1
         return {
             "items": [
                 {
                     "id": item.id,
+                    "scanId": item.scan_id,
                     "sourceId": item.source_id,
+                    "sourceRowKey": item.source_row_key,
                     "worksheet": item.worksheet_name,
                     "sourceProductName": item.source_product_name,
                     "mappingState": item.mapping_state,
@@ -1022,15 +1572,236 @@ class SourceWorkspaceService:
             "total": total,
             "page": page,
             "pageSize": page_size,
+            "summary": self._data_quality_summary(scan, source_id=normalized_source),
         }
+
+    def _data_quality_summary(
+        self,
+        scan: SourceDataQualityScan | None,
+        *,
+        source_id: str | None,
+    ) -> dict[str, Any]:
+        if scan is None:
+            return {
+                "state": "never_checked",
+                "totalIssues": 0,
+                "blockingIssues": 0,
+                "warnings": 0,
+                "affectedProducts": 0,
+                "affectedChannels": 0,
+                "affectedSources": 0,
+                "resolvedSinceLastRead": 0,
+                "trendSinceLastRead": None,
+                "productsChecked": 0,
+                "sourcesChecked": 0,
+                "checkedAt": None,
+                "scanId": None,
+                "errorCode": None,
+                "categories": [],
+            }
+        scoped = (
+            dict(scan.source_results_json.get(source_id) or {})
+            if source_id is not None and scan.source_id is None
+            else {}
+        )
+        total_issues = int(scoped.get("issueCount", scan.issue_count))
+        if scan.status == "checking":
+            state = "checking"
+        elif scan.status == "failed":
+            state = "failed"
+        else:
+            state = "issues_found" if total_issues else "healthy"
+        scoped_to_global_scan = bool(scoped)
+        categories = self.issues.categories(scan.id, source_id=source_id)
+        return {
+            "state": state,
+            "totalIssues": total_issues,
+            "blockingIssues": int(scoped.get("blockingIssues", scan.blocking_issue_count)),
+            "warnings": int(scoped.get("warnings", scan.warning_count)),
+            "affectedProducts": int(
+                scoped.get("affectedProducts", scan.affected_product_count)
+            ),
+            "affectedChannels": int(
+                scoped.get("affectedChannels", scan.affected_channel_count)
+            ),
+            "affectedSources": int(
+                scoped.get("affectedSources", scan.affected_source_count)
+            ),
+            "resolvedSinceLastRead": (
+                0 if scoped_to_global_scan else scan.resolved_since_previous
+            ),
+            "trendSinceLastRead": (
+                None
+                if scoped_to_global_scan or scan.previous_issue_count is None
+                else scan.issue_count - scan.previous_issue_count
+            ),
+            "productsChecked": int(scoped.get("productsChecked", scan.products_checked)),
+            "sourcesChecked": 1 if scoped_to_global_scan else scan.sources_checked,
+            "checkedAt": scan.checked_at,
+            "scanId": scan.id,
+            "errorCode": scan.error_code,
+            "categories": [
+                {"category": category, "count": count}
+                for category, count in sorted(
+                    categories.items(), key=lambda item: (-item[1], item[0])
+                )
+            ],
+        }
+
+    @staticmethod
+    def _data_quality_filter(value: str | None) -> str | None:
+        normalized = str(value or "").strip()
+        return None if not normalized or normalized.casefold() == "all" else normalized
+
+    @staticmethod
+    def _data_quality_source_row_key(value: object) -> str | None:
+        """Return a complete bounded Source-row identity without truncation."""
+        normalized = str(value or "").strip()
+        if not normalized:
+            return None
+        if len(normalized) > 512:
+            raise _unprocessable(
+                "SOURCE_ROW_IDENTITY_TOO_LONG",
+                "The Source row identity exceeds the supported length.",
+            )
+        return normalized
+
+    @staticmethod
+    def _data_quality_issue_identity(
+        issue: SourceDataQualityIssue,
+    ) -> tuple[str, str, str, str, str, str, str, str]:
+        return (
+            str(issue.source_id or ""),
+            str(issue.worksheet_name or ""),
+            str(issue.source_row_key or ""),
+            str(issue.source_product_name or ""),
+            str(issue.channel_id or ""),
+            str(issue.mapping_state or ""),
+            str(issue.category or ""),
+            str(issue.code or ""),
+        )
+
+    @staticmethod
+    def _data_quality_error_code(exc: Exception) -> str:
+        if isinstance(exc, HTTPException) and isinstance(exc.detail, dict):
+            return str(exc.detail.get("code") or "DATA_QUALITY_SCAN_FAILED")[:120]
+        return type(exc).__name__.upper()[:120] or "DATA_QUALITY_SCAN_FAILED"
 
     # -- Helpers ------------------------------------------------------------
 
-    def _owned_source(self, source_id: str, user: FlowHubUser) -> SourceProfile:
-        source = self.sources.get(source_id)
+    def _owned_source(
+        self,
+        source_id: str,
+        user: FlowHubUser,
+        *,
+        require_active: bool = False,
+        lock: bool = False,
+    ) -> SourceProfile:
+        query = self.db.query(SourceProfile).filter(SourceProfile.id == source_id)
+        if lock:
+            query = query.with_for_update()
+        source = query.populate_existing().one_or_none()
         if source is None or (source.owner_user_id != user.id and user.role != "admin"):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source not found.")
+        if require_active and source.status != "active":
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_ARCHIVED",
+                    "message": "Archived Sources are read-only and cannot start new processing.",
+                },
+            )
         return source
+
+    def _source_lifecycle_impact(self, source: SourceProfile) -> dict[str, Any]:
+        sheet = self.sheets.for_source(source.id)
+        sheet_revision_count = (
+            self.db.query(SheetRevision).filter(SheetRevision.sheet_id == sheet.id).count()
+            if sheet is not None
+            else 0
+        )
+        import_count = (
+            self.db.query(SheetImportJob).filter(SheetImportJob.sheet_id == sheet.id).count()
+            if sheet is not None
+            else 0
+        )
+        workspace_rows = (
+            self.db.query(WorkspaceSnapshot, UnifiedWorkspace)
+            .join(UnifiedWorkspace, UnifiedWorkspace.id == WorkspaceSnapshot.workspace_id)
+            .filter(WorkspaceSnapshot.entry_point == "source")
+            .all()
+        )
+        matching_workspaces = [
+            (snapshot, workspace)
+            for snapshot, workspace in workspace_rows
+            if str((snapshot.source_metadata_json or {}).get("source_id") or "") == source.id
+        ]
+        active_workspace_count = sum(
+            1 for _, workspace in matching_workspaces if workspace.status == "active"
+        )
+        protected_counts = {
+            "mappingRevisions": self.db.query(SourceMappingRevision)
+            .filter(SourceMappingRevision.source_id == source.id)
+            .count(),
+            "sheetRevisions": sheet_revision_count,
+            "importJobs": import_count,
+            "dataQualityIssues": self.db.query(SourceDataQualityIssue)
+            .filter(SourceDataQualityIssue.source_id == source.id)
+            .count(),
+            "dataQualityScans": sum(
+                1
+                for scan in self.db.query(SourceDataQualityScan)
+                .filter(SourceDataQualityScan.owner_user_id == source.owner_user_id)
+                .all()
+                if scan.source_id == source.id or source.id in scan.source_ids_json
+            ),
+            "workspaceSnapshots": len(matching_workspaces),
+        }
+        protected_history = {
+            key: count for key, count in protected_counts.items() if count > 0
+        }
+        blockers = (
+            {"activeWorkspaces": active_workspace_count}
+            if active_workspace_count > 0
+            else {}
+        )
+        action = (
+            "none"
+            if source.status != "active"
+            else "blocked"
+            if blockers
+            else "archive"
+            if protected_history
+            else "delete"
+        )
+        return {
+            "sourceId": source.id,
+            "sourceName": source.name,
+            "sourceVersion": source.version,
+            "sourceStatus": source.status,
+            "action": action,
+            "blockers": blockers,
+            "protectedHistory": protected_history,
+        }
+
+    def _append_source_lifecycle_audit(
+        self,
+        *,
+        event_type: str,
+        user: FlowHubUser,
+        reason: str,
+        metadata: dict[str, Any],
+    ) -> None:
+        bus = DomainEventBus()
+        bus.subscribe(PersistenceAuditSubscriber(self.db, _id))
+        bus.publish(
+            DomainEvent(
+                event_type=event_type,
+                correlation_id=f"source-lifecycle:{_id()}",
+                user_id=user.id,
+                attributes={"reason": reason, "metadata": metadata},
+            )
+        )
 
     def _ensure_channels(self) -> None:
         # Reuse the v1.2 connector capability registry.  The local import keeps
@@ -1069,10 +1840,66 @@ class SourceWorkspaceService:
             return None
         source_fields = self.sources.source_fields(revision.id)
         channels = self.sources.channel_mappings(revision.id)
-        channel_fields = self.sources.channel_fields([item.id for item in channels])
+        channel_fields = self.sources.channel_fields([channel.id for channel in channels])
         by_channel: dict[str, list[SourceChannelFieldMapping]] = defaultdict(list)
-        for item in channel_fields:
-            by_channel[item.channel_mapping_id].append(item)
+        for channel_field in channel_fields:
+            by_channel[channel_field.channel_mapping_id].append(channel_field)
+        rule_set = self.sources.worksheet_rule_set(revision.id)
+        worksheet_rules: list[dict[str, Any]] = []
+        if rule_set is not None:
+            stored_rules = self.sources.worksheet_rules(rule_set.id)
+            stored_fields = self.sources.worksheet_fields([rule.id for rule in stored_rules])
+            stored_channels = self.sources.worksheet_channels([rule.id for rule in stored_rules])
+            stored_channel_fields = self.sources.worksheet_channel_fields(
+                [channel.id for channel in stored_channels]
+            )
+            fields_by_rule: dict[str, list[SourceWorksheetFieldMapping]] = defaultdict(list)
+            channels_by_rule: dict[str, list[SourceWorksheetChannelMapping]] = defaultdict(list)
+            fields_by_stored_channel: dict[
+                str, list[SourceWorksheetChannelFieldMapping]
+            ] = defaultdict(list)
+            for stored_field in stored_fields:
+                fields_by_rule[stored_field.worksheet_rule_id].append(stored_field)
+            for stored_channel in stored_channels:
+                channels_by_rule[stored_channel.worksheet_rule_id].append(stored_channel)
+            for stored_channel_field in stored_channel_fields:
+                fields_by_stored_channel[
+                    stored_channel_field.worksheet_channel_mapping_id
+                ].append(stored_channel_field)
+            worksheet_rules = [
+                {
+                    "worksheetName": stored_rule.worksheet_name,
+                    "enabled": stored_rule.enabled,
+                    "dataStartRow": stored_rule.data_start_row,
+                    "valuePolicy": stored_rule.value_policy_json,
+                    "sourceFields": [
+                        {
+                            "field": field.field,
+                            "referenceType": field.reference_type,
+                            "referenceValue": field.reference_value,
+                            "required": field.required,
+                        }
+                        for field in fields_by_rule[stored_rule.id]
+                    ],
+                    "channels": [
+                        {
+                            "channelId": channel.channel_id,
+                            "worksheetName": channel.worksheet_name,
+                            "enabled": channel.enabled,
+                            "fields": [
+                                {
+                                    "field": field.field,
+                                    "referenceType": field.reference_type,
+                                    "referenceValue": field.reference_value,
+                                }
+                                for field in fields_by_stored_channel[channel.id]
+                            ],
+                        }
+                        for channel in channels_by_rule[stored_rule.id]
+                    ],
+                }
+                for stored_rule in stored_rules
+            ]
         return {
             "id": revision.id,
             "sourceId": revision.source_id,
@@ -1082,30 +1909,44 @@ class SourceWorkspaceService:
             "worksheetName": revision.worksheet_name,
             "dataStartRow": revision.data_start_row,
             "valuePolicy": revision.value_policy_json,
+            "worksheetRuleMode": rule_set.mode if rule_set else "shared",
+            "selectedWorksheetNames": (
+                sorted(
+                    rule["worksheetName"]
+                    for rule in worksheet_rules
+                    if rule["worksheetName"] != "*" and rule["enabled"]
+                )
+                if rule_set is not None and rule_set.mode == "shared"
+                else []
+            ),
+            "duplicateProductPolicy": (
+                rule_set.duplicate_product_policy if rule_set else "block"
+            ),
+            "worksheetRules": worksheet_rules,
             "sourceFields": [
                 {
-                    "field": item.field,
-                    "referenceType": item.reference_type,
-                    "referenceValue": item.reference_value,
-                    "required": item.required,
+                    "field": source_field.field,
+                    "referenceType": source_field.reference_type,
+                    "referenceValue": source_field.reference_value,
+                    "required": source_field.required,
                 }
-                for item in source_fields
+                for source_field in source_fields
             ],
             "channels": [
                 {
-                    "channelId": item.channel_id,
-                    "worksheetName": item.worksheet_name,
-                    "enabled": item.enabled,
+                    "channelId": channel_mapping.channel_id,
+                    "worksheetName": channel_mapping.worksheet_name,
+                    "enabled": channel_mapping.enabled,
                     "fields": [
                         {
                             "field": field.field,
                             "referenceType": field.reference_type,
                             "referenceValue": field.reference_value,
                         }
-                        for field in by_channel[item.id]
+                        for field in by_channel[channel_mapping.id]
                     ],
                 }
-                for item in channels
+                for channel_mapping in channels
             ],
             "createdAt": revision.created_at,
         }
@@ -1222,6 +2063,21 @@ class SourceWorkspaceService:
         if data_start_row < 1 or data_start_row > 1_000_000:
             raise _unprocessable("DATA_START_ROW_INVALID", "Data start row is outside the valid range.")
 
+    @staticmethod
+    def _normalize_selected_worksheet_names(names: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for raw_name in names:
+            name = str(raw_name or "").strip()
+            if not name or name == "*" or len(name) > 240 or name in seen:
+                raise _unprocessable(
+                    "WORKSHEET_SELECTION_INVALID",
+                    "Selected worksheet names must be explicit, unique, and at most 240 characters.",
+                )
+            normalized.append(name)
+            seen.add(name)
+        return normalized
+
     def _normalize_field_mappings(
         self,
         mappings: list[dict[str, Any]],
@@ -1258,7 +2114,12 @@ class SourceWorkspaceService:
                 raise _unprocessable("SOURCE_IDENTITY_REQUIRED", f"Source Product {required} must be mapped.")
         return sorted(normalized, key=lambda item: item["field"])
 
-    def _normalize_channel_mappings(self, mappings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _normalize_channel_mappings(
+        self,
+        mappings: list[dict[str, Any]],
+        *,
+        require_enabled: bool = True,
+    ) -> list[dict[str, Any]]:
         result: list[dict[str, Any]] = []
         seen: set[str] = set()
         enabled_count = 0
@@ -1290,9 +2151,129 @@ class SourceWorkspaceService:
             )
             enabled_count += int(enabled)
             seen.add(channel_id)
-        if not result or enabled_count == 0:
+        if require_enabled and (not result or enabled_count == 0):
             raise _unprocessable("CHANNEL_MAPPING_REQUIRED", "Select at least one enabled Channel.")
         return sorted(result, key=lambda item: item["channelId"])
+
+    def _normalize_worksheet_rules(
+        self, rules: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        if not rules:
+            raise _unprocessable(
+                "WORKSHEET_RULE_REQUIRED",
+                "Configure at least one worksheet or use shared rules.",
+            )
+        seen: set[str] = set()
+        normalized: list[dict[str, Any]] = []
+        enabled_count = 0
+        for raw in rules:
+            worksheet_name = str(
+                raw.get("worksheet_name") or raw.get("worksheetName") or ""
+            ).strip()
+            enabled = bool(raw.get("enabled", True))
+            data_start_row = int(
+                raw.get("data_start_row") or raw.get("dataStartRow") or 1
+            )
+            if not worksheet_name or worksheet_name == "*" or worksheet_name in seen:
+                raise _unprocessable(
+                    "WORKSHEET_RULE_INVALID",
+                    "Worksheet rule names must be explicit and unique.",
+                )
+            self._validate_worksheet("selected", worksheet_name, data_start_row)
+            source_fields = self._normalize_field_mappings(
+                list(raw.get("source_fields") or raw.get("sourceFields") or []),
+                SOURCE_FIELDS,
+                required_fields={"name"} if enabled else set(),
+            )
+            channels = self._normalize_channel_mappings(
+                list(raw.get("channel_mappings") or raw.get("channels") or []),
+                require_enabled=enabled,
+            )
+            normalized.append(
+                {
+                    "worksheetName": worksheet_name,
+                    "enabled": enabled,
+                    "dataStartRow": data_start_row,
+                    "sourceFields": source_fields,
+                    "channels": channels,
+                    "valuePolicy": self._normalize_value_policy(
+                        dict(raw.get("value_policy") or raw.get("valuePolicy") or {})
+                    ),
+                }
+            )
+            enabled_count += int(enabled)
+            seen.add(worksheet_name)
+        if enabled_count == 0:
+            raise _unprocessable(
+                "WORKSHEET_RULE_REQUIRED",
+                "At least one worksheet must participate in Source processing.",
+            )
+        return normalized
+
+    def _persist_worksheet_rule_set(
+        self,
+        *,
+        revision: SourceMappingRevision,
+        mode: str,
+        duplicate_product_policy: str,
+        rules: list[dict[str, Any]],
+    ) -> None:
+        rule_set = SourceWorksheetRuleSet(
+            id=_id(),
+            mapping_revision_id=revision.id,
+            mode=mode,
+            duplicate_product_policy=duplicate_product_policy,
+            sealed=False,
+        )
+        self.db.add(rule_set)
+        self.db.flush()
+        for rule in rules:
+            worksheet_rule = SourceWorksheetRule(
+                id=_id(),
+                rule_set_id=rule_set.id,
+                worksheet_name=rule["worksheetName"],
+                enabled=bool(rule["enabled"]),
+                data_start_row=int(rule["dataStartRow"]),
+                value_policy_json=dict(rule["valuePolicy"]),
+            )
+            self.db.add(worksheet_rule)
+            self.db.flush()
+            for field in rule["sourceFields"]:
+                self.db.add(
+                    SourceWorksheetFieldMapping(
+                        id=_id(),
+                        worksheet_rule_id=worksheet_rule.id,
+                        field=field["field"],
+                        reference_type=field["referenceType"],
+                        reference_value=field["referenceValue"],
+                        required=bool(field["required"]),
+                    )
+                )
+            for channel in rule["channels"]:
+                worksheet_channel = SourceWorksheetChannelMapping(
+                    id=_id(),
+                    worksheet_rule_id=worksheet_rule.id,
+                    channel_id=channel["channelId"],
+                    worksheet_name=channel.get("worksheetName"),
+                    enabled=bool(channel["enabled"]),
+                )
+                self.db.add(worksheet_channel)
+                self.db.flush()
+                for field in channel["fields"]:
+                    self.db.add(
+                        SourceWorksheetChannelFieldMapping(
+                            id=_id(),
+                            worksheet_channel_mapping_id=worksheet_channel.id,
+                            field=field["field"],
+                            reference_type=field["referenceType"],
+                            reference_value=field["referenceValue"],
+                        )
+                    )
+        # Flush the complete aggregate while its construction window is open,
+        # then perform the sole permitted parent update to seal it forever.
+        self.db.flush()
+        rule_set.sealed = True
+        self.db.flush()
 
     @staticmethod
     def _normalize_value_policy(raw: dict[str, str]) -> dict[str, str]:
@@ -1417,6 +2398,126 @@ class SourceWorkspaceService:
             }
         raise _unprocessable("IMPORT_FORMAT_UNSUPPORTED", "Use an XLSX or CSV file.")
 
+    def _worksheet_rule_configs(
+        self, mapping: SourceMappingRevision
+    ) -> tuple[str, str, list[dict[str, Any]]]:
+        """Load normalized rules, synthesizing a shared rule for FLOWHUB_018 data."""
+        rule_set = self.sources.worksheet_rule_set(mapping.id)
+        if rule_set is None:
+            legacy_source_fields = self.sources.source_fields(mapping.id)
+            legacy_channels = self.sources.channel_mappings(mapping.id)
+            legacy_channel_fields = self.sources.channel_fields(
+                [channel.id for channel in legacy_channels]
+            )
+            by_channel: dict[str, list[SourceChannelFieldMapping]] = defaultdict(list)
+            for channel_field in legacy_channel_fields:
+                by_channel[channel_field.channel_mapping_id].append(channel_field)
+            return (
+                "shared",
+                "block",
+                [
+                    {
+                        "worksheetName": "*",
+                        "enabled": True,
+                        "dataStartRow": mapping.data_start_row,
+                        "valuePolicy": dict(mapping.value_policy_json),
+                        "sourceFields": legacy_source_fields,
+                        "channels": [
+                            {
+                                "channelId": item.channel_id,
+                                "worksheetName": item.worksheet_name,
+                                "enabled": item.enabled,
+                                "fields": by_channel[item.id],
+                            }
+                            for item in legacy_channels
+                        ],
+                    }
+                ],
+            )
+        rules = self.sources.worksheet_rules(rule_set.id)
+        worksheet_source_fields = self.sources.worksheet_fields([rule.id for rule in rules])
+        worksheet_channels = self.sources.worksheet_channels([rule.id for rule in rules])
+        worksheet_channel_fields = self.sources.worksheet_channel_fields(
+            [channel.id for channel in worksheet_channels]
+        )
+        source_fields_by_rule: dict[str, list[SourceWorksheetFieldMapping]] = defaultdict(list)
+        channels_by_rule: dict[str, list[SourceWorksheetChannelMapping]] = defaultdict(list)
+        channel_fields_by_mapping: dict[
+            str, list[SourceWorksheetChannelFieldMapping]
+        ] = defaultdict(list)
+        for worksheet_source_field in worksheet_source_fields:
+            source_fields_by_rule[worksheet_source_field.worksheet_rule_id].append(
+                worksheet_source_field
+            )
+        for worksheet_channel in worksheet_channels:
+            channels_by_rule[worksheet_channel.worksheet_rule_id].append(
+                worksheet_channel
+            )
+        for worksheet_channel_field in worksheet_channel_fields:
+            channel_fields_by_mapping[
+                worksheet_channel_field.worksheet_channel_mapping_id
+            ].append(worksheet_channel_field)
+        return (
+            rule_set.mode,
+            rule_set.duplicate_product_policy,
+            [
+                {
+                    "worksheetName": rule.worksheet_name,
+                    "enabled": rule.enabled,
+                    "dataStartRow": rule.data_start_row,
+                    "valuePolicy": dict(rule.value_policy_json),
+                    "sourceFields": source_fields_by_rule[rule.id],
+                    "channels": [
+                        {
+                            "channelId": channel.channel_id,
+                            "worksheetName": channel.worksheet_name,
+                            "enabled": channel.enabled,
+                            "fields": channel_fields_by_mapping[channel.id],
+                        }
+                        for channel in channels_by_rule[rule.id]
+                    ],
+                }
+                for rule in rules
+            ],
+        )
+
+    @staticmethod
+    def _apply_cross_worksheet_duplicate_policy(
+        records: list[dict[str, Any]], policy: str
+    ) -> None:
+        grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in records:
+            if not record["recognized"]:
+                continue
+            source = record.get("sourceProduct") or {}
+            identity = str(source.get("source_key") or source.get("name") or "").strip().casefold()
+            if identity:
+                grouped[identity].append(record)
+        for matches in grouped.values():
+            if len({str(item.get("worksheetName") or "") for item in matches}) < 2:
+                continue
+            if policy == "last_sheet_wins":
+                affected = matches[:-1]
+                category = "duplicate_source_product_superseded"
+                severity = "warning"
+                message = "A later participating worksheet explicitly replaces this Source Product."
+            else:
+                affected = matches
+                category = "duplicate_source_product"
+                severity = "blocked"
+                message = "The same Source Product appears in more than one participating worksheet."
+            for record in affected:
+                record["recognized"] = False
+                record["channels"] = []
+                record["issues"].append(
+                    {
+                        "category": category,
+                        "severity": severity,
+                        "channelId": None,
+                        "message": message,
+                    }
+                )
+
     def _mapped_external_records(
         self,
         worksheets: dict[str, list[list[Any]]],
@@ -1425,32 +2526,83 @@ class SourceWorkspaceService:
         """Resolve an acquired workbook once into independent Channel values."""
         if not worksheets:
             return []
-        if mapping.worksheet_mode == "selected":
-            worksheet_names = [str(mapping.worksheet_name or "")]
-            if worksheet_names[0] not in worksheets:
+        rule_mode, duplicate_policy, configured_rules = self._worksheet_rule_configs(mapping)
+        rule_work: list[tuple[str, dict[str, Any]]] = []
+        if rule_mode == "shared":
+            explicit_rules = {
+                item["worksheetName"]: item
+                for item in configured_rules
+                if item["worksheetName"] != "*"
+            }
+            if explicit_rules:
+                missing = [
+                    name
+                    for name, rule in explicit_rules.items()
+                    if rule["enabled"] and name not in worksheets
+                ]
+                if missing:
+                    raise _unprocessable(
+                        "WORKSHEET_NOT_FOUND",
+                        "A selected worksheet is not present in the acquired workbook.",
+                        {"worksheets": missing},
+                    )
+                rule_work = [
+                    (name, explicit_rules[name])
+                    for name in worksheets
+                    if name in explicit_rules and explicit_rules[name]["enabled"]
+                ]
+            else:
+                # FLOWHUB_018 and early FLOWHUB_019 shared mappings use a
+                # wildcard rule plus the legacy all/single worksheet columns.
+                worksheet_names = (
+                    [str(mapping.worksheet_name or "")]
+                    if mapping.worksheet_mode == "selected"
+                    else list(worksheets)
+                )
+                missing = [name for name in worksheet_names if name not in worksheets]
+                if missing:
+                    raise _unprocessable(
+                        "WORKSHEET_NOT_FOUND",
+                        "The configured Source worksheet is not present in the acquired workbook.",
+                        {"worksheets": missing},
+                    )
+                rule_work = [(name, configured_rules[0]) for name in worksheet_names]
+        else:
+            rules_by_name = {item["worksheetName"]: item for item in configured_rules}
+            missing = [
+                name
+                for name, rule in rules_by_name.items()
+                if rule["enabled"] and name not in worksheets
+            ]
+            if missing:
                 raise _unprocessable(
                     "WORKSHEET_NOT_FOUND",
-                    "The configured Source worksheet is not present in the acquired workbook.",
+                    "A configured worksheet is not present in the acquired workbook.",
+                    {"worksheets": missing},
                 )
-        else:
-            worksheet_names = list(worksheets)
-
-        source_fields = self.sources.source_fields(mapping.id)
-        channels = self.sources.channel_mappings(mapping.id)
-        channel_fields = self.sources.channel_fields([item.id for item in channels])
-        fields_by_channel: dict[str, list[SourceChannelFieldMapping]] = defaultdict(list)
-        for item in channel_fields:
-            fields_by_channel[item.channel_mapping_id].append(item)
+            rule_work = [
+                (name, rules_by_name[name])
+                for name in worksheets
+                if name in rules_by_name and rules_by_name[name]["enabled"]
+            ]
+        channel_ids = {
+            str(channel["channelId"])
+            for _, rule in rule_work
+            for channel in rule["channels"]
+        }
         current_channels = {
             item.id: item
             for item in self.db.query(WorkspaceChannel)
-            .filter(WorkspaceChannel.id.in_([item.channel_id for item in channels]))
+            .filter(WorkspaceChannel.id.in_(channel_ids))
             .all()
         }
-        header_cache: dict[tuple[str, str], int | None] = {}
+        header_cache: dict[tuple[str, int, str], int | None] = {}
 
         def column_index(
-            worksheet: str, reference_type: str, reference_value: str | None
+            worksheet: str,
+            data_start_row: int,
+            reference_type: str,
+            reference_value: str | None,
         ) -> int | None:
             if reference_type == "column_letter":
                 try:
@@ -1462,11 +2614,11 @@ class SourceWorkspaceService:
             if reference_type != "header_name":
                 return None
             normalized = str(reference_value or "").strip().casefold()
-            cache_key = (worksheet, normalized)
+            cache_key = (worksheet, data_start_row, normalized)
             if cache_key in header_cache:
                 return header_cache[cache_key]
             found = None
-            header_rows = worksheets.get(worksheet, [])[: max(mapping.data_start_row - 1, 0)]
+            header_rows = worksheets.get(worksheet, [])[: max(data_start_row - 1, 0)]
             for header_row in reversed(header_rows):
                 for index, value in enumerate(header_row):
                     if str(value or "").strip().casefold() == normalized:
@@ -1480,10 +2632,13 @@ class SourceWorkspaceService:
         def read(
             worksheet: str,
             row_number: int,
+            data_start_row: int,
             reference_type: str,
             reference_value: str | None,
         ) -> Any:
-            index = column_index(worksheet, reference_type, reference_value)
+            index = column_index(
+                worksheet, data_start_row, reference_type, reference_value
+            )
             rows = worksheets.get(worksheet, [])
             if index is None or row_number < 1 or row_number > len(rows):
                 return None
@@ -1491,40 +2646,54 @@ class SourceWorkspaceService:
             return row[index] if index < len(row) else None
 
         records: list[dict[str, Any]] = []
-        policy = dict(DEFAULT_VALUE_POLICY) | dict(mapping.value_policy_json)
-        for worksheet_name in worksheet_names:
-            for row_number in range(mapping.data_start_row, len(worksheets[worksheet_name]) + 1):
+        for worksheet_name, rule in rule_work:
+            data_start_row = int(rule["dataStartRow"])
+            policy = dict(DEFAULT_VALUE_POLICY) | dict(rule["valuePolicy"])
+            for row_number in range(data_start_row, len(worksheets[worksheet_name]) + 1):
                 row_issues: list[dict[str, str | None]] = []
                 source_data = {
                     field.field: read(
                         worksheet_name,
                         row_number,
+                        data_start_row,
                         field.reference_type,
                         field.reference_value,
                     )
-                    for field in source_fields
+                    for field in rule["sourceFields"]
                     if field.reference_type != "disabled"
                 }
                 name = str(source_data.get("name") or "").strip()
                 channel_data: list[dict[str, Any]] = []
-                for channel in channels:
-                    current = current_channels.get(channel.channel_id)
+                for channel in rule["channels"]:
+                    channel_id = str(channel["channelId"])
+                    current = current_channels.get(channel_id)
                     if (
-                        not channel.enabled
+                        not channel["enabled"]
                         or current is None
                         or not current.enabled
                         or current.implementation_state != "implemented"
                     ):
                         continue
-                    channel_worksheet = channel.worksheet_name or worksheet_name
+                    channel_worksheet = channel.get("worksheetName") or worksheet_name
+                    if channel_worksheet not in worksheets:
+                        row_issues.append(
+                            {
+                                "category": "missing_channel_worksheet",
+                                "severity": "blocked",
+                                "channelId": channel_id,
+                                "message": "The worksheet selected for this Channel is unavailable.",
+                            }
+                        )
+                        continue
                     fields = {
                         item.field: read(
                             channel_worksheet,
                             row_number,
+                            data_start_row,
                             item.reference_type,
                             item.reference_value,
                         )
-                        for item in fields_by_channel[channel.id]
+                        for item in channel["fields"]
                         if item.reference_type != "disabled"
                     }
                     external_id = str(fields.get("external_id") or "").strip()
@@ -1537,13 +2706,13 @@ class SourceWorkspaceService:
                     }:
                         continue
                     if external_id:
-                        channel_data.append({"channelId": channel.channel_id, "fields": fields})
+                        channel_data.append({"channelId": channel_id, "fields": fields})
                     elif any(value not in {None, ""} for value in fields.values()):
                         row_issues.append(
                             {
                                 "category": "missing_mapping_identity",
                                 "severity": "blocked",
-                                "channelId": channel.channel_id,
+                                "channelId": channel_id,
                                 "message": "Channel values exist but External Listing ID is missing.",
                             }
                         )
@@ -1565,9 +2734,11 @@ class SourceWorkspaceService:
                         "recognized": recognized,
                         "sourceProduct": source_data,
                         "channels": channel_data,
+                        "valuePolicy": policy,
                         "issues": row_issues,
                     }
                 )
+        self._apply_cross_worksheet_duplicate_policy(records, duplicate_policy)
         return records
 
     def _mapped_sheet_records(
@@ -1592,22 +2763,44 @@ class SourceWorkspaceService:
                 return by_name.get(str(reference_value or "").casefold())
             return None
 
-        source_fields = self.sources.source_fields(mapping.id)
-        channels = self.sources.channel_mappings(mapping.id)
-        channel_fields = self.sources.channel_fields([item.id for item in channels])
-        fields_by_channel: dict[str, list[SourceChannelFieldMapping]] = defaultdict(list)
-        for item in channel_fields:
-            fields_by_channel[item.channel_mapping_id].append(item)
+        rule_mode, _, configured_rules = self._worksheet_rule_configs(mapping)
+        selected_rule: dict[str, Any] | None = None
+        if rule_mode == "shared":
+            internal_name = str(mapping.worksheet_name or "Sheet1")
+            selected_rule = next(
+                (
+                    configured_rule
+                    for configured_rule in configured_rules
+                    if configured_rule["worksheetName"] in {"*", internal_name}
+                    and configured_rule["enabled"]
+                ),
+                None,
+            )
+        else:
+            internal_name = str(mapping.worksheet_name or "Sheet1")
+            for configured_rule in configured_rules:
+                if (
+                    configured_rule["worksheetName"] == internal_name
+                    and configured_rule["enabled"]
+                ):
+                    selected_rule = configured_rule
+                    break
+        if selected_rule is None:
+            return []
+        rule = selected_rule
+        source_fields = rule["sourceFields"]
+        channels = rule["channels"]
+        channel_ids = [str(item["channelId"]) for item in channels]
         current_channels = {
             item.id: item
             for item in self.db.query(WorkspaceChannel)
-            .filter(WorkspaceChannel.id.in_([item.channel_id for item in channels]))
+            .filter(WorkspaceChannel.id.in_(channel_ids))
             .all()
         }
         records: list[dict[str, Any]] = []
-        policy = dict(DEFAULT_VALUE_POLICY) | dict(mapping.value_policy_json)
+        policy = dict(DEFAULT_VALUE_POLICY) | dict(rule["valuePolicy"])
         for row in rows:
-            if row.position < mapping.data_start_row:
+            if row.position < int(rule["dataStartRow"]):
                 continue
             values = by_row.get(row.id, {})
             row_issues: list[dict[str, str | None]] = []
@@ -1648,9 +2841,10 @@ class SourceWorkspaceService:
             name = str(source_data.get("name") or "").strip()
             channel_data = []
             for channel in channels:
-                current = current_channels.get(channel.channel_id)
+                channel_id = str(channel["channelId"])
+                current = current_channels.get(channel_id)
                 if (
-                    not channel.enabled
+                    not channel["enabled"]
                     or current is None
                     or not current.enabled
                     or current.implementation_state != "implemented"
@@ -1658,7 +2852,7 @@ class SourceWorkspaceService:
                     continue
                 fields = {
                     item.field: read(item.reference_type, item.reference_value)
-                    for item in fields_by_channel[channel.id]
+                    for item in channel["fields"]
                     if item.reference_type != "disabled"
                 }
                 external_id = str(fields.get("external_id") or "").strip()
@@ -1671,13 +2865,13 @@ class SourceWorkspaceService:
                 }:
                     continue
                 if external_id:
-                    channel_data.append({"channelId": channel.channel_id, "fields": fields})
+                    channel_data.append({"channelId": channel_id, "fields": fields})
                 elif any(value not in {None, ""} for value in fields.values()):
                     row_issues.append(
                         {
                             "category": "missing_mapping_identity",
                             "severity": "blocked",
-                            "channelId": channel.channel_id,
+                            "channelId": channel_id,
                             "message": "Channel values exist but External Listing ID is missing.",
                         }
                     )
@@ -1694,9 +2888,11 @@ class SourceWorkspaceService:
                 {
                     "rowKey": row.row_key,
                     "rowNumber": row.position,
+                    "worksheetName": str(mapping.worksheet_name or "Sheet1"),
                     "recognized": recognized,
                     "sourceProduct": source_data,
                     "channels": channel_data,
+                    "valuePolicy": policy,
                     "issues": row_issues,
                 }
             )
@@ -1773,6 +2969,7 @@ class SourceWorkspaceService:
         return {
             "sourceRowKey": record["rowKey"],
             "sourceRowNumber": record["rowNumber"],
+            "worksheetName": record.get("worksheetName"),
             "channelId": channel_id,
             "sourceProductName": str(
                 record.get("sourceProduct", {}).get("name")
@@ -1805,3 +3002,73 @@ class SourceWorkspaceService:
             {"category": key[0], "severity": key[1], "channelId": key[2], "count": count}
             for key, count in sorted(grouped.items())
         ]
+
+    def _preview_business_summary(
+        self,
+        records: list[dict[str, Any]],
+        mapping: SourceMappingRevision,
+    ) -> dict[str, int | None]:
+        """Return seller-facing counts without inventing Channel comparisons.
+
+        A Source Product can produce several Listing rows, so product totals use
+        the stable Source identity when present and fall back to the Source row
+        identity.  Attention is intentionally row-scoped because one problematic
+        row must remain independently actionable even when another row names the
+        same product.
+        """
+
+        def product_identity(record: dict[str, Any]) -> str:
+            source_product = dict(record.get("sourceProduct") or {})
+            identity = str(
+                source_product.get("source_key") or source_product.get("name") or ""
+            ).strip()
+            if identity:
+                return f"product:{identity.casefold()}"
+            return f"row:{record.get('rowKey') or record.get('rowNumber') or ''}"
+
+        recognized_products = {
+            product_identity(record) for record in records if record.get("recognized")
+        }
+        products_with_issues = {
+            product_identity(record) for record in records if record.get("issues")
+        }
+        attention_rows = {
+            str(
+                record.get("rowKey")
+                or f"{record.get('worksheetName') or ''}:{record.get('rowNumber') or ''}"
+            )
+            for record in records
+            if record.get("issues")
+        }
+
+        _, _, configured_rules = self._worksheet_rule_configs(mapping)
+        configured_channel_ids = {
+            str(channel["channelId"])
+            for rule in configured_rules
+            if bool(rule.get("enabled", True))
+            for channel in rule["channels"]
+            if bool(channel["enabled"])
+        }
+        available_channel_ids = {
+            str(channel_id)
+            for (channel_id,) in self.db.query(WorkspaceChannel.id)
+            .filter(
+                WorkspaceChannel.enabled.is_(True),
+                WorkspaceChannel.implementation_state == "implemented",
+            )
+            .all()
+        }
+        ready_channel_ids = configured_channel_ids & available_channel_ids
+
+        return {
+            "productsFound": len(recognized_products),
+            "productsReady": len(recognized_products - products_with_issues),
+            # Preview has not compared targets with each Channel cache.  Returning
+            # zero here would falsely claim that no change exists.
+            "priceChanges": None,
+            "stockChanges": None,
+            "unchanged": None,
+            "needsAttention": len(attention_rows),
+            "channelsReady": len(ready_channel_ids),
+            "channelsNotConfigured": len(available_channel_ids - ready_channel_ids),
+        }
