@@ -11,7 +11,8 @@ import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
 import type { ChannelHealthItem, ChannelHealthResponse, ChannelHealthLevel } from '../services/types'
 import { formatDateTime, formatRelativeTime } from '../i18n/format'
-import { formatStatus } from '../i18n/display'
+import { formatDiagnosticDimension, formatDiagnosticMessage, formatStatus } from '../i18n/display'
+import { formatNumber } from '../i18n/format'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 
 const REQUEST_TIMEOUT_MS = 10_000
@@ -110,9 +111,12 @@ function Row({ row }: { row: StatusRowData }) {
   )
 }
 
-function metricValue(value: number | null | undefined, suffix = ''): string {
+function metricValue(value: number | null | undefined, unit?: 'milliseconds' | 'seconds'): string {
   if (value === null || value === undefined) return translate('common:status.unavailable')
-  return `${value}${suffix}`
+  const formatted = formatNumber(value)
+  if (unit === 'milliseconds') return translate('diagnostics:units.milliseconds', { value: formatted })
+  if (unit === 'seconds') return translate('diagnostics:units.seconds', { value: formatted })
+  return formatted
 }
 
 function channelLabel(channel: ChannelHealthItem): string {
@@ -153,10 +157,10 @@ export default function Diagnostics() {
       })
     } catch (e) {
       const msg = e instanceof ApiError
-        ? `Diagnostics unavailable (HTTP ${e.status})`
+        ? translate('diagnostics:diagnostics.unavailableHttp', { status: e.status })
         : e instanceof Error && e.message === 'request_timeout'
-          ? 'Unable to check diagnostics. Request timed out.'
-          : 'Unable to check diagnostics.'
+          ? translate('diagnostics:diagnostics.requestTimedOut')
+          : translate('diagnostics:diagnostics.unavailableMessage')
       setErr(msg)
       notifyError({
         title: translate('diagnostics:diagnostics.unableToUpdateDiagnostics'),
@@ -282,8 +286,8 @@ export default function Diagnostics() {
                       </span>
                       <span className="fh-text-caption">{formatStatus(channel.accessMode)}</span>
                     </div>
-                    <p className="fh-text-caption mt-1">{channel.summary}</p>
-                    <p className="fh-text-caption mt-1">{translate('diagnostics:diagnostics.nextAction')} {channel.nextRecommendedAction}</p>
+                    <p className="fh-text-caption mt-1">{formatDiagnosticMessage(channel.summary)}</p>
+                    <p className="fh-text-caption mt-1">{translate('diagnostics:diagnostics.nextAction')} {formatDiagnosticMessage(channel.nextRecommendedAction)}</p>
                   </div>
                   <button
                     type="button"
@@ -299,18 +303,18 @@ export default function Diagnostics() {
                   {Object.entries(channel.dimensions).map(([key, dimension]) => (
                     <div key={key} className="rounded border border-border px-3 py-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="fh-text-caption font-medium text-text-base">{key}</span>
+                        <span className="fh-text-caption font-medium text-text-base">{formatDiagnosticDimension(key)}</span>
                         <span className={["inline-flex rounded-full border px-2 py-0.5 fh-text-caption", statusBadgeClass(dimension.status)].join(' ')}>
                           {formatStatus(dimension.status)}
                         </span>
                       </div>
-                      {dimension.message && <p className="fh-text-caption mt-1">{dimension.message}</p>}
+                      {dimension.message && <p className="fh-text-caption mt-1">{formatDiagnosticMessage(dimension.message)}</p>}
                     </div>
                   ))}
                 </div>
                 <div className="mt-3 grid grid-cols-1 gap-2 fh-text-caption sm:grid-cols-2 lg:grid-cols-4">
                   <span>{translate('diagnostics:diagnostics.lastChecked')} {channel.lastChecked ? formatDateTime(channel.lastChecked) : translate('diagnostics:diagnostics.unavailable')}</span>
-                  <span>{translate('diagnostics:diagnostics.latency')} {metricValue(channel.latency, "ms")}</span>
+                  <span>{translate('diagnostics:diagnostics.latency')} {metricValue(channel.latency, 'milliseconds')}</span>
                   <span>{translate('diagnostics:diagnostics.lastSuccess')} {channel.lastSuccessfulOperation ? formatDateTime(channel.lastSuccessfulOperation) : translate('diagnostics:diagnostics.unavailable')}</span>
                   <span>{translate('diagnostics:diagnostics.errorCategory')} {channel.lastErrorCategory ? formatStatus(channel.lastErrorCategory) : translate('common:status.none')}</span>
                 </div>
@@ -337,7 +341,7 @@ export default function Diagnostics() {
             <Row
               key={connector.id ?? connector.name ?? connector.connector_type ?? "connector"}
               row={{
-                label: connector.name ?? connector.connector_type ?? "Connector",
+                label: connector.name ?? connector.connector_type ?? translate('diagnostics:diagnostics.connector'),
                 value: connector.enabled === false ? translate('common:status.disabled') : formatStatus(status),
                 status: connector.enabled === false ? "pending" : normalizeStatus(status),
                 detail: connector.last_checked_at ? translate('diagnostics:diagnostics.lastCheckedAt', { date: formatDateTime(connector.last_checked_at) }) : undefined,
@@ -369,17 +373,17 @@ export default function Diagnostics() {
           }} />
           <Row row={{
             label: translate('diagnostics:diagnostics.requestDuration'),
-            value: loading ? translate('common:status.loading') : metricValue(limiter?.average_request_duration_ms, "ms"),
+            value: loading ? translate('common:status.loading') : metricValue(limiter?.average_request_duration_ms, 'milliseconds'),
             status: loading ? "loading" : "pending",
           }} />
           <Row row={{
             label: translate('diagnostics:diagnostics.limiterDelay'),
-            value: loading ? translate('common:status.loading') : metricValue(limiter?.last_limiter_delay_ms ?? limiter?.last_connector_delay_ms, "ms"),
+            value: loading ? translate('common:status.loading') : metricValue(limiter?.last_limiter_delay_ms ?? limiter?.last_connector_delay_ms, 'milliseconds'),
             status: loading ? "loading" : (limiter?.last_limiter_delay_ms ? "warning" : "ok"),
           }} />
           <Row row={{
-            label: 'ETA',
-            value: loading ? translate('common:status.loading') : metricValue(limiter?.estimated_completion_seconds, ' s'),
+            label: translate('diagnostics:diagnostics.estimatedCompletion'),
+            value: loading ? translate('common:status.loading') : metricValue(limiter?.estimated_completion_seconds, 'seconds'),
             status: loading ? "loading" : "pending",
           }} />
           <Row row={{
@@ -395,7 +399,7 @@ export default function Diagnostics() {
         <p className="fh-section-label mb-2">{translate('diagnostics:diagnostics.about')}</p>
         <p className="fh-text-body mt-1">
           <span className="text-wp-muted">{translate('diagnostics:diagnostics.status')} </span>
-          <span className="font-medium">{health?.status ?? '-'}</span>
+          <span className="font-medium">{health?.status ? formatStatus(health.status) : '-'}</span>
         </p>
       </div>
     </PageShell>

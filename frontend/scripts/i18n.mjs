@@ -8,6 +8,7 @@ const frontendRoot = path.resolve(process.cwd())
 const repositoryRoot = path.resolve(frontendRoot, '..')
 const localeRoot = path.join(repositoryRoot, 'locales')
 const englishRoot = path.join(frontendRoot, 'src', 'i18n', 'locales', 'en')
+const persianRoot = path.join(frontendRoot, 'src', 'i18n', 'locales', 'fa')
 const sourceFiles = globSync('src/**/*.{ts,tsx}', { cwd: frontendRoot, absolute: true, windowsPathsNoEscape: true, ignore: ['**/*.test.*', '**/*.d.ts', '**/i18n/**'] }).sort()
 const allowedExact = new Set(['SKU', 'FlowHub'])
 const uiAttributes = new Set(['placeholder', 'title', 'aria-label', 'alt', 'description', 'label', 'emptyText', 'actionLabel', 'helpText', 'caption'])
@@ -20,6 +21,57 @@ function loadEnglish() {
     if (namespace !== 'manifest') resources[namespace] = JSON.parse(fs.readFileSync(file, 'utf8'))
   }
   return resources
+}
+
+const criticalPersianPresentationKeys = [
+  'common:status.connected',
+  'common:status.configured',
+  'common:status.notConfigured',
+  'common:status.healthy',
+  'common:status.unknown',
+  'common:status.completed',
+  'common:status.disabled',
+  'common:status.global',
+  'commerce:type.channel',
+  'commerce:type.source',
+  'commerce:capability.productRead',
+  'products:column.select',
+  'products:column.product',
+  'products:column.price',
+  'products:column.categories',
+  'products:column.actions',
+  'products:productType.simple',
+  'products:productType.variable',
+  'products:productType.variation',
+  'diagnostics:diagnostics.unavailableHttp',
+  'diagnostics:units.seconds',
+]
+
+function criticalPersianLeakageErrors(resources) {
+  const persian = {}
+  for (const file of globSync('*.json', { cwd: persianRoot, absolute: true, windowsPathsNoEscape: true }).sort()) {
+    const namespace = path.basename(file, '.json')
+    if (namespace !== 'manifest') persian[namespace] = JSON.parse(fs.readFileSync(file, 'utf8'))
+  }
+  const errors = []
+  for (const context of criticalPersianPresentationKeys) {
+    const separator = context.indexOf(':')
+    const namespace = context.slice(0, separator)
+    const key = context.slice(separator + 1)
+    const english = resources[namespace]?.[key]
+    const translated = persian[namespace]?.[key]
+    if (!translated) errors.push(`${context}: missing Persian runtime value`)
+    else if (translated === english) errors.push(`${context}: Persian runtime value still equals English`)
+    else if (/\?{2,}/.test(translated)) errors.push(`${context}: Persian runtime value contains encoding-corruption placeholders`)
+  }
+  for (const [namespace, messages] of Object.entries(persian)) {
+    for (const [key, translated] of Object.entries(messages)) {
+      if (typeof translated === 'string' && /\?{2,}/.test(translated)) {
+        errors.push(`${namespace}:${key}: Persian runtime value contains encoding-corruption placeholders`)
+      }
+    }
+  }
+  return errors
 }
 
 function glossaryComment(message) {
@@ -256,14 +308,16 @@ function validate() {
     .sort()
     .flatMap(catalogValidationErrors)
   const hardcoded = hardcodedFindings()
-  if (missing.length || placeholderErrors.length || hardcoded.length) {
+  const persianLeakage = criticalPersianLeakageErrors(resources)
+  if (missing.length || placeholderErrors.length || hardcoded.length || persianLeakage.length) {
     if (missing.length) console.error(`Missing keys:\n${missing.join('\n')}`)
     if (placeholderErrors.length) console.error(`Catalog errors:\n${placeholderErrors.join('\n')}`)
     if (hardcoded.length) console.error(`Hardcoded user-facing strings:\n${hardcoded.join('\n')}`)
+    if (persianLeakage.length) console.error(`Critical Persian leakage:\n${persianLeakage.join('\n')}`)
     process.exitCode = 1
     return
   }
-  console.log(`Validated ${catalogEntries().length} messages; 0 missing keys, 0 placeholder mismatches, 0 unapproved hardcoded strings.`)
+  console.log(`Validated ${catalogEntries().length} messages; 0 missing keys, 0 placeholder mismatches, 0 unapproved hardcoded strings, 0 critical Persian leakage values.`)
 }
 
 function compile() {

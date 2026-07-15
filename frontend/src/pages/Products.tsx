@@ -20,7 +20,7 @@ import { inputHint } from '../utils/inputHint'
 import { formatMoney, formatMoneyInput, normalizeMoneyInteger, parseMoneyInput } from '../utils/price'
 import { formatDate, formatDateTime } from '../i18n/format'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
-import { formatStatus } from '../i18n/display'
+import { formatCapability, formatProductType, formatStatus } from '../i18n/display'
 
 const PAGE_SIZE = 20
 const CHANNEL_OPTIONS = [
@@ -70,7 +70,7 @@ function ProductRow({ product, onEditPrices, selected, onSelected }: { product: 
         </div>
       </td>
       <td className="px-4 py-3">
-        <Badge className="capitalize" variant="neutral">{product.productType ?? "simple"}</Badge>
+        <Badge className="capitalize" variant="neutral">{formatProductType(product.productType)}</Badge>
       </td>
       <td className="px-4 py-3 fh-text-body font-medium font-mono">
         {formatMoney(product.currentPrice, { currency: product.currency, position: "prefix" })}
@@ -166,7 +166,7 @@ function ProductPriceEditor({
         <>
           <div className="grid gap-3 sm:grid-cols-3">
             <InfoTile label={translate('products:products.canonicalBusinessPrice')} value={fmtValue(state.canonical.value, state.canonical.currency)} />
-            <InfoTile label={translate('products:products.dryRun')} value={state.dryRunRequired ? "Required before Apply" : "Optional"} />
+            <InfoTile label={translate('products:products.dryRun')} value={state.dryRunRequired ? translate('products:priceEditor.requiredBeforeApply') : translate('products:priceEditor.optional')} />
             <InfoTile label={translate('products:products.pendingEdits')} value={String(selectedCount)} />
           </div>
 
@@ -174,8 +174,8 @@ function ProductPriceEditor({
             <table className="fh-table min-w-[1120px]">
               <thead>
                 <tr>
-                  {["Channel", "State", "Capability", "Current", "Proposed", "Unit", "Normalized", "Freshness", "Validation", "Pending"].map(label => (
-                    <th key={label}>{label}</th>
+                  {['channel', 'state', 'capability', 'current', 'proposed', 'unit', 'normalized', 'freshness', 'validation', 'pending'].map(key => (
+                    <th key={key}>{translate(`products:column.${key}`)}</th>
                   ))}
                 </tr>
               </thead>
@@ -252,7 +252,7 @@ function ChannelPriceRow({
       </td>
       <td className="px-4 py-3">
         <Badge variant={editable ? "success" : "warning"}>{editable ? translate('products:products.readWrite') : channel.readOnly ? translate('products:products.readOnly') : translate('products:products.unavailable')}</Badge>
-        <div className="fh-text-caption mt-1">{channel.writeCapability}</div>
+        <div className="fh-text-caption mt-1">{formatCapability(channel.writeCapability)}</div>
       </td>
       <td className="px-4 py-3 fh-text-mono">{fmtValue(channel.currentValue, channel.unit)}</td>
       <td className="px-4 py-3 min-w-[180px]">
@@ -287,16 +287,16 @@ function ChannelPriceRow({
         )}
       </td>
       <td className="px-4 py-3">
-        <Badge variant={channel.freshness === "fresh" ? "success" : "warning"}>{channel.freshness}</Badge>
+        <Badge variant={channel.freshness === "fresh" ? "success" : "warning"}>{formatStatus(channel.freshness)}</Badge>
         <div className="fh-text-caption mt-1">{channel.lastSyncedAt ? formatDateTime(channel.lastSyncedAt) : translate('products:products.neverSynced')}</div>
       </td>
       <td className="px-4 py-3 min-w-[180px]">
-        <Badge variant={validationVariant}>{channel.validationState}</Badge>
-        <div className="fh-text-caption mt-1">{operationItem?.errorMessage ?? channel.validationMessage ?? operationItem?.status ?? "Ready"}</div>
+        <Badge variant={validationVariant}>{formatStatus(channel.validationState)}</Badge>
+        <div className="fh-text-caption mt-1">{operationItem?.errorMessage ?? channel.validationMessage ?? formatStatus(operationItem?.status ?? 'ready')}</div>
       </td>
       <td className="px-4 py-3">
         <Badge variant={operationItem?.status === "failed" ? "error" : channel.pendingChange ? "warning" : operationItem?.status === "applied" ? "success" : "neutral"}>
-          {operationItem?.status ?? (channel.pendingChange ? translate('products:products.pending') : translate('products:products.unchanged'))}
+          {operationItem?.status ? formatStatus(operationItem.status) : (channel.pendingChange ? translate('products:products.pending') : translate('products:products.unchanged'))}
         </Badge>
       </td>
     </tr>
@@ -318,7 +318,7 @@ function OperationResult({ operation }: { operation: ProductChannelPriceOperatio
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="fh-text-body font-semibold">{translate('products:products.operation')} {operation.id}</div>
-          <div className="fh-text-caption">{translate('products:products.status')} {operation.status}</div>
+          <div className="fh-text-caption">{translate('products:products.status')} {formatStatus(operation.status)}</div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="neutral">{translate('products:products.total')} {operation.summary.total}</Badge>
@@ -334,7 +334,7 @@ function OperationResult({ operation }: { operation: ProductChannelPriceOperatio
           <table className="fh-table min-w-[760px]">
             <thead>
               <tr>
-                {["Channel", "Previous", "Proposed", "Outbound", "Result"].map(label => <th key={label}>{label}</th>)}
+                {['channel', 'previous', 'proposed', 'outbound', 'result'].map(key => <th key={key}>{translate(`products:column.${key}`)}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -345,7 +345,7 @@ function OperationResult({ operation }: { operation: ProductChannelPriceOperatio
                   <td className="px-4 py-2">{fmtValue(item.proposedValue, item.unit)}</td>
                   <td className="px-4 py-2">{fmtValue(item.outboundValue, item.outboundUnit)}</td>
                   <td className="px-4 py-2">
-                    <Badge variant={item.status === "failed" ? "error" : item.status === "applied" ? "success" : "warning"}>{item.status}</Badge>
+                    <Badge variant={item.status === "failed" ? "error" : item.status === "applied" ? "success" : "warning"}>{formatStatus(item.status)}</Badge>
                     {item.errorMessage && <div className="fh-text-caption mt-1">{item.errorMessage}</div>}
                   </td>
                 </tr>
@@ -669,8 +669,8 @@ export default function Products() {
           <table className="fh-table min-w-[560px]">
             <thead>
               <tr>
-                {["Select", "Product", "Type", "Price", "Categories", "Actions"].map(h => (
-                  <th key={h}>{h}</th>
+                {['select', 'product', 'type', 'price', 'categories', 'actions'].map(key => (
+                  <th key={key}>{translate(`products:column.${key}`)}</th>
                 ))}
               </tr>
             </thead>

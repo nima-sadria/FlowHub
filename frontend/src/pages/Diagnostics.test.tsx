@@ -6,6 +6,7 @@ import { AuthContext, type AuthContextValue, type AuthUser } from '../auth'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import NotificationContainer from '../notifications/NotificationContainer'
 import Diagnostics from './Diagnostics'
+import { changeLocale } from '../i18n'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -116,10 +117,11 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async input => responseFor(input as RequestInfo | URL)))
 })
 
-afterEach(() => {
+afterEach(async () => {
   act(() => { root.unmount() })
   container.remove()
   vi.unstubAllGlobals()
+  await changeLocale('en')
 })
 
 async function renderPage() {
@@ -138,6 +140,23 @@ async function renderPage() {
 }
 
 describe('Diagnostics', () => {
+  it('localizes API errors and known diagnostic prose in Persian', async () => {
+    await changeLocale('fa')
+    let diagnosticsCalls = 0
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      const url = String(input)
+      if (url.includes('/api/v2/diagnostics/status') && diagnosticsCalls++ === 0) {
+        return new Response(JSON.stringify({ detail: 'temporary failure' }), { status: 401 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    expect(c.textContent).toContain('بخش عیب‌یابی در دسترس نیست (HTTP 401)')
+    expect(c.textContent).not.toContain('Diagnostics unavailable')
+    await changeLocale('en')
+  })
+
   it('renders normalized channel health and refreshes one channel', async () => {
     const c = await renderPage()
     expect(c.textContent).toContain('Channel Health')

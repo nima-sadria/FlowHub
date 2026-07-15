@@ -13,6 +13,7 @@ import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
 import { formatDateTime } from '../i18n/format'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
+import { formatCapabilityList, formatCommerceType, formatDataRole, formatStatus } from '../i18n/display'
 
 type Tab = 'sources' | 'channels'
 type FormKind = 'source' | 'channel'
@@ -30,10 +31,6 @@ const DEFAULT_READ_POLICY: ReadPolicyDraft = {
   enabled: true,
   max_reads_per_24h: 10,
   manual_read_allowed: true,
-}
-
-function prettyStatus(value: string): string {
-  return value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 const SNAPPSHOP_ESSENTIAL_FIELDS = new Set(['token', 'agent_identifier'])
@@ -61,8 +58,8 @@ function SafetyBadges({ readOnly, writeBlocked }: { readOnly: boolean; writeBloc
 }
 
 function RelationshipMap({ map }: { map: CommerceRelationshipMap | null }) {
-  const nodes = map?.nodes ?? [translate('commerce:commerceHub.source'), translate('commerce:commerceHub.flowhubDataLayer'), translate('commerce:commerceHub.channel')]
-  const example = map?.example ?? ['Nextcloud', translate('commerce:commerceHub.dataLayer'), 'WooCommerce']
+  const nodes = map?.nodes?.map(formatCommerceType) ?? [translate('commerce:commerceHub.source'), translate('commerce:commerceHub.flowhubDataLayer'), translate('commerce:commerceHub.channel')]
+  const example = (map?.example ?? ['Nextcloud', translate('commerce:commerceHub.dataLayer'), 'WooCommerce']).map(formatCommerceType)
   return (
     <div className="fh-card fh-card-pad">
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto_1fr] gap-3 items-center text-center">
@@ -103,25 +100,25 @@ function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, can
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="fh-section-title">{source.name}</h3>
             <Badge variant={source.status === "degraded" ? "warning" : ["healthy", "configured", "current"].includes(source.status) ? "success" : ["planned", "future", "not_configured", "unknown"].includes(source.status) ? "neutral" : "danger"}>
-              {prettyStatus(source.status)}
+              {formatStatus(source.status)}
             </Badge>
             {source.placeholder && <Badge variant="neutral">{translate('commerce:commerceHub.plannedSource')}</Badge>}
           </div>
-          <p className="fh-text-caption mt-1">{source.data_role}</p>
+          <p className="fh-text-caption mt-1">{formatDataRole(source.data_role)}</p>
         </div>
-        <span className="fh-text-caption font-medium text-text-base">{source.type}</span>
+        <span className="fh-text-caption font-medium text-text-base">{formatCommerceType(source.type)}</span>
       </div>
 
       <div className="fh-form-grid sm:grid-cols-2 fh-text-caption">
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.credentialStatus')} </span><span className="font-medium text-text-base">{prettyStatus(source.credential_status)}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.credentialStatus')} </span><span className="font-medium text-text-base">{formatStatus(source.credential_status)}</span></p>
         <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastHealthCheck')} </span><span className="font-medium text-text-base">{source.last_health_check ? formatDateTime(source.last_health_check) : translate('commerce:commerceHub.notChecked')}</span></p>
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.health')} </span><span className="font-medium text-text-base">{prettyStatus(source.health?.status ?? "unknown")}</span></p>
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.dataRole')} </span><span className="font-medium text-text-base">{source.data_role}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.health')} </span><span className="font-medium text-text-base">{formatStatus(source.health?.status ?? "unknown")}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.dataRole')} </span><span className="font-medium text-text-base">{formatDataRole(source.data_role)}</span></p>
         {readStatus && (
           <>
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastRead')} </span><span className="font-medium text-text-base">{readStatus.last_read_at ? formatDateTime(readStatus.last_read_at) : translate('commerce:commerceHub.notRead')}</span></p>
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.readsRemaining')} </span><span className="font-medium text-text-base">{readStatus.reads_remaining}</span></p>
-            <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastReadStatus')} </span><span className="font-medium text-text-base">{readStatus.last_read_status ? prettyStatus(readStatus.last_read_status) : translate('commerce:commerceHub.notRead')}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastReadStatus')} </span><span className="font-medium text-text-base">{readStatus.last_read_status ? formatStatus(readStatus.last_read_status) : translate('commerce:commerceHub.notRead')}</span></p>
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastRowCount')} </span><span className="font-medium text-text-base">{readStatus.last_row_count ?? '-'}</span></p>
           </>
         )}
@@ -186,26 +183,26 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="fh-section-title">{channel.name}</h3>
             <Badge variant={channel.status === "degraded" ? "warning" : ["healthy", "configured", "current"].includes(channel.status) ? "success" : ["planned", "future", "not_configured", "unknown"].includes(channel.status) ? "neutral" : "danger"}>
-              {prettyStatus(channel.status)}
+              {formatStatus(channel.status)}
             </Badge>
             {channel.placeholder && <Badge variant="neutral">{translate('commerce:commerceHub.plannedChannel')}</Badge>}
           </div>
-          <p className="fh-text-caption mt-1">{channel.capabilities_summary.join(', ')}</p>
+          <p className="fh-text-caption mt-1">{formatCapabilityList(channel.capabilities_summary)}</p>
         </div>
-        <span className="fh-text-caption font-medium text-text-base">{channel.type}</span>
+        <span className="fh-text-caption font-medium text-text-base">{formatCommerceType(channel.type)}</span>
       </div>
 
       <div className="fh-form-grid sm:grid-cols-2 fh-text-caption">
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.credentialStatus')} </span><span className="font-medium text-text-base">{prettyStatus(channel.credential_status)}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.credentialStatus')} </span><span className="font-medium text-text-base">{formatStatus(channel.credential_status)}</span></p>
         {channel.provider === "snappshop" && (
           <>
-            <p><span className="text-wp-muted">{translate('commerce:commerceHub.setupState')} </span><span className="font-medium text-text-base">{prettyStatus(channel.configuration_state ?? "not_configured")}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.setupState')} </span><span className="font-medium text-text-base">{formatStatus(channel.configuration_state ?? "not_configured")}</span></p>
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.vendorSelected')} </span><span className="font-medium text-text-base">{channel.vendor_selected ? translate('commerce:commerceHub.yes') : translate('commerce:commerceHub.no')}</span></p>
           </>
         )}
         <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastHealthCheck')} </span><span className="font-medium text-text-base">{channel.last_health_check ? formatDateTime(channel.last_health_check) : translate('commerce:commerceHub.notChecked')}</span></p>
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.health')} </span><span className="font-medium text-text-base">{prettyStatus(channel.health?.status ?? "unknown")}</span></p>
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.capabilities')} </span><span className="font-medium text-text-base">{channel.capabilities_summary.join(', ')}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.health')} </span><span className="font-medium text-text-base">{formatStatus(channel.health?.status ?? "unknown")}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.capabilities')} </span><span className="font-medium text-text-base">{formatCapabilityList(channel.capabilities_summary)}</span></p>
         {channel.provider === "tapsishop" && (
           <>
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.apiCredentials')} </span><span className="font-medium text-text-base">{channel.token_configured ? translate('commerce:commerceHub.configured') : translate('commerce:commerceHub.notConfigured2')}</span></p>
@@ -217,7 +214,7 @@ function ChannelCard({ channel, onTest, onRefresh, onConfigure, testing, refresh
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.cachedProducts')} </span><span className="font-medium text-text-base">{channel.cached_products}</span></p>
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.cachedVariations')} </span><span className="font-medium text-text-base">{channel.cached_variations}</span></p>
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastCacheRefresh')} </span><span className="font-medium text-text-base">{channel.last_cache_refresh ? formatDateTime(channel.last_cache_refresh) : translate('commerce:commerceHub.notRefreshed')}</span></p>
-            <p><span className="text-wp-muted">{translate('commerce:commerceHub.refreshStatus')} </span><span className="font-medium text-text-base">{prettyStatus(channel.cache_refresh_status)}</span></p>
+            <p><span className="text-wp-muted">{translate('commerce:commerceHub.refreshStatus')} </span><span className="font-medium text-text-base">{formatStatus(channel.cache_refresh_status)}</span></p>
           </>
         )}
         {refreshResult && (

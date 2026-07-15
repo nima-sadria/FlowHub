@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '../theme/ThemeProvider'
 import Topbar, { resolvePageTitle } from './Topbar'
+import { changeLocale } from '../i18n'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -15,9 +16,10 @@ beforeEach(() => {
   root = createRoot(container)
 })
 
-afterEach(() => {
+afterEach(async () => {
   act(() => { root.unmount() })
   container.remove()
+  await changeLocale('en')
 })
 
 describe('Topbar', () => {
@@ -45,5 +47,23 @@ describe('Topbar', () => {
     expect(container.querySelector('[aria-label="Search"]')).toBeNull()
     expect(container.querySelector('[aria-label="Notifications"]')).toBeNull()
     expect(container.querySelector('[aria-label="Switch to dark mode"]')).not.toBeNull()
+  })
+
+  it('renders the connected state in Persian without translating the username', async () => {
+    await changeLocale('fa')
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/home']}>
+          <ThemeProvider>
+            <Topbar health="ok" user={{ username: 'admin' }} onMenuClick={() => undefined} onLogout={() => undefined} />
+          </ThemeProvider>
+        </MemoryRouter>,
+      )
+    })
+
+    expect(container.textContent).toContain('متصل')
+    expect(container.textContent).toContain('admin')
+    expect(container.textContent).not.toContain('Connected')
+    await changeLocale('en')
   })
 })

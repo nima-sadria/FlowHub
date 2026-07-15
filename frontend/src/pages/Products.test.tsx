@@ -6,6 +6,7 @@ import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { Product, ProductChannelPriceOperation, ProductChannelPriceStateSet } from '../services/types'
 import Products from './Products'
+import { changeLocale } from '../i18n'
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -18,13 +19,30 @@ beforeEach(() => {
   root = createRoot(container)
 })
 
-afterEach(() => {
+afterEach(async () => {
   act(() => root.unmount())
   container.remove()
   vi.restoreAllMocks()
+  await changeLocale('en')
 })
 
 describe('Products multi-channel price editor', () => {
+  it('renders product types and catalog headers in Persian while preserving product data', async () => {
+    await changeLocale('fa')
+    await renderProducts(servicesFor(makePriceState()))
+
+    expect(container.textContent).toContain('انتخاب')
+    expect(container.textContent).toContain('محصول')
+    expect(container.textContent).toContain('نوع')
+    expect(container.textContent).toContain('قیمت')
+    expect(container.textContent).toContain('دسته‌بندی‌ها')
+    expect(container.textContent).toContain('عملیات')
+    expect(container.textContent).toContain('ساده')
+    expect(container.textContent).toContain('Test Product')
+    expect(container.textContent).not.toContain('Variable')
+    await changeLocale('en')
+  })
+
   it('shows side-by-side channel prices with explicit rial and toman units', async () => {
     const services = servicesFor(makePriceState())
     await renderProducts(services)
@@ -115,7 +133,7 @@ describe('Products multi-channel price editor', () => {
     await click('Approve')
     await click('Apply')
 
-    expect(container.textContent).toContain('Status: partially_failed')
+    expect(container.textContent).toContain('Status: Partially Failed')
     expect(container.textContent).toContain('Failed 1')
     expect(container.textContent).toContain('invalid price')
     expect(container.textContent).toContain('Success 1')

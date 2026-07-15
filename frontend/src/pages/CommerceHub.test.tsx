@@ -11,6 +11,7 @@ import { ServiceProvider } from '../services/ServiceContext'
 import type { Services } from '../services/ServiceContext'
 import type { CommerceService } from '../services/commerce/CommerceService'
 import CommerceHub from './CommerceHub'
+import { changeLocale } from '../i18n'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -403,9 +404,10 @@ beforeEach(() => {
   root = createRoot(container)
 })
 
-afterEach(() => {
+afterEach(async () => {
   act(() => { root.unmount() })
   container.remove()
+  await changeLocale('en')
 })
 
 async function renderPage(user = adminUser, commerceOverride: CommerceService = commerce) {
@@ -465,6 +467,19 @@ function fillNextcloudCredentials(c: HTMLElement, baseUrl = 'https://softpple.bu
 }
 
 describe('CommerceHub', () => {
+  it('localizes channel statuses and capabilities in Persian', async () => {
+    await changeLocale('fa')
+    const c = await renderPage()
+
+    expect(c.textContent).toContain('کانال')
+    expect(c.textContent).toContain('پیکربندی‌شده')
+    expect(c.textContent).toContain('خواندن محصولات')
+    expect(c.textContent).toContain('حالت فقط‌خواندنی')
+    expect(c.textContent).not.toContain('Product read')
+    expect(c.textContent).not.toContain('Not Configured')
+    await changeLocale('en')
+  })
+
   it('renders the Commerce Hub route content and Channels section', async () => {
     const c = await renderPage()
     expect(c.textContent).toContain('Commerce Hub')

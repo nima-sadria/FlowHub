@@ -6,6 +6,7 @@ import { useNotification } from '../notifications/NotificationProvider'
 import Icon from '../components/Icon'
 import Spinner from '../components/loading/Spinner'
 import PageShell from '../components/PageShell'
+import { formatNumber } from '../i18n/format'
 
 const MIN_RPM = 1
 const MAX_RPM = 1000
@@ -13,7 +14,9 @@ const MAX_RPM = 1000
 function delayLabel(rpm: number): string {
   if (!rpm || rpm < MIN_RPM) return '-'
   const seconds = 60 / rpm
-  return seconds >= 1 ? `${seconds.toFixed(2)} seconds` : `${(seconds * 1000).toFixed(0)} ms`
+  return seconds >= 1
+    ? translate('settings:rateLimits.seconds', { value: formatNumber(seconds, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })
+    : translate('settings:rateLimits.milliseconds', { value: formatNumber(seconds * 1000, { maximumFractionDigits: 0 }) })
 }
 
 function NumberField({ label, value, onChange }: {
@@ -162,10 +165,10 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
       <div className="fh-card fh-card-pad">
         <p className="fh-section-label mb-3">{translate('settings:rateLimits.policy')}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Stat label={translate('settings:rateLimits.scope')} value="Global" />
-          <Stat label={translate('settings:rateLimits.overrides')} value="Disabled" />
-          <Stat label={translate('settings:rateLimits.scheduler')} value="Disabled" />
-          <Stat label={translate('settings:rateLimits.automaticSync')} value="Disabled" />
+          <Stat label={translate('settings:rateLimits.scope')} value={translate('common:status.global')} />
+          <Stat label={translate('settings:rateLimits.overrides')} value={translate('common:status.disabled')} />
+          <Stat label={translate('settings:rateLimits.scheduler')} value={translate('common:status.disabled')} />
+          <Stat label={translate('settings:rateLimits.automaticSync')} value={translate('common:status.disabled')} />
         </div>
       </div>
     </>

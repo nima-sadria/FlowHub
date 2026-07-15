@@ -11,7 +11,8 @@ import PageShell from '../components/PageShell'
 import { useServices } from '../services/ServiceContext'
 import type { ActivityEvent, ChannelHealthResponse, Source } from '../services/types'
 import { formatRelativeTime } from '../i18n/format'
-import { formatRole, formatStatus } from '../i18n/display'
+import { formatDiagnosticMessage, formatRole, formatStatus } from '../i18n/display'
+import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 
 type Indicator = 'ok' | 'warning' | 'error' | 'loading'
 
@@ -195,8 +196,9 @@ export default function Dashboard() {
               channelHealth.items.map(channel => (
                 <div key={channel.channelId} className="flex items-center justify-between gap-3 border-b border-border py-2.5 last:border-0">
                   <div className="min-w-0">
-                    <p className="fh-text-body font-medium truncate">{channel.channelType}</p>
-                    <p className="fh-text-caption truncate">{channel.summary}</p>
+                    {/* i18n-ignore -- fallback is a technical Channel identity, not interface copy */}
+                    <p className="fh-text-body font-medium truncate">{formatChannelDisplayName(channel.channelId || `${channel.channelType}:primary`)}</p>
+                    <p className="fh-text-caption truncate">{formatDiagnosticMessage(channel.summary)}</p>
                   </div>
                   <Badge
                     className="capitalize flex-shrink-0"

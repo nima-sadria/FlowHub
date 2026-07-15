@@ -30,6 +30,13 @@ async function installMockApi(page: Page) {
     if (url.pathname === '/api/v2/setup/status') return json({ completed: true })
     if (url.pathname === '/api/auth/me') return json({ username: 'visual-owner', role: 'admin', is_admin: true, is_super_admin: false, permissions: { can_access_site: true, can_fetch: true, can_view_logs: true, can_view_settings: true }, maintenance: { enabled: false, message: '' } })
     if (url.pathname === '/api/health') return json({ status: 'ok' })
+    if (url.pathname === '/api/v2/commerce/sources') return json({
+      relationship_map: { nodes: ['Source', 'FlowHub / Data Layer', 'Channel'], example: ['Nextcloud', 'Data Layer', 'WooCommerce'], runtime_write_blocked: true, read_only: true },
+      items: [{ id: 'nextcloud:primary', provider: 'nextcloud', name: 'Nextcloud', type: 'Source', status: 'configured', implemented: true, placeholder: false, credential_status: 'configured', last_health_check: '2026-07-15T08:00:00Z', data_role: 'Spreadsheet price input', action_label: 'Manage', action_href: '', health: { status: 'healthy', message: 'Connected', latency_ms: 18, error_code: null }, read_policy: { enabled: true, max_reads_per_24h: 10, manual_read_allowed: true, reads_used_last_24h: 2, reads_remaining: 8, reset_at: null, last_read_at: '2026-07-15T07:30:00Z' }, read_status: { enabled: true, max_reads_per_24h: 10, manual_read_allowed: true, reads_used_last_24h: 2, reads_remaining: 8, reset_at: null, last_read_at: '2026-07-15T07:30:00Z', last_read_status: 'completed', last_row_count: 10000, last_warning_count: 0, last_error_count: 0 }, read_only: true, runtime_write_blocked: true, settings_available: true }],
+    })
+    if (url.pathname === '/api/v2/commerce/channels') return json({ items: [{ id: 'woocommerce:primary', provider: 'woocommerce', name: 'WooCommerce', type: 'Channel', status: 'operational', implemented: true, placeholder: false, read_only: false, write_blocked: false, runtime_write_blocked: false, credential_status: 'configured', configuration_state: 'configured', credentials_configured: true, credentials_verified: true, vendor_selected: true, vendor_accessible: true, token_configured: true, webhook_token_configured: true, last_health_check: '2026-07-15T08:00:00Z', health: { status: 'healthy', message: 'Connected', latency_ms: 21, error_code: null }, capabilities: { products_read: true, categories_read: true, inventory_read: true, orders_read: true, webhooks: true, polling: true, price_write: true, stock_write: true, status_write: true }, capabilities_summary: ['Product read', 'Category read', 'Inventory read', 'Order read', 'Webhook', 'Polling', 'Price write', 'Stock write', 'Status write'], settings_available: true, cached_products: 10000, cached_variations: 350, last_cache_refresh: '2026-07-15T07:45:00Z', cache_refresh_status: 'completed' }] })
+    if (url.pathname === '/api/v2/commerce/source-types' || url.pathname === '/api/v2/commerce/channel-types') return json({ items: [] })
+    if (url.pathname === '/api/v2/diagnostics/status') return json({ overall_status: 'operational', checkedAt: '2026-07-15T08:00:00Z', connectors: [{ id: 'woocommerce:primary', name: 'WooCommerce', connector_type: 'woocommerce', enabled: false, status: 'disabled', health: 'unknown', last_checked_at: null }], channelHealth: { checkedAt: '2026-07-15T08:00:00Z', summary: { overall: 'Operational', counts: { Operational: 0, Warning: 0, Error: 0, 'Unable to check': 0, Disabled: 1 } }, items: [], external_call_performed: false }, rateLimiter: { settings: { read_requests_per_minute: 60, write_requests_per_minute: 30, read_delay_ms: 250, write_delay_ms: 500 }, queue_length: 0, average_request_duration_ms: 120, average_latency_ms: 80, throttle_count: 0, last_throttle: null, last_connector_delay_ms: 250, last_limiter_delay_ms: 500, requests_completed: 42, requests_delayed: 2, estimated_completion_seconds: 6 }, external_call_performed: false })
     if (url.pathname === '/api/v2/source-profiles') return json({ items: [{ id: 'source-visual', name: 'Daily multi-channel prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 2, mappingVersion: 1, sheetId: 'sheet-visual' }] })
     if (url.pathname === '/api/v2/source-profiles/channels') return json({ items: [{ channelId: 'woocommerce:primary', name: 'WooCommerce', connectorType: 'woocommerce', capabilityVersion: '1', capabilities: {} }, { channelId: 'snappshop:main', name: 'SnappShop', connectorType: 'snappshop', capabilityVersion: '1', capabilities: {} }, { channelId: 'tapsishop:main', name: 'TapsiShop', connectorType: 'tapsishop', capabilityVersion: '1', capabilities: {} }] })
     if (url.pathname === '/api/v2/sources/source-visual/configuration') return json({ id: 'source-visual', name: 'Daily multi-channel prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 2, mappingVersion: 1, sheetId: 'sheet-visual', mapping: { id: 'mapping-1', version: 1, checksum: 'a'.repeat(64), worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, valuePolicy: { blank: 'no_change', x: 'unavailable', zero: 'explicit_zero' }, sourceFields: [{ field: 'name', referenceType: 'column_id', referenceValue: 'name', required: true }, { field: 'source_key', referenceType: 'column_id', referenceValue: 'key', required: false }], channels: [{ channelId: 'woocommerce:primary', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_id', referenceValue: 'wc-id' }, { field: 'price', referenceType: 'column_id', referenceValue: 'wc-price' }] }, { channelId: 'snappshop:main', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_id', referenceValue: 'snap-id' }, { field: 'price', referenceType: 'column_id', referenceValue: 'snap-price' }] }] } })
@@ -122,6 +129,9 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
     ['import-wizard', '/sources/import'],
     ['products', '/products'],
     ['sources', '/sources'],
+    ['commerce-sources', '/commerce?tab=sources'],
+    ['commerce-channels', '/commerce?tab=channels'],
+    ['diagnostics', '/diagnostics'],
     ['data-quality', '/data-quality'],
     ['settings', '/settings'],
   ] as const
@@ -143,6 +153,22 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
     if (name === 'dashboard') await expect(page.getByText('داشبورد', { exact: true }).first()).toBeVisible()
     if (name === 'sources') await expect(page.getByText('منابع', { exact: true }).first()).toBeVisible()
     if (name === 'settings') await expect(page.getByText('تنظیمات', { exact: true }).first()).toBeVisible()
+    if (name === 'dashboard') {
+      await expect(page.getByText('متصل', { exact: true }).first()).toBeVisible()
+      await expect(page.getByText('visual-owner', { exact: true }).first()).toBeVisible()
+    }
+    if (name === 'commerce-sources') {
+      await expect(page.getByText('پیکربندی‌شده', { exact: true }).first()).toBeVisible()
+      await expect(page.getByText('محصولات ذخیره‌شده در کش', { exact: false })).toHaveCount(0)
+    }
+    if (name === 'commerce-channels') {
+      await expect(page.getByText('خواندن محصولات', { exact: false }).first()).toBeVisible()
+      await expect(page.getByText('محصولات ذخیره‌شده در کش', { exact: false })).toBeVisible()
+    }
+    if (name === 'diagnostics') {
+      await expect(page.getByText('۶ ثانیه', { exact: true })).toBeVisible()
+      await expect(page.getByText('غیرفعال', { exact: true }).first()).toBeVisible()
+    }
     if (name === 'workspace') await expect(page.getByText('iPhone Cable')).toBeVisible()
     else if (name === 'flowhub-sheet') await expect(page.getByText('Daily multi-channel prices')).toBeVisible()
     else await page.waitForTimeout(250)
