@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { createRoot } from 'react-dom/client'
 import { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue, type AuthUser } from '../auth'
+import { changeLocale } from '../i18n'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { ChannelHealthResponse, Source } from '../services/types'
 import Dashboard from './Dashboard'
+
+;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -29,8 +32,8 @@ function authValue(): AuthContextValue {
   }
 }
 
-function services(): Services {
-  const channelHealth: ChannelHealthResponse = {
+function channelHealthFixture(): ChannelHealthResponse {
+  return {
     checkedAt: new Date().toISOString(),
     summary: { overall: 'Warning', counts: { Operational: 1, Warning: 1, Error: 0, 'Unable to check': 0, Disabled: 0 } },
     external_call_performed: false,
@@ -61,13 +64,13 @@ function services(): Services {
         enabled: true,
         accessMode: 'read_only',
         status: 'Warning',
-        summary: 'Webhook processing is delayed.',
+        summary: 'Accepted webhook receipts are waiting for processing.',
         lastChecked: new Date().toISOString(),
         latency: 31,
         lastSuccessfulOperation: new Date().toISOString(),
         lastErrorCategory: null,
         capabilityState: { read_products: true, write_prices: true },
-        nextRecommendedAction: 'Review queued webhooks.',
+        nextRecommendedAction: 'Review queued webhook receipts.',
         dimensions: {},
         lastProductRead: new Date().toISOString(),
         lastProductWrite: null,
@@ -77,15 +80,36 @@ function services(): Services {
       },
     ],
   }
+}
+
+function sourceFixture(): Source[] {
+  return [
+    { id: 'source-csv', name: 'CSV', type: 'nextcloud_excel', displayUrl: '', status: 'active', lastSynced: new Date(Date.now() - 300_000), productCount: 2415 },
+    { id: 'source-nextcloud', name: 'Nextcloud', type: 'nextcloud_excel', displayUrl: '', status: 'error', lastSynced: null, productCount: 0 },
+  ]
+}
+
+function services(): Services {
+  const channelHealth = channelHealthFixture()
   return {
     health: {
       getHealth: vi.fn(),
       getChannelHealth: vi.fn(async () => channelHealth),
       refreshChannelHealth: vi.fn(),
     },
-    sources: { getSources: vi.fn(async () => []) } as unknown as Services['sources'],
-    products: { getProducts: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 1 })) } as unknown as Services['products'],
-    activity: { getEvents: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 5 })) } as unknown as Services['activity'],
+    sources: { getSources: vi.fn(async () => sourceFixture()) } as unknown as Services['sources'],
+    products: { getProducts: vi.fn(async () => ({ items: [], total: 2415, page: 1, pageSize: 1 })) } as unknown as Services['products'],
+    activity: {
+      getEvents: vi.fn(async () => ({
+        items: [
+          { id: 'event-1', timestamp: new Date(), kind: 'user_action', level: 'success', actor: 'admin', action: 'source_read_completed', detail: null },
+          { id: 'event-2', timestamp: new Date(), kind: 'system_log', level: 'warning', actor: 'system', action: 'channel_health_warning', detail: null },
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 5,
+      })),
+    } as unknown as Services['activity'],
     workspace: {} as Services['workspace'],
     settings: {} as Services['settings'],
     commerce: {} as Services['commerce'],
@@ -94,7 +118,8 @@ function services(): Services {
   }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  await changeLocale('en')
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -107,10 +132,11 @@ beforeEach(() => {
   }))
 })
 
-afterEach(() => {
+afterEach(async () => {
   act(() => { root.unmount() })
   container.remove()
   vi.unstubAllGlobals()
+  await changeLocale('en')
 })
 
 async function renderPage(mockServices = services()) {
@@ -129,14 +155,58 @@ async function renderPage(mockServices = services()) {
   return { container, mockServices }
 }
 
+function card(id: string): HTMLElement {
+  const element = container.querySelector<HTMLElement>(`[data-business-card="${id}"]`)
+  if (!element) throw new Error(`Missing business card: ${id}`)
+  return element
+}
+
 describe('Dashboard', () => {
-  it('uses normalized channel health for the channel status summary', async () => {
-    const { container: c, mockServices } = await renderPage()
+  it('turns existing data into complete, actionable business cards', async () => {
+    const { mockServices } = await renderPage()
 
     expect(mockServices.health.getChannelHealth).toHaveBeenCalled()
-    expect(c.textContent).toContain('Channels')
-    expect(c.textContent).toContain('Warning')
-    expect(c.textContent).toContain('Webhook processing is delayed.')
+    expect(container.querySelectorAll('[data-business-card]')).toHaveLength(5)
+
+    expect(card('products').textContent).toContain('2,415')
+    expect(card('products').textContent).toContain('products are available for daily work')
+    expect(card('products').textContent).toContain('Next step')
+    expect(card('products').querySelector('.fh-badge [data-icon="success"]')).not.toBeNull()
+
+    expect(card('sources').textContent).toContain('1 active Source')
+    expect(card('sources').textContent).toContain('1 Source needs attention')
+    expect(card('channels').textContent).toContain('1 of 2 ready')
+    expect(card('channels').textContent).toContain('Review queued webhook receipts')
+    expect(card('freshness').textContent).toContain('Latest successful Source read')
+    expect(card('system').textContent).toContain('Ready for daily work')
+
+    expect(container.textContent).not.toContain('Backend')
+    expect(container.textContent).not.toContain('Database')
+    expect(container.textContent).not.toContain('Application')
+    expect(container.textContent).toContain('Success')
+    expect(container.textContent).toContain('Warning')
+  })
+
+  it('uses meaningful empty states instead of bare zero values', async () => {
+    const mockServices = services()
+    vi.mocked(mockServices.sources.getSources).mockResolvedValue([])
+    vi.mocked(mockServices.products.getProducts).mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 1 })
+    vi.mocked(mockServices.health.getChannelHealth).mockResolvedValue({
+      checkedAt: new Date().toISOString(),
+      summary: { overall: 'Disabled', counts: { Operational: 0, Warning: 0, Error: 0, 'Unable to check': 0, Disabled: 0 } },
+      items: [],
+      external_call_performed: false,
+    })
+
+    await renderPage(mockServices)
+
+    expect(card('products').textContent).toContain('No products')
+    expect(card('sources').textContent).toContain('No active Sources')
+    expect(card('channels').textContent).toContain('No active Channels')
+    expect(card('freshness').textContent).toContain('Not read yet')
+    for (const element of container.querySelectorAll('[data-business-card]')) {
+      expect(element.querySelector('.fh-business-card-value')?.textContent).not.toBe('0')
+    }
   })
 
   it('uses the shared active, disabled, and attention ordering for dashboard resources', async () => {
@@ -150,7 +220,7 @@ describe('Dashboard', () => {
       channelType: 'snappshop',
       enabled: false,
       status: 'Disabled' as const,
-      summary: 'SnappShop is disabled.',
+      summary: 'Channel is disabled.',
     }
     vi.mocked(mockServices.health.getChannelHealth).mockResolvedValue({
       ...originalHealth,
@@ -163,8 +233,8 @@ describe('Dashboard', () => {
     ]
     vi.mocked(mockServices.sources.getSources).mockResolvedValue(sources)
 
-    const { container: c } = await renderPage(mockServices)
-    const ids = Array.from(c.querySelectorAll<HTMLElement>('[data-resource-id]'))
+    await renderPage(mockServices)
+    const ids = Array.from(container.querySelectorAll<HTMLElement>('[data-resource-id]'))
       .map(element => element.dataset.resourceId)
 
     expect(ids).toEqual([
@@ -175,9 +245,32 @@ describe('Dashboard', () => {
       'source-google',
       'source-nextcloud',
     ])
-    expect(c.querySelectorAll('[data-resource-section="disabled"]')).toHaveLength(1)
-    expect(c.textContent).toContain('Healthy')
-    expect(c.textContent).toContain('Warning')
-    expect(c.textContent).toContain('Disabled')
+    expect(container.querySelectorAll('[data-resource-section="disabled"]')).toHaveLength(1)
+    expect(container.textContent).toContain('Healthy')
+    expect(container.textContent).toContain('Warning')
+    expect(container.textContent).toContain('Disabled')
+  })
+
+  it('localizes card meaning and recommendations in Persian while preserving RTL', async () => {
+    await changeLocale('fa')
+    await renderPage()
+
+    expect(document.documentElement.dir).toBe('rtl')
+    expect(card('products').textContent).toContain('محصولات مدیریت‌شده')
+    expect(card('products').textContent).toContain('۲٬۴۱۵')
+    expect(card('sources').textContent).toContain('۱ منبع فعال')
+    expect(card('channels').textContent).toContain('نیازمند توجه')
+    expect(card('channels').textContent).toContain('وب‌هوک‌های در صف را بررسی کنید')
+    expect(card('system').textContent).toContain('آماده کار روزانه')
+  })
+
+  it('shows an actionable system error without relying on color alone', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('isolated health failure') }))
+    await renderPage()
+
+    expect(card('system').textContent).toContain('System unavailable')
+    expect(card('system').textContent).toContain('Needs attention')
+    expect(card('system').textContent).toContain('Open Diagnostics and resolve the connection problem')
+    expect(card('system').querySelector('.fh-badge [data-icon="error"]')).not.toBeNull()
   })
 })

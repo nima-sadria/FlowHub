@@ -6641,3 +6641,355 @@ msgstr "سیاست خواندن"
 msgctxt "sources:sourceConfiguration.section.readPolicyHelp"
 msgid "How this workbook is read safely for a Workspace."
 msgstr "نحوه خواندن امن این فایل برای یک فضای کاری."
+
+#: frontend/src/pages/Dashboard.tsx:200
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.activeSourceHasNoRead"
+msgid "An active Source has not been read yet."
+msgstr "هنوز هیچ خواندنی برای منبع فعال ثبت نشده است."
+
+#: frontend/src/pages/Dashboard.tsx:149 frontend/src/pages/Dashboard.tsx:154
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.activeSourceValue"
+msgid "{{value}} active Source"
+msgid_plural "{{value}} active Sources"
+msgstr[0] "{{value}} منبع فعال"
+msgstr[1] "{{value}} منبع فعال"
+
+#: frontend/src/pages/Dashboard.tsx:388
+msgctxt "dashboard:dashboard.activityListMeaning"
+msgid "Recent actions that may require seller follow-up."
+msgstr "اقدام‌های اخیر که ممکن است به پیگیری فروشنده نیاز داشته باشند."
+
+#: frontend/src/pages/Dashboard.tsx:135
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.addSourceToBuildCatalog"
+msgid "Connect a Source to build your product catalog."
+msgstr "برای ساخت فهرست محصولات، یک منبع متصل کنید."
+
+#: frontend/src/pages/Dashboard.tsx:182
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "dashboard:dashboard.allChannelsReady"
+msgid "Every active Channel is ready."
+msgstr "همه کانال‌های فعال آماده‌اند."
+
+#: frontend/src/pages/Dashboard.tsx:155
+msgctxt "dashboard:dashboard.allSourcesReady"
+msgid "All configured Sources are ready."
+msgstr "همه منابع پیکربندی‌شده آماده‌اند."
+
+#: frontend/src/pages/Dashboard.tsx:234
+msgctxt "dashboard:dashboard.businessOverview"
+msgid "Business overview"
+msgstr "نمای کسب‌وکار"
+
+#: frontend/src/pages/Dashboard.tsx:235
+msgctxt "dashboard:dashboard.businessOverviewDescription"
+msgid "See what happened, what needs attention, and what to do next."
+msgstr "ببینید چه اتفاقی افتاده، چه چیزی نیازمند توجه است و گام بعدی چیست."
+
+#: frontend/src/pages/Dashboard.tsx:133
+msgctxt "dashboard:dashboard.catalogIsEmpty"
+msgid "No products are currently available for daily work."
+msgstr "در حال حاضر محصولی برای کار روزانه در دسترس نیست."
+
+#: frontend/src/pages/Dashboard.tsx:311
+msgctxt "dashboard:dashboard.channelListMeaning"
+msgid "Destinations requiring seller attention appear first."
+msgstr "مقصدهایی که به توجه فروشنده نیاز دارند، ابتدا نمایش داده می‌شوند."
+
+#: frontend/src/pages/Dashboard.tsx:269
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "dashboard:dashboard.channelReadiness"
+msgid "Channel readiness"
+msgstr "آمادگی کانال‌ها"
+
+#: frontend/src/pages/Dashboard.tsx:272
+msgctxt "dashboard:dashboard.channelsMeaning"
+msgid "Channels are the destinations where approved changes can be published."
+msgstr "کانال‌ها مقصدهایی هستند که تغییرات تأییدشده در آن‌ها منتشر می‌شوند."
+
+#: frontend/src/pages/Dashboard.tsx:172
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "dashboard:dashboard.channelsNeedAttention"
+msgid "{{value}} Channel needs attention."
+msgid_plural "{{value}} Channels need attention."
+msgstr[0] "{{value}} کانال نیازمند توجه است."
+msgstr[1] "{{value}} کانال نیازمند توجه است."
+
+#: frontend/src/pages/Dashboard.tsx:208
+msgctxt "dashboard:dashboard.checkingDailyServices"
+msgid "Checking the services needed for daily work."
+msgstr "در حال بررسی سرویس‌های لازم برای کار روزانه."
+
+#: frontend/src/pages/Dashboard.tsx:207
+msgctxt "dashboard:dashboard.checkingSystem"
+msgid "Checking system"
+msgstr "در حال بررسی سیستم"
+
+#: frontend/src/pages/Dashboard.tsx:169 frontend/src/pages/Dashboard.tsx:321
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "dashboard:dashboard.configureChannel"
+msgid "Configure an active Channel before publishing changes."
+msgstr "پیش از انتشار تغییرات، یک کانال فعال پیکربندی کنید."
+
+#: frontend/src/pages/Dashboard.tsx:147 frontend/src/pages/Dashboard.tsx:360
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.connectSourceForDailyWork"
+msgid "Connect a Source to bring product and pricing data into FlowHub."
+msgstr "برای ورود اطلاعات محصول و قیمت به FlowHub، یک منبع متصل کنید."
+
+#: frontend/src/pages/Dashboard.tsx:228
+msgctxt "dashboard:dashboard.controlCenterSummary"
+msgid "Your control center for today's products, Sources, and Channels."
+msgstr "مرکز کنترل امروز شما برای محصولات، منابع و کانال‌ها."
+
+#: frontend/src/pages/Dashboard.tsx:218
+msgctxt "dashboard:dashboard.dailyServicesAvailable"
+msgid "Everything required for daily work is available."
+msgstr "همه موارد لازم برای کار روزانه در دسترس‌اند."
+
+#: frontend/src/pages/Dashboard.tsx:213
+msgctxt "dashboard:dashboard.dailyServicesNotConfirmed"
+msgid "FlowHub could not confirm the services needed for daily work."
+msgstr "FlowHub نتوانست سرویس‌های لازم برای کار روزانه را تأیید کند."
+
+#: frontend/src/pages/Dashboard.tsx:217
+msgctxt "dashboard:dashboard.dailyWorkReady"
+msgid "Ready for daily work"
+msgstr "آماده کار روزانه"
+
+#: frontend/src/pages/Dashboard.tsx:281
+msgctxt "dashboard:dashboard.dataFreshness"
+msgid "Data freshness"
+msgstr "تازگی داده‌ها"
+
+#: frontend/src/pages/Dashboard.tsx:152
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.fixSourceConnections"
+msgid "Fix Source connections before the next review."
+msgstr "پیش از بازبینی بعدی، اتصال منابع را اصلاح کنید."
+
+#: frontend/src/pages/Dashboard.tsx:284
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.freshnessMeaning"
+msgid "A recorded Source read lets you confirm which data is being used."
+msgstr "خواندن ثبت‌شده منبع مشخص می‌کند کدام داده در حال استفاده است."
+
+#: frontend/src/pages/Dashboard.tsx:194
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.latestSuccessfulSourceRead"
+msgid "Latest successful Source read."
+msgstr "آخرین خواندن موفق منبع."
+
+#: frontend/src/pages/Dashboard.tsx:123
+msgctxt "dashboard:dashboard.loadingCatalogSummary"
+msgid "Loading the managed product catalog."
+msgstr "در حال بارگذاری فهرست محصولات مدیریت‌شده."
+
+#: frontend/src/pages/Dashboard.tsx:162
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "dashboard:dashboard.loadingChannelSummary"
+msgid "Loading Channel readiness."
+msgstr "در حال بارگذاری آمادگی کانال‌ها."
+
+#: frontend/src/pages/Dashboard.tsx:189
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.loadingFreshnessSummary"
+msgid "Loading the latest Source read."
+msgstr "در حال بارگذاری آخرین خواندن منبع."
+
+#: frontend/src/pages/Dashboard.tsx:140
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.loadingSourceSummary"
+msgid "Loading Source readiness."
+msgstr "در حال بارگذاری آمادگی منابع."
+
+#: frontend/src/pages/Dashboard.tsx:240
+msgctxt "dashboard:dashboard.managedProducts"
+msgid "Managed products"
+msgstr "محصولات مدیریت‌شده"
+
+#: frontend/src/pages/Dashboard.tsx:265 frontend/src/pages/Dashboard.tsx:351
+msgctxt "dashboard:dashboard.manageSources"
+msgid "Manage Sources"
+msgstr "مدیریت منابع"
+
+#: frontend/src/pages/Dashboard.tsx:151 frontend/src/pages/Dashboard.tsx:174 frontend/src/pages/Dashboard.tsx:202 frontend/src/pages/Dashboard.tsx:214
+msgctxt "dashboard:dashboard.needsAttention"
+msgid "Needs attention"
+msgstr "نیازمند توجه"
+
+#: frontend/src/pages/Dashboard.tsx:134
+msgctxt "dashboard:dashboard.needsSetup"
+msgid "Needs setup"
+msgstr "نیازمند راه‌اندازی"
+
+#: frontend/src/pages/Dashboard.tsx:157 frontend/src/pages/Dashboard.tsx:184 frontend/src/pages/Dashboard.tsx:220
+msgctxt "dashboard:dashboard.noActionRequired"
+msgid "No action required."
+msgstr "نیازی به اقدام نیست."
+
+#: frontend/src/pages/Dashboard.tsx:166
+msgctxt "dashboard:dashboard.noActiveChannels"
+msgid "No active Channels"
+msgstr "هیچ کانال فعالی نیست"
+
+#: frontend/src/pages/Dashboard.tsx:201
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.noActiveSourceAvailable"
+msgid "No active Source is available."
+msgstr "هیچ منبع فعالی در دسترس نیست."
+
+#: frontend/src/pages/Dashboard.tsx:144
+msgctxt "dashboard:dashboard.noActiveSources"
+msgid "No active Sources"
+msgstr "هیچ منبع فعالی نیست"
+
+#: frontend/src/pages/Dashboard.tsx:400
+msgctxt "dashboard:dashboard.noActivityActionRequired"
+msgid "No recent activity requires your attention."
+msgstr "هیچ فعالیت اخیری به توجه شما نیاز ندارد."
+
+#: frontend/src/pages/Dashboard.tsx:132
+msgctxt "dashboard:dashboard.noProducts"
+msgid "No products"
+msgstr "هیچ محصولی وجود ندارد"
+
+#: frontend/src/pages/Dashboard.tsx:167
+msgctxt "dashboard:dashboard.noPublishingDestinations"
+msgid "No publishing destination is currently active."
+msgstr "در حال حاضر هیچ مقصد فعالی برای انتشار وجود ندارد."
+
+#: frontend/src/pages/Dashboard.tsx:145
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.noSourceDataAvailable"
+msgid "No Source data is available for the daily workflow."
+msgstr "هیچ داده منبعی برای روند روزانه در دسترس نیست."
+
+#: frontend/src/pages/Dashboard.tsx:198
+msgctxt "dashboard:dashboard.notReadYet"
+msgid "Not read yet"
+msgstr "هنوز خوانده نشده"
+
+#: frontend/src/pages/Dashboard.tsx:277 frontend/src/pages/Dashboard.tsx:301 frontend/src/pages/Dashboard.tsx:314
+msgctxt "dashboard:dashboard.openDiagnostics"
+msgid "Open Diagnostics"
+msgstr "باز کردن عیب‌یابی"
+
+#: frontend/src/pages/Dashboard.tsx:215
+msgctxt "dashboard:dashboard.openDiagnosticsToResolve"
+msgid "Open Diagnostics and resolve the connection problem."
+msgstr "بخش عیب‌یابی را باز و مشکل اتصال را برطرف کنید."
+
+#: frontend/src/pages/Dashboard.tsx:289
+msgctxt "dashboard:dashboard.openSources"
+msgid "Open Sources"
+msgstr "باز کردن منابع"
+
+#: frontend/src/pages/Dashboard.tsx:128
+msgctxt "dashboard:dashboard.productsAvailable"
+msgid "{{value}} product is available for daily work."
+msgid_plural "{{value}} products are available for daily work."
+msgstr[0] "{{value}} محصول برای کار روزانه در دسترس است."
+msgstr[1] "{{value}} محصول برای کار روزانه در دسترس است."
+
+#: frontend/src/pages/Dashboard.tsx:243
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.productsMeaning"
+msgid "These are the products FlowHub can show for review and publishing."
+msgstr "این‌ها محصولاتی هستند که FlowHub می‌تواند برای بازبینی و انتشار نمایش دهد."
+
+#: frontend/src/pages/Dashboard.tsx:195
+msgctxt "dashboard:dashboard.readRecorded"
+msgid "Read recorded"
+msgstr "خواندن ثبت شده"
+
+#: frontend/src/pages/Dashboard.tsx:203
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.readSourceBeforeReview"
+msgid "Read a Source before reviewing today's changes."
+msgstr "پیش از بازبینی تغییرات امروز، منبع را بخوانید."
+
+#: frontend/src/pages/Dashboard.tsx:171 frontend/src/pages/Dashboard.tsx:181
+msgctxt "dashboard:dashboard.readyChannelValue"
+msgid "{{ready}} of {{total}} ready"
+msgstr "{{ready}} از {{total}} آماده"
+
+#: frontend/src/pages/Dashboard.tsx:114
+msgctxt "dashboard:dashboard.recommendedAction"
+msgid "Next step"
+msgstr "گام بعدی"
+
+#: frontend/src/pages/Dashboard.tsx:179
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.reviewChannelHealth"
+msgid "Review Channel health before publishing."
+msgstr "پیش از انتشار، سلامت کانال‌ها را بررسی کنید."
+
+#: frontend/src/pages/Dashboard.tsx:196
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.reviewLatestSourceRead"
+msgid "Confirm the latest Source read before today's review."
+msgstr "پیش از بازبینی امروز، آخرین خواندن منبع را تأیید کنید."
+
+#: frontend/src/pages/Dashboard.tsx:130
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.reviewManagedProducts"
+msgid "Open Products to review the current catalog."
+msgstr "برای بررسی فهرست فعلی، محصولات را باز کنید."
+
+#: frontend/src/pages/Dashboard.tsx:348
+msgctxt "dashboard:dashboard.sourceListMeaning"
+msgid "Connected inputs and their latest successful reads."
+msgstr "ورودی‌های متصل و آخرین خواندن موفق آن‌ها."
+
+#: frontend/src/pages/Dashboard.tsx:257
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.sourceReadiness"
+msgid "Source readiness"
+msgstr "آمادگی منابع"
+
+#: frontend/src/pages/Dashboard.tsx:260
+msgctxt "dashboard:dashboard.sourcesMeaning"
+msgid "Sources provide the product and pricing data used in your daily workflow."
+msgstr "منابع، اطلاعات محصول و قیمت مورد استفاده در روند روزانه را فراهم می‌کنند."
+
+#: frontend/src/pages/Dashboard.tsx:150
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.sourcesNeedAttention"
+msgid "{{value}} Source needs attention."
+msgid_plural "{{value}} Sources need attention."
+msgstr[0] "{{value}} منبع نیازمند توجه است."
+msgstr[1] "{{value}} منبع نیازمند توجه است."
+
+#: frontend/src/pages/Dashboard.tsx:296
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.systemMeaning"
+msgid "System availability determines whether daily review and publishing can continue."
+msgstr "دسترس‌پذیری سیستم مشخص می‌کند بازبینی و انتشار روزانه می‌تواند ادامه یابد یا نه."
+
+#: frontend/src/pages/Dashboard.tsx:293
+msgctxt "dashboard:dashboard.systemStatus"
+msgid "System status"
+msgstr "وضعیت سیستم"
+
+#: frontend/src/pages/Dashboard.tsx:212
+msgctxt "dashboard:dashboard.systemUnavailable"
+msgid "System unavailable"
+msgstr "سیستم در دسترس نیست"
+
+#: frontend/src/pages/Dashboard.tsx:250
+msgctxt "dashboard:dashboard.viewProducts"
+msgid "View Products"
+msgstr "مشاهده محصولات"
+
+#: frontend/src/pages/Dashboard.tsx:125 frontend/src/pages/Dashboard.tsx:142 frontend/src/pages/Dashboard.tsx:191
+msgctxt "dashboard:dashboard.waitForDashboardData"
+msgid "Wait for the dashboard data to finish loading."
+msgstr "تا تکمیل بارگذاری اطلاعات داشبورد صبر کنید."
+
+#: frontend/src/pages/Dashboard.tsx:164 frontend/src/pages/Dashboard.tsx:210
+msgctxt "dashboard:dashboard.waitForHealthCheck"
+msgid "Wait for the health check to finish."
+msgstr "تا پایان بررسی سلامت صبر کنید."

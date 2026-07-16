@@ -75,6 +75,12 @@ msgctxt "sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated"
 msgid "A new protected version of your column setup was saved."
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:284
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.freshnessMeaning"
+msgid "A recorded Source read lets you confirm which data is being used."
+msgstr ""
+
 msgctxt "diagnostics:message.vendorSelected"
 msgid "A vendor is selected."
 msgstr ""
@@ -135,7 +141,6 @@ msgctxt "sources:sourceConfiguration.section.accessScope"
 msgid "Access scope"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:192
 msgctxt "dashboard:dashboard.totalProductsAcrossChannels"
 msgid "Across connected Channels"
 msgstr ""
@@ -157,7 +162,6 @@ msgctxt "sources:sources.active"
 msgid "Active"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:193
 msgctxt "dashboard:dashboard.activeSources"
 msgid "Active Sources"
 msgstr ""
@@ -193,7 +197,7 @@ msgctxt "commerce:commerceHub.addSource"
 msgid "Add Source"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:237
+#: frontend/src/pages/Dashboard.tsx:251
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dashboard:dashboard.addSource"
 msgid "Add Source"
@@ -232,7 +236,7 @@ msgctxt "sources:sourceConfiguration.addWorksheet"
 msgid "Add worksheet"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:246
+#: frontend/src/pages/Dashboard.tsx:361
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dashboard:dashboard.addYourFirstSource"
 msgid "Add your first source"
@@ -317,6 +321,11 @@ msgctxt "sources:sourceConfiguration.allChangesSaved"
 msgid "All changes saved"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:155
+msgctxt "dashboard:dashboard.allSourcesReady"
+msgid "All configured Sources are ready."
+msgstr ""
+
 #: frontend/src/pages/DataQuality.tsx:201
 msgctxt "dataQuality:dataQuality.allMappingStates"
 msgid "All product-link states"
@@ -342,6 +351,12 @@ msgctxt "sources:sourceConfiguration.allWorksheets"
 msgid "All worksheets"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:200
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.activeSourceHasNoRead"
+msgid "An active Source has not been read yet."
+msgstr ""
+
 #: frontend/src/pages/SourceCenter.tsx:521
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.activeWorkspacePreventsRemoval"
@@ -358,7 +373,6 @@ msgctxt "commerce:commerceHub.fields.appPasswordToken"
 msgid "App password / token"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:172
 msgctxt "dashboard:dashboard.application"
 msgid "Application"
 msgstr ""
@@ -534,7 +548,6 @@ msgctxt "sources:sourceWizard.backToSources"
 msgid "Back to Sources"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:162
 msgctxt "dashboard:dashboard.backend"
 msgid "Backend"
 msgstr ""
@@ -607,6 +620,11 @@ msgstr ""
 #: frontend/src/pages/SourceConfiguration.tsx:831
 msgctxt "sources:sourceConfiguration.bulkWorksheetActions"
 msgid "Bulk worksheet actions"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:234
+msgctxt "dashboard:dashboard.businessOverview"
+msgid "Business overview"
 msgstr ""
 
 msgctxt "settings:setup.cadCanadianDollar"
@@ -846,6 +864,12 @@ msgctxt "products:products.channelPrices"
 msgid "Channel prices"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:269
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "dashboard:dashboard.channelReadiness"
+msgid "Channel readiness"
+msgstr ""
+
 #: frontend/src/pages/CommerceHub.tsx:584
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelSettingsUpdatedSuccessfully"
@@ -873,7 +897,7 @@ msgctxt "commerce:commerceHub.channels2"
 msgid "Channels"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:177 frontend/src/pages/Dashboard.tsx:201
+#: frontend/src/pages/Dashboard.tsx:310
 msgctxt "dashboard:dashboard.channels"
 msgid "Channels"
 msgstr ""
@@ -885,6 +909,11 @@ msgstr ""
 
 msgctxt "workspace:sourceCentricWorkspace.channels"
 msgid "Channels"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:272
+msgctxt "dashboard:dashboard.channelsMeaning"
+msgid "Channels are the destinations where approved changes can be published."
 msgstr ""
 
 #: frontend/src/pages/SourceConfiguration.tsx:878
@@ -932,6 +961,7 @@ msgctxt "diagnostics:diagnostics.checked"
 msgid "Checked"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:116 frontend/src/pages/Dashboard.tsx:161
 msgctxt "common:status.checking"
 msgid "Checking"
 msgstr ""
@@ -949,6 +979,16 @@ msgstr ""
 #: frontend/src/pages/SourceCenter.tsx:512 frontend/src/pages/SourceCenter.tsx:527
 msgctxt "sources:sourceCenter.checkingHistory"
 msgid "Checking protected history..."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:207
+msgctxt "dashboard:dashboard.checkingSystem"
+msgid "Checking system"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:208
+msgctxt "dashboard:dashboard.checkingDailyServices"
+msgid "Checking the services needed for daily work."
 msgstr ""
 
 #: frontend/src/pages/DataQuality.tsx:170
@@ -1265,6 +1305,12 @@ msgctxt "sources:sourceWizard.configure"
 msgid "Configure"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:169 frontend/src/pages/Dashboard.tsx:321
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "dashboard:dashboard.configureChannel"
+msgid "Configure an active Channel before publishing changes."
+msgstr ""
+
 #: frontend/src/pages/Settings.tsx:217
 msgctxt "settings:settings.configureDisplayAndSynchronizationPreferences"
 msgid "Configure display and synchronization preferences"
@@ -1340,6 +1386,12 @@ msgctxt "settings:setup.confirmThatTheDatabaseConnectionAndSchema"
 msgid "Confirm that the database connection and schema are ready."
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:196
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.reviewLatestSourceRead"
+msgid "Confirm the latest Source read before today's review."
+msgstr ""
+
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dataQuality:issue.SOURCE_PRODUCT_MAPPING_CONFLICT.action"
 msgid "Confirm which product these Channel rows belong to before continuing."
@@ -1348,6 +1400,18 @@ msgstr ""
 #: frontend/src/pages/DataQuality.tsx:201
 msgctxt "dataQuality:dataQuality.conflict"
 msgid "Conflict"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:147 frontend/src/pages/Dashboard.tsx:360
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.connectSourceForDailyWork"
+msgid "Connect a Source to bring product and pricing data into FlowHub."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:135
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.addSourceToBuildCatalog"
+msgid "Connect a Source to build your product catalog."
 msgstr ""
 
 #: frontend/src/pages/Products.tsx:607
@@ -1364,6 +1428,11 @@ msgstr ""
 
 msgctxt "common:status.connected"
 msgid "Connected"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:348
+msgctxt "dashboard:dashboard.sourceListMeaning"
+msgid "Connected inputs and their latest successful reads."
 msgstr ""
 
 #: frontend/src/services/sources/LocalSourceService.ts:47
@@ -1602,7 +1671,7 @@ msgctxt "sources:sourceConfiguration.valueType.dash"
 msgid "Dash"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:144
+#: frontend/src/pages/Dashboard.tsx:227
 msgctxt "dashboard:dashboard.dashboard"
 msgid "Dashboard"
 msgstr ""
@@ -1653,6 +1722,11 @@ msgctxt "dataQuality:dataQuality.summary"
 msgid "Data Quality Summary"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:281
+msgctxt "dashboard:dashboard.dataFreshness"
+msgid "Data freshness"
+msgstr ""
+
 #: frontend/src/pages/CommerceHub.tsx:116
 msgctxt "commerce:commerceHub.dataRole"
 msgid "Data role:"
@@ -1668,7 +1742,6 @@ msgctxt "sources:sourceConfiguration.dataStartsAtRow"
 msgid "Data starts at row"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:167
 msgctxt "dashboard:dashboard.database"
 msgid "Database"
 msgstr ""
@@ -1747,6 +1820,11 @@ msgctxt "workspace:workspace.deselectAll"
 msgid "Deselect all"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:311
+msgctxt "dashboard:dashboard.channelListMeaning"
+msgid "Destinations requiring seller attention appear first."
+msgstr ""
+
 #: frontend/src/pages/SourceConfiguration.tsx:694 frontend/src/pages/SourceConfiguration.tsx:826
 msgctxt "sources:sourceConfiguration.detectWorksheets"
 msgid "Detect worksheets"
@@ -1768,7 +1846,6 @@ msgctxt "workspace:unifiedWorkspace.deterministicComparisonOfCurrentCacheValuesA
 msgid "Deterministic comparison of Current cache values and saved Draft targets."
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:203
 msgctxt "dashboard:dashboard.diagnostics2"
 msgid "Diagnostics"
 msgstr ""
@@ -1997,7 +2074,7 @@ msgctxt "activity:activity.error"
 msgid "Error"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:103 frontend/src/pages/Workspace.tsx:92
+#: frontend/src/pages/Dashboard.tsx:174 frontend/src/pages/Diagnostics.tsx:103 frontend/src/pages/Workspace.tsx:92
 msgctxt "common:status.error"
 msgid "Error"
 msgstr ""
@@ -2043,6 +2120,17 @@ msgstr ""
 #: frontend/src/pages/Activity.tsx:108
 msgctxt "activity:activity.eventsWillAppearHereAsTheSystem"
 msgid "Events will appear here as the system runs."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:182
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "dashboard:dashboard.allChannelsReady"
+msgid "Every active Channel is ready."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:218
+msgctxt "dashboard:dashboard.dailyServicesAvailable"
+msgid "Everything required for daily work is available."
 msgstr ""
 
 #: frontend/src/pages/SourceConfiguration.tsx:148 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:59
@@ -2184,6 +2272,12 @@ msgctxt "products:products.firstPage"
 msgid "First page"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:152
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.fixSourceConnections"
+msgid "Fix Source connections before the next review."
+msgstr ""
+
 #: frontend/src/pages/Login.tsx:60 frontend/src/pages/Login.tsx:67
 msgctxt "authentication:login.flowhub"
 msgid "FlowHub"
@@ -2259,6 +2353,11 @@ msgstr ""
 #: frontend/src/pages/Setup.tsx:801
 msgctxt "settings:setup.flowhubAlreadyHasAnOwnerOrAdministrator"
 msgid "FlowHub already has an owner or administrator account. Continue to finish setup."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:213
+msgctxt "dashboard:dashboard.dailyServicesNotConfirmed"
+msgid "FlowHub could not confirm the services needed for daily work."
 msgstr ""
 
 msgctxt "sources:sourceCenter.removalImpactUnavailable"
@@ -2384,7 +2483,7 @@ msgctxt "common:resourceBadge.healthy"
 msgid "Healthy"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:101
+#: frontend/src/pages/Dashboard.tsx:156 frontend/src/pages/Dashboard.tsx:183 frontend/src/pages/Dashboard.tsx:219 frontend/src/pages/Diagnostics.tsx:101
 msgctxt "common:status.healthy"
 msgid "Healthy"
 msgstr ""
@@ -2577,7 +2676,6 @@ msgctxt "workspace:workspace.largePriceChanges"
 msgid "Large price changes"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:194
 msgctxt "dashboard:dashboard.lastPreview"
 msgid "Last Preview"
 msgstr ""
@@ -2687,6 +2785,12 @@ msgctxt "commerce:commerceHub.latestResult"
 msgid "Latest result:"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:194
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.latestSuccessfulSourceRead"
+msgid "Latest successful Source read."
+msgstr ""
+
 #: frontend/src/pages/Diagnostics.tsx:355 frontend/src/pages/Diagnostics.tsx:391
 msgctxt "diagnostics:diagnostics.latestSystemStatusHasBeenLoaded"
 msgid "Latest system status has been loaded."
@@ -2749,7 +2853,7 @@ msgctxt "common:spinner.loading"
 msgid "Loading"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:104
+#: frontend/src/pages/Dashboard.tsx:122 frontend/src/pages/Dashboard.tsx:139 frontend/src/pages/Dashboard.tsx:188 frontend/src/pages/Diagnostics.tsx:104
 msgctxt "common:status.loading"
 msgid "Loading"
 msgstr ""
@@ -2757,6 +2861,12 @@ msgstr ""
 #: frontend/src/pages/Diagnostics.tsx:512
 msgctxt "diagnostics:diagnostics.loading"
 msgid "Loading"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:162
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "dashboard:dashboard.loadingChannelSummary"
+msgid "Loading Channel readiness."
 msgstr ""
 
 #: frontend/src/pages/CommerceHub.tsx:1287
@@ -2779,6 +2889,12 @@ msgstr ""
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.loadingSourceConfiguration"
 msgid "Loading Source configuration..."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:140
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.loadingSourceSummary"
+msgid "Loading Source readiness."
 msgstr ""
 
 #: frontend/src/pages/SourceCenter.tsx:366
@@ -2838,6 +2954,17 @@ msgctxt "settings:setup.loadingSetupStatus"
 msgid "Loading setup status..."
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:189
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.loadingFreshnessSummary"
+msgid "Loading the latest Source read."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:123
+msgctxt "dashboard:dashboard.loadingCatalogSummary"
+msgid "Loading the managed product catalog."
+msgstr ""
+
 #: frontend/src/pages/Activity.tsx:122 frontend/src/pages/Activity.tsx:97
 msgctxt "activity:activity.loading"
 msgid "Loading..."
@@ -2868,7 +2995,6 @@ msgctxt "sources:sourceConfiguration.loading"
 msgid "Loading..."
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:150
 msgctxt "dashboard:dashboard.loggedIn"
 msgid "Logged In"
 msgstr ""
@@ -2888,6 +3014,11 @@ msgctxt "common:app.maintenanceMode"
 msgid "Maintenance Mode"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:265 frontend/src/pages/Dashboard.tsx:351
+msgctxt "dashboard:dashboard.manageSources"
+msgid "Manage Sources"
+msgstr ""
+
 #: frontend/src/pages/SourceCenter.tsx:308 frontend/src/pages/SourceCenter.tsx:498
 msgctxt "sources:sourceCenter.manageExternalSources"
 msgid "Manage external Sources"
@@ -2896,6 +3027,11 @@ msgstr ""
 #: frontend/src/pages/SourceCenter.tsx:336 frontend/src/pages/SourceCenter.tsx:365
 msgctxt "sources:sourceCenter.managedSources"
 msgid "Managed Sources"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:240
+msgctxt "dashboard:dashboard.managedProducts"
+msgid "Managed products"
 msgstr ""
 
 #: frontend/src/pages/CommerceHub.tsx:971
@@ -2975,8 +3111,18 @@ msgctxt "workspace:unifiedWorkspace.nameSource"
 msgid "Name source"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:151 frontend/src/pages/Dashboard.tsx:174 frontend/src/pages/Dashboard.tsx:202 frontend/src/pages/Dashboard.tsx:214
+msgctxt "dashboard:dashboard.needsAttention"
+msgid "Needs attention"
+msgstr ""
+
 msgctxt "sources:sourceConfiguration.worksheetStatus.needsColumns"
 msgid "Needs column settings"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:134
+msgctxt "dashboard:dashboard.needsSetup"
+msgid "Needs setup"
 msgstr ""
 
 #: frontend/src/pages/Products.tsx:305
@@ -3014,6 +3160,11 @@ msgctxt "sources:sourceConfiguration.nextSampleRow"
 msgid "Next sample row"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:114
+msgctxt "dashboard:dashboard.recommendedAction"
+msgid "Next step"
+msgstr ""
+
 #: frontend/src/pages/SourceWizard.tsx:150
 msgctxt "sources:sourceWizard.nextcloudExcel"
 msgid "Nextcloud Excel"
@@ -3048,6 +3199,12 @@ msgctxt "sources:sourceConfiguration.noListingUnavailable"
 msgid "No Listing / unavailable"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:145
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.noSourceDataAvailable"
+msgid "No Source data is available for the daily workflow."
+msgstr ""
+
 #: frontend/src/pages/Diagnostics.tsx:606
 msgctxt "diagnostics:diagnostics.noSourcesConfigured"
 msgid "No Sources configured"
@@ -3056,6 +3213,27 @@ msgstr ""
 #. Target is the proposed value that may be applied after Review.
 msgctxt "sources:sourceConfiguration.noTargetChange"
 msgid "No Target change"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:157 frontend/src/pages/Dashboard.tsx:184 frontend/src/pages/Dashboard.tsx:220
+msgctxt "dashboard:dashboard.noActionRequired"
+msgid "No action required."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:166
+msgctxt "dashboard:dashboard.noActiveChannels"
+msgid "No active Channels"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:201
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.noActiveSourceAvailable"
+msgid "No active Source is available."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:144
+msgctxt "dashboard:dashboard.noActiveSources"
+msgid "No active Sources"
 msgstr ""
 
 #: frontend/src/pages/Activity.tsx:108
@@ -3074,7 +3252,7 @@ msgctxt "diagnostics:diagnostics.noChannelHealthData"
 msgid "No channel health data"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:210
+#: frontend/src/pages/Dashboard.tsx:321
 msgctxt "dashboard:dashboard.noChannelsMonitored"
 msgid "No channels monitored"
 msgstr ""
@@ -3106,7 +3284,7 @@ msgctxt "diagnostics:message.noDeadLetters"
 msgid "No dead letters."
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:282
+#: frontend/src/pages/Dashboard.tsx:400
 msgctxt "dashboard:dashboard.noEventsYet"
 msgid "No events yet"
 msgstr ""
@@ -3167,6 +3345,16 @@ msgctxt "diagnostics:message.noProductSynchronization"
 msgid "No product synchronization has been run."
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:132
+msgctxt "dashboard:dashboard.noProducts"
+msgid "No products"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:133
+msgctxt "dashboard:dashboard.catalogIsEmpty"
+msgid "No products are currently available for daily work."
+msgstr ""
+
 #: frontend/src/pages/Products.tsx:713
 msgctxt "products:products.noProductsFound"
 msgid "No products found"
@@ -3182,9 +3370,19 @@ msgctxt "workspace:sourceCentricWorkspace.noProductsMatchThisView"
 msgid "No products match this view."
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:167
+msgctxt "dashboard:dashboard.noPublishingDestinations"
+msgid "No publishing destination is currently active."
+msgstr ""
+
 #: frontend/src/pages/Diagnostics.tsx:676
 msgctxt "diagnostics:diagnostics.noQueueDelay"
 msgid "No queued request is delaying the next action."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:400
+msgctxt "dashboard:dashboard.noActivityActionRequired"
+msgid "No recent activity requires your attention."
 msgstr ""
 
 #: frontend/src/pages/Diagnostics.tsx:495
@@ -3212,7 +3410,7 @@ msgctxt "sources:sources.noSourcesConfigured"
 msgid "No sources configured"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:245
+#: frontend/src/pages/Dashboard.tsx:359
 msgctxt "dashboard:dashboard.noSourcesYet"
 msgid "No sources yet"
 msgstr ""
@@ -3284,6 +3482,7 @@ msgctxt "commerce:commerceHub.notConfigured2"
 msgid "Not configured"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:146 frontend/src/pages/Dashboard.tsx:168
 msgctxt "common:status.notConfigured"
 msgid "Not configured"
 msgstr ""
@@ -3303,8 +3502,14 @@ msgctxt "commerce:commerceHub.notRead"
 msgid "Not read"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:26
 msgctxt "common:status.notRead"
 msgid "Not read"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:198
+msgctxt "dashboard:dashboard.notReadYet"
+msgid "Not read yet"
 msgstr ""
 
 #: frontend/src/pages/CommerceHub.tsx:214
@@ -3373,6 +3578,22 @@ msgctxt "workspace:workspace.openDataQualityReport"
 msgid "Open Data Quality report"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:277 frontend/src/pages/Dashboard.tsx:301 frontend/src/pages/Dashboard.tsx:314
+msgctxt "dashboard:dashboard.openDiagnostics"
+msgid "Open Diagnostics"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:215
+msgctxt "dashboard:dashboard.openDiagnosticsToResolve"
+msgid "Open Diagnostics and resolve the connection problem."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:130
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.reviewManagedProducts"
+msgid "Open Products to review the current catalog."
+msgstr ""
+
 #: frontend/src/pages/Workspace.tsx:428
 msgctxt "workspace:workspace.openSettings"
 msgid "Open Settings"
@@ -3381,6 +3602,11 @@ msgstr ""
 #: frontend/src/pages/SourceCenter.tsx:306
 msgctxt "sources:sourceCenter.openSheet"
 msgid "Open Sheet"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:289
+msgctxt "dashboard:dashboard.openSources"
+msgid "Open Sources"
 msgstr ""
 
 #: frontend/src/pages/Diagnostics.tsx:638
@@ -3951,6 +4177,12 @@ msgctxt "validation:rateLimits.readRequestsRange"
 msgid "Read Requests / Minute must be between {{min}} and {{max}}."
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:203
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.readSourceBeforeReview"
+msgid "Read a Source before reviewing today's changes."
+msgstr ""
+
 msgctxt "diagnostics:dimension.readCapability"
 msgid "Read capability"
 msgstr ""
@@ -3978,6 +4210,11 @@ msgstr ""
 #: frontend/src/pages/SourceWizard.tsx:152
 msgctxt "sources:sourceWizard.readPricesFromAnExcelSpreadsheetHosted"
 msgid "Read prices from an Excel spreadsheet hosted on Nextcloud or a compatible WebDAV server."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:195
+msgctxt "dashboard:dashboard.readRecorded"
+msgid "Read recorded"
 msgstr ""
 
 msgctxt "common:status.readOnly"
@@ -4019,7 +4256,7 @@ msgctxt "commerce:commerceHub.readsRemaining"
 msgid "Reads remaining:"
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:638 frontend/src/pages/SourceConfiguration.tsx:895
+#: frontend/src/pages/Dashboard.tsx:129 frontend/src/pages/SourceConfiguration.tsx:638 frontend/src/pages/SourceConfiguration.tsx:895
 msgctxt "common:status.ready"
 msgid "Ready"
 msgstr ""
@@ -4038,9 +4275,19 @@ msgctxt "workspace:sourceCentricWorkspace.readyChanges"
 msgid "Ready changes"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:271
+#: frontend/src/pages/Dashboard.tsx:217
+msgctxt "dashboard:dashboard.dailyWorkReady"
+msgid "Ready for daily work"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:387
 msgctxt "dashboard:dashboard.recentActivity"
 msgid "Recent Activity"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:388
+msgctxt "dashboard:dashboard.activityListMeaning"
+msgid "Recent actions that may require seller follow-up."
 msgstr ""
 
 #: frontend/src/pages/Diagnostics.tsx:493
@@ -4209,6 +4456,12 @@ msgstr ""
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.reviewChanges"
 msgid "Review Changes"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:179
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.reviewChannelHealth"
+msgid "Review Channel health before publishing."
 msgstr ""
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:69
@@ -4439,6 +4692,11 @@ msgstr ""
 #: frontend/src/pages/Setup.tsx:302
 msgctxt "settings:setup.search"
 msgid "Search {{value1}}..."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:235
+msgctxt "dashboard:dashboard.businessOverviewDescription"
+msgid "See what happened, what needs attention, and what to do next."
 msgstr ""
 
 #: frontend/src/pages/DataQuality.tsx:169 frontend/src/pages/Workspace.tsx:508
@@ -4896,6 +5154,12 @@ msgctxt "workspace:workspace.sourceReadLimitReached"
 msgid "Source read limit reached"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:257
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.sourceReadiness"
+msgid "Source readiness"
+msgstr ""
+
 #: frontend/src/pages/CommerceHub.tsx:1185
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceRefreshedSuccessfully"
@@ -4943,7 +5207,7 @@ msgctxt "commerce:commerceHub.sources2"
 msgid "Sources"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:235
+#: frontend/src/pages/Dashboard.tsx:347
 msgctxt "dashboard:dashboard.sources"
 msgid "Sources"
 msgstr ""
@@ -4970,6 +5234,11 @@ msgstr ""
 #: frontend/src/pages/DataQuality.tsx:207
 msgctxt "dataQuality:dataQuality.sourcesChecked"
 msgid "Sources checked"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:260
+msgctxt "dashboard:dashboard.sourcesMeaning"
+msgid "Sources provide the product and pricing data used in your daily workflow."
 msgstr ""
 
 msgctxt "commerce:capability.specialPriceRead"
@@ -5168,6 +5437,12 @@ msgctxt "diagnostics:diagnostics.system"
 msgid "System"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:296
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.systemMeaning"
+msgid "System availability determines whether daily review and publishing can continue."
+msgstr ""
+
 #: frontend/src/pages/Activity.tsx:90
 msgctxt "activity:activity.systemEventsAndUserActions"
 msgid "System events and user actions"
@@ -5177,14 +5452,23 @@ msgctxt "commerce:dataRole.systemImportInput"
 msgid "System import input"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:145
 msgctxt "dashboard:dashboard.systemOverview"
 msgid "System overview"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:293
+msgctxt "dashboard:dashboard.systemStatus"
+msgid "System status"
 msgstr ""
 
 #: frontend/src/pages/Diagnostics.tsx:447 frontend/src/pages/Diagnostics.tsx:521
 msgctxt "diagnostics:diagnostics.systemStatus"
 msgid "System status"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:212
+msgctxt "dashboard:dashboard.systemUnavailable"
+msgid "System unavailable"
 msgstr ""
 
 msgctxt "settings:setup.tryTurkishLira"
@@ -5388,6 +5672,12 @@ msgctxt "dataQuality:issue.MISSING_CHANNEL_WORKSHEET.summary"
 msgid "The worksheet selected for this Channel is not available."
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:243
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.productsMeaning"
+msgid "These are the products FlowHub can show for review and publishing."
+msgstr ""
+
 #: frontend/src/pages/CommerceHub.tsx:954
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.theseControlsOnlyAffectSourceReadPolicy"
@@ -5497,7 +5787,6 @@ msgctxt "products:products.total"
 msgid "Total"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:192
 msgctxt "dashboard:dashboard.totalProducts"
 msgid "Total Products"
 msgstr ""
@@ -5963,12 +6252,17 @@ msgctxt "settings:settings.version"
 msgid "Version"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:250
+msgctxt "dashboard:dashboard.viewProducts"
+msgid "View Products"
+msgstr ""
+
 #: frontend/src/pages/SourceWizard.tsx:255
 msgctxt "sources:sourceWizard.viewProducts"
 msgid "View Products"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:273
+#: frontend/src/pages/Dashboard.tsx:391
 msgctxt "dashboard:dashboard.viewAll"
 msgid "View all"
 msgstr ""
@@ -6003,6 +6297,16 @@ msgstr ""
 #: frontend/src/pages/Diagnostics.tsx:696
 msgctxt "diagnostics:diagnostics.waitEstimateUnavailable"
 msgid "Wait estimate unavailable"
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:125 frontend/src/pages/Dashboard.tsx:142 frontend/src/pages/Dashboard.tsx:191
+msgctxt "dashboard:dashboard.waitForDashboardData"
+msgid "Wait for the dashboard data to finish loading."
+msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:164 frontend/src/pages/Dashboard.tsx:210
+msgctxt "dashboard:dashboard.waitForHealthCheck"
+msgid "Wait for the health check to finish."
 msgstr ""
 
 #: frontend/src/pages/Diagnostics.tsx:673
@@ -6281,6 +6585,11 @@ msgctxt "commerce:commerceHub.yourChangesHaveBeenSaved"
 msgid "Your changes have been saved."
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:228
+msgctxt "dashboard:dashboard.controlCenterSummary"
+msgid "Your control center for today's products, Sources, and Channels."
+msgstr ""
+
 msgctxt "sources:sourceCenter.safeRemoval"
 msgid "Your history is protected"
 msgstr ""
@@ -6506,7 +6815,6 @@ msgid_plural "{{count}} issues"
 msgstr[0] ""
 msgstr[1] ""
 
-#: frontend/src/pages/Dashboard.tsx:179
 msgctxt "dashboard:dashboard.monitoredDestinations"
 msgid "{{count}} monitored destination"
 msgid_plural "{{count}} monitored destinations"
@@ -6618,6 +6926,11 @@ msgctxt "workspace:sourceCentricWorkspace.listingChannelSummary"
 msgid "{{listings}} Listings across {{channels}} Channels"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:171 frontend/src/pages/Dashboard.tsx:181
+msgctxt "dashboard:dashboard.readyChannelValue"
+msgid "{{ready}} of {{total}} ready"
+msgstr ""
+
 #: frontend/src/pages/Diagnostics.tsx:455 frontend/src/pages/Diagnostics.tsx:461
 msgctxt "diagnostics:diagnostics.readyCountOfTotal"
 msgid "{{ready}} of {{total}} ready"
@@ -6680,14 +6993,38 @@ msgctxt "workspace:sourceCentricWorkspace.unsavedEdits"
 msgid "{{value1}} unsaved edits"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:258
+#: frontend/src/pages/Dashboard.tsx:373
 msgctxt "dashboard:dashboard.products"
 msgid "{{value1}} · {{value2}} products"
 msgstr ""
 
+#: frontend/src/pages/Dashboard.tsx:172
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "dashboard:dashboard.channelsNeedAttention"
+msgid "{{value}} Channel needs attention."
+msgid_plural "{{value}} Channels need attention."
+msgstr[0] ""
+msgstr[1] ""
+
+#: frontend/src/pages/Dashboard.tsx:150
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.sourcesNeedAttention"
+msgid "{{value}} Source needs attention."
+msgid_plural "{{value}} Sources need attention."
+msgstr[0] ""
+msgstr[1] ""
+
 msgctxt "common:units.tomanAmount"
 msgid "{{value}} Toman"
 msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:149 frontend/src/pages/Dashboard.tsx:154
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "dashboard:dashboard.activeSourceValue"
+msgid "{{value}} active Source"
+msgid_plural "{{value}} active Sources"
+msgstr[0] ""
+msgstr[1] ""
 
 #: frontend/src/pages/Diagnostics.tsx:276
 msgctxt "diagnostics:units.milliseconds"
@@ -6698,6 +7035,13 @@ msgstr ""
 msgctxt "settings:rateLimits.milliseconds"
 msgid "{{value}} ms"
 msgstr ""
+
+#: frontend/src/pages/Dashboard.tsx:128
+msgctxt "dashboard:dashboard.productsAvailable"
+msgid "{{value}} product is available for daily work."
+msgid_plural "{{value}} products are available for daily work."
+msgstr[0] ""
+msgstr[1] ""
 
 #: frontend/src/pages/Diagnostics.tsx:277
 msgctxt "diagnostics:units.seconds"
