@@ -68,6 +68,17 @@ INTERNAL_TERM_PATTERNS = {
         r'\bsource\.placeholder\b',
         r'\bchannel\.placeholder\b',
         r'\bselected\.placeholder\b',
+        r'\bselectedType\.placeholder\b',
+    ),
+    # `placeholder` is an existing typed implementation-state signal used by
+    # the shared Source/Channel ordering policy.  This path-exact allowance
+    # does not permit release labels or fixture content elsewhere.
+    "frontend/src/features/resourceOrdering/resourceOrdering.ts": (
+        r"\bplaceholder\?:\s*boolean\s*\|\s*null",
+        r"^\s*'placeholder',\s*$",
+        r"\bsignals\.placeholder\s*===\s*true",
+        r"\bplaceholder:\s*(source|channel|item)\.placeholder",
+        r"\bitem\.implemented\s*&&\s*!item\.placeholder",
     ),
     "frontend/scripts/i18n.mjs": (r"[Pp]laceholders?",),
     "frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx": (
@@ -75,7 +86,38 @@ INTERNAL_TERM_PATTERNS = {
     ),
     "frontend/src/pages/DataQuality.tsx": (r"\bplaceholder=",),
     "frontend/src/pages/FlowHubSheet.tsx": (r"\bplaceholder=",),
-    "frontend/src/pages/SourceConfiguration.tsx": (r"\bplaceholder=",),
+    "frontend/src/pages/SourceCenter.tsx": (
+        r"\bplaceholder=",
+        r'\b(card\.)?integration\.placeholder\b',
+        r"\bplaceholder:\s*integration\?\.placeholder\s*\?\?\s*false",
+    ),
+    "frontend/src/pages/SourceConfiguration.tsx": (
+        r"\bplaceholder=",
+        r"sourceConfiguration\.(previousSampleRow|nextSampleRow|samplePosition)",
+    ),
+    # These path-exact patterns cover the user-facing Source Preview sample
+    # navigation catalog only; they do not exempt unrelated release terms.
+    "frontend/src/i18n/locales/en/sources.json": (
+        r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",
+    ),
+    "frontend/src/i18n/locales/fa/sources.json": (
+        r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",
+    ),
+    "locales/en/flowhub.po": (
+        r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",
+        r"(Next|Previous) sample row",
+        r"Sample \{\{current\}\} of \{\{total\}\}",
+    ),
+    "locales/fa/flowhub.po": (
+        r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",
+        r"(Next|Previous) sample row",
+        r"Sample \{\{current\}\} of \{\{total\}\}",
+    ),
+    "locales/flowhub.pot": (
+        r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",
+        r"(Next|Previous) sample row",
+        r"Sample \{\{current\}\} of \{\{total\}\}",
+    ),
     "frontend/src/services/types.ts": (
         r'\bplaceholder:\s*boolean\b',
     ),

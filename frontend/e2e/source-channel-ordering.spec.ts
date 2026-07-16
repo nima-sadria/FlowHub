@@ -502,6 +502,11 @@ async function expectGroupedOrder(page: Page, expectedIds: readonly string[]) {
   ])
 }
 
+async function openSourceConfigurationChannelColumns(page: Page) {
+  const section = page.locator('details:has([data-resource-id="snappshop:main"])').first()
+  if (await section.getAttribute('open') === null) await section.locator(':scope > summary').click()
+}
+
 async function expectGroupedChannelOptions(select: Locator) {
   expect(await select.locator('option').evaluateAll(options => options.map(option => (option as HTMLOptionElement).value))).toEqual([
     '',
@@ -529,7 +534,7 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
 
   await page.goto('/sources')
   await expectGroupedOrder(page, sourceOrder)
-  await expect(page.locator('[data-resource-id="source-csv"]')).toContainText('Configured')
+  await expect(page.locator('[data-resource-id="source-csv"]')).toContainText('Healthy')
   await expect(page.locator('[data-resource-id="source-nextcloud"]')).toContainText('Warning')
   await expect(page.locator('[data-resource-id="source-disabled"]')).toContainText('Disabled')
   await expect(page.locator('[data-resource-id="source-erp"]')).toContainText('Coming Soon')
@@ -561,6 +566,7 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
   await page.screenshot({ path: path.join(screenshotRoot, 'en-commerce-channels.png'), fullPage: true })
 
   await page.goto('/sources/source-csv')
+  await openSourceConfigurationChannelColumns(page)
   await expectGroupedOrder(page, channelOrder)
   const copySelector = page.getByLabel('Copy columns from another Channel').first()
   await expect(copySelector).toHaveValue('')
@@ -633,6 +639,7 @@ test('the same ordering remains stable in Persian RTL without translating techni
     await page.goto(route)
     await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+    if (name === 'source-configuration') await openSourceConfigurationChannelColumns(page)
     await expectGroupedOrder(page, expectedOrder)
     await expect(page.locator('[data-resource-section="active"]')).not.toHaveAttribute('aria-label', 'Active')
     await page.screenshot({ path: path.join(screenshotRoot, `fa-${name}.png`), fullPage: true })

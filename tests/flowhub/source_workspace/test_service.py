@@ -473,6 +473,240 @@ def test_external_source_is_read_once_and_resolves_three_independent_channel_col
     }
 
 
+def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_invalid_channel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+
+    def add_product(
+        product_id: str,
+        product_name: str,
+        listing_specs: list[tuple[str, str, str, str]],
+    ) -> None:
+        product = CanonicalProduct(
+            id=product_id,
+            name=product_name,
+            sku=product_id,
+            product_type="simple",
+            status="active",
+        )
+        listings = [
+            Listing(
+                id=listing_id,
+                canonical_product_id=product.id,
+                channel_id=channel_id,
+                external_primary_id=external_id,
+                external_id_type=id_type,
+                label=f"{product_name} {channel_id}",
+                mapping_state="resolved",
+                mapping_version=1,
+            )
+            for listing_id, channel_id, external_id, id_type in listing_specs
+        ]
+        db.add_all(
+            [
+                product,
+                *listings,
+                *[
+                    ChannelCache(
+                        id=f"cache-{listing.id}",
+                        listing_id=listing.id,
+                        channel_id=listing.channel_id,
+                        price_raw="1",
+                        price_currency="IRR",
+                        price_unit="RIAL",
+                        stock_quantity=1,
+                        status="active",
+                        cache_version=1,
+                        checksum=f"checksum-{listing.id}",
+                        connector_version="1",
+                        freshness="fresh",
+                        fetch_status="success",
+                        fetched_at=datetime.utcnow(),
+                    )
+                    for listing in listings
+                ],
+            ]
+        )
+
+    add_product(
+        "product-logitech-master4",
+        "LOGITECH-MX-MASTER4-GRY",
+        [
+            ("listing-logitech-wc", "woocommerce:primary", "51550", "product_id"),
+            (
+                "listing-logitech-snapp",
+                "snappshop:main",
+                "1826345203",
+                "product_number",
+            ),
+            (
+                "listing-logitech-tapsi",
+                "tapsishop:main",
+                "7785746738",
+                "seller_sku",
+            ),
+        ],
+    )
+    add_product(
+        "product-logitech-m705",
+        "LOGITECH-M705-GRY",
+        [
+            ("listing-m705-wc", "woocommerce:primary", "49221", "product_id"),
+            ("listing-m705-tapsi", "tapsishop:main", "509240408", "seller_sku"),
+        ],
+    )
+    db.commit()
+
+    source = service.create_source(
+        name="Logitech workbook",
+        source_kind="external",
+        external_source_id="nextcloud:primary",
+        worksheet_mode="selected",
+        worksheet_name="Logitech",
+        data_start_row=2,
+        user=user,
+    )
+    service.save_mapping(
+        source_id=source["id"],
+        expected_source_version=source["version"],
+        worksheet_mode="selected",
+        worksheet_name="Logitech",
+        data_start_row=2,
+        source_fields=[
+            {
+                "field": "name",
+                "reference_type": "column_letter",
+                "reference_value": "A",
+                "required": True,
+            }
+        ],
+        channel_mappings=[
+            {
+                "channel_id": "woocommerce:primary",
+                "fields": [
+                    {"field": "external_id", "reference_type": "column_letter", "reference_value": "D"},
+                    {"field": "price", "reference_type": "column_letter", "reference_value": "B"},
+                    {"field": "stock", "reference_type": "column_letter", "reference_value": "C"},
+                    {"field": "status", "reference_type": "disabled", "reference_value": None},
+                ],
+            },
+            {
+                "channel_id": "snappshop:main",
+                "fields": [
+                    {"field": "external_id", "reference_type": "column_letter", "reference_value": "G"},
+                    {"field": "price", "reference_type": "column_letter", "reference_value": "E"},
+                    {"field": "stock", "reference_type": "column_letter", "reference_value": "F"},
+                    {"field": "status", "reference_type": "disabled", "reference_value": None},
+                ],
+            },
+            {
+                "channel_id": "tapsishop:main",
+                "fields": [
+                    {"field": "external_id", "reference_type": "column_letter", "reference_value": "J"},
+                    {"field": "price", "reference_type": "column_letter", "reference_value": "H"},
+                    {"field": "stock", "reference_type": "column_letter", "reference_value": "I"},
+                    {"field": "status", "reference_type": "disabled", "reference_value": None},
+                ],
+            },
+        ],
+        value_policy={},
+        user=user,
+    )
+    read_count = 0
+    workbook = {
+        "Logitech": [
+            [
+                "Product Name",
+                "Woo Price",
+                "Woo Stock",
+                "Woo ID",
+                "Snapp Price",
+                "Snapp Stock",
+                "Snapp ID",
+                "Tapsi Price",
+                "Tapsi Stock",
+                "Tapsi ID",
+            ],
+            [
+                "LOGITECH-MX-MASTER4-GRY",
+                "32200000",
+                "29",
+                "51550",
+                "36550000",
+                "7",
+                "1826345203",
+                "32950000",
+                "5",
+                "7785746738",
+            ],
+            [
+                "LOGITECH-M705-GRY",
+                "8000000",
+                "7",
+                "49221",
+                "9050000",
+                "3",
+                None,
+                "9900000",
+                "4",
+                "509240408",
+            ],
+        ]
+    }
+
+    async def fake_read_external_source(*_args: object, **_kwargs: object) -> SimpleNamespace:
+        nonlocal read_count
+        read_count += 1
+        return SimpleNamespace(
+            snapshot=SimpleNamespace(
+                id="logitech-source-snapshot",
+                version_seq=1,
+                integrity_hash="e" * 64,
+            ),
+            worksheets=workbook,
+        )
+
+    monkeypatch.setattr(service, "_read_external_source", fake_read_external_source)
+    analysis = asyncio.run(service.snapshot_candidates(source["id"], user))
+
+    assert read_count == 1
+    targets = {
+        (item["sourceRowKey"], item["channelId"]): item["targets"]
+        for item in analysis["candidates"]
+    }
+    assert targets == {
+        ("external:Logitech:2", "woocommerce:primary"): {
+            "price": "32200000",
+            "stock": "29",
+        },
+        ("external:Logitech:2", "snappshop:main"): {
+            "price": "36550000",
+            "stock": "7",
+        },
+        ("external:Logitech:2", "tapsishop:main"): {
+            "price": "32950000",
+            "stock": "5",
+        },
+        ("external:Logitech:3", "woocommerce:primary"): {
+            "price": "8000000",
+            "stock": "7",
+        },
+        ("external:Logitech:3", "tapsishop:main"): {
+            "price": "9900000",
+            "stock": "4",
+        },
+    }
+    assert any(
+        issue["sourceRowKey"] == "external:Logitech:3"
+        and issue["channelId"] == "snappshop:main"
+        and issue["category"] == "missing_mapping_identity"
+        for issue in analysis["issues"]
+    )
+
+
 def test_new_source_mapping_revision_invalidates_review_and_pending_apply() -> None:
     db = _session()
     user = _user(db)

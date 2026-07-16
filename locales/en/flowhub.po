@@ -18,7 +18,7 @@ msgctxt "workspace:sourceCentricWorkspace.fieldUnit"
 msgid " ({{unit}})"
 msgstr " ({{unit}})"
 
-#: frontend/src/pages/SourceCenter.tsx:226
+#: frontend/src/pages/SourceCenter.tsx:445
 msgctxt "sources:sourceCenter.columnSetupVersion"
 msgid " · Column setup v"
 msgstr " · Column setup v"
@@ -70,7 +70,7 @@ msgctxt "dataQuality:issue.DUPLICATE_SOURCE_PRODUCT_SUPERSEDED.summary"
 msgid "A later worksheet replaced this product because that rule was explicitly selected."
 msgstr "A later worksheet replaced this product because that rule was explicitly selected."
 
-#: frontend/src/pages/SourceConfiguration.tsx:364
+#: frontend/src/pages/SourceConfiguration.tsx:544
 msgctxt "sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated"
 msgid "A new protected version of your column setup was saved."
 msgstr "A new protected version of your column setup was saved."
@@ -79,7 +79,7 @@ msgctxt "diagnostics:message.vendorSelected"
 msgid "A vendor is selected."
 msgstr "A vendor is selected."
 
-#: frontend/src/pages/SourceConfiguration.tsx:483
+#: frontend/src/pages/SourceConfiguration.tsx:703
 msgctxt "sources:sourceConfiguration.worksheetSellerHelp"
 msgid "A worksheet is a tab inside your spreadsheet. Choose which tabs contain products and the first row where product data begins; headings and decorative rows above it are ignored."
 msgstr "A worksheet is a tab inside your spreadsheet. Choose which tabs contain products and the first row where product data begins; headings and decorative rows above it are ignored."
@@ -130,6 +130,11 @@ msgctxt "diagnostics:diagnostics.accessMode"
 msgid "Access mode"
 msgstr "Access mode"
 
+#: frontend/src/pages/SourceConfiguration.tsx:650
+msgctxt "sources:sourceConfiguration.section.accessScope"
+msgid "Access scope"
+msgstr "Access scope"
+
 #: frontend/src/pages/Dashboard.tsx:192
 msgctxt "dashboard:dashboard.totalProductsAcrossChannels"
 msgid "Across connected Channels"
@@ -139,7 +144,7 @@ msgctxt "products:column.actions"
 msgid "Actions"
 msgstr "Actions"
 
-#: frontend/src/components/ResourceOrdering.tsx:12 frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113 frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:117
+#: frontend/src/components/ResourceOrdering.tsx:12 frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113 frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:117 frontend/src/pages/SourceCenter.tsx:313
 msgctxt "common:resourceGroup.active"
 msgid "Active"
 msgstr "Active"
@@ -199,7 +204,7 @@ msgctxt "navigation:topbar.addSource"
 msgid "Add Source"
 msgstr "Add Source"
 
-#: frontend/src/pages/Sources.tsx:107 frontend/src/pages/Sources.tsx:93
+#: frontend/src/pages/SourceCenter.tsx:331 frontend/src/pages/SourceCenter.tsx:476 frontend/src/pages/Sources.tsx:107 frontend/src/pages/Sources.tsx:93
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sources.addSource"
 msgid "Add Source"
@@ -217,12 +222,12 @@ msgctxt "sources:sources.addASourceToStartComparingPrices"
 msgid "Add a source to start comparing prices."
 msgstr "Add a source to start comparing prices."
 
-#: frontend/src/pages/SourceConfiguration.tsx:619
+#: frontend/src/pages/SourceConfiguration.tsx:853
 msgctxt "sources:sourceConfiguration.addAtLeastOneWorksheet"
 msgid "Add and enable at least one worksheet before saving."
 msgstr "Add and enable at least one worksheet before saving."
 
-#: frontend/src/pages/SourceConfiguration.tsx:614
+#: frontend/src/pages/SourceConfiguration.tsx:828
 msgctxt "sources:sourceConfiguration.addWorksheet"
 msgid "Add worksheet"
 msgstr "Add worksheet"
@@ -242,7 +247,6 @@ msgctxt "commerce:commerceHub.adminPermissionRequired"
 msgid "Admin permission required"
 msgstr "Admin permission required"
 
-#: frontend/src/pages/SourceCenter.tsx:197
 msgctxt "sources:sourceCenter.advanced"
 msgid "Advanced"
 msgstr "Advanced"
@@ -293,7 +297,7 @@ msgctxt "products:products.allChannels"
 msgid "All Channels"
 msgstr "All Channels"
 
-#: frontend/src/pages/DataQuality.tsx:195
+#: frontend/src/pages/DataQuality.tsx:195 frontend/src/pages/SourceCenter.tsx:312
 msgctxt "dataQuality:dataQuality.allSources"
 msgid "All Sources"
 msgstr "All Sources"
@@ -307,6 +311,11 @@ msgstr "All Types"
 msgctxt "workspace:workspace.allApprovedUpdatesHaveBeenCompleted"
 msgid "All approved updates have been completed."
 msgstr "All approved updates have been completed."
+
+#: frontend/src/pages/SourceConfiguration.tsx:924
+msgctxt "sources:sourceConfiguration.allChangesSaved"
+msgid "All changes saved"
+msgstr "All changes saved"
 
 #: frontend/src/pages/DataQuality.tsx:201
 msgctxt "dataQuality:dataQuality.allMappingStates"
@@ -328,12 +337,12 @@ msgctxt "dataQuality:dataQuality.allWorksheets"
 msgid "All worksheets"
 msgstr "All worksheets"
 
-#: frontend/src/pages/SourceConfiguration.tsx:464
+#: frontend/src/pages/SourceConfiguration.tsx:683
 msgctxt "sources:sourceConfiguration.allWorksheets"
 msgid "All worksheets"
 msgstr "All worksheets"
 
-#: frontend/src/pages/SourceCenter.tsx:254
+#: frontend/src/pages/SourceCenter.tsx:521
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.activeWorkspacePreventsRemoval"
 msgid "An active Workspace uses this Source. Close or finish it before trying again."
@@ -470,7 +479,7 @@ msgctxt "workspace:workspace.steps.approve"
 msgid "Approve"
 msgstr "Approve"
 
-#: frontend/src/pages/SourceCenter.tsx:249 frontend/src/pages/SourceCenter.tsx:260
+#: frontend/src/pages/SourceCenter.tsx:516 frontend/src/pages/SourceCenter.tsx:527
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.archiveSource"
 msgid "Archive Source"
@@ -585,7 +594,7 @@ msgctxt "sources:sourceConfiguration.brand"
 msgid "Brand"
 msgstr "Brand"
 
-#: frontend/src/pages/SourceCenter.tsx:191
+#: frontend/src/pages/SourceCenter.tsx:491
 msgctxt "sources:sourceCenter.bringAnExistingXlsxOrCsvFile"
 msgid "Bring an existing XLSX or CSV file into FlowHub without changing the original."
 msgstr "Bring an existing XLSX or CSV file into FlowHub without changing the original."
@@ -594,6 +603,11 @@ msgstr "Bring an existing XLSX or CSV file into FlowHub without changing the ori
 msgctxt "commerce:commerceHub.browseNextcloud"
 msgid "Browse Nextcloud"
 msgstr "Browse Nextcloud"
+
+#: frontend/src/pages/SourceConfiguration.tsx:831
+msgctxt "sources:sourceConfiguration.bulkWorksheetActions"
+msgid "Bulk worksheet actions"
+msgstr "Bulk worksheet actions"
 
 msgctxt "settings:setup.cadCanadianDollar"
 msgid "CAD - Canadian Dollar"
@@ -618,13 +632,13 @@ msgctxt "commerce:commerceHub.cachedVariations"
 msgid "Cached variations:"
 msgstr "Cached variations:"
 
-#: frontend/src/pages/SourceConfiguration.tsx:638 frontend/src/pages/SourceConfiguration.tsx:639 frontend/src/pages/SourceConfiguration.tsx:640
+#: frontend/src/pages/SourceConfiguration.tsx:873 frontend/src/pages/SourceConfiguration.tsx:874 frontend/src/pages/SourceConfiguration.tsx:875
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.calculatedInWorkspace"
 msgid "Calculated after Channel comparison"
 msgstr "Calculated after Channel comparison"
 
-#: frontend/src/pages/SourceCenter.tsx:259
+#: frontend/src/pages/SourceCenter.tsx:526 frontend/src/pages/SourceConfiguration.tsx:939 frontend/src/pages/SourceConfiguration.tsx:952
 msgctxt "common:action.cancel"
 msgid "Cancel"
 msgstr "Cancel"
@@ -639,7 +653,7 @@ msgctxt "orders:orders.canceled"
 msgid "Canceled"
 msgstr "Canceled"
 
-#: frontend/src/pages/SourceCenter.tsx:247
+#: frontend/src/pages/SourceCenter.tsx:514
 msgctxt "sources:sourceCenter.cannotDeleteActiveWorkspace"
 msgid "Cannot delete — active Workspace exists"
 msgstr "Cannot delete — active Workspace exists"
@@ -766,6 +780,12 @@ msgctxt "errors:codes.CAPABILITY_CHANGED"
 msgid "Channel capabilities changed. Create a new Review."
 msgstr "Channel capabilities changed. Create a new Review."
 
+#: frontend/src/pages/SourceConfiguration.tsx:725
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "sources:sourceConfiguration.section.channelColumns"
+msgid "Channel columns"
+msgstr "Channel columns"
+
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:message.channelConfigurationIncomplete"
 msgid "Channel configuration is incomplete."
@@ -867,12 +887,12 @@ msgctxt "workspace:sourceCentricWorkspace.channels"
 msgid "Channels"
 msgstr "Channels"
 
-#: frontend/src/pages/SourceConfiguration.tsx:643
+#: frontend/src/pages/SourceConfiguration.tsx:878
 msgctxt "sources:sourceConfiguration.channelsNotConfigured"
 msgid "Channels not configured"
 msgstr "Channels not configured"
 
-#: frontend/src/pages/SourceConfiguration.tsx:642
+#: frontend/src/pages/SourceConfiguration.tsx:877
 msgctxt "sources:sourceConfiguration.channelsReady"
 msgid "Channels ready"
 msgstr "Channels ready"
@@ -890,11 +910,16 @@ msgctxt "settings:setup.checkDatabase"
 msgid "Check Database"
 msgstr "Check Database"
 
+#: frontend/src/pages/SourceConfiguration.tsx:641
+msgctxt "sources:sourceConfiguration.section.connectionHelp"
+msgid "Check that FlowHub can read the workbook without changing it."
+msgstr "Check that FlowHub can read the workbook without changing it."
+
 msgctxt "sources:sourceConfiguration.checkTheMappedFields"
 msgid "Check the selected columns."
 msgstr "Check the selected columns."
 
-#: frontend/src/pages/SourceConfiguration.tsx:579
+#: frontend/src/pages/SourceConfiguration.tsx:798
 msgctxt "sources:sourceConfiguration.mappingValidation"
 msgid "Check these column choices"
 msgstr "Check these column choices"
@@ -916,7 +941,12 @@ msgctxt "dataQuality:dataQuality.checkingTitle"
 msgid "Checking Source data"
 msgstr "Checking Source data"
 
-#: frontend/src/pages/SourceCenter.tsx:245 frontend/src/pages/SourceCenter.tsx:260
+#: frontend/src/pages/SourceConfiguration.tsx:644 frontend/src/pages/SourceConfiguration.tsx:927
+msgctxt "sources:sourceConfiguration.checkingConnection"
+msgid "Checking connection..."
+msgstr "Checking connection..."
+
+#: frontend/src/pages/SourceCenter.tsx:512 frontend/src/pages/SourceCenter.tsx:527
 msgctxt "sources:sourceCenter.checkingHistory"
 msgid "Checking protected history..."
 msgstr "Checking protected history..."
@@ -945,12 +975,33 @@ msgctxt "dataQuality:issue.MISSING_MAPPING_IDENTITY.action"
 msgid "Choose and fill the product identifier column for this Channel."
 msgstr "Choose and fill the product identifier column for this Channel."
 
-#: frontend/src/pages/SourceConfiguration.tsx:473
+#: frontend/src/pages/SourceConfiguration.tsx:949
+msgctxt "sources:sourceConfiguration.chooseDestinationWorksheets"
+msgid "Choose destination worksheets"
+msgstr "Choose destination worksheets"
+
+#: frontend/src/pages/SourceConfiguration.tsx:725
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "sources:sourceConfiguration.section.channelColumnsHelp"
+msgid "Choose each Channel's product ID, price, stock, and status columns independently."
+msgstr "Choose each Channel's product ID, price, stock, and status columns independently."
+
+#: frontend/src/pages/SourceConfiguration.tsx:808
+msgctxt "sources:sourceConfiguration.section.valueHandlingHelp"
+msgid "Choose how blank, x, dash, zero, formula, and invalid values are handled."
+msgstr "Choose how blank, x, dash, zero, formula, and invalid values are handled."
+
+#: frontend/src/pages/SourceConfiguration.tsx:692
 msgctxt "sources:sourceConfiguration.chooseParticipatingWorksheets"
 msgid "Choose participating worksheets"
 msgstr "Choose participating worksheets"
 
-#: frontend/src/pages/SourceConfiguration.tsx:130 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:67
+#: frontend/src/pages/SourceConfiguration.tsx:676
+msgctxt "sources:sourceConfiguration.section.workbookHelp"
+msgid "Choose participating worksheets, the first product row, and fields shared by all Channels."
+msgstr "Choose participating worksheets, the first product row, and fields shared by all Channels."
+
+#: frontend/src/pages/SourceConfiguration.tsx:160 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:67
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.productIdentifierRequired"
 msgid "Choose the Product identifier column for each enabled Channel."
@@ -961,12 +1012,12 @@ msgctxt "dataQuality:issue.SOURCE_MAPPING_REQUIRED.action"
 msgid "Choose the Source Product and Channel columns, then run the check again."
 msgstr "Choose the Source Product and Channel columns, then run the check again."
 
-#: frontend/src/pages/SourceConfiguration.tsx:486
+#: frontend/src/pages/SourceConfiguration.tsx:706
 msgctxt "sources:sourceConfiguration.unmappedColumnsAreIgnoredHeaderSuggestionsNever"
 msgid "Choose the column containing each value. Columns you do not choose are ignored, and suggested headers never replace your saved choices."
 msgstr "Choose the column containing each value. Columns you do not choose are ignored, and suggested headers never replace your saved choices."
 
-#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:107
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:141
 msgctxt "sources:sourceConfiguration.productColumnsHelp"
 msgid "Choose the column that names each product. Rows without the required product identity are treated as headings or decorative rows."
 msgstr "Choose the column that names each product. Rows without the required product identity are treated as headings or decorative rows."
@@ -976,23 +1027,23 @@ msgctxt "settings:language.description"
 msgid "Choose the language used by FlowHub. Direction and locale formatting update immediately."
 msgstr "Choose the language used by FlowHub. Direction and locale formatting update immediately."
 
-#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:118
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:149
 msgctxt "sources:sourceConfiguration.sourceProductNameRequired"
 msgid "Choose the product-name column for this worksheet before saving."
 msgstr "Choose the product-name column for this worksheet before saving."
 
-#: frontend/src/pages/SourceConfiguration.tsx:591 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:159
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:182
 msgctxt "sources:sourceConfiguration.eachSpecialValueIsInterpretedExplicitlyCurrency"
 msgid "Choose what FlowHub should do when a cell is blank, x, a dash, zero, a formula, or invalid. Currency and unit are never guessed."
 msgstr "Choose what FlowHub should do when a cell is blank, x, a dash, zero, a formula, or invalid. Currency and unit are never guessed."
 
-#: frontend/src/pages/SourceCenter.tsx:172
+#: frontend/src/pages/SourceCenter.tsx:324
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.chooseWhereSourceProductsAndChannelTargets"
 msgid "Choose where Source Products and Channel targets are managed."
 msgstr "Choose where Source Products and Channel targets are managed."
 
-#: frontend/src/pages/SourceConfiguration.tsx:505
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:153
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.channelMappingsAreIndependent"
 msgid "Choose where this Channel's product ID, price, stock, and status are read from. FlowHub never copies these choices to another Channel unless you ask it to."
@@ -1003,12 +1054,22 @@ msgctxt "commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet"
 msgid "Choose whether FlowHub should read every worksheet or a single named worksheet."
 msgstr "Choose whether FlowHub should read every worksheet or a single named worksheet."
 
+#: frontend/src/pages/SourceConfiguration.tsx:662
+msgctxt "sources:sourceConfiguration.worksheetRulesSectionHelp"
+msgid "Choose whether all worksheets share one layout or each worksheet has its own columns."
+msgstr "Choose whether all worksheets share one layout or each worksheet has its own columns."
+
 #: frontend/src/pages/UnifiedWorkspace.tsx:210
 msgctxt "workspace:unifiedWorkspace.clear"
 msgid "Clear"
 msgstr "Clear"
 
-#: frontend/src/pages/SourceConfiguration.tsx:562 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:150
+#: frontend/src/pages/SourceConfiguration.tsx:695 frontend/src/pages/SourceConfiguration.tsx:833
+msgctxt "sources:sourceConfiguration.clearAll"
+msgid "Clear all"
+msgstr "Clear all"
+
+#: frontend/src/pages/SourceConfiguration.tsx:781 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:173
 msgctxt "sources:sourceConfiguration.clearMapping"
 msgid "Clear column choices"
 msgstr "Clear column choices"
@@ -1018,8 +1079,13 @@ msgctxt "settings:setup.click"
 msgid "Click"
 msgstr "Click"
 
-#: frontend/src/pages/CommerceHub.tsx:377 frontend/src/pages/CommerceHub.tsx:742
+#: frontend/src/pages/CommerceHub.tsx:377 frontend/src/pages/CommerceHub.tsx:742 frontend/src/pages/SourceCenter.tsx:477
 msgctxt "commerce:commerceHub.close"
+msgid "Close"
+msgstr "Close"
+
+#: frontend/src/pages/SourceConfiguration.tsx:929
+msgctxt "sources:sourceConfiguration.close"
 msgid "Close"
 msgstr "Close"
 
@@ -1039,6 +1105,11 @@ msgctxt "notifications:notificationContainer.closeNotification"
 msgid "Close notification"
 msgstr "Close notification"
 
+#: frontend/src/pages/SourceConfiguration.tsx:462
+msgctxt "sources:sourceConfiguration.discardUnsavedChanges"
+msgid "Close without saving your column changes?"
+msgstr "Close without saving your column changes?"
+
 #: frontend/src/components/Sidebar.tsx:90
 msgctxt "navigation:sidebar.collapseSidebar"
 msgid "Collapse sidebar"
@@ -1048,7 +1119,7 @@ msgctxt "commerce:commerceHub.column"
 msgid "Column"
 msgstr "Column"
 
-#: frontend/src/pages/SourceConfiguration.tsx:109 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:59
+#: frontend/src/pages/SourceConfiguration.tsx:139 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:59
 msgctxt "sources:sourceConfiguration.column"
 msgid "Column"
 msgstr "Column"
@@ -1058,7 +1129,7 @@ msgctxt "commerce:commerceHub.columnMapping"
 msgid "Column Mapping"
 msgstr "Column Mapping"
 
-#: frontend/src/pages/SourceConfiguration.tsx:103 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:58
+#: frontend/src/pages/SourceConfiguration.tsx:133 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:58
 msgctxt "sources:sourceConfiguration.columnLetter"
 msgid "Column letter"
 msgstr "Column letter"
@@ -1077,12 +1148,17 @@ msgctxt "dataQuality:category.mapping_conflict"
 msgid "Column setup conflict"
 msgstr "Column setup conflict"
 
-#: frontend/src/pages/SourceConfiguration.tsx:363
+#: frontend/src/pages/SourceConfiguration.tsx:543
 msgctxt "sources:sourceConfiguration.sourceMappingSaved"
 msgid "Column setup saved"
 msgstr "Column setup saved"
 
-#: frontend/src/pages/SourceConfiguration.tsx:370
+#: frontend/src/pages/SourceConfiguration.tsx:638
+msgctxt "sources:sourceConfiguration.columnSetupStatus"
+msgid "Column setup status"
+msgstr "Column setup status"
+
+#: frontend/src/pages/SourceConfiguration.tsx:551
 msgctxt "sources:sourceConfiguration.mappingWasNotSaved"
 msgid "Column setup was not saved"
 msgstr "Column setup was not saved"
@@ -1092,9 +1168,15 @@ msgctxt "sources:sourceImportWizard.column"
 msgid "Column {{value1}}"
 msgstr "Column {{value1}}"
 
-#: frontend/src/pages/CommerceHub.tsx:909 frontend/src/pages/SourceConfiguration.tsx:502 frontend/src/pages/SourceConfiguration.tsx:504 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:121
+#: frontend/src/pages/CommerceHub.tsx:909 frontend/src/pages/SourceConfiguration.tsx:726
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.channelMappings"
+msgid "Columns for each Channel"
+msgstr "Columns for each Channel"
+
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:152
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "sources:sourceConfiguration.columnsForEachChannel"
 msgid "Columns for each Channel"
 msgstr "Columns for each Channel"
 
@@ -1106,12 +1188,17 @@ msgctxt "dataQuality:category.missing_mapping"
 msgid "Columns not configured"
 msgstr "Columns not configured"
 
+#: frontend/src/pages/SourceConfiguration.tsx:950
+msgctxt "sources:sourceConfiguration.copyPreview"
+msgid "Columns to copy"
+msgstr "Columns to copy"
+
 #: frontend/src/components/ResourceOrdering.tsx:22
 msgctxt "common:resourceBadge.comingSoon"
 msgid "Coming Soon"
 msgstr "Coming Soon"
 
-#: frontend/src/components/ResourceOrdering.tsx:14
+#: frontend/src/components/ResourceOrdering.tsx:14 frontend/src/pages/SourceCenter.tsx:316
 msgctxt "common:resourceGroup.comingSoon"
 msgid "Coming Soon"
 msgstr "Coming Soon"
@@ -1183,10 +1270,16 @@ msgctxt "settings:settings.configureDisplayAndSynchronizationPreferences"
 msgid "Configure display and synchronization preferences"
 msgstr "Configure display and synchronization preferences"
 
-#: frontend/src/pages/SourceConfiguration.tsx:452 frontend/src/pages/SourceConfiguration.tsx:610
+#: frontend/src/pages/SourceConfiguration.tsx:669 frontend/src/pages/SourceConfiguration.tsx:824
 msgctxt "sources:sourceConfiguration.separateWorksheetRules"
 msgid "Configure each worksheet separately"
 msgstr "Configure each worksheet separately"
+
+#: frontend/src/pages/SourceConfiguration.tsx:823
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "sources:sourceConfiguration.section.worksheetColumnsHelp"
+msgid "Configure shared product fields and independent Channel columns for each worksheet."
+msgstr "Configure shared product fields and independent Channel columns for each worksheet."
 
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:message.configureBeforeReachability"
@@ -1226,6 +1319,11 @@ msgstr "Configured; leave blank to keep unchanged."
 msgctxt "workspace:sourceCentricWorkspace.confirmApply"
 msgid "Confirm Apply"
 msgstr "Confirm Apply"
+
+#: frontend/src/pages/SourceConfiguration.tsx:939 frontend/src/pages/SourceConfiguration.tsx:952
+msgctxt "sources:sourceConfiguration.confirmCopy"
+msgid "Confirm copy"
+msgstr "Confirm copy"
 
 #: frontend/src/pages/Setup.tsx:836
 msgctxt "settings:setup.confirmPassword"
@@ -1278,10 +1376,20 @@ msgctxt "settings:setup.connection"
 msgid "Connection"
 msgstr "Connection"
 
+#: frontend/src/pages/SourceConfiguration.tsx:641
+msgctxt "sources:sourceConfiguration.section.connection"
+msgid "Connection"
+msgstr "Connection"
+
 #: frontend/src/pages/CommerceHub.tsx:808
 msgctxt "commerce:commerceHub.connectionSettings"
 msgid "Connection Settings"
 msgstr "Connection Settings"
+
+#: frontend/src/pages/SourceConfiguration.tsx:455
+msgctxt "sources:sourceConfiguration.connectionCheckFailed"
+msgid "Connection check failed"
+msgstr "Connection check failed"
 
 #: frontend/src/pages/Diagnostics.tsx:600
 msgctxt "diagnostics:diagnostics.sourceSummaryHint"
@@ -1322,21 +1430,47 @@ msgctxt "commerce:commerceHub.fields.consumerSecret"
 msgid "Consumer Secret"
 msgstr "Consumer Secret"
 
+msgctxt "sources:sourceConfiguration.worksheetStatus.validationErrors"
+msgid "Contains validation errors"
+msgstr "Contains validation errors"
+
 #: frontend/src/components/Sidebar.tsx:84
 msgctxt "navigation:sidebar.controlCenter"
 msgid "Control Center"
 msgstr "Control Center"
 
-#: frontend/src/pages/SourceConfiguration.tsx:559 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:149
+#: frontend/src/pages/SourceConfiguration.tsx:935 frontend/src/pages/SourceConfiguration.tsx:945
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "sources:sourceConfiguration.copyChannelSettings"
+msgid "Copy Channel column settings"
+msgstr "Copy Channel column settings"
+
+#: frontend/src/pages/SourceConfiguration.tsx:778 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:171
 msgctxt "sources:sourceConfiguration.copyMapping"
 msgid "Copy column choices"
 msgstr "Copy column choices"
 
-#: frontend/src/pages/SourceConfiguration.tsx:549 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:143
+#: frontend/src/pages/SourceConfiguration.tsx:768 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:170
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.copyMappingFrom"
 msgid "Copy columns from another Channel"
 msgstr "Copy columns from another Channel"
+
+#: frontend/src/pages/SourceConfiguration.tsx:936 frontend/src/pages/SourceConfiguration.tsx:948
+#. Review is the immutable validation result required before Apply.
+msgctxt "sources:sourceConfiguration.copyChannelPreview"
+msgid "Copy from {{source}} to {{destination}}. Review the exact columns below before confirming."
+msgstr "Copy from {{source}} to {{destination}}. Review the exact columns below before confirming."
+
+#: frontend/src/pages/SourceConfiguration.tsx:945 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:141
+msgctxt "sources:sourceConfiguration.copySharedFields"
+msgid "Copy shared product fields"
+msgstr "Copy shared product fields"
+
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:172
+msgctxt "sources:sourceConfiguration.copyToWorksheets"
+msgid "Copy to worksheets"
+msgstr "Copy to worksheets"
 
 msgctxt "dataQuality:issue.FORMULA_ERROR.action"
 msgid "Correct the formula in the Sheet, then run the check again."
@@ -1368,7 +1502,7 @@ msgctxt "sources:sourceImportWizard.createFlowhubSheet"
 msgid "Create FlowHub Sheet"
 msgstr "Create FlowHub Sheet"
 
-#: frontend/src/pages/SourceCenter.tsx:185
+#: frontend/src/pages/SourceCenter.tsx:486
 msgctxt "sources:sourceCenter.createSheet"
 msgid "Create Sheet"
 msgstr "Create Sheet"
@@ -1392,7 +1526,7 @@ msgctxt "products:products.creating"
 msgid "Creating..."
 msgstr "Creating..."
 
-#: frontend/src/pages/SourceCenter.tsx:185
+#: frontend/src/pages/SourceCenter.tsx:486
 msgctxt "sources:sourceCenter.creating"
 msgid "Creating..."
 msgstr "Creating..."
@@ -1509,7 +1643,7 @@ msgctxt "navigation:topbar.dataQuality"
 msgid "Data Quality"
 msgstr "Data Quality"
 
-#: frontend/src/pages/SourceCenter.tsx:175
+#: frontend/src/pages/SourceCenter.tsx:328
 msgctxt "sources:sourceCenter.dataQuality2"
 msgid "Data Quality"
 msgstr "Data Quality"
@@ -1529,7 +1663,7 @@ msgctxt "sources:sources.dataSourcesForPriceSynchronisation"
 msgid "Data sources for price synchronisation"
 msgstr "Data sources for price synchronisation"
 
-#: frontend/src/pages/SourceConfiguration.tsx:468 frontend/src/pages/SourceImportWizard.tsx:65 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:104
+#: frontend/src/pages/SourceConfiguration.tsx:687 frontend/src/pages/SourceImportWizard.tsx:65 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:137
 msgctxt "sources:sourceConfiguration.dataStartsAtRow"
 msgid "Data starts at row"
 msgstr "Data starts at row"
@@ -1576,17 +1710,18 @@ msgctxt "diagnostics:diagnostics.delayMilliseconds"
 msgid "Delay {{value}} ms"
 msgstr "Delay {{value}} ms"
 
-#: frontend/src/pages/SourceCenter.tsx:230 frontend/src/pages/SourceCenter.tsx:241 frontend/src/pages/SourceCenter.tsx:260
+#: frontend/src/pages/SourceCenter.tsx:434 frontend/src/pages/SourceCenter.tsx:508 frontend/src/pages/SourceCenter.tsx:527
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.deleteSource"
 msgid "Delete Source"
 msgstr "Delete Source"
 
+#: frontend/src/pages/SourceCenter.tsx:408
 msgctxt "sources:sourceCenter.deleteOrArchive"
 msgid "Delete or archive safely"
 msgstr "Delete or archive safely"
 
-#: frontend/src/pages/SourceCenter.tsx:250
+#: frontend/src/pages/SourceCenter.tsx:517
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.deleteUnusedSource"
 msgid "Delete unused Source"
@@ -1612,7 +1747,7 @@ msgctxt "workspace:workspace.deselectAll"
 msgid "Deselect all"
 msgstr "Deselect all"
 
-#: frontend/src/pages/SourceConfiguration.tsx:475 frontend/src/pages/SourceConfiguration.tsx:612
+#: frontend/src/pages/SourceConfiguration.tsx:694 frontend/src/pages/SourceConfiguration.tsx:826
 msgctxt "sources:sourceConfiguration.detectWorksheets"
 msgid "Detect worksheets"
 msgstr "Detect worksheets"
@@ -1622,7 +1757,7 @@ msgctxt "sources:sourceImportWizard.detected"
 msgid "Detected"
 msgstr "Detected"
 
-#: frontend/src/pages/SourceConfiguration.tsx:475 frontend/src/pages/SourceConfiguration.tsx:612
+#: frontend/src/pages/SourceConfiguration.tsx:694 frontend/src/pages/SourceConfiguration.tsx:826
 msgctxt "sources:sourceConfiguration.detectingWorksheets"
 msgid "Detecting worksheets..."
 msgstr "Detecting worksheets..."
@@ -1671,7 +1806,7 @@ msgctxt "common:resourceBadge.disabled"
 msgid "Disabled"
 msgstr "Disabled"
 
-#: frontend/src/components/ResourceOrdering.tsx:13
+#: frontend/src/components/ResourceOrdering.tsx:13 frontend/src/pages/SourceCenter.tsx:315
 msgctxt "common:resourceGroup.disabled"
 msgid "Disabled"
 msgstr "Disabled"
@@ -1681,7 +1816,7 @@ msgctxt "common:status.disabled"
 msgid "Disabled"
 msgstr "Disabled"
 
-#: frontend/src/pages/SourceConfiguration.tsx:102 frontend/src/pages/SourceConfiguration.tsx:533 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:102 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:138 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:58
+#: frontend/src/pages/SourceConfiguration.tsx:132 frontend/src/pages/SourceConfiguration.tsx:610 frontend/src/pages/SourceConfiguration.tsx:752 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:167 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:58
 msgctxt "sources:sourceConfiguration.disabled"
 msgid "Disabled"
 msgstr "Disabled"
@@ -1815,6 +1950,11 @@ msgctxt "settings:setup.email"
 msgid "Email"
 msgstr "Email"
 
+#: frontend/src/pages/SourceConfiguration.tsx:834
+msgctxt "sources:sourceConfiguration.enableSelected"
+msgid "Enable selected"
+msgstr "Enable selected"
+
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:message.enableChannelForMonitoring"
 msgid "Enable the channel when it should be monitored."
@@ -1825,7 +1965,7 @@ msgctxt "commerce:commerceHub.enabled"
 msgid "Enabled"
 msgstr "Enabled"
 
-#: frontend/src/pages/SourceConfiguration.tsx:533 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:102 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:138
+#: frontend/src/pages/SourceConfiguration.tsx:752 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:167
 msgctxt "sources:sourceConfiguration.enabled"
 msgid "Enabled"
 msgstr "Enabled"
@@ -1905,20 +2045,25 @@ msgctxt "activity:activity.eventsWillAppearHereAsTheSystem"
 msgid "Events will appear here as the system runs."
 msgstr "Events will appear here as the system runs."
 
-#: frontend/src/pages/SourceConfiguration.tsx:118 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:59
+#: frontend/src/pages/SourceConfiguration.tsx:148 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:59
 msgctxt "sources:sourceConfiguration.exactColumnReference"
 msgid "Exact column reference"
 msgstr "Exact column reference"
 
-#: frontend/src/pages/SourceConfiguration.tsx:104 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:58
+#: frontend/src/pages/SourceConfiguration.tsx:134 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:58
 msgctxt "sources:sourceConfiguration.exactHeader"
 msgid "Exact header"
 msgstr "Exact header"
 
-#: frontend/src/pages/SourceConfiguration.tsx:117 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:59
+#: frontend/src/pages/SourceConfiguration.tsx:147 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:59
 msgctxt "sources:sourceConfiguration.exampleColumn"
 msgid "Example: C"
 msgstr "Example: C"
+
+#: frontend/src/pages/SourceConfiguration.tsx:650
+msgctxt "sources:sourceConfiguration.section.accessScopeHelp"
+msgid "Existing permissions continue to control configuration and Workspace access."
+msgstr "Existing permissions continue to control configuration and Workspace access."
 
 #: frontend/src/pages/Diagnostics.tsx:304 frontend/src/pages/Diagnostics.tsx:643
 msgctxt "diagnostics:diagnostics.expandDetails"
@@ -1942,6 +2087,12 @@ msgstr "External API"
 msgctxt "sources:sourceConfiguration.externalListingId"
 msgid "External Listing ID"
 msgstr "External Listing ID"
+
+#: frontend/src/pages/SourceCenter.tsx:77
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceCenter.externalSourceDescription"
+msgid "External spreadsheet Source"
+msgstr "External spreadsheet Source"
 
 #: frontend/src/pages/Products.tsx:354
 msgctxt "products:products.externalWritePerformed"
@@ -2081,12 +2232,12 @@ msgctxt "navigation:topbar.flowhubSheet"
 msgid "FlowHub Sheet"
 msgstr "FlowHub Sheet"
 
-#: frontend/src/pages/SourceCenter.tsx:182
+#: frontend/src/pages/SourceCenter.tsx:484 frontend/src/pages/SourceConfiguration.tsx:637
 msgctxt "sources:sourceCenter.flowhubSheet"
 msgid "FlowHub Sheet"
 msgstr "FlowHub Sheet"
 
-#: frontend/src/pages/SourceConfiguration.tsx:105 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:58
+#: frontend/src/pages/SourceConfiguration.tsx:135 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:58
 msgctxt "sources:sourceConfiguration.internalColumnId"
 msgid "FlowHub Sheet column"
 msgstr "FlowHub Sheet column"
@@ -2114,7 +2265,7 @@ msgctxt "sources:sourceCenter.removalImpactUnavailable"
 msgid "FlowHub could not verify the removal impact. Nothing was changed."
 msgstr "FlowHub could not verify the removal impact. Nothing was changed."
 
-#: frontend/src/pages/SourceCenter.tsx:255
+#: frontend/src/pages/SourceCenter.tsx:522
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "sources:sourceCenter.safeRemovalImpact"
 msgid "FlowHub deletes only an unused Source. If it has saved revisions, Snapshots, Workspaces, Apply results, or Audit history, it will be archived instead. Active Workspaces block removal."
@@ -2124,13 +2275,19 @@ msgctxt "dataQuality:dataQuality.checkingDescription"
 msgid "FlowHub is checking the selected Sources without writing to any marketplace."
 msgstr "FlowHub is checking the selected Sources without writing to any marketplace."
 
+#: frontend/src/pages/SourceConfiguration.tsx:648
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "sources:sourceConfiguration.readOncePolicy"
+msgid "FlowHub reads the workbook once, creates an immutable Snapshot, and never rereads it during Draft, Review, Dry Run, or Apply."
+msgstr "FlowHub reads the workbook once, creates an immutable Snapshot, and never rereads it during Draft, Review, Dry Run, or Apply."
+
 #: frontend/src/pages/Workspace.tsx:440
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:workspace.flowhubWillFetchProductsFromTheConnected"
 msgid "FlowHub will fetch products from the connected channel and compare them against the configured source data. No changes will be applied."
 msgstr "FlowHub will fetch products from the connected channel and compare them against the configured source data. No changes will be applied."
 
-#: frontend/src/pages/SourceCenter.tsx:199
+#: frontend/src/pages/SourceCenter.tsx:497
 msgctxt "sources:sourceCenter.forWorkflowsThatRemainManagedOutsideFlowhub"
 msgid "For workflows that remain managed outside FlowHub. Sources are read once per Workspace Snapshot."
 msgstr "For workflows that remain managed outside FlowHub. Sources are read once per Workspace Snapshot."
@@ -2175,6 +2332,11 @@ msgstr "General"
 
 #: frontend/src/pages/Settings.tsx:217
 msgctxt "settings:settings.general"
+msgid "General"
+msgstr "General"
+
+#: frontend/src/pages/SourceConfiguration.tsx:634
+msgctxt "sources:sourceConfiguration.section.general"
 msgid "General"
 msgstr "General"
 
@@ -2232,12 +2394,17 @@ msgctxt "diagnostics:diagnostics.rateLimitHint"
 msgid "How quickly FlowHub can send requests without overloading connected services."
 msgstr "How quickly FlowHub can send requests without overloading connected services."
 
-#: frontend/src/pages/SourceConfiguration.tsx:90 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:58
+#: frontend/src/pages/SourceConfiguration.tsx:647
+msgctxt "sources:sourceConfiguration.section.readPolicyHelp"
+msgid "How this workbook is read safely for a Workspace."
+msgstr "How this workbook is read safely for a Workspace."
+
+#: frontend/src/pages/SourceConfiguration.tsx:120 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:58
 msgctxt "sources:sourceConfiguration.mappingMethod"
 msgid "How to choose the column"
 msgstr "How to choose the column"
 
-#: frontend/src/pages/SourceConfiguration.tsx:590 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:159
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:182
 msgctxt "sources:sourceConfiguration.valueHandling"
 msgid "How to read special cell values"
 msgstr "How to read special cell values"
@@ -2250,7 +2417,16 @@ msgctxt "settings:setup.irtIranianToman"
 msgid "IRT - Iranian Toman"
 msgstr "IRT - Iranian Toman"
 
-#: frontend/src/pages/SourceConfiguration.tsx:656
+#: frontend/src/pages/SourceConfiguration.tsx:835
+msgctxt "sources:sourceConfiguration.ignoreSelected"
+msgid "Ignore selected"
+msgstr "Ignore selected"
+
+msgctxt "sources:sourceConfiguration.worksheetStatus.ignored"
+msgid "Ignored"
+msgstr "Ignored"
+
+#: frontend/src/pages/SourceConfiguration.tsx:898
 msgctxt "sources:sourceConfiguration.ignoredRow"
 msgid "Ignored row"
 msgstr "Ignored row"
@@ -2274,16 +2450,17 @@ msgctxt "sources:sourceImportWizard.importPreviewFailed"
 msgid "Import preview failed"
 msgstr "Import preview failed"
 
-#: frontend/src/pages/SourceCenter.tsx:193 frontend/src/pages/SourceImportWizard.tsx:61
+#: frontend/src/pages/SourceCenter.tsx:492 frontend/src/pages/SourceImportWizard.tsx:61
 msgctxt "sources:sourceCenter.importSpreadsheet"
 msgid "Import spreadsheet"
 msgstr "Import spreadsheet"
 
-#: frontend/src/pages/SourceCenter.tsx:190
+#: frontend/src/pages/SourceCenter.tsx:490
 msgctxt "sources:sourceCenter.importYourSpreadsheet"
 msgid "Import your spreadsheet"
 msgstr "Import your spreadsheet"
 
+#: frontend/src/pages/SourceConfiguration.tsx:637
 msgctxt "sources:sourceCenter.importedSpreadsheet"
 msgid "Imported spreadsheet"
 msgstr "Imported spreadsheet"
@@ -2301,7 +2478,7 @@ msgctxt "common:status.inactive"
 msgid "Inactive"
 msgstr "Inactive"
 
-#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:102
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:136
 msgctxt "sources:sourceConfiguration.worksheetIncluded"
 msgid "Include this worksheet"
 msgstr "Include this worksheet"
@@ -2365,7 +2542,7 @@ msgctxt "settings:setup.jpyJapaneseYen"
 msgid "JPY - Japanese Yen"
 msgstr "JPY - Japanese Yen"
 
-#: frontend/src/pages/SourceCenter.tsx:198
+#: frontend/src/pages/SourceCenter.tsx:496
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.keepAnExternalSourceLinked"
 msgid "Keep an external Source linked"
@@ -2452,7 +2629,7 @@ msgctxt "commerce:commerceHub.lastReadStatus"
 msgid "Last read status:"
 msgstr "Last read status:"
 
-#: frontend/src/pages/CommerceHub.tsx:119
+#: frontend/src/pages/CommerceHub.tsx:119 frontend/src/pages/SourceCenter.tsx:450
 msgctxt "commerce:commerceHub.lastRead"
 msgid "Last read:"
 msgstr "Last read:"
@@ -2536,6 +2713,7 @@ msgctxt "dataQuality:dataQuality.resolved"
 msgid "Linked"
 msgstr "Linked"
 
+#: frontend/src/pages/SourceConfiguration.tsx:637
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.linkedExternalSource"
 msgid "Linked external Source"
@@ -2597,13 +2775,13 @@ msgctxt "workspace:sourceCentricWorkspace.loadingSourceProductWorkspace"
 msgid "Loading Source Product Workspace..."
 msgstr "Loading Source Product Workspace..."
 
-#: frontend/src/pages/SourceConfiguration.tsx:414
+#: frontend/src/pages/SourceConfiguration.tsx:596
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.loadingSourceConfiguration"
 msgid "Loading Source configuration..."
 msgstr "Loading Source configuration..."
 
-#: frontend/src/pages/SourceCenter.tsx:210
+#: frontend/src/pages/SourceCenter.tsx:366
 msgctxt "sources:sourceCenter.loadingSources"
 msgid "Loading Sources..."
 msgstr "Loading Sources..."
@@ -2685,7 +2863,7 @@ msgctxt "settings:rateLimits.loading"
 msgid "Loading..."
 msgstr "Loading..."
 
-#: frontend/src/pages/SourceConfiguration.tsx:630
+#: frontend/src/pages/SourceConfiguration.tsx:865
 msgctxt "sources:sourceConfiguration.loading"
 msgid "Loading..."
 msgstr "Loading..."
@@ -2710,12 +2888,12 @@ msgctxt "common:app.maintenanceMode"
 msgid "Maintenance Mode"
 msgstr "Maintenance Mode"
 
-#: frontend/src/pages/SourceCenter.tsx:201
+#: frontend/src/pages/SourceCenter.tsx:308 frontend/src/pages/SourceCenter.tsx:498
 msgctxt "sources:sourceCenter.manageExternalSources"
 msgid "Manage external Sources"
 msgstr "Manage external Sources"
 
-#: frontend/src/pages/SourceCenter.tsx:206 frontend/src/pages/SourceCenter.tsx:208
+#: frontend/src/pages/SourceCenter.tsx:336 frontend/src/pages/SourceCenter.tsx:365
 msgctxt "sources:sourceCenter.managedSources"
 msgid "Managed Sources"
 msgstr "Managed Sources"
@@ -2776,7 +2954,7 @@ msgctxt "products:products.multiChannelPriceEditor"
 msgid "Multi-channel price editor"
 msgstr "Multi-channel price editor"
 
-#: frontend/src/pages/SourceCenter.tsx:111
+#: frontend/src/pages/SourceCenter.tsx:238
 msgctxt "sources:sourceCenter.defaultPricingSheetName"
 msgid "My pricing sheet"
 msgstr "My pricing sheet"
@@ -2796,6 +2974,10 @@ msgstr "Name is required."
 msgctxt "workspace:unifiedWorkspace.nameSource"
 msgid "Name source"
 msgstr "Name source"
+
+msgctxt "sources:sourceConfiguration.worksheetStatus.needsColumns"
+msgid "Needs column settings"
+msgstr "Needs column settings"
 
 #: frontend/src/pages/Products.tsx:305
 msgctxt "products:products.neverSynced"
@@ -2826,6 +3008,11 @@ msgstr "Next action:"
 msgctxt "products:products.nextPage"
 msgid "Next page"
 msgstr "Next page"
+
+#: frontend/src/pages/SourceConfiguration.tsx:883
+msgctxt "sources:sourceConfiguration.nextSampleRow"
+msgid "Next sample row"
+msgstr "Next sample row"
 
 #: frontend/src/pages/SourceWizard.tsx:150
 msgctxt "sources:sourceWizard.nextcloudExcel"
@@ -2942,7 +3129,7 @@ msgctxt "diagnostics:message.noImmediateAction"
 msgid "No immediate action required."
 msgstr "No immediate action required."
 
-#: frontend/src/pages/SourceCenter.tsx:211
+#: frontend/src/pages/SourceCenter.tsx:367
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.noManagedSourceYetCreateAFlowhub"
 msgid "No managed Source yet. Create a FlowHub Sheet or import a spreadsheet."
@@ -3009,6 +3196,11 @@ msgstr "No recent failures recorded"
 msgctxt "diagnostics:diagnostics.noRequestsWaiting"
 msgid "No requests waiting"
 msgstr "No requests waiting"
+
+#: frontend/src/pages/SourceConfiguration.tsx:885
+msgctxt "sources:sourceConfiguration.noPreviewRows"
+msgid "No rows match this preview filter"
+msgstr "No rows match this preview filter"
 
 #: frontend/src/pages/Orders.tsx:67
 msgctxt "orders:orders.noShipmentData"
@@ -3096,7 +3288,7 @@ msgctxt "common:status.notConfigured"
 msgid "Not configured"
 msgstr "Not configured"
 
-#: frontend/src/pages/SourceCenter.tsx:226 frontend/src/pages/SourceConfiguration.tsx:666
+#: frontend/src/pages/SourceCenter.tsx:445 frontend/src/pages/SourceConfiguration.tsx:638 frontend/src/pages/SourceConfiguration.tsx:908
 msgctxt "sources:sourceConfiguration.notConfigured"
 msgid "Not configured"
 msgstr "Not configured"
@@ -3106,7 +3298,7 @@ msgctxt "dataQuality:dataQuality.unmapped"
 msgid "Not linked"
 msgstr "Not linked"
 
-#: frontend/src/pages/CommerceHub.tsx:119 frontend/src/pages/CommerceHub.tsx:121
+#: frontend/src/pages/CommerceHub.tsx:119 frontend/src/pages/CommerceHub.tsx:121 frontend/src/pages/SourceCenter.tsx:452
 msgctxt "commerce:commerceHub.notRead"
 msgid "Not read"
 msgstr "Not read"
@@ -3141,7 +3333,7 @@ msgctxt "common:status.offline"
 msgid "Offline"
 msgstr "Offline"
 
-#: frontend/src/pages/SourceConfiguration.tsx:439
+#: frontend/src/pages/SourceConfiguration.tsx:657
 msgctxt "sources:sourceConfiguration.legacyMappingDetected"
 msgid "Older column setup found"
 msgstr "Older column setup found"
@@ -3160,9 +3352,21 @@ msgctxt "workspace:workspace.onlyApprovedBatchesCanBeApplied"
 msgid "Only approved batches can be applied."
 msgstr "Only approved batches can be applied."
 
+#: frontend/src/pages/SourceConfiguration.tsx:938
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "sources:sourceConfiguration.copyNeverChangesTechnicalChannelIdentity"
+msgid "Only column choices are copied. The destination Channel keeps its own technical identity."
+msgstr "Only column choices are copied. The destination Channel keeps its own technical identity."
+
 msgctxt "sources:sourceConfiguration.onlyEnabledChannelsWithAnImplementedConnector"
 msgid "Only enabled Channels with an implemented connector are available."
 msgstr "Only enabled Channels with an implemented connector are available."
+
+#: frontend/src/pages/SourceConfiguration.tsx:651
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.accessScopePolicy"
+msgid "Only users with existing Source and Workspace permissions may change these columns or create a Workspace."
+msgstr "Only users with existing Source and Workspace permissions may change these columns or create a Workspace."
 
 #: frontend/src/pages/Workspace.tsx:510
 msgctxt "workspace:workspace.openDataQualityReport"
@@ -3174,7 +3378,7 @@ msgctxt "workspace:workspace.openSettings"
 msgid "Open Settings"
 msgstr "Open Settings"
 
-#: frontend/src/pages/SourceCenter.tsx:228
+#: frontend/src/pages/SourceCenter.tsx:306
 msgctxt "sources:sourceCenter.openSheet"
 msgid "Open Sheet"
 msgstr "Open Sheet"
@@ -3194,7 +3398,7 @@ msgctxt "workspace:workspace.openSources"
 msgid "Open Sources"
 msgstr "Open Sources"
 
-#: frontend/src/pages/SourceConfiguration.tsx:433
+#: frontend/src/pages/SourceConfiguration.tsx:629
 msgctxt "sources:sourceConfiguration.openWorkspace"
 msgid "Open Workspace"
 msgstr "Open Workspace"
@@ -3432,12 +3636,12 @@ msgctxt "workspace:workspace.previewPriceChangesFromYourSources"
 msgid "Preview price changes from your sources"
 msgstr "Preview price changes from your sources"
 
-#: frontend/src/pages/SourceConfiguration.tsx:630
+#: frontend/src/pages/SourceConfiguration.tsx:865
 msgctxt "sources:sourceConfiguration.previewRecognizedRows"
 msgid "Preview recognized rows"
 msgstr "Preview recognized rows"
 
-#: frontend/src/pages/SourceConfiguration.tsx:627
+#: frontend/src/pages/SourceConfiguration.tsx:862
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.previewShowsIndependentChannelValues"
 msgid "Preview the identifier and target values resolved independently for every Channel."
@@ -3461,6 +3665,11 @@ msgstr "Previous"
 msgctxt "products:products.previousPage"
 msgid "Previous page"
 msgstr "Previous page"
+
+#: frontend/src/pages/SourceConfiguration.tsx:882
+msgctxt "sources:sourceConfiguration.previousSampleRow"
+msgid "Previous sample row"
+msgstr "Previous sample row"
 
 msgctxt "common:field.price"
 msgid "Price"
@@ -3537,7 +3746,6 @@ msgctxt "products:products.productCatalog"
 msgid "Product catalog"
 msgstr "Product catalog"
 
-#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:106
 msgctxt "sources:sourceConfiguration.productColumns"
 msgid "Product columns"
 msgstr "Product columns"
@@ -3552,6 +3760,11 @@ msgstr "Product connector required"
 msgctxt "workspace:unifiedWorkspace.productDisplayNameSource"
 msgid "Product display name source"
 msgstr "Product display name source"
+
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:141
+msgctxt "sources:sourceConfiguration.productFieldsSharedByChannels"
+msgid "Product fields shared by all Channels"
+msgstr "Product fields shared by all Channels"
 
 msgctxt "sources:sourceConfiguration.productIdentifier"
 msgid "Product identifier"
@@ -3583,7 +3796,7 @@ msgctxt "dataQuality:category.duplicate_source_product"
 msgid "Product repeated across worksheets"
 msgstr "Product repeated across worksheets"
 
-#: frontend/src/pages/SourceConfiguration.tsx:615
+#: frontend/src/pages/SourceConfiguration.tsx:829
 msgctxt "sources:sourceConfiguration.duplicateProductPolicy"
 msgid "Product repeated in more than one worksheet"
 msgstr "Product repeated in more than one worksheet"
@@ -3627,12 +3840,12 @@ msgctxt "dataQuality:dataQuality.productsChecked"
 msgid "Products checked"
 msgstr "Products checked"
 
-#: frontend/src/pages/SourceConfiguration.tsx:636 frontend/src/pages/Workspace.tsx:514
+#: frontend/src/pages/SourceConfiguration.tsx:871 frontend/src/pages/Workspace.tsx:514
 msgctxt "sources:sourceConfiguration.productsFound"
 msgid "Products found"
 msgstr "Products found"
 
-#: frontend/src/pages/SourceConfiguration.tsx:641 frontend/src/pages/SourceConfiguration.tsx:655
+#: frontend/src/pages/SourceConfiguration.tsx:876 frontend/src/pages/SourceConfiguration.tsx:897
 msgctxt "sources:sourceConfiguration.productsNeedingAttention"
 msgid "Products needing attention"
 msgstr "Products needing attention"
@@ -3642,17 +3855,17 @@ msgctxt "workspace:workspace.productsMissingFromChannel"
 msgid "Products not found"
 msgstr "Products not found"
 
-#: frontend/src/pages/SourceConfiguration.tsx:637 frontend/src/pages/Workspace.tsx:515
+#: frontend/src/pages/SourceConfiguration.tsx:872 frontend/src/pages/Workspace.tsx:515
 msgctxt "sources:sourceConfiguration.productsReady"
 msgid "Products ready"
 msgstr "Products ready"
 
-#: frontend/src/pages/SourceConfiguration.tsx:638
+#: frontend/src/pages/SourceConfiguration.tsx:873
 msgctxt "sources:sourceConfiguration.productsWithPriceChanges"
 msgid "Products with price changes"
 msgstr "Products with price changes"
 
-#: frontend/src/pages/SourceConfiguration.tsx:639
+#: frontend/src/pages/SourceConfiguration.tsx:874
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "sources:sourceConfiguration.productsWithStockChanges"
 msgid "Products with stock changes"
@@ -3757,6 +3970,11 @@ msgctxt "commerce:commerceHub.readOnly2"
 msgid "Read only"
 msgstr "Read only"
 
+#: frontend/src/pages/SourceConfiguration.tsx:647
+msgctxt "sources:sourceConfiguration.section.readPolicy"
+msgid "Read policy"
+msgstr "Read policy"
+
 #: frontend/src/pages/SourceWizard.tsx:152
 msgctxt "sources:sourceWizard.readPricesFromAnExcelSpreadsheetHosted"
 msgid "Read prices from an Excel spreadsheet hosted on Nextcloud or a compatible WebDAV server."
@@ -3801,8 +4019,12 @@ msgctxt "commerce:commerceHub.readsRemaining"
 msgid "Reads remaining:"
 msgstr "Reads remaining:"
 
-#: frontend/src/pages/SourceConfiguration.tsx:653
+#: frontend/src/pages/SourceConfiguration.tsx:638 frontend/src/pages/SourceConfiguration.tsx:895
 msgctxt "common:status.ready"
+msgid "Ready"
+msgstr "Ready"
+
+msgctxt "sources:sourceConfiguration.worksheetStatus.ready"
 msgid "Ready"
 msgstr "Ready"
 
@@ -3834,7 +4056,6 @@ msgctxt "sources:sourceConfiguration.recognition"
 msgid "Recognition"
 msgstr "Recognition"
 
-#: frontend/src/pages/SourceCenter.tsx:181
 msgctxt "sources:sourceCenter.recommended"
 msgid "Recommended"
 msgstr "Recommended"
@@ -3844,13 +4065,12 @@ msgctxt "dataQuality:dataQuality.recommendedAction"
 msgid "Recommended action:"
 msgstr "Recommended action:"
 
-#: frontend/src/pages/SourceCenter.tsx:183
+#: frontend/src/pages/SourceCenter.tsx:485
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceCenter.recommendedForEasierMappingSafeFormulasAnd"
 msgid "Recommended for easier column setup, safe formulas, and multi-channel pricing."
 msgstr "Recommended for easier column setup, safe formulas, and multi-channel pricing."
 
-#: frontend/src/pages/SourceCenter.tsx:189
 msgctxt "sources:sourceCenter.recommendedMigrationPath"
 msgid "Recommended migration path"
 msgstr "Recommended migration path"
@@ -3900,12 +4120,12 @@ msgctxt "commerce:commerceHub.registerThisUrlInTapsishopTheWebhook"
 msgid "Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token."
 msgstr "Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token."
 
-#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:104
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:138
 msgctxt "sources:sourceConfiguration.removeWorksheetRule"
 msgid "Remove worksheet rule"
 msgstr "Remove worksheet rule"
 
-#: frontend/src/pages/SourceCenter.tsx:242
+#: frontend/src/pages/SourceCenter.tsx:509
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.confirmSourceRemoval"
 msgid "Remove “{{source}}”?"
@@ -4040,7 +4260,7 @@ msgctxt "flowhubSheet:flowHubSheet.revisionIsImmutableAndReadyForSnapshot"
 msgid "Revision {{value1}} is immutable and ready for Snapshot creation."
 msgstr "Revision {{value1}} is immutable and ready for Snapshot creation."
 
-#: frontend/src/pages/SourceConfiguration.tsx:650
+#: frontend/src/pages/SourceConfiguration.tsx:892
 msgctxt "sources:sourceConfiguration.row"
 msgid "Row"
 msgstr "Row"
@@ -4077,6 +4297,16 @@ msgctxt "commerce:capability.skuWrite"
 msgid "SKU write"
 msgstr "SKU write"
 
+#: frontend/src/pages/SourceConfiguration.tsx:885
+#. Current is the latest verified or cached Channel value.
+msgctxt "sources:sourceConfiguration.samplePosition"
+msgid "Sample {{current}} of {{total}}"
+msgstr "Sample {{current}} of {{total}}"
+
+msgctxt "sources:sourceConfiguration.save"
+msgid "Save"
+msgstr "Save"
+
 #: frontend/src/pages/RateLimits.tsx:138 frontend/src/pages/Settings.tsx:201
 msgctxt "settings:rateLimits.saveChanges"
 msgid "Save Changes"
@@ -4099,7 +4329,7 @@ msgctxt "sources:sourceWizard.saveSource"
 msgid "Save Source"
 msgstr "Save Source"
 
-#: frontend/src/pages/SourceConfiguration.tsx:605 frontend/src/pages/SourceConfiguration.tsx:620
+#: frontend/src/pages/SourceConfiguration.tsx:928
 msgctxt "sources:sourceConfiguration.saveMappingRevision"
 msgid "Save column setup"
 msgstr "Save column setup"
@@ -4145,12 +4375,17 @@ msgctxt "workspace:sourceCentricWorkspace.savingDraft"
 msgid "Saving Draft"
 msgstr "Saving Draft"
 
+#: frontend/src/pages/SourceConfiguration.tsx:925
+msgctxt "sources:sourceConfiguration.savedAsImmutableRevision"
+msgid "Saving creates a new immutable column-setup revision."
+msgstr "Saving creates a new immutable column-setup revision."
+
 #: frontend/src/pages/RateLimits.tsx:138 frontend/src/pages/Settings.tsx:201
 msgctxt "settings:rateLimits.saving"
 msgid "Saving..."
 msgstr "Saving..."
 
-#: frontend/src/pages/SourceConfiguration.tsx:605 frontend/src/pages/SourceConfiguration.tsx:620 frontend/src/pages/SourceWizard.tsx:222
+#: frontend/src/pages/SourceConfiguration.tsx:928 frontend/src/pages/SourceWizard.tsx:222
 msgctxt "sources:sourceConfiguration.saving"
 msgid "Saving..."
 msgstr "Saving..."
@@ -4185,7 +4420,7 @@ msgctxt "workspace:unifiedWorkspace.scrollableWorkspaceGrid"
 msgid "Scrollable Workspace Grid"
 msgstr "Scrollable Workspace Grid"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:206
+#: frontend/src/pages/SourceCenter.tsx:339 frontend/src/pages/SourceCenter.tsx:346 frontend/src/pages/UnifiedWorkspace.tsx:206
 msgctxt "workspace:unifiedWorkspace.search"
 msgid "Search"
 msgstr "Search"
@@ -4234,7 +4469,7 @@ msgctxt "sources:sourceWizard.selectType"
 msgid "Select Type"
 msgstr "Select Type"
 
-#: frontend/src/pages/SourceConfiguration.tsx:551 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:145
+#: frontend/src/pages/SourceConfiguration.tsx:770 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:170
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.selectChannel"
 msgid "Select a Channel"
@@ -4244,12 +4479,17 @@ msgctxt "diagnostics:message.selectVendorBeforeSync"
 msgid "Select a vendor before product synchronization."
 msgstr "Select a vendor before product synchronization."
 
+#: frontend/src/pages/SourceConfiguration.tsx:695 frontend/src/pages/SourceConfiguration.tsx:832
+msgctxt "sources:sourceConfiguration.selectAll"
+msgid "Select all"
+msgstr "Select all"
+
 #: frontend/src/pages/Workspace.tsx:658
 msgctxt "workspace:workspace.selectAllEligible"
 msgid "Select all eligible"
 msgstr "Select all eligible"
 
-#: frontend/src/pages/SourceConfiguration.tsx:481
+#: frontend/src/pages/SourceConfiguration.tsx:701
 msgctxt "sources:sourceConfiguration.selectAtLeastOneWorksheet"
 msgid "Select at least one worksheet for these shared rules."
 msgstr "Select at least one worksheet for these shared rules."
@@ -4264,6 +4504,11 @@ msgstr "Select the type of data source to connect."
 msgctxt "commerce:commerceHub.selectVendor"
 msgid "Select vendor"
 msgstr "Select vendor"
+
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:128
+msgctxt "sources:sourceConfiguration.selectWorksheet"
+msgid "Select worksheet {{worksheet}}"
+msgstr "Select worksheet {{worksheet}}"
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113
 #. Listing means one independently identifiable product record in a sales Channel.
@@ -4296,7 +4541,7 @@ msgctxt "commerce:commerceHub.selectedWorksheet"
 msgid "Selected worksheet"
 msgstr "Selected worksheet"
 
-#: frontend/src/pages/SourceConfiguration.tsx:463
+#: frontend/src/pages/SourceConfiguration.tsx:682
 msgctxt "sources:sourceConfiguration.selectedWorksheet"
 msgid "Selected worksheet"
 msgstr "Selected worksheet"
@@ -4330,7 +4575,7 @@ msgctxt "settings:setup.setTheDomainTimezoneAndDefaultCurrency"
 msgid "Set the domain, timezone, and default currency for this installation."
 msgstr "Set the domain, timezone, and default currency for this installation."
 
-#: frontend/src/pages/SourceCenter.tsx:229
+#: frontend/src/pages/SourceCenter.tsx:307 frontend/src/pages/SourceCenter.tsx:419
 msgctxt "sources:sourceCenter.configureColumns"
 msgid "Set up columns"
 msgstr "Set up columns"
@@ -4402,6 +4647,11 @@ msgstr "Sheet was not saved"
 msgctxt "orders:orders.shipments"
 msgid "Shipments"
 msgstr "Shipments"
+
+#: frontend/src/pages/SourceConfiguration.tsx:884
+msgctxt "sources:sourceConfiguration.showOnlyProblems"
+msgid "Show only problems"
+msgstr "Show only problems"
 
 #: frontend/src/pages/Products.tsx:713
 msgctxt "products:products.showingOf"
@@ -4489,13 +4739,13 @@ msgctxt "orders:orders.source"
 msgid "Source"
 msgstr "Source"
 
-#: frontend/src/pages/SourceConfiguration.tsx:623 frontend/src/pages/SourceConfiguration.tsx:626
+#: frontend/src/pages/SourceConfiguration.tsx:858 frontend/src/pages/SourceConfiguration.tsx:861
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourcePreview"
 msgid "Source Preview"
 msgstr "Source Preview"
 
-#: frontend/src/pages/SourceConfiguration.tsx:393
+#: frontend/src/pages/SourceConfiguration.tsx:575
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourcePreviewUnavailable"
 msgid "Source Preview unavailable"
@@ -4522,13 +4772,12 @@ msgctxt "workspace:sourceCentricWorkspace.sourceProductWorkspaceImmutableSnapsho
 msgid "Source Product Workspace · Immutable Snapshot"
 msgstr "Source Product Workspace · Immutable Snapshot"
 
-#: frontend/src/pages/SourceConfiguration.tsx:485
+#: frontend/src/pages/SourceConfiguration.tsx:705
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourceProductFields"
 msgid "Source Product fields"
 msgstr "Source Product fields"
 
-#: frontend/src/pages/SourceCenter.tsx:208
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "sources:sourceCenter.sourceProductIdentityStaysSeparateFromChannel"
 msgid "Source Product identity stays separate from Channel Listing identity."
@@ -4557,7 +4806,7 @@ msgctxt "dataQuality:dataQuality.sourceAnalysisHasNotRecordedAnyMatching"
 msgid "Source analysis has not recorded any matching issues."
 msgstr "Source analysis has not recorded any matching issues."
 
-#: frontend/src/pages/SourceCenter.tsx:129
+#: frontend/src/pages/SourceCenter.tsx:256
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.sourceArchived"
 msgid "Source archived"
@@ -4569,7 +4818,7 @@ msgctxt "navigation:topbar.sourceConfiguration"
 msgid "Source column setup"
 msgstr "Source column setup"
 
-#: frontend/src/pages/CommerceHub.tsx:1231 frontend/src/pages/SourceConfiguration.tsx:223
+#: frontend/src/pages/CommerceHub.tsx:1231 frontend/src/pages/SourceConfiguration.tsx:264
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourceConfigurationUnavailable"
 msgid "Source configuration unavailable"
@@ -4587,6 +4836,12 @@ msgctxt "commerce:commerceHub.sourceConnectedSuccessfully"
 msgid "Source connected successfully"
 msgstr "Source connected successfully"
 
+#: frontend/src/pages/SourceConfiguration.tsx:453
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.connectionReady"
+msgid "Source connection is ready"
+msgstr "Source connection is ready"
+
 #: frontend/src/pages/Diagnostics.tsx:258
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceConnectionReady"
@@ -4599,17 +4854,23 @@ msgctxt "workspace:workspace.sourceConnectorRequired"
 msgid "Source connector required"
 msgstr "Source connector required"
 
-#: frontend/src/pages/SourceCenter.tsx:137 frontend/src/pages/SourceCenter.tsx:158
+#: frontend/src/pages/SourceCenter.tsx:264 frontend/src/pages/SourceCenter.tsx:286
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.sourceCouldNotBeRemoved"
 msgid "Source could not be removed"
 msgstr "Source could not be removed"
 
-#: frontend/src/pages/SourceCenter.tsx:128
+#: frontend/src/pages/SourceCenter.tsx:255
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.sourceDeleted"
 msgid "Source deleted"
 msgstr "Source deleted"
+
+#: frontend/src/pages/SourceConfiguration.tsx:634
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.section.generalHelp"
+msgid "Source identity and current column-setup status."
+msgstr "Source identity and current column-setup status."
 
 #: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113
 #. Source means the spreadsheet or managed sheet supplying product targets.
@@ -4617,7 +4878,13 @@ msgctxt "workspace:sourceCentricWorkspace.sourceKey"
 msgid "Source key {{value1}} ·"
 msgstr "Source key {{value1}} ·"
 
-#: frontend/src/pages/SourceCenter.tsx:179
+#: frontend/src/pages/SourceConfiguration.tsx:636
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.sourceName"
+msgid "Source name"
+msgstr "Source name"
+
+#: frontend/src/pages/SourceCenter.tsx:481
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.sourceOptions"
 msgid "Source options"
@@ -4653,6 +4920,18 @@ msgctxt "commerce:commerceHub.sourceType"
 msgid "Source type"
 msgstr "Source type"
 
+#: frontend/src/pages/SourceConfiguration.tsx:637
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.sourceType"
+msgid "Source type"
+msgstr "Source type"
+
+#: frontend/src/pages/SourceConfiguration.tsx:946
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.copyFromWorksheet"
+msgid "Source worksheet: {{worksheet}}"
+msgstr "Source worksheet: {{worksheet}}"
+
 #: frontend/src/pages/Workspace.tsx:653
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:workspace.source"
@@ -4683,7 +4962,7 @@ msgctxt "navigation:topbar.sources"
 msgid "Sources"
 msgstr "Sources"
 
-#: frontend/src/pages/SourceCenter.tsx:171 frontend/src/pages/Sources.tsx:85
+#: frontend/src/pages/SourceCenter.tsx:323 frontend/src/pages/Sources.tsx:85
 msgctxt "sources:sourceCenter.sources"
 msgid "Sources"
 msgstr "Sources"
@@ -4734,6 +5013,7 @@ msgctxt "products:column.state"
 msgid "State"
 msgstr "State"
 
+#: frontend/src/pages/SourceCenter.tsx:349
 msgctxt "common:field.status"
 msgid "Status"
 msgstr "Status"
@@ -4832,7 +5112,7 @@ msgctxt "workspace:workspace.stockOnly"
 msgid "Stock-only:"
 msgstr "Stock-only:"
 
-#: frontend/src/pages/SourceConfiguration.tsx:615
+#: frontend/src/pages/SourceConfiguration.tsx:829
 msgctxt "sources:sourceConfiguration.blockDuplicates"
 msgid "Stop and ask me to fix duplicates"
 msgstr "Stop and ask me to fix duplicates"
@@ -4920,7 +5200,7 @@ msgctxt "dataQuality:dataQuality.technicalDetails"
 msgid "Technical details"
 msgstr "Technical details"
 
-#: frontend/src/pages/SourceConfiguration.tsx:676
+#: frontend/src/pages/SourceConfiguration.tsx:918
 msgctxt "sources:sourceConfiguration.technicalDetails"
 msgid "Technical details"
 msgstr "Technical details"
@@ -4934,7 +5214,7 @@ msgctxt "diagnostics:diagnostics.technicalRateDetails"
 msgid "Technical rate details"
 msgstr "Technical rate details"
 
-#: frontend/src/pages/SourceConfiguration.tsx:430
+#: frontend/src/pages/SourceConfiguration.tsx:626
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.mapSourceProductIdentityFirstThenEach"
 msgid "Tell FlowHub where product rows begin and which file columns belong to each sales Channel."
@@ -4947,6 +5227,11 @@ msgstr "Test Connection"
 
 #: frontend/src/pages/CommerceHub.tsx:147 frontend/src/pages/CommerceHub.tsx:251 frontend/src/pages/CommerceHub.tsx:997
 msgctxt "commerce:commerceHub.testConnection"
+msgid "Test connection"
+msgstr "Test connection"
+
+#: frontend/src/pages/SourceConfiguration.tsx:644 frontend/src/pages/SourceConfiguration.tsx:927
+msgctxt "sources:sourceConfiguration.testConnection"
 msgid "Test connection"
 msgstr "Test connection"
 
@@ -4984,7 +5269,7 @@ msgctxt "errors:codes.SOURCE_READ_LIMIT_REACHED"
 msgid "The Source read limit was reached. Try again after the allowance resets."
 msgstr "The Source read limit was reached. Try again after the allowance resets."
 
-#: frontend/src/pages/SourceCenter.tsx:132
+#: frontend/src/pages/SourceCenter.tsx:259
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.protectedHistoryPreserved"
 msgid "The Source was archived. Saved history remains available and unchanged."
@@ -5048,7 +5333,7 @@ msgctxt "dataQuality:issue.LISTING_CACHE_UNAVAILABLE.summary"
 msgid "The mapped Listing or its Channel Cache is unavailable."
 msgstr "The mapped Listing or its Channel Cache is unavailable."
 
-#: frontend/src/pages/SourceConfiguration.tsx:440
+#: frontend/src/pages/SourceConfiguration.tsx:658
 #. Review is the immutable validation result required before Apply.
 msgctxt "sources:sourceConfiguration.legacyMappingAssignedToPrimaryChannel"
 msgid "The older global column setup is shown only under WooCommerce — Primary. Review and save it; it will not be copied to other Channels."
@@ -5092,7 +5377,7 @@ msgctxt "workspace:workspace.theUnderlyingWorkflowIsUnchangedTheseSurfaces"
 msgid "The underlying workflow is unchanged. These surfaces are normalized for readability only."
 msgstr "The underlying workflow is unchanged. These surfaces are normalized for readability only."
 
-#: frontend/src/pages/SourceCenter.tsx:131
+#: frontend/src/pages/SourceCenter.tsx:258
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.unusedSourceDeletedSafely"
 msgid "The unused Source was deleted and the action was recorded."
@@ -5114,7 +5399,7 @@ msgctxt "errors:codes.STALE_REVIEW"
 msgid "This Review is stale. Generate a new Review before Apply."
 msgstr "This Review is stale. Generate a new Review before Apply."
 
-#: frontend/src/pages/SourceCenter.tsx:252
+#: frontend/src/pages/SourceCenter.tsx:519
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "sources:sourceCenter.archiveImpact"
 msgid "This Source has protected history, so it will be archived instead of deleted. Historical Snapshots, revisions, Apply results, and Audit records remain unchanged."
@@ -5131,10 +5416,15 @@ msgctxt "sources:sourceConfiguration.thisSourceManages"
 msgid "This Source manages"
 msgstr "This Source manages"
 
-#: frontend/src/pages/SourceConfiguration.tsx:617
+#: frontend/src/pages/SourceConfiguration.tsx:838
 msgctxt "sources:sourceConfiguration.lastWorksheetWinsWarning"
 msgid "This choice replaces an earlier row only when you explicitly arrange the worksheet order."
 msgstr "This choice replaces an earlier row only when you explicitly arrange the worksheet order."
+
+#: frontend/src/pages/SourceConfiguration.tsx:951
+msgctxt "sources:sourceConfiguration.copyRequiresSave"
+msgid "This explicit copy updates the form only. Save to create a new immutable column-setup revision."
+msgstr "This explicit copy updates the form only. Save to create a new immutable column-setup revision."
 
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dataQuality:issue.FORMULA_BLOCKED.summary"
@@ -5145,6 +5435,18 @@ msgstr "This formula is blocked by the selected Source rules."
 msgctxt "workspace:workspace.thisIsTheOnlyStepThatWrites"
 msgid "This is the only step that writes to WooCommerce."
 msgstr "This is the only step that writes to WooCommerce."
+
+#: frontend/src/pages/SourceConfiguration.tsx:643
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.externalConnectionHelp"
+msgid "This linked Source is read once when FlowHub creates an immutable Workspace Snapshot."
+msgstr "This linked Source is read once when FlowHub creates an immutable Workspace Snapshot."
+
+#: frontend/src/pages/SourceConfiguration.tsx:643
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "sources:sourceConfiguration.managedSourceConnectionHelp"
+msgid "This managed Source is stored inside FlowHub and uses saved revisions when a Snapshot is created."
+msgstr "This managed Source is stored inside FlowHub and uses saved revisions when a Snapshot is created."
 
 #: frontend/src/pages/NotFound.tsx:13
 msgctxt "common:notFound.thisPageDoesnTExist"
@@ -5157,7 +5459,7 @@ msgctxt "sources:sources.thisSourceCannotBeChangedFromThis"
 msgid "This source cannot be changed from this page."
 msgstr "This source cannot be changed from this page."
 
-#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:102
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:136
 msgctxt "sources:sourceConfiguration.worksheetIgnored"
 msgid "This worksheet will be ignored"
 msgstr "This worksheet will be ignored"
@@ -5410,7 +5712,7 @@ msgctxt "workspace:statusDisplay.unchanged"
 msgid "Unchanged"
 msgstr "Unchanged"
 
-#: frontend/src/pages/SourceConfiguration.tsx:640 frontend/src/pages/Workspace.tsx:517
+#: frontend/src/pages/SourceConfiguration.tsx:875 frontend/src/pages/Workspace.tsx:517
 msgctxt "sources:sourceConfiguration.unchangedProducts"
 msgid "Unchanged products"
 msgstr "Unchanged products"
@@ -5459,6 +5761,11 @@ msgctxt "workspace:gridModel.unresolvedProduct"
 msgid "Unresolved Product"
 msgstr "Unresolved Product"
 
+#: frontend/src/pages/SourceConfiguration.tsx:924
+msgctxt "sources:sourceConfiguration.unsavedChanges"
+msgid "Unsaved changes"
+msgstr "Unsaved changes"
+
 #: frontend/src/pages/CommerceHub.tsx:415
 msgctxt "commerce:commerceHub.unsupported"
 msgid "Unsupported"
@@ -5487,7 +5794,7 @@ msgctxt "common:apiSourceService.useSettingsToConfigureConnectors"
 msgid "Use Settings to configure connectors."
 msgstr "Use Settings to configure connectors."
 
-#: frontend/src/pages/SourceConfiguration.tsx:545
+#: frontend/src/pages/SourceConfiguration.tsx:764
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.useSourceWorksheet"
 msgid "Use Source worksheet"
@@ -5511,22 +5818,22 @@ msgctxt "commerce:commerceHub.validation.useNextcloudRootOrWebdav"
 msgid "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings."
 msgstr "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings."
 
-#: frontend/src/pages/SourceConfiguration.tsx:615
+#: frontend/src/pages/SourceConfiguration.tsx:829
 msgctxt "sources:sourceConfiguration.lastWorksheetWins"
 msgid "Use the last configured worksheet"
 msgstr "Use the last configured worksheet"
 
-#: frontend/src/pages/SourceConfiguration.tsx:448
+#: frontend/src/pages/SourceConfiguration.tsx:665
 msgctxt "sources:sourceConfiguration.sharedWorksheetRules"
 msgid "Use the same rules for all worksheets"
 msgstr "Use the same rules for all worksheets"
 
-#: frontend/src/pages/SourceConfiguration.tsx:449
+#: frontend/src/pages/SourceConfiguration.tsx:666
 msgctxt "sources:sourceConfiguration.sharedWorksheetRulesHelp"
 msgid "Use this when every selected worksheet has the same columns and product rows begin in the same place."
 msgstr "Use this when every selected worksheet has the same columns and product rows begin in the same place."
 
-#: frontend/src/pages/SourceConfiguration.tsx:453
+#: frontend/src/pages/SourceConfiguration.tsx:670
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.separateWorksheetRulesHelp"
 msgid "Use this when worksheets have different layouts, start rows, or Channel columns."
@@ -5573,6 +5880,11 @@ msgstr "Validate"
 msgctxt "products:column.validation"
 msgid "Validation"
 msgstr "Validation"
+
+#: frontend/src/pages/SourceConfiguration.tsx:808
+msgctxt "sources:sourceConfiguration.section.valueHandling"
+msgid "Value handling"
+msgstr "Value handling"
 
 msgctxt "products:productType.variable"
 msgid "Variable"
@@ -5702,7 +6014,7 @@ msgctxt "activity:activity.warning"
 msgid "Warning"
 msgstr "Warning"
 
-#: frontend/src/components/ResourceOrdering.tsx:20
+#: frontend/src/components/ResourceOrdering.tsx:20 frontend/src/pages/SourceCenter.tsx:314
 msgctxt "common:resourceBadge.warning"
 msgid "Warning"
 msgstr "Warning"
@@ -5804,6 +6116,11 @@ msgctxt "workspace:workspace.woocommerce"
 msgid "WooCommerce"
 msgstr "WooCommerce"
 
+#: frontend/src/pages/SourceConfiguration.tsx:676
+msgctxt "sources:sourceConfiguration.section.workbook"
+msgid "Workbook"
+msgstr "Workbook"
+
 #: frontend/src/pages/Workspace.tsx:476
 msgctxt "workspace:workspace.workflowGuardrails"
 msgid "Workflow Guardrails"
@@ -5819,37 +6136,42 @@ msgctxt "dataQuality:dataQuality.worksheet"
 msgid "Worksheet"
 msgstr "Worksheet"
 
-#: frontend/src/pages/SourceConfiguration.tsx:476 frontend/src/pages/SourceConfiguration.tsx:649 frontend/src/pages/SourceImportWizard.tsx:65
+#: frontend/src/pages/SourceConfiguration.tsx:696 frontend/src/pages/SourceConfiguration.tsx:891 frontend/src/pages/SourceImportWizard.tsx:65
 msgctxt "sources:sourceConfiguration.worksheet"
 msgid "Worksheet"
 msgstr "Worksheet"
+
+#: frontend/src/pages/SourceConfiguration.tsx:823
+msgctxt "sources:sourceConfiguration.section.worksheetColumns"
+msgid "Worksheet columns"
+msgstr "Worksheet columns"
 
 #: frontend/src/pages/CommerceHub.tsx:940
 msgctxt "commerce:commerceHub.worksheetName"
 msgid "Worksheet name"
 msgstr "Worksheet name"
 
-#: frontend/src/pages/SourceConfiguration.tsx:613
+#: frontend/src/pages/SourceConfiguration.tsx:827
 msgctxt "sources:sourceConfiguration.worksheetNamePrompt"
 msgid "Worksheet name"
 msgstr "Worksheet name"
 
-#: frontend/src/pages/SourceConfiguration.tsx:539
+#: frontend/src/pages/SourceConfiguration.tsx:758
 msgctxt "sources:sourceConfiguration.worksheetOverride"
 msgid "Worksheet override"
 msgstr "Worksheet override"
 
-#: frontend/src/pages/SourceConfiguration.tsx:445
+#: frontend/src/pages/SourceConfiguration.tsx:662
 msgctxt "sources:sourceConfiguration.worksheetRules"
 msgid "Worksheet rules"
 msgstr "Worksheet rules"
 
-#: frontend/src/pages/SourceConfiguration.tsx:312
+#: frontend/src/pages/SourceConfiguration.tsx:492
 msgctxt "sources:sourceConfiguration.worksheetDetectionFailed"
 msgid "Worksheets could not be detected"
 msgstr "Worksheets could not be detected"
 
-#: frontend/src/pages/SourceConfiguration.tsx:461
+#: frontend/src/pages/SourceConfiguration.tsx:680
 msgctxt "sources:sourceConfiguration.worksheetPolicy"
 msgid "Worksheets to read"
 msgstr "Worksheets to read"
@@ -6018,7 +6340,7 @@ msgctxt "workspace:workspace.forWoocommerce"
 msgid "for WooCommerce."
 msgstr "for WooCommerce."
 
-#: frontend/src/pages/SourceConfiguration.tsx:676
+#: frontend/src/pages/SourceConfiguration.tsx:918
 msgctxt "sources:sourceConfiguration.ignored"
 msgid "ignored"
 msgstr "ignored"
@@ -6063,7 +6385,7 @@ msgctxt "commerce:commerceHub.received"
 msgid "received,"
 msgstr "received,"
 
-#: frontend/src/pages/SourceConfiguration.tsx:676
+#: frontend/src/pages/SourceConfiguration.tsx:918
 msgctxt "sources:sourceConfiguration.recognized"
 msgid "recognized"
 msgstr "recognized"
@@ -6169,6 +6491,21 @@ msgid_plural "{{count}} connected"
 msgstr[0] "{{count}} connected"
 msgstr[1] "{{count}} connected"
 
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:132
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "sources:sourceConfiguration.enabledChannelCount"
+msgid "{{count}} enabled Channel"
+msgid_plural "{{count}} enabled Channels"
+msgstr[0] "{{count}} enabled Channel"
+msgstr[1] "{{count}} enabled Channels"
+
+#: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:167
+msgctxt "sources:sourceConfiguration.issueCount"
+msgid "{{count}} issue"
+msgid_plural "{{count}} issues"
+msgstr[0] "{{count}} issue"
+msgstr[1] "{{count}} issues"
+
 #: frontend/src/pages/Dashboard.tsx:179
 msgctxt "dashboard:dashboard.monitoredDestinations"
 msgid "{{count}} monitored destination"
@@ -6191,7 +6528,7 @@ msgid_plural "{{count}} products ready for Review."
 msgstr[0] "{{count}} product ready for Review."
 msgstr[1] "{{count}} products ready for Review."
 
-#: frontend/src/pages/SourceCenter.tsx:256
+#: frontend/src/pages/SourceCenter.tsx:523
 msgctxt "sources:sourceCenter.protectedRecords"
 msgid "{{count}} protected historical records will remain available."
 msgstr "{{count}} protected historical records will remain available."
@@ -6201,7 +6538,7 @@ msgctxt "diagnostics:diagnostics.requestsWaiting"
 msgid "{{count}} requests waiting"
 msgstr "{{count}} requests waiting"
 
-#: frontend/src/pages/SourceConfiguration.tsx:479
+#: frontend/src/pages/SourceConfiguration.tsx:699 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:130
 msgctxt "sources:sourceConfiguration.worksheetRowCount"
 msgid "{{count}} row"
 msgid_plural "{{count}} rows"
@@ -6222,6 +6559,20 @@ msgid_plural "{{count}} unsaved edits"
 msgstr[0] "{{count}} unsaved edit"
 msgstr[1] "{{count}} unsaved edits"
 
+#: frontend/src/pages/SourceConfiguration.tsx:453
+msgctxt "sources:sourceConfiguration.worksheetsDetected"
+msgid "{{count}} worksheet detected."
+msgid_plural "{{count}} worksheets detected."
+msgstr[0] "{{count}} worksheet detected."
+msgstr[1] "{{count}} worksheets detected."
+
+#: frontend/src/pages/SourceConfiguration.tsx:836
+msgctxt "sources:sourceConfiguration.selectedWorksheetCount"
+msgid "{{count}} worksheet selected"
+msgid_plural "{{count}} worksheets selected"
+msgstr[0] "{{count}} worksheet selected"
+msgstr[1] "{{count}} worksheets selected"
+
 #: frontend/src/features/unifiedWorkspace/gridModel.ts:110
 #. Current is the latest verified or cached Channel value.
 msgctxt "workspace:gridModel.currentField"
@@ -6238,7 +6589,7 @@ msgctxt "dataQuality:issue.NEGATIVE_VALUE.summary"
 msgid "{{field}} cannot be negative."
 msgstr "{{field}} cannot be negative."
 
-#: frontend/src/pages/SourceConfiguration.tsx:112 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:59
+#: frontend/src/pages/SourceConfiguration.tsx:142 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:59
 msgctxt "sources:sourceConfiguration.columnReference"
 msgid "{{field}} column reference"
 msgstr "{{field}} column reference"
@@ -6252,12 +6603,12 @@ msgctxt "dataQuality:issue.INVALID_NUMERIC_VALUE.summary"
 msgid "{{field}} must be a valid numeric value."
 msgstr "{{field}} must be a valid numeric value."
 
-#: frontend/src/pages/SourceConfiguration.tsx:93 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:58
+#: frontend/src/pages/SourceConfiguration.tsx:123 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:58
 msgctxt "sources:sourceConfiguration.referenceType"
 msgid "{{field}} reference type"
 msgstr "{{field}} reference type"
 
-#: frontend/src/pages/SourceConfiguration.tsx:138 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:73
+#: frontend/src/pages/SourceConfiguration.tsx:168 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:73
 msgctxt "sources:sourceConfiguration.conflictingColumnMapping"
 msgid "{{first}} and {{second}} use the same column. Confirm that this is intentional."
 msgstr "{{first}} and {{second}} use the same column. Confirm that this is intentional."
@@ -6282,7 +6633,7 @@ msgctxt "dataQuality:dataQuality.healthyCoverage"
 msgid "{{sources}} Sources and {{products}} products were checked."
 msgstr "{{sources}} Sources and {{products}} products were checked."
 
-#: frontend/src/pages/SourceConfiguration.tsx:382
+#: frontend/src/pages/SourceConfiguration.tsx:563
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.pricingWorkspaceName"
 msgid "{{source}} pricing"

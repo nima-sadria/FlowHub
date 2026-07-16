@@ -115,7 +115,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).toContain('TapsiShop Main')
     expect(container.textContent).not.toContain('woocommerce:primary')
     expect(container.textContent).toContain('Coming Soon')
-    const digikala = Array.from(container.querySelectorAll('details')).find(item => item.textContent?.includes('Digikala'))
+    const digikala = container.querySelector('details[data-channel-id="digikala:main"]')
     expect(digikala?.querySelector('input[type="checkbox"]')).toHaveProperty('disabled', true)
     expect(container.textContent).toContain('Column letter')
     expect(container.textContent).toContain('Exact header')
@@ -156,7 +156,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
 
   it('preserves technical Channel identities in the API payload and supports explicit enablement', async () => {
     await renderPage()
-    const tapsi = Array.from(container.querySelectorAll('details')).find(item => item.textContent?.includes('TapsiShop'))
+    const tapsi = container.querySelector('details[data-channel-id="tapsishop:main"]')
     const checkbox = tapsi?.querySelector('input[type="checkbox"]') as HTMLInputElement
     await act(async () => checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true })))
     await act(async () => {
@@ -262,6 +262,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     await renderPage()
     await act(async () => { button('Preview recognized rows').click(); await Promise.resolve() })
     expect(container.textContent).toContain('Retail')
+    await act(async () => button('Next sample row').click())
     expect(container.textContent).toContain('Wholesale')
 
     await act(async () => button('Products ready').click())
@@ -295,6 +296,173 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(payload.worksheet_rules.map(item => item.worksheet_name)).toEqual(['فروش تهران', 'Marketplace'])
     expect(payload.worksheet_rules[0].channel_mappings[0].fields.find(item => item.field === 'price')?.reference_value).toBe('C')
     expect(payload.worksheet_rules[1].channel_mappings[0].fields.find(item => item.field === 'price')?.reference_value).toBe('G')
+  })
+
+  it('shows the shared Product Name only once per worksheet and copies it only after explicit confirmation', async () => {
+    const perWorksheet: SourceMapping = {
+      ...mapping,
+      worksheetRuleMode: 'per_worksheet',
+      duplicateProductPolicy: 'block',
+      worksheetRules: [
+        { worksheetName: 'Logitech', enabled: true, dataStartRow: 2, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'D' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
+        { worksheetName: 'Surface', enabled: true, dataStartRow: 4, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'K', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Surface', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'N' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'L' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'M' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
+      ],
+    }
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: perWorksheet })
+    await renderPage()
+
+    const productNameReference = translate('sources:sourceConfiguration.columnReference', { field: translate('sources:sourceConfiguration.sourceProductName') })
+    const worksheetEditors = Array.from(container.querySelectorAll<HTMLDetailsElement>('details[data-worksheet-rule]'))
+    expect(worksheetEditors).toHaveLength(2)
+    for (const editor of worksheetEditors) expect(editor.querySelectorAll(`[aria-label="${productNameReference}"]`)).toHaveLength(1)
+
+    const surfaceEditor = worksheetEditors.find(editor => editor.textContent?.includes('Surface')) as HTMLDetailsElement
+    const surfaceProductName = surfaceEditor.querySelector(`[aria-label="${productNameReference}"]`) as HTMLInputElement
+    expect(surfaceProductName.value).toBe('K')
+
+    const logitechEditor = worksheetEditors.find(editor => editor.textContent?.includes('Logitech')) as HTMLDetailsElement
+    const copyShared = Array.from(logitechEditor.querySelectorAll('button')).find(item => item.textContent?.includes('Copy shared product fields')) as HTMLButtonElement
+    await act(async () => copyShared.click())
+    const dialog = container.querySelector('[role="dialog"]') as HTMLElement
+    expect(dialog.textContent).toContain('Logitech')
+    expect(surfaceProductName.value).toBe('K')
+    const confirm = Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.includes('Confirm copy')) as HTMLButtonElement
+    await act(async () => confirm.click())
+    expect(surfaceProductName.value).toBe('A')
+  })
+
+  it('copies Channel columns only after confirmation and preserves the destination Channel identity', async () => {
+    const perWorksheet: SourceMapping = {
+      ...mapping,
+      worksheetRuleMode: 'per_worksheet',
+      duplicateProductPolicy: 'block',
+      worksheetRules: [{
+        worksheetName: 'Logitech',
+        enabled: true,
+        dataStartRow: 2,
+        valuePolicy: {},
+        sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }],
+        channels: [
+          { channelId: 'woocommerce:primary', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'D' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] },
+          { channelId: 'snappshop:main', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'G' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'E' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'F' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] },
+        ],
+      }],
+    }
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: perWorksheet })
+    await renderPage()
+
+    const snapp = container.querySelector('[data-worksheet-rule="Logitech"] [data-channel-rule="snappshop:main"]') as HTMLDetailsElement
+    const priceInput = snapp.querySelector('[aria-label="Price column reference"]') as HTMLInputElement
+    expect(priceInput.value).toBe('E')
+    const sourceChannel = Array.from(snapp.querySelectorAll('label')).find(label => label.textContent?.includes('Copy columns from another Channel'))?.querySelector('select') as HTMLSelectElement
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(sourceChannel, 'woocommerce:primary')
+      sourceChannel.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    const requestCopy = Array.from(snapp.querySelectorAll('button')).find(item => item.textContent?.includes('Copy column choices')) as HTMLButtonElement
+    await act(async () => requestCopy.click())
+    expect(priceInput.value).toBe('E')
+    const dialog = container.querySelector('[role="dialog"]') as HTMLElement
+    expect(dialog.textContent).toContain('WooCommerce')
+    expect(dialog.textContent).toContain('SnappShop')
+    await act(async () => (Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.includes('Confirm copy')) as HTMLButtonElement).click())
+    expect(priceInput.value).toBe('B')
+
+    await act(async () => { button('Save column setup').click(); await Promise.resolve() })
+    const calls = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls
+    const payload = calls[calls.length - 1]?.[1] as { worksheet_rules: Array<{ channel_mappings: Array<{ channel_id: string; fields: Array<{ field: string; reference_value: string | null }> }> }> }
+    const savedSnapp = payload.worksheet_rules[0].channel_mappings.find(item => item.channel_id === 'snappshop:main')
+    expect(savedSnapp?.fields.find(item => item.field === 'price')?.reference_value).toBe('B')
+  })
+
+  it('copies one Channel configuration to selected worksheets only after confirmation', async () => {
+    const perWorksheet: SourceMapping = {
+      ...mapping,
+      worksheetRuleMode: 'per_worksheet',
+      duplicateProductPolicy: 'block',
+      worksheetRules: [
+        { worksheetName: 'Logitech', enabled: true, dataStartRow: 2, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'D' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
+        { worksheetName: 'Surface', enabled: true, dataStartRow: 4, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'K', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Surface', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'N' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'L' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'M' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
+      ],
+    }
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: perWorksheet })
+    await renderPage()
+
+    const logitechWoo = container.querySelector('[data-worksheet-rule="Logitech"] [data-channel-rule="woocommerce:primary"]') as HTMLDetailsElement
+    const surfaceWoo = container.querySelector('[data-worksheet-rule="Surface"] [data-channel-rule="woocommerce:primary"]') as HTMLDetailsElement
+    const surfacePrice = surfaceWoo.querySelector('[aria-label="Price column reference"]') as HTMLInputElement
+    expect(surfacePrice.value).toBe('L')
+    const copyToWorksheets = Array.from(logitechWoo.querySelectorAll('button')).find(item => item.textContent?.includes('Copy to worksheets')) as HTMLButtonElement
+    await act(async () => copyToWorksheets.click())
+    expect(surfacePrice.value).toBe('L')
+    const dialog = container.querySelector('[role="dialog"]') as HTMLElement
+    expect(dialog.textContent).toContain('Source worksheet: Logitech')
+    expect(dialog.textContent).toContain('Surface')
+    await act(async () => (Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.includes('Confirm copy')) as HTMLButtonElement).click())
+    expect(surfacePrice.value).toBe('B')
+  })
+
+  it('supports bulk enable and ignore actions without expanding every worksheet', async () => {
+    const perWorksheet: SourceMapping = {
+      ...mapping,
+      worksheetRuleMode: 'per_worksheet',
+      duplicateProductPolicy: 'block',
+      worksheetRules: [
+        { worksheetName: 'Logitech', enabled: true, dataStartRow: 2, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }], channels: [] },
+        { worksheetName: 'Surface', enabled: false, dataStartRow: 2, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }], channels: [] },
+      ],
+    }
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: perWorksheet })
+    await renderPage()
+    expect(Array.from(container.querySelectorAll<HTMLDetailsElement>('details[data-worksheet-rule]')).filter(item => item.open)).toHaveLength(1)
+    await act(async () => button('Select all').click())
+    await act(async () => button('Enable selected').click())
+    const surfaceEditor = container.querySelector('details[data-worksheet-rule="Surface"]') as HTMLDetailsElement
+    expect(surfaceEditor.textContent).toContain('Needs column settings')
+    await act(async () => button('Ignore selected').click())
+    expect(surfaceEditor.textContent).toContain('Ignored')
+  })
+
+  it('creates one independent rule for every selected worksheet when shared rules are split', async () => {
+    vi.spyOn(sourceWorkspaceApi, 'worksheets').mockResolvedValue({
+      sourceId: source.id,
+      sourceRevisionId: 'revision-1',
+      items: [
+        { name: 'Logitech', rowCount: 261 },
+        { name: 'Surface', rowCount: 396 },
+      ],
+    })
+    await renderPage()
+    await act(async () => { button('Detect worksheets').click(); await Promise.resolve() })
+
+    const separateMode = container.querySelector('input[name="worksheet-rule-mode"][value="per_worksheet"]') as HTMLInputElement
+    await act(async () => separateMode.click())
+
+    const worksheetEditors = Array.from(container.querySelectorAll<HTMLDetailsElement>('details[data-worksheet-rule]'))
+    expect(worksheetEditors.map(editor => editor.dataset.worksheetRule)).toEqual(['Logitech', 'Surface'])
+    const productNameReference = translate('sources:sourceConfiguration.columnReference', { field: translate('sources:sourceConfiguration.sourceProductName') })
+    for (const editor of worksheetEditors) {
+      const productNameInputs = editor.querySelectorAll<HTMLInputElement>(`[aria-label="${productNameReference}"]`)
+      expect(productNameInputs).toHaveLength(1)
+      expect(productNameInputs[0].value).toBe('A')
+      expect(editor.querySelector('[data-channel-rule="woocommerce:primary"] [aria-label="Price column reference"]')).toHaveProperty('value', 'C')
+      expect(editor.querySelector('[data-channel-rule="snappshop:main"] [aria-label="Price column reference"]')).toHaveProperty('value', 'قیمت اسنپ')
+    }
+  })
+
+  it('shows a sticky dirty state and warns before closing unsaved column changes', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    await renderPage()
+    const dataStartInput = Array.from(container.querySelectorAll('label')).find(label => label.textContent?.includes('Data starts at row'))?.querySelector('input') as HTMLInputElement
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(dataStartInput, '3')
+      dataStartInput.dispatchEvent(new Event('input', { bubbles: true }))
+      await Promise.resolve()
+    })
+    const actionBar = container.querySelector('[data-testid="source-configuration-actions"]') as HTMLElement
+    expect(actionBar.textContent).toContain('Unsaved changes')
+    await act(async () => button('Close').click())
+    expect(confirm).toHaveBeenCalledWith('Close without saving your column changes?')
   })
 
   it('applies one shared configuration only to the explicitly selected worksheets', async () => {
@@ -346,7 +514,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     await renderPage()
 
     const accessibleName = translate('sources:sourceConfiguration.referenceType', { field: translate('sources:sourceConfiguration.sourceProductName') })
-    const worksheetEditor = Array.from(container.querySelectorAll('details')).find(item => item.textContent?.includes('Missing product name')) as HTMLDetailsElement
+    const worksheetEditor = container.querySelector('details[data-worksheet-rule="Missing product name"]') as HTMLDetailsElement
     const selector = worksheetEditor.querySelector(`[aria-label="${accessibleName}"]`) as HTMLSelectElement
     const error = worksheetEditor.querySelector('[role="alert"]') as HTMLElement
     expect(selector.getAttribute('aria-invalid')).toBe('true')

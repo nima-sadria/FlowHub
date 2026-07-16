@@ -218,6 +218,10 @@ async function installIsolatedMockApi(page: Page, state: MockState) {
     })
     if (pathname === '/api/health' && method === 'GET') return json({ status: 'ok', version: 'pdf-remediation-mock' })
 
+    if (pathname === '/api/v2/commerce/sources' && method === 'GET') return json({
+      items: [],
+      relationship_map: { nodes: [], example: [], runtime_write_blocked: true, read_only: true },
+    })
     if (pathname === '/api/v2/source-profiles' && method === 'GET') return json({ items: [sourceProfile()] })
     if (pathname === '/api/v2/source-profiles/channels' && method === 'GET') return json({ items: channelItems })
     if (pathname === '/api/v2/sources/source-pdf-audit/configuration' && method === 'GET') {
@@ -322,15 +326,19 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
     for (const viewport of viewports) {
       await page.setViewportSize(viewport)
       await page.goto('/sources')
-      await expect(page.getByRole('heading', { name: 'Managed Sources' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Sources', exact: true })).toBeVisible()
       await expect(page.getByText('Synthetic Daily Prices', { exact: true })).toBeVisible()
       await screenshot(page, `sources-list-en-${viewport.width}x${viewport.height}`)
     }
 
     await page.setViewportSize({ width: 1280, height: 720 })
     await page.goto('/sources')
-    const deleteTrigger = page.getByRole('button', { name: 'Delete Source' })
-    await deleteTrigger.click()
+    const menuTrigger = page.getByRole('button', { name: 'Delete or archive safely' })
+    const openDeleteDialog = async () => {
+      await menuTrigger.click()
+      await page.getByRole('menuitem', { name: 'Delete Source' }).click()
+    }
+    await openDeleteDialog()
     const dialog = page.getByRole('dialog', { name: 'Delete Source' })
     await expect(dialog).toBeVisible()
     await expect(dialog).toContainText('Synthetic Daily Prices')
@@ -346,24 +354,24 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
 
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
-    await expect(deleteTrigger).toBeFocused()
+    await expect(menuTrigger).toBeFocused()
     expect(state.deletePayloads).toHaveLength(0)
 
     state.lifecycleAction = 'blocked'
-    await deleteTrigger.click()
+    await openDeleteDialog()
     await expect(dialog).toContainText('Cannot delete — active Workspace exists')
     await expect(dialog.getByRole('button', { name: 'Delete Source' })).toBeDisabled()
     await screenshot(page, 'source-delete-blocked-en-1280x720')
     await page.keyboard.press('Escape')
 
     state.lifecycleAction = 'delete'
-    await deleteTrigger.click()
+    await openDeleteDialog()
     await expect(dialog).toContainText('Delete unused Source')
     await screenshot(page, 'source-delete-unused-en-1280x720')
     await page.keyboard.press('Escape')
 
     state.lifecycleAction = 'archive'
-    await deleteTrigger.click()
+    await openDeleteDialog()
     await page.getByRole('button', { name: 'Archive Source' }).click()
     await expect(page.getByRole('heading', { name: 'Disabled' })).toBeVisible()
     await expect(page.locator('.fh-badge').filter({ hasText: /^Disabled$/ })).toBeVisible()
@@ -376,13 +384,16 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
       await page.setViewportSize(viewport)
       await page.goto('/sources/source-pdf-audit')
       await expect(page.getByRole('heading', { name: 'Worksheet rules' })).toBeVisible()
+      await page.getByText('Worksheet rules', { exact: true }).click()
+      await page.getByText('Workbook', { exact: true }).click()
+      await page.getByText('Channel columns', { exact: true }).click()
       await expect(page.getByRole('heading', { name: 'WooCommerce Primary' })).toBeVisible()
       await expect(page.getByRole('heading', { name: 'SnappShop Main' })).toBeVisible()
       await expect(page.getByRole('heading', { name: 'TapsiShop Main' })).toBeVisible()
       await expect(page.getByRole('heading', { name: 'Digikala' })).toBeVisible()
-      const wooColumns = page.locator('details').filter({ has: page.getByRole('heading', { name: 'WooCommerce Primary' }) })
-      const snapColumns = page.locator('details').filter({ has: page.getByRole('heading', { name: 'SnappShop Main' }) })
-      const tapsiColumns = page.locator('details').filter({ has: page.getByRole('heading', { name: 'TapsiShop Main' }) })
+      const wooColumns = page.locator('[data-channel-id="woocommerce:primary"]')
+      const snapColumns = page.locator('[data-channel-id="snappshop:main"]')
+      const tapsiColumns = page.locator('[data-channel-id="tapsishop:main"]')
       await expect(wooColumns.getByLabel('price column reference')).toHaveValue('D')
       await expect(snapColumns.getByLabel('price column reference')).toHaveValue('قیمت اسنپ')
       await expect(tapsiColumns.getByLabel('price column reference')).toHaveValue('J')
@@ -397,12 +408,14 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
       await screenshot(page, `source-configuration-shared-en-${viewport.width}x${viewport.height}`)
 
       await page.getByRole('radio', { name: /Configure each worksheet separately/ }).check()
+      await page.getByText('Worksheet columns', { exact: true }).click()
       const tehranRule = page.getByText('فروش تهران', { exact: true }).last().locator('xpath=ancestor::details[1]')
       const marketplaceRule = page.getByText('Marketplace', { exact: true }).last().locator('xpath=ancestor::details[1]')
       await expect(tehranRule).toBeVisible()
       await expect(marketplaceRule).toBeVisible()
+      await tehranRule.locator(':scope > summary').click()
       await tehranRule.locator(':scope > summary').getByRole('checkbox').check()
-      await expect(tehranRule.getByText('Product columns', { exact: true })).toBeVisible()
+      await expect(tehranRule.getByText('Product fields shared by all Channels', { exact: true })).toBeVisible()
       await expect(marketplaceRule.locator(':scope > summary').getByRole('checkbox')).not.toBeChecked()
       await screenshot(page, `source-configuration-per-worksheet-en-${viewport.width}x${viewport.height}`)
     }
@@ -499,7 +512,8 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
       await expect(page.locator('main')).toBeVisible()
       await screenshot(page, `locale-fa-${name}-1440x900`)
       if (name === 'sources') {
-        await page.getByRole('button', { name: 'حذف منبع' }).click()
+        await page.getByRole('button', { name: 'حذف یا بایگانی امن' }).click()
+        await page.getByRole('menuitem', { name: 'حذف منبع' }).click()
         await expect(page.getByRole('dialog', { name: 'حذف منبع' })).toBeVisible()
         await screenshot(page, 'source-delete-confirmation-fa-1440x900')
         await page.keyboard.press('Escape')
