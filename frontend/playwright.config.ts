@@ -12,6 +12,7 @@ const installedChromium = [
 
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/globalSetup.ts',
   fullyParallel: false,
   forbidOnly: true,
   retries: 0,
@@ -25,12 +26,5 @@ export default defineConfig({
       ? { executablePath: installedChromium }
       : undefined,
     ...devices['Desktop Chrome'],
-  },
-  webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 4188 --strictPort',
-    url: 'http://127.0.0.1:4188',
-    env: { ...process.env },
-    reuseExistingServer: false,
-    timeout: 120_000,
   },
 })

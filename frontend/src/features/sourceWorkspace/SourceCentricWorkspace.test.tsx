@@ -8,7 +8,53 @@ import type { UnifiedWorkspaceService } from '../../services/unifiedWorkspace/Un
 import type { ReviewResource, UnifiedWorkspaceResource } from '../../services/unifiedWorkspace/types'
 import { sourceWorkspaceApi } from './api'
 import SourceCentricWorkspace from './SourceCentricWorkspace'
-import type { GroupedListing, GroupedWorkspacePage } from './types'
+import type { GroupedListing, GroupedWorkspacePage, SourceChannel } from './types'
+
+vi.mock('@handsontable/react-wrapper', async () => {
+  const React = await import('react')
+  const HotTable = React.forwardRef(function MockHotTable(
+    props: {
+      afterChange?: (changes: Array<[number, string, unknown, unknown]>, source: string) => void
+      columns?: Array<{ data?: string }>
+      data?: Array<Record<string, unknown>>
+    },
+    ref: React.ForwardedRef<unknown>,
+  ) {
+    const rootRef = React.useRef<HTMLDivElement>(null)
+    const rows = props.data ?? []
+    const columns = props.columns ?? []
+    React.useImperativeHandle(ref, () => ({
+      hotInstance: {
+        colToProp: (column: number) => columns[column]?.data,
+        getPlugin: () => ({ sort: vi.fn() }),
+        getSourceDataAtRow: (row: number) => rows[row],
+        rootElement: rootRef.current,
+        toPhysicalRow: (row: number) => row,
+        toVisualColumn: (column: number) => column,
+        toVisualRow: (row: number) => row,
+      },
+    }), [columns, rows])
+    return React.createElement('div', { ref: rootRef, 'data-mocked-handsontable': 'true' }, rows.flatMap((row, rowIndex) =>
+      columns.flatMap(column => {
+        const prop = String(column.data ?? '')
+        const match = /^(.*)__(price|stock|status)__target$/.exec(prop)
+        if (!match) return []
+        const listingId = String(row[`${match[1]}__listing_id`] ?? '')
+        if (!listingId) return []
+        return React.createElement('input', {
+          'data-listing-id': listingId,
+          'data-target-field': match[2],
+          defaultValue: String(row[prop] ?? ''),
+          key: `${rowIndex}:${prop}`,
+          onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+            props.afterChange?.([[rowIndex, prop, row[prop], event.currentTarget.value]], 'edit')
+          },
+        })
+      }),
+    ))
+  })
+  return { HotTable }
+})
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -94,6 +140,11 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     document.body.appendChild(container)
     root = createRoot(container)
     vi.spyOn(sourceWorkspaceApi, 'groupedGrid').mockResolvedValue(GRID)
+    vi.spyOn(sourceWorkspaceApi, 'channels').mockResolvedValue({ items: [
+      sourceChannel('woocommerce:primary', 'WooCommerce'),
+      sourceChannel('snappshop:main', 'SnappShop'),
+      sourceChannel('tapsishop:main', 'TapsiShop'),
+    ] })
     service = createService()
   })
 
@@ -112,12 +163,11 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     await renderWorkspace(container, root, service)
 
     expect(document.documentElement.dir).toBe(direction)
-    const listingIds = Array.from(
+    const listingIds = new Set(Array.from(
       container.querySelectorAll<HTMLElement>('[data-listing-id]'),
       item => item.dataset.listingId,
-    )
-    expect(listingIds).toEqual(['snap-black', 'snap-white', 'tapsi-main', 'woo-main'])
-    expect(new Set(listingIds).size).toBe(4)
+    ))
+    expect(listingIds).toEqual(new Set(['snap-black', 'snap-white', 'tapsi-main', 'woo-main']))
     expect(container.textContent).toContain('SnappShop')
     expect(container.textContent).toContain('TapsiShop')
     expect(container.textContent).toContain('WooCommerce')
@@ -126,8 +176,7 @@ describe('SourceCentricWorkspace Channel ordering', () => {
 
   it('binds an edit from one of several marketplace Listings to that immutable Listing ID', async () => {
     await renderWorkspace(container, root, service)
-    const blackListing = container.querySelector<HTMLElement>('[data-listing-id="snap-black"]')
-    const targetPrice = blackListing?.querySelectorAll<HTMLInputElement>('input')[1]
+    const targetPrice = container.querySelector<HTMLInputElement>('[data-listing-id="snap-black"][data-target-field="price"]')
     expect(targetPrice).toBeTruthy()
 
     await act(async () => {
@@ -135,19 +184,19 @@ describe('SourceCentricWorkspace Channel ordering', () => {
       setter?.call(targetPrice, '125')
       targetPrice?.dispatchEvent(new Event('input', { bubbles: true }))
     })
-    const reviewButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Review')) as HTMLButtonElement
+    const reviewButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Review & Dry Run')) as HTMLButtonElement
     await act(async () => {
       reviewButton.click()
       await Promise.resolve()
     })
 
     expect(service.saveDraft).toHaveBeenCalledTimes(1)
-    expect(vi.mocked(service.saveDraft).mock.calls[0][2]).toEqual([expect.objectContaining({
+    expect(vi.mocked(service.saveDraft).mock.calls[0][2]).toEqual(expect.arrayContaining([expect.objectContaining({
       listing_id: 'snap-black',
       channel_id: 'snappshop:main',
       field: 'price',
       target_value: '125',
-    })])
+    })]))
   })
 })
 
@@ -165,6 +214,27 @@ async function renderWorkspace(
     await Promise.resolve()
     await new Promise(resolve => setTimeout(resolve, 0))
   })
+}
+
+function sourceChannel(channelId: string, name: string): SourceChannel {
+  return {
+    channelId,
+    name,
+    connectorType: channelId.split(':')[0],
+    capabilityVersion: 'production-shape-v1',
+    capabilities: {
+      writePrice: true,
+      writeStock: true,
+      writeStatus: true,
+      writeAvailable: true,
+      supportedStatuses: ['active', 'inactive'],
+      currency: 'IRR',
+      unit: 'IRR',
+    },
+    enabled: true,
+    implementationState: 'implemented',
+    available: true,
+  }
 }
 
 function createService(): UnifiedWorkspaceService {

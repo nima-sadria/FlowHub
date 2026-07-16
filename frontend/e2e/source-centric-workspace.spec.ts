@@ -39,9 +39,9 @@ async function installMockApi(page: Page) {
     if (url.pathname === '/api/v2/diagnostics/status') return json({ overall_status: 'operational', checkedAt: '2026-07-15T08:00:00Z', connectors: [{ id: 'woocommerce:primary', name: 'WooCommerce', connector_type: 'woocommerce', enabled: false, status: 'disabled', health: 'unknown', last_checked_at: null }], channelHealth: { checkedAt: '2026-07-15T08:00:00Z', summary: { overall: 'Operational', counts: { Operational: 0, Warning: 0, Error: 0, 'Unable to check': 0, Disabled: 1 } }, items: [], external_call_performed: false }, rateLimiter: { settings: { read_requests_per_minute: 60, write_requests_per_minute: 30, read_delay_ms: 250, write_delay_ms: 500 }, queue_length: 0, average_request_duration_ms: 120, average_latency_ms: 80, throttle_count: 0, last_throttle: null, last_connector_delay_ms: 250, last_limiter_delay_ms: 500, requests_completed: 42, requests_delayed: 2, estimated_completion_seconds: 6 }, external_call_performed: false })
     if (url.pathname === '/api/v2/source-profiles') return json({ items: [{ id: 'source-visual', name: 'Daily multi-channel prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 2, mappingVersion: 1, sheetId: 'sheet-visual' }] })
     if (url.pathname === '/api/v2/source-profiles/channels') return json({ items: [
-      { channelId: 'woocommerce:primary', name: 'WooCommerce', connectorType: 'woocommerce', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
-      { channelId: 'snappshop:main', name: 'SnappShop', connectorType: 'snappshop', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
-      { channelId: 'tapsishop:main', name: 'TapsiShop', connectorType: 'tapsishop', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
+      { channelId: 'woocommerce:primary', name: 'WooCommerce', connectorType: 'woocommerce', capabilityVersion: '1', capabilities: { writePrice: true, writeStock: true, writeStatus: true, writeAvailable: true, supportedStatuses: ['publish', 'active', 'inactive'], currency: 'IRR', unit: 'TOMAN' }, enabled: true, implementationState: 'implemented', available: true },
+      { channelId: 'snappshop:main', name: 'SnappShop', connectorType: 'snappshop', capabilityVersion: '1', capabilities: { writePrice: true, writeStock: true, writeStatus: true, writeAvailable: true, supportedStatuses: ['publish', 'active', 'inactive'], currency: 'IRR', unit: 'TOMAN' }, enabled: true, implementationState: 'implemented', available: true },
+      { channelId: 'tapsishop:main', name: 'TapsiShop', connectorType: 'tapsishop', capabilityVersion: '1', capabilities: { writePrice: true, writeStock: true, writeStatus: true, writeAvailable: true, supportedStatuses: ['publish', 'active', 'inactive'], currency: 'IRR', unit: 'TOMAN' }, enabled: true, implementationState: 'implemented', available: true },
     ] })
     if (url.pathname === '/api/v2/sources/source-visual/configuration') return json({ id: 'source-visual', name: 'Daily multi-channel prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 2, mappingVersion: 1, sheetId: 'sheet-visual', mapping: { id: 'mapping-1', version: 1, checksum: 'a'.repeat(64), worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, valuePolicy: { blank: 'no_change', x: 'unavailable', zero: 'explicit_zero' }, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }, { field: 'source_key', referenceType: 'disabled', referenceValue: null, required: false }], channels: [{ channelId: 'woocommerce:primary', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'C' }] }, { channelId: 'snappshop:main', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'O' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'G' }] }, { channelId: 'tapsishop:main', worksheetName: null, enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'P' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'J' }] }] } })
     if (url.pathname === '/api/v2/sources/source-visual/preview') return json({
@@ -66,6 +66,17 @@ async function installMockApi(page: Page) {
     if (url.pathname === '/api/v2/unified-workspaces/source-visual-workspace') return json({ id: 'source-visual-workspace', name: 'Daily pricing', entryPoint: 'source', sourceType: 'flowhub_sheet', ownerUserId: 1, status: 'active', version: 1, snapshot: { id: 'snapshot-source-visual', checksum: 'c'.repeat(64), schemaVersion: 'uw-snapshot-1', createdAt: new Date().toISOString() }, draft: { id: 'draft-source', version: 1, currentRevisionId: 'revision-source', status: 'reviewed' }, createdAt: new Date().toISOString() })
     if (url.pathname === '/api/v2/unified-workspaces/source-visual-workspace/grid') return json({ items: [], total: 0, page: 1, pageSize: 500, channels: [], draftVersion: 1, revisionId: 'revision-source' })
     if (url.pathname === '/api/v2/unified-workspaces/preferences/me') return json({ visibleChannelIds: ['woocommerce:primary', 'snappshop:main', 'tapsishop:main'], channelOrder: ['woocommerce:primary', 'snappshop:main', 'tapsishop:main'], visibleFields: { price: true, stock: true, status: true, sku: true }, displayNameSource: 'canonical', version: 1 })
+    if (url.pathname === '/api/v2/unified-workspaces/source-visual-workspace/draft/revisions' && route.request().method() === 'POST') return json({ id: 'revision-source-2', revisionNumber: 2, checksum: '9'.repeat(64), draftVersion: 2 })
+    if (url.pathname === '/api/v2/unified-workspaces/source-visual-workspace/reviews' && route.request().method() === 'POST') return json({
+      id: 'review-source', workspaceId: 'source-visual-workspace', snapshotId: 'snapshot-source-visual', draftRevisionId: 'revision-source-2', status: 'ready', checksum: 'e'.repeat(64),
+      summary: { total: 3, eligible: 2, blocked: 1, warnings: 0 },
+      items: [
+        { id: 'review-wc', canonicalProductId: 'product-cable', listingId: 'wc-cable', channelId: 'woocommerce:primary', field: 'price', current: '12000', target: '12500', validationState: 'ready', warnings: [], errors: [], eligible: true, selected: false },
+        { id: 'review-snap', canonicalProductId: 'product-cable', listingId: 'snap-white', channelId: 'snappshop:main', field: 'price', current: '12600', target: '12900', validationState: 'ready', warnings: [], errors: [], eligible: true, selected: false },
+        { id: 'review-snap-blocked', canonicalProductId: 'product-cable', listingId: 'snap-black', channelId: 'snappshop:main', field: 'price', current: '12600', target: '12900', validationState: 'blocked', warnings: [], errors: ['CHANNEL_CACHE_STALE'], eligible: false, selected: false },
+      ],
+      staleReason: null,
+    })
     if (url.pathname === '/api/v2/unified-workspaces/source-visual-workspace/reviews/review-source') return json({
       id: 'review-source',
       workspaceId: 'source-visual-workspace',
@@ -98,18 +109,25 @@ test('source-centric daily Workspace is understandable and responsive with isola
   for (const viewport of viewports) {
     await page.setViewportSize(viewport)
     await page.goto('/workspace/source-visual-workspace')
-    await expect(page.getByText('iPhone Cable')).toBeVisible()
-    await expect(page.getByText('28', { exact: true })).toBeVisible()
-    await expect(page.getByText('12', { exact: true })).toBeVisible()
-    await expect(page.getByText('White Listing')).toBeVisible()
-    await expect(page.getByText('Black Listing')).toBeVisible()
+    await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
+    // Dense pricing counters describe the locally tracked field scope rather
+    // than the legacy server summary. Two eligible price changes and one
+    // blocked price change are present in this fixture.
+    await expect(page.locator('.fh-pricing-counter-changed strong')).toHaveText('3')
+    await expect(page.locator('.fh-pricing-counter-selected strong')).toHaveText('2')
+    await expect(page.locator('.fh-pricing-counter-ready strong')).toHaveText('2')
+    await expect(page.locator('.fh-pricing-counter-blocked strong')).toHaveText('1')
+    await expect(page.getByText(/White Listing/).first()).toBeVisible()
+    await expect(page.getByText(/Black Listing/).first()).toBeVisible()
     await page.screenshot({ path: path.join(screenshotRoot, `workspace-${viewport.width}x${viewport.height}.png`), fullPage: true })
   }
   const selectionRequest = page.waitForRequest(request => request.method() === 'PUT' && new URL(request.url()).pathname.endsWith('/reviews/review-source/selection'))
-  await page.getByRole('checkbox', { name: 'Select SnappShop White Listing' }).click()
+  await page.locator('.ht_master td[data-listing-id="snap-white"][data-field-selection][data-field="price"] input').first().uncheck()
+  await page.getByRole('button', { name: /Review.*Dry Run/i }).click()
   const selectionPayload = JSON.parse((await selectionRequest).postData() ?? '{}') as { review_item_ids?: string[] }
   expect(selectionPayload.review_item_ids).toEqual(['review-wc'])
-  await page.getByRole('button', { name: /Apply 26 selected/ }).click()
+  await page.getByRole('button', { name: /Back to grid/i }).click()
+  await page.getByRole('button', { name: /^Apply 1/i }).click()
   await expect(page.getByRole('dialog', { name: 'Apply confirmation' })).toBeVisible()
   await page.screenshot({ path: path.join(screenshotRoot, 'apply-confirmation.png'), fullPage: true })
 })
@@ -167,7 +185,7 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
   for (const [name, route] of routes) {
     await page.goto(route)
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
-    if (name === 'workspace') await expect(page.getByText('iPhone Cable')).toBeVisible()
+    if (name === 'workspace') await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
     else if (name === 'flowhub-sheet') await expect(page.getByText('Daily multi-channel prices')).toBeVisible()
     else await page.waitForTimeout(250)
     await page.screenshot({ path: path.join(i18nScreenshotRoot, `en-${name}.png`), fullPage: true })
@@ -197,20 +215,27 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
       await expect(page.getByText('۶ ثانیه', { exact: true }).first()).toBeVisible()
       await expect(page.getByText('هنوز بررسی نشده', { exact: true }).first()).toBeVisible()
     }
-    if (name === 'workspace') await expect(page.getByText('iPhone Cable')).toBeVisible()
+    if (name === 'workspace') await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
     else if (name === 'flowhub-sheet') await expect(page.getByText('Daily multi-channel prices')).toBeVisible()
     else await page.waitForTimeout(250)
     await page.screenshot({ path: path.join(i18nScreenshotRoot, `rtl-${name}.png`), fullPage: true })
   }
 
   await page.goto('/workspace/source-visual-workspace')
-  await expect(page.getByText('iPhone Cable')).toBeVisible()
-  await expect(page.getByText('CABLE-01', { exact: false })).toBeVisible()
+  await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
+  // Handsontable maintains overlay clones for the frozen identity columns;
+  // every rendered clone must preserve the same immutable Source key.
+  const sourceKeyCells = page.getByText('CABLE-01', { exact: false })
+  await expect(sourceKeyCells.first()).toBeVisible()
+  expect(await sourceKeyCells.allTextContents()).toEqual(expect.arrayContaining(['CABLE-01']))
   const sidebar = page.locator('aside').first()
   const sidebarBox = await sidebar.boundingBox()
   expect(sidebarBox).not.toBeNull()
   expect(sidebarBox!.x).toBeGreaterThan(1000)
-  await page.getByRole('button', { name: /اعمال.*26/ }).click()
-  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByRole('button', { name: 'بازبینی و اجرای آزمایشی' }).click()
+  await expect(page.getByRole('dialog', { name: 'بازبینی تغییرات' })).toBeVisible()
+  await page.getByRole('button', { name: 'بازگشت به جدول' }).click()
+  await page.getByRole('button', { name: /^اعمال 2$/ }).click()
+  await expect(page.getByRole('dialog', { name: 'تأیید اعمال تغییرات' })).toBeVisible()
   await page.screenshot({ path: path.join(i18nScreenshotRoot, 'rtl-apply-confirmation.png'), fullPage: true })
 })

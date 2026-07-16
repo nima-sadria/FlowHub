@@ -101,12 +101,23 @@ function sourceChannel(
   available: boolean,
   implementationState: string,
 ) {
+  const writeAvailable = enabled && available && implementationState === 'implemented'
   return {
     channelId,
     name,
     connectorType: channelId.split(':')[0],
     capabilityVersion: 'ordering-v1',
-    capabilities: {},
+    // Match the production WorkspaceChannel capability document. The dense
+    // pricing grid intentionally fails closed when this evidence is absent.
+    capabilities: {
+      writePrice: writeAvailable,
+      writeStock: false,
+      writeStatus: false,
+      writeAvailable,
+      supportedStatuses: ['active', 'inactive'],
+      currency: 'IRR',
+      unit: 'IRR',
+    },
     enabled,
     implementationState,
     available,
@@ -300,6 +311,59 @@ function sourceConfiguration() {
   }
 }
 
+function workspaceGroupedGrid() {
+  return {
+    items: [{
+      sourceProductId: 'product-ordering-1',
+      name: 'Synthetic Cable',
+      sourceKey: 'SYN-1',
+      cost: null,
+      category: null,
+      brand: null,
+      productType: 'simple',
+      mappedChannelCount: 1,
+      listingCount: 1,
+      changedListingCount: 1,
+      selectedListingCount: 0,
+      state: 'ready',
+      children: [{
+        listingId: 'listing-ordering-1',
+        channelId: 'snappshop:main',
+        listingLabel: 'Synthetic Listing',
+        externalId: 'SYN-1',
+        externalIdType: 'product_number',
+        sku: 'SYN-1',
+        mappingState: 'resolved',
+        cacheFreshness: 'fresh',
+        state: 'ready',
+        changedFields: ['price'],
+        selected: false,
+        reviewItemIds: [],
+        fields: {
+          price: { current: '100', target: '110', changed: true, readOnly: false, status: 'ready', currency: 'IRR', unit: 'IRR' },
+          stock: { current: '5', target: '5', changed: false, readOnly: true, status: 'unchanged', currency: null, unit: null },
+          status: { current: 'active', target: 'active', changed: false, readOnly: true, status: 'unchanged', currency: null, unit: null },
+        },
+      }],
+    }],
+    total: 1,
+    page: 1,
+    pageSize: 100,
+    view: 'all',
+    summary: {
+      ready: 1,
+      blocked: 0,
+      unchanged: 0,
+      selected: 0,
+    },
+    draftVersion: 1,
+    revisionId: 'revision-ordering',
+    reviewId: null,
+    reviewStatus: null,
+    selectionChecksum: null,
+  }
+}
+
 function workspaceGrid() {
   return {
     total: 1,
@@ -455,6 +519,7 @@ async function installStrictMockApi(page: Page, audit: MockAudit, locale: 'en' |
       createdAt: '2026-07-15T08:00:00Z',
     })
     if (pathname === '/api/v2/unified-workspaces/ordering-workspace/grid') return json(workspaceGrid())
+    if (pathname === '/api/v2/unified-workspaces/ordering-workspace/grouped-grid') return json(workspaceGroupedGrid())
     if (pathname === '/api/v2/unified-workspaces/preferences/me') return json({
       visibleChannelIds: ['snappshop:main'],
       channelOrder: [...channelOrder].reverse(),
@@ -574,13 +639,16 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
 
   await page.goto('/workspace/ordering-workspace')
   await expectGroupedOrder(page, channelOrder)
-  const disabledToggle = page.locator('[data-resource-id="disabled:main"] input[type="checkbox"]')
-  const futureToggle = page.locator('[data-resource-id="digikala:future"] input[type="checkbox"]')
-  await expect(disabledToggle).toBeDisabled()
-  await expect(disabledToggle).not.toBeChecked()
-  await expect(futureToggle).toBeDisabled()
-  await expect(futureToggle).not.toBeChecked()
-  await expect(page.locator('[data-resource-id="snappshop:main"] input[type="checkbox"]')).toBeChecked()
+  // Resource chips expose availability; field-level checkboxes exist only for
+  // Listings that actually participate in the dense pricing grid. Disabled
+  // and Coming Soon Channels must never receive a selectable/editable cell.
+  await expect(page.locator('[data-resource-id="disabled:main"]')).toContainText('Disabled')
+  await expect(page.locator('[data-resource-id="digikala:future"]')).toContainText('Coming Soon')
+  await expect(page.locator('.ht_master [data-channel-id="disabled:main"]')).toHaveCount(0)
+  await expect(page.locator('.ht_master [data-channel-id="digikala:future"]')).toHaveCount(0)
+  const activeSelection = page.locator('.ht_master input[data-channel-id="snappshop:main"][data-listing-id="listing-ordering-1"]')
+  await expect(activeSelection).toHaveCount(3)
+  await expect(page.locator('.ht_master input[data-channel-id="snappshop:main"][data-listing-id="listing-ordering-1"]:checked')).toHaveCount(1)
   const workspaceChannelFilter = page.locator('select[name="channelId"]')
   await expect(workspaceChannelFilter).toHaveValue('')
   await expectGroupedChannelOptions(workspaceChannelFilter)

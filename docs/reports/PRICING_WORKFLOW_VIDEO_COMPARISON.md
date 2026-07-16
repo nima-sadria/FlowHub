@@ -20,7 +20,7 @@ The present recording is the current product-first workflow:
 | 00:10–00:18 | The user chooses a row-level `Edit prices` action. | A large in-page Channel prices panel opens above the list. |
 | 00:18–00:24.53 | The panel shows one product, one Channel section per destination, Current/Proposed/Validation/Freshness/Pending state, and Validate / Preview-Dry Run / Approve / Apply actions. | Editing and review are scoped to one product; the user must close the panel and repeat for another product. |
 
-**Observed interaction cost:** at least one row action plus panel context switch per product, one open panel at a time, and repeated return-to-list transitions. The recording does not demonstrate a continuous multi-product editing session.
+**Observed interaction cost:** at least one row action plus panel context switch per product, one open panel at a time, and repeated return-to-list transitions. The recording does not show a continuous multi-product editing session.
 
 ## Wanted Model timeline
 
@@ -69,3 +69,38 @@ The redesigned workflow must provide:
 | Apply operations | Per product context | 1 selected-only operation |
 | Main editing method | Panel inputs | Inline grid cells + keyboard/paste |
 | Selection | Row/product context | Product, Listing, and changed-field scope |
+
+## Final acceptance evidence
+
+The completed browser run uses one dense virtualized table with grouped Channel
+columns. Product identity remains frozen, all sellable rows are directly
+editable, and variable parents remain read-only. Changes are keyed by the
+immutable Product, Listing, Channel, and field tuple; no visual row index is
+used as business identity.
+
+At 1440×900 the acceptance run recorded:
+
+| Measure | Result |
+| --- | ---: |
+| Visible sellable rows | 23 |
+| Products edited inline | 10 |
+| Product edit panels opened | 0 |
+| Route changes | 0 |
+| Review operations | 1 |
+| Dry Run operations | 1 |
+| Apply operations | 1 |
+| Time to first editable cell | 4,686 ms |
+| Time for ten direct edits | 10,458 ms |
+
+The 10,000-product browser run used five visible Channels and a maximum
+100-product server window. It rendered 23 rows and 2,997 DOM nodes, with an
+observed JavaScript heap of 62,062,961 bytes. The measured readiness, scroll,
+edit, paste, filter, sort, and page-return values are stored in
+`docs/screenshots/v1.3/pricing-workflow-redesign/pricing-10000-benchmark-metrics.json`.
+
+The final interaction recording is
+`docs/videos/v1.3/pricing-workflow-redesign/wanted-model-final-remediation.webm`.
+It shows filtering, ten direct cell edits, multiline paste, immediate automatic
+field selection, a percentage transformation preview, one field deselection,
+page/filter return with the Draft overlay intact, one Review, one Dry Run, and
+one selected-only Apply.

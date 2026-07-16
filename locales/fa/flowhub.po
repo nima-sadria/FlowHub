@@ -8,6 +8,200 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 "x-generator: FlowHub deterministic i18n extractor\n"
 
+msgctxt "workspace:densePricing.additionalListing"
+msgid "{{product}} - Listing {{number}}"
+msgstr "{{product}} - لیستینگ {{number}}"
+
+msgctxt "workspace:densePricing.applyBulkChanges"
+msgid "Apply bulk changes"
+msgstr "اعمال تغییرات گروهی"
+
+msgctxt "workspace:densePricing.backToGrid"
+msgid "Back to Grid"
+msgstr "بازگشت به جدول"
+
+msgctxt "workspace:densePricing.bulkAction"
+msgid "Bulk action"
+msgstr "عملیات گروهی"
+
+msgctxt "workspace:densePricing.bulkPreview"
+msgid "Bulk change preview"
+msgstr "پیش‌نمایش تغییر گروهی"
+
+msgctxt "workspace:densePricing.bulkPreviewSummary"
+msgid "{{products}} products | {{listings}} Listings | {{fields}} field changes | {{blocked}} blocked"
+msgstr "{{products}} محصول | {{listings}} لیستینگ | {{fields}} تغییر فیلد | {{blocked}} مسدود"
+
+msgctxt "workspace:densePricing.bulkTransformationToolbar"
+msgid "Bulk transformation toolbar"
+msgstr "نوار عملیات گروهی"
+
+msgctxt "workspace:densePricing.bulkValue"
+msgid "Bulk value"
+msgstr "مقدار عملیات گروهی"
+
+msgctxt "workspace:densePricing.cellValueStatus"
+msgid "{{value}}; status {{status}}"
+msgstr "{{value}}؛ وضعیت {{status}}"
+
+msgctxt "workspace:densePricing.changeStateFilter"
+msgid "Change-state filter"
+msgstr "فیلتر وضعیت تغییر"
+
+msgctxt "workspace:densePricing.confirmApplyScope"
+msgid "Only {{count}} checksum-bound, Reviewed field changes will enter the shared Write Pipeline."
+msgstr "فقط {{count}} تغییر فیلد بازبینی‌شده و متصل به چک‌سام انتخاب، وارد خط نوشتن مشترک می‌شود."
+
+msgctxt "workspace:densePricing.counter.blocked"
+msgid "Blocked"
+msgstr "مسدود"
+
+msgctxt "workspace:densePricing.counter.changed"
+msgid "Changed"
+msgstr "تغییریافته"
+
+msgctxt "workspace:densePricing.counter.ready"
+msgid "Ready"
+msgstr "آماده"
+
+msgctxt "workspace:densePricing.counter.selected"
+msgid "Selected"
+msgstr "انتخاب‌شده"
+
+msgctxt "workspace:densePricing.counter.warning"
+msgid "Warnings"
+msgstr "هشدار"
+
+msgctxt "workspace:densePricing.decreasePriceFixed"
+msgid "Decrease price by fixed amount"
+msgstr "کاهش قیمت به مقدار ثابت"
+
+msgctxt "workspace:densePricing.decreasePricePercent"
+msgid "Decrease price by percentage"
+msgstr "کاهش درصدی قیمت"
+
+msgctxt "workspace:densePricing.field"
+msgid "Field"
+msgstr "فیلد"
+
+msgctxt "workspace:densePricing.increasePriceFixed"
+msgid "Increase price by fixed amount"
+msgstr "افزایش قیمت به مقدار ثابت"
+
+msgctxt "workspace:densePricing.increasePricePercent"
+msgid "Increase price by percentage"
+msgstr "افزایش درصدی قیمت"
+
+msgctxt "workspace:densePricing.noEligibleSelectedChanges"
+msgid "No eligible selected changes are available for Review."
+msgstr "هیچ تغییر انتخاب‌شده و واجد شرایطی برای بازبینی وجود ندارد."
+
+msgctxt "workspace:densePricing.pendingChanges"
+msgid "{{count}} pending change"
+msgid_plural "{{count}} pending changes"
+msgstr[0] "{{count}} تغییر در انتظار"
+msgstr[1] "{{count}} تغییر در انتظار"
+
+msgctxt "workspace:densePricing.pendingHidden"
+msgid "{{pending}} pending changes | {{hidden}} hidden by current filters"
+msgstr "{{pending}} تغییر در انتظار | {{hidden}} مورد با فیلتر فعلی پنهان است"
+
+msgctxt "workspace:densePricing.previousValue"
+msgid "Previous value"
+msgstr "مقدار قبلی"
+
+msgctxt "workspace:densePricing.previewBulkChange"
+msgid "Preview bulk change"
+msgstr "پیش‌نمایش تغییر گروهی"
+
+msgctxt "workspace:densePricing.pricingToolbar"
+msgid "Pricing Grid toolbar"
+msgstr "نوار ابزار جدول قیمت‌گذاری"
+
+msgctxt "workspace:densePricing.productIdentity"
+msgid "Product identity"
+msgstr "مشخصات محصول"
+
+msgctxt "workspace:densePricing.redo"
+msgid "Redo"
+msgstr "انجام دوباره"
+
+msgctxt "workspace:densePricing.resultingValue"
+msgid "Resulting value"
+msgstr "مقدار نهایی"
+
+msgctxt "workspace:densePricing.reviewSummary"
+msgid "{{total}} Reviewed | {{selected}} selected | {{blocked}} blocked"
+msgstr "{{total}} بازبینی‌شده | {{selected}} انتخاب‌شده | {{blocked}} مسدود"
+
+msgctxt "workspace:densePricing.selectChangedField"
+msgid "Select changed {{field}} field"
+msgstr "انتخاب فیلد تغییریافته {{field}}"
+
+msgctxt "workspace:densePricing.selectField"
+msgid "Select {{field}}"
+msgstr "انتخاب {{field}}"
+
+msgctxt "workspace:densePricing.selectedRowsScope"
+msgid "Bulk scope: {{count}} selected row"
+msgid_plural "Bulk scope: {{count}} selected rows"
+msgstr[0] "دامنه عملیات گروهی: {{count}} ردیف انتخاب‌شده"
+msgstr[1] "دامنه عملیات گروهی: {{count}} ردیف انتخاب‌شده"
+
+msgctxt "workspace:densePricing.selectionBoundToReview"
+msgid "{{count}} eligible field change was bound to the immutable Review selection."
+msgid_plural "{{count}} eligible field changes were bound to the immutable Review selection."
+msgstr[0] "{{count}} تغییر فیلد واجد شرایط به انتخاب تغییرناپذیر بازبینی متصل شد."
+msgstr[1] "{{count}} تغییر فیلد واجد شرایط به انتخاب تغییرناپذیر بازبینی متصل شد."
+
+msgctxt "workspace:densePricing.setExactPrice"
+msgid "Set exact price"
+msgstr "تعیین قیمت دقیق"
+
+msgctxt "workspace:densePricing.setStatus"
+msgid "Set status"
+msgstr "تعیین وضعیت"
+
+msgctxt "workspace:densePricing.setStock"
+msgid "Set stock"
+msgstr "تعیین موجودی"
+
+msgctxt "workspace:densePricing.sortProduct"
+msgid "Sort Product"
+msgstr "مرتب‌سازی محصول"
+
+msgctxt "workspace:densePricing.sourceKey"
+msgid "Source Key"
+msgstr "کلید منبع"
+
+msgctxt "workspace:densePricing.undo"
+msgid "Undo"
+msgstr "واگرد"
+
+msgctxt "workspace:densePricing.view.all"
+msgid "All products"
+msgstr "همه محصولات"
+
+msgctxt "workspace:densePricing.view.blocked"
+msgid "Blocked"
+msgstr "مسدود"
+
+msgctxt "workspace:densePricing.view.changed"
+msgid "Changed"
+msgstr "تغییریافته"
+
+msgctxt "workspace:densePricing.view.ready"
+msgid "Ready"
+msgstr "آماده"
+
+msgctxt "workspace:densePricing.view.unchanged"
+msgid "Unchanged"
+msgstr "بدون تغییر"
+
+msgctxt "workspace:densePricing.visibleRowsScope"
+msgid "Bulk scope: all visible rows"
+msgstr "دامنه عملیات گروهی: همه ردیف‌های قابل مشاهده"
+
 #: frontend/src/pages/CommerceHub.tsx:829
 msgctxt "commerce:commerceHub.alternateTitle"
 msgid " ({{title}})"

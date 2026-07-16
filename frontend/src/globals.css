@@ -212,6 +212,149 @@
 .fh-cell-status-stale_review { color: #805ad5 !important; }
 .fh-cell-status-reconciliation_required { color: #b54708 !important; }
 
+/* Dense, source-product pricing workspace. The Grid owns scrolling; the page shell never clips Channels. */
+.fh-pricing-workspace {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--fh-ui-border);
+  border-radius: 14px;
+  background: var(--fh-ui-card);
+  box-shadow: var(--fh-shadow-xs);
+}
+
+.fh-pricing-header,
+.fh-pricing-toolbar,
+.fh-pricing-summary,
+.fh-pricing-bulk,
+.fh-pricing-footer {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--fh-ui-border);
+}
+
+.fh-pricing-header {
+  justify-content: space-between;
+}
+
+.fh-pricing-toolbar,
+.fh-pricing-bulk {
+  flex-wrap: wrap;
+  background: var(--fh-ui-background);
+}
+
+.fh-pricing-summary {
+  min-height: 36px;
+  flex-wrap: wrap;
+  background: color-mix(in srgb, var(--fh-ui-background) 78%, transparent);
+}
+
+.fh-pricing-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: var(--fh-gray-600);
+  background: var(--fh-ui-card);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.fh-pricing-counter-selected,
+.fh-pricing-counter-ready { color: var(--fh-success-700); }
+.fh-pricing-counter-warning { color: var(--fh-warning-700); }
+.fh-pricing-counter-blocked { color: var(--fh-error-700); }
+
+.fh-pricing-channels {
+  min-height: 34px;
+  padding: 5px 12px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--fh-ui-border);
+  white-space: nowrap;
+}
+
+.fh-pricing-channels [data-resource-section] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fh-pricing-channels [data-resource-section] > h3 {
+  margin: 0;
+}
+
+.fh-pricing-grid-scroll {
+  flex: 1 1 auto;
+  min-height: 480px;
+  border: 0;
+}
+
+.fh-pricing-grid {
+  min-height: 480px;
+}
+
+.fh-pricing-grid .handsontable td,
+.fh-pricing-grid .handsontable th {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.fh-pricing-grid .handsontable td[data-target-field],
+.fh-pricing-grid .handsontable td[data-field-selection] {
+  background: color-mix(in srgb, var(--fh-brand-50) 42%, var(--fh-ui-card));
+}
+
+.fh-pricing-grid .handsontable td[data-target-field],
+.fh-pricing-grid .handsontable td[data-listing-id] {
+  direction: ltr;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.fh-pricing-grid .handsontable td[data-field-selection] {
+  text-align: center;
+}
+
+.fh-pricing-grid .fh-cell-status-edited {
+  box-shadow: inset 0 -2px 0 var(--fh-warning-500);
+}
+
+.fh-pricing-grid .fh-pricing-variable-parent {
+  background: var(--fh-ui-background) !important;
+  color: var(--fh-gray-500) !important;
+  font-style: italic;
+}
+
+.fh-pricing-dialog {
+  z-index: 10000;
+}
+
+.fh-pricing-workspace .handsontable button.changeType[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+.fh-pricing-footer {
+  justify-content: space-between;
+  border-top: 1px solid var(--fh-ui-border);
+  border-bottom: 0;
+  background: var(--fh-ui-background);
+}
+
+@media (max-width: 900px) {
+  .fh-pricing-toolbar form {
+    flex-basis: 100%;
+  }
+
+  .fh-pricing-bulk .ms-auto {
+    margin-inline-start: 0;
+  }
+}
+
 /* =========================================================
    Design tokens
    ========================================================= */

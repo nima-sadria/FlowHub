@@ -11,7 +11,63 @@ import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 import type { GroupedWorkspacePage } from '../features/sourceWorkspace/types'
 import UnifiedWorkspace from './UnifiedWorkspace'
 
+vi.mock('@handsontable/react-wrapper', async () => {
+  const React = await import('react')
+  const HotTable = React.forwardRef(function MockHotTable(
+    props: { data?: Array<Record<string, unknown>> },
+    ref: React.ForwardedRef<unknown>,
+  ) {
+    const rootRef = React.useRef<HTMLDivElement>(null)
+    const rows = props.data ?? []
+    React.useImperativeHandle(ref, () => ({
+      hotInstance: {
+        getPlugin: () => ({ sort: vi.fn() }),
+        getSourceDataAtRow: (row: number) => rows[row],
+        rootElement: rootRef.current,
+        toPhysicalRow: (row: number) => row,
+      },
+    }), [rows])
+    return React.createElement('div', { ref: rootRef, 'data-mocked-handsontable': 'true' }, rows.map((row, index) => {
+      const listingId = Object.entries(row).find(([key]) => key.endsWith('__listing_id'))?.[1]
+      return React.createElement('div', {
+        key: String(row.rowKey ?? index),
+        'data-listing-id': String(listingId ?? ''),
+        'data-pricing-row': 'true',
+      }, String(row.productName ?? ''))
+    }))
+  })
+  return { HotTable }
+})
+
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+;(globalThis as typeof globalThis & { ResizeObserver: typeof ResizeObserver }).ResizeObserver = class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+} as unknown as typeof ResizeObserver
+;(globalThis as typeof globalThis & { IntersectionObserver: typeof IntersectionObserver }).IntersectionObserver = class {
+  readonly root = null
+  readonly rootMargin = '0px'
+  readonly thresholds = [0]
+
+  constructor(private readonly callback: IntersectionObserverCallback) {}
+
+  observe(target: Element) {
+    this.callback([{
+      boundingClientRect: target.getBoundingClientRect(),
+      intersectionRatio: 1,
+      intersectionRect: target.getBoundingClientRect(),
+      isIntersecting: true,
+      rootBounds: null,
+      target,
+      time: 0,
+    }], this as unknown as IntersectionObserver)
+  }
+
+  unobserve() {}
+  disconnect() {}
+  takeRecords() { return [] }
+} as unknown as typeof IntersectionObserver
 
 const WORKSPACE: UnifiedWorkspaceResource = {
   id: 'workspace-1', name: 'Pricing workspace', entryPoint: 'manual', ownerUserId: 1,
@@ -36,10 +92,12 @@ describe('Unified Workspace pricing editor', () => {
   })
   afterEach(async () => { act(() => root.unmount()); container.remove(); vi.restoreAllMocks(); await changeLocale('en') })
 
-  it('renders a grouped product with inline channel fields and batch Review/Dry Run action', async () => {
+  it('renders one dense virtualized product grid with inline fields and batch Review/Dry Run', async () => {
     await renderWorkspace(services())
     expect(container.textContent).toContain('Cable')
     expect(container.textContent).toContain('Review & Dry Run')
+    expect(container.querySelector('[data-pricing-grid]')).not.toBeNull()
+    expect(container.querySelector('button[aria-expanded]')).toBeNull()
     expect(container.querySelector('[data-listing-id="listing-1"]')).not.toBeNull()
   })
 

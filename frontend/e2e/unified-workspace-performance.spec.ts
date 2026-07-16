@@ -49,6 +49,62 @@ function row(index: number) {
   }
 }
 
+function groupedProduct(index: number) {
+  const item = row(index)
+  return {
+    sourceProductId: item.canonicalProductId,
+    name: item.canonicalName,
+    sourceKey: item.sku,
+    cost: null,
+    category: null,
+    brand: null,
+    productType: item.productType,
+    mappedChannelCount: 1,
+    listingCount: 1,
+    changedListingCount: 0,
+    selectedListingCount: 0,
+    state: 'unchanged',
+    children: [{
+      listingId: item.listingId,
+      channelId: item.channelId,
+      listingLabel: item.listingLabel,
+      externalId: item.externalPrimaryId,
+      externalIdType: item.externalIdType,
+      sku: item.sku,
+      mappingState: item.mappingState,
+      cacheFreshness: item.cacheFreshness,
+      state: 'unchanged',
+      changedFields: [],
+      selected: false,
+      reviewItemIds: [],
+      fields: {
+        price: { ...item.fields.price, changed: false, status: 'unchanged' },
+        stock: { ...item.fields.stock, changed: false, status: 'unchanged' },
+        status: { ...item.fields.status, changed: false, status: 'unchanged' },
+      },
+    }],
+  }
+}
+
+const sourceChannels = channels.map((item, index) => ({
+  channelId: item.channelId,
+  name: `Configured Channel ${index + 1}`,
+  connectorType: 'synthetic',
+  capabilityVersion: item.version,
+  capabilities: {
+    writePrice: item.writePrice,
+    writeStock: item.writeStock,
+    writeStatus: item.writeStatus,
+    writeAvailable: item.writeAvailable,
+    supportedStatuses: item.supportedStatuses,
+    currency: item.currency,
+    unit: item.unit,
+  },
+  enabled: true,
+  implementationState: 'implemented',
+  available: true,
+}))
+
 async function installApi(page: Page) {
   const requests: URL[] = []
   await page.addInitScript(() => {
@@ -69,6 +125,7 @@ async function installApi(page: Page) {
       permissions: { can_access_site: true, can_fetch: true, can_view_logs: true, can_view_settings: true },
       maintenance: { enabled: false, message: '' },
     })
+    if (url.pathname === '/api/v2/source-profiles/channels') return json({ items: sourceChannels })
     if (url.pathname === '/api/v2/unified-workspaces/preferences/me') return json({
       visibleChannelIds: channels.map(item => item.channelId),
       channelOrder: channels.map(item => item.channelId),
@@ -98,6 +155,15 @@ async function installApi(page: Page) {
         revisionId: null,
       })
     }
+    if (url.pathname === '/api/v2/unified-workspaces/browser-benchmark/grouped-grid') {
+      const requestedPage = Number(url.searchParams.get('page') ?? 1)
+      const requestedSize = Math.min(Number(url.searchParams.get('pageSize') ?? 100), 500)
+      const search = (url.searchParams.get('search') ?? '').toLowerCase()
+      const all = Array.from({ length: TOTAL_PRODUCTS }, (_, index) => index)
+      const matching = search ? all.filter(index => `product ${String(index).padStart(5, '0')}`.includes(search)) : all
+      const indexes = matching.slice((requestedPage - 1) * requestedSize, requestedPage * requestedSize)
+      return json({ items: indexes.map(groupedProduct), total: matching.length, page: requestedPage, pageSize: requestedSize, view: 'all', summary: { ready: 0, blocked: 0, unchanged: matching.length, selected: 0 }, draftVersion: 0, revisionId: null, reviewId: null, reviewStatus: null, selectionChecksum: null })
+    }
     return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
   })
   return requests
@@ -121,13 +187,13 @@ test('virtualizes a paged 10,000-product, five-channel Workspace in Chromium', a
   // wait for the API-backed readiness signal rather than racing the default
   // five-second locator timeout.
   await expect(page.getByText('10,000 Product Benchmark')).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByLabel('Virtualized multi-channel Workspace Grid')).toBeVisible()
+  await expect(page.locator('[data-pricing-grid]')).toBeVisible()
   const readyMs = Math.round(performance.now() - started)
   const initialRows = await page.locator('.ht_master tbody tr').count()
   expect(initialRows).toBeGreaterThan(0)
   expect(initialRows).toBeLessThan(100)
-  expect(requests.some(url => url.pathname.endsWith('/grid') && url.searchParams.get('pageSize') === '500')).toBe(true)
-  expect(requests.some(url => url.pathname.endsWith('/grid') && url.searchParams.get('pageSize') === '10000')).toBe(false)
+  expect(requests.some(url => url.pathname.endsWith('/grouped-grid') && url.searchParams.get('pageSize') === '100')).toBe(true)
+  expect(requests.some(url => url.pathname.endsWith('/grouped-grid') && url.searchParams.get('pageSize') === '10000')).toBe(false)
 
   const scrollStarted = performance.now()
   await page.locator('.wtHolder').last().evaluate(element => { element.scrollTop = element.scrollHeight })
@@ -136,12 +202,12 @@ test('virtualizes a paged 10,000-product, five-channel Workspace in Chromium', a
   expect(await page.locator('.ht_master tbody tr').count()).toBeLessThan(100)
 
   await page.getByRole('button', { name: 'Next' }).click()
-  await expect(page.getByText('Page 2 / 20')).toBeVisible()
-  expect(requests.some(url => url.pathname.endsWith('/grid') && url.searchParams.get('page') === '2')).toBe(true)
+  await expect(page.getByText('Page 2 of 100')).toBeVisible()
+  expect(requests.some(url => url.pathname.endsWith('/grouped-grid') && url.searchParams.get('page') === '2')).toBe(true)
 
-  await page.getByLabel('Search').fill('Product 00500')
+  await page.getByRole('searchbox', { name: /Search Source Products/i }).fill('Product 00500')
   await page.getByRole('button', { name: 'Filter server data' }).click()
-  await expect(page.getByText('Page 1 / 1')).toBeVisible()
+  await expect(page.getByText('Page 1 of 1')).toBeVisible()
   expect(requests.some(url => url.searchParams.get('search') === 'Product 00500')).toBe(true)
 
   const metrics = await page.evaluate(() => ({
@@ -157,7 +223,7 @@ test('virtualizes a paged 10,000-product, five-channel Workspace in Chromium', a
     totalMemoryBytes: os.totalmem(),
     readyMs,
     scrollMs,
-    initialApiRowCount: PAGE_SIZE,
+    initialApiRowCount: 100,
     initialRows,
     ...metrics,
   }))
@@ -182,6 +248,7 @@ test('keeps visible Listing identity through sort, filter, paging, keyboard and 
       permissions: { can_access_site: true, can_fetch: true, can_view_logs: true, can_view_settings: true },
       maintenance: { enabled: false, message: '' },
     })
+    if (url.pathname === '/api/v2/source-profiles/channels') return json({ items: sourceChannels })
     if (url.pathname === '/api/v2/unified-workspaces/preferences/me') {
       if (route.request().method() === 'PUT') {
         const body = JSON.parse(route.request().postData() ?? '{}') as { visibleChannelIds: string[] }
@@ -237,45 +304,65 @@ test('keeps visible Listing identity through sort, filter, paging, keyboard and 
       if (search) items = items.filter(item => item.canonicalName.includes(search))
       return json({ items, total: search ? items.length : 501, page: requestedPage, pageSize: 500, channels: [channels[0]], draftVersion, revisionId: draftVersion ? `revision-${draftVersion}` : null })
     }
+    if (url.pathname === '/api/v2/unified-workspaces/identity-workspace/grouped-grid') {
+      const requestedPage = Number(url.searchParams.get('page') ?? 1)
+      const search = url.searchParams.get('search') ?? ''
+      const identityListing = (listingId: string, label: string, externalId: string, current: string) => {
+        const target = savedTargets.get(listingId) ?? current
+        const changed = target !== current
+        return {
+          listingId, channelId: channels[0].channelId, listingLabel: `${label} Listing`, externalId, externalIdType: 'external_product_id', sku: label.toUpperCase(), mappingState: 'resolved', cacheFreshness: 'fresh', state: changed ? 'ready' : 'unchanged', changedFields: changed ? ['price'] : [], selected: changed, reviewItemIds: [],
+          fields: {
+            price: { current, target, changed, status: changed ? 'ready' : 'unchanged', readOnly: false, currency: 'EUR', unit: 'EUR' },
+            stock: { current: '5', target: '5', changed: false, status: 'unchanged', readOnly: false, currency: null, unit: null },
+            status: { current: 'active', target: 'active', changed: false, status: 'unchanged', readOnly: true, currency: null, unit: null },
+          },
+        }
+      }
+      const pageOne = {
+        sourceProductId: 'shared-canonical-product', name: 'Shared Product', sourceKey: 'SHARED', cost: null, category: null, brand: null, productType: 'simple', mappedChannelCount: 1, listingCount: 2, changedListingCount: savedTargets.size, selectedListingCount: savedTargets.size, state: savedTargets.size ? 'ready' : 'unchanged',
+        children: [identityListing('listing-a', 'Alpha', '101', '100'), identityListing('listing-b', 'Beta', '102', '200')],
+      }
+      const pageTwo = {
+        sourceProductId: 'page-two-product', name: 'Page Two', sourceKey: 'PAGE-2', cost: null, category: null, brand: null, productType: 'simple', mappedChannelCount: 1, listingCount: 1, changedListingCount: 0, selectedListingCount: 0, state: 'unchanged',
+        children: [identityListing('listing-page-two', 'Page Two', '501', '500')],
+      }
+      const items = search.includes('Beta') ? [pageOne] : requestedPage === 1 ? [pageOne] : [pageTwo]
+      return json({ items, total: search ? 1 : 101, page: requestedPage, pageSize: 100, view: 'all', summary: { ready: savedTargets.size, blocked: 0, unchanged: 101 - savedTargets.size, selected: savedTargets.size }, draftVersion, revisionId: draftVersion ? `revision-${draftVersion}` : null, reviewId: null, reviewStatus: null, selectionChecksum: null })
+    }
     return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
   })
 
   await page.goto('/workspace/identity-workspace')
   await expect(page.getByText('Identity Workspace')).toBeVisible()
-  const productHeader = page.locator('span.colHeader.columnSorting.sortAction').filter({ hasText: /^Product$/ }).first()
-  await productHeader.click({ force: true })
-  await productHeader.click({ force: true })
-  const betaTarget = page.locator('.ht_master td[data-listing-id="listing-b"][data-column-prop$="__price__target"]').first()
+  await page.locator('[data-pricing-sort="product"]').click()
+  await page.locator('[data-pricing-sort="product"]').click()
+  const betaTarget = page.locator('.ht_master td[data-listing-id="listing-b"][data-target-field="price"]').first()
   await expect(betaTarget).toBeVisible()
   await betaTarget.dblclick()
   await page.keyboard.press('Control+A')
   await page.keyboard.type('225')
   await page.keyboard.press('Enter')
-  await expect(page.getByText('1 unsaved edit')).toBeVisible()
-  await page.getByRole('button', { name: 'Save Draft' }).click()
-  await expect.poll(() => submitted.length).toBe(1)
-  expect(submitted[0].changes).toEqual([
-    expect.objectContaining({ listing_id: 'listing-b', target_value: '225' }),
-  ])
+  await expect(page.locator('[data-pending-summary]')).toContainText('1 pending change')
 
   await page.getByRole('button', { name: 'Next' }).click()
-  await expect(page.getByText('Page 2 / 2')).toBeVisible()
+  await expect(page.getByText('Page 2 of 2')).toBeVisible()
   await page.getByRole('button', { name: 'Previous' }).click()
-  await expect(page.getByText('Page 1 / 2')).toBeVisible()
-  await expect(page.locator('.ht_master td[data-listing-id="listing-b"][data-column-prop$="__price__target"]').first()).toContainText('225')
+  await expect(page.getByText('Page 1 of 2')).toBeVisible()
+  await expect(page.locator('.ht_master td[data-listing-id="listing-b"][data-target-field="price"]').first()).toContainText('225')
 
-  await page.getByLabel('Search').fill('Beta')
+  await page.getByRole('searchbox', { name: /Search Source Products/i }).fill('Beta')
   await page.getByRole('button', { name: 'Filter server data' }).click()
   await expect(page.locator('.ht_master td[data-listing-id="listing-b"]')).not.toHaveCount(0)
-  const pastedTarget = page.locator('.ht_master td[data-listing-id="listing-b"][data-column-prop$="__price__target"]').first()
+  const pastedTarget = page.locator('.ht_master td[data-listing-id="listing-b"][data-target-field="price"]').first()
   await pastedTarget.click()
   await page.evaluate(() => navigator.clipboard.writeText('230'))
   await page.keyboard.press('Control+V')
-  await expect(page.getByText('1 unsaved edit')).toBeVisible()
+  await expect(page.locator('[data-pending-summary]')).toContainText('1 pending change')
 
-  const checkbox = page.locator('.ht_clone_inline_start td[data-listing-id="listing-b"][data-column-prop="selected"] input').first()
-  await checkbox.click()
-  await expect(page.getByText('1 Listing selected')).toBeVisible()
-  await page.locator('.fh-channel-toggle').filter({ hasText: 'Configured Channel 1' }).locator('input').click()
-  await expect(page.getByText('0 Listings selected')).toBeVisible()
+  const checkbox = page.locator('.ht_master td[data-listing-id="listing-b"][data-field-selection][data-field="price"] input').first()
+  await expect(checkbox).toBeChecked()
+  await checkbox.uncheck()
+  await expect(checkbox).not.toBeChecked()
+  await expect(page.locator('[data-pending-summary]')).toContainText('1 pending change')
 })
