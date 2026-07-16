@@ -186,6 +186,20 @@ def test_manual_workspace_snapshot_grid_draft_and_review_lifecycle(client, auth_
     assert review["items"][0]["eligible"] is True
 
 
+def test_manual_workspace_supports_grouped_inline_pricing_grid(client, auth_headers, db):
+    _seed(db)
+    workspace = _create(client, auth_headers)
+    response = client.get(
+        f"/api/v2/unified-workspaces/{workspace['id']}/grouped-grid?page=1&pageSize=100&view=all",
+        headers=auth_headers,
+    )
+    assert response.status_code == 200, response.text
+    grouped = response.json()
+    assert grouped["total"] == 1
+    assert grouped["items"][0]["children"][0]["listingId"]
+    assert grouped["items"][0]["children"][0]["fields"]["price"]["current"] == "100"
+
+
 def test_draft_optimistic_concurrency_and_no_external_write(client, auth_headers, db, monkeypatch):
     _seed(db)
     workspace = _create(client, auth_headers)

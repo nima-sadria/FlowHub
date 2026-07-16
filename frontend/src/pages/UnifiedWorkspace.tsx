@@ -62,11 +62,17 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
   if (controller.loading) {
     return <PageShell><div className="fh-card fh-card-pad flex items-center gap-3"><Spinner size="sm" /> {translate('workspace:unifiedWorkspace.loadingImmutableWorkspaceSnapshot')}</div></PageShell>
   }
-  if (!controller.workspace || !controller.grid) {
+  if (!controller.workspace) {
     return <PageShell><Empty title={translate('workspace:unifiedWorkspace.workspaceUnavailable')} description={controller.error ?? "The Workspace could not be loaded."} /></PageShell>
   }
-  if (controller.workspace.entryPoint === 'source') {
+  // Manual selections and Source workspaces share the same grouped product
+  // editor. Keeping one editor preserves the immutable Draft/Review/Apply
+  // pipeline while making Product Pricing a true bulk workspace.
+  if (controller.workspace.entryPoint === 'source' || controller.workspace.entryPoint === 'manual') {
     return <SourceCentricWorkspace workspace={controller.workspace} service={unifiedWorkspace!} />
+  }
+  if (!controller.grid) {
+    return <PageShell><Empty title={translate('workspace:unifiedWorkspace.workspaceUnavailable')} description={controller.error ?? "The Workspace grid could not be loaded."} /></PageShell>
   }
 
   return (

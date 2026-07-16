@@ -34,6 +34,9 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     setLoading(true)
     setError(null)
     try {
+      // Keep the controller's request-generation semantics intact for the
+      // legacy grid path. Source and manual workspaces render the grouped
+      // editor, which simply does not consume this grid result.
       const [workspaceResult, gridResult, preferenceResult] = await Promise.all([
         service.getWorkspace(workspaceId),
         service.getGrid(workspaceId, page, 500, gridQuery),

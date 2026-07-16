@@ -1,400 +1,99 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { createRoot } from 'react-dom/client'
 import { act } from 'react'
+import { createRoot } from 'react-dom/client'
+import { MemoryRouter } from 'react-router-dom'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
-import type { Product, ProductChannelPriceOperation, ProductChannelPriceStateSet } from '../services/types'
+import type { Product } from '../services/types'
 import Products from './Products'
-import { changeLocale } from '../i18n'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
-import type { SourceChannel } from '../features/sourceWorkspace/types'
 
-(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-let container: HTMLDivElement
-let root: ReturnType<typeof createRoot>
+const PRODUCT: Product = {
+  id: '101', name: 'Test Product', sku: 'SKU-101', currentPrice: 100, sourcePrice: null,
+  currency: 'EUR', status: 'synced', lastSynced: new Date('2026-07-11T10:00:00Z'),
+  categoryNames: ['Default'], productType: 'simple', connectorId: 'woocommerce:primary',
+}
 
-beforeEach(() => {
-  container = document.createElement('div')
-  document.body.appendChild(container)
-  root = createRoot(container)
-  vi.spyOn(sourceWorkspaceApi, 'channels').mockResolvedValue({ items: FILTER_CHANNELS })
-})
+let activeRoot: ReturnType<typeof createRoot>
 
-afterEach(async () => {
-  act(() => root.unmount())
-  container.remove()
-  vi.restoreAllMocks()
-  await changeLocale('en')
-})
+describe('Products pricing workspace entry', () => {
+  let container: HTMLDivElement
+  let root: ReturnType<typeof createRoot>
 
-describe('Products multi-channel price editor', () => {
-  it('renders product types and catalog headers in Persian while preserving product data', async () => {
-    await changeLocale('fa')
-    await renderProducts(servicesFor(makePriceState()))
-
-    expect(container.textContent).toContain('انتخاب')
-    expect(container.textContent).toContain('محصول')
-    expect(container.textContent).toContain('نوع')
-    expect(container.textContent).toContain('قیمت')
-    expect(container.textContent).toContain('دسته‌بندی‌ها')
-    expect(container.textContent).toContain('عملیات')
-    expect(container.textContent).toContain('ساده')
-    expect(container.textContent).toContain('Test Product')
-    expect(container.textContent).not.toContain('Variable')
-    await changeLocale('en')
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    activeRoot = root
+    vi.spyOn(sourceWorkspaceApi, 'channels').mockResolvedValue({ items: [] })
   })
 
-  it('shows side-by-side channel prices with explicit rial and toman units', async () => {
-    const services = servicesFor(makePriceState())
-    await renderProducts(services)
-
-    await click('Edit prices')
-
-    expect(container.textContent).toContain('WooCommerce')
-    expect(container.textContent).toContain('Snapp Shop')
-    expect(container.textContent).toContain('Tapsi Shop')
-    expect(container.textContent).toContain('toman')
-    expect(container.textContent).toContain('rial')
-    expect(container.textContent).toContain('source unit: toman')
-    expect(input('Snapp Shop proposed price')?.value).toBe('100,000')
-    expect(input('Tapsi Shop proposed price')?.value).toBe('1,000,000')
-    expect(container.querySelector('[aria-label="Channel price comparison table"]')?.getAttribute('tabindex')).toBe('0')
-    expect(container.querySelector('.min-w-\\[1120px\\]')).not.toBeNull()
+  afterEach(() => {
+    act(() => root.unmount())
+    container.remove()
+    vi.restoreAllMocks()
   })
 
-  it('uses one Channel order in the filter, editor, and operation result', async () => {
-    const state = makePriceState()
-    state.channels[1] = { ...state.channels[1], healthStatus: 'warning' }
-    const createDryRun = vi.fn(async () => makeOperation(
-      'dry_run_ready',
-      'woocommerce:primary',
-      'snappshop:main',
-      'tapsishop:main',
-    ))
-    await renderProducts(servicesFor(state, { createDryRun }))
-
-    const channelFilter = Array.from(container.querySelectorAll('select')).find(select =>
-      Array.from(select.options).some(option => option.value === 'woocommerce:primary'),
-    )
-    expect(Array.from(channelFilter?.options ?? []).map(option => option.value)).toEqual([
-      '',
-      'snappshop:main',
-      'tapsishop:main',
-      'woocommerce:primary',
-    ])
-
-    await click('Edit prices')
-    const comparison = container.querySelector('[aria-label="Channel price comparison table"]')
-    const comparisonIds = Array.from(comparison?.querySelectorAll<HTMLElement>('tbody tr:not([data-resource-section]) td:first-child .fh-text-mono') ?? [])
-      .map(element => element.textContent?.trim())
-    expect(comparisonIds).toEqual([
-      'tapsishop:main',
-      'woocommerce:primary',
-      'snappshop:main',
-    ])
-    expect(comparison?.querySelectorAll('[data-resource-section="active"]')).toHaveLength(1)
-    expect(comparison?.querySelectorAll('[data-resource-section="disabled"]')).toHaveLength(0)
-    expect(comparison?.textContent).toContain('Warning')
-
-    await changeInput('WooCommerce proposed price', '120')
-    await click('Preview / Dry Run')
-
-    const operation = container.querySelector('[aria-label="Channel price operation result"]')
-    const operationIds = Array.from(operation?.querySelectorAll<HTMLElement>('tbody tr:not([data-resource-section]) td:first-child .fh-text-mono') ?? [])
-      .map(element => element.textContent?.trim())
-    expect(operationIds).toEqual([
-      'tapsishop:main',
-      'woocommerce:primary',
-      'snappshop:main',
-    ])
+  it('keeps Product identity read-only and removes the modal-first Edit prices action', async () => {
+    await renderProducts(servicesFor())
+    expect(container.textContent).toContain('Pricing workspace')
+    expect(container.textContent).toContain('Edit inline in the pricing workspace')
+    expect(container.textContent).not.toContain('Edit prices')
+    expect(container.querySelector('input[aria-label="Select Test Product for Workspace"]')).not.toBeNull()
   })
 
-  it('submits a human-formatted price as an integer business value', async () => {
-    const createDryRun = vi.fn(async () => makeOperation('dry_run_ready', 'snappshop:main'))
-    await renderProducts(servicesFor(makePriceState(), { createDryRun }))
-
-    await click('Edit prices')
-    await changeInput('Snapp Shop proposed price', '1,250,000')
-    await click('Preview / Dry Run')
-
-    const payload = (createDryRun.mock.calls[0] as unknown[])[1] as { changes: Array<{ proposedValue: number }> }
-    expect(payload.changes[0].proposedValue).toBe(1250000)
-    expect(Number.isInteger(payload.changes[0].proposedValue)).toBe(true)
+  it('selects visible results and opens one safe grouped workspace', async () => {
+    const createManual = vi.fn(async () => ({ id: 'workspace-1' }))
+    await renderProducts(servicesFor({ createManual }))
+    await click('Select visible')
+    expect(container.textContent).toContain('1 products selected')
+    await click('Open pricing workspace')
+    expect(createManual).toHaveBeenCalledWith(expect.stringContaining('Pricing workspace'), [{ connector_id: 'woocommerce:primary', product_id: '101' }])
   })
 
-  it('keeps disconnected and read-only channels non-editable while another channel can dry run', async () => {
-    const state = makePriceState()
-    state.channels[1] = { ...state.channels[1], readOnly: true, canWrite: false, validationState: 'read_only', validationMessage: 'Channel is not writable from this editor.' }
-    state.channels[2] = { ...state.channels[2], connectionState: 'disconnected', canWrite: false, validationState: 'disconnected', validationMessage: 'Channel has no synchronized product row.' }
-    const createDryRun = vi.fn(async () => makeOperation('dry_run_ready', 'woocommerce:primary'))
-    const services = servicesFor(state, { createDryRun })
-    await renderProducts(services)
-
-    await click('Edit prices')
-
-    expect(input('Snapp Shop proposed price')?.hasAttribute('disabled')).toBe(true)
-    expect(input('Tapsi Shop proposed price')?.hasAttribute('disabled')).toBe(true)
-
-    await changeInput('WooCommerce proposed price', '120')
-    await click('Preview / Dry Run')
-
-    expect(createDryRun).toHaveBeenCalledTimes(1)
-    const dryRunPayload = (createDryRun.mock.calls[0] as unknown[])[1] as { changes: unknown[] }
-    expect(dryRunPayload.changes).toEqual([
-      { channelId: 'woocommerce:primary', proposedValue: 120, staleToken: 'woo-v1', unit: 'EUR' },
-    ])
-  })
-
-  it('requires explicit approval before Apply and preserves dry run as no external write', async () => {
-    const createDryRun = vi.fn(async () => makeOperation('dry_run_ready', 'snappshop:main'))
-    const approve = vi.fn(async () => makeOperation('approved', 'snappshop:main'))
-    const apply = vi.fn(async () => makeOperation('applied', 'snappshop:main'))
-    const services = servicesFor(makePriceState(), { createDryRun, approve, apply })
-    await renderProducts(services)
-
-    await click('Edit prices')
-    await changeInput('Snapp Shop proposed price', '120000')
-    await click('Preview / Dry Run')
-
-    expect(container.textContent).toContain('No external write')
-    expect(button('Apply')?.hasAttribute('disabled')).toBe(true)
-
-    await click('Approve')
-    await click('Apply')
-
-    expect(approve).toHaveBeenCalledTimes(1)
-    expect(apply).toHaveBeenCalledTimes(1)
-    expect(container.textContent).toContain('External write performed')
-  })
-
-  it('shows partial channel failures without marking successful channels as failed', async () => {
-    const createDryRun = vi.fn(async () => makeOperation('dry_run_ready', 'snappshop:main', 'tapsishop:main'))
-    const approve = vi.fn(async () => makeOperation('approved', 'snappshop:main', 'tapsishop:main'))
-    const apply = vi.fn(async () => makeOperation('partially_failed', 'snappshop:main', 'tapsishop:main'))
-    const services = servicesFor(makePriceState(), { createDryRun, approve, apply })
-    await renderProducts(services)
-
-    await click('Edit prices')
-    await changeInput('Snapp Shop proposed price', '120000')
-    await changeInput('Tapsi Shop proposed price', '1200000')
-    await click('Preview / Dry Run')
-    await click('Approve')
-    await click('Apply')
-
-    expect(container.textContent).toContain('Status: Partially Failed')
-    expect(container.textContent).toContain('Failed 1')
-    expect(container.textContent).toContain('invalid price')
-    expect(container.textContent).toContain('Success 1')
+  it('requires an explicit product selection before opening the pricing workspace', async () => {
+    await renderProducts(servicesFor())
+    expect(button('Open pricing workspace')?.disabled).toBe(true)
   })
 })
 
 async function renderProducts(services: Services) {
   await act(async () => {
-    root.render(
-      <NotificationProvider>
-        <ServiceProvider services={services}>
-          <Products />
-        </ServiceProvider>
-      </NotificationProvider>,
-    )
+    activeRoot.render(<MemoryRouter><NotificationProvider><ServiceProvider services={services}><Products /></ServiceProvider></NotificationProvider></MemoryRouter>)
+    await Promise.resolve()
+    await Promise.resolve()
   })
-  await flush()
 }
 
-function servicesFor(
-  state: ProductChannelPriceStateSet,
-  overrides: {
-    createDryRun?: ReturnType<typeof vi.fn>
-    approve?: ReturnType<typeof vi.fn>
-    apply?: ReturnType<typeof vi.fn>
-  } = {},
-) {
-  const products = {
-    async getProducts() {
-      return { items: [PRODUCT], total: 1, page: 1, pageSize: 20, configured: true }
-    },
-    async getProduct() { return PRODUCT },
-    async getCategories() { return [] },
-    async getChannelPrices() { return state },
-    async validateChannelPrices() { return state },
-    createChannelPriceDryRun: overrides.createDryRun ?? vi.fn(async () => makeOperation('dry_run_ready', 'woocommerce:primary')),
-    async getChannelPriceOperation() { return makeOperation('dry_run_ready', 'woocommerce:primary') },
-    approveChannelPriceOperation: overrides.approve ?? vi.fn(async () => makeOperation('approved', 'woocommerce:primary')),
-    applyChannelPriceOperation: overrides.apply ?? vi.fn(async () => makeOperation('applied', 'woocommerce:primary')),
-  }
+function servicesFor(overrides: { createManual?: ReturnType<typeof vi.fn> } = {}): Services {
   return {
-    products,
-    health: {},
-    sources: {},
-    workspace: {},
-    settings: {},
-    activity: {},
-    commerce: {},
-    writePipeline: {},
+    products: {
+      async getProducts() { return { items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true } },
+      async getCategories() { return [] },
+      async getProduct() { return PRODUCT },
+      async getChannelPrices() { throw new Error('not used by the pricing workspace entry') },
+      async validateChannelPrices() { throw new Error('not used by the pricing workspace entry') },
+      async createChannelPriceDryRun() { throw new Error('not used by the pricing workspace entry') },
+      async getChannelPriceOperation() { throw new Error('not used by the pricing workspace entry') },
+      async approveChannelPriceOperation() { throw new Error('not used by the pricing workspace entry') },
+      async applyChannelPriceOperation() { throw new Error('not used by the pricing workspace entry') },
+    },
+    unifiedWorkspace: {
+      createManual: overrides.createManual ?? vi.fn(async () => ({ id: 'workspace-1' })),
+    },
+    health: {}, sources: {}, workspace: {}, settings: {}, activity: {}, commerce: {}, writePipeline: {}, orders: {},
   } as unknown as Services
 }
 
-const PRODUCT: Product = {
-  id: '101',
-  name: 'Test Product',
-  sku: 'SKU-101',
-  currentPrice: 100,
-  sourcePrice: null,
-  currency: 'EUR',
-  status: 'synced',
-  lastSynced: new Date('2026-07-11T10:00:00Z'),
-  categoryNames: ['Default'],
-  productType: 'simple',
-}
-
-const FILTER_CHANNELS: SourceChannel[] = [
-  sourceChannel('woocommerce:primary', 'WooCommerce', 'woocommerce'),
-  sourceChannel('tapsishop:main', 'Tapsi Shop', 'tapsishop'),
-  sourceChannel('snappshop:main', 'Snapp Shop', 'snappshop'),
-]
-
-function sourceChannel(channelId: string, name: string, connectorType: string): SourceChannel {
-  return {
-    channelId,
-    name,
-    connectorType,
-    capabilityVersion: '1',
-    capabilities: { 'products.read': true },
-    enabled: true,
-    implementationState: 'implemented',
-    available: true,
-  }
-}
-
-function makePriceState(): ProductChannelPriceStateSet {
-  return {
-    product: { id: '101', name: 'Test Product', sku: 'SKU-101', productType: 'simple' },
-    version: 'state-v1',
-    canonical: { label: 'Canonical/business price', value: 100, currency: 'EUR', unit: 'store currency', freshness: 'fresh', lastSyncedAt: '2026-07-11T10:00:00Z', staleToken: 'canonical-v1' },
-    dryRunRequired: true,
-    applyRequiresApproval: true,
-    channels: [
-      channel('woocommerce:primary', 'WooCommerce', 'woocommerce', 100, 'EUR', 'EUR', 'woo-v1'),
-      channel('snappshop:main', 'Snapp Shop', 'snappshop', 100000, 'IRR', 'toman', 'snapp-v1'),
-      channel('tapsishop:main', 'Tapsi Shop', 'tapsishop', 1000000, 'IRR', 'rial', 'tapsi-v1'),
-    ],
-  }
-}
-
-function channel(channelId: string, channelName: string, connectorType: string, value: number, currency: string, unit: string, staleToken: string) {
-  return {
-    channelId,
-    channelName,
-    connectorType,
-    channelProductId: `${channelId}:101`,
-    sku: 'SKU-101',
-    connectionState: 'connected',
-    healthStatus: 'ok',
-    canRead: true,
-    canWrite: true,
-    readOnly: false,
-    writeCapability: 'products.write_price',
-    currentValue: value,
-    proposedValue: value,
-    currency,
-    unit,
-    normalizedValue: channelId === 'snappshop:main' ? value * 10 : value,
-    normalizedCurrency: channelId === 'woocommerce:primary' ? currency : 'IRR',
-    normalizedUnit: channelId === 'woocommerce:primary' ? currency : 'rial',
-    freshness: 'fresh',
-    lastSyncedAt: '2026-07-11T10:00:00Z',
-    validationState: 'valid' as const,
-    validationMessage: null,
-    pendingChange: false,
-    staleToken,
-  }
-}
-
-function makeOperation(status: ProductChannelPriceOperation['status'], ...channels: string[]): ProductChannelPriceOperation {
-  const items = channels.map((channelId, index) => {
-    const failed = status === 'partially_failed' && channelId === 'snappshop:main'
-    const unit = channelId === 'snappshop:main' ? 'toman' : channelId === 'tapsishop:main' ? 'rial' : 'EUR'
-    return {
-      id: index + 1,
-      channelId,
-      connectorType: channelId.split(':')[0],
-      channelProductId: `${channelId}:101`,
-      sku: 'SKU-101',
-      currentValue: channelId === 'woocommerce:primary' ? 100 : channelId === 'snappshop:main' ? 100000 : 1000000,
-      proposedValue: channelId === 'woocommerce:primary' ? 120 : channelId === 'snappshop:main' ? 120000 : 1200000,
-      currency: channelId === 'woocommerce:primary' ? 'EUR' : 'IRR',
-      unit,
-      outboundValue: channelId === 'woocommerce:primary' ? 120 : channelId === 'snappshop:main' ? 120000 : 1200000,
-      outboundUnit: unit,
-      staleToken: `${channelId}-v1`,
-      status: failed ? 'failed' : status === 'applied' || status === 'partially_failed' ? 'applied' : 'pending',
-      validationState: 'valid',
-      errorMessage: failed ? 'invalid price' : null,
-      result: {},
-    }
-  })
-  return {
-    id: 'mcp_test',
-    productId: '101',
-    sku: 'SKU-101',
-    productName: 'Test Product',
-    status,
-    version: 'state-v1',
-    createdBy: 'tester',
-    approvedBy: status === 'approved' || status === 'applied' || status === 'partially_failed' ? 'tester' : null,
-    approvalReason: null,
-    createdAt: '2026-07-11T10:00:00Z',
-    approvedAt: status === 'approved' || status === 'applied' || status === 'partially_failed' ? '2026-07-11T10:01:00Z' : null,
-    appliedAt: status === 'applied' || status === 'partially_failed' ? '2026-07-11T10:02:00Z' : null,
-    summary: {
-      total: items.length,
-      pending: status === 'dry_run_ready' || status === 'approved' ? items.length : 0,
-      success: status === 'partially_failed' ? 1 : status === 'applied' ? items.length : 0,
-      failed: status === 'partially_failed' ? 1 : 0,
-      external_write_performed: status === 'applied' || status === 'partially_failed',
-    },
-    items,
-    externalWritePerformed: status === 'applied' || status === 'partially_failed',
-    applyRequiresApproval: true,
-  }
-}
-
 async function click(label: string) {
-  const target = button(label)
-  expect(target).not.toBeNull()
-  await act(async () => target!.click())
-  await flush()
-}
-
-async function changeInput(label: string, value: string) {
-  const target = input(label)
-  expect(target).not.toBeNull()
-  await act(async () => {
-    setInputValue(target!, value)
-    target!.dispatchEvent(new Event('input', { bubbles: true }))
-    target!.dispatchEvent(new Event('change', { bubbles: true }))
-  })
-  await flush()
-}
-
-function setInputValue(target: HTMLInputElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
-  setter?.call(target, value)
+  const button = Array.from(document.querySelectorAll('button')).find(item => item.textContent?.trim() === label)
+  expect(button).not.toBeUndefined()
+  await act(async () => { (button as HTMLButtonElement).click(); await Promise.resolve() })
 }
 
 function button(label: string): HTMLButtonElement | null {
-  return Array.from(container.querySelectorAll('button')).find(item => item.textContent?.trim() === label || item.getAttribute('aria-label') === label) ?? null
-}
-
-function input(label: string): HTMLInputElement | null {
-  return container.querySelector(`input[aria-label="${label}"]`)
-}
-
-async function flush() {
-  await act(async () => {
-    await Promise.resolve()
-    await Promise.resolve()
-  })
+  return Array.from(document.querySelectorAll('button')).find(item => item.textContent?.trim() === label) ?? null
 }

@@ -6099,6 +6099,55 @@ msgctxt "workspace:sourceCentricWorkspace.selected"
 msgid "selected"
 msgstr "انتخاب‌شده"
 
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:154
+msgctxt "workspace:sourceCentricWorkspace.notSelected"
+msgid "not selected"
+msgstr "انتخاب‌نشده"
+
+msgctxt "products:products.clearVisible"
+msgid "Clear visible"
+msgstr "پاک‌کردن موارد قابل مشاهده"
+
+msgctxt "products:products.inlineEditingInWorkspace"
+msgid "Edit inline in the pricing workspace"
+msgstr "ویرایش مستقیم در فضای کاری قیمت‌گذاری"
+
+msgctxt "products:products.openPricingWorkspace"
+msgid "Open pricing workspace"
+msgstr "باز کردن فضای کاری قیمت‌گذاری"
+
+msgctxt "products:products.pricingWorkspace"
+msgid "Pricing workspace"
+msgstr "فضای کاری قیمت‌گذاری"
+
+msgctxt "products:products.pricingWorkspaceDated"
+msgid "Pricing workspace {{date}}"
+msgstr "فضای کاری قیمت‌گذاری {{date}}"
+
+msgctxt "products:products.pricingWorkspaceHint"
+msgid "Select the products you want to update, then edit all Channel targets together in one safe workspace."
+msgstr "محصولات موردنظر برای به‌روزرسانی را انتخاب کنید، سپس همه اهداف کانال را در یک فضای کاری امن با هم ویرایش کنید."
+
+msgctxt "products:products.productsSelected"
+msgid "{{count}} products selected"
+msgstr "{{count}} محصول انتخاب شد"
+
+msgctxt "products:products.selectAtLeastOneForPricingWorkspace"
+msgid "Select at least one product to open a pricing workspace."
+msgstr "برای باز کردن فضای کاری قیمت‌گذاری، حداقل یک محصول را انتخاب کنید."
+
+msgctxt "products:products.selectProductsThenEditInline"
+msgid "Choose a product set first. Price, stock, and status edits happen inline after the workspace opens."
+msgstr "ابتدا مجموعه‌ای از محصولات را انتخاب کنید. ویرایش قیمت، موجودی و وضعیت پس از باز شدن فضای کاری به‌صورت مستقیم انجام می‌شود."
+
+msgctxt "products:products.selectVisible"
+msgid "Select visible"
+msgstr "انتخاب موارد قابل مشاهده"
+
+msgctxt "products:products.unableToLoadProducts"
+msgid "Unable to load products."
+msgstr "بارگذاری محصولات ممکن نیست."
+
 #: frontend/src/pages/Workspace.tsx:647
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:workspace.sourceRows"

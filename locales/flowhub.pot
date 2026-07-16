@@ -13,7 +13,7 @@ msgctxt "commerce:commerceHub.alternateTitle"
 msgid " ({{title}})"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:166
 msgctxt "workspace:sourceCentricWorkspace.fieldUnit"
 msgid " ({{unit}})"
 msgstr ""
@@ -28,23 +28,23 @@ msgctxt "commerce:commerceHub.inactive"
 msgid "- Inactive"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:111
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:164
 msgctxt "workspace:sourceCentricWorkspace.1ChangesDetected"
 msgid "1 · Changes detected"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:111
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:164
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.2ReviewDryRun"
 msgid "2 · Review & Dry Run"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:111
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:164
 msgctxt "workspace:sourceCentricWorkspace.3Approve"
 msgid "3 · Approve"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:111
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:164
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.4ApplySelected"
 msgid "4 · Apply selected"
@@ -166,7 +166,7 @@ msgctxt "products:column.actions"
 msgid "Actions"
 msgstr ""
 
-#: frontend/src/components/ResourceOrdering.tsx:12 frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113 frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:117 frontend/src/pages/SourceCenter.tsx:313
+#: frontend/src/components/ResourceOrdering.tsx:12 frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:166 frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:170 frontend/src/pages/SourceCenter.tsx:313
 msgctxt "common:resourceGroup.active"
 msgid "Active"
 msgstr ""
@@ -298,12 +298,12 @@ msgctxt "sources:sourceImportWizard.afterImportMapSourceProductFieldsAnd"
 msgid "After import, choose the Source Product columns and the columns for every enabled Channel. FlowHub does not guess business fields from headers."
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:662
+#: frontend/src/pages/Products.tsx:137
 msgctxt "products:products.allCategories"
 msgid "All Categories"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:207
+#: frontend/src/pages/UnifiedWorkspace.tsx:213
 msgctxt "common:selector.allChannels"
 msgid "All Channels"
 msgstr ""
@@ -313,7 +313,7 @@ msgctxt "dataQuality:dataQuality.allChannels"
 msgid "All Channels"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:651
+#: frontend/src/pages/Products.tsx:136
 msgctxt "products:products.allChannels"
 msgid "All Channels"
 msgstr ""
@@ -323,7 +323,7 @@ msgctxt "dataQuality:dataQuality.allSources"
 msgid "All Sources"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:679
+#: frontend/src/pages/Products.tsx:138
 msgctxt "products:products.allTypes"
 msgid "All Types"
 msgstr ""
@@ -416,25 +416,24 @@ msgctxt "workspace:statusDisplay.applied"
 msgid "Applied"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:228
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "products:products.apply"
 msgid "Apply"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:111 frontend/src/pages/UnifiedWorkspace.tsx:160
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:164 frontend/src/pages/UnifiedWorkspace.tsx:166
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.apply"
 msgid "Apply"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:136
+#: frontend/src/pages/UnifiedWorkspace.tsx:142
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:unifiedWorkspace.applySelectedOnly"
 msgid "Apply Selected Only"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:116
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:169
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyConfirmation"
 msgid "Apply confirmation"
@@ -446,7 +445,7 @@ msgctxt "workspace:workspace.applyIsStillRequiredBeforeChangesAre"
 msgid "Apply is still required before changes are made."
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:95
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:142
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyRemainsDisabledUnlessAtLeastOne"
 msgid "Apply remains disabled unless at least one eligible Review item is selected."
@@ -458,7 +457,7 @@ msgctxt "workspace:workspace.applyRequiresDryRunAndApprovalFirst"
 msgid "Apply requires Dry Run and Approval first"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:117 frontend/src/pages/UnifiedWorkspace.tsx:159
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:170 frontend/src/pages/UnifiedWorkspace.tsx:165
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyResults"
 msgid "Apply results"
@@ -470,13 +469,13 @@ msgctxt "workspace:workspace.applyToWoocommerce"
 msgid "Apply to WooCommerce"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:80
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:127
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyWasBlocked"
 msgid "Apply was blocked"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:117
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:170
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyResultStatus"
 msgid "Apply — {{status}}"
@@ -490,12 +489,11 @@ msgctxt "workspace:statusDisplay.applying"
 msgid "Applying"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:75
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:122
 msgctxt "workspace:sourceCentricWorkspace.applyingSelectedListings"
 msgid "Applying selected Listings"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:224
 msgctxt "products:products.approve"
 msgid "Approve"
 msgstr ""
@@ -604,7 +602,7 @@ msgctxt "dataQuality:dataQuality.blocked"
 msgid "Blocked"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:151 frontend/src/pages/Workspace.tsx:552
+#: frontend/src/pages/UnifiedWorkspace.tsx:157 frontend/src/pages/Workspace.tsx:552
 msgctxt "workspace:unifiedWorkspace.blocked"
 msgid "Blocked"
 msgstr ""
@@ -613,7 +611,7 @@ msgctxt "sources:sourceConfiguration.blockedIssue"
 msgid "Blocked issue"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:109
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:162
 msgctxt "workspace:sourceCentricWorkspace.blockedRows"
 msgid "Blocked rows"
 msgstr ""
@@ -686,7 +684,7 @@ msgctxt "common:action.cancel"
 msgid "Cancel"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:116
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:169
 msgctxt "workspace:sourceCentricWorkspace.cancel"
 msgid "Cancel"
 msgstr ""
@@ -701,7 +699,7 @@ msgctxt "sources:sourceCenter.cannotDeleteActiveWorkspace"
 msgid "Cannot delete — active Workspace exists"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:118
+#: frontend/src/pages/UnifiedWorkspace.tsx:124
 msgctxt "workspace:unifiedWorkspace.canonicalProduct"
 msgid "Canonical Product"
 msgstr ""
@@ -717,7 +715,6 @@ msgctxt "common:localProductService.canonicalBusinessPrice"
 msgid "Canonical/business price"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:171
 msgctxt "products:products.canonicalBusinessPrice"
 msgid "Canonical/business price"
 msgstr ""
@@ -806,7 +803,7 @@ msgctxt "products:column.channel"
 msgid "Channel"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:207 frontend/src/pages/Workspace.tsx:547
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:155 frontend/src/pages/UnifiedWorkspace.tsx:213 frontend/src/pages/Workspace.tsx:547
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:unifiedWorkspace.channel"
 msgid "Channel"
@@ -880,19 +877,16 @@ msgctxt "diagnostics:message.channelDisabled"
 msgid "Channel is disabled."
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:176
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.channelPriceComparisonTable"
 msgid "Channel price comparison table"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:343
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.channelPriceOperationResult"
 msgid "Channel price operation result"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:152
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.channelPrices"
 msgid "Channel prices"
@@ -1035,6 +1029,12 @@ msgctxt "sources:sourceImportWizard.chooseXlsxOrCsv"
 msgid "Choose XLSX or CSV"
 msgstr ""
 
+#: frontend/src/pages/Products.tsx:140
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "products:products.selectProductsThenEditInline"
+msgid "Choose a product set first. Price, stock, and status edits happen inline after the workspace opens."
+msgstr ""
+
 msgctxt "sources:sourceImportWizard.chooseAValidXlsxOrCsvFile"
 msgid "Choose a valid XLSX or CSV file."
 msgstr ""
@@ -1133,7 +1133,7 @@ msgctxt "sources:sourceConfiguration.worksheetRulesSectionHelp"
 msgid "Choose whether all worksheets share one layout or each worksheet has its own columns."
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:210
+#: frontend/src/pages/UnifiedWorkspace.tsx:216
 msgctxt "workspace:unifiedWorkspace.clear"
 msgid "Clear"
 msgstr ""
@@ -1146,6 +1146,11 @@ msgstr ""
 #: frontend/src/pages/SourceConfiguration.tsx:781 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:173
 msgctxt "sources:sourceConfiguration.clearMapping"
 msgid "Clear column choices"
+msgstr ""
+
+#: frontend/src/pages/Products.tsx:140
+msgctxt "products:products.clearVisible"
+msgid "Clear visible"
 msgstr ""
 
 #: frontend/src/pages/Setup.tsx:686
@@ -1163,7 +1168,6 @@ msgctxt "sources:sourceConfiguration.close"
 msgid "Close"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:157
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.closeChannelPriceEditor"
 msgid "Close channel price editor"
@@ -1403,7 +1407,7 @@ msgctxt "commerce:commerceHub.configuredLeaveBlankToKeepUnchanged"
 msgid "Configured; leave blank to keep unchanged."
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:116
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:169
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.confirmApply"
 msgid "Confirm Apply"
@@ -1419,7 +1423,7 @@ msgctxt "settings:setup.confirmPassword"
 msgid "Confirm password"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:116
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:169
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.confirmSelectedApply"
 msgid "Confirm selected Apply"
@@ -1457,7 +1461,7 @@ msgctxt "dashboard:dashboard.addSourceToBuildCatalog"
 msgid "Connect a Source to build your product catalog."
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:607
+#: frontend/src/pages/Products.tsx:124
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "products:products.connectAProductSourceFromSourcesTo"
 msgid "Connect a product source from Sources to browse products."
@@ -1604,7 +1608,7 @@ msgctxt "dataQuality:issue.ZERO_VALUE_BLOCKED.action"
 msgid "Correct the mapped value or change the explicit value policy."
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:161
+#: frontend/src/pages/UnifiedWorkspace.tsx:167
 msgctxt "workspace:unifiedWorkspace.correlation"
 msgid "Correlation"
 msgstr ""
@@ -1623,7 +1627,6 @@ msgctxt "sources:sourceCenter.createSheet"
 msgid "Create Sheet"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:627
 msgctxt "products:products.createWorkspace"
 msgid "Create Workspace"
 msgstr ""
@@ -1637,7 +1640,7 @@ msgctxt "orders:orders.created"
 msgid "Created"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:627
+#: frontend/src/pages/Products.tsx:129
 msgctxt "products:products.creating"
 msgid "Creating..."
 msgstr ""
@@ -1709,7 +1712,7 @@ msgctxt "products:column.current"
 msgid "Current"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:166
 #. Current is the latest verified or cached Channel value.
 msgctxt "workspace:sourceCentricWorkspace.current"
 msgid "Current"
@@ -1726,7 +1729,7 @@ msgctxt "diagnostics:diagnostics.currentStatus"
 msgid "Current status"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:111
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:164
 msgctxt "workspace:sourceCentricWorkspace.dailyActionSequence"
 msgid "Daily action sequence"
 msgstr ""
@@ -1904,7 +1907,7 @@ msgctxt "sources:sourceConfiguration.detectingWorksheets"
 msgid "Detecting worksheets..."
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:147
+#: frontend/src/pages/UnifiedWorkspace.tsx:153
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:unifiedWorkspace.deterministicComparisonOfCurrentCacheValuesAnd"
 msgid "Deterministic comparison of Current cache values and saved Draft targets."
@@ -2000,19 +2003,18 @@ msgctxt "workspace:statusDisplay.draftSaved"
 msgid "Draft Saved"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:107
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:160
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:sourceCentricWorkspace.draftSaved"
 msgid "Draft saved"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:83
+#: frontend/src/pages/UnifiedWorkspace.tsx:89
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:unifiedWorkspace.draftSaved"
 msgid "Draft saved"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:172
 msgctxt "products:products.dryRun"
 msgid "Dry Run"
 msgstr ""
@@ -2046,18 +2048,21 @@ msgctxt "sources:sources.edit"
 msgid "Edit"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:215
+#: frontend/src/pages/UnifiedWorkspace.tsx:221
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "workspace:unifiedWorkspace.editTargetCellsInlineCurrentValuesIdentities"
 msgid "Edit Target cells inline. Current values, identities, SKUs, and Mapping are read-only."
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:97
+#: frontend/src/pages/Products.tsx:43
+msgctxt "products:products.inlineEditingInWorkspace"
+msgid "Edit inline in the pricing workspace"
+msgstr ""
+
 msgctxt "products:products.editPrices"
 msgid "Edit prices"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:293
 msgctxt "products:products.editableValueUnit"
 msgid "Editable value unit: {{unit}}"
 msgstr ""
@@ -2070,7 +2075,6 @@ msgctxt "workspace:statusDisplay.edited"
 msgid "Edited"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:211
 msgctxt "products:products.editingFieldsOnlyCreatesLocalPendingChanges"
 msgid "Editing fields only creates local pending changes. Dry Run performs validation without external writes."
 msgstr ""
@@ -2080,7 +2084,7 @@ msgctxt "sources:sources.editingIsNotAvailableYet"
 msgid "Editing is not available yet"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:150
+#: frontend/src/pages/UnifiedWorkspace.tsx:156
 msgctxt "workspace:unifiedWorkspace.eligible"
 msgid "Eligible"
 msgstr ""
@@ -2265,7 +2269,6 @@ msgctxt "sources:sourceCenter.externalSourceDescription"
 msgid "External spreadsheet Source"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:354
 msgctxt "products:products.externalWritePerformed"
 msgid "External write performed"
 msgstr ""
@@ -2274,7 +2277,6 @@ msgctxt "common:status.failed"
 msgid "Failed"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:352
 msgctxt "products:products.failed2"
 msgid "Failed"
 msgstr ""
@@ -2330,7 +2332,7 @@ msgctxt "flowhubSheet:flowHubSheet.filterRows"
 msgid "Filter rows"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:210
+#: frontend/src/pages/UnifiedWorkspace.tsx:216
 msgctxt "workspace:unifiedWorkspace.filterServerData"
 msgid "Filter server data"
 msgstr ""
@@ -2355,7 +2357,6 @@ msgctxt "settings:setup.finish"
 msgid "Finish"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:773
 msgctxt "products:products.firstPage"
 msgid "First page"
 msgstr ""
@@ -2556,12 +2557,10 @@ msgctxt "commerce:commerceHub.health"
 msgid "Health:"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:265
 msgctxt "products:products.health"
 msgid "Health:"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:265
 msgctxt "products:products.healthStatus"
 msgid "Health: {{status}}"
 msgstr ""
@@ -2622,7 +2621,7 @@ msgctxt "sources:sourceConfiguration.ignoredRow"
 msgid "Ignored row"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:78
+#: frontend/src/pages/UnifiedWorkspace.tsx:84
 msgctxt "workspace:unifiedWorkspace.immutableSnapshot"
 msgid "Immutable Snapshot"
 msgstr ""
@@ -2753,7 +2752,7 @@ msgctxt "dataQuality:issue.DUPLICATE_LISTING_ROW.action"
 msgid "Keep one authoritative row for each Listing."
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:95
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:142
 msgctxt "workspace:sourceCentricWorkspace.keepOneSelectedChange"
 msgid "Keep one selected change"
 msgstr ""
@@ -2809,7 +2808,6 @@ msgctxt "diagnostics:dimension.lastOrderSync"
 msgid "Last order synchronization"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:783
 msgctxt "products:products.lastPage"
 msgid "Last page"
 msgstr ""
@@ -2887,7 +2885,7 @@ msgctxt "diagnostics:diagnostics.latency"
 msgid "Latency:"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:166
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:sourceCentricWorkspace.latestChannelCache"
 msgid "Latest Channel Cache"
@@ -2992,7 +2990,7 @@ msgctxt "flowhubSheet:flowHubSheet.loadingFlowhubSheet"
 msgid "Loading FlowHub Sheet..."
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:104
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:156
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.loadingSourceProductWorkspace"
 msgid "Loading Source Product Workspace..."
@@ -3057,7 +3055,6 @@ msgctxt "orders:orders.loadingOrderDetail"
 msgid "Loading order detail..."
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:154
 msgctxt "products:products.loadingProductPriceState"
 msgid "Loading product price state..."
 msgstr ""
@@ -3093,7 +3090,7 @@ msgctxt "orders:orders.loading"
 msgid "Loading..."
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:621 frontend/src/pages/Products.tsx:713
+#: frontend/src/pages/Products.tsx:128 frontend/src/pages/Products.tsx:140
 msgctxt "products:products.loading"
 msgid "Loading..."
 msgstr ""
@@ -3152,7 +3149,6 @@ msgctxt "commerce:commerceHub.manualReadNowAllowed"
 msgid "Manual Read now allowed"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:586
 msgctxt "products:products.manualWorkspaceDated"
 msgid "Manual Workspace {{date}}"
 msgstr ""
@@ -3182,12 +3178,12 @@ msgctxt "commerce:commerceHub.maxReadsPer24Hours"
 msgid "Max reads per 24 hours"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:209
+#: frontend/src/pages/UnifiedWorkspace.tsx:215
 msgctxt "workspace:unifiedWorkspace.maximumPrice"
 msgid "Maximum price"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:209
+#: frontend/src/pages/UnifiedWorkspace.tsx:215
 msgctxt "workspace:unifiedWorkspace.minimumPrice"
 msgid "Minimum price"
 msgstr ""
@@ -3197,7 +3193,6 @@ msgctxt "dataQuality:dataQuality.mostCommonProblems"
 msgid "Most common problems"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:149
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.multiChannelPriceEditor"
 msgid "Multi-channel price editor"
@@ -3218,7 +3213,7 @@ msgctxt "validation:source.nameRequired"
 msgid "Name is required."
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:111
+#: frontend/src/pages/UnifiedWorkspace.tsx:117
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:unifiedWorkspace.nameSource"
 msgid "Name source"
@@ -3242,7 +3237,6 @@ msgctxt "dashboard:dashboard.needsSetup"
 msgid "Needs setup"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:305
 msgctxt "products:products.neverSynced"
 msgid "Never synced"
 msgstr ""
@@ -3262,7 +3256,7 @@ msgctxt "flowhubSheet:flowHubSheet.next"
 msgid "Next"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:114 frontend/src/pages/UnifiedWorkspace.tsx:221
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:167 frontend/src/pages/UnifiedWorkspace.tsx:227
 msgctxt "workspace:sourceCentricWorkspace.next"
 msgid "Next"
 msgstr ""
@@ -3272,7 +3266,7 @@ msgctxt "diagnostics:diagnostics.nextAction"
 msgid "Next action:"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:721 frontend/src/pages/Products.tsx:780
+#: frontend/src/pages/Products.tsx:142
 msgctxt "products:products.nextPage"
 msgid "Next page"
 msgstr ""
@@ -3424,7 +3418,6 @@ msgctxt "dashboard:dashboard.noEventsYet"
 msgid "No events yet"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:354
 msgctxt "products:products.noExternalWrite"
 msgid "No external write"
 msgstr ""
@@ -3475,7 +3468,7 @@ msgctxt "diagnostics:message.noProcessedWebhookReceipt"
 msgid "No processed webhook receipt yet."
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:606
+#: frontend/src/pages/Products.tsx:124
 msgctxt "products:products.noProductConnectorConfigured"
 msgid "No product connector configured"
 msgstr ""
@@ -3498,17 +3491,17 @@ msgctxt "dashboard:dashboard.catalogIsEmpty"
 msgid "No products are currently available for daily work."
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:713
+#: frontend/src/pages/Products.tsx:140
 msgctxt "products:products.noProductsFound"
 msgid "No products found"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:744
+#: frontend/src/pages/Products.tsx:141
 msgctxt "products:products.noProductsMatch"
 msgid "No products match"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:166
 msgctxt "workspace:sourceCentricWorkspace.noProductsMatchThisView"
 msgid "No products match this view."
 msgstr ""
@@ -3722,7 +3715,7 @@ msgctxt "common:status.online"
 msgid "Online"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:116
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:169
 msgctxt "workspace:sourceCentricWorkspace.only"
 msgid "Only"
 msgstr ""
@@ -3789,7 +3782,7 @@ msgctxt "diagnostics:diagnostics.openSources"
 msgid "Open Sources"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:608
+#: frontend/src/pages/Products.tsx:124
 msgctxt "products:products.openSources"
 msgid "Open Sources"
 msgstr ""
@@ -3809,7 +3802,11 @@ msgctxt "navigation:topbar.openNavigation"
 msgid "Open navigation"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:346
+#: frontend/src/pages/Products.tsx:129
+msgctxt "products:products.openPricingWorkspace"
+msgid "Open pricing workspace"
+msgstr ""
+
 msgctxt "products:products.operation"
 msgid "Operation"
 msgstr ""
@@ -3818,7 +3815,6 @@ msgctxt "common:status.operational"
 msgid "Operational"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:172
 msgctxt "products:priceEditor.optional"
 msgid "Optional"
 msgstr ""
@@ -3896,7 +3892,7 @@ msgctxt "settings:setup.ownerAccount"
 msgid "Owner Account"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:114 frontend/src/pages/UnifiedWorkspace.tsx:220
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:167 frontend/src/pages/UnifiedWorkspace.tsx:226
 msgctxt "workspace:sourceCentricWorkspace.page"
 msgid "Page"
 msgstr ""
@@ -3939,7 +3935,6 @@ msgctxt "settings:setup.pending"
 msgid "Pending"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:173
 msgctxt "products:products.pendingEdits"
 msgid "Pending edits"
 msgstr ""
@@ -4042,7 +4037,6 @@ msgctxt "workspace:workspace.preview2"
 msgid "Preview -"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:220
 msgctxt "products:products.previewDryRun"
 msgid "Preview / Dry Run"
 msgstr ""
@@ -4087,12 +4081,12 @@ msgctxt "products:column.previous"
 msgid "Previous"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:114 frontend/src/pages/UnifiedWorkspace.tsx:219
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:167 frontend/src/pages/UnifiedWorkspace.tsx:225
 msgctxt "workspace:sourceCentricWorkspace.previous"
 msgid "Previous"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:717 frontend/src/pages/Products.tsx:776
+#: frontend/src/pages/Products.tsx:142
 msgctxt "products:products.previousPage"
 msgid "Previous page"
 msgstr ""
@@ -4121,7 +4115,7 @@ msgctxt "diagnostics:reason.write_capability_supported"
 msgid "Price or stock updates are supported. FlowHub still requires Review and Apply confirmation."
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:209
+#: frontend/src/pages/UnifiedWorkspace.tsx:215
 msgctxt "workspace:unifiedWorkspace.priceRange"
 msgid "Price range"
 msgstr ""
@@ -4135,6 +4129,16 @@ msgctxt "settings:settings.pricingUnit"
 msgid "Pricing unit"
 msgstr ""
 
+#: frontend/src/pages/Products.tsx:128
+msgctxt "products:products.pricingWorkspace"
+msgid "Pricing workspace"
+msgstr ""
+
+#: frontend/src/pages/Products.tsx:118
+msgctxt "products:products.pricingWorkspaceDated"
+msgid "Pricing workspace {{date}}"
+msgstr ""
+
 #: frontend/src/pages/DataQuality.tsx:198
 msgctxt "dataQuality:dataQuality.product"
 msgid "Product"
@@ -4144,7 +4148,7 @@ msgctxt "products:column.product"
 msgid "Product"
 msgstr ""
 
-#: frontend/src/features/unifiedWorkspace/gridModel.ts:90
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:155 frontend/src/features/unifiedWorkspace/gridModel.ts:90
 msgctxt "workspace:gridModel.product"
 msgid "Product"
 msgstr ""
@@ -4177,7 +4181,7 @@ msgctxt "commerce:commerceHub.productCacheRefreshedSuccessfully"
 msgid "Product cache refreshed successfully"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:602
+#: frontend/src/pages/Products.tsx:124
 msgctxt "products:products.productCatalog"
 msgid "Product catalog"
 msgstr ""
@@ -4195,7 +4199,7 @@ msgctxt "diagnostics:reason.product_sync_fresh"
 msgid "Product data was synchronized within the expected freshness window."
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:115
+#: frontend/src/pages/UnifiedWorkspace.tsx:121
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:unifiedWorkspace.productDisplayNameSource"
 msgid "Product display name source"
@@ -4249,7 +4253,7 @@ msgctxt "dataQuality:category.duplicate_source_product_superseded"
 msgid "Product replaced by a later worksheet"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:166
 msgctxt "workspace:sourceCentricWorkspace.productStatus"
 msgid "Product status: {{status}}"
 msgstr ""
@@ -4272,7 +4276,7 @@ msgctxt "diagnostics:reason.product_cache_refresh_in_progress"
 msgid "Product synchronization is still in progress."
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:227
+#: frontend/src/pages/UnifiedWorkspace.tsx:233
 msgctxt "workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid"
 msgid "Production Grid is disabled. Configure a valid commercial Handsontable license."
 msgstr ""
@@ -4286,12 +4290,12 @@ msgctxt "navigation:topbar.products"
 msgid "Products"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:601 frontend/src/pages/Products.tsx:619
+#: frontend/src/pages/Products.tsx:124
 msgctxt "products:products.products"
 msgid "Products"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:112
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:165
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.productsAreParentsEachChannelListingRemains"
 msgid "Products are parents. Each Channel Listing remains independently identifiable and selectable."
@@ -4457,7 +4461,6 @@ msgctxt "common:status.readOnly"
 msgid "Read-only"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:268
 msgctxt "products:products.readOnly"
 msgid "Read-only"
 msgstr ""
@@ -4477,7 +4480,6 @@ msgctxt "commerce:commerceHub.readOnlySourceAndChannelOverview"
 msgid "Read-only source and channel overview"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:268
 msgctxt "products:products.readWrite"
 msgid "Read/write"
 msgstr ""
@@ -4506,7 +4508,7 @@ msgctxt "workspace:statusDisplay.ready"
 msgid "Ready"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:109
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:155 frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:162
 msgctxt "workspace:sourceCentricWorkspace.readyChanges"
 msgid "Ready changes"
 msgstr ""
@@ -4641,7 +4643,6 @@ msgctxt "diagnostics:diagnostics.requestsAvailableNow"
 msgid "Requests available now"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:172
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "products:priceEditor.requiredBeforeApply"
 msgid "Required before Apply"
@@ -4704,19 +4705,19 @@ msgctxt "common:notFound.returnToDashboard"
 msgid "Return to Dashboard"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:146
+#: frontend/src/pages/UnifiedWorkspace.tsx:152
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.review"
 msgid "Review"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:111
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:164
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.reviewDryRun"
 msgid "Review & Dry Run"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:133
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:155 frontend/src/pages/UnifiedWorkspace.tsx:139
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.reviewChanges"
 msgid "Review Changes"
@@ -4728,7 +4729,7 @@ msgctxt "dashboard:dashboard.reviewChannelHealth"
 msgid "Review Channel health before publishing."
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:69
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:116
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.reviewAndDryRunComplete"
 msgid "Review and Dry Run complete"
@@ -4750,7 +4751,7 @@ msgctxt "workspace:workspace.reviewConnectorSettingsBeforeUsingWorkspace"
 msgid "Review connector settings before using Workspace."
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:70
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:117
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.reviewCouldNotBeCompleted"
 msgid "Review could not be completed"
@@ -4801,7 +4802,7 @@ msgctxt "diagnostics:message.reviewQueuedWebhookReceipts"
 msgid "Review queued webhook receipts."
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:143
+#: frontend/src/pages/UnifiedWorkspace.tsx:149
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.reviewResults"
 msgid "Review results"
@@ -4912,7 +4913,7 @@ msgctxt "settings:rateLimits.saveChanges"
 msgid "Save Changes"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:130
+#: frontend/src/pages/UnifiedWorkspace.tsx:136
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:unifiedWorkspace.saveDraft"
 msgid "Save Draft"
@@ -4969,7 +4970,7 @@ msgctxt "commerce:commerceHub.saving"
 msgid "Saving"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:62
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:108
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:sourceCentricWorkspace.savingDraft"
 msgid "Saving Draft"
@@ -5015,23 +5016,23 @@ msgctxt "settings:rateLimits.scope"
 msgid "Scope"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:230
+#: frontend/src/pages/UnifiedWorkspace.tsx:236
 msgctxt "workspace:unifiedWorkspace.scrollableWorkspaceGrid"
 msgid "Scrollable Workspace Grid"
 msgstr ""
 
-#: frontend/src/pages/SourceCenter.tsx:339 frontend/src/pages/SourceCenter.tsx:346 frontend/src/pages/UnifiedWorkspace.tsx:206
+#: frontend/src/pages/SourceCenter.tsx:339 frontend/src/pages/SourceCenter.tsx:346 frontend/src/pages/UnifiedWorkspace.tsx:212
 msgctxt "workspace:unifiedWorkspace.search"
 msgid "Search"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:112
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:165
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.searchSourceProducts"
 msgid "Search Source Products"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:641
+#: frontend/src/pages/Products.tsx:135
 msgctxt "products:products.searchNameOrSku"
 msgid "Search name or SKU..."
 msgstr ""
@@ -5065,7 +5066,7 @@ msgctxt "workspace:gridModel.select"
 msgid "Select"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:166
 msgctxt "workspace:sourceCentricWorkspace.select"
 msgid "Select"
 msgstr ""
@@ -5102,9 +5103,20 @@ msgctxt "workspace:workspace.selectAllEligible"
 msgid "Select all eligible"
 msgstr ""
 
+#: frontend/src/pages/Products.tsx:115
+msgctxt "products:products.selectAtLeastOneForPricingWorkspace"
+msgid "Select at least one product to open a pricing workspace."
+msgstr ""
+
 #: frontend/src/pages/SourceConfiguration.tsx:701
 msgctxt "sources:sourceConfiguration.selectAtLeastOneWorksheet"
 msgid "Select at least one worksheet for these shared rules."
+msgstr ""
+
+#: frontend/src/pages/Products.tsx:131
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.pricingWorkspaceHint"
+msgid "Select the products you want to update, then edit all Channel targets together in one safe workspace."
 msgstr ""
 
 #: frontend/src/pages/SourceWizard.tsx:141
@@ -5118,12 +5130,17 @@ msgctxt "commerce:commerceHub.selectVendor"
 msgid "Select vendor"
 msgstr ""
 
+#: frontend/src/pages/Products.tsx:140
+msgctxt "products:products.selectVisible"
+msgid "Select visible"
+msgstr ""
+
 #: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:128
 msgctxt "sources:sourceConfiguration.selectWorksheet"
 msgid "Select worksheet {{worksheet}}"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:166
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.selectListing"
 msgid "Select {{channel}} {{listing}}"
@@ -5134,12 +5151,12 @@ msgctxt "workspace:workspace.selectProduct"
 msgid "Select {{product}}"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:47
+#: frontend/src/pages/Products.tsx:29
 msgctxt "products:products.selectProductForWorkspace"
 msgid "Select {{product}} for Workspace"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:109
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:162
 msgctxt "workspace:sourceCentricWorkspace.selectedChanges"
 msgid "Selected changes"
 msgstr ""
@@ -5164,7 +5181,7 @@ msgctxt "workspace:workspace.selected"
 msgid "Selected:"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:100
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:147
 msgctxt "workspace:sourceCentricWorkspace.selectionWasNotSaved"
 msgid "Selection was not saved"
 msgstr ""
@@ -5179,7 +5196,7 @@ msgctxt "settings:setup.serverProfile"
 msgid "Server Profile"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:188
+#: frontend/src/pages/UnifiedWorkspace.tsx:194
 msgctxt "workspace:unifiedWorkspace.serverSideWorkspaceFilters"
 msgid "Server-side Workspace filters"
 msgstr ""
@@ -5266,7 +5283,7 @@ msgctxt "sources:sourceConfiguration.showOnlyProblems"
 msgid "Show only problems"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:713
+#: frontend/src/pages/Products.tsx:140
 msgctxt "products:products.showingOf"
 msgid "Showing {{value1}}-{{value2}} of {{value3}}"
 msgstr ""
@@ -5329,7 +5346,7 @@ msgctxt "flowhubSheet:flowHubSheet.sortSheetByColumn"
 msgid "Sort Sheet by column"
 msgstr ""
 
-#: frontend/src/pages/CommerceHub.tsx:63
+#: frontend/src/pages/CommerceHub.tsx:63 frontend/src/pages/Products.tsx:36
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.source"
 msgid "Source"
@@ -5379,7 +5396,7 @@ msgctxt "sources:sourceConfiguration.sourceProductName"
 msgid "Source Product Name"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:107
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:160
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.sourceProductWorkspaceImmutableSnapshot"
 msgid "Source Product Workspace · Immutable Snapshot"
@@ -5402,7 +5419,7 @@ msgctxt "dataQuality:dataQuality.sourceProductName"
 msgid "Source Product name"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:112
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:165
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.sourceProducts"
 msgid "Source Products"
@@ -5485,7 +5502,7 @@ msgctxt "sources:sourceConfiguration.section.generalHelp"
 msgid "Source identity and current column-setup status."
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:166
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.sourceKey"
 msgid "Source key {{value1}} ·"
@@ -5652,7 +5669,7 @@ msgctxt "settings:settings.status"
 msgid "Status"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:208
+#: frontend/src/pages/UnifiedWorkspace.tsx:214
 msgctxt "workspace:unifiedWorkspace.status"
 msgid "Status"
 msgstr ""
@@ -5666,7 +5683,6 @@ msgctxt "diagnostics:diagnostics.status"
 msgid "Status:"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:347
 msgctxt "products:products.status"
 msgid "Status:"
 msgstr ""
@@ -5759,7 +5775,6 @@ msgctxt "common:status.success"
 msgid "Success"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:351
 msgctxt "products:products.success2"
 msgid "Success"
 msgstr ""
@@ -6267,7 +6282,6 @@ msgctxt "diagnostics:reason.token_refresh_healthy"
 msgid "Token refresh is operating normally."
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:350
 msgctxt "products:products.total"
 msgid "Total"
 msgstr ""
@@ -6281,7 +6295,7 @@ msgctxt "dataQuality:dataQuality.totalIssues"
 msgid "Total issues"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:744
+#: frontend/src/pages/Products.tsx:141
 msgctxt "products:products.tryAdjustingTheSearchOrFilter"
 msgid "Try adjusting the search or filter."
 msgstr ""
@@ -6403,6 +6417,10 @@ msgctxt "commerce:commerceHub.unableToLoadChannelSettings"
 msgid "Unable to load channel settings"
 msgstr ""
 
+msgctxt "products:products.unableToLoadProducts"
+msgid "Unable to load products."
+msgstr ""
+
 #: frontend/src/pages/RateLimits.tsx:72
 msgctxt "settings:rateLimits.unableToLoadSettings"
 msgid "Unable to load settings"
@@ -6451,7 +6469,7 @@ msgctxt "products:products.unableToValidateChannelPrices"
 msgid "Unable to validate Channel prices."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:258 frontend/src/pages/Diagnostics.tsx:548 frontend/src/pages/Diagnostics.tsx:768 frontend/src/pages/Diagnostics.tsx:779 frontend/src/pages/Diagnostics.tsx:785 frontend/src/pages/Diagnostics.tsx:793 frontend/src/pages/Diagnostics.tsx:800 frontend/src/pages/Diagnostics.tsx:810 frontend/src/pages/Products.tsx:652
+#: frontend/src/pages/Diagnostics.tsx:258 frontend/src/pages/Diagnostics.tsx:548 frontend/src/pages/Diagnostics.tsx:768 frontend/src/pages/Diagnostics.tsx:779 frontend/src/pages/Diagnostics.tsx:785 frontend/src/pages/Diagnostics.tsx:793 frontend/src/pages/Diagnostics.tsx:800 frontend/src/pages/Diagnostics.tsx:810 frontend/src/pages/Products.tsx:136
 msgctxt "common:status.unavailable"
 msgid "Unavailable"
 msgstr ""
@@ -6460,7 +6478,6 @@ msgctxt "diagnostics:diagnostics.unavailable"
 msgid "Unavailable"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:268
 msgctxt "products:products.unavailable"
 msgid "Unavailable"
 msgstr ""
@@ -6491,7 +6508,7 @@ msgctxt "sources:sourceConfiguration.unchangedProducts"
 msgid "Unchanged products"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:109
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:162
 msgctxt "workspace:sourceCentricWorkspace.unchangedProducts"
 msgid "Unchanged products"
 msgstr ""
@@ -6504,7 +6521,7 @@ msgctxt "common:status.unhealthy"
 msgid "Unhealthy"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:185
+#: frontend/src/pages/UnifiedWorkspace.tsx:191
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:unifiedWorkspace.unifiedMultiChannelProductEditor"
 msgid "Unified multi-channel product editor"
@@ -6558,7 +6575,7 @@ msgctxt "diagnostics:message.updateCredentialsAndRefresh"
 msgid "Update credentials and run an explicit health refresh."
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:85
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:132
 msgctxt "workspace:sourceCentricWorkspace.updatingSelectedChanges"
 msgid "Updating selected changes"
 msgstr ""
@@ -6646,7 +6663,6 @@ msgctxt "workspace:workspace.status.valid"
 msgid "Valid"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:216
 msgctxt "products:products.validate"
 msgid "Validate"
 msgstr ""
@@ -6715,13 +6731,13 @@ msgctxt "diagnostics:stateDescription.healthy"
 msgid "Verified evidence confirms normal operation."
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:117
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:170
 #. Reconciliation verifies an uncertain external write without blindly redispatching it.
 msgctxt "workspace:sourceCentricWorkspace.verifiedSuccessIsShownOnlyAfterExact"
 msgid "Verified success is shown only after exact provider verification. Uncertain outcomes require reconciliation."
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:169
+#: frontend/src/pages/UnifiedWorkspace.tsx:175
 msgctxt "workspace:unifiedWorkspace.verifyUncertainListings"
 msgid "Verify uncertain Listings"
 msgstr ""
@@ -6766,19 +6782,19 @@ msgctxt "flowhubSheet:flowHubSheet.virtualizedFlowhubSheet"
 msgid "Virtualized FlowHub Sheet"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:231
+#: frontend/src/pages/UnifiedWorkspace.tsx:237
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:unifiedWorkspace.virtualizedMultiChannelWorkspaceGrid"
 msgid "Virtualized multi-channel Workspace Grid"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:94
+#: frontend/src/pages/UnifiedWorkspace.tsx:100
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:unifiedWorkspace.visibilityChangesPresentationOnlyAndNeverSelects"
 msgid "Visibility changes presentation only and never selects a Channel for Apply."
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:93
+#: frontend/src/pages/UnifiedWorkspace.tsx:99
 msgctxt "workspace:unifiedWorkspace.visibleChannels"
 msgid "Visible Channels"
 msgstr ""
@@ -6831,7 +6847,7 @@ msgctxt "dataQuality:dataQuality.warnings"
 msgid "Warnings"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:152
+#: frontend/src/pages/UnifiedWorkspace.tsx:158
 msgctxt "workspace:unifiedWorkspace.warnings"
 msgid "Warnings"
 msgstr ""
@@ -7000,17 +7016,17 @@ msgctxt "workspace:workspace.workspace"
 msgid "Workspace"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:214
+#: frontend/src/pages/UnifiedWorkspace.tsx:220
 msgctxt "workspace:unifiedWorkspace.workspaceGrid"
 msgid "Workspace Grid"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:108
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:161
 msgctxt "workspace:sourceCentricWorkspace.workspaceChangeSummary"
 msgid "Workspace change summary"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:90
+#: frontend/src/pages/UnifiedWorkspace.tsx:96
 msgctxt "workspace:unifiedWorkspace.workspaceControls"
 msgid "Workspace controls"
 msgstr ""
@@ -7020,7 +7036,7 @@ msgctxt "workspace:unifiedWorkspace.workspaceServiceUnavailable"
 msgid "Workspace service unavailable"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:66
+#: frontend/src/pages/UnifiedWorkspace.tsx:66 frontend/src/pages/UnifiedWorkspace.tsx:75
 msgctxt "workspace:unifiedWorkspace.workspaceUnavailable"
 msgid "Workspace unavailable"
 msgstr ""
@@ -7144,7 +7160,7 @@ msgctxt "workspace:workspace.eligibleRow"
 msgid "eligible row"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:116
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:169
 msgctxt "workspace:sourceCentricWorkspace.explicitlySelectedReviewedChangesWillEnterThe"
 msgid "explicitly selected, Reviewed changes will enter the shared Write Pipeline. Blocked and hidden changes remain excluded."
 msgstr ""
@@ -7159,12 +7175,17 @@ msgctxt "sources:sourceConfiguration.ignored"
 msgid "ignored"
 msgstr ""
 
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:155
+msgctxt "workspace:sourceCentricWorkspace.notSelected"
+msgid "not selected"
+msgstr ""
+
 #: frontend/src/pages/FlowHubSheet.tsx:116
 msgctxt "flowhubSheet:flowHubSheet.of"
 msgid "of"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:771
+#: frontend/src/pages/Products.tsx:142
 msgctxt "products:products.of"
 msgid "of"
 msgstr ""
@@ -7174,7 +7195,7 @@ msgctxt "settings:setup.of"
 msgid "of"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:114
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:167
 msgctxt "workspace:sourceCentricWorkspace.of"
 msgid "of"
 msgstr ""
@@ -7184,7 +7205,6 @@ msgctxt "commerce:commerceHub.pageS"
 msgid "page(s),"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:313
 msgctxt "products:products.pending"
 msgid "pending"
 msgstr ""
@@ -7218,12 +7238,11 @@ msgctxt "sources:sourceImportWizard.rows"
 msgid "rows ·"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:625
 msgctxt "products:products.selected"
 msgid "selected"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:111
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:155 frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:164
 msgctxt "workspace:sourceCentricWorkspace.selected"
 msgid "selected"
 msgstr ""
@@ -7234,7 +7253,6 @@ msgctxt "workspace:workspace.sourceRows"
 msgid "source rows"
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:300
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "products:products.sourceUnit"
 msgid "source unit:"
@@ -7245,7 +7263,6 @@ msgctxt "settings:setup.toVerifyTheConnection"
 msgid "to verify the connection."
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:313
 msgctxt "products:products.unchanged"
 msgid "unchanged"
 msgstr ""
@@ -7265,19 +7282,18 @@ msgctxt "diagnostics:message.channelOperational"
 msgid "{{channel}} is operational."
 msgstr ""
 
-#: frontend/src/pages/Products.tsx:290
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.proposedPrice"
 msgid "{{channel}} proposed price"
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:166
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:sourceCentricWorkspace.targetField"
 msgid "{{channel}} {{field}} Target"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:78
+#: frontend/src/pages/UnifiedWorkspace.tsx:84
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:unifiedWorkspace.listingRows"
 msgid "{{count}} Listing row"
@@ -7285,7 +7301,7 @@ msgid_plural "{{count}} Listing rows"
 msgstr[0] ""
 msgstr[1] ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:218
+#: frontend/src/pages/UnifiedWorkspace.tsx:224
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:unifiedWorkspace.listingsSelected"
 msgid "{{count}} Listing selected"
@@ -7326,7 +7342,7 @@ msgid_plural "{{count}} monitored destinations"
 msgstr[0] ""
 msgstr[1] ""
 
-#: frontend/src/pages/Products.tsx:621
+#: frontend/src/pages/Products.tsx:128
 msgctxt "products:products.productCount"
 msgid "{{count}} product"
 msgid_plural "{{count}} products"
@@ -7340,6 +7356,11 @@ msgid "{{count}} product ready for Review."
 msgid_plural "{{count}} products ready for Review."
 msgstr[0] ""
 msgstr[1] ""
+
+#: frontend/src/pages/Products.tsx:129
+msgctxt "products:products.productsSelected"
+msgid "{{count}} products selected"
+msgstr ""
 
 #: frontend/src/pages/SourceCenter.tsx:523
 msgctxt "sources:sourceCenter.protectedRecords"
@@ -7365,7 +7386,7 @@ msgid_plural "{{count}} rows loaded."
 msgstr[0] ""
 msgstr[1] ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:83
+#: frontend/src/pages/UnifiedWorkspace.tsx:89
 msgctxt "workspace:unifiedWorkspace.unsavedEdits"
 msgid "{{count}} unsaved edit"
 msgid_plural "{{count}} unsaved edits"
@@ -7386,13 +7407,13 @@ msgid_plural "{{count}} worksheets selected"
 msgstr[0] ""
 msgstr[1] ""
 
-#: frontend/src/features/unifiedWorkspace/gridModel.ts:110
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:155 frontend/src/features/unifiedWorkspace/gridModel.ts:110
 #. Current is the latest verified or cached Channel value.
 msgctxt "workspace:gridModel.currentField"
 msgid "{{field}} Current"
 msgstr ""
 
-#: frontend/src/features/unifiedWorkspace/gridModel.ts:111
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:155 frontend/src/features/unifiedWorkspace/gridModel.ts:111
 #. Target is the proposed value that may be applied after Review.
 msgctxt "workspace:gridModel.targetField"
 msgid "{{field}} Target"
@@ -7426,7 +7447,7 @@ msgctxt "sources:sourceConfiguration.conflictingColumnMapping"
 msgid "{{first}} and {{second}} use the same column. Confirm that this is intentional."
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:113
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:166
 msgctxt "workspace:sourceCentricWorkspace.listingChannelSummary"
 msgid "{{listings}} Listings across {{channels}} Channels"
 msgstr ""
@@ -7463,7 +7484,7 @@ msgctxt "workspace:workspace.sourceReadsUsed"
 msgid "{{usage}} of {{limit}} source reads have been used. "
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:69
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:116
 msgctxt "workspace:sourceCentricWorkspace.eligibleChangesWereAutomaticallySelectedBlockedItems"
 msgid "{{value1}} eligible changes were automatically selected. Blocked items remain excluded."
 msgstr ""
@@ -7493,7 +7514,7 @@ msgctxt "commerce:commerceHub.productsWereCachedFromPageS"
 msgid "{{value1}} products were cached from {{value2}} page(s)."
 msgstr ""
 
-#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:107
+#: frontend/src/features/sourceWorkspace/SourceCentricWorkspace.tsx:160
 msgctxt "workspace:sourceCentricWorkspace.unsavedEdits"
 msgid "{{value1}} unsaved edits"
 msgstr ""
@@ -7578,7 +7599,7 @@ msgctxt "sources:sourceCenter.mappingV"
 msgid "· Column setup v"
 msgstr ""
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:177
+#: frontend/src/pages/UnifiedWorkspace.tsx:183
 msgctxt "workspace:unifiedWorkspace.errorDetail"
 msgid "— {{message}}"
 msgstr ""

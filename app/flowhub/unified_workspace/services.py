@@ -997,10 +997,11 @@ class UnifiedWorkspaceService:
         draft = self.drafts.for_workspace(workspace.id)
         if snapshot is None or draft is None:
             raise self._conflict("WORKSPACE_INCOMPLETE", "Workspace persistence is incomplete.")
-        if workspace.entry_point != EntryPoint.SOURCE:
-            raise self._unprocessable(
-                "SOURCE_WORKSPACE_REQUIRED", "Grouped Source Product view requires a Source Workspace."
-            )
+        # Manual Product selections use the same immutable snapshot and Listing
+        # identities as Source Workspaces.  They can therefore use the grouped
+        # product presentation without creating a second editing or Apply path.
+        # Source-generated target values are optional for manual snapshots; in
+        # that case the grouped view starts from the latest verified cache value.
         page_size = min(max(page_size, 1), 200)
         changes = self.drafts.changes(draft.current_revision_id) if draft.current_revision_id else []
         changes_by_listing: dict[str, dict[str, DraftRevisionChange]] = defaultdict(dict)
