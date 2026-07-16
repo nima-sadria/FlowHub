@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import traceback
 from datetime import datetime, timedelta
 from time import monotonic
@@ -23,9 +24,15 @@ from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.config.values import parse_config_bool
 from app.flowhub.data_layer.health_service import ConnectorHealthService
 from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
+from app.flowhub.diagnostics.semantics import (
+    DiagnosticPresentation,
+    DiagnosticState,
+    diagnostic_presentation,
+)
 from app.flowhub.integration_platform.models import (
     IntegrationConnectorEvent,
     IntegrationConnectorInstance,
+    IntegrationPollingPolicy,
 )
 from app.flowhub.integration_platform.registry import registry
 from app.flowhub.orders.models import ChannelOrderRecord, OrderSyncCheckpoint
@@ -37,6 +44,7 @@ SOURCE_CONNECTOR_TYPES = frozenset({"nextcloud", "csv", "gsheets", "erp"})
 HEALTH_CACHE_SECONDS = 60
 EXTERNAL_CHECK_TIMEOUT_SECONDS = 8.0
 STALE_SYNC_AFTER = timedelta(hours=24)
+STALE_HEALTH_AFTER = timedelta(hours=24)
 _REFRESH_LOCKS: dict[str, asyncio.Lock] = {}
 logger = logging.getLogger(__name__)
 
@@ -74,13 +82,27 @@ class ChannelHealthReporter:
 
     def _unavailable_channel_shape(self, channel_id: str) -> dict[str, Any]:
         connector_type = channel_id.split(":", 1)[0]
-        unavailable = _dimension("Unable to check", "Channel diagnostics are temporarily unavailable.")
+        unavailable = _dimension(
+            DiagnosticState.ERROR,
+            "Channel diagnostics could not be generated.",
+            reason_code="diagnostic_generation_failed",
+            checked_at=None,
+            evidence_source="channel_diagnostics",
+            is_actionable=True,
+            recommended_action="Retry the diagnostic check.",
+        )
         return {
             "channelId": channel_id,
             "channelType": connector_type,
             "enabled": False,
             "accessMode": "read_only",
             "status": "Unable to check",
+            "state": DiagnosticState.ERROR.value,
+            "reason_code": unavailable["reason_code"],
+            "checked_at": unavailable["checked_at"],
+            "evidence_source": unavailable["evidence_source"],
+            "is_actionable": unavailable["is_actionable"],
+            "recommended_action": unavailable["recommended_action"],
             "summary": "Channel diagnostics are temporarily unavailable.",
             "lastChecked": None,
             "latency": None,
@@ -160,45 +182,116 @@ class ChannelHealthReporter:
         product_read = self._last_product_read(channel_id)
         product_write = self._last_product_write(channel_id)
         order_sync = self._last_order_sync(channel_id)
-        webhook = self._webhook_state(channel_id, connector_type)
-        checkpoint = self._checkpoint(channel_id)
         enabled = bool(instance and instance.enabled)
         configured = self._configured(instance)
+        credentials_configured = self._credentials_configured(instance)
         capability_state = definition.connector.capabilities.model_dump() if definition else {}
+        product_read_supported = bool(capability_state.get("read_products"))
+        external_probe_supported = connector_type in {"woocommerce", "snappshop", "tapsishop"}
+        webhook = self._webhook_state(channel_id, connector_type, instance)
+        polling_policy = self._polling_policy(channel_id)
+        order_sync_expected = enabled and configured and self._order_sync_expected(
+            connector_type,
+            polling_policy=polling_policy,
+            webhook_enabled=bool(webhook["enabled"]),
+        )
+        checkpoint = self._checkpoint(channel_id, "snappshop_events")
         cached_product_count = self.db.query(DlProductCache).filter_by(connector_id=channel_id).count()
         latest_product_refresh = self._latest_product_refresh(channel_id)
         vendor_selected = self._setting_configured(instance, "vendor_id") if connector_type == "snappshop" else None
+        configuration_checked_at = _iso(self._configuration_checked_at(instance))
 
         dimensions = {
-            "configuration": _dimension("Operational" if configured else "Warning", "Required configuration is present." if configured else "Required configuration is incomplete."),
-            "credentials": self._credential_dimension(enabled, configured, health),
-            "externalApi": self._external_dimension(enabled, configured, health),
-            "readCapability": _dimension("Operational" if capability_state.get("read_products") or capability_state.get("read_orders") else "Disabled", ""),
-            "writeCapability": _dimension("Operational" if capability_state.get("write_prices") else "Disabled", "Capability advertised; FlowHub Apply protections still apply."),
-            "lastProductSync": self._sync_dimension(product_read),
-            "lastOrderSync": self._sync_dimension(order_sync),
+            "configuration": _dimension(
+                DiagnosticState.HEALTHY if configured else DiagnosticState.WARNING,
+                "Required configuration is present." if configured else "Required configuration is incomplete.",
+                reason_code="configuration_complete" if configured else "configuration_incomplete",
+                checked_at=configuration_checked_at,
+                evidence_source="connector_settings",
+                is_actionable=not configured,
+                recommended_action="" if configured else "Complete channel configuration.",
+            ),
+            "credentials": self._credential_dimension(enabled, credentials_configured, health),
+            "externalApi": self._external_dimension(enabled, configured, health, external_probe_supported),
+            "readCapability": self._capability_dimension(
+                bool(capability_state.get("read_products") or capability_state.get("read_orders")),
+                "Product or order reads are supported.",
+                reason_code="read_capability_supported",
+            ),
+            "writeCapability": self._capability_dimension(
+                bool(capability_state.get("write_prices") or capability_state.get("write_inventory")),
+                "Price or stock updates are supported. FlowHub still requires Review and Apply confirmation.",
+                reason_code="write_capability_supported",
+            ),
+            "lastProductSync": self._product_sync_dimension(
+                enabled=enabled,
+                configured=configured,
+                supported=product_read_supported,
+                last_at=product_read,
+            ),
+            "lastOrderSync": self._order_sync_dimension(
+                enabled=enabled,
+                connector_type=connector_type,
+                expected=order_sync_expected,
+                last_at=order_sync,
+            ),
             "webhookReceipt": self._webhook_receipt_dimension(webhook),
             "webhookProcessing": self._webhook_processing_dimension(webhook),
             "queueDeadLetter": self._dead_letter_dimension(webhook),
-            "tokenRefresh": self._token_refresh_dimension(instance, connector_type),
-            "polling": self._polling_dimension(connector_type, checkpoint),
+            "tokenRefresh": self._token_refresh_dimension(instance, connector_type, enabled),
+            "polling": self._polling_dimension(
+                connector_type,
+                checkpoint,
+                polling_policy,
+                enabled,
+                configured,
+            ),
         }
         if connector_type == "snappshop":
             dimensions["vendorSelection"] = (
-                _dimension("Disabled", "Channel is disabled.")
+                _dimension(
+                    DiagnosticState.DISABLED,
+                    "Channel is disabled.",
+                    reason_code="channel_disabled",
+                    checked_at=configuration_checked_at,
+                    evidence_source="connector_instance",
+                )
                 if not enabled
-                else _dimension("Operational" if vendor_selected else "Warning", "A vendor is selected." if vendor_selected else "Select a vendor before product synchronization.")
+                else _dimension(
+                    DiagnosticState.HEALTHY if vendor_selected else DiagnosticState.WARNING,
+                    "A vendor is selected." if vendor_selected else "Select a vendor before product synchronization.",
+                    reason_code="vendor_selected" if vendor_selected else "vendor_not_selected",
+                    checked_at=configuration_checked_at,
+                    evidence_source="connector_settings",
+                    is_actionable=not vendor_selected,
+                    recommended_action="" if vendor_selected else "Select a vendor before product synchronization.",
+                )
             )
             dimensions["productCache"] = self._product_cache_dimension(enabled, latest_product_refresh)
-        status = "Disabled" if not enabled else _worst_dimension(dimensions)
+        state, controlling_dimension = _channel_state(enabled, dimensions, self._core_dimension_names(
+            product_read_supported=product_read_supported,
+            order_sync_expected=order_sync_expected,
+            external_probe_supported=external_probe_supported,
+            connector_type=connector_type,
+        ))
+        legacy_status = _legacy_channel_status(state)
+        summary = self._state_summary(state, controlling_dimension)
+        recommended_action = str(controlling_dimension.get("recommended_action") or "")
         return {
             "channelId": channel_id,
             "channelType": connector_type,
             "enabled": enabled,
             "accessMode": self._access_mode(instance),
-            "status": status,
-            "summary": self._summary(status, configured, health, product_read, order_sync, webhook),
+            "status": legacy_status,
+            "state": state.value,
+            "reason_code": str(controlling_dimension.get("reason_code") or "diagnostic_state_available"),
+            "checked_at": controlling_dimension.get("checked_at"),
+            "evidence_source": str(controlling_dimension.get("evidence_source") or "channel_diagnostics"),
+            "is_actionable": bool(controlling_dimension.get("is_actionable")),
+            "recommended_action": recommended_action,
+            "summary": summary,
             "lastChecked": _iso(cast(datetime, health.checked_at)) if health else None,
+            "lastSuccessfulVerification": _iso(cast(datetime | None, health.last_success_at)) if health else None,
             "latency": health.latency_ms if health else None,
             "lastSuccessfulOperation": _iso(
                 _max_dt(
@@ -208,12 +301,13 @@ class ChannelHealthReporter:
                     cast(datetime | None, health.last_success_at) if health else None,
                 )
             ),
+            "lastSuccessfulSyncOrRead": _iso(_max_dt(product_read, order_sync)),
             "lastErrorCategory": health.error_class if health else None,
             "capabilityState": capability_state,
-            "nextRecommendedAction": self._next_action(status, configured, health, webhook),
+            "nextRecommendedAction": recommended_action,
             "dimensions": dimensions,
             "lastProductRead": _iso(product_read),
-            "credentialsConfigured": self._credentials_configured(instance),
+            "credentialsConfigured": credentials_configured,
             "credentialsVerified": bool(health and health.last_success_at),
             "vendorSelected": vendor_selected,
             "vendorAccessible": bool(vendor_selected and health and health.status == "healthy") if connector_type == "snappshop" else None,
@@ -227,7 +321,15 @@ class ChannelHealthReporter:
             ),
             "lastProductWrite": _iso(product_write),
             "lastOrderSync": _iso(order_sync),
-            "polling": {"cursor": checkpoint.cursor if checkpoint else None, "lastRunAt": _iso(checkpoint.last_run_at) if checkpoint else None},
+            "polling": {
+                "enabled": bool(polling_policy and polling_policy.enabled),
+                "cursor": checkpoint.cursor if checkpoint else None,
+                "lastRunAt": _iso(_max_dt(
+                    checkpoint.last_run_at if checkpoint else None,
+                    polling_policy.last_run_at if polling_policy else None,
+                )),
+                "nextRunAt": _iso(polling_policy.next_run_at) if polling_policy else None,
+            },
             "orderSync": self._order_sync_state(channel_id),
             "webhooks": webhook,
         }
@@ -273,6 +375,219 @@ class ChannelHealthReporter:
         row = next((item for item in instance.settings if item.key == key), None)
         return bool(row and row.configured and str(row.value_json or "").strip())
 
+    def _setting_present(self, instance: IntegrationConnectorInstance | None, key: str) -> bool:
+        if instance is None:
+            return False
+        row = next((item for item in instance.settings if item.key == key), None)
+        return bool(row and row.configured)
+
+    def _configuration_checked_at(self, instance: IntegrationConnectorInstance | None) -> datetime | None:
+        if instance is None:
+            return None
+        return _max_dt(instance.updated_at, *(item.updated_at for item in instance.settings))
+
+    def _order_sync_expected(
+        self,
+        connector_type: str,
+        *,
+        polling_policy: IntegrationPollingPolicy | None,
+        webhook_enabled: bool,
+    ) -> bool:
+        if not parse_config_bool(os.environ.get("FLOWHUB_ORDER_SYNC_ENABLED"), default=True):
+            return False
+        if connector_type == "snappshop":
+            return bool(polling_policy and polling_policy.enabled)
+        if connector_type == "tapsishop":
+            return webhook_enabled
+        return False
+
+    def _capability_dimension(
+        self,
+        supported: bool,
+        supported_message: str,
+        *,
+        reason_code: str,
+    ) -> DiagnosticPresentation:
+        if supported:
+            return _dimension(
+                DiagnosticState.INFO,
+                supported_message,
+                reason_code=reason_code,
+                checked_at=None,
+                evidence_source="connector_registry",
+            )
+        return _dimension(
+            DiagnosticState.NOT_APPLICABLE,
+            "This capability is not used by this Channel.",
+            reason_code="capability_not_applicable",
+            checked_at=None,
+            evidence_source="connector_registry",
+        )
+
+    def _product_sync_dimension(
+        self,
+        *,
+        enabled: bool,
+        configured: bool,
+        supported: bool,
+        last_at: datetime | None,
+    ) -> DiagnosticPresentation:
+        if not enabled:
+            return _dimension(
+                DiagnosticState.DISABLED,
+                "Channel is disabled.",
+                reason_code="channel_disabled",
+                checked_at=None,
+                evidence_source="connector_instance",
+            )
+        if not supported:
+            return _dimension(
+                DiagnosticState.NOT_APPLICABLE,
+                "Product synchronization is not supported for this Channel.",
+                reason_code="product_sync_not_applicable",
+                checked_at=None,
+                evidence_source="connector_registry",
+            )
+        if not configured:
+            return _dimension(
+                DiagnosticState.NOT_CHECKED,
+                "Product synchronization cannot run until Channel configuration is complete.",
+                reason_code="product_sync_not_checked_configuration_incomplete",
+                checked_at=None,
+                evidence_source="data_layer_product_cache",
+                is_actionable=True,
+                recommended_action="Complete channel configuration.",
+            )
+        if last_at is None:
+            return _dimension(
+                DiagnosticState.NOT_CHECKED,
+                "No successful product synchronization has been recorded.",
+                reason_code="product_sync_not_checked",
+                checked_at=None,
+                evidence_source="data_layer_product_cache",
+                is_actionable=True,
+                recommended_action="Refresh products.",
+            )
+        if _is_stale(last_at, STALE_SYNC_AFTER):
+            return _dimension(
+                DiagnosticState.WARNING,
+                f"Last successful product sync was {_age_text(last_at)} ago. Expected freshness: within 24 hours.",
+                reason_code="product_sync_stale",
+                checked_at=_iso(last_at),
+                evidence_source="data_layer_product_cache",
+                is_actionable=True,
+                recommended_action="Refresh products.",
+                freshness_threshold_hours=24,
+            )
+        return _dimension(
+            DiagnosticState.HEALTHY,
+            "Product data was synchronized within the expected 24-hour freshness window.",
+            reason_code="product_sync_fresh",
+            checked_at=_iso(last_at),
+            evidence_source="data_layer_product_cache",
+            freshness_threshold_hours=24,
+        )
+
+    def _order_sync_dimension(
+        self,
+        *,
+        enabled: bool,
+        connector_type: str,
+        expected: bool,
+        last_at: datetime | None,
+    ) -> DiagnosticPresentation:
+        if not enabled:
+            return _dimension(
+                DiagnosticState.DISABLED,
+                "Channel is disabled.",
+                reason_code="channel_disabled",
+                checked_at=None,
+                evidence_source="connector_instance",
+            )
+        if not expected:
+            state = (
+                DiagnosticState.DISABLED
+                if self._connector_has_order_sync(connector_type) and not parse_config_bool(
+                    os.environ.get("FLOWHUB_ORDER_SYNC_ENABLED"), default=True
+                )
+                else DiagnosticState.NOT_APPLICABLE
+            )
+            return _dimension(
+                state,
+                "Order synchronization is not enabled for this Channel." if state == DiagnosticState.DISABLED else "Order synchronization is not used for this Channel.",
+                reason_code="order_sync_disabled" if state == DiagnosticState.DISABLED else "order_sync_not_applicable",
+                checked_at=None,
+                evidence_source="order_sync_configuration",
+            )
+        if last_at is None:
+            return _dimension(
+                DiagnosticState.WARNING,
+                "No successful order synchronization has been recorded.",
+                reason_code="order_sync_never_succeeded",
+                checked_at=None,
+                evidence_source="order_sync_checkpoint",
+                is_actionable=True,
+                recommended_action="Review order synchronization settings.",
+            )
+        if _is_stale(last_at, STALE_SYNC_AFTER):
+            return _dimension(
+                DiagnosticState.WARNING,
+                f"Last successful order sync was {_age_text(last_at)} ago. Expected freshness: within 24 hours.",
+                reason_code="order_sync_stale",
+                checked_at=_iso(last_at),
+                evidence_source="order_sync_checkpoint",
+                is_actionable=True,
+                recommended_action="Review order synchronization.",
+                freshness_threshold_hours=24,
+            )
+        return _dimension(
+            DiagnosticState.HEALTHY,
+            "Order synchronization completed within the expected freshness window.",
+            reason_code="order_sync_fresh",
+            checked_at=_iso(last_at),
+            evidence_source="order_sync_checkpoint",
+            freshness_threshold_hours=24,
+        )
+
+    def _connector_has_order_sync(self, connector_type: str) -> bool:
+        return connector_type in {"snappshop", "tapsishop"}
+
+    def _core_dimension_names(
+        self,
+        *,
+        product_read_supported: bool,
+        order_sync_expected: bool,
+        external_probe_supported: bool,
+        connector_type: str,
+    ) -> tuple[str, ...]:
+        # Preserve a stable controlling-check order so identical evidence always
+        # produces the same summary reason and recommended action.
+        names = ["configuration", "credentials"]
+        if external_probe_supported:
+            names.append("externalApi")
+        if product_read_supported:
+            names.append("lastProductSync")
+        if order_sync_expected:
+            names.append("lastOrderSync")
+        if connector_type == "snappshop":
+            names.extend(("vendorSelection", "productCache"))
+        return tuple(names)
+
+    def _state_summary(
+        self,
+        state: DiagnosticState,
+        controlling_dimension: DiagnosticPresentation,
+    ) -> str:
+        if state == DiagnosticState.DISABLED:
+            return "Channel is disabled."
+        if state == DiagnosticState.HEALTHY:
+            return "All required Channel checks have verified healthy evidence."
+        if state == DiagnosticState.NOT_CHECKED:
+            return "One or more required checks have not run yet."
+        if state == DiagnosticState.INFO:
+            return "Channel diagnostics are informational."
+        return str(controlling_dimension.get("message") or "Channel diagnostics need attention.")
+
     def _latest_product_refresh(self, channel_id: str) -> DlRefreshJob | None:
         return (
             self.db.query(DlRefreshJob)
@@ -281,16 +596,50 @@ class ChannelHealthReporter:
             .first()
         )
 
-    def _product_cache_dimension(self, enabled: bool, refresh: DlRefreshJob | None) -> dict[str, str]:
+    def _product_cache_dimension(self, enabled: bool, refresh: DlRefreshJob | None) -> DiagnosticPresentation:
         if not enabled:
-            return _dimension("Disabled", "Channel is disabled.")
+            return _dimension(
+                DiagnosticState.DISABLED,
+                "Channel is disabled.",
+                reason_code="channel_disabled",
+                checked_at=None,
+                evidence_source="connector_instance",
+            )
         if refresh is None:
-            return _dimension("Warning", "No product synchronization has been run.")
+            return _dimension(
+                DiagnosticState.NOT_CHECKED,
+                "No product cache refresh has been run.",
+                reason_code="product_cache_not_checked",
+                checked_at=None,
+                evidence_source="data_layer_refresh_job",
+                is_actionable=True,
+                recommended_action="Refresh products.",
+            )
         if refresh.status == "completed":
-            return _dimension("Operational", "The local product cache was refreshed successfully.")
+            return _dimension(
+                DiagnosticState.HEALTHY,
+                "The local product cache was refreshed successfully.",
+                reason_code="product_cache_refresh_completed",
+                checked_at=_iso(refresh.completed_at or refresh.created_at),
+                evidence_source="data_layer_refresh_job",
+            )
         if refresh.status == "failed":
-            return _dimension("Error", "The latest product synchronization failed; the previous cache was preserved.")
-        return _dimension("Warning", "Product synchronization has not completed.")
+            return _dimension(
+                DiagnosticState.ERROR,
+                "The latest product synchronization failed; the previous cache was preserved.",
+                reason_code="product_cache_refresh_failed",
+                checked_at=_iso(refresh.completed_at or refresh.created_at),
+                evidence_source="data_layer_refresh_job",
+                is_actionable=True,
+                recommended_action="Review the synchronization error and retry product refresh.",
+            )
+        return _dimension(
+            DiagnosticState.INFO,
+            "Product synchronization is still in progress.",
+            reason_code="product_cache_refresh_in_progress",
+            checked_at=_iso(refresh.started_at or refresh.created_at),
+            evidence_source="data_layer_refresh_job",
+        )
 
     def _access_mode(self, instance: IntegrationConnectorInstance | None) -> str:
         if instance is None:
@@ -322,29 +671,41 @@ class ChannelHealthReporter:
         if not self._table_exists(ChannelOrderRecord) or not self._table_exists(OrderSyncCheckpoint):
             return None
         order_time = self.db.query(func.max(ChannelOrderRecord.last_seen_at)).filter(ChannelOrderRecord.channel_id == channel_id).scalar()
-        checkpoint_time = self.db.query(func.max(OrderSyncCheckpoint.last_run_at)).filter(OrderSyncCheckpoint.channel_id == channel_id).scalar()
+        checkpoint_time = self.db.query(func.max(OrderSyncCheckpoint.last_success_at)).filter(OrderSyncCheckpoint.channel_id == channel_id).scalar()
         return _max_dt(order_time, checkpoint_time)
 
-    def _checkpoint(self, channel_id: str) -> OrderSyncCheckpoint | None:
+    def _checkpoint(self, channel_id: str, source: str) -> OrderSyncCheckpoint | None:
         if not self._table_exists(OrderSyncCheckpoint):
             return None
         return (
             self.db.query(OrderSyncCheckpoint)
-            .filter_by(channel_id=channel_id)
+            .filter_by(channel_id=channel_id, source=source)
             .order_by(OrderSyncCheckpoint.updated_at.desc())
             .first()
         )
 
-    def _webhook_state(self, channel_id: str, connector_type: str) -> dict[str, Any]:
+    def _polling_policy(self, channel_id: str) -> IntegrationPollingPolicy | None:
+        if not self._table_exists(IntegrationPollingPolicy):
+            return None
+        return self.db.get(IntegrationPollingPolicy, channel_id)
+
+    def _webhook_state(
+        self,
+        channel_id: str,
+        connector_type: str,
+        instance: IntegrationConnectorInstance | None,
+    ) -> dict[str, Any]:
         if connector_type != "tapsishop":
-            return {"supported": False, "received": 0, "queued": 0, "processed": 0, "deadLetter": 0, "lastReceivedAt": None, "lastProcessedAt": None}
+            return {"supported": False, "enabled": False, "received": 0, "queued": 0, "processed": 0, "deadLetter": 0, "lastReceivedAt": None, "lastProcessedAt": None}
+        webhook_enabled = self._setting_present(instance, "webhook_token")
         if not self._table_exists(WebhookReceipt) or not self._table_exists(WebhookDeadLetter):
-            return {"supported": True, "received": 0, "queued": 0, "processed": 0, "deadLetter": 0, "lastReceivedAt": None, "lastProcessedAt": None}
+            return {"supported": True, "enabled": webhook_enabled, "received": 0, "queued": 0, "processed": 0, "deadLetter": 0, "lastReceivedAt": None, "lastProcessedAt": None}
         q = self.db.query(WebhookReceipt).filter_by(channel_id=channel_id)
         receipts = q.all()
         dead = self.db.query(WebhookDeadLetter).filter_by(channel_id=channel_id).count()
         return {
             "supported": True,
+            "enabled": webhook_enabled,
             "received": len(receipts),
             "queued": sum(1 for item in receipts if item.processing_state in {"queued", "retry_scheduled"}),
             "processed": sum(1 for item in receipts if item.processing_state == "processed"),
@@ -353,65 +714,299 @@ class ChannelHealthReporter:
             "lastProcessedAt": _iso(max((item.processed_at for item in receipts if item.processed_at), default=None)),
         }
 
-    def _credential_dimension(self, enabled: bool, configured: bool, health: DlConnectorHealth | None) -> dict[str, str]:
+    def _credential_dimension(self, enabled: bool, configured: bool, health: DlConnectorHealth | None) -> DiagnosticPresentation:
         if not enabled:
-            return _dimension("Disabled", "Channel is disabled.")
+            return _dimension(
+                DiagnosticState.DISABLED,
+                "Channel is disabled.",
+                reason_code="channel_disabled",
+                checked_at=None,
+                evidence_source="connector_instance",
+            )
         if health and health.error_class in {"authentication", "authentication_failed"}:
-            return _dimension("Error", "Credential validation failed.")
+            return _dimension(
+                DiagnosticState.ERROR,
+                "Credential verification failed.",
+                reason_code="credential_verification_failed",
+                checked_at=_iso(health.checked_at),
+                evidence_source="data_layer_health",
+                is_actionable=True,
+                recommended_action="Review credentials and run the connection test again.",
+            )
         if not configured:
-            return _dimension("Warning", "Credentials are not fully configured.")
-        return _dimension("Operational" if health and health.last_success_at else "Unable to check", "Credential validation uses the lightweight provider probe.")
-
-    def _external_dimension(self, enabled: bool, configured: bool, health: DlConnectorHealth | None) -> dict[str, str]:
-        if not enabled:
-            return _dimension("Disabled", "")
-        if not configured:
-            return _dimension("Warning", "Configure the channel before checking reachability.")
+            return _dimension(
+                DiagnosticState.WARNING,
+                "Credentials are not fully configured.",
+                reason_code="credentials_incomplete",
+                checked_at=None,
+                evidence_source="connector_settings",
+                is_actionable=True,
+                recommended_action="Complete the required credentials.",
+            )
         if health is None:
-            return _dimension("Unable to check", "No health check has been recorded.")
+            return _dimension(
+                DiagnosticState.NOT_CHECKED,
+                "Credential verification has not run yet.",
+                reason_code="credentials_not_checked",
+                checked_at=None,
+                evidence_source="data_layer_health",
+                is_actionable=True,
+                recommended_action="Run the connection test to verify credentials.",
+            )
+        if _is_stale(health.checked_at, STALE_HEALTH_AFTER):
+            return _dimension(
+                DiagnosticState.WARNING,
+                "Credential verification evidence is older than 24 hours.",
+                reason_code="credential_evidence_expired",
+                checked_at=_iso(health.checked_at),
+                evidence_source="data_layer_health",
+                is_actionable=True,
+                recommended_action="Run the connection test again.",
+            )
+        if health.status == "healthy" and health.last_success_at:
+            return _dimension(
+                DiagnosticState.HEALTHY,
+                "Credentials were verified successfully.",
+                reason_code="credentials_verified",
+                checked_at=_iso(health.checked_at),
+                evidence_source="data_layer_health",
+            )
+        return _dimension(
+            DiagnosticState.WARNING,
+            "Credential verification could not be completed.",
+            reason_code="credential_verification_inconclusive",
+            checked_at=_iso(health.checked_at),
+            evidence_source="data_layer_health",
+            is_actionable=True,
+            recommended_action="Run the connection test again.",
+            legacy_status="Unable to check",
+        )
+
+    def _external_dimension(
+        self,
+        enabled: bool,
+        configured: bool,
+        health: DlConnectorHealth | None,
+        supported: bool,
+    ) -> DiagnosticPresentation:
+        if not enabled:
+            return _dimension(
+                DiagnosticState.DISABLED,
+                "Channel is disabled.",
+                reason_code="channel_disabled",
+                checked_at=None,
+                evidence_source="connector_instance",
+            )
+        if not supported:
+            return _dimension(
+                DiagnosticState.NOT_APPLICABLE,
+                "This connector does not provide a separate API health probe.",
+                reason_code="external_api_probe_not_applicable",
+                checked_at=None,
+                evidence_source="connector_capability",
+            )
+        if not configured:
+            return _dimension(
+                DiagnosticState.NOT_CHECKED,
+                "The API connection cannot be checked until configuration is complete.",
+                reason_code="external_api_not_checked_configuration_incomplete",
+                checked_at=None,
+                evidence_source="data_layer_health",
+                is_actionable=True,
+                recommended_action="Complete channel configuration.",
+            )
+        if health is None:
+            return _dimension(
+                DiagnosticState.NOT_CHECKED,
+                "No API health check has been recorded.",
+                reason_code="external_api_not_checked",
+                checked_at=None,
+                evidence_source="data_layer_health",
+                is_actionable=True,
+                recommended_action="Run the connection test.",
+            )
+        if _is_stale(health.checked_at, STALE_HEALTH_AFTER):
+            return _dimension(
+                DiagnosticState.WARNING,
+                "API health evidence is older than 24 hours.",
+                reason_code="external_api_evidence_expired",
+                checked_at=_iso(health.checked_at),
+                evidence_source="data_layer_health",
+                is_actionable=True,
+                recommended_action="Run the connection test again.",
+            )
         if health.error_class == "timeout" or health.status == "unknown":
-            return _dimension("Unable to check", cast(str | None, health.detail) or "Provider probe was inconclusive.")
+            return _dimension(
+                DiagnosticState.WARNING,
+                "The latest API health check was inconclusive.",
+                reason_code="external_api_check_inconclusive",
+                checked_at=_iso(health.checked_at),
+                evidence_source="data_layer_health",
+                is_actionable=True,
+                recommended_action="Retry the connection test.",
+                legacy_status="Unable to check",
+            )
         if health.status == "healthy":
-            return _dimension("Operational", cast(str | None, health.detail) or "")
+            return _dimension(
+                DiagnosticState.HEALTHY,
+                "The latest API health check completed successfully.",
+                reason_code="external_api_healthy",
+                checked_at=_iso(health.checked_at),
+                evidence_source="data_layer_health",
+            )
         if health.status == "degraded":
-            return _dimension("Warning", cast(str | None, health.detail) or "")
-        return _dimension("Error", cast(str | None, health.detail) or "Provider probe failed.")
+            return _dimension(
+                DiagnosticState.WARNING,
+                _safe_message(cast(str | None, health.detail) or "The API health check needs review."),
+                reason_code="external_api_degraded",
+                checked_at=_iso(health.checked_at),
+                evidence_source="data_layer_health",
+                is_actionable=True,
+                recommended_action="Review the connection details.",
+            )
+        return _dimension(
+            DiagnosticState.ERROR,
+            _safe_message(cast(str | None, health.detail) or "The API health check failed."),
+            reason_code="external_api_check_failed",
+            checked_at=_iso(health.checked_at),
+            evidence_source="data_layer_health",
+            is_actionable=True,
+            recommended_action="Review the connection error and credentials.",
+        )
 
-    def _sync_dimension(self, last_at: datetime | None) -> dict[str, str]:
-        if last_at is None:
-            return _dimension("Warning", "No successful sync has been recorded.")
-        if last_at < datetime.utcnow() - STALE_SYNC_AFTER:
-            return _dimension("Warning", "Last successful sync is stale.")
-        return _dimension("Operational", "Recent successful sync recorded.")
-
-    def _webhook_receipt_dimension(self, state: dict[str, Any]) -> dict[str, str]:
+    def _webhook_receipt_dimension(self, state: dict[str, Any]) -> DiagnosticPresentation:
         if not state["supported"]:
-            return _dimension("Disabled", "Channel does not use webhooks.")
+            return _dimension(
+                DiagnosticState.NOT_APPLICABLE,
+                "This Channel does not use webhooks.",
+                reason_code="webhook_not_applicable",
+                checked_at=None,
+                evidence_source="connector_capability",
+            )
+        if not state["enabled"]:
+            return _dimension(
+                DiagnosticState.DISABLED,
+                "Webhook receipt is turned off for this Channel.",
+                reason_code="webhook_disabled",
+                checked_at=None,
+                evidence_source="connector_settings",
+            )
         if state["received"] == 0:
-            return _dimension("Warning", "No webhook receipt has been accepted yet.")
-        return _dimension("Operational", "Webhook receipts are being accepted.")
+            return _dimension(
+                DiagnosticState.NOT_CHECKED,
+                "No webhook receipt evidence has been recorded yet.",
+                reason_code="webhook_receipt_not_checked",
+                checked_at=None,
+                evidence_source="webhook_receipts",
+            )
+        return _dimension(
+            DiagnosticState.HEALTHY,
+            "Webhook receipts are being accepted.",
+            reason_code="webhook_receipt_healthy",
+            checked_at=cast(str | None, state["lastReceivedAt"]),
+            evidence_source="webhook_receipts",
+        )
 
-    def _webhook_processing_dimension(self, state: dict[str, Any]) -> dict[str, str]:
+    def _webhook_processing_dimension(self, state: dict[str, Any]) -> DiagnosticPresentation:
         if not state["supported"]:
-            return _dimension("Disabled", "")
+            return _dimension(
+                DiagnosticState.NOT_APPLICABLE,
+                "This Channel does not use webhook processing.",
+                reason_code="webhook_processing_not_applicable",
+                checked_at=None,
+                evidence_source="connector_capability",
+            )
+        if not state["enabled"]:
+            return _dimension(
+                DiagnosticState.DISABLED,
+                "Webhook processing is turned off for this Channel.",
+                reason_code="webhook_processing_disabled",
+                checked_at=None,
+                evidence_source="connector_settings",
+            )
         if state["queued"] > 0:
-            return _dimension("Warning", "Accepted webhook receipts are waiting for processing.")
-        return _dimension("Operational" if state["processed"] else "Warning", "No processed webhook receipt yet." if not state["processed"] else "")
+            return _dimension(
+                DiagnosticState.WARNING,
+                "Accepted webhook receipts are waiting for processing.",
+                reason_code="webhook_processing_delayed",
+                checked_at=cast(str | None, state["lastReceivedAt"]),
+                evidence_source="webhook_receipts",
+                is_actionable=True,
+                recommended_action="Review queued webhook receipts.",
+            )
+        if not state["processed"]:
+            return _dimension(
+                DiagnosticState.NOT_CHECKED,
+                "No webhook processing evidence has been recorded yet.",
+                reason_code="webhook_processing_not_checked",
+                checked_at=None,
+                evidence_source="webhook_receipts",
+            )
+        return _dimension(
+            DiagnosticState.HEALTHY,
+            "Webhook receipts are being processed.",
+            reason_code="webhook_processing_healthy",
+            checked_at=cast(str | None, state["lastProcessedAt"]),
+            evidence_source="webhook_receipts",
+        )
 
-    def _dead_letter_dimension(self, state: dict[str, Any]) -> dict[str, str]:
+    def _dead_letter_dimension(self, state: dict[str, Any]) -> DiagnosticPresentation:
         if not state["supported"]:
-            return _dimension("Disabled", "")
+            return _dimension(
+                DiagnosticState.NOT_APPLICABLE,
+                "This Channel does not use a dead-letter queue.",
+                reason_code="dead_letter_queue_not_applicable",
+                checked_at=None,
+                evidence_source="connector_capability",
+            )
+        if not state["enabled"]:
+            return _dimension(
+                DiagnosticState.DISABLED,
+                "Webhook recovery queues are turned off with webhook processing.",
+                reason_code="dead_letter_queue_disabled",
+                checked_at=None,
+                evidence_source="connector_settings",
+            )
         if state["deadLetter"] > 0:
-            return _dimension("Error", "Webhook dead letters require operator review.")
-        return _dimension("Operational", "No dead letters.")
+            return _dimension(
+                DiagnosticState.ERROR,
+                "Webhook dead letters require review.",
+                reason_code="dead_letter_queue_has_items",
+                checked_at=cast(str | None, state["lastReceivedAt"]),
+                evidence_source="webhook_dead_letters",
+                is_actionable=True,
+                recommended_action="Review and resolve webhook dead letters.",
+            )
+        return _dimension(
+            DiagnosticState.HEALTHY,
+            "No webhook dead letters are waiting for recovery.",
+            reason_code="dead_letter_queue_empty",
+            checked_at=cast(str | None, state["lastReceivedAt"]),
+            evidence_source="webhook_dead_letters",
+        )
 
     def _token_refresh_dimension(
         self,
         instance: IntegrationConnectorInstance | None,
         connector_type: str,
-    ) -> dict[str, str]:
+        channel_enabled: bool,
+    ) -> DiagnosticPresentation:
         if connector_type != "tapsishop":
-            return _dimension("Disabled", "Token refresh is not supported for this channel.")
+            return _dimension(
+                DiagnosticState.NOT_APPLICABLE,
+                "This authentication method does not require token refresh.",
+                reason_code="token_refresh_not_applicable",
+                checked_at=None,
+                evidence_source="connector_capability",
+            )
+        if not channel_enabled:
+            return _dimension(
+                DiagnosticState.DISABLED,
+                "Channel is disabled.",
+                reason_code="channel_disabled",
+                checked_at=None,
+                evidence_source="connector_instance",
+            )
         settings = {item.key: item for item in instance.settings} if instance else {}
         enabled = parse_config_bool(
             settings["token_refresh_enabled"].value_json
@@ -424,8 +1019,39 @@ class ChannelHealthReporter:
             .order_by(IntegrationConnectorEvent.created_at.desc())
             .first()
         )
-        event_label = last_event.event_name.replace("token", "credential") if last_event else ""
-        return _dimension("Operational" if enabled else "Warning", f"Refresh policy {'enabled' if enabled else 'disabled'}." + (f" Last event {event_label}." if event_label else ""))
+        if not enabled:
+            return _dimension(
+                DiagnosticState.DISABLED,
+                "Token refresh is turned off.",
+                reason_code="token_refresh_disabled",
+                checked_at=_iso(settings["token_refresh_enabled"].updated_at) if settings.get("token_refresh_enabled") else None,
+                evidence_source="connector_settings",
+            )
+        if last_event is None:
+            return _dimension(
+                DiagnosticState.NOT_CHECKED,
+                "Token refresh is enabled, but no refresh event has been recorded.",
+                reason_code="token_refresh_not_checked",
+                checked_at=None,
+                evidence_source="connector_events",
+            )
+        if "fail" in last_event.event_name.lower() or last_event.severity.lower() in {"warning", "error"}:
+            return _dimension(
+                DiagnosticState.WARNING if last_event.severity.lower() != "error" else DiagnosticState.ERROR,
+                "The latest token refresh event needs attention.",
+                reason_code="token_refresh_failed",
+                checked_at=_iso(last_event.created_at),
+                evidence_source="connector_events",
+                is_actionable=True,
+                recommended_action="Review credentials and token refresh settings.",
+            )
+        return _dimension(
+            DiagnosticState.HEALTHY,
+            "The latest token refresh event completed successfully.",
+            reason_code="token_refresh_healthy",
+            checked_at=_iso(last_event.created_at),
+            evidence_source="connector_events",
+        )
 
     def _channel_ids(self) -> list[str]:
         rows = (
@@ -456,7 +1082,7 @@ class ChannelHealthReporter:
         last_failure = _max_dt(*(item.last_failure_at for item in checkpoints))
         last_success = _max_dt(
             *(
-                item.last_success_at or item.last_run_at
+                item.last_success_at
                 for item in checkpoints
             )
         )
@@ -487,93 +1113,225 @@ class ChannelHealthReporter:
         }
 
     def _table_exists(self, model: Any) -> bool:
-        return inspect(self.db.get_bind()).has_table(model.__tablename__)
+        return bool(inspect(self.db.get_bind()).has_table(model.__tablename__))
 
     def _polling_dimension(
         self,
         connector_type: str,
         checkpoint: OrderSyncCheckpoint | None,
-    ) -> dict[str, str]:
+        policy: IntegrationPollingPolicy | None,
+        enabled: bool,
+        configured: bool,
+    ) -> DiagnosticPresentation:
         if connector_type != "snappshop":
-            return _dimension("Disabled", "Order polling is not used for this channel.")
-        if checkpoint is None or checkpoint.last_run_at is None:
-            return _dimension("Warning", "No order event polling checkpoint has run.")
-        return self._sync_dimension(checkpoint.last_run_at)
-
-    def _summary(
-        self,
-        status_value: str,
-        configured: bool,
-        health: DlConnectorHealth | None,
-        product_read: datetime | None,
-        order_sync: datetime | None,
-        webhook: dict[str, Any],
-    ) -> str:
-        if status_value == "Disabled":
-            return "Channel is disabled."
+            return _dimension(
+                DiagnosticState.NOT_APPLICABLE,
+                "This Channel does not use order polling.",
+                reason_code="polling_not_applicable",
+                checked_at=None,
+                evidence_source="connector_capability",
+            )
+        if not enabled:
+            return _dimension(
+                DiagnosticState.DISABLED,
+                "Channel is disabled.",
+                reason_code="channel_disabled",
+                checked_at=None,
+                evidence_source="connector_instance",
+            )
+        if (
+            not parse_config_bool(os.environ.get("FLOWHUB_ORDER_SYNC_ENABLED"), default=True)
+            or policy is None
+            or not policy.enabled
+        ):
+            return _dimension(
+                DiagnosticState.DISABLED,
+                "Order polling is turned off.",
+                reason_code="polling_disabled",
+                checked_at=_iso(policy.updated_at) if policy else None,
+                evidence_source="integration_polling_policy",
+            )
         if not configured:
-            return "Channel configuration is incomplete."
-        if health and health.error_class:
-            return f"Last health check reported {health.error_class}."
-        if webhook.get("deadLetter"):
-            return "Webhook dead letters are present."
-        if not product_read and not order_sync:
-            return "Configured, but no recent product or order sync has been recorded."
-        return "Channel health is derived from the unified diagnostics source."
+            return _dimension(
+                DiagnosticState.NOT_CHECKED,
+                "Order polling cannot run until Channel configuration is complete.",
+                reason_code="polling_not_checked_configuration_incomplete",
+                checked_at=None,
+                evidence_source="order_sync_checkpoint",
+                is_actionable=True,
+                recommended_action="Complete channel configuration.",
+            )
+        last_run_at = _max_dt(
+            checkpoint.last_run_at if checkpoint else None,
+            policy.last_run_at,
+        )
+        if checkpoint is None or checkpoint.last_success_at is None:
+            return _dimension(
+                DiagnosticState.WARNING,
+                "Order polling is enabled, but no successful polling run has been recorded.",
+                reason_code="polling_never_succeeded",
+                checked_at=_iso(last_run_at),
+                evidence_source="integration_polling_policy_and_order_sync_checkpoint",
+                is_actionable=True,
+                recommended_action="Review order polling settings.",
+            )
+        if _is_stale(checkpoint.last_success_at, STALE_SYNC_AFTER):
+            return _dimension(
+                DiagnosticState.WARNING,
+                f"Last successful order polling run was {_age_text(checkpoint.last_success_at)} ago.",
+                reason_code="polling_stale",
+                checked_at=_iso(checkpoint.last_success_at),
+                evidence_source="order_sync_checkpoint",
+                is_actionable=True,
+                recommended_action="Review order polling.",
+                freshness_threshold_hours=24,
+            )
+        return _dimension(
+            DiagnosticState.HEALTHY,
+            "Order polling is running successfully.",
+            reason_code="polling_healthy",
+            checked_at=_iso(checkpoint.last_success_at),
+            evidence_source="order_sync_checkpoint",
+            freshness_threshold_hours=24,
+        )
 
-    def _next_action(
-        self,
-        status_value: str,
-        configured: bool,
-        health: DlConnectorHealth | None,
-        webhook: dict[str, Any],
-    ) -> str:
-        if status_value == "Disabled":
-            return "Enable the channel when it should be monitored."
-        if not configured:
-            return "Complete channel configuration and credentials."
-        if health and health.error_class in {"authentication", "authentication_failed"}:
-            return "Update credentials and run an explicit health refresh."
-        if health and health.error_class == "timeout":
-            return "Retry health refresh; keep recent successful sync state until timeout recurs."
-        if webhook.get("deadLetter"):
-            return "Review and replay or resolve webhook dead letters."
-        return "No immediate action required."
+
+def _dimension(
+    state: DiagnosticState,
+    message: str,
+    *,
+    reason_code: str,
+    checked_at: str | None,
+    evidence_source: str,
+    is_actionable: bool = False,
+    recommended_action: str = "",
+    legacy_status: str | None = None,
+    freshness_threshold_hours: int | None = None,
+) -> DiagnosticPresentation:
+    return diagnostic_presentation(
+        state,
+        message,
+        reason_code=reason_code,
+        checked_at=checked_at,
+        evidence_source=evidence_source,
+        is_actionable=is_actionable,
+        recommended_action=recommended_action,
+        legacy_status=legacy_status,
+        freshness_threshold_hours=freshness_threshold_hours,
+    )
 
 
-def _dimension(status_value: str, message: str) -> dict[str, str]:
-    return {"status": status_value, "message": _safe_message(message)}
+def _channel_state(
+    enabled: bool,
+    dimensions: dict[str, DiagnosticPresentation],
+    core_names: tuple[str, ...],
+) -> tuple[DiagnosticState, DiagnosticPresentation]:
+    if not enabled:
+        return DiagnosticState.DISABLED, _dimension(
+            DiagnosticState.DISABLED,
+            "Channel is disabled.",
+            reason_code="channel_disabled",
+            checked_at=None,
+            evidence_source="connector_instance",
+        )
+
+    for state in (DiagnosticState.ERROR, DiagnosticState.WARNING):
+        match = next(
+            (
+                item
+                for item in dimensions.values()
+                if item["state"] == state.value and item["is_actionable"]
+            ),
+            None,
+        )
+        if match is not None:
+            return state, match
+
+    core = [dimensions[name] for name in core_names if name in dimensions]
+    missing = next(
+        (item for item in core if item["state"] == DiagnosticState.NOT_CHECKED.value),
+        None,
+    )
+    if missing is not None:
+        return DiagnosticState.NOT_CHECKED, missing
+    if core and all(item["state"] == DiagnosticState.HEALTHY.value for item in core):
+        return DiagnosticState.HEALTHY, core[0]
+
+    informative = next(
+        (
+            item
+            for item in dimensions.values()
+            if item["state"] in {DiagnosticState.INFO.value, DiagnosticState.NOT_APPLICABLE.value}
+        ),
+        None,
+    )
+    if informative is not None:
+        return DiagnosticState.INFO, informative
+    fallback = core[0] if core else next(iter(dimensions.values()))
+    return DiagnosticState.NOT_CHECKED, fallback
 
 
-def _worst_dimension(dimensions: dict[str, dict[str, str]]) -> str:
-    order = {"Error": 4, "Warning": 3, "Unable to check": 2, "Operational": 1, "Disabled": 0}
-    active = [item["status"] for item in dimensions.values() if item["status"] != "Disabled"]
-    return max(active or ["Disabled"], key=lambda item: order.get(item, 0))
+def _legacy_channel_status(state: DiagnosticState) -> str:
+    return {
+        DiagnosticState.HEALTHY: "Operational",
+        DiagnosticState.INFO: "Information",
+        DiagnosticState.NOT_CHECKED: "Not checked",
+        DiagnosticState.NOT_APPLICABLE: "Not applicable",
+        DiagnosticState.DISABLED: "Disabled",
+        DiagnosticState.WARNING: "Warning",
+        DiagnosticState.ERROR: "Error",
+    }[state]
 
 
 def _summary(items: list[dict[str, Any]]) -> dict[str, Any]:
-    counts = {"Operational": 0, "Warning": 0, "Error": 0, "Unable to check": 0, "Disabled": 0}
+    counts = {
+        "Operational": 0,
+        "Information": 0,
+        "Not checked": 0,
+        "Not applicable": 0,
+        "Warning": 0,
+        "Error": 0,
+        "Unable to check": 0,
+        "Disabled": 0,
+    }
+    state_counts = {state.value: 0 for state in DiagnosticState}
     for item in items:
         counts[item["status"]] = counts.get(item["status"], 0) + 1
-    overall = "Operational"
-    for status_value in ("Error", "Warning", "Unable to check", "Disabled"):
-        if counts.get(status_value):
-            overall = status_value
-            break
-    return {"overall": overall, "counts": counts}
+        state_counts[str(item.get("state") or DiagnosticState.NOT_CHECKED.value)] += 1
+
+    if state_counts[DiagnosticState.ERROR.value]:
+        overall_state = DiagnosticState.ERROR
+    elif state_counts[DiagnosticState.WARNING.value]:
+        overall_state = DiagnosticState.WARNING
+    elif state_counts[DiagnosticState.NOT_CHECKED.value]:
+        overall_state = DiagnosticState.NOT_CHECKED
+    elif state_counts[DiagnosticState.HEALTHY.value]:
+        overall_state = DiagnosticState.HEALTHY
+    elif state_counts[DiagnosticState.INFO.value]:
+        overall_state = DiagnosticState.INFO
+    elif state_counts[DiagnosticState.DISABLED.value]:
+        overall_state = DiagnosticState.DISABLED
+    else:
+        overall_state = DiagnosticState.NOT_APPLICABLE
+    return {
+        "overall": _legacy_channel_status(overall_state),
+        "overall_state": overall_state.value,
+        "counts": counts,
+        "state_counts": state_counts,
+    }
 
 
 def _error_category_from_result(result: dict[str, Any]) -> str | None:
     value = str(result.get("code") or result.get("error_code") or result.get("status") or "").lower()
     if "auth" in value or result.get("authenticated") is False:
-        return ConnectorErrorCategory.AUTHENTICATION.value
+        return str(ConnectorErrorCategory.AUTHENTICATION.value)
     if "timeout" in value:
-        return ConnectorErrorCategory.TIMEOUT.value
+        return str(ConnectorErrorCategory.TIMEOUT.value)
     if "rate" in value:
-        return ConnectorErrorCategory.RATE_LIMIT.value
+        return str(ConnectorErrorCategory.RATE_LIMIT.value)
     if value in {"not_configured", "disabled"}:
         return "not_configured"
-    return ConnectorErrorCategory.UNEXPECTED_RESPONSE.value if result.get("ok") is False else None
+    return str(ConnectorErrorCategory.UNEXPECTED_RESPONSE.value) if result.get("ok") is False else None
 
 
 def _max_dt(*values: datetime | None) -> datetime | None:
@@ -585,12 +1343,28 @@ def _iso(value: datetime | None) -> str | None:
     return value.isoformat() + "Z" if value else None
 
 
+def _is_stale(value: datetime, maximum_age: timedelta) -> bool:
+    return value < datetime.utcnow() - maximum_age
+
+
+def _age_text(value: datetime) -> str:
+    seconds = max(0, int((datetime.utcnow() - value).total_seconds()))
+    days = seconds // 86_400
+    if days:
+        return f"{days} day" if days == 1 else f"{days} days"
+    hours = seconds // 3_600
+    if hours:
+        return f"{hours} hour" if hours == 1 else f"{hours} hours"
+    minutes = seconds // 60
+    return f"{minutes} minute" if minutes == 1 else f"{minutes} minutes"
+
+
 def _safe_message(value: str) -> str:
     blocked = ("token", "authorization", "secret", "phone", "national", "address")
     text = str(value or "")[:400]
     lowered = text.lower()
     if any(word in lowered for word in blocked):
-        return "Sanitized health detail is available in server logs."
+        return "Sensitive diagnostic details were protected."
     return text
 
 

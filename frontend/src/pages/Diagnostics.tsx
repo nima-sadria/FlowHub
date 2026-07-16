@@ -7,11 +7,23 @@ import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
 import Icon, { type IconName } from '../components/Icon'
 import PageShell from '../components/PageShell'
+import Badge from '../components/Badge'
+import DiagnosticStateBadge from '../components/DiagnosticStateBadge'
 import type { ChannelHealthItem, ChannelHealthResponse } from '../services/types'
 import { formatDateTime, formatNumber, formatRelativeTime } from '../i18n/format'
 import { formatDiagnosticDimension, formatDiagnosticMessage, formatStatus } from '../i18n/display'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
-import { ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
+import { ResourceSectionList } from '../components/ResourceOrdering'
+import {
+  deriveOverallDiagnosticState,
+  diagnosticEvidenceCheckedAt,
+  diagnosticEvidenceDescription,
+  diagnosticRecommendedAction,
+  diagnosticStatePresentation,
+  resolveDiagnosticState,
+  type DiagnosticEvidenceLike,
+  type DiagnosticState,
+} from '../features/diagnostics/diagnosticPresentation'
 import {
   diagnosticChannelSignals,
   diagnosticSourceSignals,
@@ -21,7 +33,7 @@ import {
 const REQUEST_TIMEOUT_MS = 10_000
 const SOURCE_CONNECTOR_TYPES = new Set(['nextcloud', 'csv', 'gsheets', 'erp'])
 
-type VisualStatus = 'ok' | 'warning' | 'error' | 'loading' | 'pending'
+type SummaryStatus = DiagnosticState | 'LOADING'
 
 interface ConnectorStatus {
   id?: string
@@ -84,54 +96,25 @@ interface SummaryCardProps {
   label: string
   value: string
   detail?: string
-  status: VisualStatus
+  status: SummaryStatus
   icon: IconName
 }
 
-function normalizeStatus(status: string | undefined): VisualStatus {
-  if (!status) return 'pending'
-  const normalized = status.toLowerCase().replace(/_/g, ' ')
-  if (['healthy', 'ok', 'connected', 'active', 'operational', 'completed', 'running'].includes(normalized)) return 'ok'
-  if (['warning', 'degraded', 'rate limited', 'unable to check', 'skip'].includes(normalized)) return 'warning'
-  if (['error', 'failed', 'authentication failed', 'timeout'].includes(normalized)) return 'error'
-  return 'pending'
+function summaryStatusLabel(status: SummaryStatus): string {
+  return status === 'LOADING'
+    ? translate('common:status.loading')
+    : diagnosticStatePresentation(status).label
 }
 
-function statusLabel(status: VisualStatus): string {
-  if (status === 'ok') return translate('common:status.healthy')
-  if (status === 'warning') return translate('common:status.warning')
-  if (status === 'error') return translate('common:status.error')
-  if (status === 'loading') return translate('common:status.loading')
-  return translate('diagnostics:diagnostics.notCheckedYet', { defaultValue: 'Not checked yet' })
-}
-
-function statusIcon(status: VisualStatus): IconName {
-  if (status === 'ok') return 'success'
-  if (status === 'warning') return 'warning'
-  if (status === 'error') return 'error'
-  if (status === 'loading') return 'refresh'
-  return 'info'
-}
-
-function statusBadgeClass(status: VisualStatus): string {
-  if (status === 'ok') return 'border-green-200 bg-green-50 text-green-700'
-  if (status === 'warning') return 'border-yellow-200 bg-yellow-50 text-yellow-800'
-  if (status === 'error') return 'border-red-200 bg-red-50 text-red-700'
-  if (status === 'loading') return 'border-blue-200 bg-blue-50 text-blue-700'
-  return 'border-border bg-gray-50 text-wp-muted'
-}
-
-function StatusBadge({ status, label }: { status: VisualStatus; label?: string }) {
-  const visibleLabel = label ?? statusLabel(status)
+function SummaryStatusBadge({ status }: { status: SummaryStatus }) {
+  if (status !== 'LOADING') return <DiagnosticStateBadge state={status} />
   return (
-    <span
-      role="status"
-      aria-label={visibleLabel}
-      className={["inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 fh-text-caption font-medium", statusBadgeClass(status)].join(' ')}
-    >
-      <Icon name={statusIcon(status)} aria-hidden="true" />
-      {visibleLabel}
-    </span>
+    <Badge variant="info">
+      <span role="status" className="inline-flex items-center gap-1.5">
+        <Icon name="refresh" aria-hidden="true" />
+        {translate('common:status.loading')}
+      </span>
+    </Badge>
   )
 }
 
@@ -148,7 +131,7 @@ function SummaryCard({ label, value, detail, status, icon }: SummaryCardProps) {
           <Icon name={icon} />
         </span>
       </div>
-      <div className="mt-3"><StatusBadge status={status} /></div>
+      <div className="mt-3"><SummaryStatusBadge status={status} /></div>
     </article>
   )
 }
@@ -188,18 +171,19 @@ function isDatabaseCheck(check: DiagnosticCheck): boolean {
  * no check means not checked, every pass means healthy, any failure means
  * error, and skipped/unknown/mixed evidence means needs attention.
  */
-function databaseDiagnosticStatus(checks: DiagnosticCheck[]): VisualStatus {
+function databaseDiagnosticStatus(checks: DiagnosticCheck[]): DiagnosticState {
   const databaseChecks = checks.filter(isDatabaseCheck)
-  if (databaseChecks.length === 0) return 'pending'
+  if (databaseChecks.length === 0) return 'NOT_CHECKED'
 
   const statuses = databaseChecks.map(check => check.status?.trim().toLowerCase() ?? '')
-  if (statuses.some(status => status === 'fail' || status === 'failed' || status === 'error')) return 'error'
-  if (statuses.every(status => status === 'pass' || status === 'passed' || status === 'ok')) return 'ok'
-  return 'warning'
+  if (statuses.some(status => status === 'fail' || status === 'failed' || status === 'error')) return 'ERROR'
+  if (statuses.some(status => status === 'warning' || status === 'degraded')) return 'WARNING'
+  if (statuses.every(status => status === 'pass' || status === 'passed' || status === 'ok')) return 'HEALTHY'
+  return 'NOT_CHECKED'
 }
 
 interface SourcePresentation {
-  status: VisualStatus
+  status: DiagnosticState
   label: string
   description: string
 }
@@ -207,7 +191,7 @@ interface SourcePresentation {
 function sourcePresentation(connector: ConnectorStatus): SourcePresentation {
   if (connector.enabled === false) {
     return {
-      status: 'pending',
+      status: 'DISABLED',
       label: translate('common:status.disabled'),
       description: translate('diagnostics:diagnostics.sourceDisabledDescription', {
         defaultValue: 'This Source is disabled. Enable it before running a connection check.',
@@ -215,11 +199,11 @@ function sourcePresentation(connector: ConnectorStatus): SourcePresentation {
     }
   }
 
-  const normalized = normalizeStatus(connectorHealth(connector))
+  const normalized = resolveDiagnosticState(connectorHealth(connector))
   const healthMessage = connectorHealthMessage(connector)
-  if (normalized === 'error') {
+  if (normalized === 'ERROR') {
     return {
-      status: 'error',
+      status: 'ERROR',
       label: formatStatus(connectorHealth(connector)),
       description: healthMessage
         ? formatDiagnosticMessage(healthMessage)
@@ -231,7 +215,7 @@ function sourcePresentation(connector: ConnectorStatus): SourcePresentation {
 
   if (!connectorLastChecked(connector)) {
     return {
-      status: 'pending',
+      status: 'NOT_CHECKED',
       label: translate('diagnostics:diagnostics.notCheckedYet', { defaultValue: 'Not checked yet' }),
       description: translate('diagnostics:diagnostics.sourceNotCheckedDescription', {
         defaultValue: 'No connection check has been recorded for this Source.',
@@ -239,9 +223,9 @@ function sourcePresentation(connector: ConnectorStatus): SourcePresentation {
     }
   }
 
-  if (normalized === 'warning') {
+  if (normalized === 'WARNING') {
     return {
-      status: 'warning',
+      status: 'WARNING',
       label: formatStatus(connectorHealth(connector)),
       description: healthMessage
         ? formatDiagnosticMessage(healthMessage)
@@ -251,9 +235,9 @@ function sourcePresentation(connector: ConnectorStatus): SourcePresentation {
     }
   }
 
-  if (normalized === 'ok') {
+  if (normalized === 'HEALTHY') {
     return {
-      status: 'ok',
+      status: 'HEALTHY',
       label: formatStatus(connectorHealth(connector)),
       description: translate('diagnostics:diagnostics.sourceConnectionReady', {
         defaultValue: 'Source connection is ready.',
@@ -262,7 +246,7 @@ function sourcePresentation(connector: ConnectorStatus): SourcePresentation {
   }
 
   return {
-    status: 'pending',
+    status: 'NOT_CHECKED',
     label: translate('diagnostics:diagnostics.notCheckedYet', { defaultValue: 'Not checked yet' }),
     description: translate('diagnostics:diagnostics.sourceResultPendingDescription', {
       defaultValue: 'A conclusive Source connection result is not available yet.',
@@ -297,31 +281,87 @@ function PracticalMetric({ label, value, detail }: { label: string; value: strin
   )
 }
 
+const DIAGNOSTIC_GROUPS = [
+  {
+    key: 'connection',
+    dimensions: ['configuration', 'credentials', 'externalApi', 'vendorSelection'],
+  },
+  {
+    key: 'capabilities',
+    dimensions: ['readCapability', 'writeCapability'],
+  },
+  {
+    key: 'synchronization',
+    dimensions: ['lastProductSync', 'lastOrderSync', 'productCache'],
+  },
+  {
+    key: 'backgroundProcessing',
+    dimensions: ['webhookReceipt', 'webhookProcessing', 'tokenRefresh', 'polling'],
+  },
+  {
+    key: 'recoveryQueues',
+    dimensions: ['queueDeadLetter'],
+  },
+] as const
+
 function IntegrationDetails({ channel }: { channel: ChannelHealthItem }) {
+  const knownDimensions = new Set<string>(DIAGNOSTIC_GROUPS.flatMap(group => [...group.dimensions]))
+  const groups = [
+    ...DIAGNOSTIC_GROUPS.map(group => ({
+      key: group.key,
+      items: group.dimensions.flatMap(key => channel.dimensions[key] ? [[key, channel.dimensions[key]] as const] : []),
+    })),
+    {
+      key: 'other',
+      items: Object.entries(channel.dimensions).filter(([key]) => !knownDimensions.has(key)),
+    },
+  ].filter(group => group.items.length > 0)
+
   return (
     <details className="mt-3 border-t border-border pt-3" data-testid={`diagnostics-details-${channel.channelId}`}>
       <summary className="cursor-pointer select-none fh-text-body-sm font-medium text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
         {translate('diagnostics:diagnostics.expandDetails', { defaultValue: 'Expand details' })}
       </summary>
-      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-        {Object.entries(channel.dimensions).map(([key, dimension]) => {
-          const status = normalizeStatus(dimension.status)
-          return (
-            <div key={key} className="rounded border border-border px-3 py-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="fh-text-caption font-medium text-text-base">{formatDiagnosticDimension(key)}</span>
-                <StatusBadge status={status} label={formatStatus(dimension.status)} />
-              </div>
-              {dimension.message && <p className="mt-1 fh-text-caption">{formatDiagnosticMessage(dimension.message)}</p>}
+      <div className="mt-4 space-y-5">
+        {groups.map(group => (
+          <section key={group.key} aria-labelledby={`diagnostics-${channel.channelId}-${group.key}`}>
+            <h4 id={`diagnostics-${channel.channelId}-${group.key}`} className="fh-text-body-sm font-semibold text-text-base">
+              {translate(`diagnostics:diagnostics.checkGroups.${group.key}`)}
+            </h4>
+            <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+              {group.items.map(([key, dimension]) => {
+                const checkedAt = diagnosticEvidenceCheckedAt(dimension)
+                const action = diagnosticRecommendedAction(dimension)
+                return (
+                  <article
+                    key={key}
+                    className="rounded border border-border px-3 py-3"
+                    data-testid={`diagnostics-check-${channel.channelId}-${key}`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="fh-text-caption font-medium text-text-base">{formatDiagnosticDimension(key)}</span>
+                      <DiagnosticStateBadge evidence={dimension} />
+                    </div>
+                    <p className="mt-2 fh-text-caption">{diagnosticEvidenceDescription(dimension)}</p>
+                    {dimension.is_actionable && <p className="mt-2 fh-text-caption font-medium text-text-base">{action}</p>}
+                    {(checkedAt || dimension.evidence_source) && (
+                      <dl className="mt-2 grid grid-cols-1 gap-2 border-t border-border pt-2 sm:grid-cols-2">
+                        {checkedAt && <Field label={translate('diagnostics:diagnostics.evidenceRecorded')} value={formatDateTime(checkedAt)} />}
+                        {dimension.evidence_source && <Field label={translate('diagnostics:diagnostics.evidenceSource')} value={dimension.evidence_source} />}
+                      </dl>
+                    )}
+                  </article>
+                )
+              })}
             </div>
-          )
-        })}
+          </section>
+        ))}
       </div>
       <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Field label={translate('diagnostics:diagnostics.latency')} value={metricValue(channel.latency, 'milliseconds')} />
         <Field label={translate('diagnostics:diagnostics.errorCategory')} value={channel.lastErrorCategory ? formatStatus(channel.lastErrorCategory) : translate('common:status.none')} />
         <Field label={translate('diagnostics:diagnostics.accessMode', { defaultValue: 'Access mode' })} value={formatStatus(channel.accessMode)} />
-        <Field label={translate('diagnostics:diagnostics.nextAction')} value={formatDiagnosticMessage(channel.nextRecommendedAction)} />
+        <Field label={translate('diagnostics:diagnostics.nextAction')} value={diagnosticRecommendedAction({ ...channel, recommended_action: channel.recommended_action ?? channel.nextRecommendedAction })} />
       </dl>
     </details>
   )
@@ -349,7 +389,7 @@ export default function Diagnostics() {
         REQUEST_TIMEOUT_MS,
       )
       setDiag(diagnosticsData)
-      setCheckedAt(new Date())
+      setCheckedAt(diagnosticsData.checkedAt ? new Date(diagnosticsData.checkedAt) : null)
       success({
         title: translate('diagnostics:diagnostics.diagnosticsUpdated'),
         description: translate('diagnostics:diagnostics.latestSystemStatusHasBeenLoaded'),
@@ -385,7 +425,7 @@ export default function Diagnostics() {
         REQUEST_TIMEOUT_MS,
       )
       setDiag(current => current ? { ...current, channelHealth: data } : current)
-      setCheckedAt(new Date())
+      setCheckedAt(data.checkedAt ? new Date(data.checkedAt) : null)
       success({
         title: translate('diagnostics:diagnostics.diagnosticsUpdated'),
         description: translate('diagnostics:diagnostics.latestSystemStatusHasBeenLoaded'),
@@ -425,27 +465,51 @@ export default function Diagnostics() {
   )
   const limiter = diag?.rateLimiter
   const queueLength = limiter?.queue_length ?? null
-  const failedChecks = (diag?.checks ?? []).filter(check => check.status === 'fail').length
-  const channelErrors = channelHealth?.summary.counts.Error ?? 0
+  const checkStates = (diag?.checks ?? []).map(check => resolveDiagnosticState(check.status))
+  const failedChecks = checkStates.filter(state => state === 'ERROR').length
+  const warningChecks = checkStates.filter(state => state === 'WARNING').length
+  const enabledChannels = channels.filter(channel => channel.enabled)
+  const channelStates = enabledChannels.map(channel => resolveDiagnosticState(channel))
+  const channelErrors = channelStates.filter(state => state === 'ERROR').length
+  const channelWarnings = channelStates.filter(state => state === 'WARNING').length
+  const channelNotChecked = channelStates.filter(state => state === 'NOT_CHECKED').length
   const recentFailures = Math.max(channelErrors, failedChecks)
-  const warningCount = (channelHealth?.summary.counts.Warning ?? 0) + (channelHealth?.summary.counts['Unable to check'] ?? 0)
-  const databaseStatus: VisualStatus = loading ? 'loading' : databaseDiagnosticStatus(diag?.checks ?? [])
-  const overallStatus: VisualStatus = loading
-    ? 'loading'
-    : err || channelErrors > 0 || databaseStatus === 'error'
-      ? 'error'
-      : warningCount > 0 || diag?.overall_status === 'skip' || databaseStatus === 'warning' || databaseStatus === 'pending'
-        ? 'warning'
-        : 'ok'
-  const sourceReadyCount = sourceConnectors.filter(connector => sourcePresentation(connector).status === 'ok').length
-  const channelReadyCount = channelHealth?.summary.counts.Operational ?? 0
+  const databaseState = databaseDiagnosticStatus(diag?.checks ?? [])
+  const sourcePresentations = sourceConnectors.map(sourcePresentation)
+  const activeSourcePresentations = sourceConnectors
+    .map((connector, index) => ({ connector, presentation: sourcePresentations[index] }))
+    .filter(item => item.connector.enabled !== false)
+    .map(item => ({ state: item.presentation.status }))
+  const sourceStatus: DiagnosticState = sourceConnectors.length === 0
+    ? 'NOT_CHECKED'
+    : activeSourcePresentations.length === 0
+      ? 'DISABLED'
+      : deriveOverallDiagnosticState(activeSourcePresentations)
+  const channelStatus: DiagnosticState = channels.length === 0
+    ? 'NOT_CHECKED'
+    : enabledChannels.length === 0
+      ? 'DISABLED'
+      : deriveOverallDiagnosticState(enabledChannels)
+  const reportedSystemState = resolveDiagnosticState(diag?.overall_status)
+  const hasSourceEvidence = sourceConnectors.length > 0
+  const overallStatus: SummaryStatus = loading
+    ? 'LOADING'
+    : err || failedChecks > 0 || channelErrors > 0 || databaseState === 'ERROR' || reportedSystemState === 'ERROR' || (hasSourceEvidence && sourceStatus === 'ERROR')
+      ? 'ERROR'
+      : warningChecks > 0 || channelWarnings > 0 || databaseState === 'WARNING' || reportedSystemState === 'WARNING' || (hasSourceEvidence && sourceStatus === 'WARNING')
+        ? 'WARNING'
+        : channelNotChecked > 0 || databaseState === 'NOT_CHECKED' || reportedSystemState === 'NOT_CHECKED' || (hasSourceEvidence && sourceStatus === 'NOT_CHECKED')
+          ? 'NOT_CHECKED'
+          : 'HEALTHY'
+  const sourceReadyCount = sourcePresentations.filter(presentation => presentation.status === 'HEALTHY').length
+  const channelReadyCount = channelStates.filter(state => state === 'HEALTHY').length
   const runner = channelHealth?.orderSyncRunner
-  const runnerStatus = normalizeStatus(runner?.state ?? undefined)
+  const runnerStatus = resolveDiagnosticState(runner?.state ?? undefined)
 
   const summaryCards: SummaryCardProps[] = [
     {
       label: translate('diagnostics:diagnostics.systemStatus'),
-      value: statusLabel(overallStatus),
+      value: summaryStatusLabel(overallStatus),
       detail: checkedAt ? translate('diagnostics:diagnostics.lastChecked2', { value1: formatRelativeTime(checkedAt) }) : undefined,
       status: overallStatus,
       icon: 'diagnostics',
@@ -453,29 +517,29 @@ export default function Diagnostics() {
     {
       label: translate('diagnostics:diagnostics.sources', { defaultValue: 'Sources' }),
       value: translate('diagnostics:diagnostics.readyCountOfTotal', { ready: sourceReadyCount, total: sourceConnectors.length }),
-      status: sourceConnectors.length === 0 ? 'pending' : sourceReadyCount === sourceConnectors.length ? 'ok' : 'warning',
+      status: loading ? 'LOADING' : sourceStatus,
       icon: 'file',
     },
     {
       label: translate('diagnostics:diagnostics.channels', { defaultValue: 'Channels' }),
       value: translate('diagnostics:diagnostics.readyCountOfTotal', { ready: channelReadyCount, total: channels.length }),
-      status: channels.length === 0 ? 'pending' : channelErrors > 0 ? 'error' : warningCount > 0 ? 'warning' : 'ok',
+      status: loading ? 'LOADING' : channelStatus,
       icon: 'channel',
     },
     {
       label: translate('diagnostics:diagnostics.database', { defaultValue: 'Database' }),
-      value: statusLabel(databaseStatus),
-      detail: databaseStatus === 'pending'
+      value: summaryStatusLabel(loading ? 'LOADING' : databaseState),
+      detail: databaseState === 'NOT_CHECKED'
         ? translate('diagnostics:diagnostics.databaseEvidenceUnavailable')
         : undefined,
-      status: databaseStatus,
+      status: loading ? 'LOADING' : databaseState,
       icon: 'commerce',
     },
     {
       label: translate('diagnostics:diagnostics.backgroundJobs'),
       value: runner?.state ? formatStatus(runner.state) : translate('diagnostics:diagnostics.notCheckedYet'),
       detail: runner?.lastHeartbeat ? translate('diagnostics:diagnostics.lastCheckedAt', { date: formatDateTime(runner.lastHeartbeat) }) : undefined,
-      status: loading ? 'loading' : runnerStatus,
+      status: loading ? 'LOADING' : runnerStatus,
       icon: 'activity',
     },
     {
@@ -486,14 +550,14 @@ export default function Diagnostics() {
           ? translate('diagnostics:diagnostics.noRequestsWaiting')
           : translate('diagnostics:diagnostics.requestsWaiting', { count: queueLength }),
       detail: queueLength == null ? translate('diagnostics:diagnostics.rateDataUnavailable') : undefined,
-      status: loading ? 'loading' : queueLength == null ? 'pending' : queueLength > 0 ? 'warning' : 'ok',
+      status: loading ? 'LOADING' : queueLength == null ? 'NOT_CHECKED' : queueLength > 0 ? 'INFO' : 'HEALTHY',
       icon: 'rateLimits',
     },
     {
       label: translate('diagnostics:diagnostics.recentFailures'),
       value: formatNumber(recentFailures),
       detail: recentFailures === 0 ? translate('diagnostics:diagnostics.noRecentFailures') : undefined,
-      status: loading ? 'loading' : recentFailures > 0 ? 'error' : 'ok',
+      status: loading ? 'LOADING' : recentFailures > 0 ? 'ERROR' : 'HEALTHY',
       icon: 'error',
     },
   ]
@@ -539,7 +603,7 @@ export default function Diagnostics() {
               {translate('diagnostics:diagnostics.channelSummaryHint', { defaultValue: 'Connection, last successful activity, and the current action for each sales channel.' })}
             </p>
           </div>
-          {channelHealth && <StatusBadge status={normalizeStatus(channelHealth.summary.overall)} label={formatStatus(channelHealth.summary.overall)} />}
+          {channelHealth && <DiagnosticStateBadge state={channelHealth.summary.overall_state ?? channelHealth.summary.state ?? channelStatus} />}
         </div>
         {loading && !channelHealth ? (
           <div className="flex items-center gap-2 py-2 fh-text-body-sm"><Spinner size="sm" />{translate('diagnostics:diagnostics.loadingChannelHealth')}</div>
@@ -551,37 +615,68 @@ export default function Diagnostics() {
             className="space-y-3"
             renderItem={resource => {
               const channel = resource.item
+              const channelEvidence: DiagnosticEvidenceLike = {
+                ...channel,
+                message: channel.summary,
+                recommended_action: channel.recommended_action ?? channel.nextRecommendedAction,
+              }
+              const lastSuccessfulVerification = channel.lastSuccessfulVerification
+              const lastSuccessfulActivity = channel.lastSuccessfulSyncOrRead ?? channel.lastSuccessfulOperation
+              const recommendedAction = diagnosticRecommendedAction(channelEvidence)
+              const needsProductRefresh = [
+                'product_sync_stale',
+                'product_sync_not_checked',
+                'product_cache_not_checked',
+                'product_cache_refresh_failed',
+              ].includes(channel.reason_code ?? '')
               return (
-                <article className="rounded-lg border border-border p-4">
+                <article
+                  className="rounded-lg border border-border p-4"
+                  data-testid={`diagnostics-channel-${channel.channelId}`}
+                >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="fh-text-body font-semibold text-text-base">{resource.displayName}</h3>
-                        <ResourceStateBadge badge={resource.badge} />
+                        <DiagnosticStateBadge evidence={channelEvidence} testId={`diagnostics-channel-status-${channel.channelId}`} />
                       </div>
-                      <p className="mt-2 fh-text-body-sm">{formatDiagnosticMessage(channel.summary)}</p>
-                      <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <p className="mt-2 fh-text-body-sm">{diagnosticEvidenceDescription(channelEvidence)}</p>
+                      <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         <Field
-                          label={translate('diagnostics:diagnostics.lastSuccessfulCheck', { defaultValue: 'Last successful check' })}
-                          value={channel.lastChecked ? formatDateTime(channel.lastChecked) : translate('diagnostics:diagnostics.notCheckedYet', { defaultValue: 'Not checked yet' })}
+                          label={translate('diagnostics:diagnostics.lastSuccessfulVerification')}
+                          value={lastSuccessfulVerification ? formatDateTime(lastSuccessfulVerification) : translate('diagnostics:diagnostics.neverVerified')}
                         />
                         <Field
                           label={translate('diagnostics:diagnostics.lastSuccessfulActivity', { defaultValue: 'Last successful sync or read' })}
-                          value={channel.lastSuccessfulOperation ? formatDateTime(channel.lastSuccessfulOperation) : translate('diagnostics:diagnostics.noSuccessfulActivity', { defaultValue: 'No successful activity recorded' })}
+                          value={lastSuccessfulActivity ? formatDateTime(lastSuccessfulActivity) : translate('diagnostics:diagnostics.noSuccessfulActivity', { defaultValue: 'No successful activity recorded' })}
+                        />
+                        <Field
+                          label={translate('diagnostics:diagnostics.recommendedNextAction')}
+                          value={recommendedAction}
                         />
                       </dl>
                     </div>
-                    {canRefreshChannel && (
+                    {channel.enabled && needsProductRefresh ? (
+                      <a
+                        href={`/commerce?tab=channels&channel=${encodeURIComponent(channel.channelId)}`}
+                        className="fh-button-secondary self-start"
+                        data-testid={`diagnostics-channel-action-${channel.channelId}`}
+                      >
+                        <Icon name="refresh" />
+                        {recommendedAction}
+                      </a>
+                    ) : canRefreshChannel && channel.enabled ? (
                       <button
                         type="button"
                         onClick={() => void refreshChannel(channel.channelId)}
                         disabled={refreshingChannel !== null}
                         className="fh-button-secondary self-start"
+                        data-testid={`diagnostics-channel-action-${channel.channelId}`}
                       >
-                        {refreshingChannel === channel.channelId ? <Spinner size="sm" /> : <Icon name="refresh" />}
-                        {translate('diagnostics:diagnostics.refresh')}
+                        {refreshingChannel === channel.channelId ? <Spinner size="sm" /> : <Icon name="testConnection" />}
+                        {translate('diagnostics:diagnostics.testConnection')}
                       </button>
-                    )}
+                    ) : null}
                   </div>
                   <IntegrationDetails channel={channel} />
                 </article>
@@ -618,7 +713,10 @@ export default function Diagnostics() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="fh-text-body font-semibold text-text-base">{resource.displayName}</h3>
-                        <ResourceStateBadge badge={resource.badge} />
+                        <DiagnosticStateBadge
+                          state={presentation.status}
+                          testId={`diagnostics-source-status-${connector.id}`}
+                        />
                       </div>
                       <p className="mt-2 fh-text-caption">
                         {presentation.description}

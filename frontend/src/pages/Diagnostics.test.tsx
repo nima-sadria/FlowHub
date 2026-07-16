@@ -8,6 +8,8 @@ import NotificationContainer from '../notifications/NotificationContainer'
 import Diagnostics from './Diagnostics'
 import { changeLocale } from '../i18n'
 
+;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 
@@ -147,9 +149,9 @@ async function renderPage(authUser: AuthUser = user) {
 describe('Diagnostics', () => {
   it.each([
     ['pass', 'Healthy'],
-    ['skip', 'Warning'],
+    ['skip', 'Not checked yet'],
     ['fail', 'Error'],
-    ['unexpected', 'Warning'],
+    ['unexpected', 'Not checked yet'],
   ])('derives the Database summary from a %s diagnostic check', async (databaseCheckStatus, expectedLabel) => {
     vi.stubGlobal('fetch', vi.fn(async input => {
       const url = String(input)
@@ -198,6 +200,61 @@ describe('Diagnostics', () => {
     expect(databaseCard?.textContent).toContain('Not checked yet')
     expect(databaseCard?.textContent).toContain('No database diagnostic check was reported.')
     expect(databaseCard?.textContent).not.toContain('Connected')
+  })
+
+  it('does not hide a verified failing non-database diagnostic check', async () => {
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: 'ok',
+          checkedAt: new Date().toISOString(),
+          checks: [
+            { category: 'database', status: 'pass' },
+            { category: 'background_jobs', status: 'fail' },
+          ],
+          connectors: [],
+          channelHealth: channelHealthPayload(),
+          rateLimiter: null,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const systemCard = Array.from(c.querySelectorAll('[data-testid="diagnostics-summary-card"]'))
+      .find(card => card.textContent?.includes('System status'))
+
+    expect(systemCard?.textContent).toContain('Error')
+  })
+
+  it('does not hide a verified Source connection failure in the System status', async () => {
+    const health = channelHealthPayload()
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: 'ok',
+          checkedAt: new Date().toISOString(),
+          checks: [{ category: 'database', status: 'pass' }],
+          connectors: [{
+            id: 'nextcloud:primary', name: 'Nextcloud', connector_type: 'nextcloud', enabled: true,
+            status: 'unhealthy', error: 'Connection verification failed.', last_checked_at: new Date().toISOString(),
+          }],
+          channelHealth: {
+            ...health,
+            summary: { overall: 'Operational', overall_state: 'HEALTHY', counts: { Operational: 1 } },
+            items: [health.items[0]],
+          },
+          rateLimiter: null,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const systemCard = Array.from(c.querySelectorAll('[data-testid="diagnostics-summary-card"]'))
+      .find(card => card.textContent?.includes('System status'))
+
+    expect(systemCard?.textContent).toContain('Error')
   })
 
   it('does not describe disabled or never-checked Sources as ready', async () => {
@@ -302,7 +359,7 @@ describe('Diagnostics', () => {
     expect(technicalDetails.open).toBe(false)
     expect(c.textContent).not.toContain('About')
 
-    const refresh = Array.from(c.querySelectorAll('button')).find(button => button.textContent?.includes('Refresh'))
+    const refresh = Array.from(c.querySelectorAll('button')).find(button => button.textContent?.includes('Test connection'))
     await act(async () => {
       refresh?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
@@ -361,6 +418,37 @@ describe('Diagnostics', () => {
     ])
     expect(channelSection?.querySelectorAll('[data-resource-section="comingSoon"]')).toHaveLength(0)
     expect(sourceSection?.querySelectorAll('[data-resource-section="comingSoon"]')).toHaveLength(0)
+  })
+
+  it('uses evidence semantics for Source badges instead of treating a missing check as warning', async () => {
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      const url = String(input)
+      if (url.includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: 'skip',
+          checkedAt: new Date().toISOString(),
+          checks: [{ category: 'database', status: 'pass' }],
+          connectors: [{
+            id: 'nextcloud:primary',
+            name: 'Nextcloud',
+            connector_type: 'nextcloud',
+            enabled: true,
+            status: 'degraded',
+            last_checked_at: null,
+          }],
+          channelHealth: channelHealthPayload(),
+          rateLimiter: null,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const sourceStatus = c.querySelector('[data-testid="diagnostics-source-status-nextcloud:primary"]')
+
+    expect(sourceStatus?.getAttribute('data-diagnostic-state')).toBe('NOT_CHECKED')
+    expect(sourceStatus?.textContent).toContain('Not checked yet')
+    expect(sourceStatus?.textContent).not.toContain('Needs attention')
   })
 
   it('presents practical rate-limit information before technical details', async () => {
@@ -431,6 +519,128 @@ describe('Diagnostics', () => {
     const refreshedToasts = Array.from(c.querySelectorAll('[role="alert"]'))
       .filter(alert => alert.textContent?.includes('Diagnostics updated'))
     expect(refreshedToasts).toHaveLength(1)
+  })
+
+  it('renders neutral missing, unused, and disabled evidence without warning leakage', async () => {
+    const health = channelHealthPayload()
+    const channel = {
+      ...health.items[0],
+      state: 'NOT_CHECKED',
+      status: 'Not checked',
+      reason_code: 'credentials_not_checked',
+      checked_at: null,
+      evidence_source: 'connector_health',
+      is_actionable: true,
+      recommended_action: 'Run connection test',
+      lastSuccessfulVerification: null,
+      lastSuccessfulSyncOrRead: health.items[0].lastSuccessfulOperation,
+      dimensions: {
+        configuration: {
+          status: 'Operational', state: 'HEALTHY', reason_code: 'configuration_complete', checked_at: health.items[0].lastChecked,
+          evidence_source: 'connector_settings', is_actionable: false, recommended_action: '', message: 'Required configuration is present.',
+        },
+        credentials: {
+          status: 'Not checked', state: 'NOT_CHECKED', reason_code: 'credentials_not_checked', checked_at: null,
+          evidence_source: 'connector_health', is_actionable: true, recommended_action: 'Run connection test', message: 'No credential verification has been recorded.',
+        },
+        externalApi: {
+          status: 'Not applicable', state: 'NOT_APPLICABLE', reason_code: 'external_api_probe_not_applicable', checked_at: null,
+          evidence_source: 'connector_registry', is_actionable: false, recommended_action: '', message: 'This connector does not provide a separate API health probe.',
+        },
+        webhookReceipt: {
+          status: 'Not applicable', state: 'NOT_APPLICABLE', reason_code: 'webhook_not_applicable', checked_at: null,
+          evidence_source: 'connector_registry', is_actionable: false, recommended_action: '', message: 'This Channel does not use webhooks.',
+        },
+        polling: {
+          status: 'Disabled', state: 'DISABLED', reason_code: 'polling_disabled', checked_at: null,
+          evidence_source: 'connector_settings', is_actionable: false, recommended_action: '', message: 'Order polling is turned off.',
+        },
+      },
+    }
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: 'ok', checkedAt: health.checkedAt, checks: [{ category: 'database', status: 'pass' }], connectors: [],
+          channelHealth: { ...health, summary: { overall: 'Not checked', overall_state: 'NOT_CHECKED', counts: {}, state_counts: { NOT_CHECKED: 1 } }, items: [channel] },
+          rateLimiter: null,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const card = c.querySelector('[data-testid="diagnostics-channel-woocommerce:primary"]')
+    expect(card?.querySelector('[data-testid="diagnostics-channel-status-woocommerce:primary"]')?.getAttribute('data-diagnostic-state')).toBe('NOT_CHECKED')
+    expect(card?.textContent).toContain('Not checked yet')
+    expect(card?.textContent).toContain('No credential verification has been recorded.')
+    expect(card?.textContent).toContain('Run connection test')
+    expect(card?.textContent).not.toContain('Warning')
+    expect(card?.textContent).not.toContain('Unable to check')
+
+    const details = c.querySelector('[data-testid="diagnostics-details-woocommerce:primary"]') as HTMLDetailsElement
+    details.open = true
+    expect(details.textContent).toContain('Connection')
+    expect(details.textContent).toContain('Background processing')
+    expect(details.querySelector('[data-testid="diagnostics-check-woocommerce:primary-externalApi"] [data-diagnostic-state="NOT_APPLICABLE"]')).not.toBeNull()
+    expect(details.querySelector('[data-testid="diagnostics-check-woocommerce:primary-polling"] [data-diagnostic-state="DISABLED"]')).not.toBeNull()
+  })
+
+  it('keeps optional unsupported checks from lowering a healthy Channel', async () => {
+    const health = channelHealthPayload()
+    const channel = {
+      ...health.items[0],
+      state: 'HEALTHY',
+      reason_code: 'channel_core_checks_healthy',
+      evidence_source: 'channel_diagnostics',
+      is_actionable: false,
+      recommended_action: '',
+      lastSuccessfulVerification: health.items[0].lastChecked,
+      dimensions: {
+        credentials: { status: 'Operational', state: 'HEALTHY', reason_code: 'credentials_verified', checked_at: health.items[0].lastChecked, evidence_source: 'connector_health', is_actionable: false, recommended_action: '', message: 'Credential verification passed.' },
+        tokenRefresh: { status: 'Not applicable', state: 'NOT_APPLICABLE', reason_code: 'token_refresh_not_applicable', checked_at: null, evidence_source: 'connector_registry', is_actionable: false, recommended_action: '', message: 'This authentication method does not require token refresh.' },
+        queueDeadLetter: { status: 'Not applicable', state: 'NOT_APPLICABLE', reason_code: 'dead_letter_queue_not_applicable', checked_at: null, evidence_source: 'connector_registry', is_actionable: false, recommended_action: '', message: 'This Channel does not use a dead-letter queue.' },
+      },
+    }
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: 'ok', checkedAt: health.checkedAt, checks: [{ category: 'database', status: 'pass' }], connectors: [],
+          channelHealth: { ...health, summary: { overall: 'Operational', overall_state: 'HEALTHY', counts: {}, state_counts: { HEALTHY: 1 } }, items: [channel] },
+          rateLimiter: null,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const card = c.querySelector('[data-testid="diagnostics-channel-woocommerce:primary"]')
+    expect(card?.querySelector('[data-diagnostic-state="HEALTHY"]')).not.toBeNull()
+    expect(card?.textContent).toContain('No action required')
+    expect(card?.textContent).not.toContain('Needs attention')
+  })
+
+  it('localizes the seven-state Channel presentation in Persian without changing technical evidence IDs', async () => {
+    await changeLocale('fa')
+    const health = channelHealthPayload()
+    const channel = {
+      ...health.items[0], state: 'NOT_CHECKED', status: 'Not checked', reason_code: 'credentials_not_checked', checked_at: null,
+      evidence_source: 'connector_health', is_actionable: true, recommended_action: 'Run connection test', lastSuccessfulVerification: null,
+      dimensions: { credentials: { status: 'Not checked', state: 'NOT_CHECKED', reason_code: 'credentials_not_checked', checked_at: null, evidence_source: 'connector_health', is_actionable: true, recommended_action: 'Run connection test', message: '' } },
+    }
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({ overall_status: 'ok', checkedAt: health.checkedAt, checks: [{ category: 'database', status: 'pass' }], connectors: [], channelHealth: { ...health, summary: { overall: 'Not checked', overall_state: 'NOT_CHECKED', counts: {} }, items: [channel] }, rateLimiter: null }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const card = c.querySelector('[data-testid="diagnostics-channel-woocommerce:primary"]')
+    expect(card?.textContent).toContain('هنوز بررسی نشده')
+    expect(card?.textContent).toContain('آزمایش اتصال را اجرا کنید')
+    expect(card?.textContent).toContain('connector_health')
+    expect(card?.textContent).not.toContain('Not checked')
+    expect(card?.textContent).not.toContain('Run connection test')
   })
 
   it('clears a page-wide error after a successful Re-check', async () => {

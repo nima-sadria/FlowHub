@@ -7,14 +7,41 @@ export interface SystemHealth {
   checkedAt: Date
 }
 
-export type ChannelHealthLevel = 'Operational' | 'Warning' | 'Error' | 'Unable to check' | 'Disabled'
+export type DiagnosticState =
+  | 'HEALTHY'
+  | 'INFO'
+  | 'NOT_CHECKED'
+  | 'NOT_APPLICABLE'
+  | 'DISABLED'
+  | 'WARNING'
+  | 'ERROR'
 
-export interface ChannelHealthDimension {
+export type ChannelHealthLevel =
+  | 'Operational'
+  | 'Information'
+  | 'Not checked'
+  | 'Not applicable'
+  | 'Warning'
+  | 'Error'
+  | 'Unable to check'
+  | 'Disabled'
+
+export interface DiagnosticEvidence {
+  state?: DiagnosticState
+  reason_code?: string | null
+  checked_at?: string | null
+  evidence_source?: string | null
+  is_actionable?: boolean
+  recommended_action?: string | null
+  freshness_threshold_hours?: number | null
+}
+
+export interface ChannelHealthDimension extends DiagnosticEvidence {
   status: ChannelHealthLevel
   message: string
 }
 
-export interface ChannelHealthItem {
+export interface ChannelHealthItem extends DiagnosticEvidence {
   channelId: string
   channelType: string
   enabled: boolean
@@ -22,8 +49,10 @@ export interface ChannelHealthItem {
   status: ChannelHealthLevel
   summary: string
   lastChecked: string | null
+  lastSuccessfulVerification?: string | null
   latency: number | null
   lastSuccessfulOperation: string | null
+  lastSuccessfulSyncOrRead?: string | null
   lastErrorCategory: string | null
   capabilityState: Record<string, boolean>
   nextRecommendedAction: string
@@ -47,7 +76,11 @@ export interface ChannelHealthResponse {
   checkedAt: string
   summary: {
     overall: ChannelHealthLevel
-    counts: Record<ChannelHealthLevel, number>
+    overall_state?: DiagnosticState
+    /** Compatibility alias used by early v1.3 fixtures. */
+    state?: DiagnosticState
+    counts: Partial<Record<ChannelHealthLevel, number>>
+    state_counts?: Partial<Record<DiagnosticState, number>>
   }
   items: ChannelHealthItem[]
   external_call_performed: boolean

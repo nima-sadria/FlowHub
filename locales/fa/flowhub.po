@@ -6993,3 +6993,479 @@ msgstr "تا تکمیل بارگذاری اطلاعات داشبورد صبر ک
 msgctxt "dashboard:dashboard.waitForHealthCheck"
 msgid "Wait for the health check to finish."
 msgstr "تا پایان بررسی سلامت صبر کنید."
+
+msgctxt "diagnostics:state.healthy"
+msgid "Healthy"
+msgstr "سالم"
+
+msgctxt "diagnostics:state.info"
+msgid "Information"
+msgstr "اطلاع‌رسانی"
+
+msgctxt "diagnostics:state.not_checked"
+msgid "Not checked yet"
+msgstr "هنوز بررسی نشده"
+
+msgctxt "diagnostics:state.not_applicable"
+msgid "Not applicable"
+msgstr "کاربرد ندارد"
+
+msgctxt "diagnostics:state.disabled"
+msgid "Disabled"
+msgstr "غیرفعال"
+
+msgctxt "diagnostics:state.warning"
+msgid "Needs attention"
+msgstr "نیازمند بررسی"
+
+msgctxt "diagnostics:state.error"
+msgid "Error"
+msgstr "خطا"
+
+msgctxt "diagnostics:stateDescription.healthy"
+msgid "Verified evidence confirms normal operation."
+msgstr "شواهد تأییدشده نشان می‌دهد عملکرد عادی است."
+
+msgctxt "diagnostics:stateDescription.info"
+msgid "This is informational and does not require action."
+msgstr "این وضعیت اطلاع‌رسانی است و به اقدام نیاز ندارد."
+
+msgctxt "diagnostics:stateDescription.not_checked"
+msgid "No verification evidence has been recorded yet."
+msgstr "هنوز شواهدی از بررسی ثبت نشده است."
+
+msgctxt "diagnostics:stateDescription.not_applicable"
+msgid "This check does not apply to this Channel."
+msgstr "این بررسی برای این کانال کاربرد ندارد."
+
+msgctxt "diagnostics:stateDescription.disabled"
+msgid "This feature is intentionally turned off."
+msgstr "این قابلیت عمداً غیرفعال شده است."
+
+msgctxt "diagnostics:stateDescription.warning"
+msgid "A verified condition needs review, but core operation can continue."
+msgstr "یک وضعیت تأییدشده به بررسی نیاز دارد، اما عملیات اصلی می‌تواند ادامه یابد."
+
+msgctxt "diagnostics:stateDescription.error"
+msgid "A verified failure is blocking this capability."
+msgstr "یک خطای تأییدشده این قابلیت را متوقف کرده است."
+
+msgctxt "diagnostics:diagnostics.currentStatus"
+msgid "Current status"
+msgstr "وضعیت فعلی"
+
+msgctxt "diagnostics:diagnostics.lastSuccessfulVerification"
+msgid "Last successful verification"
+msgstr "آخرین بررسی موفق"
+
+msgctxt "diagnostics:diagnostics.neverVerified"
+msgid "Never verified"
+msgstr "تاکنون بررسی نشده"
+
+msgctxt "diagnostics:diagnostics.recommendedNextAction"
+msgid "Recommended next action"
+msgstr "اقدام پیشنهادی بعدی"
+
+msgctxt "diagnostics:diagnostics.testConnection"
+msgid "Test connection"
+msgstr "آزمایش اتصال"
+
+msgctxt "diagnostics:diagnostics.evidenceRecorded"
+msgid "Evidence recorded"
+msgstr "زمان ثبت شواهد"
+
+msgctxt "diagnostics:diagnostics.evidenceSource"
+msgid "Evidence source"
+msgstr "منبع شواهد"
+
+msgctxt "diagnostics:diagnostics.checkGroups.connection"
+msgid "Connection"
+msgstr "اتصال"
+
+msgctxt "diagnostics:diagnostics.checkGroups.capabilities"
+msgid "Capabilities"
+msgstr "قابلیت‌ها"
+
+msgctxt "diagnostics:diagnostics.checkGroups.synchronization"
+msgid "Synchronization"
+msgstr "همگام‌سازی"
+
+msgctxt "diagnostics:diagnostics.checkGroups.backgroundProcessing"
+msgid "Background processing"
+msgstr "پردازش پس‌زمینه"
+
+msgctxt "diagnostics:diagnostics.checkGroups.recoveryQueues"
+msgid "Recovery and queues"
+msgstr "بازیابی و صف‌ها"
+
+msgctxt "diagnostics:diagnostics.checkGroups.other"
+msgid "Other checks"
+msgstr "سایر بررسی‌ها"
+
+msgctxt "diagnostics:staleContext.productSync"
+msgid "Last successful product sync was {{last}}. Expected freshness: within {{hours}} hours."
+msgstr "آخرین همگام‌سازی موفق محصولات {{last}} بود. تازگی مورد انتظار: حداکثر {{hours}} ساعت."
+
+msgctxt "diagnostics:staleContext.orderSync"
+msgid "Last successful order sync was {{last}}. Expected freshness: within {{hours}} hours."
+msgstr "آخرین همگام‌سازی موفق سفارش‌ها {{last}} بود. تازگی مورد انتظار: حداکثر {{hours}} ساعت."
+
+msgctxt "diagnostics:staleContext.polling"
+msgid "Last successful polling run was {{last}}. Expected freshness: within {{hours}} hours."
+msgstr "آخرین پایش دوره‌ای موفق {{last}} بود. تازگی مورد انتظار: حداکثر {{hours}} ساعت."
+
+msgctxt "dashboard:dashboard.channelsAwaitingVerification"
+msgid "{{value}} Channel has not been verified yet."
+msgid_plural "{{value}} Channels have not been verified yet."
+msgstr[0] "{{value}} کانال هنوز بررسی نشده است."
+msgstr[1] "{{value}} کانال هنوز بررسی نشده‌اند."
+
+msgctxt "dashboard:dashboard.channelsInformational"
+msgid "{{value}} Channel has informational status only."
+msgid_plural "{{value}} Channels have informational status only."
+msgstr[0] "{{value}} کانال فقط وضعیت اطلاع‌رسانی دارد."
+msgstr[1] "{{value}} کانال فقط وضعیت اطلاع‌رسانی دارند."
+
+msgctxt "diagnostics:action.no_action_required"
+msgid "No action required"
+msgstr "نیازی به اقدام نیست"
+
+msgctxt "diagnostics:action.run_connection_test"
+msgid "Run connection test"
+msgstr "آزمایش اتصال را اجرا کنید"
+
+msgctxt "diagnostics:action.refresh_products"
+msgid "Refresh products"
+msgstr "محصولات را به‌روزرسانی کنید"
+
+msgctxt "diagnostics:action.review_credentials"
+msgid "Review credentials"
+msgstr "اطلاعات ورود را بررسی کنید"
+
+msgctxt "diagnostics:action.review_diagnostic"
+msgid "Review this diagnostic"
+msgstr "این نتیجه عیب‌یابی را بررسی کنید"
+
+msgctxt "diagnostics:action.retry_the_diagnostic_check"
+msgid "Retry the diagnostic check"
+msgstr "بررسی عیب‌یابی را دوباره اجرا کنید"
+
+msgctxt "diagnostics:action.complete_channel_configuration"
+msgid "Complete Channel configuration"
+msgstr "پیکربندی کانال را تکمیل کنید"
+
+msgctxt "diagnostics:action.select_a_vendor_before_product_synchronization"
+msgid "Select a vendor before product synchronization"
+msgstr "پیش از همگام‌سازی محصولات، فروشنده را انتخاب کنید"
+
+msgctxt "diagnostics:action.review_order_synchronization_settings"
+msgid "Review order synchronization settings"
+msgstr "تنظیمات همگام‌سازی سفارش‌ها را بررسی کنید"
+
+msgctxt "diagnostics:action.review_order_synchronization"
+msgid "Review order synchronization"
+msgstr "همگام‌سازی سفارش‌ها را بررسی کنید"
+
+msgctxt "diagnostics:action.review_the_synchronization_error_and_retry_product_refresh"
+msgid "Review the synchronization error and retry product refresh"
+msgstr "خطای همگام‌سازی را بررسی و به‌روزرسانی محصولات را دوباره اجرا کنید"
+
+msgctxt "diagnostics:action.review_credentials_and_run_the_connection_test_again"
+msgid "Review credentials and run the connection test again"
+msgstr "اطلاعات ورود را بررسی و آزمایش اتصال را دوباره اجرا کنید"
+
+msgctxt "diagnostics:action.complete_the_required_credentials"
+msgid "Complete the required credentials"
+msgstr "اطلاعات ورود موردنیاز را تکمیل کنید"
+
+msgctxt "diagnostics:action.run_the_connection_test_to_verify_credentials"
+msgid "Run the connection test to verify credentials"
+msgstr "برای بررسی اطلاعات ورود، آزمایش اتصال را اجرا کنید"
+
+msgctxt "diagnostics:action.run_the_connection_test_again"
+msgid "Run the connection test again"
+msgstr "آزمایش اتصال را دوباره اجرا کنید"
+
+msgctxt "diagnostics:action.run_the_connection_test"
+msgid "Run the connection test"
+msgstr "آزمایش اتصال را اجرا کنید"
+
+msgctxt "diagnostics:action.retry_the_connection_test"
+msgid "Retry the connection test"
+msgstr "آزمایش اتصال را دوباره امتحان کنید"
+
+msgctxt "diagnostics:action.review_the_connection_details"
+msgid "Review the connection details"
+msgstr "جزئیات اتصال را بررسی کنید"
+
+msgctxt "diagnostics:action.review_the_connection_error_and_credentials"
+msgid "Review the connection error and credentials"
+msgstr "خطای اتصال و اطلاعات ورود را بررسی کنید"
+
+msgctxt "diagnostics:action.review_queued_webhook_receipts"
+msgid "Review queued webhook receipts"
+msgstr "وب‌هوک‌های دریافت‌شده در صف را بررسی کنید."
+
+msgctxt "diagnostics:action.review_and_resolve_webhook_dead_letters"
+msgid "Review and resolve webhook dead letters"
+msgstr "پیام‌های ناموفق وب‌هوک را بررسی و رفع کنید"
+
+msgctxt "diagnostics:action.review_credentials_and_token_refresh_settings"
+msgid "Review credentials and token refresh settings"
+msgstr "اطلاعات ورود و تنظیمات تازه‌سازی توکن را بررسی کنید"
+
+msgctxt "diagnostics:action.review_order_polling_settings"
+msgid "Review order polling settings"
+msgstr "تنظیمات پایش دوره‌ای سفارش‌ها را بررسی کنید"
+
+msgctxt "diagnostics:action.review_order_polling"
+msgid "Review order polling"
+msgstr "پایش دوره‌ای سفارش‌ها را بررسی کنید"
+
+msgctxt "diagnostics:reason.configuration_complete"
+msgid "Required configuration is present."
+msgstr "پیکربندی موردنیاز کامل است."
+
+msgctxt "diagnostics:reason.configuration_incomplete"
+msgid "Required configuration is incomplete."
+msgstr "پیکربندی موردنیاز کامل نیست."
+
+msgctxt "diagnostics:reason.channel_disabled"
+msgid "This Channel is disabled."
+msgstr "این کانال غیرفعال است."
+
+msgctxt "diagnostics:reason.credentials_verified"
+msgid "Credential verification passed."
+msgstr "اطلاعات ورود با موفقیت تأیید شد."
+
+msgctxt "diagnostics:reason.credentials_not_checked"
+msgid "No credential verification has been recorded."
+msgstr "هنوز بررسی اطلاعات ورود ثبت نشده است."
+
+msgctxt "diagnostics:reason.credentials_incomplete"
+msgid "Credentials are not fully configured."
+msgstr "اطلاعات ورود به‌طور کامل پیکربندی نشده است."
+
+msgctxt "diagnostics:reason.credential_verification_failed"
+msgid "Credential verification failed."
+msgstr "بررسی اطلاعات ورود ناموفق بود."
+
+msgctxt "diagnostics:reason.credential_verification_inconclusive"
+msgid "The credential check ran but did not produce a conclusive result."
+msgstr "بررسی اطلاعات ورود اجرا شد، اما نتیجه قطعی نداشت."
+
+msgctxt "diagnostics:reason.credential_evidence_expired"
+msgid "The latest successful credential verification is older than the accepted evidence window."
+msgstr "آخرین بررسی موفق اطلاعات ورود از بازه اعتبار شواهد قدیمی‌تر است."
+
+msgctxt "diagnostics:reason.external_api_healthy"
+msgid "The latest API health check succeeded."
+msgstr "آخرین بررسی سلامت API موفق بود."
+
+msgctxt "diagnostics:reason.external_api_not_checked"
+msgid "No API health check has been recorded."
+msgstr "هنوز بررسی سلامت API ثبت نشده است."
+
+msgctxt "diagnostics:reason.external_api_not_checked_configuration_incomplete"
+msgid "The API health check cannot run until Channel configuration is complete."
+msgstr "بررسی سلامت API تا تکمیل پیکربندی کانال قابل اجرا نیست."
+
+msgctxt "diagnostics:reason.external_api_probe_not_applicable"
+msgid "This connector does not provide a separate API health probe."
+msgstr "این اتصال‌دهنده بررسی سلامت جداگانه‌ای برای API ارائه نمی‌کند."
+
+msgctxt "diagnostics:reason.external_api_check_failed"
+msgid "The API health check failed."
+msgstr "بررسی سلامت API ناموفق بود."
+
+msgctxt "diagnostics:reason.external_api_check_inconclusive"
+msgid "The API health check ran but did not produce a conclusive result."
+msgstr "بررسی سلامت API اجرا شد، اما نتیجه قطعی نداشت."
+
+msgctxt "diagnostics:reason.external_api_evidence_expired"
+msgid "The latest successful API health check is older than the accepted evidence window."
+msgstr "آخرین بررسی موفق سلامت API از بازه اعتبار شواهد قدیمی‌تر است."
+
+msgctxt "diagnostics:reason.external_api_degraded"
+msgid "The API health check found a condition that needs review."
+msgstr "بررسی سلامت API وضعیتی را پیدا کرد که به بازبینی نیاز دارد."
+
+msgctxt "diagnostics:reason.vendor_selected"
+msgid "A seller is selected."
+msgstr "یک فروشنده انتخاب شده است."
+
+msgctxt "diagnostics:reason.vendor_not_selected"
+msgid "Select a seller before synchronizing products."
+msgstr "پیش از همگام‌سازی محصولات، یک فروشنده انتخاب کنید."
+
+msgctxt "diagnostics:reason.read_capability_supported"
+msgid "Product or order reads are supported."
+msgstr "خواندن محصولات یا سفارش‌ها پشتیبانی می‌شود."
+
+msgctxt "diagnostics:reason.write_capability_supported"
+msgid "Price or stock updates are supported. FlowHub still requires Review and Apply confirmation."
+msgstr "به‌روزرسانی قیمت یا موجودی پشتیبانی می‌شود. FlowHub همچنان به بازبینی و تأیید اعمال نیاز دارد."
+
+msgctxt "diagnostics:reason.capability_not_applicable"
+msgid "This capability is not used by this Channel."
+msgstr "این قابلیت در این کانال استفاده نمی‌شود."
+
+msgctxt "diagnostics:reason.diagnostic_generation_failed"
+msgid "Channel diagnostics could not be generated."
+msgstr "ایجاد گزارش عیب‌یابی کانال ممکن نشد."
+
+msgctxt "diagnostics:reason.product_sync_fresh"
+msgid "Product data was synchronized within the expected freshness window."
+msgstr "داده‌های محصول در بازه تازگی مورد انتظار همگام‌سازی شده‌اند."
+
+msgctxt "diagnostics:reason.product_sync_stale"
+msgid "The last successful product synchronization is older than the expected freshness window."
+msgstr "آخرین همگام‌سازی موفق محصولات از بازه تازگی مورد انتظار قدیمی‌تر است."
+
+msgctxt "diagnostics:reason.product_sync_not_checked"
+msgid "Product synchronization has not run yet."
+msgstr "همگام‌سازی محصولات هنوز اجرا نشده است."
+
+msgctxt "diagnostics:reason.product_sync_not_checked_configuration_incomplete"
+msgid "Product synchronization cannot run until Channel configuration is complete."
+msgstr "همگام‌سازی محصولات تا تکمیل پیکربندی کانال قابل اجرا نیست."
+
+msgctxt "diagnostics:reason.product_sync_not_applicable"
+msgid "Product synchronization is not used by this Channel."
+msgstr "همگام‌سازی محصولات در این کانال استفاده نمی‌شود."
+
+msgctxt "diagnostics:reason.product_cache_not_checked"
+msgid "No product refresh has been run."
+msgstr "هنوز به‌روزرسانی محصولات اجرا نشده است."
+
+msgctxt "diagnostics:reason.product_cache_refresh_completed"
+msgid "The local product cache was refreshed successfully."
+msgstr "کش محلی محصولات با موفقیت به‌روزرسانی شد."
+
+msgctxt "diagnostics:reason.product_cache_refresh_in_progress"
+msgid "Product synchronization is still in progress."
+msgstr "همگام‌سازی محصولات همچنان در حال اجرا است."
+
+msgctxt "diagnostics:reason.product_cache_refresh_failed"
+msgid "The latest product synchronization failed; the previous cache was preserved."
+msgstr "آخرین همگام‌سازی محصولات ناموفق بود؛ کش قبلی حفظ شد."
+
+msgctxt "diagnostics:reason.order_sync_fresh"
+msgid "Orders were synchronized within the expected freshness window."
+msgstr "سفارش‌ها در بازه تازگی مورد انتظار همگام‌سازی شده‌اند."
+
+msgctxt "diagnostics:reason.order_sync_stale"
+msgid "The last successful order synchronization is older than the expected freshness window."
+msgstr "آخرین همگام‌سازی موفق سفارش‌ها از بازه تازگی مورد انتظار قدیمی‌تر است."
+
+msgctxt "diagnostics:reason.order_sync_never_succeeded"
+msgid "No successful order synchronization has been recorded."
+msgstr "هنوز همگام‌سازی موفقی برای سفارش‌ها ثبت نشده است."
+
+msgctxt "diagnostics:reason.order_sync_disabled"
+msgid "Order synchronization is intentionally turned off."
+msgstr "همگام‌سازی سفارش‌ها عمداً غیرفعال شده است."
+
+msgctxt "diagnostics:reason.order_sync_not_applicable"
+msgid "Order synchronization is not enabled for this Channel."
+msgstr "همگام‌سازی سفارش‌ها برای این کانال فعال نیست."
+
+msgctxt "diagnostics:reason.polling_healthy"
+msgid "Order polling is operating normally."
+msgstr "پایش دوره‌ای سفارش‌ها به‌طور عادی کار می‌کند."
+
+msgctxt "diagnostics:reason.polling_stale"
+msgid "The last successful order polling run is older than the expected freshness window."
+msgstr "آخرین پایش دوره‌ای موفق سفارش‌ها از بازه تازگی مورد انتظار قدیمی‌تر است."
+
+msgctxt "diagnostics:reason.polling_never_succeeded"
+msgid "No successful order polling run has been recorded."
+msgstr "هنوز پایش دوره‌ای موفقی برای سفارش‌ها ثبت نشده است."
+
+msgctxt "diagnostics:reason.polling_not_successful"
+msgid "The latest order polling run did not succeed."
+msgstr "آخرین پایش دوره‌ای سفارش‌ها موفق نبود."
+
+msgctxt "diagnostics:reason.polling_disabled"
+msgid "Order polling is turned off."
+msgstr "پایش دوره‌ای سفارش‌ها خاموش است."
+
+msgctxt "diagnostics:reason.polling_not_applicable"
+msgid "This Channel does not use polling."
+msgstr "این کانال از پایش دوره‌ای استفاده نمی‌کند."
+
+msgctxt "diagnostics:reason.polling_not_checked_configuration_incomplete"
+msgid "Order polling cannot run until Channel configuration is complete."
+msgstr "پایش سفارش‌ها تا تکمیل پیکربندی کانال قابل اجرا نیست."
+
+msgctxt "diagnostics:reason.webhook_receipt_healthy"
+msgid "Webhook receipts are being accepted."
+msgstr "وب‌هوک‌ها به‌درستی دریافت می‌شوند."
+
+msgctxt "diagnostics:reason.webhook_receipt_not_checked"
+msgid "No webhook receipt evidence has been recorded."
+msgstr "هنوز شواهدی از دریافت وب‌هوک ثبت نشده است."
+
+msgctxt "diagnostics:reason.webhook_not_applicable"
+msgid "This Channel does not use webhooks."
+msgstr "این کانال از وب‌هوک استفاده نمی‌کند."
+
+msgctxt "diagnostics:reason.webhook_disabled"
+msgid "Webhook processing is intentionally turned off."
+msgstr "پردازش وب‌هوک عمداً غیرفعال شده است."
+
+msgctxt "diagnostics:reason.webhook_processing_healthy"
+msgid "Webhook receipts are being processed normally."
+msgstr "وب‌هوک‌های دریافتی به‌طور عادی پردازش می‌شوند."
+
+msgctxt "diagnostics:reason.webhook_processing_not_checked"
+msgid "No webhook processing evidence has been recorded."
+msgstr "هنوز شواهدی از پردازش وب‌هوک ثبت نشده است."
+
+msgctxt "diagnostics:reason.webhook_processing_delayed"
+msgid "Accepted webhook receipts are waiting for processing."
+msgstr "وب‌هوک‌های دریافت‌شده در انتظار پردازش هستند."
+
+msgctxt "diagnostics:reason.webhook_processing_not_applicable"
+msgid "This Channel does not use webhook processing."
+msgstr "این کانال از پردازش وب‌هوک استفاده نمی‌کند."
+
+msgctxt "diagnostics:reason.webhook_processing_disabled"
+msgid "Webhook processing is intentionally turned off."
+msgstr "پردازش وب‌هوک عمداً غیرفعال شده است."
+
+msgctxt "diagnostics:reason.token_refresh_healthy"
+msgid "Token refresh is operating normally."
+msgstr "تازه‌سازی توکن به‌طور عادی کار می‌کند."
+
+msgctxt "diagnostics:reason.token_refresh_not_checked"
+msgid "No token refresh evidence has been recorded."
+msgstr "هنوز شواهدی از تازه‌سازی توکن ثبت نشده است."
+
+msgctxt "diagnostics:reason.token_refresh_failed"
+msgid "The latest token refresh failed."
+msgstr "آخرین تازه‌سازی توکن ناموفق بود."
+
+msgctxt "diagnostics:reason.token_refresh_not_applicable"
+msgid "This authentication method does not require token refresh."
+msgstr "این روش احراز هویت به تازه‌سازی توکن نیاز ندارد."
+
+msgctxt "diagnostics:reason.token_refresh_disabled"
+msgid "Automatic token refresh is turned off."
+msgstr "تازه‌سازی خودکار توکن خاموش است."
+
+msgctxt "diagnostics:reason.dead_letter_queue_empty"
+msgid "No failed messages require recovery."
+msgstr "هیچ پیام ناموفقی به بازیابی نیاز ندارد."
+
+msgctxt "diagnostics:reason.dead_letter_queue_has_items"
+msgid "Failed messages require review and recovery."
+msgstr "پیام‌های ناموفق به بررسی و بازیابی نیاز دارند."
+
+msgctxt "diagnostics:reason.dead_letter_queue_not_applicable"
+msgid "This Channel does not use a dead-letter queue."
+msgstr "این کانال از صف پیام‌های ناموفق استفاده نمی‌کند."
+
+msgctxt "diagnostics:reason.dead_letter_queue_disabled"
+msgid "The dead-letter queue is intentionally turned off."
+msgstr "صف پیام‌های ناموفق عمداً غیرفعال شده است."

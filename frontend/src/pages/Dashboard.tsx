@@ -16,6 +16,11 @@ import {
   legacySourceSignals,
   prepareResourceCollection,
 } from '../features/resourceOrdering/resourceOrdering'
+import {
+  diagnosticRecommendedAction,
+  diagnosticStatePresentation,
+  resolveDiagnosticState,
+} from '../features/diagnostics/diagnosticPresentation'
 import { translate } from '../i18n'
 import { formatDiagnosticMessage } from '../i18n/display'
 import { formatNumber, formatRelativeTime } from '../i18n/format'
@@ -90,9 +95,11 @@ export default function Dashboard() {
   const activeSources = sourceList.filter(source => source.status === 'active')
   const sourcesNeedingAttention = sourceList.length - activeSources.length
   const enabledChannels = (channelHealth?.items ?? []).filter(channel => channel.enabled)
-  const readyChannels = enabledChannels.filter(channel => channel.status === 'Operational')
-  const channelsNeedingAttention = enabledChannels.filter(channel => channel.status !== 'Operational')
-  const hasChannelError = channelsNeedingAttention.some(channel => channel.status === 'Error')
+  const readyChannels = enabledChannels.filter(channel => resolveDiagnosticState(channel) === 'HEALTHY')
+  const channelsNeedingAttention = enabledChannels.filter(channel => ['WARNING', 'ERROR'].includes(resolveDiagnosticState(channel)))
+  const channelsAwaitingVerification = enabledChannels.filter(channel => resolveDiagnosticState(channel) === 'NOT_CHECKED')
+  const informationalChannels = enabledChannels.filter(channel => ['INFO', 'NOT_APPLICABLE'].includes(resolveDiagnosticState(channel)))
+  const hasChannelError = channelsNeedingAttention.some(channel => resolveDiagnosticState(channel) === 'ERROR')
   const firstChannelAttention = channelsNeedingAttention[0]
 
   const orderedSources = useMemo(
@@ -175,8 +182,30 @@ export default function Dashboard() {
       tone: (hasChannelError ? 'danger' : 'warning') as BusinessCardTone,
       icon: (hasChannelError ? 'error' : 'warning') as IconName,
     },
-    recommendation: formatDiagnosticMessage(firstChannelAttention?.nextRecommendedAction)
-      || translate('dashboard:dashboard.reviewChannelHealth'),
+    recommendation: firstChannelAttention
+      ? (diagnosticRecommendedAction({
+        ...firstChannelAttention,
+        recommended_action: firstChannelAttention.recommended_action ?? firstChannelAttention.nextRecommendedAction,
+      }) || translate('dashboard:dashboard.reviewChannelHealth'))
+      : translate('dashboard:dashboard.reviewChannelHealth'),
+  } : channelsAwaitingVerification.length > 0 ? {
+    value: translate('dashboard:dashboard.readyChannelValue', { ready: formatNumber(readyChannels.length), total: formatNumber(enabledChannels.length) }),
+    explanation: translate('dashboard:dashboard.channelsAwaitingVerification', { count: channelsAwaitingVerification.length, value: formatNumber(channelsAwaitingVerification.length) }),
+    status: {
+      label: diagnosticStatePresentation('NOT_CHECKED').label,
+      tone: 'info' as BusinessCardTone,
+      icon: 'diagnostics' as IconName,
+    },
+    recommendation: translate('diagnostics:action.run_connection_test'),
+  } : informationalChannels.length > 0 ? {
+    value: translate('dashboard:dashboard.readyChannelValue', { ready: formatNumber(readyChannels.length), total: formatNumber(enabledChannels.length) }),
+    explanation: translate('dashboard:dashboard.channelsInformational', { count: informationalChannels.length, value: formatNumber(informationalChannels.length) }),
+    status: {
+      label: diagnosticStatePresentation('INFO').label,
+      tone: 'info' as BusinessCardTone,
+      icon: 'info' as IconName,
+    },
+    recommendation: translate('dashboard:dashboard.noActionRequired'),
   } : {
     value: translate('dashboard:dashboard.readyChannelValue', { ready: formatNumber(readyChannels.length), total: formatNumber(enabledChannels.length) }),
     explanation: translate('dashboard:dashboard.allChannelsReady'),

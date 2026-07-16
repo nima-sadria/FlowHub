@@ -168,7 +168,7 @@ async function assertDecisionReadyDashboard(page: Page, locale: 'en' | 'fa') {
     await expect(page.getByRole('heading', { name: 'نمای کسب‌وکار' })).toBeVisible()
     await expect(page.getByText('۲٬۴۱۵ محصول برای کار روزانه در دسترس است.')).toBeVisible()
     await expect(page.getByText('۱ از ۲ آماده')).toBeVisible()
-    await expect(page.getByText('وب‌هوک‌های در صف را بررسی کنید.')).toBeVisible()
+    await expect(page.getByText('وب‌هوک‌های دریافت‌شده در صف را بررسی کنید.')).toBeVisible()
     await expect(page.getByText('آماده کار روزانه')).toBeVisible()
   }
 

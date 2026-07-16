@@ -369,8 +369,7 @@ export function diagnosticChannelSignals(channel: ChannelHealthItem): ResourceOr
   return {
     id: channel.channelId,
     displayName: formatChannelDisplayName(channel.channelId),
-    status: channel.status,
-    activityStatuses: Object.values(channel.dimensions).map(dimension => dimension.status),
+    status: channel.state ?? channel.status,
     enabled: channel.enabled,
     configured: channel.enabled,
   }

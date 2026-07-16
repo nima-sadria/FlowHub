@@ -209,6 +209,36 @@ describe('Dashboard', () => {
     }
   })
 
+  it('does not present a never-checked Channel as a warning', async () => {
+    const mockServices = services()
+    const originalHealth = await mockServices.health.getChannelHealth()
+    const notChecked = {
+      ...originalHealth.items[0],
+      state: 'NOT_CHECKED' as const,
+      status: 'Not checked' as const,
+      reason_code: 'credentials_not_checked',
+      checked_at: null,
+      evidence_source: 'connector_health',
+      is_actionable: true,
+      recommended_action: 'Run connection test',
+      nextRecommendedAction: 'Run connection test',
+      lastSuccessfulVerification: null,
+    }
+    vi.mocked(mockServices.health.getChannelHealth).mockResolvedValue({
+      ...originalHealth,
+      summary: { overall: 'Not checked', overall_state: 'NOT_CHECKED', counts: { 'Not checked': 1 } },
+      items: [notChecked],
+    })
+
+    await renderPage(mockServices)
+
+    expect(card('channels').textContent).toContain('Not checked yet')
+    expect(card('channels').textContent).toContain('1 Channel has not been verified yet')
+    expect(card('channels').textContent).toContain('Run connection test')
+    expect(card('channels').textContent).not.toContain('Needs attention')
+    expect(card('channels').textContent).not.toContain('Warning')
+  })
+
   it('uses the shared active, disabled, and attention ordering for dashboard resources', async () => {
     const mockServices = services()
     const originalHealth = await mockServices.health.getChannelHealth()
@@ -260,7 +290,7 @@ describe('Dashboard', () => {
     expect(card('products').textContent).toContain('۲٬۴۱۵')
     expect(card('sources').textContent).toContain('۱ منبع فعال')
     expect(card('channels').textContent).toContain('نیازمند توجه')
-    expect(card('channels').textContent).toContain('وب‌هوک‌های در صف را بررسی کنید')
+    expect(card('channels').textContent).toContain('وب‌هوک‌های دریافت‌شده در صف را بررسی کنید')
     expect(card('system').textContent).toContain('آماده کار روزانه')
   })
 

@@ -177,7 +177,13 @@ def test_malformed_response_stale_sync_delayed_webhook_and_dead_letter_are_visib
 
     now = datetime.utcnow()
     stale = now - timedelta(days=3)
-    _seed_channel(db, "tapsishop:main", "tapsishop", enabled=True, settings={"token": None, "token_refresh_enabled": True})
+    _seed_channel(
+        db,
+        "tapsishop:main",
+        "tapsishop",
+        enabled=True,
+        settings={"token": None, "webhook_token": None, "token_refresh_enabled": True},
+    )
     _seed_health(db, "tapsishop:main", "tapsishop", "unhealthy", now, error_class="unexpected_response", detail="token=secret upstream payload")
     _seed_product_read(db, "tapsishop:main", stale)
     _seed_order_sync(db, "tapsishop:main", "tapsishop", stale)
@@ -226,9 +232,10 @@ def test_tapsishop_token_refresh_diagnostics_are_channel_scoped(db):
     main = _item(payload, "tapsishop:main")
     second = _item(payload, "tapsishop:second")
 
-    assert "credential_refresh_succeeded" in main["dimensions"]["tokenRefresh"]["message"]
-    assert "credential_refresh_failed" not in main["dimensions"]["tokenRefresh"]["message"]
-    assert "credential_refresh_failed" in second["dimensions"]["tokenRefresh"]["message"]
+    assert main["dimensions"]["tokenRefresh"]["state"] == "HEALTHY"
+    assert main["dimensions"]["tokenRefresh"]["reason_code"] == "token_refresh_healthy"
+    assert second["dimensions"]["tokenRefresh"]["state"] == "WARNING"
+    assert second["dimensions"]["tokenRefresh"]["reason_code"] == "token_refresh_failed"
 
 
 def test_channel_health_endpoint_and_refresh_suppress_concurrent_provider_checks(client, db, auth_headers, monkeypatch):
@@ -387,19 +394,19 @@ def test_channel_health_report_isolates_one_channel_exception(db, monkeypatch, c
 
 
 @pytest.mark.parametrize(
-    ("stored_value", "expected_status", "expected_word"),
+    ("stored_value", "expected_status", "expected_state", "expected_word"),
     [
-        (True, "Operational", "enabled"),
-        (False, "Warning", "disabled"),
-        ("true", "Operational", "enabled"),
-        ("false", "Warning", "disabled"),
-        (1, "Operational", "enabled"),
-        (0, "Warning", "disabled"),
-        ("malformed", "Warning", "disabled"),
+        (True, "Not checked", "NOT_CHECKED", "enabled"),
+        (False, "Disabled", "DISABLED", "off"),
+        ("true", "Not checked", "NOT_CHECKED", "enabled"),
+        ("false", "Disabled", "DISABLED", "off"),
+        (1, "Not checked", "NOT_CHECKED", "enabled"),
+        (0, "Disabled", "DISABLED", "off"),
+        ("malformed", "Disabled", "DISABLED", "off"),
     ],
 )
 def test_tapsishop_refresh_policy_uses_explicit_boolean_parsing(
-    db, stored_value, expected_status, expected_word
+    db, stored_value, expected_status, expected_state, expected_word
 ):
     from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
 
@@ -413,6 +420,7 @@ def test_tapsishop_refresh_policy_uses_explicit_boolean_parsing(
 
     refresh = _item(ChannelHealthReporter(db).report(), "tapsishop:main")["dimensions"]["tokenRefresh"]
     assert refresh["status"] == expected_status
+    assert refresh["state"] == expected_state
     assert expected_word in refresh["message"].lower()
 
 
@@ -428,7 +436,9 @@ def test_tapsishop_missing_refresh_policy_defaults_disabled_without_error(db):
     )
 
     refresh = _item(ChannelHealthReporter(db).report(), "tapsishop:main")["dimensions"]["tokenRefresh"]
-    assert refresh == {"status": "Warning", "message": "Refresh policy disabled."}
+    assert refresh["status"] == "Disabled"
+    assert refresh["state"] == "DISABLED"
+    assert refresh["reason_code"] == "token_refresh_disabled"
 
 
 def test_tapsishop_refresh_policy_values_are_isolated_by_channel(db):
@@ -450,8 +460,8 @@ def test_tapsishop_refresh_policy_values_are_isolated_by_channel(db):
     )
 
     payload = ChannelHealthReporter(db).report()
-    assert _item(payload, "tapsishop:main")["dimensions"]["tokenRefresh"]["status"] == "Operational"
-    assert _item(payload, "tapsishop:secondary")["dimensions"]["tokenRefresh"]["status"] == "Warning"
+    assert _item(payload, "tapsishop:main")["dimensions"]["tokenRefresh"]["state"] == "NOT_CHECKED"
+    assert _item(payload, "tapsishop:secondary")["dimensions"]["tokenRefresh"]["state"] == "DISABLED"
 
 
 def _seed_channel(db, channel_id: str, connector_type: str, *, enabled: bool, settings: dict) -> None:
