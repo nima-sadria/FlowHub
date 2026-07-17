@@ -66,6 +66,7 @@ export const sourceWorkspaceApi = {
   appendRows: (sheet: FlowHubSheetPage, count = 20) => apiFetch<FlowHubSheetPage>(`/api/v2/sheets/${encodeURIComponent(sheet.id)}/rows`, authFetch, json('POST', { expected_version: sheet.version, count })),
   saveMapping: (sourceId: string, payload: unknown) => apiFetch<SourceMapping>(`/api/v2/sources/${encodeURIComponent(sourceId)}/mappings`, authFetch, json('PUT', payload)),
   previewSource: (sourceId: string) => apiFetch<SourcePreview>(`/api/v2/sources/${encodeURIComponent(sourceId)}/preview?page=1&pageSize=100`, authFetch),
+  previewUnsavedMapping: (sourceId: string, payload: unknown) => apiFetch<SourcePreview>(`/api/v2/sources/${encodeURIComponent(sourceId)}/preview?page=1&pageSize=100`, authFetch, json('POST', payload)),
   previewImport: (payload: unknown) => apiFetch<Record<string, unknown>>('/api/v2/sheet-imports/preview', authFetch, json('POST', payload)),
   importSheet: (payload: unknown) => apiFetch<FlowHubSheetPage>('/api/v2/sheets/import', authFetch, json('POST', payload)),
   createWorkspace: (sourceId: string, name: string) => apiFetch<{ id: string }>('/api/v2/unified-workspaces/source', authFetch, json('POST', { source_id: sourceId, name })),

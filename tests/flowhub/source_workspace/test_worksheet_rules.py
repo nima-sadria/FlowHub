@@ -530,6 +530,96 @@ def test_source_preview_marks_a_recognized_row_with_an_issue_as_attention(
     assert response.items[0].ready is False
 
 
+def test_unsaved_mapping_preview_resolves_rows_without_persisting_or_invalidating(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _session()
+    user = _user_and_channels(db)
+    service = SourceWorkspaceService(db)
+    source = _external_source(service, user)
+    source_version = int(source["version"])
+
+    async def fake_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
+        return SimpleNamespace(
+            snapshot=SimpleNamespace(id="unsaved-preview-snapshot", version_seq=1),
+            worksheets={
+                "Pricing": [
+                    ["Name", "Woo ID", "Woo Price", "Snapp ID", "Snapp Price"],
+                    ["Cable", "wc-1", "100", "snap-1", "125"],
+                ]
+            },
+        )
+
+    monkeypatch.setattr(service, "_read_external_source", fake_read)
+    preview = asyncio.run(
+        service.preview_unsaved_mapping(
+            source_id=str(source["id"]),
+            expected_source_version=source_version,
+            worksheet_mode="all",
+            worksheet_name=None,
+            data_start_row=2,
+            source_fields=[
+                {
+                    "field": "name",
+                    "reference_type": "column_letter",
+                    "reference_value": "A",
+                }
+            ],
+            channel_mappings=[
+                {
+                    "channel_id": "woocommerce:primary",
+                    "fields": [
+                        {
+                            "field": "external_id",
+                            "reference_type": "column_letter",
+                            "reference_value": "B",
+                        },
+                        {
+                            "field": "price",
+                            "reference_type": "column_letter",
+                            "reference_value": "C",
+                        },
+                    ],
+                },
+                {
+                    "channel_id": "snappshop:main",
+                    "fields": [
+                        {
+                            "field": "external_id",
+                            "reference_type": "column_letter",
+                            "reference_value": "D",
+                        },
+                        {
+                            "field": "price",
+                            "reference_type": "column_letter",
+                            "reference_value": "E",
+                        },
+                    ],
+                },
+            ],
+            value_policy={},
+            user=user,
+        )
+    )
+
+    assert preview["mappingRevisionId"] is None
+    assert preview["items"][0]["channels"] == [
+        {
+            "channelId": "snappshop:main",
+            "fields": {"external_id": "snap-1", "price": "125"},
+        },
+        {
+            "channelId": "woocommerce:primary",
+            "fields": {"external_id": "wc-1", "price": "100"},
+        },
+    ]
+    assert db.query(SourceMappingRevision).count() == 0
+    db.expire_all()
+    persisted_source = service.sources.get(str(source["id"]))
+    assert persisted_source is not None
+    assert persisted_source.version == source_version
+
+
 def test_cross_worksheet_duplicates_block_unless_last_sheet_wins_is_explicit() -> None:
     db = _session()
     user = _user_and_channels(db)

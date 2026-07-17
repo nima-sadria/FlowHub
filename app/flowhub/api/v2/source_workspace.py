@@ -374,6 +374,35 @@ async def preview_source_rows(
     )
 
 
+@router.post("/sources/{source_id}/preview", response_model=SourcePreviewResponse)
+async def preview_unsaved_source_mapping(
+    source_id: str,
+    body: MappingSaveRequest,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=200, alias="pageSize", ge=1, le=500),
+    user: FlowHubUser = Depends(require_workspace_permission("workspace.edit")),
+    service: SourceWorkspaceService = Depends(_service),
+) -> SourcePreviewResponse:
+    payload = body.model_dump()
+    payload["source_fields"] = [item.model_dump() for item in body.source_fields]
+    payload["channel_mappings"] = [
+        {
+            **item.model_dump(exclude={"fields"}),
+            "fields": [field.model_dump() for field in item.fields],
+        }
+        for item in body.channel_mappings
+    ]
+    return SourcePreviewResponse.model_validate(
+        await service.preview_unsaved_mapping(
+            source_id=source_id,
+            user=user,
+            page=page,
+            page_size=page_size,
+            **payload,
+        )
+    )
+
+
 @router.post("/sheets", status_code=201)
 def create_sheet(
     body: SheetCreateRequest,

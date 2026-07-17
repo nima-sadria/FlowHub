@@ -376,6 +376,7 @@ class SourceWorkspaceService:
         duplicate_product_policy: str = "block",
         worksheet_rules: list[dict[str, Any]] | None = None,
         user: FlowHubUser,
+        _commit: bool = True,
     ) -> dict[str, Any]:
         self._ensure_channels()
         source = self._owned_source(source_id, user, require_active=True, lock=True)
@@ -555,12 +556,94 @@ class SourceWorkspaceService:
         source.worksheet_name = effective_worksheet_name
         source.data_start_row = data_start_row
         source.updated_at = utcnow()
-        self._invalidate_source_reviews(source.id)
-        self.db.commit()
+        if _commit:
+            self._invalidate_source_reviews(source.id)
+            self.db.commit()
+        else:
+            self.db.flush()
         shape = self._mapping_shape(revision)
         if shape is None:
             raise RuntimeError("Mapping revision persistence failed")
         return shape
+
+    async def preview_unsaved_mapping(
+        self,
+        *,
+        source_id: str,
+        expected_source_version: int,
+        worksheet_mode: str,
+        worksheet_name: str | None,
+        data_start_row: int,
+        source_fields: list[dict[str, Any]],
+        channel_mappings: list[dict[str, Any]],
+        value_policy: dict[str, str],
+        worksheet_rule_mode: str = "shared",
+        selected_worksheet_names: list[str] | None = None,
+        duplicate_product_policy: str = "block",
+        worksheet_rules: list[dict[str, Any]] | None = None,
+        user: FlowHubUser,
+        page: int = 1,
+        page_size: int = 200,
+    ) -> dict[str, Any]:
+        """Preview a draft mapping without creating a durable mapping revision.
+
+        External acquisition happens before the savepoint so the normal read-once
+        snapshot behavior remains durable. The candidate mapping aggregate exists
+        only inside the savepoint and is always rolled back after resolution.
+        """
+
+        source = self._owned_source(source_id, user, require_active=True)
+        sheet = self.sheets.for_source(source.id)
+        imported_worksheets: dict[str, list[list[Any]]] | None = None
+        sheet_revision: SheetRevision | None = None
+        revision_id: str | None = None
+        if sheet is None:
+            imported = await self._read_external_source(source, user, manual=True)
+            imported_worksheets = imported.worksheets or {}
+            revision_id = f"external:{imported.snapshot.id}:{imported.snapshot.version_seq}"
+        else:
+            sheet_revision = self.sheets.latest_revision(sheet.id)
+            revision_id = sheet_revision.id if sheet_revision else None
+
+        savepoint = self.db.begin_nested()
+        try:
+            self.save_mapping(
+                source_id=source_id,
+                expected_source_version=expected_source_version,
+                worksheet_mode=worksheet_mode,
+                worksheet_name=worksheet_name,
+                data_start_row=data_start_row,
+                source_fields=source_fields,
+                channel_mappings=channel_mappings,
+                value_policy=value_policy,
+                worksheet_rule_mode=worksheet_rule_mode,
+                selected_worksheet_names=selected_worksheet_names,
+                duplicate_product_policy=duplicate_product_policy,
+                worksheet_rules=worksheet_rules,
+                user=user,
+                _commit=False,
+            )
+            mapping = self.sources.latest_mapping(source.id)
+            if mapping is None:
+                raise RuntimeError("Draft mapping preview persistence failed")
+            if imported_worksheets is not None:
+                records = self._mapped_external_records(imported_worksheets, mapping)
+            elif sheet_revision is not None:
+                records = self._mapped_sheet_records(sheet_revision, mapping)
+            else:
+                records = []
+            result = self._shape_source_preview(
+                records,
+                mapping,
+                page=page,
+                page_size=page_size,
+                sheet_revision_id=revision_id,
+                mapping_revision_id=None,
+            )
+        finally:
+            savepoint.rollback()
+            self.db.expire_all()
+        return result
 
     async def source_preview(
         self, source_id: str, user: FlowHubUser, *, page: int, page_size: int
@@ -588,6 +671,25 @@ class SourceWorkspaceService:
                 }
             records = self._mapped_sheet_records(revision, mapping)
             revision_id = revision.id
+        return self._shape_source_preview(
+            records,
+            mapping,
+            page=page,
+            page_size=page_size,
+            sheet_revision_id=revision_id,
+            mapping_revision_id=mapping.id,
+        )
+
+    def _shape_source_preview(
+        self,
+        records: list[dict[str, Any]],
+        mapping: SourceMappingRevision,
+        *,
+        page: int,
+        page_size: int,
+        sheet_revision_id: str | None,
+        mapping_revision_id: str | None,
+    ) -> dict[str, Any]:
         start = (max(page, 1) - 1) * page_size
         page_records: list[dict[str, Any]] = []
         for record in records[start : start + min(max(page_size, 1), 500)]:
@@ -602,8 +704,8 @@ class SourceWorkspaceService:
             "ignored": sum(1 for item in records if not item["recognized"]),
             "issues": self._preview_issue_summary(records),
             "businessSummary": self._preview_business_summary(records, mapping),
-            "sheetRevisionId": revision_id,
-            "mappingRevisionId": mapping.id,
+            "sheetRevisionId": sheet_revision_id,
+            "mappingRevisionId": mapping_revision_id,
         }
 
     async def snapshot_candidates(self, source_id: str, user: FlowHubUser) -> dict[str, Any]:

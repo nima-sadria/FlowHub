@@ -85,10 +85,32 @@ async function renderPage() {
   })
 }
 
+const emptyPreview = {
+  total: 0,
+  recognized: 0,
+  ignored: 0,
+  issues: [],
+  businessSummary: { productsFound: 0, productsReady: 0, priceChanges: null, stockChanges: null, unchanged: null, needsAttention: 0, channelsReady: 0, channelsNotConfigured: 0 },
+  sheetRevisionId: 'revision-1',
+  mappingRevisionId: null,
+  items: [],
+}
+
 function button(text: string): HTMLButtonElement {
   const item = Array.from(container.querySelectorAll('button')).find(node => node.textContent?.includes(text))
   expect(item).toBeTruthy()
   return item as HTMLButtonElement
+}
+
+async function previewThenSave() {
+  await act(async () => {
+    button('Preview recognized rows').click()
+    await Promise.resolve()
+  })
+  await act(async () => {
+    button('Save column setup').click()
+    await Promise.resolve()
+  })
 }
 
 describe('SourceConfiguration per-Channel mappings', () => {
@@ -99,6 +121,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     vi.spyOn(sourceWorkspaceApi, 'source').mockResolvedValue(source)
     vi.spyOn(sourceWorkspaceApi, 'channels').mockResolvedValue({ items: channels })
     vi.spyOn(sourceWorkspaceApi, 'saveMapping').mockResolvedValue(mapping)
+    vi.spyOn(sourceWorkspaceApi, 'previewUnsavedMapping').mockResolvedValue(emptyPreview)
   })
 
   afterEach(async () => {
@@ -159,10 +182,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     const tapsi = container.querySelector('details[data-channel-id="tapsishop:main"]')
     const checkbox = tapsi?.querySelector('input[type="checkbox"]') as HTMLInputElement
     await act(async () => checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-    await act(async () => {
-      button('Save column setup').dispatchEvent(new MouseEvent('click', { bubbles: true }))
-      await Promise.resolve()
-    })
+    await previewThenSave()
     const payload = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls[0][1] as {
       channel_mappings: Array<{ channel_id: string; enabled: boolean }>
     }
@@ -199,7 +219,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
   })
 
   it('previews each Channel using only its independently resolved values', async () => {
-    vi.spyOn(sourceWorkspaceApi, 'previewSource').mockResolvedValue({
+    vi.mocked(sourceWorkspaceApi.previewUnsavedMapping).mockResolvedValue({
       total: 1,
       recognized: 1,
       ignored: 0,
@@ -238,7 +258,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
   })
 
   it('uses backend issue-aware readiness and distinguishes equal row numbers across worksheets', async () => {
-    vi.spyOn(sourceWorkspaceApi, 'previewSource').mockResolvedValue({
+    vi.mocked(sourceWorkspaceApi.previewUnsavedMapping).mockResolvedValue({
       total: 2,
       recognized: 2,
       ignored: 0,
@@ -289,7 +309,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).toContain('فروش تهران')
     expect(container.textContent).toContain('Marketplace')
     expect(container.textContent).toContain('Configure each worksheet separately')
-    await act(async () => { button('Save column setup').click(); await Promise.resolve() })
+    await previewThenSave()
     const calls = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls
     const payload = calls[calls.length - 1]?.[1] as { worksheet_rule_mode: string; worksheet_rules: Array<{ worksheet_name: string; data_start_row: number; channel_mappings: Array<{ channel_id: string; fields: Array<{ field: string; reference_value: string | null }> }> }> }
     expect(payload.worksheet_rule_mode).toBe('per_worksheet')
@@ -368,7 +388,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     await act(async () => (Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.includes('Confirm copy')) as HTMLButtonElement).click())
     expect(priceInput.value).toBe('B')
 
-    await act(async () => { button('Save column setup').click(); await Promise.resolve() })
+    await previewThenSave()
     const calls = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls
     const payload = calls[calls.length - 1]?.[1] as { worksheet_rules: Array<{ channel_mappings: Array<{ channel_id: string; fields: Array<{ field: string; reference_value: string | null }> }> }> }
     const savedSnapp = payload.worksheet_rules[0].channel_mappings.find(item => item.channel_id === 'snappshop:main')
@@ -489,7 +509,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(worksheetCheckbox('شیراز').checked).toBe(true)
     expect(worksheetCheckbox('یادداشت‌ها').checked).toBe(false)
 
-    await act(async () => { button('Save column setup').click(); await Promise.resolve() })
+    await previewThenSave()
     const calls = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls
     const payload = calls[calls.length - 1]?.[1] as { selected_worksheet_names: string[]; worksheet_name: string | null }
     expect(payload.selected_worksheet_names).toEqual(['تهران', 'شیراز'])
@@ -522,5 +542,28 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(error.textContent).toContain('Choose the product-name column')
     const saveButtons = Array.from(container.querySelectorAll('button')).filter(item => item.textContent?.includes('Save column setup')) as HTMLButtonElement[]
     expect(saveButtons[saveButtons.length - 1].disabled).toBe(true)
+  })
+
+  it('previews the current unsaved payload before enabling Save', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: null, mappingVersion: 0 })
+    await renderPage()
+
+    const saveButton = button('Save column setup')
+    expect(saveButton.disabled).toBe(true)
+    expect(sourceWorkspaceApi.saveMapping).not.toHaveBeenCalled()
+
+    await act(async () => {
+      button('Preview recognized rows').click()
+      await Promise.resolve()
+    })
+
+    expect(sourceWorkspaceApi.previewUnsavedMapping).toHaveBeenCalledTimes(1)
+    const payload = vi.mocked(sourceWorkspaceApi.previewUnsavedMapping).mock.calls[0][1] as {
+      expected_source_version: number
+      channel_mappings: Array<{ channel_id: string }>
+    }
+    expect(payload.expected_source_version).toBe(source.version)
+    expect(payload.channel_mappings).toEqual([])
+    expect(saveButton.disabled).toBe(false)
   })
 })

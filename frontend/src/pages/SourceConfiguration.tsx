@@ -209,6 +209,7 @@ export default function SourceConfiguration() {
   const [pendingCopy, setPendingCopy] = useState<PendingWorksheetCopy | null>(null)
   const [pendingSharedChannelCopy, setPendingSharedChannelCopy] = useState<{ sourceChannelId: string; targetChannelId: string } | null>(null)
   const [baselineFingerprint, setBaselineFingerprint] = useState<string | null>(null)
+  const [previewedFingerprint, setPreviewedFingerprint] = useState<string | null>(null)
   const [connectionChecking, setConnectionChecking] = useState(false)
 
   useEffect(() => {
@@ -495,55 +496,63 @@ export default function SourceConfiguration() {
     }
   }
 
-  async function save() {
-    if (!source) return
-    setSaving(true)
-    try {
-      await sourceWorkspaceApi.saveMapping(source.id, {
-        expected_source_version: source.version,
-        worksheet_mode: worksheetRuleMode === 'per_worksheet' ? 'all' : worksheetMode,
-        worksheet_name: worksheetRuleMode === 'shared' && worksheetMode === 'selected' && selectedWorksheetNames.length === 1 ? selectedWorksheetNames[0] : null,
-        selected_worksheet_names: worksheetRuleMode === 'shared' && worksheetMode === 'selected' ? selectedWorksheetNames : [],
-        data_start_row: worksheetRuleMode === 'shared' ? dataStartRow : 1,
-        source_fields: (worksheetRuleMode === 'shared' ? sourceFields : []).map(item => ({
+  function mappingPayload() {
+    if (!source) return null
+    return {
+      expected_source_version: source.version,
+      worksheet_mode: worksheetRuleMode === 'per_worksheet' ? 'all' : worksheetMode,
+      worksheet_name: worksheetRuleMode === 'shared' && worksheetMode === 'selected' && selectedWorksheetNames.length === 1 ? selectedWorksheetNames[0] : null,
+      selected_worksheet_names: worksheetRuleMode === 'shared' && worksheetMode === 'selected' ? selectedWorksheetNames : [],
+      data_start_row: worksheetRuleMode === 'shared' ? dataStartRow : 1,
+      source_fields: (worksheetRuleMode === 'shared' ? sourceFields : []).map(item => ({
+        field: item.field,
+        reference_type: item.referenceType,
+        reference_value: item.referenceValue,
+        required: item.required ?? false,
+      })),
+      channel_mappings: (worksheetRuleMode === 'shared' ? configuredChannelIds : []).map(channelId => ({
+        channel_id: channelId,
+        worksheet_name: channelWorksheets[channelId] || null,
+        enabled: Boolean(channelEnabled[channelId]),
+        fields: (channelFields[channelId] ?? emptyChannelFields()).map(item => ({
           field: item.field,
           reference_type: item.referenceType,
           reference_value: item.referenceValue,
-          required: item.required ?? false,
+          required: false,
         })),
-        channel_mappings: (worksheetRuleMode === 'shared' ? configuredChannelIds : []).map(channelId => ({
-          channel_id: channelId,
-          worksheet_name: channelWorksheets[channelId] || null,
-          enabled: Boolean(channelEnabled[channelId]),
-          fields: (channelFields[channelId] ?? emptyChannelFields()).map(item => ({
-            field: item.field,
-            reference_type: item.referenceType,
-            reference_value: item.referenceValue,
-            required: false,
-          })),
-        })),
-        value_policy: valuePolicy,
-        worksheet_rule_mode: worksheetRuleMode,
-        duplicate_product_policy: duplicateProductPolicy,
-        worksheet_rules: worksheetRuleMode === 'per_worksheet' ? worksheetRules.map(rule => ({
+      })),
+      value_policy: valuePolicy,
+      worksheet_rule_mode: worksheetRuleMode,
+      duplicate_product_policy: duplicateProductPolicy,
+      worksheet_rules: worksheetRuleMode === 'per_worksheet' ? worksheetRules.map(rule => ({
+        worksheet_name: rule.worksheetName,
+        enabled: rule.enabled,
+        data_start_row: rule.dataStartRow,
+        value_policy: rule.valuePolicy,
+        source_fields: rule.sourceFields.map(item => ({ field: item.field, reference_type: item.referenceType, reference_value: item.referenceValue, required: item.required ?? false })),
+        channel_mappings: rule.channels.map(channel => ({
+          channel_id: channel.channelId,
           worksheet_name: rule.worksheetName,
-          enabled: rule.enabled,
-          data_start_row: rule.dataStartRow,
-          value_policy: rule.valuePolicy,
-          source_fields: rule.sourceFields.map(item => ({ field: item.field, reference_type: item.referenceType, reference_value: item.referenceValue, required: item.required ?? false })),
-          channel_mappings: rule.channels.map(channel => ({
-            channel_id: channel.channelId,
-            worksheet_name: rule.worksheetName,
-            enabled: channel.enabled,
-            fields: channel.fields.map(item => ({ field: item.field, reference_type: item.referenceType, reference_value: item.referenceValue, required: false })),
-          })),
-        })) : [],
-      })
+          enabled: channel.enabled,
+          fields: channel.fields.map(item => ({ field: item.field, reference_type: item.referenceType, reference_value: item.referenceValue, required: false })),
+        })),
+      })) : [],
+    }
+  }
+
+  async function save() {
+    if (!source) return
+    const payload = mappingPayload()
+    if (!payload || previewedFingerprint !== configurationFingerprint) return
+    setSaving(true)
+    try {
+      await sourceWorkspaceApi.saveMapping(source.id, payload)
       notify.success({
         title: translate('sources:sourceConfiguration.sourceMappingSaved'),
         description: translate('sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated'),
       })
       setBaselineFingerprint(configurationFingerprint)
+      setPreviewedFingerprint(null)
       setSource(await sourceWorkspaceApi.source(source.id))
       setPreview(null)
     } catch (error) {
@@ -566,9 +575,12 @@ export default function SourceConfiguration() {
   }
 
   async function loadPreview() {
+    const payload = mappingPayload()
+    if (!payload) return
     setPreviewing(true)
     try {
-      setPreview(await sourceWorkspaceApi.previewSource(sourceId))
+      setPreview(await sourceWorkspaceApi.previewUnsavedMapping(sourceId, payload))
+      setPreviewedFingerprint(configurationFingerprint)
       setPreviewIndex(0)
     } catch (error) {
       notify.error({
@@ -861,7 +873,7 @@ export default function SourceConfiguration() {
             <h2 className="fh-section-title">{translate('sources:sourceConfiguration.sourcePreview')}</h2>
             <p className="fh-text-caption">{translate('sources:sourceConfiguration.previewShowsIndependentChannelValues')}</p>
           </div>
-          <button className="fh-button-secondary" type="button" disabled={!source.mapping || previewing} onClick={() => void loadPreview()}>
+          <button className="fh-button-secondary" type="button" disabled={previewing} onClick={() => void loadPreview()}>
             {previewing ? translate('sources:sourceConfiguration.loading') : translate('sources:sourceConfiguration.previewRecognizedRows')}
           </button>
         </div>
@@ -925,7 +937,8 @@ export default function SourceConfiguration() {
         <span className="fh-text-caption">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
         <div className="ms-auto flex flex-wrap gap-2">
           <button className="fh-button-secondary" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>
-          <button className="fh-button-primary" type="button" disabled={saving || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>
+          <button className="fh-button-secondary" type="button" disabled={previewing} onClick={() => void loadPreview()}><Icon name="preview" /> {previewing ? translate('sources:sourceConfiguration.loading') : translate('sources:sourceConfiguration.previewRecognizedRows')}</button>
+          <button className="fh-button-primary" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>
           <button className="fh-button-secondary" type="button" onClick={closeConfiguration}><Icon name="close" /> {translate('sources:sourceConfiguration.close')}</button>
         </div>
       </div>
