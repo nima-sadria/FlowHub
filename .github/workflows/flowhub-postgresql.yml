@@ -155,6 +155,27 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
+      - name: PostgreSQL Workspace snapshot persistence tests
+        id: postgres-workspace-persistence-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long \
+            --junitxml=postgres-workspace-persistence-junit.xml \
+            tests/flowhub/unified_workspace/test_snapshot_persistence_postgres.py \
+            2>&1 | tee postgres-workspace-persistence-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ "$pytest_status" -ne 0 ]; then detail=$(tail -120 postgres-workspace-persistence-output.log | tr '\n' ' ' | cut -c1-6000); echo "::error title=PostgreSQL Workspace persistence failure::$detail"; fi
+          if [ -f postgres-workspace-persistence-junit.xml ]; then
+            python scripts/assert_postgres_junit.py \
+              postgres-workspace-persistence-junit.xml \
+              workspace-persistence | tee postgres-workspace-persistence-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-workspace-persistence-junit.xml' | tee postgres-workspace-persistence-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: PostgreSQL order and concurrency tests
         id: postgres-order-tests
         run: |
@@ -212,6 +233,9 @@ jobs:
             postgres-019-junit.xml
             postgres-019-output.log
             postgres-019-manifest.log
+            postgres-workspace-persistence-junit.xml
+            postgres-workspace-persistence-output.log
+            postgres-workspace-persistence-manifest.log
             postgres-orders-junit.xml
             postgres-orders-output.log
             postgres-orders-manifest.log

@@ -39,6 +39,12 @@ REQUIRED_019_TESTS = (
     "test_sqlite_019_tables_match_source_workspace_metadata",
     "test_postgresql_019_foreign_keys_immutability_and_018_preservation",
 )
+REQUIRED_WORKSPACE_PERSISTENCE_TESTS = (
+    "test_postgresql_manual_workspace_persists_snapshot_before_draft",
+    "test_postgresql_catalog_workspace_persists_snapshot_before_draft",
+    "test_postgresql_workspace_creation_rolls_back_after_snapshot_flush_failure",
+    "test_postgresql_repeated_workspace_creation_keeps_snapshot_references_unique",
+)
 
 
 def main() -> int:
@@ -52,6 +58,7 @@ def main() -> int:
         "017": REQUIRED_017_TESTS,
         "018": REQUIRED_018_TESTS,
         "019": REQUIRED_019_TESTS,
+        "workspace-persistence": REQUIRED_WORKSPACE_PERSISTENCE_TESTS,
         "orders": REQUIRED_ORDER_TESTS,
         "crash": REQUIRED_CRASH_TESTS,
     }.get(group, REQUIRED_017_TESTS)

@@ -130,6 +130,40 @@ class UnifiedWorkspaceService:
 
     # -- Workspace and snapshots ---------------------------------------------
 
+    def _persist_snapshot_foundation(
+        self,
+        *,
+        snapshot: WorkspaceSnapshot,
+        rows: Sequence[SnapshotRow],
+        draft: Draft,
+    ) -> None:
+        """Persist the immutable Snapshot graph before its Draft references it.
+
+        FlowHub request sessions deliberately disable autoflush. The Draft
+        stores scalar foreign-key identities rather than an ORM relationship to
+        the Snapshot object, so adding the whole graph at once does not give
+        SQLAlchemy a dependency edge it can use to order the INSERT statements.
+        Explicit flushes keep the operation in one transaction while making the
+        database dependency order deterministic.
+        """
+
+        self.db.add(snapshot)
+        self.db.flush()
+        persisted_snapshot_id = (
+            self.db.query(WorkspaceSnapshot.id)
+            .filter(WorkspaceSnapshot.id == snapshot.id)
+            .scalar()
+        )
+        if persisted_snapshot_id != snapshot.id:
+            raise RuntimeError("Workspace snapshot was not persisted in the active transaction.")
+
+        if rows:
+            self.db.add_all(rows)
+            self.db.flush()
+
+        self.db.add(draft)
+        self.db.flush()
+
     def create_catalog_workspace(
         self,
         *,
@@ -356,6 +390,7 @@ class UnifiedWorkspaceService:
             version=1,
         )
         self.db.add(workspace)
+        self.db.flush()
         snapshot_payload: list[dict[str, Any]] = []
         staged_rows: list[SnapshotRow] = []
         for row_number, identity in enumerate(normalized_selection, start=1):
@@ -430,7 +465,7 @@ class UnifiedWorkspaceService:
             version=0,
             status="draft",
         )
-        self.db.add_all([snapshot, *staged_rows, draft])
+        self._persist_snapshot_foundation(snapshot=snapshot, rows=staged_rows, draft=draft)
         self._audit(
             "workspace_created",
             user,
@@ -496,6 +531,7 @@ class UnifiedWorkspaceService:
             version=1,
         )
         self.db.add(workspace)
+        self.db.flush()
         staged_rows: list[SnapshotRow] = []
         immutable_rows: list[dict[str, Any]] = []
         preview_rows_data = [
@@ -637,7 +673,7 @@ class UnifiedWorkspaceService:
             version=0,
             status="draft",
         )
-        self.db.add_all([snapshot, *staged_rows, draft])
+        self._persist_snapshot_foundation(snapshot=snapshot, rows=staged_rows, draft=draft)
         self._audit(
             "workspace_created",
             user,
@@ -691,6 +727,7 @@ class UnifiedWorkspaceService:
             version=1,
         )
         self.db.add(workspace)
+        self.db.flush()
         staged_rows: list[SnapshotRow] = []
         snapshot_document: list[dict[str, Any]] = []
         draft_changes: list[dict[str, Any]] = []
@@ -816,7 +853,7 @@ class UnifiedWorkspaceService:
             version=0,
             status="draft",
         )
-        self.db.add_all([snapshot, *staged_rows, draft])
+        self._persist_snapshot_foundation(snapshot=snapshot, rows=staged_rows, draft=draft)
         for issue in issue_payloads:
             issue_listing_id = (issue.get("technicalDetails") or {}).get("listing_id")
             issue_listing = self.db.get(Listing, issue_listing_id) if issue_listing_id else None
