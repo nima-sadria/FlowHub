@@ -177,7 +177,7 @@ test('Source configuration, FlowHub Sheet, import, and Data Quality render from 
   await expect(page.getByText('Choose XLSX or CSV')).toBeVisible()
   await page.screenshot({ path: path.join(screenshotRoot, 'import-wizard.png'), fullPage: true })
   await page.goto('/data-quality')
-  await page.getByText('stale cache', { exact: true }).click()
+  await page.getByLabel('Issue list').getByText('stale cache', { exact: true }).click()
   await expect(page.getByText('SnappShop cache is too old for a safe Review.')).toBeVisible()
   await page.screenshot({ path: path.join(screenshotRoot, 'data-quality.png'), fullPage: true })
 })
@@ -225,12 +225,16 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
       await expect(page.getByText('visual-owner', { exact: true }).first()).toBeVisible()
     }
     if (name === 'commerce-sources') {
-      await expect(page.getByText('پیکربندی‌شده', { exact: true }).first()).toBeVisible()
+      const sourceCard = page.getByRole('heading', { name: 'Nextcloud' }).locator('xpath=ancestor::div[contains(@class, "fh-card")][1]')
+      await sourceCard.getByText('جزئیات', { exact: true }).click()
+      await expect(sourceCard.getByText('پیکربندی‌شده', { exact: true }).first()).toBeVisible()
       await expect(page.getByText('محصولات ذخیره‌شده در کش', { exact: false })).toHaveCount(0)
     }
     if (name === 'commerce-channels') {
-      await expect(page.getByText('خواندن محصولات', { exact: false }).first()).toBeVisible()
-      await expect(page.getByText('محصولات ذخیره‌شده در کش', { exact: false })).toBeVisible()
+      const channelCard = page.getByRole('heading', { name: 'WooCommerce' }).locator('xpath=ancestor::div[contains(@class, "fh-card")][1]')
+      await channelCard.getByText('جزئیات', { exact: true }).click()
+      await expect(channelCard.getByText('خواندن محصولات', { exact: false }).first()).toBeVisible()
+      await expect(channelCard.getByText('محصولات ذخیره‌شده در کش', { exact: false })).toBeVisible()
     }
     if (name === 'diagnostics') {
       await expect(page.getByText('۶ ثانیه', { exact: true }).first()).toBeVisible()

@@ -332,6 +332,10 @@ async function installStrictMockApi(page: Page, audit: TrafficAudit, locale: 'en
       audit.savedMappings.push(payload)
       return json(sourceConfiguration.mapping)
     }
+    if (request.method() === 'POST' && pathname === '/api/v2/sources/source-logitech/preview') {
+      audit.previewRequests += 1
+      return json(sourcePreview())
+    }
     if (request.method() !== 'GET') {
       audit.interceptedWrites.push(`${request.method()} ${pathname}`)
       return json({ code: 'MOCK_WRITE_BLOCKED', message: 'All writes are blocked by the isolated Sources redesign fixture.' }, 405)
@@ -375,11 +379,6 @@ async function installStrictMockApi(page: Page, audit: TrafficAudit, locale: 'en
         { name: 'Notes', rowCount: 12 },
       ],
     })
-    if (pathname === '/api/v2/sources/source-logitech/preview') {
-      audit.previewRequests += 1
-      return json(sourcePreview())
-    }
-
     audit.unhandledApiRequests.push(`${request.method()} ${request.url()}`)
     return json({ code: 'UNHANDLED_ISOLATED_MOCK', message: 'The isolated Sources redesign fixture does not implement this request.' }, 501)
   })

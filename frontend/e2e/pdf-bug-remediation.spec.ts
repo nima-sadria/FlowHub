@@ -233,7 +233,7 @@ async function installIsolatedMockApi(page: Page, state: MockState) {
         items: [{ name: 'Main', rowCount: 125 }, { name: 'فروش تهران', rowCount: 80 }, { name: 'Marketplace', rowCount: 45 }],
       })
     }
-    if (pathname === '/api/v2/sources/source-pdf-audit/preview' && method === 'GET') {
+    if (pathname === '/api/v2/sources/source-pdf-audit/preview' && method === 'POST') {
       return json({
         items: [{
           rowKey: 'Main:3', rowNumber: 3, worksheetName: 'Main', recognized: true, hasIssues: false, ready: true,
@@ -443,7 +443,7 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
     await page.reload()
     await expect(page.getByRole('heading', { name: 'No data problems found' })).toBeVisible()
     await page.getByText('View last scan details', { exact: true }).click()
-    await expect(page.getByText('125', { exact: true })).toBeVisible()
+    await expect(page.getByRole('group').getByText('125', { exact: true })).toBeVisible()
     await screenshot(page, 'data-quality-healthy-en-1440x900')
 
     state.dataQualityMode = 'issues_found'
@@ -451,7 +451,7 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
       await page.setViewportSize(viewport)
       await page.reload()
       await expect(page.getByRole('heading', { name: 'Data Quality Summary' })).toBeVisible()
-      await expect(page.getByText('Total issues')).toBeVisible()
+      await expect(page.getByText('Blocking issues')).toBeVisible()
       await expect(page.getByText('Most common problems')).toBeVisible()
       await expect(page.getByRole('heading', { name: 'Issue list' })).toBeVisible()
       await screenshot(page, `data-quality-issues-en-${viewport.width}x${viewport.height}`)

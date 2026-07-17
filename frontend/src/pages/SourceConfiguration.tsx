@@ -937,7 +937,6 @@ export default function SourceConfiguration() {
         <span className="fh-text-caption">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
         <div className="ms-auto flex flex-wrap gap-2">
           <button className="fh-button-secondary" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>
-          <button className="fh-button-secondary" type="button" disabled={previewing} onClick={() => void loadPreview()}><Icon name="preview" /> {previewing ? translate('sources:sourceConfiguration.loading') : translate('sources:sourceConfiguration.previewRecognizedRows')}</button>
           <button className="fh-button-primary" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>
           <button className="fh-button-secondary" type="button" onClick={closeConfiguration}><Icon name="close" /> {translate('sources:sourceConfiguration.close')}</button>
         </div>

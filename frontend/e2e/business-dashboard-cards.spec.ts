@@ -93,6 +93,27 @@ async function installStrictDashboardMocks(page: Page, audit: TrafficAudit) {
     if (url.pathname === '/api/v2/setup/status' && method === 'GET') {
       return json(route, { completed: true })
     }
+    if (url.pathname === '/api/v2/dashboard/business-summary' && method === 'GET') {
+      return json(route, {
+        generatedAt: '2026-07-16T06:00:00Z',
+        metrics: {
+          productsWithChanges: 84,
+          readyForReview: 76,
+          readyForApply: 12,
+          blockingIssues: 3,
+          warnings: 5,
+          affectedProducts: 7,
+          outOfStockProducts: 9,
+          pendingUpdates: 2,
+          failedUpdates: 1,
+          ordersToday: 6,
+          ordersYesterday: 4,
+          updatesAppliedToday: 18,
+          updatesAppliedYesterday: 12,
+          revenueToday: [{ currency: 'IRR', amount: 15_000_000 }],
+        },
+      })
+    }
     if (url.pathname === '/api/health' && method === 'GET') {
       return json(route, { status: 'ok', env: 'test', version: 'dashboard-visual-mock' })
     }
@@ -133,43 +154,47 @@ async function installStrictDashboardMocks(page: Page, audit: TrafficAudit) {
 }
 
 async function assertDecisionReadyDashboard(page: Page, locale: 'en' | 'fa') {
-  await expect(page.locator('[data-business-card]')).toHaveCount(5)
-  await expect(page.locator('[data-business-card] .fh-business-card-value')).toHaveCount(5)
-  await expect(page.locator('[data-business-card] .fh-business-card-explanation')).toHaveCount(5)
-  await expect(page.locator('[data-business-card] .fh-business-card-meaning')).toHaveCount(5)
-  await expect(page.locator('[data-business-card] .fh-badge')).toHaveCount(5)
-  await expect(page.locator('[data-business-card] .fh-business-card-recommendation')).toHaveCount(5)
-  await expect(page.locator('[data-business-card] .fh-badge [data-icon]')).toHaveCount(5)
+  await expect(page.locator('[data-business-card]')).toHaveCount(8)
+  await expect(page.locator('[data-business-card] .fh-business-card-value')).toHaveCount(8)
+  await expect(page.locator('[data-business-card] .fh-business-card-explanation')).toHaveCount(8)
+  await expect(page.locator('[data-business-card] .fh-business-card-meaning')).toHaveCount(8)
+  await expect(page.locator('[data-business-card] .fh-badge')).toHaveCount(8)
+  await expect(page.locator('[data-business-card] .fh-business-card-recommendation')).toHaveCount(8)
+  await expect(page.locator('[data-business-card] .fh-badge [data-icon]')).toHaveCount(8)
 
   if (locale === 'en') {
     await expect(page.getByRole('heading', { name: 'Business overview' })).toBeVisible()
-    await expect(page.getByText('2,415 products are available for daily work.')).toBeVisible()
-    await expect(page.getByText('1 of 2 ready')).toBeVisible()
-    await expect(page.getByText('Review queued webhook receipts.')).toBeVisible()
-    await expect(page.getByText('Ready for daily work')).toBeVisible()
+    await expect(page.locator('[data-business-card="price-changes"]')).toContainText('84 changed products')
+    await expect(page.locator('[data-business-card="ready-review"]')).toContainText('76 products')
+    await expect(page.locator('[data-business-card="ready-apply"]')).toContainText('12 products')
+    await expect(page.locator('[data-business-card="blocking"]')).toContainText('3 issues')
+    await expect(page.locator('[data-business-card="warnings"]')).toContainText('5 issues')
+    await expect(page.locator('[data-business-card="orders"]')).toContainText('6 orders')
+    await expect(page.locator('[data-business-card="orders"]')).toContainText('15,000,000 IRR')
+    await expect(page.locator('[data-business-card="inventory"]')).toContainText('9 affected products')
+    await expect(page.locator('[data-business-card="updates"]')).toContainText('1 failed update')
     await expect(page.getByText('Backend', { exact: true })).toHaveCount(0)
     await expect(page.getByText('Database', { exact: true })).toHaveCount(0)
     await expect(page.getByText('Application', { exact: true })).toHaveCount(0)
 
     const toneStyles = await page.evaluate(() => {
-      const productCard = document.querySelector<HTMLElement>('[data-business-card="products"]')
-      const sourceCard = document.querySelector<HTMLElement>('[data-business-card="sources"]')
-      if (!productCard || !sourceCard) return null
+      const changesCard = document.querySelector<HTMLElement>('[data-business-card="price-changes"]')
+      const blockingCard = document.querySelector<HTMLElement>('[data-business-card="blocking"]')
+      if (!changesCard || !blockingCard) return null
       return {
-        productTone: productCard.dataset.tone,
-        sourceTone: sourceCard.dataset.tone,
-        productAccent: getComputedStyle(productCard).borderInlineStartColor,
-        sourceAccent: getComputedStyle(sourceCard).borderInlineStartColor,
+        changesTone: changesCard.dataset.tone,
+        blockingTone: blockingCard.dataset.tone,
+        changesAccent: getComputedStyle(changesCard).borderInlineStartColor,
+        blockingAccent: getComputedStyle(blockingCard).borderInlineStartColor,
       }
     })
-    expect(toneStyles).toMatchObject({ productTone: 'success', sourceTone: 'warning' })
-    expect(toneStyles?.productAccent).not.toBe(toneStyles?.sourceAccent)
+    expect(toneStyles).toMatchObject({ changesTone: 'info', blockingTone: 'danger' })
+    expect(toneStyles?.changesAccent).not.toBe(toneStyles?.blockingAccent)
   } else {
     await expect(page.getByRole('heading', { name: 'نمای کسب‌وکار' })).toBeVisible()
-    await expect(page.getByText('۲٬۴۱۵ محصول برای کار روزانه در دسترس است.')).toBeVisible()
-    await expect(page.getByText('۱ از ۲ آماده')).toBeVisible()
-    await expect(page.getByText('وب‌هوک‌های دریافت‌شده در صف را بررسی کنید.')).toBeVisible()
-    await expect(page.getByText('آماده کار روزانه')).toBeVisible()
+    await expect(page.locator('[data-business-card="price-changes"]')).toContainText('محصولات دارای تغییر قیمت')
+    await expect(page.locator('[data-business-card="ready-review"]')).toContainText('آماده بازبینی')
+    await expect(page.locator('[data-business-card="blocking"]')).toContainText('مشکلات مسدودکننده')
   }
 
   const layout = await page.evaluate(() => ({
