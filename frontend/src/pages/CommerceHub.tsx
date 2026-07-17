@@ -8,6 +8,8 @@ import { useServices } from '../services/ServiceContext'
 import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeField, CommerceTypeOption } from '../services/types'
 import type { ChannelCacheRefreshResult, CommerceChannelConfiguration, CommerceVendor, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
 import Spinner from '../components/loading/Spinner'
+import SecretField from '../components/SecretField'
+import SourceIcon from '../components/SourceIcon'
 import { useNotification } from '../notifications/NotificationProvider'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
@@ -99,30 +101,37 @@ function SourceCard({ source, badge, onTest, onRead, onConfigure, testing, readi
   return (
     <div className="fh-card fh-card-pad flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="fh-section-title">{source.name}</h3>
-            <ResourceStateBadge badge={badge} />
+        <div className="flex min-w-0 items-start gap-3">
+          <SourceIcon identity={{ provider: source.provider, sourceType: source.type }} label={source.name} size={48} />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="fh-section-title">{source.name}</h3>
+              <ResourceStateBadge badge={badge} />
+            </div>
+            <p className="fh-text-caption mt-1">{formatDataRole(source.data_role)}</p>
           </div>
-          <p className="fh-text-caption mt-1">{formatDataRole(source.data_role)}</p>
         </div>
         <span className="fh-text-caption font-medium text-text-base">{formatCommerceType(source.type)}</span>
       </div>
 
-      <div className="fh-form-grid sm:grid-cols-2 fh-text-caption">
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.credentialStatus')} </span><span className="font-medium text-text-base">{formatStatus(source.credential_status)}</span></p>
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastHealthCheck')} </span><span className="font-medium text-text-base">{source.last_health_check ? formatDateTime(source.last_health_check) : translate('commerce:commerceHub.notChecked')}</span></p>
+      <div className="grid gap-2 text-sm sm:grid-cols-2">
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastRead')} </span><span className="font-medium text-text-base">{readStatus?.last_read_at ? formatDateTime(readStatus.last_read_at) : translate('commerce:commerceHub.notRead')}</span></p>
         <p><span className="text-wp-muted">{translate('commerce:commerceHub.health')} </span><span className="font-medium text-text-base">{formatStatus(source.health?.status ?? "unknown")}</span></p>
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.dataRole')} </span><span className="font-medium text-text-base">{formatDataRole(source.data_role)}</span></p>
-        {readStatus && (
-          <>
-            <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastRead')} </span><span className="font-medium text-text-base">{readStatus.last_read_at ? formatDateTime(readStatus.last_read_at) : translate('commerce:commerceHub.notRead')}</span></p>
+      </div>
+
+      <details className="rounded-lg border border-border bg-bg-subtle p-3">
+        <summary className="cursor-pointer font-medium text-text-base">{translate('commerce:commerceHub.details')}</summary>
+        <div className="fh-form-grid mt-3 sm:grid-cols-2 fh-text-caption">
+          <p><span className="text-wp-muted">{translate('commerce:commerceHub.credentialStatus')} </span><span className="font-medium text-text-base">{formatStatus(source.credential_status)}</span></p>
+          <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastHealthCheck')} </span><span className="font-medium text-text-base">{source.last_health_check ? formatDateTime(source.last_health_check) : translate('commerce:commerceHub.notChecked')}</span></p>
+          <p><span className="text-wp-muted">{translate('commerce:commerceHub.dataRole')} </span><span className="font-medium text-text-base">{formatDataRole(source.data_role)}</span></p>
+          {readStatus && <>
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.readsRemaining')} </span><span className="font-medium text-text-base">{readStatus.reads_remaining}</span></p>
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastReadStatus')} </span><span className="font-medium text-text-base">{readStatus.last_read_status ? formatStatus(readStatus.last_read_status) : translate('commerce:commerceHub.notRead')}</span></p>
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastRowCount')} </span><span className="font-medium text-text-base">{readStatus.last_row_count ?? '-'}</span></p>
-          </>
-        )}
-      </div>
+          </>}
+        </div>
+      </details>
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <SafetyBadges readOnly={source.read_only} writeBlocked={source.runtime_write_blocked} />
@@ -180,17 +189,27 @@ function ChannelCard({ channel, badge, onTest, onRefresh, onConfigure, testing, 
   return (
     <div className="fh-card fh-card-pad flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="fh-section-title">{channel.name}</h3>
-            <ResourceStateBadge badge={badge} />
+        <div className="flex min-w-0 items-start gap-3">
+          <SourceIcon identity={{ provider: channel.provider }} label={channel.name} size={48} />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="fh-section-title">{channel.name}</h3>
+              <ResourceStateBadge badge={badge} />
+            </div>
+            <p className="fh-text-caption mt-1">{formatCapabilityList(channel.capabilities_summary)}</p>
           </div>
-          <p className="fh-text-caption mt-1">{formatCapabilityList(channel.capabilities_summary)}</p>
         </div>
         <span className="fh-text-caption font-medium text-text-base">{formatCommerceType(channel.type)}</span>
       </div>
 
-      <div className="fh-form-grid sm:grid-cols-2 fh-text-caption">
+      <div className="grid gap-2 text-sm sm:grid-cols-2">
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastHealthCheck')} </span><span className="font-medium text-text-base">{channel.last_health_check ? formatDateTime(channel.last_health_check) : translate('commerce:commerceHub.notChecked')}</span></p>
+        <p><span className="text-wp-muted">{translate('commerce:commerceHub.health')} </span><span className="font-medium text-text-base">{formatStatus(channel.health?.status ?? "unknown")}</span></p>
+      </div>
+
+      <details className="rounded-lg border border-border bg-bg-subtle p-3">
+        <summary className="cursor-pointer font-medium text-text-base">{translate('commerce:commerceHub.details')}</summary>
+        <div className="fh-form-grid mt-3 sm:grid-cols-2 fh-text-caption">
         <p><span className="text-wp-muted">{translate('commerce:commerceHub.credentialStatus')} </span><span className="font-medium text-text-base">{formatStatus(channel.credential_status)}</span></p>
         {channel.provider === "snappshop" && (
           <>
@@ -223,7 +242,8 @@ function ChannelCard({ channel, badge, onTest, onRefresh, onConfigure, testing, 
             </span>
           </p>
         )}
-      </div>
+        </div>
+      </details>
 
       <div className="flex items-center justify-between gap-3">
         <SafetyBadges readOnly={channel.read_only} writeBlocked={channel.write_blocked} />
@@ -682,6 +702,21 @@ function ConfigPanel({
   }
 
   function renderConnectionField(field: CommerceTypeField) {
+    if (field.secret) {
+      return (
+        <SecretField
+          key={field.key}
+          label={fieldLabel(kind, selectedType.provider, field.key, field.label)}
+          value={secrets[field.key] ?? ''}
+          configured={configuredSecret(field.key)}
+          onChange={value => setSecrets(current => ({ ...current, [field.key]: value }))}
+          configuredHint={translate('commerce:commerceHub.configuredLeaveBlankToKeepUnchanged')}
+          revealLabel={translate('commerce:commerceHub.showEnteredSecret', { defaultValue: 'Show entered secret' })}
+          concealLabel={translate('commerce:commerceHub.hideEnteredSecret', { defaultValue: 'Hide entered secret' })}
+          copyLabel={translate('commerce:commerceHub.copyEnteredSecret', { defaultValue: 'Copy entered secret' })}
+        />
+      )
+    }
     return (
       <label key={field.key} className="fh-field">
         <span className="fh-help-text">{fieldLabel(kind, selectedType.provider, field.key, field.label)}</span>
@@ -693,15 +728,14 @@ function ConfigPanel({
           />
         ) : (
           <input
-            type={field.secret ? "password" : field.key === "request_timeout" ? "number" : "text"}
+            type={field.key === "request_timeout" ? "number" : "text"}
             min={field.key === "request_timeout" ? 1 : undefined}
             max={field.key === "request_timeout" ? 120 : undefined}
             step={field.key === "request_timeout" ? 1 : undefined}
-            value={field.secret ? secrets[field.key] ?? '' : settings[field.key] ?? ''}
+            value={settings[field.key] ?? ''}
             onChange={event => {
               const value = event.target.value
-              if (field.secret) setSecrets(current => ({ ...current, [field.key]: value }))
-              else setSettings(current => {
+              setSettings(current => {
                 const next = { ...current, [field.key]: value }
                 if (selectedType.provider === 'nextcloud' && field.key === 'url' && !next.username) {
                   const usernameFromUrl = webdavUsernameFromUrl(value)
@@ -711,10 +745,8 @@ function ConfigPanel({
               })
             }}
             className="fh-input"
-            autoComplete={field.secret ? "new-password" : undefined}
           />
         )}
-        {field.secret && configuredSecret(field.key) && <span className="fh-help-text">{translate('commerce:commerceHub.configuredLeaveBlankToKeepUnchanged')}</span>}
         {selectedType.provider === "nextcloud" && field.key === "url" && nextcloudUrlError && (
           <span className="fh-field-error">{nextcloudUrlError}</span>
         )}

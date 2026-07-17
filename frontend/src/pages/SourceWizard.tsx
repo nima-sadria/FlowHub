@@ -8,6 +8,7 @@ import { useNotification } from '../notifications/NotificationProvider'
 import { inputHint } from '../utils/inputHint'
 import PageShell from '../components/PageShell'
 import Icon from '../components/Icon'
+import SecretField from '../components/SecretField'
 
 type Step = 1 | 2 | 3 | 4
 
@@ -103,6 +104,24 @@ export default function SourceWizard() {
   }
 
   function field(name: keyof SourceConfig, label: string, type = 'text', template_variable = '') {
+    if (type === 'password') {
+      return (
+        <SecretField
+          key={name}
+          label={label}
+          value={config[name] as string}
+          onChange={value => {
+            setConfig(current => ({ ...current, [name]: value }))
+            setErrors(current => ({ ...current, [name]: undefined }))
+          }}
+          configuredHint={translate('commerce:commerceHub.configuredLeaveBlankToKeepUnchanged')}
+          revealLabel={translate('commerce:commerceHub.showEnteredSecret')}
+          concealLabel={translate('commerce:commerceHub.hideEnteredSecret')}
+          copyLabel={translate('commerce:commerceHub.copyEnteredSecret')}
+          error={errors[name]}
+        />
+      )
+    }
     return (
       <div key={name} className="fh-field">
         <label className="fh-help-text">{label}</label>

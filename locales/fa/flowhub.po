@@ -8,6 +8,22 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 "x-generator: FlowHub deterministic i18n extractor\n"
 
+msgctxt "commerce:commerceHub.copyEnteredSecret"
+msgid "Copy entered secret"
+msgstr "کپی مقدار واردشده"
+
+msgctxt "commerce:commerceHub.details"
+msgid "Details"
+msgstr "جزئیات"
+
+msgctxt "commerce:commerceHub.hideEnteredSecret"
+msgid "Hide entered secret"
+msgstr "پنهان‌کردن مقدار واردشده"
+
+msgctxt "commerce:commerceHub.showEnteredSecret"
+msgid "Show entered secret"
+msgstr "نمایش مقدار واردشده"
+
 msgctxt "workspace:densePricing.additionalListing"
 msgid "{{product}} - Listing {{number}}"
 msgstr "{{product}} - لیستینگ {{number}}"
