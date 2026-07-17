@@ -54,13 +54,20 @@ export default function SecretField({
           value={value}
           required={required && !configured}
           disabled={disabled}
-          placeholder={configured && !hasLocalValue ? '••••••••' : undefined}
           onChange={event => onChange(event.target.value)}
           className="fh-input pe-20"
           autoComplete="new-password"
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : configured ? `${id}-configured` : undefined}
         />
+        {configured && !hasLocalValue && (
+          <span
+            className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-text-muted"
+            aria-hidden="true"
+          >
+            ••••••••
+          </span>
+        )}
         <div className="absolute inset-y-0 end-2 flex items-center gap-1">
           <button
             type="button"

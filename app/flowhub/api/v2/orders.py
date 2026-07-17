@@ -8,10 +8,9 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.flowhub.auth.dependencies import get_current_user
 from app.flowhub.auth.models import FlowHubUser
-from app.flowhub.channels.woocommerce import WooCommerceOrderConnector
+from app.flowhub.channels.woocommerce import build_woocommerce_order_connector
 from app.flowhub.database import get_db
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.orders.models import OrderSyncCheckpoint
@@ -143,13 +142,9 @@ async def synchronize_channel_orders(
             status.HTTP_409_CONFLICT,
             "WooCommerce order synchronization is not configured.",
         )
-    connector = WooCommerceOrderConnector(
+    connector = build_woocommerce_order_connector(
         channel_id=channel.id,
-        credentials=WooCommerceCredentials(
-            url=url.rstrip("/"),
-            key=key,
-            secret=secret,
-        ),
+        settings={"url": url, "key": key, "secret": secret},
     )
     result = await service.reconcile_recent_orders(
         channel.id,

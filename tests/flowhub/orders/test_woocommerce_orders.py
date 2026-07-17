@@ -193,7 +193,18 @@ async def test_manual_sync_is_read_only_and_operator_authorized(
             self.calls += 1
             return PaginatedResult(items=[order], pagination=pagination)
 
-    monkeypatch.setattr(orders_api, "WooCommerceOrderConnector", FakeReadOnlyConnector)
+    monkeypatch.setattr(
+        orders_api,
+        "build_woocommerce_order_connector",
+        lambda **kwargs: FakeReadOnlyConnector(
+            channel_id=kwargs["channel_id"],
+            credentials=WooCommerceCredentials(
+                url=str(kwargs["settings"]["url"]),
+                key=str(kwargs["settings"]["key"]),
+                secret=str(kwargs["settings"]["secret"]),
+            ),
+        ),
+    )
     operator = FlowHubUser(
         id=20,
         username="operator",

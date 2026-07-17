@@ -15,10 +15,26 @@ from app.flowhub.channels.contracts import (
     ChannelOrder,
     ChannelOrderItem,
     PageNumberPagination,
-    Pagination,
     PaginatedResult,
+    Pagination,
 )
 from app.flowhub.channels.marketplace import BaseMarketplaceConnector
+
+
+def build_woocommerce_order_connector(
+    *,
+    channel_id: str,
+    settings: dict[str, Any],
+) -> WooCommerceOrderConnector:
+    """Build the read-only order connector behind the Channel boundary."""
+    return WooCommerceOrderConnector(
+        channel_id=channel_id,
+        credentials=WooCommerceCredentials(
+            url=str(settings["url"]).rstrip("/"),
+            key=str(settings["key"]),
+            secret=str(settings["secret"]),
+        ),
+    )
 
 
 class WooCommerceOrderConnector(BaseMarketplaceConnector):

@@ -40,7 +40,8 @@ describe('SecretField', () => {
     const { root } = render()
     const input = container.querySelector('input') as HTMLInputElement
     expect(input.value).toBe('')
-    expect(input.placeholder).toBe('••••••••')
+    expect(input.getAttribute('value')).toBe('')
+    expect(container.querySelector('[aria-hidden="true"]')?.textContent).toContain('••••••••')
     expect(container.textContent).toContain('Configured; leave blank to keep unchanged.')
     expect(Array.from(container.querySelectorAll('button')).every(button => button.disabled)).toBe(true)
     act(() => root.unmount())
