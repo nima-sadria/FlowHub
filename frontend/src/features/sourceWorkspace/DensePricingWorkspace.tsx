@@ -1,10 +1,23 @@
 import { HotTable, type HotTableRef } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
-import { registerAllModules } from 'handsontable/registry'
+import { CheckboxCellType, NumericCellType, TextCellType, registerCellType } from 'handsontable/cellTypes'
+import {
+  Autofill,
+  CopyPaste,
+  DataProvider,
+  DragToScroll,
+  DropdownMenu,
+  Filters,
+  ManualColumnResize,
+  MultiColumnSorting,
+  NestedHeaders,
+  StretchColumns,
+  registerPlugin,
+} from 'handsontable/plugins'
 import type { BaseRenderer } from 'handsontable/renderers'
 import 'handsontable/styles/handsontable.min.css'
 import 'handsontable/styles/ht-theme-main.min.css'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Icon from '../../components/Icon'
 import PageShell from '../../components/PageShell'
 import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../../components/ResourceOrdering'
@@ -46,19 +59,35 @@ import { resolveHandsontableLicense } from '../unifiedWorkspace/handsontableLice
 import { workspaceApplyIdempotencyKey } from '../unifiedWorkspace/useUnifiedWorkspaceController'
 import { inputHint } from '../../utils/inputHint'
 import { sourceWorkspaceApi } from './api'
+import PricingWorkspaceStartup from './PricingWorkspaceStartup'
 import {
   buildDensePricingDefinition,
   cellIsReadOnly,
   cellStatus,
   identityForCell,
   listingIdsForRecord,
+  type DensePricingDefinition,
   type DensePricingColumnMeta,
   type DensePricingRecord,
   type PricingField,
 } from './densePricingGrid'
 import type { GroupedWorkspacePage, SourceChannel } from './types'
 
-registerAllModules()
+registerCellType(CheckboxCellType)
+registerCellType(NumericCellType)
+registerCellType(TextCellType)
+for (const plugin of [
+  Autofill,
+  CopyPaste,
+  DataProvider,
+  DragToScroll,
+  DropdownMenu,
+  Filters,
+  ManualColumnResize,
+  MultiColumnSorting,
+  NestedHeaders,
+  StretchColumns,
+]) registerPlugin(plugin)
 
 type View = 'changed' | 'ready' | 'blocked' | 'unchanged' | 'all'
 
@@ -87,6 +116,82 @@ export interface DensePricingWorkspaceProps {
   categoryOptions?: readonly { value: string; label: string }[]
 }
 
+interface DensePricingGridProps {
+  definition: DensePricingDefinition
+  gridMinWidth: number
+  height: number
+  hotRef: React.RefObject<HotTableRef>
+  licenseKey: string
+  onChange: (changes: Handsontable.CellChange[] | null, source: Handsontable.ChangeSource) => void
+  onSelection: (startRow: number, startColumn: number, endRow: number, endColumn: number) => void
+  onKeyDown: (event: KeyboardEvent) => void
+}
+
+const DensePricingGrid = memo(function DensePricingGrid({
+  definition,
+  gridMinWidth,
+  height,
+  hotRef,
+  licenseKey,
+  onChange,
+  onSelection,
+  onKeyDown,
+}: DensePricingGridProps) {
+  const cellProperties = useCallback(
+    (row: number, _column: number, prop: string | number) => gridCellSettings(hotRef, definition.columnMeta, row, prop),
+    [definition.columnMeta, hotRef],
+  )
+  const annotateCell = useCallback(
+    (td: HTMLTableCellElement, visualRow: number, _visualColumn: number, prop: string | number) => {
+      annotatePricingCell(hotRef, definition.columnMeta, td, visualRow, prop)
+    },
+    [definition.columnMeta, hotRef],
+  )
+  const markVirtualViewport = useCallback(() => {
+    const viewport = hotRef.current?.hotInstance?.rootElement.querySelector<HTMLElement>('.wtHolder')
+    if (viewport?.dataset.pricingVirtualViewport !== 'true') viewport?.setAttribute('data-pricing-virtual-viewport', 'true')
+  }, [hotRef])
+
+  return (
+    <div className="ht-theme-main fh-handsontable fh-pricing-grid" data-pricing-grid style={{ minWidth: gridMinWidth }}>
+      <HotTable
+        ref={hotRef}
+        data={definition.records}
+        columns={definition.columns}
+        nestedHeaders={definition.nestedHeaders}
+        rowHeaders
+        width="100%"
+        height={height}
+        rowHeights={30}
+        autoColumnSize={false}
+        autoRowSize={false}
+        columnHeaderHeight={28}
+        fixedColumnsStart={5}
+        stretchH="none"
+        renderAllRows={false}
+        renderAllColumns={false}
+        viewportRowRenderingOffset={8}
+        viewportColumnRenderingOffset={4}
+        manualColumnResize
+        multiColumnSorting
+        filters
+        dropdownMenu={['filter_by_condition', 'filter_by_value', 'filter_action_bar']}
+        copyPaste={{ pasteMode: 'overwrite' }}
+        fillHandle={{ autoInsertRow: false }}
+        undo={false}
+        licenseKey={licenseKey}
+        sanitizer={sanitizeGridHtml}
+        cells={cellProperties}
+        afterChange={onChange}
+        afterSelection={onSelection}
+        beforeKeyDown={onKeyDown}
+        afterRenderer={annotateCell}
+        afterRender={markVirtualViewport}
+      />
+    </div>
+  )
+})
+
 export default function DensePricingWorkspace({ workspace, service, embedded = false, categoryOptions = [] }: DensePricingWorkspaceProps) {
   const notify = useNotification()
   const hotRef = useRef<HotTableRef>(null)
@@ -94,6 +199,7 @@ export default function DensePricingWorkspace({ workspace, service, embedded = f
   const persistenceScope = `${workspace.snapshot.id}:${workspace.snapshot.checksum}:${workspace.draft.id}`
   const [grid, setGrid] = useState<GroupedWorkspacePage | null>(null)
   const [channelInventory, setChannelInventory] = useState<SourceChannel[]>([])
+  const [channelInventoryReady, setChannelInventoryReady] = useState(false)
   const [page, setPage] = useState(1)
   const [view, setView] = useState<View>(() => workspace.entryPoint === 'manual' ? 'all' : 'changed')
   const [searchInput, setSearchInput] = useState('')
@@ -146,6 +252,8 @@ export default function DensePricingWorkspace({ workspace, service, embedded = f
       // Keep the last verified inventory. If none exists, the Grid remains a
       // useful cached read surface while all target fields fail closed.
       setChannelInventoryError(localizedApiError(error, 'products:products.inlinePricingUnavailable'))
+    } finally {
+      setChannelInventoryReady(true)
     }
   }, [])
 
@@ -157,9 +265,19 @@ export default function DensePricingWorkspace({ workspace, service, embedded = f
     void loadChannelInventory()
   }, [loadChannelInventory])
   useEffect(() => {
-    const resize = () => setTableHeight(viewportTableHeight())
+    let frame = 0
+    const resize = () => {
+      window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(() => {
+        const nextHeight = viewportTableHeight()
+        setTableHeight(current => current === nextHeight ? current : nextHeight)
+      })
+    }
     window.addEventListener('resize', resize)
-    return () => window.removeEventListener('resize', resize)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('resize', resize)
+    }
   }, [])
   useEffect(() => {
     pricingStateRef.current = pricingState
@@ -224,17 +342,16 @@ export default function DensePricingWorkspace({ workspace, service, embedded = f
   const pageCount = Math.max(1, Math.ceil((grid?.total ?? 0) / (grid?.pageSize || 100)))
   const gridMinWidth = Math.max(1180, (definition?.columns.length ?? 1) * 104)
   const license = resolveHandsontableLicense(import.meta.env.VITE_HANDSONTABLE_LICENSE_KEY, import.meta.env.PROD)
-
-  function mutatePricingState(update: (current: PricingWorkspaceState) => PricingWorkspaceState) {
+  const mutatePricingState = useCallback((update: (current: PricingWorkspaceState) => PricingWorkspaceState) => {
     setPricingState(current => update(current))
     setReview(null)
     setReviewContext(null)
     setReviewOpen(false)
     setLocalReviewOpen(false)
     setApplyResult(null)
-  }
+  }, [])
 
-  function handleGridChanges(changes: Handsontable.CellChange[] | null, source: Handsontable.ChangeSource) {
+  const handleGridChanges = useCallback((changes: Handsontable.CellChange[] | null, source: Handsontable.ChangeSource) => {
     if (!changes || source === 'loadData' || !definition) return
     const targetEdits: Array<{ descriptor: PricingFieldDescriptor; targetValue: string }> = []
     const selections: Array<{ identity: PricingFieldIdentity; selected: boolean }> = []
@@ -272,7 +389,22 @@ export default function DensePricingWorkspace({ workspace, service, embedded = f
       }
       return next
     })
-  }
+  }, [channelById, definition, descriptorMap, descriptors, mutatePricingState])
+
+  const handleGridSelection = useCallback((startRow: number, startColumn: number, endRow: number, endColumn: number) => {
+    // Cell focus is not a bulk-row selection. Only an explicit row-header
+    // selection changes this scope; otherwise selected changed Listings apply.
+    if (startColumn >= 0 && endColumn >= 0) return
+    const selected = new Set<string>()
+    const first = Math.min(startRow, endRow)
+    const last = Math.max(startRow, endRow)
+    for (let visualRow = first; visualRow <= last; visualRow += 1) {
+      const physicalRow = hotRef.current?.hotInstance?.toPhysicalRow(visualRow) ?? visualRow
+      const record = hotRef.current?.hotInstance?.getSourceDataAtRow(physicalRow) as DensePricingRecord | undefined
+      if (record?.rowKey) selected.add(record.rowKey)
+    }
+    setSelectedRowKeys(current => setsEqual(current, selected) ? current : selected)
+  }, [])
 
   async function saveAndReview() {
     if (!grid || summary.changed === 0 || summary.selected === 0) return
@@ -345,18 +477,24 @@ export default function DensePricingWorkspace({ workspace, service, embedded = f
     setBulkPreview(null)
   }
 
-  function undo() { mutatePricingState(undoPricingWorkspace) }
-  function redo() { mutatePricingState(redoPricingWorkspace) }
+  const undo = useCallback(() => mutatePricingState(undoPricingWorkspace), [mutatePricingState])
+  const redo = useCallback(() => mutatePricingState(redoPricingWorkspace), [mutatePricingState])
+  const handleGridKeyDown = useCallback((event: KeyboardEvent) => {
+    if (!(event.ctrlKey || event.metaKey)) return
+    const key = event.key.toLowerCase()
+    if (key === 'z' && !event.shiftKey) { event.preventDefault(); undo() }
+    if (key === 'y' || (key === 'z' && event.shiftKey)) { event.preventDefault(); redo() }
+  }, [redo, undo])
 
-  if (!grid || !definition) {
-    const loadingState = <div className="fh-card fh-card-pad">{gridError
-      ? <div className="fh-alert fh-alert-danger" role="alert"><Icon name="alert" /><span>{gridError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void load()}>{translate('products:products.retryInlinePricing')}</button></div>
-      : translate('workspace:sourceCentricWorkspace.loadingSourceProductWorkspace')}</div>
+  if (!grid || !definition || !channelInventoryReady) {
+    const loadingState = gridError ? <div className="fh-card fh-card-pad">
+      <div className="fh-alert fh-alert-danger" role="alert"><Icon name="alert" /><span>{gridError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void load()}>{translate('products:products.retryInlinePricing')}</button></div>
+    </div> : <PricingWorkspaceStartup workspaceName={workspace.name} />
     return embedded ? loadingState : <PageShell>{loadingState}</PageShell>
   }
 
   const content = <>
-    <div className="fh-pricing-workspace" data-pricing-workspace>
+    <div className="fh-pricing-workspace" data-pricing-workspace data-products-critical-controls>
       {!embedded && <header className="fh-pricing-header">
         <div className="min-w-0"><h1 className="fh-page-title truncate">{workspace.name}</h1><p className="fh-text-caption">{translate('workspace:sourceCentricWorkspace.sourceProductWorkspaceImmutableSnapshot')} {workspace.snapshot.id.slice(0, 8)}</p></div>
         <span className={`fh-workspace-dirty ${summary.changed ? 'fh-workspace-dirty-active' : ''}`}>{summary.changed ? translate('workspace:densePricing.pendingChanges', { count: summary.changed }) : translate('workspace:sourceCentricWorkspace.draftSaved')}</span>
@@ -428,59 +566,16 @@ export default function DensePricingWorkspace({ workspace, service, embedded = f
       {!license.licenseKey ? <div className="fh-alert fh-alert-danger"><Icon name="alert" /><span>{translate('workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid')}</span></div> :
         <div className="fh-grid-scroll fh-pricing-grid-scroll" data-pricing-grid-scroll role="region" aria-label={translate('workspace:unifiedWorkspace.scrollableWorkspaceGrid')}>
           {/* i18n-ignore: Handsontable theme and component classes */}
-          <div className="ht-theme-main fh-handsontable fh-pricing-grid" data-pricing-grid style={{ minWidth: gridMinWidth }}>
-            <HotTable
-              ref={hotRef}
-              data={definition.records}
-              columns={definition.columns}
-              nestedHeaders={definition.nestedHeaders}
-              rowHeaders
-              width="100%"
-              height={tableHeight}
-              rowHeights={30}
-              autoRowSize={false}
-              columnHeaderHeight={28}
-              fixedColumnsStart={5}
-              stretchH="none"
-              renderAllRows={false}
-              renderAllColumns={false}
-              viewportRowRenderingOffset={8}
-              viewportColumnRenderingOffset={4}
-              manualColumnResize
-              multiColumnSorting
-              filters
-              dropdownMenu={['filter_by_condition', 'filter_by_value', 'filter_action_bar']}
-              copyPaste={{ pasteMode: 'overwrite' }}
-              fillHandle={{ autoInsertRow: false }}
-              undo={false}
-              licenseKey={license.licenseKey}
-              sanitizer={sanitizeGridHtml}
-              cells={(row: number, _column: number, prop: string | number) => gridCellSettings(hotRef, definition.columnMeta, row, prop)}
-              afterChange={handleGridChanges}
-              afterSelection={(startRow: number, startColumn: number, endRow: number, endColumn: number) => {
-                // Cell focus is not a bulk-row selection. Only an explicit row-header
-                // selection changes this scope; otherwise selected changed Listings apply.
-                if (startColumn >= 0 && endColumn >= 0) return
-                const selected = new Set<string>()
-                const first = Math.min(startRow, endRow)
-                const last = Math.max(startRow, endRow)
-                for (let visualRow = first; visualRow <= last; visualRow += 1) {
-                  const physicalRow = hotRef.current?.hotInstance?.toPhysicalRow(visualRow) ?? visualRow
-                  const record = hotRef.current?.hotInstance?.getSourceDataAtRow(physicalRow) as DensePricingRecord | undefined
-                  if (record?.rowKey) selected.add(record.rowKey)
-                }
-                setSelectedRowKeys(current => setsEqual(current, selected) ? current : selected)
-              }}
-              beforeKeyDown={(event: KeyboardEvent) => {
-                if (!(event.ctrlKey || event.metaKey)) return
-                const key = event.key.toLowerCase()
-                if (key === 'z' && !event.shiftKey) { event.preventDefault(); undo() }
-                if (key === 'y' || (key === 'z' && event.shiftKey)) { event.preventDefault(); redo() }
-              }}
-              afterRenderer={(td: HTMLTableCellElement, visualRow: number, _visualColumn: number, prop: string | number) => annotatePricingCell(hotRef, definition.columnMeta, td, visualRow, prop)}
-              afterRender={() => hotRef.current?.hotInstance?.rootElement.querySelector<HTMLElement>('.wtHolder')?.setAttribute('data-pricing-virtual-viewport', 'true')}
-            />
-          </div>
+          <DensePricingGrid
+            definition={definition}
+            gridMinWidth={gridMinWidth}
+            height={tableHeight}
+            hotRef={hotRef}
+            licenseKey={license.licenseKey}
+            onChange={handleGridChanges}
+            onSelection={handleGridSelection}
+            onKeyDown={handleGridKeyDown}
+          />
         </div>}
 
       <footer className="fh-pricing-footer">
@@ -745,7 +840,7 @@ function gridCellSettings(
   row: number,
   propValue: string | number,
 ): Handsontable.CellProperties {
-  const settings = {} as Handsontable.CellProperties
+  const settings = {} as FlowHubCellProperties
   const instance = hotRef.current?.hotInstance
   const prop = String(propValue)
   // Handsontable's `cells` callback receives physical indexes. Keeping source
@@ -757,38 +852,52 @@ function gridCellSettings(
   if (meta.kind === 'target') {
     const status = cellStatus(record, meta)
     settings.className = `fh-cell-status fh-cell-status-${status}`
-    const targetRenderer: BaseRenderer = (hot, td, renderedRow, renderedColumn, cellProp, value, properties) => {
-      Handsontable.renderers.TextRenderer(hot, td, renderedRow, renderedColumn, cellProp, value, properties)
-      td.dataset.cellStatus = formatStatus(status)
-      td.setAttribute('aria-label', translate('workspace:densePricing.cellValueStatus', { value: String(value ?? ''), status: formatStatus(status) }))
-    }
-    settings.renderer = targetRenderer
+    settings.flowhubStatus = status
+    settings.renderer = targetCellRenderer
   }
   if (meta.kind === 'selection') {
-    const selectionRenderer: BaseRenderer = (hot, td, renderedRow, renderedColumn, cellProp, value, properties) => {
-      Handsontable.renderers.CheckboxRenderer(hot, td, renderedRow, renderedColumn, cellProp, value, properties)
-      const input = td.querySelector('input')
-      if (input && meta.field) {
-        input.dataset.fieldSelection = 'true'
-        input.dataset.field = meta.field
-        input.setAttribute('aria-label', translate('workspace:densePricing.selectChangedField', { field: formatField(meta.field) }))
-      }
-    }
-    settings.renderer = selectionRenderer
+    settings.flowhubField = meta.field
+    settings.renderer = fieldSelectionRenderer
   }
   if (meta.kind === 'product_selection') {
-    const productSelectionRenderer: BaseRenderer = (hot, td, renderedRow, renderedColumn, cellProp, value, properties) => {
-      Handsontable.renderers.CheckboxRenderer(hot, td, renderedRow, renderedColumn, cellProp, value, properties)
-      const input = td.querySelector('input')
-      if (input) {
-        input.dataset.productSelection = 'true'
-        input.setAttribute('aria-label', translate('workspace:workspace.selectAllEligible'))
-      }
-    }
     settings.renderer = productSelectionRenderer
   }
   if (record.productType === 'variable') settings.className = `${settings.className ?? ''} fh-pricing-variable-parent`.trim()
   return settings
+}
+
+interface FlowHubCellProperties extends Handsontable.CellProperties {
+  flowhubField?: PricingField
+  flowhubStatus?: string
+}
+
+const targetCellRenderer: BaseRenderer = (hot, td, renderedRow, renderedColumn, cellProp, value, properties) => {
+  Handsontable.renderers.TextRenderer(hot, td, renderedRow, renderedColumn, cellProp, value, properties)
+  const status = (properties as FlowHubCellProperties).flowhubStatus ?? 'unavailable'
+  const formattedStatus = formatStatus(status)
+  setDatasetValue(td, 'cellStatus', formattedStatus)
+  const label = translate('workspace:densePricing.cellValueStatus', { value: String(value ?? ''), status: formattedStatus })
+  if (td.getAttribute('aria-label') !== label) td.setAttribute('aria-label', label)
+}
+
+const fieldSelectionRenderer: BaseRenderer = (hot, td, renderedRow, renderedColumn, cellProp, value, properties) => {
+  Handsontable.renderers.CheckboxRenderer(hot, td, renderedRow, renderedColumn, cellProp, value, properties)
+  const input = td.querySelector('input')
+  const field = (properties as FlowHubCellProperties).flowhubField
+  if (!input || !field) return
+  setDatasetValue(input, 'fieldSelection', 'true')
+  setDatasetValue(input, 'field', field)
+  const label = translate('workspace:densePricing.selectChangedField', { field: formatField(field) })
+  if (input.getAttribute('aria-label') !== label) input.setAttribute('aria-label', label)
+}
+
+const productSelectionRenderer: BaseRenderer = (hot, td, renderedRow, renderedColumn, cellProp, value, properties) => {
+  Handsontable.renderers.CheckboxRenderer(hot, td, renderedRow, renderedColumn, cellProp, value, properties)
+  const input = td.querySelector('input')
+  if (!input) return
+  setDatasetValue(input, 'productSelection', 'true')
+  const label = translate('workspace:workspace.selectAllEligible')
+  if (input.getAttribute('aria-label') !== label) input.setAttribute('aria-label', label)
 }
 
 function annotatePricingCell(
@@ -806,36 +915,48 @@ function annotatePricingCell(
   if (!record) return
   // Walkontable recycles TD elements while scrolling. Remove identity annotations
   // from the previous rendered cell before binding the current immutable identity.
-  delete td.dataset.channelId
-  delete td.dataset.field
-  delete td.dataset.targetField
-  delete td.dataset.listingId
-  delete td.dataset.fieldSelection
-  delete td.dataset.productSelection
   const input = td.querySelector('input')
-  input?.removeAttribute('data-listing-id')
-  input?.removeAttribute('data-channel-id')
-  input?.removeAttribute('data-product-selection')
-  td.parentElement?.setAttribute('data-pricing-row', 'true')
-  td.parentElement?.setAttribute('data-product-id', record.productId)
-  td.dataset.productId = record.productId
-  if (meta?.channelId) td.dataset.channelId = meta.channelId
-  if (meta?.field) td.dataset.field = meta.field
-  if (meta?.kind === 'product_selection') td.dataset.productSelection = 'true'
+  const rowElement = td.parentElement
+  if (rowElement) {
+    setDatasetValue(rowElement, 'pricingRow', 'true')
+    setDatasetValue(rowElement, 'productId', record.productId)
+  }
+  setDatasetValue(td, 'productId', record.productId)
+  setDatasetValue(td, 'channelId', meta?.channelId)
+  setDatasetValue(td, 'field', meta?.field)
+  setDatasetValue(td, 'targetField', meta?.kind === 'target' ? meta.field : undefined)
+  setDatasetValue(td, 'fieldSelection', meta?.kind === 'selection' ? 'true' : undefined)
+  setDatasetValue(td, 'productSelection', meta?.kind === 'product_selection' ? 'true' : undefined)
+  setDatasetValue(input, 'listingId', undefined)
+  setDatasetValue(input, 'channelId', undefined)
+  setDatasetValue(input, 'productSelection', meta?.kind === 'product_selection' ? 'true' : undefined)
   if (meta?.kind === 'target' && meta.channelId && meta.field) {
-    td.dataset.targetField = meta.field
     const identity = identityForCell(record, meta)
-    if (identity) td.dataset.listingId = identity.listingId
+    setDatasetValue(td, 'listingId', identity?.listingId)
+  } else {
+    setDatasetValue(td, 'listingId', undefined)
   }
   if (meta?.kind === 'selection' && meta.channelId && meta.field) {
-    td.dataset.fieldSelection = 'true'
     const identity = identityForCell(record, meta)
     if (identity) {
-      td.dataset.listingId = identity.listingId
-      td.querySelector('input')?.setAttribute('data-listing-id', identity.listingId)
-      td.querySelector('input')?.setAttribute('data-channel-id', identity.channelId)
+      setDatasetValue(td, 'listingId', identity.listingId)
+      setDatasetValue(input, 'listingId', identity.listingId)
+      setDatasetValue(input, 'channelId', identity.channelId)
     }
   }
+}
+
+function setDatasetValue(
+  element: HTMLElement | undefined | null,
+  key: string,
+  value: string | undefined,
+) {
+  if (!element) return
+  if (value === undefined) {
+    if (key in element.dataset) delete element.dataset[key]
+    return
+  }
+  if (element.dataset[key] !== value) element.dataset[key] = value
 }
 
 function BulkPreviewDialog({ preview, onCancel, onConfirm }: { preview: BulkTransformationPreview; onCancel: () => void; onConfirm: () => void }) {

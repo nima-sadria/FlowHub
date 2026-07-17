@@ -19,25 +19,25 @@ import { ApiWritePipelineService } from './services/writePipeline/ApiWritePipeli
 import { ApiOrderService } from './services/orders/ApiOrderService'
 import { ApiUnifiedWorkspaceService } from './services/unifiedWorkspace/ApiUnifiedWorkspaceService'
 import AppShell from './components/AppShell'
-import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
-import CommerceHub from './pages/CommerceHub'
-import Workspace from './pages/Workspace'
-import Activity from './pages/Activity'
-import Diagnostics from './pages/Diagnostics'
-import Settings from './pages/Settings'
-import RateLimits from './pages/RateLimits'
-import Orders from './pages/Orders'
-import Login from './pages/Login'
-import Setup from './pages/Setup'
-import NotFound from './pages/NotFound'
-import SourceCenter from './pages/SourceCenter'
-import SourceConfiguration from './pages/SourceConfiguration'
-import SourceImportWizard from './pages/SourceImportWizard'
-import FlowHubSheet from './pages/FlowHubSheet'
-import DataQuality from './pages/DataQuality'
 
+const Activity = lazy(() => import('./pages/Activity'))
+const CommerceHub = lazy(() => import('./pages/CommerceHub'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const DataQuality = lazy(() => import('./pages/DataQuality'))
+const Diagnostics = lazy(() => import('./pages/Diagnostics'))
+const FlowHubSheet = lazy(() => import('./pages/FlowHubSheet'))
+const Login = lazy(() => import('./pages/Login'))
+const NotFound = lazy(() => import('./pages/NotFound'))
+const Orders = lazy(() => import('./pages/Orders'))
+const RateLimits = lazy(() => import('./pages/RateLimits'))
+const Settings = lazy(() => import('./pages/Settings'))
+const Setup = lazy(() => import('./pages/Setup'))
+const SourceCenter = lazy(() => import('./pages/SourceCenter'))
+const SourceConfiguration = lazy(() => import('./pages/SourceConfiguration'))
+const SourceImportWizard = lazy(() => import('./pages/SourceImportWizard'))
 const UnifiedWorkspace = lazy(() => import('./pages/UnifiedWorkspace'))
+const Workspace = lazy(() => import('./pages/Workspace'))
 import type { SetupStatus } from './api/types'
 
 const realServices = {
@@ -110,6 +110,14 @@ function GuestOnly({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+function RouteLoading() {
+  return (
+    <div className="min-h-[160px] bg-bg-base flex items-center justify-center" role="status">
+      <span className="text-[13px] text-wp-muted">{translate('common:app.loading')}</span>
+    </div>
+  )
+}
+
 // -- Setup Gate ----------------------------------------------------------------
 // Checks /api/v2/setup/status on first load. If setup is not complete, renders
 // only the /setup route and redirects everything else there. Once setup is
@@ -135,41 +143,45 @@ function SetupGate() {
 
   if (!setupComplete) {
     return (
-      <Routes>
-        <Route
-          path="/setup"
-          element={<Setup onComplete={() => setSetupComplete(true)} />}
-        />
-        <Route path="*" element={<Navigate to="/setup" replace />} />
-      </Routes>
+      <Suspense fallback={<RouteLoading />}>
+        <Routes>
+          <Route
+            path="/setup"
+            element={<Setup onComplete={() => setSetupComplete(true)} />}
+          />
+          <Route path="*" element={<Navigate to="/setup" replace />} />
+        </Routes>
+      </Suspense>
     )
   }
 
   return (
-    <Routes>
-      <Route path="/setup" element={<Navigate to="/login" replace />} />
-      <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
-      <Route path="/" element={<Navigate to="/home" replace />} />
-      <Route element={<AuthGuard><AppShell /></AuthGuard>}>
-        <Route path="/home" element={<RequirePermission permission="can_access_site"><Dashboard /></RequirePermission>} />
-        <Route path="/products" element={<RequirePermission permission="can_fetch"><Products /></RequirePermission>} />
-        <Route path="/orders" element={<RequirePermission permission="can_fetch"><Orders /></RequirePermission>} />
-        <Route path="/sources" element={<RequirePermission permission="can_access_site"><SourceCenter /></RequirePermission>} />
-        <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><SourceCenter /></RequirePermission>} />
-        <Route path="/sources/import" element={<RequirePermission permission="can_access_site"><SourceImportWizard /></RequirePermission>} />
-        <Route path="/sources/:sourceId" element={<RequirePermission permission="can_access_site"><SourceConfiguration /></RequirePermission>} />
-        <Route path="/sheets/:sheetId" element={<RequirePermission permission="can_fetch"><FlowHubSheet /></RequirePermission>} />
-        <Route path="/data-quality" element={<RequirePermission permission="can_fetch"><DataQuality /></RequirePermission>} />
-        <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
-        <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
-        <Route path="/workspace/:workspaceId" element={<RequirePermission permission="can_fetch"><Suspense fallback={<div className="fh-card fh-card-pad">{translate('common:app.loadingWorkspaceGrid')}</div>}><UnifiedWorkspace /></Suspense></RequirePermission>} />
-        <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
-        <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
-        <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
-        <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
-      </Route>
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <Suspense fallback={<RouteLoading />}>
+      <Routes>
+        <Route path="/setup" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route element={<AuthGuard><AppShell /></AuthGuard>}>
+          <Route path="/home" element={<RequirePermission permission="can_access_site"><Dashboard /></RequirePermission>} />
+          <Route path="/products" element={<RequirePermission permission="can_fetch"><Products /></RequirePermission>} />
+          <Route path="/orders" element={<RequirePermission permission="can_fetch"><Orders /></RequirePermission>} />
+          <Route path="/sources" element={<RequirePermission permission="can_access_site"><SourceCenter /></RequirePermission>} />
+          <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><SourceCenter /></RequirePermission>} />
+          <Route path="/sources/import" element={<RequirePermission permission="can_access_site"><SourceImportWizard /></RequirePermission>} />
+          <Route path="/sources/:sourceId" element={<RequirePermission permission="can_access_site"><SourceConfiguration /></RequirePermission>} />
+          <Route path="/sheets/:sheetId" element={<RequirePermission permission="can_fetch"><FlowHubSheet /></RequirePermission>} />
+          <Route path="/data-quality" element={<RequirePermission permission="can_fetch"><DataQuality /></RequirePermission>} />
+          <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
+          <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
+          <Route path="/workspace/:workspaceId" element={<RequirePermission permission="can_fetch"><UnifiedWorkspace /></RequirePermission>} />
+          <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
+          <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
+          <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
+          <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
+        </Route>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   )
 }
 

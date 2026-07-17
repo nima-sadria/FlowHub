@@ -50,6 +50,21 @@ interface MockOptions {
   defaultPageSize: number
 }
 
+interface BrowserStartupMetrics {
+  lcpMs: number
+  lcpElement: string
+  lcpText: string
+  cls: number
+  totalBlockingTimeMs: number
+  longestTaskMs: number
+  longTaskCount: number
+  inpMs: number
+  firstContentfulPaintMs: number
+  responseStartMs: number
+  renderDelayMs: number
+  renderDelayPercent: number
+}
+
 const acceptanceChannels = ['woocommerce:primary', 'snappshop:main', 'tapsishop:main']
 const benchmarkChannels = [
   'woocommerce:primary',
@@ -68,6 +83,88 @@ const channelName = (channelId: string) => ({
 }[channelId] ?? channelId)
 
 const reviewItemId = (change: DraftChange) => `review:${change.listing_id}:${change.field}`
+
+async function installStartupPerformanceObservers(page: Page) {
+  await page.addInitScript(() => {
+    const state = {
+      lcpMs: 0,
+      lcpElement: '',
+      lcpText: '',
+      cls: 0,
+      longTasks: [] as number[],
+      interactions: [] as number[],
+    }
+    Object.defineProperty(window, '__flowhubStartupPerformance', {
+      configurable: false,
+      enumerable: false,
+      value: state,
+      writable: false,
+    })
+    try {
+      new PerformanceObserver(list => {
+        const entries = list.getEntries()
+        const latest = entries.at(-1) as PerformanceEntry & { element?: Element }
+        if (latest) {
+          state.lcpMs = latest.startTime
+          const element = latest.element
+          state.lcpElement = element
+            ? `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ''}${element.className ? `.${String(element.className).trim().replace(/\s+/g, '.')}` : ''}`.slice(0, 240)
+            : ''
+          state.lcpText = element?.textContent?.trim().replace(/\s+/g, ' ').slice(0, 160) ?? ''
+        }
+      }).observe({ type: 'largest-contentful-paint', buffered: true })
+    } catch { /* Browser does not expose LCP observation. */ }
+    try {
+      new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) {
+          const shift = entry as PerformanceEntry & { hadRecentInput?: boolean; value?: number }
+          if (!shift.hadRecentInput) state.cls += shift.value ?? 0
+        }
+      }).observe({ type: 'layout-shift', buffered: true })
+    } catch { /* Browser does not expose layout-shift observation. */ }
+    try {
+      new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) state.longTasks.push(entry.duration)
+      }).observe({ type: 'longtask', buffered: true })
+    } catch { /* Browser does not expose long-task observation. */ }
+    try {
+      new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) {
+          const event = entry as PerformanceEntry & { interactionId?: number }
+          if (event.interactionId) state.interactions.push(event.duration)
+        }
+      }).observe({ type: 'event', buffered: true, durationThreshold: 16 } as PerformanceObserverInit)
+    } catch { /* Browser does not expose event-timing observation. */ }
+  })
+}
+
+async function startupPerformanceMetrics(page: Page): Promise<BrowserStartupMetrics> {
+  return page.evaluate(() => {
+    const state = (window as Window & {
+      __flowhubStartupPerformance?: { lcpMs: number; cls: number; longTasks: number[] }
+    }).__flowhubStartupPerformance as { lcpMs: number; lcpElement: string; lcpText: string; cls: number; longTasks: number[]; interactions: number[] } | undefined
+      ?? { lcpMs: 0, lcpElement: '', lcpText: '', cls: 0, longTasks: [], interactions: [] }
+    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
+    const firstContentfulPaint = performance.getEntriesByName('first-contentful-paint')[0]
+    const totalBlockingTimeMs = state.longTasks.reduce((total, duration) => total + Math.max(0, duration - 50), 0)
+    const responseStartMs = navigation?.responseStart ?? 0
+    const renderDelayMs = Math.max(0, state.lcpMs - responseStartMs)
+    return {
+      lcpMs: Math.round(state.lcpMs),
+      lcpElement: state.lcpElement,
+      lcpText: state.lcpText,
+      cls: Number(state.cls.toFixed(4)),
+      totalBlockingTimeMs: Math.round(totalBlockingTimeMs),
+      longestTaskMs: Math.round(Math.max(0, ...state.longTasks)),
+      longTaskCount: state.longTasks.length,
+      inpMs: Math.round(Math.max(0, ...state.interactions)),
+      firstContentfulPaintMs: Math.round(firstContentfulPaint?.startTime ?? 0),
+      responseStartMs: Math.round(responseStartMs),
+      renderDelayMs: Math.round(renderDelayMs),
+      renderDelayPercent: state.lcpMs > 0 ? Number(((renderDelayMs / state.lcpMs) * 100).toFixed(1)) : 0,
+    }
+  })
+}
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({
@@ -651,6 +748,9 @@ test('matches Wanted Model with direct field editing, immediate selection, bulk 
 test('benchmarks a virtualized 10,000-product, five-channel dense pricing grid with a bounded API window', async ({ page, context, browser, browserName }) => {
   test.setTimeout(180_000)
   await grantClipboard(context)
+  await installStartupPerformanceObservers(page)
+  const performanceSession = await context.newCDPSession(page)
+  await performanceSession.send('Performance.enable')
   const audit = createAudit()
   const options: MockOptions = {
     workspaceId: 'pricing-benchmark',
@@ -671,6 +771,19 @@ test('benchmarks a virtualized 10,000-product, five-channel dense pricing grid w
   await expect.poll(() => page.locator('[data-pricing-grid] .ht_master tbody tr').count()).toBeGreaterThanOrEqual(15)
   const readyMs = Math.round(performance.now() - readyStarted)
   const renderedRows = await page.locator('[data-pricing-grid] .ht_master tbody tr').count()
+  await page.waitForTimeout(100)
+  const startupMetrics = await startupPerformanceMetrics(page)
+  const performanceMetrics = await performanceSession.send('Performance.getMetrics') as {
+    metrics: Array<{ name: string; value: number }>
+  }
+  const cdpMetric = (name: string) => performanceMetrics.metrics.find(metric => metric.name === name)?.value ?? 0
+  const startupCdpMetrics = {
+    jsExecutionMs: Math.round(cdpMetric('ScriptDuration') * 1000),
+    layoutMs: Math.round(cdpMetric('LayoutDuration') * 1000),
+    styleRecalculationMs: Math.round(cdpMetric('RecalcStyleDuration') * 1000),
+    mainThreadTaskMs: Math.round(cdpMetric('TaskDuration') * 1000),
+    startupHeapBytes: Math.round(cdpMetric('JSHeapUsedSize')),
+  }
   expect(renderedRows).toBeGreaterThanOrEqual(15)
   expect(renderedRows).toBeLessThan(100)
   expect(audit.maximumReturnedProducts).toBeLessThanOrEqual(500)
@@ -729,6 +842,7 @@ test('benchmarks a virtualized 10,000-product, five-channel dense pricing grid w
     domNodeCount: document.getElementsByTagName('*').length,
     observedHeapBytes: (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null,
   }))
+  const interactionMetrics = await startupPerformanceMetrics(page)
   expect(browserMetrics.domNodeCount).toBeLessThan(10_000)
   expect(audit.maximumReturnedProducts).toBeLessThanOrEqual(500)
   expect(audit.external).toEqual([])
@@ -742,6 +856,9 @@ test('benchmarks a virtualized 10,000-product, five-channel dense pricing grid w
     ...(await browserIdentity(browser)),
     viewport: { width: 1440, height: 900 },
     readyMs,
+    ...startupMetrics,
+    ...startupCdpMetrics,
+    inpMs: interactionMetrics.inpMs,
     scrollMs,
     editResponseMs,
     pasteResponseMs,
@@ -753,4 +870,34 @@ test('benchmarks a virtualized 10,000-product, five-channel dense pricing grid w
   writeFileSync(path.join(screenshotRoot, 'pricing-10000-benchmark-metrics.json'), `${JSON.stringify(metrics, null, 2)}\n`, 'utf8')
   console.log(`PRICING_BENCHMARK ${JSON.stringify(metrics)}`)
   await captureScreenshot(page, 'pricing-10000-benchmark.png')
+})
+
+test('renders critical Products controls before deferred Grid startup', async ({ page, browser, browserName }) => {
+  test.setTimeout(60_000)
+  await installStartupPerformanceObservers(page)
+  const audit = createAudit()
+  const options: MockOptions = {
+    workspaceId: 'pricing-critical-controls',
+    workspaceName: 'Products',
+    totalProducts: 10_000,
+    channelIds: benchmarkChannels,
+    defaultPageSize: 100,
+  }
+  await installMocks(page, options, audit)
+  await page.setViewportSize({ width: 1440, height: 900 })
+
+  await page.goto('/products', { waitUntil: 'domcontentloaded' })
+  await expect(page.locator('[data-products-critical-controls]').first()).toBeVisible({ timeout: 10_000 })
+  // LCP delivery is asynchronous to paint; allow the buffered observer to
+  // receive the final critical-controls candidate without waiting for Grid.
+  await page.waitForTimeout(500)
+  const metrics = {
+    browserName,
+    ...(await browserIdentity(browser)),
+    viewport: { width: 1440, height: 900 },
+    ...(await startupPerformanceMetrics(page)),
+  }
+  expect(audit.external).toEqual([])
+  writeFileSync(path.join(screenshotRoot, 'products-critical-controls-metrics.json'), `${JSON.stringify(metrics, null, 2)}\n`, 'utf8')
+  console.log(`PRODUCTS_CRITICAL_CONTROLS ${JSON.stringify(metrics)}`)
 })

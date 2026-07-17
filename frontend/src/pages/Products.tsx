@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import Badge from '../components/Badge'
@@ -6,7 +6,8 @@ import Empty from '../components/Empty'
 import Icon from '../components/Icon'
 import LocalizedText from '../components/LocalizedText'
 import PageShell from '../components/PageShell'
-import DensePricingWorkspace from '../features/sourceWorkspace/DensePricingWorkspace'
+import PricingWorkspaceStartup from '../features/sourceWorkspace/PricingWorkspaceStartup'
+import { resolveHandsontableLicense } from '../features/unifiedWorkspace/handsontableLicense'
 import { translate } from '../i18n'
 import { formatProductType } from '../i18n/display'
 import { formatNumber } from '../i18n/format'
@@ -17,6 +18,7 @@ import type { UnifiedWorkspaceResource } from '../services/unifiedWorkspace/type
 
 const ACTIVE_WORKSPACE_KEY = 'flowhub.products.active_workspace'
 const FALLBACK_PAGE_SIZE = 50
+const DensePricingWorkspace = lazy(() => import('../features/sourceWorkspace/DensePricingWorkspace'))
 
 function storedWorkspaceId(): string {
   try { return window.sessionStorage.getItem(ACTIVE_WORKSPACE_KEY)?.trim() ?? '' } catch { return '' }
@@ -63,6 +65,11 @@ export default function Products() {
   const [categories, setCategories] = useState<Category[]>([])
   const [catalogConfigured, setCatalogConfigured] = useState<boolean | undefined>(undefined)
   const [catalogLoading, setCatalogLoading] = useState(false)
+  const gridLicense = resolveHandsontableLicense(import.meta.env.VITE_HANDSONTABLE_LICENSE_KEY, import.meta.env.PROD)
+  const categoryOptions = useMemo(
+    () => categories.map(category => ({ value: category.name, label: category.name })),
+    [categories],
+  )
 
   useEffect(() => {
     let active = true
@@ -135,12 +142,22 @@ export default function Products() {
   }
 
   if (workspace && unifiedWorkspace) {
-    return <PageShell><DensePricingWorkspace
-      workspace={workspace}
-      service={unifiedWorkspace}
-      embedded
-      categoryOptions={categories.map(category => ({ value: category.name, label: category.name }))}
-    /></PageShell>
+    if (!gridLicense.licenseKey) {
+      return <PageShell><PricingWorkspaceStartup
+        workspaceName={workspace.name}
+        blockedMessage={translate('workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid')}
+      /></PageShell>
+    }
+    return <PageShell>
+      <Suspense fallback={<PricingWorkspaceStartup workspaceName={workspace.name} />}>
+        <DensePricingWorkspace
+          workspace={workspace}
+          service={unifiedWorkspace}
+          embedded
+          categoryOptions={categoryOptions}
+        />
+      </Suspense>
+    </PageShell>
   }
 
   if (!catalogLoading && catalogConfigured === false) {
@@ -148,7 +165,11 @@ export default function Products() {
   }
 
   if (loading && !error) {
-    return <PageShell><div className="fh-card fh-card-pad flex items-center gap-3" role="status"><span className="fh-spinner" aria-hidden="true" /><span>{translate('products:products.preparingInlinePricing')}</span></div></PageShell>
+    return <PageShell><PricingWorkspaceStartup
+      blockedMessage={!gridLicense.licenseKey
+        ? translate('workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid')
+        : undefined}
+    /></PageShell>
   }
 
   return <PageShell>
