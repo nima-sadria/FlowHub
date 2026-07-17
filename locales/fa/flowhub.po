@@ -7785,3 +7785,185 @@ msgid "{{count}} affected product"
 msgid_plural "{{count}} affected products"
 msgstr[0] "{{count}} محصول درگیر"
 msgstr[1] "{{count}} محصول درگیر"
+
+msgctxt "activity:activity.allCategories"
+msgid "All categories"
+msgstr "همه دسته‌ها"
+
+msgctxt "activity:activity.allSeverities"
+msgid "All severities"
+msgstr "همه سطح‌ها"
+
+msgctxt "activity:activity.businessHistoryDescription"
+msgid "Important seller and operational events, with routine system noise kept out of the way."
+msgstr "رویدادهای مهم فروش و عملیات، بدون شلوغی رویدادهای تکراری سیستم."
+
+msgctxt "activity:activity.category"
+msgid "Category"
+msgstr "دسته"
+
+msgctxt "activity:activity.channel"
+msgid "Channel"
+msgstr "کانال"
+
+msgctxt "activity:activity.critical"
+msgid "Critical"
+msgstr "بحرانی"
+
+msgctxt "activity:activity.debug"
+msgid "Debug"
+msgstr "اشکال‌زدایی"
+
+msgctxt "activity:activity.filters"
+msgid "Search and filters"
+msgstr "جست‌وجو و فیلترها"
+
+msgctxt "activity:activity.fromDate"
+msgid "From date"
+msgstr "از تاریخ"
+
+msgctxt "activity:activity.groupedRoutineSummary"
+msgid "{{count}} successful routine event"
+msgid_plural "{{count}} successful routine events"
+msgstr[0] "{{count}} رویداد تکراری موفق"
+msgstr[1] "{{count}} رویداد تکراری موفق"
+
+msgctxt "activity:activity.importantActivity"
+msgid "Important activity"
+msgstr "فعالیت‌های مهم"
+
+msgctxt "activity:activity.routineSystemActivity"
+msgid "Routine system activity"
+msgstr "فعالیت‌های تکراری سیستم"
+
+msgctxt "activity:activity.search"
+msgid "Search"
+msgstr "جست‌وجو"
+
+msgctxt "activity:activity.severity"
+msgid "Severity"
+msgstr "شدت"
+
+msgctxt "activity:activity.showRoutineSystemEvents"
+msgid "Show routine and debug events"
+msgstr "نمایش رویدادهای تکراری و اشکال‌زدایی"
+
+msgctxt "activity:activity.source"
+msgid "Source"
+msgstr "منبع"
+
+msgctxt "activity:activity.technicalDetails"
+msgid "Technical details"
+msgstr "جزئیات فنی"
+
+msgctxt "activity:activity.toDate"
+msgid "To date"
+msgstr "تا تاریخ"
+
+msgctxt "activity:activity.user"
+msgid "User"
+msgstr "کاربر"
+
+msgctxt "activity:category.apply"
+msgid "Apply"
+msgstr "اعمال"
+
+msgctxt "activity:category.authentication"
+msgid "Authentication"
+msgstr "ورود و احراز هویت"
+
+msgctxt "activity:category.channels"
+msgid "Channels"
+msgstr "کانال‌ها"
+
+msgctxt "activity:category.diagnostics"
+msgid "Diagnostics"
+msgstr "عیب‌یابی"
+
+msgctxt "activity:category.dry_run"
+msgid "Dry Run"
+msgstr "اجرای آزمایشی"
+
+msgctxt "activity:category.orders"
+msgid "Orders"
+msgstr "سفارش‌ها"
+
+msgctxt "activity:category.pricing"
+msgid "Pricing"
+msgstr "قیمت‌گذاری"
+
+msgctxt "activity:category.products"
+msgid "Products"
+msgstr "محصولات"
+
+msgctxt "activity:category.review"
+msgid "Review"
+msgstr "بازبینی"
+
+msgctxt "activity:category.security"
+msgid "Security"
+msgstr "امنیت"
+
+msgctxt "activity:category.sources"
+msgid "Sources"
+msgstr "منابع"
+
+msgctxt "activity:category.system"
+msgid "System"
+msgstr "سیستم"
+
+msgctxt "activity:category.users"
+msgid "Users"
+msgstr "کاربران"
+
+msgctxt "activity:category.workspace"
+msgid "Workspace"
+msgstr "فضای کاری"
+
+msgctxt "activity:event.login_failed"
+msgid "Sign-in failed"
+msgstr "ورود ناموفق"
+
+msgctxt "activity:event.login_success"
+msgid "Signed in"
+msgstr "ورود موفق"
+
+msgctxt "activity:event.logout"
+msgid "Signed out"
+msgstr "خروج"
+
+msgctxt "activity:event.nextcloud_connected"
+msgid "Nextcloud connected"
+msgstr "Nextcloud متصل شد"
+
+msgctxt "activity:event.preview_completed"
+msgid "Product preview completed"
+msgstr "پیش‌نمایش محصولات تکمیل شد"
+
+msgctxt "activity:event.preview_failed"
+msgid "Product preview failed"
+msgstr "پیش‌نمایش محصولات ناموفق بود"
+
+msgctxt "activity:event.preview_started"
+msgid "Product preview started"
+msgstr "پیش‌نمایش محصولات آغاز شد"
+
+msgctxt "activity:event.settings_changed"
+msgid "Settings changed"
+msgstr "تنظیمات تغییر کرد"
+
+msgctxt "activity:event.setup_admin_created"
+msgid "Administrator created"
+msgstr "مدیر ساخته شد"
+
+msgctxt "activity:event.setup_completed"
+msgid "Setup completed"
+msgstr "راه‌اندازی تکمیل شد"
+
+msgctxt "activity:event.token_refreshed"
+msgid "Token refresh"
+msgstr "تازه‌سازی توکن"
+
+msgctxt "activity:event.woocommerce_connected"
+msgid "WooCommerce connected"
+msgstr "WooCommerce متصل شد"

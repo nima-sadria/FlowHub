@@ -41,6 +41,8 @@ const activityPresentation: Record<ActivityEvent['level'], {
   icon: IconName
   labelKey: string
 }> = {
+  critical: { variant: 'danger', icon: 'error', labelKey: 'activity:activity.critical' },
+  debug: { variant: 'info', icon: 'diagnostics', labelKey: 'activity:activity.debug' },
   info: { variant: 'info', icon: 'info', labelKey: 'activity:activity.info' },
   success: { variant: 'success', icon: 'success', labelKey: 'activity:activity.success' },
   warning: { variant: 'warning', icon: 'warning', labelKey: 'activity:activity.warning' },

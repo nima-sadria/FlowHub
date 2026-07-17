@@ -656,14 +656,16 @@ export interface CommerceTypeOption {
 // -- Activity ------------------------------------------------------------------
 
 export type ActivityEventKind = 'user_action' | 'system_log'
-export type ActivityLevel = 'info' | 'success' | 'warning' | 'error'
+export type ActivityLevel = 'critical' | 'error' | 'warning' | 'success' | 'info' | 'debug'
 
 export interface ActivityEvent {
   id: string
   timestamp: Date
   kind: ActivityEventKind
   level: ActivityLevel
+  category?: string
   actor: string
   action: string
   detail: string | null
+  repeatCount?: number
 }

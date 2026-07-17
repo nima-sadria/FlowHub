@@ -8,6 +8,7 @@ interface RawEvent {
   timestamp: string
   kind: string
   level: string
+  category: string
   actor: string
   action: string
   detail: string | null
@@ -26,6 +27,7 @@ function mapEvent(r: RawEvent): ActivityEvent {
     timestamp: new Date(r.timestamp),
     kind: r.kind as ActivityEvent['kind'],
     level: r.level as ActivityEvent['level'],
+    category: r.category,
     actor: r.actor,
     action: r.action,
     detail: r.detail,
@@ -33,11 +35,20 @@ function mapEvent(r: RawEvent): ActivityEvent {
 }
 
 export class ApiActivityService implements ActivityService {
-  async getEvents(opts: { page: number; pageSize: number }): Promise<PaginatedResult<ActivityEvent>> {
+  async getEvents(opts: Parameters<ActivityService['getEvents']>[0]): Promise<PaginatedResult<ActivityEvent>> {
     const params = new URLSearchParams({
       page: String(opts.page),
       pageSize: String(opts.pageSize),
     })
+    if (opts.search) params.set('search', opts.search)
+    if (opts.username) params.set('username', opts.username)
+    if (opts.category) params.set('category', opts.category)
+    if (opts.severity) params.set('severity', opts.severity)
+    if (opts.dateFrom) params.set('dateFrom', opts.dateFrom)
+    if (opts.dateTo) params.set('dateTo', opts.dateTo)
+    if (opts.source) params.set('source', opts.source)
+    if (opts.channel) params.set('channel', opts.channel)
+    if (opts.includeDebug) params.set('includeDebug', 'true')
     const data = await apiFetch<RawPage>(`/api/v2/activity?${params}`, authFetch)
     return {
       items: data.items.map(mapEvent),
