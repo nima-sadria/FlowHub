@@ -3,21 +3,28 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.flowhub.auth.authorization import ADMIN_ROLES, is_privileged, is_privileged_role, require_admin
+from app.flowhub.auth.authorization import (
+    ADMIN_ROLES,
+    is_privileged,
+    is_privileged_role,
+    require_admin,
+)
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.auth.password import hash_password
 from app.flowhub.auth.repository import create_audit_event
-from app.flowhub.database import get_db
+from app.flowhub.database import FlowHubBase, get_db
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-RoleName = Literal["owner", "super_admin", "admin", "viewer"]
+RoleName = Literal["owner", "super_admin", "admin", "operator", "viewer"]
 
 class UserShape(BaseModel):
     id: int
@@ -64,26 +71,29 @@ def _ensure_target_manageable(actor: FlowHubUser, target: FlowHubUser) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only owner or super-admin may modify privileged accounts.")
 
 
-def _ensure_last_privileged_account_is_preserved(
+def _ensure_last_owner_is_preserved(
     db: Session,
     target: FlowHubUser,
     *,
     next_role: str | None = None,
     next_active: bool | None = None,
 ) -> None:
-    if not is_privileged(target):
+    if target.role != "owner":
         return
-    remains_privileged = next_role is None or is_privileged_role(next_role)
+    remains_owner = next_role is None or next_role == "owner"
     remains_active = next_active is None or next_active is True
-    if remains_privileged and remains_active:
+    if remains_owner and remains_active:
         return
-    active_privileged_count = (
+    active_owner_count = (
         db.query(FlowHubUser)
-        .filter(FlowHubUser.role.in_({"owner", "super_admin"}), FlowHubUser.is_active.is_(True))
+        .filter(FlowHubUser.role == "owner", FlowHubUser.is_active.is_(True))
         .count()
     )
-    if active_privileged_count <= 1:
-        raise HTTPException(status.HTTP_409_CONFLICT, "The last active owner or super-admin cannot be changed or disabled.")
+    if active_owner_count <= 1:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "The last active owner cannot be changed or disabled.",
+        )
 
 
 def _shape(user: FlowHubUser) -> UserShape:
@@ -98,10 +108,31 @@ def _shape(user: FlowHubUser) -> UserShape:
     )
 
 
+def _has_protected_business_history(db: Session, user_id: int) -> bool:
+    """Check immutable/restricted references without exposing their contents."""
+    for table in FlowHubBase.metadata.sorted_tables:
+        if table.name in {"flowhub_users", "flowhub_refresh_tokens"}:
+            continue
+        for constraint in table.foreign_key_constraints:
+            elements = list(constraint.elements)
+            if (
+                len(elements) != 1
+                or elements[0].target_fullname != "flowhub_users.id"
+                or (constraint.ondelete or "").upper() == "CASCADE"
+            ):
+                continue
+            source_column = elements[0].parent
+            if db.execute(
+                select(source_column).where(source_column == user_id).limit(1)
+            ).first():
+                return True
+    return False
+
+
 @router.get("", response_model=UserListResponse)
 async def list_users(
-    current_user: FlowHubUser = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[FlowHubUser, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> UserListResponse:
     rows = db.query(FlowHubUser).order_by(FlowHubUser.id.asc()).all()
     return UserListResponse(items=[_shape(row) for row in rows], total=len(rows))
@@ -110,8 +141,8 @@ async def list_users(
 @router.post("", response_model=UserShape, status_code=status.HTTP_201_CREATED)
 async def create_user(
     body: UserCreateRequest,
-    current_user: FlowHubUser = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[FlowHubUser, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> UserShape:
     if is_privileged_role(body.role):
         _require_privileged_actor(current_user, "Only owner or super-admin may create privileged accounts.")
@@ -135,8 +166,8 @@ async def create_user(
 async def update_user(
     user_id: int,
     body: UserUpdateRequest,
-    current_user: FlowHubUser = Depends(require_admin),
-    db: Session = Depends(get_db),
+    current_user: Annotated[FlowHubUser, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> UserShape:
     row = db.get(FlowHubUser, user_id)
     if row is None:
@@ -146,7 +177,7 @@ async def update_user(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Users cannot change their own role.")
     if body.role is not None and is_privileged_role(body.role):
         _require_privileged_actor(current_user, "Only owner or super-admin may assign privileged roles.")
-    _ensure_last_privileged_account_is_preserved(
+    _ensure_last_owner_is_preserved(
         db,
         row,
         next_role=body.role,
@@ -171,3 +202,41 @@ async def update_user(
     elif body.password is not None:
         create_audit_event(db, username=current_user.username, event="user_password_reset", ip_address="api")
     return _shape(row)
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    user_id: int,
+    current_user: Annotated[FlowHubUser, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    row = db.get(FlowHubUser, user_id)
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found.")
+    if row.id == current_user.id:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Current user cannot delete their own account."
+        )
+    _ensure_target_manageable(current_user, row)
+    _ensure_last_owner_is_preserved(db, row, next_active=False)
+    if _has_protected_business_history(db, row.id):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "User has protected business history and cannot be deleted. Disable the user instead.",
+        )
+    deleted_username = row.username
+    try:
+        db.delete(row)
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "User has protected business history and cannot be deleted. Disable the user instead.",
+        ) from exc
+    create_audit_event(
+        db,
+        username=current_user.username,
+        event="user_deleted",
+        ip_address=f"user:{deleted_username}",
+    )

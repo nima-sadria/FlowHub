@@ -19,6 +19,7 @@ from app.flowhub.setup import models as _setup_models  # noqa: F401
 def db_engine():
     from sqlalchemy import create_engine
     from sqlalchemy.pool import StaticPool
+
     from app.flowhub.database import FlowHubBase, _get_engine
 
     _get_engine.cache_clear()
@@ -43,6 +44,7 @@ def db(db_engine):
 def client(db_engine):
     from fastapi.testclient import TestClient
     from sqlalchemy.orm import sessionmaker
+
     from app.flowhub.app import app
     from app.flowhub.database import get_db
 
@@ -107,8 +109,99 @@ def test_owner_can_manage_privileged_users_and_role_changes_are_audited(client, 
     assert db.query(FlowHubLoginAudit).filter(FlowHubLoginAudit.event == "user_role_changed").count() == 1
 
 
-def test_last_active_privileged_user_cannot_be_disabled(client, db):
+def test_last_active_owner_cannot_be_disabled(client, db):
     owner_headers = _headers(client, db, "owner-user", "owner")
     owner_id = client.get("/api/v2/users", headers=owner_headers).json()["items"][0]["id"]
     response = client.patch(f"/api/v2/users/{owner_id}", headers=owner_headers, json={"is_active": False})
     assert response.status_code == 409
+
+
+def test_operator_has_operational_workspace_permissions_but_not_settings(client, db):
+    operator_headers = _headers(client, db, "operator-user", "operator")
+    response = client.get("/api/auth/me", headers=operator_headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["permissions"]["can_fetch"] is True
+    assert body["permissions"]["can_apply"] is True
+    assert body["permissions"]["can_view_settings"] is False
+
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.unified_workspace.authorization import has_workspace_permission
+
+    operator = db.query(FlowHubUser).filter_by(username="operator-user").one()
+    assert has_workspace_permission(operator, "review.generate")
+    assert has_workspace_permission(operator, "apply.execute")
+    assert not has_workspace_permission(operator, "workspace.admin")
+
+
+def test_unused_user_can_be_deleted_and_action_is_audited(client, db):
+    owner_headers = _headers(client, db, "owner-user", "owner")
+    created = client.post(
+        "/api/v2/users",
+        headers=owner_headers,
+        json={"username": "temporary-user", "password": "password123", "role": "viewer"},
+    )
+    assert created.status_code == 201
+
+    response = client.delete(
+        f"/api/v2/users/{created.json()['id']}", headers=owner_headers
+    )
+    assert response.status_code == 204
+
+    from app.flowhub.auth.models import FlowHubLoginAudit, FlowHubUser
+
+    assert db.query(FlowHubUser).filter_by(username="temporary-user").count() == 0
+    assert (
+        db.query(FlowHubLoginAudit)
+        .filter(FlowHubLoginAudit.event == "user_deleted")
+        .count()
+        == 1
+    )
+
+
+def test_password_change_never_returns_hash_or_plaintext(client, db):
+    owner_headers = _headers(client, db, "owner-user", "owner")
+    created = client.post(
+        "/api/v2/users",
+        headers=owner_headers,
+        json={"username": "password-user", "password": "password123", "role": "viewer"},
+    )
+    response = client.patch(
+        f"/api/v2/users/{created.json()['id']}",
+        headers=owner_headers,
+        json={"password": "replacement-password"},
+    )
+    assert response.status_code == 200
+    serialized = response.json()
+    assert "password" not in serialized
+    assert "hashed_password" not in serialized
+    assert "replacement-password" not in response.text
+
+
+def test_user_with_protected_workspace_history_must_be_disabled_not_deleted(client, db):
+    owner_headers = _headers(client, db, "owner-user", "owner")
+    created = client.post(
+        "/api/v2/users",
+        headers=owner_headers,
+        json={"username": "history-user", "password": "password123", "role": "operator"},
+    )
+    assert created.status_code == 201
+
+    from app.flowhub.unified_workspace.models import UnifiedWorkspace
+
+    db.add(
+        UnifiedWorkspace(
+            id="workspace-history-user",
+            name="Protected workspace",
+            entry_point="manual",
+            owner_user_id=created.json()["id"],
+            status="active",
+        )
+    )
+    db.commit()
+
+    response = client.delete(
+        f"/api/v2/users/{created.json()['id']}", headers=owner_headers
+    )
+    assert response.status_code == 409
+    assert "protected business history" in response.json()["detail"]

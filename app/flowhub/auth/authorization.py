@@ -10,9 +10,10 @@ from .models import FlowHubUser
 
 ROLE_RANK = {
     "viewer": 0,
-    "admin": 1,
-    "super_admin": 2,
-    "owner": 3,
+    "operator": 1,
+    "admin": 2,
+    "super_admin": 3,
+    "owner": 4,
 }
 ADMIN_ROLES = frozenset({"owner", "super_admin", "admin"})
 PRIVILEGED_ROLES = frozenset({"owner", "super_admin"})

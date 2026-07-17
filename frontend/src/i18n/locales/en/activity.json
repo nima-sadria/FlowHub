@@ -56,5 +56,10 @@
   "event.setup_admin_created": "Administrator created",
   "event.setup_completed": "Setup completed",
   "event.token_refreshed": "Token refresh",
+  "event.user_activation_changed": "User access changed",
+  "event.user_created": "User created",
+  "event.user_deleted": "User deleted",
+  "event.user_password_reset": "User password changed",
+  "event.user_role_changed": "User role changed",
   "event.woocommerce_connected": "WooCommerce connected"
 }

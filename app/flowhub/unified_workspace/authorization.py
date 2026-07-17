@@ -29,6 +29,17 @@ ROLE_WORKSPACE_PERMISSIONS: dict[str, frozenset[str]] = {
     "owner": WORKSPACE_PERMISSIONS,
     "super_admin": WORKSPACE_PERMISSIONS,
     "admin": WORKSPACE_PERMISSIONS,
+    "operator": frozenset(
+        {
+            "workspace.read",
+            "workspace.create",
+            "workspace.edit",
+            "draft.save",
+            "review.generate",
+            "apply.execute",
+            "audit.read",
+        }
+    ),
     "viewer": frozenset({"workspace.read", "audit.read"}),
 }
 

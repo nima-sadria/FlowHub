@@ -7967,3 +7967,177 @@ msgstr "تازه‌سازی توکن"
 msgctxt "activity:event.woocommerce_connected"
 msgid "WooCommerce connected"
 msgstr "WooCommerce متصل شد"
+msgctxt "settings:settings.advanced"
+msgid "Advanced"
+msgstr "تنظیمات پیشرفته"
+
+msgctxt "settings:settings.advancedDescription"
+msgid "Technical rate limits, scheduler policy, and delays"
+msgstr "محدودیت‌های فنی، سیاست زمان‌بندی و تأخیرها"
+
+msgctxt "settings:users.actions"
+msgid "Actions"
+msgstr "عملیات"
+
+msgctxt "settings:users.cancel"
+msgid "Cancel"
+msgstr "انصراف"
+
+msgctxt "settings:users.changePassword"
+msgid "Change password"
+msgstr "تغییر رمز عبور"
+
+msgctxt "settings:users.changePasswordFor"
+msgid "Change password for {{username}}"
+msgstr "تغییر رمز عبور {{username}}"
+
+msgctxt "settings:users.copyPassword"
+msgid "Copy entered password"
+msgstr "کپی رمز واردشده"
+
+msgctxt "settings:users.create"
+msgid "Create user"
+msgstr "ایجاد کاربر"
+
+msgctxt "settings:users.delete"
+msgid "Delete"
+msgstr "حذف"
+
+msgctxt "settings:users.deleteConfirmation"
+msgid "Delete {{username}}?"
+msgstr "کاربر {{username}} حذف شود؟"
+
+msgctxt "settings:users.deleteFailed"
+msgid "Unable to delete user."
+msgstr "حذف کاربر ممکن نیست."
+
+msgctxt "settings:users.deleteHistoryWarning"
+msgid "Accounts with protected business history cannot be deleted. Disable them instead."
+msgstr "حساب‌های دارای سابقه کسب‌وکار محافظت‌شده قابل حذف نیستند؛ آن‌ها را غیرفعال کنید."
+
+msgctxt "settings:users.deleteTitle"
+msgid "Delete user"
+msgstr "حذف کاربر"
+
+msgctxt "settings:users.description"
+msgid "Create accounts, assign operational roles, and control access."
+msgstr "ایجاد حساب، تعیین نقش عملیاتی و کنترل دسترسی کاربران."
+
+msgctxt "settings:users.disable"
+msgid "Disable"
+msgstr "غیرفعال‌کردن"
+
+msgctxt "settings:users.disabled"
+msgid "Disabled"
+msgstr "غیرفعال"
+
+msgctxt "settings:users.enable"
+msgid "Enable"
+msgstr "فعال‌کردن"
+
+msgctxt "settings:users.enabled"
+msgid "Enabled"
+msgstr "فعال"
+
+msgctxt "settings:users.hidePassword"
+msgid "Hide password"
+msgstr "پنهان‌کردن رمز عبور"
+
+msgctxt "settings:users.loadFailed"
+msgid "Unable to load users."
+msgstr "بارگذاری کاربران ممکن نیست."
+
+msgctxt "settings:users.loading"
+msgid "Loading users..."
+msgstr "در حال بارگذاری کاربران..."
+
+msgctxt "settings:users.newPassword"
+msgid "New password"
+msgstr "رمز عبور جدید"
+
+msgctxt "settings:users.password"
+msgid "Password"
+msgstr "رمز عبور"
+
+msgctxt "settings:users.passwordConfigured"
+msgid "A password will be stored securely."
+msgstr "رمز عبور به‌صورت امن ذخیره می‌شود."
+
+msgctxt "settings:users.role"
+msgid "Role"
+msgstr "نقش"
+
+msgctxt "settings:users.role.admin"
+msgid "Admin"
+msgstr "مدیر"
+
+msgctxt "settings:users.role.operator"
+msgid "Operator"
+msgstr "اپراتور"
+
+msgctxt "settings:users.role.owner"
+msgid "Owner"
+msgstr "مالک"
+
+msgctxt "settings:users.role.super_admin"
+msgid "Super admin (legacy)"
+msgstr "مدیر ارشد (قدیمی)"
+
+msgctxt "settings:users.role.viewer"
+msgid "Viewer"
+msgstr "مشاهده‌گر"
+
+msgctxt "settings:users.roleFor"
+msgid "Role for {{username}}"
+msgstr "نقش {{username}}"
+
+msgctxt "settings:users.saveFailed"
+msgid "Unable to save user."
+msgstr "ذخیره کاربر ممکن نیست."
+
+msgctxt "settings:users.savePassword"
+msgid "Save password"
+msgstr "ذخیره رمز عبور"
+
+msgctxt "settings:users.showPassword"
+msgid "Show password"
+msgstr "نمایش رمز عبور"
+
+msgctxt "settings:users.status"
+msgid "Status"
+msgstr "وضعیت"
+
+msgctxt "settings:users.title"
+msgid "User Management"
+msgstr "مدیریت کاربران"
+
+msgctxt "settings:users.username"
+msgid "Username"
+msgstr "نام کاربری"
+
+msgctxt "settings:users.viewActivity"
+msgid "View activity"
+msgstr "مشاهده فعالیت"
+
+msgctxt "settings:users.you"
+msgid "You"
+msgstr "شما"
+msgctxt "activity:event.user_activation_changed"
+msgid "User access changed"
+msgstr "دسترسی کاربر تغییر کرد"
+
+msgctxt "activity:event.user_created"
+msgid "User created"
+msgstr "کاربر ایجاد شد"
+
+msgctxt "activity:event.user_deleted"
+msgid "User deleted"
+msgstr "کاربر حذف شد"
+
+msgctxt "activity:event.user_password_reset"
+msgid "User password changed"
+msgstr "رمز عبور کاربر تغییر کرد"
+
+msgctxt "activity:event.user_role_changed"
+msgid "User role changed"
+msgstr "نقش کاربر تغییر کرد"

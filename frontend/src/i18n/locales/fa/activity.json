@@ -56,5 +56,10 @@
   "event.setup_admin_created": "مدیر ساخته شد",
   "event.setup_completed": "راه‌اندازی تکمیل شد",
   "event.token_refreshed": "تازه‌سازی توکن",
+  "event.user_activation_changed": "دسترسی کاربر تغییر کرد",
+  "event.user_created": "کاربر ایجاد شد",
+  "event.user_deleted": "کاربر حذف شد",
+  "event.user_password_reset": "رمز عبور کاربر تغییر کرد",
+  "event.user_role_changed": "نقش کاربر تغییر کرد",
   "event.woocommerce_connected": "WooCommerce متصل شد"
 }

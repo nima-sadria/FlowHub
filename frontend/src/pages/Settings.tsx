@@ -12,6 +12,7 @@ import PageShell from '../components/PageShell'
 import { RateLimitsPanel } from './RateLimits'
 import { useTranslation } from 'react-i18next'
 import { changeLocale, localeMetadata, type FlowHubLocale } from '../i18n'
+import UserManagement from '../components/UserManagement'
 
 const TIMEZONES = [
   'UTC',
@@ -214,6 +215,8 @@ export default function Settings() {
         </label>
       </Section>
 
+      <UserManagement />
+
       <Section title={translate('settings:settings.general')} description={translate('settings:settings.configureDisplayAndSynchronizationPreferences')}>
         {!draft ? (
           <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />{translate('settings:rateLimits.loading')}</div>
@@ -248,7 +251,15 @@ export default function Settings() {
         )}
       </Section>
 
-      <RateLimitsPanel embedded />
+      <details className="fh-card overflow-hidden">
+        <summary className="fh-panel-header cursor-pointer">
+          <span>
+            <span className="fh-section-title">{translate('settings:settings.advanced')}</span>
+            <span className="fh-section-subtitle mt-1 block">{translate('settings:settings.advancedDescription')}</span>
+          </span>
+        </summary>
+        <div className="p-4"><RateLimitsPanel embedded /></div>
+      </details>
 
       <Section title={translate('settings:settings.about')} description={translate('settings:settings.applicationInformation')}>
         {healthLoading ? (

@@ -83,6 +83,15 @@ _ROLE_PERMISSIONS: dict[str, dict[str, bool]] = {
         "can_view_logs": True,
         "can_view_settings": True,
     },
+    "operator": {
+        "can_access_site": True,
+        "can_fetch": True,
+        "can_apply": True,
+        "can_edit_price": True,
+        "can_edit_stock": False,
+        "can_view_logs": True,
+        "can_view_settings": False,
+    },
     "viewer": {
         "can_access_site": True,
         "can_fetch": False,

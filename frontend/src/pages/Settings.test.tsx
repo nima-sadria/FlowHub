@@ -77,7 +77,24 @@ beforeEach(() => {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ status: 'ok', version: '1.0.0' }), { status: 200 })))
+  vi.stubGlobal('fetch', vi.fn(async input => {
+    const url = String(input)
+    if (url.includes('/api/v2/users')) {
+      return new Response(JSON.stringify({
+        items: [{
+          id: 1,
+          username: 'admin',
+          role: 'admin',
+          is_active: true,
+          created_at: '2026-01-01T00:00:00',
+          is_admin: true,
+          is_super_admin: false,
+        }],
+        total: 1,
+      }), { status: 200 })
+    }
+    return new Response(JSON.stringify({ status: 'ok', version: '1.0.0' }), { status: 200 })
+  }))
 })
 
 afterEach(() => {
@@ -107,8 +124,10 @@ describe('Settings', () => {
     const c = await renderPage()
 
     expect(c.textContent).toContain('Settings')
+    expect(c.textContent).toContain('User Management')
+    expect(c.textContent).toContain('admin')
     expect(c.textContent).toContain('General')
-    expect(c.textContent).toContain('Global API Rate Limits')
+    expect(c.textContent).toContain('Advanced')
     expect(c.textContent).toContain('Read Requests / Minute')
     expect(c.textContent).toContain('Write Requests / Minute')
   })
