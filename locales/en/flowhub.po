@@ -326,7 +326,7 @@ msgctxt "products:products.allCategories"
 msgid "All Categories"
 msgstr "All Categories"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:377 frontend/src/pages/UnifiedWorkspace.tsx:236
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:377 frontend/src/pages/Orders.tsx:149 frontend/src/pages/UnifiedWorkspace.tsx:236
 msgctxt "common:selector.allChannels"
 msgid "All Channels"
 msgstr "All Channels"
@@ -388,6 +388,11 @@ msgstr "All severities"
 msgctxt "dataQuality:dataQuality.allSeverities"
 msgid "All severities"
 msgstr "All severities"
+
+#: frontend/src/pages/Orders.tsx:150
+msgctxt "common:selector.allStatuses"
+msgid "All statuses"
+msgstr "All statuses"
 
 #: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:389
 #. Stock means the sellable inventory value supported by a Channel.
@@ -799,7 +804,6 @@ msgctxt "workspace:sourceCentricWorkspace.cancel"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: frontend/src/pages/Orders.tsx:40
 msgctxt "orders:orders.canceled"
 msgid "Canceled"
 msgstr "Canceled"
@@ -885,6 +889,11 @@ msgctxt "dataQuality:dataQuality.trendSinceLastRead"
 msgid "Change since last read"
 msgstr "Change since last read"
 
+#: frontend/src/pages/Orders.tsx:135
+msgctxt "orders:orders.adjustFilters"
+msgid "Change the search or filters to see other orders."
+msgstr "Change the search or filters to see other orders."
+
 #: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:373
 msgctxt "workspace:densePricing.changeStateFilter"
 msgid "Change-state filter"
@@ -937,7 +946,7 @@ msgctxt "dataQuality:dataQuality.channel"
 msgid "Channel"
 msgstr "Channel"
 
-#: frontend/src/pages/Orders.tsx:164
+#: frontend/src/pages/Orders.tsx:149 frontend/src/pages/Orders.tsx:164
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "orders:orders.channel"
 msgid "Channel"
@@ -1803,7 +1812,7 @@ msgctxt "settings:users.create"
 msgid "Create user"
 msgstr "Create user"
 
-#: frontend/src/pages/Orders.tsx:167
+#: frontend/src/pages/Orders.tsx:164
 msgctxt "orders:orders.created"
 msgid "Created"
 msgstr "Created"
@@ -1863,6 +1872,11 @@ msgctxt "activity:activity.critical"
 msgid "Critical"
 msgstr "Critical"
 
+#: frontend/src/pages/Orders.tsx:164
+msgctxt "orders:orders.currency"
+msgid "Currency"
+msgstr "Currency"
+
 #: frontend/src/pages/Settings.tsx:239 frontend/src/pages/Setup.tsx:639
 msgctxt "settings:settings.currency"
 msgid "Currency"
@@ -1899,6 +1913,11 @@ msgstr "Current Step"
 msgctxt "diagnostics:diagnostics.currentStatus"
 msgid "Current status"
 msgstr "Current status"
+
+#: frontend/src/pages/Orders.tsx:164
+msgctxt "orders:orders.customer"
+msgid "Customer"
+msgstr "Customer"
 
 msgctxt "workspace:sourceCentricWorkspace.dailyActionSequence"
 msgid "Daily action sequence"
@@ -2064,7 +2083,6 @@ msgctxt "settings:users.deleteConfirmation"
 msgid "Delete {{username}}?"
 msgstr "Delete {{username}}?"
 
-#: frontend/src/pages/Orders.tsx:41
 msgctxt "orders:orders.deliverable"
 msgid "Deliverable"
 msgstr "Deliverable"
@@ -2329,6 +2347,12 @@ msgctxt "sources:sourceConfiguration.enableSelected"
 msgid "Enable selected"
 msgstr "Enable selected"
 
+#: frontend/src/pages/Orders.tsx:130
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "orders:orders.enableChannelToSync"
+msgid "Enable the Channel before reading orders."
+msgstr "Enable the Channel before reading orders."
+
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:message.enableChannelForMonitoring"
 msgid "Enable the channel when it should be monitored."
@@ -2390,7 +2414,6 @@ msgctxt "diagnostics:state.error"
 msgid "Error"
 msgstr "Error"
 
-#: frontend/src/pages/Orders.tsx:173
 msgctxt "orders:orders.error"
 msgid "Error"
 msgstr "Error"
@@ -2577,12 +2600,11 @@ msgctxt "dataQuality:dataQuality.filters"
 msgid "Filters and search"
 msgstr "Filters and search"
 
-#: frontend/src/pages/Orders.tsx:170
 msgctxt "orders:orders.finalAmount"
 msgid "Final amount"
 msgstr "Final amount"
 
-#: frontend/src/pages/Orders.tsx:42
+#: frontend/src/pages/Orders.tsx:37
 msgctxt "orders:orders.finalPrice"
 msgid "Final price"
 msgstr "Final price"
@@ -2744,6 +2766,16 @@ msgstr "Freshness"
 msgctxt "activity:activity.fromDate"
 msgid "From date"
 msgstr "From date"
+
+#: frontend/src/pages/Orders.tsx:151
+msgctxt "orders:orders.dateFrom"
+msgid "From date"
+msgstr "From date"
+
+#: frontend/src/pages/Orders.tsx:164
+msgctxt "orders:orders.fulfillmentStatus"
+msgid "Fulfillment status"
+msgstr "Fulfillment status"
 
 msgctxt "common:status.future"
 msgid "Future"
@@ -3012,7 +3044,7 @@ msgctxt "dataQuality:dataQuality.issueList"
 msgid "Issue list"
 msgstr "Issue list"
 
-#: frontend/src/pages/Orders.tsx:169 frontend/src/pages/Orders.tsx:31
+#: frontend/src/pages/Orders.tsx:34
 msgctxt "orders:orders.items"
 msgid "Items"
 msgstr "Items"
@@ -3145,6 +3177,11 @@ msgctxt "diagnostics:message.lastSuccessfulSyncStale"
 msgid "Last successful synchronization is stale."
 msgstr "Last successful synchronization is stale."
 
+#: frontend/src/pages/Orders.tsx:155
+msgctxt "orders:orders.lastSuccessfulSync"
+msgid "Last successful synchronization:"
+msgstr "Last successful synchronization:"
+
 #: frontend/src/pages/Diagnostics.tsx:646
 msgctxt "diagnostics:diagnostics.lastSuccessfulVerification"
 msgid "Last successful verification"
@@ -3190,7 +3227,7 @@ msgctxt "diagnostics:diagnostics.latestSystemStatusHasBeenLoaded"
 msgid "Latest system status has been loaded."
 msgstr "Latest system status has been loaded."
 
-#: frontend/src/pages/Orders.tsx:168
+#: frontend/src/pages/Orders.tsx:164
 msgctxt "orders:orders.latestUpdate"
 msgid "Latest update"
 msgstr "Latest update"
@@ -3333,7 +3370,7 @@ msgctxt "workspace:unifiedWorkspace.loadingImmutableWorkspaceSnapshot"
 msgid "Loading immutable Workspace Snapshot..."
 msgstr "Loading immutable Workspace Snapshot..."
 
-#: frontend/src/pages/Orders.tsx:206
+#: frontend/src/pages/Orders.tsx:171
 msgctxt "orders:orders.loadingOrderDetail"
 msgid "Loading order detail..."
 msgstr "Loading order detail..."
@@ -3373,7 +3410,7 @@ msgctxt "common:app.loading"
 msgid "Loading..."
 msgstr "Loading..."
 
-#: frontend/src/pages/Orders.tsx:146
+#: frontend/src/pages/Orders.tsx:161
 msgctxt "orders:orders.loading"
 msgid "Loading..."
 msgstr "Loading..."
@@ -3455,7 +3492,11 @@ msgctxt "workspace:gridModel.mapping"
 msgid "Mapping"
 msgstr "Mapping"
 
-#: frontend/src/pages/Orders.tsx:156
+#: frontend/src/pages/Orders.tsx:164
+msgctxt "orders:orders.marketplaceOrderId"
+msgid "Marketplace order ID"
+msgstr "Marketplace order ID"
+
 msgctxt "orders:orders.marketplaceOrdersWillAppearAfterWebhookProcessing"
 msgid "Marketplace orders will appear after webhook processing or polling synchronization runs."
 msgstr "Marketplace orders will appear after webhook processing or polling synchronization runs."
@@ -3542,6 +3583,11 @@ msgstr "New Preview"
 msgctxt "settings:users.newPassword"
 msgid "New password"
 msgstr "New password"
+
+#: frontend/src/pages/Orders.tsx:169
+msgctxt "common:pagination.next"
+msgid "Next"
+msgstr "Next"
 
 #: frontend/src/pages/FlowHubSheet.tsx:116
 msgctxt "flowhubSheet:flowHubSheet.next"
@@ -3760,6 +3806,11 @@ msgctxt "diagnostics:message.noPollingCheckpoint"
 msgid "No order event polling checkpoint has run."
 msgstr "No order event polling checkpoint has run."
 
+#: frontend/src/pages/Orders.tsx:135
+msgctxt "orders:orders.noMatchingOrders"
+msgid "No orders match these filters"
+msgstr "No orders match these filters"
+
 #: frontend/src/pages/DataQuality.tsx:196
 msgctxt "dataQuality:dataQuality.noPreviousRead"
 msgid "No previous read to compare"
@@ -3835,7 +3886,7 @@ msgctxt "sources:sourceConfiguration.noPreviewRows"
 msgid "No rows match this preview filter"
 msgstr "No rows match this preview filter"
 
-#: frontend/src/pages/Orders.tsx:67
+#: frontend/src/pages/Orders.tsx:44
 msgctxt "orders:orders.noShipmentData"
 msgid "No shipment data"
 msgstr "No shipment data"
@@ -3872,7 +3923,6 @@ msgctxt "diagnostics:message.noSuccessfulSync"
 msgid "No successful synchronization has been recorded."
 msgstr "No successful synchronization has been recorded."
 
-#: frontend/src/pages/Orders.tsx:156
 msgctxt "orders:orders.noSynchronizedOrders"
 msgid "No synchronized orders"
 msgstr "No synchronized orders"
@@ -3916,12 +3966,10 @@ msgctxt "products:column.normalized"
 msgid "Normalized"
 msgstr "Normalized"
 
-#: frontend/src/pages/Orders.tsx:140
 msgctxt "orders:orders.normalizedMarketplaceOrderSynchronization"
 msgid "Normalized marketplace order synchronization"
 msgstr "Normalized marketplace order synchronization"
 
-#: frontend/src/pages/Orders.tsx:166
 msgctxt "orders:orders.normalizedStatus"
 msgid "Normalized status"
 msgstr "Normalized status"
@@ -4135,7 +4183,6 @@ msgctxt "products:priceEditor.optional"
 msgid "Optional"
 msgstr "Optional"
 
-#: frontend/src/pages/Orders.tsx:163
 msgctxt "orders:orders.order"
 msgid "Order"
 msgstr "Order"
@@ -4162,6 +4209,16 @@ msgctxt "commerce:capability.orderRead"
 msgid "Order read"
 msgstr "Order read"
 
+#: frontend/src/pages/Orders.tsx:132
+msgctxt "orders:orders.syncNeverRun"
+msgid "Order synchronization has not run yet"
+msgstr "Order synchronization has not run yet"
+
+#: frontend/src/pages/Orders.tsx:130
+msgctxt "orders:orders.syncDisabled"
+msgid "Order synchronization is disabled"
+msgstr "Order synchronization is disabled"
+
 msgctxt "diagnostics:reason.order_sync_disabled"
 msgid "Order synchronization is intentionally turned off."
 msgstr "Order synchronization is intentionally turned off."
@@ -4180,10 +4237,15 @@ msgctxt "navigation:sidebar.orders"
 msgid "Orders"
 msgstr "Orders"
 
-#: frontend/src/pages/Orders.tsx:139
+#: frontend/src/pages/Orders.tsx:140
 msgctxt "orders:orders.orders"
 msgid "Orders"
 msgstr "Orders"
+
+#: frontend/src/pages/Orders.tsx:89
+msgctxt "orders:orders.loadFailed"
+msgid "Orders could not be loaded. Retry without changing any marketplace data."
+msgstr "Orders could not be loaded. Retry without changing any marketplace data."
 
 msgctxt "diagnostics:reason.order_sync_fresh"
 msgid "Orders were synchronized within the expected freshness window."
@@ -4232,6 +4294,11 @@ msgctxt "common:notFound.pageNotFound"
 msgid "Page not found"
 msgstr "Page not found"
 
+#: frontend/src/pages/Orders.tsx:168
+msgctxt "common:pagination.pageOf"
+msgid "Page {{page}} of {{total}}"
+msgstr "Page {{page}} of {{total}}"
+
 #: frontend/src/pages/Workspace.tsx:140 frontend/src/pages/Workspace.tsx:232
 msgctxt "workspace:workspace.parent"
 msgid "Parent"
@@ -4256,6 +4323,11 @@ msgstr "Password"
 msgctxt "validation:source.passwordRequired"
 msgid "Password is required."
 msgstr "Password is required."
+
+#: frontend/src/pages/Orders.tsx:164
+msgctxt "orders:orders.paymentStatus"
+msgid "Payment status"
+msgstr "Payment status"
 
 msgctxt "common:status.pending"
 msgid "Pending"
@@ -4416,6 +4488,11 @@ msgstr "Preview recognized rows"
 msgctxt "sources:sourceConfiguration.previewShowsIndependentChannelValues"
 msgid "Preview the identifier and target values resolved independently for every Channel."
 msgstr "Preview the identifier and target values resolved independently for every Channel."
+
+#: frontend/src/pages/Orders.tsx:169
+msgctxt "common:pagination.previous"
+msgid "Previous"
+msgstr "Previous"
 
 #: frontend/src/pages/FlowHubSheet.tsx:116
 msgctxt "flowhubSheet:flowHubSheet.previous"
@@ -4723,7 +4800,7 @@ msgctxt "products:column.proposed"
 msgid "Proposed"
 msgstr "Proposed"
 
-#: frontend/src/pages/Orders.tsx:38
+#: frontend/src/pages/Orders.tsx:37
 msgctxt "orders:orders.providerItem"
 msgid "Provider item"
 msgstr "Provider item"
@@ -4736,7 +4813,6 @@ msgctxt "diagnostics:message.providerProbeInconclusive"
 msgid "Provider probe was inconclusive."
 msgstr "Provider probe was inconclusive."
 
-#: frontend/src/pages/Orders.tsx:165
 msgctxt "orders:orders.providerStatus"
 msgid "Provider status"
 msgstr "Provider status"
@@ -4746,7 +4822,7 @@ msgctxt "commerce:commerceHub.validation.publicShareUnsupported"
 msgid "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL."
 msgstr "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL."
 
-#: frontend/src/pages/Orders.tsx:39
+#: frontend/src/pages/Orders.tsx:37
 msgctxt "orders:orders.qty"
 msgid "Qty"
 msgstr "Qty"
@@ -4799,6 +4875,11 @@ msgstr "Read Requests / Minute must be between {{min}} and {{max}}."
 msgctxt "dashboard:dashboard.readSourceBeforeReview"
 msgid "Read a Source before reviewing today's changes."
 msgstr "Read a Source before reviewing today's changes."
+
+#: frontend/src/pages/Orders.tsx:140
+msgctxt "orders:orders.businessSubtitle"
+msgid "Read and manage synchronized marketplace orders."
+msgstr "Read and manage synchronized marketplace orders."
 
 msgctxt "diagnostics:dimension.readCapability"
 msgid "Read capability"
@@ -5083,6 +5164,11 @@ msgctxt "workspace:densePricing.resultingValue"
 msgid "Resulting value"
 msgstr "Resulting value"
 
+#: frontend/src/pages/Orders.tsx:158
+msgctxt "common:action.retry"
+msgid "Retry"
+msgstr "Retry"
+
 #: frontend/src/pages/Settings.tsx:272
 msgctxt "settings:settings.retry"
 msgid "Retry"
@@ -5222,6 +5308,12 @@ msgctxt "workspace:unifiedWorkspace.reviewResults"
 msgid "Review results"
 msgstr "Review results"
 
+#: frontend/src/pages/Orders.tsx:134
+#. Review is the immutable validation result required before Apply.
+msgctxt "orders:orders.retryReadOnlySync"
+msgid "Review the Channel connection, then retry the read-only synchronization."
+msgstr "Review the Channel connection, then retry the read-only synchronization."
+
 #. Review is the immutable validation result required before Apply.
 msgctxt "diagnostics:action.review_the_connection_details"
 msgid "Review the connection details"
@@ -5288,10 +5380,20 @@ msgctxt "flowhubSheet:flowHubSheet.rowColumn"
 msgid "Row {{row}}, {{column}}"
 msgstr "Row {{row}}, {{column}}"
 
+#: frontend/src/pages/Orders.tsx:153
+msgctxt "common:pagination.rowsPerPage"
+msgid "Rows per page"
+msgstr "Rows per page"
+
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dataQuality:dataQuality.neverCheckedDescription"
 msgid "Run a check to validate Source rows, column choices, and independent Channel targets."
 msgstr "Run a check to validate Source rows, column choices, and independent Channel targets."
+
+#: frontend/src/pages/Orders.tsx:132
+msgctxt "orders:orders.runReadOnlySync"
+msgid "Run a read-only synchronization to import marketplace orders."
+msgstr "Run a read-only synchronization to import marketplace orders."
 
 #: frontend/src/pages/DataQuality.tsx:184 frontend/src/pages/DataQuality.tsx:90
 msgctxt "dataQuality:dataQuality.runCheckAgain"
@@ -5758,7 +5860,7 @@ msgctxt "flowhubSheet:flowHubSheet.sheetWasNotSaved"
 msgid "Sheet was not saved"
 msgstr "Sheet was not saved"
 
-#: frontend/src/pages/Orders.tsx:65
+#: frontend/src/pages/Orders.tsx:43
 msgctxt "orders:orders.shipments"
 msgid "Shipments"
 msgstr "Shipments"
@@ -5885,7 +5987,6 @@ msgctxt "dataQuality:dataQuality.source"
 msgid "Source"
 msgstr "Source"
 
-#: frontend/src/pages/Orders.tsx:172
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "orders:orders.source"
 msgid "Source"
@@ -6188,7 +6289,7 @@ msgctxt "common:field.status"
 msgid "Status"
 msgstr "Status"
 
-#: frontend/src/pages/Orders.tsx:43
+#: frontend/src/pages/Orders.tsx:150 frontend/src/pages/Orders.tsx:164 frontend/src/pages/Orders.tsx:37
 msgctxt "orders:orders.status"
 msgid "Status"
 msgstr "Status"
@@ -6337,7 +6438,11 @@ msgctxt "settings:settings.syncIntervalMinutes"
 msgid "Sync interval (minutes)"
 msgstr "Sync interval (minutes)"
 
-#: frontend/src/pages/Orders.tsx:171
+#: frontend/src/pages/Orders.tsx:142 frontend/src/pages/Orders.tsx:163
+msgctxt "orders:orders.syncOrders"
+msgid "Sync orders"
+msgstr "Sync orders"
+
 msgctxt "orders:orders.syncState"
 msgid "Sync state"
 msgstr "Sync state"
@@ -6345,6 +6450,11 @@ msgstr "Sync state"
 msgctxt "diagnostics:diagnostics.checkGroups.synchronization"
 msgid "Synchronization"
 msgstr "Synchronization"
+
+#: frontend/src/pages/Orders.tsx:142
+msgctxt "orders:orders.syncing"
+msgid "Synchronizing..."
+msgstr "Synchronizing..."
 
 #: frontend/src/pages/Activity.tsx:49
 msgctxt "activity:category.system"
@@ -6545,6 +6655,11 @@ msgctxt "dataQuality:dataQuality.healthyDescription"
 msgid "The last check found no blocking issues or warnings in the selected data."
 msgstr "The last check found no blocking issues or warnings in the selected data."
 
+#: frontend/src/pages/Orders.tsx:134
+msgctxt "orders:orders.lastSyncFailed"
+msgid "The last order synchronization failed"
+msgstr "The last order synchronization failed"
+
 msgctxt "diagnostics:reason.polling_stale"
 msgid "The last successful order polling run is older than the expected freshness window."
 msgstr "The last successful order polling run is older than the expected freshness window."
@@ -6633,6 +6748,11 @@ msgstr "The original file was not changed."
 msgctxt "dataQuality:issue.MISSING_SOURCE_IDENTITY.summary"
 msgid "The product name is required before this row can be used."
 msgstr "The product name is required before this row can be used."
+
+#: frontend/src/pages/Orders.tsx:123
+msgctxt "orders:orders.syncFailed"
+msgid "The read-only order synchronization failed. No marketplace data was changed."
+msgstr "The read-only order synchronization failed. No marketplace data was changed."
 
 msgctxt "errors:codes.UNKNOWN"
 msgid "The request could not be completed."
@@ -6808,7 +6928,7 @@ msgctxt "diagnostics:diagnostics.throttleEvents"
 msgid "Throttle events"
 msgstr "Throttle events"
 
-#: frontend/src/pages/Orders.tsx:82
+#: frontend/src/pages/Orders.tsx:47
 msgctxt "orders:orders.timeline"
 msgid "Timeline"
 msgstr "Timeline"
@@ -6824,6 +6944,11 @@ msgstr "Timezone"
 
 #: frontend/src/pages/Activity.tsx:187
 msgctxt "activity:activity.toDate"
+msgid "To date"
+msgstr "To date"
+
+#: frontend/src/pages/Orders.tsx:152
+msgctxt "orders:orders.dateTo"
 msgid "To date"
 msgstr "To date"
 
@@ -6843,6 +6968,11 @@ msgstr "Token refresh is not supported for this channel."
 msgctxt "diagnostics:reason.token_refresh_healthy"
 msgid "Token refresh is operating normally."
 msgstr "Token refresh is operating normally."
+
+#: frontend/src/pages/Orders.tsx:164
+msgctxt "orders:orders.total"
+msgid "Total"
+msgstr "Total"
 
 msgctxt "products:products.total"
 msgid "Total"
@@ -7227,10 +7357,30 @@ msgctxt "settings:users.title"
 msgid "User Management"
 msgstr "User Management"
 
+msgctxt "activity:event.user_activation_changed"
+msgid "User access changed"
+msgstr "User access changed"
+
+msgctxt "activity:event.user_created"
+msgid "User created"
+msgstr "User created"
+
+msgctxt "activity:event.user_deleted"
+msgid "User deleted"
+msgstr "User deleted"
+
 #: frontend/src/components/Topbar.tsx:199
 msgctxt "navigation:topbar.userMenu"
 msgid "User menu"
 msgstr "User menu"
+
+msgctxt "activity:event.user_password_reset"
+msgid "User password changed"
+msgstr "User password changed"
+
+msgctxt "activity:event.user_role_changed"
+msgid "User role changed"
+msgstr "User role changed"
 
 #: frontend/src/pages/Login.tsx:80
 msgctxt "authentication:login.username"
@@ -8175,7 +8325,7 @@ msgctxt "sources:sourceWizard.isReadyToUse"
 msgid "{{value1}} is ready to use."
 msgstr "{{value1}} is ready to use."
 
-#: frontend/src/pages/Orders.tsx:146
+#: frontend/src/pages/Orders.tsx:161
 msgctxt "orders:orders.orders2"
 msgid "{{value1}} orders"
 msgstr "{{value1}} orders"
@@ -8278,22 +8428,3 @@ msgstr "· Column setup v"
 msgctxt "workspace:unifiedWorkspace.errorDetail"
 msgid "— {{message}}"
 msgstr "— {{message}}"
-msgctxt "activity:event.user_activation_changed"
-msgid "User access changed"
-msgstr "User access changed"
-
-msgctxt "activity:event.user_created"
-msgid "User created"
-msgstr "User created"
-
-msgctxt "activity:event.user_deleted"
-msgid "User deleted"
-msgstr "User deleted"
-
-msgctxt "activity:event.user_password_reset"
-msgid "User password changed"
-msgstr "User password changed"
-
-msgctxt "activity:event.user_role_changed"
-msgid "User role changed"
-msgstr "User role changed"

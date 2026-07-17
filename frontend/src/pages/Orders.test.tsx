@@ -34,13 +34,16 @@ describe('Orders page', () => {
     await flush()
 
     expect(container.textContent).toContain('T-200')
-    expect(container.textContent).toContain('tapsishop')
-    expect(container.textContent).toContain('cancelled')
+    expect(container.textContent).toContain('Tapsi')
+    expect(container.textContent).toContain('Cancelled')
     expect(container.textContent).toContain('IRR')
     expect(container.textContent).toContain('27,000 IRR')
-    expect(container.querySelector('.overflow-x-auto table')?.className).toContain('min-w-[1180px]')
+    expect(container.textContent).toContain('Test buyer')
+    expect(container.querySelector('.overflow-x-auto table')?.className).toContain('min-w-[1320px]')
 
-    const detailButton = container.querySelector('button')
+    const detailButton = Array.from(container.querySelectorAll('button')).find(
+      button => button.textContent === 'T-200',
+    )
     await act(async () => {
       detailButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
@@ -50,6 +53,53 @@ describe('Orders page', () => {
     expect(container.textContent).toContain('No SKU product')
     expect(container.textContent).toContain('9,000 IRR')
     expect(container.textContent).not.toContain('national')
+  })
+
+  it('distinguishes never-synchronized state and runs an explicit read-only sync', async () => {
+    const mock = services()
+    let syncCalls = 0
+    mock.orders!.getOrders = async () => ({ items: [], total: 0, page: 1, pageSize: 25 })
+    mock.orders!.getSyncStatus = async () => ({
+      items: [{
+        channelId: 'woocommerce:primary',
+        connectorType: 'woocommerce',
+        displayName: 'WooCommerce',
+        enabled: true,
+        state: 'never_run',
+        lastRunAt: null,
+        lastSuccessAt: null,
+        lastFailureAt: null,
+        failureCategory: null,
+      }],
+    })
+    mock.orders!.syncChannel = async channelId => {
+      syncCalls += 1
+      return {
+        channelId,
+        source: 'reconciliation',
+        processed: 0,
+        duplicates: 0,
+        state: 'completed',
+        canonicalInventoryMutated: false,
+        productPricesWritten: false,
+        providerMutationPerformed: false,
+      }
+    }
+
+    await act(async () => {
+      root.render(<ServiceProvider services={mock}><Orders /></ServiceProvider>)
+    })
+    await flush()
+
+    expect(container.textContent).toContain('Order synchronization has not run yet')
+    const syncButton = Array.from(container.querySelectorAll('button')).find(
+      button => button.textContent === 'Sync orders',
+    )
+    await act(async () => {
+      syncButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await flush()
+    expect(syncCalls).toBe(1)
   })
 })
 
@@ -71,6 +121,9 @@ function services(): Services {
     eventSource: 'tapsishop_webhook',
     errorState: null,
     lastSeenAt: '2026-07-11T10:05:00Z',
+    customerDisplay: 'Test buyer',
+    paymentStatus: 'paid',
+    fulfillmentStatus: 'pending',
   }
   const detail: ChannelOrderDetail = {
     ...row,
@@ -105,6 +158,29 @@ function services(): Services {
     orders: {
       getOrders: async () => ({ items: [row], total: 1, page: 1, pageSize: 50 }),
       getOrder: async () => detail,
+      getSyncStatus: async () => ({
+        items: [{
+          channelId: 'woocommerce:primary',
+          connectorType: 'woocommerce',
+          displayName: 'WooCommerce',
+          enabled: true,
+          state: 'ready',
+          lastRunAt: '2026-07-11T10:05:00Z',
+          lastSuccessAt: '2026-07-11T10:05:00Z',
+          lastFailureAt: null,
+          failureCategory: null,
+        }],
+      }),
+      syncChannel: async channelId => ({
+        channelId,
+        source: 'reconciliation',
+        processed: 1,
+        duplicates: 0,
+        state: 'completed',
+        canonicalInventoryMutated: false,
+        productPricesWritten: false,
+        providerMutationPerformed: false,
+      }),
     },
   }
 }

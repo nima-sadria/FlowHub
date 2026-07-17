@@ -475,6 +475,9 @@ export interface ChannelOrderListItem {
   eventSource: string
   errorState: string | null
   lastSeenAt: string | null
+  customerDisplay: string | null
+  paymentStatus: string
+  fulfillmentStatus: string
 }
 
 export interface ChannelOrderItem {

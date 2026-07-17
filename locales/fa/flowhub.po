@@ -8141,3 +8141,114 @@ msgstr "رمز عبور کاربر تغییر کرد"
 msgctxt "activity:event.user_role_changed"
 msgid "User role changed"
 msgstr "نقش کاربر تغییر کرد"
+msgctxt "common:action.retry"
+msgid "Retry"
+msgstr "تلاش دوباره"
+
+msgctxt "common:pagination.next"
+msgid "Next"
+msgstr "بعدی"
+
+msgctxt "common:pagination.pageOf"
+msgid "Page {{page}} of {{total}}"
+msgstr "صفحه {{page}} از {{total}}"
+
+msgctxt "common:pagination.previous"
+msgid "Previous"
+msgstr "قبلی"
+
+msgctxt "common:pagination.rowsPerPage"
+msgid "Rows per page"
+msgstr "ردیف در هر صفحه"
+
+msgctxt "common:selector.allStatuses"
+msgid "All statuses"
+msgstr "همه وضعیت‌ها"
+
+msgctxt "orders:orders.businessSubtitle"
+msgid "Read and manage synchronized marketplace orders."
+msgstr "سفارش‌های همگام‌شده بازارگاه‌ها را مشاهده و مدیریت کنید."
+
+msgctxt "orders:orders.currency"
+msgid "Currency"
+msgstr "ارز"
+
+msgctxt "orders:orders.customer"
+msgid "Customer"
+msgstr "مشتری"
+
+msgctxt "orders:orders.dateFrom"
+msgid "From date"
+msgstr "از تاریخ"
+
+msgctxt "orders:orders.dateTo"
+msgid "To date"
+msgstr "تا تاریخ"
+
+msgctxt "orders:orders.lastSuccessfulSync"
+msgid "Last successful synchronization:"
+msgstr "آخرین همگام‌سازی موفق:"
+
+msgctxt "orders:orders.lastSyncFailed"
+msgid "The last order synchronization failed"
+msgstr "آخرین همگام‌سازی سفارش‌ها ناموفق بود"
+
+msgctxt "orders:orders.loadFailed"
+msgid "Orders could not be loaded. Retry without changing any marketplace data."
+msgstr "سفارش‌ها بارگیری نشدند. بدون تغییر داده‌های بازارگاه دوباره تلاش کنید."
+
+msgctxt "orders:orders.noMatchingOrders"
+msgid "No orders match these filters"
+msgstr "سفارشی با این فیلترها مطابقت ندارد"
+
+msgctxt "orders:orders.syncDisabled"
+msgid "Order synchronization is disabled"
+msgstr "همگام‌سازی سفارش‌ها غیرفعال است"
+
+msgctxt "orders:orders.syncFailed"
+msgid "The read-only order synchronization failed. No marketplace data was changed."
+msgstr "همگام‌سازی فقط‌خواندنی سفارش‌ها ناموفق بود. هیچ داده‌ای در بازارگاه تغییر نکرد."
+
+msgctxt "orders:orders.syncNeverRun"
+msgid "Order synchronization has not run yet"
+msgstr "همگام‌سازی سفارش‌ها هنوز اجرا نشده است"
+
+msgctxt "orders:orders.syncOrders"
+msgid "Sync orders"
+msgstr "همگام‌سازی سفارش‌ها"
+
+msgctxt "orders:orders.syncing"
+msgid "Synchronizing..."
+msgstr "در حال همگام‌سازی..."
+
+msgctxt "orders:orders.total"
+msgid "Total"
+msgstr "مبلغ کل"
+
+msgctxt "orders:orders.marketplaceOrderId"
+msgid "Marketplace order ID"
+msgstr "شناسه سفارش بازارگاه"
+
+msgctxt "orders:orders.paymentStatus"
+msgid "Payment status"
+msgstr "وضعیت پرداخت"
+
+msgctxt "orders:orders.fulfillmentStatus"
+msgid "Fulfillment status"
+msgstr "وضعیت انجام سفارش"
+
+msgctxt "orders:orders.enableChannelToSync"
+msgid "Enable the Channel before reading orders."
+msgstr "پیش از خواندن سفارش‌ها، کانال را فعال کنید."
+
+msgctxt "orders:orders.runReadOnlySync"
+msgid "Run a read-only synchronization to import marketplace orders."
+msgstr "برای دریافت سفارش‌های بازارگاه، همگام‌سازی فقط‌خواندنی را اجرا کنید."
+
+msgctxt "orders:orders.retryReadOnlySync"
+msgid "Review the Channel connection, then retry the read-only synchronization."
+msgstr "اتصال کانال را بررسی کنید، سپس همگام‌سازی فقط‌خواندنی را دوباره اجرا کنید."
+
+msgctxt "orders:orders.adjustFilters"
+msgid "Change the search or filters to see other orders."
+msgstr "برای دیدن سفارش‌های دیگر، جستجو یا فیلترها را تغییر دهید."

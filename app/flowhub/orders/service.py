@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from typing import Any
 
@@ -15,7 +15,13 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from app.flowhub.channels.contracts import ChannelOrder, ChannelOrderEvent, CursorPagination, PageNumberPagination, PaginatedResult
+from app.flowhub.channels.contracts import (
+    ChannelOrder,
+    ChannelOrderEvent,
+    CursorPagination,
+    PageNumberPagination,
+    PaginatedResult,
+)
 from app.flowhub.orders.models import (
     ChannelInventoryEffectRecord,
     ChannelInvoiceRecord,
@@ -28,7 +34,6 @@ from app.flowhub.orders.models import (
 )
 from app.flowhub.security.redaction import redact_sensitive
 from app.flowhub.webhooks.models import WebhookProcessingAttempt, WebhookReceipt
-
 
 SNAPPSHOP_STATUS_MAP = {
     "NEW_ORDER": "new",
@@ -45,6 +50,16 @@ TAPSISHOP_STATUS_MAP = {
     "4": "cancelled",
     "PURCHASE": "new",
     "CANCELLATION": "cancelled",
+}
+WOOCOMMERCE_STATUS_MAP = {
+    "PENDING": "pending",
+    "PROCESSING": "processing",
+    "ON-HOLD": "on_hold",
+    "COMPLETED": "fulfilled",
+    "CANCELLED": "cancelled",
+    "REFUNDED": "refunded",
+    "FAILED": "failed",
+    "TRASH": "cancelled",
 }
 LOCK_TTL_SECONDS = 15 * 60
 CHANNEL_LEASE_SOURCE = "__channel_lease__"
@@ -366,12 +381,41 @@ class OrderSyncService:
         finally:
             self.release_checkpoint_lease(lease)
 
-    def list_orders(self, *, page: int = 1, page_size: int = 50, channel_id: str | None = None) -> dict:
+    def list_orders(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 50,
+        channel_id: str | None = None,
+        normalized_status: str | None = None,
+        search: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> dict[str, Any]:
         page = max(1, int(page))
         page_size = min(100, max(1, int(page_size)))
         query = self.db.query(ChannelOrderRecord)
         if channel_id:
             query = query.filter(ChannelOrderRecord.channel_id == channel_id)
+        if normalized_status:
+            query = query.filter(
+                ChannelOrderRecord.normalized_status == normalized_status.strip().lower()
+            )
+        if search and search.strip():
+            pattern = f"%{search.strip()}%"
+            query = query.filter(
+                or_(
+                    ChannelOrderRecord.order_number.ilike(pattern),
+                    ChannelOrderRecord.provider_order_id.ilike(pattern),
+                    ChannelOrderRecord.provider_status.ilike(pattern),
+                )
+            )
+        parsed_from = _parse_dt(date_from)
+        parsed_to = _parse_dt(date_to)
+        if parsed_from is not None:
+            query = query.filter(ChannelOrderRecord.created_at_provider >= parsed_from)
+        if parsed_to is not None:
+            query = query.filter(ChannelOrderRecord.created_at_provider <= parsed_to)
         total = query.count()
         rows = (
             query.order_by(ChannelOrderRecord.last_seen_at.desc(), ChannelOrderRecord.internal_id.desc())
@@ -381,7 +425,7 @@ class OrderSyncService:
         )
         return {"items": [self._order_shape(row, include_detail=False) for row in rows], "total": total, "page": page, "pageSize": page_size}
 
-    def get_order(self, internal_id: int) -> dict:
+    def get_order(self, internal_id: int) -> dict[str, Any]:
         row = self.db.get(ChannelOrderRecord, internal_id)
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found.")
@@ -758,7 +802,9 @@ class OrderSyncService:
             metadata_json=redact_sensitive(metadata),
         ))
 
-    def _order_shape(self, row: ChannelOrderRecord, *, include_detail: bool) -> dict:
+    def _order_shape(
+        self, row: ChannelOrderRecord, *, include_detail: bool
+    ) -> dict[str, Any]:
         shape = {
             "internalId": row.internal_id,
             "channelId": row.channel_id,
@@ -776,6 +822,13 @@ class OrderSyncService:
             "eventSource": row.event_source,
             "errorState": row.error_state,
             "lastSeenAt": _iso(row.last_seen_at),
+            "customerDisplay": _summary_text(row.raw_summary_json, "customerDisplay"),
+            "paymentStatus": _summary_text(row.raw_summary_json, "paymentStatus")
+            or _payment_status(row.provider_status, row.raw_summary_json),
+            "fulfillmentStatus": _summary_text(
+                row.raw_summary_json, "fulfillmentStatus"
+            )
+            or _fulfillment_status(row.normalized_status),
         }
         if not include_detail:
             return shape
@@ -851,6 +904,8 @@ def _normalize_status(connector_type: str, status_value: str) -> str:
     key = str(status_value or "").upper()
     if connector_type == "snappshop":
         return SNAPPSHOP_STATUS_MAP.get(key, key.lower() or "unknown")
+    if connector_type == "woocommerce":
+        return WOOCOMMERCE_STATUS_MAP.get(key, key.lower() or "unknown")
     return TAPSISHOP_STATUS_MAP.get(key, key.lower() or "unknown")
 
 
@@ -889,7 +944,7 @@ def _compact(value: Any) -> dict:
 
 def _utcnow() -> datetime:
     """Return a database-safe naive timestamp derived from timezone-aware UTC."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _lease_failure_category(exc: Exception, fallback: str) -> str:
@@ -900,7 +955,10 @@ def _lease_failure_category(exc: Exception, fallback: str) -> str:
     return fallback
 
 
-def _order_summary(order: ChannelOrder) -> dict:
+def _order_summary(order: ChannelOrder) -> dict[str, Any]:
+    raw = order.raw if isinstance(order.raw, dict) else {}
+    customer = raw.get("customer") if isinstance(raw.get("customer"), dict) else {}
+    normalized_status = _normalize_status(order.connector_type, order.status)
     return redact_sensitive({
         "providerOrderId": _provider_order_id(order),
         "orderNumber": order.identifiers.order_number,
@@ -910,7 +968,38 @@ def _order_summary(order: ChannelOrder) -> dict:
         "itemCount": len(order.items),
         "total": order.total,
         "currency": order.currency,
+        "customerDisplay": _to_str(customer.get("display_name")),
+        "paymentStatus": "paid"
+        if raw.get("date_paid")
+        else "refunded"
+        if normalized_status == "refunded"
+        else "pending",
+        "fulfillmentStatus": _fulfillment_status(normalized_status),
     })
+
+
+def _summary_text(summary: dict[str, Any] | None, key: str) -> str | None:
+    if not isinstance(summary, dict):
+        return None
+    return _to_str(summary.get(key))
+
+
+def _payment_status(provider_status: str, summary: dict | None) -> str:
+    normalized = str(provider_status or "").lower()
+    if normalized == "refunded":
+        return "refunded"
+    if normalized in {"processing", "completed"}:
+        return "paid"
+    return "pending"
+
+
+def _fulfillment_status(normalized_status: str) -> str:
+    normalized = str(normalized_status or "").lower()
+    if normalized == "fulfilled":
+        return "fulfilled"
+    if normalized in {"cancelled", "refunded", "failed"}:
+        return "not_fulfilled"
+    return "pending"
 
 
 def _customer_reference(raw: dict) -> str | None:

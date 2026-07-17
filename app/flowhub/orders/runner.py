@@ -17,16 +17,19 @@ import os
 import signal
 import socket
 import uuid
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.flowhub.channels.contracts import ChannelCapability
 from app.flowhub.channels.registry import default_marketplace_registry
 from app.flowhub.channels.snappshop import SnappShopConfig, SnappShopConnector
 from app.flowhub.channels.tapsishop import TapsiShopConfig, TapsiShopConnector
+from app.flowhub.channels.woocommerce import WooCommerceOrderConnector
 from app.flowhub.database import _get_engine
 from app.flowhub.integration_platform.models import (
     IntegrationConnectorEvent,
@@ -35,7 +38,6 @@ from app.flowhub.integration_platform.models import (
 )
 from app.flowhub.orders.service import LOCK_TTL_SECONDS, OrderSyncResult, OrderSyncService
 from app.flowhub.security.redaction import redact_sensitive
-
 
 LOGGER = logging.getLogger("flowhub.orders.runner")
 RUNNER_EVENT_NAME = "order_sync_runner_heartbeat"
@@ -55,7 +57,7 @@ class OrderSyncRunnerSettings:
     operation_timeout_seconds: int
 
     @classmethod
-    def from_env(cls) -> "OrderSyncRunnerSettings":
+    def from_env(cls) -> OrderSyncRunnerSettings:
         return cls(
             enabled=_env_bool("FLOWHUB_ORDER_SYNC_ENABLED", True),
             loop_interval_seconds=_env_int("FLOWHUB_ORDER_SYNC_RUNNER_POLL_SECONDS", 30),
@@ -143,7 +145,44 @@ class OrderSyncRunner:
 
         settings = _settings(channel)
         results: list[dict[str, Any]] = []
-        if channel.connector_type == "snappshop":
+        if channel.connector_type == "woocommerce":
+            connector = self._woocommerce_connector(channel.id, settings)
+            if (
+                connector
+                and ChannelCapability.ORDERS_READ in capabilities
+                and self._due(
+                    channel.id,
+                    "reconciliation",
+                    self._int_setting(
+                        settings,
+                        "order_sync_reconcile_interval_seconds",
+                        self.settings.reconciliation_interval_seconds,
+                    ),
+                )
+            ):
+                result = await self._bounded(
+                    self._reconcile(
+                        channel.id,
+                        connector,
+                        page_size=self._int_setting(
+                            settings,
+                            "order_sync_reconcile_page_size",
+                            self.settings.reconciliation_page_size,
+                        ),
+                        lease_seconds=self._int_setting(
+                            settings,
+                            "order_sync_lease_seconds",
+                            self.settings.lease_seconds,
+                        ),
+                        interval_seconds=self._int_setting(
+                            settings,
+                            "order_sync_reconcile_interval_seconds",
+                            self.settings.reconciliation_interval_seconds,
+                        ),
+                    )
+                )
+                results.append(self._result_shape(result))
+        elif channel.connector_type == "snappshop":
             connector = self._snappshop_connector(channel.id, settings)
             if connector and ChannelCapability.ORDERS_EVENTS_POLL in capabilities and self._due(channel.id, "snappshop_events", self._int_setting(settings, "order_sync_poll_interval_seconds", self.settings.polling_interval_seconds)):
                 result = await self._bounded(
@@ -242,6 +281,29 @@ class OrderSyncRunner:
             return None
         return SnappShopConnector(channel_id=channel_id, config=config)
 
+    def _woocommerce_connector(
+        self, channel_id: str, settings: dict[str, Any]
+    ) -> WooCommerceOrderConnector | None:
+        url = str(settings.get("url") or "").strip()
+        key = str(settings.get("key") or "").strip()
+        secret = str(settings.get("secret") or "").strip()
+        if not all((url, key, secret)):
+            self._record_event(
+                channel_id,
+                "order_sync_channel_skipped",
+                "WooCommerce order synchronization was skipped because configuration is incomplete.",
+                {"category": "configuration"},
+            )
+            return None
+        return WooCommerceOrderConnector(
+            channel_id=channel_id,
+            credentials=WooCommerceCredentials(
+                url=url.rstrip("/"),
+                key=key,
+                secret=secret,
+            ),
+        )
+
     def _tapsishop_connector(self, channel_id: str, settings: dict[str, Any]) -> TapsiShopConnector | None:
         try:
             config = TapsiShopConfig.from_values(settings=settings, secrets=settings)
@@ -320,10 +382,8 @@ async def main_async() -> None:
     runner = OrderSyncRunner(make_session_factory())
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
-        try:
+        with suppress(NotImplementedError):
             loop.add_signal_handler(sig, runner.stop)
-        except NotImplementedError:
-            pass
     await runner.serve_forever()
 
 

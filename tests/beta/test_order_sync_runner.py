@@ -10,7 +10,14 @@ os.environ.setdefault("FLOWHUB_DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("FLOWHUB_JWT_SECRET", "test-order-runner-jwt-secret-32bytes!")
 
 from app.flowhub.auth import models as _auth_models  # noqa: F401
-from app.flowhub.channels.contracts import ChannelIdentifierSet, ChannelOrder, ChannelOrderEvent, ChannelOrderItem, CursorPagination, PaginatedResult
+from app.flowhub.channels.contracts import (
+    ChannelIdentifierSet,
+    ChannelOrder,
+    ChannelOrderEvent,
+    ChannelOrderItem,
+    CursorPagination,
+    PaginatedResult,
+)
 from app.flowhub.integration_platform import models as _integration_models
 from app.flowhub.orders import models as _order_models
 from app.flowhub.webhooks import models as _webhook_models
@@ -94,9 +101,37 @@ class RunnerSnappConnector:
         return PaginatedResult(items=[await self.get_order({"order_number": f"ORD-{self.channel_id}"})], pagination=pagination)
 
 
+class RunnerWooConnector:
+    connector_type = "woocommerce"
+
+    def __init__(self, channel_id: str) -> None:
+        self.channel_id = channel_id
+        self.read_calls = 0
+
+    async def list_orders(self, pagination):
+        self.read_calls += 1
+        return PaginatedResult(
+            items=[
+                ChannelOrder(
+                    channel_id=self.channel_id,
+                    connector_type="woocommerce",
+                    identifiers=ChannelIdentifierSet(
+                        external_product_id="501", order_number="WC-501"
+                    ),
+                    status="processing",
+                    items=[],
+                    total=1200,
+                    currency="IRR",
+                    raw={"id": 501, "status": "processing"},
+                )
+            ],
+            pagination=pagination,
+        )
+
+
 @pytest.mark.asyncio
 async def test_runner_discovers_enabled_channels_filters_capabilities_and_records_heartbeat(session_factory, monkeypatch):
-    from app.flowhub.orders.runner import OrderSyncRunner, OrderSyncRunnerSettings
+    from app.flowhub.orders.runner import OrderSyncRunner
 
     with session_factory() as db:
         _seed_channel(db, "snappshop:main", "snappshop", enabled=True, settings={"token": "secret", "agent_identifier": "agent", "order_sync_poll_interval_seconds": 1})
@@ -139,6 +174,49 @@ async def test_runner_channel_failure_does_not_stop_other_channels(session_facto
         assert db.query(_order_models.ChannelOrderRecord).filter_by(channel_id="snappshop:second").count() == 1
         failure = db.query(_integration_models.IntegrationConnectorEvent).filter_by(connector_id="snappshop:main", event_name="order_sync_channel_failed").one()
         assert "secret" not in str(failure.metadata_json).lower()
+
+
+@pytest.mark.asyncio
+async def test_runner_reconciles_woocommerce_through_read_only_shared_service(
+    session_factory, monkeypatch
+):
+    from app.flowhub.orders.runner import OrderSyncRunner
+
+    with session_factory() as db:
+        _seed_channel(
+            db,
+            "woocommerce:primary",
+            "woocommerce",
+            enabled=True,
+            settings={
+                "url": "https://woocommerce.example.invalid",
+                "key": "test-key",
+                "secret": "test-secret",
+            },
+        )
+
+    connector = RunnerWooConnector("woocommerce:primary")
+    monkeypatch.setattr(
+        OrderSyncRunner,
+        "_woocommerce_connector",
+        lambda self, channel_id, settings: connector,
+    )
+    runner = OrderSyncRunner(
+        session_factory, settings=_settings(), runner_id="runner-woo-read"
+    )
+
+    result = await runner.run_once()
+
+    assert connector.read_calls == 1
+    assert result["results"][0]["source"] == "reconciliation"
+    with session_factory() as db:
+        assert (
+            db.query(_order_models.ChannelOrderRecord)
+            .filter_by(channel_id="woocommerce:primary")
+            .count()
+            == 1
+        )
+        assert db.query(_order_models.ChannelInventoryEffectRecord).count() == 0
 
 
 @pytest.mark.asyncio

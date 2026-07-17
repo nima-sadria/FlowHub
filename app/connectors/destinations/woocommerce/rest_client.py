@@ -16,6 +16,8 @@ Supported operations:
   - list_products_paged()- paginated product fetch returning (products, total, total_pages)
   - list_all_products()  - all pages of products
   - list_categories_all()- all product categories
+  - list_orders_paged()  - paginated read-only order fetch
+  - get_order()          - read one order
   - count_products()     - total product count from X-WP-Total header
   - update_product_price()- PUT /wp-json/wc/v3/products/{id} price fields only
 """
@@ -43,6 +45,10 @@ _PRODUCT_FIELDS = (
     "categories,images,attributes,status,date_modified_gmt"
 )
 _CATEGORY_FIELDS = "id,name,parent,count"
+_ORDER_FIELDS = (
+    "id,number,status,currency,total,date_created_gmt,date_modified_gmt,"
+    "date_paid_gmt,payment_method_title,billing,shipping,line_items"
+)
 
 # Retry constants (adapted from the original connector prototype)
 _RETRY_STATUSES: frozenset[int] = frozenset({429, 500, 502, 503, 504})
@@ -377,6 +383,64 @@ async def list_products_paged(
             provider="woocommerce",
         ) from exc
     return data, total, total_pages
+
+
+async def list_orders_paged(
+    creds: WooCommerceCredentials,
+    *,
+    page: int = 1,
+    per_page: int = 50,
+    status: str = "any",
+    fields: str = _ORDER_FIELDS,
+) -> tuple[list[dict], int, int]:
+    """Return one read-only WooCommerce order page."""
+    response = await _get_raw(
+        creds,
+        "/orders",
+        params={
+            "page": max(1, page),
+            "per_page": min(100, max(1, per_page)),
+            "status": status,
+            "_fields": fields,
+        },
+        timeout=_TIMEOUT_PAGE,
+    )
+    try:
+        data = response.json()
+    except Exception as exc:
+        raise ConnectorError(
+            code=ConnectorErrorCode.PROVIDER_ERROR,
+            message="WooCommerce returned an invalid order response.",
+            provider="woocommerce",
+        ) from exc
+    if not isinstance(data, list):
+        raise ConnectorError(
+            code=ConnectorErrorCode.PROVIDER_ERROR,
+            message="WooCommerce returned an invalid order response.",
+            provider="woocommerce",
+        )
+    return (
+        data,
+        int(response.headers.get("X-WP-Total", len(data))),
+        int(response.headers.get("X-WP-TotalPages", "1")),
+    )
+
+
+async def get_order(
+    creds: WooCommerceCredentials,
+    order_id: str,
+    *,
+    fields: str = _ORDER_FIELDS,
+) -> dict:
+    """Read one WooCommerce order without mutating provider state."""
+    data = await _get(creds, f"/orders/{order_id}", params={"_fields": fields})
+    if not isinstance(data, dict):
+        raise ConnectorError(
+            code=ConnectorErrorCode.PROVIDER_ERROR,
+            message="WooCommerce returned an invalid order response.",
+            provider="woocommerce",
+        )
+    return data
 
 
 async def list_all_products(
