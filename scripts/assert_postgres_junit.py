@@ -44,6 +44,8 @@ REQUIRED_WORKSPACE_PERSISTENCE_TESTS = (
     "test_postgresql_catalog_workspace_persists_snapshot_before_draft",
     "test_postgresql_workspace_creation_rolls_back_after_snapshot_flush_failure",
     "test_postgresql_repeated_workspace_creation_keeps_snapshot_references_unique",
+    "test_postgresql_initial_draft_revision_preserves_snapshot_reference",
+    "test_postgresql_restored_draft_revision_preserves_snapshot_reference",
 )
 
 

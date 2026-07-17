@@ -1563,6 +1563,11 @@ class UnifiedWorkspaceService:
             metadata_json=dict(metadata),
         )
         self.db.add(revision)
+        # Request sessions use autoflush=False and Draft stores only the scalar
+        # current_revision_id. Persist the new revision before advancing that
+        # pointer so PostgreSQL never observes a Draft that references a
+        # revision row which has not been inserted yet.
+        self.db.flush()
         for change in changes:
             payload = change.as_dict()
             self.db.add(
@@ -1579,6 +1584,7 @@ class UnifiedWorkspaceService:
                     change_checksum=checksum(payload),
                 )
             )
+        self.db.flush()
         draft.current_revision_id = revision.id
         draft.version += 1
         draft.updated_at = utcnow()
@@ -1654,6 +1660,10 @@ class UnifiedWorkspaceService:
             metadata_json={"restored_from_revision_id": source.id},
         )
         self.db.add(revision)
+        # Keep revision restoration in the same atomic transaction while
+        # establishing the FK prerequisite before Draft.current_revision_id is
+        # updated.
+        self.db.flush()
         for item in source_changes:
             self.db.add(
                 DraftRevisionChange(
@@ -1671,6 +1681,7 @@ class UnifiedWorkspaceService:
                     ),
                 )
             )
+        self.db.flush()
         draft.current_revision_id = revision.id
         draft.version += 1
         draft.updated_at = utcnow()

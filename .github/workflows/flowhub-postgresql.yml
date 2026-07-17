@@ -174,8 +174,9 @@ jobs:
             echo 'pytest did not produce postgres-workspace-persistence-junit.xml' | tee postgres-workspace-persistence-manifest.log
             manifest_status=1
           fi
-          test "$pytest_status" -eq 0
-          test "$manifest_status" -eq 0
+          if [ "$pytest_status" -ne 0 ] || [ "$manifest_status" -ne 0 ]; then
+            exit 1
+          fi
       - name: PostgreSQL order and concurrency tests
         id: postgres-order-tests
         run: |

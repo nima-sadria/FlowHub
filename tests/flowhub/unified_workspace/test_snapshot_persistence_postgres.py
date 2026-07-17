@@ -349,6 +349,7 @@ def test_postgresql_repeated_workspace_creation_keeps_snapshot_references_unique
 
 
 def test_postgresql_initial_draft_revision_preserves_snapshot_reference(
+    postgres_engine: Engine,
     postgres_api: PostgresApi,
 ) -> None:
     workspace = _manual_request(
@@ -365,12 +366,102 @@ def test_postgresql_initial_draft_revision_preserves_snapshot_reference(
     assert grid_response.status_code == 200, grid_response.text
     row = grid_response.json()["items"][0]
 
-    revision_response = postgres_api.client.post(
+    statements: list[str] = []
+
+    def capture_statement(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        statements.append(statement)
+
+    sa.event.listen(postgres_engine, "before_cursor_execute", capture_statement)
+    try:
+        revision_response = postgres_api.client.post(
+            f"/api/v2/unified-workspaces/{workspace_id}/draft/revisions",
+            headers=postgres_api.headers,
+            json={
+                "expected_version": 0,
+                "metadata": {"source": "postgres-snapshot-order-regression"},
+                "changes": [
+                    {
+                        "canonical_product_id": row["canonicalProductId"],
+                        "listing_id": row["listingId"],
+                        "channel_id": row["channelId"],
+                        "field": "price",
+                        "target_value": "125",
+                        "currency": "EUR",
+                        "unit": "EUR",
+                    }
+                ],
+            },
+        )
+    finally:
+        sa.event.remove(postgres_engine, "before_cursor_execute", capture_statement)
+    assert revision_response.status_code == 201, revision_response.text
+    revision_id = revision_response.json()["id"]
+
+    revision_insert = next(
+        index
+        for index, statement in enumerate(statements)
+        if _inserted_table(statement) == "uw_draft_revisions"
+    )
+    change_insert = next(
+        index
+        for index, statement in enumerate(statements)
+        if _inserted_table(statement) == "uw_draft_revision_changes"
+    )
+    draft_update = next(
+        index
+        for index, statement in enumerate(statements)
+        if re.match(
+            r'\s*UPDATE\s+"?uw_drafts"?\s+SET',
+            statement,
+            flags=re.IGNORECASE,
+        )
+    )
+    assert revision_insert < change_insert
+    assert change_insert < draft_update
+
+    with postgres_api.sessions() as db:
+        draft = db.get(Draft, draft_id)
+        revision = db.get(DraftRevision, revision_id)
+        assert draft is not None
+        assert draft.current_revision_id == revision_id
+        assert draft.snapshot_id == snapshot_id
+        assert revision is not None
+        assert revision.draft_id == draft_id
+        assert revision.workspace_id == workspace_id
+        assert revision.snapshot_id == snapshot_id
+        assert db.get(WorkspaceSnapshot, revision.snapshot_id) is not None
+
+
+def test_postgresql_restored_draft_revision_preserves_snapshot_reference(
+    postgres_api: PostgresApi,
+) -> None:
+    workspace = _manual_request(
+        postgres_api,
+        name="PostgreSQL restored revision workspace",
+    )
+    workspace_id = str(workspace["id"])
+    snapshot_id = str(workspace["snapshot"]["id"])  # type: ignore[index]
+    draft_id = str(workspace["draft"]["id"])  # type: ignore[index]
+    grid_response = postgres_api.client.get(
+        f"/api/v2/unified-workspaces/{workspace_id}/grid",
+        headers=postgres_api.headers,
+    )
+    assert grid_response.status_code == 200, grid_response.text
+    row = grid_response.json()["items"][0]
+
+    saved_response = postgres_api.client.post(
         f"/api/v2/unified-workspaces/{workspace_id}/draft/revisions",
         headers=postgres_api.headers,
         json={
             "expected_version": 0,
-            "metadata": {"source": "postgres-snapshot-order-regression"},
+            "metadata": {"source": "postgres-revision-restore-regression"},
             "changes": [
                 {
                     "canonical_product_id": row["canonicalProductId"],
@@ -384,17 +475,32 @@ def test_postgresql_initial_draft_revision_preserves_snapshot_reference(
             ],
         },
     )
-    assert revision_response.status_code == 201, revision_response.text
-    revision_id = revision_response.json()["id"]
+    assert saved_response.status_code == 201, saved_response.text
+    source_revision_id = saved_response.json()["id"]
+
+    restored_response = postgres_api.client.post(
+        (
+            f"/api/v2/unified-workspaces/{workspace_id}/draft/revisions/"
+            f"{source_revision_id}/restore"
+        ),
+        headers=postgres_api.headers,
+        json={"expected_version": 1},
+    )
+    assert restored_response.status_code == 201, restored_response.text
+    restored_revision_id = restored_response.json()["id"]
 
     with postgres_api.sessions() as db:
         draft = db.get(Draft, draft_id)
-        revision = db.get(DraftRevision, revision_id)
+        source_revision = db.get(DraftRevision, source_revision_id)
+        restored_revision = db.get(DraftRevision, restored_revision_id)
         assert draft is not None
-        assert draft.current_revision_id == revision_id
+        assert draft.current_revision_id == restored_revision_id
         assert draft.snapshot_id == snapshot_id
-        assert revision is not None
-        assert revision.draft_id == draft_id
-        assert revision.workspace_id == workspace_id
-        assert revision.snapshot_id == snapshot_id
-        assert db.get(WorkspaceSnapshot, revision.snapshot_id) is not None
+        assert source_revision is not None
+        assert source_revision.snapshot_id == snapshot_id
+        assert restored_revision is not None
+        assert restored_revision.draft_id == draft_id
+        assert restored_revision.workspace_id == workspace_id
+        assert restored_revision.snapshot_id == snapshot_id
+        assert restored_revision.restored_from_revision_id == source_revision_id
+        assert db.get(WorkspaceSnapshot, restored_revision.snapshot_id) is not None
