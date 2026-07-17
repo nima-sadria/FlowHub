@@ -69,8 +69,8 @@ from app.flowhub.api.health import router as health_router
 from app.flowhub.api.v2.activity import router as activity_router
 from app.flowhub.api.v2.commerce import router as commerce_router
 from app.flowhub.api.v2.config import router as config_router
-from app.flowhub.api.v2.data_layer_routes import router as data_layer_router
 from app.flowhub.api.v2.dashboard import router as dashboard_router
+from app.flowhub.api.v2.data_layer_routes import router as data_layer_router
 from app.flowhub.api.v2.diagnostics import router as diagnostics_router
 from app.flowhub.api.v2.integration_platform import router as integration_platform_router
 from app.flowhub.api.v2.integrations import router as integrations_router

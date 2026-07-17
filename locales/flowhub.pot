@@ -807,7 +807,7 @@ msgctxt "sources:sourceConfiguration.calculatedInWorkspace"
 msgid "Calculated after Channel comparison"
 msgstr ""
 
-#: frontend/src/pages/SourceCenter.tsx:526 frontend/src/pages/SourceConfiguration.tsx:952 frontend/src/pages/SourceConfiguration.tsx:965
+#: frontend/src/pages/SourceCenter.tsx:526 frontend/src/pages/SourceConfiguration.tsx:951 frontend/src/pages/SourceConfiguration.tsx:964
 msgctxt "common:action.cancel"
 msgid "Cancel"
 msgstr ""
@@ -1227,7 +1227,7 @@ msgctxt "dataQuality:issue.MISSING_MAPPING_IDENTITY.action"
 msgid "Choose and fill the product identifier column for this Channel."
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:962
+#: frontend/src/pages/SourceConfiguration.tsx:961
 msgctxt "sources:sourceConfiguration.chooseDestinationWorksheets"
 msgid "Choose destination worksheets"
 msgstr ""
@@ -1340,7 +1340,7 @@ msgctxt "commerce:commerceHub.close"
 msgid "Close"
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:942
+#: frontend/src/pages/SourceConfiguration.tsx:941
 msgctxt "sources:sourceConfiguration.close"
 msgid "Close"
 msgstr ""
@@ -1443,7 +1443,7 @@ msgctxt "dataQuality:category.missing_mapping"
 msgid "Columns not configured"
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:963
+#: frontend/src/pages/SourceConfiguration.tsx:962
 msgctxt "sources:sourceConfiguration.copyPreview"
 msgid "Columns to copy"
 msgstr ""
@@ -1590,7 +1590,7 @@ msgctxt "workspace:sourceCentricWorkspace.confirmApply"
 msgid "Confirm Apply"
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:952 frontend/src/pages/SourceConfiguration.tsx:965
+#: frontend/src/pages/SourceConfiguration.tsx:951 frontend/src/pages/SourceConfiguration.tsx:964
 msgctxt "sources:sourceConfiguration.confirmCopy"
 msgid "Confirm copy"
 msgstr ""
@@ -1734,7 +1734,7 @@ msgctxt "navigation:sidebar.controlCenter"
 msgid "Control Center"
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:948 frontend/src/pages/SourceConfiguration.tsx:958
+#: frontend/src/pages/SourceConfiguration.tsx:947 frontend/src/pages/SourceConfiguration.tsx:957
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.copyChannelSettings"
 msgid "Copy Channel column settings"
@@ -1761,13 +1761,13 @@ msgctxt "commerce:commerceHub.copyEnteredSecret"
 msgid "Copy entered secret"
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:949 frontend/src/pages/SourceConfiguration.tsx:961
+#: frontend/src/pages/SourceConfiguration.tsx:948 frontend/src/pages/SourceConfiguration.tsx:960
 #. Review is the immutable validation result required before Apply.
 msgctxt "sources:sourceConfiguration.copyChannelPreview"
 msgid "Copy from {{source}} to {{destination}}. Review the exact columns below before confirming."
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:958 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:141
+#: frontend/src/pages/SourceConfiguration.tsx:957 frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:141
 msgctxt "sources:sourceConfiguration.copySharedFields"
 msgid "Copy shared product fields"
 msgstr ""
@@ -3460,7 +3460,7 @@ msgctxt "settings:rateLimits.loading"
 msgid "Loading..."
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:877 frontend/src/pages/SourceConfiguration.tsx:940
+#: frontend/src/pages/SourceConfiguration.tsx:877
 msgctxt "sources:sourceConfiguration.loading"
 msgid "Loading..."
 msgstr ""
@@ -4182,7 +4182,7 @@ msgctxt "workspace:workspace.onlyApprovedBatchesCanBeApplied"
 msgid "Only approved batches can be applied."
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:951
+#: frontend/src/pages/SourceConfiguration.tsx:950
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.copyNeverChangesTechnicalChannelIdentity"
 msgid "Only column choices are copied. The destination Channel keeps its own technical identity."
@@ -4623,7 +4623,7 @@ msgctxt "workspace:workspace.previewPriceChangesFromYourSources"
 msgid "Preview price changes from your sources"
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:877 frontend/src/pages/SourceConfiguration.tsx:940
+#: frontend/src/pages/SourceConfiguration.tsx:877
 msgctxt "sources:sourceConfiguration.previewRecognizedRows"
 msgid "Preview recognized rows"
 msgstr ""
@@ -5697,7 +5697,7 @@ msgctxt "sources:sourceWizard.saveSource"
 msgid "Save Source"
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:941
+#: frontend/src/pages/SourceConfiguration.tsx:940
 msgctxt "sources:sourceConfiguration.saveMappingRevision"
 msgid "Save column setup"
 msgstr ""
@@ -5758,7 +5758,7 @@ msgctxt "settings:rateLimits.saving"
 msgid "Saving..."
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:941 frontend/src/pages/SourceWizard.tsx:241
+#: frontend/src/pages/SourceConfiguration.tsx:940 frontend/src/pages/SourceWizard.tsx:241
 msgctxt "sources:sourceConfiguration.saving"
 msgid "Saving..."
 msgstr ""
@@ -6418,7 +6418,7 @@ msgctxt "sources:sourceConfiguration.sourceType"
 msgid "Source type"
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:959
+#: frontend/src/pages/SourceConfiguration.tsx:958
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.copyFromWorksheet"
 msgid "Source worksheet: {{worksheet}}"
@@ -7097,7 +7097,7 @@ msgctxt "diagnostics:reason.external_api_probe_not_applicable"
 msgid "This connector does not provide a separate API health probe."
 msgstr ""
 
-#: frontend/src/pages/SourceConfiguration.tsx:964
+#: frontend/src/pages/SourceConfiguration.tsx:963
 msgctxt "sources:sourceConfiguration.copyRequiresSave"
 msgid "This explicit copy updates the form only. Save to create a new immutable column-setup revision."
 msgstr ""
