@@ -19,6 +19,7 @@ from app.flowhub.data_layer import models as _data_models  # noqa: F401
 from app.flowhub.integration_platform import models as _integration_models  # noqa: F401
 from app.flowhub.product_pricing import models as _pricing_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
+from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: F401
 from app.flowhub.unified_workspace import models as _workspace_models  # noqa: F401
 from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: F401
 
@@ -427,6 +428,50 @@ def _saved_review(client, auth_headers, db, *, second_product: bool = False):
     return workspace, review_response.json()
 
 
+def test_replace_draft_mode_drops_changes_omitted_from_the_new_revision(
+    client, auth_headers, db
+):
+    workspace, initial_review = _saved_review(
+        client, auth_headers, db, second_product=True
+    )
+    first = initial_review["items"][0]
+    omitted_listing_id = initial_review["items"][1]["listingId"]
+
+    replacement = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/draft/revisions",
+        headers=auth_headers,
+        json={
+            "expected_version": 1,
+            "mode": "replace",
+            "metadata": {"test": "replace"},
+            "changes": [
+                {
+                    "canonical_product_id": first["canonicalProductId"],
+                    "listing_id": first["listingId"],
+                    "channel_id": first["channelId"],
+                    "field": "price",
+                    "target_value": "175",
+                    "currency": "EUR",
+                    "unit": "EUR",
+                }
+            ],
+        },
+    )
+    assert replacement.status_code == 201, replacement.text
+    assert replacement.json()["draftVersion"] == 2
+
+    reviewed = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews",
+        headers=auth_headers,
+        json={"draft_revision_id": replacement.json()["id"]},
+    )
+    assert reviewed.status_code == 201, reviewed.text
+    result = reviewed.json()
+    assert result["summary"]["total"] == 1
+    assert [item["listingId"] for item in result["items"]] == [first["listingId"]]
+    assert omitted_listing_id not in {item["listingId"] for item in result["items"]}
+
+
 def test_apply_is_selected_only_idempotent_and_patches_verified_cache(
     client, auth_headers, db, monkeypatch
 ):
@@ -520,6 +565,156 @@ def test_cache_change_marks_review_stale_and_blocks_apply(client, auth_headers, 
         },
     )
     assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "STALE_REVIEW"
+
+
+@pytest.mark.parametrize(
+    ("disabled_resource", "draft_error", "review_error"),
+    [
+        ("listing", "LISTING_DISABLED", "listing_disabled"),
+        ("channel", "CHANNEL_UNAVAILABLE", "channel_unavailable"),
+        ("channel_unimplemented", "CHANNEL_UNAVAILABLE", "channel_unavailable"),
+    ],
+)
+def test_disabled_listing_or_channel_is_read_only_and_review_ineligible(
+    client,
+    auth_headers,
+    db,
+    disabled_resource,
+    draft_error,
+    review_error,
+):
+    from app.flowhub.unified_workspace.models import Listing, WorkspaceChannel
+
+    workspace, initial_review = _saved_review(client, auth_headers, db)
+    item = initial_review["items"][0]
+    listing = db.get(Listing, item["listingId"])
+    channel = db.get(WorkspaceChannel, item["channelId"])
+    assert listing is not None
+    assert channel is not None
+    if disabled_resource == "listing":
+        listing.enabled = False
+    elif disabled_resource == "channel_unimplemented":
+        channel.implementation_state = "coming_soon"
+    else:
+        channel.enabled = False
+    db.commit()
+
+    grid = client.get(
+        f"/api/v2/unified-workspaces/{workspace['id']}/grid",
+        headers=auth_headers,
+    )
+    assert grid.status_code == 200, grid.text
+    assert grid.json()["items"][0]["fields"]["price"]["readOnly"] is True
+    grouped = client.get(
+        f"/api/v2/unified-workspaces/{workspace['id']}/grouped-grid?page=1&pageSize=100&view=all",
+        headers=auth_headers,
+    )
+    assert grouped.status_code == 200, grouped.text
+    assert grouped.json()["items"][0]["children"][0]["fields"]["price"]["readOnly"] is True
+
+    save = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/draft/revisions",
+        headers=auth_headers,
+        json={
+            "expected_version": 1,
+            "changes": [
+                {
+                    "canonical_product_id": item["canonicalProductId"],
+                    "listing_id": item["listingId"],
+                    "channel_id": item["channelId"],
+                    "field": "price",
+                    "target_value": "175",
+                    "currency": "EUR",
+                    "unit": "EUR",
+                }
+            ],
+        },
+    )
+    assert save.status_code == 422, save.text
+    assert save.json()["detail"]["code"] == draft_error
+
+    reviewed = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews",
+        headers=auth_headers,
+        json={"draft_revision_id": initial_review["draftRevisionId"]},
+    )
+    assert reviewed.status_code == 201, reviewed.text
+    result = reviewed.json()
+    assert result["status"] == "blocked"
+    assert result["summary"]["eligible"] == 0
+    assert review_error in result["items"][0]["errors"]
+
+    selection = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{result['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [result["items"][0]["id"]]},
+    )
+    assert selection.status_code == 409
+    assert selection.json()["detail"]["code"] == "REVIEW_NOT_READY"
+
+
+@pytest.mark.parametrize(
+    "disabled_resource", ["listing", "channel", "channel_unimplemented"]
+)
+def test_disabled_listing_or_channel_after_review_blocks_apply_before_provider(
+    client, auth_headers, db, monkeypatch, disabled_resource
+):
+    from app.flowhub.unified_workspace.models import Listing, WorkspaceChannel
+
+    workspace, review = _saved_review(client, auth_headers, db)
+    item = review["items"][0]
+    confirmed = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [item["id"]]},
+    )
+    assert confirmed.status_code == 200, confirmed.text
+
+    from app.flowhub.unified_workspace.services import UnifiedWorkspaceService
+
+    original_acquire = UnifiedWorkspaceService._acquire_listing_locks
+
+    def disable_after_lock(self, workspace_id, job_id, lock_scope):
+        result = original_acquire(self, workspace_id, job_id, lock_scope)
+        if disabled_resource == "listing":
+            resource = self.db.get(Listing, item["listingId"])
+            assert resource is not None
+            resource.enabled = False
+        else:
+            resource = self.db.get(WorkspaceChannel, item["channelId"])
+            assert resource is not None
+            if disabled_resource == "channel_unimplemented":
+                resource.implementation_state = "coming_soon"
+            else:
+                resource.enabled = False
+        self.db.commit()
+        return result
+
+    monkeypatch.setattr(
+        UnifiedWorkspaceService, "_acquire_listing_locks", disable_after_lock
+    )
+
+    async def forbidden(*_args, **_kwargs):
+        pytest.fail("disabled Listing or Channel reached the Write Pipeline")
+
+    monkeypatch.setattr(
+        "app.flowhub.write_pipeline.service.WritePipelineService.execute_workspace",
+        forbidden,
+    )
+    response = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={
+            **auth_headers,
+            "Idempotency-Key": f"disabled-after-review-{disabled_resource}",
+        },
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": confirmed.json()["selectionChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert response.status_code == 409, response.text
     assert response.json()["detail"]["code"] == "STALE_REVIEW"
 
 
@@ -1195,3 +1390,349 @@ def test_apply_global_listing_lock_mapping_conflict_and_expired_reclaim(
     assert reclaimed.status_code == 202, reclaimed.text
     assert reclaimed.json()["status"] == "applied"
     assert db.query(WorkspaceLock).filter_by(listing_id=second_row["listingId"]).count() == 0
+
+
+def test_manual_workspace_request_requires_exactly_one_selection_source(
+    client, auth_headers, db
+):
+    _seed(db)
+
+    neither = client.post(
+        "/api/v2/unified-workspaces/manual",
+        headers=auth_headers,
+        json={"name": "Missing scope"},
+    )
+    both = client.post(
+        "/api/v2/unified-workspaces/manual",
+        headers=auth_headers,
+        json={
+            "name": "Ambiguous scope",
+            "selections": [
+                {"connector_id": "woocommerce:primary", "product_id": "101"}
+            ],
+            "catalog_scope": {},
+        },
+    )
+
+    assert neither.status_code == 422
+    assert both.status_code == 422
+
+
+def test_catalog_scope_creates_one_immutable_cached_snapshot(client, auth_headers, db):
+    from app.flowhub.unified_workspace.models import (
+        ChannelCache,
+        Listing,
+        MappingRevision,
+        SnapshotRow,
+        WorkspaceSnapshot,
+    )
+
+    _seed(db)
+    cached = db.query(_data_models.DlProductCache).filter_by(product_id="101").one()
+    cached.categories = [{"id": 7, "name": "Accessories"}]
+    db.commit()
+
+    response = client.post(
+        "/api/v2/unified-workspaces/manual",
+        headers=auth_headers,
+        json={
+            "name": "Cached catalog",
+            "catalog_scope": {
+                "search": "Canonical Test",
+                "category_id": 7,
+                "product_type": "simple",
+                "channel_id": "woocommerce:primary",
+                "stock_state": "in_stock",
+            },
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    workspace = response.json()
+    snapshot = db.get(WorkspaceSnapshot, workspace["snapshot"]["id"])
+    assert snapshot is not None
+    assert snapshot.acquisition_metadata_json == {
+        "selection_count": 1,
+        "read_external_source": False,
+    }
+    assert db.query(SnapshotRow).filter_by(snapshot_id=snapshot.id).count() == 1
+    listing = db.query(Listing).filter_by(
+        channel_id="woocommerce:primary", external_primary_id="101"
+    ).one()
+    assert listing.enabled is True
+    assert db.query(MappingRevision).filter_by(listing_id=listing.id).count() == 1
+    assert db.query(ChannelCache).filter_by(listing_id=listing.id).count() == 1
+
+
+def test_catalog_bootstrap_never_refreshes_existing_authoritative_identity(
+    client, auth_headers, db
+):
+    from app.flowhub.unified_workspace.models import ChannelCache, MappingRevision
+
+    _seed(db)
+    _create(client, auth_headers)
+    channel_cache = db.query(ChannelCache).one()
+    original = (
+        channel_cache.cache_version,
+        channel_cache.checksum,
+        channel_cache.fetched_at,
+        channel_cache.price_raw,
+    )
+    mapping_count = db.query(MappingRevision).count()
+    cached = db.query(_data_models.DlProductCache).filter_by(product_id="101").one()
+    cached.regular_price = "999"
+    cached.price = "999"
+    cached.record_hash = "newer-secondary-cache-evidence"
+    db.commit()
+
+    response = client.post(
+        "/api/v2/unified-workspaces/manual",
+        headers=auth_headers,
+        json={"name": "Read-only catalog snapshot", "catalog_scope": {}},
+    )
+
+    assert response.status_code == 201, response.text
+    db.expire_all()
+    unchanged = db.query(ChannelCache).one()
+    assert (
+        unchanged.cache_version,
+        unchanged.checksum,
+        unchanged.fetched_at,
+        unchanged.price_raw,
+    ) == original
+    assert db.query(MappingRevision).count() == mapping_count
+
+
+def test_catalog_scope_excludes_disabled_listings_and_channels(client, auth_headers, db):
+    from app.flowhub.unified_workspace.models import Listing, WorkspaceChannel
+
+    _seed(db)
+    _create(client, auth_headers)
+    listing = db.query(Listing).filter_by(
+        channel_id="woocommerce:primary", external_primary_id="101"
+    ).one()
+    listing.enabled = False
+    db.commit()
+
+    disabled_listing = client.post(
+        "/api/v2/unified-workspaces/manual",
+        headers=auth_headers,
+        json={"name": "Disabled listing", "catalog_scope": {}},
+    )
+    assert disabled_listing.status_code == 422
+    assert disabled_listing.json()["detail"]["code"] == "CATALOG_SCOPE_EMPTY"
+
+    listing.enabled = True
+    channel = db.get(WorkspaceChannel, "woocommerce:primary")
+    assert channel is not None
+    channel.enabled = False
+    db.commit()
+    disabled_channel = client.post(
+        "/api/v2/unified-workspaces/manual",
+        headers=auth_headers,
+        json={"name": "Disabled channel", "catalog_scope": {}},
+    )
+    assert disabled_channel.status_code == 422
+    assert disabled_channel.json()["detail"]["code"] == "CATALOG_SCOPE_EMPTY"
+
+    channel.enabled = True
+    channel.implementation_state = "coming_soon"
+    db.commit()
+    unimplemented_channel = client.post(
+        "/api/v2/unified-workspaces/manual",
+        headers=auth_headers,
+        json={"name": "Unimplemented channel", "catalog_scope": {}},
+    )
+    assert unimplemented_channel.status_code == 422
+    assert unimplemented_channel.json()["detail"]["code"] == "CATALOG_SCOPE_EMPTY"
+
+
+def test_catalog_scope_rejects_empty_and_over_limit(client, auth_headers, db, monkeypatch):
+    from app.flowhub.data_layer.models import DlProductCache
+    from app.flowhub.unified_workspace import services as workspace_services
+
+    _seed(db)
+    empty = client.post(
+        "/api/v2/unified-workspaces/manual",
+        headers=auth_headers,
+        json={"name": "Empty", "catalog_scope": {"channel_id": "snappshop:main"}},
+    )
+    assert empty.status_code == 422
+    assert empty.json()["detail"]["code"] == "CATALOG_SCOPE_EMPTY"
+
+    db.add(
+        DlProductCache(
+            connector_id="woocommerce:primary",
+            product_id="102",
+            name="Second product",
+            sku="SKU-102",
+            product_type="simple",
+            regular_price="200",
+            stock_qty=2,
+            stock_status="instock",
+            freshness="fresh",
+            last_fetched_at=datetime.utcnow(),
+            last_successful_read=datetime.utcnow(),
+            exists=True,
+        )
+    )
+    db.commit()
+    materialized = client.post(
+        "/api/v2/unified-workspaces/manual",
+        headers=auth_headers,
+        json={
+            "name": "Materialize test identities",
+            "selections": [
+                {"connector_id": "woocommerce:primary", "product_id": "101"},
+                {"connector_id": "woocommerce:primary", "product_id": "102"},
+            ],
+        },
+    )
+    assert materialized.status_code == 201, materialized.text
+    monkeypatch.setattr(workspace_services, "MAX_SELECTION", 1)
+    too_large = client.post(
+        "/api/v2/unified-workspaces/manual",
+        headers=auth_headers,
+        json={"name": "Too large", "catalog_scope": {"channel_id": "woocommerce:primary"}},
+    )
+    assert too_large.status_code == 422
+    assert too_large.json()["detail"]["code"] == "CATALOG_SCOPE_TOO_LARGE"
+
+
+def test_grouped_grid_filters_products_but_preserves_all_channel_children(
+    client, auth_headers, db, admin
+):
+    from app.flowhub.data_layer.models import DlProductCache
+    from app.flowhub.unified_workspace.models import Listing, WorkspaceChannel
+    from app.flowhub.unified_workspace.services import UnifiedWorkspaceService
+
+    _seed(db)
+    woo_cache = db.query(DlProductCache).filter_by(product_id="101").one()
+    woo_cache.categories = [{"id": 7, "name": "Accessories"}]
+    db.commit()
+    UnifiedWorkspaceService(db).create_manual_workspace(
+        name="Materialize identity",
+        selections=[{"connector_id": "woocommerce:primary", "product_id": "101"}],
+        user=admin,
+        correlation_id="materialize-catalog-filter",
+    )
+    woo_listing = db.query(Listing).filter_by(
+        channel_id="woocommerce:primary", external_primary_id="101"
+    ).one()
+    snapp_channel = db.get(WorkspaceChannel, "snappshop:main")
+    assert snapp_channel is not None
+    db.add(
+        DlProductCache(
+            connector_id="snappshop:main",
+            product_id="S-101",
+            name="Canonical Test Product",
+            sku="SNAPP-SKU-101",
+            product_type="simple",
+            regular_price="120",
+            stock_qty=0,
+            stock_status="outofstock",
+            freshness="fresh",
+            last_fetched_at=datetime.utcnow(),
+            last_successful_read=datetime.utcnow(),
+            exists=True,
+            record_hash="snapp-cache-101",
+        )
+    )
+    db.add(
+        Listing(
+            id=str(uuid.uuid4()),
+            canonical_product_id=woo_listing.canonical_product_id,
+            channel_id="snappshop:main",
+            external_primary_id="S-101",
+            external_id_type="product_number",
+            secondary_identifiers_json={},
+            sku="SNAPP-SKU-101",
+            label="Canonical Test Product",
+            mapping_state="resolved",
+            mapping_version=1,
+            capability_state_json=snapp_channel.capabilities_json,
+            enabled=True,
+        )
+    )
+    db.commit()
+    UnifiedWorkspaceService(db).create_manual_workspace(
+        name="Materialize grouped identities",
+        selections=[
+            {"connector_id": "woocommerce:primary", "product_id": "101"},
+            {"connector_id": "snappshop:main", "product_id": "S-101"},
+        ],
+        user=admin,
+        correlation_id="materialize-grouped-identities",
+    )
+
+    created = client.post(
+        "/api/v2/unified-workspaces/manual",
+        headers=auth_headers,
+        json={"name": "Grouped filters", "catalog_scope": {}},
+    )
+    assert created.status_code == 201, created.text
+    workspace_id = created.json()["id"]
+
+    for query in (
+        "search=Canonical%20Test",
+        "search=SKU-101",
+        "search=SNAPP-SKU-101",
+        "search=S-101",
+        "categoryId=Accessories",
+        "productType=simple",
+        "channelId=snappshop%3Amain",
+        "stockState=out_of_stock",
+    ):
+        response = client.get(
+            f"/api/v2/unified-workspaces/{workspace_id}/grouped-grid?page=1&pageSize=100&view=all&{query}",
+            headers=auth_headers,
+        )
+        assert response.status_code == 200, response.text
+        result = response.json()
+        assert result["total"] == 1
+        assert {child["channelId"] for child in result["items"][0]["children"]} == {
+            "woocommerce:primary",
+            "snappshop:main",
+        }
+        assert result["items"][0]["sourceKey"] is None
+
+
+def test_large_manual_selection_uses_bounded_sqlite_batches(db, admin):
+    from app.flowhub.data_layer.models import DlProductCache
+    from app.flowhub.unified_workspace.models import SnapshotRow
+    from app.flowhub.unified_workspace.services import UnifiedWorkspaceService
+
+    _seed(db)
+    rows = [
+        DlProductCache(
+            connector_id="woocommerce:primary",
+            product_id=str(product_id),
+            name=f"Product {product_id}",
+            sku=f"SKU-{product_id}",
+            product_type="simple",
+            regular_price="100",
+            stock_qty=1,
+            stock_status="instock",
+            freshness="fresh",
+            exists=True,
+        )
+        for product_id in range(102, 602)
+    ]
+    db.add_all(rows)
+    db.commit()
+    selections = [
+        {"connector_id": "woocommerce:primary", "product_id": str(product_id)}
+        for product_id in range(101, 602)
+    ]
+
+    workspace = UnifiedWorkspaceService(db).create_manual_workspace(
+        name="SQLite batch",
+        selections=selections,
+        user=admin,
+        correlation_id="sqlite-batch",
+    )
+
+    assert (
+        db.query(SnapshotRow).filter_by(snapshot_id=workspace["snapshot"]["id"]).count()
+        == 501
+    )

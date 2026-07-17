@@ -12,9 +12,10 @@ import type {
 
 export interface UnifiedWorkspaceService {
   createManual(name: string, selections: Array<{ connector_id: string; product_id: string }>): Promise<UnifiedWorkspaceResource>
+  createCatalog?: (name: string, catalogScope?: CatalogWorkspaceScope) => Promise<UnifiedWorkspaceResource>
   getWorkspace(id: string): Promise<UnifiedWorkspaceResource>
   getGrid(id: string, page: number, pageSize: number, query?: WorkspaceGridQuery): Promise<WorkspaceGridPage>
-  saveDraft(id: string, version: number, changes: DraftChangeInput[]): Promise<DraftRevisionResource>
+  saveDraft(id: string, version: number, changes: DraftChangeInput[], mode?: DraftSaveMode): Promise<DraftRevisionResource>
   createReview(id: string, revisionId: string): Promise<ReviewResource>
   saveSelection(id: string, reviewId: string, itemIds: string[]): Promise<ReviewSelectionResource>
   applySelected(id: string, reviewId: string, selectionChecksum: string, idempotencyKey: string): Promise<ApplyResource>
@@ -22,4 +23,14 @@ export interface UnifiedWorkspaceService {
   reconcileApply(id: string, jobId: string): Promise<ApplyResource>
   getPreferences(): Promise<WorkspacePreferences>
   savePreferences(preferences: WorkspacePreferences): Promise<WorkspacePreferences>
+}
+
+export type DraftSaveMode = 'merge' | 'replace'
+
+export interface CatalogWorkspaceScope {
+  search?: string
+  category_id?: number
+  product_type?: 'simple' | 'variable' | 'variation'
+  channel_id?: string
+  stock_state?: 'in_stock' | 'out_of_stock' | 'unknown'
 }

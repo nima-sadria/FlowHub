@@ -1,6 +1,6 @@
 import { translate } from '../i18n'
-import { type FormEvent, useMemo, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { Navigate, useParams } from 'react-router-dom'
 import { HotTable, type HotTableRef } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
@@ -11,12 +11,13 @@ import Empty from '../components/Empty'
 import Icon from '../components/Icon'
 import Spinner from '../components/loading/Spinner'
 import { useServices } from '../services/ServiceContext'
+import type { UnifiedWorkspaceService } from '../services/unifiedWorkspace/UnifiedWorkspaceService'
+import type { UnifiedWorkspaceResource } from '../services/unifiedWorkspace/types'
 import { useUnifiedWorkspaceController } from '../features/unifiedWorkspace/useUnifiedWorkspaceController'
 import { sanitizeGridHtml, sourceRecordAtVisualRow } from '../features/unifiedWorkspace/handsontableIdentity'
 import { resolveHandsontableLicense } from '../features/unifiedWorkspace/handsontableLicense'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { describeWorkspaceStatus } from '../features/unifiedWorkspace/statusDisplay'
-import SourceCentricWorkspace from '../features/sourceWorkspace/SourceCentricWorkspace'
 import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
 import {
   channelIdentitySignals,
@@ -31,6 +32,34 @@ export default function UnifiedWorkspace() {
   const { unifiedWorkspace } = useServices()
   if (!unifiedWorkspace) {
     return <PageShell><Empty title={translate('workspace:unifiedWorkspace.workspaceServiceUnavailable')} description={translate('workspace:unifiedWorkspace.theUnifiedWorkspaceServiceIsNotConfigured')} /></PageShell>
+  }
+  return <UnifiedWorkspaceRoute workspaceId={workspaceId} service={unifiedWorkspace} />
+}
+
+function UnifiedWorkspaceRoute({ workspaceId, service }: { workspaceId: string; service: UnifiedWorkspaceService }) {
+  const [workspace, setWorkspace] = useState<UnifiedWorkspaceResource | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setFailed(false)
+    service.getWorkspace(workspaceId)
+      .then(result => { if (active) setWorkspace(result) })
+      .catch(() => { if (active) setFailed(true) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [service, workspaceId])
+
+  if (loading) {
+    return <PageShell><div className="fh-card fh-card-pad flex items-center gap-3"><Spinner size="sm" /> {translate('workspace:unifiedWorkspace.loadingImmutableWorkspaceSnapshot')}</div></PageShell>
+  }
+  if (failed || !workspace) {
+    return <PageShell><Empty title={translate('workspace:unifiedWorkspace.workspaceUnavailable')} description={translate('workspace:unifiedWorkspace.workspaceServiceUnavailable')} /></PageShell>
+  }
+  if (workspace.entryPoint === 'manual' || workspace.entryPoint === 'source') {
+    return <Navigate replace to={`/products?workspace=${encodeURIComponent(workspace.id)}`} />
   }
   return <UnifiedWorkspaceContent workspaceId={workspaceId} />
 }
@@ -64,12 +93,6 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
   }
   if (!controller.workspace) {
     return <PageShell><Empty title={translate('workspace:unifiedWorkspace.workspaceUnavailable')} description={controller.error ?? "The Workspace could not be loaded."} /></PageShell>
-  }
-  // Manual selections and Source workspaces share the same grouped product
-  // editor. Keeping one editor preserves the immutable Draft/Review/Apply
-  // pipeline while making Product Pricing a true bulk workspace.
-  if (controller.workspace.entryPoint === 'source' || controller.workspace.entryPoint === 'manual') {
-    return <SourceCentricWorkspace workspace={controller.workspace} service={unifiedWorkspace!} />
   }
   if (!controller.grid) {
     return <PageShell><Empty title={translate('workspace:unifiedWorkspace.workspaceUnavailable')} description={controller.error ?? "The Workspace grid could not be loaded."} /></PageShell>

@@ -13,6 +13,13 @@ import type {
 } from './types'
 import type { ReviewResource } from '../../services/unifiedWorkspace/types'
 
+export interface GroupedGridFilters {
+  categoryId?: string
+  productType?: 'simple' | 'variable' | 'variation'
+  channelId?: string
+  stockState?: 'in_stock' | 'out_of_stock'
+}
+
 const json = (method: 'POST' | 'PUT' | 'PATCH', body: unknown): RequestInit => ({
   method,
   headers: { 'Content-Type': 'application/json' },
@@ -69,9 +76,13 @@ export const sourceWorkspaceApi = {
   }),
   sourceLifecycle: (sourceId: string) => apiFetch<SourceLifecycleImpact>(`/api/v2/sources/${encodeURIComponent(sourceId)}/lifecycle`, authFetch),
   review: (workspaceId: string, reviewId: string) => apiFetch<ReviewResource>(`/api/v2/unified-workspaces/${encodeURIComponent(workspaceId)}/reviews/${encodeURIComponent(reviewId)}`, authFetch),
-  groupedGrid: (workspaceId: string, page: number, view: string, search = '') => {
+  groupedGrid: (workspaceId: string, page: number, view: string, search = '', filters: GroupedGridFilters = {}) => {
     const params = new URLSearchParams({ page: String(page), pageSize: '100', view })
     if (search) params.set('search', search)
+    if (filters.categoryId) params.set('categoryId', filters.categoryId)
+    if (filters.productType) params.set('productType', filters.productType)
+    if (filters.channelId) params.set('channelId', filters.channelId)
+    if (filters.stockState) params.set('stockState', filters.stockState)
     return apiFetch<GroupedWorkspacePage>(`/api/v2/unified-workspaces/${encodeURIComponent(workspaceId)}/grouped-grid?${params}`, authFetch)
   },
   dataQuality: (params: URLSearchParams) => apiFetch<{ items: Array<Record<string, unknown>>; counts: Record<string, number>; total: number; summary: DataQualitySummary }>(`/api/v2/data-quality?${params}`, authFetch),

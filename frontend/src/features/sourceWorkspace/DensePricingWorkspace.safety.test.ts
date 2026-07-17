@@ -12,6 +12,7 @@ import {
   pricingDescriptors,
   refreshRegisteredPricingState,
   resolveExactReviewSelection,
+  setProductListingsSelected,
   validateDescriptorTarget,
 } from './DensePricingWorkspace'
 import type { GroupedWorkspacePage, SourceChannel } from './types'
@@ -51,6 +52,43 @@ describe('DensePricingWorkspace safety boundaries', () => {
     resolveOld('stale-page')
     await expect(old).resolves.toBe(false)
     expect(committed).toEqual(['fresh-filter-page'])
+  })
+
+  it('ignores a stale request failure after a newer filter page succeeds', async () => {
+    const loader = createLatestGridLoader<string>()
+    const committed: string[] = []
+    const failures: unknown[] = []
+    let rejectOld!: (reason: unknown) => void
+    const oldResponse = new Promise<string>((_resolve, reject) => { rejectOld = reject })
+
+    const old = loader.run(() => oldResponse, value => committed.push(value), error => failures.push(error))
+    const fresh = loader.run(() => Promise.resolve('fresh-page'), value => committed.push(value), error => failures.push(error))
+    await expect(fresh).resolves.toBe(true)
+    rejectOld(new Error('stale upstream failure'))
+    await expect(old).resolves.toBe(false)
+
+    expect(committed).toEqual(['fresh-page'])
+    expect(failures).toEqual([])
+  })
+
+  it('uses a Product checkbox to toggle only eligible changed fields', () => {
+    const price = descriptor('price')
+    const stock = {
+      ...descriptor('stock'),
+      policy: { ...descriptor('stock').policy, valid: false, blockedReason: 'invalid_stock' },
+    }
+    const unchangedStatus = descriptor('status')
+    let state = createPricingWorkspaceState('workspace-1', [price, stock, unchangedStatus], 'snapshot-1:draft-1')
+    state = editPricingField(state, price, '110')
+    state = editPricingField(state, stock, '8')
+
+    expect(selectedPricingChanges(state).map(change => change.identity.field)).toEqual(['price'])
+    state = setProductListingsSelected(state, [price, stock, unchangedStatus], new Set(['listing-1']), false)
+    expect(selectedPricingChanges(state)).toEqual([])
+    state = setProductListingsSelected(state, [price, stock, unchangedStatus], new Set(['listing-1']), true)
+
+    expect(selectedPricingChanges(state).map(change => change.identity.field)).toEqual(['price'])
+    expect(Object.values(state.present.changes).map(change => change.identity.field).sort()).toEqual(['price', 'stock'])
   })
 
   it('marks a descriptor refresh as review-invalidating only when registered meaning changes', () => {

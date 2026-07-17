@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Header, Query
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
@@ -29,9 +29,26 @@ class ProductSelection(StrictModel):
     product_id: str = Field(min_length=1, max_length=255)
 
 
+class CatalogWorkspaceScope(StrictModel):
+    """Cached catalog scope used to build one immutable manual Snapshot."""
+
+    search: str | None = Field(default=None, max_length=240)
+    category_id: int | None = Field(default=None, ge=0)
+    product_type: Literal["simple", "variable", "variation"] | None = None
+    channel_id: str | None = Field(default=None, min_length=1, max_length=120)
+    stock_state: Literal["in_stock", "out_of_stock", "unknown"] | None = None
+
+
 class ManualWorkspaceCreateRequest(StrictModel):
     name: str = Field(default="Manual Workspace", min_length=1, max_length=240)
-    selections: list[ProductSelection] = Field(min_length=1, max_length=10_000)
+    selections: list[ProductSelection] | None = Field(default=None, min_length=1, max_length=10_000)
+    catalog_scope: CatalogWorkspaceScope | None = None
+
+    @model_validator(mode="after")  # type: ignore[untyped-decorator, unused-ignore]
+    def require_one_scope(self) -> ManualWorkspaceCreateRequest:
+        if (self.selections is None) == (self.catalog_scope is None):
+            raise ValueError("Provide exactly one of selections or catalog_scope.")
+        return self
 
 
 class SourceWorkspaceCreateRequest(StrictModel):
@@ -55,6 +72,7 @@ class DraftSaveRequest(StrictModel):
     expected_version: int = Field(ge=0)
     changes: list[DraftChangeRequest] = Field(max_length=30_000)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    mode: Literal["merge", "replace"] = "merge"
 
 
 class DraftRestoreRequest(StrictModel):
@@ -126,9 +144,16 @@ def create_manual_workspace(
     service: UnifiedWorkspaceService = Depends(_service),
     correlation_id: str = Depends(_correlation),
 ) -> dict[str, Any]:
+    if body.catalog_scope is not None:
+        return service.create_catalog_workspace(
+            name=body.name,
+            catalog_scope=body.catalog_scope.model_dump(exclude_none=True),
+            user=user,
+            correlation_id=correlation_id,
+        )
     return service.create_manual_workspace(
         name=body.name,
-        selections=[item.model_dump() for item in body.selections],
+        selections=[item.model_dump() for item in body.selections or []],
         user=user,
         correlation_id=correlation_id,
     )
@@ -251,6 +276,14 @@ def get_grouped_grid(
     page_size: int = Query(default=100, alias="pageSize", ge=1, le=200),
     search: str | None = Query(default=None, max_length=240),
     view: Literal["changed", "ready", "blocked", "unchanged", "all"] = Query(default="changed"),
+    category: str | None = Query(default=None, alias="categoryId", max_length=240),
+    product_type: Literal["simple", "variable", "variation"] | None = Query(
+        default=None, alias="productType"
+    ),
+    channel_id: str | None = Query(default=None, alias="channelId", max_length=120),
+    stock_state: Literal["in_stock", "out_of_stock", "unknown"] | None = Query(
+        default=None, alias="stockState"
+    ),
     user: FlowHubUser = Depends(require_workspace_permission("workspace.read")),
     service: UnifiedWorkspaceService = Depends(_service),
 ) -> dict[str, Any]:
@@ -261,6 +294,10 @@ def get_grouped_grid(
         page_size=page_size,
         search=search,
         view=view,
+        category=category,
+        product_type=product_type,
+        channel_id=channel_id,
+        stock_state=stock_state,
     )
 
 
@@ -277,6 +314,7 @@ def save_draft(
         expected_version=body.expected_version,
         raw_changes=[item.model_dump() for item in body.changes],
         metadata=body.metadata,
+        replace_existing=body.mode == "replace",
         user=user,
         correlation_id=correlation_id,
     )

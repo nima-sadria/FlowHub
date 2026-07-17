@@ -304,17 +304,34 @@ export function selectedPricingChanges(state: PricingWorkspaceState): readonly P
 }
 
 export function pricingDraftChanges(state: PricingWorkspaceState): readonly DraftChangeInput[] {
-  return Object.values(state.present.changes)
-    .sort((left, right) => compareKeys(left.key, right.key))
-    .map(change => ({
-      canonical_product_id: change.identity.productId,
-      listing_id: change.identity.listingId,
-      channel_id: change.identity.channelId,
-      field: change.identity.field,
-      target_value: change.targetValue,
-      currency: change.currency,
-      unit: change.unit,
-    }))
+  return draftChangesFrom(Object.values(state.present.changes)
+    .sort((left, right) => compareKeys(left.key, right.key)))
+}
+
+/**
+ * Converts only the exact locally confirmed field scope into Draft inputs.
+ * `selectedPricingChanges` fails closed for blocked fields and respects an
+ * explicit manual deselection, so Draft creation and Review resolution share
+ * the same immutable Product/Listing/Channel/Field identities.
+ */
+export function selectedPricingDraftChanges(state: PricingWorkspaceState): readonly DraftChangeInput[] {
+  return draftChangesFrom(selectedPricingChanges(state))
+}
+
+function draftChangesFrom(changes: readonly PricingFieldChange[]): readonly DraftChangeInput[] {
+  return changes.map(change => draftChangeFrom(change, change.targetValue))
+}
+
+function draftChangeFrom(change: PricingFieldChange, targetValue: string): DraftChangeInput {
+  return {
+    canonical_product_id: change.identity.productId,
+    listing_id: change.identity.listingId,
+    channel_id: change.identity.channelId,
+    field: change.identity.field,
+    target_value: targetValue,
+    currency: change.currency,
+    unit: change.unit,
+  }
 }
 
 export function previewBulkTransformation(

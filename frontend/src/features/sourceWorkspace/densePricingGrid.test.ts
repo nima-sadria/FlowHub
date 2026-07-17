@@ -6,6 +6,7 @@ import {
   channelColumnKey,
   channelIdFromColumnKey,
   identityForCell,
+  listingIdsForRecord,
   type DensePricingColumnMeta,
 } from './densePricingGrid'
 import type { GroupedListing, GroupedProduct, GroupedWorkspacePage } from './types'
@@ -38,6 +39,30 @@ describe('dense pricing grid model', () => {
     expect(record[cellProp('snappshop:main', 'price', 'target')]).toBe('220')
     expect(record[cellProp('tapsishop:main', 'price', 'target')]).toBe('330')
     expect(definition.nestedHeaders[0]).toHaveLength(4)
+  })
+
+  it('keeps configured Channel columns stable when the current server page has no Listing for one Channel', () => {
+    const definition = buildDensePricingDefinition(page([
+      product('product-1', 'Cable', 'simple', [listing('woo-listing', 'woocommerce:primary')]),
+    ]), () => null, ['snappshop:main', 'woocommerce:primary'])
+
+    expect(definition.channelIds).toEqual(['snappshop:main', 'woocommerce:primary'])
+    expect(definition.columnMeta.get(cellProp('snappshop:main', 'price', 'target'))).toBeDefined()
+    expect(definition.records[0][cellProp('snappshop:main', 'price', 'target')]).toBeNull()
+  })
+
+  it('adds Product selection, SKU, Type, and Category identities without changing Listing identity', () => {
+    const item = product('product-1', 'Cable', 'simple', [listing('woo-listing', 'woocommerce:primary')])
+    item.category = 'Accessories'
+    const definition = buildDensePricingDefinition(page([item]), () => null)
+    const record = definition.records[0]
+
+    expect(definition.columns.slice(0, 5).map(column => column.data)).toEqual([
+      'productSelected', 'productName', 'sourceKey', 'productType', 'category',
+    ])
+    expect(record.category).toBe('Accessories')
+    expect(record.productSelectionAvailable).toBe(true)
+    expect(listingIdsForRecord(record, definition.channelIds)).toEqual(new Set(['woo-listing']))
   })
 
   it('uses collision-free reversible column keys for punctuation-distinct Channel identities', () => {

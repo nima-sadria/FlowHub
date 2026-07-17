@@ -17,6 +17,7 @@ import {
   registerPricingFields,
   restorePricingWorkspaceState,
   selectedPricingChanges,
+  selectedPricingDraftChanges,
   serializePricingWorkspaceState,
   setPricingFieldSelected,
   undoPricingWorkspace,
@@ -125,6 +126,42 @@ describe('immediate field-level selection', () => {
 
     expect(selectedPricingChanges(state).map(change => change.identity.field)).toEqual(['price'])
     expect(pricingDraftChanges(state).map(change => change.field)).toEqual(['price', 'stock'])
+  })
+
+  it('excludes a manually deselected edit from the selected Draft scope', () => {
+    const price = field('listing-1', 'woocommerce:primary', 'price')
+    const stock = field('listing-1', 'woocommerce:primary', 'stock', '5')
+    let state = editPricingFields(createPricingWorkspaceState('workspace-1'), [
+      { descriptor: price, targetValue: '120' },
+      { descriptor: stock, targetValue: '8' },
+    ])
+    state = setPricingFieldSelected(state, stock.identity, false)
+
+    expect(pricingDraftChanges(state).map(change => change.field)).toEqual(['price', 'stock'])
+    expect(selectedPricingDraftChanges(state)).toEqual([
+      expect.objectContaining({ listing_id: 'listing-1', channel_id: 'woocommerce:primary', field: 'price', target_value: '120' }),
+    ])
+  })
+
+  it('excludes a blocked edit from the selected Draft scope', () => {
+    const ready = field('listing-ready', 'woocommerce:primary', 'price')
+    const blocked = field(
+      'listing-blocked',
+      'snappshop:main',
+      'price',
+      '100',
+      '100',
+      { ...ELIGIBLE, valid: false, blockedReason: 'invalid_value' },
+    )
+    const state = editPricingFields(createPricingWorkspaceState('workspace-1'), [
+      { descriptor: ready, targetValue: '120' },
+      { descriptor: blocked, targetValue: 'not-a-price' },
+    ])
+
+    expect(pricingWorkspaceSummary(state)).toMatchObject({ changed: 2, selected: 1, ready: 1, blocked: 1 })
+    expect(selectedPricingDraftChanges(state)).toEqual([
+      expect.objectContaining({ listing_id: 'listing-ready', channel_id: 'woocommerce:primary', field: 'price', target_value: '120' }),
+    ])
   })
 })
 

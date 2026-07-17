@@ -125,6 +125,7 @@ async function installApi(page: Page) {
       permissions: { can_access_site: true, can_fetch: true, can_view_logs: true, can_view_settings: true },
       maintenance: { enabled: false, message: '' },
     })
+    if (url.pathname === '/api/v2/products/categories') return json({ items: [] })
     if (url.pathname === '/api/v2/source-profiles/channels') return json({ items: sourceChannels })
     if (url.pathname === '/api/v2/unified-workspaces/preferences/me') return json({
       visibleChannelIds: channels.map(item => item.channelId),
@@ -186,7 +187,7 @@ test('virtualizes a paged 10,000-product, five-channel Workspace in Chromium', a
   // CI browsers can spend several seconds compiling the Handsontable chunk;
   // wait for the API-backed readiness signal rather than racing the default
   // five-second locator timeout.
-  await expect(page.getByText('10,000 Product Benchmark')).toBeVisible({ timeout: 30_000 })
+  await expect(page).toHaveURL('/products?workspace=browser-benchmark')
   await expect(page.locator('[data-pricing-grid]')).toBeVisible()
   const readyMs = Math.round(performance.now() - started)
   const initialRows = await page.locator('.ht_master tbody tr').count()
@@ -248,6 +249,7 @@ test('keeps visible Listing identity through sort, filter, paging, keyboard and 
       permissions: { can_access_site: true, can_fetch: true, can_view_logs: true, can_view_settings: true },
       maintenance: { enabled: false, message: '' },
     })
+    if (url.pathname === '/api/v2/products/categories') return json({ items: [] })
     if (url.pathname === '/api/v2/source-profiles/channels') return json({ items: sourceChannels })
     if (url.pathname === '/api/v2/unified-workspaces/preferences/me') {
       if (route.request().method() === 'PUT') {
@@ -334,7 +336,8 @@ test('keeps visible Listing identity through sort, filter, paging, keyboard and 
   })
 
   await page.goto('/workspace/identity-workspace')
-  await expect(page.getByText('Identity Workspace')).toBeVisible()
+  await expect(page).toHaveURL('/products?workspace=identity-workspace')
+  await expect(page.locator('[data-pricing-grid]')).toBeVisible()
   await page.locator('[data-pricing-sort="product"]').click()
   await page.locator('[data-pricing-sort="product"]').click()
   const betaTarget = page.locator('.ht_master td[data-listing-id="listing-b"][data-target-field="price"]').first()

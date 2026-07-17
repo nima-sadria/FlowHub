@@ -293,12 +293,12 @@ msgctxt "sources:sourceImportWizard.afterImportMapSourceProductFieldsAnd"
 msgid "After import, choose the Source Product columns and the columns for every enabled Channel. FlowHub does not guess business fields from headers."
 msgstr "After import, choose the Source Product columns and the columns for every enabled Channel. FlowHub does not guess business fields from headers."
 
-#: frontend/src/pages/Products.tsx:137
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:381
 msgctxt "products:products.allCategories"
 msgid "All Categories"
 msgstr "All Categories"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:314 frontend/src/pages/UnifiedWorkspace.tsx:213
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:377 frontend/src/pages/UnifiedWorkspace.tsx:240
 msgctxt "common:selector.allChannels"
 msgid "All Channels"
 msgstr "All Channels"
@@ -308,7 +308,6 @@ msgctxt "dataQuality:dataQuality.allChannels"
 msgid "All Channels"
 msgstr "All Channels"
 
-#: frontend/src/pages/Products.tsx:136
 msgctxt "products:products.allChannels"
 msgid "All Channels"
 msgstr "All Channels"
@@ -318,7 +317,7 @@ msgctxt "dataQuality:dataQuality.allSources"
 msgid "All Sources"
 msgstr "All Sources"
 
-#: frontend/src/pages/Products.tsx:138
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:385
 msgctxt "products:products.allTypes"
 msgid "All Types"
 msgstr "All Types"
@@ -351,6 +350,12 @@ msgstr "All products"
 msgctxt "dataQuality:dataQuality.allSeverities"
 msgid "All severities"
 msgstr "All severities"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:389
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "products:products.allStockStates"
+msgid "All stock states"
+msgstr "All stock states"
 
 #: frontend/src/pages/CommerceHub.tsx:928
 msgctxt "commerce:commerceHub.allWorksheets"
@@ -420,25 +425,25 @@ msgctxt "products:products.apply"
 msgid "Apply"
 msgstr "Apply"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:342 frontend/src/pages/UnifiedWorkspace.tsx:166
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:423 frontend/src/pages/UnifiedWorkspace.tsx:193
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.apply"
 msgid "Apply"
 msgstr "Apply"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:142
+#: frontend/src/pages/UnifiedWorkspace.tsx:169
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:unifiedWorkspace.applySelectedOnly"
 msgid "Apply Selected Only"
 msgstr "Apply Selected Only"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:720
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:densePricing.applyBulkChanges"
 msgid "Apply bulk changes"
 msgstr "Apply bulk changes"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:415
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:496
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyConfirmation"
 msgid "Apply confirmation"
@@ -461,7 +466,7 @@ msgctxt "workspace:workspace.applyRequiresDryRunAndApprovalFirst"
 msgid "Apply requires Dry Run and Approval first"
 msgstr "Apply requires Dry Run and Approval first"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:728 frontend/src/pages/UnifiedWorkspace.tsx:165
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:854 frontend/src/pages/UnifiedWorkspace.tsx:192
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyResults"
 msgid "Apply results"
@@ -473,13 +478,13 @@ msgctxt "workspace:workspace.applyToWoocommerce"
 msgid "Apply to WooCommerce"
 msgstr "Apply to WooCommerce"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:271
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:325
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyWasBlocked"
 msgid "Apply was blocked"
 msgstr "Apply was blocked"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:728
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:854
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyResultStatus"
 msgid "Apply — {{status}}"
@@ -493,7 +498,7 @@ msgctxt "workspace:statusDisplay.applying"
 msgid "Applying"
 msgstr "Applying"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:262
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:315
 msgctxt "workspace:sourceCentricWorkspace.applyingSelectedListings"
 msgid "Applying selected Listings"
 msgstr "Applying selected Listings"
@@ -566,7 +571,7 @@ msgctxt "sources:sourceWizard.back"
 msgid "Back"
 msgstr "Back"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:724
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:846 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:850
 msgctxt "workspace:densePricing.backToGrid"
 msgid "Back to Grid"
 msgstr "Back to Grid"
@@ -619,7 +624,7 @@ msgctxt "workspace:densePricing.view.blocked"
 msgid "Blocked"
 msgstr "Blocked"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:157 frontend/src/pages/Workspace.tsx:552
+#: frontend/src/pages/UnifiedWorkspace.tsx:184 frontend/src/pages/Workspace.tsx:552
 msgctxt "workspace:unifiedWorkspace.blocked"
 msgid "Blocked"
 msgstr "Blocked"
@@ -628,7 +633,7 @@ msgctxt "sources:sourceConfiguration.blockedIssue"
 msgid "Blocked issue"
 msgstr "Blocked issue"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:720
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842
 msgctxt "workspace:sourceCentricWorkspace.blockedRows"
 msgid "Blocked rows"
 msgstr "Blocked rows"
@@ -657,12 +662,12 @@ msgctxt "commerce:commerceHub.browseNextcloud"
 msgid "Browse Nextcloud"
 msgstr "Browse Nextcloud"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:333
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:413
 msgctxt "workspace:densePricing.bulkAction"
 msgid "Bulk action"
 msgstr "Bulk action"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:720
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842
 msgctxt "workspace:densePricing.bulkPreview"
 msgid "Bulk change preview"
 msgstr "Bulk change preview"
@@ -671,19 +676,19 @@ msgctxt "workspace:densePricing.visibleRowsScope"
 msgid "Bulk scope: all visible rows"
 msgstr "Bulk scope: all visible rows"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:338
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:418
 msgctxt "workspace:densePricing.selectedRowsScope"
 msgid "Bulk scope: {{count}} selected row"
 msgid_plural "Bulk scope: {{count}} selected rows"
 msgstr[0] "Bulk scope: {{count}} selected row"
 msgstr[1] "Bulk scope: {{count}} selected rows"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:332
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:412
 msgctxt "workspace:densePricing.bulkTransformationToolbar"
 msgid "Bulk transformation toolbar"
 msgstr "Bulk transformation toolbar"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:336
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:416
 msgctxt "workspace:densePricing.bulkValue"
 msgid "Bulk value"
 msgstr "Bulk value"
@@ -711,6 +716,11 @@ msgctxt "workspace:workspace.csvAndGoogleSheetsAreNotAvailable"
 msgid "CSV and Google Sheets are not available in 1.0.0."
 msgstr "CSV and Google Sheets are not available in 1.0.0."
 
+#: frontend/src/pages/Products.tsx:154
+msgctxt "products:products.cachedProductsReadOnly"
+msgid "Cached products are shown read-only until inline pricing is available."
+msgstr "Cached products are shown read-only until inline pricing is available."
+
 #: frontend/src/pages/CommerceHub.tsx:212
 msgctxt "commerce:commerceHub.cachedProducts"
 msgid "Cached products:"
@@ -732,7 +742,7 @@ msgctxt "common:action.cancel"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:415 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:720
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:496 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842
 msgctxt "workspace:sourceCentricWorkspace.cancel"
 msgid "Cancel"
 msgstr "Cancel"
@@ -747,7 +757,7 @@ msgctxt "sources:sourceCenter.cannotDeleteActiveWorkspace"
 msgid "Cannot delete — active Workspace exists"
 msgstr "Cannot delete — active Workspace exists"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:124
+#: frontend/src/pages/UnifiedWorkspace.tsx:151
 msgctxt "workspace:unifiedWorkspace.canonicalProduct"
 msgid "Canonical Product"
 msgstr "Canonical Product"
@@ -785,6 +795,7 @@ msgctxt "diagnostics:message.capabilityApplyProtections"
 msgid "Capability advertised; FlowHub Apply protections still apply."
 msgstr "Capability advertised; FlowHub Apply protections still apply."
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:380 frontend/src/features/sourceWorkspace/densePricingGrid.ts:77 frontend/src/pages/Products.tsx:157
 msgctxt "products:column.categories"
 msgid "Categories"
 msgstr "Categories"
@@ -807,7 +818,7 @@ msgctxt "dataQuality:dataQuality.trendSinceLastRead"
 msgid "Change since last read"
 msgstr "Change since last read"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:310
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:373
 msgctxt "workspace:densePricing.changeStateFilter"
 msgid "Change-state filter"
 msgstr "Change-state filter"
@@ -864,7 +875,7 @@ msgctxt "products:column.channel"
 msgid "Channel"
 msgstr "Channel"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:313 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:720 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:724 frontend/src/pages/UnifiedWorkspace.tsx:213 frontend/src/pages/Workspace.tsx:547
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:376 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:846 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:850 frontend/src/pages/UnifiedWorkspace.tsx:240 frontend/src/pages/Workspace.tsx:547
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:unifiedWorkspace.channel"
 msgid "Channel"
@@ -996,7 +1007,7 @@ msgctxt "diagnostics:diagnostics.channels"
 msgid "Channels"
 msgstr "Channels"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:346
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:405
 msgctxt "workspace:sourceCentricWorkspace.channels"
 msgid "Channels"
 msgstr "Channels"
@@ -1091,7 +1102,6 @@ msgctxt "sources:sourceImportWizard.chooseXlsxOrCsv"
 msgid "Choose XLSX or CSV"
 msgstr "Choose XLSX or CSV"
 
-#: frontend/src/pages/Products.tsx:140
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "products:products.selectProductsThenEditInline"
 msgid "Choose a product set first. Price, stock, and status edits happen inline after the workspace opens."
@@ -1195,7 +1205,7 @@ msgctxt "sources:sourceConfiguration.worksheetRulesSectionHelp"
 msgid "Choose whether all worksheets share one layout or each worksheet has its own columns."
 msgstr "Choose whether all worksheets share one layout or each worksheet has its own columns."
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:216
+#: frontend/src/pages/UnifiedWorkspace.tsx:243
 msgctxt "workspace:unifiedWorkspace.clear"
 msgid "Clear"
 msgstr "Clear"
@@ -1210,7 +1220,6 @@ msgctxt "sources:sourceConfiguration.clearMapping"
 msgid "Clear column choices"
 msgstr "Clear column choices"
 
-#: frontend/src/pages/Products.tsx:140
 msgctxt "products:products.clearVisible"
 msgid "Clear visible"
 msgstr "Clear visible"
@@ -1469,7 +1478,7 @@ msgctxt "commerce:commerceHub.configuredLeaveBlankToKeepUnchanged"
 msgid "Configured; leave blank to keep unchanged."
 msgstr "Configured; leave blank to keep unchanged."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:415
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:496
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.confirmApply"
 msgid "Confirm Apply"
@@ -1485,7 +1494,7 @@ msgctxt "settings:setup.confirmPassword"
 msgid "Confirm password"
 msgstr "Confirm password"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:415
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:496
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.confirmSelectedApply"
 msgid "Confirm selected Apply"
@@ -1523,7 +1532,7 @@ msgctxt "dashboard:dashboard.addSourceToBuildCatalog"
 msgid "Connect a Source to build your product catalog."
 msgstr "Connect a Source to build your product catalog."
 
-#: frontend/src/pages/Products.tsx:124
+#: frontend/src/pages/Products.tsx:146
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "products:products.connectAProductSourceFromSourcesTo"
 msgid "Connect a product source from Sources to browse products."
@@ -1670,7 +1679,7 @@ msgctxt "dataQuality:issue.ZERO_VALUE_BLOCKED.action"
 msgid "Correct the mapped value or change the explicit value policy."
 msgstr "Correct the mapped value or change the explicit value policy."
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:167
+#: frontend/src/pages/UnifiedWorkspace.tsx:194
 msgctxt "workspace:unifiedWorkspace.correlation"
 msgid "Correlation"
 msgstr "Correlation"
@@ -1702,7 +1711,6 @@ msgctxt "orders:orders.created"
 msgid "Created"
 msgstr "Created"
 
-#: frontend/src/pages/Products.tsx:129
 msgctxt "products:products.creating"
 msgid "Creating..."
 msgstr "Creating..."
@@ -1769,6 +1777,7 @@ msgctxt "common:status.current"
 msgid "Current"
 msgstr "Current"
 
+#: frontend/src/pages/Products.tsx:157
 #. Current is the latest verified or cached Channel value.
 msgctxt "products:column.current"
 msgid "Current"
@@ -1975,7 +1984,7 @@ msgctxt "sources:sourceConfiguration.detectingWorksheets"
 msgid "Detecting worksheets..."
 msgstr "Detecting worksheets..."
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:153
+#: frontend/src/pages/UnifiedWorkspace.tsx:180
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:unifiedWorkspace.deterministicComparisonOfCurrentCacheValuesAnd"
 msgid "Deterministic comparison of Current cache values and saved Draft targets."
@@ -2071,18 +2080,19 @@ msgctxt "workspace:statusDisplay.draftSaved"
 msgid "Draft Saved"
 msgstr "Draft Saved"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:303
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:362
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:sourceCentricWorkspace.draftSaved"
 msgid "Draft saved"
 msgstr "Draft saved"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:89
+#: frontend/src/pages/UnifiedWorkspace.tsx:116
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:unifiedWorkspace.draftSaved"
 msgid "Draft saved"
 msgstr "Draft saved"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:422
 msgctxt "products:products.dryRun"
 msgid "Dry Run"
 msgstr "Dry Run"
@@ -2116,13 +2126,12 @@ msgctxt "sources:sources.edit"
 msgid "Edit"
 msgstr "Edit"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:221
+#: frontend/src/pages/UnifiedWorkspace.tsx:248
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "workspace:unifiedWorkspace.editTargetCellsInlineCurrentValuesIdentities"
 msgid "Edit Target cells inline. Current values, identities, SKUs, and Mapping are read-only."
 msgstr "Edit Target cells inline. Current values, identities, SKUs, and Mapping are read-only."
 
-#: frontend/src/pages/Products.tsx:43
 msgctxt "products:products.inlineEditingInWorkspace"
 msgid "Edit inline in the pricing workspace"
 msgstr "Edit inline in the pricing workspace"
@@ -2152,7 +2161,7 @@ msgctxt "sources:sources.editingIsNotAvailableYet"
 msgid "Editing is not available yet"
 msgstr "Editing is not available yet"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:156
+#: frontend/src/pages/UnifiedWorkspace.tsx:183
 msgctxt "workspace:unifiedWorkspace.eligible"
 msgid "Eligible"
 msgstr "Eligible"
@@ -2371,7 +2380,7 @@ msgctxt "workspace:workspace.failedToCreateDryRun"
 msgid "Failed to create Dry Run."
 msgstr "Failed to create Dry Run."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:720 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:724
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:846 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:850
 msgctxt "workspace:densePricing.field"
 msgid "Field"
 msgstr "Field"
@@ -2405,7 +2414,7 @@ msgctxt "flowhubSheet:flowHubSheet.filterRows"
 msgid "Filter rows"
 msgstr "Filter rows"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:309 frontend/src/pages/UnifiedWorkspace.tsx:216
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:372 frontend/src/pages/UnifiedWorkspace.tsx:243
 msgctxt "workspace:unifiedWorkspace.filterServerData"
 msgid "Filter server data"
 msgstr "Filter server data"
@@ -2601,7 +2610,7 @@ msgctxt "sources:sourceConfiguration.section.general"
 msgid "General"
 msgstr "General"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:234 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:246
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:286 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:298
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.generateAFreshReview"
 msgid "Generate a fresh Review."
@@ -2695,7 +2704,7 @@ msgctxt "sources:sourceConfiguration.ignoredRow"
 msgid "Ignored row"
 msgstr "Ignored row"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:84
+#: frontend/src/pages/UnifiedWorkspace.tsx:111
 msgctxt "workspace:unifiedWorkspace.immutableSnapshot"
 msgid "Immutable Snapshot"
 msgstr "Immutable Snapshot"
@@ -2738,6 +2747,12 @@ msgctxt "settings:setup.inProgress"
 msgid "In progress"
 msgstr "In progress"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:390
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "products:products.inStock"
+msgid "In stock"
+msgstr "In stock"
+
 msgctxt "common:status.inactive"
 msgid "Inactive"
 msgstr "Inactive"
@@ -2772,6 +2787,16 @@ msgstr "Information"
 msgctxt "settings:rateLimits.inheritedByEverySourceAndChannel"
 msgid "Inherited by every Source and Channel"
 msgstr "Inherited by every Source and Channel"
+
+#: frontend/src/pages/Products.tsx:35
+msgctxt "products:products.inlinePricingUnavailableHttp"
+msgid "Inline pricing is unavailable (HTTP {{status}}). Cached products remain visible without editing."
+msgstr "Inline pricing is unavailable (HTTP {{status}}). Cached products remain visible without editing."
+
+#: frontend/src/pages/Products.tsx:155 frontend/src/pages/Products.tsx:37
+msgctxt "products:products.inlinePricingUnavailable"
+msgid "Inline pricing is unavailable. Cached products remain visible without editing."
+msgstr "Inline pricing is unavailable. Cached products remain visible without editing."
 
 #: frontend/src/pages/CommerceHub.tsx:1294
 msgctxt "commerce:commerceHub.inputSystemsThatFeedFlowhubDataLayer"
@@ -3014,7 +3039,7 @@ msgctxt "sources:sourceCenter.linkedExternalSource"
 msgid "Linked external Source"
 msgstr "Linked external Source"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:75 frontend/src/features/unifiedWorkspace/gridModel.ts:92
+#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:84 frontend/src/features/unifiedWorkspace/gridModel.ts:92
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:gridModel.listing"
 msgid "Listing"
@@ -3070,7 +3095,7 @@ msgctxt "flowhubSheet:flowHubSheet.loadingFlowhubSheet"
 msgid "Loading FlowHub Sheet..."
 msgstr "Loading FlowHub Sheet..."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:297
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:354
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.loadingSourceProductWorkspace"
 msgid "Loading Source Product Workspace..."
@@ -3125,7 +3150,7 @@ msgctxt "commerce:commerceHub.loadingFiles"
 msgid "Loading files"
 msgstr "Loading files"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:63
+#: frontend/src/pages/UnifiedWorkspace.tsx:57 frontend/src/pages/UnifiedWorkspace.tsx:96
 msgctxt "workspace:unifiedWorkspace.loadingImmutableWorkspaceSnapshot"
 msgid "Loading immutable Workspace Snapshot..."
 msgstr "Loading immutable Workspace Snapshot..."
@@ -3170,7 +3195,6 @@ msgctxt "orders:orders.loading"
 msgid "Loading..."
 msgstr "Loading..."
 
-#: frontend/src/pages/Products.tsx:128 frontend/src/pages/Products.tsx:140
 msgctxt "products:products.loading"
 msgid "Loading..."
 msgstr "Loading..."
@@ -3258,12 +3282,12 @@ msgctxt "commerce:commerceHub.maxReadsPer24Hours"
 msgid "Max reads per 24 hours"
 msgstr "Max reads per 24 hours"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:215
+#: frontend/src/pages/UnifiedWorkspace.tsx:242
 msgctxt "workspace:unifiedWorkspace.maximumPrice"
 msgid "Maximum price"
 msgstr "Maximum price"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:215
+#: frontend/src/pages/UnifiedWorkspace.tsx:242
 msgctxt "workspace:unifiedWorkspace.minimumPrice"
 msgid "Minimum price"
 msgstr "Minimum price"
@@ -3293,7 +3317,7 @@ msgctxt "validation:source.nameRequired"
 msgid "Name is required."
 msgstr "Name is required."
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:117
+#: frontend/src/pages/UnifiedWorkspace.tsx:144
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:unifiedWorkspace.nameSource"
 msgid "Name source"
@@ -3336,7 +3360,7 @@ msgctxt "flowhubSheet:flowHubSheet.next"
 msgid "Next"
 msgstr "Next"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:408 frontend/src/pages/UnifiedWorkspace.tsx:227
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:488 frontend/src/pages/UnifiedWorkspace.tsx:254
 msgctxt "workspace:sourceCentricWorkspace.next"
 msgid "Next"
 msgstr "Next"
@@ -3346,7 +3370,6 @@ msgctxt "diagnostics:diagnostics.nextAction"
 msgid "Next action:"
 msgstr "Next action:"
 
-#: frontend/src/pages/Products.tsx:142
 msgctxt "products:products.nextPage"
 msgid "Next page"
 msgstr "Next page"
@@ -3493,7 +3516,7 @@ msgctxt "diagnostics:message.noDeadLetters"
 msgid "No dead letters."
 msgstr "No dead letters."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:241 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:243
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:293 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:295
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:densePricing.noEligibleSelectedChanges"
 msgid "No eligible selected changes are available for Review."
@@ -3554,7 +3577,7 @@ msgctxt "diagnostics:message.noProcessedWebhookReceipt"
 msgid "No processed webhook receipt yet."
 msgstr "No processed webhook receipt yet."
 
-#: frontend/src/pages/Products.tsx:124
+#: frontend/src/pages/Products.tsx:146
 msgctxt "products:products.noProductConnectorConfigured"
 msgid "No product connector configured"
 msgstr "No product connector configured"
@@ -3577,12 +3600,11 @@ msgctxt "dashboard:dashboard.catalogIsEmpty"
 msgid "No products are currently available for daily work."
 msgstr "No products are currently available for daily work."
 
-#: frontend/src/pages/Products.tsx:140
+#: frontend/src/pages/Products.tsx:157
 msgctxt "products:products.noProductsFound"
 msgid "No products found"
 msgstr "No products found"
 
-#: frontend/src/pages/Products.tsx:141
 msgctxt "products:products.noProductsMatch"
 msgid "No products match"
 msgstr "No products match"
@@ -3825,7 +3847,7 @@ msgctxt "sources:sourceConfiguration.accessScopePolicy"
 msgid "Only users with existing Source and Workspace permissions may change these columns or create a Workspace."
 msgstr "Only users with existing Source and Workspace permissions may change these columns or create a Workspace."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:415
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:496
 msgctxt "workspace:densePricing.confirmApplyScope"
 msgid "Only {{count}} checksum-bound, Reviewed field changes will enter the shared Write Pipeline."
 msgstr "Only {{count}} checksum-bound, Reviewed field changes will enter the shared Write Pipeline."
@@ -3871,7 +3893,7 @@ msgctxt "diagnostics:diagnostics.openSources"
 msgid "Open Sources"
 msgstr "Open Sources"
 
-#: frontend/src/pages/Products.tsx:124
+#: frontend/src/pages/Products.tsx:146
 msgctxt "products:products.openSources"
 msgid "Open Sources"
 msgstr "Open Sources"
@@ -3891,7 +3913,6 @@ msgctxt "navigation:topbar.openNavigation"
 msgid "Open navigation"
 msgstr "Open navigation"
 
-#: frontend/src/pages/Products.tsx:129
 msgctxt "products:products.openPricingWorkspace"
 msgid "Open pricing workspace"
 msgstr "Open pricing workspace"
@@ -3967,6 +3988,12 @@ msgctxt "diagnostics:diagnostics.checkGroups.other"
 msgid "Other checks"
 msgstr "Other checks"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:391
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "products:products.outOfStock"
+msgid "Out of stock"
+msgstr "Out of stock"
+
 msgctxt "products:column.outbound"
 msgid "Outbound"
 msgstr "Outbound"
@@ -3981,7 +4008,7 @@ msgctxt "settings:setup.ownerAccount"
 msgid "Owner Account"
 msgstr "Owner Account"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:407 frontend/src/pages/UnifiedWorkspace.tsx:226
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:487 frontend/src/pages/UnifiedWorkspace.tsx:253
 msgctxt "workspace:sourceCentricWorkspace.page"
 msgid "Page"
 msgstr "Page"
@@ -4116,6 +4143,11 @@ msgctxt "diagnostics:dimension.polling"
 msgid "Polling"
 msgstr "Polling"
 
+#: frontend/src/pages/Products.tsx:150
+msgctxt "products:products.preparingInlinePricing"
+msgid "Preparing inline pricing..."
+msgstr "Preparing inline pricing..."
+
 #: frontend/src/pages/Workspace.tsx:193
 msgctxt "workspace:workspace.steps.preview"
 msgid "Preview"
@@ -4135,7 +4167,7 @@ msgctxt "sources:sourceImportWizard.previewAnXlsxOrCsvThenCreate"
 msgid "Preview an XLSX or CSV, then create an internal managed FlowHub Sheet."
 msgstr "Preview an XLSX or CSV, then create an internal managed FlowHub Sheet."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:337
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:417
 msgctxt "workspace:densePricing.previewBulkChange"
 msgid "Preview bulk change"
 msgstr "Preview bulk change"
@@ -4175,12 +4207,11 @@ msgctxt "products:column.previous"
 msgid "Previous"
 msgstr "Previous"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:408 frontend/src/pages/UnifiedWorkspace.tsx:225
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:488 frontend/src/pages/UnifiedWorkspace.tsx:252
 msgctxt "workspace:sourceCentricWorkspace.previous"
 msgid "Previous"
 msgstr "Previous"
 
-#: frontend/src/pages/Products.tsx:142
 msgctxt "products:products.previousPage"
 msgid "Previous page"
 msgstr "Previous page"
@@ -4190,7 +4221,7 @@ msgctxt "sources:sourceConfiguration.previousSampleRow"
 msgid "Previous sample row"
 msgstr "Previous sample row"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:720 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:724
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:846 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:850
 msgctxt "workspace:densePricing.previousValue"
 msgid "Previous value"
 msgstr "Previous value"
@@ -4214,7 +4245,7 @@ msgctxt "diagnostics:reason.write_capability_supported"
 msgid "Price or stock updates are supported. FlowHub still requires Review and Apply confirmation."
 msgstr "Price or stock updates are supported. FlowHub still requires Review and Apply confirmation."
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:215
+#: frontend/src/pages/UnifiedWorkspace.tsx:242
 msgctxt "workspace:unifiedWorkspace.priceRange"
 msgid "Price range"
 msgstr "Price range"
@@ -4223,7 +4254,7 @@ msgctxt "commerce:capability.priceWrite"
 msgid "Price write"
 msgstr "Price write"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:306
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:369
 msgctxt "workspace:densePricing.pricingToolbar"
 msgid "Pricing Grid toolbar"
 msgstr "Pricing Grid toolbar"
@@ -4233,12 +4264,11 @@ msgctxt "settings:settings.pricingUnit"
 msgid "Pricing unit"
 msgstr "Pricing unit"
 
-#: frontend/src/pages/Products.tsx:128
+#: frontend/src/pages/Products.tsx:103
 msgctxt "products:products.pricingWorkspace"
 msgid "Pricing workspace"
 msgstr "Pricing workspace"
 
-#: frontend/src/pages/Products.tsx:118
 msgctxt "products:products.pricingWorkspaceDated"
 msgid "Pricing workspace {{date}}"
 msgstr "Pricing workspace {{date}}"
@@ -4248,11 +4278,12 @@ msgctxt "dataQuality:dataQuality.product"
 msgid "Product"
 msgstr "Product"
 
+#: frontend/src/pages/Products.tsx:157
 msgctxt "products:column.product"
 msgid "Product"
 msgstr "Product"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:720 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:724 frontend/src/features/sourceWorkspace/densePricingGrid.ts:66 frontend/src/features/unifiedWorkspace/gridModel.ts:90
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:846 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:850 frontend/src/features/sourceWorkspace/densePricingGrid.ts:74 frontend/src/features/unifiedWorkspace/gridModel.ts:90
 msgctxt "workspace:gridModel.product"
 msgid "Product"
 msgstr "Product"
@@ -4285,7 +4316,7 @@ msgctxt "commerce:commerceHub.productCacheRefreshedSuccessfully"
 msgid "Product cache refreshed successfully"
 msgstr "Product cache refreshed successfully"
 
-#: frontend/src/pages/Products.tsx:124
+#: frontend/src/pages/Products.tsx:146
 msgctxt "products:products.productCatalog"
 msgid "Product catalog"
 msgstr "Product catalog"
@@ -4303,7 +4334,7 @@ msgctxt "diagnostics:reason.product_sync_fresh"
 msgid "Product data was synchronized within the expected freshness window."
 msgstr "Product data was synchronized within the expected freshness window."
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:121
+#: frontend/src/pages/UnifiedWorkspace.tsx:148
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:unifiedWorkspace.productDisplayNameSource"
 msgid "Product display name source"
@@ -4318,7 +4349,7 @@ msgctxt "sources:sourceConfiguration.productIdentifier"
 msgid "Product identifier"
 msgstr "Product identifier"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:63
+#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:70
 msgctxt "workspace:densePricing.productIdentity"
 msgid "Product identity"
 msgstr "Product identity"
@@ -4384,7 +4415,7 @@ msgctxt "diagnostics:reason.product_cache_refresh_in_progress"
 msgid "Product synchronization is still in progress."
 msgstr "Product synchronization is still in progress."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:350 frontend/src/pages/UnifiedWorkspace.tsx:233
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:428 frontend/src/pages/UnifiedWorkspace.tsx:260
 msgctxt "workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid"
 msgid "Production Grid is disabled. Configure a valid commercial Handsontable license."
 msgstr "Production Grid is disabled. Configure a valid commercial Handsontable license."
@@ -4398,7 +4429,7 @@ msgctxt "navigation:topbar.products"
 msgid "Products"
 msgstr "Products"
 
-#: frontend/src/pages/Products.tsx:124
+#: frontend/src/pages/Products.tsx:146 frontend/src/pages/Products.tsx:154
 msgctxt "products:products.products"
 msgid "Products"
 msgstr "Products"
@@ -4623,7 +4654,7 @@ msgctxt "workspace:statusDisplay.ready"
 msgid "Ready"
 msgstr "Ready"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:720
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842
 msgctxt "workspace:sourceCentricWorkspace.readyChanges"
 msgid "Ready changes"
 msgstr "Ready changes"
@@ -4694,7 +4725,7 @@ msgctxt "diagnostics:diagnostics.checkGroups.recoveryQueues"
 msgid "Recovery and queues"
 msgstr "Recovery and queues"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:324
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:400
 msgctxt "workspace:densePricing.redo"
 msgid "Redo"
 msgstr "Redo"
@@ -4798,7 +4829,7 @@ msgctxt "workspace:workspace.steps.result"
 msgid "Result"
 msgstr "Result"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:720
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842
 msgctxt "workspace:densePricing.resultingValue"
 msgid "Resulting value"
 msgstr "Resulting value"
@@ -4812,6 +4843,11 @@ msgstr "Retry"
 msgctxt "sources:sourceWizard.retry"
 msgid "Retry"
 msgstr "Retry"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:353 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:365 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:366 frontend/src/pages/Products.tsx:154 frontend/src/pages/Products.tsx:157
+msgctxt "products:products.retryInlinePricing"
+msgid "Retry inline pricing"
+msgstr "Retry inline pricing"
 
 msgctxt "diagnostics:action.retry_the_connection_test"
 msgid "Retry the connection test"
@@ -4830,19 +4866,18 @@ msgctxt "common:notFound.returnToDashboard"
 msgid "Return to Dashboard"
 msgstr "Return to Dashboard"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:340 frontend/src/pages/UnifiedWorkspace.tsx:152
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:421 frontend/src/pages/UnifiedWorkspace.tsx:179
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.review"
 msgid "Review"
 msgstr "Review"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:341
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.reviewDryRun"
 msgid "Review & Dry Run"
 msgstr "Review & Dry Run"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:724 frontend/src/pages/UnifiedWorkspace.tsx:139
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:846 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:850 frontend/src/pages/UnifiedWorkspace.tsx:166
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.reviewChanges"
 msgid "Review Changes"
@@ -4854,7 +4889,7 @@ msgctxt "dashboard:dashboard.reviewChannelHealth"
 msgid "Review Channel health before publishing."
 msgstr "Review Channel health before publishing."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:254
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:307
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.reviewAndDryRunComplete"
 msgid "Review and Dry Run complete"
@@ -4876,7 +4911,7 @@ msgctxt "workspace:workspace.reviewConnectorSettingsBeforeUsingWorkspace"
 msgid "Review connector settings before using Workspace."
 msgstr "Review connector settings before using Workspace."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:234 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:246 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:256
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:286 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:298 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:309
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.reviewCouldNotBeCompleted"
 msgid "Review could not be completed"
@@ -4927,7 +4962,7 @@ msgctxt "diagnostics:message.reviewQueuedWebhookReceipts"
 msgid "Review queued webhook receipts."
 msgstr "Review queued webhook receipts."
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:149
+#: frontend/src/pages/UnifiedWorkspace.tsx:176
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.reviewResults"
 msgid "Review results"
@@ -5015,6 +5050,11 @@ msgctxt "common:status.running"
 msgid "Running"
 msgstr "Running"
 
+#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:75 frontend/src/pages/Products.tsx:157
+msgctxt "products:column.sku"
+msgid "SKU"
+msgstr "SKU"
+
 msgctxt "commerce:capability.skuRead"
 msgid "SKU read"
 msgstr "SKU read"
@@ -5038,7 +5078,7 @@ msgctxt "settings:rateLimits.saveChanges"
 msgid "Save Changes"
 msgstr "Save Changes"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:136
+#: frontend/src/pages/UnifiedWorkspace.tsx:163
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:unifiedWorkspace.saveDraft"
 msgid "Save Draft"
@@ -5095,7 +5135,7 @@ msgctxt "commerce:commerceHub.saving"
 msgid "Saving"
 msgstr "Saving"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:229
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:281
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:sourceCentricWorkspace.savingDraft"
 msgid "Saving Draft"
@@ -5141,23 +5181,22 @@ msgctxt "settings:rateLimits.scope"
 msgid "Scope"
 msgstr "Scope"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:351 frontend/src/pages/UnifiedWorkspace.tsx:236
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:429 frontend/src/pages/UnifiedWorkspace.tsx:263
 msgctxt "workspace:unifiedWorkspace.scrollableWorkspaceGrid"
 msgid "Scrollable Workspace Grid"
 msgstr "Scrollable Workspace Grid"
 
-#: frontend/src/pages/SourceCenter.tsx:339 frontend/src/pages/SourceCenter.tsx:346 frontend/src/pages/UnifiedWorkspace.tsx:212
+#: frontend/src/pages/SourceCenter.tsx:339 frontend/src/pages/SourceCenter.tsx:346 frontend/src/pages/UnifiedWorkspace.tsx:239
 msgctxt "workspace:unifiedWorkspace.search"
 msgid "Search"
 msgstr "Search"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:308
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:371
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.searchSourceProducts"
 msgid "Search Source Products"
 msgstr "Search Source Products"
 
-#: frontend/src/pages/Products.tsx:135
 msgctxt "products:products.searchNameOrSku"
 msgid "Search name or SKU..."
 msgstr "Search name or SKU..."
@@ -5182,6 +5221,7 @@ msgctxt "diagnostics:diagnostics.summaryDescription"
 msgid "See what needs attention first, then expand technical details when needed."
 msgstr "See what needs attention first, then expand technical details when needed."
 
+#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:73
 msgctxt "products:column.select"
 msgid "Select"
 msgstr "Select"
@@ -5222,12 +5262,11 @@ msgctxt "sources:sourceConfiguration.selectAll"
 msgid "Select all"
 msgstr "Select all"
 
-#: frontend/src/pages/Workspace.tsx:658
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:785 frontend/src/pages/Workspace.tsx:658
 msgctxt "workspace:workspace.selectAllEligible"
 msgid "Select all eligible"
 msgstr "Select all eligible"
 
-#: frontend/src/pages/Products.tsx:115
 msgctxt "products:products.selectAtLeastOneForPricingWorkspace"
 msgid "Select at least one product to open a pricing workspace."
 msgstr "Select at least one product to open a pricing workspace."
@@ -5237,12 +5276,11 @@ msgctxt "sources:sourceConfiguration.selectAtLeastOneWorksheet"
 msgid "Select at least one worksheet for these shared rules."
 msgstr "Select at least one worksheet for these shared rules."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:666
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:774
 msgctxt "workspace:densePricing.selectChangedField"
 msgid "Select changed {{field}} field"
 msgstr "Select changed {{field}} field"
 
-#: frontend/src/pages/Products.tsx:131
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:products.pricingWorkspaceHint"
 msgid "Select the products you want to update, then edit all Channel targets together in one safe workspace."
@@ -5259,7 +5297,6 @@ msgctxt "commerce:commerceHub.selectVendor"
 msgid "Select vendor"
 msgstr "Select vendor"
 
-#: frontend/src/pages/Products.tsx:140
 msgctxt "products:products.selectVisible"
 msgid "Select visible"
 msgstr "Select visible"
@@ -5274,7 +5311,7 @@ msgctxt "workspace:sourceCentricWorkspace.selectListing"
 msgid "Select {{channel}} {{listing}}"
 msgstr "Select {{channel}} {{listing}}"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:89
+#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:98
 msgctxt "workspace:densePricing.selectField"
 msgid "Select {{field}}"
 msgstr "Select {{field}}"
@@ -5284,7 +5321,6 @@ msgctxt "workspace:workspace.selectProduct"
 msgid "Select {{product}}"
 msgstr "Select {{product}}"
 
-#: frontend/src/pages/Products.tsx:29
 msgctxt "products:products.selectProductForWorkspace"
 msgid "Select {{product}} for Workspace"
 msgstr "Select {{product}} for Workspace"
@@ -5331,7 +5367,7 @@ msgctxt "settings:setup.serverProfile"
 msgid "Server Profile"
 msgstr "Server Profile"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:194
+#: frontend/src/pages/UnifiedWorkspace.tsx:221
 msgctxt "workspace:unifiedWorkspace.serverSideWorkspaceFilters"
 msgid "Server-side Workspace filters"
 msgstr "Server-side Workspace filters"
@@ -5431,7 +5467,6 @@ msgctxt "sources:sourceConfiguration.showOnlyProblems"
 msgid "Show only problems"
 msgstr "Show only problems"
 
-#: frontend/src/pages/Products.tsx:140
 msgctxt "products:products.showingOf"
 msgid "Showing {{value1}}-{{value2}} of {{value3}}"
 msgstr "Showing {{value1}}-{{value2}} of {{value3}}"
@@ -5489,7 +5524,7 @@ msgctxt "flowhubSheet:flowHubSheet.sort"
 msgid "Sort"
 msgstr "Sort"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:322
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:398
 msgctxt "workspace:densePricing.sortProduct"
 msgid "Sort Product"
 msgstr "Sort Product"
@@ -5499,7 +5534,7 @@ msgctxt "flowhubSheet:flowHubSheet.sortSheetByColumn"
 msgid "Sort Sheet by column"
 msgstr "Sort Sheet by column"
 
-#: frontend/src/pages/CommerceHub.tsx:63 frontend/src/pages/Products.tsx:36
+#: frontend/src/pages/CommerceHub.tsx:63
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.source"
 msgid "Source"
@@ -5522,7 +5557,6 @@ msgctxt "orders:orders.source"
 msgid "Source"
 msgstr "Source"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:67
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:densePricing.sourceKey"
 msgid "Source Key"
@@ -5555,7 +5589,7 @@ msgctxt "sources:sourceConfiguration.sourceProductName"
 msgid "Source Product Name"
 msgstr "Source Product Name"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:302
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:361
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.sourceProductWorkspaceImmutableSnapshot"
 msgid "Source Product Workspace · Immutable Snapshot"
@@ -5826,7 +5860,7 @@ msgctxt "settings:settings.status"
 msgid "Status"
 msgstr "Status"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:720 frontend/src/pages/UnifiedWorkspace.tsx:214
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842 frontend/src/pages/UnifiedWorkspace.tsx:241
 msgctxt "workspace:unifiedWorkspace.status"
 msgid "Status"
 msgstr "Status"
@@ -5849,6 +5883,7 @@ msgctxt "settings:setup.step2"
 msgid "Step"
 msgstr "Step"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:388
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "common:field.stock"
 msgid "Stock"
@@ -6113,7 +6148,7 @@ msgctxt "sources:sourceCenter.protectedHistoryPreserved"
 msgid "The Source was archived. Saved history remains available and unchanged."
 msgstr "The Source was archived. Saved history remains available and unchanged."
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:33
+#: frontend/src/pages/UnifiedWorkspace.tsx:35
 msgctxt "workspace:unifiedWorkspace.theUnifiedWorkspaceServiceIsNotConfigured"
 msgid "The Unified Workspace service is not configured."
 msgstr "The Unified Workspace service is not configured."
@@ -6452,7 +6487,6 @@ msgctxt "dataQuality:dataQuality.totalIssues"
 msgid "Total issues"
 msgstr "Total issues"
 
-#: frontend/src/pages/Products.tsx:141
 msgctxt "products:products.tryAdjustingTheSearchOrFilter"
 msgid "Try adjusting the search or filter."
 msgstr "Try adjusting the search or filter."
@@ -6488,11 +6522,12 @@ msgctxt "flowhubSheet:flowHubSheet.tryAgain"
 msgid "Try again."
 msgstr "Try again."
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:384 frontend/src/pages/Products.tsx:157
 msgctxt "products:column.type"
 msgid "Type"
 msgstr "Type"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:68 frontend/src/features/unifiedWorkspace/gridModel.ts:91
+#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:76 frontend/src/features/unifiedWorkspace/gridModel.ts:91
 msgctxt "workspace:gridModel.type"
 msgid "Type"
 msgstr "Type"
@@ -6626,7 +6661,7 @@ msgctxt "products:products.unableToValidateChannelPrices"
 msgid "Unable to validate Channel prices."
 msgstr "Unable to validate Channel prices."
 
-#: frontend/src/pages/Diagnostics.tsx:258 frontend/src/pages/Diagnostics.tsx:548 frontend/src/pages/Diagnostics.tsx:768 frontend/src/pages/Diagnostics.tsx:779 frontend/src/pages/Diagnostics.tsx:785 frontend/src/pages/Diagnostics.tsx:793 frontend/src/pages/Diagnostics.tsx:800 frontend/src/pages/Diagnostics.tsx:810 frontend/src/pages/Products.tsx:136
+#: frontend/src/pages/Diagnostics.tsx:258 frontend/src/pages/Diagnostics.tsx:548 frontend/src/pages/Diagnostics.tsx:768 frontend/src/pages/Diagnostics.tsx:779 frontend/src/pages/Diagnostics.tsx:785 frontend/src/pages/Diagnostics.tsx:793 frontend/src/pages/Diagnostics.tsx:800 frontend/src/pages/Diagnostics.tsx:810
 msgctxt "common:status.unavailable"
 msgid "Unavailable"
 msgstr "Unavailable"
@@ -6677,7 +6712,7 @@ msgctxt "sources:sources.unconfigured"
 msgid "Unconfigured"
 msgstr "Unconfigured"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:323
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:399
 msgctxt "workspace:densePricing.undo"
 msgid "Undo"
 msgstr "Undo"
@@ -6686,7 +6721,7 @@ msgctxt "common:status.unhealthy"
 msgid "Unhealthy"
 msgstr "Unhealthy"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:191
+#: frontend/src/pages/UnifiedWorkspace.tsx:218
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:unifiedWorkspace.unifiedMultiChannelProductEditor"
 msgid "Unified multi-channel product editor"
@@ -6895,13 +6930,13 @@ msgctxt "diagnostics:stateDescription.healthy"
 msgid "Verified evidence confirms normal operation."
 msgstr "Verified evidence confirms normal operation."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:728
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:854
 #. Reconciliation verifies an uncertain external write without blindly redispatching it.
 msgctxt "workspace:sourceCentricWorkspace.verifiedSuccessIsShownOnlyAfterExact"
 msgid "Verified success is shown only after exact provider verification. Uncertain outcomes require reconciliation."
 msgstr "Verified success is shown only after exact provider verification. Uncertain outcomes require reconciliation."
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:175
+#: frontend/src/pages/UnifiedWorkspace.tsx:202
 msgctxt "workspace:unifiedWorkspace.verifyUncertainListings"
 msgid "Verify uncertain Listings"
 msgstr "Verify uncertain Listings"
@@ -6946,19 +6981,19 @@ msgctxt "flowhubSheet:flowHubSheet.virtualizedFlowhubSheet"
 msgid "Virtualized FlowHub Sheet"
 msgstr "Virtualized FlowHub Sheet"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:237
+#: frontend/src/pages/UnifiedWorkspace.tsx:264
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:unifiedWorkspace.virtualizedMultiChannelWorkspaceGrid"
 msgid "Virtualized multi-channel Workspace Grid"
 msgstr "Virtualized multi-channel Workspace Grid"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:100
+#: frontend/src/pages/UnifiedWorkspace.tsx:127
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:unifiedWorkspace.visibilityChangesPresentationOnlyAndNeverSelects"
 msgid "Visibility changes presentation only and never selects a Channel for Apply."
 msgstr "Visibility changes presentation only and never selects a Channel for Apply."
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:99
+#: frontend/src/pages/UnifiedWorkspace.tsx:126
 msgctxt "workspace:unifiedWorkspace.visibleChannels"
 msgid "Visible Channels"
 msgstr "Visible Channels"
@@ -7015,7 +7050,7 @@ msgctxt "workspace:densePricing.counter.warning"
 msgid "Warnings"
 msgstr "Warnings"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:158
+#: frontend/src/pages/UnifiedWorkspace.tsx:185
 msgctxt "workspace:unifiedWorkspace.warnings"
 msgid "Warnings"
 msgstr "Warnings"
@@ -7184,27 +7219,27 @@ msgctxt "workspace:workspace.workspace"
 msgid "Workspace"
 msgstr "Workspace"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:220
+#: frontend/src/pages/UnifiedWorkspace.tsx:247
 msgctxt "workspace:unifiedWorkspace.workspaceGrid"
 msgid "Workspace Grid"
 msgstr "Workspace Grid"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:327
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:403
 msgctxt "workspace:sourceCentricWorkspace.workspaceChangeSummary"
 msgid "Workspace change summary"
 msgstr "Workspace change summary"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:96
+#: frontend/src/pages/UnifiedWorkspace.tsx:123
 msgctxt "workspace:unifiedWorkspace.workspaceControls"
 msgid "Workspace controls"
 msgstr "Workspace controls"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:33
+#: frontend/src/pages/UnifiedWorkspace.tsx:35 frontend/src/pages/UnifiedWorkspace.tsx:60
 msgctxt "workspace:unifiedWorkspace.workspaceServiceUnavailable"
 msgid "Workspace service unavailable"
 msgstr "Workspace service unavailable"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:66 frontend/src/pages/UnifiedWorkspace.tsx:75
+#: frontend/src/pages/UnifiedWorkspace.tsx:102 frontend/src/pages/UnifiedWorkspace.tsx:60 frontend/src/pages/UnifiedWorkspace.tsx:99
 msgctxt "workspace:unifiedWorkspace.workspaceUnavailable"
 msgid "Workspace unavailable"
 msgstr "Workspace unavailable"
@@ -7351,7 +7386,6 @@ msgctxt "flowhubSheet:flowHubSheet.of"
 msgid "of"
 msgstr "of"
 
-#: frontend/src/pages/Products.tsx:142
 msgctxt "products:products.of"
 msgid "of"
 msgstr "of"
@@ -7361,7 +7395,7 @@ msgctxt "settings:setup.of"
 msgid "of"
 msgstr "of"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:407
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:487
 msgctxt "workspace:sourceCentricWorkspace.of"
 msgid "of"
 msgstr "of"
@@ -7408,7 +7442,7 @@ msgctxt "products:products.selected"
 msgid "selected"
 msgstr "selected"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:724
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:850
 msgctxt "workspace:sourceCentricWorkspace.selected"
 msgid "selected"
 msgstr "selected"
@@ -7458,7 +7492,7 @@ msgctxt "workspace:sourceCentricWorkspace.targetField"
 msgid "{{channel}} {{field}} Target"
 msgstr "{{channel}} {{field}} Target"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:84
+#: frontend/src/pages/UnifiedWorkspace.tsx:111
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:unifiedWorkspace.listingRows"
 msgid "{{count}} Listing row"
@@ -7466,7 +7500,7 @@ msgid_plural "{{count}} Listing rows"
 msgstr[0] "{{count}} Listing row"
 msgstr[1] "{{count}} Listing rows"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:224
+#: frontend/src/pages/UnifiedWorkspace.tsx:251
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:unifiedWorkspace.listingsSelected"
 msgid "{{count}} Listing selected"
@@ -7486,7 +7520,7 @@ msgid_plural "{{count}} connected"
 msgstr[0] "{{count}} connected"
 msgstr[1] "{{count}} connected"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:254
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:307
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:densePricing.selectionBoundToReview"
 msgid "{{count}} eligible field change was bound to the immutable Review selection."
@@ -7515,14 +7549,13 @@ msgid_plural "{{count}} monitored destinations"
 msgstr[0] "{{count}} monitored destination"
 msgstr[1] "{{count}} monitored destinations"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:303
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:362
 msgctxt "workspace:densePricing.pendingChanges"
 msgid "{{count}} pending change"
 msgid_plural "{{count}} pending changes"
 msgstr[0] "{{count}} pending change"
 msgstr[1] "{{count}} pending changes"
 
-#: frontend/src/pages/Products.tsx:128
 msgctxt "products:products.productCount"
 msgid "{{count}} product"
 msgid_plural "{{count}} products"
@@ -7537,7 +7570,6 @@ msgid_plural "{{count}} products ready for Review."
 msgstr[0] "{{count}} product ready for Review."
 msgstr[1] "{{count}} products ready for Review."
 
-#: frontend/src/pages/Products.tsx:129
 msgctxt "products:products.productsSelected"
 msgid "{{count}} products selected"
 msgstr "{{count}} products selected"
@@ -7566,7 +7598,7 @@ msgid_plural "{{count}} rows loaded."
 msgstr[0] "{{count}} row loaded."
 msgstr[1] "{{count}} rows loaded."
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:89
+#: frontend/src/pages/UnifiedWorkspace.tsx:116
 msgctxt "workspace:unifiedWorkspace.unsavedEdits"
 msgid "{{count}} unsaved edit"
 msgid_plural "{{count}} unsaved edits"
@@ -7587,13 +7619,13 @@ msgid_plural "{{count}} worksheets selected"
 msgstr[0] "{{count}} worksheet selected"
 msgstr[1] "{{count}} worksheets selected"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:87 frontend/src/features/unifiedWorkspace/gridModel.ts:110
+#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:96 frontend/src/features/unifiedWorkspace/gridModel.ts:110
 #. Current is the latest verified or cached Channel value.
 msgctxt "workspace:gridModel.currentField"
 msgid "{{field}} Current"
 msgstr "{{field}} Current"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:724 frontend/src/features/sourceWorkspace/densePricingGrid.ts:88 frontend/src/features/unifiedWorkspace/gridModel.ts:111
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:846 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:850 frontend/src/features/sourceWorkspace/densePricingGrid.ts:97 frontend/src/features/unifiedWorkspace/gridModel.ts:111
 #. Target is the proposed value that may be applied after Review.
 msgctxt "workspace:gridModel.targetField"
 msgid "{{field}} Target"
@@ -7631,18 +7663,18 @@ msgctxt "workspace:sourceCentricWorkspace.listingChannelSummary"
 msgid "{{listings}} Listings across {{channels}} Channels"
 msgstr "{{listings}} Listings across {{channels}} Channels"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:329
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:409
 #. Current is the latest verified or cached Channel value.
 msgctxt "workspace:densePricing.pendingHidden"
 msgid "{{pending}} pending changes | {{hidden}} hidden by current filters"
 msgstr "{{pending}} pending changes | {{hidden}} hidden by current filters"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:720
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842
 msgctxt "workspace:densePricing.bulkPreviewSummary"
 msgid "{{products}} products | {{listings}} Listings | {{fields}} field changes | {{blocked}} blocked"
 msgstr "{{products}} products | {{listings}} Listings | {{fields}} field changes | {{blocked}} blocked"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:173
+#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:189
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:densePricing.additionalListing"
 msgid "{{product}} - Listing {{number}}"
@@ -7674,7 +7706,7 @@ msgctxt "sources:sourceConfiguration.pricingWorkspaceName"
 msgid "{{source}} pricing"
 msgstr "{{source}} pricing"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:724
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:846 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:850
 msgctxt "workspace:densePricing.reviewSummary"
 msgid "{{total}} Reviewed | {{selected}} selected | {{blocked}} blocked"
 msgstr "{{total}} Reviewed | {{selected}} selected | {{blocked}} blocked"
@@ -7794,7 +7826,7 @@ msgctxt "settings:rateLimits.seconds"
 msgid "{{value}} seconds"
 msgstr "{{value}} seconds"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:655
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:763
 msgctxt "workspace:densePricing.cellValueStatus"
 msgid "{{value}}; status {{status}}"
 msgstr "{{value}}; status {{status}}"
@@ -7803,7 +7835,7 @@ msgctxt "sources:sourceCenter.mappingV"
 msgid "· Column setup v"
 msgstr "· Column setup v"
 
-#: frontend/src/pages/UnifiedWorkspace.tsx:183
+#: frontend/src/pages/UnifiedWorkspace.tsx:210
 msgctxt "workspace:unifiedWorkspace.errorDetail"
 msgid "— {{message}}"
 msgstr "— {{message}}"

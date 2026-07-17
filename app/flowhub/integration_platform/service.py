@@ -11,19 +11,21 @@ import hmac
 import logging
 import traceback
 import uuid
+from collections.abc import Iterable
 from datetime import datetime
 from hashlib import sha256
-from typing import Iterable
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
+from app.flowhub.config.nextcloud_url import (
+    NextcloudUrlValidationError,
+    normalize_nextcloud_url,
+)
 from app.flowhub.data_layer.models import (
     DlConnectorHealth,
     DlConnectorTelemetry,
-    DlDestinationSnapshot,
     DlProductCache,
     DlSourceSnapshot,
 )
@@ -52,17 +54,14 @@ from app.flowhub.integration_platform.contracts import (
 from app.flowhub.integration_platform.models import (
     IntegrationConnectorDiagnostic,
     IntegrationConnectorEvent,
-    IntegrationConnectorHealthSnapshot,
     IntegrationConnectorInstance,
     IntegrationConnectorSetting,
-    IntegrationConnectorTelemetry,
     IntegrationPollingPolicy,
     IntegrationWebhookEvent,
 )
 from app.flowhub.integration_platform.registry import registry
 from app.flowhub.security.redaction import is_sensitive_key, redact_sensitive
 from app.flowhub.setup.service import AppConfigService
-
 
 _SECRET_KEYS = {
     "password",
@@ -501,7 +500,9 @@ class IntegrationPlatformService:
         product_type: str | None = None,
         connector_id: str | None = None,
     ) -> ConnectorProductListResponse:
-        self.bootstrap_from_app_config()
+        # Product browsing is a cache-only read. Connector metadata bootstrap is
+        # optional setup work and must never make an already-populated cache
+        # unavailable (or turn this read into a committing operation).
         page = max(page, 1)
         page_size = min(max(page_size, 1), 200)
         q = self.db.query(DlProductCache)
@@ -541,7 +542,9 @@ class IntegrationPlatformService:
             page=page,
             pageSize=page_size,
             page_size=page_size,
-            configured=self._is_connector_configured(connector_id or "woocommerce:primary"),
+            configured=self._is_connector_configured(
+                connector_id or "woocommerce:primary"
+            ),
         )
 
     def list_categories(self) -> ConnectorCategoryListResponse:
@@ -1268,7 +1271,17 @@ class IntegrationPlatformService:
 
     def _is_connector_configured(self, connector_id: str) -> bool:
         row = self.db.get(IntegrationConnectorInstance, connector_id)
-        return bool(row and row.enabled)
+        if row is not None:
+            return bool(row.enabled)
+        if connector_id == "woocommerce:primary":
+            # Keep product-cache reads non-mutating.  Legacy installations may
+            # still have only AppConfig credentials and no bootstrapped
+            # IntegrationConnectorInstance row.
+            return all(
+                self.config.get(key) not in (None, "")
+                for key in ("woocommerce.url", "woocommerce.key", "woocommerce.secret")
+            )
+        return False
 
     def _required_settings_configured(self, definition: ConnectorDefinition, values: dict[str, object | None]) -> bool:
         for item in definition.settings_schema:

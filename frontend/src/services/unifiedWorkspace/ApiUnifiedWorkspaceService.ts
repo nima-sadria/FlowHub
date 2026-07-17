@@ -1,6 +1,6 @@
 import { apiFetch } from '../../api/client'
 import { authFetch } from '../../api/authFetch'
-import type { UnifiedWorkspaceService } from './UnifiedWorkspaceService'
+import type { CatalogWorkspaceScope, DraftSaveMode, UnifiedWorkspaceService } from './UnifiedWorkspaceService'
 import type {
   ApplyResource,
   DraftChangeInput,
@@ -22,6 +22,10 @@ export class ApiUnifiedWorkspaceService implements UnifiedWorkspaceService {
     return apiFetch('/api/v2/unified-workspaces/manual', authFetch, json('POST', { name, selections }))
   }
 
+  createCatalog(name: string, catalogScope: CatalogWorkspaceScope = {}): Promise<UnifiedWorkspaceResource> {
+    return apiFetch('/api/v2/unified-workspaces/manual', authFetch, json('POST', { name, catalog_scope: catalogScope }))
+  }
+
   getWorkspace(id: string): Promise<UnifiedWorkspaceResource> {
     return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}`, authFetch)
   }
@@ -34,8 +38,8 @@ export class ApiUnifiedWorkspaceService implements UnifiedWorkspaceService {
     return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/grid?${params}`, authFetch)
   }
 
-  saveDraft(id: string, expectedVersion: number, changes: DraftChangeInput[]): Promise<DraftRevisionResource> {
-    return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/draft/revisions`, authFetch, json('POST', { expected_version: expectedVersion, changes, metadata: { client: 'handsontable', action: 'save_draft' } }))
+  saveDraft(id: string, expectedVersion: number, changes: DraftChangeInput[], mode: DraftSaveMode = 'merge'): Promise<DraftRevisionResource> {
+    return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/draft/revisions`, authFetch, json('POST', { expected_version: expectedVersion, changes, mode, metadata: { client: 'handsontable', action: 'save_draft' } }))
   }
 
   createReview(id: string, revisionId: string): Promise<ReviewResource> {

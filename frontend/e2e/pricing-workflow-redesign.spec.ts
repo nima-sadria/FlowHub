@@ -38,6 +38,7 @@ interface Audit {
   reviewCalls: number
   dryRunCalls: number
   applyCalls: number
+  catalogBootstrapCalls: number
   maximumReturnedProducts: number
 }
 
@@ -309,7 +310,14 @@ async function installMocks(page: Page, options: MockOptions, audit: Audit) {
         configured: true,
       })
     }
-    if (url.pathname === '/api/v2/unified-workspaces/manual' && method === 'POST') return json(route, workspace(options))
+    if (url.pathname === '/api/v2/unified-workspaces/manual' && method === 'POST') {
+      const body = JSON.parse(request.postData() ?? '{}') as { catalog_scope?: unknown; selections?: unknown }
+      if (!body.catalog_scope || body.selections !== undefined) {
+        return json(route, { code: 'INVALID_PRODUCTS_WORKSPACE_SCOPE', message: 'Products must bootstrap from the catalog scope.' }, 422)
+      }
+      audit.catalogBootstrapCalls += 1
+      return json(route, workspace(options))
+    }
     if (url.pathname === `/api/v2/unified-workspaces/${options.workspaceId}`) return json(route, workspace(options))
     if (url.pathname === `/api/v2/unified-workspaces/${options.workspaceId}/grid`) return json(route, {
       items: [], total: 0, page: 1, pageSize: 500, channels: [], draftVersion: 1, revisionId: null,
@@ -407,6 +415,7 @@ function createAudit(): Audit {
     reviewCalls: 0,
     dryRunCalls: 0,
     applyCalls: 0,
+    catalogBootstrapCalls: 0,
     maximumReturnedProducts: 0,
   }
 }
@@ -436,6 +445,13 @@ function targetCell(page: Page, listingId: string, field: Field) {
 
 function fieldSelection(page: Page, listingId: string, field: Field) {
   return page.locator(`.ht_master td[data-listing-id="${listingId}"][data-field-selection][data-field="${field}"] input`).first()
+}
+
+async function fullyVisiblePricingRows(page: Page): Promise<number> {
+  return page.locator('[data-pricing-grid] .ht_master tbody tr').evaluateAll(rows => rows.filter(row => {
+    const rect = row.getBoundingClientRect()
+    return rect.height > 0 && rect.top >= 0 && rect.bottom <= window.innerHeight
+  }).length)
 }
 
 async function replaceCell(page: Page, cell: ReturnType<Page['locator']>, value: string, commitKey: 'Enter' | 'Tab' = 'Enter') {
@@ -468,10 +484,14 @@ test('matches Wanted Model with direct field editing, immediate selection, bulk 
   await installMocks(page, options, audit)
   await page.setViewportSize({ width: 1440, height: 900 })
   const workflowStarted = performance.now()
-  await page.goto(`/workspace/${options.workspaceId}`, { waitUntil: 'domcontentloaded' })
+  await page.goto('/products', { waitUntil: 'domcontentloaded' })
 
   const grid = page.locator('[data-pricing-grid]')
   await expect(grid).toBeVisible({ timeout: 30_000 })
+  expect(new URL(page.url()).pathname).toBe('/products')
+  await expect(page.getByRole('button', { name: /Open pricing workspace/i })).toHaveCount(0)
+  await expect(page.getByText(/Choose a product set first|Edit inline in the pricing workspace/i)).toHaveCount(0)
+  expect(audit.catalogBootstrapCalls).toBe(1)
   await expect.poll(() => page.locator('[data-pricing-grid] .ht_master tbody tr').count()).toBeGreaterThanOrEqual(15)
   const timeToFirstEditableCellMs = Math.round(performance.now() - workflowStarted)
   const initiallyVisibleRows = await page.locator('[data-pricing-grid] .ht_master tbody tr').count()
@@ -490,7 +510,8 @@ test('matches Wanted Model with direct field editing, immediate selection, bulk 
   }
   const editTenProductsMs = Math.round(performance.now() - editTenStarted)
   await expect(page.locator('.ht_master td[data-field-selection][data-field="price"] input:checked')).toHaveCount(10)
-  await expect(page.locator('.fh-workspace-dirty')).toHaveText('10 pending changes')
+  await expect(page.locator('.fh-pricing-counter-changed strong')).toHaveText('10')
+  await expect(page.locator('[data-pending-summary]')).toContainText('10 pending changes')
 
   await wooPrices.nth(0).click()
   await page.keyboard.press('Enter')
@@ -568,10 +589,18 @@ test('matches Wanted Model with direct field editing, immediate selection, bulk 
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect.poll(() => page.locator('[data-pricing-grid] .ht_master tbody tr').count()).toBeGreaterThanOrEqual(15)
+  await expect.poll(() => fullyVisiblePricingRows(page)).toBeGreaterThanOrEqual(15)
   await captureScreenshot(page, 'wanted-model-dense-grid.png')
-  await page.getByRole('button', { name: /Review.*Dry Run/i }).click()
+  await page.locator('[data-pricing-review]').click()
   await expect(page.getByRole('heading', { name: /Review Changes/i })).toBeVisible()
-  await captureScreenshot(page, 'wanted-model-review-dry-run.png')
+  await captureScreenshot(page, 'wanted-model-review.png')
+  expect(audit.reviewCalls).toBe(0)
+  expect(audit.dryRunCalls).toBe(0)
+  await page.getByRole('button', { name: /Back to grid/i }).click()
+
+  await page.locator('[data-pricing-dry-run]').click()
+  await expect(page.getByRole('heading', { name: /Review Changes/i })).toBeVisible()
+  await captureScreenshot(page, 'wanted-model-dry-run.png')
   await expect.poll(() => audit.reviewCalls).toBe(1)
   expect(audit.dryRunCalls).toBe(1)
   expect(audit.draftChanges.length).toBeGreaterThanOrEqual(10)
@@ -598,6 +627,7 @@ test('matches Wanted Model with direct field editing, immediate selection, bulk 
   expect(audit.reviewCalls).toBe(1)
   expect(audit.dryRunCalls).toBe(1)
   expect(audit.applyCalls).toBe(1)
+  expect(new URL(page.url()).pathname).toBe('/products')
   expect(audit.external).toEqual([])
   const acceptanceMetrics = {
     browserName,
@@ -633,9 +663,11 @@ test('benchmarks a virtualized 10,000-product, five-channel dense pricing grid w
   await page.setViewportSize({ width: 1440, height: 900 })
 
   const readyStarted = performance.now()
-  await page.goto(`/workspace/${options.workspaceId}`, { waitUntil: 'domcontentloaded' })
+  await page.goto('/products', { waitUntil: 'domcontentloaded' })
   const grid = page.locator('[data-pricing-grid]')
   await expect(grid).toBeVisible({ timeout: 30_000 })
+  expect(new URL(page.url()).pathname).toBe('/products')
+  expect(audit.catalogBootstrapCalls).toBe(1)
   await expect.poll(() => page.locator('[data-pricing-grid] .ht_master tbody tr').count()).toBeGreaterThanOrEqual(15)
   const readyMs = Math.round(performance.now() - readyStarted)
   const renderedRows = await page.locator('[data-pricing-grid] .ht_master tbody tr').count()

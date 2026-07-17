@@ -5,11 +5,13 @@ from __future__ import annotations
 import logging
 import uuid
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from datetime import timedelta
 from decimal import Decimal
 from typing import Any, cast
 
 from fastapi import HTTPException, status
+from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -128,8 +130,144 @@ class UnifiedWorkspaceService:
 
     # -- Workspace and snapshots ---------------------------------------------
 
+    def create_catalog_workspace(
+        self,
+        *,
+        name: str,
+        catalog_scope: dict[str, Any],
+        user: FlowHubUser,
+        correlation_id: str,
+    ) -> dict[str, Any]:
+        """Build a manual Workspace from cached catalog identities only.
+
+        Catalog discovery deliberately performs no connector or provider I/O. The
+        resulting identities still flow through ``create_manual_workspace`` so
+        Snapshot immutability, Draft ownership, and Audit behavior remain shared.
+        """
+
+        # Seeding is local metadata work only; it never performs provider I/O.
+        # It establishes the allow-list used below before exact cache identities
+        # are materialized for the first time.
+        self._seed_channels()
+
+        # Catalog bootstrap may create a missing exact identity from a verified
+        # Data Layer cache row, but it must not admit disabled Listings/Channels
+        # or refresh an existing authoritative ChannelCache from secondary
+        # evidence merely because /products was opened.
+        query = (
+            self.db.query(DlProductCache)
+            .join(WorkspaceChannel, WorkspaceChannel.id == DlProductCache.connector_id)
+            .outerjoin(
+                Listing,
+                and_(
+                    Listing.channel_id == DlProductCache.connector_id,
+                    Listing.external_primary_id == DlProductCache.product_id,
+                ),
+            )
+            .filter(
+                DlProductCache.exists.is_(True),
+                DlProductCache.freshness.in_(("fresh", "stale")),
+                or_(
+                    DlProductCache.last_successful_read.is_not(None),
+                    DlProductCache.last_fetched_at.is_not(None),
+                ),
+                WorkspaceChannel.implementation_state == "implemented",
+                WorkspaceChannel.enabled.is_(True),
+                or_(Listing.id.is_(None), Listing.enabled.is_(True)),
+            )
+        )
+        search = canonical_text(catalog_scope.get("search"))
+        if search:
+            pattern = f"%{search}%"
+            query = query.filter(
+                or_(
+                    DlProductCache.name.ilike(pattern),
+                    DlProductCache.sku.ilike(pattern),
+                    DlProductCache.product_id.ilike(pattern),
+                )
+            )
+        product_type = canonical_text(catalog_scope.get("product_type")).lower()
+        if product_type:
+            query = query.filter(DlProductCache.product_type == product_type)
+        channel_id = canonical_text(catalog_scope.get("channel_id"))
+        if channel_id:
+            query = query.filter(DlProductCache.connector_id == channel_id)
+        stock_state = canonical_text(catalog_scope.get("stock_state")).lower()
+        if stock_state == "in_stock":
+            query = query.filter(
+                or_(
+                    DlProductCache.stock_status == "instock",
+                    and_(
+                        DlProductCache.stock_status.is_(None), DlProductCache.stock_qty > 0
+                    ),
+                )
+            )
+        elif stock_state == "out_of_stock":
+            query = query.filter(
+                or_(
+                    DlProductCache.stock_status == "outofstock",
+                    and_(
+                        DlProductCache.stock_status.is_(None), DlProductCache.stock_qty <= 0
+                    ),
+                )
+            )
+        elif stock_state == "unknown":
+            query = query.filter(
+                DlProductCache.stock_qty.is_(None),
+                or_(
+                    DlProductCache.stock_status.is_(None),
+                    DlProductCache.stock_status.not_in(("instock", "outofstock", "onbackorder")),
+                ),
+            )
+
+        category_id = catalog_scope.get("category_id")
+        rows: list[DlProductCache] = []
+        ordered = query.order_by(
+            DlProductCache.connector_id.asc(),
+            DlProductCache.product_id.asc(),
+            DlProductCache.id.asc(),
+        )
+        if category_id is None:
+            rows = ordered.limit(MAX_SELECTION + 1).all()
+        else:
+            for row in ordered.yield_per(500):
+                if _cache_has_category(row.categories, int(category_id)):
+                    rows.append(row)
+                    if len(rows) > MAX_SELECTION:
+                        break
+
+        if not rows:
+            raise self._unprocessable(
+                "CATALOG_SCOPE_EMPTY", "No cached products match the requested catalog scope."
+            )
+        if len(rows) > MAX_SELECTION:
+            raise self._unprocessable(
+                "CATALOG_SCOPE_TOO_LARGE",
+                f"The catalog scope contains more than {MAX_SELECTION} products.",
+                {"limit": MAX_SELECTION},
+            )
+        selections = [
+            {"connector_id": str(row.connector_id), "product_id": str(row.product_id)}
+            for row in rows
+        ]
+        return self.create_manual_workspace(
+            name=name,
+            selections=selections,
+            user=user,
+            correlation_id=correlation_id,
+            _seed_channel_metadata=False,
+            _refresh_existing_cache=False,
+        )
+
     def create_manual_workspace(
-        self, *, name: str, selections: list[dict[str, Any]], user: FlowHubUser, correlation_id: str
+        self,
+        *,
+        name: str,
+        selections: list[dict[str, Any]],
+        user: FlowHubUser,
+        correlation_id: str,
+        _seed_channel_metadata: bool = True,
+        _refresh_existing_cache: bool = True,
     ) -> dict[str, Any]:
         if not selections or len(selections) > MAX_SELECTION:
             raise self._unprocessable(
@@ -148,18 +286,19 @@ class UnifiedWorkspaceService:
                 "WORKSPACE_SELECTION_INVALID",
                 "Selections must be unique and include connector_id and product_id.",
             )
-        self._seed_channels()
+        if _seed_channel_metadata:
+            self._seed_channels()
         currency_profile = self._global_currency_profile()
-        cache_rows = (
-            self.db.query(DlProductCache)
-            .filter(
-                tuple_(DlProductCache.connector_id, DlProductCache.product_id).in_(
-                    normalized_selection
-                ),
-                DlProductCache.exists.is_(True),
+        cache_rows = []
+        for batch in _batches(normalized_selection):
+            cache_rows.extend(
+                self.db.query(DlProductCache)
+                .filter(
+                    tuple_(DlProductCache.connector_id, DlProductCache.product_id).in_(batch),
+                    DlProductCache.exists.is_(True),
+                )
+                .all()
             )
-            .all()
-        )
         found: dict[tuple[str, str], DlProductCache] = {
             (str(row.connector_id), str(row.product_id)): row for row in cache_rows
         }
@@ -174,36 +313,30 @@ class UnifiedWorkspaceService:
                 "Selected cache records were not found.",
                 {"missing": missing},
             )
-        listing_map = {
-            (item.channel_id, item.external_primary_id): item
-            for item in self.db.query(Listing)
-            .filter(
-                tuple_(Listing.channel_id, Listing.external_primary_id).in_(normalized_selection)
+        listing_rows: list[Listing] = []
+        for batch in _batches(normalized_selection):
+            listing_rows.extend(
+                self.db.query(Listing)
+                .filter(tuple_(Listing.channel_id, Listing.external_primary_id).in_(batch))
+                .all()
             )
-            .all()
+        listing_map = {
+            (item.channel_id, item.external_primary_id): item for item in listing_rows
         }
         canonical_ids = {item.canonical_product_id for item in listing_map.values()}
-        canonical_map = (
-            {
-                item.id: item
-                for item in self.db.query(CanonicalProduct)
-                .filter(CanonicalProduct.id.in_(canonical_ids))
-                .all()
-            }
-            if canonical_ids
-            else {}
-        )
+        canonical_rows: list[CanonicalProduct] = []
+        for batch in _batches(sorted(canonical_ids), size=800):
+            canonical_rows.extend(
+                self.db.query(CanonicalProduct).filter(CanonicalProduct.id.in_(batch)).all()
+            )
+        canonical_map = {item.id: item for item in canonical_rows}
         listing_ids = {item.id for item in listing_map.values()}
-        cache_map = (
-            {
-                item.listing_id: item
-                for item in self.db.query(ChannelCache)
-                .filter(ChannelCache.listing_id.in_(listing_ids))
-                .all()
-            }
-            if listing_ids
-            else {}
-        )
+        workspace_cache_rows: list[ChannelCache] = []
+        for batch in _batches(sorted(listing_ids), size=800):
+            workspace_cache_rows.extend(
+                self.db.query(ChannelCache).filter(ChannelCache.listing_id.in_(batch)).all()
+            )
+        cache_map = {item.listing_id: item for item in workspace_cache_rows}
         channel_map = {
             item.id: item
             for item in self.db.query(WorkspaceChannel)
@@ -233,6 +366,7 @@ class UnifiedWorkspaceService:
                 canonical_map=canonical_map,
                 cache_map=cache_map,
                 channel_map=channel_map,
+                refresh_existing_cache=_refresh_existing_cache,
             )
             normalized = self._normalized_snapshot_data(canonical, listing, channel_cache)
             row_payload = {
@@ -897,7 +1031,11 @@ class UnifiedWorkspaceService:
                     }
                 )
                 continue
-            capabilities = self._capabilities(listing.channel_id)
+            capabilities = self._capabilities_or_none(listing.channel_id)
+            channel_available = (
+                self._workspace_channel_available(listing.channel_id)
+                and capabilities is not None
+            )
             fields: dict[str, dict[str, Any]] = {}
             current_values = {
                 "price": cache.price_raw if cache else None,
@@ -910,6 +1048,9 @@ class UnifiedWorkspaceService:
                 saved = current_changes.get((listing.id, field))
                 writable = (
                     product.product_type != ProductKind.VARIABLE
+                    and listing.enabled
+                    and channel_available
+                    and capabilities is not None
                     and capabilities.can_write(field)
                     and listing.mapping_state == MappingState.RESOLVED
                 )
@@ -990,6 +1131,10 @@ class UnifiedWorkspaceService:
         page_size: int,
         search: str | None,
         view: str,
+        category: str | None = None,
+        product_type: str | None = None,
+        channel_id: str | None = None,
+        stock_state: str | None = None,
     ) -> dict[str, Any]:
         """Return one visible parent per Source Product with Listing children."""
         workspace = self._workspace_for_user(workspace_id, user)
@@ -1070,6 +1215,10 @@ class UnifiedWorkspaceService:
             search=search,
             include_product_ids=include_product_ids,
             exclude_product_ids=exclude_product_ids,
+            category=category,
+            product_type=product_type,
+            channel_id=channel_id,
+            stock_state=stock_state,
         )
         all_product_count = self.workspaces.grouped_product_count(snapshot.id)
         parents: dict[str, dict[str, Any]] = {}
@@ -1090,7 +1239,11 @@ class UnifiedWorkspaceService:
             )
             listing_changes = changes_by_listing.get(listing.id, {})
             source_targets = snapshot_row.normalized_data_json.get("targets") or {}
-            capabilities = self._capabilities(listing.channel_id)
+            capabilities = self._capabilities_or_none(listing.channel_id)
+            channel_available = (
+                self._workspace_channel_available(listing.channel_id)
+                and capabilities is not None
+            )
             fields: dict[str, dict[str, Any]] = {}
             blocked = False
             changed = False
@@ -1103,7 +1256,10 @@ class UnifiedWorkspaceService:
                 target = saved.target_value if saved else source_targets.get(field, current)
                 writable = (
                     product.product_type != ProductKind.VARIABLE
+                    and listing.enabled
+                    and channel_available
                     and listing.mapping_state == MappingState.RESOLVED
+                    and capabilities is not None
                     and capabilities.can_write(field)
                 )
                 field_changed = bool(
@@ -1151,6 +1307,10 @@ class UnifiedWorkspaceService:
         items = []
         for parent in parents.values():
             children = parent["children"]
+            if not parent["sourceKey"]:
+                child_skus = [canonical_text(item.get("sku")) for item in children]
+                if child_skus and all(child_skus) and len(set(child_skus)) == 1:
+                    parent["sourceKey"] = child_skus[0]
             parent["mappedChannelCount"] = len({item["channelId"] for item in children})
             parent["listingCount"] = len(children)
             parent["changedListingCount"] = sum(item["state"] != "unchanged" for item in children)
@@ -1198,6 +1358,7 @@ class UnifiedWorkspaceService:
         expected_version: int,
         raw_changes: list[dict[str, Any]],
         metadata: dict[str, Any],
+        replace_existing: bool = False,
         user: FlowHubUser,
         correlation_id: str,
     ) -> dict[str, Any]:
@@ -1223,7 +1384,7 @@ class UnifiedWorkspaceService:
                 "DUPLICATE_DRAFT_CHANGE", "A Listing field may appear only once per revision."
             )
         merged: dict[tuple[str, str], DraftChange] = {}
-        if draft.current_revision_id:
+        if draft.current_revision_id and not replace_existing:
             for item in self.drafts.changes(draft.current_revision_id):
                 merged[(item.listing_id, item.field)] = DraftChange(
                     canonical_product_id=item.canonical_product_id,
@@ -1304,12 +1465,26 @@ class UnifiedWorkspaceService:
                     "DRAFT_OUTSIDE_SNAPSHOT",
                     "Draft change Listing is not in the immutable Snapshot.",
                 )
+            if not listing.enabled:
+                raise self._unprocessable(
+                    "LISTING_DISABLED", "Disabled Listings cannot be edited."
+                )
+            if not self._workspace_channel_available(listing.channel_id):
+                raise self._unprocessable(
+                    "CHANNEL_UNAVAILABLE",
+                    "Only enabled, implemented Workspace Channels may be edited.",
+                )
             validate_product_editable(product.product_type)
             if listing.mapping_state != MappingState.RESOLVED:
                 raise self._unprocessable(
                     "MAPPING_UNRESOLVED", "Only resolved Listings may be edited."
                 )
-            capabilities = self._capabilities(listing.channel_id)
+            capabilities = self._capabilities_or_none(listing.channel_id)
+            if capabilities is None:
+                raise self._unprocessable(
+                    "CHANNEL_UNAVAILABLE",
+                    "Workspace Channel capabilities are unavailable.",
+                )
             if not capabilities.can_write(change.field):
                 raise self._unprocessable(
                     "FIELD_READ_ONLY", f"{change.field} is read-only for {listing.channel_id}."
@@ -1516,6 +1691,13 @@ class UnifiedWorkspaceService:
             .filter(ChannelCache.listing_id.in_(review_listing_ids))
             .all()
         }
+        review_channel_ids = {item.channel_id for item in changes}
+        review_channels = {
+            item.id: item
+            for item in self.db.query(WorkspaceChannel)
+            .filter(WorkspaceChannel.id.in_(review_channel_ids))
+            .all()
+        }
         mapping_payload: list[dict[str, Any]] = []
         capability_payload: list[dict[str, Any]] = []
         currency_payload: list[dict[str, Any]] = []
@@ -1527,12 +1709,23 @@ class UnifiedWorkspaceService:
             listing = review_listings.get(change.listing_id)
             product = review_products.get(change.canonical_product_id)
             cache = review_caches.get(change.listing_id)
-            capabilities = self._capabilities(change.channel_id)
+            channel = review_channels.get(change.channel_id)
+            capabilities = self._capabilities_or_none(change.channel_id)
+            capability_version = capabilities.version if capabilities else "unavailable"
             errors: list[str] = []
             item_warnings: list[str] = []
             if listing is None or product is None or cache is None:
                 errors.append("listing_or_cache_unavailable")
             else:
+                if not listing.enabled:
+                    errors.append("listing_disabled")
+                if (
+                    channel is None
+                    or not channel.enabled
+                    or channel.implementation_state != "implemented"
+                    or capabilities is None
+                ):
+                    errors.append("channel_unavailable")
                 if listing.mapping_state != MappingState.RESOLVED:
                     errors.append("mapping_unresolved")
                 if cache.freshness != "fresh" or cache.fetch_status != "success":
@@ -1541,9 +1734,9 @@ class UnifiedWorkspaceService:
                     validate_product_editable(product.product_type)
                 except WorkspaceDomainError:
                     errors.append("variable_parent_read_only")
-                if not capabilities.can_write(change.field):
+                if capabilities is not None and not capabilities.can_write(change.field):
                     errors.append("field_capability_unavailable")
-                if change.field == "price":
+                if change.field == "price" and capabilities is not None:
                     if (
                         change.currency != capabilities.currency
                         or str(change.unit).upper() != capabilities.unit.upper()
@@ -1554,6 +1747,7 @@ class UnifiedWorkspaceService:
                 if (
                     change.field == "stock"
                     and cache.manage_stock is False
+                    and capabilities is not None
                     and capabilities.requires_stock_management
                 ):
                     errors.append("stock_management_disabled")
@@ -1564,13 +1758,17 @@ class UnifiedWorkspaceService:
                 blocking += 1
             if item_warnings:
                 warnings += 1
-            normalized = self._normalized_target(change, capabilities) if not errors else {}
+            normalized = (
+                self._normalized_target(change, capabilities)
+                if not errors and capabilities is not None
+                else {}
+            )
             prepared.append(
                 {
                     "change": change,
                     "listing": listing,
                     "cache": cache,
-                    "capabilities": capabilities,
+                    "capability_version": capability_version,
                     "current": current,
                     "errors": errors,
                     "warnings": item_warnings,
@@ -1582,18 +1780,27 @@ class UnifiedWorkspaceService:
                 mapping_payload.append(
                     {
                         "listing": listing.id,
+                        "channel": listing.channel_id,
                         "version": listing.mapping_version,
                         "state": listing.mapping_state,
+                        "enabled": listing.enabled,
                     }
                 )
             capability_payload.append(
-                {"channel": capabilities.channel_id, "version": capabilities.version}
+                {
+                    "channel": change.channel_id,
+                    "version": capability_version,
+                    "enabled": bool(channel and channel.enabled),
+                    "implementation_state": (
+                        channel.implementation_state if channel else "missing"
+                    ),
+                }
             )
             currency_payload.append(
                 {
-                    "channel": capabilities.channel_id,
-                    "currency": capabilities.currency,
-                    "unit": capabilities.unit,
+                    "channel": change.channel_id,
+                    "currency": capabilities.currency if capabilities else "",
+                    "unit": capabilities.unit if capabilities else "",
                 }
             )
             if cache:
@@ -1709,7 +1916,6 @@ class UnifiedWorkspaceService:
                 )
             cache = item["cache"]
             listing = item["listing"]
-            capabilities = item["capabilities"]
             if cache and listing and listing.id not in cache_seen:
                 cache_seen.add(listing.id)
                 self.db.add(
@@ -1721,7 +1927,7 @@ class UnifiedWorkspaceService:
                         cache_version=cache.cache_version,
                         cache_checksum=cache.checksum,
                         mapping_version=listing.mapping_version,
-                        capability_version=capabilities.version,
+                        capability_version=item["capability_version"],
                     )
                 )
         self._audit(
@@ -2911,6 +3117,7 @@ class UnifiedWorkspaceService:
         canonical_map: dict[str, CanonicalProduct] | None = None,
         cache_map: dict[str, ChannelCache] | None = None,
         channel_map: dict[str, WorkspaceChannel] | None = None,
+        refresh_existing_cache: bool = True,
     ) -> tuple[CanonicalProduct, Listing, ChannelCache]:
         connector_id = str(row.connector_id)
         product_id = str(row.product_id)
@@ -2919,10 +3126,15 @@ class UnifiedWorkspaceService:
             if channel_map is not None
             else self.db.get(WorkspaceChannel, connector_id)
         )
-        if channel is None or channel.implementation_state != "implemented":
+        if (
+            channel is None
+            or channel.implementation_state != "implemented"
+            or not channel.enabled
+            or self._capabilities_or_none(connector_id) is None
+        ):
             raise self._unprocessable(
                 "CHANNEL_NOT_IMPLEMENTED",
-                f"{connector_id} is not an implemented Workspace Channel.",
+                f"{connector_id} is not an enabled, implemented Workspace Channel.",
             )
         identity = (connector_id, product_id)
         listing = (
@@ -2933,6 +3145,11 @@ class UnifiedWorkspaceService:
             .first()
         )
         if listing:
+            if not listing.enabled:
+                raise self._unprocessable(
+                    "LISTING_DISABLED",
+                    "Disabled Listings cannot participate in a Workspace.",
+                )
             canonical = (
                 canonical_map.get(listing.canonical_product_id)
                 if canonical_map is not None
@@ -3010,8 +3227,8 @@ class UnifiedWorkspaceService:
             if cache_map is not None
             else self.db.query(ChannelCache).filter_by(listing_id=listing.id).first()
         )
-        cache_payload = self._cache_payload(row, listing.id)
         if cache is None:
+            cache_payload = self._cache_payload(row, listing.id)
             cache = ChannelCache(
                 id=_id(),
                 listing_id=listing.id,
@@ -3022,10 +3239,12 @@ class UnifiedWorkspaceService:
             self.db.add(cache)
             if cache_map is not None:
                 cache_map[listing.id] = cache
-        elif cache.checksum != cache_payload["checksum"]:
-            for key, value in cache_payload.items():
-                setattr(cache, key, value)
-            cache.cache_version += 1
+        elif refresh_existing_cache:
+            cache_payload = self._cache_payload(row, listing.id)
+            if cache.checksum != cache_payload["checksum"]:
+                for key, value in cache_payload.items():
+                    setattr(cache, key, value)
+                cache.cache_version += 1
         self.db.flush()
         return canonical, listing, cache
 
@@ -3092,8 +3311,10 @@ class UnifiedWorkspaceService:
             stale_reasons.append("currency_profile")
         for captured in self.reviews.cache_versions(review.id):
             listing = self.db.get(Listing, captured.listing_id)
+            channel = self.db.get(WorkspaceChannel, captured.channel_id)
             cache = self.db.query(ChannelCache).filter_by(listing_id=captured.listing_id).first()
-            capabilities = self._capabilities(captured.channel_id)
+            capabilities = self._capabilities_or_none(captured.channel_id)
+            capability_version = capabilities.version if capabilities else "unavailable"
             if (
                 cache is None
                 or cache.cache_version != captured.cache_version
@@ -3102,26 +3323,48 @@ class UnifiedWorkspaceService:
                 stale_reasons.append(f"cache:{captured.listing_id}")
             elif cache.fetched_at < utcnow() - timedelta(minutes=max_age_minutes):
                 stale_reasons.append(f"cache_age:{captured.listing_id}")
-            if listing is None or listing.mapping_version != captured.mapping_version:
+            if (
+                listing is None
+                or listing.channel_id != captured.channel_id
+                or listing.mapping_version != captured.mapping_version
+                or listing.mapping_state != MappingState.RESOLVED
+                or not listing.enabled
+            ):
                 stale_reasons.append(f"mapping:{captured.listing_id}")
-            if capabilities.version != captured.capability_version:
+            if (
+                channel is None
+                or not channel.enabled
+                or channel.implementation_state != "implemented"
+                or capabilities is None
+            ):
+                stale_reasons.append(f"channel:{captured.channel_id}")
+            if capability_version != captured.capability_version:
                 stale_reasons.append(f"capability:{captured.channel_id}")
             if listing:
                 mapping_payload.append(
                     {
                         "listing": listing.id,
+                        "channel": listing.channel_id,
                         "version": listing.mapping_version,
                         "state": listing.mapping_state,
+                        "enabled": listing.enabled,
                     }
                 )
             capability_payload.append(
-                {"channel": capabilities.channel_id, "version": capabilities.version}
+                {
+                    "channel": captured.channel_id,
+                    "version": capability_version,
+                    "enabled": bool(channel and channel.enabled),
+                    "implementation_state": (
+                        channel.implementation_state if channel else "missing"
+                    ),
+                }
             )
             currency_payload.append(
                 {
-                    "channel": capabilities.channel_id,
-                    "currency": capabilities.currency,
-                    "unit": capabilities.unit,
+                    "channel": captured.channel_id,
+                    "currency": capabilities.currency if capabilities else "",
+                    "unit": capabilities.unit if capabilities else "",
                 }
             )
         if (
@@ -3742,6 +3985,20 @@ class UnifiedWorkspaceService:
     def _capabilities(self, channel_id: str) -> ChannelCapabilities:
         return self.connectors.get(channel_id).capabilities()
 
+    def _capabilities_or_none(self, channel_id: str) -> ChannelCapabilities | None:
+        try:
+            return self._capabilities(channel_id)
+        except WorkspaceDomainError:
+            return None
+
+    def _workspace_channel_available(self, channel_id: str) -> bool:
+        channel = self.db.get(WorkspaceChannel, channel_id)
+        return bool(
+            channel
+            and channel.enabled
+            and channel.implementation_state == "implemented"
+        )
+
     def _money(self, target: str, capabilities: ChannelCapabilities) -> Money:
         factor = (
             "10" if capabilities.currency == "IRR" and capabilities.unit.upper() == "TOMAN" else "1"
@@ -3935,6 +4192,23 @@ class UnifiedWorkspaceService:
 
 # SQLAlchemy tuple comparison keeps selection loading set-based and deterministic.
 from sqlalchemy import tuple_  # noqa: E402
+
+
+def _batches(items: Sequence[Any], *, size: int = 400) -> Iterable[list[Any]]:
+    """Bound SQL parameter counts for SQLite and other conservative drivers."""
+
+    for offset in range(0, len(items), size):
+        yield list(items[offset : offset + size])
+
+
+def _cache_has_category(categories: object, category_id: int) -> bool:
+    if not isinstance(categories, list):
+        return False
+    expected = str(category_id)
+    return any(
+        isinstance(item, dict) and str(item.get("id", "")).strip() == expected
+        for item in categories
+    )
 
 
 def _unique_dicts(items: list[dict[str, Any]]) -> list[dict[str, Any]]:

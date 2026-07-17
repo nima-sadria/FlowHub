@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import cast as typing_cast
 
-from sqlalchemy import Numeric, asc, cast, desc
+from sqlalchemy import Numeric, asc, cast, desc, or_
 from sqlalchemy.orm import Session
 
 from app.flowhub.unified_workspace.models import (
@@ -137,6 +137,10 @@ class WorkspaceRepository:
         search: str | None = None,
         include_product_ids: set[str] | None = None,
         exclude_product_ids: set[str] | None = None,
+        category: str | None = None,
+        product_type: str | None = None,
+        channel_id: str | None = None,
+        stock_state: str | None = None,
     ) -> tuple[
         list[tuple[SnapshotRow, CanonicalProduct, Listing, ChannelCache | None]], int
     ]:
@@ -148,8 +152,33 @@ class WorkspaceRepository:
                 SnapshotRow.listing_id.is_not(None),
             )
         )
+        needs_listing_join = bool(search or channel_id or stock_state)
+        if needs_listing_join:
+            products = products.join(Listing, Listing.id == SnapshotRow.listing_id)
         if search:
-            products = products.filter(CanonicalProduct.name.ilike(f"%{search.strip()}%"))
+            pattern = f"%{search.strip()}%"
+            products = products.filter(
+                or_(
+                    CanonicalProduct.name.ilike(pattern),
+                    CanonicalProduct.sku.ilike(pattern),
+                    Listing.sku.ilike(pattern),
+                    Listing.external_primary_id.ilike(pattern),
+                )
+            )
+        if category:
+            products = products.filter(CanonicalProduct.category == category.strip())
+        if product_type:
+            products = products.filter(CanonicalProduct.product_type == product_type)
+        if channel_id:
+            products = products.filter(Listing.channel_id == channel_id)
+        if stock_state:
+            products = products.outerjoin(ChannelCache, ChannelCache.listing_id == Listing.id)
+            if stock_state == "in_stock":
+                products = products.filter(ChannelCache.stock_quantity > 0)
+            elif stock_state == "out_of_stock":
+                products = products.filter(ChannelCache.stock_quantity <= 0)
+            elif stock_state == "unknown":
+                products = products.filter(ChannelCache.stock_quantity.is_(None))
         if include_product_ids is not None:
             if not include_product_ids:
                 return [], 0

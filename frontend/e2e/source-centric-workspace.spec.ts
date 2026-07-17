@@ -64,6 +64,7 @@ async function installMockApi(page: Page) {
       return json({ id: 'sheet-visual', sourceId: 'source-visual', name: 'Daily multi-channel prices', version: 4, revisionId: 'sheet-revision-4', revisionChecksum: 'b'.repeat(64), formulaEngineVersion: 'flowhub-formula-1', columns: [{ columnKey: 'name', name: 'Product Name', position: 1, dataType: 'text' }, { columnKey: 'key', name: 'Source Key', position: 2, dataType: 'text' }, { columnKey: 'cost', name: 'Cost', position: 3, dataType: 'number' }, { columnKey: 'target', name: 'Target Formula', position: 4, dataType: 'number' }], rows: Array.from({ length: 200 }, (_, index) => { const position = (pageNumber - 1) * 200 + index + 1; return { rowKey: `row-${position}`, position, cells: { name: { raw: `Product ${position}`, value: `Product ${position}`, formula: null, error: null }, key: { raw: `SRC-${position}`, value: `SRC-${position}`, formula: null, error: null }, cost: { raw: String(1000 + position), value: String(1000 + position), formula: null, error: null }, target: { raw: '=C1*1.2', value: String((1000 + position) * 1.2), formula: '=C1*1.2', error: null } } } }), total: 10_000, page: pageNumber, pageSize: 200 })
     }
     if (url.pathname === '/api/v2/unified-workspaces/source-visual-workspace') return json({ id: 'source-visual-workspace', name: 'Daily pricing', entryPoint: 'source', sourceType: 'flowhub_sheet', ownerUserId: 1, status: 'active', version: 1, snapshot: { id: 'snapshot-source-visual', checksum: 'c'.repeat(64), schemaVersion: 'uw-snapshot-1', createdAt: new Date().toISOString() }, draft: { id: 'draft-source', version: 1, currentRevisionId: 'revision-source', status: 'reviewed' }, createdAt: new Date().toISOString() })
+    if (url.pathname === '/api/v2/unified-workspaces/manual-visual-workspace') return json({ id: 'manual-visual-workspace', name: 'Catalog pricing', entryPoint: 'manual', sourceType: 'catalog_cache', ownerUserId: 1, status: 'active', version: 1, snapshot: { id: 'snapshot-manual-visual', checksum: 'd'.repeat(64), schemaVersion: 'uw-snapshot-1', createdAt: new Date().toISOString() }, draft: { id: 'draft-manual', version: 1, currentRevisionId: 'revision-manual', status: 'draft' }, createdAt: new Date().toISOString() })
     if (url.pathname === '/api/v2/unified-workspaces/source-visual-workspace/grid') return json({ items: [], total: 0, page: 1, pageSize: 500, channels: [], draftVersion: 1, revisionId: 'revision-source' })
     if (url.pathname === '/api/v2/unified-workspaces/preferences/me') return json({ visibleChannelIds: ['woocommerce:primary', 'snappshop:main', 'tapsishop:main'], channelOrder: ['woocommerce:primary', 'snappshop:main', 'tapsishop:main'], visibleFields: { price: true, stock: true, status: true, sku: true }, displayNameSource: 'canonical', version: 1 })
     if (url.pathname === '/api/v2/unified-workspaces/source-visual-workspace/draft/revisions' && route.request().method() === 'POST') return json({ id: 'revision-source-2', revisionNumber: 2, checksum: '9'.repeat(64), draftVersion: 2 })
@@ -93,7 +94,7 @@ async function installMockApi(page: Page) {
       staleReason: null,
     })
     if (url.pathname === '/api/v2/unified-workspaces/source-visual-workspace/reviews/review-source/selection' && route.request().method() === 'PUT') return json({ reviewId: 'review-source', selectedItemIds: ['review-wc'], selectionChecksum: 'f'.repeat(64), selectionVersion: 2 })
-    if (url.pathname === '/api/v2/unified-workspaces/source-visual-workspace/grouped-grid') {
+    if (url.pathname === '/api/v2/unified-workspaces/source-visual-workspace/grouped-grid' || url.pathname === '/api/v2/unified-workspaces/manual-visual-workspace/grouped-grid') {
       const requestedView = url.searchParams.get('view') ?? 'changed'
       const products = [{ sourceProductId: 'product-cable', name: 'iPhone Cable', sourceKey: 'CABLE-01', cost: '11000', category: 'Accessories', brand: null, productType: 'simple', mappedChannelCount: 3, listingCount: 4, changedListingCount: 3, selectedListingCount: 2, state: 'ready', children: [{ listingId: 'wc-cable', channelId: 'woocommerce:primary', listingLabel: 'Main Listing', externalId: '101', externalIdType: 'product_id', sku: 'CABLE', mappingState: 'resolved', cacheFreshness: 'fresh', state: 'ready', changedFields: ['price'], selected: true, reviewItemIds: ['review-wc'], fields: { price: fields('12000', '12500', 'ready', 'TOMAN'), stock: fields('8', '8', 'unchanged'), status: fields('publish', 'publish', 'unchanged') } }, { listingId: 'snap-white', channelId: 'snappshop:main', listingLabel: 'White Listing', externalId: 'SN-11', externalIdType: 'product_number', sku: 'CABLE-W', mappingState: 'resolved', cacheFreshness: 'fresh', state: 'ready', changedFields: ['price'], selected: true, reviewItemIds: ['review-snap'], fields: { price: fields('12600', '12900', 'ready', 'TOMAN'), stock: fields('5', '5', 'unchanged'), status: fields('active', 'active', 'unchanged') } }, { listingId: 'snap-black', channelId: 'snappshop:main', listingLabel: 'Black Listing', externalId: 'SN-12', externalIdType: 'product_number', sku: 'CABLE-B', mappingState: 'resolved', cacheFreshness: 'stale', state: 'blocked', changedFields: ['price'], selected: false, reviewItemIds: [], fields: { price: fields('12600', '12900', 'blocked', 'TOMAN'), stock: fields('0', '0', 'unchanged'), status: fields('inactive', 'inactive', 'unchanged') } }, { listingId: 'tapsi-main', channelId: 'tapsishop:main', listingLabel: 'Main Listing', externalId: 'TP-22', externalIdType: 'seller_sku', sku: 'CABLE', mappingState: 'resolved', cacheFreshness: 'fresh', state: 'unchanged', changedFields: [], selected: false, reviewItemIds: [], fields: { price: fields('12700', '12700', 'unchanged', 'TOMAN'), stock: fields('4', '4', 'unchanged'), status: fields('active', 'active', 'unchanged') } }] }]
       return json({ items: requestedView === 'unchanged' ? [] : products, total: 10_000, page: 1, pageSize: 100, view: requestedView, summary: { ready: 28, blocked: 12, unchanged: 1376, selected: 26 }, draftVersion: 1, revisionId: 'revision-source', reviewId: 'review-source', reviewStatus: 'ready', selectionChecksum: 'd'.repeat(64) })
@@ -109,6 +110,7 @@ test('source-centric daily Workspace is understandable and responsive with isola
   for (const viewport of viewports) {
     await page.setViewportSize(viewport)
     await page.goto('/workspace/source-visual-workspace')
+    await expect(page).toHaveURL(/\/products\?workspace=source-visual-workspace$/)
     await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
     // Dense pricing counters describe the locally tracked field scope rather
     // than the legacy server summary. Two eligible price changes and one
@@ -121,15 +123,34 @@ test('source-centric daily Workspace is understandable and responsive with isola
     await expect(page.getByText(/Black Listing/).first()).toBeVisible()
     await page.screenshot({ path: path.join(screenshotRoot, `workspace-${viewport.width}x${viewport.height}.png`), fullPage: true })
   }
-  const selectionRequest = page.waitForRequest(request => request.method() === 'PUT' && new URL(request.url()).pathname.endsWith('/reviews/review-source/selection'))
   await page.locator('.ht_master td[data-listing-id="snap-white"][data-field-selection][data-field="price"] input').first().uncheck()
-  await page.getByRole('button', { name: /Review.*Dry Run/i }).click()
+  const reviewButton = page.locator('[data-pricing-review]')
+  const dryRunButton = page.locator('[data-pricing-dry-run]')
+  await expect(reviewButton).toHaveText('Review')
+  await expect(dryRunButton).toHaveText('Dry Run')
+  await reviewButton.click()
+  await expect(page.getByRole('dialog', { name: 'Review Changes' })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to Grid' }).click()
+  const selectionRequest = page.waitForRequest(request => request.method() === 'PUT' && new URL(request.url()).pathname.endsWith('/reviews/review-source/selection'))
+  await dryRunButton.click()
   const selectionPayload = JSON.parse((await selectionRequest).postData() ?? '{}') as { review_item_ids?: string[] }
   expect(selectionPayload.review_item_ids).toEqual(['review-wc'])
-  await page.getByRole('button', { name: /Back to grid/i }).click()
+  await page.getByRole('button', { name: 'Back to Grid' }).click()
   await page.getByRole('button', { name: /^Apply 1/i }).click()
   await expect(page.getByRole('dialog', { name: 'Apply confirmation' })).toBeVisible()
   await page.screenshot({ path: path.join(screenshotRoot, 'apply-confirmation.png'), fullPage: true })
+})
+
+test('all pricing Workspace compatibility routes redirect to the Products pricing grid', async ({ page }) => {
+  await installMockApi(page)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  for (const workspaceId of ['manual-visual-workspace', 'source-visual-workspace']) {
+    await page.goto(`/workspace/${workspaceId}`)
+    await expect(page).toHaveURL(new RegExp(`/products\\?workspace=${workspaceId}$`))
+    await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
+    await expect(page.locator('[data-pricing-review]')).toHaveText('Review')
+    await expect(page.locator('[data-pricing-dry-run]')).toHaveText('Dry Run')
+  }
 })
 
 test('Source configuration, FlowHub Sheet, import, and Data Quality render from synthetic data', async ({ page }) => {
@@ -232,7 +253,12 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
   const sidebarBox = await sidebar.boundingBox()
   expect(sidebarBox).not.toBeNull()
   expect(sidebarBox!.x).toBeGreaterThan(1000)
-  await page.getByRole('button', { name: 'بازبینی و اجرای آزمایشی' }).click()
+  await expect(page.locator('[data-pricing-review]')).toHaveText('بازبینی')
+  await expect(page.locator('[data-pricing-dry-run]')).toHaveText('اجرای آزمایشی')
+  await page.locator('[data-pricing-review]').click()
+  await expect(page.getByRole('dialog', { name: 'بازبینی تغییرات' })).toBeVisible()
+  await page.getByRole('button', { name: 'بازگشت به جدول' }).click()
+  await page.locator('[data-pricing-dry-run]').click()
   await expect(page.getByRole('dialog', { name: 'بازبینی تغییرات' })).toBeVisible()
   await page.getByRole('button', { name: 'بازگشت به جدول' }).click()
   await page.getByRole('button', { name: /^اعمال 2$/ }).click()

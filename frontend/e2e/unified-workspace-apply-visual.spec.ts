@@ -56,15 +56,15 @@ const groupedListings = visibleChannels.map((item, index) => {
   }
 })
 
-async function installApplyFixture(page: Page) {
+async function installApplyFixture(page: Page, scenario = 'success') {
   await page.addInitScript(() => localStorage.setItem('wp_token', 'visual-isolated-token'))
   await page.route('**/*', async (route: Route) => {
     const url = new URL(route.request().url())
     if (!url.pathname.startsWith('/api/')) return route.continue()
     const json = (body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
-    const scenario = new URL(page.url()).searchParams.get('result') ?? 'success'
     if (url.pathname === '/api/v2/setup/status') return json({ completed: true })
     if (url.pathname === '/api/auth/me') return json({ username: 'visual-admin', role: 'admin', is_admin: true, is_super_admin: false, permissions: { can_access_site: true, can_fetch: true, can_view_logs: true, can_view_settings: true }, maintenance: { enabled: false, message: '' } })
+    if (url.pathname === '/api/v2/products/categories') return json({ items: [] })
     if (url.pathname === '/api/v2/source-profiles/channels') return json({ items: visibleChannels.map(item => ({ channelId: item.channelId, name: item.displayName ?? item.channelId, connectorType: item.channelId.split(':')[0], capabilityVersion: item.version, capabilities: { writePrice: item.writePrice, writeStock: item.writeStock, writeStatus: item.writeStatus, writeAvailable: item.writeAvailable, supportedStatuses: item.supportedStatuses, currency: item.currency, unit: item.unit }, enabled: true, implementationState: 'implemented', available: true })) })
     if (url.pathname === '/api/v2/unified-workspaces/preferences/me') return json({ visibleChannelIds: visibleChannels.map(item => item.channelId), channelOrder: visibleChannels.map(item => item.channelId), visibleFields: { price: true, stock: true, status: true, sku: true }, displayNameSource: 'canonical', version: 1 })
     if (url.pathname === '/api/v2/unified-workspaces/visual-apply') return json({ id: 'visual-apply', name: 'Visual Apply Fixture', entryPoint: 'manual', ownerUserId: 1, status: 'active', version: 1, snapshot: { id: 'visual-snapshot', checksum: 's'.repeat(64), schemaVersion: '1', createdAt: new Date().toISOString() }, draft: { id: 'visual-draft', version: 1, currentRevisionId: 'revision-1', status: 'draft' }, createdAt: new Date().toISOString() })
@@ -83,15 +83,20 @@ async function installApplyFixture(page: Page) {
 
 for (const scenario of ['success', 'partial', 'reconciliation']) {
   test(`renders mocked ${scenario} Apply result without external writes`, async ({ page }) => {
-    await installApplyFixture(page)
+    await installApplyFixture(page, scenario)
     await page.goto(`/workspace/visual-apply?result=${scenario}`)
-    await expect(page.getByText('Visual Apply Fixture')).toBeVisible()
+    await expect(page).toHaveURL('/products?workspace=visual-apply')
+    await expect(page.locator('[data-pricing-grid]')).toBeVisible()
     const checkbox = page.locator('.ht_master td[data-listing-id="listing-1"][data-field-selection][data-field="price"] input').first()
     await expect(checkbox).toBeChecked()
-    await page.getByRole('button', { name: /Review.*Dry Run/i }).click()
+    await page.locator('[data-pricing-review]').click()
+    await expect(page.getByRole('heading', { name: 'Review Changes' })).toBeVisible()
+    await expect(page.locator('[data-local-pricing-review]')).toBeVisible()
+    await page.getByRole('button', { name: /Back to grid/i }).click()
+    await page.locator('[data-pricing-dry-run]').click()
     await expect(page.getByRole('heading', { name: 'Review Changes' })).toBeVisible()
     await page.getByRole('button', { name: /Back to grid/i }).click()
-    await page.getByRole('button', { name: /^Apply 1/i }).click()
+    await page.locator('[data-pricing-apply]').click()
     await page.getByRole('button', { name: /Confirm Apply/i }).click()
     const results = page.getByRole('region', { name: 'Apply results' })
     const expected = resultPresentation[scenario as keyof typeof resultPresentation]
@@ -106,17 +111,21 @@ test('captures the mocked Workspace and Apply states at supported desktop viewpo
   for (const viewport of [{ width: 1280, height: 720 }, { width: 1366, height: 768 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
     await page.setViewportSize(viewport)
     await page.goto('/workspace/visual-apply?result=success')
-    await expect(page.getByText('Visual Apply Fixture')).toBeVisible()
+    await expect(page).toHaveURL('/products?workspace=visual-apply')
+    await expect(page.locator('[data-pricing-grid]')).toBeVisible()
     const suffix = `${viewport.width}x${viewport.height}`
     await expect.poll(() => gridOverflow(page)).toBe(true)
     await page.screenshot({ path: `test-results/visual-remediation/workspace-${suffix}.png`, fullPage: true })
     const grid = page.locator('.fh-grid-scroll')
     await grid.evaluate(element => { element.scrollLeft = element.scrollWidth })
     await page.screenshot({ path: `test-results/visual-remediation/grid-scrolled-${suffix}.png`, fullPage: true })
-    await page.getByRole('button', { name: /Review.*Dry Run/i }).click()
+    await page.locator('[data-pricing-review]').click()
+    await expect(page.locator('[data-local-pricing-review]')).toBeVisible()
+    await page.getByRole('button', { name: /Back to grid/i }).click()
+    await page.locator('[data-pricing-dry-run]').click()
     await expect(page.getByRole('heading', { name: 'Review Changes' })).toBeVisible()
     await page.getByRole('button', { name: /Back to grid/i }).click()
-    await page.getByRole('button', { name: /^Apply 1/i }).click()
+    await page.locator('[data-pricing-apply]').click()
     await page.getByRole('button', { name: /Confirm Apply/i }).click()
     const results = page.getByRole('region', { name: 'Apply results' })
     await expect(results.getByRole('heading')).toContainText(resultPresentation.success.job)

@@ -38,12 +38,26 @@ vi.mock('@handsontable/react-wrapper', async () => {
       columns.flatMap(column => {
         const prop = String(column.data ?? '')
         const match = /^(.*)__(price|stock|status)__target$/.exec(prop)
-        if (!match) return []
-        const listingId = String(row[`${match[1]}__listing_id`] ?? '')
+        const selectionMatch = /^(.*)__(price|stock|status)__selected$/.exec(prop)
+        const identityMatch = match ?? selectionMatch
+        if (!identityMatch) return []
+        const listingId = String(row[`${identityMatch[1]}__listing_id`] ?? '')
         if (!listingId) return []
+        if (selectionMatch) {
+          return React.createElement('input', {
+            type: 'checkbox',
+            'data-listing-id': listingId,
+            'data-field-selection': selectionMatch[2],
+            defaultChecked: Boolean(row[prop]),
+            key: `${rowIndex}:${prop}`,
+            onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+              props.afterChange?.([[rowIndex, prop, row[prop], event.currentTarget.checked]], 'edit')
+            },
+          })
+        }
         return React.createElement('input', {
           'data-listing-id': listingId,
-          'data-target-field': match[2],
+          'data-target-field': identityMatch[2],
           defaultValue: String(row[prop] ?? ''),
           key: `${rowIndex}:${prop}`,
           onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,6 +188,14 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     expect(container.textContent).not.toContain('snappshop:main')
   })
 
+  it('omits its PageShell when embedded in the Products page', async () => {
+    await renderWorkspace(container, root, service, true)
+
+    expect(container.querySelector('[data-pricing-workspace]')).toBeTruthy()
+    expect(container.querySelector('[data-pricing-controls-sticky]')).toBeTruthy()
+    expect(container.querySelector('.fh-page')).toBeNull()
+  })
+
   it('binds an edit from one of several marketplace Listings to that immutable Listing ID', async () => {
     await renderWorkspace(container, root, service)
     const targetPrice = container.querySelector<HTMLInputElement>('[data-listing-id="snap-black"][data-target-field="price"]')
@@ -184,9 +206,20 @@ describe('SourceCentricWorkspace Channel ordering', () => {
       setter?.call(targetPrice, '125')
       targetPrice?.dispatchEvent(new Event('input', { bubbles: true }))
     })
-    const reviewButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Review & Dry Run')) as HTMLButtonElement
+    const reviewButton = container.querySelector<HTMLButtonElement>('[data-pricing-review]')
+    expect(reviewButton).toBeTruthy()
     await act(async () => {
-      reviewButton.click()
+      reviewButton?.click()
+      await Promise.resolve()
+    })
+
+    expect(container.querySelector('[data-local-pricing-review]')).toBeTruthy()
+    expect(service.saveDraft).not.toHaveBeenCalled()
+
+    const dryRunButton = container.querySelector<HTMLButtonElement>('[data-pricing-dry-run]')
+    expect(dryRunButton).toBeTruthy()
+    await act(async () => {
+      dryRunButton?.click()
       await Promise.resolve()
     })
 
@@ -198,17 +231,50 @@ describe('SourceCentricWorkspace Channel ordering', () => {
       target_value: '125',
     })]))
   })
+
+  it('saves only exact selected fields with replace mode after manual deselection', async () => {
+    await renderWorkspace(container, root, service)
+    const deselect = container.querySelector<HTMLInputElement>('[data-listing-id="snap-black"][data-field-selection="price"]')
+    expect(deselect).toBeTruthy()
+    expect(deselect?.checked).toBe(true)
+
+    await act(async () => {
+      deselect?.click()
+      await Promise.resolve()
+    })
+    const dryRunButton = container.querySelector<HTMLButtonElement>('[data-pricing-dry-run]')
+    await act(async () => {
+      dryRunButton?.click()
+      await Promise.resolve()
+    })
+
+    const savedChanges = vi.mocked(service.saveDraft).mock.calls[0][2]
+    expect(savedChanges).not.toContainEqual(expect.objectContaining({
+      listing_id: 'snap-black',
+      channel_id: 'snappshop:main',
+      field: 'price',
+    }))
+    expect(savedChanges).toHaveLength(3)
+    expect(savedChanges).toContainEqual(expect.objectContaining({
+      listing_id: 'woo-main',
+      channel_id: 'woocommerce:primary',
+      field: 'price',
+      target_value: '110',
+    }))
+    expect(vi.mocked(service.saveDraft).mock.calls[0][3]).toBe('replace')
+  })
 })
 
 async function renderWorkspace(
   _container: HTMLElement,
   root: ReturnType<typeof createRoot>,
   service: UnifiedWorkspaceService,
+  embedded = false,
 ) {
   await act(async () => {
     root.render(
       <NotificationProvider>
-        <SourceCentricWorkspace workspace={WORKSPACE} service={service} />
+        <SourceCentricWorkspace workspace={WORKSPACE} service={service} embedded={embedded} />
       </NotificationProvider>,
     )
     await Promise.resolve()

@@ -22,7 +22,6 @@ import {
   isPricingFieldSelected,
   persistPricingWorkspaceState,
   previewBulkTransformation,
-  pricingDraftChanges,
   pricingFieldChange,
   pricingFieldKey,
   pricingWorkspaceSummary,
@@ -30,6 +29,7 @@ import {
   registerPricingFields,
   restorePricingWorkspaceState,
   selectedPricingChanges,
+  selectedPricingDraftChanges,
   setPricingFieldSelected,
   undoPricingWorkspace,
   type BulkTransformationKind,
@@ -44,12 +44,14 @@ import { formatChannelDisplayName } from '../unifiedWorkspace/channelDisplayName
 import { sanitizeGridHtml } from '../unifiedWorkspace/handsontableIdentity'
 import { resolveHandsontableLicense } from '../unifiedWorkspace/handsontableLicense'
 import { workspaceApplyIdempotencyKey } from '../unifiedWorkspace/useUnifiedWorkspaceController'
+import { inputHint } from '../../utils/inputHint'
 import { sourceWorkspaceApi } from './api'
 import {
   buildDensePricingDefinition,
   cellIsReadOnly,
   cellStatus,
   identityForCell,
+  listingIdsForRecord,
   type DensePricingColumnMeta,
   type DensePricingRecord,
   type PricingField,
@@ -77,7 +79,15 @@ const BULK_ACTIONS: Array<{ kind: BulkTransformationKind; label: string }> = [
   { kind: 'set_status', label: 'workspace:densePricing.setStatus' },
 ]
 
-export default function DensePricingWorkspace({ workspace, service }: { workspace: UnifiedWorkspaceResource; service: UnifiedWorkspaceService }) {
+export interface DensePricingWorkspaceProps {
+  workspace: UnifiedWorkspaceResource
+  service: UnifiedWorkspaceService
+  /** Products owns the sole page shell when the pricing grid is embedded on /products. */
+  embedded?: boolean
+  categoryOptions?: readonly { value: string; label: string }[]
+}
+
+export default function DensePricingWorkspace({ workspace, service, embedded = false, categoryOptions = [] }: DensePricingWorkspaceProps) {
   const notify = useNotification()
   const hotRef = useRef<HotTableRef>(null)
   const gridLoaderRef = useRef(createLatestGridLoader<GroupedWorkspacePage>())
@@ -89,12 +99,16 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [channelFilter, setChannelFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [productTypeFilter, setProductTypeFilter] = useState<'' | 'simple' | 'variable' | 'variation'>('')
+  const [stockFilter, setStockFilter] = useState<'' | 'in_stock' | 'out_of_stock'>('')
   const [pricingState, setPricingState] = useState<PricingWorkspaceState>(() => restoreState(workspace.id, persistenceScope))
   const pricingStateRef = useRef(pricingState)
   const [draftVersion, setDraftVersion] = useState(workspace.draft.version)
   const [busy, setBusy] = useState<string | null>(null)
   const [review, setReview] = useState<ReviewResource | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [localReviewOpen, setLocalReviewOpen] = useState(false)
   const [reviewContext, setReviewContext] = useState<ReviewContext | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [applyResult, setApplyResult] = useState<ApplyResource | null>(null)
@@ -103,28 +117,45 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
   const [bulkValue, setBulkValue] = useState('5')
   const [bulkPreview, setBulkPreview] = useState<BulkTransformationPreview | null>(null)
   const [tableHeight, setTableHeight] = useState(() => viewportTableHeight())
+  const [gridError, setGridError] = useState<string | null>(null)
+  const [channelInventoryError, setChannelInventoryError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     await gridLoaderRef.current.run(
-      () => sourceWorkspaceApi.groupedGrid(workspace.id, page, view, search),
+      () => sourceWorkspaceApi.groupedGrid(workspace.id, page, view, search, {
+        categoryId: categoryFilter || undefined,
+        productType: productTypeFilter || undefined,
+        channelId: channelFilter || undefined,
+        stockState: stockFilter || undefined,
+      }),
       result => {
         setGrid(result)
+        setGridError(null)
         setDraftVersion(current => Math.max(current, result.draftVersion))
       },
+      error => setGridError(localizedApiError(error, 'products:products.unableToLoadProducts')),
     )
-  }, [workspace.id, page, view, search])
+  }, [categoryFilter, channelFilter, page, productTypeFilter, search, stockFilter, view, workspace.id])
+
+  const loadChannelInventory = useCallback(async () => {
+    try {
+      const result = await sourceWorkspaceApi.channels()
+      setChannelInventory(result.items)
+      setChannelInventoryError(null)
+    } catch (error) {
+      // Keep the last verified inventory. If none exists, the Grid remains a
+      // useful cached read surface while all target fields fail closed.
+      setChannelInventoryError(localizedApiError(error, 'products:products.inlinePricingUnavailable'))
+    }
+  }, [])
 
   useEffect(() => {
     void load()
     return () => gridLoaderRef.current.cancel()
   }, [load])
   useEffect(() => {
-    let active = true
-    sourceWorkspaceApi.channels()
-      .then(result => { if (active) setChannelInventory(result.items) })
-      .catch(() => { if (active) setChannelInventory([]) })
-    return () => { active = false }
-  }, [])
+    void loadChannelInventory()
+  }, [loadChannelInventory])
   useEffect(() => {
     const resize = () => setTableHeight(viewportTableHeight())
     window.addEventListener('resize', resize)
@@ -139,6 +170,15 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
   }, [persistenceScope, pricingState.scopeId, workspace.id])
 
   const channelById = useMemo(() => new Map(channelInventory.map(channel => [channel.channelId, channel])), [channelInventory])
+  const discoveredChannelIds = useMemo(() => [...new Set(grid?.items.flatMap(product => product.children.map(listing => listing.channelId)) ?? [])], [grid])
+  const channelResources = useMemo(() => channelInventory.length
+    ? prepareResourceCollection(channelInventory, item => sourceChannelSignals(item))
+    : prepareResourceCollection(discoveredChannelIds.map(channelId => ({ channelId })), item => channelIdentitySignals(item)),
+  [channelInventory, discoveredChannelIds])
+  const stableChannelIds = useMemo(() => channelResources.ordered
+    .filter(channel => channel.section === 'active')
+    .map(channel => channel.id), [channelResources])
+  const displayedChannelIds = useMemo(() => channelFilter ? [channelFilter] : stableChannelIds, [channelFilter, stableChannelIds])
   const baseDescriptors = useMemo(() => grid ? pricingDescriptors(grid, channelById) : [], [channelById, grid])
   const descriptors = useMemo(() => baseDescriptors.map(descriptor => validateDescriptorTarget(
     descriptor,
@@ -157,37 +197,40 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
     setReview(null)
     setReviewContext(null)
     setReviewOpen(false)
+    setLocalReviewOpen(false)
     setConfirming(false)
     setApplyResult(null)
   }, [descriptors, pricingState])
 
-  const visibleGrid = useMemo(() => grid && channelFilter ? {
+  const visibleGrid = useMemo(() => grid ? {
     ...grid,
     items: grid.items.map(product => ({
       ...product,
-      children: product.children.filter(listing => listing.channelId === channelFilter),
+      children: product.children
+        .filter(listing => !channelFilter || listing.channelId === channelFilter)
+        .map(listing => channelById.has(listing.channelId) ? listing : {
+          ...listing,
+          fields: Object.fromEntries(Object.entries(listing.fields).map(([field, value]) => [field, { ...value, readOnly: true }])) as GroupedWorkspacePage['items'][number]['children'][number]['fields'],
+        }),
     })),
-  } : grid, [channelFilter, grid])
+  } : null, [channelById, channelFilter, grid])
   const definition = useMemo(() => visibleGrid ? buildDensePricingDefinition(visibleGrid, identity => {
     const change = pricingFieldChange(pricingState, identity)
     return change ? { targetValue: change.targetValue, selected: isPricingFieldSelected(change) } : null
-  }) : null, [pricingState, visibleGrid])
+  }, displayedChannelIds) : null, [displayedChannelIds, pricingState, visibleGrid])
   const visibleKeys = useMemo(() => new Set(visibleDescriptors.map(descriptor => pricingFieldKey(descriptor.identity))), [visibleDescriptors])
   const summary = useMemo(() => pricingWorkspaceSummary(pricingState, visibleKeys), [pricingState, visibleKeys])
   const bulkScopeCount = selectedRowKeys.size || new Set(selectedPricingChanges(pricingState).map(change => change.identity.listingId)).size
   const pageCount = Math.max(1, Math.ceil((grid?.total ?? 0) / (grid?.pageSize || 100)))
   const gridMinWidth = Math.max(1180, (definition?.columns.length ?? 1) * 104)
   const license = resolveHandsontableLicense(import.meta.env.VITE_HANDSONTABLE_LICENSE_KEY, import.meta.env.PROD)
-  const channelResources = useMemo(() => channelInventory.length
-    ? prepareResourceCollection(channelInventory, item => sourceChannelSignals(item))
-    : prepareResourceCollection((definition?.channelIds ?? []).map(channelId => ({ channelId })), item => channelIdentitySignals(item)),
-  [channelInventory, definition?.channelIds])
 
   function mutatePricingState(update: (current: PricingWorkspaceState) => PricingWorkspaceState) {
     setPricingState(current => update(current))
     setReview(null)
     setReviewContext(null)
     setReviewOpen(false)
+    setLocalReviewOpen(false)
     setApplyResult(null)
   }
 
@@ -195,13 +238,19 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
     if (!changes || source === 'loadData' || !definition) return
     const targetEdits: Array<{ descriptor: PricingFieldDescriptor; targetValue: string }> = []
     const selections: Array<{ identity: PricingFieldIdentity; selected: boolean }> = []
+    const productSelections: Array<{ listingIds: ReadonlySet<string>; selected: boolean }> = []
     for (const [visualRow, propValue, , value] of changes) {
       const prop = String(propValue)
       const physicalRow = hotRef.current?.hotInstance?.toPhysicalRow(visualRow) ?? visualRow
       const record = hotRef.current?.hotInstance?.getSourceDataAtRow(physicalRow) as DensePricingRecord | undefined
       const meta = definition.columnMeta.get(prop)
+      if (!record || !meta) continue
+      if (meta.kind === 'product_selection') {
+        productSelections.push({ listingIds: listingIdsForRecord(record, definition.channelIds), selected: Boolean(value) })
+        continue
+      }
       const identity = identityForCell(record, meta)
-      if (!identity || !meta) continue
+      if (!identity) continue
       if (meta.kind === 'selection') selections.push({ identity, selected: Boolean(value) })
       if (meta.kind === 'target') {
         const descriptor = descriptorMap.get(pricingFieldKey(identity))
@@ -214,10 +263,13 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
         }
       }
     }
-    if (!targetEdits.length && !selections.length) return
+    if (!targetEdits.length && !selections.length && !productSelections.length) return
     mutatePricingState(current => {
       let next = targetEdits.length ? editPricingFields(current, targetEdits) : current
       for (const selection of selections) next = setPricingFieldSelected(next, selection.identity, selection.selected)
+      for (const productSelection of productSelections) {
+        next = setProductListingsSelected(next, descriptors, productSelection.listingIds, productSelection.selected)
+      }
       return next
     })
   }
@@ -228,7 +280,7 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
     const requestedChanges = selectedPricingChanges(pricingState)
     setBusy(translate('workspace:sourceCentricWorkspace.savingDraft'))
     try {
-      const revision = await service.saveDraft(workspace.id, draftVersion, [...pricingDraftChanges(pricingState)])
+      const revision = await service.saveDraft(workspace.id, draftVersion, [...selectedPricingDraftChanges(pricingState)], 'replace')
       const created = await service.createReview(workspace.id, revision.id)
       if (pricingStateRef.current.revision !== requestedRevision) {
         notify.error({ title: translate('workspace:sourceCentricWorkspace.reviewCouldNotBeCompleted'), description: translate('workspace:sourceCentricWorkspace.generateAFreshReview') })
@@ -250,6 +302,7 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
       setReview({ ...created, items: created.items.map(item => ({ ...item, selected: selectedIdSet.has(item.id) })) })
       setReviewContext({ reviewId: created.id, revisionId: revision.id, selectionChecksum: selection.selectionChecksum, selectedCount: selectedIds.length })
       setDraftVersion(revision.draftVersion)
+      setLocalReviewOpen(false)
       setReviewOpen(true)
       notify.success({ title: translate('workspace:sourceCentricWorkspace.reviewAndDryRunComplete'), description: translate('workspace:densePricing.selectionBoundToReview', { count: selectedIds.length }) })
     } catch (error) {
@@ -267,6 +320,7 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
       setReviewContext(null)
       setConfirming(false)
       setReviewOpen(false)
+      await load()
     } catch (error) {
       notify.error({ title: translate('workspace:sourceCentricWorkspace.applyWasBlocked'), description: localizedApiError(error, 'workspace:sourceCentricWorkspace.generateAFreshReview') })
     } finally { setBusy(null) }
@@ -294,31 +348,53 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
   function undo() { mutatePricingState(undoPricingWorkspace) }
   function redo() { mutatePricingState(redoPricingWorkspace) }
 
-  if (!grid || !definition) return <PageShell><div className="fh-card fh-card-pad">{translate('workspace:sourceCentricWorkspace.loadingSourceProductWorkspace')}</div></PageShell>
+  if (!grid || !definition) {
+    const loadingState = <div className="fh-card fh-card-pad">{gridError
+      ? <div className="fh-alert fh-alert-danger" role="alert"><Icon name="alert" /><span>{gridError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void load()}>{translate('products:products.retryInlinePricing')}</button></div>
+      : translate('workspace:sourceCentricWorkspace.loadingSourceProductWorkspace')}</div>
+    return embedded ? loadingState : <PageShell>{loadingState}</PageShell>
+  }
 
-  return <PageShell>
+  const content = <>
     <div className="fh-pricing-workspace" data-pricing-workspace>
-      <header className="fh-pricing-header">
+      {!embedded && <header className="fh-pricing-header">
         <div className="min-w-0"><h1 className="fh-page-title truncate">{workspace.name}</h1><p className="fh-text-caption">{translate('workspace:sourceCentricWorkspace.sourceProductWorkspaceImmutableSnapshot')} {workspace.snapshot.id.slice(0, 8)}</p></div>
         <span className={`fh-workspace-dirty ${summary.changed ? 'fh-workspace-dirty-active' : ''}`}>{summary.changed ? translate('workspace:densePricing.pendingChanges', { count: summary.changed }) : translate('workspace:sourceCentricWorkspace.draftSaved')}</span>
-      </header>
+      </header>}
 
+      {gridError && <div className="fh-alert fh-alert-danger m-2" role="alert"><Icon name="alert" /><span>{gridError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void load()}>{translate('products:products.retryInlinePricing')}</button></div>}
+      {channelInventoryError && <div className="fh-alert fh-alert-warning m-2" role="alert"><Icon name="info" /><span>{channelInventoryError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void loadChannelInventory()}>{translate('products:products.retryInlinePricing')}</button></div>}
+
+      <div className="fh-pricing-controls-sticky" data-pricing-controls-sticky>
       <section className="fh-pricing-toolbar" aria-label={translate('workspace:densePricing.pricingToolbar')}>
         <form className="flex min-w-[240px] flex-1 items-center gap-2" onSubmit={event => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()) }}>
-          <input className="fh-input h-9 min-w-0" type="search" value={searchInput} onChange={event => setSearchInput(event.target.value)} placeholder={translate('workspace:sourceCentricWorkspace.searchSourceProducts')} aria-label={translate('workspace:sourceCentricWorkspace.searchSourceProducts')} />
+          <input className="fh-input h-9 min-w-0" type="search" value={searchInput} onChange={event => setSearchInput(event.target.value)} {...inputHint(translate('workspace:sourceCentricWorkspace.searchSourceProducts'))} aria-label={translate('workspace:sourceCentricWorkspace.searchSourceProducts')} />
           <button className="fh-button-secondary fh-button-sm" type="submit"><Icon name="search" /> {translate('workspace:unifiedWorkspace.filterServerData')}</button>
           <select className="fh-select h-9 w-auto" value={view} onChange={event => { setView(event.target.value as View); setPage(1) }} aria-label={translate('workspace:densePricing.changeStateFilter')}>
             {(['all', 'changed', 'ready', 'blocked', 'unchanged'] as const).map(value => <option key={value} value={value}>{translate(`workspace:densePricing.view.${value}`)}</option>)}
           </select>
-          <select className="fh-select h-9 w-auto" name="channelId" value={channelFilter} onChange={event => { setChannelFilter(event.target.value); setSelectedRowKeys(new Set()) }} aria-label={translate('workspace:unifiedWorkspace.channel')}>
+          <select className="fh-select h-9 w-auto" name="channelId" value={channelFilter} onChange={event => { setChannelFilter(event.target.value); setSelectedRowKeys(new Set()); setPage(1) }} aria-label={translate('workspace:unifiedWorkspace.channel')}>
             <option value="">{translate('common:selector.allChannels')}</option>
             <ResourceOptionGroups resources={channelResources} isOptionDisabled={channel => channel.section !== 'active'} />
+          </select>
+          <select className="fh-select h-9 w-auto" name="categoryId" value={categoryFilter} onChange={event => { setCategoryFilter(event.target.value); setPage(1) }} aria-label={translate('products:column.categories')}>
+            <option value="">{translate('products:products.allCategories')}</option>
+            {categoryOptions.map(category => <option key={category.value} value={category.value}>{category.label}</option>)}
+          </select>
+          <select className="fh-select h-9 w-auto" name="productType" value={productTypeFilter} onChange={event => { setProductTypeFilter(event.target.value as typeof productTypeFilter); setPage(1) }} aria-label={translate('products:column.type')}>
+            <option value="">{translate('products:products.allTypes')}</option>
+            {(['simple', 'variation', 'variable'] as const).map(type => <option key={type} value={type}>{translate(`products:productType.${type}`)}</option>)}
+          </select>
+          <select className="fh-select h-9 w-auto" name="stockState" value={stockFilter} onChange={event => { setStockFilter(event.target.value as typeof stockFilter); setPage(1) }} aria-label={translate('common:field.stock')}>
+            <option value="">{translate('products:products.allStockStates')}</option>
+            <option value="in_stock">{translate('products:products.inStock')}</option>
+            <option value="out_of_stock">{translate('products:products.outOfStock')}</option>
           </select>
         </form>
         <button type="button" className="fh-button-secondary fh-button-sm" data-pricing-sort="product" onClick={() => {
           const plugin = hotRef.current?.hotInstance?.getPlugin('multiColumnSorting')
           const current = plugin?.getSortConfig() as { sortOrder?: 'asc' | 'desc' }[] | undefined
-          plugin?.sort({ column: 0, sortOrder: current?.[0]?.sortOrder === 'asc' ? 'desc' : 'asc' })
+          plugin?.sort({ column: 1, sortOrder: current?.[0]?.sortOrder === 'asc' ? 'desc' : 'asc' })
         }}><Icon name="filter" /> {translate('workspace:densePricing.sortProduct')}</button>
         <button type="button" className="fh-button-secondary fh-button-sm" data-pricing-undo disabled={!pricingState.past.length} onClick={undo}>{translate('workspace:densePricing.undo')}</button>
         <button type="button" className="fh-button-secondary fh-button-sm" data-pricing-redo disabled={!pricingState.future.length} onClick={redo}>{translate('workspace:densePricing.redo')}</button>
@@ -326,7 +402,11 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
 
       <section className="fh-pricing-summary" aria-label={translate('workspace:sourceCentricWorkspace.workspaceChangeSummary')}>
         {(['changed', 'selected', 'ready', 'warning', 'blocked'] as const).map(key => <span key={key} className={`fh-pricing-counter fh-pricing-counter-${key}`}><strong>{formatNumber(summary[key])}</strong> {translate(`workspace:densePricing.counter.${key}`)}</span>)}
-        <span className="fh-text-caption ms-auto" data-pending-summary>{translate('workspace:densePricing.pendingHidden', { pending: summary.changed, hidden: summary.hidden })}</span>
+        <div className="fh-pricing-channels" aria-label={translate('workspace:sourceCentricWorkspace.channels')}>
+          {/* i18n-ignore: utility classes, not user-facing copy */}
+          <ResourceSectionList resources={channelResources} className="flex flex-wrap gap-2" renderItem={channel => <span className="inline-flex items-center gap-1 text-xs"><span>{channel.displayName}</span><ResourceStateBadge badge={channel.badge} /></span>} />
+        </div>
+        <span className="fh-text-caption" data-pending-summary>{translate('workspace:densePricing.pendingHidden', { pending: summary.changed, hidden: summary.hidden })}</span>
       </section>
 
       <section className="fh-pricing-bulk" data-bulk-toolbar aria-label={translate('workspace:densePricing.bulkTransformationToolbar')}>
@@ -336,19 +416,18 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
         <input className="fh-input h-9 w-32" data-bulk-value value={bulkValue} onChange={event => setBulkValue(event.target.value)} aria-label={translate('workspace:densePricing.bulkValue')} />
         <button type="button" className="fh-button-secondary fh-button-sm" data-bulk-preview disabled={bulkScopeCount === 0} onClick={previewBulk}><Icon name="preview" /> {translate('workspace:densePricing.previewBulkChange')}</button>
         <span className="fh-text-caption">{translate('workspace:densePricing.selectedRowsScope', { count: bulkScopeCount })}</span>
+        {/* i18n-ignore: utility classes, not user-facing copy */}
         <div className="ms-auto flex items-center gap-2">
-          <button className="fh-button-secondary fh-button-sm" type="button" disabled={!reviewContext || busy !== null} onClick={() => setReviewOpen(true)}>{translate('workspace:unifiedWorkspace.review')}</button>
-          <button className="fh-button-secondary fh-button-sm" type="button" disabled={summary.changed === 0 || summary.selected === 0 || busy !== null || reviewContext !== null} onClick={() => void saveAndReview()}><Icon name="dryRun" /> {translate('workspace:sourceCentricWorkspace.reviewDryRun')}</button>
-          <button className="fh-button-primary fh-button-sm" type="button" disabled={!reviewContext || review?.status !== 'ready' || busy !== null} onClick={() => setConfirming(true)}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.apply')} {reviewContext?.selectedCount ?? 0}</button>
+          <button data-pricing-review className="fh-button-secondary fh-button-sm" type="button" disabled={summary.selected === 0 || busy !== null} onClick={() => reviewContext ? setReviewOpen(true) : setLocalReviewOpen(true)}>{translate('workspace:unifiedWorkspace.review')}</button>
+          <button data-pricing-dry-run className="fh-button-secondary fh-button-sm" type="button" disabled={summary.changed === 0 || summary.selected === 0 || busy !== null || reviewContext !== null} onClick={() => void saveAndReview()}><Icon name="dryRun" /> {translate('products:products.dryRun')}</button>
+          <button data-pricing-apply className="fh-button-primary fh-button-sm" type="button" disabled={!reviewContext || review?.status !== 'ready' || busy !== null} onClick={() => setConfirming(true)}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.apply')} {reviewContext?.selectedCount ?? 0}</button>
         </div>
       </section>
-
-      <div className="fh-pricing-channels" aria-label={translate('workspace:sourceCentricWorkspace.channels')}>
-        <ResourceSectionList resources={channelResources} className="flex flex-wrap gap-2" renderItem={channel => <span className="inline-flex items-center gap-2 text-xs"><span>{channel.displayName}</span><ResourceStateBadge badge={channel.badge} /></span>} />
       </div>
 
       {!license.licenseKey ? <div className="fh-alert fh-alert-danger"><Icon name="alert" /><span>{translate('workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid')}</span></div> :
         <div className="fh-grid-scroll fh-pricing-grid-scroll" data-pricing-grid-scroll role="region" aria-label={translate('workspace:unifiedWorkspace.scrollableWorkspaceGrid')}>
+          {/* i18n-ignore: Handsontable theme and component classes */}
           <div className="ht-theme-main fh-handsontable fh-pricing-grid" data-pricing-grid style={{ minWidth: gridMinWidth }}>
             <HotTable
               ref={hotRef}
@@ -359,8 +438,9 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
               width="100%"
               height={tableHeight}
               rowHeights={30}
+              autoRowSize={false}
               columnHeaderHeight={28}
-              fixedColumnsStart={3}
+              fixedColumnsStart={5}
               stretchH="none"
               renderAllRows={false}
               renderAllColumns={false}
@@ -411,10 +491,12 @@ export default function DensePricingWorkspace({ workspace, service }: { workspac
     </div>
 
     {bulkPreview && <BulkPreviewDialog preview={bulkPreview} onCancel={() => setBulkPreview(null)} onConfirm={confirmBulk} />}
+    {localReviewOpen && <LocalReviewDialog changes={selectedPricingChanges(pricingState)} grid={grid} onClose={() => setLocalReviewOpen(false)} />}
     {reviewOpen && review && <ReviewDialog review={review} grid={grid} onClose={() => setReviewOpen(false)} />}
-    {confirming && reviewContext && <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:sourceCentricWorkspace.applyConfirmation')}><div className="fh-card fh-card-pad max-w-lg"><h2 className="fh-page-title">{translate('workspace:sourceCentricWorkspace.confirmSelectedApply')}</h2><p className="fh-text-caption mt-2">{translate('workspace:densePricing.confirmApplyScope', { count: reviewContext.selectedCount })}</p><div className="mt-5 flex justify-end gap-2"><button className="fh-button-secondary" type="button" onClick={() => setConfirming(false)}>{translate('workspace:sourceCentricWorkspace.cancel')}</button><button className="fh-button-primary" type="button" onClick={() => void apply()}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.confirmApply')}</button></div></div></div>}
+    {confirming && reviewContext && <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:sourceCentricWorkspace.applyConfirmation')}><div className="fh-card fh-card-pad max-w-lg"><h2 className="fh-page-title">{translate('workspace:sourceCentricWorkspace.confirmSelectedApply')}</h2><p className="fh-text-caption mt-2">{translate('workspace:densePricing.confirmApplyScope', { count: reviewContext.selectedCount })}</p>{/* i18n-ignore: utility classes, not user-facing copy */}<div className="mt-5 flex justify-end gap-2"><button className="fh-button-secondary" type="button" onClick={() => setConfirming(false)}>{translate('workspace:sourceCentricWorkspace.cancel')}</button><button className="fh-button-primary" type="button" onClick={() => void apply()}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.confirmApply')}</button></div></div></div>}
     {applyResult && <ApplyResults result={applyResult} />}
-  </PageShell>
+  </>
+  return embedded ? content : <PageShell>{content}</PageShell>
 }
 
 export function pricingDescriptors(grid: GroupedWorkspacePage, channelById: ReadonlyMap<string, SourceChannel>): PricingFieldDescriptor[] {
@@ -594,22 +676,48 @@ export function refreshRegisteredPricingState(
 }
 
 export interface LatestGridLoader<T> {
-  run(load: () => Promise<T>, commit: (result: T) => void): Promise<boolean>
+  run(load: () => Promise<T>, commit: (result: T) => void, fail?: (error: unknown) => void): Promise<boolean>
   cancel(): void
 }
 
 export function createLatestGridLoader<T>(): LatestGridLoader<T> {
   let latestRequest = 0
   return {
-    async run(load, commit) {
+    async run(load, commit, fail) {
       const request = ++latestRequest
-      const result = await load()
-      if (request !== latestRequest) return false
-      commit(result)
-      return true
+      try {
+        const result = await load()
+        if (request !== latestRequest) return false
+        commit(result)
+        return true
+      } catch (error) {
+        if (request !== latestRequest) return false
+        if (!fail) throw error
+        fail(error)
+        return false
+      }
     },
     cancel() { latestRequest += 1 },
   }
+}
+
+/**
+ * Product-level selection is a convenience projection over authoritative
+ * immutable field identities. Unchanged fields are skipped and the existing
+ * field policy rejects blocked or otherwise ineligible changed fields.
+ */
+export function setProductListingsSelected(
+  state: PricingWorkspaceState,
+  descriptors: readonly PricingFieldDescriptor[],
+  listingIds: ReadonlySet<string>,
+  selected: boolean,
+): PricingWorkspaceState {
+  let next = state
+  for (const descriptor of descriptors) {
+    if (!listingIds.has(descriptor.identity.listingId) || !pricingFieldChange(next, descriptor.identity)) continue
+    next = setPricingFieldSelected(next, descriptor.identity, selected)
+  }
+  return next
 }
 
 function setsEqual(left: Set<string>, right: Set<string>): boolean {
@@ -668,6 +776,17 @@ function gridCellSettings(
     }
     settings.renderer = selectionRenderer
   }
+  if (meta.kind === 'product_selection') {
+    const productSelectionRenderer: BaseRenderer = (hot, td, renderedRow, renderedColumn, cellProp, value, properties) => {
+      Handsontable.renderers.CheckboxRenderer(hot, td, renderedRow, renderedColumn, cellProp, value, properties)
+      const input = td.querySelector('input')
+      if (input) {
+        input.dataset.productSelection = 'true'
+        input.setAttribute('aria-label', translate('workspace:workspace.selectAllEligible'))
+      }
+    }
+    settings.renderer = productSelectionRenderer
+  }
   if (record.productType === 'variable') settings.className = `${settings.className ?? ''} fh-pricing-variable-parent`.trim()
   return settings
 }
@@ -692,14 +811,17 @@ function annotatePricingCell(
   delete td.dataset.targetField
   delete td.dataset.listingId
   delete td.dataset.fieldSelection
+  delete td.dataset.productSelection
   const input = td.querySelector('input')
   input?.removeAttribute('data-listing-id')
   input?.removeAttribute('data-channel-id')
+  input?.removeAttribute('data-product-selection')
   td.parentElement?.setAttribute('data-pricing-row', 'true')
   td.parentElement?.setAttribute('data-product-id', record.productId)
   td.dataset.productId = record.productId
   if (meta?.channelId) td.dataset.channelId = meta.channelId
   if (meta?.field) td.dataset.field = meta.field
+  if (meta?.kind === 'product_selection') td.dataset.productSelection = 'true'
   if (meta?.kind === 'target' && meta.channelId && meta.field) {
     td.dataset.targetField = meta.field
     const identity = identityForCell(record, meta)
@@ -718,6 +840,10 @@ function annotatePricingCell(
 
 function BulkPreviewDialog({ preview, onCancel, onConfirm }: { preview: BulkTransformationPreview; onCancel: () => void; onConfirm: () => void }) {
   return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" data-bulk-preview-dialog aria-label={translate('workspace:densePricing.bulkPreview')}><div className="fh-card max-h-[85vh] w-full max-w-4xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:densePricing.bulkPreview')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.bulkPreviewSummary', { products: preview.productsAffected, listings: preview.listingsAffected, fields: preview.fieldsAffected, blocked: preview.blockedItems })}</p></div></div><div className="overflow-x-auto"><table className="fh-table min-w-[720px]"><thead><tr><th>{translate('workspace:gridModel.product')}</th><th>{translate('workspace:unifiedWorkspace.channel')}</th><th>{translate('workspace:densePricing.field')}</th><th>{translate('workspace:densePricing.previousValue')}</th><th>{translate('workspace:densePricing.resultingValue')}</th><th>{translate('workspace:unifiedWorkspace.status')}</th></tr></thead><tbody>{preview.items.slice(0, 100).map(item => <tr key={item.key}><td>{item.descriptor.identity.productId}</td><td>{formatChannelDisplayName(item.descriptor.identity.channelId)}</td><td>{formatField(item.descriptor.identity.field)}</td><td>{item.previousValue}</td><td>{item.resultingValue ?? '—'}</td><td>{item.blockedReason ? translate('workspace:sourceCentricWorkspace.blockedRows') : translate('workspace:sourceCentricWorkspace.readyChanges')}</td></tr>)}</tbody></table></div><div className="fh-panel-footer"><button className="fh-button-secondary" onClick={onCancel}>{translate('workspace:sourceCentricWorkspace.cancel')}</button><button className="fh-button-primary" data-bulk-confirm disabled={preview.fieldsAffected === 0} onClick={onConfirm}>{translate('workspace:densePricing.applyBulkChanges')}</button></div></div></div>
+}
+
+function LocalReviewDialog({ changes, grid, onClose }: { changes: readonly PricingFieldChange[]; grid: GroupedWorkspacePage; onClose: () => void }) {
+  return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" data-local-pricing-review aria-label={translate('workspace:unifiedWorkspace.reviewChanges')}><div className="fh-card max-h-[88vh] w-full max-w-5xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:unifiedWorkspace.reviewChanges')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.reviewSummary', { total: changes.length, selected: changes.length, blocked: 0 })}</p></div><button className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button></div><div className="overflow-x-auto"><table className="fh-table min-w-[760px]"><thead><tr><th>{translate('workspace:gridModel.product')}</th><th>{translate('workspace:unifiedWorkspace.channel')}</th><th>{translate('workspace:densePricing.field')}</th><th>{translate('workspace:densePricing.previousValue')}</th><th>{translate('workspace:gridModel.targetField', { field: '' })}</th></tr></thead><tbody>{changes.map(change => { const product = grid.items.find(row => row.children.some(child => child.listingId === change.identity.listingId)); return <tr key={change.key}><td>{product?.name ?? change.identity.productId}</td><td>{formatChannelDisplayName(change.identity.channelId)}</td><td>{formatField(change.identity.field)}</td><td>{change.currentValue ?? '—'}</td><td>{change.targetValue}</td></tr> })}</tbody></table></div></div></div>
 }
 
 function ReviewDialog({ review, grid, onClose }: { review: ReviewResource; grid: GroupedWorkspacePage; onClose: () => void }) {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { changeLocale } from '../i18n'
 import { NotificationProvider } from '../notifications/NotificationProvider'
@@ -69,11 +69,13 @@ vi.mock('@handsontable/react-wrapper', async () => {
   takeRecords() { return [] }
 } as unknown as typeof IntersectionObserver
 
-const WORKSPACE: UnifiedWorkspaceResource = {
+const MANUAL_WORKSPACE: UnifiedWorkspaceResource = {
   id: 'workspace-1', name: 'Pricing workspace', entryPoint: 'manual', ownerUserId: 1,
   status: 'active', version: 1, snapshot: { id: 'snapshot-1', checksum: 'hash', schemaVersion: '1', createdAt: new Date().toISOString() },
   draft: { id: 'draft-1', version: 0, currentRevisionId: null, status: 'draft' }, createdAt: new Date().toISOString(),
 }
+
+const SOURCE_WORKSPACE: UnifiedWorkspaceResource = { ...MANUAL_WORKSPACE, entryPoint: 'source' }
 
 const GRID: GroupedWorkspacePage = {
   items: [{ sourceProductId: 'product-1', name: 'Cable', sourceKey: 'SKU-1', cost: null, category: null, brand: null, productType: 'simple', mappedChannelCount: 1, listingCount: 1, changedListingCount: 1, selectedListingCount: 0, state: 'ready', children: [{ listingId: 'listing-1', channelId: 'woocommerce:primary', listingLabel: 'Main', externalId: '101', externalIdType: 'product_id', sku: 'SKU-1', mappingState: 'resolved', cacheFreshness: 'fresh', state: 'ready', changedFields: ['price'], selected: false, reviewItemIds: [], fields: { price: { current: '100', target: '100', changed: false, readOnly: false, status: 'ready', currency: 'EUR', unit: 'EUR' }, stock: { current: '5', target: '5', changed: false, readOnly: false, status: 'ready', currency: null, unit: null }, status: { current: 'publish', target: 'publish', changed: false, readOnly: true, status: 'ready', currency: null, unit: null } } }] }],
@@ -92,36 +94,44 @@ describe('Unified Workspace pricing editor', () => {
   })
   afterEach(async () => { act(() => root.unmount()); container.remove(); vi.restoreAllMocks(); await changeLocale('en') })
 
-  it('renders one dense virtualized product grid with inline fields and batch Review/Dry Run', async () => {
-    await renderWorkspace(services())
-    expect(container.textContent).toContain('Cable')
-    expect(container.textContent).toContain('Review & Dry Run')
-    expect(container.querySelector('[data-pricing-grid]')).not.toBeNull()
-    expect(container.querySelector('button[aria-expanded]')).toBeNull()
-    expect(container.querySelector('[data-listing-id="listing-1"]')).not.toBeNull()
+  it('redirects a source-entry pricing URL to Products while preserving the Workspace identity', async () => {
+    await renderWorkspace(services(SOURCE_WORKSPACE))
+    expect(container.querySelector('[data-products-route]')?.textContent).toBe('?workspace=workspace-1')
+    expect(container.querySelector('[data-pricing-grid]')).toBeNull()
   })
 
-  it.each([['en', 'ltr'], ['fa', 'rtl']] as const)('keeps grouped workspace direction in %s', async (locale, direction) => {
-    await changeLocale(locale); await renderWorkspace(services())
+  it.each([['en', 'ltr'], ['fa', 'rtl']] as const)('keeps the compatibility redirect direction in %s', async (locale, direction) => {
+    await changeLocale(locale); await renderWorkspace(services(SOURCE_WORKSPACE))
     expect(document.documentElement.dir).toBe(direction)
-    expect(container.textContent).toContain('WooCommerce')
+    expect(container.querySelector('[data-products-route]')?.textContent).toBe('?workspace=workspace-1')
+  })
+
+  it('redirects a legacy manual pricing URL to Products while preserving the Workspace identity', async () => {
+    await renderWorkspace(services(MANUAL_WORKSPACE))
+    expect(container.querySelector('[data-products-route]')?.textContent).toBe('?workspace=workspace-1')
+    expect(container.querySelector('[data-pricing-grid]')).toBeNull()
   })
 })
 
 async function renderWorkspace(services: Services) {
   await act(async () => {
-    activeRoot.render(<MemoryRouter initialEntries={['/workspace/workspace-1']}><NotificationProvider><ServiceProvider services={services}><Routes><Route path="/workspace/:workspaceId" element={<UnifiedWorkspace />} /></Routes></ServiceProvider></NotificationProvider></MemoryRouter>)
+    activeRoot.render(<MemoryRouter initialEntries={['/workspace/workspace-1']}><NotificationProvider><ServiceProvider services={services}><Routes><Route path="/workspace/:workspaceId" element={<UnifiedWorkspace />} /><Route path="/products" element={<ProductsRouteMarker />} /></Routes></ServiceProvider></NotificationProvider></MemoryRouter>)
     await Promise.resolve(); await new Promise(resolve => setTimeout(resolve, 0))
   })
 }
 
-function services(): Services {
-  const review: ReviewResource = { id: 'review-1', workspaceId: WORKSPACE.id, snapshotId: WORKSPACE.snapshot.id, draftRevisionId: 'revision-1', status: 'ready', checksum: 'review', summary: { total: 0, eligible: 0, blocked: 0, warnings: 0 }, items: [], staleReason: null }
+function ProductsRouteMarker() {
+  const location = useLocation()
+  return <div data-products-route>{location.search}</div>
+}
+
+function services(workspaceResource: UnifiedWorkspaceResource): Services {
+  const review: ReviewResource = { id: 'review-1', workspaceId: workspaceResource.id, snapshotId: workspaceResource.snapshot.id, draftRevisionId: 'revision-1', status: 'ready', checksum: 'review', summary: { total: 0, eligible: 0, blocked: 0, warnings: 0 }, items: [], staleReason: null }
   const legacyGrid: WorkspaceGridPage = { items: [], total: 0, page: 1, pageSize: 500, channels: [], draftVersion: 0, revisionId: null }
   const preferences: WorkspacePreferences = { visibleChannelIds: ['woocommerce:primary'], channelOrder: ['woocommerce:primary'], visibleFields: {}, displayNameSource: 'canonical', version: 1 }
   return {
     unifiedWorkspace: {
-      createManual: vi.fn(), async getWorkspace() { return WORKSPACE }, async getGrid() { return legacyGrid },
+      createManual: vi.fn(), async getWorkspace() { return workspaceResource }, async getGrid() { return legacyGrid },
       async saveDraft() { return { id: 'revision-1', revisionNumber: 1, checksum: 'checksum', draftVersion: 1 } }, async createReview() { return review }, async saveSelection() { return { reviewId: 'review-1', selectedItemIds: [], selectionChecksum: 'checksum', selectionVersion: 1 } }, async applySelected() { throw new Error('not used') }, async getApply() { throw new Error('not used') }, async reconcileApply() { throw new Error('not used') }, async getPreferences() { return preferences },
       async savePreferences(value: WorkspacePreferences) { return value },
     },

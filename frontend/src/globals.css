@@ -217,11 +217,22 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--fh-ui-border);
   border-radius: 14px;
   background: var(--fh-ui-card);
   box-shadow: var(--fh-shadow-xs);
+}
+
+.fh-pricing-controls-sticky {
+  position: sticky;
+  top: 80px;
+  /* Handsontable freezes headers with its own elevated stacking layers. Keep
+     the action bar above those layers so Review/Dry Run/Apply stay clickable. */
+  z-index: 500;
+  min-width: 0;
+  background: var(--fh-ui-card);
+  box-shadow: 0 4px 10px rgb(15 23 42 / 5%);
 }
 
 .fh-pricing-header,
@@ -271,21 +282,27 @@
 .fh-pricing-counter-blocked { color: var(--fh-error-700); }
 
 .fh-pricing-channels {
-  min-height: 34px;
-  padding: 5px 12px;
+  display: flex;
+  min-width: 0;
+  max-width: 48%;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+  padding: 0;
   overflow-x: auto;
-  border-bottom: 1px solid var(--fh-ui-border);
   white-space: nowrap;
 }
 
 .fh-pricing-channels [data-resource-section] {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 8px;
 }
 
 .fh-pricing-channels [data-resource-section] > h3 {
   margin: 0;
+  font-size: 9px;
 }
 
 .fh-pricing-grid-scroll {
@@ -322,6 +339,12 @@
 
 .fh-pricing-grid .fh-cell-status-edited {
   box-shadow: inset 0 -2px 0 var(--fh-warning-500);
+}
+
+/* Keep the operational sheet dense: equality of Current and Target already
+   communicates the neutral state, while actionable states retain text/icons. */
+.fh-pricing-grid .fh-cell-status-unchanged::after {
+  display: none;
 }
 
 .fh-pricing-grid .fh-pricing-variable-parent {

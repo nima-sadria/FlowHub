@@ -16,14 +16,16 @@ export interface DenseCellIdentity {
 export interface DensePricingRecord extends Record<string, string | number | boolean | null | undefined> {
   rowKey: string
   productId: string
+  productSelected: boolean
   productName: string
   sourceKey: string
   productType: string
+  category: string
 }
 
 export interface DensePricingColumnMeta {
   prop: string
-  kind: 'identity' | 'listing' | 'current' | 'target' | 'selection'
+  kind: 'product_selection' | 'identity' | 'listing' | 'current' | 'target' | 'selection'
   channelId?: string
   field?: PricingField
 }
@@ -46,26 +48,33 @@ const FIELDS: PricingField[] = ['price', 'stock', 'status']
 export function buildDensePricingDefinition(
   page: GroupedWorkspacePage,
   overlayFor: (identity: DenseCellIdentity) => OverlayValue | null,
+  stableChannelIds: readonly string[] = [],
 ): DensePricingDefinition {
-  const channelIds = orderedChannelIds(page.items)
+  const channelIds = orderedChannelIds(page.items, stableChannelIds)
   const records = page.items.flatMap(product => productRecords(product, channelIds, overlayFor))
   const columns: ColumnSettings[] = [
+    { data: 'productSelected', type: 'checkbox', skipColumnOnPaste: true, width: 52 },
     { data: 'productName', readOnly: true, skipColumnOnPaste: true, width: 220 },
     { data: 'sourceKey', readOnly: true, skipColumnOnPaste: true, width: 125 },
     { data: 'productType', readOnly: true, skipColumnOnPaste: true, width: 92 },
+    { data: 'category', readOnly: true, skipColumnOnPaste: true, width: 140 },
   ]
   const columnMeta = new Map<string, DensePricingColumnMeta>([
+    ['productSelected', { prop: 'productSelected', kind: 'product_selection' }],
     ['productName', { prop: 'productName', kind: 'identity' }],
     ['sourceKey', { prop: 'sourceKey', kind: 'identity' }],
     ['productType', { prop: 'productType', kind: 'identity' }],
+    ['category', { prop: 'category', kind: 'identity' }],
   ])
   const topHeader: Array<string | { label: string; colspan: number }> = [
-    { label: translate('workspace:densePricing.productIdentity'), colspan: 3 },
+    { label: translate('workspace:densePricing.productIdentity'), colspan: 5 },
   ]
   const secondHeader = [
+    translate('products:column.select'),
     translate('workspace:gridModel.product'),
-    translate('workspace:densePricing.sourceKey'),
+    translate('products:column.sku'),
     translate('workspace:gridModel.type'),
+    translate('products:column.categories'),
   ]
 
   for (const channelId of channelIds) {
@@ -112,7 +121,13 @@ export function identityForCell(
   }
 }
 
+/** Immutable Listing identities represented by one visible dense record. */
+export function listingIdsForRecord(record: DensePricingRecord, channelIds: readonly string[]): ReadonlySet<string> {
+  return new Set(channelIds.map(channelId => String(record[listingMetaProp(channelId)] ?? '')).filter(Boolean))
+}
+
 export function cellIsReadOnly(record: DensePricingRecord, meta: DensePricingColumnMeta): boolean {
+  if (meta.kind === 'product_selection') return !Boolean(record.productSelectionAvailable)
   if (meta.kind === 'identity' || meta.kind === 'current') return true
   if (!meta.channelId || !meta.field) return true
   if (Boolean(record[readOnlyMetaProp(meta.channelId, meta.field)])) return true
@@ -169,15 +184,24 @@ function productRecords(
     const record: DensePricingRecord = {
       rowKey: denseRowKey(product.sourceProductId, rowListings),
       productId: product.sourceProductId,
+      productSelected: false,
       productName: continuation
         ? translate('workspace:densePricing.additionalListing', { product: product.name, number: slot + 1 })
         : product.name,
       sourceKey: product.sourceKey ?? '',
       productType: product.productType,
+      category: product.category ?? '',
     }
     for (const channelId of channelIds) {
       writeListing(record, product, byChannel.get(channelId)?.[slot], channelId, overlayFor)
     }
+    const selectableFields = channelIds.flatMap(channelId => FIELDS.map(field => ({
+      changed: Boolean(record[changedMetaProp(channelId, field)]),
+      selected: Boolean(record[cellProp(channelId, field, 'selected')]),
+      readOnly: Boolean(record[readOnlyMetaProp(channelId, field)]),
+    }))).filter(field => field.changed && !field.readOnly)
+    record.productSelectionAvailable = selectableFields.length > 0
+    record.productSelected = selectableFields.length > 0 && selectableFields.every(field => field.selected)
     return record
   })
 }
@@ -210,14 +234,15 @@ function writeListing(
   }
 }
 
-function orderedChannelIds(products: GroupedProduct[]): string[] {
-  const result: string[] = []
+function orderedChannelIds(products: GroupedProduct[], stableChannelIds: readonly string[]): string[] {
+  const stable = [...new Set(stableChannelIds.filter(Boolean))]
+  const discovered: string[] = []
   for (const product of products) {
     for (const listing of product.children) {
-      if (!result.includes(listing.channelId)) result.push(listing.channelId)
+      if (!stable.includes(listing.channelId) && !discovered.includes(listing.channelId)) discovered.push(listing.channelId)
     }
   }
-  return result.sort((left, right) => formatChannelDisplayName(left).localeCompare(formatChannelDisplayName(right)))
+  return [...stable, ...discovered.sort((left, right) => formatChannelDisplayName(left).localeCompare(formatChannelDisplayName(right)))]
 }
 
 function denseRowKey(productId: string, listings: Array<{ channelId: string; listingId: string }>): string {

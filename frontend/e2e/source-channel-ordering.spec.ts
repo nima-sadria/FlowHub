@@ -459,6 +459,28 @@ async function installStrictMockApi(page: Page, audit: MockAudit, locale: 'en' |
       return
     }
 
+    if (
+      request.method() === 'POST'
+      && url.pathname === '/api/v2/unified-workspaces/manual'
+      && request.postDataJSON()?.catalog_scope !== undefined
+    ) {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'ordering-workspace',
+          name: 'Ordering Workspace',
+          entryPoint: 'manual',
+          ownerUserId: 1,
+          status: 'active',
+          version: 1,
+          snapshot: { id: 'snapshot-ordering', checksum: 'b'.repeat(64), schemaVersion: '1', createdAt: '2026-07-15T08:00:00Z' },
+          draft: { id: 'draft-ordering', version: 1, currentRevisionId: 'revision-ordering', status: 'draft' },
+          createdAt: '2026-07-15T08:00:00Z',
+        }),
+      })
+      return
+    }
     if (request.method() !== 'GET') {
       audit.interceptedWrites.push(`${request.method()} ${url.pathname}`)
       await route.fulfill({
