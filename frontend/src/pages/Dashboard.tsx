@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
-import type { HealthResponse } from '../api/types'
 import { useAuth } from '../auth'
 import Badge, { type BadgeVariant } from '../components/Badge'
 import BusinessCard, { type BusinessCardTone } from '../components/BusinessCard'
@@ -16,16 +15,50 @@ import {
   legacySourceSignals,
   prepareResourceCollection,
 } from '../features/resourceOrdering/resourceOrdering'
-import {
-  diagnosticRecommendedAction,
-  diagnosticStatePresentation,
-  resolveDiagnosticState,
-} from '../features/diagnostics/diagnosticPresentation'
 import { translate } from '../i18n'
 import { formatDiagnosticMessage } from '../i18n/display'
 import { formatNumber, formatRelativeTime } from '../i18n/format'
 import { useServices } from '../services/ServiceContext'
 import type { ActivityEvent, ChannelHealthResponse, Source } from '../services/types'
+import { formatMoney } from '../utils/price'
+
+interface RevenueAmount {
+  currency: string
+  amount: number
+}
+
+interface DashboardBusinessMetrics {
+  productsWithChanges: number
+  readyForReview: number
+  readyForApply: number
+  blockingIssues: number
+  warnings: number
+  affectedProducts: number
+  outOfStockProducts: number
+  pendingUpdates: number
+  failedUpdates: number
+  ordersToday: number
+  ordersYesterday: number
+  updatesAppliedToday: number
+  updatesAppliedYesterday: number
+  revenueToday: RevenueAmount[]
+}
+
+interface DashboardBusinessSummary {
+  generatedAt: string
+  metrics: DashboardBusinessMetrics
+}
+
+interface DashboardCardModel {
+  value: string
+  explanation: string
+  status: {
+    label: string
+    tone: BusinessCardTone
+    icon: IconName
+  }
+  recommendation: string
+}
 
 function relTime(d: Date | null): string {
   if (!d) return translate('common:status.notRead')
@@ -34,6 +67,29 @@ function relTime(d: Date | null): string {
 
 function formatAction(action: string): string {
   return action.replace(/_/g, ' ').replace(/\b\w/g, character => character.toUpperCase())
+}
+
+function comparisonWithYesterday(today: number, yesterday: number): string {
+  const difference = today - yesterday
+  if (difference === 0) return translate('dashboard:dashboard.noChangeSinceYesterday')
+  if (difference > 0) {
+    return translate('dashboard:dashboard.moreThanYesterday', {
+      count: difference,
+      value: formatNumber(difference),
+    })
+  }
+  return translate('dashboard:dashboard.fewerThanYesterday', {
+    count: Math.abs(difference),
+    value: formatNumber(Math.abs(difference)),
+  })
+}
+
+function orderTrend(today: number, yesterday: number): string {
+  return comparisonWithYesterday(today, yesterday)
+}
+
+function updateTrend(today: number, yesterday: number): string {
+  return comparisonWithYesterday(today, yesterday)
 }
 
 const activityPresentation: Record<ActivityEvent['level'], {
@@ -51,58 +107,55 @@ const activityPresentation: Record<ActivityEvent['level'], {
 
 export default function Dashboard() {
   const { authFetch } = useAuth()
-  const { sources, products, activity, health: healthService } = useServices()
+  const { sources, activity, health: healthService } = useServices()
   const navigate = useNavigate()
 
-  const [health, setHealth] = useState<HealthResponse | null>(null)
   const [channelHealth, setChannelHealth] = useState<ChannelHealthResponse | null>(null)
   const [healthLoading, setHealthLoading] = useState(true)
-  const [healthErr, setHealthErr] = useState(false)
   const [sourceList, setSourceList] = useState<Source[]>([])
-  const [totalProducts, setTotalProducts] = useState<number | null>(null)
   const [recentEvents, setRecentEvents] = useState<ActivityEvent[]>([])
   const [dataLoading, setDataLoading] = useState(true)
+  const [businessSummary, setBusinessSummary] = useState<DashboardBusinessSummary | null>(null)
+  const [businessLoading, setBusinessLoading] = useState(true)
+  const [businessError, setBusinessError] = useState(false)
 
   const fetchHealth = useCallback(async () => {
     setHealthLoading(true)
-    setHealthErr(false)
     try {
-      const [data, channels] = await Promise.all([
-        apiFetch<HealthResponse>('/api/health', authFetch),
-        healthService.getChannelHealth(),
-      ])
-      setHealth(data)
-      setChannelHealth(channels)
-    } catch {
-      setHealthErr(true)
+      setChannelHealth(await healthService.getChannelHealth())
     } finally {
       setHealthLoading(false)
     }
-  }, [authFetch, healthService])
+  }, [healthService])
+
+  const fetchBusinessSummary = useCallback(async () => {
+    setBusinessLoading(true)
+    setBusinessError(false)
+    try {
+      setBusinessSummary(await apiFetch<DashboardBusinessSummary>(
+        '/api/v2/dashboard/business-summary',
+        authFetch,
+      ))
+    } catch {
+      setBusinessSummary(null)
+      setBusinessError(true)
+    } finally {
+      setBusinessLoading(false)
+    }
+  }, [authFetch])
 
   useEffect(() => { void fetchHealth() }, [fetchHealth])
+  useEffect(() => { void fetchBusinessSummary() }, [fetchBusinessSummary])
 
   useEffect(() => {
     Promise.all([
       sources.getSources(),
-      products.getProducts({ search: '', status: 'all', page: 1, pageSize: 1 }),
       activity.getEvents({ page: 1, pageSize: 5 }),
-    ]).then(([srcs, prods, evts]) => {
+    ]).then(([srcs, evts]) => {
       setSourceList(srcs)
-      setTotalProducts(prods.total)
       setRecentEvents(evts.items)
     }).finally(() => setDataLoading(false))
-  }, [sources, products, activity])
-
-  const activeSources = sourceList.filter(source => source.status === 'active')
-  const sourcesNeedingAttention = sourceList.length - activeSources.length
-  const enabledChannels = (channelHealth?.items ?? []).filter(channel => channel.enabled)
-  const readyChannels = enabledChannels.filter(channel => resolveDiagnosticState(channel) === 'HEALTHY')
-  const channelsNeedingAttention = enabledChannels.filter(channel => ['WARNING', 'ERROR'].includes(resolveDiagnosticState(channel)))
-  const channelsAwaitingVerification = enabledChannels.filter(channel => resolveDiagnosticState(channel) === 'NOT_CHECKED')
-  const informationalChannels = enabledChannels.filter(channel => ['INFO', 'NOT_APPLICABLE'].includes(resolveDiagnosticState(channel)))
-  const hasChannelError = channelsNeedingAttention.some(channel => resolveDiagnosticState(channel) === 'ERROR')
-  const firstChannelAttention = channelsNeedingAttention[0]
+  }, [sources, activity])
 
   const orderedSources = useMemo(
     () => prepareResourceCollection(sourceList, legacySourceSignals),
@@ -115,140 +168,161 @@ export default function Dashboard() {
     })),
     [channelHealth],
   )
-  const lastSync = activeSources.reduce<Date | null>((best, source) => {
-    if (!source.lastSynced) return best
-    return !best || source.lastSynced > best ? source.lastSynced : best
-  }, null)
-
   const recommendationLabel = translate('dashboard:dashboard.recommendedAction')
-  const loadingStatus = {
-    label: translate('common:status.checking'),
+  const metrics = businessSummary?.metrics
+  const loadingCard: DashboardCardModel = {
+    value: translate('common:status.loading'),
+    explanation: translate('dashboard:dashboard.loadingBusinessMetrics'),
+    status: {
+      label: translate('common:status.checking'),
+      tone: 'info',
+      icon: 'refresh',
+    },
+    recommendation: translate('dashboard:dashboard.waitForDashboardData'),
+  }
+  const unavailableCard: DashboardCardModel = {
+    value: translate('dashboard:dashboard.businessDataUnavailable'),
+    explanation: translate('dashboard:dashboard.businessDataUnavailableExplanation'),
+    status: {
+      label: translate('dashboard:dashboard.needsAttention'),
+      tone: 'warning',
+      icon: 'warning',
+    },
+    recommendation: translate('dashboard:dashboard.retryBusinessSummary'),
+  }
+  const pendingCard = businessLoading ? loadingCard : businessError || !metrics ? unavailableCard : null
+  const countValue = (value: number, emptyKey: string, valueKey: string): string => (
+    value > 0
+      ? translate(valueKey, { count: value, value: formatNumber(value) })
+      : translate(emptyKey)
+  )
+  const healthyStatus = {
+    label: translate('common:status.healthy'),
+    tone: 'success' as BusinessCardTone,
+    icon: 'success' as IconName,
+  }
+  const readyStatus = {
+    label: translate('common:status.ready'),
+    tone: 'success' as BusinessCardTone,
+    icon: 'success' as IconName,
+  }
+  const infoStatus = {
+    label: translate('common:status.info'),
     tone: 'info' as BusinessCardTone,
-    icon: 'refresh' as IconName,
+    icon: 'info' as IconName,
   }
-
-  const productCard = dataLoading ? {
-    value: translate('common:status.loading'),
-    explanation: translate('dashboard:dashboard.loadingCatalogSummary'),
-    status: loadingStatus,
-    recommendation: translate('dashboard:dashboard.waitForDashboardData'),
-  } : totalProducts && totalProducts > 0 ? {
-    value: formatNumber(totalProducts),
-    explanation: translate('dashboard:dashboard.productsAvailable', { count: totalProducts, value: formatNumber(totalProducts) }),
-    status: { label: translate('common:status.ready'), tone: 'success' as BusinessCardTone, icon: 'success' as IconName },
-    recommendation: translate('dashboard:dashboard.reviewManagedProducts'),
-  } : {
-    value: translate('dashboard:dashboard.noProducts'),
-    explanation: translate('dashboard:dashboard.catalogIsEmpty'),
-    status: { label: translate('dashboard:dashboard.needsSetup'), tone: 'warning' as BusinessCardTone, icon: 'warning' as IconName },
-    recommendation: translate('dashboard:dashboard.addSourceToBuildCatalog'),
+  const changesCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.productsWithChanges, 'dashboard:dashboard.noPriceChanges', 'dashboard:dashboard.productChangesValue'),
+    explanation: metrics!.productsWithChanges > 0
+      ? translate('dashboard:dashboard.productChangesExplanation', { count: metrics!.productsWithChanges, value: formatNumber(metrics!.productsWithChanges) })
+      : translate('dashboard:dashboard.productChangesEmptyExplanation'),
+    status: metrics!.productsWithChanges > 0 ? infoStatus : healthyStatus,
+    recommendation: metrics!.productsWithChanges > 0
+      ? translate('dashboard:dashboard.reviewTodaysPriceChanges')
+      : translate('dashboard:dashboard.noActionRequired'),
   }
-
-  const sourceCard = dataLoading ? {
-    value: translate('common:status.loading'),
-    explanation: translate('dashboard:dashboard.loadingSourceSummary'),
-    status: loadingStatus,
-    recommendation: translate('dashboard:dashboard.waitForDashboardData'),
-  } : sourceList.length === 0 ? {
-    value: translate('dashboard:dashboard.noActiveSources'),
-    explanation: translate('dashboard:dashboard.noSourceDataAvailable'),
-    status: { label: translate('common:status.notConfigured'), tone: 'warning' as BusinessCardTone, icon: 'warning' as IconName },
-    recommendation: translate('dashboard:dashboard.connectSourceForDailyWork'),
-  } : sourcesNeedingAttention > 0 ? {
-    value: translate('dashboard:dashboard.activeSourceValue', { count: activeSources.length, value: formatNumber(activeSources.length) }),
-    explanation: translate('dashboard:dashboard.sourcesNeedAttention', { count: sourcesNeedingAttention, value: formatNumber(sourcesNeedingAttention) }),
-    status: { label: translate('dashboard:dashboard.needsAttention'), tone: 'warning' as BusinessCardTone, icon: 'warning' as IconName },
-    recommendation: translate('dashboard:dashboard.fixSourceConnections'),
-  } : {
-    value: translate('dashboard:dashboard.activeSourceValue', { count: activeSources.length, value: formatNumber(activeSources.length) }),
-    explanation: translate('dashboard:dashboard.allSourcesReady'),
-    status: { label: translate('common:status.healthy'), tone: 'success' as BusinessCardTone, icon: 'success' as IconName },
-    recommendation: translate('dashboard:dashboard.noActionRequired'),
+  const reviewCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.readyForReview, 'dashboard:dashboard.nothingReadyForReview', 'dashboard:dashboard.productsReadyValue'),
+    explanation: metrics!.readyForReview > 0
+      ? translate('dashboard:dashboard.readyForReviewExplanation', { count: metrics!.readyForReview, value: formatNumber(metrics!.readyForReview) })
+      : translate('dashboard:dashboard.readyForReviewEmptyExplanation'),
+    status: metrics!.readyForReview > 0 ? readyStatus : infoStatus,
+    recommendation: metrics!.readyForReview > 0
+      ? translate('dashboard:dashboard.reviewPendingChanges')
+      : translate('dashboard:dashboard.noActionRequired'),
   }
-
-  const channelCard = healthLoading ? {
-    value: translate('common:status.checking'),
-    explanation: translate('dashboard:dashboard.loadingChannelSummary'),
-    status: loadingStatus,
-    recommendation: translate('dashboard:dashboard.waitForHealthCheck'),
-  } : enabledChannels.length === 0 ? {
-    value: translate('dashboard:dashboard.noActiveChannels'),
-    explanation: translate('dashboard:dashboard.noPublishingDestinations'),
-    status: { label: translate('common:status.notConfigured'), tone: 'warning' as BusinessCardTone, icon: 'warning' as IconName },
-    recommendation: translate('dashboard:dashboard.configureChannel'),
-  } : channelsNeedingAttention.length > 0 ? {
-    value: translate('dashboard:dashboard.readyChannelValue', { ready: formatNumber(readyChannels.length), total: formatNumber(enabledChannels.length) }),
-    explanation: translate('dashboard:dashboard.channelsNeedAttention', { count: channelsNeedingAttention.length, value: formatNumber(channelsNeedingAttention.length) }),
-    status: {
-      label: hasChannelError ? translate('common:status.error') : translate('dashboard:dashboard.needsAttention'),
-      tone: (hasChannelError ? 'danger' : 'warning') as BusinessCardTone,
-      icon: (hasChannelError ? 'error' : 'warning') as IconName,
-    },
-    recommendation: firstChannelAttention
-      ? (diagnosticRecommendedAction({
-        ...firstChannelAttention,
-        recommended_action: firstChannelAttention.recommended_action ?? firstChannelAttention.nextRecommendedAction,
-      }) || translate('dashboard:dashboard.reviewChannelHealth'))
-      : translate('dashboard:dashboard.reviewChannelHealth'),
-  } : channelsAwaitingVerification.length > 0 ? {
-    value: translate('dashboard:dashboard.readyChannelValue', { ready: formatNumber(readyChannels.length), total: formatNumber(enabledChannels.length) }),
-    explanation: translate('dashboard:dashboard.channelsAwaitingVerification', { count: channelsAwaitingVerification.length, value: formatNumber(channelsAwaitingVerification.length) }),
-    status: {
-      label: diagnosticStatePresentation('NOT_CHECKED').label,
-      tone: 'info' as BusinessCardTone,
-      icon: 'diagnostics' as IconName,
-    },
-    recommendation: translate('diagnostics:action.run_connection_test'),
-  } : informationalChannels.length > 0 ? {
-    value: translate('dashboard:dashboard.readyChannelValue', { ready: formatNumber(readyChannels.length), total: formatNumber(enabledChannels.length) }),
-    explanation: translate('dashboard:dashboard.channelsInformational', { count: informationalChannels.length, value: formatNumber(informationalChannels.length) }),
-    status: {
-      label: diagnosticStatePresentation('INFO').label,
-      tone: 'info' as BusinessCardTone,
-      icon: 'info' as IconName,
-    },
-    recommendation: translate('dashboard:dashboard.noActionRequired'),
-  } : {
-    value: translate('dashboard:dashboard.readyChannelValue', { ready: formatNumber(readyChannels.length), total: formatNumber(enabledChannels.length) }),
-    explanation: translate('dashboard:dashboard.allChannelsReady'),
-    status: { label: translate('common:status.healthy'), tone: 'success' as BusinessCardTone, icon: 'success' as IconName },
-    recommendation: translate('dashboard:dashboard.noActionRequired'),
+  const applyCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.readyForApply, 'dashboard:dashboard.nothingReadyForApply', 'dashboard:dashboard.productsReadyValue'),
+    explanation: metrics!.readyForApply > 0
+      ? translate('dashboard:dashboard.readyForApplyExplanation', { count: metrics!.readyForApply, value: formatNumber(metrics!.readyForApply) })
+      : translate('dashboard:dashboard.readyForApplyEmptyExplanation'),
+    status: metrics!.readyForApply > 0 ? readyStatus : infoStatus,
+    recommendation: metrics!.readyForApply > 0
+      ? translate('dashboard:dashboard.applyApprovedChanges')
+      : translate('dashboard:dashboard.noActionRequired'),
   }
-
-  const freshnessCard = dataLoading ? {
-    value: translate('common:status.loading'),
-    explanation: translate('dashboard:dashboard.loadingFreshnessSummary'),
-    status: loadingStatus,
-    recommendation: translate('dashboard:dashboard.waitForDashboardData'),
-  } : lastSync ? {
-    value: relTime(lastSync),
-    explanation: translate('dashboard:dashboard.latestSuccessfulSourceRead'),
-    status: { label: translate('dashboard:dashboard.readRecorded'), tone: 'info' as BusinessCardTone, icon: 'success' as IconName },
-    recommendation: translate('dashboard:dashboard.reviewLatestSourceRead'),
-  } : {
-    value: translate('dashboard:dashboard.notReadYet'),
-    explanation: activeSources.length > 0
-      ? translate('dashboard:dashboard.activeSourceHasNoRead')
-      : translate('dashboard:dashboard.noActiveSourceAvailable'),
-    status: { label: translate('dashboard:dashboard.needsAttention'), tone: 'warning' as BusinessCardTone, icon: 'warning' as IconName },
-    recommendation: translate('dashboard:dashboard.readSourceBeforeReview'),
+  const blockingCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.blockingIssues, 'dashboard:dashboard.noBlockingIssues', 'dashboard:dashboard.issueCountValue'),
+    explanation: metrics!.blockingIssues > 0
+      ? translate('dashboard:dashboard.blockingIssuesExplanation', {
+        count: metrics!.affectedProducts,
+        issues: formatNumber(metrics!.blockingIssues),
+        products: formatNumber(metrics!.affectedProducts),
+      })
+      : translate('dashboard:dashboard.blockingIssuesEmptyExplanation'),
+    status: metrics!.blockingIssues > 0
+      ? { label: translate('common:status.blocked'), tone: 'danger', icon: 'error' }
+      : healthyStatus,
+    recommendation: metrics!.blockingIssues > 0
+      ? translate('dashboard:dashboard.fixBlockingProducts')
+      : translate('dashboard:dashboard.noActionRequired'),
   }
-
-  const systemCard = healthLoading ? {
-    value: translate('dashboard:dashboard.checkingSystem'),
-    explanation: translate('dashboard:dashboard.checkingDailyServices'),
-    status: loadingStatus,
-    recommendation: translate('dashboard:dashboard.waitForHealthCheck'),
-  } : healthErr || !health ? {
-    value: translate('dashboard:dashboard.systemUnavailable'),
-    explanation: translate('dashboard:dashboard.dailyServicesNotConfirmed'),
-    status: { label: translate('dashboard:dashboard.needsAttention'), tone: 'danger' as BusinessCardTone, icon: 'error' as IconName },
-    recommendation: translate('dashboard:dashboard.openDiagnosticsToResolve'),
-  } : {
-    value: translate('dashboard:dashboard.dailyWorkReady'),
-    explanation: translate('dashboard:dashboard.dailyServicesAvailable'),
-    status: { label: translate('common:status.healthy'), tone: 'success' as BusinessCardTone, icon: 'success' as IconName },
-    recommendation: translate('dashboard:dashboard.noActionRequired'),
+  const warningCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.warnings, 'dashboard:dashboard.noWarnings', 'dashboard:dashboard.issueCountValue'),
+    explanation: metrics!.warnings > 0
+      ? translate('dashboard:dashboard.warningsExplanation', { count: metrics!.warnings, value: formatNumber(metrics!.warnings) })
+      : translate('dashboard:dashboard.warningsEmptyExplanation'),
+    status: metrics!.warnings > 0
+      ? { label: translate('dashboard:dashboard.needsAttention'), tone: 'warning', icon: 'warning' }
+      : healthyStatus,
+    recommendation: metrics!.warnings > 0
+      ? translate('dashboard:dashboard.reviewWarnings')
+      : translate('dashboard:dashboard.noActionRequired'),
+  }
+  const revenueText = metrics?.revenueToday.map(item => (
+    formatMoney(item.amount, { currency: item.currency })
+  )).join(' · ') ?? ''
+  const ordersCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.ordersToday, 'dashboard:dashboard.noOrdersToday', 'dashboard:dashboard.ordersValue'),
+    explanation: metrics!.ordersToday > 0
+      ? translate('dashboard:dashboard.ordersTodayExplanation', {
+        revenue: revenueText || translate('dashboard:dashboard.revenueUnavailable'),
+        trend: orderTrend(metrics!.ordersToday, metrics!.ordersYesterday),
+      })
+      : translate('dashboard:dashboard.ordersTodayEmptyExplanation'),
+    status: metrics!.ordersToday > 0 ? infoStatus : healthyStatus,
+    recommendation: metrics!.ordersToday > 0
+      ? translate('dashboard:dashboard.reviewTodaysOrders')
+      : translate('dashboard:dashboard.noActionRequired'),
+  }
+  const stockCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.outOfStockProducts, 'dashboard:dashboard.noInventoryAlerts', 'dashboard:dashboard.productsAffectedValue'),
+    explanation: metrics!.outOfStockProducts > 0
+      ? translate('dashboard:dashboard.outOfStockExplanation', { count: metrics!.outOfStockProducts, value: formatNumber(metrics!.outOfStockProducts) })
+      : translate('dashboard:dashboard.outOfStockEmptyExplanation'),
+    status: metrics!.outOfStockProducts > 0
+      ? { label: translate('dashboard:dashboard.needsAttention'), tone: 'warning', icon: 'warning' }
+      : healthyStatus,
+    recommendation: metrics!.outOfStockProducts > 0
+      ? translate('dashboard:dashboard.reviewInventoryAlerts')
+      : translate('dashboard:dashboard.noActionRequired'),
+  }
+  const updatesCard: DashboardCardModel = pendingCard ?? {
+    value: metrics!.failedUpdates > 0
+      ? translate('dashboard:dashboard.failedUpdatesValue', { count: metrics!.failedUpdates, value: formatNumber(metrics!.failedUpdates) })
+      : metrics!.pendingUpdates > 0
+        ? translate('dashboard:dashboard.pendingUpdatesValue', { count: metrics!.pendingUpdates, value: formatNumber(metrics!.pendingUpdates) })
+        : translate('dashboard:dashboard.everythingSynchronized'),
+    explanation: metrics!.failedUpdates > 0
+      ? translate('dashboard:dashboard.failedUpdatesExplanation', {
+        failed: formatNumber(metrics!.failedUpdates),
+        pending: formatNumber(metrics!.pendingUpdates),
+      })
+      : metrics!.pendingUpdates > 0
+        ? translate('dashboard:dashboard.pendingUpdatesExplanation', { count: metrics!.pendingUpdates, value: formatNumber(metrics!.pendingUpdates) })
+        : translate('dashboard:dashboard.updatesCompleteExplanation', {
+          trend: updateTrend(metrics!.updatesAppliedToday, metrics!.updatesAppliedYesterday),
+        }),
+    status: metrics!.failedUpdates > 0
+      ? { label: translate('common:status.error'), tone: 'danger', icon: 'error' }
+      : metrics!.pendingUpdates > 0
+        ? { label: translate('common:status.pending'), tone: 'warning', icon: 'warning' }
+        : healthyStatus,
+    recommendation: metrics!.failedUpdates > 0
+      ? translate('dashboard:dashboard.reviewFailedUpdates')
+      : metrics!.pendingUpdates > 0
+        ? translate('dashboard:dashboard.monitorPendingUpdates')
+        : translate('dashboard:dashboard.noActionRequired'),
   }
 
   return (
@@ -267,69 +341,102 @@ export default function Dashboard() {
         </div>
         <div className="fh-business-card-grid">
           <BusinessCard
-            testId="products"
-            title={translate('dashboard:dashboard.managedProducts')}
-            value={productCard.value}
-            explanation={productCard.explanation}
-            meaning={translate('dashboard:dashboard.productsMeaning')}
+            testId="price-changes"
+            title={translate('dashboard:dashboard.productsWithPriceChanges')}
+            value={changesCard.value}
+            explanation={changesCard.explanation}
+            meaning={translate('dashboard:dashboard.productChangesMeaning')}
+            icon="edit"
+            status={changesCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={changesCard.recommendation}
+            action={businessError
+              ? { label: translate('common:action.retry'), onClick: () => void fetchBusinessSummary() }
+              : { label: translate('dashboard:dashboard.viewProducts'), onClick: () => navigate('/products') }}
+          />
+          <BusinessCard
+            testId="ready-review"
+            title={translate('dashboard:dashboard.readyForReview')}
+            value={reviewCard.value}
+            explanation={reviewCard.explanation}
+            meaning={translate('dashboard:dashboard.readyForReviewMeaning')}
+            icon="preview"
+            status={reviewCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={reviewCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.openProducts'), onClick: () => navigate('/products') }}
+          />
+          <BusinessCard
+            testId="ready-apply"
+            title={translate('dashboard:dashboard.readyForApply')}
+            value={applyCard.value}
+            explanation={applyCard.explanation}
+            meaning={translate('dashboard:dashboard.readyForApplyMeaning')}
+            icon="apply"
+            status={applyCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={applyCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.openWorkspace'), onClick: () => navigate('/workspace') }}
+          />
+          <BusinessCard
+            testId="blocking"
+            title={translate('dashboard:dashboard.blockingIssues')}
+            value={blockingCard.value}
+            explanation={blockingCard.explanation}
+            meaning={translate('dashboard:dashboard.blockingIssuesMeaning')}
+            icon="error"
+            status={blockingCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={blockingCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.openDataQuality'), onClick: () => navigate('/data-quality') }}
+          />
+          <BusinessCard
+            testId="warnings"
+            title={translate('dashboard:dashboard.warnings')}
+            value={warningCard.value}
+            explanation={warningCard.explanation}
+            meaning={translate('dashboard:dashboard.warningsMeaning')}
+            icon="warning"
+            status={warningCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={warningCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.openDataQuality'), onClick: () => navigate('/data-quality') }}
+          />
+          <BusinessCard
+            testId="orders"
+            title={translate('dashboard:dashboard.ordersAndRevenueToday')}
+            value={ordersCard.value}
+            explanation={ordersCard.explanation}
+            meaning={translate('dashboard:dashboard.ordersMeaning')}
+            icon="orders"
+            status={ordersCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={ordersCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.openOrders'), onClick: () => navigate('/orders') }}
+          />
+          <BusinessCard
+            testId="inventory"
+            title={translate('dashboard:dashboard.inventoryAlerts')}
+            value={stockCard.value}
+            explanation={stockCard.explanation}
+            meaning={translate('dashboard:dashboard.inventoryMeaning')}
             icon="products"
-            status={productCard.status}
+            status={stockCard.status}
             recommendationLabel={recommendationLabel}
-            recommendation={productCard.recommendation}
-            action={{
-              label: totalProducts && totalProducts > 0
-                ? translate('dashboard:dashboard.viewProducts')
-                : translate('dashboard:dashboard.addSource'),
-              onClick: () => navigate(totalProducts && totalProducts > 0 ? '/products' : '/sources'),
-            }}
+            recommendation={stockCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.viewProducts'), onClick: () => navigate('/products') }}
           />
           <BusinessCard
-            testId="sources"
-            title={translate('dashboard:dashboard.sourceReadiness')}
-            value={sourceCard.value}
-            explanation={sourceCard.explanation}
-            meaning={translate('dashboard:dashboard.sourcesMeaning')}
-            icon="file"
-            status={sourceCard.status}
-            recommendationLabel={recommendationLabel}
-            recommendation={sourceCard.recommendation}
-            action={{ label: translate('dashboard:dashboard.manageSources'), onClick: () => navigate('/sources') }}
-          />
-          <BusinessCard
-            testId="channels"
-            title={translate('dashboard:dashboard.channelReadiness')}
-            value={channelCard.value}
-            explanation={channelCard.explanation}
-            meaning={translate('dashboard:dashboard.channelsMeaning')}
-            icon="channel"
-            status={channelCard.status}
-            recommendationLabel={recommendationLabel}
-            recommendation={channelCard.recommendation}
-            action={{ label: translate('dashboard:dashboard.openDiagnostics'), onClick: () => navigate('/diagnostics') }}
-          />
-          <BusinessCard
-            testId="freshness"
-            title={translate('dashboard:dashboard.dataFreshness')}
-            value={freshnessCard.value}
-            explanation={freshnessCard.explanation}
-            meaning={translate('dashboard:dashboard.freshnessMeaning')}
+            testId="updates"
+            title={translate('dashboard:dashboard.publishingUpdates')}
+            value={updatesCard.value}
+            explanation={updatesCard.explanation}
+            meaning={translate('dashboard:dashboard.updatesMeaning')}
             icon="sync"
-            status={freshnessCard.status}
+            status={updatesCard.status}
             recommendationLabel={recommendationLabel}
-            recommendation={freshnessCard.recommendation}
-            action={{ label: translate('dashboard:dashboard.openSources'), onClick: () => navigate('/sources') }}
-          />
-          <BusinessCard
-            testId="system"
-            title={translate('dashboard:dashboard.systemStatus')}
-            value={systemCard.value}
-            explanation={systemCard.explanation}
-            meaning={translate('dashboard:dashboard.systemMeaning')}
-            icon="diagnostics"
-            status={systemCard.status}
-            recommendationLabel={recommendationLabel}
-            recommendation={systemCard.recommendation}
-            action={healthErr ? { label: translate('dashboard:dashboard.openDiagnostics'), onClick: () => navigate('/diagnostics') } : undefined}
+            recommendation={updatesCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.openActivity'), onClick: () => navigate('/activity') }}
           />
         </div>
       </section>

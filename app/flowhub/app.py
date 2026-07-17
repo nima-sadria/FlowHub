@@ -70,6 +70,7 @@ from app.flowhub.api.v2.activity import router as activity_router
 from app.flowhub.api.v2.commerce import router as commerce_router
 from app.flowhub.api.v2.config import router as config_router
 from app.flowhub.api.v2.data_layer_routes import router as data_layer_router
+from app.flowhub.api.v2.dashboard import router as dashboard_router
 from app.flowhub.api.v2.diagnostics import router as diagnostics_router
 from app.flowhub.api.v2.integration_platform import router as integration_platform_router
 from app.flowhub.api.v2.integrations import router as integrations_router
@@ -218,6 +219,7 @@ app.include_router(settings_router, prefix="/api/v2")
 app.include_router(commerce_router, prefix="/api/v2")
 app.include_router(config_router, prefix="/api/v2")
 app.include_router(activity_router, prefix="/api/v2")
+app.include_router(dashboard_router, prefix="/api/v2")
 app.include_router(diagnostics_router, prefix="/api/v2")
 app.include_router(read_engine_router, prefix="/api/v2")
 app.include_router(data_layer_router, prefix="/api/v2")
