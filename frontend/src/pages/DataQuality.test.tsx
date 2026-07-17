@@ -30,14 +30,17 @@ describe('DataQuality summary states', () => {
   })
 
   it('shows business summary before collapsed filters and keeps default filters unrestrictive', async () => {
-    const issue = { id: 'i-1', category: 'invalid_value', severity: 'blocked', code: 'INVALID_NUMERIC_VALUE', summary: 'Invalid', recommendedAction: 'Correct', technicalDetails: { field: 'price' } }
-    vi.spyOn(sourceWorkspaceApi, 'dataQuality').mockResolvedValue({ items: [issue], counts: { blocked: 1 }, total: 1, summary: { ...base, state: 'issues_found', totalIssues: 1, blockingIssues: 1, affectedProducts: 1, affectedSources: 1, categories: [{ category: 'invalid_value', count: 1 }] } })
+    const issue = { id: 'i-1', sourceId: 'source-1', channelId: 'woocommerce:primary', category: 'invalid_value', severity: 'blocked', code: 'INVALID_NUMERIC_VALUE', summary: 'Invalid', recommendedAction: 'Correct', technicalDetails: { field: 'price' } }
+    vi.spyOn(sourceWorkspaceApi, 'dataQuality').mockResolvedValue({ items: [issue], counts: { blocked: 1 }, total: 1, summary: { ...base, state: 'issues_found', totalIssues: 1, blockingIssues: 1, affectedProducts: 1, affectedSources: 1, productsChecked: 10, categories: [{ category: 'invalid_value', count: 1 }] } })
     await render()
     const text = container.textContent ?? ''
     expect(text.indexOf('Data Quality Summary')).toBeLessThan(text.indexOf('Filters and search'))
     expect(text).toContain('Invalid value')
     expect(text).toContain('Blocked')
+    expect(text).toContain('Recommended actions')
+    expect(text).toContain('Ready9')
     expect(text).toContain('No previous read to compare')
+    expect(container.querySelector('a[href^="/products?dataQualityIssue=INVALID_NUMERIC_VALUE"]')).not.toBeNull()
     const request = vi.mocked(sourceWorkspaceApi.dataQuality).mock.calls[0][0]
     expect(request.has('sourceId')).toBe(false)
     expect(request.has('severity')).toBe(false)
@@ -55,6 +58,33 @@ describe('DataQuality summary states', () => {
     const filters = Array.from(container.querySelectorAll('details')).find(details => details.textContent?.includes('Filters and search'))
     expect(filters?.open).toBe(true)
     expect(document.activeElement?.getAttribute('placeholder')).toBe('Source Product name')
+  })
+
+  it('routes Source setup issues to the affected Source instead of a technical dead end', async () => {
+    vi.spyOn(sourceWorkspaceApi, 'dataQuality').mockResolvedValue({
+      items: [{
+        id: 'mapping-issue',
+        sourceId: 'source/with space',
+        worksheet: 'Retail',
+        category: 'mapping_not_configured',
+        severity: 'blocked',
+        code: 'SOURCE_MAPPING_REQUIRED',
+        summary: 'Columns are missing',
+        recommendedAction: 'Choose columns',
+        technicalDetails: {},
+      }],
+      counts: { blocked: 1 },
+      total: 1,
+      summary: { ...base, state: 'issues_found', totalIssues: 1, blockingIssues: 1 },
+    })
+
+    await render()
+
+    const links = Array.from(container.querySelectorAll<HTMLAnchorElement>('a'))
+      .filter(link => link.textContent?.includes('Open'))
+    expect(links.length).toBeGreaterThan(0)
+    expect(links[0].getAttribute('href')).toContain('/sources/source%2Fwith%20space?')
+    expect(links[0].getAttribute('href')).toContain('worksheet=Retail')
   })
 
   it('shows permission denial instead of a false healthy result', async () => {

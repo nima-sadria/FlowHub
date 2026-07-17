@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import PageShell from '../components/PageShell'
 import Icon from '../components/Icon'
@@ -13,6 +14,7 @@ import { prepareResourceCollection, sourceChannelSignals, sourceProfileSignals }
 
 type Issue = {
   id: string
+  sourceId?: string
   channelId?: string
   worksheet?: string
   sourceProductName?: string
@@ -23,6 +25,27 @@ type Issue = {
   summary: string
   recommendedAction: string
   technicalDetails: Record<string, unknown>
+}
+
+const SOURCE_CONFIGURATION_ISSUES = new Set([
+  'SOURCE_MAPPING_REQUIRED',
+  'MISSING_CHANNEL_WORKSHEET',
+  'MISSING_MAPPING_IDENTITY',
+  'MISSING_SOURCE_IDENTITY',
+  'SHEET_REVISION_REQUIRED',
+])
+
+function issueDestination(issue: Issue): string {
+  const params = new URLSearchParams({ dataQualityIssue: issue.code })
+  if (issue.channelId) params.set('channelId', issue.channelId)
+  if (issue.sourceId) params.set('sourceId', issue.sourceId)
+  if (issue.worksheet) params.set('worksheet', issue.worksheet)
+  if (issue.sourceId && SOURCE_CONFIGURATION_ISSUES.has(issue.code)) {
+    // i18n-ignore: internal route, not user-facing copy.
+    return `/sources/${encodeURIComponent(issue.sourceId)}?${params}`
+  }
+  // i18n-ignore: internal route, not user-facing copy.
+  return `/products?${params}`
 }
 
 const EMPTY_SUMMARY: DataQualitySummary = {
@@ -153,17 +176,8 @@ export default function DataQuality() {
     queueMicrotask(() => control.current?.focus())
   }
 
-  function showAllIssues() {
-    setSourceId('')
-    setChannelId('')
-    setWorksheet('')
-    setProduct('')
-    setMappingState('')
-    setSeverity('')
-    setCategory('')
-  }
-
   const state: DataQualityScanState = loading ? 'checking' : summary.state
+  const readyProducts = Math.max(0, summary.productsChecked - summary.affectedProducts)
   return <PageShell>
     <div className="fh-page-header">
       <div><h1 className="fh-page-title">{translate('dataQuality:dataQuality.dataQuality')}</h1><p className="fh-page-subtitle">{translate('dataQuality:dataQuality.summaryFirstDescription')}</p></div>
@@ -173,9 +187,9 @@ export default function DataQuality() {
     <section aria-labelledby="data-quality-summary">
       <div className="mb-3 flex items-center gap-3"><h2 className="fh-section-title" id="data-quality-summary">{translate('dataQuality:dataQuality.summary')}</h2>{summary.checkedAt && <span className="fh-text-caption">{translate('dataQuality:dataQuality.lastCheck')} {formatDateTime(summary.checkedAt)}</span>}</div>
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <SummaryCard icon="alert" label={translate('dataQuality:dataQuality.totalIssues')} value={summary.totalIssues} active={!sourceId && !channelId && !worksheet && !product && !mappingState && !severity && !category} onClick={showAllIssues} />
         <SummaryCard icon="error" label={translate('dataQuality:dataQuality.blockingIssues')} value={summary.blockingIssues} active={severity === 'blocked'} onClick={() => setSeverity('blocked')} />
         <SummaryCard icon="warning" label={translate('dataQuality:dataQuality.warnings')} value={summary.warnings} active={severity === 'warning'} onClick={() => setSeverity('warning')} />
+        <SummaryCard icon="success" label={translate('dataQuality:dataQuality.readyProducts')} value={readyProducts} />
         <SummaryCard icon="products" label={translate('dataQuality:dataQuality.affectedProducts')} value={summary.affectedProducts} onClick={() => showFilter(productFilterRef)} />
         <SummaryCard icon="channel" label={translate('dataQuality:dataQuality.affectedChannels')} value={summary.affectedChannels} onClick={() => showFilter(channelFilterRef)} />
         <SummaryCard icon="file" label={translate('dataQuality:dataQuality.affectedSources')} value={summary.affectedSources} onClick={() => showFilter(sourceFilterRef)} />
@@ -189,6 +203,26 @@ export default function DataQuality() {
     <StatePanel state={state} summary={summary} onRun={() => void runScan()} scanning={scanning} />
 
     {(state === 'issues_found' || issues.length > 0) && <>
+      <section className="fh-card fh-card-pad mt-5" aria-labelledby="recommended-actions-title">
+        <h2 className="fh-section-title" id="recommended-actions-title">{translate('dataQuality:dataQuality.recommendedActions')}</h2>
+        <p className="fh-text-caption mt-1">{translate('dataQuality:dataQuality.recommendedActionsDescription')}</p>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {grouped.slice(0, 6).map(([key, items]) => {
+            const issue = items[0]
+            return <article className="rounded-xl border border-border p-3" key={`action:${key}`}>
+              <div className="flex items-start gap-3">
+                <Icon name={issue.severity === 'warning' ? 'warning' : 'alert'} />
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium text-text-base">{formatDataQualityCategory(issue.category)}</h3>
+                  <p className="fh-text-caption mt-1">{formatDataQualityIssue(issue.code, 'action', issue.recommendedAction, issue.technicalDetails)}</p>
+                  <p className="fh-text-caption mt-1">{translate('dataQuality:dataQuality.affectedProductCount', { count: items.length })}</p>
+                </div>
+                <Link className="fh-button-secondary fh-button-sm" to={issueDestination(issue)}><Icon name="next" /> {translate('dataQuality:dataQuality.openIssue')}</Link>
+              </div>
+            </article>
+          })}
+        </div>
+      </section>
       <details className="fh-card fh-card-pad mt-5" ref={filtersRef}>
         <summary className="flex cursor-pointer items-center gap-2 font-medium text-text-base"><Icon name="filter" /> {translate('dataQuality:dataQuality.filters')}</summary>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -201,7 +235,7 @@ export default function DataQuality() {
           <label className="fh-field-label">{translate('dataQuality:dataQuality.mappingState')}<select className="fh-input mt-1" value={mappingState} onChange={event => setMappingState(event.target.value)}><option value="">{translate('dataQuality:dataQuality.allMappingStates')}</option><option value="resolved">{translate('dataQuality:dataQuality.resolved')}</option><option value="unmapped">{translate('dataQuality:dataQuality.unmapped')}</option><option value="conflict">{translate('dataQuality:dataQuality.conflict')}</option></select></label>
         </div>
       </details>
-      <section className="mt-5" aria-labelledby="issue-list-title"><h2 className="fh-section-title mb-3" id="issue-list-title">{translate('dataQuality:dataQuality.issueList')}</h2><div className="grid gap-3">{grouped.map(([key, items]) => { const issue = items[0]; return <details className="fh-card fh-card-pad" key={key}><summary className="flex cursor-pointer items-center gap-3"><Icon name={issue.severity === 'warning' ? 'warning' : 'alert'} /><span className="font-medium text-text-base">{formatDataQualityCategory(issue.category)}</span><span className={`fh-badge ${issue.severity === 'warning' ? 'fh-badge-warning' : 'fh-badge-danger'}`}>{issueSeverityLabel(issue.severity)}</span><span className="fh-badge fh-badge-neutral">{formatNumber(items.length)}</span><span className="ms-auto fh-text-caption">{issue.channelId ? formatChannelDisplayName(issue.channelId) : translate('dataQuality:dataQuality.allChannels')}</span></summary><div className="mt-4 grid gap-3">{items.map(item => <article className="rounded border border-border p-3" key={item.id}><div className="flex flex-wrap gap-2"><p className="font-medium text-text-base">{formatDataQualityIssue(item.code, 'summary', item.summary, item.technicalDetails)}</p>{item.sourceProductName && <span className="fh-badge fh-badge-neutral">{item.sourceProductName}</span>}{item.mappingState && <span className="fh-badge fh-badge-neutral">{translate('dataQuality:dataQuality.columnSetup')} {formatStatus(item.mappingState)}</span>}</div><p className="fh-text-caption mt-1">{translate('dataQuality:dataQuality.recommendedAction')} {formatDataQualityIssue(item.code, 'action', item.recommendedAction, item.technicalDetails)}</p><details className="mt-2"><summary className="fh-text-caption cursor-pointer">{translate('dataQuality:dataQuality.technicalDetails')}</summary><pre className="mt-2 overflow-auto rounded bg-bg-base p-2 text-xs">{JSON.stringify(item.technicalDetails, null, 2)}</pre></details></article>)}</div></details> })}</div></section>
+      <section className="mt-5" aria-labelledby="issue-list-title"><h2 className="fh-section-title mb-3" id="issue-list-title">{translate('dataQuality:dataQuality.issueList')}</h2><div className="grid gap-3">{grouped.map(([key, items]) => { const issue = items[0]; return <details className="fh-card fh-card-pad" key={key}><summary className="flex cursor-pointer items-center gap-3"><Icon name={issue.severity === 'warning' ? 'warning' : 'alert'} /><span className="font-medium text-text-base">{formatDataQualityCategory(issue.category)}</span><span className={`fh-badge ${issue.severity === 'warning' ? 'fh-badge-warning' : 'fh-badge-danger'}`}>{issueSeverityLabel(issue.severity)}</span><span className="fh-badge fh-badge-neutral">{formatNumber(items.length)}</span><span className="ms-auto fh-text-caption">{issue.channelId ? formatChannelDisplayName(issue.channelId) : translate('dataQuality:dataQuality.allChannels')}</span></summary><div className="mt-4 grid gap-3">{items.map(item => <article className="rounded border border-border p-3" key={item.id}><div className="flex flex-wrap gap-2"><p className="font-medium text-text-base">{formatDataQualityIssue(item.code, 'summary', item.summary, item.technicalDetails)}</p>{item.sourceProductName && <span className="fh-badge fh-badge-neutral">{item.sourceProductName}</span>}{item.mappingState && <span className="fh-badge fh-badge-neutral">{translate('dataQuality:dataQuality.columnSetup')} {formatStatus(item.mappingState)}</span>}</div><p className="fh-text-caption mt-1">{translate('dataQuality:dataQuality.recommendedAction')} {formatDataQualityIssue(item.code, 'action', item.recommendedAction, item.technicalDetails)}</p><div className="mt-3 flex items-center gap-2"><Link className="fh-button-secondary fh-button-sm" to={issueDestination(item)}><Icon name="next" /> {translate('dataQuality:dataQuality.openIssue')}</Link></div><details className="mt-2"><summary className="fh-text-caption cursor-pointer">{translate('dataQuality:dataQuality.technicalDetails')}</summary><pre className="mt-2 overflow-auto rounded bg-bg-base p-2 text-xs">{JSON.stringify(item.technicalDetails, null, 2)}</pre></details></article>)}</div></details> })}</div></section>
     </>}
 
     {summary.scanId && <details className="fh-card fh-card-pad mt-5"><summary className="cursor-pointer font-medium text-text-base">{translate('dataQuality:dataQuality.viewLastScanDetails')}</summary><dl className="mt-3 grid gap-2 sm:grid-cols-3 fh-text-caption"><div><dt>{translate('dataQuality:dataQuality.sourcesChecked')}</dt><dd>{formatNumber(summary.sourcesChecked)}</dd></div><div><dt>{translate('dataQuality:dataQuality.productsChecked')}</dt><dd>{formatNumber(summary.productsChecked)}</dd></div><div><dt>{translate('dataQuality:dataQuality.scanReference')}</dt><dd dir="ltr">{summary.scanId}</dd></div></dl></details>}

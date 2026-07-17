@@ -7763,3 +7763,25 @@ msgstr "موجود"
 msgctxt "products:products.outOfStock"
 msgid "Out of stock"
 msgstr "ناموجود"
+
+msgctxt "dataQuality:dataQuality.openIssue"
+msgid "Open"
+msgstr "باز کردن"
+
+msgctxt "dataQuality:dataQuality.recommendedActionsDescription"
+msgid "Open the relevant workflow to resolve the highest-impact issues first."
+msgstr "برای رفع مهم‌ترین مشکلات، مستقیماً به بخش مرتبط بروید."
+
+msgctxt "dataQuality:dataQuality.readyProducts"
+msgid "Ready"
+msgstr "آماده"
+
+msgctxt "dataQuality:dataQuality.recommendedActions"
+msgid "Recommended actions"
+msgstr "اقدام‌های پیشنهادی"
+
+msgctxt "dataQuality:dataQuality.affectedProductCount"
+msgid "{{count}} affected product"
+msgid_plural "{{count}} affected products"
+msgstr[0] "{{count}} محصول درگیر"
+msgstr[1] "{{count}} محصول درگیر"
