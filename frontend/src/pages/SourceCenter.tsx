@@ -4,7 +4,7 @@ import { useAuth } from '../auth'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
 import { ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
-import SourceIcon from '../components/SourceIcon'
+import BrandIcon from '../components/BrandIcon'
 import {
   commerceSourceSignals,
   prepareResourceCollection,
@@ -321,7 +321,6 @@ export default function SourceCenter() {
       <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">{translate('sources:sourceCenter.sources')}</h1>
-          <p className="fh-page-subtitle">{translate('sources:sourceCenter.chooseWhereSourceProductsAndChannelTargets')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button className="fh-button-secondary" type="button" onClick={() => navigate('/data-quality')}>
@@ -382,21 +381,22 @@ export default function SourceCenter() {
                 const showDelete = Boolean(canOpen && canManageSources && source?.status === 'active')
                 const showMenu = showConfigureSecondary || showDelete
                 return (
-                  <article className="fh-card fh-card-pad relative flex min-h-[220px] flex-col" data-source-card={card.id}>
+                  <article
+                    className="fh-card fh-card-pad relative flex min-h-[168px] flex-col"
+                    data-source-card={card.id}
+                    title={sourceCardDescription(card)}
+                  >
                     <div className="flex min-w-0 items-start gap-3 pe-9">
-                      <SourceIcon
-                        identity={{ provider: integration?.provider, sourceType: source?.sourceKind }}
+                      <BrandIcon
+                        identity={{ provider: integration?.provider ?? source?.externalSourceId, sourceType: source?.sourceKind }}
                         label={card.displayName}
-                        size={48}
+                        size={44}
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <h2 className="truncate font-semibold text-text-base">{card.displayName}</h2>
                           <ResourceStateBadge badge={resource.badge} />
                         </div>
-                        <p className="fh-text-caption mt-1">
-                          {sourceCardDescription(card)}
-                        </p>
                       </div>
                     </div>
 
@@ -439,22 +439,22 @@ export default function SourceCenter() {
                       </div>
                     )}
 
-                    <div className="mt-5 grid gap-2 text-sm">
+                    <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
                       {source && (
-                        <p className="fh-text-caption">
+                        <span className="fh-badge fh-badge-neutral">
                           {translate('sources:sourceCenter.columnSetupVersion')}{source.mappingVersion || translate('sources:sourceConfiguration.notConfigured')}
-                        </p>
+                        </span>
                       )}
                       {integration && (
-                        <p className="fh-text-caption">
+                        <span className="fh-text-caption">
                           {translate('commerce:commerceHub.lastRead')} {integration.read_status?.last_read_at
                             ? formatDateTime(integration.read_status.last_read_at)
                             : translate('commerce:commerceHub.notRead')}
-                        </p>
+                        </span>
                       )}
                     </div>
 
-                    <div className="mt-auto pt-5">
+                    <div className="mt-auto pt-4">
                       {canOpen && (
                         <button className="fh-button-primary w-full" type="button" onClick={() => openPrimary(card)}>
                           {primaryLabel(card)}

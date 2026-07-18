@@ -310,6 +310,10 @@ async function installStrictMockApi(page: Page, audit: TrafficAudit, locale: 'en
       await route.fulfill({ status: 200, contentType: 'image/webp', body: microsoftOfficeLogo })
       return
     }
+    if (url.pathname.startsWith('/static/win11-icon/brand/')) {
+      await route.continue()
+      return
+    }
     if (url.pathname.startsWith('/static/')) {
       await route.fulfill({ status: 200, contentType: 'image/png', body: mockLogo })
       return
@@ -439,7 +443,7 @@ test.describe.serial('Sources integrations and per-worksheet Channel rules', () 
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     await expect(page.getByRole('heading', { name: 'منابع', exact: true })).toBeVisible()
     await expect(page.getByText('Shopify', { exact: true })).toBeVisible()
-    await expect(page.getByText('منبع صفحه‌گسترده خارجی', { exact: true }).first()).toBeVisible()
+    await expect(page.locator('[data-source-card="integration:shopify:future"]')).toHaveAttribute('title', 'منبع صفحه‌گسترده خارجی')
     await expect(page.getByText('synthetic_source_role_v9')).toHaveCount(0)
     await expect(page.locator('[data-resource-id="integration:shopify:future"] button')).toHaveCount(0)
     await page.screenshot({ path: path.join(screenshotRoot, 'sources-overview-fa-1440x900.png'), fullPage: true })
@@ -499,10 +503,11 @@ test.describe.serial('Sources integrations and per-worksheet Channel rules', () 
     await expect(page.getByText('261 rows', { exact: true })).toBeVisible()
     const logitechRule = page.locator('[data-worksheet-rule="Logitech"]')
     await expect(logitechRule).toHaveAttribute('open', '')
-    await expect(logitechRule.getByText('Digikala', { exact: true })).toBeVisible()
-    await expect(logitechRule.getByRole('heading', { name: 'Coming Soon', exact: true })).toBeVisible()
-    const digikalaSummary = logitechRule.locator('summary').filter({ hasText: 'Digikala' }).first()
-    await expect(digikalaSummary.getByRole('checkbox')).toBeDisabled()
+    const digikalaSelection = page.getByRole('checkbox', { name: 'Digikala' }).last()
+    await expect(digikalaSelection).toBeVisible()
+    await expect(digikalaSelection).toBeDisabled()
+    await expect(logitechRule.getByText('Digikala', { exact: true })).toHaveCount(0)
+    await expect(logitechRule.locator('[data-worksheet-channel-columns] input[type="checkbox"]')).toHaveCount(0)
     await page.screenshot({ path: path.join(screenshotRoot, 'source-configuration-en.png'), fullPage: true })
     await expect(logitechRule.getByText('Source Product Name', { exact: true })).toHaveCount(1)
     await expect(logitechRule.getByLabel('Source Product Name column reference')).toHaveValue('A')

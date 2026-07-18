@@ -21,7 +21,7 @@ afterEach(() => {
 })
 
 describe('BusinessCard', () => {
-  it('renders the complete business decision contract with icon and text status', () => {
+  it('renders a compact decision card and keeps supporting guidance accessible', () => {
     act(() => {
       root.render(
         <BusinessCard
@@ -43,10 +43,10 @@ describe('BusinessCard', () => {
     expect(card?.textContent).toContain('Products')
     expect(card?.textContent).toContain('2,415')
     expect(card?.textContent).toContain('15 added today')
-    expect(card?.textContent).toContain('Products available for daily review.')
     expect(card?.textContent).toContain('Healthy')
-    expect(card?.textContent).toContain('Next step')
-    expect(card?.textContent).toContain("Review today's changes.")
+    expect(card?.textContent).not.toContain('Products available for daily review.')
+    expect(card?.title).toContain('Products available for daily review.')
+    expect(card?.querySelector('[data-icon="info"]')?.getAttribute('aria-label')).toBe("Next step: Review today's changes.")
     expect(card?.querySelector('[data-icon="products"]')).not.toBeNull()
     expect(card?.querySelector('.fh-badge [data-icon="success"]')).not.toBeNull()
     expect(card?.dataset.tone).toBe('success')

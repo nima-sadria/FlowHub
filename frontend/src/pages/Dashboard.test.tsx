@@ -190,7 +190,7 @@ describe('Dashboard', () => {
     expect(mockServices.health.getChannelHealth).toHaveBeenCalled()
     expect(container.querySelectorAll('[data-business-card]')).toHaveLength(8)
     expect(card('price-changes').textContent).toContain('84 changed products')
-    expect(card('price-changes').textContent).toContain('Review today’s price changes')
+    expect(card('price-changes').title).toContain('Review today’s price changes')
     expect(card('ready-review').textContent).toContain('76 products')
     expect(card('ready-apply').textContent).toContain('12 products')
     expect(card('blocking').textContent).toContain('3 issues')

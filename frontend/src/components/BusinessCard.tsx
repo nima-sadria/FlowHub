@@ -53,6 +53,7 @@ export default function BusinessCard({
       data-business-card={testId ?? title}
       data-tone={status.tone}
       aria-label={title}
+      title={`${meaning} ${recommendation}`}
     >
       <div className="fh-business-card-header">
         <div className="fh-business-card-heading">
@@ -72,16 +73,8 @@ export default function BusinessCard({
       <bdi className="fh-business-card-value" dir="auto">{value}</bdi>
       <p className="fh-business-card-explanation">{explanation}</p>
 
-      <div className="fh-business-card-meaning">
-        <Icon name="info" label={meaning} />
-        <p>{meaning}</p>
-      </div>
-
       <div className="fh-business-card-recommendation">
-        <div className="min-w-0">
-          <p className="fh-business-card-recommendation-label">{recommendationLabel}</p>
-          <p className="fh-business-card-recommendation-text">{recommendation}</p>
-        </div>
+        <Icon name="info" label={`${recommendationLabel}: ${recommendation}`} />
         {action && (
           <button type="button" className="fh-toolbar-link flex-shrink-0" onClick={action.onClick}>
             {action.label}

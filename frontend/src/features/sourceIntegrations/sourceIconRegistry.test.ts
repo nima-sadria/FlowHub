@@ -18,11 +18,18 @@ describe('Source icon registry', () => {
     expect(sourceIconPath({ sourceType: 'onlyoffice_spreadsheet' })).toBe(SOURCE_ICON_ASSETS.onlyoffice)
   })
 
+  it('keeps configured marketplace brands distinct', () => {
+    expect(sourceIconPath('woocommerce:primary')).toBe(SOURCE_ICON_ASSETS.woocommerce)
+    expect(sourceIconPath('snappshop:main')).toBe(SOURCE_ICON_ASSETS.snappshop)
+    expect(sourceIconPath('tapsishop:main')).toBe(SOURCE_ICON_ASSETS.tapsishop)
+    expect(sourceIconPath('digikala:main')).toBe(SOURCE_ICON_ASSETS.digikala)
+  })
+
   it('uses the Microsoft Office asset only for explicit spreadsheet identities', () => {
     expect(sourceIconPath({ sourceType: 'xlsx' })).toBe(SOURCE_ICON_ASSETS.microsoftOffice)
     expect(sourceIconPath({ fileName: 'daily-prices.XLSX' })).toBe(SOURCE_ICON_ASSETS.microsoftOffice)
     expect(sourceIconPath({ sourceType: 'csv' })).toBe(SOURCE_ICON_FALLBACK)
-    expect(sourceIconPath({ sourceType: 'imported_sheet' })).toBe(SOURCE_ICON_FALLBACK)
+    expect(sourceIconPath({ sourceType: 'imported_sheet' })).toBe(SOURCE_ICON_ASSETS.microsoftOffice)
   })
 
   it('falls back without deriving a brand from missing or unknown metadata', () => {

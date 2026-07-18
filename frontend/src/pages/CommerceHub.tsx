@@ -9,7 +9,7 @@ import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, Commerce
 import type { ChannelCacheRefreshResult, CommerceChannelConfiguration, CommerceVendor, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
 import Spinner from '../components/loading/Spinner'
 import SecretField from '../components/SecretField'
-import SourceIcon from '../components/SourceIcon'
+import BrandIcon from '../components/BrandIcon'
 import { useNotification } from '../notifications/NotificationProvider'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
@@ -99,24 +99,23 @@ function SourceCard({ source, badge, onTest, onRead, onConfigure, testing, readi
   const canUseNextcloudActions = canManage && source.provider === 'nextcloud' && !source.placeholder
   const readStatus = source.read_status
   return (
-    <div className="fh-card fh-card-pad flex flex-col gap-4">
+    <div className="fh-card fh-card-pad flex flex-col gap-3" title={formatDataRole(source.data_role)}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <SourceIcon identity={{ provider: source.provider, sourceType: source.type }} label={source.name} size={48} />
+          <BrandIcon identity={{ provider: source.provider, sourceType: source.type }} label={source.name} size={44} />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="fh-section-title">{source.name}</h3>
               <ResourceStateBadge badge={badge} />
             </div>
-            <p className="fh-text-caption mt-1">{formatDataRole(source.data_role)}</p>
           </div>
         </div>
         <span className="fh-text-caption font-medium text-text-base">{formatCommerceType(source.type)}</span>
       </div>
 
-      <div className="grid gap-2 text-sm sm:grid-cols-2">
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastRead')} </span><span className="font-medium text-text-base">{readStatus?.last_read_at ? formatDateTime(readStatus.last_read_at) : translate('commerce:commerceHub.notRead')}</span></p>
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.health')} </span><span className="font-medium text-text-base">{formatStatus(source.health?.status ?? "unknown")}</span></p>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="fh-badge fh-badge-neutral">{formatStatus(source.health?.status ?? "unknown")}</span>
+        <span className="fh-text-caption">{translate('commerce:commerceHub.lastRead')} {readStatus?.last_read_at ? formatDateTime(readStatus.last_read_at) : translate('commerce:commerceHub.notRead')}</span>
       </div>
 
       <details className="rounded-lg border border-border bg-bg-subtle p-3">
@@ -141,7 +140,7 @@ function SourceCard({ source, badge, onTest, onRead, onConfigure, testing, readi
               type="button"
               aria-label={translate('commerce:commerceHub.sourceSettings')}
               onClick={() => onConfigure(source.id)}
-              className="fh-button-secondary"
+              className="fh-button-secondary fh-button-sm"
             >
               <Icon name="settings" />
               {translate('commerce:commerceHub.settings')}
@@ -149,7 +148,7 @@ function SourceCard({ source, badge, onTest, onRead, onConfigure, testing, readi
             <button
               onClick={() => onTest(source.id)}
               disabled={testing || reading}
-              className="fh-button-secondary"
+              className="fh-button-secondary fh-button-sm"
             >
               {testing && <Spinner size="sm" />}
               {!testing && <Icon name="testConnection" />}
@@ -158,7 +157,7 @@ function SourceCard({ source, badge, onTest, onRead, onConfigure, testing, readi
             <button
               onClick={() => onRead(source.id)}
               disabled={testing || reading || source.read_policy?.manual_read_allowed === false}
-              className="fh-button-secondary"
+              className="fh-button-secondary fh-button-sm"
             >
               {reading && <Spinner size="sm" />}
               {!reading && <Icon name="sync" />}
@@ -187,24 +186,23 @@ function ChannelCard({ channel, badge, onTest, onRefresh, onConfigure, testing, 
   const isConfigurable = channel.implemented && !channel.placeholder && ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider)
   const isConfigured = channel.credential_status === 'configured'
   return (
-    <div className="fh-card fh-card-pad flex flex-col gap-4">
+    <div className="fh-card fh-card-pad flex flex-col gap-3" title={formatCapabilityList(channel.capabilities_summary)}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <SourceIcon identity={{ provider: channel.provider }} label={channel.name} size={48} />
+          <BrandIcon identity={{ provider: channel.provider }} label={channel.name} size={44} />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="fh-section-title">{channel.name}</h3>
               <ResourceStateBadge badge={badge} />
             </div>
-            <p className="fh-text-caption mt-1">{formatCapabilityList(channel.capabilities_summary)}</p>
           </div>
         </div>
         <span className="fh-text-caption font-medium text-text-base">{formatCommerceType(channel.type)}</span>
       </div>
 
-      <div className="grid gap-2 text-sm sm:grid-cols-2">
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastHealthCheck')} </span><span className="font-medium text-text-base">{channel.last_health_check ? formatDateTime(channel.last_health_check) : translate('commerce:commerceHub.notChecked')}</span></p>
-        <p><span className="text-wp-muted">{translate('commerce:commerceHub.health')} </span><span className="font-medium text-text-base">{formatStatus(channel.health?.status ?? "unknown")}</span></p>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="fh-badge fh-badge-neutral">{formatStatus(channel.health?.status ?? "unknown")}</span>
+        <span className="fh-text-caption">{translate('commerce:commerceHub.lastHealthCheck')} {channel.last_health_check ? formatDateTime(channel.last_health_check) : translate('commerce:commerceHub.notChecked')}</span>
       </div>
 
       <details className="rounded-lg border border-border bg-bg-subtle p-3">
@@ -1292,7 +1290,6 @@ export default function CommerceHub() {
       <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">{translate('commerce:commerceHub.commerceHub')}</h1>
-          <p className="fh-page-subtitle">{translate('commerce:commerceHub.readOnlySourceAndChannelOverview')}</p>
         </div>
         <SafetyBadges readOnly writeBlocked />
       </div>

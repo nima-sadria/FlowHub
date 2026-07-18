@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../components/Icon'
+import BrandIcon from '../components/BrandIcon'
 import PageShell from '../components/PageShell'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
@@ -33,14 +34,17 @@ interface PendingWorksheetCopy {
   destinationWorksheetNames: string[]
 }
 
-function ConfigurationSection({ title, description, defaultOpen = false, children }: { title: string; description: string; defaultOpen?: boolean; children: ReactNode }) {
+function ConfigurationSection({ title, description, defaultOpen = false, children }: { title: string; description?: string; defaultOpen?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(defaultOpen)
   return <details className="fh-card group" open={open} onToggle={event => {
     const next = event.currentTarget.open
     if (next !== open) setOpen(next)
   }}>
-    <summary className="fh-panel-header cursor-pointer list-none">
-      <div><h2 className="fh-section-title">{title}</h2><p className="fh-text-caption">{description}</p></div>
+    <summary className="fh-panel-header cursor-pointer list-none" title={description}>
+      <div className="flex items-center gap-2">
+        <h2 className="fh-section-title">{title}</h2>
+        {description && <span className="fh-help-icon" aria-label={description} role="img">i</span>}
+      </div>
       <Icon name="next" className="transition-transform group-open:rotate-90" />
     </summary>
     <div className="border-t border-border p-4">{children}</div>
@@ -239,13 +243,23 @@ export default function SourceConfiguration() {
         channels: rule.channels.map(channel => ({ ...channel, fields: CHANNEL_FIELDS.map(([field]) => channel.fields.find(item => item.field === field) ?? emptyMapping(field)) })),
       }))
       setWorksheetRules(loadedWorksheetRules)
+      const worksheetChannelIds = [...new Set(loadedWorksheetRules.flatMap(rule => rule.channels.filter(channel => channel.enabled).map(channel => channel.channelId)))]
+      if (worksheetChannelIds.length > 0) {
+        setConfiguredChannelIds(worksheetChannelIds)
+        setChannelEnabled(Object.fromEntries(worksheetChannelIds.map(channelId => [channelId, true])))
+      }
       setSelectedWorksheetRules(loadedWorksheetRules.filter(rule => rule.enabled).map(rule => rule.worksheetName))
       setExpandedWorksheet(loadedWorksheetRules.find(rule => rule.enabled)?.worksheetName ?? null)
       setValuePolicy({ ...DEFAULT_VALUE_POLICY, ...loaded.mapping?.valuePolicy })
       if (loaded.mapping) {
+        const selectedChannels = loaded.mapping.channels.length > 0
+          ? loaded.mapping.channels
+          : loadedWorksheetRules
+              .flatMap(rule => rule.channels)
+              .filter((channel, index, items) => channel.enabled && items.findIndex(item => item.channelId === channel.channelId) === index)
         setSourceFields(SOURCE_FIELDS.map(([field, _label, required]) => loaded.mapping!.sourceFields.find(item => item.field === field) ?? emptyMapping(field, required)))
-        setConfiguredChannelIds(loaded.mapping.channels.map(item => item.channelId))
-        setChannelEnabled(Object.fromEntries(loaded.mapping.channels.map(item => [item.channelId, item.enabled])))
+        setConfiguredChannelIds(selectedChannels.map(item => item.channelId))
+        setChannelEnabled(Object.fromEntries(selectedChannels.map(item => [item.channelId, item.enabled])))
         setChannelFields(Object.fromEntries(loaded.mapping.channels.map(item => [
           item.channelId,
           CHANNEL_FIELDS.map(([field]) => item.fields.find(existing => existing.field === field) ?? emptyMapping(field)),
@@ -307,7 +321,15 @@ export default function SourceConfiguration() {
 
   function toggleChannel(channelId: string) {
     ensureConfigured(channelId)
-    setChannelEnabled(current => ({ ...current, [channelId]: !current[channelId] }))
+    const enabled = !Boolean(channelEnabled[channelId])
+    setChannelEnabled(current => ({ ...current, [channelId]: enabled }))
+    setWorksheetRules(rules => rules.map(rule => {
+      const existing = rule.channels.find(channel => channel.channelId === channelId)
+      const next = existing
+        ? { ...existing, enabled }
+        : { channelId, worksheetName: rule.worksheetName, enabled, fields: emptyWorksheetChannelFields() }
+      return { ...rule, channels: [...rule.channels.filter(channel => channel.channelId !== channelId), next] }
+    }))
   }
 
   function updateSourceField(field: string, value: FieldMapping) {
@@ -376,7 +398,17 @@ export default function SourceConfiguration() {
   function addWorksheetRule() {
     const name = newWorksheetName.trim()
     if (!name || worksheetRules.some(item => item.worksheetName === name)) return
-    setWorksheetRules(current => [...current, createWorksheetRule(name)])
+    setWorksheetRules(current => [...current, {
+      ...createWorksheetRule(name),
+      channels: configuredChannelIds
+        .filter(channelId => channelEnabled[channelId])
+        .map(channelId => ({
+          channelId,
+          worksheetName: name,
+          enabled: true,
+          fields: (channelFields[channelId] ?? emptyWorksheetChannelFields()).map(field => ({ ...field })),
+        })),
+    }])
     setNewWorksheetName('')
   }
 
@@ -483,7 +515,18 @@ export default function SourceConfiguration() {
           const existing = new Set(current.map(item => item.worksheetName))
           const additions = result.items
             .filter(item => !existing.has(item.name))
-            .map(item => ({ ...createWorksheetRule(item.name), enabled: current.length === 0 && result.items.length === 1 }))
+            .map(item => ({
+              ...createWorksheetRule(item.name),
+              enabled: current.length === 0 && result.items.length === 1,
+              channels: configuredChannelIds
+                .filter(channelId => channelEnabled[channelId])
+                .map(channelId => ({
+                  channelId,
+                  worksheetName: item.name,
+                  enabled: true,
+                  fields: (channelFields[channelId] ?? emptyWorksheetChannelFields()).map(field => ({ ...field })),
+                })),
+            }))
           return [...current, ...additions]
         })
         setSelectedWorksheetRules(current => current.filter(name => result.items.some(item => item.name === name)))
@@ -635,7 +678,6 @@ export default function SourceConfiguration() {
       <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">{source.name}</h1>
-          <p className="fh-page-subtitle">{translate('sources:sourceConfiguration.mapSourceProductIdentityFirstThenEach')}</p>
         </div>
         <button className="fh-button-primary" type="button" disabled={!source.mapping} onClick={() => void createWorkspace()}>
           <Icon name="workspace" /> {translate('sources:sourceConfiguration.openWorkspace')}
@@ -652,7 +694,11 @@ export default function SourceConfiguration() {
         </ConfigurationSection>
         <ConfigurationSection title={translate('sources:sourceConfiguration.section.connection')} description={translate('sources:sourceConfiguration.section.connectionHelp')} defaultOpen>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="fh-text-caption">{source.sourceKind === 'external' ? translate('sources:sourceConfiguration.externalConnectionHelp') : translate('sources:sourceConfiguration.managedSourceConnectionHelp')}</p>
+            <BrandIcon
+              identity={{ provider: source.externalSourceId, sourceType: source.sourceKind }}
+              label={source.name}
+              size={40}
+            />
             <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>
           </div>
         </ConfigurationSection>
@@ -673,13 +719,11 @@ export default function SourceConfiguration() {
 
       <ConfigurationSection title={translate('sources:sourceConfiguration.worksheetRules')} description={translate('sources:sourceConfiguration.worksheetRulesSectionHelp')}>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'shared' ? 'border-accent bg-accent/5' : 'border-border'}`}>
+          <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'shared' ? 'border-accent bg-accent/5' : 'border-border'}`} title={translate('sources:sourceConfiguration.sharedWorksheetRulesHelp')}>
             <span className="flex items-center gap-2 font-medium text-text-base"><input type="radio" name="worksheet-rule-mode" value="shared" checked={worksheetRuleMode === 'shared'} onChange={() => changeWorksheetRuleMode('shared')} />{translate('sources:sourceConfiguration.sharedWorksheetRules')}</span>
-            <span className="fh-text-caption mt-2 block">{translate('sources:sourceConfiguration.sharedWorksheetRulesHelp')}</span>
           </label>
-          <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'per_worksheet' ? 'border-accent bg-accent/5' : 'border-border'}`}>
+          <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'per_worksheet' ? 'border-accent bg-accent/5' : 'border-border'}`} title={translate('sources:sourceConfiguration.separateWorksheetRulesHelp')}>
             <span className="flex items-center gap-2 font-medium text-text-base"><input type="radio" name="worksheet-rule-mode" value="per_worksheet" checked={worksheetRuleMode === 'per_worksheet'} onChange={() => changeWorksheetRuleMode('per_worksheet')} />{translate('sources:sourceConfiguration.separateWorksheetRules')}</span>
-            <span className="fh-text-caption mt-2 block">{translate('sources:sourceConfiguration.separateWorksheetRulesHelp')}</span>
           </label>
         </div>
       </ConfigurationSection>
@@ -752,6 +796,7 @@ export default function SourceConfiguration() {
               <details className="rounded-xl border border-border bg-bg-base" data-channel-id={channel.channelId} key={channel.channelId} open={enabled}>
                 <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-4">
                   <span aria-hidden="true">▾</span>
+                  <BrandIcon identity={{ provider: channel.connectorType || channel.channelId, sourceType: channel.connectorType }} label={orderedChannel.displayName} size={40} />
                   <h3 className="font-semibold text-text-base">{orderedChannel.displayName}</h3>
                   <ResourceStateBadge badge={orderedChannel.badge} />
                   <label className="fh-inline-check ms-auto" onClick={event => event.stopPropagation()}>
@@ -831,7 +876,38 @@ export default function SourceConfiguration() {
         </ConfigurationSection>
       </div>
 
-      {worksheetRuleMode === 'per_worksheet' && <div className="mt-5">
+      {worksheetRuleMode === 'per_worksheet' && <div className="mt-5 space-y-3">
+        <ConfigurationSection
+          title={translate('sources:sourceConfiguration.section.channelColumns')}
+          description={translate('sources:sourceConfiguration.section.channelColumnsHelp')}
+          defaultOpen
+        >
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label={translate('sources:sourceConfiguration.channelMappings')}>
+            <ResourceSectionList resources={channelResources} renderItem={orderedChannel => {
+              const channel = orderedChannel.item
+              const enabled = Boolean(channelEnabled[channel.channelId])
+              return (
+                <label
+                  className={`flex items-center gap-3 rounded-xl border p-3 ${enabled ? 'border-accent bg-accent/5' : 'border-border bg-bg-base'} ${!channel.available ? 'opacity-60' : ''}`}
+                  key={channel.channelId}
+                >
+                  <BrandIcon identity={{ provider: channel.connectorType || channel.channelId, sourceType: channel.connectorType }} label={orderedChannel.displayName} size={40} />
+                  <span className="min-w-0 flex-1">
+                    <strong className="block truncate text-text-base">{orderedChannel.displayName}</strong>
+                    <ResourceStateBadge badge={orderedChannel.badge} />
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={enabled}
+                    disabled={!channel.available}
+                    aria-label={orderedChannel.displayName}
+                    onChange={() => toggleChannel(channel.channelId)}
+                  />
+                </label>
+              )
+            }} />
+          </div>
+        </ConfigurationSection>
         <ConfigurationSection title={translate('sources:sourceConfiguration.section.worksheetColumns')} description={translate('sources:sourceConfiguration.section.worksheetColumnsHelp')}>
           <div className="space-y-4" aria-label={translate('sources:sourceConfiguration.separateWorksheetRules')}>
         <div className="flex flex-wrap items-end gap-3">
@@ -852,7 +928,7 @@ export default function SourceConfiguration() {
           key={rule.worksheetName}
           rule={rule}
           rowCount={detectedWorksheets.find(item => item.name === rule.worksheetName)?.rowCount}
-          channels={channelResources.ordered.map(item => item.item)}
+          channels={channelResources.ordered.map(item => item.item).filter(channel => channelEnabled[channel.channelId])}
           sourceKind={source.sourceKind}
           selected={selectedWorksheetRules.includes(rule.worksheetName)}
           expanded={expandedWorksheet === rule.worksheetName}

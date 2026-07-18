@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../auth'
 import Badge, { type BadgeVariant } from '../components/Badge'
+import BrandIcon from '../components/BrandIcon'
 import BusinessCard, { type BusinessCardTone } from '../components/BusinessCard'
 import Empty from '../components/Empty'
 import Icon, { type IconName } from '../components/Icon'
@@ -330,14 +331,12 @@ export default function Dashboard() {
       <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">{translate('dashboard:dashboard.dashboard')}</h1>
-          <p className="fh-page-subtitle">{translate('dashboard:dashboard.controlCenterSummary')}</p>
         </div>
       </div>
 
       <section aria-labelledby="business-overview-heading">
-        <div className="mb-3">
+        <div className="mb-2">
           <h2 id="business-overview-heading" className="fh-section-title">{translate('dashboard:dashboard.businessOverview')}</h2>
-          <p className="fh-text-caption">{translate('dashboard:dashboard.businessOverviewDescription')}</p>
         </div>
         <div className="fh-business-card-grid">
           <BusinessCard
@@ -446,7 +445,6 @@ export default function Dashboard() {
           <div className="fh-panel-header">
             <div>
               <p className="fh-section-title">{translate('dashboard:dashboard.channels')}</p>
-              <p className="fh-text-caption">{translate('dashboard:dashboard.channelListMeaning')}</p>
             </div>
             <button onClick={() => navigate('/diagnostics')} className="fh-toolbar-link">
               {translate('dashboard:dashboard.openDiagnostics')}
@@ -465,7 +463,8 @@ export default function Dashboard() {
                   const channel = resource.item
                   return (
                     <div className="flex items-center justify-between gap-3 py-2.5">
-                      <div className="min-w-0">
+                      <BrandIcon identity={channel.channelId} label={resource.displayName} size={36} />
+                      <div className="min-w-0 flex-1">
                         {/* i18n-ignore -- fallback is a technical Channel identity, not interface copy */}
                         <p className="fh-text-body font-medium truncate">{resource.displayName}</p>
                         <p className="fh-text-caption truncate">{formatDiagnosticMessage(channel.summary)}</p>
@@ -483,7 +482,6 @@ export default function Dashboard() {
           <div className="fh-panel-header">
             <div>
               <p className="fh-section-title">{translate('dashboard:dashboard.sources')}</p>
-              <p className="fh-text-caption">{translate('dashboard:dashboard.sourceListMeaning')}</p>
             </div>
             <button onClick={() => navigate('/sources')} className="fh-toolbar-link">
               {translate('dashboard:dashboard.manageSources')}
@@ -506,7 +504,8 @@ export default function Dashboard() {
                   const source = resource.item
                   return (
                     <div className="flex items-center justify-between gap-3 py-2.5">
-                      <div>
+                      <BrandIcon identity={{ sourceType: source.type }} label={source.name} size={36} />
+                      <div className="min-w-0 flex-1">
                         <p className="fh-text-body font-medium">{source.name}</p>
                         <p className="fh-text-caption">{translate('dashboard:dashboard.products', { value1: relTime(source.lastSynced), value2: formatNumber(source.productCount) })}</p>
                       </div>
@@ -523,7 +522,6 @@ export default function Dashboard() {
           <div className="fh-panel-header">
             <div>
               <p className="fh-section-title">{translate('dashboard:dashboard.recentActivity')}</p>
-              <p className="fh-text-caption">{translate('dashboard:dashboard.activityListMeaning')}</p>
             </div>
             <button onClick={() => navigate('/activity')} className="fh-toolbar-link">
               {translate('dashboard:dashboard.viewAll')}

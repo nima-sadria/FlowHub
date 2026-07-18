@@ -157,7 +157,7 @@ async function assertDecisionReadyDashboard(page: Page, locale: 'en' | 'fa') {
   await expect(page.locator('[data-business-card]')).toHaveCount(8)
   await expect(page.locator('[data-business-card] .fh-business-card-value')).toHaveCount(8)
   await expect(page.locator('[data-business-card] .fh-business-card-explanation')).toHaveCount(8)
-  await expect(page.locator('[data-business-card] .fh-business-card-meaning')).toHaveCount(8)
+  await expect(page.locator('[data-business-card][title]')).toHaveCount(8)
   await expect(page.locator('[data-business-card] .fh-badge')).toHaveCount(8)
   await expect(page.locator('[data-business-card] .fh-business-card-recommendation')).toHaveCount(8)
   await expect(page.locator('[data-business-card] .fh-badge [data-icon]')).toHaveCount(8)
@@ -173,6 +173,7 @@ async function assertDecisionReadyDashboard(page: Page, locale: 'en' | 'fa') {
     await expect(page.locator('[data-business-card="orders"]')).toContainText('15,000,000 IRR')
     await expect(page.locator('[data-business-card="inventory"]')).toContainText('9 affected products')
     await expect(page.locator('[data-business-card="updates"]')).toContainText('1 failed update')
+    await expect(page.locator('[data-business-card="price-changes"]')).toHaveAttribute('title', /Review today’s price changes/)
     await expect(page.getByText('Backend', { exact: true })).toHaveCount(0)
     await expect(page.getByText('Database', { exact: true })).toHaveCount(0)
     await expect(page.getByText('Application', { exact: true })).toHaveCount(0)
@@ -184,8 +185,8 @@ async function assertDecisionReadyDashboard(page: Page, locale: 'en' | 'fa') {
       return {
         changesTone: changesCard.dataset.tone,
         blockingTone: blockingCard.dataset.tone,
-        changesAccent: getComputedStyle(changesCard).borderInlineStartColor,
-        blockingAccent: getComputedStyle(blockingCard).borderInlineStartColor,
+        changesAccent: getComputedStyle(changesCard).borderTopColor,
+        blockingAccent: getComputedStyle(blockingCard).borderTopColor,
       }
     })
     expect(toneStyles).toMatchObject({ changesTone: 'info', blockingTone: 'danger' })
@@ -205,11 +206,11 @@ async function assertDecisionReadyDashboard(page: Page, locale: 'en' | 'fa') {
       title: card.querySelector('.fh-business-card-title')?.textContent,
       value: card.querySelector('.fh-business-card-value')?.textContent,
       status: card.querySelector('.fh-badge')?.textContent,
-      recommendation: card.querySelector('.fh-business-card-recommendation-text')?.textContent,
+      guidance: card.title,
     })),
   }))
   expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewport + 1)
-  expect(layout.cards.every(card => card.title && card.value && card.status && card.recommendation)).toBe(true)
+  expect(layout.cards.every(card => card.title && card.value && card.status && card.guidance)).toBe(true)
 }
 
 test('business dashboard is decision-ready in real Chrome for English LTR and Persian RTL', async ({ page }) => {

@@ -226,7 +226,7 @@ describe('SourceCenter safe lifecycle', () => {
 
     expect(container.querySelectorAll('[data-source-card]')).toHaveLength(2)
     expect(container.querySelector('[data-source-card="source-1"]')?.textContent).toContain('Healthy')
-    expect(container.querySelector('[data-source-card="source-1"] [data-source-icon]')?.getAttribute('data-source-icon')).toContain('nextcloud.webp')
+    expect(container.querySelector('[data-source-card="source-1"] [data-source-icon]')?.getAttribute('data-source-icon')?.toLowerCase()).toContain('nextcloud.webp')
     expect(container.querySelector('[data-source-card="integration:gsheets:price-list"]')?.textContent).toContain('Coming Soon')
     expect(Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section')))
       .toEqual(['active', 'comingSoon'])
@@ -289,7 +289,7 @@ describe('SourceCenter safe lifecycle', () => {
     await render()
 
     const card = container.querySelector('[data-source-card="integration:custom-erp:primary"]') as HTMLElement
-    expect(card.textContent).toContain('External spreadsheet Source')
+    expect(card.title).toContain('External spreadsheet Source')
     expect(card.textContent).not.toContain('synthetic_source_role_v9')
   })
 

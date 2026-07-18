@@ -1134,22 +1134,22 @@ select,
   }
 
   .fh-card-pad {
-    padding: 22px;
+    padding: 18px;
   }
 
   @media (min-width: 640px) {
     .fh-card-pad {
-      padding: 24px;
+      padding: 20px;
     }
   }
 
   .fh-panel-header {
-    min-height: 68px;
+    min-height: 56px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 14px;
-    padding: 18px 22px;
+    padding: 14px 18px;
     border-bottom: 1px solid var(--fh-ui-border);
   }
 
@@ -1164,13 +1164,25 @@ select,
   }
 
   .fh-panel-body {
-    padding: 22px;
+    padding: 18px;
   }
 
   @media (min-width: 640px) {
     .fh-panel-body {
-      padding: 24px;
+      padding: 20px;
     }
+  }
+
+  .fh-help-icon {
+    display: inline-grid;
+    width: 20px;
+    height: 20px;
+    place-items: center;
+    color: var(--fh-text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid var(--fh-ui-border);
+    border-radius: 999px;
   }
 
   .fh-page-toolbar {
@@ -1244,22 +1256,22 @@ select,
 
   .fh-business-card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 12px;
   }
 
   .fh-business-card {
     --fh-business-card-accent: var(--fh-brand-500);
     display: flex;
     min-width: 0;
-    min-height: 250px;
+    min-height: 164px;
     flex-direction: column;
-    gap: 10px;
-    padding: 18px;
+    gap: 8px;
+    padding: 16px;
     overflow: hidden;
     background: var(--fh-ui-card);
     border: 1px solid var(--fh-ui-border);
-    border-inline-start: 4px solid var(--fh-business-card-accent);
+    border-top: 3px solid var(--fh-business-card-accent);
     border-radius: var(--fh-radius-2xl);
     box-shadow: var(--fh-shadow-xs);
   }
@@ -1301,8 +1313,8 @@ select,
 
   .fh-business-card-icon {
     display: inline-flex;
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
@@ -1313,15 +1325,16 @@ select,
 
   .fh-business-card-title {
     color: var(--fh-text-primary);
-    font-size: 14px;
-    line-height: 20px;
+    font-size: 13px;
+    line-height: 18px;
     font-weight: 600;
   }
 
   .fh-business-card-value {
     display: block;
     color: var(--fh-text-primary);
-    font-size: clamp(23px, 2vw, 30px);
+    margin-top: 6px;
+    font-size: clamp(22px, 2vw, 28px);
     line-height: 1.2;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -1329,52 +1342,39 @@ select,
   }
 
   .fh-business-card-explanation {
-    min-height: 20px;
+    overflow: hidden;
     color: var(--fh-text-secondary);
     font-size: 13px;
     line-height: 20px;
-  }
-
-  .fh-business-card-meaning {
-    display: flex;
-    min-width: 0;
-    align-items: flex-start;
-    gap: 8px;
-    color: var(--fh-text-muted);
-    font-size: 12px;
-    line-height: 18px;
-  }
-
-  .fh-business-card-meaning .fh-svg-icon {
-    margin-top: 1px;
-    flex: 0 0 auto;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .fh-business-card-recommendation {
     display: flex;
     min-width: 0;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
     margin-top: auto;
-    padding-top: 10px;
+    padding-top: 8px;
     border-top: 1px solid var(--fh-ui-border);
   }
 
-  .fh-business-card-recommendation-label {
+  .fh-business-card-recommendation > .fh-svg-icon {
     color: var(--fh-text-muted);
-    font-size: 11px;
-    line-height: 16px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
   }
 
-  .fh-business-card-recommendation-text {
-    margin-top: 2px;
-    color: var(--fh-text-primary);
-    font-size: 12px;
-    line-height: 18px;
+  .fh-brand-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 4px;
+    background: #fff;
+    border: 1px solid var(--fh-ui-border);
+    border-radius: var(--fh-radius-xl);
   }
 
   .fh-stat-tile {

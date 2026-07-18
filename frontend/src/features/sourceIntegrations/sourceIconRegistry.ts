@@ -1,9 +1,14 @@
 export const SOURCE_ICON_FALLBACK = '/static/logos/FlowHub%20favicon.png?v=4'
 
 export const SOURCE_ICON_ASSETS = Object.freeze({
-  microsoftOffice: '/static/logos/brands/microsoft-office.webp',
-  nextcloud: '/static/logos/brands/nextcloud.webp',
-  onlyoffice: '/static/logos/brands/onlyoffice.webp',
+  digikala: '/static/win11-icon/brand/DIGIKALA.webp',
+  microsoftOffice: '/static/win11-icon/brand/Microsoft%20Office.webp',
+  nextcloud: '/static/win11-icon/brand/Nextcloud.webp',
+  onlyoffice: '/static/win11-icon/brand/Onlyoffice.webp',
+  snappshop: '/static/win11-icon/brand/Snapp%20Shop.webp',
+  tapsishop: '/static/win11-icon/brand/Tapsi%20Shop.webp',
+  technolife: '/static/win11-icon/brand/Technolife.webp',
+  woocommerce: '/static/win11-icon/brand/WooCommerce.webp',
 })
 
 export interface SourceIconIdentity {
@@ -15,7 +20,9 @@ export interface SourceIconIdentity {
 export type SourceIconIdentityInput = SourceIconIdentity | string | null | undefined
 
 const SOURCE_ICON_ALIASES: Readonly<Record<string, keyof typeof SOURCE_ICON_ASSETS>> = Object.freeze({
+  digikala: 'digikala',
   excel: 'microsoftOffice',
+  imported_sheet: 'microsoftOffice',
   microsoft_office: 'microsoftOffice',
   nextcloud: 'nextcloud',
   nextcloud_excel: 'nextcloud',
@@ -23,7 +30,14 @@ const SOURCE_ICON_ALIASES: Readonly<Record<string, keyof typeof SOURCE_ICON_ASSE
   office: 'microsoftOffice',
   onlyoffice: 'onlyoffice',
   onlyoffice_spreadsheet: 'onlyoffice',
+  snapp_shop: 'snappshop',
+  snappshop: 'snappshop',
   spreadsheet_import: 'microsoftOffice',
+  tapsi_shop: 'tapsishop',
+  tapsishop: 'tapsishop',
+  technolife: 'technolife',
+  woo_commerce: 'woocommerce',
+  woocommerce: 'woocommerce',
   xlsx: 'microsoftOffice',
 })
 
@@ -63,5 +77,8 @@ export function sourceIconPath(identity: SourceIconIdentityInput): string {
 }
 
 export function isLocalSourceIconPath(value: string): boolean {
-  return value.startsWith('/static/logos/') && !value.startsWith('//')
+  return (
+    value.startsWith('/static/logos/')
+    || value.startsWith('/static/win11-icon/brand/')
+  ) && !value.startsWith('//')
 }

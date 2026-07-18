@@ -1,9 +1,5 @@
-import { useEffect, useState } from 'react'
-import {
-  SOURCE_ICON_FALLBACK,
-  sourceIconPath,
-  type SourceIconIdentityInput,
-} from '../features/sourceIntegrations/sourceIconRegistry'
+import BrandIcon from './BrandIcon'
+import type { SourceIconIdentityInput } from '../features/sourceIntegrations/sourceIconRegistry'
 
 export interface SourceIconProps {
   identity?: SourceIconIdentityInput
@@ -22,27 +18,5 @@ export default function SourceIcon({
   size = 48,
   className = '',
 }: SourceIconProps) {
-  const resolvedPath = sourceIconPath(identity)
-  const [currentPath, setCurrentPath] = useState(resolvedPath)
-
-  useEffect(() => setCurrentPath(resolvedPath), [resolvedPath])
-
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-white p-1 ${className}`.trim()}
-      data-source-icon={currentPath}
-      style={{ height: size, width: size }}
-    >
-      <img
-        alt={label ?? ''}
-        aria-hidden={label ? undefined : true}
-        className="block h-full w-full object-contain"
-        decoding="async"
-        height={size}
-        onError={() => setCurrentPath(path => path === SOURCE_ICON_FALLBACK ? path : SOURCE_ICON_FALLBACK)}
-        src={currentPath}
-        width={size}
-      />
-    </span>
-  )
+  return <BrandIcon identity={identity} label={label} size={size} className={className} />
 }
