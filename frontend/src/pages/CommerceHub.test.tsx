@@ -837,7 +837,7 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('CSV')
     expect(c.textContent).toContain('Google Sheets')
     expect(c.textContent).toContain('ERP / API Import')
-    expect(c.textContent).toContain('Add Source')
+    expect(c.textContent).toContain('Add source')
     expect(c.textContent).toContain('Coming Soon')
     expect(c.textContent).not.toContain('Snapp Shop')
     expect(c.textContent).not.toContain('Tapsi Shop')
@@ -1291,7 +1291,7 @@ describe('CommerceHub', () => {
         ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
     await act(async () => {
-      Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add Source')
+      Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add source')
         ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
     const sourceTypeSelect = Array.from(c.querySelectorAll('label')).find(label => label.textContent?.includes('Source type'))?.querySelector('select') as HTMLSelectElement

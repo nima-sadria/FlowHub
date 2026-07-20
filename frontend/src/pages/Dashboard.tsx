@@ -3,13 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../auth'
 import Badge from '../components/Badge'
+import BrandIcon from '../components/BrandIcon'
+import BusinessCard, { type BusinessCardTone } from '../components/BusinessCard'
 import Empty from '../components/Empty'
-import Icon from '../components/Icon'
+import Icon, { type IconName } from '../components/Icon'
 import KpiCard from '../components/KpiCard'
 import LocalizedText from '../components/LocalizedText'
 import { SkeletonCard } from '../components/loading/Skeleton'
 import PageShell from '../components/PageShell'
+import { ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
+import {
+  diagnosticChannelSignals,
+  legacySourceSignals,
+  prepareResourceCollection,
+} from '../features/resourceOrdering/resourceOrdering'
 import { translate } from '../i18n'
 import { formatDiagnosticMessage, formatStatus } from '../i18n/display'
 import { formatNumber, formatRelativeTime } from '../i18n/format'
@@ -53,6 +61,17 @@ interface DashboardBusinessMetrics {
 interface DashboardBusinessSummary {
   generatedAt: string
   metrics: DashboardBusinessMetrics
+}
+
+interface DashboardCardModel {
+  value: string
+  explanation: string
+  status: {
+    label: string
+    tone: BusinessCardTone
+    icon: IconName
+  }
+  recommendation: string
 }
 
 function relTime(date: Date | null): string {
@@ -187,7 +206,10 @@ export default function Dashboard() {
     Promise.allSettled([
       healthService.getChannelHealth(),
       sources.getSources(),
-      products.getProducts({ search: '', status: 'all', page: 1, pageSize: 1 }),
+      Promise.resolve().then(() => {
+        if (!products?.getProducts) throw new Error('products service unavailable')
+        return products.getProducts({ search: '', status: 'all', page: 1, pageSize: 1 })
+      }),
       activity.getEvents({ page: 1, pageSize: 4 }),
       Promise.resolve().then(() => {
         if (!orders?.getOrders) throw new Error('orders service unavailable')
@@ -205,6 +227,17 @@ export default function Dashboard() {
     return () => { cancelled = true }
   }, [healthService, sources, products, activity, orders])
 
+  const orderedSources = useMemo(
+    () => prepareResourceCollection(sourceList, legacySourceSignals),
+    [sourceList],
+  )
+  const orderedChannels = useMemo(
+    () => prepareResourceCollection(channelHealth?.items ?? [], channel => ({
+      ...diagnosticChannelSignals(channel),
+      displayName: formatChannelDisplayName(channel.channelId || `${channel.channelType}:primary`),
+    })),
+    [channelHealth],
+  )
   const activeSources = sourceList.filter(source => source.status === 'active')
   const lastSync = activeSources.reduce<Date | null>((best, source) => {
     if (!source.lastSynced) return best
@@ -217,6 +250,161 @@ export default function Dashboard() {
   const channelWarnings = counts?.Warning ?? 0
   const channelBlocking = (counts?.Error ?? 0) + (counts?.['Unable to check'] ?? 0)
   const metrics = businessSummary?.metrics
+  const recommendationLabel = translate('dashboard:dashboard.recommendedAction')
+  const loadingCard: DashboardCardModel = {
+    value: translate('common:status.loading'),
+    explanation: translate('dashboard:dashboard.loadingBusinessMetrics'),
+    status: {
+      label: translate('common:status.checking'),
+      tone: 'info',
+      icon: 'refresh',
+    },
+    recommendation: translate('dashboard:dashboard.waitForDashboardData'),
+  }
+  const unavailableCard: DashboardCardModel = {
+    value: translate('dashboard:dashboard.businessDataUnavailable'),
+    explanation: translate('dashboard:dashboard.businessDataUnavailableExplanation'),
+    status: {
+      label: translate('dashboard:dashboard.needsAttention'),
+      tone: 'warning',
+      icon: 'warning',
+    },
+    recommendation: translate('dashboard:dashboard.retryBusinessSummary'),
+  }
+  const pendingCard = businessLoading ? loadingCard : businessError || !metrics ? unavailableCard : null
+  const countValue = (value: number, emptyKey: string, valueKey: string): string => (
+    value > 0
+      ? translate(valueKey, { count: value, value: formatNumber(value) })
+      : translate(emptyKey)
+  )
+  const healthyStatus = {
+    label: translate('common:status.healthy'),
+    tone: 'success' as BusinessCardTone,
+    icon: 'success' as IconName,
+  }
+  const readyStatus = {
+    label: translate('common:status.ready'),
+    tone: 'success' as BusinessCardTone,
+    icon: 'success' as IconName,
+  }
+  const infoStatus = {
+    label: translate('common:status.info'),
+    tone: 'info' as BusinessCardTone,
+    icon: 'info' as IconName,
+  }
+  const changesCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.productsWithChanges, 'dashboard:dashboard.noPriceChanges', 'dashboard:dashboard.productChangesValue'),
+    explanation: metrics!.productsWithChanges > 0
+      ? translate('dashboard:dashboard.productChangesExplanation', { count: metrics!.productsWithChanges, value: formatNumber(metrics!.productsWithChanges) })
+      : translate('dashboard:dashboard.productChangesEmptyExplanation'),
+    status: metrics!.productsWithChanges > 0 ? infoStatus : healthyStatus,
+    recommendation: metrics!.productsWithChanges > 0
+      ? translate('dashboard:dashboard.reviewTodaysPriceChanges')
+      : translate('dashboard:dashboard.noActionRequired'),
+  }
+  const reviewCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.readyForReview, 'dashboard:dashboard.nothingReadyForReview', 'dashboard:dashboard.productsReadyValue'),
+    explanation: metrics!.readyForReview > 0
+      ? translate('dashboard:dashboard.readyForReviewExplanation', { count: metrics!.readyForReview, value: formatNumber(metrics!.readyForReview) })
+      : translate('dashboard:dashboard.readyForReviewEmptyExplanation'),
+    status: metrics!.readyForReview > 0 ? readyStatus : infoStatus,
+    recommendation: metrics!.readyForReview > 0
+      ? translate('dashboard:dashboard.reviewPendingChanges')
+      : translate('dashboard:dashboard.noActionRequired'),
+  }
+  const applyCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.readyForApply, 'dashboard:dashboard.nothingReadyForApply', 'dashboard:dashboard.productsReadyValue'),
+    explanation: metrics!.readyForApply > 0
+      ? translate('dashboard:dashboard.readyForApplyExplanation', { count: metrics!.readyForApply, value: formatNumber(metrics!.readyForApply) })
+      : translate('dashboard:dashboard.readyForApplyEmptyExplanation'),
+    status: metrics!.readyForApply > 0 ? readyStatus : infoStatus,
+    recommendation: metrics!.readyForApply > 0
+      ? translate('dashboard:dashboard.applyApprovedChanges')
+      : translate('dashboard:dashboard.noActionRequired'),
+  }
+  const blockingCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.blockingIssues, 'dashboard:dashboard.noBlockingIssues', 'dashboard:dashboard.issueCountValue'),
+    explanation: metrics!.blockingIssues > 0
+      ? translate('dashboard:dashboard.blockingIssuesExplanation', {
+        count: metrics!.affectedProducts,
+        issues: formatNumber(metrics!.blockingIssues),
+        products: formatNumber(metrics!.affectedProducts),
+      })
+      : translate('dashboard:dashboard.blockingIssuesEmptyExplanation'),
+    status: metrics!.blockingIssues > 0
+      ? { label: translate('common:status.blocked'), tone: 'danger', icon: 'error' }
+      : healthyStatus,
+    recommendation: metrics!.blockingIssues > 0
+      ? translate('dashboard:dashboard.fixBlockingProducts')
+      : translate('dashboard:dashboard.noActionRequired'),
+  }
+  const warningCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.warnings, 'dashboard:dashboard.noWarnings', 'dashboard:dashboard.issueCountValue'),
+    explanation: metrics!.warnings > 0
+      ? translate('dashboard:dashboard.warningsExplanation', { count: metrics!.warnings, value: formatNumber(metrics!.warnings) })
+      : translate('dashboard:dashboard.warningsEmptyExplanation'),
+    status: metrics!.warnings > 0
+      ? { label: translate('dashboard:dashboard.needsAttention'), tone: 'warning', icon: 'warning' }
+      : healthyStatus,
+    recommendation: metrics!.warnings > 0
+      ? translate('dashboard:dashboard.reviewWarnings')
+      : translate('dashboard:dashboard.noActionRequired'),
+  }
+  const businessRevenueText = metrics?.revenueToday.map(item => (
+    formatMoney(item.amount, { currency: item.currency })
+  )).join(' · ') ?? ''
+  const ordersCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.ordersToday, 'dashboard:dashboard.noOrdersToday', 'dashboard:dashboard.ordersValue'),
+    explanation: metrics!.ordersToday > 0
+      ? translate('dashboard:dashboard.ordersTodayExplanation', {
+        revenue: businessRevenueText || translate('dashboard:dashboard.revenueUnavailable'),
+        trend: comparisonWithYesterday(metrics!.ordersToday, metrics!.ordersYesterday),
+      })
+      : translate('dashboard:dashboard.ordersTodayEmptyExplanation'),
+    status: metrics!.ordersToday > 0 ? infoStatus : healthyStatus,
+    recommendation: metrics!.ordersToday > 0
+      ? translate('dashboard:dashboard.reviewTodaysOrders')
+      : translate('dashboard:dashboard.noActionRequired'),
+  }
+  const stockCard: DashboardCardModel = pendingCard ?? {
+    value: countValue(metrics!.outOfStockProducts, 'dashboard:dashboard.noInventoryAlerts', 'dashboard:dashboard.productsAffectedValue'),
+    explanation: metrics!.outOfStockProducts > 0
+      ? translate('dashboard:dashboard.outOfStockExplanation', { count: metrics!.outOfStockProducts, value: formatNumber(metrics!.outOfStockProducts) })
+      : translate('dashboard:dashboard.outOfStockEmptyExplanation'),
+    status: metrics!.outOfStockProducts > 0
+      ? { label: translate('dashboard:dashboard.needsAttention'), tone: 'warning', icon: 'warning' }
+      : healthyStatus,
+    recommendation: metrics!.outOfStockProducts > 0
+      ? translate('dashboard:dashboard.reviewInventoryAlerts')
+      : translate('dashboard:dashboard.noActionRequired'),
+  }
+  const updatesCard: DashboardCardModel = pendingCard ?? {
+    value: metrics!.failedUpdates > 0
+      ? translate('dashboard:dashboard.failedUpdatesValue', { count: metrics!.failedUpdates, value: formatNumber(metrics!.failedUpdates) })
+      : metrics!.pendingUpdates > 0
+        ? translate('dashboard:dashboard.pendingUpdatesValue', { count: metrics!.pendingUpdates, value: formatNumber(metrics!.pendingUpdates) })
+        : translate('dashboard:dashboard.everythingSynchronized'),
+    explanation: metrics!.failedUpdates > 0
+      ? translate('dashboard:dashboard.failedUpdatesExplanation', {
+        failed: formatNumber(metrics!.failedUpdates),
+        pending: formatNumber(metrics!.pendingUpdates),
+      })
+      : metrics!.pendingUpdates > 0
+        ? translate('dashboard:dashboard.pendingUpdatesExplanation', { count: metrics!.pendingUpdates, value: formatNumber(metrics!.pendingUpdates) })
+        : translate('dashboard:dashboard.updatesCompleteExplanation', {
+          trend: comparisonWithYesterday(metrics!.updatesAppliedToday, metrics!.updatesAppliedYesterday),
+        }),
+    status: metrics!.failedUpdates > 0
+      ? { label: translate('common:status.error'), tone: 'danger', icon: 'error' }
+      : metrics!.pendingUpdates > 0
+        ? { label: translate('common:status.pending'), tone: 'warning', icon: 'warning' }
+        : healthyStatus,
+    recommendation: metrics!.failedUpdates > 0
+      ? translate('dashboard:dashboard.reviewFailedUpdates')
+      : metrics!.pendingUpdates > 0
+        ? translate('dashboard:dashboard.monitorPendingUpdates')
+        : translate('dashboard:dashboard.noActionRequired'),
+  }
 
   const countedOrders = useMemo(
     () => (orderWindow ?? []).filter(order => !EXCLUDED_ORDER_STATUSES.has(order.normalizedStatus.toLowerCase())),
@@ -403,6 +591,114 @@ export default function Dashboard() {
         </span>
       </div>
 
+      <section aria-labelledby="business-overview-heading">
+        <div className="mb-2">
+          <h2 id="business-overview-heading" className="fh-section-title">
+            {translate('dashboard:dashboard.businessOverview')}
+          </h2>
+        </div>
+        <div className="fh-business-card-grid">
+          <BusinessCard
+            testId="price-changes"
+            title={translate('dashboard:dashboard.productsWithPriceChanges')}
+            value={changesCard.value}
+            explanation={changesCard.explanation}
+            meaning={translate('dashboard:dashboard.productChangesMeaning')}
+            icon="edit"
+            status={changesCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={changesCard.recommendation}
+            action={businessError
+              ? { label: translate('common:action.retry'), onClick: () => void fetchBusinessSummary() }
+              : { label: translate('dashboard:dashboard.viewProducts'), onClick: () => navigate('/products') }}
+          />
+          <BusinessCard
+            testId="ready-review"
+            title={translate('dashboard:dashboard.readyForReview')}
+            value={reviewCard.value}
+            explanation={reviewCard.explanation}
+            meaning={translate('dashboard:dashboard.readyForReviewMeaning')}
+            icon="preview"
+            status={reviewCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={reviewCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.openProducts'), onClick: () => navigate('/products') }}
+          />
+          <BusinessCard
+            testId="ready-apply"
+            title={translate('dashboard:dashboard.readyForApply')}
+            value={applyCard.value}
+            explanation={applyCard.explanation}
+            meaning={translate('dashboard:dashboard.readyForApplyMeaning')}
+            icon="apply"
+            status={applyCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={applyCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.openWorkspace'), onClick: () => navigate('/workspace') }}
+          />
+          <BusinessCard
+            testId="blocking"
+            title={translate('dashboard:dashboard.blockingIssues')}
+            value={blockingCard.value}
+            explanation={blockingCard.explanation}
+            meaning={translate('dashboard:dashboard.blockingIssuesMeaning')}
+            icon="error"
+            status={blockingCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={blockingCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.openDataQuality'), onClick: () => navigate('/data-quality') }}
+          />
+          <BusinessCard
+            testId="warnings"
+            title={translate('dashboard:dashboard.warnings')}
+            value={warningCard.value}
+            explanation={warningCard.explanation}
+            meaning={translate('dashboard:dashboard.warningsMeaning')}
+            icon="warning"
+            status={warningCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={warningCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.openDataQuality'), onClick: () => navigate('/data-quality') }}
+          />
+          <BusinessCard
+            testId="orders"
+            title={translate('dashboard:dashboard.ordersAndRevenueToday')}
+            value={ordersCard.value}
+            explanation={ordersCard.explanation}
+            meaning={translate('dashboard:dashboard.ordersMeaning')}
+            icon="orders"
+            status={ordersCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={ordersCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.openOrders'), onClick: () => navigate('/orders') }}
+          />
+          <BusinessCard
+            testId="inventory"
+            title={translate('dashboard:dashboard.inventoryAlerts')}
+            value={stockCard.value}
+            explanation={stockCard.explanation}
+            meaning={translate('dashboard:dashboard.inventoryMeaning')}
+            icon="products"
+            status={stockCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={stockCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.viewProducts'), onClick: () => navigate('/products') }}
+          />
+          <BusinessCard
+            testId="updates"
+            title={translate('dashboard:dashboard.publishingUpdates')}
+            value={updatesCard.value}
+            explanation={updatesCard.explanation}
+            meaning={translate('dashboard:dashboard.updatesMeaning')}
+            icon="sync"
+            status={updatesCard.status}
+            recommendationLabel={recommendationLabel}
+            recommendation={updatesCard.recommendation}
+            action={{ label: translate('dashboard:dashboard.openActivity'), onClick: () => navigate('/activity') }}
+          />
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <ChartCard title={translate('dashboard:dashboard.revenueTrend')}>
           {orderWindow === null ? (
@@ -428,6 +724,108 @@ export default function Dashboard() {
             />
           )}
         </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className={[CARD, 'flex flex-col gap-3 p-3.5'].join(' ')}>
+          <div className="flex items-center">
+            <p className="text-sm font-semibold leading-[22px] text-text-base">
+              {translate('dashboard:dashboard.channels')}
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/diagnostics')}
+              className="ms-auto text-xs font-medium leading-4 text-accent hover:text-accent-hover"
+            >
+              {translate('dashboard:dashboard.openDiagnostics')}
+            </button>
+          </div>
+          {!channelHealth ? (
+            loading
+              ? <SkeletonCard />
+              : <Empty title={translate('dashboard:dashboard.channelHealthUnavailable')} />
+          ) : channelHealth.items.length === 0 ? (
+            <Empty title={translate('dashboard:dashboard.noChannelsMonitored')} />
+          ) : (
+            <ResourceSectionList
+              resources={orderedChannels}
+              className="divide-y divide-border"
+              renderItem={resource => {
+                const channel = resource.item
+                return (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/diagnostics')}
+                    className="flex w-full items-center gap-2.5 py-2.5 text-start"
+                  >
+                    <BrandIcon identity={channel.channelId} label={resource.displayName} size={36} />
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate text-[13px] font-medium leading-[18px] text-text-base">
+                        {resource.displayName}
+                      </span>
+                      <span className="truncate text-xs leading-4 text-[color:var(--fh-text-secondary)]">
+                        {formatDiagnosticMessage(channel.summary)}
+                      </span>
+                    </span>
+                    <ResourceStateBadge badge={resource.badge} />
+                  </button>
+                )
+              }}
+            />
+          )}
+        </div>
+
+        <div className={[CARD, 'flex flex-col gap-3 p-3.5'].join(' ')}>
+          <div className="flex items-center">
+            <p className="text-sm font-semibold leading-[22px] text-text-base">
+              {translate('dashboard:dashboard.sources')}
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/sources')}
+              className="ms-auto text-xs font-medium leading-4 text-accent hover:text-accent-hover"
+            >
+              {translate('dashboard:dashboard.manageSources')}
+            </button>
+          </div>
+          {loading ? (
+            <SkeletonCard />
+          ) : sourceList.length === 0 ? (
+            <Empty
+              title={translate('dashboard:dashboard.noSourcesYet')}
+              description={translate('dashboard:dashboard.connectSourceForDailyWork')}
+            />
+          ) : (
+            <ResourceSectionList
+              resources={orderedSources}
+              className="divide-y divide-border"
+              renderItem={resource => {
+                const source = resource.item
+                return (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/sources')}
+                    className="flex w-full items-center gap-2.5 py-2.5 text-start"
+                  >
+                    <BrandIcon identity={{ sourceType: source.type }} label={source.name} size={36} />
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate text-[13px] font-medium leading-[18px] text-text-base">
+                        {source.name}
+                      </span>
+                      <span className="truncate text-xs leading-4 text-[color:var(--fh-text-secondary)]">
+                        {translate('dashboard:dashboard.products', {
+                          value1: relTime(source.lastSynced),
+                          value2: formatNumber(source.productCount),
+                        })}
+                      </span>
+                    </span>
+                    <ResourceStateBadge badge={resource.badge} />
+                  </button>
+                )
+              }}
+            />
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">

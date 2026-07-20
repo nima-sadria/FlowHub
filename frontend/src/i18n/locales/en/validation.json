@@ -1,5 +1,5 @@
 {
-  "rateLimits.readRequestsRange": "Read Requests / Minute must be between {{min}} and {{max}}.",
-  "rateLimits.writeRequestsRange": "Write Requests / Minute must be between {{min}} and {{max}}.",
+  "rateLimits.readRequestsRange": "Read requests per minute must be between {{min}} and {{max}}.",
+  "rateLimits.writeRequestsRange": "Write requests per minute must be between {{min}} and {{max}}.",
   "setup.validEmailRequired": "Enter a valid email address."
 }

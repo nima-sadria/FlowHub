@@ -4,9 +4,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'
-import Empty from '../components/Empty'
 import { useServices } from '../services/ServiceContext'
-import type { CommerceChannel, CommerceSource, CommerceTypeField, CommerceTypeOption } from '../services/types'
+import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeField, CommerceTypeOption } from '../services/types'
 import type { ChannelCacheRefreshResult, CommerceChannelConfiguration, CommerceVendor, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
 import Spinner from '../components/loading/Spinner'
 import SecretField from '../components/SecretField'
@@ -1059,6 +1058,7 @@ export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
   const [channels, setChannels] = useState<CommerceChannel[]>([])
   const [sourceTypes, setSourceTypes] = useState<CommerceTypeOption[]>([])
   const [channelTypes, setChannelTypes] = useState<CommerceTypeOption[]>([])
+  const [map, setMap] = useState<CommerceRelationshipMap | null>(null)
   const [loading, setLoading] = useState(true)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [readingId, setReadingId] = useState<string | null>(null)
@@ -1090,6 +1090,7 @@ export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
       commerce.getChannelTypes(),
     ])
     setSources(sourceData.items)
+    setMap(sourceData.relationship_map)
     setChannels(channelData.items)
     setSourceTypes(sourceTypeData.items)
     setChannelTypes(channelTypeData.items)
@@ -1104,6 +1105,12 @@ export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
       .finally(() => setLoading(false))
   }, [commerce])
 
+  function selectTab(nextTab: Tab) {
+    setTab(nextTab)
+    setSearchParams({ tab: nextTab })
+    setFormKind(null)
+    setEditingChannelId(null)
+  }
 
   async function handleSourceTest(sourceId: string) {
     if (!canManageCommerce) {
