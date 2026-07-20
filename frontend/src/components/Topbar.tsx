@@ -1,43 +1,22 @@
+import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { translate } from '../i18n'
-import { formatStatus } from '../i18n/display'
-import { useState } from 'react'
-import { useLocation } from 'react-router-dom'
-import Badge from './Badge'
+import Icon from './Icon'
 import IconButton from './IconButton'
 import { useTheme } from '../theme/ThemeProvider'
-
-const PAGE_TITLE_KEYS: Record<string, string> = {
-  '/home': 'navigation:topbar.dashboard',
-  '/workspace': 'navigation:topbar.workspace',
-  '/products': 'navigation:topbar.products',
-  '/sources': 'navigation:topbar.sources',
-  '/sources/new': 'navigation:topbar.addSource',
-  '/sources/import': 'navigation:topbar.importSpreadsheet',
-  '/data-quality': 'navigation:topbar.dataQuality',
-  '/commerce': 'navigation:topbar.commerceHub',
-  '/activity': 'navigation:topbar.activity',
-  '/diagnostics': 'navigation:topbar.diagnostics',
-  '/rate-limits': 'navigation:topbar.globalApiRateLimits',
-  '/settings': 'navigation:topbar.settings',
-}
-
-export function resolvePageTitle(pathname: string, workspaceName?: string | null): string {
-  const staticTitleKey = PAGE_TITLE_KEYS[pathname]
-  if (staticTitleKey) return translate(staticTitleKey)
-  if (/^\/(?:workspace|workspaces|unified-workspace)\/[^/]+(?:\/.*)?$/.test(pathname)) {
-    return workspaceName?.trim() || translate('navigation:topbar.workspace')
-  }
-  if (/^\/sources\/[^/]+$/.test(pathname)) return translate('navigation:topbar.sourceConfiguration')
-  if (/^\/sheets\/[^/]+$/.test(pathname)) return translate('navigation:topbar.flowhubSheet')
-  return translate('navigation:topbar.flowhub')
-}
+import { useDirection } from '../direction'
 
 interface Props {
   onMenuClick: () => void
-  health: 'ok' | 'error' | 'loading'
-  user: { username: string } | null
+  onToggleCollapse: () => void
+  user: { username: string; role?: string } | null
   onLogout: () => void
 }
+
+const LANGUAGES = [
+  { code: 'en', labelKey: 'settings:language.english', direction: 'ltr' as const },
+  { code: 'fa', labelKey: 'settings:language.persian', direction: 'rtl' as const },
+]
 
 function MenuIcon() {
   return (
@@ -61,10 +40,10 @@ function SunIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="h-[18px] w-[18px]"
+      className="h-5 w-5"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -79,10 +58,10 @@ function MoonIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="h-[18px] w-[18px]"
+      className="h-5 w-5"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -112,29 +91,31 @@ function SignOutIcon() {
 
 export default function Topbar({
   onMenuClick,
-  health,
+  onToggleCollapse,
   user,
   onLogout,
 }: Props) {
-  const location = useLocation()
+  const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [langOpen, setLangOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
   const { theme, toggleTheme } = useTheme()
-  const title = resolvePageTitle(location.pathname)
+  const { language, setLanguage, setDirection } = useDirection()
 
-  const healthLabel = formatStatus(
-    health === 'ok'
-      ? 'connected'
-      : health === 'error'
-        ? 'offline'
-        : 'checking',
-  )
+  function handleSearchSubmit(event: FormEvent) {
+    event.preventDefault()
+    const term = searchTerm.trim()
+    navigate(term ? `/products?q=${encodeURIComponent(term)}` : '/products')
+  }
 
-  const healthVariant =
-    health === 'ok'
-      ? 'success'
-      : health === 'error'
-        ? 'error'
-        : 'neutral'
+  function handleSelectLanguage(code: string) {
+    const lang = LANGUAGES.find(entry => entry.code === code)
+    if (lang) {
+      setLanguage(lang.code)
+      setDirection(lang.direction)
+    }
+    setLangOpen(false)
+  }
 
   function handleLogout() {
     setMenuOpen(false)
@@ -144,74 +125,133 @@ export default function Topbar({
   return (
     <header className="fh-topbar">
       <div className="fh-topbar-inner">
-        <div className="flex min-w-0 items-center gap-3">
-          <IconButton
-            onClick={onMenuClick}
-            className="md:hidden"
-            label={translate('navigation:topbar.openNavigation')}
-          >
-            <MenuIcon />
-          </IconButton>
+        <IconButton
+          onClick={onMenuClick}
+          className="md:hidden"
+          label={translate('navigation:topbar.openNavigation')}
+        >
+          <MenuIcon />
+        </IconButton>
 
-          <div className="min-w-0">
-            <div className="fh-text-caption">{translate('navigation:topbar.brandPrefix')} {title}</div>
-            <p className="truncate text-[20px] font-semibold leading-7 text-text-base">
-              {title}
-            </p>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          aria-label={translate('navigation:sidebar.collapseSidebar')}
+          className="fh-topbar-action hidden md:inline-flex"
+        >
+          <Icon name="panelToggle" size="lg" mirrorRtl />
+        </button>
 
-        <div className="ms-auto flex items-center gap-2 sm:gap-3">
-          <div className="hidden sm:flex">
-            <Badge dot variant={healthVariant}>
-              {healthLabel}
-            </Badge>
-          </div>
+        <form
+          onSubmit={handleSearchSubmit}
+          className="fh-topbar-search hidden sm:block"
+          role="search"
+        >
+          <Icon name="search" className="fh-topbar-search-icon" />
+          <input
+            type="search"
+            aria-label={translate('activity:activity.search')}
+            placeholder={translate('products:products.searchNameOrSku')}
+            value={searchTerm}
+            onChange={event => setSearchTerm(event.target.value)}
+          />
+        </form>
 
-          <IconButton
+        <div className="ms-auto flex items-center gap-1.5 sm:gap-2">
+          <button
+            type="button"
             onClick={toggleTheme}
-            label={
-              theme === "dark"
+            aria-label={
+              theme === 'dark'
                 ? translate('navigation:topbar.switchToLightMode')
                 : translate('navigation:topbar.switchToDarkMode')
             }
-            size="sm"
+            className="fh-topbar-action"
           >
-            {theme === "dark" ? <SunIcon /> : <MoonIcon />}
-          </IconButton>
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/activity')}
+            aria-label={translate('notifications:notificationContainer.notifications')}
+            className="fh-topbar-action"
+          >
+            <Icon name="bell" size="lg" />
+          </button>
+
+          <div
+            className="relative"
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setLangOpen(false)
+              }
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setLangOpen(open => !open)}
+              aria-label={translate('settings:language.title')}
+              aria-expanded={langOpen}
+              className="fh-topbar-pill"
+            >
+              <Icon name="globe" size="lg" />
+              <span className="uppercase">{language}</span>
+              <Icon name="chevronDown" size="md" />
+            </button>
+
+            {langOpen && (
+              <div className="fh-dropdown absolute end-0 top-full z-50 mt-2 min-w-[160px]">
+                {LANGUAGES.map(lang => (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => handleSelectLanguage(lang.code)}
+                    className={[
+                      'fh-dropdown-item',
+                      lang.code === 'fa' ? 'fh-persian-text' : '',
+                      lang.code === language ? 'text-accent' : '',
+                    ].filter(Boolean).join(' ')}
+                  >
+                    {translate(lang.labelKey)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {user && (
             <div
               className="relative"
               onBlur={(event) => {
-                if (
-                  !event.currentTarget.contains(
-                    event.relatedTarget as Node | null,
-                  )
-                ) {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
                   setMenuOpen(false)
                 }
               }}
             >
               <button
                 type="button"
-                onClick={() => setMenuOpen((open) => !open)}
+                onClick={() => setMenuOpen(open => !open)}
                 aria-label={translate('navigation:topbar.userMenu')}
                 aria-expanded={menuOpen}
-                className="fh-user-chip"
+                className="flex items-center gap-2.5 rounded-lg py-1 ps-2 pe-1 hover:bg-bg-subtle"
               >
-                <div className="hidden text-left sm:block">
-                  <div className="text-xs font-medium leading-4 text-text-base">
-                    {user.username}
-                  </div>
-                  <div className="fh-text-caption uppercase tracking-[0.06em]">
-                    {healthLabel}
-                  </div>
-                </div>
-
                 <span className="fh-user-avatar">
                   {user.username.slice(0, 2).toUpperCase()}
                 </span>
+
+                <span className="hidden flex-col items-start sm:flex">
+                  <span className="text-sm font-medium leading-5 text-text-base">
+                    {user.username}
+                  </span>
+                  {user.role && (
+                    <span className="text-xs leading-4 text-wp-muted capitalize">
+                      {user.role}
+                    </span>
+                  )}
+                </span>
+
+                <Icon name="chevronDown" size="md" className="hidden text-wp-muted sm:inline-flex" />
               </button>
 
               {menuOpen && (
@@ -220,7 +260,9 @@ export default function Topbar({
                     <div className="text-[13px] font-medium leading-5 text-text-base">
                       {user.username}
                     </div>
-                    <div className="fh-text-caption mt-0.5">{translate('navigation:topbar.signedIn')}</div>
+                    <div className="fh-text-caption mt-0.5 capitalize">
+                      {user.role || translate('navigation:topbar.signedIn')}
+                    </div>
                   </div>
 
                   <button
