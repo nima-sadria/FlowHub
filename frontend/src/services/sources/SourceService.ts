@@ -1,7 +1,5 @@
-import type { Source, SourceConfig, ConnectionTestResult } from '../types'
+import type { Source } from '../types'
 
 export interface SourceService {
   getSources(): Promise<Source[]>
-  testConnection(config: SourceConfig): Promise<ConnectionTestResult>
-  createSource(config: SourceConfig): Promise<Source>
 }
