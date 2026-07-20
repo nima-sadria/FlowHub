@@ -21,6 +21,7 @@ interface NavItem {
   to: string
   icon: IconName
   permission: string
+  adminOnly?: boolean
   /** Overrides NavLink's default active matching (query-tab routes). */
   isActive?: (pathname: string, tab: string | null) => boolean
 }
@@ -77,6 +78,7 @@ const NAV_GROUPS: NavGroup[] = [
     sectionKey: 'navigation:sidebar.settings',
     items: [
       { labelKey: 'navigation:sidebar.general', to: '/settings', icon: routeIconMap.Settings, permission: 'can_view_settings' },
+      { labelKey: 'navigation:sidebar.users', to: '/settings/users', icon: routeIconMap.Users, permission: 'can_view_settings', adminOnly: true },
       { labelKey: 'navigation:sidebar.rateLimits', to: '/rate-limits', icon: routeIconMap['Rate Limits'], permission: 'can_view_settings' },
     ],
   },
@@ -159,7 +161,9 @@ export default function Sidebar({ open, collapsed, onClose, user, health }: Prop
         <nav className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-[23px] pb-4">
           <div className="flex flex-col gap-[18px]">
             {NAV_GROUPS.map(group => {
-              const visible = group.items.filter(item => hasPerm(item.permission))
+              const visible = group.items.filter(item => (
+                hasPerm(item.permission) && (!item.adminOnly || Boolean(user?.is_admin || user?.is_super_admin))
+              ))
               if (visible.length === 0) return null
               return (
                 <div key={group.sectionKey ?? 'primary'} className="flex flex-col gap-[6px]">

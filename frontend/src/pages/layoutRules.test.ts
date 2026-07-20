@@ -10,6 +10,7 @@ const primaryPages = [
   'Diagnostics.tsx',
   'RateLimits.tsx',
   'Settings.tsx',
+  'UserManagement.tsx',
 ]
 
 const pageSources = import.meta.glob('./*.tsx', {

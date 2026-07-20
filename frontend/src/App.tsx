@@ -33,6 +33,7 @@ const Orders = lazy(() => import('./pages/Orders'))
 const RateLimits = lazy(() => import('./pages/RateLimits'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Setup = lazy(() => import('./pages/Setup'))
+const UserManagement = lazy(() => import('./pages/UserManagement'))
 const SourceCenter = lazy(() => import('./pages/SourceCenter'))
 const SourceConfiguration = lazy(() => import('./pages/SourceConfiguration'))
 const SourceImportWizard = lazy(() => import('./pages/SourceImportWizard'))
@@ -179,6 +180,7 @@ function SetupGate() {
           <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
           <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
           <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
+          <Route path="/settings/users" element={<RequirePermission permission="can_view_settings" adminOnly><UserManagement /></RequirePermission>} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
