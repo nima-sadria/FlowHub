@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { Product, ProductChannelPriceOperation, ProductChannelPriceStateSet } from '../services/types'
@@ -125,11 +126,13 @@ describe('Products multi-channel price editor', () => {
 async function renderProducts(services: Services) {
   await act(async () => {
     root.render(
-      <NotificationProvider>
-        <ServiceProvider services={services}>
-          <Products />
-        </ServiceProvider>
-      </NotificationProvider>,
+      <MemoryRouter initialEntries={['/products']}>
+        <NotificationProvider>
+          <ServiceProvider services={services}>
+            <Products />
+          </ServiceProvider>
+        </NotificationProvider>
+      </MemoryRouter>,
     )
   })
   await flush()

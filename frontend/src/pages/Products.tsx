@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'
 import Empty from '../components/Empty'
@@ -359,9 +360,15 @@ function OperationResult({ operation }: { operation: ProductChannelPriceOperatio
 
 export default function Products() {
   const { products: productService, unifiedWorkspace } = useServices()
+  const [searchParams] = useSearchParams()
+  const globalQuery = searchParams.get('q') ?? ''
 
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [search, setSearch] = useState(globalQuery)
+  const [debouncedSearch, setDebouncedSearch] = useState(globalQuery)
+
+  useEffect(() => {
+    if (globalQuery) setSearch(globalQuery)
+  }, [globalQuery])
   const [categoryId, setCategoryId] = useState<number | null>(null)
   const [productType, setProductType] = useState<'all' | 'simple' | 'variable' | 'variation'>('all')
   const [channelId, setChannelId] = useState('')

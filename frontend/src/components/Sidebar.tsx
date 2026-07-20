@@ -1,41 +1,108 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useSearchParams } from 'react-router-dom'
 import type { AuthUser } from '../auth'
-import { useAuth } from '../auth'
 import Icon, { routeIconMap } from './Icon'
+import type { IconName } from './Icon'
 import IconButton from './IconButton'
 import { effectiveHasPerm } from '../utils/permissions'
+
+type HealthStatus = 'ok' | 'error' | 'loading'
 
 interface Props {
   open: boolean
   collapsed: boolean
   onClose: () => void
-  onToggleCollapse: () => void
   user: AuthUser | null
+  health: HealthStatus
 }
 
-function initials(name: string) {
-  return name.slice(0, 2).toUpperCase()
+interface NavItem {
+  label: string
+  to: string
+  icon: IconName
+  permission: string
+  /** Overrides NavLink's default active matching (query-tab routes). */
+  isActive?: (pathname: string, tab: string | null) => boolean
 }
 
-export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, user }: Props) {
-  const { logout } = useAuth()
-  const navigate = useNavigate()
+interface NavGroup {
+  section: string | null
+  items: NavItem[]
+}
+
+// Figma: Navigation/Sidebar (118:1384) — grouped seller-first navigation.
+const NAV_GROUPS: NavGroup[] = [
+  {
+    section: null,
+    items: [
+      { label: 'Dashboard', to: '/home', icon: routeIconMap.Dashboard, permission: 'can_access_site' },
+    ],
+  },
+  {
+    section: 'Commerce',
+    items: [
+      { label: 'Products', to: '/products', icon: routeIconMap.Products, permission: 'can_fetch' },
+      { label: 'Orders', to: '/orders', icon: routeIconMap.Orders, permission: 'can_fetch' },
+      { label: 'Workspace', to: '/workspace', icon: routeIconMap.Workspace, permission: 'can_fetch' },
+    ],
+  },
+  {
+    section: 'Integrations',
+    items: [
+      {
+        label: 'Sources',
+        to: '/commerce?tab=sources',
+        icon: routeIconMap.Sources,
+        permission: 'can_access_site',
+        isActive: (pathname, tab) => pathname === '/commerce' && tab === 'sources',
+      },
+      {
+        label: 'Channels',
+        to: '/commerce?tab=channels',
+        icon: routeIconMap.Channels,
+        permission: 'can_access_site',
+        isActive: (pathname, tab) => pathname === '/commerce' && tab !== 'sources',
+      },
+    ],
+  },
+  {
+    section: 'Operations',
+    items: [
+      { label: 'Activity', to: '/activity', icon: routeIconMap.Activity, permission: 'can_view_logs' },
+      { label: 'Diagnostics', to: '/diagnostics', icon: routeIconMap.Diagnostics, permission: 'can_view_settings' },
+    ],
+  },
+  {
+    section: 'Settings',
+    items: [
+      { label: 'General', to: '/settings', icon: routeIconMap.Settings, permission: 'can_view_settings' },
+      { label: 'Rate Limits', to: '/rate-limits', icon: routeIconMap['Rate Limits'], permission: 'can_view_settings' },
+    ],
+  },
+]
+
+const HEALTH_FOOTER: Record<HealthStatus, { dotClass: string; label: string }> = {
+  ok: { dotClass: 'fh-status-dot-success', label: 'All systems operational' },
+  loading: { dotClass: 'fh-status-dot-neutral', label: 'Checking systems' },
+  error: { dotClass: 'fh-status-dot-error', label: 'Systems offline' },
+}
+
+export default function Sidebar({ open, collapsed, onClose, user, health }: Props) {
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const tab = searchParams.get('tab')
 
   function hasPerm(perm: string): boolean {
     return effectiveHasPerm(user, perm)
   }
 
-  const linkCls = ({ isActive }: { isActive: boolean }) =>
+  const itemCls = (active: boolean) =>
     [
       'fh-menu-item group',
       collapsed ? 'md:justify-center md:px-0' : '',
-      isActive ? 'fh-menu-item-active' : '',
+      active ? 'fh-menu-item-active' : '',
     ].join(' ')
 
-  async function handleLogout() {
-    await logout()
-    navigate('/login', { replace: true })
-  }
+  const footer = HEALTH_FOOTER[health]
 
   return (
     <>
@@ -48,7 +115,8 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
 
       <aside
         className={[
-          'flex h-screen h-[100dvh] min-h-0 flex-shrink-0 flex-col bg-bg-card border-e border-border shadow-sm',
+          'flex h-screen h-[100dvh] min-h-0 flex-shrink-0 flex-col border-e border-border',
+          'bg-[color:var(--fh-nav-bg)]',
           'fixed md:sticky top-0 inset-y-0 start-0 z-30',
           'transition-all duration-300 ease-in-out',
           open ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full md:!translate-x-0',
@@ -57,133 +125,82 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
       >
         <div
           className={[
-            'flex items-center h-20 border-b border-border flex-shrink-0',
-            collapsed ? 'gap-3 px-5 md:justify-center md:px-3' : 'px-5 gap-3',
+            'flex h-[72px] flex-shrink-0 items-center gap-[6px]',
+            collapsed ? 'px-[23px] md:justify-center md:px-3' : 'px-[23px]',
           ].join(' ')}
         >
           <IconButton
             onClick={onClose}
-            className="md:hidden border-transparent shadow-none bg-bg-base"
+            className="md:hidden border-transparent shadow-none bg-transparent"
             label="Close navigation"
           >
             <Icon name="close" size="lg" />
           </IconButton>
 
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 bg-bg-base border border-border">
-            <img
-              src="/static/logos/FlowHub%20favicon.png"
-              alt=""
-              aria-hidden="true"
-              className="w-full h-full object-contain flex-shrink-0 select-none"
-            />
-          </div>
+          <img
+            src="/static/logos/flowhub-mark-2026.png"
+            alt=""
+            aria-hidden="true"
+            className="h-[34px] w-[34px] flex-shrink-0 select-none object-contain"
+          />
 
-          <div className={[collapsed ? 'md:hidden' : '', 'flex-1 min-w-0'].join(' ')}>
-            <div className="font-semibold text-xl text-text-base leading-7">FlowHub</div>
-            <div className="text-xs font-medium leading-4 text-[color:var(--fh-gray-500)]">Control Center</div>
-          </div>
-
-          <IconButton
-            onClick={onToggleCollapse}
-            className="hidden md:inline-flex h-8 w-8 rounded-lg"
-            label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            size="sm"
+          <span
+            className={[
+              collapsed ? 'md:hidden' : '',
+              'truncate text-[22px] font-semibold leading-8 text-[color:var(--fh-nav-text)]',
+            ].join(' ')}
           >
-            <Icon name={collapsed ? 'next' : 'previous'} mirrorRtl />
-          </IconButton>
+            FlowHub
+          </span>
         </div>
 
-        <nav className="min-h-0 flex-1 overflow-y-auto px-5 py-5 no-scrollbar">
-          <p className={[collapsed ? 'md:hidden' : '', 'mb-4 text-xs font-semibold uppercase tracking-[0.08em] text-[color:var(--fh-gray-400)] leading-5 select-none'].join(' ')}>
-            Main
-          </p>
-
-          <div className="flex flex-col gap-2">
-            {hasPerm('can_access_site') && (
-              <NavLink to="/home" className={linkCls} onClick={onClose}>
-                <Icon name={routeIconMap.Dashboard} className="fh-menu-item-icon h-6 w-6" />
-                <span className={collapsed ? 'md:hidden' : ''}>Dashboard</span>
-              </NavLink>
-            )}
-
-            {hasPerm('can_fetch') && (
-              <NavLink to="/products" className={linkCls} onClick={onClose}>
-                <Icon name={routeIconMap.Products} className="fh-menu-item-icon h-6 w-6" />
-                <span className={collapsed ? 'md:hidden' : ''}>Products</span>
-              </NavLink>
-            )}
-
-            {hasPerm('can_fetch') && (
-              <NavLink to="/orders" className={linkCls} onClick={onClose}>
-                <Icon name={routeIconMap.Orders} className="fh-menu-item-icon h-6 w-6" />
-                <span className={collapsed ? 'md:hidden' : ''}>Orders</span>
-              </NavLink>
-            )}
-
-            {hasPerm('can_access_site') && (
-              <NavLink to="/commerce" className={linkCls} onClick={onClose}>
-                <Icon name={routeIconMap['Commerce Hub']} className="fh-menu-item-icon h-6 w-6" />
-                <span className={collapsed ? 'md:hidden' : ''}>Commerce Hub</span>
-              </NavLink>
-            )}
-
-            {hasPerm('can_fetch') && (
-              <NavLink to="/workspace" className={linkCls} onClick={onClose}>
-                <Icon name={routeIconMap.Workspace} className="fh-menu-item-icon h-6 w-6" />
-                <span className={collapsed ? 'md:hidden' : ''}>Workspace</span>
-              </NavLink>
-            )}
-
-            {hasPerm('can_view_logs') && (
-              <NavLink to="/activity" className={linkCls} onClick={onClose}>
-                <Icon name={routeIconMap.Activity} className="fh-menu-item-icon h-6 w-6" />
-                <span className={collapsed ? 'md:hidden' : ''}>Activity</span>
-              </NavLink>
-            )}
-
-            {hasPerm('can_view_settings') && (
-              <NavLink to="/diagnostics" className={linkCls} onClick={onClose}>
-                <Icon name={routeIconMap.Diagnostics} className="fh-menu-item-icon h-6 w-6" />
-                <span className={collapsed ? 'md:hidden' : ''}>Diagnostics</span>
-              </NavLink>
-            )}
-
-            {hasPerm('can_view_settings') && (
-              <NavLink to="/settings" className={linkCls} onClick={onClose}>
-                <Icon name={routeIconMap.Settings} className="fh-menu-item-icon h-6 w-6" />
-                <span className={collapsed ? 'md:hidden' : ''}>Settings</span>
-              </NavLink>
-            )}
+        <nav className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-[23px] pb-4">
+          <div className="flex flex-col gap-[18px]">
+            {NAV_GROUPS.map(group => {
+              const visible = group.items.filter(item => hasPerm(item.permission))
+              if (visible.length === 0) return null
+              return (
+                <div key={group.section ?? 'primary'} className="flex flex-col gap-[6px]">
+                  {group.section && (
+                    <p className={['fh-menu-section', collapsed ? 'md:hidden' : ''].join(' ')}>
+                      {group.section}
+                    </p>
+                  )}
+                  {visible.map(item => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        itemCls(item.isActive ? item.isActive(location.pathname, tab) : isActive)
+                      }
+                    >
+                      <Icon name={item.icon} className="fh-menu-item-icon" />
+                      <span className={collapsed ? 'md:hidden' : ''}>{item.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              )
+            })}
           </div>
         </nav>
 
-        <div className="border-t border-border px-5 py-4 flex-shrink-0">
+        <div className="flex-shrink-0 px-[23px] py-4">
           <div
             className={[
-              'flex items-center gap-2.5',
-              collapsed ? 'md:flex-col md:justify-center md:gap-2' : '',
+              'flex items-center gap-2 px-3',
+              collapsed ? 'md:justify-center md:px-0' : '',
             ].join(' ')}
           >
-            <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-[12px] font-semibold flex-shrink-0 select-none shadow-sm">
-              {user ? initials(user.username) : '?'}
-            </div>
-            {user && (
-              <div className={[collapsed ? 'md:hidden' : '', 'flex-1 min-w-0'].join(' ')}>
-                <div className="text-[13px] font-medium leading-5 text-text-base truncate">{user.username}</div>
-                <div className="text-xs font-medium uppercase tracking-[0.06em] text-[color:var(--fh-gray-500)]">{user.role}</div>
-              </div>
-            )}
-            <button
-              onClick={handleLogout}
-              title="Sign out"
-              aria-label="Sign out"
+            <span className={['fh-status-dot h-2 w-2', footer.dotClass].join(' ')} />
+            <span
               className={[
-                'inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-bg-base text-[color:var(--fh-gray-500)] transition-colors hover:border-wp-red/30 hover:bg-wp-red/5 hover:text-wp-red',
-                collapsed ? 'md:ms-0' : 'ms-auto',
+                collapsed ? 'md:hidden' : '',
+                'text-xs leading-4 text-[color:var(--fh-nav-text-muted)]',
               ].join(' ')}
             >
-              <Icon name="next" className="h-[18px] w-[18px]" mirrorRtl />
-            </button>
+              {footer.label}
+            </span>
           </div>
         </div>
       </aside>

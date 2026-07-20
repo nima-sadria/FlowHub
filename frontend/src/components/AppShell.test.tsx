@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthContext } from '../auth'
 import type { AuthContextValue } from '../auth'
+import { DirectionProvider } from '../direction'
 import { ThemeProvider } from '../theme/ThemeProvider'
 import AppShell from './AppShell'
 
@@ -44,13 +45,15 @@ describe('AppShell layout', () => {
       root.render(
         <AuthContext.Provider value={authValue}>
           <ThemeProvider>
-            <MemoryRouter initialEntries={['/products']}>
-              <Routes>
-                <Route element={<AppShell />}>
-                  <Route path="/products" element={<div style={{ height: 2400 }}>Products page</div>} />
-                </Route>
-              </Routes>
-            </MemoryRouter>
+            <DirectionProvider>
+              <MemoryRouter initialEntries={['/products']}>
+                <Routes>
+                  <Route element={<AppShell />}>
+                    <Route path="/products" element={<div style={{ height: 2400 }}>Products page</div>} />
+                  </Route>
+                </Routes>
+              </MemoryRouter>
+            </DirectionProvider>
           </ThemeProvider>
         </AuthContext.Provider>,
       )
