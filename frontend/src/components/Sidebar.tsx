@@ -19,7 +19,7 @@ function initials(name: string) {
 }
 
 export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, user }: Props) {
-  const { clearAuth } = useAuth()
+  const { logout } = useAuth()
   const navigate = useNavigate()
 
   function hasPerm(perm: string): boolean {
@@ -33,8 +33,8 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse, us
       isActive ? 'fh-menu-item-active' : '',
     ].join(' ')
 
-  function handleLogout() {
-    clearAuth()
+  async function handleLogout() {
+    await logout()
     navigate('/login', { replace: true })
   }
 
