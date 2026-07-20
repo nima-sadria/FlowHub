@@ -38,62 +38,81 @@ function productChannelLabel(connectorId?: string): string {
   return connectorId ?? 'FlowHub'
 }
 
+function syncBadge(status: Product['status']): { variant: 'success' | 'warning' | 'error'; label: string } {
+  if (status === 'synced') return { variant: 'success', label: 'Synced' }
+  if (status === 'error') return { variant: 'error', label: 'Error' }
+  if (status === 'stale') return { variant: 'warning', label: 'Stale' }
+  return { variant: 'warning', label: 'Pending' }
+}
+
+function rowRelTime(d: Date | null): string {
+  if (!d) return '-'
+  const s = Math.floor((Date.now() - d.getTime()) / 1000)
+  if (s < 60) return 'just now'
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
+
 function ProductRow({ product, onEditPrices, selected, onSelected }: { product: Product; onEditPrices: (product: Product) => void; selected: boolean; onSelected: (selected: boolean) => void }) {
+  const badge = syncBadge(product.status)
   return (
     <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
       <td className="px-3 py-3 text-center">
         <input type="checkbox" checked={selected} onChange={event => onSelected(event.target.checked)} aria-label={`Select ${product.name} for Workspace`} />
       </td>
-      <td className="px-4 py-3 min-w-0 max-w-[260px]">
+      <td className="px-4 py-3 min-w-0 max-w-[280px]">
         <div className="flex items-center gap-3 min-w-0">
           {product.imageUrl ? (
             <img
               src={product.imageUrl}
               alt=""
-              className="w-9 h-9 rounded object-cover border border-border flex-shrink-0 bg-bg-base"
+              className="h-10 w-10 rounded-md object-cover border border-border flex-shrink-0 bg-bg-base"
               loading="lazy"
             />
           ) : (
-            <div className="w-9 h-9 rounded border border-border bg-bg-base flex-shrink-0 flex items-center justify-center">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-border bg-bg-base">
               <Icon name="products" className="text-border" />
             </div>
           )}
           <div className="min-w-0">
-            <div className="fh-text-body font-medium truncate">
+            <div className="truncate text-[13px] font-medium leading-[18px] text-text-base">
               <LocalizedText text={product.name} />
             </div>
-            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
               <span className="fh-text-caption fh-text-mono">{product.sku || '-'}</span>
-              <Badge variant="neutral">{productChannelLabel(product.connectorId)}</Badge>
+              {product.productType && product.productType !== 'simple' && (
+                <Badge variant="neutral" className="capitalize">{product.productType}</Badge>
+              )}
             </div>
           </div>
         </div>
       </td>
-      <td className="px-4 py-3">
-        <Badge className="capitalize" variant="neutral">{product.productType ?? 'simple'}</Badge>
-      </td>
-      <td className="px-4 py-3 fh-text-body font-medium font-mono">
-        {formatMoney(product.currentPrice, { currency: product.currency, position: 'prefix' })}
+      <td className="px-4 py-3 text-[13px] text-[color:var(--fh-text-secondary)]">
+        {productChannelLabel(product.connectorId)}
       </td>
       <td className="px-4 py-3">
-        {(product.categoryNames ?? []).slice(0, 2).map(c => (
-          <Badge key={c} className="me-1" variant="neutral">
-            <LocalizedText text={c} />
-          </Badge>
-        ))}
-        {(product.categoryNames ?? []).length > 2 && (
-          <span className="fh-text-caption">+{product.categoryNames.length - 2}</span>
-        )}
-      </td>
-      <td className="px-4 py-3 text-right">
         <button
           type="button"
-          className="fh-button fh-button-secondary fh-button-sm whitespace-nowrap"
           onClick={() => onEditPrices(product)}
+          title="Edit channel prices"
+          className="inline-flex min-w-[110px] items-center justify-end rounded-md border border-border bg-bg-card px-2.5 py-1.5 font-mono text-[13px] font-medium text-text-base transition-colors hover:border-accent hover:text-accent"
         >
-          <Icon name="edit" />
-          Edit prices
+          {formatMoney(product.currentPrice, { currency: product.currency, position: 'prefix' })}
         </button>
+      </td>
+      <td className="px-4 py-3">
+        <Badge dot variant={badge.variant}>{badge.label}</Badge>
+      </td>
+      <td className="px-4 py-3 whitespace-nowrap text-xs text-wp-muted">
+        {rowRelTime(product.lastSynced)}
+      </td>
+      <td className="px-4 py-3 text-end">
+        <IconButton label="Edit prices" onClick={() => onEditPrices(product)} size="sm">
+          <Icon name="edit" />
+        </IconButton>
       </td>
     </tr>
   )
@@ -102,7 +121,7 @@ function ProductRow({ product, onEditPrices, selected, onSelected }: { product: 
 function SkeletonRow() {
   return (
     <tr className="border-b border-border">
-      {[240, 70, 80, 120, 96].map((w, i) => (
+      {[24, 240, 90, 110, 70, 60, 32].map((w, i) => (
         <td key={i} className="px-4 py-3">
           <div className="h-3 bg-border/40 animate-pulse rounded" style={{ width: w }} />
         </td>
@@ -372,6 +391,7 @@ export default function Products() {
   const [categoryId, setCategoryId] = useState<number | null>(null)
   const [productType, setProductType] = useState<'all' | 'simple' | 'variable' | 'variation'>('all')
   const [channelId, setChannelId] = useState('')
+  const [syncStatus, setSyncStatus] = useState<Product['status'] | 'all'>('all')
   const [page, setPage] = useState(1)
 
   const [items, setItems] = useState<Product[]>([])
@@ -403,13 +423,13 @@ export default function Products() {
     return () => clearTimeout(t)
   }, [search])
 
-  useEffect(() => { setPage(1) }, [categoryId, productType, channelId])
+  useEffect(() => { setPage(1) }, [categoryId, productType, channelId, syncStatus])
 
   const fetchProducts = useCallback(() => {
     setLoading(true)
     productService.getProducts({
       search: debouncedSearch,
-      status: 'all',
+      status: syncStatus,
       page,
       pageSize: PAGE_SIZE,
       categoryId: categoryId ?? undefined,
@@ -422,7 +442,7 @@ export default function Products() {
         setConfigured(r.configured)
       })
       .finally(() => setLoading(false))
-  }, [productService, debouncedSearch, categoryId, productType, channelId, page])
+  }, [productService, debouncedSearch, categoryId, productType, channelId, syncStatus, page])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
@@ -563,12 +583,12 @@ export default function Products() {
         <div>
           <h1 className="fh-page-title">Products</h1>
           <p className="fh-page-subtitle">
-            {loading ? 'Loading...' : `${total} product${total !== 1 ? 's' : ''}`}
+            {loading ? 'Loading...' : `${total} product${total !== 1 ? 's' : ''} across connected channels`}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <span className="fh-text-caption">{workspaceSelection.size} selected</span>
-          <button type="button" className="fh-button-primary" disabled={!unifiedWorkspace || workspaceSelection.size === 0 || workspaceCreating} onClick={() => void createManualWorkspace()}>
+          <button type="button" className="fh-button-primary fh-button-sm" disabled={!unifiedWorkspace || workspaceSelection.size === 0 || workspaceCreating} onClick={() => void createManualWorkspace()}>
             <Icon name="workspace" /> {workspaceCreating ? 'Creating...' : 'Create Workspace'}
           </button>
         </div>
@@ -576,25 +596,39 @@ export default function Products() {
 
       {workspaceError && <div className="fh-alert fh-alert-danger" role="alert"><Icon name="alert" /><span>{workspaceError}</span></div>}
 
-      <div className="fh-card fh-card-pad flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[180px]">
-          <Icon name="search" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-wp-muted pointer-events-none" />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[200px] flex-1">
+          <Icon name="search" className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-wp-muted" />
           <input
-            type="text"
+            type="search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            {...inputHint('Search name or SKU...')}
-            className="fh-input pl-8"
+            {...inputHint('Search products...')}
+            className="fh-input !min-h-[40px] ps-9 rounded-lg"
           />
         </div>
 
         <select
+          value={syncStatus}
+          onChange={e => setSyncStatus(e.target.value as Product['status'] | 'all')}
+          aria-label="Filter by status"
+          className="fh-select w-auto !min-h-[40px] rounded-lg"
+        >
+          <option value="all">All statuses</option>
+          <option value="synced">Synced</option>
+          <option value="pending">Pending</option>
+          <option value="stale">Stale</option>
+          <option value="error">Error</option>
+        </select>
+
+        <select
           value={channelId}
           onChange={e => setChannelId(e.target.value)}
-          className="fh-select w-auto min-w-[150px]"
+          aria-label="Filter by channel"
+          className="fh-select w-auto !min-h-[40px] rounded-lg"
         >
           {CHANNEL_OPTIONS.map(channel => (
-            <option key={channel.id || 'all'} value={channel.id}>{channel.label}</option>
+            <option key={channel.id || 'all'} value={channel.id}>{channel.id ? channel.label : 'All channels'}</option>
           ))}
         </select>
 
@@ -602,29 +636,27 @@ export default function Products() {
           <select
             value={categoryId ?? ''}
             onChange={e => setCategoryId(e.target.value ? Number(e.target.value) : null)}
-            className="fh-select w-auto min-w-[170px]"
+            aria-label="Filter by category"
+            className="fh-select w-auto !min-h-[40px] rounded-lg"
           >
-            <option value="">All Categories</option>
+            <option value="">All categories</option>
             {categories.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
         )}
 
-        <div className="fh-segmented">
-          {(['all', 'simple', 'variation', 'variable'] as const).map(t => (
-            <button
-              key={t}
-              onClick={() => setProductType(t)}
-              className={[
-                'fh-segmented-button capitalize',
-                productType === t ? 'fh-segmented-button-active' : '',
-              ].join(' ')}
-            >
-              {t === 'all' ? 'All Types' : t}
-            </button>
-          ))}
-        </div>
+        <select
+          value={productType}
+          onChange={e => setProductType(e.target.value as typeof productType)}
+          aria-label="Filter by product type"
+          className="fh-select w-auto !min-h-[40px] rounded-lg capitalize"
+        >
+          <option value="all">All types</option>
+          <option value="simple">Simple</option>
+          <option value="variation">Variation</option>
+          <option value="variable">Variable</option>
+        </select>
       </div>
 
       {(priceState || editorLoading || editorError) && (
@@ -671,12 +703,16 @@ export default function Products() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="fh-table min-w-[560px]">
+          <table className="fh-table min-w-[720px]">
             <thead>
               <tr>
-                {['Select', 'Product', 'Type', 'Price', 'Categories', 'Actions'].map(h => (
-                  <th key={h}>{h}</th>
-                ))}
+                <th className="w-10"><span className="sr-only">Select</span></th>
+                <th>Product</th>
+                <th>Channel</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Last Sync</th>
+                <th className="text-end"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody className={loading ? 'opacity-40 pointer-events-none' : ''}>
@@ -685,7 +721,7 @@ export default function Products() {
                 : items.length === 0
                   ? (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <Empty title="No products match" description="Try adjusting the search or filter." />
                       </td>
                     </tr>
@@ -713,7 +749,7 @@ export default function Products() {
 
         {!loading && totalPages > 1 && (
           <div className="fh-panel-footer !justify-between">
-            <span className="fh-text-caption">{start}-{end} of {total}</span>
+            <span className="fh-text-caption">Showing {start}-{end} of {total} products</span>
             <div className="flex items-center gap-1">
               <IconButton label="First page" onClick={() => setPage(1)} disabled={page === 1} size="sm">
                 <span aria-hidden="true" className="fh-text-caption">«</span>
