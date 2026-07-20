@@ -13,7 +13,7 @@ import type { CommerceSource } from '../services/types'
 import SourceCenter from './SourceCenter'
 
 const source: SourceProfile = { id: 'source-1', name: 'Synthetic prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 3, mappingVersion: 2, sheetId: 'sheet-1' }
-const admin: AuthContextValue = { user: { username: 'admin', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, authFetch: fetch }
+const admin: AuthContextValue = { user: { username: 'admin', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: fetch }
 const viewer: AuthContextValue = { ...admin, user: { username: 'viewer', role: 'user', is_admin: false, is_super_admin: false, permissions: { can_access_site: true, 'workspace.read': true } } }
 const commerce = {
   getSources: vi.fn(),

@@ -25,6 +25,7 @@ export interface AuthContextValue {
   status: AuthStatus
   refreshUser: () => Promise<void>
   clearAuth: () => void
+  logout: () => Promise<void>
   authFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 }
 
@@ -71,6 +72,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setStatus('login_required')
   }, [])
+
+  // User-initiated sign out: revoke the refresh token server-side, then clear
+  // local state. Revocation is best-effort - local sign-out proceeds even if
+  // the server is unreachable.
+  const logout = useCallback(async () => {
+    const refreshToken = localStorage.getItem('wp_refresh_token') ?? ''
+    if (refreshToken) {
+      const headers = authHeaders()
+      headers.set('Content-Type', 'application/json')
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        })
+      } catch { /* best-effort revocation */ }
+    }
+    clearAuth()
+  }, [clearAuth])
 
   const refreshUser = useCallback(async () => {
     const token = localStorage.getItem('wp_token') ?? ''
@@ -166,8 +186,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     status,
     refreshUser,
     clearAuth,
+    logout,
     authFetch,
-  }), [user, status, refreshUser, clearAuth, authFetch])
+  }), [user, status, refreshUser, clearAuth, logout, authFetch])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

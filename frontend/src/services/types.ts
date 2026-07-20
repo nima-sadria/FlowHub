@@ -251,21 +251,6 @@ export interface Source {
   productCount: number
 }
 
-export interface SourceConfig {
-  name: string
-  type: SourceType
-  url: string
-  username: string
-  password: string
-  filePath: string
-}
-
-export interface ConnectionTestResult {
-  success: boolean
-  message: string
-  discoveredProductCount?: number
-}
-
 // -- Workspace -----------------------------------------------------------------
 
 export type WorkspaceState = 'idle' | 'previewing' | 'preview_ready' | 'error'

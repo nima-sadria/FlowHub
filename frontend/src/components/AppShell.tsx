@@ -11,7 +11,7 @@ const HEALTH_RETRY_MS = 5_000
 const HEALTH_MAX_RETRIES = 3
 
 export default function AppShell() {
-  const { user, clearAuth, authFetch } = useAuth()
+  const { user, logout, authFetch } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
@@ -75,8 +75,8 @@ export default function AppShell() {
     }
   }, [authFetch])
 
-  function handleLogout() {
-    clearAuth()
+  async function handleLogout() {
+    await logout()
     navigate('/login', { replace: true })
   }
 

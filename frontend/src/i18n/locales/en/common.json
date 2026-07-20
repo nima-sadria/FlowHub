@@ -1,7 +1,6 @@
 {
   "action.cancel": "Cancel",
   "action.retry": "Retry",
-  "apiSourceService.useSettingsToConfigureConnectors": "Use Settings to configure connectors.",
   "app.loading": "Loading...",
   "app.loadingWorkspaceGrid": "Loading Workspace Grid...",
   "app.maintenanceMode": "Maintenance Mode",
