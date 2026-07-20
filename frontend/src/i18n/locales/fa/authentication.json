@@ -6,9 +6,14 @@
   "access.verifyingAccess": "در حال بررسی دسترسی",
   "access.verifyingSession": "در حال بررسی نشست شما با سرور.",
   "login.flowhub": "FlowHub",
+  "login.contactOwner": "برای دسترسی با مالک فضای کاری خود تماس بگیرید.",
+  "login.footerLinks": "حریم خصوصی · امنیت · پشتیبانی",
+  "login.forgotPassword": "رمز عبور را فراموش کرده‌اید؟",
   "login.password": "رمز عبور",
+  "login.rememberMe": "مرا به خاطر بسپار",
   "login.signIn": "ورود",
   "login.signingIn": "در حال ورود...",
   "login.signInToFlowhub": "ورود به FlowHub",
-  "login.username": "نام کاربری"
+  "login.username": "نام کاربری",
+  "login.useWorkspaceAccount": "از حساب فضای کاری خود استفاده کنید."
 }

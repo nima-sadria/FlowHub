@@ -6,9 +6,14 @@
   "access.verifyingAccess": "Verifying Access",
   "access.verifyingSession": "Verifying your session with the server.",
   "login.flowhub": "FlowHub",
+  "login.contactOwner": "Need access? Contact your workspace Owner.",
+  "login.footerLinks": "Privacy · Security · Support",
+  "login.forgotPassword": "Forgot password?",
   "login.password": "Password",
+  "login.rememberMe": "Remember me",
   "login.signIn": "Sign in",
   "login.signingIn": "Signing in...",
   "login.signInToFlowhub": "Sign in to FlowHub",
-  "login.username": "Username"
+  "login.username": "Username",
+  "login.useWorkspaceAccount": "Use your workspace account."
 }
