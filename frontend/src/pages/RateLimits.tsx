@@ -297,8 +297,8 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
                   </div>
                 )}
                 <div className="mt-3.5 flex flex-col gap-2.5 sm:flex-row">
-                  <StepperField label={translate('settings:rateLimits.readRequestsMinute')} value={readRpm} disabled={!canEdit || saving} onChange={setReadRpm} />
-                  <StepperField label={translate('settings:rateLimits.writeRequestsMinute')} value={writeRpm} disabled={!canEdit || saving} onChange={setWriteRpm} />
+                  <StepperField label={translate('settings:rateLimits.operationalReadRequestsMinute')} value={readRpm} disabled={!canEdit || saving} onChange={setReadRpm} />
+                  <StepperField label={translate('settings:rateLimits.operationalWriteRequestsMinute')} value={writeRpm} disabled={!canEdit || saving} onChange={setWriteRpm} />
                 </div>
                 <label className="mt-3 flex w-full flex-col gap-1.5 sm:w-[calc(50%-5px)]">
                   <span className="text-xs font-medium leading-4 text-[color:var(--fh-text-secondary)]">{translate('settings:rateLimits.limitResetPolicy')}</span>

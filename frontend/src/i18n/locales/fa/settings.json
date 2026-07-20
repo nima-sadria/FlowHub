@@ -16,6 +16,8 @@
   "rateLimits.milliseconds": "{{value}} میلی‌ثانیه",
   "rateLimits.operationalLimits": "محدودیت‌های عملیاتی",
   "rateLimits.operationalLimitsDescription": "فقط زمانی تغییر دهید که استفاده پایدار به ظرفیت بیشتری نیاز دارد.",
+  "rateLimits.operationalReadRequestsMinute": "درخواست‌های خواندن در دقیقه",
+  "rateLimits.operationalWriteRequestsMinute": "درخواست‌های نوشتن در دقیقه",
   "rateLimits.overrides": "استثناها",
   "rateLimits.pleaseTryAgain": "دوباره تلاش کنید.",
   "rateLimits.policy": "سیاست",

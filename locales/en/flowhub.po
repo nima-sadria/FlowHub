@@ -5174,6 +5174,11 @@ msgctxt "diagnostics:diagnostics.readRequestsMinute"
 msgid "Read Requests / Minute"
 msgstr "Read Requests / Minute"
 
+#: frontend/src/pages/RateLimits.tsx:216
+msgctxt "settings:rateLimits.readRequestsMinute"
+msgid "Read Requests / Minute"
+msgstr "Read Requests / Minute"
+
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dashboard:dashboard.readSourceBeforeReview"
 msgid "Read a Source before reviewing today's changes."
@@ -5212,8 +5217,8 @@ msgctxt "dashboard:dashboard.readRecorded"
 msgid "Read recorded"
 msgstr "Read recorded"
 
-#: frontend/src/pages/RateLimits.tsx:216 frontend/src/pages/RateLimits.tsx:300
-msgctxt "settings:rateLimits.readRequestsMinute"
+#: frontend/src/pages/RateLimits.tsx:300
+msgctxt "settings:rateLimits.operationalReadRequestsMinute"
 msgid "Read requests per minute"
 msgstr "Read requests per minute"
 
@@ -8293,6 +8298,11 @@ msgctxt "diagnostics:diagnostics.writeRequestsMinute"
 msgid "Write Requests / Minute"
 msgstr "Write Requests / Minute"
 
+#: frontend/src/pages/RateLimits.tsx:217
+msgctxt "settings:rateLimits.writeRequestsMinute"
+msgid "Write Requests / Minute"
+msgstr "Write Requests / Minute"
+
 msgctxt "diagnostics:dimension.writeCapability"
 msgid "Write capability"
 msgstr "Write capability"
@@ -8307,8 +8317,8 @@ msgctxt "commerce:commerceHub.writeEnabled2"
 msgid "Write enabled"
 msgstr "Write enabled"
 
-#: frontend/src/pages/RateLimits.tsx:217 frontend/src/pages/RateLimits.tsx:301
-msgctxt "settings:rateLimits.writeRequestsMinute"
+#: frontend/src/pages/RateLimits.tsx:301
+msgctxt "settings:rateLimits.operationalWriteRequestsMinute"
 msgid "Write requests per minute"
 msgstr "Write requests per minute"
 
