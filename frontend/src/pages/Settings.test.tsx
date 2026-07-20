@@ -2,10 +2,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import { AuthContext, type AuthContextValue, type AuthUser } from '../auth'
+import { DirectionProvider } from '../direction'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
-import type { RateLimitSettings } from '../services/types'
 import Settings from './Settings'
 
 let container: HTMLDivElement
@@ -17,18 +18,6 @@ const user: AuthUser = {
   is_admin: true,
   is_super_admin: false,
   permissions: { can_access_site: true, can_fetch: true, can_view_settings: true },
-}
-
-const rateLimits: RateLimitSettings = {
-  read_requests_per_minute: 60,
-  write_requests_per_minute: 30,
-  read_delay_ms: 1000,
-  write_delay_ms: 2000,
-  inherits_to_all_connectors: true,
-  per_connector_override_available: false,
-  scheduler_started: false,
-  automatic_sync: false,
-  runtime_write_blocked: true,
 }
 
 function authValue(): AuthContextValue {
@@ -61,8 +50,8 @@ function services(): Services {
         currency: patch.currency ?? 'EUR',
         environment: 'production',
       }),
-      getRateLimits: async () => rateLimits,
-      updateRateLimits: async patch => ({ ...rateLimits, ...patch }),
+      getRateLimits: async () => { throw new Error('not used') },
+      updateRateLimits: async () => { throw new Error('not used') },
     },
     health: {} as Services['health'],
     products: {} as Services['products'],
@@ -91,11 +80,15 @@ async function renderPage() {
   await act(async () => {
     root.render(
       <NotificationProvider>
-        <AuthContext.Provider value={authValue()}>
-          <ServiceProvider services={services()}>
-            <Settings />
-          </ServiceProvider>
-        </AuthContext.Provider>
+        <MemoryRouter>
+          <DirectionProvider>
+            <AuthContext.Provider value={authValue()}>
+              <ServiceProvider services={services()}>
+                <Settings />
+              </ServiceProvider>
+            </AuthContext.Provider>
+          </DirectionProvider>
+        </MemoryRouter>
       </NotificationProvider>,
     )
   })
@@ -104,13 +97,14 @@ async function renderPage() {
 }
 
 describe('Settings', () => {
-  it('shows Rate Limits as a Settings section', async () => {
+  it('renders the Figma General settings structure with existing service values', async () => {
     const c = await renderPage()
 
-    expect(c.textContent).toContain('Settings')
     expect(c.textContent).toContain('General')
-    expect(c.textContent).toContain('Global API Rate Limits')
-    expect(c.textContent).toContain('Read Requests / Minute')
-    expect(c.textContent).toContain('Write Requests / Minute')
+    expect(c.textContent).toContain('Workspace preferences')
+    expect(c.textContent).toContain('Localization preview')
+    expect(c.textContent).toContain('English · EUR · UTC')
+    expect(c.querySelector('a[href="/settings/users"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
   })
 })
