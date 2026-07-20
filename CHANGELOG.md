@@ -10,8 +10,11 @@
 - Added a dedicated Data Quality workflow for blocked Source and Listing issues.
 - Added centralized internationalization, English and Persian catalogs, and RTL
   layout support.
-- Added forward-only PostgreSQL migration `FLOWHUB_018` while preserving v1.2
+- Added forward-only PostgreSQL migration `FLOWHUB_019` while preserving v1.2
   history and the shared Write Pipeline.
+- Completed the current seller UI release across Application Shell, Dashboard,
+  Products, Orders, Sources, Channels, Activity, Data Quality, Diagnostics,
+  Settings, User Management, Rate Limits, Setup Wizard, and Login.
 - Strengthened durable Recovery and uncertain-only Reconciliation coverage.
 - Passed browser E2E, PostgreSQL CI, and virtualized 10,000-product coverage.
 
@@ -21,6 +24,7 @@
 - Standardized installer path to `/opt/FlowHub`.
 - Added Legacy Compatibility migration from `/opt/flowhub`.
 - Added Integration Platform and Unified Logging Platform implementation.
-- Cleaned Setup Wizard to Welcome, Server Profile, Database, Admin Account, Finish.
+- Updated Setup Wizard to Workspace, Database, Owner, and Review while retaining
+  the real database verification and owner-account flows.
 - Kept connector configuration in Settings.
 - Preserved read-only safety for all external systems.
