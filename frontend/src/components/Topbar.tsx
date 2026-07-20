@@ -1,14 +1,16 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { translate } from '../i18n'
 import Icon from './Icon'
 import IconButton from './IconButton'
 import { useTheme } from '../theme/ThemeProvider'
 import { useDirection } from '../direction'
+import { inputHint } from '../utils/inputHint'
 
 interface Props {
   onMenuClick: () => void
   onToggleCollapse: () => void
+  sidebarCollapsed: boolean
   user: { username: string; role?: string } | null
   onLogout: () => void
 }
@@ -92,10 +94,12 @@ function SignOutIcon() {
 export default function Topbar({
   onMenuClick,
   onToggleCollapse,
+  sidebarCollapsed,
   user,
   onLogout,
 }: Props) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [langOpen, setLangOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -105,7 +109,13 @@ export default function Topbar({
   function handleSearchSubmit(event: FormEvent) {
     event.preventDefault()
     const term = searchTerm.trim()
-    navigate(term ? `/products?q=${encodeURIComponent(term)}` : '/products')
+    const params = location.pathname === '/products'
+      ? new URLSearchParams(location.search)
+      : new URLSearchParams()
+    if (term) params.set('q', term)
+    else params.delete('q')
+    const query = params.toString()
+    navigate(query ? `/products?${query}` : '/products')
   }
 
   function handleSelectLanguage(code: string) {
@@ -136,7 +146,9 @@ export default function Topbar({
         <button
           type="button"
           onClick={onToggleCollapse}
-          aria-label={translate('navigation:sidebar.collapseSidebar')}
+          aria-label={translate(sidebarCollapsed
+            ? 'navigation:sidebar.expandSidebar'
+            : 'navigation:sidebar.collapseSidebar')}
           className="fh-topbar-action hidden md:inline-flex"
         >
           <Icon name="panelToggle" size="lg" mirrorRtl />
@@ -151,7 +163,7 @@ export default function Topbar({
           <input
             type="search"
             aria-label={translate('activity:activity.search')}
-            placeholder={translate('products:products.searchNameOrSku')}
+            {...inputHint(translate('products:products.searchNameOrSku'))}
             value={searchTerm}
             onChange={event => setSearchTerm(event.target.value)}
           />

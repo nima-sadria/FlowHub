@@ -15,17 +15,18 @@ import type {
 } from '../api/types'
 import Spinner from '../components/loading/Spinner'
 import { useDirection } from '../direction'
+import { translate } from '../i18n'
 import { useTheme } from '../theme/ThemeProvider'
 import { inputHint } from '../utils/inputHint'
 
 type Step = 'workspace' | 'database' | 'owner' | 'review'
 
 const SETUP_STEPS: Step[] = ['workspace', 'database', 'owner', 'review']
-const STEP_DETAILS: Record<Step, { label: string; checklist: string }> = {
-  workspace: { label: 'Workspace', checklist: 'Workspace defaults' },
-  database: { label: 'Database', checklist: 'Verify database' },
-  owner: { label: 'Owner', checklist: 'Create owner account' },
-  review: { label: 'Review', checklist: 'Review setup' },
+const STEP_DETAILS: Record<Step, { labelKey: string; checklistKey: string }> = {
+  workspace: { labelKey: 'settings:setup.workspace', checklistKey: 'settings:setup.workspaceDefaults' },
+  database: { labelKey: 'settings:setup.database', checklistKey: 'settings:setup.verifyDatabase' },
+  owner: { labelKey: 'settings:setup.owner', checklistKey: 'settings:setup.createOwnerAccount' },
+  review: { labelKey: 'settings:setup.review', checklistKey: 'settings:setup.reviewSetup' },
 }
 
 interface SetupProps {
@@ -54,32 +55,35 @@ const ALL_TIMEZONES = [
 ]
 
 const CURRENCIES = [
-  { value: 'IRR', label: 'IRR — Iranian Rial' },
-  { value: 'IRT', label: 'IRT — Iranian Toman' },
-  { value: 'USD', label: 'USD — US Dollar' },
-  { value: 'EUR', label: 'EUR — Euro' },
-  { value: 'AED', label: 'AED — UAE Dirham' },
-  { value: 'TRY', label: 'TRY — Turkish Lira' },
-  { value: 'GBP', label: 'GBP — British Pound' },
-  { value: 'JPY', label: 'JPY — Japanese Yen' },
-  { value: 'CAD', label: 'CAD — Canadian Dollar' },
-  { value: 'AUD', label: 'AUD — Australian Dollar' },
-  { value: 'CHF', label: 'CHF — Swiss Franc' },
+  { value: 'IRR', labelKey: 'settings:setup.irrIranianRial' },
+  { value: 'IRT', labelKey: 'settings:setup.irtIranianToman' },
+  { value: 'USD', labelKey: 'settings:setup.usdUsDollar' },
+  { value: 'EUR', labelKey: 'settings:setup.eurEuro' },
+  { value: 'AED', labelKey: 'settings:setup.aedUaeDirham' },
+  { value: 'TRY', labelKey: 'settings:setup.tryTurkishLira' },
+  { value: 'GBP', labelKey: 'settings:setup.gbpBritishPound' },
+  { value: 'JPY', labelKey: 'settings:setup.jpyJapaneseYen' },
+  { value: 'CAD', labelKey: 'settings:setup.cadCanadianDollar' },
+  { value: 'AUD', labelKey: 'settings:setup.audAustralianDollar' },
+  { value: 'CHF', labelKey: 'settings:setup.chfSwissFranc' },
 ]
 
 const TZ_OPTIONS = ALL_TIMEZONES.map(timezone => ({ value: timezone, label: timezone }))
 const LANGUAGE_OPTIONS = [
-  { value: 'en', label: 'English' },
-  { value: 'fa', label: 'فارسی' },
+  { value: 'en', labelKey: 'settings:language.english' },
+  { value: 'fa', labelKey: 'settings:language.persian' },
 ]
-const EMAIL_ERROR = 'Enter a valid email address.'
 
 export function validateSetupEmail(value: string): string | null {
   const email = value.trim()
-  if (!email || email.includes(' ') || (email.match(/@/g) ?? []).length !== 1) return EMAIL_ERROR
+  if (!email || email.includes(' ') || (email.match(/@/g) ?? []).length !== 1) {
+    return translate('settings:setup.validEmail')
+  }
 
   const [local, domain] = email.split('@')
-  if (!local || !domain || domain.length > 253 || !domain.includes('.')) return EMAIL_ERROR
+  if (!local || !domain || domain.length > 253 || !domain.includes('.')) {
+    return translate('settings:setup.validEmail')
+  }
 
   const labels = domain.split('.')
   const validLabels = labels.every(label => (
@@ -88,7 +92,9 @@ export function validateSetupEmail(value: string): string | null {
     && /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(label)
   ))
   const tld = labels[labels.length - 1]
-  if (!validLabels || !/^[A-Za-z]{2,63}$/.test(tld) || !/^[^\s@]+$/.test(local)) return EMAIL_ERROR
+  if (!validLabels || !/^[A-Za-z]{2,63}$/.test(tld) || !/^[^\s@]+$/.test(local)) {
+    return translate('settings:setup.validEmail')
+  }
   return null
 }
 
@@ -193,7 +199,7 @@ export function SearchableListbox({
                 }
                 if (event.key === 'Enter' && filtered[0]) select(filtered[0].value)
               }}
-              {...inputHint(template_variable ?? `Search ${label.toLowerCase()}...`)}
+              {...inputHint(template_variable ?? translate('settings:setup.search', { value1: label.toLowerCase() }))}
               autoComplete="off"
               spellCheck={false}
               className="fh-input shadow-none"
@@ -201,7 +207,7 @@ export function SearchableListbox({
           </div>
           <div id={id} role="listbox" aria-label={label} className="max-h-44 overflow-y-auto">
             {filtered.length === 0 ? (
-              <div className="px-3 py-2 fh-text-body-sm">No matches</div>
+              <div className="px-3 py-2 fh-text-body-sm">{translate('settings:setup.noMatches')}</div>
             ) : filtered.map(option => (
               <button
                 key={option.value}
@@ -287,7 +293,7 @@ function ErrorBanner({ message }: { message: string }) {
 function StepProgress({ current }: { current: Step }) {
   const currentIndex = SETUP_STEPS.indexOf(current)
   return (
-    <ol className="flex min-w-0 items-center" aria-label="Setup progress">
+    <ol className="flex min-w-0 items-center" aria-label={translate('settings:setup.setupProgress')}>
       {SETUP_STEPS.map((step, index) => (
         <li key={step} className="flex min-w-0 flex-1 items-center last:flex-none">
           <div className="flex shrink-0 items-center gap-2">
@@ -306,7 +312,7 @@ function StepProgress({ current }: { current: Step }) {
               'hidden whitespace-nowrap text-xs sm:block',
               index === currentIndex ? 'font-semibold text-text-base' : 'text-[color:var(--fh-text-secondary)]',
             ].join(' ')}>
-              {STEP_DETAILS[step].label}
+              {translate(STEP_DETAILS[step].labelKey)}
             </span>
           </div>
           {index < SETUP_STEPS.length - 1 && (
@@ -325,30 +331,30 @@ function SetupChecklist({ current }: { current: Step }) {
   const currentIndex = SETUP_STEPS.indexOf(current)
   return (
     <aside className="min-h-[300px] rounded-lg bg-bg-base p-4">
-      <h2 className="text-sm font-semibold leading-[22px] text-text-base">Setup checklist</h2>
+      <h2 className="text-sm font-semibold leading-[22px] text-text-base">{translate('settings:setup.setupChecklist')}</h2>
       <div className="mt-3 space-y-3">
         {SETUP_STEPS.map((step, index) => {
-          const state = index < currentIndex ? 'Complete' : index === currentIndex ? 'Active' : 'Pending'
+          const state = index < currentIndex ? 'complete' : index === currentIndex ? 'active' : 'pending'
           return (
             <div key={step} className="flex items-center justify-between gap-3">
               <span className="min-w-0 text-xs leading-4 text-[color:var(--fh-text-secondary)]">
-                {STEP_DETAILS[step].checklist}
+                {translate(STEP_DETAILS[step].checklistKey)}
               </span>
               <span className={[
                 'fh-badge shrink-0',
-                state === 'Complete'
+                state === 'complete'
                   ? 'fh-badge-success'
-                  : state === 'Active'
+                  : state === 'active'
                     ? 'fh-badge-info'
                     : 'fh-badge-neutral',
               ].join(' ')}>
-                {state}
+                {translate(`settings:setup.${state}`)}
               </span>
             </div>
           )
         })}
       </div>
-      <p className="mt-4 text-[11px] leading-4 text-wp-muted">You can leave setup and resume later.</p>
+      <p className="mt-4 text-[11px] leading-4 text-wp-muted">{translate('settings:setup.resumeLater')}</p>
     </aside>
   )
 }
@@ -384,7 +390,7 @@ function Actions({
     <div className="mt-4 flex flex-col-reverse justify-end gap-2 sm:flex-row">
       {onBack && (
         <button type="button" onClick={onBack} disabled={loading} className="fh-button-secondary fh-button-sm">
-          Back
+          {translate('settings:setup.back')}
         </button>
       )}
       <button
@@ -394,7 +400,7 @@ function Actions({
         className="fh-button-primary fh-button-sm"
       >
         {loading && <Spinner size="sm" className="text-white" />}
-        {loading ? 'Please wait...' : nextLabel}
+        {loading ? translate('settings:setup.pleaseWait') : nextLabel}
       </button>
     </div>
   )
@@ -415,6 +421,14 @@ function WorkspaceStep({ onNext }: { onNext: () => void }) {
   const [currency, setCurrency] = useState('USD')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const languageOptions = LANGUAGE_OPTIONS.map(option => ({
+    value: option.value,
+    label: translate(option.labelKey),
+  }))
+  const currencyOptions = CURRENCIES.map(option => ({
+    value: option.value,
+    label: translate(option.labelKey),
+  }))
 
   async function submit(event?: FormEvent) {
     event?.preventDefault()
@@ -432,12 +446,12 @@ function WorkspaceStep({ onNext }: { onNext: () => void }) {
         body: JSON.stringify(body),
       })
       if (!response.ok) {
-        setError(await responseError(response, `Server error (HTTP ${response.status})`))
+        setError(await responseError(response, translate('settings:setup.serverErrorHttp', { status: response.status })))
         return
       }
       onNext()
     } catch {
-      setError('Network error. Check your connection and try again.')
+      setError(translate('settings:setup.networkError'))
     } finally {
       setLoading(false)
     }
@@ -445,14 +459,14 @@ function WorkspaceStep({ onNext }: { onNext: () => void }) {
 
   return (
     <StepSection
-      title="Workspace details"
-      subtitle="These defaults shape seller workflows and can be changed later."
+      title={translate('settings:setup.workspaceDetails')}
+      subtitle={translate('settings:setup.workspaceDetailsDescription')}
     >
       {error && <ErrorBanner message={error} />}
       <form onSubmit={event => { void submit(event) }}>
         <Field
           id="setup-domain"
-          label="Workspace domain"
+          label={translate('settings:setup.workspaceDomain')}
           value={domain}
           onChange={setDomain}
           templateVariable="flowhub.example.com"
@@ -461,8 +475,8 @@ function WorkspaceStep({ onNext }: { onNext: () => void }) {
         <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
           <SearchableListbox
             id="setup-language"
-            label="Language"
-            options={LANGUAGE_OPTIONS}
+            label={translate('settings:language.title')}
+            options={languageOptions}
             value={language}
             onChange={nextLanguage => {
               setLanguage(nextLanguage)
@@ -472,26 +486,26 @@ function WorkspaceStep({ onNext }: { onNext: () => void }) {
           />
           <SearchableListbox
             id="setup-timezone"
-            label="Timezone"
+            label={translate('settings:settings.timezone')}
             options={TZ_OPTIONS}
             value={timezone}
             onChange={setTimezone}
             disabled={loading}
-            template_variable="Search timezones..."
+            template_variable={translate('settings:setup.searchTimezones')}
           />
         </div>
         <div className="mt-3 sm:max-w-[calc(50%-5px)]">
           <SearchableListbox
             id="setup-currency"
-            label="Default currency"
-            options={CURRENCIES}
+            label={translate('settings:setup.defaultCurrency')}
+            options={currencyOptions}
             value={currency}
             onChange={setCurrency}
             disabled={loading}
-            template_variable="Search currencies..."
+            template_variable={translate('settings:setup.searchCurrencies')}
           />
         </div>
-        <Actions onNext={() => { void submit() }} nextLabel="Continue to database" loading={loading} />
+        <Actions onNext={() => { void submit() }} nextLabel={translate('settings:setup.continueToDatabase')} loading={loading} />
       </form>
     </StepSection>
   )
@@ -508,12 +522,12 @@ function DatabaseStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
     try {
       const response = await fetch('/api/v2/setup/database', { method: 'POST' })
       if (!response.ok) {
-        setError(await responseError(response, `Database check failed (HTTP ${response.status})`))
+        setError(await responseError(response, translate('settings:setup.databaseCheckFailedHttp', { status: response.status })))
         return
       }
       setStatus(await response.json() as DatabaseStatusResponse)
     } catch {
-      setError('Network error while checking the database.')
+      setError(translate('settings:setup.databaseNetworkError'))
     } finally {
       setLoading(false)
     }
@@ -521,22 +535,22 @@ function DatabaseStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
 
   const ready = Boolean(status?.connected && status.is_current === true)
   return (
-    <StepSection title="Database readiness" subtitle="Verify the connection and required FlowHub schema.">
+    <StepSection title={translate('settings:setup.databaseReadiness')} subtitle={translate('settings:setup.databaseReadinessDescription')}>
       {error && <ErrorBanner message={error} />}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-bg-card p-3">
           <div>
-            <p className="text-[13px] font-medium text-text-base">Connection</p>
-            <p className="mt-1 text-xs text-[color:var(--fh-text-secondary)]">Confirms that FlowHub can reach its database.</p>
+            <p className="text-[13px] font-medium text-text-base">{translate('settings:setup.connection')}</p>
+            <p className="mt-1 text-xs text-[color:var(--fh-text-secondary)]">{translate('settings:setup.connectionDescription')}</p>
           </div>
           <span className={['fh-badge', status?.connected ? 'fh-badge-success' : 'fh-badge-neutral'].join(' ')}>
-            {status?.connected ? 'Connected' : 'Not checked'}
+            {status?.connected ? translate('settings:setup.connected') : translate('settings:setup.notChecked')}
           </span>
         </div>
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-bg-card p-3">
           <div>
-            <p className="text-[13px] font-medium text-text-base">Schema</p>
-            <p className="mt-1 text-xs text-[color:var(--fh-text-secondary)]">Compares the installed schema with this release.</p>
+            <p className="text-[13px] font-medium text-text-base">{translate('settings:setup.schema')}</p>
+            <p className="mt-1 text-xs text-[color:var(--fh-text-secondary)]">{translate('settings:setup.schemaDescription')}</p>
           </div>
           <span className={[
             'fh-badge',
@@ -546,14 +560,22 @@ function DatabaseStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
                 ? 'fh-badge-danger'
                 : 'fh-badge-neutral',
           ].join(' ')}>
-            {status?.is_current === true ? 'Up to date' : status?.is_current === false ? 'Update required' : 'Not checked'}
+            {status?.is_current === true
+              ? translate('settings:setup.upToDate')
+              : status?.is_current === false
+                ? translate('settings:setup.updateRequired')
+                : translate('settings:setup.notChecked')}
           </span>
         </div>
       </div>
       <Actions
         onBack={onBack}
         onNext={ready ? onNext : () => { void checkDatabase() }}
-        nextLabel={ready ? 'Continue to owner' : status ? 'Retry database check' : 'Check database'}
+        nextLabel={ready
+          ? translate('settings:setup.continueToOwner')
+          : status
+            ? translate('settings:setup.retryDatabaseCheck')
+            : translate('settings:setup.checkDatabase')}
         loading={loading}
       />
     </StepSection>
@@ -590,7 +612,7 @@ function OwnerStep({
       return
     }
     if (password !== confirm) {
-      setError('Passwords do not match.')
+      setError(translate('settings:setup.passwordsDoNotMatch'))
       return
     }
     setError(null)
@@ -603,7 +625,7 @@ function OwnerStep({
         body: JSON.stringify(body),
       })
       if (!response.ok) {
-        setError(await responseError(response, `Could not create owner (HTTP ${response.status})`))
+        setError(await responseError(response, translate('settings:setup.createOwnerFailedHttp', { status: response.status })))
         return
       }
       const payload = await response.json() as SetupAdminResponse
@@ -612,7 +634,7 @@ function OwnerStep({
       onAdminCreated()
       onNext()
     } catch {
-      setError('Network error while creating the owner account.')
+      setError(translate('settings:setup.ownerNetworkError'))
     } finally {
       setLoading(false)
     }
@@ -620,21 +642,23 @@ function OwnerStep({
 
   return (
     <StepSection
-      title="Owner account"
-      subtitle={hasAdmin ? 'An owner or administrator account already exists.' : 'Create the initial FlowHub owner account.'}
+      title={translate('settings:setup.ownerAccount')}
+      subtitle={hasAdmin
+        ? translate('settings:setup.ownerAlreadyExists')
+        : translate('settings:setup.createInitialOwner')}
     >
       {error && <ErrorBanner message={error} />}
       {hasAdmin ? (
-        <div className="fh-alert fh-alert-info">The existing privileged account will be used for this workspace.</div>
+        <div className="fh-alert fh-alert-info">{translate('settings:setup.existingOwnerUsed')}</div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Field id="owner-username" label="Username" value={username} onChange={setUsername} templateVariable="admin" disabled={loading} />
+            <Field id="owner-username" label={translate('settings:setup.username')} value={username} onChange={setUsername} templateVariable="admin" disabled={loading} />
           </div>
           <div className="sm:col-span-2">
             <Field
               id="owner-email"
-              label="Email"
+              label={translate('settings:setup.email')}
               type="email"
               value={email}
               onChange={value => { setEmail(value); setEmailTouched(true) }}
@@ -645,14 +669,14 @@ function OwnerStep({
               error={emailTouched ? emailError : null}
             />
           </div>
-          <Field id="owner-password" label="Password" type="password" value={password} onChange={setPassword} templateVariable="At least 8 characters" disabled={loading} />
-          <Field id="owner-confirm" label="Confirm password" type="password" value={confirm} onChange={setConfirm} templateVariable="Repeat password" disabled={loading} />
+          <Field id="owner-password" label={translate('settings:setup.password')} type="password" value={password} onChange={setPassword} templateVariable={translate('settings:setup.passwordHint')} disabled={loading} />
+          <Field id="owner-confirm" label={translate('settings:setup.confirmPassword')} type="password" value={confirm} onChange={setConfirm} templateVariable={translate('settings:setup.confirmPasswordHint')} disabled={loading} />
         </div>
       )}
       <Actions
         onBack={onBack}
         onNext={() => { void createOwner() }}
-        nextLabel={hasAdmin ? 'Continue to review' : 'Create owner'}
+        nextLabel={hasAdmin ? translate('settings:setup.continueToReview') : translate('settings:setup.createOwner')}
         loading={loading}
         nextDisabled={!hasAdmin && (!username.trim() || Boolean(emailError) || password.length < 8 || confirm.length < 8)}
       />
@@ -670,28 +694,28 @@ function ReviewStep({ onComplete, onBack }: { onComplete: () => void; onBack: ()
     try {
       const response = await fetch('/api/v2/setup/complete', { method: 'POST' })
       if (!response.ok) {
-        setError(await responseError(response, `Could not finish setup (HTTP ${response.status})`))
+        setError(await responseError(response, translate('settings:setup.finishFailedHttp', { status: response.status })))
         return
       }
       onComplete()
       window.location.assign(localStorage.getItem('wp_token') ? '/home' : '/login')
     } catch {
-      setError('Network error while finishing setup.')
+      setError(translate('settings:setup.finishNetworkError'))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <StepSection title="Review setup" subtitle="Your required workspace configuration is ready.">
+    <StepSection title={translate('settings:setup.reviewSetup')} subtitle={translate('settings:setup.reviewReadyDescription')}>
       {error && <ErrorBanner message={error} />}
       <div className="rounded-lg bg-bg-base p-4">
-        <h3 className="text-sm font-semibold text-text-base">Ready to finish</h3>
+        <h3 className="text-sm font-semibold text-text-base">{translate('settings:setup.readyToFinish')}</h3>
         <p className="mt-2 text-xs leading-5 text-[color:var(--fh-text-secondary)]">
-          FlowHub will lock the public setup endpoints after completion. Source and channel connections remain available after sign-in.
+          {translate('settings:setup.finishDescription')}
         </p>
       </div>
-      <Actions onBack={onBack} onNext={() => { void finishSetup() }} nextLabel="Finish setup" loading={loading} />
+      <Actions onBack={onBack} onNext={() => { void finishSetup() }} nextLabel={translate('settings:setup.finishSetup')} loading={loading} />
     </StepSection>
   )
 }
@@ -741,7 +765,7 @@ export default function Setup({ onComplete }: SetupProps) {
       <div className="flex min-h-screen items-center justify-center bg-bg-base p-4">
         <div className="fh-card flex items-center gap-2.5 px-5 py-4 fh-text-body-sm">
           <Spinner size="sm" />
-          <span>Loading setup status...</span>
+          <span>{translate('settings:setup.loadingSetupStatus')}</span>
         </div>
       </div>
     )
@@ -764,7 +788,7 @@ export default function Setup({ onComplete }: SetupProps) {
             setDirection(nextLanguage === 'fa' ? 'rtl' : 'ltr')
           }}
           className="px-2 text-xs font-medium text-[color:var(--fh-text-secondary)]"
-          aria-label={language === 'fa' ? 'Switch to English' : 'تغییر به فارسی'}
+          aria-label={translate('settings:setup.switchLanguage')}
         >
           {language === 'fa' ? 'FA' : 'EN'}
         </button>
@@ -772,7 +796,9 @@ export default function Setup({ onComplete }: SetupProps) {
           type="button"
           onClick={toggleTheme}
           className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[color:var(--fh-text-secondary)] hover:bg-[color:var(--fh-ui-surface-muted)]"
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={theme === 'dark'
+            ? translate('navigation:topbar.switchToLightMode')
+            : translate('navigation:topbar.switchToDarkMode')}
         >
           <ThemeGlyph theme={theme} />
         </button>
@@ -780,8 +806,8 @@ export default function Setup({ onComplete }: SetupProps) {
 
       <main className="fh-card mx-auto mt-5 min-h-[690px] w-full max-w-[900px] overflow-visible p-5 sm:p-6">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-[22px] font-semibold leading-[30px] text-text-base">Set up your workspace</h1>
-          <span className="fh-badge fh-badge-info shrink-0">Step {stepIndex + 1} of 4</span>
+          <h1 className="text-[22px] font-semibold leading-[30px] text-text-base">{translate('settings:setup.setUpWorkspace')}</h1>
+          <span className="fh-badge fh-badge-info shrink-0">{translate('settings:setup.stepOf', { step: stepIndex + 1, total: SETUP_STEPS.length })}</span>
         </div>
 
         <div className="mt-[18px]">

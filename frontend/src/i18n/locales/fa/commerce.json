@@ -41,7 +41,7 @@
   "commerceHub.column": "ستون",
   "commerceHub.columnMapping": "نگاشت ستون‌ها",
   "commerceHub.commerceHub": "مرکز تجارت",
-  "commerceHub.commerceSystemsThatReceiveCatalogVisibilityFrom": "سامانه‌های تجاری که اطلاعات و نمایش کاتالوگ را از FlowHub دریافت می‌کنند.",
+  "commerceHub.commerceSystemsThatReceiveCatalogVisibilityFrom": "کانال‌های فروش متصل و سلامت فهرست‌های فروش را مدیریت کنید.",
   "commerceHub.configure": "پیکربندی",
   "commerceHub.configure2": "پیکربندی {{value1}}",
   "commerceHub.configured": "پیکربندی‌شده",

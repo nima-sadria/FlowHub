@@ -14,7 +14,7 @@ export default function UserManagement() {
       </div>
 
       <div className="flex flex-col items-start gap-4 lg:flex-row">
-        <SettingsNav active="Users" />
+        <SettingsNav active="users" />
         <div className="min-w-0 flex-1">
           <UserManagementPanel />
         </div>

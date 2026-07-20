@@ -114,6 +114,8 @@ export interface DensePricingWorkspaceProps {
   /** Products owns the sole page shell when the pricing grid is embedded on /products. */
   embedded?: boolean
   categoryOptions?: readonly { value: string; label: string }[]
+  /** Global Products search supplied by the q query parameter. */
+  initialSearch?: string
 }
 
 interface DensePricingGridProps {
@@ -192,7 +194,13 @@ const DensePricingGrid = memo(function DensePricingGrid({
   )
 })
 
-export default function DensePricingWorkspace({ workspace, service, embedded = false, categoryOptions = [] }: DensePricingWorkspaceProps) {
+export default function DensePricingWorkspace({
+  workspace,
+  service,
+  embedded = false,
+  categoryOptions = [],
+  initialSearch = '',
+}: DensePricingWorkspaceProps) {
   const notify = useNotification()
   const hotRef = useRef<HotTableRef>(null)
   const gridLoaderRef = useRef(createLatestGridLoader<GroupedWorkspacePage>())
@@ -202,8 +210,8 @@ export default function DensePricingWorkspace({ workspace, service, embedded = f
   const [channelInventoryReady, setChannelInventoryReady] = useState(false)
   const [page, setPage] = useState(1)
   const [view, setView] = useState<View>(() => workspace.entryPoint === 'manual' ? 'all' : 'changed')
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState(() => initialSearch.trim())
+  const [search, setSearch] = useState(() => initialSearch.trim())
   const [channelFilter, setChannelFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [productTypeFilter, setProductTypeFilter] = useState<'' | 'simple' | 'variable' | 'variation'>('')
@@ -257,6 +265,12 @@ export default function DensePricingWorkspace({ workspace, service, embedded = f
     }
   }, [])
 
+  useEffect(() => {
+    const normalized = initialSearch.trim()
+    setSearchInput(normalized)
+    setSearch(normalized)
+    setPage(1)
+  }, [initialSearch])
   useEffect(() => {
     void load()
     return () => gridLoaderRef.current.cancel()

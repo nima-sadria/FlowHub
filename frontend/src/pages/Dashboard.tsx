@@ -112,7 +112,7 @@ function ChartCard({ title, children }: { title: string; children: ReactNode }) 
       <div className="flex items-center">
         <p className="text-[15px] font-semibold leading-5 text-text-base">{title}</p>
         <span className="ms-auto text-xs text-[color:var(--fh-text-secondary)]">
-          {translate('dashboard:dashboard.last30Days')}
+          {translate('dashboard:dashboard.loadedOrders')}
         </span>
       </div>
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
@@ -122,29 +122,62 @@ function ChartCard({ title, children }: { title: string; children: ReactNode }) 
   )
 }
 
-function RevenueLineChart({ points }: { points: Array<{ day: string; total: number }> }) {
+interface RevenueSeries {
+  currency: string
+  points: Array<{ day: string; total: number }>
+}
+
+const REVENUE_SERIES_COLORS = [
+  'var(--color-accent)',
+  'var(--fh-warning-500)',
+  'var(--fh-success-500)',
+  'var(--fh-error-500)',
+]
+
+function RevenueLineChart({ series }: { series: RevenueSeries[] }) {
   const width = 440
   const height = 150
-  const max = Math.max(...points.map(point => point.total), 1)
-  const step = points.length > 1 ? width / (points.length - 1) : width
-  const path = points
-    .map((point, index) => {
-      const x = points.length > 1 ? index * step : width / 2
-      const y = height - 10 - (point.total / max) * (height - 30)
-      return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-    })
-    .join(' ')
+  const max = Math.max(...series.flatMap(item => item.points.map(point => point.total)), 1)
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-      className="h-[150px] w-full max-w-[440px]"
-      role="img"
-      aria-label={translate('dashboard:dashboard.revenueTrend')}
-    >
-      <line x1="0" y1="12" x2={width} y2="12" stroke="var(--fh-ui-border)" strokeWidth="3" />
-      <path d={path} fill="none" stroke="var(--color-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <div className="flex w-full flex-col items-center gap-2">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+        className="h-[130px] w-full max-w-[440px]"
+        role="img"
+        aria-label={translate('dashboard:dashboard.revenueTrend')}
+      >
+        <line x1="0" y1="12" x2={width} y2="12" stroke="var(--fh-ui-border)" strokeWidth="3" />
+        {series.map((item, seriesIndex) => {
+          const step = item.points.length > 1 ? width / (item.points.length - 1) : width
+          const path = item.points.map((point, pointIndex) => {
+            const x = item.points.length > 1 ? pointIndex * step : width / 2
+            const y = height - 10 - (point.total / max) * (height - 30)
+            return `${pointIndex === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+          }).join(' ')
+          return (
+            <path
+              key={item.currency}
+              data-revenue-currency={item.currency}
+              d={path}
+              fill="none"
+              stroke={REVENUE_SERIES_COLORS[seriesIndex % REVENUE_SERIES_COLORS.length]}
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )
+        })}
+      </svg>
+      <div className="flex flex-wrap justify-center gap-3 text-[11px] text-[color:var(--fh-text-secondary)]">
+        {series.map((item, index) => (
+          <span key={item.currency} className="inline-flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full" style={{ background: REVENUE_SERIES_COLORS[index % REVENUE_SERIES_COLORS.length] }} />
+            {item.currency}
+          </span>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -159,7 +192,7 @@ function OrdersBarChart({ bars }: { bars: Array<{ channel: string; count: number
       {bars.map(bar => (
         <div
           key={bar.channel}
-          title={`${bar.channel}: ${formatNumber(bar.count)}`}
+          title={`${formatChannelDisplayName(bar.channel)}: ${formatNumber(bar.count)}`}
           className="w-7 rounded bg-accent"
           style={{ height: `${Math.max((bar.count / max) * 150, 6)}px` }}
         />
@@ -234,6 +267,7 @@ export default function Dashboard() {
   const orderedChannels = useMemo(
     () => prepareResourceCollection(channelHealth?.items ?? [], channel => ({
       ...diagnosticChannelSignals(channel),
+      // i18n-ignore -- technical connector identity passed to the display-name formatter.
       displayName: formatChannelDisplayName(channel.channelId || `${channel.channelType}:primary`),
     })),
     [channelHealth],
@@ -248,6 +282,7 @@ export default function Dashboard() {
   const operationalChannels = counts?.Operational ?? 0
   const totalChannels = channelHealth?.items.length ?? 0
   const channelWarnings = counts?.Warning ?? 0
+  // i18n-ignore -- backend diagnostic status identifier.
   const channelBlocking = (counts?.Error ?? 0) + (counts?.['Unable to check'] ?? 0)
   const metrics = businessSummary?.metrics
   const recommendationLabel = translate('dashboard:dashboard.recommendedAction')
@@ -415,31 +450,39 @@ export default function Dashboard() {
   const blockingCount = metrics?.blockingIssues ?? channelBlocking
   const warningCount = metrics?.warnings ?? channelWarnings
 
-  const fallbackRevenueCurrency =
-    synchronizedOrdersToday.find(order => order.currency)?.currency
-    ?? countedOrders.find(order => order.currency)?.currency
-    ?? ''
-  const fallbackRevenue = synchronizedOrdersToday.reduce(
-    (sum, order) => sum + (order.finalAmount ?? 0),
-    0,
-  )
+  const fallbackRevenueByCurrency = synchronizedOrdersToday.reduce((totals, order) => {
+    if (!order.currency || order.finalAmount === null) return totals
+    totals.set(order.currency, (totals.get(order.currency) ?? 0) + order.finalAmount)
+    return totals
+  }, new Map<string, number>())
+  const fallbackRevenueText = Array.from(fallbackRevenueByCurrency.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([currency, amount]) => formatMoney(amount, { currency }))
+    .join(' · ')
   const revenueText = metrics
     ? metrics.revenueToday.map(item => formatMoney(item.amount, { currency: item.currency })).join(' · ')
     : orderWindow === null
       ? translate('common:status.loading')
-      : formatMoney(fallbackRevenue, { currency: fallbackRevenueCurrency, empty: '-' })
+      : fallbackRevenueText || '-'
 
-  const revenueByDay = useMemo(() => {
-    const days = new Map<string, number>()
+  const revenueSeries = useMemo(() => {
+    const currencies = new Map<string, Map<string, number>>()
     for (const order of countedOrders) {
-      if (!order.createdAtProvider || order.finalAmount === null) continue
+      if (!order.createdAtProvider || order.finalAmount === null || !order.currency) continue
       const day = order.createdAtProvider.slice(0, 10)
+      const days = currencies.get(order.currency) ?? new Map<string, number>()
       days.set(day, (days.get(day) ?? 0) + order.finalAmount)
+      currencies.set(order.currency, days)
     }
-    return Array.from(days.entries())
+    return Array.from(currencies.entries())
       .sort(([left], [right]) => left.localeCompare(right))
-      .slice(-30)
-      .map(([day, total]) => ({ day, total }))
+      .map(([currency, days]) => ({
+        currency,
+        points: Array.from(days.entries())
+          .sort(([left], [right]) => left.localeCompare(right))
+          .slice(-30)
+          .map(([day, total]) => ({ day, total })),
+      }))
   }, [countedOrders])
 
   const ordersByChannel = useMemo(() => {
@@ -703,8 +746,8 @@ export default function Dashboard() {
         <ChartCard title={translate('dashboard:dashboard.revenueTrend')}>
           {orderWindow === null ? (
             <SkeletonCard />
-          ) : revenueByDay.length > 1 ? (
-            <RevenueLineChart points={revenueByDay} />
+          ) : revenueSeries.some(item => item.points.length > 1) ? (
+            <RevenueLineChart series={revenueSeries} />
           ) : (
             <Empty
               title={translate('dashboard:dashboard.notEnoughOrderData')}
@@ -905,6 +948,7 @@ export default function Dashboard() {
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="truncate text-[13px] font-medium leading-[18px] text-text-base">
+                    {/* i18n-ignore -- technical connector identity passed to the display-name formatter. */}
                     {formatChannelDisplayName(channel.channelId || `${channel.channelType}:primary`)}
                   </span>
                   <span className="truncate text-xs leading-4 text-[color:var(--fh-text-secondary)]">

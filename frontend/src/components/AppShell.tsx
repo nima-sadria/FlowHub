@@ -101,6 +101,7 @@ export default function AppShell() {
         <Topbar
           onMenuClick={() => setSidebarOpen(o => !o)}
           onToggleCollapse={handleToggleCollapse}
+          sidebarCollapsed={sidebarCollapsed}
           user={user}
           onLogout={handleLogout}
         />

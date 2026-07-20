@@ -64,15 +64,15 @@ export default function Login() {
       if (!response.ok) {
         const data = await response.json().catch(() => ({})) as { detail?: string }
         if (response.status === 401) {
-          setError(data.detail ?? 'Invalid credentials. Please check your username and password.')
+          setError(data.detail ?? translate('authentication:login.invalidCredentials'))
         } else if (response.status === 403) {
-          setError(data.detail ?? 'Access not granted — contact your administrator.')
+          setError(data.detail ?? translate('authentication:login.accessNotGranted'))
         } else if (response.status === 429) {
-          setError('Too many login attempts. Please wait a moment and try again.')
+          setError(translate('authentication:login.tooManyAttempts'))
         } else if (response.status === 503) {
-          setError('Authentication service is temporarily unavailable. Please try again.')
+          setError(translate('authentication:login.serviceUnavailable'))
         } else {
-          setError(data.detail ?? `Login failed (HTTP ${response.status}). Please try again.`)
+          setError(data.detail ?? translate('authentication:login.loginFailedHttp', { status: response.status }))
         }
         return
       }
@@ -83,7 +83,7 @@ export default function Login() {
       await refreshUser()
       navigate('/home', { replace: true })
     } catch {
-      setError('Network error. Please check your connection and try again.')
+      setError(translate('authentication:login.networkError'))
     } finally {
       setLoading(false)
     }
@@ -93,7 +93,7 @@ export default function Login() {
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-bg-base px-4 py-6 sm:px-8">
       <header className="relative flex h-10 w-full max-w-[1376px] items-center justify-center">
         <img
-          src="/static/logos/FlowHub.webp"
+          src="/static/logos/FlowHub.webp?v=4"
           alt={translate('authentication:login.flowhub')}
           className="h-[34px] w-auto max-w-[132px] object-contain"
         />
@@ -150,7 +150,7 @@ export default function Login() {
               autoFocus
               disabled={loading}
               className="fh-input"
-              {...inputHint('Administrator username')}
+              {...inputHint(translate('authentication:login.usernameHint'))}
             />
           </div>
 
@@ -169,7 +169,7 @@ export default function Login() {
                 autoComplete="current-password"
                 disabled={loading}
                 className="min-w-0 flex-1 border-0 bg-transparent text-[13px] leading-[18px] text-text-base outline-none"
-                {...inputHint('Enter your password')}
+                {...inputHint(translate('authentication:login.passwordHint'))}
               />
               <button
                 type="button"
@@ -183,21 +183,6 @@ export default function Login() {
                 <EyeGlyph visible={showPassword} />
               </button>
             </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-4">
-            <label className="flex items-center gap-2 py-1 text-sm leading-5 text-text-base">
-              <input
-                type="checkbox"
-                checked
-                readOnly
-                className="h-[18px] w-[18px] rounded-[5px] border-border accent-[color:var(--fh-action-primary)]"
-              />
-              <span>{translate('authentication:login.rememberMe')}</span>
-            </label>
-            <span className="text-xs font-medium leading-4 text-accent">
-              {translate('authentication:login.forgotPassword')}
-            </span>
           </div>
 
           <button type="submit" disabled={loading} className="fh-button-primary fh-button-sm mt-1 w-full">

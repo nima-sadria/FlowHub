@@ -70,7 +70,7 @@ const NAV_GROUPS: NavGroup[] = [
     sectionKey: 'navigation:sidebar.operations',
     items: [
       { labelKey: 'navigation:sidebar.activity', to: '/activity', icon: routeIconMap.Activity, permission: 'can_view_logs' },
-      { labelKey: 'navigation:sidebar.dataQuality', to: '/data-quality', icon: routeIconMap['Data Quality'], permission: 'can_fetch' },
+      { labelKey: 'navigation:sidebar.dataQuality', to: '/data-quality', icon: 'dataQuality', permission: 'can_fetch' },
       { labelKey: 'navigation:sidebar.diagnostics', to: '/diagnostics', icon: routeIconMap.Diagnostics, permission: 'can_view_settings' },
     ],
   },
@@ -79,7 +79,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { labelKey: 'navigation:sidebar.general', to: '/settings', icon: routeIconMap.Settings, permission: 'can_view_settings' },
       { labelKey: 'navigation:sidebar.users', to: '/settings/users', icon: routeIconMap.Users, permission: 'can_view_settings', adminOnly: true },
-      { labelKey: 'navigation:sidebar.rateLimits', to: '/rate-limits', icon: routeIconMap['Rate Limits'], permission: 'can_view_settings' },
+      { labelKey: 'navigation:sidebar.rateLimits', to: '/rate-limits', icon: 'rateLimits', permission: 'can_view_settings' },
     ],
   },
 ]

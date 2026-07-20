@@ -35,7 +35,6 @@
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3",
-    "vazirmatn": "^33.0.3",
     "vite": "^8.1.4",
     "vitest": "^4.1.10"
   }

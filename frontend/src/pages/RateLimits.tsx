@@ -273,45 +273,45 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
       </div>
 
       <div className="flex flex-col items-start gap-4 lg:flex-row">
-        <SettingsNav active="Rate Limits" />
+        <SettingsNav active="rateLimits" />
 
         <div className="flex w-full max-w-[820px] min-w-0 flex-col gap-3.5">
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-            <CapacityCard label="Requests completed" value={loading ? '—' : completed.toLocaleString()} percent={completedPercent} />
-            <CapacityCard label="Requests delayed" value={loading ? '—' : delayed.toLocaleString()} percent={delayedPercent} tone={delayed > 0 ? 'warning' : 'success'} />
-            <CapacityCard label="Queue length" value={loading ? '—' : queued.toLocaleString()} percent={queuedPercent} tone={queued > 0 ? 'warning' : 'success'} />
+            <CapacityCard label={translate('settings:rateLimits.requestsCompleted')} value={loading ? '—' : completed.toLocaleString()} percent={completedPercent} />
+            <CapacityCard label={translate('settings:rateLimits.requestsDelayed')} value={loading ? '—' : delayed.toLocaleString()} percent={delayedPercent} tone={delayed > 0 ? 'warning' : 'success'} />
+            <CapacityCard label={translate('settings:rateLimits.queueLength')} value={loading ? '—' : queued.toLocaleString()} percent={queuedPercent} tone={queued > 0 ? 'warning' : 'success'} />
           </div>
 
           <section className={['fh-card min-h-[310px] p-[18px]', dirty ? 'border-accent' : ''].join(' ')}>
-            <h2 className="text-base font-semibold leading-[22px] text-text-base">Operational limits</h2>
-            <p className="mt-2 text-xs leading-4 text-[color:var(--fh-text-secondary)]">Adjust only when sustained usage requires more capacity.</p>
+            <h2 className="text-base font-semibold leading-[22px] text-text-base">{translate('settings:rateLimits.operationalLimits')}</h2>
+            <p className="mt-2 text-xs leading-4 text-[color:var(--fh-text-secondary)]">{translate('settings:rateLimits.operationalLimitsDescription')}</p>
 
             {loading || !current ? (
-              <div className="mt-5 flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />Loading operational limits</div>
+              <div className="mt-5 flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />{translate('settings:rateLimits.loadingOperationalLimits')}</div>
             ) : (
               <>
                 {!canEdit && (
                   <div className="fh-alert fh-alert-info mt-4">
                     <Icon name="info" />
-                    <span>Administrator access is required to change operational limits.</span>
+                    <span>{translate('settings:rateLimits.adminRequiredOperationalLimits')}</span>
                   </div>
                 )}
                 <div className="mt-3.5 flex flex-col gap-2.5 sm:flex-row">
-                  <StepperField label="Read requests per minute" value={readRpm} disabled={!canEdit || saving} onChange={setReadRpm} />
-                  <StepperField label="Write requests per minute" value={writeRpm} disabled={!canEdit || saving} onChange={setWriteRpm} />
+                  <StepperField label={translate('settings:rateLimits.readRequestsMinute')} value={readRpm} disabled={!canEdit || saving} onChange={setReadRpm} />
+                  <StepperField label={translate('settings:rateLimits.writeRequestsMinute')} value={writeRpm} disabled={!canEdit || saving} onChange={setWriteRpm} />
                 </div>
                 <label className="mt-3 flex w-full flex-col gap-1.5 sm:w-[calc(50%-5px)]">
-                  <span className="text-xs font-medium leading-4 text-[color:var(--fh-text-secondary)]">Limit reset policy</span>
+                  <span className="text-xs font-medium leading-4 text-[color:var(--fh-text-secondary)]">{translate('settings:rateLimits.limitResetPolicy')}</span>
                   <select value="rolling" disabled className="fh-select !min-h-[36px] rounded-md !px-3 !py-2 text-[13px]">
-                    <option value="rolling">Rolling window</option>
+                    <option value="rolling">{translate('settings:rateLimits.rollingWindow')}</option>
                   </select>
                 </label>
                 {validation && <div className="fh-alert fh-alert-danger mt-3" role="alert"><Icon name="error" />{validation}</div>}
                 <div className="mt-4 flex justify-end gap-2">
-                  <button type="button" onClick={reset} disabled={!dirty || saving} className="fh-button-ghost fh-button-sm">Reset</button>
+                  <button type="button" onClick={reset} disabled={!dirty || saving} className="fh-button-ghost fh-button-sm">{translate('settings:rateLimits.reset')}</button>
                   <button type="button" onClick={() => void save()} disabled={!dirty || saving || Boolean(validation) || !canEdit} className="fh-button-primary fh-button-sm">
                     {saving && <Spinner size="sm" className="text-white" />}
-                    {saving ? 'Saving...' : 'Save limits'}
+                    {saving ? translate('settings:rateLimits.saving') : translate('settings:rateLimits.saveLimits')}
                   </button>
                 </div>
               </>

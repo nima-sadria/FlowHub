@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue, type AuthUser } from '../auth'
 import { changeLocale } from '../i18n'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
-import type { ChannelHealthResponse, Source } from '../services/types'
+import type { ChannelHealthResponse, ChannelOrderListItem, Source } from '../services/types'
 import Dashboard from './Dashboard'
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -231,6 +231,60 @@ describe('Dashboard', () => {
     for (const element of container.querySelectorAll('[data-business-card]')) {
       expect(element.querySelector('.fh-business-card-value')?.textContent).not.toBe('0')
     }
+  })
+
+  it('keeps revenue currencies separate and formats channel chart labels', async () => {
+    const mockServices = services()
+    const order = (
+      internalId: number,
+      channelId: string,
+      currency: string,
+      amount: number,
+      daysAgo: number,
+    ): ChannelOrderListItem => ({
+      internalId,
+      channelId,
+      connectorType: channelId.split(':')[0],
+      providerOrderId: `provider-${internalId}`,
+      orderNumber: `${internalId}`,
+      providerStatus: 'paid',
+      normalizedStatus: 'completed',
+      createdAtProvider: new Date(Date.now() - daysAgo * 86_400_000).toISOString(),
+      updatedAtProvider: null,
+      currency,
+      finalAmount: amount,
+      itemCount: 1,
+      synchronizationState: 'synced',
+      eventSource: 'poll',
+      errorState: null,
+      lastSeenAt: null,
+      customerDisplay: null,
+      paymentStatus: 'paid',
+      fulfillmentStatus: 'fulfilled',
+    })
+    mockServices.orders = {
+      getOrders: vi.fn(async () => ({
+        items: [
+          order(1, 'woocommerce:primary', 'EUR', 100, 3),
+          order(2, 'woocommerce:primary', 'EUR', 200, 2),
+          order(3, 'tapsishop:main', 'USD', 50, 3),
+          order(4, 'tapsishop:main', 'USD', 75, 2),
+        ],
+        total: 4,
+        page: 1,
+        pageSize: 50,
+      })),
+    } as unknown as Services['orders']
+
+    await renderPage(mockServices)
+
+    expect(container.querySelectorAll('[data-revenue-currency]')).toHaveLength(2)
+    expect(container.querySelector('[data-revenue-currency="EUR"]')).not.toBeNull()
+    expect(container.querySelector('[data-revenue-currency="USD"]')).not.toBeNull()
+    expect(container.querySelector('[title^="WooCommerce:"]')).not.toBeNull()
+    expect(container.querySelector('[title^="TapsiShop:"]')).not.toBeNull()
+    expect(container.textContent).toContain('Loaded orders')
+    expect(container.textContent).not.toContain('Last 30 days')
   })
 
   it('does not present a never-checked Channel as a warning', async () => {

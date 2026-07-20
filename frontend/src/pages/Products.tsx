@@ -54,6 +54,7 @@ export default function Products() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const queryWorkspaceId = searchParams.get('workspace')?.trim() ?? ''
+  const querySearch = searchParams.get('q')?.trim() ?? ''
   const generation = useRef(0)
   const catalogBootstrap = useRef<Promise<UnifiedWorkspaceResource> | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -83,7 +84,7 @@ export default function Products() {
     if (!error) return
     let active = true
     setCatalogLoading(true)
-    productService.getProducts({ search: '', status: 'all', page: 1, pageSize: FALLBACK_PAGE_SIZE })
+    productService.getProducts({ search: querySearch, status: 'all', page: 1, pageSize: FALLBACK_PAGE_SIZE })
       .then(result => {
         if (!active) return
         setCachedProducts(result.items)
@@ -92,7 +93,7 @@ export default function Products() {
       .catch(() => { if (active) setCachedProducts([]) })
       .finally(() => { if (active) setCatalogLoading(false) })
     return () => { active = false }
-  }, [error, productService])
+  }, [error, productService, querySearch])
 
   const bootstrap = useCallback(async () => {
     const requestGeneration = ++generation.current
@@ -155,6 +156,7 @@ export default function Products() {
           service={unifiedWorkspace}
           embedded
           categoryOptions={categoryOptions}
+          initialSearch={querySearch}
         />
       </Suspense>
     </PageShell>

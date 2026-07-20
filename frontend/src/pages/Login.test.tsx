@@ -65,11 +65,12 @@ describe('Login', () => {
 
     expect(container.textContent).toContain('Sign in to FlowHub')
     expect(container.textContent).toContain('Use your workspace account.')
-    expect(container.textContent).toContain('Remember me')
-    expect(container.textContent).toContain('Forgot password?')
+    expect(container.textContent).not.toContain('Remember me')
+    expect(container.textContent).not.toContain('Forgot password?')
     expect(container.textContent).toContain('Need access? Contact your workspace Owner.')
     expect(container.textContent).toContain('Privacy · Security · Support')
-    expect(container.querySelector('input[type="checkbox"]')?.hasAttribute('checked')).toBe(true)
+    expect(container.querySelector('input[type="checkbox"]')).toBeNull()
+    expect(container.querySelector('footer a')).toBeNull()
     expect(container.querySelector('[aria-label="Switch to dark mode"]')).not.toBeNull()
   })
 
