@@ -1,5 +1,4 @@
-import { translate } from '../../i18n'
-import type { Source, SourceConfig, ConnectionTestResult } from '../types'
+import type { Source } from '../types'
 import type { SourceService } from './SourceService'
 import { apiFetch } from '../../api/client'
 import { authFetch } from '../../api/authFetch'
@@ -30,15 +29,5 @@ export class ApiSourceService implements SourceService {
   async getSources(): Promise<Source[]> {
     const data = await apiFetch<{ items: RawSource[] }>('/api/v2/sources', authFetch)
     return data.items.map(mapSource)
-  }
-
-  async testConnection(_config: SourceConfig): Promise<ConnectionTestResult> {
-    // Connection testing is handled by Settings; this method is not used.
-    return { success: false, message: translate('common:apiSourceService.useSettingsToConfigureConnectors') }
-  }
-
-  async createSource(_config: SourceConfig): Promise<Source> {
-    // Write guard: source creation is disabled from this service.
-    throw new Error('Write operations are disabled.')
   }
 }
