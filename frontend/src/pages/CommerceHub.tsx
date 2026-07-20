@@ -4,8 +4,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'
+import Empty from '../components/Empty'
 import { useServices } from '../services/ServiceContext'
-import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeField, CommerceTypeOption } from '../services/types'
+import type { CommerceChannel, CommerceSource, CommerceTypeField, CommerceTypeOption } from '../services/types'
 import type { ChannelCacheRefreshResult, CommerceChannelConfiguration, CommerceVendor, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
 import Spinner from '../components/loading/Spinner'
 import SecretField from '../components/SecretField'
@@ -1047,18 +1048,17 @@ function ConfigPanel({
   )
 }
 
-export default function CommerceHub() {
+export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
   const { commerce } = useServices()
   const { user } = useAuth()
   const { success, error: notifyError } = useNotification()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'sources' ? 'sources' : 'channels')
+  const [tab, setTab] = useState<Tab>(initialTab ?? (searchParams.get('tab') === 'sources' ? 'sources' : 'channels'))
   const [sources, setSources] = useState<CommerceSource[]>([])
   const [channels, setChannels] = useState<CommerceChannel[]>([])
   const [sourceTypes, setSourceTypes] = useState<CommerceTypeOption[]>([])
   const [channelTypes, setChannelTypes] = useState<CommerceTypeOption[]>([])
-  const [map, setMap] = useState<CommerceRelationshipMap | null>(null)
   const [loading, setLoading] = useState(true)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [readingId, setReadingId] = useState<string | null>(null)
@@ -1077,9 +1077,10 @@ export default function CommerceHub() {
   )
 
   useEffect(() => {
+    if (initialTab) return
     const queryTab = searchParams.get('tab')
     if (queryTab === 'sources' || queryTab === 'channels') setTab(queryTab)
-  }, [searchParams])
+  }, [searchParams, initialTab])
 
   async function loadCommerce() {
     const [sourceData, channelData, sourceTypeData, channelTypeData] = await Promise.all([
@@ -1089,7 +1090,6 @@ export default function CommerceHub() {
       commerce.getChannelTypes(),
     ])
     setSources(sourceData.items)
-    setMap(sourceData.relationship_map)
     setChannels(channelData.items)
     setSourceTypes(sourceTypeData.items)
     setChannelTypes(channelTypeData.items)
@@ -1104,12 +1104,6 @@ export default function CommerceHub() {
       .finally(() => setLoading(false))
   }, [commerce])
 
-  function selectTab(nextTab: Tab) {
-    setTab(nextTab)
-    setSearchParams({ tab: nextTab })
-    setFormKind(null)
-    setEditingChannelId(null)
-  }
 
   async function handleSourceTest(sourceId: string) {
     if (!canManageCommerce) {

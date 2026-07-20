@@ -171,6 +171,7 @@ function SetupGate() {
           <Route path="/sources/:sourceId" element={<RequirePermission permission="can_access_site"><SourceConfiguration /></RequirePermission>} />
           <Route path="/sheets/:sheetId" element={<RequirePermission permission="can_fetch"><FlowHubSheet /></RequirePermission>} />
           <Route path="/data-quality" element={<RequirePermission permission="can_fetch"><DataQuality /></RequirePermission>} />
+          <Route path="/channels" element={<RequirePermission permission="can_access_site"><CommerceHub initialTab="channels" /></RequirePermission>} />
           <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
           <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
           <Route path="/workspace/:workspaceId" element={<RequirePermission permission="can_fetch"><UnifiedWorkspace /></RequirePermission>} />

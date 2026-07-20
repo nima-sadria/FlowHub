@@ -51,17 +51,17 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         labelKey: 'navigation:sidebar.sources',
-        to: '/commerce?tab=sources',
+        to: '/sources',
         icon: routeIconMap.Sources,
         permission: 'can_access_site',
-        isActive: (pathname, tab) => pathname === '/commerce' && tab === 'sources',
+        isActive: (pathname, tab) => pathname === '/sources' || (pathname === '/commerce' && tab === 'sources'),
       },
       {
         labelKey: 'navigation:sidebar.channels',
-        to: '/commerce?tab=channels',
+        to: '/channels',
         icon: routeIconMap.Channels,
         permission: 'can_access_site',
-        isActive: (pathname, tab) => pathname === '/commerce' && tab !== 'sources',
+        isActive: (pathname, tab) => pathname === '/channels' || (pathname === '/commerce' && tab !== 'sources'),
       },
     ],
   },
