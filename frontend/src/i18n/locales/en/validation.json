@@ -1,10 +1,5 @@
 {
   "rateLimits.readRequestsRange": "Read Requests / Minute must be between {{min}} and {{max}}.",
   "rateLimits.writeRequestsRange": "Write Requests / Minute must be between {{min}} and {{max}}.",
-  "setup.validEmailRequired": "Enter a valid email address.",
-  "source.filePathRequired": "File path is required.",
-  "source.nameRequired": "Name is required.",
-  "source.passwordRequired": "Password is required.",
-  "source.urlRequired": "URL is required.",
-  "source.usernameRequired": "Username is required."
+  "setup.validEmailRequired": "Enter a valid email address."
 }

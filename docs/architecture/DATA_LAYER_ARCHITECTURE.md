@@ -485,10 +485,13 @@ GET /api/v2/products
 Integration Platform. No live WC/NC calls are made. Future preview enrichment
 will compose `dl_source_snapshots` and `dl_product_cache`.
 
-### Read Path 3: Sources Page (`/sources`)
+### Read Path 3: Source Center (`/sources`)
 
 **Current (IP foundation):** Connector instances plus `dl_source_snapshots`.
 The route returns last-known local source metadata without live Nextcloud calls.
+The `/sources` area is served by `SourceCenter` (list and add flows, including
+`/sources/new`), `SourceImportWizard` (`/sources/import`), and
+`SourceConfiguration` (`/sources/:sourceId`).
 
 ### Read Path 4: Diagnostics Page (`/diagnostics`)
 
@@ -907,8 +910,9 @@ separate order-sync runner are independent Integration Platform workflows)
 |------|-------|---------------|------------------------|
 | Dashboard | /home | Active | No Data Layer dependency yet |
 | Products | /products | Active - Integration Platform | Reads Data Layer product cache |
-| Sources | /sources | Active - Integration Platform | Shows connector/source snapshot metadata |
-| SourceWizard | /sources/new | Active | No Data Layer dependency |
+| SourceCenter | /sources, /sources/new | Active - Integration Platform | Shows connector/source snapshot metadata |
+| SourceImportWizard | /sources/import | Active | No Data Layer dependency |
+| SourceConfiguration | /sources/:sourceId | Active | Per-source worksheet configuration and preview |
 | Workspace | /workspace | Active - Integration Platform | Record-backed preview shell; no external calls |
 | Activity | /activity | Active - audit log | No Data Layer dependency |
 | Diagnostics | /diagnostics | Active - Integration Platform | Record-backed connector diagnostics |
