@@ -103,6 +103,7 @@ function RouteMatrix({ initialPath }: { initialPath: string }) {
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><span>diagnostics-page</span></RequirePermission>} />
         <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><span>rate-limits-page</span></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="can_view_settings"><span>settings-page</span></RequirePermission>} />
+        <Route path="/settings/users" element={<RequirePermission permission="can_view_settings" adminOnly><span>users-page</span></RequirePermission>} />
       </Routes>
     </MemoryRouter>
   )
@@ -196,6 +197,18 @@ describe('RequirePermission - direct render', () => {
       makeAuth(adminUser)
     )
     expect(c.textContent).toContain('admin-only')
+  })
+
+  it('adminOnly allows super-admin users', () => {
+    const c = renderAuth(
+      <MemoryRouter>
+        <RequirePermission adminOnly>
+          <span>admin-area</span>
+        </RequirePermission>
+      </MemoryRouter>,
+      makeAuth(superUser),
+    )
+    expect(c.textContent).toContain('admin-area')
   })
 })
 
@@ -354,6 +367,24 @@ describe('Router - /settings', () => {
   it('renders Settings for admin', () => {
     const c = renderAuth(<RouteMatrix initialPath="/settings" />, makeAuth(adminUser))
     expect(c.textContent).toContain('settings-page')
+  })
+})
+
+describe('Router - /settings/users', () => {
+  it('renders User Management for admin', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/settings/users" />, makeAuth(adminUser))
+    expect(c.textContent).toContain('users-page')
+  })
+
+  it('renders User Management for super admin', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/settings/users" />, makeAuth(superUser))
+    expect(c.textContent).toContain('users-page')
+  })
+
+  it('denies a non-admin settings user', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/settings/users" />, makeAuth(settingsUser))
+    expect(c.textContent).not.toContain('users-page')
+    expect(c.textContent).toContain('Access Denied')
   })
 })
 
@@ -530,6 +561,7 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/settings/users"]')).not.toBeNull()
   })
 
   it('renders centralized icons for active navigation links', () => {
@@ -549,6 +581,7 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/data-quality"] [data-icon="dataQuality"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"] [data-icon="diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"] [data-icon="settings"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/settings/users"] [data-icon="user"]')).not.toBeNull()
   })
 })
 
@@ -565,6 +598,7 @@ describe('Sidebar - super admin (is_super_admin=true, is_admin=false)', () => {
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/settings/users"]')).not.toBeNull()
   })
 })
 
@@ -574,6 +608,7 @@ describe('Sidebar - settings user (can_view_settings=true)', () => {
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/settings/users"]')).toBeNull()
   })
 })
 

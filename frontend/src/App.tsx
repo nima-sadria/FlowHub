@@ -25,6 +25,7 @@ import Activity from './pages/Activity'
 import DataQuality from './pages/DataQuality'
 import Diagnostics from './pages/Diagnostics'
 import Settings from './pages/Settings'
+import UserManagement from './pages/UserManagement'
 import RateLimits from './pages/RateLimits'
 import Orders from './pages/Orders'
 import Login from './pages/Login'
@@ -159,6 +160,7 @@ function SetupGate() {
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
         <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
+        <Route path="/settings/users" element={<RequirePermission permission="can_view_settings" adminOnly><UserManagement /></RequirePermission>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
