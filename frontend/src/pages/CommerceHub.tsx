@@ -3,8 +3,10 @@ import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'
+import Empty from '../components/Empty'
+import KpiCard from '../components/KpiCard'
 import { useServices } from '../services/ServiceContext'
-import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeField, CommerceTypeOption } from '../services/types'
+import type { CommerceChannel, CommerceSource, CommerceTypeField, CommerceTypeOption } from '../services/types'
 import type { ChannelCacheRefreshResult, CommerceChannelConfiguration, CommerceVendor, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
 import Spinner from '../components/loading/Spinner'
 import { useNotification } from '../notifications/NotificationProvider'
@@ -57,30 +59,6 @@ function SafetyBadges({ readOnly, writeBlocked }: { readOnly: boolean; writeBloc
   )
 }
 
-function RelationshipMap({ map }: { map: CommerceRelationshipMap | null }) {
-  const nodes = map?.nodes ?? ['Source', 'FlowHub / Data Layer', 'Channel']
-  const example = map?.example ?? ['Nextcloud', 'Data Layer', 'WooCommerce']
-  return (
-    <div className="fh-card fh-card-pad">
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto_1fr] gap-3 items-center text-center">
-        <div className="fh-stat-tile">
-          <p className="fh-stat-tile-label">{nodes[0]}</p>
-          <p className="fh-text-body font-semibold">{example[0]}</p>
-        </div>
-        <div className="text-xl text-wp-muted">/</div>
-        <div className="fh-stat-tile">
-          <p className="fh-stat-tile-label">FlowHub</p>
-          <p className="fh-text-body font-semibold">{example[1]}</p>
-        </div>
-        <div className="text-xl text-wp-muted">/</div>
-        <div className="fh-stat-tile">
-          <p className="fh-stat-tile-label">{nodes[2]}</p>
-          <p className="fh-text-body font-semibold">{example[2]}</p>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function SourceCard({ source, onTest, onRead, onConfigure, testing, reading, canManage }: {
   source: CommerceSource
@@ -1042,17 +1020,18 @@ function ConfigPanel({
   )
 }
 
-export default function CommerceHub() {
+export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
   const { commerce } = useServices()
   const { user } = useAuth()
   const { success, error: notifyError } = useNotification()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'sources' ? 'sources' : 'channels')
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(initialTab ?? (searchParams.get('tab') === 'sources' ? 'sources' : 'channels'))
+  const [cardSearch, setCardSearch] = useState('')
+  const [healthFilter, setHealthFilter] = useState<'all' | 'healthy' | 'attention' | 'planned'>('all')
   const [sources, setSources] = useState<CommerceSource[]>([])
   const [channels, setChannels] = useState<CommerceChannel[]>([])
   const [sourceTypes, setSourceTypes] = useState<CommerceTypeOption[]>([])
   const [channelTypes, setChannelTypes] = useState<CommerceTypeOption[]>([])
-  const [map, setMap] = useState<CommerceRelationshipMap | null>(null)
   const [loading, setLoading] = useState(true)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [readingId, setReadingId] = useState<string | null>(null)
@@ -1063,9 +1042,10 @@ export default function CommerceHub() {
   const canManageCommerce = user?.is_admin === true
 
   useEffect(() => {
+    if (initialTab) return
     const queryTab = searchParams.get('tab')
     if (queryTab === 'sources' || queryTab === 'channels') setTab(queryTab)
-  }, [searchParams])
+  }, [searchParams, initialTab])
 
   async function loadCommerce() {
     const [sourceData, channelData, sourceTypeData, channelTypeData] = await Promise.all([
@@ -1075,7 +1055,6 @@ export default function CommerceHub() {
       commerce.getChannelTypes(),
     ])
     setSources(sourceData.items)
-    setMap(sourceData.relationship_map)
     setChannels(channelData.items)
     setSourceTypes(sourceTypeData.items)
     setChannelTypes(channelTypeData.items)
@@ -1090,12 +1069,6 @@ export default function CommerceHub() {
       .finally(() => setLoading(false))
   }, [commerce])
 
-  function selectTab(nextTab: Tab) {
-    setTab(nextTab)
-    setSearchParams({ tab: nextTab })
-    setFormKind(null)
-    setEditingChannelId(null)
-  }
 
   async function handleSourceTest(sourceId: string) {
     if (!canManageCommerce) {
@@ -1221,8 +1194,6 @@ export default function CommerceHub() {
       notifyError('Admin permission required.')
       return
     }
-    setTab('sources')
-    setSearchParams({ tab: 'sources' })
     setFormKind('source')
   }
 
@@ -1231,8 +1202,6 @@ export default function CommerceHub() {
       notifyError('Admin permission required.')
       return
     }
-    setTab('channels')
-    setSearchParams({ tab: 'channels' })
     setEditingChannelId(channelId)
     setFormKind('channel')
   }
@@ -1243,116 +1212,207 @@ export default function CommerceHub() {
     setEditingChannelId(null)
   }
 
+  const isSources = tab === 'sources'
+  const activeItems: Array<{ id: string; name: string; type: string; provider: string; status: string; placeholder: boolean }> =
+    isSources ? sources : channels
+
+  const healthBucket = (item: { status: string; placeholder: boolean }): 'healthy' | 'attention' | 'planned' => {
+    if (item.placeholder || ['planned', 'future'].includes(item.status)) return 'planned'
+    if (['healthy', 'configured', 'current'].includes(item.status)) return 'healthy'
+    return 'attention'
+  }
+
+  const healthyCount = activeItems.filter(item => healthBucket(item) === 'healthy').length
+  const attentionCount = activeItems.filter(item => healthBucket(item) === 'attention').length
+  const plannedCount = activeItems.filter(item => healthBucket(item) === 'planned').length
+  const cachedProducts = channels.reduce((sum, channel) => sum + (channel.cached_products ?? 0), 0)
+
+  const matchesFilters = (item: { name: string; type: string; provider: string; status: string; placeholder: boolean }) => {
+    if (healthFilter !== 'all' && healthBucket(item) !== healthFilter) return false
+    const term = cardSearch.trim().toLowerCase()
+    if (!term) return true
+    return item.name.toLowerCase().includes(term)
+      || item.type.toLowerCase().includes(term)
+      || item.provider.toLowerCase().includes(term)
+  }
+
+  const visibleSources = sources.filter(matchesFilters)
+  const visibleChannels = channels.filter(matchesFilters)
+  const visibleCount = isSources ? visibleSources.length : visibleChannels.length
+
+  const title = isSources ? 'Sources' : 'Channels'
+  const subtitle = isSources
+    ? 'Manage the input systems that feed FlowHub.'
+    : 'Manage connected sales channels and listing health.'
+
   return (
     <PageShell>
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">Commerce Hub</h1>
-          <p className="fh-page-subtitle">Read-only source and channel overview</p>
+          <h1 className="fh-page-title">{title}</h1>
+          <p className="fh-page-subtitle">{subtitle}</p>
         </div>
-        <SafetyBadges readOnly writeBlocked />
-      </div>
-
-      <RelationshipMap map={map} />
-
-      <div className="fh-segmented w-fit">
-        {(['sources', 'channels'] as const).map(item => (
+        {canManageCommerce ? (
           <button
-            key={item}
-            onClick={() => selectTab(item)}
-            className={[
-              'fh-segmented-button capitalize',
-              tab === item ? 'fh-segmented-button-active' : '',
-            ].join(' ')}
+            onClick={() => {
+              setEditingChannelId(null)
+              setFormKind(isSources ? 'source' : 'channel')
+            }}
+            className="fh-button-primary fh-button-sm"
           >
-            {item === 'sources' ? 'Sources' : 'Channels'}
+            <Icon name="add" />
+            {isSources ? 'Add source' : 'Add channel'}
           </button>
-        ))}
+        ) : (
+          <Badge variant="neutral">Admin permission required</Badge>
+        )}
       </div>
 
       {loading ? (
-          <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm">
-            <Spinner size="sm" />Loading Commerce Hub
-          </div>
-      ) : tab === 'sources' ? (
-        <section>
-          <div className="fh-page-toolbar mb-4">
-            <div>
-              <h2 className="fh-section-title">Sources</h2>
-              <p className="fh-section-subtitle mt-1">Input systems that feed FlowHub / Data Layer.</p>
-            </div>
-            {canManageCommerce ? (
-              <button onClick={() => setFormKind('source')} className="fh-button-primary px-4">
-                <Icon name="add" />
-                Add Source
-              </button>
-            ) : (
-              <Badge variant="neutral">Admin permission required</Badge>
-            )}
-          </div>
-          {formKind === 'source' && (
-            <div className="mb-4">
-              <ConfigPanel kind="source" types={sourceTypes} onCancel={() => setFormKind(null)} onSaved={reloadAfterSave} />
-            </div>
-          )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {sources.map(source => (
-              <SourceCard
-                key={source.id}
-                source={source}
-                onTest={(id) => void handleSourceTest(id)}
-                onRead={(id) => void handleSourceRead(id)}
-                onConfigure={handleSourceConfigure}
-                testing={testingId === source.id}
-                reading={readingId === source.id}
-                canManage={canManageCommerce}
-              />
-            ))}
-          </div>
-        </section>
+        <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm">
+          <Spinner size="sm" />Loading {title.toLowerCase()}
+        </div>
       ) : (
-        <section>
-          <div className="fh-page-toolbar mb-4">
-            <div>
-              <h2 className="fh-section-title">Channels</h2>
-              <p className="fh-section-subtitle mt-1">Commerce systems that receive catalog visibility from FlowHub.</p>
-            </div>
-            {canManageCommerce ? (
-              <button onClick={() => { setEditingChannelId(null); setFormKind('channel') }} className="fh-button-primary px-4">
-                <Icon name="add" />
-                Add Channel
-              </button>
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiCard
+              label={isSources ? 'Connected Sources' : 'Connected Channels'}
+              value={String(activeItems.length)}
+              trend={plannedCount > 0 ? `${plannedCount} planned` : 'Stable'}
+              icon={isSources ? 'sources' : 'channels'}
+            />
+            <KpiCard
+              label="Healthy"
+              value={String(healthyCount)}
+              trend={healthyCount === activeItems.length && activeItems.length > 0 ? 'All healthy' : undefined}
+              trendTone="up"
+              icon="success"
+            />
+            <KpiCard
+              label="Needs Attention"
+              value={String(attentionCount)}
+              trend={attentionCount > 0 ? 'Review' : undefined}
+              trendTone={attentionCount > 0 ? 'danger' : 'neutral'}
+              icon="alert"
+            />
+            {isSources ? (
+              <KpiCard
+                label="Feeds Channels"
+                value={String(channels.length)}
+                icon="connect"
+              />
             ) : (
-              <Badge variant="neutral">Admin permission required</Badge>
+              <KpiCard
+                label="Cached Products"
+                value={cachedProducts.toLocaleString('en-US')}
+                icon="products"
+              />
             )}
           </div>
-          {formKind === 'channel' && (
-            <div className="mb-4">
-              <ConfigPanel
-                kind="channel"
-                types={channelTypes.filter(item => item.implemented)}
-                initialChannelId={editingChannelId}
-                onCancel={() => { setFormKind(null); setEditingChannelId(null) }}
-                onSaved={reloadAfterSave}
+
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-bg-card px-3 py-2">
+            <div className="relative min-w-[200px] flex-1">
+              <Icon name="search" className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-wp-muted" />
+              <input
+                type="search"
+                value={cardSearch}
+                onChange={event => setCardSearch(event.target.value)}
+                aria-label={`Search ${title.toLowerCase()}`}
+                placeholder={`Search ${title.toLowerCase()}`}
+                className="fh-input !min-h-[36px] rounded-md ps-9"
               />
             </div>
-          )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {channels.map(channel => (
-              <ChannelCard
-                key={channel.id}
-                channel={channel}
-                onTest={(id) => void handleChannelTest(id)}
-                onRefresh={(id) => void handleChannelCacheRefresh(id)}
-                onConfigure={handleChannelConfigure}
-                testing={testingId === channel.id}
-                refreshing={refreshingId === channel.id}
-                refreshResult={refreshResults[channel.id]}
-                canManage={canManageCommerce}
-              />
-            ))}
+            <select
+              value={healthFilter}
+              onChange={event => setHealthFilter(event.target.value as typeof healthFilter)}
+              aria-label="Filter by health state"
+              className="fh-select w-auto !min-h-[36px] rounded-md"
+            >
+              <option value="all">All health states</option>
+              <option value="healthy">Healthy</option>
+              <option value="attention">Needs attention</option>
+              <option value="planned">Planned</option>
+            </select>
+            <span className="fh-text-caption ms-auto">
+              {visibleCount} {isSources ? 'source' : 'channel'}{visibleCount === 1 ? '' : 's'}
+            </span>
           </div>
-        </section>
+
+          {formKind === 'source' && isSources && (
+            <ConfigPanel kind="source" types={sourceTypes} onCancel={() => setFormKind(null)} onSaved={reloadAfterSave} />
+          )}
+          {formKind === 'channel' && !isSources && (
+            <ConfigPanel
+              kind="channel"
+              types={channelTypes.filter(item => item.implemented)}
+              initialChannelId={editingChannelId}
+              onCancel={() => { setFormKind(null); setEditingChannelId(null) }}
+              onSaved={reloadAfterSave}
+            />
+          )}
+
+          {isSources ? (
+            visibleSources.length === 0 ? (
+              <div className="fh-card">
+                <Empty
+                  title={sources.length === 0 ? 'No sources connected' : 'No sources match'}
+                  description={sources.length === 0 ? 'Connect an input system to feed FlowHub.' : 'Try adjusting the search or health filter.'}
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                {visibleSources.map(source => (
+                  <SourceCard
+                    key={source.id}
+                    source={source}
+                    onTest={(id) => void handleSourceTest(id)}
+                    onRead={(id) => void handleSourceRead(id)}
+                    onConfigure={handleSourceConfigure}
+                    testing={testingId === source.id}
+                    reading={readingId === source.id}
+                    canManage={canManageCommerce}
+                  />
+                ))}
+              </div>
+            )
+          ) : (
+            visibleChannels.length === 0 ? (
+              <div className="fh-card">
+                <Empty
+                  title={channels.length === 0 ? 'No channels connected' : 'No channels match'}
+                  description={channels.length === 0 ? 'Connect a sales channel to publish catalog visibility.' : 'Try adjusting the search or health filter.'}
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                {visibleChannels.map(channel => (
+                  <ChannelCard
+                    key={channel.id}
+                    channel={channel}
+                    onTest={(id) => void handleChannelTest(id)}
+                    onRefresh={(id) => void handleChannelCacheRefresh(id)}
+                    onConfigure={handleChannelConfigure}
+                    testing={testingId === channel.id}
+                    refreshing={refreshingId === channel.id}
+                    refreshResult={refreshResults[channel.id]}
+                    canManage={canManageCommerce}
+                  />
+                ))}
+              </div>
+            )
+          )}
+
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-bg-card px-4 py-3">
+            <p className="text-[13px] font-semibold leading-5 text-text-base">
+              {isSources ? 'Source health' : 'Channel health'}
+            </p>
+            <span className="ms-auto flex flex-wrap items-center gap-2">
+              <Badge dot variant="success">{`${healthyCount} healthy`}</Badge>
+              {attentionCount > 0 && <Badge dot variant="warning">{`${attentionCount} need${attentionCount === 1 ? 's' : ''} attention`}</Badge>}
+              {plannedCount > 0 && <Badge dot variant="neutral">{`${plannedCount} planned`}</Badge>}
+            </span>
+          </div>
+        </>
       )}
     </PageShell>
   )

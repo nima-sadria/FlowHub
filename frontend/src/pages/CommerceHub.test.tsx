@@ -409,14 +409,14 @@ afterEach(() => {
   container.remove()
 })
 
-async function renderPage(user = adminUser, commerceOverride: CommerceService = commerce) {
+async function renderPage(user = adminUser, commerceOverride: CommerceService = commerce, initialEntries: string[] = ['/commerce']) {
   await act(async () => {
     root.render(
       <NotificationProvider>
         <AuthContext.Provider value={authValue(user)}>
-          <MemoryRouter initialEntries={['/commerce']}>
+          <MemoryRouter key={initialEntries[0]} initialEntries={initialEntries}>
             <ServiceProvider services={{ ...services, commerce: commerceOverride }}>
-              <CommerceHub />
+              <CommerceHub key={initialEntries[0]} />
             </ServiceProvider>
             <NotificationContainer />
           </MemoryRouter>
@@ -445,12 +445,7 @@ function inputByLabel(c: HTMLElement, labelText: string): HTMLInputElement {
 async function openNextcloudSourceForm(c: HTMLElement) {
   await act(async () => {
     Array.from(c.querySelectorAll('button'))
-      .find(button => button.textContent === 'Sources')
-      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-  })
-  await act(async () => {
-    Array.from(c.querySelectorAll('button'))
-      .find(button => button.textContent === 'Add Source')
+      .find(button => button.textContent === 'Add source')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
   })
 }
@@ -468,7 +463,7 @@ function fillNextcloudCredentials(c: HTMLElement, baseUrl = 'https://softpple.bu
 describe('CommerceHub', () => {
   it('renders the Commerce Hub route content and Channels section', async () => {
     const c = await renderPage()
-    expect(c.textContent).toContain('Commerce Hub')
+    expect(c.textContent).toContain('Manage connected sales channels')
     expect(c.textContent).toContain('Channels')
     expect(c.textContent).toContain('WooCommerce')
     expect(c.textContent).toContain('Snapp Shop')
@@ -476,7 +471,7 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Planned channel')
     expect(c.textContent).toContain('Read-only mode')
     expect(c.textContent).toContain('Writes blocked')
-    expect(c.textContent).toContain('Add Channel')
+    expect(c.textContent).toContain('Add channel')
     expect(c.textContent).not.toContain('Apply')
   })
 
@@ -493,14 +488,10 @@ describe('CommerceHub', () => {
     expect(c.querySelector('button [data-icon="testConnection"]')).not.toBeNull()
     expect(c.querySelector('button [data-icon="refresh"]')).not.toBeNull()
 
-    await act(async () => {
-      Array.from(c.querySelectorAll('button'))
-        .find(button => button.textContent === 'Sources')
-        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
+    const sources = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
 
-    expect(c.textContent).not.toContain('Refresh product cache')
-    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Read now')).toHaveLength(1)
+    expect(sources.textContent).not.toContain('Refresh product cache')
+    expect(Array.from(sources.querySelectorAll('button')).filter(button => button.textContent === 'Read now')).toHaveLength(1)
   })
 
   it('shows Settings for configured marketplaces and no Configure action for planned channels', async () => {
@@ -813,28 +804,20 @@ describe('CommerceHub', () => {
   })
 
   it('renders Sources without listing marketplace channels there', async () => {
-    const c = await renderPage()
-    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
-    await act(async () => {
-      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
+    const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
 
     expect(c.textContent).toContain('Nextcloud')
     expect(c.textContent).toContain('CSV')
     expect(c.textContent).toContain('Google Sheets')
     expect(c.textContent).toContain('ERP / API Import')
-    expect(c.textContent).toContain('Add Source')
+    expect(c.textContent).toContain('Add source')
     expect(c.textContent).toContain('Planned source')
     expect(c.textContent).not.toContain('Snapp Shop')
     expect(c.textContent).not.toContain('Tapsi Shop')
   })
 
   it('shows Nextcloud source Test connection action but not planned source test actions', async () => {
-    const c = await renderPage()
-    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
-    await act(async () => {
-      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
+    const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
 
     const testButtons = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Test connection')
     expect(testButtons).toHaveLength(1)
@@ -882,11 +865,7 @@ describe('CommerceHub', () => {
         })
       },
     }
-    const c = await renderPage(adminUser, testCommerce)
-    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
-    await act(async () => {
-      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
+    const c = await renderPage(adminUser, testCommerce, ['/commerce?tab=sources'])
     const testButton = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
 
     await act(async () => {
@@ -932,11 +911,7 @@ describe('CommerceHub', () => {
         }
       },
     }
-    const c = await renderPage(adminUser, failingCommerce)
-    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
-    await act(async () => {
-      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
+    const c = await renderPage(adminUser, failingCommerce, ['/commerce?tab=sources'])
     const testButton = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
 
     await act(async () => {
@@ -951,26 +926,23 @@ describe('CommerceHub', () => {
 
   it('opens Source and Channel forms without rendering secrets', async () => {
     const c = await renderPage()
-    const addChannel = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add Channel')
+    const addChannel = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add channel')
     await act(async () => {
       addChannel?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
     expect(c.textContent).toContain('Channel type')
     expect(c.textContent).toContain('Consumer Secret')
 
-    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
-    await act(async () => {
-      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
-    const addSource = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add Source')
+    const sourcesScreen = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
+    const addSource = Array.from(sourcesScreen.querySelectorAll('button')).find(button => button.textContent === 'Add source')
     await act(async () => {
       addSource?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
-    expect(c.textContent).toContain('Source type')
-    expect(c.textContent).toContain('App password / token')
-    expect(c.textContent).toContain('Column Mapping')
-    expect(c.textContent).toContain('Read Policy')
-    expect(c.textContent).not.toContain('snapp-secret-value')
+    expect(sourcesScreen.textContent).toContain('Source type')
+    expect(sourcesScreen.textContent).toContain('App password / token')
+    expect(sourcesScreen.textContent).toContain('Column Mapping')
+    expect(sourcesScreen.textContent).toContain('Read Policy')
+    expect(sourcesScreen.textContent).not.toContain('snapp-secret-value')
   })
 
   it('saves Nextcloud source column mapping, worksheet, and read policy settings', async () => {
@@ -982,7 +954,7 @@ describe('CommerceHub', () => {
         return commerce.saveSource(_sourceId, nextPayload)
       },
     }
-    const c = await renderPage(adminUser, savingCommerce)
+    const c = await renderPage(adminUser, savingCommerce, ['/commerce?tab=sources'])
     await openNextcloudSourceForm(c)
 
     await act(async () => {
@@ -1018,16 +990,12 @@ describe('CommerceHub', () => {
   })
 
   it('renders visible centralized icons with labels on source workflow actions', async () => {
-    const c = await renderPage(adminUser)
-    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
-    await act(async () => {
-      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
+    const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
 
     const configure = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Settings')
     const test = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
     const read = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Read now')
-    const add = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add Source')
+    const add = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add source')
 
     expect(configure?.querySelector('[data-icon="settings"]')).not.toBeNull()
     expect(test?.querySelector('[data-icon="testConnection"]')).not.toBeNull()
@@ -1036,15 +1004,11 @@ describe('CommerceHub', () => {
     expect(configure?.textContent).toContain('Settings')
     expect(test?.textContent).toContain('Test connection')
     expect(read?.textContent).toContain('Read now')
-    expect(add?.textContent).toContain('Add Source')
+    expect(add?.textContent).toContain('Add source')
   })
 
   it('runs Read now for Nextcloud and renders the read result', async () => {
-    const c = await renderPage()
-    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
-    await act(async () => {
-      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
+    const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
 
     await act(async () => {
       Array.from(c.querySelectorAll('button'))
@@ -1060,19 +1024,16 @@ describe('CommerceHub', () => {
   it('keeps channel management controls admin-only', async () => {
     const c = await renderPage(viewerUser)
 
-    expect(c.textContent).toContain('Commerce Hub')
+    expect(c.textContent).toContain('Channels')
     expect(c.textContent).toContain('WooCommerce')
     expect(c.textContent).toContain('Admin permission required')
-    expect(c.textContent).not.toContain('Add Channel')
+    expect(c.textContent).not.toContain('Add channel')
     expect(c.textContent).not.toContain('Test connection')
 
-    const sourceTab = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Sources')
-    await act(async () => {
-      sourceTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
+    const sources = await renderPage(viewerUser, commerce, ['/commerce?tab=sources'])
 
-    expect(c.textContent).toContain('Nextcloud')
-    expect(c.textContent).not.toContain('Add Source')
+    expect(sources.textContent).toContain('Nextcloud')
+    expect(sources.textContent).not.toContain('Add source')
   })
 
   it('shows a user-facing channel test error without backend detail', async () => {
@@ -1112,7 +1073,7 @@ describe('CommerceHub', () => {
       },
     }
     const c = await renderPage(adminUser, failingCommerce)
-    const addChannel = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add Channel')
+    const addChannel = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add channel')
     await act(async () => {
       addChannel?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
@@ -1134,7 +1095,7 @@ describe('CommerceHub', () => {
   })
 
   it('shows Nextcloud browser controls for configured source input', async () => {
-    const c = await renderPage()
+    const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
     await openNextcloudSourceForm(c)
 
     expect(c.textContent).toContain('Browse Nextcloud')
@@ -1145,7 +1106,7 @@ describe('CommerceHub', () => {
   })
 
   it('opens Nextcloud file picker, renders directories and spreadsheet files, and selects a path', async () => {
-    const c = await renderPage()
+    const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
     await openNextcloudSourceForm(c)
     fillNextcloudCredentials(c)
 
@@ -1171,7 +1132,7 @@ describe('CommerceHub', () => {
   })
 
   it('rejects public share links as Nextcloud Base URL input', async () => {
-    const c = await renderPage()
+    const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
     await openNextcloudSourceForm(c)
     fillNextcloudCredentials(c, 'https://softpple.business/index.php/s/xxxxx')
 
@@ -1179,7 +1140,7 @@ describe('CommerceHub', () => {
   })
 
   it('accepts an authenticated Nextcloud WebDAV files URL as source input', async () => {
-    const c = await renderPage()
+    const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
     await openNextcloudSourceForm(c)
     fillNextcloudCredentials(c, 'https://softpple.business/remote.php/dav/files/woo', null)
 
@@ -1190,7 +1151,7 @@ describe('CommerceHub', () => {
   })
 
   it('browses Nextcloud with a WebDAV URL and keeps the selected file as a relative path', async () => {
-    const c = await renderPage()
+    const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
     await openNextcloudSourceForm(c)
     fillNextcloudCredentials(c, 'https://softpple.business/remote.php/dav/files/woo', null)
 

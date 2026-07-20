@@ -147,8 +147,9 @@ function SetupGate() {
         <Route path="/home" element={<RequirePermission permission="can_access_site"><Dashboard /></RequirePermission>} />
         <Route path="/products" element={<RequirePermission permission="can_fetch"><Products /></RequirePermission>} />
         <Route path="/orders" element={<RequirePermission permission="can_fetch"><Orders /></RequirePermission>} />
-        <Route path="/sources" element={<RequirePermission permission="can_access_site"><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
-        <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
+        <Route path="/sources" element={<RequirePermission permission="can_access_site"><CommerceHub initialTab="sources" /></RequirePermission>} />
+        <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><Navigate to="/sources" replace /></RequirePermission>} />
+        <Route path="/channels" element={<RequirePermission permission="can_access_site"><CommerceHub initialTab="channels" /></RequirePermission>} />
         <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
         <Route path="/workspace/:workspaceId" element={<RequirePermission permission="can_fetch"><Suspense fallback={<div className="fh-card fh-card-pad">Loading Workspace Grid...</div>}><UnifiedWorkspace /></Suspense></RequirePermission>} />

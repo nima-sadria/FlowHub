@@ -413,8 +413,8 @@ describe('Sidebar - denied user (can_access_site=false)', () => {
 
   it('hides Sources and Channels links', () => {
     const c = renderSidebar(deniedUser)
-    expect(c.querySelector('a[href="/commerce?tab=sources"]')).toBeNull()
-    expect(c.querySelector('a[href="/commerce?tab=channels"]')).toBeNull()
+    expect(c.querySelector('a[href="/sources"]')).toBeNull()
+    expect(c.querySelector('a[href="/channels"]')).toBeNull()
   })
 
   it('hides Activity link', () => {
@@ -461,12 +461,12 @@ describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => 
 
   it('shows Sources link under Integrations', () => {
     const c = renderSidebar(allowedUser)
-    expect(c.querySelector('a[href="/commerce?tab=sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
   })
 
   it('shows Channels link under Integrations', () => {
     const c = renderSidebar(allowedUser)
-    expect(c.querySelector('a[href="/commerce?tab=channels"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/channels"]')).not.toBeNull()
   })
 
   it('hides Activity link (no can_view_logs)', () => {
@@ -496,8 +496,8 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/home"]')).not.toBeNull()
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
     expect(c.querySelector('a[href="/orders"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/commerce?tab=sources"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/commerce?tab=channels"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/channels"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
@@ -515,8 +515,8 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(dashboardIcon?.querySelector('svg path')).not.toBeNull()
     expect(c.querySelector('a[href="/products"] [data-icon="products"]')).not.toBeNull()
     expect(c.querySelector('a[href="/orders"] [data-icon="orders"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/commerce?tab=sources"] [data-icon="sources"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/commerce?tab=channels"] [data-icon="channels"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/sources"] [data-icon="sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/channels"] [data-icon="channels"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"] [data-icon="workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"] [data-icon="activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"] [data-icon="diagnostics"]')).not.toBeNull()
@@ -530,8 +530,8 @@ describe('Sidebar - super admin (is_super_admin=true, is_admin=false)', () => {
     expect(c.querySelector('a[href="/home"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/commerce?tab=sources"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/commerce?tab=channels"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/channels"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()

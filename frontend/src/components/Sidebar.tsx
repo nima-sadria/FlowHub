@@ -50,17 +50,17 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: 'Sources',
-        to: '/commerce?tab=sources',
+        to: '/sources',
         icon: routeIconMap.Sources,
         permission: 'can_access_site',
-        isActive: (pathname, tab) => pathname === '/commerce' && tab === 'sources',
+        isActive: (pathname, tab) => pathname === '/sources' || (pathname === '/commerce' && tab === 'sources'),
       },
       {
         label: 'Channels',
-        to: '/commerce?tab=channels',
+        to: '/channels',
         icon: routeIconMap.Channels,
         permission: 'can_access_site',
-        isActive: (pathname, tab) => pathname === '/commerce' && tab !== 'sources',
+        isActive: (pathname, tab) => pathname === '/channels' || (pathname === '/commerce' && tab !== 'sources'),
       },
     ],
   },
