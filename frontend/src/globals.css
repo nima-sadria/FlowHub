@@ -1711,6 +1711,13 @@ select,
     transform: none;
   }
 
+  /* Compact 36px button per the final Figma Action/Button (Medium) */
+  .fh-button-sm {
+    min-height: 36px;
+    padding: 8px 14px;
+    border-radius: var(--fh-radius-sm);
+  }
+
   /* Form fields */
 
   .fh-field {
