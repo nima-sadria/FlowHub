@@ -38,7 +38,7 @@ describe('Orders page', () => {
     expect(container.textContent).toContain('cancelled')
     expect(container.textContent).toContain('IRR')
     expect(container.textContent).toContain('27,000 IRR')
-    expect(container.querySelector('.overflow-x-auto table')?.className).toContain('min-w-[1180px]')
+    expect(container.querySelector('.overflow-x-auto table')?.className).toContain('min-w-[960px]')
 
     const detailButton = container.querySelector('button')
     await act(async () => {
