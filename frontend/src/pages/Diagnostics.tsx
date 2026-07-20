@@ -7,6 +7,7 @@ import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
 import Icon from '../components/Icon'
+import KpiCard from '../components/KpiCard'
 import PageShell from '../components/PageShell'
 import type { ChannelHealthItem, ChannelHealthResponse, ChannelHealthLevel } from '../services/types'
 
@@ -206,6 +207,28 @@ export default function Diagnostics() {
   const connectors = diag?.connectors ?? []
   const channelHealth = diag?.channelHealth
   const limiter = diag?.rateLimiter
+  const operationalChannels = channelHealth?.items.filter(item => item.status === 'Operational').length ?? 0
+  const healthyConnectors = connectors.filter(connector => (
+    connector.enabled !== false && normalizeStatus(connectorHealth(connector)) === 'ok'
+  )).length
+  const totalServices = 2 + (channelHealth?.items.length ?? 0) + connectors.length
+  const healthyServices = (health ? 1 : 0)
+    + (normalizeStatus(diag?.overall_status) === 'ok' ? 1 : 0)
+    + operationalChannels
+    + healthyConnectors
+  const overallState = loading
+    ? 'Checking'
+    : err || diag?.overall_status === 'error'
+      ? 'Attention'
+      : channelHealth?.summary.overall === 'Warning'
+        ? 'Warning'
+        : 'Healthy'
+  const hasWarning = !loading && (
+    Boolean(err)
+    || diag?.overall_status === 'error'
+    || channelHealth?.summary.overall === 'Warning'
+    || connectors.some(connector => normalizeStatus(connectorHealth(connector)) === 'warning')
+  )
   const systemRows: StatusRowData[] = [
     {
       label: 'Backend',
@@ -226,9 +249,7 @@ export default function Diagnostics() {
       <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">Diagnostics</h1>
-          <p className="fh-page-subtitle">
-            {checkedAt ? `Last checked ${relTime(checkedAt)}` : loading ? 'Loading' : 'Unable to check'}
-          </p>
+          <p className="fh-page-subtitle">System health and integration checks.</p>
         </div>
         <button
           onClick={() => void runCheck()}
@@ -248,13 +269,109 @@ export default function Diagnostics() {
         </div>
       )}
 
-      <div className="fh-card fh-card-pad">
-        <p className="fh-section-label mb-3">System</p>
-        {systemRows.map(row => <Row key={row.label} row={row} />)}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          label="Overall State"
+          value={overallState}
+          trend={checkedAt ? `Checked ${relTime(checkedAt)}` : undefined}
+          trendTone={overallState === 'Healthy' ? 'up' : overallState === 'Checking' ? 'neutral' : 'warning'}
+          icon={overallState === 'Healthy' ? 'success' : 'warning'}
+        />
+        <KpiCard
+          label="Healthy Services"
+          value={loading ? '—' : `${healthyServices}/${totalServices}`}
+          trend={loading ? 'Checking services' : `${Math.max(totalServices - healthyServices, 0)} need review`}
+          trendTone={!loading && healthyServices === totalServices ? 'up' : 'warning'}
+          icon="diagnostics"
+        />
+        <KpiCard
+          label="Channel Checks"
+          value={loading ? '—' : String(channelHealth?.items.length ?? 0)}
+          trend={loading ? 'Loading' : `${operationalChannels} operational`}
+          trendTone={!loading && operationalChannels === (channelHealth?.items.length ?? 0) ? 'up' : 'warning'}
+          icon="channels"
+        />
+        <KpiCard
+          label="Source Checks"
+          value={loading ? '—' : String(connectors.length)}
+          trend={loading ? 'Loading' : `${healthyConnectors} healthy`}
+          trendTone={!loading && healthyConnectors === connectors.length ? 'up' : 'warning'}
+          icon="sources"
+        />
       </div>
 
-      <div className="fh-card fh-card-pad">
-        <div className="flex items-center justify-between gap-3 mb-3">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="fh-card">
+          <div className="fh-panel-header">
+            <div>
+              <p className="fh-section-title">System health</p>
+              <p className="fh-text-caption mt-1">Live application and integration status</p>
+            </div>
+            <span className={['fh-badge', overallState === 'Healthy' ? 'fh-badge-success' : hasWarning ? 'fh-badge-warning' : 'fh-badge-neutral'].join(' ')}>
+              <span className={['fh-status-dot', overallState === 'Healthy' ? 'fh-status-dot-success' : hasWarning ? 'fh-status-dot-warning' : 'fh-status-dot-neutral'].join(' ')} />
+              {overallState}
+            </span>
+          </div>
+          <div className="fh-panel-body !pt-2">
+            {hasWarning && (
+              <div className="fh-alert fh-alert-warning mb-3">
+                <Icon name="warning" />
+                <span>One or more checks need review. Open technical details for the affected service.</span>
+              </div>
+            )}
+            {systemRows.map(row => <Row key={row.label} row={row} />)}
+            <Row row={{
+              label: 'Connected channels',
+              value: loading ? 'Loading' : `${operationalChannels}/${channelHealth?.items.length ?? 0}`,
+              status: loading ? 'loading' : !channelHealth ? 'pending' : channelHealth.summary.overall === 'Operational' ? 'ok' : channelHealth.summary.overall === 'Error' ? 'error' : 'warning',
+              detail: 'Product, order, and webhook integration checks',
+            }} />
+            <Row row={{
+              label: 'Configured sources',
+              value: loading ? 'Loading' : `${healthyConnectors}/${connectors.length}`,
+              status: loading ? 'loading' : connectors.length === 0 ? 'pending' : healthyConnectors === connectors.length ? 'ok' : 'warning',
+              detail: connectors.length === 0 ? 'No sources are configured' : 'Connector configuration and availability',
+            }} />
+          </div>
+        </div>
+
+        <aside className="fh-card h-fit">
+          <div className="fh-panel-header">
+            <div>
+              <p className="fh-section-title">Recent checks</p>
+              <p className="fh-text-caption mt-1">Latest diagnostic activity</p>
+            </div>
+          </div>
+          <div className="fh-panel-body space-y-4">
+            {[
+              { label: 'System diagnostics', time: checkedAt },
+              { label: 'Channel health', time: channelHealth?.checkedAt ? new Date(channelHealth.checkedAt) : null },
+              { label: 'Rate limiter', time: limiter?.last_throttle ? new Date(limiter.last_throttle) : checkedAt },
+            ].map(check => (
+              <div key={check.label} className="flex items-start gap-3">
+                <span className="mt-1.5 fh-status-dot fh-status-dot-success" />
+                <div className="min-w-0">
+                  <p className="fh-text-body font-medium text-text-base">{check.label}</p>
+                  <p className="fh-text-caption mt-0.5">{check.time ? relTime(check.time) : loading ? 'Checking...' : 'No check recorded'}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      </div>
+
+      <details className="fh-card group">
+        <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[color:var(--fh-ui-surface-subtle)] text-wp-muted"><Icon name="diagnostics" /></span>
+          <span>
+            <span className="block fh-section-title">Technical details</span>
+            <span className="block fh-text-caption mt-0.5">Channel dimensions, connector state, and rate-limiter metrics</span>
+          </span>
+          <Icon name="chevronDown" className="ms-auto transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="space-y-5 border-t border-border p-5">
+          <div className="rounded-lg border border-border bg-bg-card p-5">
+            <div className="flex items-center justify-between gap-3 mb-3">
           <div>
             <p className="fh-section-label">Channel Health</p>
             {channelHealth?.checkedAt && (
@@ -322,9 +439,9 @@ export default function Diagnostics() {
             ))}
           </div>
         )}
-      </div>
+          </div>
 
-      <div className="fh-card fh-card-pad">
+          <div className="rounded-lg border border-border bg-bg-card p-5">
         <p className="fh-section-label mb-3">Connectors</p>
         {loading && !diag ? (
           <div className="flex items-center gap-2 py-2 fh-text-body-sm">
@@ -349,9 +466,9 @@ export default function Diagnostics() {
             />
           )
         })}
-      </div>
+          </div>
 
-      <div className="fh-card fh-card-pad">
+          <div className="rounded-lg border border-border bg-bg-card p-5">
         <p className="fh-section-label mb-3">Rate Limiter</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Row row={{
@@ -393,15 +510,17 @@ export default function Diagnostics() {
             detail: limiter?.last_throttle ? `Last ${new Date(limiter.last_throttle).toLocaleString()}` : undefined,
           }} />
         </div>
-      </div>
+          </div>
 
-      <div className="fh-card fh-card-pad">
+          <div className="rounded-lg border border-border bg-bg-card p-5">
         <p className="fh-section-label mb-2">About</p>
         <p className="fh-text-body mt-1">
           <span className="text-wp-muted">Status: </span>
           <span className="font-medium">{health?.status ?? '-'}</span>
         </p>
-      </div>
+          </div>
+        </div>
+      </details>
     </PageShell>
   )
 }

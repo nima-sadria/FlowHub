@@ -68,6 +68,7 @@ const NAV_GROUPS: NavGroup[] = [
     section: 'Operations',
     items: [
       { label: 'Activity', to: '/activity', icon: routeIconMap.Activity, permission: 'can_view_logs' },
+      { label: 'Data Quality', to: '/data-quality', icon: routeIconMap['Data Quality'], permission: 'can_fetch' },
       { label: 'Diagnostics', to: '/diagnostics', icon: routeIconMap.Diagnostics, permission: 'can_view_settings' },
     ],
   },

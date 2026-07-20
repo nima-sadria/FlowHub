@@ -22,6 +22,7 @@ import Products from './pages/Products'
 import CommerceHub from './pages/CommerceHub'
 import Workspace from './pages/Workspace'
 import Activity from './pages/Activity'
+import DataQuality from './pages/DataQuality'
 import Diagnostics from './pages/Diagnostics'
 import Settings from './pages/Settings'
 import RateLimits from './pages/RateLimits'
@@ -154,6 +155,7 @@ function SetupGate() {
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
         <Route path="/workspace/:workspaceId" element={<RequirePermission permission="can_fetch"><Suspense fallback={<div className="fh-card fh-card-pad">Loading Workspace Grid...</div>}><UnifiedWorkspace /></Suspense></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
+        <Route path="/data-quality" element={<RequirePermission permission="can_fetch"><DataQuality /></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
         <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />

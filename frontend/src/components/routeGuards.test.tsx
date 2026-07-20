@@ -99,6 +99,7 @@ function RouteMatrix({ initialPath }: { initialPath: string }) {
         <Route path="/commerce" element={<RequirePermission permission="can_access_site"><span>commerce-page</span></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><span>workspace-page</span></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><span>activity-page</span></RequirePermission>} />
+        <Route path="/data-quality" element={<RequirePermission permission="can_fetch"><span>data-quality-page</span></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><span>diagnostics-page</span></RequirePermission>} />
         <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><span>rate-limits-page</span></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="can_view_settings"><span>settings-page</span></RequirePermission>} />
@@ -269,6 +270,21 @@ describe('Router - /products', () => {
   })
 })
 
+// --- Router - /data-quality ---------------------------------------------------
+
+describe('Router - /data-quality', () => {
+  it('renders Data Quality for a user with catalog access', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/data-quality" />, makeAuth(allowedUser))
+    expect(c.textContent).toContain('data-quality-page')
+  })
+
+  it('keeps Data Quality permission-gated', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/data-quality" />, makeAuth(deniedUser))
+    expect(c.textContent).not.toContain('data-quality-page')
+    expect(c.textContent).toContain('Access Denied')
+  })
+})
+
 // --- Router - /orders ---------------------------------------------------------
 
 describe('Router - /orders', () => {
@@ -422,6 +438,11 @@ describe('Sidebar - denied user (can_access_site=false)', () => {
     expect(c.querySelector('a[href="/activity"]')).toBeNull()
   })
 
+  it('hides Data Quality link', () => {
+    const c = renderSidebar(deniedUser)
+    expect(c.querySelector('a[href="/data-quality"]')).toBeNull()
+  })
+
   it('hides Diagnostics link', () => {
     const c = renderSidebar(deniedUser)
     expect(c.querySelector('a[href="/diagnostics"]')).toBeNull()
@@ -474,6 +495,11 @@ describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => 
     expect(c.querySelector('a[href="/activity"]')).toBeNull()
   })
 
+  it('shows Data Quality link', () => {
+    const c = renderSidebar(allowedUser)
+    expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
+  })
+
   it('hides Diagnostics link (no can_view_settings)', () => {
     const c = renderSidebar(allowedUser)
     expect(c.querySelector('a[href="/diagnostics"]')).toBeNull()
@@ -500,6 +526,7 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/channels"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
@@ -519,6 +546,7 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/channels"] [data-icon="channels"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"] [data-icon="workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"] [data-icon="activity"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/data-quality"] [data-icon="dataQuality"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"] [data-icon="diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"] [data-icon="settings"]')).not.toBeNull()
   })
@@ -533,6 +561,7 @@ describe('Sidebar - super admin (is_super_admin=true, is_admin=false)', () => {
     expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
     expect(c.querySelector('a[href="/channels"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
