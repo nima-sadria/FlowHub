@@ -14,13 +14,17 @@ const allowedExact = new Set(['SKU', 'FlowHub'])
 const uiAttributes = new Set(['placeholder', 'title', 'aria-label', 'alt', 'description', 'label', 'emptyText', 'actionLabel', 'helpText', 'caption'])
 const uiProperties = new Set(['title', 'description', 'label', 'message', 'summary', 'recommendedAction', 'emptyText', 'actionLabel', 'helpText', 'caption'])
 
-function loadEnglish() {
+function loadResources(root) {
   const resources = {}
-  for (const file of globSync('*.json', { cwd: englishRoot, absolute: true, windowsPathsNoEscape: true }).sort()) {
+  for (const file of globSync('*.json', { cwd: root, absolute: true, windowsPathsNoEscape: true }).sort()) {
     const namespace = path.basename(file, '.json')
     if (namespace !== 'manifest') resources[namespace] = JSON.parse(fs.readFileSync(file, 'utf8'))
   }
   return resources
+}
+
+function loadEnglish() {
+  return loadResources(englishRoot)
 }
 
 const criticalPersianPresentationKeys = [
@@ -117,7 +121,7 @@ function catalogEntries() {
   return entries
 }
 
-function poDocument(language, template = false) {
+function poDocument(language, template = false, localizedResources = null) {
   const translations = {}
   for (const entry of catalogEntries()) {
     const context = `${entry.namespace}:${entry.key}`
@@ -126,7 +130,16 @@ function poDocument(language, template = false) {
         msgctxt: context,
         msgid: entry.message,
         ...(entry.plural ? { msgid_plural: entry.plural } : {}),
-        msgstr: template ? (entry.plural ? ['', ''] : ['']) : (entry.plural ? [entry.message, entry.plural] : [entry.message]),
+        msgstr: template
+          ? (entry.plural ? ['', ''] : [''])
+          : localizedResources
+            ? entry.plural
+              ? [
+                  localizedResources[entry.namespace]?.[`${entry.key}_one`] ?? '',
+                  localizedResources[entry.namespace]?.[`${entry.key}_other`] ?? '',
+                ]
+              : [localizedResources[entry.namespace]?.[entry.key] ?? '']
+            : (entry.plural ? [entry.message, entry.plural] : [entry.message]),
         comments: {
           ...(entry.references.length ? { reference: [...new Set(entry.references)].sort().join(' ') } : {}),
           ...(glossaryComment(`${entry.message} ${entry.plural ?? ''}`) ? { extracted: glossaryComment(`${entry.message} ${entry.plural ?? ''}`) } : {}),
@@ -159,6 +172,7 @@ function extract() {
   const entries = catalogEntries()
   writePo(path.join(localeRoot, 'flowhub.pot'), poDocument('en', true))
   writePo(path.join(localeRoot, 'en', 'flowhub.po'), poDocument('en', false))
+  writePo(path.join(localeRoot, 'fa', 'flowhub.po'), poDocument('fa', false, loadResources(persianRoot)))
   const plural = entries.filter(entry => entry.plural).length
   const interpolation = entries.filter(entry => /\{\{[^}]+\}\}/.test(`${entry.message} ${entry.plural ?? ''}`)).length
   console.log(`Extracted ${entries.length} messages across ${new Set(entries.map(entry => entry.namespace)).size} namespaces (${plural} plural, ${interpolation} interpolated).`)
@@ -204,7 +218,7 @@ function hardcodedFindings() {
     const text = value.replace(/\s+/g, ' ').trim()
     if (!/[A-Za-z]{2}/.test(text) || allowedExact.has(text) || /^(https?:|\/api\/|[A-Z0-9_:-]+)$/.test(text) || /^[a-z][A-Za-z0-9]*(?::[A-Za-z0-9_.]+|\.[A-Za-z0-9_.]+)+$/.test(text)) return
     const tokens = text.split(' ')
-    if (/^(?:fh-|flex\b|grid\b|bg-|text-|md:|sm:|lg:|xl:)/.test(text) && tokens.every(token => /^[A-Za-z0-9_!:[\]./%-]+$/.test(token))) return
+    if (/^(?:fh-|ht-|flex\b|grid\b|bg-|text-|md:|sm:|lg:|xl:)/.test(text) && tokens.every(token => /^[A-Za-z0-9_!:[\]./%-]+$/.test(token))) return
     const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1
     const sourceLines = sf.getFullText().split(/\r?\n/)
     if (`${sourceLines[line - 2] ?? ''} ${sourceLines[line - 1] ?? ''}`.includes('i18n-ignore')) return
