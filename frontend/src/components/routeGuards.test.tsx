@@ -35,6 +35,7 @@ function makeAuth(user: AuthUser | null, status: AuthContextValue['status'] = 'a
     status,
     refreshUser: async () => {},
     clearAuth: () => {},
+    logout: async () => {},
     authFetch: async () => new Response('', { status: 200 }),
   }
 }

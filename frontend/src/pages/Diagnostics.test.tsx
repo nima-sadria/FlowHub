@@ -24,6 +24,7 @@ function authValue(): AuthContextValue {
     status: 'authenticated',
     refreshUser: async () => undefined,
     clearAuth: () => undefined,
+    logout: async () => undefined,
     authFetch: fetch,
   }
 }

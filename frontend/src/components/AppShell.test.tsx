@@ -22,6 +22,7 @@ const authValue: AuthContextValue = {
   status: 'authenticated',
   refreshUser: async () => {},
   clearAuth: () => {},
+  logout: async () => {},
   authFetch: async () => new Response('', { status: 200 }),
 }
 

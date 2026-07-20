@@ -47,7 +47,7 @@ const realServices = {
 }
 
 function MaintenanceOverlay({ message }: { message?: string }) {
-  const { clearAuth } = useAuth()
+  const { logout } = useAuth()
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/95 backdrop-blur-sm">
       <div className="fh-card max-w-md w-full mx-4 p-8 text-center">
@@ -63,7 +63,7 @@ function MaintenanceOverlay({ message }: { message?: string }) {
           {message || 'FlowHub is temporarily in maintenance mode. Please try again later.'}
         </p>
         <button
-          onClick={() => { clearAuth() }}
+          onClick={() => { void logout() }}
           className="fh-button-primary px-5"
         >
           Sign out
