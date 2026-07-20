@@ -1,87 +1,110 @@
 # FlowHub
 
-[![Build](https://img.shields.io/badge/build-ready_for_release-16a34a)](https://github.com/nima-sadria/FlowHub)
-[![Docker](https://img.shields.io/badge/docker-compose-2496ed)](docker-compose.yml)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Latest Release](https://img.shields.io/badge/release-FlowHub_v1.3_Beta-7c3aed)](docs/releases/FLOWHUB_V1.3_BETA.md)
+[![Frontend CI](https://github.com/nima-sadria/FlowHub/actions/workflows/flowhub-frontend.yml/badge.svg)](https://github.com/nima-sadria/FlowHub/actions/workflows/flowhub-frontend.yml)
+[![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ed?logo=docker&logoColor=white)](docker-compose.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-FlowHub v1.3 Beta is the official development baseline for the self-hosted
-multi-channel pricing workspace. The approved release commit is
-[`fe953bdb3139f3135692cd3b3b3a221c6c371de6`](docs/releases/FLOWHUB_V1.3_BETA.md).
+FlowHub is a self-hosted, multi-channel commerce platform for bringing product
+data from Sources into a canonical business model and operating external sales
+Channels through controlled, auditable workflows.
 
-The release includes a [Source-centric pricing Workspace](docs/architecture/SOURCE_CENTRIC_PRICING_WORKSPACE.md), explicit per-Channel Source mappings, Data Quality workflow, a managed internal FlowHub Sheet, safe formulas, spreadsheet import, and complete English/Persian localization with RTL support.
+The backend and frontend package metadata currently report version `1.0.0`.
+`main` is the active development line. Older v1.2 and v1.3 release documents
+remain in the repository as historical records; they are not the current
+product description.
 
-FlowHub is a self-hosted WooCommerce price-management platform. It reads a
-Nextcloud-hosted spreadsheet through WebDAV, validates proposed price changes
-against a manually refreshed WooCommerce product cache, and performs only
-explicitly approved manual price updates.
+## Product model
 
-## Architecture
-
-The v1.3 architecture is stable and frozen for normal feature development.
-See the [official v1.3 Beta release registration](docs/releases/FLOWHUB_V1.3_BETA.md)
-and [Source-centric architecture](docs/architecture/SOURCE_CENTRIC_PRICING_WORKSPACE.md).
+- **Sources** provide data to FlowHub. Current workflows cover Nextcloud
+  spreadsheets, managed FlowHub Sheets, and CSV/XLSX imports.
+- **Channels** are external sales destinations. Implemented connector paths
+  include WooCommerce, SnappShop, and TapsiShop; capabilities vary by provider.
+- The **Data Layer** is FlowHub's canonical business-data model for products,
+  listings, source snapshots, workspace state, connector health, and related
+  operational records.
+- The **Integration Platform** owns communication with external systems,
+  including connector configuration, health, capabilities, telemetry, polling,
+  and webhooks.
+- The **Write Pipeline** is the protected external-write authority. A write is
+  never an automatic side effect of reading or editing data.
 
 ```mermaid
 flowchart LR
-    UI[FlowHub Web UI] --> API[FastAPI Backend]
-    CLI[flowhub CLI] --> API
-    API --> DL[Canonical Data Layer]
-    API --> IP[Integration Platform]
-    API --> LOG[Unified Logging Platform]
-    IP --> WC[WooCommerce Connector]
-    IP --> NC[Nextcloud Connector]
+    SOURCES[Sources] --> IP[Integration Platform]
+    CHANNELS[Channels] <--> IP
+    IP --> DL[Canonical Data Layer]
+    DL --> API[FastAPI application]
+    API --> UI[React web interface]
+    API --> WP[Write Pipeline]
+    WP --> IP
     DL --> DB[(PostgreSQL)]
-    LOG --> DB
 ```
+
+Every supported write follows the same safety sequence:
 
 ```mermaid
-flowchart TD
-    Setup[Setup Wizard] --> Login[Login]
-    Login --> Dashboard[Dashboard]
-    Dashboard --> Products[Products]
-    Dashboard --> Sources[Sources]
-    Dashboard --> Workspace[Workspace]
-    Dashboard --> Settings[Settings]
-    Dashboard --> Diagnostics[Diagnostics]
-    Dashboard --> Activity[Activity]
+flowchart LR
+    DRAFT[Draft changes] --> DRY[Dry Run]
+    DRY --> REVIEW[Review / Approval]
+    REVIEW --> APPLY[Apply]
+    APPLY --> VERIFY[Read-back verification]
 ```
 
-## Features
+Source writes, automatic pricing, and automatic Apply are disabled. Product
+writes are capability- and permission-gated, recorded before provider I/O, and
+must produce verification or an explicit reconciliation-required outcome.
 
-- Source Product parent rows group independent Channel Listings for daily pricing.
-- Explicit Source Product and per-Channel mappings support irregular spreadsheets.
-- FlowHub Sheet provides versioned rows, safe formulas, CSV/XLSX import, and a
-  virtualized 10,000-row editor independent of Handsontable functionality.
-- Data Quality separates blocked technical issues from eligible daily changes.
-- First-run setup creates the initial owner account, then locks setup.
-- Nextcloud Sources are read-only: test WebDAV access, browse/select a workbook,
-  map columns, select worksheets, and manually read within a source quota.
-- WooCommerce Channels provide read-only connection checks and manual product-cache
-  refreshes for simple products, variable parents, and variations.
-- The Workspace workflow is server-authoritative: Preview, row selection, Dry
-  Run, Approval, manual Apply, read-back verification, and audit.
-- WooCommerce writes support price fields only for simple products and variations.
-  Stock writes, source writes, schedulers, and automatic Apply are not available.
-- Integration, diagnostics, logging, rate limiting, redaction, backup, and
-  rollback controls are included for production operation.
-- Professional installer and `flowhub` server management command.
+## Current product surface
 
-## Quick Start
+| Area | Current behavior |
+| --- | --- |
+| Dashboard | Seller-focused operational summary backed by current FlowHub records. |
+| Products | Browses canonical/channel product data and supports protected channel-price workflows. |
+| Orders | Lists normalized marketplace orders and exposes controlled synchronization status/actions. |
+| Sources | Source Center, Source Configuration, spreadsheet import, FlowHub Sheet, mapping revisions, and lifecycle controls. |
+| Commerce Hub | Configures Sources and Channels, credentials, capabilities, cache refreshes, connection checks, and health. |
+| Workspace | Source and manual workspaces, immutable snapshots/drafts, review, selection, Apply, verification, and reconciliation. |
+| Data Quality | Scans source mappings and data for blocking issues and actionable warnings. |
+| Activity | Searches and filters the operational audit trail. |
+| Diagnostics | Shows system, connector, synchronization, webhook, and worker evidence without exposing secrets. |
+| Rate Limits | Displays and manages supported global API rate-limit settings. |
+| Settings | General configuration, locale, connector-related settings, rate limits, and User Management. |
 
-Install with curl:
+Authentication uses short-lived access tokens and rotating refresh tokens.
+User-initiated logout revokes the backend refresh token on a best-effort basis
+and always clears local authentication state. User Management provides
+role-based account creation, role/status changes, password reset, and deletion
+with owner and privileged-account protections.
+
+The React interface includes persistent light and dark themes. English is the
+fallback language; the complete Persian catalog enables RTL layout, Persian
+typography, and locale-aware formatting from Settings.
+
+## Setup Wizard
+
+On a fresh database, FlowHub redirects to `/setup`. The wizard collects:
+
+1. Server profile: domain, timezone, and currency.
+2. Database readiness and migration verification.
+3. Initial owner username, email, and password.
+4. Final confirmation, after which setup is locked.
+
+Connector credentials are configured after sign-in through Settings and
+Commerce Hub. The installer does not create the owner account.
+
+## Production installation
+
+The supported installer target is Ubuntu Server 24.04 or 26.04 LTS on
+amd64/x86_64. Ubuntu Core is not supported. Other Debian/Ubuntu hosts require
+explicit best-effort confirmation.
+
+One-line installation:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/nima-sadria/FlowHub/main/installer/install.sh | sudo bash
 ```
 
-Install with wget:
-
-```bash
-wget -qO- https://raw.githubusercontent.com/nima-sadria/FlowHub/main/installer/install.sh | sudo bash
-```
-
-Clone repository:
+Or install from a clone:
 
 ```bash
 git clone https://github.com/nima-sadria/FlowHub.git
@@ -89,60 +112,85 @@ cd FlowHub
 sudo ./installer/install.sh
 ```
 
-## Docker Install
+The installer uses `/opt/FlowHub`, creates the environment and generated
+secrets, builds the Compose stack, runs database migrations, installs the
+Docker-backed `flowhub` management command, starts services, and verifies
+`/api/health`. It then directs the operator to the Setup Wizard.
+
+See the [Installation Guide](docs/INSTALLATION.md) for prerequisites, existing
+installation handling, trusted proxies, the management CLI, and external
+reverse-proxy/TLS guidance.
+
+### Manual Docker Compose
+
+Review every value in `.env` before starting the stack:
 
 ```bash
 git clone https://github.com/nima-sadria/FlowHub.git
 cd FlowHub
-
 cp .env.example .env
-
-docker compose -f docker-compose.yml \
-  --env-file .env up -d --build
+docker compose --env-file .env -f docker-compose.yml config
+docker compose --env-file .env -f docker-compose.yml up -d --build
+docker compose --env-file .env -f docker-compose.yml \
+  exec app alembic -c alembic_flowhub.ini upgrade head
 ```
 
-Run migrations after the Docker stack is healthy:
+The default production runtime contains:
+
+- `app`: FastAPI plus the built React application, container port `8085`.
+- `order-sync-runner`: the separate marketplace order synchronization worker.
+- `postgres`: PostgreSQL 16 with an internal-only database port.
+
+Compose also defines a `frontend` build-stage service under the optional
+`build` profile; it is not a separate production web server.
+
+The host binding defaults to `0.0.0.0:8085` and is controlled by
+`FLOWHUB_BIND_IP` and `FLOWHUB_PORT`. TLS termination is not included in the
+Compose stack; use an external reverse proxy for public HTTPS.
+
+## Configuration
+
+[`.env.example`](.env.example) is the canonical environment template. It covers:
+
+- deployment profile, domain, host port, and recorded TLS mode;
+- PostgreSQL URL/database/user/password;
+- JWT and internal API secrets;
+- trusted proxy networks;
+- timezone, currency, storage, backup, logging, and upload limits;
+- optional Nextcloud and WooCommerce bootstrap credentials;
+- order synchronization and SnappShop synchronization limits.
+
+Connector credentials can be absent at startup and configured later in the UI.
+Never commit `.env` or expose its secrets in logs, screenshots, or support
+output. Production Handsontable grids require a valid
+`VITE_HANDSONTABLE_LICENSE_KEY`; no license key is committed.
+
+## Local development
+
+Use Python 3.12 or newer and Node.js 20. For source-level tests and frontend
+development:
 
 ```bash
-docker compose -f docker-compose.yml \
-  --env-file .env exec app alembic -c alembic_flowhub.ini upgrade head
+git clone https://github.com/nima-sadria/FlowHub.git
+cd FlowHub
+python -m pip install -r requirements-test.txt
+
+cd frontend
+npm ci
+npm run dev
 ```
 
-## Installer
-
-The installer supports Ubuntu Server 24.04 LTS and Ubuntu Server 26.04 LTS on
-x86_64/amd64 hosts. Ubuntu Core is not supported. Other Debian/Ubuntu hosts are
-best-effort only and require explicit confirmation.
-
-FlowHub installs into:
-
-```text
-/opt/FlowHub
-```
-
-It detects distribution, Ubuntu version, Ubuntu Core, architecture, `apt-get`,
-curl/wget, CPU, RAM, disk, Docker, Docker Compose, existing installations, and
-Legacy Compatibility installations at `/opt/flowhub`.
-
-Installer actions:
+The Vite development server listens on `5173` and proxies API/static requests to
+`localhost:8000`. With a development database and environment configured, start
+the backend from the repository root with:
 
 ```bash
-sudo ./installer/install.sh
-sudo ./installer/install.sh --upgrade
-sudo ./installer/install.sh --repair
-sudo ./installer/install.sh --reinstall
-sudo ./installer/install.sh --uninstall
+uvicorn app.flowhub.app:app --reload --port 8000
 ```
 
-If `/opt/FlowHub` already exists, the installer does not overwrite it blindly.
-It offers Upgrade, Repair, Reinstall, or Exit. Upgrade and Repair preserve
-configuration, generated secrets, database data, uploads, backups, logs, and
-Docker volumes. Reinstall warns before destructive actions.
+For an integrated local runtime, use the Docker Compose procedure above.
 
-Generated initial-owner passwords are printed once during installation and are
-not stored in plaintext logs or backups.
-
-## Update
+## Upgrade
 
 ```bash
 cd /opt/FlowHub
@@ -150,186 +198,93 @@ git pull
 sudo ./installer/install.sh --upgrade
 ```
 
+Upgrade preserves `.env`, generated secrets, database data, uploads, logs,
+backups, and Docker volumes while rebuilding images, running migrations,
+restarting services, and checking health. Read the [Upgrade
+Guide](docs/UPGRADE.md) and create a backup before major upgrades.
+
+## Health checks
+
+Replace `8085` if `FLOWHUB_PORT` is customized:
+
+```bash
+curl -fsS http://localhost:8085/api/health
+flowhub health
+docker compose -f /opt/FlowHub/docker-compose.yml \
+  --env-file /opt/FlowHub/.env ps
+```
+
+The public health endpoint is `GET /api/health`. Authenticated operational
+detail is available through Diagnostics and the v2 diagnostics/health APIs.
+
 ## Uninstall
+
+On an installer-managed host:
+
+```bash
+flowhub uninstall
+```
+
+The direct installer action is also available from `/opt/FlowHub`:
 
 ```bash
 sudo ./installer/install.sh --uninstall
 ```
 
-## CLI
+Uninstall is destructive and requires confirmation. Review backup and data
+retention needs first.
 
-After installation, the `flowhub` command is available:
+## Testing
 
-```bash
-flowhub
-```
-
-Running `flowhub` without arguments opens the simple operator menu:
-
-```text
-FlowHub Management
-
-Maintenance
-1. Install
-2. Update
-3. Uninstall
-4. Domain + SSL Setup
-5. IP + Port Setup
-
-Account
-6. Owner Setup
-7. Show Base URL
-8. Show Admin Users
-9. Add Admin User
-10. Delete Admin User
-
-Status
-11. Status Overview
-
-Diagnostics
-12. Logs
-13. Errors & Warnings
-
-0. Exit
-```
-
-On installed hosts, menu option 1 is disabled and prints:
-
-```text
-FlowHub is already installed. Use Update instead.
-```
-
-Advanced recovery and support commands remain available only through direct
-command mode:
+Backend checks run from the repository root; frontend checks run from
+`frontend/`:
 
 ```bash
-flowhub install
-flowhub upgrade
-flowhub update
-flowhub repair
-flowhub reinstall
-flowhub status
-flowhub health
-flowhub logs
-flowhub start
-flowhub restart
-flowhub stop
-flowhub uninstall
-flowhub backup
-flowhub restore backups/flowhub-YYYYMMDDTHHMMSSZ.tar.gz
-flowhub base-url
-flowhub overview
-flowhub errors
-flowhub domain set kharidbezan.com
-flowhub tls status
-flowhub tls letsencrypt kharidbezan.com
-flowhub admin list
-flowhub admin create
-flowhub admin delete
-flowhub admin reset-username
-flowhub admin reset-password
+python -m pytest -q
+
+cd frontend
+npm ci
+npm run i18n:validate
+npm run build
+npm test
 ```
 
-The installed `flowhub` wrapper is Docker-backed. Runtime commands use a
-root-owned helper with a strict sudoers allowlist, so the normal installing
-operator can run FlowHub management commands without manually typing `sudo`.
-The wrapper does not read `.env` directly; `.env` remains protected as
-`root:root 600`. `flowhub restart` waits for the application health endpoint
-before returning successfully.
+PostgreSQL integration/concurrency tests use the isolated stack and commands in
+[Order Synchronization](docs/architecture/ORDER_SYNCHRONIZATION.md).
 
-On an installed host, `flowhub install` does not re-enter the installer workflow;
-use Update from the menu or `flowhub upgrade` from direct command mode instead.
+## Repository layout
 
-### Domain and TLS
+| Path | Purpose |
+| --- | --- |
+| `app/flowhub/` | Active FastAPI application and product/domain services. |
+| `frontend/` | React, TypeScript, Vite, Vitest, localization runtime, and UI. |
+| `alembic_flowhub/` | Active FlowHub database migrations. |
+| `installer/` | Supported server installer and lifecycle actions. |
+| `scripts/` | Installed Docker-backed management wrapper and helper. |
+| `cli/` | Source-level configuration, diagnostics, integration, and admin CLI modules. |
+| `tests/` | Backend, migration, integration, safety, and compatibility tests. |
+| `locales/` | Gettext templates and translator catalogs. |
+| `docs/` | Architecture, operations, API, security, and historical release documents. |
 
-Use menu option **4. Domain + SSL Setup** to configure the public domain, panel
-port, and recorded TLS mode. It prints the resulting URL as:
-
-```text
-https://example.com:PORT/
-```
-
-Use menu option **5. IP + Port Setup** for local or private-network deployments
-without SSL. It prints:
-
-```text
-http://IP:PORT/
-```
-
-Direct command mode is still available for support sessions:
-
-```bash
-flowhub domain set kharidbezan.com
-flowhub tls letsencrypt kharidbezan.com
-flowhub tls status
-flowhub start
-```
-
-FlowHub's current Docker stack exposes the app and expects certificate issuance
-and renewal to be handled by an external reverse proxy. FlowHub records the
-desired public URL and TLS mode; it does not store Let's Encrypt private keys in
-this release.
-
-## Verification
-
-```bash
-curl http://localhost:8085/api/health
-docker compose -f /opt/FlowHub/docker-compose.yml \
-  --env-file /opt/FlowHub/.env ps
-flowhub health
-```
-
-## Screenshots
-
-Current release UI previews are stored in `docs/screenshots/v1.3/`.
-
-| Source Configuration | Workspace | FlowHub Sheet |
-| --- | --- | --- |
-| ![Source Configuration](docs/screenshots/v1.3/source-configuration.png) | ![Workspace](docs/screenshots/v1.3/workspace-1440x900.png) | ![FlowHub Sheet](docs/screenshots/v1.3/flowhub-sheet.png) |
+The production entry point is `app.flowhub.app:app`. Legacy compatibility
+modules and historical phase documents are not the current architecture.
 
 ## Documentation
 
-- [Current Architecture](docs/architecture/CURRENT_ARCHITECTURE.md)
 - [Integration Platform](docs/architecture/INTEGRATION_PLATFORM.md)
-- [Unified Logging Platform](docs/architecture/UNIFIED_LOGGING_PLATFORM.md)
-- [Installer Architecture](docs/platform/INSTALLER_ARCHITECTURE.md)
-- [Internationalization Architecture](docs/i18n/INTERNATIONALIZATION.md)
-- [Translator and Poedit Guide](docs/i18n/TRANSLATOR_GUIDE.md)
-- [Installation Guide](docs/INSTALLATION.md)
-- [Upgrade Guide](docs/UPGRADE.md)
+- [Unified Multi-Channel Workspace](docs/architecture/UNIFIED_MULTI_CHANNEL_WORKSPACE.md)
+- [Order Synchronization](docs/architecture/ORDER_SYNCHRONIZATION.md)
+- [Source Workspace API](docs/api/SOURCE_WORKSPACE_API.md)
+- [Unified Workspace API](docs/api/UNIFIED_WORKSPACE_API.md)
+- [Internationalization](docs/i18n/INTERNATIONALIZATION.md)
+- [Installation](docs/INSTALLATION.md)
+- [Upgrade](docs/UPGRADE.md)
 - [Backup and Restore](docs/BACKUP_RESTORE.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [FAQ](docs/FAQ.md)
-- [Release Checklist](docs/RELEASE_CHECKLIST.md)
-- [FlowHub v1.3 Beta Release](docs/releases/FLOWHUB_V1.3_BETA.md)
-- [Next Priorities](docs/roadmap/NEXT.md)
-- [Roadmap Archive](ROADMAP.md)
+- [Security](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
 - [Support](SUPPORT.md)
-
-## Current vs Planned
-
-Current:
-
-- FlowHub web app, installer, CLI, setup wizard, Source-centric Workspace,
-  FlowHub Sheet, Formula Engine, spreadsheet import, Data Quality, English/Persian
-  localization, Data Layer, shared Write Pipeline, Recovery, Reconciliation,
-  Diagnostics, Settings, and connector management.
-
-Planned:
-
-- Additional connectors including Shopify, Magento, ERP, CSV, Google Sheets, and custom APIs.
-- Additional scheduler and write automation only after Owner approval and a
-  targeted safety review.
-- Live logging tail and advanced telemetry visualizations.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and [SECURITY.md](SECURITY.md).
 
 ## License
 
 FlowHub is released under the [MIT License](LICENSE).
-
-## Support
-
-For usage help, deployment issues, and security reporting, see [SUPPORT.md](SUPPORT.md).
