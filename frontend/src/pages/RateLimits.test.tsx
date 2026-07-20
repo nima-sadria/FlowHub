@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { createRoot } from 'react-dom/client'
 import { act } from 'react'
+import { createRoot } from 'react-dom/client'
+import { MemoryRouter } from 'react-router-dom'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AuthContext, type AuthContextValue, type AuthUser } from '../auth'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { RateLimitSettings } from '../services/types'
@@ -10,16 +12,13 @@ import RateLimits from './RateLimits'
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 
-beforeEach(() => {
-  container = document.createElement('div')
-  document.body.appendChild(container)
-  root = createRoot(container)
-})
-
-afterEach(() => {
-  act(() => { root.unmount() })
-  container.remove()
-})
+const user: AuthUser = {
+  username: 'admin',
+  role: 'admin',
+  is_admin: true,
+  is_super_admin: false,
+  permissions: { can_access_site: true, can_view_settings: true },
+}
 
 const rateLimits: RateLimitSettings = {
   read_requests_per_minute: 60,
@@ -31,6 +30,19 @@ const rateLimits: RateLimitSettings = {
   scheduler_started: false,
   automatic_sync: false,
   runtime_write_blocked: true,
+}
+
+function authValue(): AuthContextValue {
+  return {
+    user,
+    status: 'authenticated',
+    refreshUser: async () => undefined,
+    clearAuth: () => undefined,
+    logout: async () => undefined,
+    authFetch: vi.fn(async () => new Response(JSON.stringify({
+      rateLimiter: { requests_completed: 24, requests_delayed: 3, queue_length: 2 },
+    }), { status: 200 })),
+  }
 }
 
 function services(): Services {
@@ -70,43 +82,54 @@ function services(): Services {
   }
 }
 
+beforeEach(() => {
+  container = document.createElement('div')
+  document.body.appendChild(container)
+  root = createRoot(container)
+})
+
+afterEach(() => {
+  act(() => { root.unmount() })
+  container.remove()
+})
+
 async function renderPage() {
   await act(async () => {
     root.render(
-      <NotificationProvider>
-        <ServiceProvider services={services()}>
-          <RateLimits />
-        </ServiceProvider>
-      </NotificationProvider>
+      <MemoryRouter>
+        <NotificationProvider>
+          <AuthContext.Provider value={authValue()}>
+            <ServiceProvider services={services()}>
+              <RateLimits />
+            </ServiceProvider>
+          </AuthContext.Provider>
+        </NotificationProvider>
+      </MemoryRouter>,
     )
   })
-  await act(async () => {})
+  await act(async () => { await Promise.resolve() })
   return container
 }
 
 describe('RateLimits', () => {
-  it('renders global RPM settings and estimated delays', async () => {
-    const c = await renderPage()
-
-    expect(c.textContent).toContain('Global API Rate Limits')
-    expect(c.textContent).toContain('Read Requests / Minute')
-    expect(c.textContent).toContain('Write Requests / Minute')
-    expect(c.textContent).toContain('1.00 seconds')
-    expect(c.textContent).toContain('2.00 seconds')
-    expect(c.textContent).toContain('Scheduler')
-    expect(c.textContent).toContain('Automatic sync')
+  it('renders live limiter diagnostics and existing RPM settings', async () => {
+    const page = await renderPage()
+    expect(page.textContent).toContain(`Requests completed${(24).toLocaleString()}`)
+    expect(page.textContent).toContain(`Requests delayed${(3).toLocaleString()}`)
+    expect(page.textContent).toContain(`Queue length${(2).toLocaleString()}`)
+    expect(page.textContent).toContain('Read requests per minute')
+    expect(page.textContent).toContain('Write requests per minute')
+    expect(page.textContent).toContain('Rolling window')
   })
 
-  it('validates RPM range', async () => {
-    const c = await renderPage()
-    const input = c.querySelector('input') as HTMLInputElement
+  it('validates the existing RPM contract', async () => {
+    const page = await renderPage()
+    const input = page.querySelector('input') as HTMLInputElement
     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
-
     await act(async () => {
       setter?.call(input, '0')
       input.dispatchEvent(new Event('input', { bubbles: true }))
     })
-
-    expect(c.textContent).toContain('Read Requests / Minute must be between 1 and 1000.')
+    expect(page.textContent).toContain('Read requests per minute must be between 1 and 1000.')
   })
 })
