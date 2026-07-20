@@ -8,7 +8,7 @@
 - `python3 -m pytest tests/flowhub/migration/test_release_compatibility.py -q`
 - `npm test -- --run` and `npm run build` from `frontend/`
 - `git diff --check`
-- Confirm `FLOWHUB_015` is the Alembic head.
+- Confirm `FLOWHUB_019` is the Alembic head.
 - Confirm a backup manifest and restore-control-flow test pass before tagging.
 - Confirm Docker build and an isolated-stack smoke test on a host with Docker.
 
@@ -39,7 +39,10 @@ Expected result:
 
 - services are running
 - setup wizard opens
-- setup steps are Welcome, Server Profile, Database, Owner Account, Finish
+- setup steps are Workspace, Database, Owner, Review
+- the release UI includes the Application Shell, Dashboard, Products, Orders,
+  Sources, Channels, Activity, Data Quality, Diagnostics, Settings, User
+  Management, Rate Limits, Setup Wizard, and Login
 - Nextcloud Source and WooCommerce Channel configuration are available in Commerce Hub
 - `/opt/FlowHub` is the installation path
 

@@ -44,8 +44,13 @@ writes and automatic Apply are not included.
 
 ## Upgrade and rollback
 
-The migration head is `FLOWHUB_015`. Create `flowhub backup` before upgrading;
+The migration head is `FLOWHUB_019`. Create `flowhub backup` before upgrading;
 use [docs/release/ROLLBACK.md](docs/release/ROLLBACK.md) for a failed upgrade.
+
+The current UI release covers Application Shell, Dashboard, Products, Orders,
+Sources, Channels, Activity, Data Quality, Diagnostics, Settings, User
+Management, Rate Limits, Setup Wizard, and Login. Setup progresses through
+Workspace, Database, Owner, and Review.
 
 ## Deferred after 1.0.0
 

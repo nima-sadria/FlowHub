@@ -1,55 +1,33 @@
-import { translate } from '../i18n'
-import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from 'react'
 import type {
-  ServerProfilePayload,
-  DatabaseStatusResponse,
-  SetupStatus,
   AdminPayload,
+  DatabaseStatusResponse,
+  ServerProfilePayload,
   SetupAdminResponse,
+  SetupStatus,
 } from '../api/types'
+import Spinner from '../components/loading/Spinner'
+import { useDirection } from '../direction'
+import { translate } from '../i18n'
+import { useTheme } from '../theme/ThemeProvider'
 import { inputHint } from '../utils/inputHint'
 
-type Step = 'welcome' | 'server-profile' | 'database' | 'admin' | 'finish'
+type Step = 'workspace' | 'database' | 'owner' | 'review'
 
-const STEP_LABEL_KEYS: Record<Step, string> = {
-  welcome: 'settings:setup.welcome',
-  'server-profile': 'settings:setup.serverProfile',
-  database: 'settings:setup.database',
-  admin: 'settings:setup.ownerAccount',
-  finish: 'settings:setup.finish',
+const SETUP_STEPS: Step[] = ['workspace', 'database', 'owner', 'review']
+const STEP_DETAILS: Record<Step, { labelKey: string; checklistKey: string }> = {
+  workspace: { labelKey: 'settings:setup.workspace', checklistKey: 'settings:setup.workspaceDefaults' },
+  database: { labelKey: 'settings:setup.database', checklistKey: 'settings:setup.verifyDatabase' },
+  owner: { labelKey: 'settings:setup.owner', checklistKey: 'settings:setup.createOwnerAccount' },
+  review: { labelKey: 'settings:setup.review', checklistKey: 'settings:setup.reviewSetup' },
 }
-
-type SetupIcon = 'spark' | 'server' | 'database' | 'user' | 'check' | 'alert'
-
-const STEP_DETAILS: Record<Step, { labelKey: string; descriptionKey: string; icon: SetupIcon }> = {
-  welcome: {
-    labelKey: 'settings:setup.welcome',
-    descriptionKey: 'settings:setup.reviewTheInstallationPathBeforeFlowhubIs',
-    icon: 'spark',
-  },
-  'server-profile': {
-    labelKey: 'settings:setup.serverProfile',
-    descriptionKey: 'settings:setup.setTheDomainTimezoneAndDefaultCurrency',
-    icon: 'server',
-  },
-  database: {
-    labelKey: 'settings:setup.database',
-    descriptionKey: 'settings:setup.confirmThatTheDatabaseConnectionAndSchema',
-    icon: 'database',
-  },
-  admin: {
-    labelKey: 'settings:setup.ownerAccount',
-    descriptionKey: 'settings:setup.createOrConfirmTheInitialOwnerAccount',
-    icon: 'user',
-  },
-  finish: {
-    labelKey: 'settings:setup.finish',
-    descriptionKey: 'settings:setup.completeSetupAndOpenTheFlowhubWorkspace',
-    icon: 'check',
-  },
-}
-
-const SETUP_STEPS: Step[] = ['welcome', 'server-profile', 'database', 'admin', 'finish']
 
 interface SetupProps {
   onComplete: () => void
@@ -90,114 +68,34 @@ const CURRENCIES = [
   { value: 'CHF', labelKey: 'settings:setup.chfSwissFranc' },
 ]
 
-const TZ_OPTIONS = ALL_TIMEZONES.map(tz => ({ value: tz, label: tz }))
-const EMAIL_ERROR_KEY = 'validation:setup.validEmailRequired'
+const TZ_OPTIONS = ALL_TIMEZONES.map(timezone => ({ value: timezone, label: timezone }))
+const LANGUAGE_OPTIONS = [
+  { value: 'en', labelKey: 'settings:language.english' },
+  { value: 'fa', labelKey: 'settings:language.persian' },
+]
 
 export function validateSetupEmail(value: string): string | null {
   const email = value.trim()
-  if (!email) return translate(EMAIL_ERROR_KEY)
-  if (email.includes(' ') || (email.match(/@/g) ?? []).length !== 1) return translate(EMAIL_ERROR_KEY)
+  if (!email || email.includes(' ') || (email.match(/@/g) ?? []).length !== 1) {
+    return translate('settings:setup.validEmail')
+  }
 
   const [local, domain] = email.split('@')
-  if (!local || !domain || domain.length > 253 || !domain.includes('.')) return translate(EMAIL_ERROR_KEY)
+  if (!local || !domain || domain.length > 253 || !domain.includes('.')) {
+    return translate('settings:setup.validEmail')
+  }
 
   const labels = domain.split('.')
   const validLabels = labels.every(label => (
-    label.length > 0 &&
-    label.length <= 63 &&
-    /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(label)
+    label.length > 0
+    && label.length <= 63
+    && /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(label)
   ))
   const tld = labels[labels.length - 1]
-  if (!validLabels || !/^[A-Za-z]{2,63}$/.test(tld)) return translate(EMAIL_ERROR_KEY)
-  if (!/^[^\s@]+$/.test(local)) return translate(EMAIL_ERROR_KEY)
-
-  return null
-}
-
-function AppleSpinner({ size = 18 }: { size?: number }) {
-  const half = size / 2
-  const spokeH = Math.max(4, Math.round(size * 0.33))
-  const spokeW = Math.max(2, Math.round(size * 0.11))
-  return (
-    <span
-      aria-hidden="true"
-      style={{ position: "relative", display: "inline-block", width: size, height: size, flexShrink: 0 }}
-    >
-      {Array.from({ length: 12 }, (_, i) => (
-        <span
-          key={i}
-          style={{
-            position: "absolute",
-            left: '50%',
-            top: '50%',
-            width: spokeW,
-            height: spokeH,
-            marginLeft: -spokeW / 2,
-            marginTop: -half,
-            borderRadius: spokeW / 2,
-            background: "currentColor",
-            transformOrigin: `${spokeW / 2}px ${half}px`,
-            transform: `rotate(${i * 30}deg)`,
-            animation: "apple-spoke 1.2s linear infinite",
-            animationDelay: `${(i * 0.1 - 1.2).toFixed(1)}s`,
-          }}
-        />
-      ))}
-    </span>
-  )
-}
-
-function SetupIconGlyph({ icon, className = 'w-5 h-5' }: { icon: SetupIcon; className?: string }) {
-  const common = {
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 2,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
+  if (!validLabels || !/^[A-Za-z]{2,63}$/.test(tld) || !/^[^\s@]+$/.test(local)) {
+    return translate('settings:setup.validEmail')
   }
-
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} {...common}>
-      {icon === "spark" && (
-        <>
-          <path d="M12 3l1.7 4.6L18 9.2l-4.3 1.6L12 15.5l-1.7-4.7L6 9.2l4.3-1.6L12 3Z" />
-          <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z" />
-          <path d="M5 13l.7 1.8L7.5 15.5l-1.8.7L5 18l-.7-1.8-1.8-.7 1.8-.7L5 13Z" />
-        </>
-      )}
-      {icon === "server" && (
-        <>
-          <rect x="4" y="4" width="16" height="6" rx="2" />
-          <rect x="4" y="14" width="16" height="6" rx="2" />
-          <path d="M8 7h.01" />
-          <path d="M8 17h.01" />
-          <path d="M12 7h4" />
-          <path d="M12 17h4" />
-        </>
-      )}
-      {icon === "database" && (
-        <>
-          <ellipse cx="12" cy="5" rx="7" ry="3" />
-          <path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5" />
-          <path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" />
-        </>
-      )}
-      {icon === "user" && (
-        <>
-          <path d="M20 21a8 8 0 0 0-16 0" />
-          <circle cx="12" cy="8" r="4" />
-        </>
-      )}
-      {icon === "check" && <path d="M20 6 9 17l-5-5" />}
-      {icon === "alert" && (
-        <>
-          <path d="M12 9v4" />
-          <path d="M12 17h.01" />
-          <path d="M10.3 4.4 2.8 18a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.4a2 2 0 0 0-3.4 0Z" />
-        </>
-      )}
-    </svg>
-  )
+  return null
 }
 
 function ChevronIcon({ open }: { open?: boolean }) {
@@ -210,7 +108,7 @@ function ChevronIcon({ open }: { open?: boolean }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      className={["w-4 h-4 flex-shrink-0 text-wp-muted transition-transform", open ? "rotate-180" : ''].join(' ')}
+      className={['h-4 w-4 shrink-0 text-wp-muted transition-transform', open ? 'rotate-180' : ''].join(' ')}
     >
       <path d="m6 9 6 6 6-6" />
     </svg>
@@ -218,13 +116,19 @@ function ChevronIcon({ open }: { open?: boolean }) {
 }
 
 export function SearchableListbox({
-  id, label, options, value, onChange, disabled, template_variable,
+  id,
+  label,
+  options,
+  value,
+  onChange,
+  disabled,
+  template_variable,
 }: {
   id?: string
   label: string
   options: { value: string; label: string }[]
   value: string
-  onChange: (v: string) => void
+  onChange: (value: string) => void
   disabled?: boolean
   template_variable?: string
 }) {
@@ -232,28 +136,28 @@ export function SearchableListbox({
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
-  const q = search.trim().toLowerCase()
-  const filtered = q
-    ? options.filter(o => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q))
+  const query = search.trim().toLowerCase()
+  const filtered = query
+    ? options.filter(option => (
+      option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query)
+    ))
     : options
-  const selectedLabel = options.find(o => o.value === value)?.label ?? value
+  const selectedLabel = options.find(option => option.value === value)?.label ?? value
 
   useEffect(() => {
     if (!open) return
     searchRef.current?.focus()
-
-    function closeOnOutsideClick(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) {
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false)
         setSearch('')
       }
     }
-
     document.addEventListener('mousedown', closeOnOutsideClick)
     return () => document.removeEventListener('mousedown', closeOnOutsideClick)
   }, [open])
 
-  function handleSelect(nextValue: string) {
+  function select(nextValue: string) {
     onChange(nextValue)
     setSearch('')
     setOpen(false)
@@ -261,12 +165,12 @@ export function SearchableListbox({
 
   return (
     <div ref={rootRef} className="relative min-w-0">
-      <label className="fh-label mb-1 block">{label}</label>
+      <label className="fh-label mb-1.5 block">{label}</label>
       <button
         type="button"
-        onClick={() => setOpen(v => !v)}
-        onKeyDown={e => {
-          if (e.key === 'Escape') {
+        onClick={() => setOpen(current => !current)}
+        onKeyDown={event => {
+          if (event.key === 'Escape') {
             setOpen(false)
             setSearch('')
           }
@@ -275,60 +179,52 @@ export function SearchableListbox({
         aria-haspopup="listbox"
         aria-controls={id}
         disabled={disabled}
-        className="fh-input mb-1 min-w-0 flex items-center justify-between gap-2 text-left"
+        className="fh-input flex min-w-0 items-center justify-between gap-2 text-start"
       >
         <span className="truncate">{selectedLabel}</span>
         <ChevronIcon open={open} />
       </button>
       {open && (
-        <div
-          className="absolute z-50 w-full rounded-lg border border-border bg-bg-card shadow-card overflow-hidden"
-        >
-          <div className="p-2 border-b border-border">
+        <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-border bg-bg-card shadow-card">
+          <div className="border-b border-border p-2">
             <input
               ref={searchRef}
               type="text"
               value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Escape') {
+              onChange={event => setSearch(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Escape') {
                   setOpen(false)
                   setSearch('')
                 }
-                if (e.key === 'Enter' && filtered[0]) {
-                  handleSelect(filtered[0].value)
-                }
+                if (event.key === 'Enter' && filtered[0]) select(filtered[0].value)
               }}
               {...inputHint(template_variable ?? translate('settings:setup.search', { value1: label.toLowerCase() }))}
               autoComplete="off"
               spellCheck={false}
-            className="fh-input shadow-none"
-          />
-        </div>
-        <div id={id} role="listbox" aria-label={label} className="max-h-44 overflow-y-auto">
-          {filtered.length === 0 ? (
-            <div className="px-3 py-2 fh-text-body-sm">{translate('settings:setup.noMatches')}</div>
-          ) : filtered.map(opt => (
+              className="fh-input shadow-none"
+            />
+          </div>
+          <div id={id} role="listbox" aria-label={label} className="max-h-44 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2 fh-text-body-sm">{translate('settings:setup.noMatches')}</div>
+            ) : filtered.map(option => (
               <button
-                key={opt.value}
+                key={option.value}
                 type="button"
                 role="option"
-                aria-selected={opt.value === value}
-                onClick={() => handleSelect(opt.value)}
+                aria-selected={option.value === value}
+                onClick={() => select(option.value)}
                 disabled={disabled}
                 className={[
-                  "w-full text-left px-3 py-2 fh-text-body break-words flex items-center justify-between gap-3",
-                  opt.value === value
-                    ? "bg-fh-mist-100 text-accent font-medium"
-                    : "bg-bg-card text-text-base hover:bg-bg-base",
+                  'flex w-full items-center justify-between gap-3 px-3 py-2 text-start fh-text-body',
+                  option.value === value
+                    ? 'bg-fh-mist-100 font-medium text-accent'
+                    : 'bg-bg-card text-text-base hover:bg-bg-base',
                 ].join(' ')}
               >
-                <span>{opt.label}</span>
-                {opt.value === value && (
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
-                )}
+                <span>{option.label}</span>
+                {option.value === value && <span aria-hidden="true">✓</span>}
               </button>
             ))}
           </div>
@@ -339,15 +235,24 @@ export function SearchableListbox({
 }
 
 function Field({
-  id, label, type = 'text', value, onChange, template_variable, disabled = false, hint, error,
-  autoComplete = 'off', inputMode,
+  id,
+  label,
+  type = 'text',
+  value,
+  onChange,
+  templateVariable,
+  disabled = false,
+  hint,
+  error,
+  autoComplete = 'off',
+  inputMode,
 }: {
   id: string
   label: string
   type?: string
   value: string
-  onChange: (v: string) => void
-  template_variable?: string
+  onChange: (value: string) => void
+  templateVariable?: string
   disabled?: boolean
   hint?: string
   error?: string | null
@@ -366,17 +271,14 @@ function Field({
         id={id}
         type={type}
         value={value}
-        onChange={e => onChange(e.target.value)}
-        {...inputHint(template_variable)}
+        onChange={event => onChange(event.target.value)}
+        {...inputHint(templateVariable)}
         disabled={disabled}
         autoComplete={autoComplete}
         inputMode={inputMode}
-        aria-invalid={error ? "true" : undefined}
+        aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy}
-        className={[
-          "fh-input",
-          error ? "fh-input-error" : '',
-        ].join(' ')}
+        className={['fh-input', error ? 'fh-input-error' : ''].join(' ')}
       />
       {hint && <p id={`${id}-hint`} className="fh-help-text">{hint}</p>}
       {error && <p id={`${id}-error`} className="fh-field-error">{error}</p>}
@@ -385,98 +287,109 @@ function Field({
 }
 
 function ErrorBanner({ message }: { message: string }) {
+  return <div role="alert" className="fh-alert fh-alert-danger mb-4">{message}</div>
+}
+
+function StepProgress({ current }: { current: Step }) {
+  const currentIndex = SETUP_STEPS.indexOf(current)
   return (
-    <div role="alert" className="fh-error-alert mb-5">
-      <SetupIconGlyph icon="alert" className="mt-0.5 h-4 w-4 flex-shrink-0" />
-      <span>{message}</span>
-    </div>
+    <ol className="flex min-w-0 items-center" aria-label={translate('settings:setup.setupProgress')}>
+      {SETUP_STEPS.map((step, index) => (
+        <li key={step} className="flex min-w-0 flex-1 items-center last:flex-none">
+          <div className="flex shrink-0 items-center gap-2">
+            <span
+              aria-current={index === currentIndex ? 'step' : undefined}
+              className={[
+                'flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-medium',
+                index <= currentIndex
+                  ? 'bg-accent text-white'
+                  : 'bg-[color:var(--fh-ui-surface-muted)] text-[color:var(--fh-text-secondary)]',
+              ].join(' ')}
+            >
+              {index < currentIndex ? '✓' : index + 1}
+            </span>
+            <span className={[
+              'hidden whitespace-nowrap text-xs sm:block',
+              index === currentIndex ? 'font-semibold text-text-base' : 'text-[color:var(--fh-text-secondary)]',
+            ].join(' ')}>
+              {translate(STEP_DETAILS[step].labelKey)}
+            </span>
+          </div>
+          {index < SETUP_STEPS.length - 1 && (
+            <span className={[
+              'mx-2.5 h-px min-w-3 flex-1',
+              index < currentIndex ? 'bg-accent' : 'bg-border',
+            ].join(' ')} />
+          )}
+        </li>
+      ))}
+    </ol>
   )
 }
 
-function StepProgress({ current, steps }: { current: Step; steps: Step[] }) {
-  const currentIdx = steps.indexOf(current)
+function SetupChecklist({ current }: { current: Step }) {
+  const currentIndex = SETUP_STEPS.indexOf(current)
   return (
-    <>
-      <ol className="flex items-center px-1 lg:hidden" aria-label={translate('settings:setup.setupProgress')}>
-        {steps.map((s, idx) => (
-          <li key={s} className="flex min-w-0 flex-1 items-center last:flex-none">
-            <span
-              aria-current={idx === currentIdx ? "step" : undefined}
-              className={[
-                "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-
-                idx <= currentIdx
-                  ? "border-accent bg-accent text-white shadow-sm"
-                  : "border-border bg-bg-card text-wp-muted",
-              ].join(' ')}
-              title={translate(STEP_DETAILS[s].labelKey)}
-            >
-              {idx < currentIdx ? <SetupIconGlyph icon="check" className="h-4 w-4" /> : idx + 1}
-            </span>
-            {idx < steps.length - 1 && (
-              <span className={["mx-2 h-px flex-1", idx < currentIdx ? "bg-accent" : "bg-border"].join(' ')} />
-            )}
-          </li>
-        ))}
-      </ol>
-
-      <ol className="hidden gap-1.5 lg:grid" aria-label={translate('settings:setup.setupProgress')}>
-        {steps.map((s, idx) => (
-          <li key={s}>
-            <div
-              aria-current={idx === currentIdx ? "step" : undefined}
-              className={[
-                "flex items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-colors",
-                idx === currentIdx
-                  ? "border-accent bg-fh-mist-100 text-text-base"
-                  : idx < currentIdx
-                    ? "border-border bg-bg-card text-text-base"
-                    : "border-transparent bg-transparent text-wp-muted",
-              ].join(' ')}
-            >
-              <span className={[
-                "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border",
-                idx <= currentIdx ? "border-accent bg-accent text-white" : "border-border bg-bg-base text-wp-muted",
-              ].join(' ')}>
-                {idx < currentIdx ? (
-                  <SetupIconGlyph icon="check" className="h-3.5 w-3.5" />
-                ) : (
-                  <SetupIconGlyph icon={STEP_DETAILS[s].icon} className="h-3.5 w-3.5" />
-                )}
+    <aside className="min-h-[300px] rounded-lg bg-bg-base p-4">
+      <h2 className="text-sm font-semibold leading-[22px] text-text-base">{translate('settings:setup.setupChecklist')}</h2>
+      <div className="mt-3 space-y-3">
+        {SETUP_STEPS.map((step, index) => {
+          const state = index < currentIndex ? 'complete' : index === currentIndex ? 'active' : 'pending'
+          return (
+            <div key={step} className="flex items-center justify-between gap-3">
+              <span className="min-w-0 text-xs leading-4 text-[color:var(--fh-text-secondary)]">
+                {translate(STEP_DETAILS[step].checklistKey)}
               </span>
-              <span className="min-w-0">
-                <span className="block truncate fh-text-body font-semibold">{translate(STEP_DETAILS[s].labelKey)}</span>
-                <span className="block truncate fh-text-body-sm">
-                  {idx < currentIdx ? translate('settings:setup.completed') : idx === currentIdx ? translate('settings:setup.inProgress') : translate('settings:setup.pending')}
-                </span>
+              <span className={[
+                'fh-badge shrink-0',
+                state === 'complete'
+                  ? 'fh-badge-success'
+                  : state === 'active'
+                    ? 'fh-badge-info'
+                    : 'fh-badge-neutral',
+              ].join(' ')}>
+                {translate(`settings:setup.${state}`)}
               </span>
             </div>
-          </li>
-        ))}
-      </ol>
-    </>
+          )
+        })}
+      </div>
+      <p className="mt-4 text-[11px] leading-4 text-wp-muted">{translate('settings:setup.resumeLater')}</p>
+    </aside>
   )
 }
 
-function NavButtons({
-  onBack, onNext, nextLabel = 'Continue', loading = false, hideBack = false, nextDisabled = false,
+function StepSection({ title, subtitle, children }: {
+  title: string
+  subtitle: string
+  children: ReactNode
+}) {
+  return (
+    <section>
+      <h2 className="text-base font-semibold leading-[22px] text-text-base">{title}</h2>
+      <p className="mt-2 text-xs leading-4 text-[color:var(--fh-text-secondary)]">{subtitle}</p>
+      <div className="mt-3.5">{children}</div>
+    </section>
+  )
+}
+
+function Actions({
+  onBack,
+  onNext,
+  nextLabel,
+  loading,
+  nextDisabled,
 }: {
   onBack?: () => void
-  onNext?: () => void
-  nextLabel?: string
-  loading?: boolean
-  hideBack?: boolean
+  onNext: () => void
+  nextLabel: string
+  loading: boolean
   nextDisabled?: boolean
 }) {
   return (
-    <div className="mt-5 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
-      {!hideBack && (
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={loading}
-          className="fh-button-secondary w-full sm:w-auto sm:min-w-24"
-        >
+    <div className="mt-4 flex flex-col-reverse justify-end gap-2 sm:flex-row">
+      {onBack && (
+        <button type="button" onClick={onBack} disabled={loading} className="fh-button-secondary fh-button-sm">
           {translate('settings:setup.back')}
         </button>
       )}
@@ -484,106 +397,41 @@ function NavButtons({
         type="button"
         onClick={onNext}
         disabled={loading || nextDisabled}
-        className="fh-button-primary w-full sm:w-auto sm:min-w-32"
+        className="fh-button-primary fh-button-sm"
       >
-        {loading && <AppleSpinner size={16} />}
+        {loading && <Spinner size="sm" className="text-white" />}
         {loading ? translate('settings:setup.pleaseWait') : nextLabel}
       </button>
     </div>
   )
 }
 
-function StepCard({
-  title,
-  subtitle,
-  titleClassName = 'fh-section-title',
-  subtitleClassName = 'fh-section-subtitle',
-  children,
-}: {
-  title: string
-  subtitle?: string
-  titleClassName?: string
-  subtitleClassName?: string
-  children: ReactNode
-}) {
-  return (
-    <div>
-      <div className="mb-5">
-        <h2 className={titleClassName}>{title}</h2>
-        {subtitle && <p className={["mt-1", subtitleClassName].join(' ')}>{subtitle}</p>}
-      </div>
-      {children}
-    </div>
-  )
+async function responseError(response: Response, fallback: string): Promise<string> {
+  const payload = await response.json().catch(() => ({})) as { detail?: string }
+  return payload.detail ?? fallback
 }
 
-function StatusRow({
-  label, hint, ok, okText, failText, neutral = false,
-}: { label: string; hint?: string; ok: boolean; okText: string; failText: string; neutral?: boolean }) {
-  const statusLabel = ok ? okText : failText
-  const tone = neutral ? 'neutral' : ok ? 'success' : 'danger'
-  return (
-    <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-bg-card p-3">
-      <div className="min-w-0">
-        <p className="fh-text-body font-semibold">{label}</p>
-        {hint && <p className="mt-1 fh-text-body-sm">{hint}</p>}
-      </div>
-      <span className={[
-        "fh-badge flex-shrink-0 whitespace-nowrap",
-        tone === "success" ? "fh-badge-success" : tone === "danger" ? "fh-badge-danger" : "fh-badge-neutral",
-      ].join(' ')}>
-        {statusLabel}
-      </span>
-    </div>
+function WorkspaceStep({ onNext }: { onNext: () => void }) {
+  const { language, setLanguage, setDirection } = useDirection()
+  const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const [domain, setDomain] = useState(() => window.location.hostname || 'localhost')
+  const [timezone, setTimezone] = useState(
+    ALL_TIMEZONES.includes(detectedTimezone) ? detectedTimezone : 'UTC',
   )
-}
-
-function InfoPanel({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-lg border border-border bg-bg-base px-3 py-2.5 fh-text-body-sm">
-      {children}
-    </div>
-  )
-}
-
-function WelcomeStep({ onNext }: { onNext: () => void }) {
-  const steps = SETUP_STEPS.filter(step => step !== 'welcome')
-  return (
-    <StepCard
-      title={translate('settings:setup.welcomeToFlowhub')}
-      subtitle="This wizard only captures the required system defaults. Connector setup stays available after sign-in."
-      titleClassName="fh-page-title"
-    >
-      <div className="grid gap-2.5">
-        {steps.map((stepName, idx) => (
-          <div key={stepName} className="flex gap-2.5 rounded-lg border border-border bg-bg-base p-3">
-            <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-fh-mist-100 text-accent">
-              <SetupIconGlyph icon={STEP_DETAILS[stepName].icon} className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="fh-text-body font-semibold">
-                {idx + 1}. {translate(STEP_DETAILS[stepName].labelKey)}
-              </p>
-              <p className="fh-text-body-sm">{translate(STEP_DETAILS[stepName].descriptionKey)}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-      <NavButtons onNext={onNext} nextLabel="Start Setup" hideBack />
-    </StepCard>
-  )
-}
-
-function ServerProfileStep({
-  onNext, onBack,
-}: { onNext: () => void; onBack: () => void }) {
-  const [domain, setDomain] = useState('')
-  const [timezone, setTimezone] = useState('UTC')
   const [currency, setCurrency] = useState('USD')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const languageOptions = LANGUAGE_OPTIONS.map(option => ({
+    value: option.value,
+    label: translate(option.labelKey),
+  }))
+  const currencyOptions = CURRENCIES.map(option => ({
+    value: option.value,
+    label: translate(option.labelKey),
+  }))
 
-  async function handleSubmit() {
+  async function submit(event?: FormEvent) {
+    event?.preventDefault()
     setError(null)
     setLoading(true)
     try {
@@ -592,60 +440,74 @@ function ServerProfileStep({
         timezone,
         currency,
       }
-      const r = await fetch('/api/v2/setup/server-profile', {
+      const response = await fetch('/api/v2/setup/server-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!r.ok) {
-        const d = await r.json().catch(() => ({})) as { detail?: string }
-        setError(d.detail ?? `Server error (HTTP ${r.status})`)
+      if (!response.ok) {
+        setError(await responseError(response, translate('settings:setup.serverErrorHttp', { status: response.status })))
         return
       }
       onNext()
     } catch {
-      setError('Network error. Check your connection and try again.')
+      setError(translate('settings:setup.networkError'))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <StepCard title={translate('settings:setup.serverProfile')} subtitle="Configure how FlowHub identifies itself.">
+    <StepSection
+      title={translate('settings:setup.workspaceDetails')}
+      subtitle={translate('settings:setup.workspaceDetailsDescription')}
+    >
       {error && <ErrorBanner message={error} />}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="sm:col-span-2">
+      <form onSubmit={event => { void submit(event) }}>
         <Field
-          id="sp-domain"
-          label={translate('settings:setup.domain')}
+          id="setup-domain"
+          label={translate('settings:setup.workspaceDomain')}
           value={domain}
           onChange={setDomain}
-          template_variable="yourdomain.com or localhost"
-          hint="The domain where FlowHub is accessible. Used in links and notifications."
+          templateVariable="flowhub.example.com"
           disabled={loading}
         />
+        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+          <SearchableListbox
+            id="setup-language"
+            label={translate('settings:language.title')}
+            options={languageOptions}
+            value={language}
+            onChange={nextLanguage => {
+              setLanguage(nextLanguage)
+              setDirection(nextLanguage === 'fa' ? 'rtl' : 'ltr')
+            }}
+            disabled={loading}
+          />
+          <SearchableListbox
+            id="setup-timezone"
+            label={translate('settings:settings.timezone')}
+            options={TZ_OPTIONS}
+            value={timezone}
+            onChange={setTimezone}
+            disabled={loading}
+            template_variable={translate('settings:setup.searchTimezones')}
+          />
         </div>
-        <SearchableListbox
-          id="sp-tz"
-          label={translate('settings:settings.timezone')}
-          options={TZ_OPTIONS}
-          value={timezone}
-          onChange={setTimezone}
-          disabled={loading}
-          template_variable="Search timezones... (e.g. Tehran, London, UTC)"
-        />
-        <SearchableListbox
-          id="sp-cur"
-          label={translate('settings:settings.currency')}
-          options={CURRENCIES.map(option => ({ value: option.value, label: translate(option.labelKey) }))}
-          value={currency}
-          onChange={setCurrency}
-          disabled={loading}
-          template_variable="Search currencies... (e.g. USD, IRR)"
-        />
-      </div>
-      <NavButtons onBack={onBack} onNext={handleSubmit} loading={loading} />
-    </StepCard>
+        <div className="mt-3 sm:max-w-[calc(50%-5px)]">
+          <SearchableListbox
+            id="setup-currency"
+            label={translate('settings:setup.defaultCurrency')}
+            options={currencyOptions}
+            value={currency}
+            onChange={setCurrency}
+            disabled={loading}
+            template_variable={translate('settings:setup.searchCurrencies')}
+          />
+        </div>
+        <Actions onNext={() => { void submit() }} nextLabel={translate('settings:setup.continueToDatabase')} loading={loading} />
+      </form>
+    </StepSection>
   )
 }
 
@@ -653,90 +515,78 @@ function DatabaseStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
   const [status, setStatus] = useState<DatabaseStatusResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [checked, setChecked] = useState(false)
 
   async function checkDatabase() {
     setError(null)
     setLoading(true)
     try {
-      const r = await fetch('/api/v2/setup/database', { method: 'POST' })
-      const d = await r.json() as DatabaseStatusResponse
-      if (!r.ok) {
-        setError((d as unknown as { detail?: string }).detail ?? `HTTP ${r.status}`)
+      const response = await fetch('/api/v2/setup/database', { method: 'POST' })
+      if (!response.ok) {
+        setError(await responseError(response, translate('settings:setup.databaseCheckFailedHttp', { status: response.status })))
         return
       }
-      setStatus(d)
-      setChecked(true)
+      setStatus(await response.json() as DatabaseStatusResponse)
     } catch {
-      setError('Network error while checking database.')
+      setError(translate('settings:setup.databaseNetworkError'))
     } finally {
       setLoading(false)
     }
   }
 
+  const ready = Boolean(status?.connected && status.is_current === true)
   return (
-    <StepCard
-      title={translate('settings:setup.database')}
-      subtitle="Verify your database connection and schema status."
-    >
+    <StepSection title={translate('settings:setup.databaseReadiness')} subtitle={translate('settings:setup.databaseReadinessDescription')}>
       {error && <ErrorBanner message={error} />}
-
-      {!checked && (
-        <InfoPanel>
-          {translate('settings:setup.click')} <strong>{translate('settings:setup.checkDatabase')}</strong> {translate('settings:setup.toVerifyTheConnection')}
-        </InfoPanel>
-      )}
-
-      {status && (
-        <div className="grid gap-3">
-          <StatusRow
-            label={translate('settings:setup.connection')}
-            hint="Verifies the app can reach the database."
-            ok={status.connected}
-            okText="Connected"
-            failText={status.error ?? "Failed"}
-          />
-          <StatusRow
-            label={translate('settings:setup.databaseSchemaVersion')}
-            hint="The schema version currently available to FlowHub."
-            ok={!!status.current_revision}
-            okText="Available"
-            failText="Unable to verify"
-            neutral
-          />
-          <StatusRow
-            label={translate('settings:setup.schemaStatus')}
-            hint="Compares the installed database schema with the version required by this FlowHub release."
-            ok={status.is_current === true}
-            okText="Up to date"
-            failText={status.is_current === false ? "Needs update - run repair" : "Unable to verify"}
-            neutral={status.is_current !== false && status.is_current !== true}
-          />
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-bg-card p-3">
+          <div>
+            <p className="text-[13px] font-medium text-text-base">{translate('settings:setup.connection')}</p>
+            <p className="mt-1 text-xs text-[color:var(--fh-text-secondary)]">{translate('settings:setup.connectionDescription')}</p>
+          </div>
+          <span className={['fh-badge', status?.connected ? 'fh-badge-success' : 'fh-badge-neutral'].join(' ')}>
+            {status?.connected ? translate('settings:setup.connected') : translate('settings:setup.notChecked')}
+          </span>
         </div>
-      )}
-
-      {!checked ? (
-        <NavButtons
-          onBack={onBack}
-          onNext={checkDatabase}
-          nextLabel="Check Database"
-          loading={loading}
-        />
-      ) : (
-        <NavButtons
-          onBack={onBack}
-          onNext={status?.connected ? onNext : checkDatabase}
-          nextLabel={status?.connected ? "Continue" : "Retry"}
-          loading={loading}
-          nextDisabled={!status?.connected || status.is_current !== true}
-        />
-      )}
-    </StepCard>
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-bg-card p-3">
+          <div>
+            <p className="text-[13px] font-medium text-text-base">{translate('settings:setup.schema')}</p>
+            <p className="mt-1 text-xs text-[color:var(--fh-text-secondary)]">{translate('settings:setup.schemaDescription')}</p>
+          </div>
+          <span className={[
+            'fh-badge',
+            status?.is_current === true
+              ? 'fh-badge-success'
+              : status?.is_current === false
+                ? 'fh-badge-danger'
+                : 'fh-badge-neutral',
+          ].join(' ')}>
+            {status?.is_current === true
+              ? translate('settings:setup.upToDate')
+              : status?.is_current === false
+                ? translate('settings:setup.updateRequired')
+                : translate('settings:setup.notChecked')}
+          </span>
+        </div>
+      </div>
+      <Actions
+        onBack={onBack}
+        onNext={ready ? onNext : () => { void checkDatabase() }}
+        nextLabel={ready
+          ? translate('settings:setup.continueToOwner')
+          : status
+            ? translate('settings:setup.retryDatabaseCheck')
+            : translate('settings:setup.checkDatabase')}
+        loading={loading}
+      />
+    </StepSection>
   )
 }
 
-function AdminStep({
-  hasAdmin, onAdminCreated, onNext, onBack,
+function OwnerStep({
+  hasAdmin,
+  onAdminCreated,
+  onNext,
+  onBack,
 }: {
   hasAdmin: boolean
   onAdminCreated: () => void
@@ -752,7 +602,7 @@ function AdminStep({
   const [error, setError] = useState<string | null>(null)
   const emailError = hasAdmin ? null : validateSetupEmail(email)
 
-  async function createAdmin() {
+  async function createOwner() {
     if (hasAdmin) {
       onNext()
       return
@@ -762,98 +612,79 @@ function AdminStep({
       return
     }
     if (password !== confirm) {
-      setError('Passwords do not match.')
+      setError(translate('settings:setup.passwordsDoNotMatch'))
       return
     }
     setError(null)
     setLoading(true)
     try {
       const body: AdminPayload = { username: username.trim(), email: email.trim(), password }
-      const r = await fetch('/api/v2/setup/admin', {
+      const response = await fetch('/api/v2/setup/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const d = await r.json().catch(() => ({})) as Partial<SetupAdminResponse> & { detail?: string }
-      if (!r.ok) {
-        setError(d.detail ?? `Could not create administrator (HTTP ${r.status}).`)
+      if (!response.ok) {
+        setError(await responseError(response, translate('settings:setup.createOwnerFailedHttp', { status: response.status })))
         return
       }
-      if (d.token) localStorage.setItem('wp_token', d.token)
-      if (d.refresh_token) localStorage.setItem('wp_refresh_token', d.refresh_token)
+      const payload = await response.json() as SetupAdminResponse
+      localStorage.setItem('wp_token', payload.token)
+      localStorage.setItem('wp_refresh_token', payload.refresh_token)
       onAdminCreated()
       onNext()
     } catch {
-      setError('Network error while creating administrator.')
+      setError(translate('settings:setup.ownerNetworkError'))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <StepCard
+    <StepSection
       title={translate('settings:setup.ownerAccount')}
-      subtitle={hasAdmin ? "An owner or administrator account already exists." : "Create the initial owner account."}
+      subtitle={hasAdmin
+        ? translate('settings:setup.ownerAlreadyExists')
+        : translate('settings:setup.createInitialOwner')}
     >
       {error && <ErrorBanner message={error} />}
       {hasAdmin ? (
-        <InfoPanel>
-          {translate('settings:setup.flowhubAlreadyHasAnOwnerOrAdministrator')}
-        </InfoPanel>
+        <div className="fh-alert fh-alert-info">{translate('settings:setup.existingOwnerUsed')}</div>
       ) : (
-        <div className="space-y-4">
-          <Field
-            id="admin-username"
-            label={translate('settings:setup.username')}
-            value={username}
-            onChange={setUsername}
-            template_variable="admin"
-            disabled={loading}
-          />
-          <Field
-            id="admin-email"
-            label={translate('settings:setup.email')}
-            type="email"
-            value={email}
-            onChange={(value) => { setEmail(value); setEmailTouched(true) }}
-            template_variable="admin@example.com"
-            disabled={loading}
-            autoComplete="email"
-            inputMode="email"
-            error={emailTouched ? emailError : null}
-          />
-          <Field
-            id="admin-password"
-            label={translate('settings:setup.password')}
-            type="password"
-            value={password}
-            onChange={setPassword}
-            template_variable="At least 8 characters"
-            disabled={loading}
-          />
-          <Field
-            id="admin-confirm"
-            label={translate('settings:setup.confirmPassword')}
-            type="password"
-            value={confirm}
-            onChange={setConfirm}
-            template_variable="Repeat password"
-            disabled={loading}
-          />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Field id="owner-username" label={translate('settings:setup.username')} value={username} onChange={setUsername} templateVariable="admin" disabled={loading} />
+          </div>
+          <div className="sm:col-span-2">
+            <Field
+              id="owner-email"
+              label={translate('settings:setup.email')}
+              type="email"
+              value={email}
+              onChange={value => { setEmail(value); setEmailTouched(true) }}
+              templateVariable="admin@example.com"
+              disabled={loading}
+              autoComplete="email"
+              inputMode="email"
+              error={emailTouched ? emailError : null}
+            />
+          </div>
+          <Field id="owner-password" label={translate('settings:setup.password')} type="password" value={password} onChange={setPassword} templateVariable={translate('settings:setup.passwordHint')} disabled={loading} />
+          <Field id="owner-confirm" label={translate('settings:setup.confirmPassword')} type="password" value={confirm} onChange={setConfirm} templateVariable={translate('settings:setup.confirmPasswordHint')} disabled={loading} />
         </div>
       )}
-      <NavButtons
+      <Actions
         onBack={onBack}
-        onNext={createAdmin}
+        onNext={() => { void createOwner() }}
+        nextLabel={hasAdmin ? translate('settings:setup.continueToReview') : translate('settings:setup.createOwner')}
         loading={loading}
-        nextLabel={hasAdmin ? "Continue" : "Create Owner"}
-        nextDisabled={!hasAdmin && (!username.trim() || !!emailError || password.length < 8 || confirm.length < 8)}
+        nextDisabled={!hasAdmin && (!username.trim() || Boolean(emailError) || password.length < 8 || confirm.length < 8)}
       />
-    </StepCard>
+    </StepSection>
   )
 }
 
-function FinishStep({ onComplete, onBack }: { onComplete: () => void; onBack: () => void }) {
+function ReviewStep({ onComplete, onBack }: { onComplete: () => void; onBack: () => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -861,115 +692,145 @@ function FinishStep({ onComplete, onBack }: { onComplete: () => void; onBack: ()
     setError(null)
     setLoading(true)
     try {
-      const r = await fetch('/api/v2/setup/complete', { method: 'POST' })
-      if (!r.ok) {
-        const d = await r.json().catch(() => ({})) as { detail?: string }
-        setError(d.detail ?? `Could not finish setup (HTTP ${r.status}).`)
+      const response = await fetch('/api/v2/setup/complete', { method: 'POST' })
+      if (!response.ok) {
+        setError(await responseError(response, translate('settings:setup.finishFailedHttp', { status: response.status })))
         return
       }
       onComplete()
       window.location.assign(localStorage.getItem('wp_token') ? '/home' : '/login')
     } catch {
-      setError('Network error while finishing setup.')
+      setError(translate('settings:setup.finishNetworkError'))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <StepCard title={translate('settings:setup.finish')} subtitle="Complete setup and start using FlowHub.">
+    <StepSection title={translate('settings:setup.reviewSetup')} subtitle={translate('settings:setup.reviewReadyDescription')}>
       {error && <ErrorBanner message={error} />}
-      <InfoPanel>
-        {translate('settings:setup.setupIsReadyToBeFinalizedConnector')}
-      </InfoPanel>
-      <NavButtons onBack={onBack} onNext={finishSetup} loading={loading} nextLabel="Finish Setup" />
-    </StepCard>
+      <div className="rounded-lg bg-bg-base p-4">
+        <h3 className="text-sm font-semibold text-text-base">{translate('settings:setup.readyToFinish')}</h3>
+        <p className="mt-2 text-xs leading-5 text-[color:var(--fh-text-secondary)]">
+          {translate('settings:setup.finishDescription')}
+        </p>
+      </div>
+      <Actions onBack={onBack} onNext={() => { void finishSetup() }} nextLabel={translate('settings:setup.finishSetup')} loading={loading} />
+    </StepSection>
+  )
+}
+
+function ThemeGlyph({ theme }: { theme: 'light' | 'dark' }) {
+  return theme === 'dark' ? (
+    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />
+    </svg>
   )
 }
 
 export default function Setup({ onComplete }: SetupProps) {
-  const [step, setStep] = useState<Step>('welcome')
+  const [step, setStep] = useState<Step>('workspace')
   const [statusChecked, setStatusChecked] = useState(false)
   const [hasAdmin, setHasAdmin] = useState(false)
+  const { language, setLanguage, setDirection } = useDirection()
+  const { theme, toggleTheme } = useTheme()
 
   useEffect(() => {
     fetch('/api/v2/setup/status')
-      .then(r => r.json() as Promise<SetupStatus>)
-      .then(d => {
-        setHasAdmin(d.has_admin)
+      .then(response => response.json() as Promise<SetupStatus>)
+      .then(status => {
+        setHasAdmin(status.has_admin)
         setStatusChecked(true)
       })
       .catch(() => setStatusChecked(true))
   }, [])
 
   function goNext() {
-    const idx = SETUP_STEPS.indexOf(step)
-    if (idx < SETUP_STEPS.length - 1) setStep(SETUP_STEPS[idx + 1])
+    const index = SETUP_STEPS.indexOf(step)
+    if (index < SETUP_STEPS.length - 1) setStep(SETUP_STEPS[index + 1])
   }
 
   function goBack() {
-    const idx = SETUP_STEPS.indexOf(step)
-    if (idx > 0) setStep(SETUP_STEPS[idx - 1])
+    const index = SETUP_STEPS.indexOf(step)
+    if (index > 0) setStep(SETUP_STEPS[index - 1])
   }
-
-  const stepIndex = SETUP_STEPS.indexOf(step)
 
   if (!statusChecked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg-base p-4">
-        <div className="fh-card flex items-center gap-3 px-5 py-4 fh-text-body-sm">
-          <AppleSpinner size={18} />
+        <div className="fh-card flex items-center gap-2.5 px-5 py-4 fh-text-body-sm">
+          <Spinner size="sm" />
           <span>{translate('settings:setup.loadingSetupStatus')}</span>
         </div>
       </div>
     )
   }
 
+  const stepIndex = SETUP_STEPS.indexOf(step)
   return (
-    <div className="min-h-screen bg-bg-base p-3 sm:p-5 lg:p-7">
-      <div className="mx-auto grid min-h-[calc(100vh-1.5rem)] w-full max-w-5xl items-center gap-4 lg:min-h-[calc(100vh-3.5rem)] lg:grid-cols-[minmax(260px,320px)_minmax(0,560px)] lg:justify-center">
-        <aside className="fh-card overflow-hidden">
-          <div className="border-b border-border p-4 sm:p-5">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-white shadow-sm">
-                <SetupIconGlyph icon="spark" className="h-[18px] w-[18px]" />
-              </div>
-              <div>
-                <h1 className="fh-section-title">{translate('settings:setup.flowhub')}</h1>
-                <p className="fh-text-body-sm">{translate('settings:setup.setupConsole')}</p>
-              </div>
-            </div>
-            <div className="rounded-lg border border-border bg-bg-base p-3">
-              <p className="fh-section-label">{translate('settings:setup.currentStep')}</p>
-              <div className="mt-2.5 flex items-start gap-2.5">
-                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-fh-mist-100 text-accent">
-                  <SetupIconGlyph icon={STEP_DETAILS[step].icon} className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="fh-text-body font-semibold">
-                    {translate(STEP_LABEL_KEYS[step])}
-                  </p>
-                  <p className="mt-0.5 fh-text-body-sm">
-                    {translate(STEP_DETAILS[step].descriptionKey)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="p-3">
-            <StepProgress current={step} steps={SETUP_STEPS} />
-          </div>
-        </aside>
+    <div className="min-h-screen bg-bg-base px-4 py-6 sm:px-8">
+      <header className="mx-auto flex h-10 w-full max-w-[1376px] items-center">
+        <div className="flex items-center gap-1.5">
+          <img src="/static/logos/FlowHub%20favicon.png?v=4" alt="" className="h-[34px] w-[34px] object-contain" />
+          <span className="text-[22px] font-semibold leading-[30px] text-text-base">FlowHub</span>
+        </div>
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => {
+            const nextLanguage = language === 'fa' ? 'en' : 'fa'
+            setLanguage(nextLanguage)
+            setDirection(nextLanguage === 'fa' ? 'rtl' : 'ltr')
+          }}
+          className="px-2 text-xs font-medium text-[color:var(--fh-text-secondary)]"
+          aria-label={translate('settings:setup.switchLanguage')}
+        >
+          {language === 'fa' ? 'FA' : 'EN'}
+        </button>
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[color:var(--fh-text-secondary)] hover:bg-[color:var(--fh-ui-surface-muted)]"
+          aria-label={theme === 'dark'
+            ? translate('navigation:topbar.switchToLightMode')
+            : translate('navigation:topbar.switchToDarkMode')}
+        >
+          <ThemeGlyph theme={theme} />
+        </button>
+      </header>
 
-        <main className="fh-card overflow-visible p-5 sm:p-6">
-          <p className="mb-3 fh-section-label">{translate('settings:setup.step2')} {stepIndex + 1} {translate('settings:setup.of')} {SETUP_STEPS.length}</p>
-          {step === "welcome" && <WelcomeStep onNext={goNext} />}
-          {step === "server-profile" && <ServerProfileStep onNext={goNext} onBack={goBack} />}
-          {step === "database" && <DatabaseStep onNext={goNext} onBack={goBack} />}
-          {step === "admin" && <AdminStep hasAdmin={hasAdmin} onAdminCreated={() => setHasAdmin(true)} onNext={goNext} onBack={goBack} />}
-          {step === "finish" && <FinishStep onComplete={onComplete} onBack={goBack} />}
-        </main>
-      </div>
+      <main className="fh-card mx-auto mt-5 min-h-[690px] w-full max-w-[900px] overflow-visible p-5 sm:p-6">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-[22px] font-semibold leading-[30px] text-text-base">{translate('settings:setup.setUpWorkspace')}</h1>
+          <span className="fh-badge fh-badge-info shrink-0">{translate('settings:setup.stepOf', { step: stepIndex + 1, total: SETUP_STEPS.length })}</span>
+        </div>
+
+        <div className="mt-[18px]">
+          <StepProgress current={step} />
+        </div>
+
+        <div className="mt-[18px] grid min-h-[480px] items-start gap-[18px] md:grid-cols-[minmax(0,550px)_284px]">
+          <div className="min-w-0">
+            {step === 'workspace' && <WorkspaceStep onNext={goNext} />}
+            {step === 'database' && <DatabaseStep onNext={goNext} onBack={goBack} />}
+            {step === 'owner' && (
+              <OwnerStep
+                hasAdmin={hasAdmin}
+                onAdminCreated={() => setHasAdmin(true)}
+                onNext={goNext}
+                onBack={goBack}
+              />
+            )}
+            {step === 'review' && <ReviewStep onComplete={onComplete} onBack={goBack} />}
+          </div>
+          <SetupChecklist current={step} />
+        </div>
+      </main>
     </div>
   )
 }

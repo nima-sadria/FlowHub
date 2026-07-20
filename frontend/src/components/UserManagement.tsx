@@ -57,8 +57,8 @@ export default function UserManagement() {
   }, [authFetch])
 
   useEffect(() => {
-    if (currentUser?.is_admin) void loadUsers()
-  }, [currentUser?.is_admin, loadUsers])
+    if (currentUser?.is_admin || currentUser?.is_super_admin) void loadUsers()
+  }, [currentUser?.is_admin, currentUser?.is_super_admin, loadUsers])
 
   async function createUser(event: React.FormEvent) {
     event.preventDefault()
@@ -120,7 +120,7 @@ export default function UserManagement() {
     }
   }
 
-  if (!currentUser?.is_admin) return null
+  if (!currentUser?.is_admin && !currentUser?.is_super_admin) return null
 
   return (
     <section className="fh-card overflow-hidden" aria-labelledby="user-management-title">

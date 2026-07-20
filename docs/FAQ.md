@@ -10,7 +10,14 @@ Settings.
 
 ## Does setup configure connectors?
 
-No. Setup contains Welcome, Server Profile, Database, Owner Account, and Finish.
+No. Setup contains Workspace, Database, Owner, and Review. Connector
+configuration remains available after sign-in.
+
+## Which screens are included in the current UI release?
+
+Application Shell, Dashboard, Products, Orders, Sources, Channels, Activity,
+Data Quality, Diagnostics, Settings, User Management, Rate Limits, Setup Wizard,
+and Login.
 
 ## Are writes enabled?
 

@@ -99,9 +99,11 @@ function RouteMatrix({ initialPath }: { initialPath: string }) {
         <Route path="/commerce" element={<RequirePermission permission="can_access_site"><span>commerce-page</span></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><span>workspace-page</span></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><span>activity-page</span></RequirePermission>} />
+        <Route path="/data-quality" element={<RequirePermission permission="can_fetch"><span>data-quality-page</span></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><span>diagnostics-page</span></RequirePermission>} />
         <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><span>rate-limits-page</span></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="can_view_settings"><span>settings-page</span></RequirePermission>} />
+        <Route path="/settings/users" element={<RequirePermission permission="can_view_settings" adminOnly><span>users-page</span></RequirePermission>} />
       </Routes>
     </MemoryRouter>
   )
@@ -196,6 +198,18 @@ describe('RequirePermission - direct render', () => {
     )
     expect(c.textContent).toContain('admin-only')
   })
+
+  it('adminOnly allows super-admin users', () => {
+    const c = renderAuth(
+      <MemoryRouter>
+        <RequirePermission adminOnly>
+          <span>admin-area</span>
+        </RequirePermission>
+      </MemoryRouter>,
+      makeAuth(superUser),
+    )
+    expect(c.textContent).toContain('admin-area')
+  })
 })
 
 // --- Router - /home -----------------------------------------------------------
@@ -266,6 +280,21 @@ describe('Router - /products', () => {
   it('renders Products for admin', () => {
     const c = renderAuth(<RouteMatrix initialPath="/products" />, makeAuth(adminUser))
     expect(c.textContent).toContain('products-page')
+  })
+})
+
+// --- Router - /data-quality ---------------------------------------------------
+
+describe('Router - /data-quality', () => {
+  it('renders Data Quality for a user with catalog access', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/data-quality" />, makeAuth(allowedUser))
+    expect(c.textContent).toContain('data-quality-page')
+  })
+
+  it('keeps Data Quality permission-gated', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/data-quality" />, makeAuth(deniedUser))
+    expect(c.textContent).not.toContain('data-quality-page')
+    expect(c.textContent).toContain('Access Denied')
   })
 })
 
@@ -341,6 +370,24 @@ describe('Router - /settings', () => {
   })
 })
 
+describe('Router - /settings/users', () => {
+  it('renders User Management for admin', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/settings/users" />, makeAuth(adminUser))
+    expect(c.textContent).toContain('users-page')
+  })
+
+  it('renders User Management for super admin', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/settings/users" />, makeAuth(superUser))
+    expect(c.textContent).toContain('users-page')
+  })
+
+  it('denies a non-admin settings user', () => {
+    const c = renderAuth(<RouteMatrix initialPath="/settings/users" />, makeAuth(settingsUser))
+    expect(c.textContent).not.toContain('users-page')
+    expect(c.textContent).toContain('Access Denied')
+  })
+})
+
 describe('Router - /rate-limits', () => {
   it('renders Rate Limits for user with can_view_settings=true', () => {
     const c = renderAuth(<RouteMatrix initialPath="/rate-limits" />, makeAuth(settingsUser))
@@ -379,7 +426,7 @@ describe('Router - /activity', () => {
 function renderSidebar(user: AuthUser | null) {
   return renderAuth(
     <MemoryRouter>
-      <Sidebar open collapsed={false} onClose={() => {}} onToggleCollapse={() => {}} user={user} />
+      <Sidebar open collapsed={false} onClose={() => {}} user={user} health="ok" />
     </MemoryRouter>,
     makeAuth(user)
   )
@@ -411,14 +458,20 @@ describe('Sidebar - denied user (can_access_site=false)', () => {
     expect(c.querySelector('a[href="/sources"]')).toBeNull()
   })
 
-  it('hides Commerce Hub link', () => {
+  it('hides Sources and Channels links', () => {
     const c = renderSidebar(deniedUser)
-    expect(c.querySelector('a[href="/commerce"]')).toBeNull()
+    expect(c.querySelector('a[href="/sources"]')).toBeNull()
+    expect(c.querySelector('a[href="/channels"]')).toBeNull()
   })
 
   it('hides Activity link', () => {
     const c = renderSidebar(deniedUser)
     expect(c.querySelector('a[href="/activity"]')).toBeNull()
+  })
+
+  it('hides Data Quality link', () => {
+    const c = renderSidebar(deniedUser)
+    expect(c.querySelector('a[href="/data-quality"]')).toBeNull()
   })
 
   it('hides Diagnostics link', () => {
@@ -458,20 +511,24 @@ describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => 
     expect(c.querySelector('a[href="/orders"]')).not.toBeNull()
   })
 
-  it('shows the source-centric Sources link', () => {
+  it('shows Sources link under Integrations', () => {
     const c = renderSidebar(allowedUser)
     expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
   })
 
-  it('shows Commerce Hub link', () => {
+  it('shows Channels link under Integrations', () => {
     const c = renderSidebar(allowedUser)
-    expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/channels"]')).not.toBeNull()
   })
 
   it('hides Activity link (no can_view_logs)', () => {
     const c = renderSidebar(allowedUser)
     expect(c.querySelector('a[href="/activity"]')).toBeNull()
+  })
+
+  it('shows Data Quality link', () => {
+    const c = renderSidebar(allowedUser)
+    expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
   })
 
   it('hides Diagnostics link (no can_view_settings)', () => {
@@ -497,13 +554,14 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
     expect(c.querySelector('a[href="/orders"]')).not.toBeNull()
     expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/channels"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
+    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/settings/users"]')).not.toBeNull()
   })
 
   it('renders centralized icons for active navigation links', () => {
@@ -516,11 +574,14 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(dashboardIcon?.querySelector('svg path')).not.toBeNull()
     expect(c.querySelector('a[href="/products"] [data-icon="products"]')).not.toBeNull()
     expect(c.querySelector('a[href="/orders"] [data-icon="orders"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/commerce"] [data-icon="commerce"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/sources"] [data-icon="sources"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/channels"] [data-icon="channels"]')).not.toBeNull()
     expect(c.querySelector('a[href="/workspace"] [data-icon="workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"] [data-icon="activity"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/data-quality"] [data-icon="dataQuality"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"] [data-icon="diagnostics"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"] [data-icon="settings"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/settings/users"] [data-icon="user"]')).not.toBeNull()
   })
 })
 
@@ -531,21 +592,23 @@ describe('Sidebar - super admin (is_super_admin=true, is_admin=false)', () => {
     expect(c.querySelector('a[href="/workspace"]')).not.toBeNull()
     expect(c.querySelector('a[href="/products"]')).not.toBeNull()
     expect(c.querySelector('a[href="/sources"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/commerce"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/channels"]')).not.toBeNull()
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
+    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/settings/users"]')).not.toBeNull()
   })
 })
 
 describe('Sidebar - settings user (can_view_settings=true)', () => {
-  it('shows Diagnostics and Settings links without a top-level Rate Limits link', () => {
+  it('shows Diagnostics, Settings, and Rate Limits links', () => {
     const c = renderSidebar(settingsUser)
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
+    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/settings/users"]')).toBeNull()
   })
 })
 

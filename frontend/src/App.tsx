@@ -33,6 +33,7 @@ const Orders = lazy(() => import('./pages/Orders'))
 const RateLimits = lazy(() => import('./pages/RateLimits'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Setup = lazy(() => import('./pages/Setup'))
+const UserManagement = lazy(() => import('./pages/UserManagement'))
 const SourceCenter = lazy(() => import('./pages/SourceCenter'))
 const SourceConfiguration = lazy(() => import('./pages/SourceConfiguration'))
 const SourceImportWizard = lazy(() => import('./pages/SourceImportWizard'))
@@ -171,6 +172,7 @@ function SetupGate() {
           <Route path="/sources/:sourceId" element={<RequirePermission permission="can_access_site"><SourceConfiguration /></RequirePermission>} />
           <Route path="/sheets/:sheetId" element={<RequirePermission permission="can_fetch"><FlowHubSheet /></RequirePermission>} />
           <Route path="/data-quality" element={<RequirePermission permission="can_fetch"><DataQuality /></RequirePermission>} />
+          <Route path="/channels" element={<RequirePermission permission="can_access_site"><CommerceHub initialTab="channels" /></RequirePermission>} />
           <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
           <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
           <Route path="/workspace/:workspaceId" element={<RequirePermission permission="can_fetch"><UnifiedWorkspace /></RequirePermission>} />
@@ -178,6 +180,7 @@ function SetupGate() {
           <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
           <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
           <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
+          <Route path="/settings/users" element={<RequirePermission permission="can_view_settings" adminOnly><UserManagement /></RequirePermission>} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

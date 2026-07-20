@@ -7,8 +7,12 @@ Status: first-release finalization.
 - Main branch targets the first public FlowHub deployment.
 - Canonical installation path is `/opt/FlowHub`.
 - Legacy Compatibility migration covers older `/opt/flowhub` installations.
-- Setup Wizard contains Welcome, Server Profile, Database, Admin Account, Finish.
+- Setup Wizard contains Workspace, Database, Owner, and Review.
 - Connector configuration belongs in Settings.
+- The current UI release includes Application Shell, Dashboard, Products,
+  Orders, Sources, Channels, Activity, Data Quality, Diagnostics, Settings,
+  User Management, Rate Limits, Setup Wizard, and Login.
+- The current Alembic head is `FLOWHUB_019`.
 - Integration Platform and Unified Logging Platform are implemented.
 - Read-only safety remains active.
 

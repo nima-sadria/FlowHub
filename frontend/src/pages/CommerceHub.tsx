@@ -1047,13 +1047,13 @@ function ConfigPanel({
   )
 }
 
-export default function CommerceHub() {
+export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
   const { commerce } = useServices()
   const { user } = useAuth()
   const { success, error: notifyError } = useNotification()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'sources' ? 'sources' : 'channels')
+  const [tab, setTab] = useState<Tab>(initialTab ?? (searchParams.get('tab') === 'sources' ? 'sources' : 'channels'))
   const [sources, setSources] = useState<CommerceSource[]>([])
   const [channels, setChannels] = useState<CommerceChannel[]>([])
   const [sourceTypes, setSourceTypes] = useState<CommerceTypeOption[]>([])
@@ -1077,9 +1077,10 @@ export default function CommerceHub() {
   )
 
   useEffect(() => {
+    if (initialTab) return
     const queryTab = searchParams.get('tab')
     if (queryTab === 'sources' || queryTab === 'channels') setTab(queryTab)
-  }, [searchParams])
+  }, [searchParams, initialTab])
 
   async function loadCommerce() {
     const [sourceData, channelData, sourceTypeData, channelTypeData] = await Promise.all([

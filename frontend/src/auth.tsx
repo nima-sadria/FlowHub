@@ -237,7 +237,7 @@ export function RequirePermission({
   const { user, status } = useAuth()
   if (status !== 'authenticated') return <AccessState status={status} />
   if (!user) return <AccessState status="login_required" />
-  if (adminOnly && !user.is_admin) return <AccessState status="permission_denied" />
+  if (adminOnly && !user.is_admin && !user.is_super_admin) return <AccessState status="permission_denied" />
   if (permission && !effectiveHasPerm(user, permission)) {
     return <AccessState status="permission_denied" />
   }

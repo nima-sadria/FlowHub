@@ -5,10 +5,21 @@
   "access.signInToContinue": "Please sign in to continue.",
   "access.verifyingAccess": "Verifying Access",
   "access.verifyingSession": "Verifying your session with the server.",
+  "login.accessNotGranted": "Access not granted — contact your administrator.",
+  "login.contactOwner": "Need access? Contact your workspace Owner.",
   "login.flowhub": "FlowHub",
+  "login.footerLinks": "Privacy · Security · Support",
+  "login.invalidCredentials": "Invalid credentials. Please check your username and password.",
+  "login.loginFailedHttp": "Login failed (HTTP {{status}}). Please try again.",
+  "login.networkError": "Network error. Please check your connection and try again.",
   "login.password": "Password",
+  "login.passwordHint": "Enter your password",
+  "login.serviceUnavailable": "Authentication service is temporarily unavailable. Please try again.",
   "login.signIn": "Sign in",
   "login.signingIn": "Signing in...",
   "login.signInToFlowhub": "Sign in to FlowHub",
-  "login.username": "Username"
+  "login.tooManyAttempts": "Too many login attempts. Please wait a moment and try again.",
+  "login.username": "Username",
+  "login.usernameHint": "Administrator username",
+  "login.useWorkspaceAccount": "Use your workspace account."
 }

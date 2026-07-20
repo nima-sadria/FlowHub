@@ -13,9 +13,9 @@ import Products from './Products'
 vi.mock('../features/sourceWorkspace/DensePricingWorkspace', async () => {
   const React = await import('react')
   return {
-    default: ({ workspace }: { workspace: UnifiedWorkspaceResource }) => React.createElement(
+    default: ({ workspace, initialSearch }: { workspace: UnifiedWorkspaceResource; initialSearch?: string }) => React.createElement(
       'section',
-      { 'data-inline-pricing-grid': workspace.id },
+      { 'data-inline-pricing-grid': workspace.id, 'data-initial-search': initialSearch },
       `Inline pricing ${workspace.id}`,
     ),
   }
@@ -85,6 +85,19 @@ describe('Products inline pricing entry', () => {
     expect(window.sessionStorage.getItem('flowhub.products.active_workspace')).toBeNull()
   })
 
+  it('passes q to the real pricing workspace while preserving other query parameters', async () => {
+    const getWorkspace = vi.fn(async () => WORKSPACE)
+    await renderProducts(
+      servicesFor({ getWorkspace }),
+      '/products?workspace=catalog-workspace&status=active&q=red%20shoe',
+    )
+    await waitFor(() => container.querySelector('[data-inline-pricing-grid="catalog-workspace"]') !== null)
+
+    const grid = container.querySelector('[data-inline-pricing-grid="catalog-workspace"]')
+    expect(grid?.getAttribute('data-initial-search')).toBe('red shoe')
+    expect(getWorkspace).toHaveBeenCalledWith('catalog-workspace')
+  })
+
   it('embeds a source-entry Workspace on Products without replacing the catalog session', async () => {
     window.sessionStorage.setItem('flowhub.products.active_workspace', 'catalog-workspace')
     const getWorkspace = vi.fn(async () => SOURCE_WORKSPACE)
@@ -110,6 +123,20 @@ describe('Products inline pricing entry', () => {
     await click('Retry inline pricing')
     await waitFor(() => container.querySelector('[data-inline-pricing-grid="catalog-workspace"]') !== null)
     expect(createCatalog).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses q in the real cached-product API fallback', async () => {
+    const createCatalog = vi.fn().mockRejectedValue(new ApiError(502, 'unavailable'))
+    const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
+    await renderProducts(servicesFor({ createCatalog, getProducts }), '/products?q=blue%20mug&status=active')
+    await waitFor(() => getProducts.mock.calls.length > 0)
+
+    expect(getProducts).toHaveBeenCalledWith({
+      search: 'blue mug',
+      status: 'all',
+      page: 1,
+      pageSize: 50,
+    })
   })
 })
 

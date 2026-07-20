@@ -1,17 +1,33 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
-import { SearchableListbox, validateSetupEmail } from './Setup'
+import { DirectionProvider } from '../direction'
+import { ThemeProvider } from '../theme/ThemeProvider'
+import Setup, { SearchableListbox, validateSetupEmail } from './Setup'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 
 beforeEach(() => {
+  localStorage.clear()
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
 })
+
+async function renderSetup() {
+  await act(async () => {
+    root.render(
+      <ThemeProvider>
+        <DirectionProvider>
+          <Setup onComplete={() => undefined} />
+        </DirectionProvider>
+      </ThemeProvider>,
+    )
+  })
+  await act(async () => { await Promise.resolve() })
+}
 
 afterEach(() => {
   act(() => { root.unmount() })
@@ -87,5 +103,52 @@ describe('validateSetupEmail', () => {
     for (const value of invalid) {
       expect(validateSetupEmail(value)).toBe('Enter a valid email address.')
     }
+  })
+})
+
+describe('Setup', () => {
+  it('renders the approved four-stage workspace frame from live setup status', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ completed: false, has_admin: false }), { status: 200 }),
+    )
+
+    await renderSetup()
+
+    expect(container.textContent).toContain('Set up your workspace')
+    expect(container.textContent).toContain('Step 1 of 4')
+    for (const label of ['Workspace', 'Database', 'Owner', 'Review']) {
+      expect(container.textContent).toContain(label)
+    }
+    expect(container.textContent).toContain('Setup checklist')
+    expect(container.textContent).toContain('Workspace domain')
+  })
+
+  it('keeps the existing server-profile contract when continuing', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      if (String(input).endsWith('/api/v2/setup/status')) {
+        return new Response(JSON.stringify({ completed: false, has_admin: false }), { status: 200 })
+      }
+      if (String(input).endsWith('/api/v2/setup/server-profile')) {
+        return new Response(JSON.stringify({ ok: true }), { status: 200 })
+      }
+      throw new Error(`Unexpected request: ${String(input)} ${init?.method ?? 'GET'}`)
+    })
+
+    await renderSetup()
+    const continueButton = Array.from(container.querySelectorAll('button'))
+      .find(button => button.textContent?.includes('Continue to database'))
+    await act(async () => {
+      continueButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    const request = fetchMock.mock.calls.find(([input]) => String(input).endsWith('/api/v2/setup/server-profile'))
+    expect(request).toBeDefined()
+    expect(request?.[1]?.method).toBe('POST')
+    expect(JSON.parse(String(request?.[1]?.body))).toEqual(expect.objectContaining({
+      domain: expect.any(String),
+      timezone: expect.any(String),
+      currency: 'USD',
+    }))
+    expect(container.textContent).toContain('Database readiness')
   })
 })

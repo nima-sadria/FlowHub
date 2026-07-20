@@ -94,13 +94,14 @@ export default function AppShell() {
         open={sidebarOpen}
         collapsed={sidebarCollapsed}
         onClose={() => setSidebarOpen(false)}
-        onToggleCollapse={handleToggleCollapse}
         user={user}
+        health={health}
       />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Topbar
           onMenuClick={() => setSidebarOpen(o => !o)}
-          health={health}
+          onToggleCollapse={handleToggleCollapse}
+          sidebarCollapsed={sidebarCollapsed}
           user={user}
           onLogout={handleLogout}
         />

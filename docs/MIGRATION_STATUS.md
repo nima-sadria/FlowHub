@@ -2,8 +2,10 @@
 
 ## Current release head
 
-FlowHub 1.0.0 migration head is **`FLOWHUB_015`**.
+The current FlowHub migration head is **`FLOWHUB_019`**.
 
+`FLOWHUB_019` follows `FLOWHUB_018` and adds the persisted worksheet-rule and
+deterministic Source Workspace schema required by the current release.
 `FLOWHUB_015` follows `FLOWHUB_014` and adds production order-sync lease
 metadata to `channel_order_sync_checkpoints`.
 `FLOWHUB_014` follows `FLOWHUB_013` and creates normalized channel order,
