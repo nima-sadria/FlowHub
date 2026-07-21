@@ -121,7 +121,9 @@ function services(): Services {
       refreshChannelHealth: vi.fn(),
     },
     sources: { getSources: vi.fn(async () => sourceFixture()) } as unknown as Services['sources'],
-    products: {} as Services['products'],
+    products: {
+      getProducts: vi.fn(async () => ({ items: [], total: 1284, page: 1, pageSize: 1 })),
+    } as unknown as Services['products'],
     activity: {
       getEvents: vi.fn(async () => ({
         items: [
@@ -130,7 +132,7 @@ function services(): Services {
         ],
         total: 2,
         page: 1,
-        pageSize: 5,
+        pageSize: 2,
       })),
     } as unknown as Services['activity'],
     workspace: {} as Services['workspace'],
@@ -178,62 +180,40 @@ async function renderPage(mockServices = services()) {
   return { container, mockServices }
 }
 
-function card(id: string): HTMLElement {
-  const element = container.querySelector<HTMLElement>(`[data-business-card="${id}"]`)
-  if (!element) throw new Error(`Missing business card: ${id}`)
-  return element
+function kpiCardText(label: string): string {
+  const labelEl = Array.from(container.querySelectorAll('p')).find(p => p.textContent === label)
+  if (!labelEl) throw new Error(`Missing KPI card: ${label}`)
+  return labelEl.parentElement?.parentElement?.textContent ?? ''
 }
 
 describe('Dashboard', () => {
-  it('turns persisted business data into complete, actionable seller cards', async () => {
-    const { mockServices } = await renderPage()
-
-    expect(mockServices.health.getChannelHealth).toHaveBeenCalled()
-    expect(container.querySelectorAll('[data-business-card]')).toHaveLength(8)
-    expect(card('price-changes').textContent).toContain('84 changed products')
-    expect(card('price-changes').title).toContain('Review today’s price changes')
-    expect(card('ready-review').textContent).toContain('76 products')
-    expect(card('ready-apply').textContent).toContain('12 products')
-    expect(card('blocking').textContent).toContain('3 issues')
-    expect(card('warnings').textContent).toContain('5 issues')
-    expect(card('orders').textContent).toContain('6 orders')
-    expect(card('orders').textContent).toContain('15,000,000 IRR')
-    expect(card('inventory').textContent).toContain('9 affected products')
-    expect(card('updates').textContent).toContain('1 failed update')
-    expect(card('updates').querySelector('.fh-badge [data-icon="error"]')).not.toBeNull()
-    expect(container.textContent).not.toContain('Backend')
-    expect(container.textContent).not.toContain('Database')
-    expect(container.textContent).not.toContain('Application')
-  })
-
-  it('uses meaningful empty states instead of bare zero values', async () => {
-    const emptySummary = businessSummaryFixture()
-    for (const key of Object.keys(emptySummary.metrics)) {
-      if (key === 'revenueToday') emptySummary.metrics.revenueToday = []
-      else {
-        (emptySummary.metrics as unknown as Record<string, number>)[key] = 0
-      }
-    }
-    vi.stubGlobal('fetch', vi.fn(async () => (
-      new Response(JSON.stringify(emptySummary), { status: 200 })
-    )))
-
+  it('renders the primary KPI row from live catalog and business data, without fabricating trends', async () => {
     await renderPage()
 
-    expect(card('price-changes').textContent).toContain('No price changes')
-    expect(card('ready-review').textContent).toContain('Nothing ready for Review')
-    expect(card('ready-apply').textContent).toContain('Nothing ready for Apply')
-    expect(card('blocking').textContent).toContain('No blocking issues')
-    expect(card('warnings').textContent).toContain('No warnings')
-    expect(card('orders').textContent).toContain('No orders today')
-    expect(card('inventory').textContent).toContain('No inventory alerts')
-    expect(card('updates').textContent).toContain('Everything synchronized')
-    for (const element of container.querySelectorAll('[data-business-card]')) {
-      expect(element.querySelector('.fh-business-card-value')?.textContent).not.toBe('0')
-    }
+    expect(kpiCardText('Products Ready')).toContain('1,275')
+    expect(kpiCardText('Products Ready')).toContain('9 out of stock')
+    expect(kpiCardText('Review Required')).toContain('76')
+    expect(kpiCardText('Review Required')).toContain('3 blocking')
+    expect(kpiCardText('Apply Ready')).toContain('12')
+    expect(kpiCardText('Apply Ready')).toContain('Ready')
+    expect(kpiCardText('Orders Today')).toContain('6')
+    expect(kpiCardText('Orders Today')).toContain('+50%')
   })
 
-  it('keeps revenue currencies separate and formats channel chart labels', async () => {
+  it('shows the pricing workflow strip and action summary from real metrics', async () => {
+    await renderPage()
+
+    expect(container.textContent).toContain('Pricing workflow')
+    expect(container.textContent).toContain('76 review')
+    expect(container.textContent).toContain('2 dry run')
+    expect(container.textContent).toContain('12 apply')
+    expect(container.textContent).toContain('Revenue today')
+    expect(container.textContent).toContain('15,000,000 IRR')
+    expect(container.textContent).toContain('Blocking')
+    expect(container.textContent).toContain('Warnings')
+  })
+
+  it('keeps revenue currencies separate and shows the Last 30 days chart header', async () => {
     const mockServices = services()
     const order = (
       internalId: number,
@@ -283,95 +263,58 @@ describe('Dashboard', () => {
     expect(container.querySelector('[data-revenue-currency="USD"]')).not.toBeNull()
     expect(container.querySelector('[title^="WooCommerce:"]')).not.toBeNull()
     expect(container.querySelector('[title^="TapsiShop:"]')).not.toBeNull()
-    expect(container.textContent).toContain('Loaded orders')
-    expect(container.textContent).not.toContain('Last 30 days')
+    expect(container.textContent).toContain('Last 30 days')
+    expect(container.textContent).not.toContain('Loaded orders')
   })
 
-  it('does not present a never-checked Channel as a warning', async () => {
-    const mockServices = services()
-    const originalHealth = await mockServices.health.getChannelHealth()
-    const notChecked = {
-      ...originalHealth.items[0],
-      state: 'NOT_CHECKED' as const,
-      status: 'Not checked' as const,
-      reason_code: 'credentials_not_checked',
-      checked_at: null,
-      evidence_source: 'connector_health',
-      is_actionable: true,
-      recommended_action: 'Run connection test',
-      nextRecommendedAction: 'Run connection test',
-      lastSuccessfulVerification: null,
-    }
-    vi.mocked(mockServices.health.getChannelHealth).mockResolvedValue({
-      ...originalHealth,
-      summary: { overall: 'Not checked', overall_state: 'NOT_CHECKED', counts: { 'Not checked': 1 } },
-      items: [notChecked],
-    })
+  it('unifies channel and source health into one prioritized list, healthy first', async () => {
+    await renderPage()
 
-    await renderPage(mockServices)
-
-    const channelRow = container.querySelector<HTMLElement>('[data-resource-id="woocommerce:primary"]')
-    expect(channelRow?.textContent).toContain('Configured')
-    expect(channelRow?.textContent).not.toContain('Warning')
+    const rows = Array.from(container.querySelectorAll<HTMLElement>('[data-health-row]'))
+    expect(rows).toHaveLength(2)
+    expect(rows[0].dataset.healthTone).toBe('success')
+    expect(rows[0].textContent).toContain('Healthy')
+    expect(container.textContent).toContain('Channel health')
   })
 
-  it('uses the shared active, disabled, and attention ordering for dashboard resources', async () => {
+  it('shows warning tone and the correct entity icon for attention-tier health rows', async () => {
     const mockServices = services()
-    const originalHealth = await mockServices.health.getChannelHealth()
-    const healthy = originalHealth.items[0]
-    const warning = originalHealth.items[1]
-    const disabled = {
-      ...healthy,
-      channelId: 'snappshop:main',
-      channelType: 'snappshop',
-      enabled: false,
-      status: 'Disabled' as const,
-      summary: 'Channel is disabled.',
-    }
-    vi.mocked(mockServices.health.getChannelHealth).mockResolvedValue({
-      ...originalHealth,
-      items: [disabled, warning, healthy],
-    })
+    const onlyWarningChannel = channelHealthFixture()
+    onlyWarningChannel.items = [onlyWarningChannel.items[1]]
+    onlyWarningChannel.summary = { overall: 'Warning', counts: { Warning: 1 } }
+    vi.mocked(mockServices.health.getChannelHealth).mockResolvedValue(onlyWarningChannel)
     vi.mocked(mockServices.sources.getSources).mockResolvedValue([
       { id: 'source-nextcloud', name: 'Nextcloud', type: 'nextcloud_excel', displayUrl: '', status: 'error', lastSynced: null, productCount: 0 },
-      { id: 'source-csv', name: 'CSV', type: 'nextcloud_excel', displayUrl: '', status: 'active', lastSynced: null, productCount: 5 },
-      { id: 'source-google', name: 'Google Sheets', type: 'nextcloud_excel', displayUrl: '', status: 'active', lastSynced: null, productCount: 8 },
     ])
 
     await renderPage(mockServices)
-    const ids = Array.from(container.querySelectorAll<HTMLElement>('[data-resource-id]'))
-      .map(element => element.dataset.resourceId)
 
-    expect(ids).toEqual([
-      'woocommerce:primary',
-      'tapsishop:main',
-      'snappshop:main',
-      'source-csv',
-      'source-google',
-      'source-nextcloud',
-    ])
-    expect(container.querySelectorAll('[data-resource-section="disabled"]')).toHaveLength(1)
+    const rows = Array.from(container.querySelectorAll<HTMLElement>('[data-health-row]'))
+    expect(rows).toHaveLength(2)
+    expect(rows.every(row => row.dataset.healthTone === 'warning')).toBe(true)
+    expect(rows.every(row => row.textContent?.includes('Warning'))).toBe(true)
+    expect(container.textContent).toContain('2 warnings')
   })
 
-  it('localizes business decisions in Persian while preserving RTL', async () => {
+  it('localizes the dashboard in Persian while preserving RTL', async () => {
     await changeLocale('fa')
     await renderPage()
 
     expect(document.documentElement.dir).toBe('rtl')
-    expect(card('price-changes').textContent).toContain('محصولات دارای تغییر قیمت')
-    expect(card('ready-review').textContent).toContain('آماده بازبینی')
-    expect(card('blocking').textContent).toContain('مشکلات مسدودکننده')
-    expect(card('orders').textContent).toContain('سفارش‌ها و درآمد امروز')
-    expect(card('updates').textContent).toContain('به‌روزرسانی‌های انتشار')
+    expect(kpiCardText('محصولات آماده')).toContain('۱٬۲۷۵')
+    expect(kpiCardText('نیازمند بازبینی')).toContain('۷۶')
+    expect(kpiCardText('آماده اعمال')).toContain('۱۲')
+    expect(container.textContent).toContain('فرایند قیمت‌گذاری')
+    expect(container.textContent).toContain('وضعیت کانال‌ها')
   })
 
-  it('shows an actionable summary error without fabricating values', async () => {
+  it('shows a real business-summary failure without fabricating KPI values', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('isolated summary failure') }))
     await renderPage()
 
-    expect(card('price-changes').textContent).toContain('Business data unavailable')
-    expect(card('price-changes').textContent).toContain('No values are being estimated')
-    expect(card('price-changes').textContent).toContain('Retry')
-    expect(card('price-changes').querySelector('.fh-badge [data-icon="warning"]')).not.toBeNull()
+    expect(kpiCardText('Review Required')).toContain('-')
+    expect(kpiCardText('Review Required')).not.toMatch(/\b0\b/)
+    expect(kpiCardText('Apply Ready')).toContain('-')
+    expect(kpiCardText('Apply Ready')).not.toMatch(/\b0\b/)
   })
 })

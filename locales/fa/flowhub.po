@@ -193,7 +193,6 @@ msgctxt "settings:setup.active"
 msgid "Active"
 msgstr "فعال"
 
-#: frontend/src/pages/Dashboard.tsx:552
 msgctxt "dashboard:dashboard.activeSources"
 msgid "Active Sources"
 msgstr "منابع فعال"
@@ -370,9 +369,20 @@ msgctxt "sources:sourceConfiguration.allChangesSaved"
 msgid "All changes saved"
 msgstr "همه تغییرات ذخیره شده‌اند"
 
+#: frontend/src/pages/Dashboard.tsx:374 frontend/src/pages/Dashboard.tsx:383
+msgctxt "dashboard:dashboard.allClear"
+msgid "All clear"
+msgstr "موردی باقی نمانده"
+
 msgctxt "dashboard:dashboard.allSourcesReady"
 msgid "All configured Sources are ready."
 msgstr "همه منابع پیکربندی‌شده آماده‌اند."
+
+#: frontend/src/pages/Dashboard.tsx:362
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "dashboard:dashboard.allInStock"
+msgid "All in stock"
+msgstr "همه موجود است"
 
 #: frontend/src/pages/DataQuality.tsx:235
 msgctxt "dataQuality:dataQuality.allMappingStates"
@@ -481,11 +491,17 @@ msgctxt "products:products.apply"
 msgid "Apply"
 msgstr "اعمال"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:575 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:53 frontend/src/pages/UnifiedWorkspace.tsx:189
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:575 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:54 frontend/src/pages/UnifiedWorkspace.tsx:189
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.apply"
 msgid "Apply"
 msgstr "اعمال"
+
+#: frontend/src/pages/Dashboard.tsx:484
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "dashboard:dashboard.applyReady"
+msgid "Apply Ready"
+msgstr "آماده اعمال"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:165
 #. Apply means executing an approved change against a sales Channel.
@@ -528,7 +544,6 @@ msgctxt "workspace:sourceCentricWorkspace.applyResults"
 msgid "Apply results"
 msgstr "نتایج اعمال"
 
-#: frontend/src/pages/Dashboard.tsx:357
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "dashboard:dashboard.applyApprovedChanges"
 msgid "Apply the approved changes when you are ready."
@@ -637,6 +652,12 @@ msgctxt "diagnostics:diagnostics.availableNow"
 msgid "Available now"
 msgstr "اکنون در دسترس"
 
+#: frontend/src/pages/Dashboard.tsx:373
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.awaitingReview"
+msgid "Awaiting review"
+msgstr "در انتظار بازبینی"
+
 #: frontend/src/pages/Setup.tsx:393
 msgctxt "settings:setup.back"
 msgid "Back"
@@ -673,7 +694,6 @@ msgctxt "sources:sourceConfiguration.valueType.blank"
 msgid "Blank"
 msgstr "خالی"
 
-#: frontend/src/pages/Dashboard.tsx:370
 msgctxt "common:status.blocked"
 msgid "Blocked"
 msgstr "مسدود"
@@ -710,7 +730,11 @@ msgctxt "workspace:workspace.blocked"
 msgid "Blocked:"
 msgstr "مسدود:"
 
-#: frontend/src/pages/Dashboard.tsx:501 frontend/src/pages/Dashboard.tsx:604 frontend/src/pages/Dashboard.tsx:684
+#: frontend/src/pages/Dashboard.tsx:514
+msgctxt "dashboard:dashboard.blocking"
+msgid "Blocking"
+msgstr "مسدودکننده"
+
 msgctxt "dashboard:dashboard.blockingIssues"
 msgid "Blocking issues"
 msgstr "مشکلات مسدودکننده"
@@ -720,7 +744,6 @@ msgctxt "dataQuality:dataQuality.blockingIssues"
 msgid "Blocking issues"
 msgstr "مشکلات مسدودکننده"
 
-#: frontend/src/pages/Dashboard.tsx:687
 msgctxt "dashboard:dashboard.blockingIssuesMeaning"
 msgid "Blocking issues must be resolved before the affected products can be published."
 msgstr "پیش از انتشار محصولات درگیر، باید مشکلات مسدودکننده برطرف شوند."
@@ -760,7 +783,7 @@ msgid_plural "Bulk scope: {{count}} selected rows"
 msgstr[0] "دامنه عملیات گروهی: {{count}} ردیف انتخاب‌شده"
 msgstr[1] "دامنه عملیات گروهی: {{count}} ردیف انتخاب‌شده"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:564 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:49
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:564 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:50
 msgctxt "workspace:densePricing.bulkTransformationToolbar"
 msgid "Bulk transformation toolbar"
 msgstr "نوار عملیات گروهی"
@@ -775,12 +798,10 @@ msgctxt "sources:sourceConfiguration.bulkWorksheetActions"
 msgid "Bulk worksheet actions"
 msgstr "عملیات گروهی برگه‌ها"
 
-#: frontend/src/pages/Dashboard.tsx:300
 msgctxt "dashboard:dashboard.businessDataUnavailable"
 msgid "Business data unavailable"
 msgstr "داده‌های کسب‌وکار در دسترس نیست"
 
-#: frontend/src/pages/Dashboard.tsx:640
 msgctxt "dashboard:dashboard.businessOverview"
 msgid "Business overview"
 msgstr "نمای کسب‌وکار"
@@ -936,7 +957,6 @@ msgctxt "workspace:densePricing.view.changed"
 msgid "Changed"
 msgstr "تغییریافته"
 
-#: frontend/src/pages/Dashboard.tsx:649
 #. Current is the latest verified or cached Channel value.
 msgctxt "dashboard:dashboard.productChangesMeaning"
 msgid "Changed products contain target values that differ from their current saved state."
@@ -1056,12 +1076,18 @@ msgctxt "diagnostics:message.channelDoesNotUseWebhooks"
 msgid "Channel does not use webhooks."
 msgstr "این کانال از وب‌هوک استفاده نمی‌کند."
 
+#: frontend/src/pages/Dashboard.tsx:617
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "dashboard:dashboard.channelHealth"
+msgid "Channel health"
+msgstr "وضعیت کانال‌ها"
+
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:message.channelHealthDerived"
 msgid "Channel health is derived from the unified diagnostics source."
 msgstr "سلامت کانال از منبع یکپارچه عیب‌یابی تعیین می‌شود."
 
-#: frontend/src/pages/Dashboard.tsx:789 frontend/src/pages/Dashboard.tsx:926
+#: frontend/src/pages/Dashboard.tsx:626
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dashboard:dashboard.channelHealthUnavailable"
 msgid "Channel health unavailable"
@@ -1087,7 +1113,6 @@ msgctxt "products:products.channelPrices"
 msgid "Channel prices"
 msgstr "قیمت‌های کانال"
 
-#: frontend/src/pages/Dashboard.tsx:917
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dashboard:dashboard.channelReadiness"
 msgid "Channel readiness"
@@ -1124,7 +1149,6 @@ msgctxt "commerce:commerceHub.channels2"
 msgid "Channels"
 msgstr "کانال‌ها"
 
-#: frontend/src/pages/Dashboard.tsx:562 frontend/src/pages/Dashboard.tsx:776
 msgctxt "dashboard:dashboard.channels"
 msgid "Channels"
 msgstr "کانال‌ها"
@@ -1192,7 +1216,6 @@ msgctxt "diagnostics:diagnostics.checked"
 msgid "Checked"
 msgstr "بررسی‌شده"
 
-#: frontend/src/pages/Dashboard.tsx:293
 msgctxt "common:status.checking"
 msgid "Checking"
 msgstr "در حال بررسی"
@@ -1650,7 +1673,6 @@ msgctxt "dataQuality:dataQuality.conflict"
 msgid "Conflict"
 msgstr "تعارض"
 
-#: frontend/src/pages/Dashboard.tsx:839
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dashboard:dashboard.connectSourceForDailyWork"
 msgid "Connect a Source to bring product and pricing data into FlowHub."
@@ -1725,7 +1747,6 @@ msgctxt "diagnostics:diagnostics.channelSummaryHint"
 msgid "Connection, last successful activity, and the current action for each sales Channel."
 msgstr "وضعیت اتصال، آخرین فعالیت موفق و اقدام فعلی هر کانال فروش."
 
-#: frontend/src/pages/Dashboard.tsx:623
 msgctxt "dashboard:dashboard.connections"
 msgid "Connections"
 msgstr "اتصال‌ها"
@@ -2011,7 +2032,7 @@ msgctxt "sources:sourceConfiguration.valueType.dash"
 msgid "Dash"
 msgstr "خط تیره"
 
-#: frontend/src/pages/Dashboard.tsx:510
+#: frontend/src/pages/Dashboard.tsx:446
 msgctxt "dashboard:dashboard.dashboard"
 msgid "Dashboard"
 msgstr "داشبورد"
@@ -2335,7 +2356,7 @@ msgctxt "activity:category.dry_run"
 msgid "Dry Run"
 msgstr "اجرای آزمایشی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:574 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:52
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:574 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:53
 msgctxt "products:products.dryRun"
 msgid "Dry Run"
 msgstr "اجرای آزمایشی"
@@ -2482,7 +2503,7 @@ msgctxt "activity:activity.error"
 msgid "Error"
 msgstr "خطا"
 
-#: frontend/src/pages/Dashboard.tsx:433 frontend/src/pages/Workspace.tsx:92
+#: frontend/src/pages/Workspace.tsx:92
 msgctxt "common:status.error"
 msgid "Error"
 msgstr "خطا"
@@ -2538,7 +2559,6 @@ msgctxt "dashboard:dashboard.dailyServicesAvailable"
 msgid "Everything required for daily work is available."
 msgstr "همه موارد لازم برای کار روزانه در دسترس‌اند."
 
-#: frontend/src/pages/Dashboard.tsx:421
 msgctxt "dashboard:dashboard.everythingSynchronized"
 msgid "Everything synchronized"
 msgstr "همه‌چیز همگام است"
@@ -2702,7 +2722,6 @@ msgctxt "dashboard:dashboard.fixSourceConnections"
 msgid "Fix Source connections before the next review."
 msgstr "پیش از بازبینی بعدی، اتصال منابع را اصلاح کنید."
 
-#: frontend/src/pages/Dashboard.tsx:373
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "dashboard:dashboard.fixBlockingProducts"
 msgid "Fix the blocking products before Review or Apply."
@@ -2784,7 +2803,6 @@ msgctxt "dashboard:dashboard.dailyServicesNotConfirmed"
 msgid "FlowHub could not confirm the services needed for daily work."
 msgstr "FlowHub نتوانست سرویس‌های لازم برای کار روزانه را تأیید کند."
 
-#: frontend/src/pages/Dashboard.tsx:301
 #. Current is the latest verified or cached Channel value.
 msgctxt "dashboard:dashboard.businessDataUnavailableExplanation"
 msgid "FlowHub could not load the current business summary. No values are being estimated."
@@ -2937,7 +2955,7 @@ msgctxt "common:resourceBadge.healthy"
 msgid "Healthy"
 msgstr "سالم"
 
-#: frontend/src/pages/Dashboard.tsx:316
+#: frontend/src/pages/Dashboard.tsx:656
 msgctxt "common:status.healthy"
 msgid "Healthy"
 msgstr "سالم"
@@ -3077,7 +3095,6 @@ msgctxt "activity:activity.info"
 msgid "Info"
 msgstr "اطلاعات"
 
-#: frontend/src/pages/Dashboard.tsx:326
 msgctxt "common:status.info"
 msgid "Information"
 msgstr "اطلاعات"
@@ -3133,7 +3150,6 @@ msgctxt "sources:sourceConfiguration.valueType.invalid"
 msgid "Invalid value"
 msgstr "مقدار نامعتبر"
 
-#: frontend/src/pages/Dashboard.tsx:720
 msgctxt "dashboard:dashboard.inventoryAlerts"
 msgid "Inventory alerts"
 msgstr "هشدارهای موجودی"
@@ -3195,6 +3211,7 @@ msgctxt "workspace:workspace.largePriceChanges"
 msgid "Large price changes"
 msgstr "تغییرات بزرگ قیمت"
 
+#: frontend/src/pages/Dashboard.tsx:129
 msgctxt "dashboard:dashboard.last30Days"
 msgid "Last 30 days"
 msgstr "۳۰ روز گذشته"
@@ -3385,12 +3402,16 @@ msgctxt "workspace:sourceCentricWorkspace.listingsAcross"
 msgid "Listings across"
 msgstr "لیستینگ در"
 
+#: frontend/src/pages/Dashboard.tsx:448
+msgctxt "dashboard:dashboard.liveCommerceOverview"
+msgid "Live commerce overview"
+msgstr "نمای زنده فروش"
+
 #: frontend/src/pages/Activity.tsx:204
 msgctxt "activity:activity.loadMoreRemaining"
 msgid "Load more ({{value1}} remaining)"
 msgstr "بارگذاری بیشتر ({{value1}} باقی‌مانده)"
 
-#: frontend/src/pages/Dashboard.tsx:115
 msgctxt "dashboard:dashboard.loadedOrders"
 msgid "Loaded orders"
 msgstr "سفارش‌های بارگذاری‌شده"
@@ -3400,7 +3421,7 @@ msgctxt "common:spinner.loading"
 msgid "Loading"
 msgstr "در حال بارگذاری"
 
-#: frontend/src/pages/Dashboard.tsx:290 frontend/src/pages/Dashboard.tsx:465 frontend/src/pages/Dashboard.tsx:597 frontend/src/pages/Diagnostics.tsx:105 frontend/src/pages/Diagnostics.tsx:115
+#: frontend/src/pages/Dashboard.tsx:319 frontend/src/pages/Dashboard.tsx:507 frontend/src/pages/Diagnostics.tsx:105 frontend/src/pages/Diagnostics.tsx:115
 msgctxt "common:status.loading"
 msgid "Loading"
 msgstr "در حال بارگذاری"
@@ -3425,7 +3446,7 @@ msgctxt "flowhubSheet:flowHubSheet.loadingFlowhubSheet"
 msgid "Loading FlowHub Sheet..."
 msgstr "در حال بارگذاری برگه FlowHub..."
 
-#: frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:21 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:63
+#: frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:22 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:64
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.loadingSourceProductWorkspace"
 msgid "Loading Source Product Workspace..."
@@ -3493,7 +3514,6 @@ msgctxt "orders:orders.loadingOrderDetail"
 msgid "Loading order detail..."
 msgstr "در حال بارگذاری جزئیات سفارش..."
 
-#: frontend/src/pages/Dashboard.tsx:291
 msgctxt "dashboard:dashboard.loadingBusinessMetrics"
 msgid "Loading persisted business activity without estimating unavailable values."
 msgstr "فعالیت‌های ثبت‌شده کسب‌وکار، بدون تخمین مقادیر ناموجود، در حال بارگیری است."
@@ -3573,7 +3593,6 @@ msgctxt "common:app.maintenanceMode"
 msgid "Maintenance Mode"
 msgstr "حالت نگهداری"
 
-#: frontend/src/pages/Dashboard.tsx:831
 msgctxt "dashboard:dashboard.manageSources"
 msgid "Manage Sources"
 msgstr "مدیریت منابع"
@@ -3646,7 +3665,6 @@ msgctxt "workspace:unifiedWorkspace.minimumPrice"
 msgid "Minimum price"
 msgstr "کمترین قیمت"
 
-#: frontend/src/pages/Dashboard.tsx:440
 msgctxt "dashboard:dashboard.monitorPendingUpdates"
 msgid "Monitor pending updates until verification is complete."
 msgstr "به‌روزرسانی‌های در انتظار را تا پایان راستی‌آزمایی پیگیری کنید."
@@ -3682,7 +3700,6 @@ msgctxt "authentication:login.contactOwner"
 msgid "Need access? Contact your workspace Owner."
 msgstr "برای دسترسی با مالک فضای کاری خود تماس بگیرید."
 
-#: frontend/src/pages/Dashboard.tsx:303 frontend/src/pages/Dashboard.tsx:382 frontend/src/pages/Dashboard.tsx:410
 msgctxt "dashboard:dashboard.needsAttention"
 msgid "Needs attention"
 msgstr "نیازمند توجه"
@@ -3772,7 +3789,6 @@ msgctxt "sources:sourceConfiguration.nextSampleRow"
 msgid "Next sample row"
 msgstr "ردیف نمونه بعدی"
 
-#: frontend/src/pages/Dashboard.tsx:288
 msgctxt "dashboard:dashboard.recommendedAction"
 msgid "Next step"
 msgstr "گام بعدی"
@@ -3834,7 +3850,6 @@ msgctxt "diagnostics:action.no_action_required"
 msgid "No action required"
 msgstr "نیازی به اقدام نیست"
 
-#: frontend/src/pages/Dashboard.tsx:338 frontend/src/pages/Dashboard.tsx:348 frontend/src/pages/Dashboard.tsx:358 frontend/src/pages/Dashboard.tsx:374 frontend/src/pages/Dashboard.tsx:386 frontend/src/pages/Dashboard.tsx:402 frontend/src/pages/Dashboard.tsx:414 frontend/src/pages/Dashboard.tsx:441
 msgctxt "dashboard:dashboard.noActionRequired"
 msgid "No action required."
 msgstr "نیازی به اقدام نیست."
@@ -3861,12 +3876,10 @@ msgctxt "dashboard:dashboard.noBlockingIssues"
 msgid "No blocking issues"
 msgstr "هیچ مشکل مسدودکننده‌ای وجود ندارد"
 
-#: frontend/src/pages/Dashboard.tsx:96
 msgctxt "dashboard:dashboard.noChangeSinceYesterday"
 msgid "No change since yesterday"
 msgstr "بدون تغییر نسبت به دیروز"
 
-#: frontend/src/pages/Dashboard.tsx:344
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.readyForReviewEmptyExplanation"
 msgid "No changed Draft is currently waiting for Review."
@@ -3883,7 +3896,6 @@ msgctxt "diagnostics:diagnostics.noChannelHealthData"
 msgid "No channel health data"
 msgstr "اطلاعات سلامت کانال وجود ندارد"
 
-#: frontend/src/pages/Dashboard.tsx:791 frontend/src/pages/Dashboard.tsx:928
 msgctxt "dashboard:dashboard.noChannelsMonitored"
 msgid "No channels monitored"
 msgstr "هیچ کانالی پایش نمی‌شود"
@@ -3906,13 +3918,11 @@ msgctxt "diagnostics:reason.credentials_not_checked"
 msgid "No credential verification has been recorded."
 msgstr "هنوز بررسی اطلاعات ورود ثبت نشده است."
 
-#: frontend/src/pages/Dashboard.tsx:334
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "dashboard:dashboard.productChangesEmptyExplanation"
 msgid "No current Draft contains product changes."
 msgstr "هیچ پیش‌نویس فعالی شامل تغییر محصول نیست."
 
-#: frontend/src/pages/Dashboard.tsx:380
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.warningsEmptyExplanation"
 msgid "No current warning requires seller review."
@@ -3937,13 +3947,12 @@ msgctxt "workspace:densePricing.noEligibleSelectedChanges"
 msgid "No eligible selected changes are available for Review."
 msgstr "هیچ تغییر انتخاب‌شده و واجد شرایطی برای بازبینی وجود ندارد."
 
-#: frontend/src/pages/Dashboard.tsx:408
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "dashboard:dashboard.outOfStockEmptyExplanation"
 msgid "No enabled Listing is currently recorded with zero stock."
 msgstr "در حال حاضر هیچ آگهی فعالی با موجودی صفر ثبت نشده است."
 
-#: frontend/src/pages/Dashboard.tsx:891
+#: frontend/src/pages/Dashboard.tsx:591
 msgctxt "dashboard:dashboard.noEventsYet"
 msgid "No events yet"
 msgstr "هنوز رویدادی ثبت نشده است"
@@ -3956,7 +3965,6 @@ msgctxt "diagnostics:reason.dead_letter_queue_empty"
 msgid "No failed messages require recovery."
 msgstr "هیچ پیام ناموفقی به بازیابی نیاز ندارد."
 
-#: frontend/src/pages/Dashboard.tsx:429
 msgctxt "dashboard:dashboard.updatesCompleteExplanation"
 msgid "No failed or pending update remains. {{trend}}."
 msgstr "هیچ به‌روزرسانی ناموفق یا در انتظاری باقی نمانده است. {{trend}}."
@@ -4007,7 +4015,7 @@ msgctxt "dashboard:dashboard.noOrdersToday"
 msgid "No orders today"
 msgstr "امروز سفارشی ثبت نشده است"
 
-#: frontend/src/pages/Dashboard.tsx:765
+#: frontend/src/pages/Dashboard.tsx:567
 msgctxt "dashboard:dashboard.noOrdersYet"
 msgid "No orders yet"
 msgstr "هنوز سفارشی ثبت نشده است"
@@ -4087,7 +4095,6 @@ msgctxt "sources:sourceConfiguration.noPreviewRows"
 msgid "No rows match this preview filter"
 msgstr "هیچ ردیفی با این فیلتر پیش‌نمایش مطابق نیست"
 
-#: frontend/src/pages/Dashboard.tsx:354
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "dashboard:dashboard.readyForApplyEmptyExplanation"
 msgid "No selected, current Review is waiting for Apply."
@@ -4098,7 +4105,6 @@ msgctxt "orders:orders.noShipmentData"
 msgid "No shipment data"
 msgstr "اطلاعات ارسالی وجود ندارد"
 
-#: frontend/src/pages/Dashboard.tsx:838
 msgctxt "dashboard:dashboard.noSourcesYet"
 msgid "No sources yet"
 msgstr "هنوز منبعی اضافه نشده است"
@@ -4125,7 +4131,6 @@ msgctxt "diagnostics:message.noSuccessfulSync"
 msgid "No successful synchronization has been recorded."
 msgstr "همگام‌سازی موفقی ثبت نشده است."
 
-#: frontend/src/pages/Dashboard.tsx:398
 msgctxt "dashboard:dashboard.ordersTodayEmptyExplanation"
 msgid "No synchronized order has been recorded today."
 msgstr "امروز هیچ سفارش همگام‌شده‌ای ثبت نشده است."
@@ -4222,7 +4227,7 @@ msgctxt "sources:sourceConfiguration.notConfigured"
 msgid "Not configured"
 msgstr "پیکربندی‌نشده"
 
-#: frontend/src/pages/Dashboard.tsx:753
+#: frontend/src/pages/Dashboard.tsx:555
 msgctxt "dashboard:dashboard.notEnoughOrderData"
 msgid "Not enough order data"
 msgstr "داده سفارش کافی نیست"
@@ -4237,7 +4242,7 @@ msgctxt "commerce:commerceHub.notRead"
 msgid "Not read"
 msgstr "خوانده‌نشده"
 
-#: frontend/src/pages/Dashboard.tsx:78
+#: frontend/src/pages/Dashboard.tsx:81
 msgctxt "common:status.notRead"
 msgid "Not read"
 msgstr "خوانده نشده"
@@ -4259,7 +4264,6 @@ msgctxt "common:status.notRun"
 msgid "Not run"
 msgstr "اجرا نشده"
 
-#: frontend/src/pages/Dashboard.tsx:368
 #. Current is the latest verified or cached Channel value.
 msgctxt "dashboard:dashboard.blockingIssuesEmptyExplanation"
 msgid "Nothing is preventing the current pricing workflow from continuing."
@@ -4332,12 +4336,10 @@ msgctxt "dataQuality:dataQuality.openIssue"
 msgid "Open"
 msgstr "باز کردن"
 
-#: frontend/src/pages/Dashboard.tsx:740
 msgctxt "dashboard:dashboard.openActivity"
 msgid "Open Activity"
 msgstr "مشاهده فعالیت‌ها"
 
-#: frontend/src/pages/Dashboard.tsx:692 frontend/src/pages/Dashboard.tsx:704
 msgctxt "dashboard:dashboard.openDataQuality"
 msgid "Open Data Quality"
 msgstr "مشاهده کیفیت داده"
@@ -4347,7 +4349,6 @@ msgctxt "workspace:workspace.openDataQualityReport"
 msgid "Open Data Quality report"
 msgstr "بازکردن گزارش کیفیت داده"
 
-#: frontend/src/pages/Dashboard.tsx:783
 msgctxt "dashboard:dashboard.openDiagnostics"
 msgid "Open Diagnostics"
 msgstr "باز کردن عیب‌یابی"
@@ -4356,12 +4357,10 @@ msgctxt "dashboard:dashboard.openDiagnosticsToResolve"
 msgid "Open Diagnostics and resolve the connection problem."
 msgstr "بخش عیب‌یابی را باز و مشکل اتصال را برطرف کنید."
 
-#: frontend/src/pages/Dashboard.tsx:716
 msgctxt "dashboard:dashboard.openOrders"
 msgid "Open Orders"
 msgstr "مشاهده سفارش‌ها"
 
-#: frontend/src/pages/Dashboard.tsx:668
 msgctxt "dashboard:dashboard.openProducts"
 msgid "Open Products"
 msgstr "مشاهده محصولات"
@@ -4400,7 +4399,6 @@ msgctxt "workspace:workspace.openSources"
 msgid "Open Sources"
 msgstr "بازکردن منابع"
 
-#: frontend/src/pages/Dashboard.tsx:518 frontend/src/pages/Dashboard.tsx:680
 msgctxt "dashboard:dashboard.openWorkspace"
 msgid "Open Workspace"
 msgstr "باز کردن فضای کاری"
@@ -4428,7 +4426,7 @@ msgctxt "products:products.operation"
 msgid "Operation"
 msgstr "عملیات"
 
-#: frontend/src/pages/Dashboard.tsx:504 frontend/src/pages/Dashboard.tsx:581
+#: frontend/src/pages/Dashboard.tsx:440
 msgctxt "common:status.operational"
 msgid "Operational"
 msgstr "عملیاتی"
@@ -4508,21 +4506,25 @@ msgctxt "orders:orders.orders"
 msgid "Orders"
 msgstr "سفارش‌ها"
 
-#: frontend/src/pages/Dashboard.tsx:537 frontend/src/pages/Dashboard.tsx:708
+#: frontend/src/pages/Dashboard.tsx:491
+msgctxt "dashboard:dashboard.ordersTodayLabel"
+msgid "Orders Today"
+msgstr "سفارش‌های امروز"
+
 msgctxt "dashboard:dashboard.ordersAndRevenueToday"
 msgid "Orders and revenue today"
 msgstr "سفارش‌ها و درآمد امروز"
 
-#: frontend/src/pages/Dashboard.tsx:766
+#: frontend/src/pages/Dashboard.tsx:568
 msgctxt "dashboard:dashboard.ordersAppearAfterSync"
 msgid "Orders appear here once Channels synchronize."
 msgstr "پس از همگام‌سازی کانال‌ها، سفارش‌ها اینجا نمایش داده می‌شوند."
 
-#: frontend/src/pages/Dashboard.tsx:190 frontend/src/pages/Dashboard.tsx:758
+#: frontend/src/pages/Dashboard.tsx:195 frontend/src/pages/Dashboard.tsx:560
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dashboard:dashboard.ordersByChannel"
-msgid "Orders by Channel"
-msgstr "سفارش‌ها بر اساس کانال"
+msgid "Orders by channel"
+msgstr "سفارش‌ها به تفکیک کانال"
 
 #: frontend/src/pages/Orders.tsx:89
 msgctxt "orders:orders.loadFailed"
@@ -4548,7 +4550,6 @@ msgctxt "products:products.outOfStock"
 msgid "Out of stock"
 msgstr "ناموجود"
 
-#: frontend/src/pages/Dashboard.tsx:723
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "dashboard:dashboard.inventoryMeaning"
 msgid "Out-of-stock products may need replenishment or a status update."
@@ -4621,7 +4622,6 @@ msgctxt "orders:orders.paymentStatus"
 msgid "Payment status"
 msgstr "وضعیت پرداخت"
 
-#: frontend/src/pages/Dashboard.tsx:435
 msgctxt "common:status.pending"
 msgid "Pending"
 msgstr "در انتظار"
@@ -4855,6 +4855,11 @@ msgctxt "settings:settings.pricingUnit"
 msgid "Pricing unit"
 msgstr "واحد قیمت‌گذاری"
 
+#: frontend/src/pages/Dashboard.tsx:533
+msgctxt "dashboard:dashboard.pricingWorkflow"
+msgid "Pricing workflow"
+msgstr "فرایند قیمت‌گذاری"
+
 #: frontend/src/pages/Products.tsx:111
 msgctxt "products:products.pricingWorkspace"
 msgid "Pricing workspace"
@@ -5040,10 +5045,15 @@ msgctxt "navigation:topbar.products"
 msgid "Products"
 msgstr "محصولات"
 
-#: frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:20 frontend/src/pages/Products.tsx:166 frontend/src/pages/Products.tsx:178
+#: frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:21 frontend/src/pages/Products.tsx:166 frontend/src/pages/Products.tsx:178
 msgctxt "products:products.products"
 msgid "Products"
 msgstr "محصولات"
+
+#: frontend/src/pages/Dashboard.tsx:470
+msgctxt "dashboard:dashboard.productsReady"
+msgid "Products Ready"
+msgstr "محصولات آماده"
 
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.productsAreParentsEachChannelListingRemains"
@@ -5075,7 +5085,6 @@ msgctxt "sources:sourceConfiguration.productsReady"
 msgid "Products ready"
 msgstr "محصولات آماده"
 
-#: frontend/src/pages/Dashboard.tsx:646
 msgctxt "dashboard:dashboard.productsWithPriceChanges"
 msgid "Products with price changes"
 msgstr "محصولات دارای تغییر قیمت"
@@ -5117,12 +5126,10 @@ msgctxt "commerce:commerceHub.validation.publicShareUnsupported"
 msgid "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL."
 msgstr "پیوندهای اشتراک‌گذاری عمومی پشتیبانی نمی‌شوند. از نشانی ریشه Nextcloud یا نشانی شخصی فایل‌های WebDAV خود استفاده کنید."
 
-#: frontend/src/pages/Dashboard.tsx:735
 msgctxt "dashboard:dashboard.updatesMeaning"
 msgid "Publishing is complete only after provider verification; pending and failed work stays visible."
 msgstr "انتشار فقط پس از راستی‌آزمایی ارائه‌دهنده کامل است؛ کارهای در انتظار و ناموفق قابل مشاهده می‌مانند."
 
-#: frontend/src/pages/Dashboard.tsx:732
 msgctxt "dashboard:dashboard.publishingUpdates"
 msgid "Publishing updates"
 msgstr "به‌روزرسانی‌های انتشار"
@@ -5263,7 +5270,7 @@ msgctxt "commerce:commerceHub.readsRemaining"
 msgid "Reads remaining:"
 msgstr "خواندن باقی‌مانده:"
 
-#: frontend/src/pages/Dashboard.tsx:321 frontend/src/pages/SourceConfiguration.tsx:692 frontend/src/pages/SourceConfiguration.tsx:983
+#: frontend/src/pages/Dashboard.tsx:382 frontend/src/pages/SourceConfiguration.tsx:692 frontend/src/pages/SourceConfiguration.tsx:983
 msgctxt "common:status.ready"
 msgid "Ready"
 msgstr "آماده"
@@ -5295,19 +5302,16 @@ msgctxt "workspace:sourceCentricWorkspace.readyChanges"
 msgid "Ready changes"
 msgstr "تغییرات آماده"
 
-#: frontend/src/pages/Dashboard.tsx:672
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "dashboard:dashboard.readyForApply"
 msgid "Ready for Apply"
 msgstr "آماده اعمال"
 
-#: frontend/src/pages/Dashboard.tsx:675
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "dashboard:dashboard.readyForApplyMeaning"
 msgid "Ready for Apply counts only current, selected Review items without an active Apply job."
 msgstr "آماده اعمال فقط موارد انتخاب‌شده بازبینی فعلی را می‌شمارد که عملیات اعمال فعالی ندارند."
 
-#: frontend/src/pages/Dashboard.tsx:660
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.readyForReview"
 msgid "Ready for Review"
@@ -5322,14 +5326,14 @@ msgctxt "settings:setup.readyToFinish"
 msgid "Ready to finish"
 msgstr "آماده تکمیل"
 
-#: frontend/src/pages/Dashboard.tsx:878
-msgctxt "dashboard:dashboard.recentActivity"
-msgid "Recent Activity"
-msgstr "فعالیت‌های اخیر"
-
 msgctxt "dashboard:dashboard.activityListMeaning"
 msgid "Recent actions that may require seller follow-up."
 msgstr "اقدام‌های اخیر که ممکن است به پیگیری فروشنده نیاز داشته باشند."
+
+#: frontend/src/pages/Dashboard.tsx:578
+msgctxt "dashboard:dashboard.recentActivity"
+msgid "Recent activity"
+msgstr "فعالیت‌های اخیر"
 
 #: frontend/src/pages/Diagnostics.tsx:557
 msgctxt "diagnostics:diagnostics.recentFailures"
@@ -5383,7 +5387,6 @@ msgctxt "workspace:statusDisplay.reconciliationRequired"
 msgid "Reconciliation Required"
 msgstr "نیازمند تطبیق مجدد"
 
-#: frontend/src/pages/Dashboard.tsx:394
 msgctxt "dashboard:dashboard.ordersTodayExplanation"
 msgid "Recorded revenue: {{revenue}}. {{trend}}."
 msgstr "درآمد ثبت‌شده: {{revenue}}. {{trend}}."
@@ -5392,7 +5395,7 @@ msgctxt "diagnostics:diagnostics.checkGroups.recoveryQueues"
 msgid "Recovery and queues"
 msgstr "بازیابی و صف‌ها"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:552 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:38
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:552 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:39
 msgctxt "workspace:densePricing.redo"
 msgid "Redo"
 msgstr "انجام دوباره"
@@ -5521,7 +5524,7 @@ msgctxt "workspace:densePricing.resultingValue"
 msgid "Resulting value"
 msgstr "مقدار نهایی"
 
-#: frontend/src/pages/Dashboard.tsx:655 frontend/src/pages/Orders.tsx:158
+#: frontend/src/pages/Orders.tsx:158
 msgctxt "common:action.retry"
 msgid "Retry"
 msgstr "تلاش دوباره"
@@ -5541,7 +5544,6 @@ msgctxt "products:products.retryInlinePricing"
 msgid "Retry inline pricing"
 msgstr "تلاش دوباره برای ویرایش قیمت‌ها"
 
-#: frontend/src/pages/Dashboard.tsx:307
 msgctxt "dashboard:dashboard.retryBusinessSummary"
 msgid "Retry the business summary without changing marketplace data."
 msgstr "خلاصه کسب‌وکار را بدون تغییر داده‌های بازارگاه دوباره بارگیری کنید."
@@ -5563,22 +5565,22 @@ msgctxt "common:notFound.returnToDashboard"
 msgid "Return to Dashboard"
 msgstr "بازگشت به داشبورد"
 
-#: frontend/src/pages/Dashboard.tsx:754
+#: frontend/src/pages/Dashboard.tsx:556
 msgctxt "dashboard:dashboard.revenueAppearsAfterSync"
 msgid "Revenue appears here once orders synchronize."
 msgstr "پس از همگام‌سازی سفارش‌ها، درآمد اینجا نمایش داده می‌شود."
 
-#: frontend/src/pages/Dashboard.tsx:395 frontend/src/pages/Dashboard.tsx:599 frontend/src/pages/Dashboard.tsx:600
+#: frontend/src/pages/Dashboard.tsx:509 frontend/src/pages/Dashboard.tsx:510
 msgctxt "dashboard:dashboard.revenueUnavailable"
 msgid "Revenue is unavailable"
 msgstr "درآمد در دسترس نیست"
 
-#: frontend/src/pages/Dashboard.tsx:593
+#: frontend/src/pages/Dashboard.tsx:503
 msgctxt "dashboard:dashboard.revenueToday"
 msgid "Revenue today"
 msgstr "درآمد امروز"
 
-#: frontend/src/pages/Dashboard.tsx:148 frontend/src/pages/Dashboard.tsx:746
+#: frontend/src/pages/Dashboard.tsx:162 frontend/src/pages/Dashboard.tsx:548
 msgctxt "dashboard:dashboard.revenueTrend"
 msgid "Revenue trend"
 msgstr "روند درآمد"
@@ -5593,7 +5595,7 @@ msgctxt "settings:setup.review"
 msgid "Review"
 msgstr "بازبینی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:573 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:51 frontend/src/pages/UnifiedWorkspace.tsx:175
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:573 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:52 frontend/src/pages/UnifiedWorkspace.tsx:175
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.review"
 msgid "Review"
@@ -5615,6 +5617,12 @@ msgctxt "dashboard:dashboard.reviewChannelHealth"
 msgid "Review Channel health before publishing."
 msgstr "پیش از انتشار، سلامت کانال‌ها را بررسی کنید."
 
+#: frontend/src/pages/Dashboard.tsx:477
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.reviewRequired"
+msgid "Review Required"
+msgstr "نیازمند بازبینی"
+
 #: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:453
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.reviewAndDryRunComplete"
@@ -5631,7 +5639,6 @@ msgctxt "diagnostics:action.review_and_resolve_webhook_dead_letters"
 msgid "Review and resolve webhook dead letters"
 msgstr "پیام‌های ناموفق وب‌هوک را بررسی و رفع کنید"
 
-#: frontend/src/pages/Dashboard.tsx:663
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "dashboard:dashboard.readyForReviewMeaning"
 msgid "Review confirms the exact target changes before Dry Run and Apply."
@@ -5664,13 +5671,11 @@ msgctxt "diagnostics:action.review_credentials_and_token_refresh_settings"
 msgid "Review credentials and token refresh settings"
 msgstr "اطلاعات ورود و تنظیمات تازه‌سازی توکن را بررسی کنید"
 
-#: frontend/src/pages/Dashboard.tsx:438
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.reviewFailedUpdates"
 msgid "Review failed updates and reconciliation before retrying."
 msgstr "پیش از تلاش دوباره، به‌روزرسانی‌های ناموفق و وضعیت تطبیق را بررسی کنید."
 
-#: frontend/src/pages/Dashboard.tsx:413
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.reviewInventoryAlerts"
 msgid "Review inventory alerts and replenish or update affected products."
@@ -5739,7 +5744,6 @@ msgctxt "settings:setup.reviewTheInstallationPathBeforeFlowhubIs"
 msgid "Review the installation path before FlowHub is enabled."
 msgstr "پیش از فعال‌شدن FlowHub، مسیر نصب را بازبینی کنید."
 
-#: frontend/src/pages/Dashboard.tsx:347
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.reviewPendingChanges"
 msgid "Review the pending product changes."
@@ -5761,23 +5765,28 @@ msgctxt "diagnostics:action.review_diagnostic"
 msgid "Review this diagnostic"
 msgstr "این نتیجه عیب‌یابی را بررسی کنید"
 
-#: frontend/src/pages/Dashboard.tsx:337
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.reviewTodaysPriceChanges"
 msgid "Review today’s price changes."
 msgstr "تغییرات قیمت امروز را بازبینی کنید."
 
-#: frontend/src/pages/Dashboard.tsx:401
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.reviewTodaysOrders"
 msgid "Review today’s synchronized orders."
 msgstr "سفارش‌های همگام‌شده امروز را بررسی کنید."
 
-#: frontend/src/pages/Dashboard.tsx:385
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.reviewWarnings"
 msgid "Review warnings before publishing affected products."
 msgstr "پیش از انتشار محصولات درگیر، هشدارها را بررسی کنید."
+
+#: frontend/src/pages/Dashboard.tsx:456
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.reviewChangesButton"
+msgid "Review {{value}} change"
+msgid_plural "Review {{value}} changes"
+msgstr[0] "بررسی {{value}} تغییر"
+msgstr[1] "بررسی {{value}} تغییر"
 
 #: frontend/src/pages/FlowHubSheet.tsx:86
 msgctxt "flowhubSheet:flowHubSheet.revisionIsImmutableAndReadyForSnapshot"
@@ -6014,7 +6023,7 @@ msgctxt "workspace:unifiedWorkspace.search"
 msgid "Search"
 msgstr "جست‌وجو"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:523 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:31 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:32
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:523 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:32 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:33
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.searchSourceProducts"
 msgid "Search Source Products"
@@ -6203,7 +6212,7 @@ msgctxt "settings:setup.serverErrorHttp"
 msgid "Server error (HTTP {{status}})"
 msgstr "خطای سرور (HTTP {{status}})"
 
-#: frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:26 frontend/src/pages/UnifiedWorkspace.tsx:217
+#: frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:27 frontend/src/pages/UnifiedWorkspace.tsx:217
 msgctxt "workspace:unifiedWorkspace.serverSideWorkspaceFilters"
 msgid "Server-side Workspace filters"
 msgstr "فیلترهای سمت سرور فضای کاری"
@@ -6407,7 +6416,7 @@ msgctxt "flowhubSheet:flowHubSheet.sort"
 msgid "Sort"
 msgstr "مرتب‌سازی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:550 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:35
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:550 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:36
 msgctxt "workspace:densePricing.sortProduct"
 msgid "Sort Product"
 msgstr "مرتب‌سازی محصول"
@@ -6569,7 +6578,7 @@ msgctxt "sources:sourceCenter.sourceDeleted"
 msgid "Source deleted"
 msgstr "منبع حذف شد"
 
-#: frontend/src/pages/Dashboard.tsx:616
+#: frontend/src/pages/Dashboard.tsx:526
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dashboard:dashboard.sourceFreshness"
 msgid "Source freshness"
@@ -6660,7 +6669,6 @@ msgctxt "commerce:commerceHub.sources2"
 msgid "Sources"
 msgstr "منابع"
 
-#: frontend/src/pages/Dashboard.tsx:824
 msgctxt "dashboard:dashboard.sources"
 msgid "Sources"
 msgstr "منابع"
@@ -7397,7 +7405,6 @@ msgctxt "orders:orders.dateTo"
 msgid "To date"
 msgstr "تا تاریخ"
 
-#: frontend/src/pages/Dashboard.tsx:711
 #. Current is the latest verified or cached Channel value.
 msgctxt "dashboard:dashboard.ordersMeaning"
 msgid "Today’s synchronized orders show current sales activity; currencies remain separate."
@@ -7434,7 +7441,6 @@ msgctxt "products:products.total"
 msgid "Total"
 msgstr "مجموع"
 
-#: frontend/src/pages/Dashboard.tsx:532
 msgctxt "dashboard:dashboard.totalProducts"
 msgid "Total Products"
 msgstr "مجموع محصولات"
@@ -7669,7 +7675,7 @@ msgctxt "workspace:sourceCentricWorkspace.unchangedProducts"
 msgid "Unchanged products"
 msgstr "محصولات بدون تغییر"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:551 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:37
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:551 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:38
 msgctxt "workspace:densePricing.undo"
 msgid "Undo"
 msgstr "واگرد"
@@ -7970,7 +7976,6 @@ msgctxt "settings:settings.version"
 msgid "Version"
 msgstr "نسخه"
 
-#: frontend/src/pages/Dashboard.tsx:656 frontend/src/pages/Dashboard.tsx:728
 msgctxt "dashboard:dashboard.viewProducts"
 msgid "View Products"
 msgstr "مشاهده محصولات"
@@ -7980,7 +7985,7 @@ msgctxt "settings:users.viewActivity"
 msgid "View activity"
 msgstr "مشاهده فعالیت"
 
-#: frontend/src/pages/Dashboard.tsx:885
+#: frontend/src/pages/Dashboard.tsx:585
 msgctxt "dashboard:dashboard.viewAll"
 msgid "View all"
 msgstr "مشاهده همه"
@@ -8021,7 +8026,6 @@ msgctxt "diagnostics:diagnostics.waitEstimateUnavailable"
 msgid "Wait estimate unavailable"
 msgstr "برآورد زمان انتظار در دسترس نیست"
 
-#: frontend/src/pages/Dashboard.tsx:297
 msgctxt "dashboard:dashboard.waitForDashboardData"
 msgid "Wait for the dashboard data to finish loading."
 msgstr "تا تکمیل بارگذاری اطلاعات داشبورد صبر کنید."
@@ -8044,7 +8048,7 @@ msgctxt "common:resourceBadge.warning"
 msgid "Warning"
 msgstr "هشدار"
 
-#: frontend/src/pages/Workspace.tsx:88
+#: frontend/src/pages/Dashboard.tsx:656 frontend/src/pages/Workspace.tsx:88
 msgctxt "common:status.warning"
 msgid "Warning"
 msgstr "هشدار"
@@ -8058,7 +8062,7 @@ msgctxt "workspace:statusDisplay.warning"
 msgid "Warning"
 msgstr "هشدار"
 
-#: frontend/src/pages/Dashboard.tsx:503 frontend/src/pages/Dashboard.tsx:610 frontend/src/pages/Dashboard.tsx:696
+#: frontend/src/pages/Dashboard.tsx:520
 msgctxt "dashboard:dashboard.warnings"
 msgid "Warnings"
 msgstr "هشدارها"
@@ -8077,7 +8081,6 @@ msgctxt "workspace:unifiedWorkspace.warnings"
 msgid "Warnings"
 msgstr "هشدارها"
 
-#: frontend/src/pages/Dashboard.tsx:699
 msgctxt "dashboard:dashboard.warningsMeaning"
 msgid "Warnings allow work to continue but may require a seller decision."
 msgstr "هشدارها مانع ادامه کار نمی‌شوند، اما ممکن است به تصمیم فروشنده نیاز داشته باشند."
@@ -8260,7 +8263,7 @@ msgctxt "workspace:unifiedWorkspace.workspaceGrid"
 msgid "Workspace Grid"
 msgstr "گرید فضای کاری"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:555 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:41
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:555 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:42
 msgctxt "workspace:sourceCentricWorkspace.workspaceChangeSummary"
 msgid "Workspace change summary"
 msgstr "خلاصه تغییرات فضای کاری"
@@ -8374,7 +8377,6 @@ msgctxt "commerce:commerceHub.yourChangesHaveBeenSaved"
 msgid "Your changes have been saved."
 msgstr "تغییرات شما ذخیره شد."
 
-#: frontend/src/pages/Dashboard.tsx:511
 msgctxt "dashboard:dashboard.controlCenterSummary"
 msgid "Your control center for today's products, Sources, and Channels."
 msgstr "مرکز کنترل امروز شما برای محصولات، منابع و کانال‌ها."
@@ -8572,7 +8574,6 @@ msgid_plural "{{count}} affected products"
 msgstr[0] "{{count}} محصول درگیر"
 msgstr[1] "{{count}} محصول درگیر"
 
-#: frontend/src/pages/Dashboard.tsx:556
 msgctxt "dashboard:dashboard.configuredSources"
 msgid "{{count}} configured"
 msgid_plural "{{count}} configured"
@@ -8608,7 +8609,6 @@ msgid_plural "{{count}} issues"
 msgstr[0] "{{count}} مشکل"
 msgstr[1] "{{count}} مشکل"
 
-#: frontend/src/pages/Dashboard.tsx:632
 msgctxt "dashboard:dashboard.monitoredDestinations"
 msgid "{{count}} monitored destination"
 msgid_plural "{{count}} monitored destinations"
@@ -8692,7 +8692,6 @@ msgid_plural "{{count}} worksheets selected"
 msgstr[0] "{{count}} برگه انتخاب شده"
 msgstr[1] "{{count}} برگه انتخاب شده"
 
-#: frontend/src/pages/Dashboard.tsx:423
 msgctxt "dashboard:dashboard.failedUpdatesExplanation"
 msgid "{{failed}} failed and {{pending}} pending marketplace updates require attention."
 msgstr "{{failed}} به‌روزرسانی ناموفق و {{pending}} به‌روزرسانی در انتظار بازارگاه نیازمند توجه‌اند."
@@ -8737,7 +8736,6 @@ msgctxt "sources:sourceConfiguration.conflictingColumnMapping"
 msgid "{{first}} and {{second}} use the same column. Confirm that this is intentional."
 msgstr "فیلدهای {{first}} و {{second}} از یک ستون استفاده می‌کنند. عمدی بودن این انتخاب را بررسی کنید."
 
-#: frontend/src/pages/Dashboard.tsx:363
 msgctxt "dashboard:dashboard.blockingIssuesExplanation"
 msgid "{{issues}} blocking issue affects {{products}} product."
 msgid_plural "{{issues}} blocking issues affect {{products}} products."
@@ -8765,7 +8763,6 @@ msgctxt "workspace:densePricing.additionalListing"
 msgid "{{product}} - Listing {{number}}"
 msgstr "{{product}} - لیستینگ {{number}}"
 
-#: frontend/src/pages/Dashboard.tsx:564
 msgctxt "dashboard:dashboard.readyChannelValue"
 msgid "{{ready}} of {{total}} ready"
 msgstr "{{ready}} از {{total}} آماده"
@@ -8830,7 +8827,7 @@ msgctxt "workspace:sourceCentricWorkspace.unsavedEdits"
 msgid "{{value1}} unsaved edits"
 msgstr "{{value1}} ویرایش ذخیره‌نشده"
 
-#: frontend/src/pages/Dashboard.tsx:859
+#: frontend/src/pages/Dashboard.tsx:421
 msgctxt "dashboard:dashboard.products"
 msgid "{{value1}} · {{value2}} products"
 msgstr "{{value1}} · {{value2}} محصول"
@@ -8842,7 +8839,6 @@ msgid_plural "{{value}} Channels have informational status only."
 msgstr[0] "{{value}} کانال فقط وضعیت اطلاع‌رسانی دارد."
 msgstr[1] "{{value}} کانال فقط وضعیت اطلاع‌رسانی دارند."
 
-#: frontend/src/pages/Dashboard.tsx:576
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dashboard:dashboard.channelsAwaitingVerification"
 msgid "{{value}} Channel has not been verified yet."
@@ -8850,7 +8846,6 @@ msgid_plural "{{value}} Channels have not been verified yet."
 msgstr[0] "{{value}} کانال هنوز بررسی نشده است."
 msgstr[1] "{{value}} کانال هنوز بررسی نشده‌اند."
 
-#: frontend/src/pages/Dashboard.tsx:571
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dashboard:dashboard.channelsNeedAttention"
 msgid "{{value}} Channel needs attention."
@@ -8869,7 +8864,6 @@ msgctxt "common:units.tomanAmount"
 msgid "{{value}} Toman"
 msgstr "{{value}} تومان"
 
-#: frontend/src/pages/Dashboard.tsx:626
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dashboard:dashboard.activeSourceValue"
 msgid "{{value}} active Source"
@@ -8883,13 +8877,34 @@ msgid_plural "{{value}} affected products"
 msgstr[0] "{{value}} محصول درگیر"
 msgstr[1] "{{value}} محصول درگیر"
 
+#: frontend/src/pages/Dashboard.tsx:542
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "dashboard:dashboard.applyStageCount"
+msgid "{{value}} apply"
+msgid_plural "{{value}} apply"
+msgstr[0] "{{value}} آماده اعمال"
+msgstr[1] "{{value}} آماده اعمال"
+
+#: frontend/src/pages/Dashboard.tsx:437
+msgctxt "dashboard:dashboard.blockingCountBadge"
+msgid "{{value}} blocking"
+msgid_plural "{{value}} blocking"
+msgstr[0] "{{value}} مسدودکننده"
+msgstr[1] "{{value}} مسدودکننده"
+
+#: frontend/src/pages/Dashboard.tsx:371
+msgctxt "dashboard:dashboard.blockingQualifier"
+msgid "{{value}} blocking"
+msgid_plural "{{value}} blocking"
+msgstr[0] "{{value}} مسدودکننده"
+msgstr[1] "{{value}} مسدودکننده"
+
 msgctxt "dashboard:dashboard.productChangesValue"
 msgid "{{value}} changed product"
 msgid_plural "{{value}} changed products"
 msgstr[0] "{{value}} محصول تغییریافته"
 msgstr[1] "{{value}} محصول تغییریافته"
 
-#: frontend/src/pages/Dashboard.tsx:343
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.readyForReviewExplanation"
 msgid "{{value}} changed product is waiting for Review."
@@ -8897,14 +8912,19 @@ msgid_plural "{{value}} changed products are waiting for Review."
 msgstr[0] "{{value}} محصول تغییریافته در انتظار بازبینی است."
 msgstr[1] "{{value}} محصول تغییریافته در انتظار بازبینی‌اند."
 
-#: frontend/src/pages/Dashboard.tsx:418
+#: frontend/src/pages/Dashboard.tsx:539
+msgctxt "dashboard:dashboard.dryRunStageCount"
+msgid "{{value}} dry run"
+msgid_plural "{{value}} dry run"
+msgstr[0] "{{value}} اجرای آزمایشی"
+msgstr[1] "{{value}} اجرای آزمایشی"
+
 msgctxt "dashboard:dashboard.failedUpdatesValue"
 msgid "{{value}} failed update"
 msgid_plural "{{value}} failed updates"
 msgstr[0] "{{value}} به‌روزرسانی ناموفق"
 msgstr[1] "{{value}} به‌روزرسانی ناموفق"
 
-#: frontend/src/pages/Dashboard.tsx:103
 msgctxt "dashboard:dashboard.fewerThanYesterday"
 msgid "{{value}} fewer than yesterday"
 msgid_plural "{{value}} fewer than yesterday"
@@ -8917,7 +8937,6 @@ msgid_plural "{{value}} issues"
 msgstr[0] "{{value}} مشکل"
 msgstr[1] "{{value}} مشکل"
 
-#: frontend/src/pages/Dashboard.tsx:98
 msgctxt "dashboard:dashboard.moreThanYesterday"
 msgid "{{value}} more than yesterday"
 msgid_plural "{{value}} more than yesterday"
@@ -8934,14 +8953,20 @@ msgctxt "settings:rateLimits.milliseconds"
 msgid "{{value}} ms"
 msgstr "{{value}} میلی‌ثانیه"
 
-#: frontend/src/pages/Dashboard.tsx:543
 msgctxt "dashboard:dashboard.ordersValue"
 msgid "{{value}} order"
 msgid_plural "{{value}} orders"
 msgstr[0] "{{value}} سفارش"
 msgstr[1] "{{value}} سفارش"
 
-#: frontend/src/pages/Dashboard.tsx:420
+#: frontend/src/pages/Dashboard.tsx:361
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "dashboard:dashboard.outOfStockCount"
+msgid "{{value}} out of stock"
+msgid_plural "{{value}} out of stock"
+msgstr[0] "{{value}} ناموجود"
+msgstr[1] "{{value}} ناموجود"
+
 msgctxt "dashboard:dashboard.pendingUpdatesValue"
 msgid "{{value}} pending update"
 msgid_plural "{{value}} pending updates"
@@ -8954,7 +8979,6 @@ msgid_plural "{{value}} products"
 msgstr[0] "{{value}} محصول"
 msgstr[1] "{{value}} محصول"
 
-#: frontend/src/pages/Dashboard.tsx:333
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "dashboard:dashboard.productChangesExplanation"
 msgid "{{value}} product has a current Draft change."
@@ -8962,7 +8986,6 @@ msgid_plural "{{value}} products have current Draft changes."
 msgstr[0] "{{value}} محصول در پیش‌نویس فعلی تغییر دارد."
 msgstr[1] "{{value}} محصول در پیش‌نویس فعلی تغییر دارند."
 
-#: frontend/src/pages/Dashboard.tsx:353
 msgctxt "dashboard:dashboard.readyForApplyExplanation"
 msgid "{{value}} product has an approved selected change."
 msgid_plural "{{value}} products have approved selected changes."
@@ -8975,13 +8998,20 @@ msgid_plural "{{value}} products are available for daily work."
 msgstr[0] "{{value}} محصول برای کار روزانه در دسترس است."
 msgstr[1] "{{value}} محصول برای کار روزانه در دسترس است."
 
-#: frontend/src/pages/Dashboard.tsx:407
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "dashboard:dashboard.outOfStockExplanation"
 msgid "{{value}} product is recorded as out of stock."
 msgid_plural "{{value}} products are recorded as out of stock."
 msgstr[0] "{{value}} محصول به‌عنوان ناموجود ثبت شده است."
 msgstr[1] "{{value}} محصول به‌عنوان ناموجود ثبت شده‌اند."
+
+#: frontend/src/pages/Dashboard.tsx:536
+#. Review is the immutable validation result required before Apply.
+msgctxt "dashboard:dashboard.reviewStageCount"
+msgid "{{value}} review"
+msgid_plural "{{value}} review"
+msgstr[0] "{{value}} بررسی"
+msgstr[1] "{{value}} بررسی"
 
 #: frontend/src/pages/Diagnostics.tsx:261
 msgctxt "diagnostics:units.seconds"
@@ -8993,7 +9023,6 @@ msgctxt "settings:rateLimits.seconds"
 msgid "{{value}} seconds"
 msgstr "{{value}} ثانیه"
 
-#: frontend/src/pages/Dashboard.tsx:428
 #. Reconciliation verifies an uncertain external write without blindly redispatching it.
 msgctxt "dashboard:dashboard.pendingUpdatesExplanation"
 msgid "{{value}} update is waiting for completion or reconciliation."
@@ -9001,7 +9030,13 @@ msgid_plural "{{value}} updates are waiting for completion or reconciliation."
 msgstr[0] "{{value}} به‌روزرسانی در انتظار تکمیل یا تطبیق است."
 msgstr[1] "{{value}} به‌روزرسانی در انتظار تکمیل یا تطبیق‌اند."
 
-#: frontend/src/pages/Dashboard.tsx:379
+#: frontend/src/pages/Dashboard.tsx:439
+msgctxt "dashboard:dashboard.warningCountBadge"
+msgid "{{value}} warning"
+msgid_plural "{{value}} warnings"
+msgstr[0] "{{value}} هشدار"
+msgstr[1] "{{value}} هشدار"
+
 msgctxt "dashboard:dashboard.warningsExplanation"
 msgid "{{value}} warning should be reviewed before publishing."
 msgid_plural "{{value}} warnings should be reviewed before publishing."

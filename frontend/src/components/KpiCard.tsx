@@ -25,7 +25,7 @@ export default function KpiCard({ label, value, trend, trendTone = 'neutral', ic
       <div className="flex items-end gap-2 overflow-hidden">
         <span className="truncate text-[28px] font-semibold leading-9 text-text-base">{value}</span>
         {trend && (
-          <span className={['mb-1.5 flex-shrink-0 text-xs font-medium leading-[18px]', trendCls].join(' ')}>
+          <span className={['flex-shrink-0 text-xs font-medium leading-[18px]', trendCls].join(' ')}>
             {trend}
           </span>
         )}
