@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import Icon from '../../components/Icon'
 import { translate } from '../../i18n'
+import { inputHint } from '../../utils/inputHint'
 
 interface PricingWorkspaceStartupProps {
   blockedMessage?: string
@@ -29,7 +30,7 @@ function PricingWorkspaceStartup({ blockedMessage, workspaceName }: PricingWorks
             type="search"
             disabled
             aria-label={translate('workspace:sourceCentricWorkspace.searchSourceProducts')}
-            placeholder={translate('workspace:sourceCentricWorkspace.searchSourceProducts')}
+            {...inputHint(translate('workspace:sourceCentricWorkspace.searchSourceProducts'))}
           />
           <button type="button" className="fh-button-secondary fh-button-sm" disabled>
             <Icon name="filter" /> {translate('workspace:densePricing.sortProduct')}
