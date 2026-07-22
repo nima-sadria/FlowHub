@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { translate } from '../i18n'
+import i18n, { translate } from '../i18n'
 import Icon from './Icon'
 import IconButton from './IconButton'
 import { useTheme } from '../theme/ThemeProvider'
@@ -19,6 +19,17 @@ const LANGUAGES = [
   { code: 'en', labelKey: 'settings:language.english', direction: 'ltr' as const },
   { code: 'fa', labelKey: 'settings:language.persian', direction: 'rtl' as const },
 ]
+
+// Deterministic role labels through the existing i18n catalogs; unknown role
+// values fall back to the raw authenticated value untranslated.
+function roleLabel(role: string): string {
+  const normalized = role.trim().toLowerCase()
+  const camel = normalized.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())
+  for (const key of [`common:role.${camel}`, `settings:users.role.${normalized}`]) {
+    if (i18n.exists(key)) return translate(key)
+  }
+  return role
+}
 
 function MenuIcon() {
   return (
@@ -163,7 +174,7 @@ export default function Topbar({
           <input
             type="search"
             aria-label={translate('activity:activity.search')}
-            {...inputHint(translate('products:products.searchNameOrSku'))}
+            {...inputHint(translate('navigation:topbar.globalSearchHint'))}
             value={searchTerm}
             onChange={event => setSearchTerm(event.target.value)}
           />
@@ -205,10 +216,10 @@ export default function Topbar({
               onClick={() => setLangOpen(open => !open)}
               aria-label={translate('settings:language.title')}
               aria-expanded={langOpen}
-              className="fh-topbar-pill"
+              className="fh-topbar-pill rtl:flex-row-reverse"
             >
               <Icon name="globe" size="lg" />
-              <span className="uppercase">{language}</span>
+              <span>{translate('navigation:topbar.languageBadge')}</span>
               <Icon name="chevronDown" size="md" />
             </button>
 
@@ -246,7 +257,7 @@ export default function Topbar({
                 onClick={() => setMenuOpen(open => !open)}
                 aria-label={translate('navigation:topbar.userMenu')}
                 aria-expanded={menuOpen}
-                className="flex items-center gap-2.5 rounded-lg py-1 ps-2 pe-1 hover:bg-bg-subtle"
+                className="flex items-center gap-2.5 rounded-lg py-1 ps-2 pe-1 hover:bg-bg-subtle rtl:flex-row-reverse"
               >
                 <span className="fh-user-avatar">
                   {user.username.slice(0, 2).toUpperCase()}
@@ -258,7 +269,7 @@ export default function Topbar({
                   </span>
                   {user.role && (
                     <span className="text-xs leading-4 text-wp-muted capitalize">
-                      {user.role}
+                      {roleLabel(user.role)}
                     </span>
                   )}
                 </span>
@@ -273,7 +284,7 @@ export default function Topbar({
                       {user.username}
                     </div>
                     <div className="fh-text-caption mt-0.5 capitalize">
-                      {user.role || translate('navigation:topbar.signedIn')}
+                      {user.role ? roleLabel(user.role) : translate('navigation:topbar.signedIn')}
                     </div>
                   </div>
 

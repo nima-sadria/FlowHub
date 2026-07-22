@@ -111,6 +111,13 @@ function formatAction(action: string): string {
   return sentence.charAt(0).toUpperCase() + sentence.slice(1)
 }
 
+// Known activity action identifiers map to localized labels; unknown values
+// fall back to the original API text.
+function activityTitle(action: string): string {
+  const key = `activity:action.${action}`
+  return i18n.exists(key) ? translate(key) : formatAction(action)
+}
+
 function isToday(iso: string | null): boolean {
   if (!iso) return false
   const date = new Date(iso)
@@ -597,7 +604,7 @@ export default function Dashboard() {
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="truncate text-[13px] font-medium leading-[18px] text-text-base">
-                    {formatAction(event.action)}
+                    {activityTitle(event.action)}
                   </span>
                   <span className="truncate text-xs leading-4 text-[color:var(--fh-text-secondary)]">
                     <LocalizedText text={event.detail ?? event.actor} />

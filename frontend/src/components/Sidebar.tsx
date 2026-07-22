@@ -79,13 +79,13 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { labelKey: 'navigation:sidebar.general', to: '/settings', icon: routeIconMap.Settings, permission: 'can_view_settings' },
       { labelKey: 'navigation:sidebar.users', to: '/settings/users', icon: routeIconMap.Users, permission: 'can_view_settings', adminOnly: true },
-      { labelKey: 'navigation:sidebar.rateLimits', to: '/rate-limits', icon: 'rateLimits', permission: 'can_view_settings' },
+      { labelKey: 'navigation:sidebar.rateLimits', to: '/rate-limits', icon: 'sliders', permission: 'can_view_settings' },
     ],
   },
 ]
 
 const HEALTH_FOOTER: Record<HealthStatus, { dotClass: string; labelKey: string }> = {
-  ok: { dotClass: 'fh-status-dot-success', labelKey: 'common:status.operational' },
+  ok: { dotClass: 'fh-status-dot-success', labelKey: 'navigation:sidebar.allSystemsOperational' },
   loading: { dotClass: 'fh-status-dot-neutral', labelKey: 'common:status.checking' },
   error: { dotClass: 'fh-status-dot-error', labelKey: 'common:status.offline' },
 }

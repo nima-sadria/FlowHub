@@ -217,6 +217,13 @@ async function assertFigmaDashboardHierarchy(page: Page, locale: 'en' | 'fa') {
   await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible()
 
   if (locale === 'en') {
+    // Shared shell: approved search wording, health footer, language badge,
+    // and localized role label.
+    await expect(page.getByPlaceholder('Search products, orders, sources...')).toBeVisible()
+    await expect(page.getByText('All systems operational')).toBeVisible()
+    await expect(page.getByText('EN', { exact: true })).toBeVisible()
+    await expect(page.getByText('Admin', { exact: true })).toBeVisible()
+
     // Header: date subtitle and the primary review action.
     await expect(page.getByText('Live commerce overview')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Review 18 changes' })).toBeVisible()
@@ -268,6 +275,12 @@ async function assertFigmaDashboardHierarchy(page: Page, locale: 'en' | 'fa') {
     await expect(page.locator('[data-business-card]')).toHaveCount(0)
     await expect(page.getByText('Business overview')).toHaveCount(0)
   } else {
+    await expect(page.getByPlaceholder('جست‌وجوی محصول، سفارش یا منبع...')).toBeVisible()
+    await expect(page.getByText('همه سامانه‌ها فعال‌اند')).toBeVisible()
+    await expect(page.getByText('فا', { exact: true })).toBeVisible()
+    await expect(page.getByText('مدیر', { exact: true })).toBeVisible()
+    await expect(page.getByText('قیمت به‌روزرسانی شد')).toBeVisible()
+    await expect(page.getByText('سفارش همگام شد')).toBeVisible()
     await expect(page.getByText('نمای زنده فروش')).toBeVisible()
     await expect(page.getByRole('button', { name: 'بررسی ۱۸ تغییر' })).toBeVisible()
     for (const label of ['محصولات آماده', 'نیازمند بازبینی', 'آماده اعمال', 'سفارش‌های امروز']) {

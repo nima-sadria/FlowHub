@@ -1,5 +1,6 @@
 {
   "sidebar.activity": "فعالیت‌ها",
+  "sidebar.allSystemsOperational": "همه سامانه‌ها فعال‌اند",
   "sidebar.channels": "کانال‌ها",
   "sidebar.closeNavigation": "بستن منو",
   "sidebar.collapseSidebar": "جمع‌کردن نوار کناری",
@@ -33,7 +34,9 @@
   "topbar.flowhub": "FlowHub",
   "topbar.flowhubSheet": "برگه FlowHub",
   "topbar.globalApiRateLimits": "محدودیت سراسری درخواست‌های API",
+  "topbar.globalSearchHint": "جست‌وجوی محصول، سفارش یا منبع...",
   "topbar.importSpreadsheet": "درون‌ریزی صفحه‌گسترده",
+  "topbar.languageBadge": "فا",
   "topbar.openNavigation": "بازکردن منو",
   "topbar.products": "محصولات",
   "topbar.settings": "تنظیمات",

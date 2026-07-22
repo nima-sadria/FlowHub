@@ -1,5 +1,6 @@
 {
   "sidebar.activity": "Activity",
+  "sidebar.allSystemsOperational": "All systems operational",
   "sidebar.channels": "Channels",
   "sidebar.closeNavigation": "Close navigation",
   "sidebar.collapseSidebar": "Collapse sidebar",
@@ -33,7 +34,9 @@
   "topbar.flowhub": "FlowHub",
   "topbar.flowhubSheet": "FlowHub Sheet",
   "topbar.globalApiRateLimits": "Global API Rate Limits",
+  "topbar.globalSearchHint": "Search products, orders, sources...",
   "topbar.importSpreadsheet": "Import Spreadsheet",
+  "topbar.languageBadge": "EN",
   "topbar.openNavigation": "Open navigation",
   "topbar.products": "Products",
   "topbar.settings": "Settings",
