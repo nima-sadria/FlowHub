@@ -105,6 +105,10 @@ msgctxt "settings:setup.aedUaeDirham"
 msgid "AED - UAE Dirham"
 msgstr "AED - UAE Dirham"
 
+msgctxt "settings:settings.currencyOption.AED"
+msgid "AED — UAE Dirham"
+msgstr "AED — UAE Dirham"
+
 #: frontend/src/pages/CommerceHub.tsx:223
 msgctxt "commerce:commerceHub.apiCredentials"
 msgid "API credentials:"
@@ -119,11 +123,14 @@ msgctxt "settings:setup.audAustralianDollar"
 msgid "AUD - Australian Dollar"
 msgstr "AUD - Australian Dollar"
 
+msgctxt "settings:settings.currencyOption.AUD"
+msgid "AUD — Australian Dollar"
+msgstr "AUD — Australian Dollar"
+
 msgctxt "diagnostics:diagnostics.about"
 msgid "About"
 msgstr "About"
 
-#: frontend/src/pages/Settings.tsx:264
 msgctxt "settings:settings.about"
 msgid "About"
 msgstr "About"
@@ -301,7 +308,6 @@ msgctxt "authentication:login.usernameHint"
 msgid "Administrator username"
 msgstr "Administrator username"
 
-#: frontend/src/pages/Settings.tsx:257
 msgctxt "settings:settings.advanced"
 msgid "Advanced"
 msgstr "Advanced"
@@ -516,7 +522,6 @@ msgctxt "dashboard:dashboard.application"
 msgid "Application"
 msgstr "Application"
 
-#: frontend/src/pages/Settings.tsx:264
 msgctxt "settings:settings.applicationInformation"
 msgid "Application information"
 msgstr "Application information"
@@ -525,7 +530,6 @@ msgctxt "diagnostics:diagnostics.applicationServiceResponding"
 msgid "Application service is responding"
 msgstr "Application service is responding"
 
-#: frontend/src/pages/Settings.tsx:184
 msgctxt "settings:settings.applicationSettings"
 msgid "Application settings"
 msgstr "Application settings"
@@ -760,7 +764,6 @@ msgctxt "diagnostics:diagnostics.backend"
 msgid "Backend"
 msgstr "Backend"
 
-#: frontend/src/pages/Settings.tsx:269
 msgctxt "settings:settings.backendUnavailable"
 msgid "Backend unavailable"
 msgstr "Backend unavailable"
@@ -901,9 +904,17 @@ msgctxt "settings:setup.cadCanadianDollar"
 msgid "CAD - Canadian Dollar"
 msgstr "CAD - Canadian Dollar"
 
+msgctxt "settings:settings.currencyOption.CAD"
+msgid "CAD — Canadian Dollar"
+msgstr "CAD — Canadian Dollar"
+
 msgctxt "settings:setup.chfSwissFranc"
 msgid "CHF - Swiss Franc"
 msgstr "CHF - Swiss Franc"
+
+msgctxt "settings:settings.currencyOption.CHF"
+msgid "CHF — Swiss Franc"
+msgstr "CHF — Swiss Franc"
 
 #: frontend/src/pages/Workspace.tsx:489
 msgctxt "workspace:workspace.csvAndGoogleSheetsAreNotAvailable"
@@ -1431,7 +1442,6 @@ msgctxt "sources:sourceConfiguration.productColumnsHelp"
 msgid "Choose the column that names each product. Rows without the required product identity are treated as headings or decorative rows."
 msgstr "Choose the column that names each product. Rows without the required product identity are treated as headings or decorative rows."
 
-#: frontend/src/pages/Settings.tsx:208
 msgctxt "settings:language.description"
 msgid "Choose the language used by FlowHub. Direction and locale formatting update immediately."
 msgstr "Choose the language used by FlowHub. Direction and locale formatting update immediately."
@@ -1715,7 +1725,6 @@ msgctxt "dashboard:dashboard.configureChannel"
 msgid "Configure an active Channel before publishing changes."
 msgstr "Configure an active Channel before publishing changes."
 
-#: frontend/src/pages/Settings.tsx:220
 msgctxt "settings:settings.configureDisplayAndSynchronizationPreferences"
 msgid "Configure display and synchronization preferences"
 msgstr "Configure display and synchronization preferences"
@@ -2127,7 +2136,6 @@ msgctxt "orders:orders.currency"
 msgid "Currency"
 msgstr "Currency"
 
-#: frontend/src/pages/Settings.tsx:239
 msgctxt "settings:settings.currency"
 msgid "Currency"
 msgstr "Currency"
@@ -2279,6 +2287,11 @@ msgstr "Decrease price by fixed amount"
 msgctxt "workspace:densePricing.decreasePricePercent"
 msgid "Decrease price by percentage"
 msgstr "Decrease price by percentage"
+
+#: frontend/src/pages/Settings.tsx:149
+msgctxt "settings:settings.defaultCurrency"
+msgid "Default currency"
+msgstr "Default currency"
 
 #: frontend/src/pages/Setup.tsx:500
 msgctxt "settings:setup.defaultCurrency"
@@ -2458,7 +2471,7 @@ msgctxt "workspace:workspace.disabled"
 msgid "Disabled"
 msgstr "Disabled"
 
-#: frontend/src/pages/RateLimits.tsx:195 frontend/src/pages/Settings.tsx:193
+#: frontend/src/pages/RateLimits.tsx:195
 msgctxt "settings:rateLimits.discard"
 msgid "Discard"
 msgstr "Discard"
@@ -2529,6 +2542,10 @@ msgstr "EN"
 msgctxt "settings:setup.eurEuro"
 msgid "EUR - Euro"
 msgstr "EUR - Euro"
+
+msgctxt "settings:settings.currencyOption.EUR"
+msgid "EUR — Euro"
+msgstr "EUR — Euro"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:244
 #. Mapping links Source fields and products to Channel Listing identities.
@@ -2621,7 +2638,7 @@ msgctxt "commerce:commerceHub.enabledFieldsRequireASpreadsheetColumnLetter"
 msgid "Enabled fields require a spreadsheet column letter or header name."
 msgstr "Enabled fields require a spreadsheet column letter or header name."
 
-#: frontend/src/pages/Settings.tsx:212
+#: frontend/src/pages/Settings.tsx:137 frontend/src/pages/Settings.tsx:180
 msgctxt "settings:language.english"
 msgid "English"
 msgstr "English"
@@ -3075,6 +3092,10 @@ msgctxt "settings:setup.gbpBritishPound"
 msgid "GBP - British Pound"
 msgstr "GBP - British Pound"
 
+msgctxt "settings:settings.currencyOption.GBP"
+msgid "GBP — British Pound"
+msgstr "GBP — British Pound"
+
 #: frontend/src/pages/CommerceHub.tsx:779
 msgctxt "commerce:commerceHub.general"
 msgid "General"
@@ -3084,7 +3105,7 @@ msgctxt "navigation:sidebar.general"
 msgid "General"
 msgstr "General"
 
-#: frontend/src/pages/Settings.tsx:220
+#: frontend/src/pages/Settings.tsx:116
 msgctxt "settings:settings.general"
 msgid "General"
 msgstr "General"
@@ -3199,9 +3220,17 @@ msgctxt "settings:setup.irrIranianRial"
 msgid "IRR - Iranian Rial"
 msgstr "IRR - Iranian Rial"
 
+msgctxt "settings:settings.currencyOption.IRR"
+msgid "IRR — Iranian Rial"
+msgstr "IRR — Iranian Rial"
+
 msgctxt "settings:setup.irtIranianToman"
 msgid "IRT - Iranian Toman"
 msgstr "IRT - Iranian Toman"
+
+msgctxt "settings:settings.currencyOption.IRT"
+msgid "IRT — Iranian Toman"
+msgstr "IRT — Iranian Toman"
 
 #: frontend/src/pages/SourceConfiguration.tsx:923
 msgctxt "sources:sourceConfiguration.ignoreSelected"
@@ -3338,11 +3367,6 @@ msgctxt "navigation:sidebar.integrations"
 msgid "Integrations"
 msgstr "Integrations"
 
-#: frontend/src/pages/Settings.tsx:210
-msgctxt "settings:language.label"
-msgid "Interface language"
-msgstr "Interface language"
-
 msgctxt "sources:sourceConfiguration.internalColumn"
 msgid "Internal column"
 msgstr "Internal column"
@@ -3390,6 +3414,10 @@ msgctxt "settings:setup.jpyJapaneseYen"
 msgid "JPY - Japanese Yen"
 msgstr "JPY - Japanese Yen"
 
+msgctxt "settings:settings.currencyOption.JPY"
+msgid "JPY — Japanese Yen"
+msgstr "JPY — Japanese Yen"
+
 #: frontend/src/pages/SourceCenter.tsx:569
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.keepAnExternalSourceLinked"
@@ -3414,7 +3442,12 @@ msgctxt "dataQuality:issue.DUPLICATE_SOURCE_PRODUCT.action"
 msgid "Keep the product in one worksheet, or explicitly choose which worksheet takes priority."
 msgstr "Keep the product in one worksheet, or explicitly choose which worksheet takes priority."
 
-#: frontend/src/components/Topbar.tsx:217 frontend/src/pages/Login.tsx:109 frontend/src/pages/Settings.tsx:208 frontend/src/pages/Setup.tsx:478
+#: frontend/src/pages/Settings.tsx:135
+msgctxt "settings:language.label"
+msgid "Language"
+msgstr "Language"
+
+#: frontend/src/components/Topbar.tsx:217 frontend/src/pages/Login.tsx:109 frontend/src/pages/Setup.tsx:478
 msgctxt "settings:language.title"
 msgid "Language"
 msgstr "Language"
@@ -3782,7 +3815,7 @@ msgctxt "products:products.loading"
 msgid "Loading..."
 msgstr "Loading..."
 
-#: frontend/src/pages/RateLimits.tsx:213 frontend/src/pages/Settings.tsx:222 frontend/src/pages/Settings.tsx:266
+#: frontend/src/pages/RateLimits.tsx:213 frontend/src/pages/Settings.tsx:130
 msgctxt "settings:rateLimits.loading"
 msgid "Loading..."
 msgstr "Loading..."
@@ -3791,6 +3824,11 @@ msgstr "Loading..."
 msgctxt "sources:sourceConfiguration.loading"
 msgid "Loading..."
 msgstr "Loading..."
+
+#: frontend/src/pages/Settings.tsx:179
+msgctxt "settings:settings.localizationPreview"
+msgid "Localization preview"
+msgstr "Localization preview"
 
 msgctxt "dashboard:dashboard.loggedIn"
 msgid "Logged In"
@@ -4967,12 +5005,12 @@ msgctxt "activity:activity.permissionChanges"
 msgid "Permission changes"
 msgstr "Permission changes"
 
-#: frontend/src/pages/Settings.tsx:213
+#: frontend/src/pages/Settings.tsx:138 frontend/src/pages/Settings.tsx:180
 msgctxt "settings:language.persian"
 msgid "Persian"
 msgstr "Persian"
 
-#: frontend/src/pages/Settings.tsx:213
+#: frontend/src/pages/Settings.tsx:138
 msgctxt "settings:language.persianUnavailable"
 msgid "Persian — translation catalog required"
 msgstr "Persian — translation catalog required"
@@ -5023,7 +5061,7 @@ msgctxt "diagnostics:diagnostics.pleaseTryAgain"
 msgid "Please try again."
 msgstr "Please try again."
 
-#: frontend/src/pages/RateLimits.tsx:132 frontend/src/pages/RateLimits.tsx:177 frontend/src/pages/Settings.tsx:172
+#: frontend/src/pages/RateLimits.tsx:132 frontend/src/pages/RateLimits.tsx:177 frontend/src/pages/Settings.tsx:99
 msgctxt "settings:rateLimits.pleaseTryAgain"
 msgid "Please try again."
 msgstr "Please try again."
@@ -5202,7 +5240,6 @@ msgctxt "workspace:densePricing.pricingToolbar"
 msgid "Pricing Grid toolbar"
 msgstr "Pricing Grid toolbar"
 
-#: frontend/src/pages/Settings.tsx:245
 msgctxt "settings:settings.pricingUnit"
 msgid "Pricing unit"
 msgstr "Pricing unit"
@@ -5638,6 +5675,11 @@ msgctxt "dataQuality:dataQuality.readyProducts"
 msgid "Ready"
 msgstr "Ready"
 
+#: frontend/src/pages/Settings.tsx:182
+msgctxt "settings:settings.ready"
+msgid "Ready"
+msgstr "Ready"
+
 msgctxt "sources:sourceConfiguration.worksheetStatus.ready"
 msgid "Ready"
 msgstr "Ready"
@@ -5805,6 +5847,11 @@ msgctxt "common:status.refunded"
 msgid "Refunded"
 msgstr "Refunded"
 
+#: frontend/src/pages/Settings.tsx:127
+msgctxt "settings:settings.regionalDefaultsUsedAcrossSellerWorkflows"
+msgid "Regional defaults used across seller workflows."
+msgstr "Regional defaults used across seller workflows."
+
 #: frontend/src/pages/CommerceHub.tsx:898
 msgctxt "commerce:commerceHub.registerThisUrlInTapsishopTheWebhook"
 msgid "Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token."
@@ -5869,7 +5916,7 @@ msgctxt "diagnostics:reason.configuration_complete"
 msgid "Required configuration is present."
 msgstr "Required configuration is present."
 
-#: frontend/src/pages/RateLimits.tsx:311
+#: frontend/src/pages/RateLimits.tsx:311 frontend/src/pages/Settings.tsx:163
 msgctxt "settings:rateLimits.reset"
 msgid "Reset"
 msgstr "Reset"
@@ -5906,7 +5953,6 @@ msgctxt "common:action.retry"
 msgid "Retry"
 msgstr "Retry"
 
-#: frontend/src/pages/Settings.tsx:272
 msgctxt "settings:settings.retry"
 msgid "Retry"
 msgstr "Retry"
@@ -6304,7 +6350,7 @@ msgctxt "products:products.saveChanges"
 msgid "Save Changes"
 msgstr "Save Changes"
 
-#: frontend/src/pages/RateLimits.tsx:204 frontend/src/pages/Settings.tsx:202
+#: frontend/src/pages/RateLimits.tsx:204 frontend/src/pages/Settings.tsx:167
 msgctxt "settings:rateLimits.saveChanges"
 msgid "Save Changes"
 msgstr "Save Changes"
@@ -6391,7 +6437,7 @@ msgctxt "sources:sourceConfiguration.savedAsImmutableRevision"
 msgid "Saving creates a new immutable column-setup revision."
 msgstr "Saving creates a new immutable column-setup revision."
 
-#: frontend/src/pages/RateLimits.tsx:204 frontend/src/pages/RateLimits.tsx:314 frontend/src/pages/Settings.tsx:202
+#: frontend/src/pages/RateLimits.tsx:204 frontend/src/pages/RateLimits.tsx:314 frontend/src/pages/Settings.tsx:167
 msgctxt "settings:rateLimits.saving"
 msgid "Saving..."
 msgstr "Saving..."
@@ -6714,7 +6760,7 @@ msgctxt "navigation:topbar.settings"
 msgid "Settings"
 msgstr "Settings"
 
-#: frontend/src/components/SettingsNav.tsx:15 frontend/src/pages/Settings.tsx:183
+#: frontend/src/components/SettingsNav.tsx:15
 msgctxt "settings:settings.settings"
 msgid "Settings"
 msgstr "Settings"
@@ -6727,7 +6773,7 @@ msgctxt "activity:event.settings_changed"
 msgid "Settings changed"
 msgstr "Settings changed"
 
-#: frontend/src/pages/RateLimits.tsx:171 frontend/src/pages/Settings.tsx:166
+#: frontend/src/pages/RateLimits.tsx:171 frontend/src/pages/Settings.tsx:93
 msgctxt "settings:rateLimits.settingsSavedSuccessfully"
 msgid "Settings saved successfully"
 msgstr "Settings saved successfully"
@@ -7279,7 +7325,6 @@ msgctxt "orders:orders.status"
 msgid "Status"
 msgstr "Status"
 
-#: frontend/src/pages/Settings.tsx:278
 msgctxt "settings:settings.status"
 msgid "Status"
 msgstr "Status"
@@ -7457,7 +7502,6 @@ msgctxt "orders:orders.syncError"
 msgid "Sync error"
 msgstr "Sync error"
 
-#: frontend/src/pages/Settings.tsx:226
 msgctxt "settings:settings.syncIntervalMinutes"
 msgid "Sync interval (minutes)"
 msgstr "Sync interval (minutes)"
@@ -7542,6 +7586,10 @@ msgctxt "settings:setup.tryTurkishLira"
 msgid "TRY - Turkish Lira"
 msgstr "TRY - Turkish Lira"
 
+msgctxt "settings:settings.currencyOption.TRY"
+msgid "TRY — Turkish Lira"
+msgstr "TRY — Turkish Lira"
+
 msgctxt "products:products.tapsiShop"
 msgid "Tapsi Shop"
 msgstr "Tapsi Shop"
@@ -7568,7 +7616,6 @@ msgctxt "diagnostics:diagnostics.technicalRateDetails"
 msgid "Technical rate details"
 msgstr "Technical rate details"
 
-#: frontend/src/pages/Settings.tsx:258
 msgctxt "settings:settings.advancedDescription"
 msgid "Technical rate limits, scheduler policy, and delays"
 msgstr "Technical rate limits, scheduler policy, and delays"
@@ -7964,7 +8011,7 @@ msgctxt "common:status.timeout"
 msgid "Timeout"
 msgstr "Timeout"
 
-#: frontend/src/pages/Settings.tsx:233 frontend/src/pages/Setup.tsx:489
+#: frontend/src/pages/Settings.tsx:142 frontend/src/pages/Setup.tsx:489
 msgctxt "settings:settings.timezone"
 msgid "Timezone"
 msgstr "Timezone"
@@ -8078,6 +8125,10 @@ msgctxt "settings:setup.usdUsDollar"
 msgid "USD - US Dollar"
 msgstr "USD - US Dollar"
 
+msgctxt "settings:settings.currencyOption.USD"
+msgid "USD — US Dollar"
+msgstr "USD — US Dollar"
+
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "products:products.unableToApplyChannelPrices"
 msgid "Unable to apply Channel prices."
@@ -8177,7 +8228,7 @@ msgctxt "commerce:commerceHub.unableToSaveChannelSettings"
 msgid "Unable to save channel settings"
 msgstr "Unable to save channel settings"
 
-#: frontend/src/pages/RateLimits.tsx:176 frontend/src/pages/Settings.tsx:171
+#: frontend/src/pages/RateLimits.tsx:176 frontend/src/pages/Settings.tsx:98
 msgctxt "settings:rateLimits.unableToSaveSettings"
 msgid "Unable to save settings"
 msgstr "Unable to save settings"
@@ -8303,6 +8354,11 @@ msgstr "Unresolved Listing"
 msgctxt "workspace:gridModel.unresolvedProduct"
 msgid "Unresolved Product"
 msgstr "Unresolved Product"
+
+#: frontend/src/pages/Settings.tsx:161
+msgctxt "settings:settings.unsavedChanges"
+msgid "Unsaved changes"
+msgstr "Unsaved changes"
 
 #: frontend/src/pages/SourceConfiguration.tsx:1012
 msgctxt "sources:sourceConfiguration.unsavedChanges"
@@ -8593,7 +8649,6 @@ msgctxt "authentication:access.verifyingSession"
 msgid "Verifying your session with the server."
 msgstr "Verifying your session with the server."
 
-#: frontend/src/pages/Settings.tsx:277
 msgctxt "settings:settings.version"
 msgid "Version"
 msgstr "Version"
@@ -8919,6 +8974,11 @@ msgctxt "settings:setup.workspaceDefaults"
 msgid "Workspace defaults"
 msgstr "Workspace defaults"
 
+#: frontend/src/pages/Settings.tsx:117
+msgctxt "settings:settings.workspaceDefaultsAndRegionalPreferences"
+msgid "Workspace defaults and regional preferences."
+msgstr "Workspace defaults and regional preferences."
+
 #: frontend/src/pages/Setup.tsx:462
 msgctxt "settings:setup.workspaceDetails"
 msgid "Workspace details"
@@ -8928,6 +8988,11 @@ msgstr "Workspace details"
 msgctxt "settings:setup.workspaceDomain"
 msgid "Workspace domain"
 msgstr "Workspace domain"
+
+#: frontend/src/pages/Settings.tsx:126
+msgctxt "settings:settings.workspacePreferences"
+msgid "Workspace preferences"
+msgstr "Workspace preferences"
 
 #: frontend/src/pages/UnifiedWorkspace.tsx:34 frontend/src/pages/UnifiedWorkspace.tsx:59
 msgctxt "workspace:unifiedWorkspace.workspaceServiceUnavailable"
@@ -9009,7 +9074,7 @@ msgctxt "authentication:access.permissionDeniedDescription"
 msgid "Your account does not have permission to view this content."
 msgstr "Your account does not have permission to view this content."
 
-#: frontend/src/pages/RateLimits.tsx:172 frontend/src/pages/Settings.tsx:167
+#: frontend/src/pages/RateLimits.tsx:172 frontend/src/pages/Settings.tsx:94
 msgctxt "settings:rateLimits.yourChangesHaveBeenApplied"
 msgid "Your changes have been applied."
 msgstr "Your changes have been applied."

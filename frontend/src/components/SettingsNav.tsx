@@ -5,8 +5,8 @@ export type SettingsSectionName = 'general' | 'users' | 'rateLimits' | 'advanced
 
 const ITEMS: Array<{ id: SettingsSectionName; labelKey: string; to?: string }> = [
   { id: 'general', labelKey: 'settings:settings.general', to: '/settings' },
-  { id: 'users', labelKey: 'settings:users.title', to: '/settings/users' },
-  { id: 'rateLimits', labelKey: 'settings:rateLimits.globalApiRateLimits', to: '/rate-limits' },
+  { id: 'users', labelKey: 'navigation:sidebar.users', to: '/settings/users' },
+  { id: 'rateLimits', labelKey: 'navigation:sidebar.rateLimits', to: '/rate-limits' },
   { id: 'advanced', labelKey: 'settings:settings.advanced' },
 ]
 
