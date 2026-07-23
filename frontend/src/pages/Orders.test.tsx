@@ -39,7 +39,7 @@ describe('Orders page', () => {
     expect(container.textContent).toContain('IRR')
     expect(container.textContent).toContain('27,000 IRR')
     expect(container.textContent).toContain('Test buyer')
-    expect(container.querySelector('.overflow-x-auto table')?.className).toContain('min-w-[1320px]')
+    expect(container.querySelector('.overflow-x-auto table')?.className).toContain('min-w-[1020px]')
 
     const detailButton = Array.from(container.querySelectorAll('button')).find(
       button => button.textContent === 'T-200',
@@ -100,6 +100,62 @@ describe('Orders page', () => {
     })
     await flush()
     expect(syncCalls).toBe(1)
+  })
+
+  it('retries a per-row sync failure from the Sync column', async () => {
+    const failingRow: ChannelOrderListItem = {
+      internalId: 9,
+      channelId: 'woocommerce:primary',
+      connectorType: 'woocommerce',
+      providerOrderId: 'provider-900',
+      orderNumber: 'W-900',
+      providerStatus: '5',
+      normalizedStatus: 'processing',
+      createdAtProvider: '2026-07-11T10:00:00Z',
+      updatedAtProvider: '2026-07-11T10:05:00Z',
+      currency: 'IRR',
+      finalAmount: 15000,
+      itemCount: 1,
+      synchronizationState: 'failed',
+      eventSource: 'woocommerce_poll',
+      errorState: 'timeout',
+      lastSeenAt: '2026-07-11T10:05:00Z',
+      customerDisplay: 'Retry buyer',
+      paymentStatus: 'paid',
+      fulfillmentStatus: 'pending',
+    }
+    const mock = services()
+    let retriedChannelId = ''
+    mock.orders!.getOrders = async () => ({ items: [failingRow], total: 1, page: 1, pageSize: 25 })
+    mock.orders!.syncChannel = async channelId => {
+      retriedChannelId = channelId
+      return {
+        channelId,
+        source: 'reconciliation',
+        processed: 1,
+        duplicates: 0,
+        state: 'completed',
+        canonicalInventoryMutated: false,
+        productPricesWritten: false,
+        providerMutationPerformed: false,
+      }
+    }
+
+    await act(async () => {
+      root.render(<ServiceProvider services={mock}><Orders /></ServiceProvider>)
+    })
+    await flush()
+
+    const retryButton = Array.from(container.querySelectorAll('button')).find(
+      button => button.textContent === 'Retry',
+    )
+    expect(retryButton).toBeTruthy()
+    await act(async () => {
+      retryButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await flush()
+
+    expect(retriedChannelId).toBe('woocommerce:primary')
   })
 })
 
