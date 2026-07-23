@@ -65,6 +65,7 @@ describe('Login', () => {
 
     expect(container.textContent).toContain('Sign in to FlowHub')
     expect(container.textContent).toContain('Use your workspace account.')
+    expect(container.querySelector('label[for="login-identifier"]')?.textContent).toBe('Email')
     expect(container.textContent).not.toContain('Remember me')
     expect(container.textContent).not.toContain('Forgot password?')
     expect(container.textContent).toContain('Need access? Contact your workspace Owner.')

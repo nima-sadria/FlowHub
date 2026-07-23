@@ -19,7 +19,7 @@
   "login.signingIn": "Signing in...",
   "login.signInToFlowhub": "Sign in to FlowHub",
   "login.tooManyAttempts": "Too many login attempts. Please wait a moment and try again.",
-  "login.username": "Username",
-  "login.usernameHint": "Administrator username",
+  "login.username": "Email",
+  "login.usernameHint": "Administrator email",
   "login.useWorkspaceAccount": "Use your workspace account."
 }

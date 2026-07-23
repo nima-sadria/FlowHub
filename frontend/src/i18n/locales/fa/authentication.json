@@ -19,7 +19,7 @@
   "login.signingIn": "در حال ورود...",
   "login.signInToFlowhub": "ورود به FlowHub",
   "login.tooManyAttempts": "تلاش‌های ورود بیش از حد مجاز است. کمی صبر کنید و دوباره تلاش کنید.",
-  "login.username": "نام کاربری",
-  "login.usernameHint": "نام کاربری مدیر",
-  "login.useWorkspaceAccount": "از حساب فضای کاری خود استفاده کنید."
+  "login.username": "ایمیل",
+  "login.usernameHint": "ایمیل مدیر",
+  "login.useWorkspaceAccount": "با حساب فضای کاری خود وارد شوید."
 }

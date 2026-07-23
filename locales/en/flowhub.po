@@ -314,8 +314,8 @@ msgstr "Administrator created"
 
 #: frontend/src/pages/Login.tsx:153
 msgctxt "authentication:login.usernameHint"
-msgid "Administrator username"
-msgstr "Administrator username"
+msgid "Administrator email"
+msgstr "Administrator email"
 
 msgctxt "settings:settings.advanced"
 msgid "Advanced"
@@ -2609,6 +2609,11 @@ msgstr "Eligible"
 msgctxt "workspace:workspace.eligible"
 msgid "Eligible:"
 msgstr "Eligible:"
+
+#: frontend/src/pages/Login.tsx:141
+msgctxt "authentication:login.username"
+msgid "Email"
+msgstr "Email"
 
 #: frontend/src/pages/Setup.tsx:661
 msgctxt "settings:setup.email"
@@ -8530,11 +8535,6 @@ msgstr "User role changed"
 msgctxt "activity:event.user_role_changed"
 msgid "User role changed"
 msgstr "User role changed"
-
-#: frontend/src/pages/Login.tsx:141
-msgctxt "authentication:login.username"
-msgid "Username"
-msgstr "Username"
 
 #: frontend/src/pages/Setup.tsx:656
 msgctxt "settings:setup.username"

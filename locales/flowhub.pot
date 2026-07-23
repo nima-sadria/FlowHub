@@ -314,7 +314,7 @@ msgstr ""
 
 #: frontend/src/pages/Login.tsx:153
 msgctxt "authentication:login.usernameHint"
-msgid "Administrator username"
+msgid "Administrator email"
 msgstr ""
 
 msgctxt "settings:settings.advanced"
@@ -2608,6 +2608,11 @@ msgstr ""
 #: frontend/src/pages/Workspace.tsx:669
 msgctxt "workspace:workspace.eligible"
 msgid "Eligible:"
+msgstr ""
+
+#: frontend/src/pages/Login.tsx:141
+msgctxt "authentication:login.username"
+msgid "Email"
 msgstr ""
 
 #: frontend/src/pages/Setup.tsx:661
@@ -8529,11 +8534,6 @@ msgstr ""
 
 msgctxt "activity:event.user_role_changed"
 msgid "User role changed"
-msgstr ""
-
-#: frontend/src/pages/Login.tsx:141
-msgctxt "authentication:login.username"
-msgid "Username"
 msgstr ""
 
 #: frontend/src/pages/Setup.tsx:656
