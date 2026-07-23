@@ -153,7 +153,7 @@ describe('Diagnostics', () => {
     ['skip', 'Not checked yet'],
     ['fail', 'Error'],
     ['unexpected', 'Not checked yet'],
-  ])('derives the Database summary from a %s diagnostic check', async (databaseCheckStatus, expectedLabel) => {
+  ])('folds the Database summary from a %s diagnostic check into the Overall State', async (databaseCheckStatus, expectedLabel) => {
     vi.stubGlobal('fetch', vi.fn(async input => {
       const url = String(input)
       if (url.includes('/api/v2/diagnostics/status')) {
@@ -162,7 +162,7 @@ describe('Diagnostics', () => {
           checkedAt: new Date().toISOString(),
           checks: [{ check_name: 'database_connection', category: 'database', target: 'flowhub', status: databaseCheckStatus, severity: 'info' }],
           connectors: [],
-          channelHealth: channelHealthPayload(),
+          channelHealth: { ...channelHealthPayload(), items: [] },
           rateLimiter: null,
         }), { status: 200 })
       }
@@ -170,37 +170,12 @@ describe('Diagnostics', () => {
     }))
 
     const c = await renderPage()
-    const databaseCard = Array.from(c.querySelectorAll('[data-testid="diagnostics-summary-card"]'))
-      .find(card => card.textContent?.includes('Database'))
+    const overallCard = Array.from(c.querySelectorAll('[data-testid="diagnostics-summary-card"]'))
+      .find(card => card.textContent?.includes('Overall State'))
 
-    expect(databaseCard?.textContent).toContain(expectedLabel)
+    expect(overallCard?.textContent).toContain(expectedLabel)
     const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.map(call => String(call[0]))
     expect(calls.some(url => url.includes('/api/health'))).toBe(false)
-  })
-
-  it('shows Database as not checked when diagnostics provide no database evidence', async () => {
-    vi.stubGlobal('fetch', vi.fn(async input => {
-      const url = String(input)
-      if (url.includes('/api/v2/diagnostics/status')) {
-        return new Response(JSON.stringify({
-          overall_status: 'ok',
-          checkedAt: new Date().toISOString(),
-          checks: [{ check_name: 'source_snapshot', category: 'data_layer', target: 'nextcloud', status: 'pass', severity: 'info' }],
-          connectors: [],
-          channelHealth: channelHealthPayload(),
-          rateLimiter: null,
-        }), { status: 200 })
-      }
-      return responseFor(input as RequestInfo | URL)
-    }))
-
-    const c = await renderPage()
-    const databaseCard = Array.from(c.querySelectorAll('[data-testid="diagnostics-summary-card"]'))
-      .find(card => card.textContent?.includes('Database'))
-
-    expect(databaseCard?.textContent).toContain('Not checked yet')
-    expect(databaseCard?.textContent).toContain('No database diagnostic check was reported.')
-    expect(databaseCard?.textContent).not.toContain('Connected')
   })
 
   it('does not hide a verified failing non-database diagnostic check', async () => {
@@ -222,13 +197,13 @@ describe('Diagnostics', () => {
     }))
 
     const c = await renderPage()
-    const systemCard = Array.from(c.querySelectorAll('[data-testid="diagnostics-summary-card"]'))
-      .find(card => card.textContent?.includes('System status'))
+    const overallCard = Array.from(c.querySelectorAll('[data-testid="diagnostics-summary-card"]'))
+      .find(card => card.textContent?.includes('Overall State'))
 
-    expect(systemCard?.textContent).toContain('Error')
+    expect(overallCard?.textContent).toContain('Error')
   })
 
-  it('does not hide a verified Source connection failure in the System status', async () => {
+  it('does not hide a verified Source connection failure in the Overall State', async () => {
     const health = channelHealthPayload()
     vi.stubGlobal('fetch', vi.fn(async input => {
       if (String(input).includes('/api/v2/diagnostics/status')) {
@@ -252,13 +227,13 @@ describe('Diagnostics', () => {
     }))
 
     const c = await renderPage()
-    const systemCard = Array.from(c.querySelectorAll('[data-testid="diagnostics-summary-card"]'))
-      .find(card => card.textContent?.includes('System status'))
+    const overallCard = Array.from(c.querySelectorAll('[data-testid="diagnostics-summary-card"]'))
+      .find(card => card.textContent?.includes('Overall State'))
 
-    expect(systemCard?.textContent).toContain('Error')
+    expect(overallCard?.textContent).toContain('Error')
   })
 
-  it('does not describe disabled or never-checked Sources as ready', async () => {
+  it('does not describe disabled or never-checked Sources as ready, and reflects it in Source Checks', async () => {
     vi.stubGlobal('fetch', vi.fn(async input => {
       const url = String(input)
       if (url.includes('/api/v2/diagnostics/status')) {
@@ -272,7 +247,7 @@ describe('Diagnostics', () => {
             { id: 'gsheets:pending', name: 'Unchecked Source', connector_type: 'gsheets', enabled: true, status: 'operational', last_checked_at: null },
             { id: 'erp:pending', name: 'Pending Source', connector_type: 'erp', enabled: true, status: 'pending', last_checked_at: new Date().toISOString() },
           ],
-          channelHealth: channelHealthPayload(),
+          channelHealth: { ...channelHealthPayload(), items: [] },
           rateLimiter: null,
         }), { status: 200 })
       }
@@ -295,7 +270,7 @@ describe('Diagnostics', () => {
     expect(pending?.textContent).not.toContain('Source connection is ready.')
 
     const sourcesSummary = Array.from(c.querySelectorAll('[data-testid="diagnostics-summary-card"]'))
-      .find(card => card.textContent?.includes('Sources'))
+      .find(card => card.textContent?.includes('Source Checks'))
     expect(sourcesSummary?.textContent).toContain('1 of 4 ready')
   })
 
@@ -342,17 +317,14 @@ describe('Diagnostics', () => {
     await changeLocale('en')
   })
 
-  it('renders normalized channel health and refreshes one channel', async () => {
+  it('renders normalized channel health in the unified System health list and refreshes one channel', async () => {
     const c = await renderPage()
-    expect(c.textContent).toContain('Channels')
+    expect(c.textContent).toContain('System health')
     expect(c.textContent).toContain('WooCommerce')
     expect(c.textContent).toContain('TapsiShop')
     expect(c.textContent).toContain('Accepted webhook receipts are waiting for processing.')
-    expect(c.textContent).toContain('System status')
-    expect(c.textContent).toContain('Sources')
-    expect(c.textContent).toContain('Database')
-    expect(c.textContent).toContain('Background jobs')
-    expect(c.textContent).toContain('Recent failures')
+    expect(c.textContent).toContain('Overall State')
+    expect(c.textContent).toContain('Source Checks')
     expect(c.textContent).toContain('Nextcloud')
     expect(c.textContent).not.toContain('WooCommerce duplicate')
 
@@ -370,7 +342,7 @@ describe('Diagnostics', () => {
     expect(calls.some(url => url.includes('/api/v2/diagnostics/channels/health/refresh'))).toBe(true)
   })
 
-  it('orders Source and Channel diagnostics with the shared policy', async () => {
+  it('orders the unified System health list with errors and warnings first', async () => {
     const health = channelHealthPayload()
     const disabledChannel = {
       ...health.items[0],
@@ -393,7 +365,7 @@ describe('Diagnostics', () => {
             { id: 'gsheets:healthy', name: 'Google Sheets', connector_type: 'gsheets', enabled: true, status: 'operational', last_checked_at: new Date().toISOString(), last_successful_operation: new Date().toISOString() },
             { id: 'csv:healthy', name: 'CSV', connector_type: 'csv', enabled: true, status: 'healthy', last_checked_at: new Date().toISOString(), last_successful_operation: new Date().toISOString() },
           ],
-          channelHealth: { ...health, items: [disabledChannel, health.items[1], health.items[0]] },
+          channelHealth: { ...health, orderSyncRunner: undefined, items: [disabledChannel, health.items[1], health.items[0]] },
           rateLimiter: null,
         }), { status: 200 })
       }
@@ -401,24 +373,17 @@ describe('Diagnostics', () => {
     }))
 
     const c = await renderPage()
-    const channelSection = c.querySelector('#diagnostics-channels')?.closest('section')
-    const sourceSection = c.querySelector('#diagnostics-sources')?.closest('section')
-    const resourceIds = (scope: Element | null | undefined) => Array.from(scope?.querySelectorAll<HTMLElement>('[data-resource-id]') ?? [])
+    const systemHealthSection = c.querySelector('#diagnostics-system-health')?.closest('section')
+    const resourceIds = Array.from(systemHealthSection?.querySelectorAll<HTMLElement>('[data-resource-id]') ?? [])
       .map(element => element.dataset.resourceId)
 
-    expect(resourceIds(channelSection)).toEqual([
-      'woocommerce:primary',
-      'tapsishop:main',
-      'snappshop:main',
-    ])
-    expect(resourceIds(sourceSection)).toEqual([
-      'csv:healthy',
-      'gsheets:healthy',
-      'erp:warning',
-      'nextcloud:disabled',
-    ])
-    expect(channelSection?.querySelectorAll('[data-resource-section="comingSoon"]')).toHaveLength(0)
-    expect(sourceSection?.querySelectorAll('[data-resource-section="comingSoon"]')).toHaveLength(0)
+    // Warning/error items (tapsishop:main, erp:warning) sort before healthy and
+    // disabled/not-checked items; exact ties keep the shared ordering policy.
+    expect(resourceIds.indexOf('tapsishop:main')).toBeLessThan(resourceIds.indexOf('woocommerce:primary'))
+    expect(resourceIds.indexOf('erp:warning')).toBeLessThan(resourceIds.indexOf('csv:healthy'))
+    expect(resourceIds.indexOf('erp:warning')).toBeLessThan(resourceIds.indexOf('nextcloud:disabled'))
+    // 3 channels (disabledChannel, tapsishop, woocommerce) + 4 source connectors.
+    expect(resourceIds).toHaveLength(7)
   })
 
   it('uses evidence semantics for Source badges instead of treating a missing check as warning', async () => {
@@ -437,7 +402,7 @@ describe('Diagnostics', () => {
             status: 'degraded',
             last_checked_at: null,
           }],
-          channelHealth: channelHealthPayload(),
+          channelHealth: { ...channelHealthPayload(), items: [] },
           rateLimiter: null,
         }), { status: 200 })
       }
@@ -450,44 +415,6 @@ describe('Diagnostics', () => {
     expect(sourceStatus?.getAttribute('data-diagnostic-state')).toBe('NOT_CHECKED')
     expect(sourceStatus?.textContent).toContain('Not checked yet')
     expect(sourceStatus?.textContent).not.toContain('Needs attention')
-  })
-
-  it('presents practical rate-limit information before technical details', async () => {
-    const c = await renderPage()
-
-    expect(c.textContent).toContain('Requests available now')
-    expect(c.textContent).toContain('Available now')
-    expect(c.textContent).toContain('Requests allowed per minute')
-    expect(c.textContent).toContain('60 read / 30 write')
-    expect(c.textContent).toContain('No wait expected')
-    expect(c.textContent).toContain('No throttling recorded')
-
-    const rateDetails = Array.from(c.querySelectorAll('details')).find(details => details.textContent?.includes('Technical rate details'))
-    expect(rateDetails?.open).toBe(false)
-  })
-
-  it('explains unavailable rate-limit evidence instead of showing healthy zero values', async () => {
-    vi.stubGlobal('fetch', vi.fn(async input => {
-      const url = String(input)
-      if (url.includes('/api/v2/diagnostics/status')) {
-        return new Response(JSON.stringify({
-          overall_status: 'skip',
-          checkedAt: new Date().toISOString(),
-          checks: [],
-          connectors: [],
-          channelHealth: channelHealthPayload(),
-          rateLimiter: null,
-        }), { status: 200 })
-      }
-      return responseFor(input as RequestInfo | URL)
-    }))
-
-    const c = await renderPage()
-
-    expect(c.textContent).toContain('Rate-limit data has not been reported yet.')
-    expect(c.textContent).not.toContain('0 read / 0 write')
-    expect(c.textContent).not.toContain('No wait expected')
-    expect(c.textContent).not.toContain('No throttling recorded')
   })
 
   it('does not expose the admin-only provider refresh action to a non-admin viewer', async () => {
@@ -666,7 +593,30 @@ describe('Diagnostics', () => {
     })
 
     expect(c.querySelector('.fh-alert-danger')).toBeNull()
-    expect(c.textContent).toContain('Channels')
+    expect(c.textContent).toContain('System health')
     expect(c.textContent).toContain('WooCommerce')
+  })
+
+  it('shows a Recent checks panel sorted by most recently checked, and an urgent-item banner', async () => {
+    const health = channelHealthPayload()
+    const now = Date.now()
+    const stale = { ...health.items[0], lastChecked: new Date(now - 60_000).toISOString() }
+    const fresh = { ...health.items[1], lastChecked: new Date(now - 1_000).toISOString() }
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: 'ok', checkedAt: health.checkedAt, checks: [{ category: 'database', status: 'pass' }], connectors: [],
+          channelHealth: { ...health, orderSyncRunner: undefined, items: [stale, fresh] },
+          rateLimiter: null,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const recentSection = c.querySelector('#diagnostics-recent-checks')?.closest('section')
+    const recentText = recentSection?.textContent ?? ''
+    expect(recentText.indexOf('TapsiShop')).toBeLessThan(recentText.indexOf('WooCommerce'))
+    expect(c.querySelector('.fh-alert-warning')?.textContent).toContain('Accepted webhook receipts are waiting for processing.')
   })
 })

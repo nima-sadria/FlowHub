@@ -49,7 +49,7 @@ msgctxt "dataQuality:issue.WOOCOMMERCE_LISTING_CARDINALITY.summary"
 msgid "A Source Product can map to at most one WooCommerce Listing."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:251
+#: frontend/src/pages/Diagnostics.tsx:254
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceResultPendingDescription"
 msgid "A conclusive Source connection result is not available yet."
@@ -146,7 +146,7 @@ msgctxt "commerce:commerceHub.accessMode"
 msgid "Access mode"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:363
+#: frontend/src/pages/Diagnostics.tsx:356
 msgctxt "diagnostics:diagnostics.accessMode"
 msgid "Access mode"
 msgstr ""
@@ -732,7 +732,6 @@ msgctxt "products:products.availabilityStatus"
 msgid "Availability Status"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:770
 msgctxt "diagnostics:diagnostics.availableNow"
 msgid "Available now"
 msgstr ""
@@ -766,7 +765,7 @@ msgctxt "settings:settings.backendUnavailable"
 msgid "Backend unavailable"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:539
+#: frontend/src/pages/Diagnostics.tsx:481 frontend/src/pages/Diagnostics.tsx:725
 msgctxt "diagnostics:diagnostics.backgroundJobs"
 msgid "Background jobs"
 msgstr ""
@@ -1111,6 +1110,12 @@ msgctxt "workspace:unifiedWorkspace.channel"
 msgid "Channel"
 msgstr ""
 
+#: frontend/src/pages/Diagnostics.tsx:668
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "diagnostics:diagnostics.channelChecks"
+msgid "Channel Checks"
+msgstr ""
+
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:diagnostics.channelHealth"
 msgid "Channel Health"
@@ -1257,7 +1262,6 @@ msgctxt "dashboard:dashboard.channels"
 msgid "Channels"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:524 frontend/src/pages/Diagnostics.tsx:600
 msgctxt "diagnostics:diagnostics.channels"
 msgid "Channels"
 msgstr ""
@@ -1879,12 +1883,10 @@ msgctxt "sources:sourceConfiguration.connectionCheckFailed"
 msgid "Connection check failed"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:695
 msgctxt "diagnostics:diagnostics.sourceSummaryHint"
 msgid "Connection status for spreadsheet and import Sources."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:603
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:diagnostics.channelSummaryHint"
 msgid "Connection, last successful activity, and the current action for each sales Channel."
@@ -1894,7 +1896,7 @@ msgctxt "dashboard:dashboard.connections"
 msgid "Connections"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:744
+#: frontend/src/pages/Diagnostics.tsx:468
 msgctxt "diagnostics:diagnostics.connector"
 msgid "Connector"
 msgstr ""
@@ -2240,7 +2242,6 @@ msgctxt "dashboard:dashboard.database"
 msgid "Database"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:530
 msgctxt "diagnostics:diagnostics.database"
 msgid "Database"
 msgstr ""
@@ -2391,7 +2392,7 @@ msgctxt "dashboard:dashboard.diagnostics2"
 msgid "Diagnostics"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:569
+#: frontend/src/pages/Diagnostics.tsx:731
 msgctxt "diagnostics:diagnostics.diagnostics"
 msgid "Diagnostics"
 msgstr ""
@@ -2404,12 +2405,12 @@ msgctxt "navigation:topbar.diagnostics"
 msgid "Diagnostics"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:399
+#: frontend/src/pages/Diagnostics.tsx:546
 msgctxt "diagnostics:diagnostics.unavailableHttp"
 msgid "Diagnostics unavailable (HTTP {{status}})"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:394 frontend/src/pages/Diagnostics.tsx:430
+#: frontend/src/pages/Diagnostics.tsx:541 frontend/src/pages/Diagnostics.tsx:577
 msgctxt "diagnostics:diagnostics.diagnosticsUpdated"
 msgid "Diagnostics updated"
 msgstr ""
@@ -2433,7 +2434,7 @@ msgctxt "common:resourceGroup.disabled"
 msgid "Disabled"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:195 frontend/src/pages/Orders.tsx:264 frontend/src/pages/RateLimits.tsx:235 frontend/src/pages/RateLimits.tsx:236 frontend/src/pages/RateLimits.tsx:237
+#: frontend/src/pages/Diagnostics.tsx:198 frontend/src/pages/Orders.tsx:264 frontend/src/pages/RateLimits.tsx:235 frontend/src/pages/RateLimits.tsx:236 frontend/src/pages/RateLimits.tsx:237
 msgctxt "common:status.disabled"
 msgid "Disabled"
 msgstr ""
@@ -2675,7 +2676,7 @@ msgctxt "workspace:statusDisplay.error"
 msgid "Error"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:362
+#: frontend/src/pages/Diagnostics.tsx:355
 msgctxt "diagnostics:diagnostics.errorCategory"
 msgid "Error category:"
 msgstr ""
@@ -2685,12 +2686,10 @@ msgctxt "workspace:workspace.estimatedWoocommerceCalls"
 msgid "Estimated WooCommerce calls:"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:811
 msgctxt "diagnostics:diagnostics.estimatedCompletion"
 msgid "Estimated completion"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:787
 msgctxt "diagnostics:diagnostics.estimatedWaitTime"
 msgid "Estimated wait time"
 msgstr ""
@@ -2713,12 +2712,12 @@ msgctxt "dashboard:dashboard.everythingSynchronized"
 msgid "Everything synchronized"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:349
+#: frontend/src/pages/Diagnostics.tsx:342
 msgctxt "diagnostics:diagnostics.evidenceRecorded"
 msgid "Evidence recorded"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:350
+#: frontend/src/pages/Diagnostics.tsx:343
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.evidenceSource"
 msgid "Evidence source"
@@ -2749,7 +2748,7 @@ msgctxt "sources:sourceConfiguration.section.accessScopeHelp"
 msgid "Existing permissions continue to control configuration and Workspace access."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:323 frontend/src/pages/Diagnostics.tsx:741
+#: frontend/src/pages/Diagnostics.tsx:316 frontend/src/pages/Diagnostics.tsx:465
 msgctxt "diagnostics:diagnostics.expandDetails"
 msgid "Expand details"
 msgstr ""
@@ -3162,6 +3161,11 @@ msgctxt "commerce:commerceHub.healthyListings"
 msgid "Healthy Listings"
 msgstr ""
 
+#: frontend/src/pages/Diagnostics.tsx:662
+msgctxt "diagnostics:diagnostics.healthyServices"
+msgid "Healthy Services"
+msgstr ""
+
 #: frontend/src/pages/CommerceHub.tsx:713
 msgctxt "commerce:commerceHub.hideEnteredSecret"
 msgid "Hide entered secret"
@@ -3172,7 +3176,6 @@ msgctxt "settings:users.hidePassword"
 msgid "Hide password"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:761
 msgctxt "diagnostics:diagnostics.rateLimitHint"
 msgid "How quickly FlowHub can send requests without overloading connected services."
 msgstr ""
@@ -3450,12 +3453,11 @@ msgctxt "dataQuality:dataQuality.lastCheck"
 msgid "Last check:"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:541
 msgctxt "diagnostics:diagnostics.lastCheckedAt"
 msgid "Last checked {{date}}"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:513
+#: frontend/src/pages/Diagnostics.tsx:657
 msgctxt "diagnostics:diagnostics.lastChecked2"
 msgid "Last checked {{value1}}"
 msgstr ""
@@ -3500,7 +3502,7 @@ msgctxt "diagnostics:diagnostics.lastSuccess"
 msgid "Last success:"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:726
+#: frontend/src/pages/Diagnostics.tsx:450
 msgctxt "diagnostics:diagnostics.lastSuccessfulCheck"
 msgid "Last successful check"
 msgstr ""
@@ -3517,7 +3519,7 @@ msgctxt "diagnostics:staleContext.productSync"
 msgid "Last successful product sync was {{last}}. Expected freshness: within {{hours}} hours."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:650 frontend/src/pages/Diagnostics.tsx:730
+#: frontend/src/pages/Diagnostics.tsx:402 frontend/src/pages/Diagnostics.tsx:454 frontend/src/pages/Diagnostics.tsx:487
 msgctxt "diagnostics:diagnostics.lastSuccessfulActivity"
 msgid "Last successful sync or read"
 msgstr ""
@@ -3530,7 +3532,7 @@ msgctxt "orders:orders.lastSuccessfulSync"
 msgid "Last successful synchronization:"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:646
+#: frontend/src/pages/Diagnostics.tsx:398
 msgctxt "diagnostics:diagnostics.lastSuccessfulVerification"
 msgid "Last successful verification"
 msgstr ""
@@ -3540,7 +3542,6 @@ msgctxt "orders:orders.lastSynchronized"
 msgid "Last synchronized"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:797
 msgctxt "diagnostics:diagnostics.lastThrottlingEvent"
 msgid "Last throttling event"
 msgstr ""
@@ -3549,7 +3550,7 @@ msgctxt "diagnostics:diagnostics.lastAt"
 msgid "Last {{date}}"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:361
+#: frontend/src/pages/Diagnostics.tsx:354
 msgctxt "diagnostics:diagnostics.latency"
 msgid "Latency:"
 msgstr ""
@@ -3569,7 +3570,7 @@ msgctxt "dashboard:dashboard.latestSuccessfulSourceRead"
 msgid "Latest successful Source read."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:395 frontend/src/pages/Diagnostics.tsx:431
+#: frontend/src/pages/Diagnostics.tsx:542 frontend/src/pages/Diagnostics.tsx:578
 msgctxt "diagnostics:diagnostics.latestSystemStatusHasBeenLoaded"
 msgid "Latest system status has been loaded."
 msgstr ""
@@ -3589,7 +3590,6 @@ msgctxt "commerce:commerceHub.limitSourceReads"
 msgid "Limit source reads"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:809
 msgctxt "diagnostics:diagnostics.limiterDelay"
 msgid "Limiter delay"
 msgstr ""
@@ -3644,12 +3644,12 @@ msgctxt "common:spinner.loading"
 msgid "Loading"
 msgstr ""
 
-#: frontend/src/pages/Dashboard.tsx:326 frontend/src/pages/Dashboard.tsx:514 frontend/src/pages/Diagnostics.tsx:105 frontend/src/pages/Diagnostics.tsx:115
+#: frontend/src/pages/Dashboard.tsx:326 frontend/src/pages/Dashboard.tsx:514 frontend/src/pages/Diagnostics.tsx:108 frontend/src/pages/Diagnostics.tsx:118
 msgctxt "common:status.loading"
 msgid "Loading"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:576
+#: frontend/src/pages/Diagnostics.tsx:738
 msgctxt "diagnostics:diagnostics.loading"
 msgid "Loading"
 msgstr ""
@@ -3701,7 +3701,7 @@ msgctxt "commerce:commerceHub.loadingChannelConfiguration"
 msgid "Loading channel configuration"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:609
+#: frontend/src/pages/Diagnostics.tsx:752
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:diagnostics.loadingChannelHealth"
 msgid "Loading channel health"
@@ -3712,7 +3712,6 @@ msgctxt "workspace:workspace.loadingConfiguration"
 msgid "Loading configuration..."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:699
 msgctxt "diagnostics:diagnostics.loadingConnectors"
 msgid "Loading connectors"
 msgstr ""
@@ -4010,7 +4009,7 @@ msgctxt "products:products.neverSynced"
 msgid "Never synced"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:647
+#: frontend/src/pages/Diagnostics.tsx:399
 msgctxt "diagnostics:diagnostics.neverVerified"
 msgid "Never verified"
 msgstr ""
@@ -4044,7 +4043,7 @@ msgctxt "workspace:sourceCentricWorkspace.next"
 msgid "Next"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:364
+#: frontend/src/pages/Diagnostics.tsx:357
 msgctxt "diagnostics:diagnostics.nextAction"
 msgid "Next action:"
 msgstr ""
@@ -4108,7 +4107,6 @@ msgctxt "dashboard:dashboard.noSourceDataAvailable"
 msgid "No Source data is available for the daily workflow."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:701
 msgctxt "diagnostics:diagnostics.noSourcesConfigured"
 msgid "No Sources configured"
 msgstr ""
@@ -4168,7 +4166,7 @@ msgctxt "workspace:workspace.noChangesHaveBeenApplied"
 msgid "No changes have been applied."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:611
+#: frontend/src/pages/Diagnostics.tsx:754 frontend/src/pages/Diagnostics.tsx:777
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:diagnostics.noChannelHealthData"
 msgid "No channel health data"
@@ -4187,7 +4185,7 @@ msgctxt "dataQuality:dataQuality.neverCheckedTitle"
 msgid "No check has been run yet"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:220
+#: frontend/src/pages/Diagnostics.tsx:223
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceNotCheckedDescription"
 msgid "No connection check has been recorded for this Source."
@@ -4215,7 +4213,6 @@ msgctxt "dataQuality:dataQuality.healthyTitle"
 msgid "No data problems found"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:533
 msgctxt "diagnostics:diagnostics.databaseEvidenceUnavailable"
 msgid "No database diagnostic check was reported."
 msgstr ""
@@ -4353,7 +4350,6 @@ msgctxt "dashboard:dashboard.noPublishingDestinations"
 msgid "No publishing destination is currently active."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:774
 msgctxt "diagnostics:diagnostics.noQueueDelay"
 msgid "No queued request is delaying the next action."
 msgstr ""
@@ -4362,12 +4358,10 @@ msgctxt "dashboard:dashboard.noActivityActionRequired"
 msgid "No recent activity requires your attention."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:559
 msgctxt "diagnostics:diagnostics.noRecentFailures"
 msgid "No recent failures recorded"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:550
 msgctxt "diagnostics:diagnostics.noRequestsWaiting"
 msgid "No requests waiting"
 msgstr ""
@@ -4401,7 +4395,7 @@ msgctxt "commerce:commerceHub.noSpreadsheetFilesInThisFolder"
 msgid "No spreadsheet files in this folder."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:651 frontend/src/pages/Diagnostics.tsx:731
+#: frontend/src/pages/Diagnostics.tsx:403 frontend/src/pages/Diagnostics.tsx:455 frontend/src/pages/Diagnostics.tsx:488
 msgctxt "diagnostics:diagnostics.noSuccessfulActivity"
 msgid "No successful activity recorded"
 msgstr ""
@@ -4426,7 +4420,6 @@ msgctxt "orders:orders.noSynchronizedOrders"
 msgid "No synchronized orders"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:800
 msgctxt "diagnostics:diagnostics.noThrottlingRecorded"
 msgid "No throttling recorded"
 msgstr ""
@@ -4439,7 +4432,6 @@ msgctxt "diagnostics:stateDescription.not_checked"
 msgid "No verification evidence has been recorded yet."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:791
 msgctxt "diagnostics:diagnostics.noWaitExpected"
 msgid "No wait expected"
 msgstr ""
@@ -4460,7 +4452,7 @@ msgctxt "diagnostics:message.noWebhookReceipt"
 msgid "No webhook receipt has been accepted yet."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:362
+#: frontend/src/pages/Diagnostics.tsx:355
 msgctxt "common:status.none"
 msgid "None"
 msgstr ""
@@ -4491,7 +4483,7 @@ msgctxt "settings:setup.notChecked"
 msgid "Not checked"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:219 frontend/src/pages/Diagnostics.tsx:250 frontend/src/pages/Diagnostics.tsx:540 frontend/src/pages/Diagnostics.tsx:727
+#: frontend/src/pages/Diagnostics.tsx:222 frontend/src/pages/Diagnostics.tsx:253 frontend/src/pages/Diagnostics.tsx:451 frontend/src/pages/Diagnostics.tsx:484 frontend/src/pages/Diagnostics.tsx:710 frontend/src/pages/Diagnostics.tsx:725
 msgctxt "diagnostics:diagnostics.notCheckedYet"
 msgid "Not checked yet"
 msgstr ""
@@ -4672,7 +4664,7 @@ msgctxt "dashboard:dashboard.openSources"
 msgid "Open Sources"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:736
+#: frontend/src/pages/Diagnostics.tsx:460
 msgctxt "diagnostics:diagnostics.openSources"
 msgid "Open Sources"
 msgstr ""
@@ -4875,6 +4867,11 @@ msgctxt "products:column.outbound"
 msgid "Outbound"
 msgstr ""
 
+#: frontend/src/pages/Diagnostics.tsx:655
+msgctxt "diagnostics:diagnostics.overallState"
+msgid "Overall State"
+msgstr ""
+
 #: frontend/src/pages/RateLimits.tsx:235
 msgctxt "settings:rateLimits.overrides"
 msgid "Overrides"
@@ -5021,7 +5018,7 @@ msgctxt "commerce:commerceHub.pleaseTryAgain"
 msgid "Please try again."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:406 frontend/src/pages/Diagnostics.tsx:436
+#: frontend/src/pages/Diagnostics.tsx:553 frontend/src/pages/Diagnostics.tsx:583
 msgctxt "diagnostics:diagnostics.pleaseTryAgain"
 msgid "Please try again."
 msgstr ""
@@ -5505,7 +5502,6 @@ msgctxt "orders:orders.qty"
 msgid "Qty"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:785
 msgctxt "diagnostics:diagnostics.queueLength"
 msgid "Queue length"
 msgstr ""
@@ -5523,7 +5519,6 @@ msgctxt "navigation:sidebar.rateLimits"
 msgid "Rate Limits"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:546 frontend/src/pages/Diagnostics.tsx:758
 msgctxt "diagnostics:diagnostics.rateLimitsSummary"
 msgid "Rate limits"
 msgstr ""
@@ -5532,12 +5527,11 @@ msgctxt "activity:action.rate_limits_changed"
 msgid "Rate limits changed"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:552 frontend/src/pages/Diagnostics.tsx:773
 msgctxt "diagnostics:diagnostics.rateDataUnavailable"
 msgid "Rate-limit data has not been reported yet."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:576
+#: frontend/src/pages/Diagnostics.tsx:738
 msgctxt "diagnostics:diagnostics.reCheck"
 msgid "Re-check"
 msgstr ""
@@ -5703,7 +5697,11 @@ msgctxt "dashboard:dashboard.recentActivity"
 msgid "Recent activity"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:557
+#: frontend/src/pages/Diagnostics.tsx:775
+msgctxt "diagnostics:diagnostics.recentChecks"
+msgid "Recent checks"
+msgstr ""
+
 msgctxt "diagnostics:diagnostics.recentFailures"
 msgid "Recent failures"
 msgstr ""
@@ -5738,7 +5736,7 @@ msgctxt "sources:sourceCenter.recommendedMigrationPath"
 msgid "Recommended migration path"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:654
+#: frontend/src/pages/Diagnostics.tsx:405
 msgctxt "diagnostics:diagnostics.recommendedNextAction"
 msgid "Recommended next action"
 msgstr ""
@@ -5828,17 +5826,14 @@ msgctxt "settings:setup.confirmPasswordHint"
 msgid "Repeat password"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:808
 msgctxt "diagnostics:diagnostics.requestDuration"
 msgid "Request duration"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:777
 msgctxt "diagnostics:diagnostics.requestsAllowedPerMinute"
 msgid "Requests allowed per minute"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:766
 msgctxt "diagnostics:diagnostics.requestsAvailableNow"
 msgid "Requests available now"
 msgstr ""
@@ -6517,7 +6512,6 @@ msgctxt "dataQuality:dataQuality.summaryFirstDescription"
 msgid "See what needs attention before filtering or opening technical details."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:571
 msgctxt "diagnostics:diagnostics.summaryDescription"
 msgid "See what needs attention first, then expand technical details when needed."
 msgstr ""
@@ -6956,6 +6950,12 @@ msgctxt "orders:orders.source"
 msgid "Source"
 msgstr ""
 
+#: frontend/src/pages/Diagnostics.tsx:674
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "diagnostics:diagnostics.sourceChecks"
+msgid "Source Checks"
+msgstr ""
+
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:densePricing.sourceKey"
 msgid "Source Key"
@@ -7059,7 +7059,7 @@ msgctxt "sources:sourceConfiguration.connectionReady"
 msgid "Source connection is ready"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:242
+#: frontend/src/pages/Diagnostics.tsx:245
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceConnectionReady"
 msgid "Source connection is ready."
@@ -7199,7 +7199,6 @@ msgctxt "dashboard:dashboard.sources"
 msgid "Sources"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:518 frontend/src/pages/Diagnostics.tsx:692
 msgctxt "diagnostics:diagnostics.sources"
 msgid "Sources"
 msgstr ""
@@ -7303,7 +7302,7 @@ msgctxt "commerce:capability.statusWrite"
 msgid "Status write"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:745
+#: frontend/src/pages/Diagnostics.tsx:469
 msgctxt "diagnostics:diagnostics.status"
 msgid "Status:"
 msgstr ""
@@ -7509,6 +7508,16 @@ msgctxt "activity:activity.systemEventsAndUserActions"
 msgid "System events and user actions"
 msgstr ""
 
+#: frontend/src/pages/Diagnostics.tsx:750
+msgctxt "diagnostics:diagnostics.systemHealth"
+msgid "System health"
+msgstr ""
+
+#: frontend/src/pages/Diagnostics.tsx:733
+msgctxt "diagnostics:diagnostics.systemHealthAndIntegrationChecks"
+msgid "System health and integration checks."
+msgstr ""
+
 msgctxt "commerce:dataRole.systemImportInput"
 msgid "System import input"
 msgstr ""
@@ -7521,7 +7530,6 @@ msgctxt "dashboard:dashboard.systemStatus"
 msgid "System status"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:511 frontend/src/pages/Diagnostics.tsx:585
 msgctxt "diagnostics:diagnostics.systemStatus"
 msgid "System status"
 msgstr ""
@@ -7556,7 +7564,6 @@ msgctxt "dataQuality:dataQuality.technicalIssuesAreSeparatedFromTheDaily"
 msgid "Technical issues are separated from the daily pricing workflow. One blocked row never blocks unrelated valid products."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:805
 msgctxt "diagnostics:diagnostics.technicalRateDetails"
 msgid "Technical rate details"
 msgstr ""
@@ -7576,7 +7583,7 @@ msgctxt "commerce:commerceHub.testConnection"
 msgid "Test connection"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:677
+#: frontend/src/pages/Diagnostics.tsx:426
 msgctxt "diagnostics:diagnostics.testConnection"
 msgid "Test connection"
 msgstr ""
@@ -7701,13 +7708,13 @@ msgctxt "diagnostics:reason.external_api_healthy"
 msgid "The latest API health check succeeded."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:210
+#: frontend/src/pages/Diagnostics.tsx:213
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceConnectionError"
 msgid "The latest Source connection check failed."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:232
+#: frontend/src/pages/Diagnostics.tsx:235
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceNeedsAttention"
 msgid "The latest Source connection check needs attention."
@@ -7867,7 +7874,7 @@ msgctxt "sources:sourceCenter.archiveImpact"
 msgid "This Source has protected history, so it will be archived instead of deleted. Historical Snapshots, revisions, Apply results, and Audit records remain unchanged."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:196
+#: frontend/src/pages/Diagnostics.tsx:199
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceDisabledDescription"
 msgid "This Source is disabled. Enable it before running a connection check."
@@ -7944,7 +7951,6 @@ msgctxt "sources:sourceConfiguration.worksheetIgnored"
 msgid "This worksheet will be ignored"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:810
 msgctxt "diagnostics:diagnostics.throttleEvents"
 msgid "Throttle events"
 msgstr ""
@@ -8089,12 +8095,12 @@ msgctxt "diagnostics:diagnostics.unableToCheck"
 msgid "Unable to check"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:402
+#: frontend/src/pages/Diagnostics.tsx:549
 msgctxt "diagnostics:diagnostics.unavailableMessage"
 msgid "Unable to check diagnostics."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:401
+#: frontend/src/pages/Diagnostics.tsx:548
 msgctxt "diagnostics:diagnostics.requestTimedOut"
 msgid "Unable to check diagnostics. Request timed out."
 msgstr ""
@@ -8192,7 +8198,7 @@ msgctxt "workspace:workspace.unableToStartPreview"
 msgid "Unable to start preview"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:405 frontend/src/pages/Diagnostics.tsx:435
+#: frontend/src/pages/Diagnostics.tsx:552 frontend/src/pages/Diagnostics.tsx:582
 msgctxt "diagnostics:diagnostics.unableToUpdateDiagnostics"
 msgid "Unable to update diagnostics"
 msgstr ""
@@ -8202,7 +8208,7 @@ msgctxt "products:products.unableToValidateChannelPrices"
 msgid "Unable to validate Channel prices."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:258 frontend/src/pages/Diagnostics.tsx:548 frontend/src/pages/Diagnostics.tsx:768 frontend/src/pages/Diagnostics.tsx:779 frontend/src/pages/Diagnostics.tsx:785 frontend/src/pages/Diagnostics.tsx:793 frontend/src/pages/Diagnostics.tsx:800 frontend/src/pages/Diagnostics.tsx:810
+#: frontend/src/pages/Diagnostics.tsx:293
 msgctxt "common:status.unavailable"
 msgid "Unavailable"
 msgstr ""
@@ -8277,7 +8283,7 @@ msgctxt "products:column.unit"
 msgid "Unit"
 msgstr ""
 
-#: frontend/src/features/unifiedWorkspace/statusDisplay.ts:34 frontend/src/pages/Diagnostics.tsx:744
+#: frontend/src/features/unifiedWorkspace/statusDisplay.ts:34 frontend/src/pages/Diagnostics.tsx:468
 msgctxt "common:status.unknown"
 msgid "Unknown"
 msgstr ""
@@ -8647,7 +8653,6 @@ msgctxt "workspace:unifiedWorkspace.visibleChannels"
 msgid "Visible Channels"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:794
 msgctxt "diagnostics:diagnostics.waitEstimateUnavailable"
 msgid "Wait estimate unavailable"
 msgstr ""
@@ -8660,7 +8665,6 @@ msgctxt "dashboard:dashboard.waitForHealthCheck"
 msgid "Wait for the health check to finish."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:771
 msgctxt "diagnostics:diagnostics.waitingForQueue"
 msgid "Waiting for queue"
 msgstr ""
@@ -8711,7 +8715,6 @@ msgctxt "dashboard:dashboard.warningsMeaning"
 msgid "Warnings allow work to continue but may require a seller decision."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:588
 msgctxt "diagnostics:diagnostics.summaryHint"
 msgid "Warnings and errors are shown first so you know where to act."
 msgstr ""
@@ -9310,7 +9313,6 @@ msgctxt "sources:sourceCenter.protectedRecords"
 msgid "{{count}} protected historical records will remain available."
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:551
 msgctxt "diagnostics:diagnostics.requestsWaiting"
 msgid "{{count}} requests waiting"
 msgstr ""
@@ -9449,12 +9451,11 @@ msgctxt "dashboard:dashboard.readyChannelValue"
 msgid "{{ready}} of {{total}} ready"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:519 frontend/src/pages/Diagnostics.tsx:525
+#: frontend/src/pages/Diagnostics.tsx:669 frontend/src/pages/Diagnostics.tsx:675
 msgctxt "diagnostics:diagnostics.readyCountOfTotal"
 msgid "{{ready}} of {{total}} ready"
 msgstr ""
 
-#: frontend/src/pages/Diagnostics.tsx:780
 msgctxt "diagnostics:diagnostics.readWriteAllowance"
 msgid "{{read}} read / {{write}} write"
 msgstr ""
@@ -9633,7 +9634,7 @@ msgid_plural "{{value}} more than yesterday"
 msgstr[0] ""
 msgstr[1] ""
 
-#: frontend/src/pages/Diagnostics.tsx:260
+#: frontend/src/pages/Diagnostics.tsx:295
 msgctxt "diagnostics:units.milliseconds"
 msgid "{{value}} ms"
 msgstr ""
@@ -9703,7 +9704,7 @@ msgid_plural "{{value}} review"
 msgstr[0] ""
 msgstr[1] ""
 
-#: frontend/src/pages/Diagnostics.tsx:261
+#: frontend/src/pages/Diagnostics.tsx:296
 msgctxt "diagnostics:units.seconds"
 msgid "{{value}} seconds"
 msgstr ""

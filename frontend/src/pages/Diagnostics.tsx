@@ -13,7 +13,6 @@ import type { ChannelHealthItem, ChannelHealthResponse } from '../services/types
 import { formatDateTime, formatNumber, formatRelativeTime } from '../i18n/format'
 import { formatDiagnosticDimension, formatDiagnosticMessage, formatStatus } from '../i18n/display'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
-import { ResourceSectionList } from '../components/ResourceOrdering'
 import {
   deriveOverallDiagnosticState,
   diagnosticEvidenceCheckedAt,
@@ -32,6 +31,10 @@ import {
 
 const REQUEST_TIMEOUT_MS = 10_000
 const SOURCE_CONNECTOR_TYPES = new Set(['nextcloud', 'csv', 'gsheets', 'erp'])
+const SEVERITY_RANK: Record<DiagnosticState, number> = {
+  ERROR: 0, WARNING: 1, NOT_CHECKED: 2, INFO: 3, HEALTHY: 4, DISABLED: 5, NOT_APPLICABLE: 6,
+}
+const RECENT_CHECKS_LIMIT = 8
 
 type SummaryStatus = DiagnosticState | 'LOADING'
 
@@ -120,14 +123,14 @@ function SummaryStatusBadge({ status }: { status: SummaryStatus }) {
 
 function SummaryCard({ label, value, detail, status, icon }: SummaryCardProps) {
   return (
-    <article className="rounded-lg border border-border bg-white p-4" data-testid="diagnostics-summary-card">
+    <article className="rounded-lg border border-border bg-[var(--fh-ui-card)] p-4" data-testid="diagnostics-summary-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="fh-text-caption font-medium text-wp-muted">{label}</p>
           <p className="mt-1 fh-text-body font-semibold text-text-base">{value}</p>
           {detail && <p className="mt-1 fh-text-caption">{detail}</p>}
         </div>
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gray-50 text-wp-muted" aria-hidden="true">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-bg-subtle text-wp-muted" aria-hidden="true">
           <Icon name={icon} />
         </span>
       </div>
@@ -254,29 +257,11 @@ function sourcePresentation(connector: ConnectorStatus): SourcePresentation {
   }
 }
 
-function metricValue(value: number | null | undefined, unit?: 'milliseconds' | 'seconds'): string {
-  if (value === null || value === undefined) return translate('common:status.unavailable')
-  const formatted = formatNumber(value)
-  if (unit === 'milliseconds') return translate('diagnostics:units.milliseconds', { value: formatted })
-  if (unit === 'seconds') return translate('diagnostics:units.seconds', { value: formatted })
-  return formatted
-}
-
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
       <dt className="fh-text-caption text-wp-muted">{label}</dt>
       <dd className="mt-0.5 break-words fh-text-body-sm text-text-base">{value}</dd>
-    </div>
-  )
-}
-
-function PracticalMetric({ label, value, detail }: { label: string; value: string; detail?: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-gray-50/60 p-3">
-      <p className="fh-text-caption font-medium text-wp-muted">{label}</p>
-      <p className="mt-1 fh-text-body font-semibold text-text-base">{value}</p>
-      {detail && <p className="mt-1 fh-text-caption">{detail}</p>}
     </div>
   )
 }
@@ -303,6 +288,14 @@ const DIAGNOSTIC_GROUPS = [
     dimensions: ['queueDeadLetter'],
   },
 ] as const
+
+function metricValue(value: number | null | undefined, unit?: 'milliseconds' | 'seconds'): string {
+  if (value === null || value === undefined) return translate('common:status.unavailable')
+  const formatted = formatNumber(value)
+  if (unit === 'milliseconds') return translate('diagnostics:units.milliseconds', { value: formatted })
+  if (unit === 'seconds') return translate('diagnostics:units.seconds', { value: formatted })
+  return formatted
+}
 
 function IntegrationDetails({ channel }: { channel: ChannelHealthItem }) {
   const knownDimensions = new Set<string>(DIAGNOSTIC_GROUPS.flatMap(group => [...group.dimensions]))
@@ -364,6 +357,160 @@ function IntegrationDetails({ channel }: { channel: ChannelHealthItem }) {
         <Field label={translate('diagnostics:diagnostics.nextAction')} value={diagnosticRecommendedAction({ ...channel, recommended_action: channel.recommended_action ?? channel.nextRecommendedAction })} />
       </dl>
     </details>
+  )
+}
+
+function ChannelHealthRow({
+  channel, displayName, canRefreshChannel, refreshingChannel, onRefresh,
+}: {
+  channel: ChannelHealthItem
+  displayName: string
+  canRefreshChannel: boolean
+  refreshingChannel: string | null
+  onRefresh: (channelId: string) => void
+}) {
+  const channelEvidence: DiagnosticEvidenceLike = {
+    ...channel,
+    message: channel.summary,
+    recommended_action: channel.recommended_action ?? channel.nextRecommendedAction,
+  }
+  const lastSuccessfulVerification = channel.lastSuccessfulVerification
+  const lastSuccessfulActivity = channel.lastSuccessfulSyncOrRead ?? channel.lastSuccessfulOperation
+  const recommendedAction = diagnosticRecommendedAction(channelEvidence)
+  const needsProductRefresh = [
+    'product_sync_stale',
+    'product_sync_not_checked',
+    'product_cache_not_checked',
+    'product_cache_refresh_failed',
+  ].includes(channel.reason_code ?? '')
+  return (
+    <article className="rounded-lg border border-border p-4" data-testid={`diagnostics-channel-${channel.channelId}`} data-resource-id={channel.channelId}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name="channel" /></span>
+            <h3 className="fh-text-body font-semibold text-text-base">{displayName}</h3>
+            <DiagnosticStateBadge evidence={channelEvidence} testId={`diagnostics-channel-status-${channel.channelId}`} />
+          </div>
+          <p className="mt-2 fh-text-body-sm">{diagnosticEvidenceDescription(channelEvidence)}</p>
+          <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <Field
+              label={translate('diagnostics:diagnostics.lastSuccessfulVerification')}
+              value={lastSuccessfulVerification ? formatDateTime(lastSuccessfulVerification) : translate('diagnostics:diagnostics.neverVerified')}
+            />
+            <Field
+              label={translate('diagnostics:diagnostics.lastSuccessfulActivity', { defaultValue: 'Last successful sync or read' })}
+              value={lastSuccessfulActivity ? formatDateTime(lastSuccessfulActivity) : translate('diagnostics:diagnostics.noSuccessfulActivity', { defaultValue: 'No successful activity recorded' })}
+            />
+            <Field label={translate('diagnostics:diagnostics.recommendedNextAction')} value={recommendedAction} />
+          </dl>
+        </div>
+        {channel.enabled && needsProductRefresh ? (
+          <a
+            href={`/commerce?tab=channels&channel=${encodeURIComponent(channel.channelId)}`}
+            className="fh-button-secondary self-start"
+            data-testid={`diagnostics-channel-action-${channel.channelId}`}
+          >
+            <Icon name="refresh" />
+            {recommendedAction}
+          </a>
+        ) : canRefreshChannel && channel.enabled ? (
+          <button
+            type="button"
+            onClick={() => onRefresh(channel.channelId)}
+            disabled={refreshingChannel !== null}
+            className="fh-button-secondary self-start"
+            data-testid={`diagnostics-channel-action-${channel.channelId}`}
+          >
+            {refreshingChannel === channel.channelId ? <Spinner size="sm" /> : <Icon name="testConnection" />}
+            {translate('diagnostics:diagnostics.testConnection')}
+          </button>
+        ) : null}
+      </div>
+      <IntegrationDetails channel={channel} />
+    </article>
+  )
+}
+
+function SourceHealthRow({ connector, displayName }: { connector: ConnectorStatus; displayName: string }) {
+  const presentation = sourcePresentation(connector)
+  const lastChecked = connectorLastChecked(connector)
+  return (
+    <article className="rounded-lg border border-border p-4" data-resource-id={connector.id}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name="file" /></span>
+            <h3 className="fh-text-body font-semibold text-text-base">{displayName}</h3>
+            <DiagnosticStateBadge state={presentation.status} testId={`diagnostics-source-status-${connector.id}`} />
+          </div>
+          <p className="mt-2 fh-text-caption">{presentation.description}</p>
+          <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field
+              label={translate('diagnostics:diagnostics.lastSuccessfulCheck', { defaultValue: 'Last successful check' })}
+              value={lastChecked ? formatDateTime(lastChecked) : translate('diagnostics:diagnostics.notCheckedYet', { defaultValue: 'Not checked yet' })}
+            />
+            <Field
+              label={translate('diagnostics:diagnostics.lastSuccessfulActivity', { defaultValue: 'Last successful sync or read' })}
+              value={connector.last_successful_operation ? formatDateTime(connector.last_successful_operation) : translate('diagnostics:diagnostics.noSuccessfulActivity', { defaultValue: 'No successful activity recorded' })}
+            />
+          </dl>
+        </div>
+        <a href="/sources" className="fh-button-secondary self-start">
+          {translate('diagnostics:diagnostics.openSources', { defaultValue: 'Open Sources' })}
+        </a>
+      </div>
+      <details className="mt-3 border-t border-border pt-3">
+        <summary className="cursor-pointer select-none fh-text-body-sm font-medium text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          {translate('diagnostics:diagnostics.expandDetails', { defaultValue: 'Expand details' })}
+        </summary>
+        <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label={translate('diagnostics:diagnostics.connector')} value={connector.connector_type ?? translate('common:status.unknown')} />
+          <Field label={translate('diagnostics:diagnostics.status')} value={formatStatus(connectorHealth(connector))} />
+        </dl>
+      </details>
+    </article>
+  )
+}
+
+function BackgroundJobsRow({ runner, status }: { runner: RunnerState; status: DiagnosticState }) {
+  return (
+    <article className="rounded-lg border border-border p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name="activity" /></span>
+        <h3 className="fh-text-body font-semibold text-text-base">{translate('diagnostics:diagnostics.backgroundJobs')}</h3>
+        <DiagnosticStateBadge state={status} />
+      </div>
+      <p className="mt-2 fh-text-body-sm">{runner.state ? formatStatus(runner.state) : translate('diagnostics:diagnostics.notCheckedYet')}</p>
+      <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field
+          label={translate('diagnostics:diagnostics.lastSuccessfulActivity', { defaultValue: 'Last successful sync or read' })}
+          value={runner.lastHeartbeat ? formatDateTime(runner.lastHeartbeat) : translate('diagnostics:diagnostics.noSuccessfulActivity', { defaultValue: 'No successful activity recorded' })}
+        />
+      </dl>
+    </article>
+  )
+}
+
+interface RecentCheckEntry {
+  key: string
+  icon: IconName
+  title: string
+  description: string
+  status: DiagnosticState
+  lastChecked: string | null
+}
+
+function RecentCheckRow({ entry }: { entry: RecentCheckEntry }) {
+  return (
+    <div className="flex items-center gap-3 border-b border-border py-3 last:border-0">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name={entry.icon} /></span>
+      <div className="min-w-0 flex-1">
+        <p className="fh-text-body-sm font-semibold text-text-base">{entry.title}</p>
+        <p className="fh-text-caption truncate">{entry.description}</p>
+      </div>
+      <DiagnosticStateBadge state={entry.status} />
+    </div>
   )
 }
 
@@ -463,8 +610,6 @@ export default function Diagnostics() {
     })),
     [channels],
   )
-  const limiter = diag?.rateLimiter
-  const queueLength = limiter?.queue_length ?? null
   const checkStates = (diag?.checks ?? []).map(check => resolveDiagnosticState(check.status))
   const failedChecks = checkStates.filter(state => state === 'ERROR').length
   const warningChecks = checkStates.filter(state => state === 'WARNING').length
@@ -473,7 +618,6 @@ export default function Diagnostics() {
   const channelErrors = channelStates.filter(state => state === 'ERROR').length
   const channelWarnings = channelStates.filter(state => state === 'WARNING').length
   const channelNotChecked = channelStates.filter(state => state === 'NOT_CHECKED').length
-  const recentFailures = Math.max(channelErrors, failedChecks)
   const databaseState = databaseDiagnosticStatus(diag?.checks ?? [])
   const sourcePresentations = sourceConnectors.map(sourcePresentation)
   const activeSourcePresentations = sourceConnectors
@@ -508,59 +652,77 @@ export default function Diagnostics() {
 
   const summaryCards: SummaryCardProps[] = [
     {
-      label: translate('diagnostics:diagnostics.systemStatus'),
+      label: translate('diagnostics:diagnostics.overallState'),
       value: summaryStatusLabel(overallStatus),
       detail: checkedAt ? translate('diagnostics:diagnostics.lastChecked2', { value1: formatRelativeTime(checkedAt) }) : undefined,
       status: overallStatus,
       icon: 'diagnostics',
     },
     {
-      label: translate('diagnostics:diagnostics.sources', { defaultValue: 'Sources' }),
-      value: translate('diagnostics:diagnostics.readyCountOfTotal', { ready: sourceReadyCount, total: sourceConnectors.length }),
-      status: loading ? 'LOADING' : sourceStatus,
-      icon: 'file',
+      label: translate('diagnostics:diagnostics.healthyServices'),
+      value: formatNumber(sourceReadyCount + channelReadyCount),
+      status: loading ? 'LOADING' : overallStatus === 'LOADING' ? 'NOT_CHECKED' : 'HEALTHY',
+      icon: 'success',
     },
     {
-      label: translate('diagnostics:diagnostics.channels', { defaultValue: 'Channels' }),
+      label: translate('diagnostics:diagnostics.channelChecks'),
       value: translate('diagnostics:diagnostics.readyCountOfTotal', { ready: channelReadyCount, total: channels.length }),
       status: loading ? 'LOADING' : channelStatus,
       icon: 'channel',
     },
     {
-      label: translate('diagnostics:diagnostics.database', { defaultValue: 'Database' }),
-      value: summaryStatusLabel(loading ? 'LOADING' : databaseState),
-      detail: databaseState === 'NOT_CHECKED'
-        ? translate('diagnostics:diagnostics.databaseEvidenceUnavailable')
-        : undefined,
-      status: loading ? 'LOADING' : databaseState,
-      icon: 'commerce',
-    },
-    {
-      label: translate('diagnostics:diagnostics.backgroundJobs'),
-      value: runner?.state ? formatStatus(runner.state) : translate('diagnostics:diagnostics.notCheckedYet'),
-      detail: runner?.lastHeartbeat ? translate('diagnostics:diagnostics.lastCheckedAt', { date: formatDateTime(runner.lastHeartbeat) }) : undefined,
-      status: loading ? 'LOADING' : runnerStatus,
-      icon: 'activity',
-    },
-    {
-      label: translate('diagnostics:diagnostics.rateLimitsSummary'),
-      value: queueLength == null
-        ? translate('common:status.unavailable')
-        : queueLength === 0
-          ? translate('diagnostics:diagnostics.noRequestsWaiting')
-          : translate('diagnostics:diagnostics.requestsWaiting', { count: queueLength }),
-      detail: queueLength == null ? translate('diagnostics:diagnostics.rateDataUnavailable') : undefined,
-      status: loading ? 'LOADING' : queueLength == null ? 'NOT_CHECKED' : queueLength > 0 ? 'INFO' : 'HEALTHY',
-      icon: 'rateLimits',
-    },
-    {
-      label: translate('diagnostics:diagnostics.recentFailures'),
-      value: formatNumber(recentFailures),
-      detail: recentFailures === 0 ? translate('diagnostics:diagnostics.noRecentFailures') : undefined,
-      status: loading ? 'LOADING' : recentFailures > 0 ? 'ERROR' : 'HEALTHY',
-      icon: 'error',
+      label: translate('diagnostics:diagnostics.sourceChecks'),
+      value: translate('diagnostics:diagnostics.readyCountOfTotal', { ready: sourceReadyCount, total: sourceConnectors.length }),
+      status: loading ? 'LOADING' : sourceStatus,
+      icon: 'file',
     },
   ]
+
+  type CombinedItem =
+    | { kind: 'channel'; key: string; status: DiagnosticState; lastChecked: string | null; displayName: string; channel: ChannelHealthItem }
+    | { kind: 'source'; key: string; status: DiagnosticState; lastChecked: string | null; displayName: string; connector: ConnectorStatus }
+    | { kind: 'backgroundJobs'; key: string; status: DiagnosticState; lastChecked: string | null; runner: RunnerState }
+
+  const combinedItems: CombinedItem[] = [
+    ...orderedChannels.ordered.map((resource): CombinedItem => ({
+      kind: 'channel', key: `channel:${resource.item.channelId}`,
+      status: resolveDiagnosticState(resource.item), lastChecked: resource.item.lastChecked ?? null,
+      displayName: resource.displayName, channel: resource.item,
+    })),
+    ...orderedSources.ordered.map((resource): CombinedItem => ({
+      kind: 'source', key: `source:${resource.item.id ?? resource.id}`,
+      status: sourcePresentation(resource.item).status, lastChecked: connectorLastChecked(resource.item),
+      displayName: resource.displayName, connector: resource.item,
+    })),
+    ...(runner ? [{
+      kind: 'backgroundJobs' as const, key: 'backgroundJobs',
+      status: runnerStatus, lastChecked: runner.lastHeartbeat ?? null, runner,
+    }] : []),
+  ]
+
+  const systemHealthOrder = [...combinedItems].sort((left, right) => SEVERITY_RANK[left.status] - SEVERITY_RANK[right.status])
+  const urgentItem = systemHealthOrder.find(item => item.status === 'ERROR' || item.status === 'WARNING')
+  const urgentDescription = urgentItem
+    ? urgentItem.kind === 'channel'
+      ? diagnosticEvidenceDescription({ ...urgentItem.channel, message: urgentItem.channel.summary, recommended_action: urgentItem.channel.recommended_action ?? urgentItem.channel.nextRecommendedAction })
+      : urgentItem.kind === 'source'
+        ? sourcePresentation(urgentItem.connector).description
+        : urgentItem.runner.state ? formatStatus(urgentItem.runner.state) : translate('diagnostics:diagnostics.notCheckedYet')
+    : null
+
+  const recentChecksOrder = [...combinedItems]
+    .sort((left, right) => {
+      if (!left.lastChecked && !right.lastChecked) return 0
+      if (!left.lastChecked) return 1
+      if (!right.lastChecked) return -1
+      return new Date(right.lastChecked).getTime() - new Date(left.lastChecked).getTime()
+    })
+    .slice(0, RECENT_CHECKS_LIMIT)
+    .map((item): RecentCheckEntry => item.kind === 'channel'
+      ? { key: item.key, icon: 'channel', title: item.displayName, description: diagnosticEvidenceDescription({ ...item.channel, message: item.channel.summary, recommended_action: item.channel.recommended_action ?? item.channel.nextRecommendedAction }), status: item.status, lastChecked: item.lastChecked }
+      : item.kind === 'source'
+        ? { key: item.key, icon: 'file', title: item.displayName, description: sourcePresentation(item.connector).description, status: item.status, lastChecked: item.lastChecked }
+        : { key: item.key, icon: 'activity', title: translate('diagnostics:diagnostics.backgroundJobs'), description: item.runner.state ? formatStatus(item.runner.state) : translate('diagnostics:diagnostics.notCheckedYet'), status: item.status, lastChecked: item.lastChecked })
 
   return (
     <PageShell>
@@ -568,7 +730,7 @@ export default function Diagnostics() {
         <div>
           <h1 className="fh-page-title">{translate('diagnostics:diagnostics.diagnostics')}</h1>
           <p className="fh-page-subtitle">
-            {translate('diagnostics:diagnostics.summaryDescription', { defaultValue: 'See what needs attention first, then expand technical details when needed.' })}
+            {translate('diagnostics:diagnostics.systemHealthAndIntegrationChecks')}
           </p>
         </div>
         <button type="button" onClick={() => void runCheck()} disabled={loading} className="fh-button-secondary">
@@ -579,239 +741,45 @@ export default function Diagnostics() {
 
       {err && <div className="fh-alert fh-alert-danger" role="alert">{err}</div>}
 
-      <section className="fh-card fh-card-pad" aria-labelledby="diagnostics-system-summary">
-        <div className="mb-4">
-          <h2 id="diagnostics-system-summary" className="fh-section-title">
-            {translate('diagnostics:diagnostics.systemStatus', { defaultValue: 'System status' })}
-          </h2>
-          <p className="mt-1 fh-section-subtitle">
-            {translate('diagnostics:diagnostics.summaryHint', { defaultValue: 'Warnings and errors are shown first so you know where to act.' })}
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {summaryCards.map(card => <SummaryCard key={card.label} {...card} />)}
-        </div>
-      </section>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {summaryCards.map(card => <SummaryCard key={card.label} {...card} />)}
+      </div>
 
-      <section className="fh-card fh-card-pad" aria-labelledby="diagnostics-channels">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 id="diagnostics-channels" className="fh-section-title">
-              {translate('diagnostics:diagnostics.channels', { defaultValue: 'Channels' })}
-            </h2>
-            <p className="mt-1 fh-section-subtitle">
-              {translate('diagnostics:diagnostics.channelSummaryHint', { defaultValue: 'Connection, last successful activity, and the current action for each sales channel.' })}
-            </p>
-          </div>
-          {channelHealth && <DiagnosticStateBadge state={channelHealth.summary.overall_state ?? channelHealth.summary.state ?? channelStatus} />}
-        </div>
-        {loading && !channelHealth ? (
-          <div className="flex items-center gap-2 py-2 fh-text-body-sm"><Spinner size="sm" />{translate('diagnostics:diagnostics.loadingChannelHealth')}</div>
-        ) : channels.length === 0 ? (
-          <Empty title={translate('diagnostics:diagnostics.noChannelHealthData')} />
-        ) : (
-          <ResourceSectionList
-            resources={orderedChannels}
-            className="space-y-3"
-            renderItem={resource => {
-              const channel = resource.item
-              const channelEvidence: DiagnosticEvidenceLike = {
-                ...channel,
-                message: channel.summary,
-                recommended_action: channel.recommended_action ?? channel.nextRecommendedAction,
-              }
-              const lastSuccessfulVerification = channel.lastSuccessfulVerification
-              const lastSuccessfulActivity = channel.lastSuccessfulSyncOrRead ?? channel.lastSuccessfulOperation
-              const recommendedAction = diagnosticRecommendedAction(channelEvidence)
-              const needsProductRefresh = [
-                'product_sync_stale',
-                'product_sync_not_checked',
-                'product_cache_not_checked',
-                'product_cache_refresh_failed',
-              ].includes(channel.reason_code ?? '')
-              return (
-                <article
-                  className="rounded-lg border border-border p-4"
-                  data-testid={`diagnostics-channel-${channel.channelId}`}
-                >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="fh-text-body font-semibold text-text-base">{resource.displayName}</h3>
-                        <DiagnosticStateBadge evidence={channelEvidence} testId={`diagnostics-channel-status-${channel.channelId}`} />
-                      </div>
-                      <p className="mt-2 fh-text-body-sm">{diagnosticEvidenceDescription(channelEvidence)}</p>
-                      <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        <Field
-                          label={translate('diagnostics:diagnostics.lastSuccessfulVerification')}
-                          value={lastSuccessfulVerification ? formatDateTime(lastSuccessfulVerification) : translate('diagnostics:diagnostics.neverVerified')}
-                        />
-                        <Field
-                          label={translate('diagnostics:diagnostics.lastSuccessfulActivity', { defaultValue: 'Last successful sync or read' })}
-                          value={lastSuccessfulActivity ? formatDateTime(lastSuccessfulActivity) : translate('diagnostics:diagnostics.noSuccessfulActivity', { defaultValue: 'No successful activity recorded' })}
-                        />
-                        <Field
-                          label={translate('diagnostics:diagnostics.recommendedNextAction')}
-                          value={recommendedAction}
-                        />
-                      </dl>
-                    </div>
-                    {channel.enabled && needsProductRefresh ? (
-                      <a
-                        href={`/commerce?tab=channels&channel=${encodeURIComponent(channel.channelId)}`}
-                        className="fh-button-secondary self-start"
-                        data-testid={`diagnostics-channel-action-${channel.channelId}`}
-                      >
-                        <Icon name="refresh" />
-                        {recommendedAction}
-                      </a>
-                    ) : canRefreshChannel && channel.enabled ? (
-                      <button
-                        type="button"
-                        onClick={() => void refreshChannel(channel.channelId)}
-                        disabled={refreshingChannel !== null}
-                        className="fh-button-secondary self-start"
-                        data-testid={`diagnostics-channel-action-${channel.channelId}`}
-                      >
-                        {refreshingChannel === channel.channelId ? <Spinner size="sm" /> : <Icon name="testConnection" />}
-                        {translate('diagnostics:diagnostics.testConnection')}
-                      </button>
-                    ) : null}
-                  </div>
-                  <IntegrationDetails channel={channel} />
-                </article>
-              )
-            }}
-          />
-        )}
-      </section>
+      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+        <section className="fh-card fh-card-pad" aria-labelledby="diagnostics-system-health">
+          <h2 id="diagnostics-system-health" className="fh-section-title mb-4">{translate('diagnostics:diagnostics.systemHealth')}</h2>
+          {loading && combinedItems.length === 0 ? (
+            <div className="flex items-center gap-2 py-2 fh-text-body-sm"><Spinner size="sm" />{translate('diagnostics:diagnostics.loadingChannelHealth')}</div>
+          ) : combinedItems.length === 0 ? (
+            <Empty title={translate('diagnostics:diagnostics.noChannelHealthData')} />
+          ) : (
+            <>
+              {urgentItem && urgentDescription && (
+                <div className="fh-alert fh-alert-warning mb-4" role="status">
+                  <Icon name="warning" />
+                  <span>{urgentDescription}</span>
+                </div>
+              )}
+              <div className="space-y-3">
+                {systemHealthOrder.map(item => item.kind === 'channel'
+                  ? <ChannelHealthRow key={item.key} channel={item.channel} displayName={item.displayName} canRefreshChannel={canRefreshChannel} refreshingChannel={refreshingChannel} onRefresh={id => void refreshChannel(id)} />
+                  : item.kind === 'source'
+                    ? <SourceHealthRow key={item.key} connector={item.connector} displayName={item.displayName} />
+                    : <BackgroundJobsRow key={item.key} runner={item.runner} status={item.status} />)}
+              </div>
+            </>
+          )}
+        </section>
 
-      <section className="fh-card fh-card-pad" aria-labelledby="diagnostics-sources">
-        <div className="mb-4">
-          <h2 id="diagnostics-sources" className="fh-section-title">
-            {translate('diagnostics:diagnostics.sources', { defaultValue: 'Sources' })}
-          </h2>
-          <p className="mt-1 fh-section-subtitle">
-            {translate('diagnostics:diagnostics.sourceSummaryHint', { defaultValue: 'Connection status for spreadsheet and import sources.' })}
-          </p>
-        </div>
-        {loading && !diag ? (
-          <div className="flex items-center gap-2 py-2 fh-text-body-sm"><Spinner size="sm" />{translate('diagnostics:diagnostics.loadingConnectors')}</div>
-        ) : sourceConnectors.length === 0 ? (
-          <Empty title={translate('diagnostics:diagnostics.noSourcesConfigured', { defaultValue: 'No sources configured' })} />
-        ) : (
-          <ResourceSectionList
-            resources={orderedSources}
-            className="space-y-3"
-            renderItem={resource => {
-              const connector = resource.item
-              const presentation = sourcePresentation(connector)
-              const lastChecked = connectorLastChecked(connector)
-              return (
-                <article className="rounded-lg border border-border p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="fh-text-body font-semibold text-text-base">{resource.displayName}</h3>
-                        <DiagnosticStateBadge
-                          state={presentation.status}
-                          testId={`diagnostics-source-status-${connector.id}`}
-                        />
-                      </div>
-                      <p className="mt-2 fh-text-caption">
-                        {presentation.description}
-                      </p>
-                      <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <Field
-                          label={translate('diagnostics:diagnostics.lastSuccessfulCheck', { defaultValue: 'Last successful check' })}
-                          value={lastChecked ? formatDateTime(lastChecked) : translate('diagnostics:diagnostics.notCheckedYet', { defaultValue: 'Not checked yet' })}
-                        />
-                        <Field
-                          label={translate('diagnostics:diagnostics.lastSuccessfulActivity', { defaultValue: 'Last successful sync or read' })}
-                          value={connector.last_successful_operation ? formatDateTime(connector.last_successful_operation) : translate('diagnostics:diagnostics.noSuccessfulActivity', { defaultValue: 'No successful activity recorded' })}
-                        />
-                      </dl>
-                    </div>
-                    <a href="/sources" className="fh-button-secondary self-start">
-                      {translate('diagnostics:diagnostics.openSources', { defaultValue: 'Open Sources' })}
-                    </a>
-                  </div>
-                  <details className="mt-3 border-t border-border pt-3">
-                    <summary className="cursor-pointer select-none fh-text-body-sm font-medium text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                      {translate('diagnostics:diagnostics.expandDetails', { defaultValue: 'Expand details' })}
-                    </summary>
-                    <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <Field label={translate('diagnostics:diagnostics.connector')} value={connector.connector_type ?? translate('common:status.unknown')} />
-                      <Field label={translate('diagnostics:diagnostics.status')} value={formatStatus(connectorHealth(connector))} />
-                    </dl>
-                  </details>
-                </article>
-              )
-            }}
-          />
-        )}
-      </section>
-
-      <section className="fh-card fh-card-pad" aria-labelledby="diagnostics-rate-limits">
-        <div className="mb-4">
-          <h2 id="diagnostics-rate-limits" className="fh-section-title">
-            {translate('diagnostics:diagnostics.rateLimitsSummary', { defaultValue: 'Rate limits' })}
-          </h2>
-          <p className="mt-1 fh-section-subtitle">
-            {translate('diagnostics:diagnostics.rateLimitHint', { defaultValue: 'How quickly FlowHub can send requests without overloading connected services.' })}
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <PracticalMetric
-            label={translate('diagnostics:diagnostics.requestsAvailableNow', { defaultValue: 'Requests available now' })}
-            value={queueLength == null
-              ? translate('common:status.unavailable')
-              : queueLength === 0
-                ? translate('diagnostics:diagnostics.availableNow')
-                : translate('diagnostics:diagnostics.waitingForQueue')}
-            detail={queueLength == null
-              ? translate('diagnostics:diagnostics.rateDataUnavailable')
-              : queueLength === 0 ? translate('diagnostics:diagnostics.noQueueDelay') : undefined}
-          />
-          <PracticalMetric
-            label={translate('diagnostics:diagnostics.requestsAllowedPerMinute', { defaultValue: 'Requests allowed per minute' })}
-            value={limiter?.settings?.read_requests_per_minute == null || limiter?.settings?.write_requests_per_minute == null
-              ? translate('common:status.unavailable')
-              : translate('diagnostics:diagnostics.readWriteAllowance', {
-                read: formatNumber(limiter.settings.read_requests_per_minute),
-                write: formatNumber(limiter.settings.write_requests_per_minute),
-              })}
-          />
-          <PracticalMetric label={translate('diagnostics:diagnostics.queueLength')} value={queueLength == null ? translate('common:status.unavailable') : formatNumber(queueLength)} />
-          <PracticalMetric
-            label={translate('diagnostics:diagnostics.estimatedWaitTime', { defaultValue: 'Estimated wait time' })}
-            value={limiter?.estimated_completion_seconds != null
-              ? metricValue(limiter.estimated_completion_seconds, 'seconds')
-              : queueLength === 0
-                ? translate('diagnostics:diagnostics.noWaitExpected')
-                : queueLength == null
-                  ? translate('common:status.unavailable')
-                  : translate('diagnostics:diagnostics.waitEstimateUnavailable')}
-          />
-          <PracticalMetric
-            label={translate('diagnostics:diagnostics.lastThrottlingEvent', { defaultValue: 'Last throttling event' })}
-            value={limiter?.last_throttle
-              ? formatDateTime(limiter.last_throttle)
-              : limiter ? translate('diagnostics:diagnostics.noThrottlingRecorded') : translate('common:status.unavailable')}
-          />
-        </div>
-        <details className="mt-4 border-t border-border pt-3">
-          <summary className="cursor-pointer select-none fh-text-body-sm font-medium text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-            {translate('diagnostics:diagnostics.technicalRateDetails', { defaultValue: 'Technical rate details' })}
-          </summary>
-          <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label={translate('diagnostics:diagnostics.requestDuration')} value={metricValue(limiter?.average_request_duration_ms, 'milliseconds')} />
-            <Field label={translate('diagnostics:diagnostics.limiterDelay')} value={metricValue(limiter?.last_limiter_delay_ms ?? limiter?.last_connector_delay_ms, 'milliseconds')} />
-            <Field label={translate('diagnostics:diagnostics.throttleEvents')} value={limiter?.throttle_count == null ? translate('common:status.unavailable') : formatNumber(limiter.throttle_count)} />
-            <Field label={translate('diagnostics:diagnostics.estimatedCompletion')} value={metricValue(limiter?.estimated_completion_seconds, 'seconds')} />
-          </dl>
-        </details>
-      </section>
+        <section className="fh-card fh-card-pad" aria-labelledby="diagnostics-recent-checks">
+          <h2 id="diagnostics-recent-checks" className="fh-section-title mb-2">{translate('diagnostics:diagnostics.recentChecks')}</h2>
+          {recentChecksOrder.length === 0 ? (
+            <p className="fh-text-caption">{translate('diagnostics:diagnostics.noChannelHealthData')}</p>
+          ) : (
+            <div>{recentChecksOrder.map(entry => <RecentCheckRow key={entry.key} entry={entry} />)}</div>
+          )}
+        </section>
+      </div>
     </PageShell>
   )
 }
