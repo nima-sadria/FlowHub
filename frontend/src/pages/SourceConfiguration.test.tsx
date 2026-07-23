@@ -66,6 +66,8 @@ const source: SourceProfile & { mapping: SourceMapping | null } = {
   version: 2,
   mappingVersion: 1,
   sheetId: 'sheet-1',
+  createdAt: null,
+  updatedAt: null,
   mapping,
 }
 

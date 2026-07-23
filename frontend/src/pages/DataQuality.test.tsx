@@ -99,6 +99,7 @@ describe('DataQuality summary states', () => {
       id, name, status, sourceKind: 'flowhub_sheet', externalSourceId: null,
       worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2,
       version: 1, mappingVersion: 1, sheetId: null,
+      createdAt: null, updatedAt: null,
     })
     const channel = (
       channelId: string,

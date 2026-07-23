@@ -203,6 +203,8 @@ describe('resource signal adapters', () => {
       dataStartRow: 1,
       version: 1,
       sheetId: null,
+      createdAt: null,
+      updatedAt: null,
     })), sourceProfileSignals)
 
     expect(collection.ordered.map(item => [item.id, item.badge])).toEqual([

@@ -1159,6 +1159,213 @@ button.fh-inline-status {
   color: var(--fh-text-muted);
 }
 
+/* Figma: Screen/Sources — KPI stat row, condensed search/filter toolbar, and
+   a flat grid of source cards (icon, health badge, worksheet count, Configure). */
+
+.fh-sources-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.fh-kpi-card {
+  padding: 16px;
+  background: var(--fh-ui-elevated);
+  border: 1px solid var(--fh-ui-border);
+  border-radius: var(--fh-radius-xl);
+}
+
+.fh-kpi-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fh-kpi-card-label {
+  color: var(--fh-text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.fh-kpi-card-icon {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--fh-brand-700);
+  background: var(--fh-info-surface);
+  border-radius: var(--fh-radius-md);
+}
+
+.dark .fh-kpi-card-icon {
+  color: var(--fh-brand-300);
+}
+
+.fh-kpi-card-value {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 36px;
+}
+
+.fh-kpi-card-trend {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fh-kpi-card-trend-danger {
+  color: var(--fh-error-700);
+}
+
+.dark .fh-kpi-card-trend-danger {
+  color: var(--fh-error-400);
+}
+
+.fh-sources-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.fh-sources-search {
+  position: relative;
+  display: flex;
+  min-width: 240px;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+.fh-sources-search-icon {
+  position: absolute;
+  inset-inline-start: 12px;
+  color: var(--fh-text-muted);
+  pointer-events: none;
+}
+
+.fh-sources-search-input {
+  width: 100%;
+  min-height: 40px;
+  padding-inline-start: 36px;
+  padding-inline-end: 32px;
+  color: var(--fh-text-primary);
+  background: var(--fh-ui-control);
+  border: 1px solid var(--fh-ui-border-strong);
+  border-radius: var(--fh-radius-lg);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.fh-sources-search-input::placeholder {
+  color: var(--fh-text-placeholder);
+}
+
+.fh-sources-search-input:focus {
+  outline: none;
+  border-color: var(--fh-brand-500);
+  box-shadow: var(--fh-focus-ring);
+}
+
+.fh-sources-search-clear {
+  position: absolute;
+  inset-inline-end: 10px;
+  display: inline-flex;
+  color: var(--fh-text-muted);
+  background: transparent;
+  border: 0;
+}
+
+.fh-sources-search-clear:hover {
+  color: var(--fh-text-secondary);
+}
+
+.fh-sources-count {
+  color: var(--fh-text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.fh-sources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.fh-source-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--fh-ui-elevated);
+  border: 1px solid var(--fh-ui-border);
+  border-radius: var(--fh-radius-xl);
+}
+
+.fh-source-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fh-source-card-icon {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--fh-brand-700);
+  background: var(--fh-info-surface);
+  border-radius: var(--fh-radius-md);
+}
+
+.dark .fh-source-card-icon {
+  color: var(--fh-brand-300);
+}
+
+.fh-source-card-name {
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--fh-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fh-source-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fh-source-card-configure {
+  flex-shrink: 0;
+  color: var(--fh-brand-700);
+  background: transparent;
+  border: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fh-source-card-configure:hover {
+  text-decoration: underline;
+}
+
+.dark .fh-source-card-configure {
+  color: var(--fh-brand-300);
+}
+
 /* =========================================================
    Design tokens
    ========================================================= */

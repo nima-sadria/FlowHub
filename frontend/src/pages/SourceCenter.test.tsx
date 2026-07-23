@@ -12,16 +12,19 @@ import type { CommerceService } from '../services/commerce/CommerceService'
 import type { CommerceSource } from '../services/types'
 import SourceCenter from './SourceCenter'
 
-const source: SourceProfile = { id: 'source-1', name: 'Synthetic prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 3, mappingVersion: 2, sheetId: 'sheet-1' }
+const source: SourceProfile = { id: 'source-1', name: 'Synthetic prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 3, mappingVersion: 2, sheetId: 'sheet-1', createdAt: null, updatedAt: null }
 const admin: AuthContextValue = { user: { username: 'admin', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: fetch }
 const viewer: AuthContextValue = { ...admin, user: { username: 'viewer', role: 'user', is_admin: false, is_super_admin: false, permissions: { can_access_site: true, 'workspace.read': true } } }
 const commerce = {
   getSources: vi.fn(),
 } as unknown as CommerceService
+const products = {
+  getProducts: vi.fn(),
+} as unknown as Services['products']
 const services: Services = {
   commerce,
+  products,
   health: {} as Services['health'],
-  products: {} as Services['products'],
   sources: {} as Services['sources'],
   workspace: {} as Services['workspace'],
   settings: {} as Services['settings'],
@@ -81,7 +84,10 @@ describe('SourceCenter safe lifecycle', () => {
     container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container)
     vi.mocked(commerce.getSources).mockReset()
     vi.mocked(commerce.getSources).mockResolvedValue(emptyCommerceSources)
+    vi.mocked(products.getProducts).mockReset()
+    vi.mocked(products.getProducts).mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 1 })
     vi.spyOn(sourceWorkspaceApi, 'listSources').mockResolvedValue({ items: [source] })
+    vi.spyOn(sourceWorkspaceApi, 'source').mockResolvedValue({ ...source, mapping: null })
     vi.spyOn(sourceWorkspaceApi, 'sourceLifecycle').mockResolvedValue({ sourceId: source.id, sourceName: source.name, sourceVersion: source.version, sourceStatus: 'active', action: 'archive', blockers: {}, protectedHistory: { mappingRevisions: 1 } })
     vi.spyOn(sourceWorkspaceApi, 'deleteSource').mockResolvedValue({ sourceId: source.id, sourceName: source.name, outcome: 'archived', source: { ...source, status: 'disabled', version: 4 }, impact: { sourceId: source.id, sourceName: source.name, sourceVersion: source.version, sourceStatus: 'active', action: 'archive', blockers: {}, protectedHistory: { mappingRevisions: 1 } } })
   })
@@ -198,11 +204,11 @@ describe('SourceCenter safe lifecycle', () => {
 
     expect(Array.from(container.querySelectorAll('[data-resource-id]')).map(item => item.getAttribute('data-resource-id')))
       .toEqual(['source-a', 'source-z', 'source-b'])
-    expect(Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section')))
-      .toEqual(['active', 'disabled'])
-    expect(container.querySelector('[data-resource-id="source-a"]')?.textContent).toContain('Configured')
+    const sections = Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section'))
+    expect([...new Set(sections)]).toEqual(['active', 'disabled'])
+    expect(container.querySelector('[data-resource-id="source-a"]')?.textContent).toContain('Healthy')
     expect(container.querySelector('[data-resource-id="source-b"]')?.textContent).toContain('Disabled')
-    expect(container.querySelector('[data-resource-section="comingSoon"]')).toBeNull()
+    expect(sections).not.toContain('comingSoon')
   })
 
   it('renders responsive integration cards, merges linked Commerce metadata, and keeps Coming Soon last', async () => {
@@ -228,11 +234,9 @@ describe('SourceCenter safe lifecycle', () => {
     expect(container.querySelector('[data-source-card="source-1"]')?.textContent).toContain('Healthy')
     expect(container.querySelector('[data-source-card="source-1"] [data-source-icon]')?.getAttribute('data-source-icon')?.toLowerCase()).toContain('nextcloud.webp')
     expect(container.querySelector('[data-source-card="integration:gsheets:price-list"]')?.textContent).toContain('Coming Soon')
-    expect(Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section')))
-      .toEqual(['active', 'comingSoon'])
-    const cardGridClass = container.querySelector('[data-testid="source-card-groups"] section > div')?.className ?? ''
-    expect(cardGridClass).toContain('lg:grid-cols-2')
-    expect(cardGridClass).toContain('xl:grid-cols-3')
+    const sections = Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section'))
+    expect([...new Set(sections)]).toEqual(['active', 'comingSoon'])
+    expect(container.querySelector('[data-testid="source-card-groups"]')?.className).toContain('fh-sources-grid')
   })
 
   it('merges a legacy managed Source with Commerce metadata when their stable IDs match', async () => {
@@ -303,13 +307,19 @@ describe('SourceCenter safe lifecycle', () => {
     })
     await render()
 
-    const disabledFilter = Array.from(container.querySelectorAll('button')).find(item => item.textContent === 'Disabled') as HTMLButtonElement
-    await act(async () => disabledFilter.click())
+    const filterSelect = container.querySelector('.fh-chip-select select') as HTMLSelectElement
+    const selectValueSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value')?.set
+    await act(async () => {
+      selectValueSetter?.call(filterSelect, 'disabled')
+      filterSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    })
     expect(Array.from(container.querySelectorAll('[data-source-card]')).map(item => item.getAttribute('data-source-card')))
       .toEqual(['source-b'])
 
-    const allFilter = Array.from(container.querySelectorAll('button')).find(item => item.textContent === 'All Sources') as HTMLButtonElement
-    await act(async () => allFilter.click())
+    await act(async () => {
+      selectValueSetter?.call(filterSelect, 'all')
+      filterSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    })
     const search = container.querySelector('input[type="search"]') as HTMLInputElement
     const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
     await act(async () => {
@@ -322,7 +332,7 @@ describe('SourceCenter safe lifecycle', () => {
 
   it('opens a focused Add Source panel with the three supported entry paths', async () => {
     await render()
-    const add = Array.from(container.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Add Source') as HTMLButtonElement
+    const add = Array.from(container.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Add source') as HTMLButtonElement
     await act(async () => add.click())
 
     const dialog = container.querySelector('[role="dialog"]') as HTMLElement

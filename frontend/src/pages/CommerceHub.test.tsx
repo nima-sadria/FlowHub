@@ -997,6 +997,8 @@ describe('CommerceHub', () => {
         version: 1,
         mappingVersion: 0,
         sheetId: null,
+        createdAt: null,
+        updatedAt: null,
       }],
     })
 

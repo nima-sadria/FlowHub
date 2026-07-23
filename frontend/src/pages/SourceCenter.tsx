@@ -1,22 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
+import Badge, { type BadgeVariant } from '../components/Badge'
+import BrandIcon from '../components/BrandIcon'
+import Empty from '../components/Empty'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
-import { ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
-import BrandIcon from '../components/BrandIcon'
 import {
   commerceSourceSignals,
   prepareResourceCollection,
+  type ResourceBadge,
   type ResourceOrderingSignals,
   type ResourceTier,
 } from '../features/resourceOrdering/resourceOrdering'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
-import type { SourceLifecycleImpact, SourceProfile } from '../features/sourceWorkspace/types'
+import type { SourceLifecycleImpact, SourceMapping, SourceProfile } from '../features/sourceWorkspace/types'
 import { translate } from '../i18n'
 import { formatDataRole } from '../i18n/display'
+import { formatRelativeTime } from '../i18n/format'
 import { localizedApiError } from '../i18n/errors'
-import { formatDateTime } from '../i18n/format'
 import { useNotification } from '../notifications/NotificationProvider'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceSource } from '../services/types'
@@ -83,13 +85,32 @@ function matchesFilter(tier: ResourceTier, filter: SourceFilter): boolean {
   return tier === filter
 }
 
+function sourceBadgeTone(badge: ResourceBadge): BadgeVariant {
+  if (badge === 'healthy' || badge === 'configured') return 'success'
+  if (badge === 'warning') return 'warning'
+  return 'neutral'
+}
+
+function sourceBadgeLabel(badge: ResourceBadge): string {
+  if (badge === 'healthy' || badge === 'configured') return translate('sources:sourceCenter.healthy')
+  if (badge === 'warning') return translate('sources:sourceCenter.needsReview')
+  if (badge === 'disabled') return translate('common:resourceBadge.disabled')
+  return translate('common:resourceBadge.comingSoon')
+}
+
+function cardUpdatedAt(card: SourceCardModel): string | null {
+  return card.profile?.updatedAt ?? card.integration?.read_status?.last_read_at ?? null
+}
+
 export default function SourceCenter() {
   const navigate = useNavigate()
-  const { commerce } = useServices()
+  const { commerce, products } = useServices()
   const { user } = useAuth()
   const notify = useNotification()
   const [sources, setSources] = useState<SourceProfile[]>([])
   const [integrations, setIntegrations] = useState<CommerceSource[]>([])
+  const [worksheetMappings, setWorksheetMappings] = useState<Record<string, SourceMapping | null>>({})
+  const [totalProducts, setTotalProducts] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [query, setQuery] = useState('')
@@ -139,30 +160,55 @@ export default function SourceCenter() {
     () => prepareResourceCollection(cards, sourceCardSignals),
     [cards],
   )
-  const visibleResources = useMemo(() => {
+  const visibleCards = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase()
-    const visibleCards = sourceResources.ordered
+    return sourceResources.ordered
       .filter(resource => matchesFilter(resource.tier, filter))
       .filter(resource => !normalizedQuery
         || resource.displayName.toLocaleLowerCase().includes(normalizedQuery)
         || resource.item.integration?.provider.toLocaleLowerCase().includes(normalizedQuery))
-      .map(resource => resource.item)
-    return prepareResourceCollection(visibleCards, sourceCardSignals)
   }, [filter, query, sourceResources])
+
+  const needsAttentionCount = useMemo(
+    () => sourceResources.ordered.filter(resource => resource.tier === 'attention').length,
+    [sourceResources],
+  )
 
   removalBusyRef.current = deleting
 
   useEffect(() => {
     let active = true
-    Promise.allSettled([sourceWorkspaceApi.listSources(), commerce.getSources()])
-      .then(([managedResult, integrationResult]) => {
+    Promise.allSettled([
+      sourceWorkspaceApi.listSources(),
+      commerce.getSources(),
+      products.getProducts({ search: '', status: 'all', page: 1, pageSize: 1 }),
+    ])
+      .then(([managedResult, integrationResult, productsResult]) => {
         if (!active) return
         if (managedResult.status === 'fulfilled') setSources(managedResult.value.items)
         if (integrationResult.status === 'fulfilled') setIntegrations(integrationResult.value.items)
+        if (productsResult.status === 'fulfilled') setTotalProducts(productsResult.value.total)
       })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [commerce])
+  }, [commerce, products])
+
+  useEffect(() => {
+    let active = true
+    const managedIds = sources.filter(source => source.mappingVersion > 0).map(source => source.id)
+    if (managedIds.length === 0) return
+    Promise.allSettled(managedIds.map(id => sourceWorkspaceApi.source(id))).then(results => {
+      if (!active) return
+      setWorksheetMappings(current => {
+        const next = { ...current }
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') next[managedIds[index]] = result.value.mapping
+        })
+        return next
+      })
+    })
+    return () => { active = false }
+  }, [sources])
 
   useEffect(() => {
     if (!addPanelOpen) return
@@ -172,6 +218,17 @@ export default function SourceCenter() {
     document.addEventListener('keydown', closeOnEscape)
     return () => document.removeEventListener('keydown', closeOnEscape)
   }, [addPanelOpen])
+
+  useEffect(() => {
+    if (!openMenuId) return
+    const close = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('[data-source-menu]')) return
+      setOpenMenuId(null)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [openMenuId])
 
   useEffect(() => {
     if (!pendingDelete) return
@@ -308,10 +365,22 @@ export default function SourceCenter() {
     return translate('sources:sourceCenter.manageExternalSources')
   }
 
+  function worksheetsEnabledCount(card: SourceCardModel): number | null {
+    if (!card.profile) return null
+    if (card.profile.mappingVersion === 0) return 0
+    const mapping = worksheetMappings[card.profile.id]
+    if (mapping === undefined) return null
+    if (!mapping) return 0
+    if (mapping.worksheetRules && mapping.worksheetRules.length > 0) {
+      return mapping.worksheetRules.filter(rule => rule.enabled).length
+    }
+    return mapping.worksheetName ? 1 : 0
+  }
+
   const filterOptions: Array<{ value: SourceFilter; label: string }> = [
-    { value: 'all', label: translate('dataQuality:dataQuality.allSources') },
+    { value: 'all', label: translate('sources:sourceCenter.allHealthStates') },
     { value: 'active', label: translate('common:resourceGroup.active') },
-    { value: 'attention', label: translate('common:resourceBadge.warning') },
+    { value: 'attention', label: translate('sources:sourceCenter.needsReview') },
     { value: 'disabled', label: translate('common:resourceGroup.disabled') },
     { value: 'comingSoon', label: translate('common:resourceGroup.comingSoon') },
   ]
@@ -321,153 +390,157 @@ export default function SourceCenter() {
       <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">{translate('sources:sourceCenter.sources')}</h1>
+          <p className="fh-page-subtitle">{translate('sources:sourceCenter.manageProductDataSourcesSubtitle')}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button className="fh-button-secondary" type="button" onClick={() => navigate('/data-quality')}>
-            <Icon name="alert" /> {translate('sources:sourceCenter.dataQuality2')}
-          </button>
-          <button className="fh-button-primary" type="button" onClick={() => setAddPanelOpen(true)}>
-            <Icon name="add" /> {translate('sources:sources.addSource')}
-          </button>
+        <button className="fh-button-primary" type="button" onClick={() => setAddPanelOpen(true)}>
+          <Icon name="add" /> {translate('sources:sources.addSource')}
+        </button>
+      </div>
+
+      <div className="fh-sources-kpi-row">
+        <div className="fh-kpi-card">
+          <div className="fh-kpi-card-head">
+            <span className="fh-kpi-card-label">{translate('sources:sourceCenter.connectedSources')}</span>
+            <span className="fh-kpi-card-icon"><Icon name="products" size="sm" /></span>
+          </div>
+          <div className="fh-kpi-card-value">{cards.length}</div>
+        </div>
+        <div className="fh-kpi-card">
+          <div className="fh-kpi-card-head">
+            <span className="fh-kpi-card-label">{translate('sources:sourceCenter.needsAttentionKpi')}</span>
+            <span className="fh-kpi-card-icon"><Icon name="products" size="sm" /></span>
+          </div>
+          <div className="fh-kpi-card-value">
+            {needsAttentionCount}
+            {needsAttentionCount > 0 && <span className="fh-kpi-card-trend fh-kpi-card-trend-danger">{translate('sources:sourceCenter.reviewCaption')}</span>}
+          </div>
+        </div>
+        <div className="fh-kpi-card">
+          <div className="fh-kpi-card-head">
+            <span className="fh-kpi-card-label">{translate('sources:sourceCenter.productsImported')}</span>
+            <span className="fh-kpi-card-icon"><Icon name="products" size="sm" /></span>
+          </div>
+          <div className="fh-kpi-card-value">{totalProducts !== null ? totalProducts.toLocaleString() : '—'}</div>
         </div>
       </div>
 
-      <section className="fh-card fh-card-pad" aria-label={translate('sources:sourceCenter.managedSources')}>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <label className="relative min-w-0 flex-1">
-            <span className="sr-only">{translate('workspace:unifiedWorkspace.search')}</span>
-            <span className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-wp-muted"><Icon name="search" /></span>
-            <input
-              className="fh-input w-full ps-10"
-              type="search"
-              value={query}
-              onChange={event => setQuery(event.target.value)}
-              placeholder={translate('workspace:unifiedWorkspace.search')}
-            />
-          </label>
-          <div className="flex max-w-full gap-2 overflow-x-auto" role="group" aria-label={translate('common:field.status')}>
-            {filterOptions.map(option => (
-              <button
-                key={option.value}
-                className={filter === option.value ? 'fh-button-primary fh-button-sm whitespace-nowrap' : 'fh-button-secondary fh-button-sm whitespace-nowrap'}
-                type="button"
-                aria-pressed={filter === option.value}
-                onClick={() => setFilter(option.value)}
+      <div className="fh-sources-toolbar">
+        <form className="fh-sources-search" onSubmit={event => event.preventDefault()}>
+          <Icon name="search" size="sm" className="fh-sources-search-icon" />
+          <input
+            className="fh-sources-search-input"
+            type="search"
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+            placeholder={translate('sources:sourceCenter.searchSources')}
+            aria-label={translate('sources:sourceCenter.searchSources')}
+          />
+          {query && <button type="button" className="fh-sources-search-clear" aria-label={translate('sources:sourceCenter.clearSearch')} onClick={() => setQuery('')}><Icon name="close" size="sm" /></button>}
+        </form>
+        <label className="fh-chip-select">
+          <span className="sr-only">{translate('sources:sourceCenter.allHealthStates')}</span>
+          <select value={filter} onChange={event => setFilter(event.target.value as SourceFilter)}>
+            {filterOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+          <Icon name="chevronDown" size="sm" className="fh-chip-caret" />
+        </label>
+        <span className="fh-sources-count ms-auto">{translate('sources:sourceCenter.sourcesCount', { count: cards.length })}</span>
+      </div>
+
+      {loading ? <p className="fh-card fh-card-pad fh-text-caption">{translate('sources:sourceCenter.loadingSources')}</p> : visibleCards.length === 0 ? (
+        <div className="fh-card fh-card-pad"><Empty title={translate('sources:sourceCenter.noManagedSourceYetCreateAFlowhub')} description="" /></div>
+      ) : (
+        <div className="fh-sources-grid" data-testid="source-card-groups">
+          {visibleCards.map(resource => {
+            const card = resource.item
+            const source = card.profile
+            const integration = card.integration
+            const integrationAvailable = !integration || (integration.implemented && !integration.placeholder)
+            const canOpen = Boolean(resource.section === 'active' && (source
+              ? sourceIsEnabled(source) && integrationAvailable
+              : integration?.implemented && !integration.placeholder))
+            const showConfigureSecondary = Boolean(canOpen && source?.sheetId && source.mappingVersion > 0)
+            const showDelete = Boolean(canOpen && canManageSources && source?.status === 'active')
+            const showMenu = showConfigureSecondary || showDelete
+            const updatedAt = cardUpdatedAt(card)
+            const worksheetsEnabled = worksheetsEnabledCount(card)
+            const hasBrandIdentity = Boolean(integration || source?.sourceKind === 'external')
+            return (
+              <article
+                className="fh-source-card"
+                data-source-card={card.id}
+                data-resource-id={card.id}
+                data-resource-section={resource.section}
+                key={card.id}
+                title={sourceCardDescription(card)}
               >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-5" aria-label={translate('sources:sourceCenter.managedSources')}>
-        {loading ? <p className="fh-card fh-card-pad fh-text-caption">{translate('sources:sourceCenter.loadingSources')}</p> : visibleResources.ordered.length === 0 ? (
-          <p className="fh-card fh-card-pad fh-text-caption">{translate('sources:sourceCenter.noManagedSourceYetCreateAFlowhub')}</p>
-        ) : (
-          <div className="space-y-6" data-testid="source-card-groups">
-            <ResourceSectionList
-              resources={visibleResources}
-              className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3"
-              renderItem={resource => {
-                const card = resource.item
-                const source = card.profile
-                const integration = card.integration
-                const integrationAvailable = !integration || (integration.implemented && !integration.placeholder)
-                const canOpen = Boolean(resource.section === 'active' && (source
-                  ? sourceIsEnabled(source) && integrationAvailable
-                  : integration?.implemented && !integration.placeholder))
-                const showConfigureSecondary = Boolean(canOpen && source?.sheetId && source.mappingVersion > 0)
-                const showDelete = Boolean(canOpen && canManageSources && source?.status === 'active')
-                const showMenu = showConfigureSecondary || showDelete
-                return (
-                  <article
-                    className="fh-card fh-card-pad relative flex min-h-[168px] flex-col"
-                    data-source-card={card.id}
-                    title={sourceCardDescription(card)}
-                  >
-                    <div className="flex min-w-0 items-start gap-3 pe-9">
-                      <BrandIcon
-                        identity={{ provider: integration?.provider ?? source?.externalSourceId, sourceType: source?.sourceKind }}
-                        label={card.displayName}
-                        size={44}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="truncate font-semibold text-text-base">{card.displayName}</h2>
-                          <ResourceStateBadge badge={resource.badge} />
+                <div className="fh-source-card-head">
+                  {hasBrandIdentity
+                    ? <BrandIcon identity={{ provider: integration?.provider ?? source?.externalSourceId, sourceType: source?.sourceKind }} label={card.displayName} size={36} />
+                    : <span className="fh-source-card-icon"><Icon name="sources" size="md" /></span>}
+                  <h2 className="fh-source-card-name">{card.displayName}</h2>
+                  {showMenu && (
+                    <div className="fh-menu-anchor" data-source-menu>
+                      <button
+                        className="fh-row-actions-trigger"
+                        type="button"
+                        aria-label={translate('sources:sourceCenter.deleteOrArchive')}
+                        aria-expanded={openMenuId === card.id}
+                        data-source-menu-trigger={card.id}
+                        onClick={() => setOpenMenuId(current => current === card.id ? null : card.id)}
+                      >
+                        <Icon name="more" size="sm" />
+                      </button>
+                      {openMenuId === card.id && source && (
+                        <div className="fh-dropdown fh-row-actions-menu" role="menu">
+                          {showConfigureSecondary && (
+                            <button className="fh-dropdown-item" type="button" role="menuitem" onClick={() => { setOpenMenuId(null); navigate(`/sources/${source.id}`) }}>
+                              {translate('sources:sourceCenter.configureColumns')}
+                            </button>
+                          )}
+                          {showDelete && (
+                            <button
+                              className="fh-dropdown-item"
+                              type="button"
+                              role="menuitem"
+                              onClick={event => {
+                                removalTriggerRef.current = event.currentTarget
+                                  .closest('[data-source-card]')
+                                  ?.querySelector<HTMLButtonElement>('[data-source-menu-trigger]') ?? null
+                                void openRemoval(source)
+                              }}
+                            >
+                              <Icon name="delete" /> {translate('sources:sourceCenter.deleteSource')}
+                            </button>
+                          )}
                         </div>
-                      </div>
-                    </div>
-
-                    {showMenu && (
-                      <div className="absolute end-3 top-3">
-                        <button
-                          className="fh-icon-button-sm"
-                          type="button"
-                          aria-label={translate('sources:sourceCenter.deleteOrArchive')}
-                          aria-expanded={openMenuId === card.id}
-                          data-source-menu-trigger={card.id}
-                          onClick={() => setOpenMenuId(current => current === card.id ? null : card.id)}
-                        >
-                          <span aria-hidden="true">•••</span>
-                        </button>
-                        {openMenuId === card.id && source && (
-                          <div className="absolute end-0 z-20 mt-2 grid min-w-48 gap-1 rounded-lg border border-border bg-bg-surface p-2 shadow-lg" role="menu">
-                            {showConfigureSecondary && (
-                              <button className="fh-button-secondary fh-button-sm justify-start" type="button" role="menuitem" onClick={() => navigate(`/sources/${source.id}`)}>
-                                {translate('sources:sourceCenter.configureColumns')}
-                              </button>
-                            )}
-                            {showDelete && (
-                              <button
-                                className="fh-button-danger fh-button-sm justify-start"
-                                type="button"
-                                role="menuitem"
-                                onClick={event => {
-                                  removalTriggerRef.current = event.currentTarget
-                                    .closest('[data-source-card]')
-                                    ?.querySelector<HTMLButtonElement>('[data-source-menu-trigger]') ?? null
-                                  void openRemoval(source)
-                                }}
-                              >
-                                <Icon name="delete" /> {translate('sources:sourceCenter.deleteSource')}
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-                      {source && (
-                        <span className="fh-badge fh-badge-neutral">
-                          {translate('sources:sourceCenter.columnSetupVersion')}{source.mappingVersion || translate('sources:sourceConfiguration.notConfigured')}
-                        </span>
-                      )}
-                      {integration && (
-                        <span className="fh-text-caption">
-                          {translate('commerce:commerceHub.lastRead')} {integration.read_status?.last_read_at
-                            ? formatDateTime(integration.read_status.last_read_at)
-                            : translate('commerce:commerceHub.notRead')}
-                        </span>
                       )}
                     </div>
+                  )}
+                </div>
 
-                    <div className="mt-auto pt-4">
-                      {canOpen && (
-                        <button className="fh-button-primary w-full" type="button" onClick={() => openPrimary(card)}>
-                          {primaryLabel(card)}
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                )
-              }}
-            />
-          </div>
-        )}
-      </section>
+                <div className="fh-source-card-row">
+                  <Badge dot variant={sourceBadgeTone(resource.badge)}>{sourceBadgeLabel(resource.badge)}</Badge>
+                  {updatedAt && <span className="fh-text-caption">{translate('sources:sourceCenter.updatedPrefix')} {formatRelativeTime(updatedAt)}</span>}
+                </div>
+
+                <div className="fh-source-card-row">
+                  <span className="fh-text-caption">
+                    {worksheetsEnabled === null
+                      ? translate('sources:sourceConfiguration.loading')
+                      : translate('sources:sourceCenter.worksheetsEnabledCount', { count: worksheetsEnabled })}
+                  </span>
+                  {canOpen && (
+                    <button className="fh-source-card-configure" type="button" onClick={() => openPrimary(card)}>
+                      {primaryLabel(card)}
+                    </button>
+                  )}
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
 
       {addPanelOpen && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="source-add-title">

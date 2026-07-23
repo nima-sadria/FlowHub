@@ -12,6 +12,8 @@ export interface SourceProfile {
   version: number
   mappingVersion: number
   sheetId: string | null
+  createdAt: string | null
+  updatedAt: string | null
   legacyMapping?: {
     primaryChannelId: string
     fields: FieldMapping[]
