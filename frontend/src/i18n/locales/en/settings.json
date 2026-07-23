@@ -146,6 +146,7 @@
   "setup.reviewReadyDescription": "Your required workspace configuration is ready.",
   "setup.reviewSetup": "Review setup",
   "setup.reviewTheInstallationPathBeforeFlowhubIs": "Review the installation path before FlowHub is enabled.",
+  "setup.saveAndExit": "Save and exit",
   "setup.schema": "Schema",
   "setup.schemaDescription": "Compares the installed schema with this release.",
   "setup.schemaStatus": "Schema status",

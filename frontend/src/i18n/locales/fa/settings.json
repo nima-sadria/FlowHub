@@ -146,6 +146,7 @@
   "setup.reviewReadyDescription": "پیکربندی ضروری فضای کاری آماده است.",
   "setup.reviewSetup": "بازبینی راه‌اندازی",
   "setup.reviewTheInstallationPathBeforeFlowhubIs": "پیش از فعال‌شدن FlowHub، مسیر نصب را بازبینی کنید.",
+  "setup.saveAndExit": "ذخیره و خروج",
   "setup.schema": "ساختار",
   "setup.schemaDescription": "ساختار نصب‌شده را با این نسخه مقایسه می‌کند.",
   "setup.schemaStatus": "وضعیت ساختار",

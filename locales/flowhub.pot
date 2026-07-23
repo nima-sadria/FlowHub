@@ -512,7 +512,7 @@ msgctxt "sources:sourceCenter.activeWorkspacePreventsRemoval"
 msgid "An active Workspace uses this Source. Close or finish it before trying again."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:647
+#: frontend/src/pages/Setup.tsx:664
 msgctxt "settings:setup.ownerAlreadyExists"
 msgid "An owner or administrator account already exists."
 msgstr ""
@@ -691,7 +691,7 @@ msgctxt "dataQuality:dataQuality.permissionDeniedDescription"
 msgid "Ask an administrator for Data Quality access."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:672
+#: frontend/src/pages/Setup.tsx:689
 msgctxt "settings:setup.passwordHint"
 msgid "At least 8 characters"
 msgstr ""
@@ -754,7 +754,7 @@ msgctxt "dashboard:dashboard.awaitingReview"
 msgid "Awaiting review"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:393
+#: frontend/src/pages/Setup.tsx:395
 msgctxt "settings:setup.back"
 msgid "Back"
 msgstr ""
@@ -1315,7 +1315,7 @@ msgctxt "workspace:sourceCentricWorkspace.checkDataQualityIssues"
 msgid "Check Data Quality issues."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:578
+#: frontend/src/pages/Setup.tsx:595
 msgctxt "settings:setup.checkDatabase"
 msgid "Check Database"
 msgstr ""
@@ -1676,7 +1676,7 @@ msgctxt "navigation:topbar.commerceHub"
 msgid "Commerce Hub"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:553
+#: frontend/src/pages/Setup.tsx:570
 msgctxt "settings:setup.schemaDescription"
 msgid "Compares the installed schema with this release."
 msgstr ""
@@ -1792,7 +1792,7 @@ msgctxt "sources:sourceConfiguration.confirmCopy"
 msgid "Confirm copy"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:673
+#: frontend/src/pages/Setup.tsx:690
 msgctxt "settings:setup.confirmPassword"
 msgid "Confirm password"
 msgstr ""
@@ -1817,7 +1817,7 @@ msgctxt "dataQuality:issue.SOURCE_PRODUCT_MAPPING_CONFLICT.action"
 msgid "Confirm which product these Channel rows belong to before continuing."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:544
+#: frontend/src/pages/Setup.tsx:561
 msgctxt "settings:setup.connectionDescription"
 msgid "Confirms that FlowHub can reach its database."
 msgstr ""
@@ -1853,7 +1853,7 @@ msgctxt "common:status.connected"
 msgid "Connected"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:547
+#: frontend/src/pages/Setup.tsx:564
 msgctxt "settings:setup.connected"
 msgid "Connected"
 msgstr ""
@@ -1880,7 +1880,7 @@ msgctxt "diagnostics:diagnostics.checkGroups.connection"
 msgid "Connection"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:543
+#: frontend/src/pages/Setup.tsx:560
 msgctxt "settings:setup.connection"
 msgid "Connection"
 msgstr ""
@@ -1940,17 +1940,17 @@ msgctxt "sources:sourceConfiguration.worksheetStatus.validationErrors"
 msgid "Contains validation errors"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:508
+#: frontend/src/pages/Setup.tsx:523
 msgctxt "settings:setup.continueToDatabase"
 msgid "Continue to database"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:575
+#: frontend/src/pages/Setup.tsx:592
 msgctxt "settings:setup.continueToOwner"
 msgid "Continue to owner"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:679
+#: frontend/src/pages/Setup.tsx:696
 #. Review is the immutable validation result required before Apply.
 msgctxt "settings:setup.continueToReview"
 msgid "Continue to review"
@@ -2028,12 +2028,12 @@ msgctxt "sources:sourceConfiguration.cost"
 msgid "Cost"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:628
+#: frontend/src/pages/Setup.tsx:645
 msgctxt "settings:setup.createOwnerFailedHttp"
 msgid "Could not create owner (HTTP {{status}})"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:697
+#: frontend/src/pages/Setup.tsx:714
 msgctxt "settings:setup.finishFailedHttp"
 msgid "Could not finish setup (HTTP {{status}})"
 msgstr ""
@@ -2056,7 +2056,7 @@ msgctxt "settings:setup.createOrConfirmTheInitialOwnerAccount"
 msgid "Create or confirm the initial owner account."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:679
+#: frontend/src/pages/Setup.tsx:696
 msgctxt "settings:setup.createOwner"
 msgid "Create owner"
 msgstr ""
@@ -2065,7 +2065,7 @@ msgctxt "settings:setup.createOwnerAccount"
 msgid "Create owner account"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:648
+#: frontend/src/pages/Setup.tsx:665
 msgctxt "settings:setup.createInitialOwner"
 msgid "Create the initial FlowHub owner account."
 msgstr ""
@@ -2270,12 +2270,12 @@ msgctxt "settings:setup.databaseSchemaVersion"
 msgid "Database Schema Version"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:525
+#: frontend/src/pages/Setup.tsx:542
 msgctxt "settings:setup.databaseCheckFailedHttp"
 msgid "Database check failed (HTTP {{status}})"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:538
+#: frontend/src/pages/Setup.tsx:555
 msgctxt "settings:setup.databaseReadiness"
 msgid "Database readiness"
 msgstr ""
@@ -2301,7 +2301,7 @@ msgctxt "settings:settings.defaultCurrency"
 msgid "Default currency"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:500
+#: frontend/src/pages/Setup.tsx:511
 msgctxt "settings:setup.defaultCurrency"
 msgid "Default currency"
 msgstr ""
@@ -2615,7 +2615,7 @@ msgctxt "authentication:login.username"
 msgid "Email"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:661
+#: frontend/src/pages/Setup.tsx:678
 msgctxt "settings:setup.email"
 msgid "Email"
 msgstr ""
@@ -2916,7 +2916,7 @@ msgctxt "settings:setup.finish"
 msgid "Finish"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:718
+#: frontend/src/pages/Setup.tsx:735
 msgctxt "settings:setup.finishSetup"
 msgid "Finish setup"
 msgstr ""
@@ -3042,7 +3042,7 @@ msgctxt "workspace:workspace.flowhubWillFetchProductsFromTheConnected"
 msgid "FlowHub will fetch products from the connected channel and compare them against the configured source data. No changes will be applied."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:715
+#: frontend/src/pages/Setup.tsx:732
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "settings:setup.finishDescription"
 msgid "FlowHub will lock the public setup endpoints after completion. Source and channel connections remain available after sign-in."
@@ -3461,7 +3461,7 @@ msgctxt "settings:language.label"
 msgid "Language"
 msgstr ""
 
-#: frontend/src/components/Topbar.tsx:217 frontend/src/pages/Login.tsx:109 frontend/src/pages/Setup.tsx:478
+#: frontend/src/components/Topbar.tsx:217 frontend/src/pages/Login.tsx:109 frontend/src/pages/Setup.tsx:489
 msgctxt "settings:language.title"
 msgid "Language"
 msgstr ""
@@ -3791,7 +3791,7 @@ msgctxt "products:products.loadingProductPriceState"
 msgid "Loading product price state..."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:768
+#: frontend/src/pages/Setup.tsx:785
 msgctxt "settings:setup.loadingSetupStatus"
 msgid "Loading setup status..."
 msgstr ""
@@ -4032,22 +4032,22 @@ msgctxt "dashboard:dashboard.needsSetup"
 msgid "Needs setup"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:530
+#: frontend/src/pages/Setup.tsx:547
 msgctxt "settings:setup.databaseNetworkError"
 msgid "Network error while checking the database."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:637
+#: frontend/src/pages/Setup.tsx:654
 msgctxt "settings:setup.ownerNetworkError"
 msgid "Network error while creating the owner account."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:703
+#: frontend/src/pages/Setup.tsx:720
 msgctxt "settings:setup.finishNetworkError"
 msgid "Network error while finishing setup."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:454
+#: frontend/src/pages/Setup.tsx:455
 msgctxt "settings:setup.networkError"
 msgid "Network error. Check your connection and try again."
 msgstr ""
@@ -4535,7 +4535,7 @@ msgctxt "commerce:commerceHub.notChecked"
 msgid "Not checked"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:547 frontend/src/pages/Setup.tsx:567
+#: frontend/src/pages/Setup.tsx:564 frontend/src/pages/Setup.tsx:584
 msgctxt "settings:setup.notChecked"
 msgid "Not checked"
 msgstr ""
@@ -4941,7 +4941,7 @@ msgctxt "settings:users.role.owner"
 msgid "Owner"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:645
+#: frontend/src/pages/Setup.tsx:662
 msgctxt "settings:setup.ownerAccount"
 msgid "Owner Account"
 msgstr ""
@@ -4978,7 +4978,7 @@ msgctxt "authentication:login.password"
 msgid "Password"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:672
+#: frontend/src/pages/Setup.tsx:689
 msgctxt "settings:setup.password"
 msgid "Password"
 msgstr ""
@@ -4988,7 +4988,7 @@ msgctxt "settings:users.password"
 msgid "Password"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:615
+#: frontend/src/pages/Setup.tsx:632
 msgctxt "settings:setup.passwordsDoNotMatch"
 msgid "Passwords do not match."
 msgstr ""
@@ -5093,7 +5093,7 @@ msgctxt "commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain"
 msgid "Please verify your credentials and try again."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:403
+#: frontend/src/pages/Setup.tsx:405
 msgctxt "settings:setup.pleaseWait"
 msgid "Please wait..."
 msgstr ""
@@ -5740,7 +5740,7 @@ msgctxt "dashboard:dashboard.dailyWorkReady"
 msgid "Ready for daily work"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:713
+#: frontend/src/pages/Setup.tsx:730
 msgctxt "settings:setup.readyToFinish"
 msgid "Ready to finish"
 msgstr ""
@@ -5888,7 +5888,7 @@ msgctxt "sources:sourceCenter.confirmSourceRemoval"
 msgid "Remove “{{source}}”?"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:673
+#: frontend/src/pages/Setup.tsx:690
 msgctxt "settings:setup.confirmPasswordHint"
 msgid "Repeat password"
 msgstr ""
@@ -5981,7 +5981,7 @@ msgctxt "activity:event.retry_completed"
 msgid "Retry completed"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:577
+#: frontend/src/pages/Setup.tsx:594
 msgctxt "settings:setup.retryDatabaseCheck"
 msgid "Retry database check"
 msgstr ""
@@ -6186,7 +6186,7 @@ msgctxt "workspace:unifiedWorkspace.reviewResults"
 msgid "Review results"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:710
+#: frontend/src/pages/Setup.tsx:727
 #. Review is the immutable validation result required before Apply.
 msgctxt "settings:setup.reviewSetup"
 msgid "Review setup"
@@ -6386,6 +6386,11 @@ msgctxt "flowhubSheet:flowHubSheet.saveRevision"
 msgid "Save Revision"
 msgstr ""
 
+#: frontend/src/pages/Setup.tsx:521
+msgctxt "settings:setup.saveAndExit"
+msgid "Save and exit"
+msgstr ""
+
 #: frontend/src/pages/SourceConfiguration.tsx:1016
 msgctxt "sources:sourceConfiguration.saveMappingRevision"
 msgid "Save column setup"
@@ -6481,7 +6486,7 @@ msgctxt "workspace:workspace.scheduler"
 msgid "Scheduler"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:552
+#: frontend/src/pages/Setup.tsx:569
 msgctxt "settings:setup.schema"
 msgid "Schema"
 msgstr ""
@@ -6519,7 +6524,7 @@ msgctxt "commerce:commerceHub.searchChannels"
 msgid "Search channels"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:505
+#: frontend/src/pages/Setup.tsx:516
 msgctxt "settings:setup.searchCurrencies"
 msgid "Search currencies..."
 msgstr ""
@@ -6553,7 +6558,7 @@ msgctxt "sources:sourceCenter.searchSources"
 msgid "Search sources"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:494
+#: frontend/src/pages/Setup.tsx:505
 msgctxt "settings:setup.searchTimezones"
 msgid "Search timezones..."
 msgstr ""
@@ -6718,7 +6723,7 @@ msgctxt "settings:setup.serverProfile"
 msgid "Server Profile"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:449
+#: frontend/src/pages/Setup.tsx:450
 msgctxt "settings:setup.serverErrorHttp"
 msgid "Server error (HTTP {{status}})"
 msgstr ""
@@ -6760,7 +6765,7 @@ msgctxt "sources:sourceCenter.configureColumns"
 msgid "Set up columns"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:809
+#: frontend/src/pages/Setup.tsx:826
 msgctxt "settings:setup.setUpWorkspace"
 msgid "Set up your workspace"
 msgstr ""
@@ -7377,7 +7382,7 @@ msgctxt "settings:setup.step2"
 msgid "Step"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:810
+#: frontend/src/pages/Setup.tsx:827
 msgctxt "settings:setup.stepOf"
 msgid "Step {{step}} of {{total}}"
 msgstr ""
@@ -7494,17 +7499,17 @@ msgctxt "settings:users.role.super_admin"
 msgid "Super admin (legacy)"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:791
+#: frontend/src/pages/Setup.tsx:808
 msgctxt "settings:setup.switchLanguage"
 msgid "Switch interface language"
 msgstr ""
 
-#: frontend/src/components/Topbar.tsx:190 frontend/src/pages/Login.tsx:119 frontend/src/pages/Setup.tsx:801
+#: frontend/src/components/Topbar.tsx:190 frontend/src/pages/Login.tsx:119 frontend/src/pages/Setup.tsx:818
 msgctxt "navigation:topbar.switchToDarkMode"
 msgid "Switch to dark mode"
 msgstr ""
 
-#: frontend/src/components/Topbar.tsx:189 frontend/src/pages/Login.tsx:118 frontend/src/pages/Setup.tsx:800
+#: frontend/src/components/Topbar.tsx:189 frontend/src/pages/Login.tsx:118 frontend/src/pages/Setup.tsx:817
 msgctxt "navigation:topbar.switchToLightMode"
 msgid "Switch to light mode"
 msgstr ""
@@ -7738,7 +7743,7 @@ msgctxt "diagnostics:reason.dead_letter_queue_disabled"
 msgid "The dead-letter queue is intentionally turned off."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:652
+#: frontend/src/pages/Setup.tsx:669
 msgctxt "settings:setup.existingOwnerUsed"
 msgid "The existing privileged account will be used for this workspace."
 msgstr ""
@@ -7897,7 +7902,7 @@ msgctxt "commerce:commerceHub.theseControlsOnlyAffectSourceReadPolicy"
 msgid "These controls only affect source read policy presentation and action placement."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:463
+#: frontend/src/pages/Setup.tsx:474
 msgctxt "settings:setup.workspaceDetailsDescription"
 msgid "These defaults shape seller workflows and can be changed later."
 msgstr ""
@@ -8028,7 +8033,7 @@ msgctxt "common:status.timeout"
 msgid "Timeout"
 msgstr ""
 
-#: frontend/src/pages/Settings.tsx:142 frontend/src/pages/Setup.tsx:489
+#: frontend/src/pages/Settings.tsx:142 frontend/src/pages/Setup.tsx:500
 msgctxt "settings:settings.timezone"
 msgid "Timezone"
 msgstr ""
@@ -8396,7 +8401,7 @@ msgctxt "commerce:commerceHub.upOneFolder"
 msgid "Up one folder"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:564
+#: frontend/src/pages/Setup.tsx:581
 msgctxt "settings:setup.upToDate"
 msgid "Up to date"
 msgstr ""
@@ -8405,7 +8410,7 @@ msgctxt "diagnostics:message.updateCredentialsAndRefresh"
 msgid "Update credentials and run an explicit health refresh."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:566
+#: frontend/src/pages/Setup.tsx:583
 msgctxt "settings:setup.updateRequired"
 msgid "Update required"
 msgstr ""
@@ -8536,7 +8541,7 @@ msgctxt "activity:event.user_role_changed"
 msgid "User role changed"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:656
+#: frontend/src/pages/Setup.tsx:673
 msgctxt "settings:setup.username"
 msgid "Username"
 msgstr ""
@@ -8646,7 +8651,7 @@ msgctxt "settings:setup.verifyDatabase"
 msgid "Verify database"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:538
+#: frontend/src/pages/Setup.tsx:555
 msgctxt "settings:setup.databaseReadinessDescription"
 msgid "Verify the connection and required FlowHub schema."
 msgstr ""
@@ -8996,12 +9001,12 @@ msgctxt "settings:settings.workspaceDefaultsAndRegionalPreferences"
 msgid "Workspace defaults and regional preferences."
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:462
+#: frontend/src/pages/Setup.tsx:473
 msgctxt "settings:setup.workspaceDetails"
 msgid "Workspace details"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:469
+#: frontend/src/pages/Setup.tsx:480
 msgctxt "settings:setup.workspaceDomain"
 msgid "Workspace domain"
 msgstr ""
@@ -9107,7 +9112,7 @@ msgctxt "sources:sourceCenter.safeRemoval"
 msgid "Your history is protected"
 msgstr ""
 
-#: frontend/src/pages/Setup.tsx:710
+#: frontend/src/pages/Setup.tsx:727
 msgctxt "settings:setup.reviewReadyDescription"
 msgid "Your required workspace configuration is ready."
 msgstr ""

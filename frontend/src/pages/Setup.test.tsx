@@ -151,4 +151,36 @@ describe('Setup', () => {
     }))
     expect(container.textContent).toContain('Database readiness')
   })
+
+  it('saves the server profile and exits without advancing when "Save and exit" is used', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      if (String(input).endsWith('/api/v2/setup/status')) {
+        return new Response(JSON.stringify({ completed: false, has_admin: false }), { status: 200 })
+      }
+      if (String(input).endsWith('/api/v2/setup/server-profile')) {
+        return new Response(JSON.stringify({ ok: true }), { status: 200 })
+      }
+      throw new Error(`Unexpected request: ${String(input)} ${init?.method ?? 'GET'}`)
+    })
+    const assignSpy = vi.fn()
+    const originalLocation = window.location
+    Object.defineProperty(window, 'location', { value: { ...originalLocation, assign: assignSpy }, writable: true })
+
+    try {
+      await renderSetup()
+      const exitButton = Array.from(container.querySelectorAll('button'))
+        .find(button => button.textContent?.includes('Save and exit'))
+      await act(async () => {
+        exitButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      })
+
+      const request = fetchMock.mock.calls.find(([input]) => String(input).endsWith('/api/v2/setup/server-profile'))
+      expect(request).toBeDefined()
+      expect(request?.[1]?.method).toBe('POST')
+      expect(assignSpy).toHaveBeenCalledWith('/')
+      expect(container.textContent).toContain('Workspace details')
+    } finally {
+      Object.defineProperty(window, 'location', { value: originalLocation, writable: true })
+    }
+  })
 })

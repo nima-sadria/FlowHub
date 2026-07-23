@@ -375,12 +375,14 @@ function StepSection({ title, subtitle, children }: {
 
 function Actions({
   onBack,
+  backLabel,
   onNext,
   nextLabel,
   loading,
   nextDisabled,
 }: {
   onBack?: () => void
+  backLabel?: string
   onNext: () => void
   nextLabel: string
   loading: boolean
@@ -390,7 +392,7 @@ function Actions({
     <div className="mt-4 flex flex-col-reverse justify-end gap-2 sm:flex-row">
       {onBack && (
         <button type="button" onClick={onBack} disabled={loading} className="fh-button-secondary fh-button-sm">
-          {translate('settings:setup.back')}
+          {backLabel ?? translate('settings:setup.back')}
         </button>
       )}
       <button
@@ -430,8 +432,7 @@ function WorkspaceStep({ onNext }: { onNext: () => void }) {
     label: translate(option.labelKey),
   }))
 
-  async function submit(event?: FormEvent) {
-    event?.preventDefault()
+  async function saveServerProfile(): Promise<boolean> {
     setError(null)
     setLoading(true)
     try {
@@ -447,14 +448,24 @@ function WorkspaceStep({ onNext }: { onNext: () => void }) {
       })
       if (!response.ok) {
         setError(await responseError(response, translate('settings:setup.serverErrorHttp', { status: response.status })))
-        return
+        return false
       }
-      onNext()
+      return true
     } catch {
       setError(translate('settings:setup.networkError'))
+      return false
     } finally {
       setLoading(false)
     }
+  }
+
+  async function submit(event?: FormEvent) {
+    event?.preventDefault()
+    if (await saveServerProfile()) onNext()
+  }
+
+  async function saveAndExit() {
+    if (await saveServerProfile()) window.location.assign('/')
   }
 
   return (
@@ -505,7 +516,13 @@ function WorkspaceStep({ onNext }: { onNext: () => void }) {
             template_variable={translate('settings:setup.searchCurrencies')}
           />
         </div>
-        <Actions onNext={() => { void submit() }} nextLabel={translate('settings:setup.continueToDatabase')} loading={loading} />
+        <Actions
+          onBack={() => { void saveAndExit() }}
+          backLabel={translate('settings:setup.saveAndExit')}
+          onNext={() => { void submit() }}
+          nextLabel={translate('settings:setup.continueToDatabase')}
+          loading={loading}
+        />
       </form>
     </StepSection>
   )
