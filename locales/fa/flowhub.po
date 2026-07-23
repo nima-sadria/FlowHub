@@ -171,6 +171,7 @@ msgctxt "dashboard:dashboard.totalProductsAcrossChannels"
 msgid "Across connected Channels"
 msgstr "در کانال‌های متصل"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:457
 msgctxt "products:column.actions"
 msgid "Actions"
 msgstr "عملیات"
@@ -179,6 +180,12 @@ msgstr "عملیات"
 msgctxt "settings:users.actions"
 msgid "Actions"
 msgstr "عملیات"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:609
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.rowActions"
+msgid "Actions for {{product}} on {{channel}}"
+msgstr "عملیات برای {{product}} در {{channel}}"
 
 #: frontend/src/components/ResourceOrdering.tsx:12 frontend/src/pages/SourceCenter.tsx:313
 msgctxt "common:resourceGroup.active"
@@ -325,12 +332,12 @@ msgctxt "sources:sourceImportWizard.afterImportMapSourceProductFieldsAnd"
 msgid "After import, choose the Source Product columns and the columns for every enabled Channel. FlowHub does not guess business fields from headers."
 msgstr "پس از ورود، ستون‌های محصول منبع و ستون‌های هر کانال فعال را انتخاب کنید. FlowHub فیلدهای کسب‌وکار را از روی سرستون‌ها حدس نمی‌زند."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:533
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:430
 msgctxt "products:products.allCategories"
 msgid "All Categories"
 msgstr "همه دسته‌ها"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:529 frontend/src/pages/Orders.tsx:149 frontend/src/pages/UnifiedWorkspace.tsx:236
+#: frontend/src/pages/Orders.tsx:149 frontend/src/pages/UnifiedWorkspace.tsx:236
 msgctxt "common:selector.allChannels"
 msgid "All Channels"
 msgstr "همه کانال‌ها"
@@ -340,16 +347,24 @@ msgctxt "dataQuality:dataQuality.allChannels"
 msgid "All Channels"
 msgstr "همه کانال‌ها"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:402 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:404
 msgctxt "products:products.allChannels"
 msgid "All Channels"
 msgstr "همه کانال‌ها"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:867
+msgctxt "products:products.allChannelsCount"
+msgid "All Channels ({{value}})"
+msgid_plural "All Channels ({{value}})"
+msgstr[0] "همه کانال‌ها ({{value}})"
+msgstr[1] "همه کانال‌ها ({{value}})"
 
 #: frontend/src/pages/DataQuality.tsx:229 frontend/src/pages/SourceCenter.tsx:312
 msgctxt "dataQuality:dataQuality.allSources"
 msgid "All Sources"
 msgstr "همه منابع"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:537
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:437
 msgctxt "products:products.allTypes"
 msgid "All Types"
 msgstr "همه نوع‌ها"
@@ -408,7 +423,11 @@ msgctxt "common:selector.allStatuses"
 msgid "All statuses"
 msgstr "همه وضعیت‌ها"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:541
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:393 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:395
+msgctxt "products:products.allStatuses"
+msgid "All statuses"
+msgstr "همه وضعیت‌ها"
+
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "products:products.allStockStates"
 msgid "All stock states"
@@ -485,6 +504,12 @@ msgctxt "workspace:statusDisplay.applied"
 msgid "Applied"
 msgstr "اعمال‌شده"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:822
+#. Current is the latest verified or cached Channel value.
+msgctxt "products:products.appliedToBasePrice"
+msgid "Applied to current base price of each selected product."
+msgstr "اعمال‌شده روی قیمت پایه هر محصول انتخاب‌شده."
+
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "activity:category.apply"
 msgid "Apply"
@@ -495,7 +520,7 @@ msgctxt "products:products.apply"
 msgid "Apply"
 msgstr "اعمال"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:575 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:54 frontend/src/pages/UnifiedWorkspace.tsx:189
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:928 frontend/src/pages/UnifiedWorkspace.tsx:189
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.apply"
 msgid "Apply"
@@ -513,13 +538,12 @@ msgctxt "workspace:unifiedWorkspace.applySelectedOnly"
 msgid "Apply Selected Only"
 msgstr "فقط اعمال موارد انتخاب‌شده"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:977
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:densePricing.applyBulkChanges"
 msgid "Apply bulk changes"
 msgstr "اعمال تغییرات گروهی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:605
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:510
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyConfirmation"
 msgid "Apply confirmation"
@@ -542,7 +566,7 @@ msgctxt "workspace:workspace.applyRequiresDryRunAndApprovalFirst"
 msgid "Apply requires Dry Run and Approval first"
 msgstr "اعمال ابتدا به اجرای آزمایشی و تأیید نیاز دارد"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:989 frontend/src/pages/UnifiedWorkspace.tsx:188
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:932 frontend/src/pages/UnifiedWorkspace.tsx:188
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyResults"
 msgid "Apply results"
@@ -553,19 +577,27 @@ msgctxt "dashboard:dashboard.applyApprovedChanges"
 msgid "Apply the approved changes when you are ready."
 msgstr "هر زمان آماده بودید، تغییرات تأییدشده را اعمال کنید."
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:904
+#. Apply means executing an approved change against a sales Channel.
+msgctxt "products:products.applyToDraft"
+msgid "Apply to Draft ({{value}})"
+msgid_plural "Apply to Draft ({{value}})"
+msgstr[0] "اعمال روی پیش‌نویس ({{value}})"
+msgstr[1] "اعمال روی پیش‌نویس ({{value}})"
+
 #: frontend/src/pages/Workspace.tsx:588
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:workspace.applyToWoocommerce"
 msgid "Apply to WooCommerce"
 msgstr "اعمال در WooCommerce"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:471
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:305
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyWasBlocked"
 msgid "Apply was blocked"
 msgstr "اعمال مسدود شد"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:989
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:932
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.applyResultStatus"
 msgid "Apply — {{status}}"
@@ -579,7 +611,7 @@ msgctxt "workspace:statusDisplay.applying"
 msgid "Applying"
 msgstr "در حال اعمال"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:461
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:295
 msgctxt "workspace:sourceCentricWorkspace.applyingSelectedListings"
 msgid "Applying selected Listings"
 msgstr "در حال اعمال لیستینگ‌های انتخاب‌شده"
@@ -630,6 +662,11 @@ msgctxt "authentication:login.serviceUnavailable"
 msgid "Authentication service is temporarily unavailable. Please try again."
 msgstr "سرویس احراز هویت موقتاً در دسترس نیست. دوباره تلاش کنید."
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:882
+msgctxt "products:products.autoUpdating"
+msgid "Auto-updating"
+msgstr "به‌روزرسانی خودکار"
+
 #: frontend/src/pages/Workspace.tsx:559
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:workspace.automaticApply"
@@ -651,6 +688,16 @@ msgctxt "diagnostics:reason.token_refresh_disabled"
 msgid "Automatic token refresh is turned off."
 msgstr "تازه‌سازی خودکار توکن خاموش است."
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:455
+msgctxt "products:column.availability"
+msgid "Availability"
+msgstr "وضعیت"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:847 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:849 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:850 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:853
+msgctxt "products:products.availabilityStatus"
+msgid "Availability Status"
+msgstr "وضعیت موجودی"
+
 #: frontend/src/pages/Diagnostics.tsx:770
 msgctxt "diagnostics:diagnostics.availableNow"
 msgid "Available now"
@@ -667,7 +714,7 @@ msgctxt "settings:setup.back"
 msgid "Back"
 msgstr "بازگشت"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:981 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:985
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:928
 msgctxt "workspace:densePricing.backToGrid"
 msgid "Back to Grid"
 msgstr "بازگشت به جدول"
@@ -724,7 +771,7 @@ msgctxt "sources:sourceConfiguration.blockedIssue"
 msgid "Blocked issue"
 msgstr "مشکل مسدودکننده"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:977
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:893
 msgctxt "workspace:sourceCentricWorkspace.blockedRows"
 msgid "Blocked rows"
 msgstr "ردیف‌های مسدود"
@@ -766,12 +813,20 @@ msgctxt "commerce:commerceHub.browseNextcloud"
 msgid "Browse Nextcloud"
 msgstr "مرور Nextcloud"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:565
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:366 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:22
+msgctxt "products:products.bulkEdit"
+msgid "Bulk Edit"
+msgstr "ویرایش گروهی"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:789 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:793
+msgctxt "products:products.bulkEditProducts"
+msgid "Bulk Edit Products"
+msgstr "ویرایش گروهی محصولات"
+
 msgctxt "workspace:densePricing.bulkAction"
 msgid "Bulk action"
 msgstr "عملیات گروهی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:977
 msgctxt "workspace:densePricing.bulkPreview"
 msgid "Bulk change preview"
 msgstr "پیش‌نمایش تغییر گروهی"
@@ -780,19 +835,18 @@ msgctxt "workspace:densePricing.visibleRowsScope"
 msgid "Bulk scope: all visible rows"
 msgstr "دامنه عملیات گروهی: همه ردیف‌های قابل مشاهده"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:570
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:885
 msgctxt "workspace:densePricing.selectedRowsScope"
 msgid "Bulk scope: {{count}} selected row"
 msgid_plural "Bulk scope: {{count}} selected rows"
 msgstr[0] "دامنه عملیات گروهی: {{count}} ردیف انتخاب‌شده"
 msgstr[1] "دامنه عملیات گروهی: {{count}} ردیف انتخاب‌شده"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:564 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:50
 msgctxt "workspace:densePricing.bulkTransformationToolbar"
 msgid "Bulk transformation toolbar"
 msgstr "نوار عملیات گروهی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:568
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:820
 msgctxt "workspace:densePricing.bulkValue"
 msgid "Bulk value"
 msgstr "مقدار عملیات گروهی"
@@ -823,7 +877,7 @@ msgctxt "workspace:workspace.csvAndGoogleSheetsAreNotAvailable"
 msgid "CSV and Google Sheets are not available in 1.0.0."
 msgstr "CSV و Google Sheets در نسخه 1.0.0 در دسترس نیستند."
 
-#: frontend/src/pages/Products.tsx:178
+#: frontend/src/pages/Products.tsx:166
 msgctxt "products:products.cachedProductsReadOnly"
 msgid "Cached products are shown read-only until inline pricing is available."
 msgstr "محصولات ذخیره‌شده در کش تا آماده‌شدن ویرایش قیمت، فقط‌خواندنی نمایش داده می‌شوند."
@@ -854,7 +908,7 @@ msgctxt "settings:users.cancel"
 msgid "Cancel"
 msgstr "انصراف"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:605 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:977
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:510 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:799 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:902
 msgctxt "workspace:sourceCentricWorkspace.cancel"
 msgid "Cancel"
 msgstr "لغو"
@@ -905,7 +959,7 @@ msgctxt "diagnostics:message.capabilityApplyProtections"
 msgid "Capability advertised; FlowHub Apply protections still apply."
 msgstr "قابلیت اعلام شده است؛ حفاظت‌های اعمال FlowHub همچنان برقرارند."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:532 frontend/src/features/sourceWorkspace/densePricingGrid.ts:77 frontend/src/pages/Products.tsx:181
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:428 frontend/src/pages/Products.tsx:169
 msgctxt "products:column.categories"
 msgid "Categories"
 msgstr "دسته‌بندی‌ها"
@@ -948,7 +1002,6 @@ msgctxt "orders:orders.adjustFilters"
 msgid "Change the search or filters to see other orders."
 msgstr "برای دیدن سفارش‌های دیگر، جستجو یا فیلترها را تغییر دهید."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:525
 msgctxt "workspace:densePricing.changeStateFilter"
 msgid "Change-state filter"
 msgstr "فیلتر وضعیت تغییر"
@@ -1011,12 +1064,13 @@ msgctxt "orders:orders.channel"
 msgid "Channel"
 msgstr "کانال"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:450
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "products:column.channel"
 msgid "Channel"
 msgstr "کانال"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:528 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:977 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:981 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:985 frontend/src/pages/UnifiedWorkspace.tsx:236 frontend/src/pages/Workspace.tsx:547
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:928 frontend/src/pages/UnifiedWorkspace.tsx:236 frontend/src/pages/Workspace.tsx:547
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "workspace:unifiedWorkspace.channel"
 msgid "Channel"
@@ -1031,6 +1085,12 @@ msgstr "سلامت کانال"
 msgctxt "dataQuality:issue.SOURCE_PRODUCT_MAPPING_CONFLICT.summary"
 msgid "Channel Listings under this Source Product resolve to different products."
 msgstr "محصول‌های کانال زیر این ردیف منبع به محصولات متفاوتی ارتباط دارند."
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:864
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.channelScope"
+msgid "Channel Scope"
+msgstr "دامنه کانال"
 
 #. Review is the immutable validation result required before Apply.
 msgctxt "errors:codes.CAPABILITY_CHANGED"
@@ -1171,7 +1231,6 @@ msgctxt "navigation:sidebar.channels"
 msgid "Channels"
 msgstr "کانال‌ها"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:557
 msgctxt "workspace:sourceCentricWorkspace.channels"
 msgid "Channels"
 msgstr "کانال‌ها"
@@ -1378,6 +1437,11 @@ msgstr "پاک‌کردن همه"
 msgctxt "sources:sourceConfiguration.clearMapping"
 msgid "Clear column choices"
 msgstr "پاک‌کردن انتخاب ستون‌ها"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:388
+msgctxt "products:products.clearSearch"
+msgid "Clear search"
+msgstr "پاک کردن جست‌وجو"
 
 msgctxt "products:products.clearVisible"
 msgid "Clear visible"
@@ -1636,7 +1700,7 @@ msgctxt "commerce:commerceHub.configuredLeaveBlankToKeepUnchanged"
 msgid "Configured; leave blank to keep unchanged."
 msgstr "پیکربندی شده است؛ برای حفظ مقدار فعلی، خالی بگذارید."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:605
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:510
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.confirmApply"
 msgid "Confirm Apply"
@@ -1652,7 +1716,7 @@ msgctxt "settings:setup.confirmPassword"
 msgid "Confirm password"
 msgstr "تکرار رمز عبور"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:605
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:510
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "workspace:sourceCentricWorkspace.confirmSelectedApply"
 msgid "Confirm selected Apply"
@@ -1692,7 +1756,7 @@ msgctxt "dashboard:dashboard.addSourceToBuildCatalog"
 msgid "Connect a Source to build your product catalog."
 msgstr "برای ساخت فهرست محصولات، یک منبع متصل کنید."
 
-#: frontend/src/pages/Products.tsx:166
+#: frontend/src/pages/Products.tsx:158
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "products:products.connectAProductSourceFromSourcesTo"
 msgid "Connect a product source from Sources to browse products."
@@ -2007,7 +2071,7 @@ msgctxt "common:status.current"
 msgid "Current"
 msgstr "فعلی"
 
-#: frontend/src/pages/Products.tsx:181
+#: frontend/src/pages/Products.tsx:169
 #. Current is the latest verified or cached Channel value.
 msgctxt "products:column.current"
 msgid "Current"
@@ -2349,7 +2413,6 @@ msgctxt "workspace:statusDisplay.draftSaved"
 msgid "Draft Saved"
 msgstr "پیش‌نویس ذخیره‌شده"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:514
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:sourceCentricWorkspace.draftSaved"
 msgid "Draft saved"
@@ -2365,7 +2428,6 @@ msgctxt "activity:category.dry_run"
 msgid "Dry Run"
 msgstr "اجرای آزمایشی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:574 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:53
 msgctxt "products:products.dryRun"
 msgid "Dry Run"
 msgstr "اجرای آزمایشی"
@@ -2412,6 +2474,12 @@ msgstr "ویرایش مستقیم در فضای کاری قیمت‌گذاری"
 msgctxt "products:products.editPrices"
 msgid "Edit prices"
 msgstr "ویرایش قیمت‌ها"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:563 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:578 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:591
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.fieldEditLabel"
+msgid "Edit {{field}} for {{product}} on {{channel}}"
+msgstr "ویرایش {{field}} برای {{product}} در {{channel}}"
 
 msgctxt "products:products.editableValueUnit"
 msgid "Editable value unit: {{unit}}"
@@ -2603,6 +2671,11 @@ msgctxt "sources:sourceConfiguration.exampleColumn"
 msgid "Example: C"
 msgstr "نمونه: C"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:622
+msgctxt "products:products.excludeFromSave"
+msgid "Exclude from save"
+msgstr "حذف از ذخیره"
+
 #: frontend/src/pages/SourceConfiguration.tsx:708
 msgctxt "sources:sourceConfiguration.section.accessScopeHelp"
 msgid "Existing permissions continue to control configuration and Workspace access."
@@ -2670,7 +2743,7 @@ msgctxt "workspace:workspace.failedToCreateDryRun"
 msgid "Failed to create Dry Run."
 msgstr "ایجاد اجرای آزمایشی ناموفق بود."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:977 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:981 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:985
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:928
 msgctxt "workspace:densePricing.field"
 msgid "Field"
 msgstr "فیلد"
@@ -2699,10 +2772,15 @@ msgctxt "flowhubSheet:flowHubSheet.filterRows"
 msgid "Filter rows"
 msgstr "فیلتر ردیف‌ها"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:524 frontend/src/pages/UnifiedWorkspace.tsx:239
+#: frontend/src/pages/UnifiedWorkspace.tsx:239
 msgctxt "workspace:unifiedWorkspace.filterServerData"
 msgid "Filter server data"
 msgstr "فیلتر داده‌های سرور"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:424
+msgctxt "products:products.filters"
+msgid "Filters"
+msgstr "فیلترها"
 
 #: frontend/src/pages/DataQuality.tsx:227
 msgctxt "dataQuality:dataQuality.filters"
@@ -2926,7 +3004,7 @@ msgctxt "sources:sourceConfiguration.section.general"
 msgid "General"
 msgstr "عمومی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:432 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:444
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:267 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:279
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.generateAFreshReview"
 msgid "Generate a fresh Review."
@@ -3082,7 +3160,12 @@ msgctxt "settings:setup.inProgress"
 msgid "In progress"
 msgstr "در حال انجام"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:542
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "common:status.inStock"
+msgid "In stock"
+msgstr "موجود"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:396
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "products:products.inStock"
 msgid "In stock"
@@ -3091,6 +3174,11 @@ msgstr "موجود"
 msgctxt "common:status.inactive"
 msgid "Inactive"
 msgstr "غیرفعال"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:622
+msgctxt "products:products.includeInSave"
+msgid "Include in save"
+msgstr "افزودن به ذخیره"
 
 #: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:137
 msgctxt "sources:sourceConfiguration.worksheetIncluded"
@@ -3123,12 +3211,12 @@ msgctxt "settings:rateLimits.inheritedByEverySourceAndChannel"
 msgid "Inherited by every Source and Channel"
 msgstr "برای همه منابع و کانال‌ها اعمال می‌شود"
 
-#: frontend/src/pages/Products.tsx:37
+#: frontend/src/pages/Products.tsx:36
 msgctxt "products:products.inlinePricingUnavailableHttp"
 msgid "Inline pricing is unavailable (HTTP {{status}}). Cached products remain visible without editing."
 msgstr "ویرایش مستقیم قیمت در دسترس نیست (HTTP {{status}}). محصولات ذخیره‌شده در کش بدون امکان ویرایش نمایش داده می‌شوند."
 
-#: frontend/src/pages/Products.tsx:179 frontend/src/pages/Products.tsx:39
+#: frontend/src/pages/Products.tsx:167 frontend/src/pages/Products.tsx:38
 msgctxt "products:products.inlinePricingUnavailable"
 msgid "Inline pricing is unavailable. Cached products remain visible without editing."
 msgstr "ویرایش مستقیم قیمت در دسترس نیست. محصولات ذخیره‌شده در کش بدون امکان ویرایش نمایش داده می‌شوند."
@@ -3233,6 +3321,11 @@ msgstr "۳۰ روز گذشته"
 msgctxt "dashboard:dashboard.lastPreview"
 msgid "Last Preview"
 msgstr "آخرین پیش‌نمایش"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:456
+msgctxt "products:column.lastSync"
+msgid "Last Sync"
+msgstr "آخرین همگام‌سازی"
 
 #: frontend/src/pages/CommerceHub.tsx:231
 msgctxt "commerce:commerceHub.lastCacheRefresh"
@@ -3396,7 +3489,7 @@ msgctxt "sources:sourceCenter.linkedExternalSource"
 msgid "Linked external Source"
 msgstr "منبع خارجی متصل"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:84 frontend/src/features/unifiedWorkspace/gridModel.ts:92
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:92
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:gridModel.listing"
 msgid "Listing"
@@ -3460,7 +3553,7 @@ msgctxt "flowhubSheet:flowHubSheet.loadingFlowhubSheet"
 msgid "Loading FlowHub Sheet..."
 msgstr "در حال بارگذاری برگه FlowHub..."
 
-#: frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:22 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:64
+#: frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:41
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.loadingSourceProductWorkspace"
 msgid "Loading Source Product Workspace..."
@@ -3598,6 +3691,11 @@ msgctxt "authentication:login.loginFailedHttp"
 msgid "Login failed (HTTP {{status}}). Please try again."
 msgstr "ورود ناموفق بود (HTTP {{status}}). دوباره تلاش کنید."
 
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "common:status.lowStock"
+msgid "Low stock"
+msgstr "کم‌موجود"
+
 msgctxt "navigation:sidebar.main"
 msgid "Main"
 msgstr "اصلی"
@@ -3682,6 +3780,10 @@ msgstr "بیشترین قیمت"
 msgctxt "workspace:unifiedWorkspace.minimumPrice"
 msgid "Minimum price"
 msgstr "کمترین قیمت"
+
+msgctxt "common:status.missing"
+msgid "Missing"
+msgstr "بدون داده"
 
 msgctxt "dashboard:dashboard.monitorPendingUpdates"
 msgid "Monitor pending updates until verification is complete."
@@ -3788,7 +3890,7 @@ msgctxt "flowhubSheet:flowHubSheet.next"
 msgid "Next"
 msgstr "بعدی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:597 frontend/src/pages/UnifiedWorkspace.tsx:250
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:485 frontend/src/pages/UnifiedWorkspace.tsx:250
 msgctxt "workspace:sourceCentricWorkspace.next"
 msgid "Next"
 msgstr "بعدی"
@@ -3898,6 +4000,11 @@ msgctxt "dashboard:dashboard.noBlockingIssues"
 msgid "No blocking issues"
 msgstr "هیچ مشکل مسدودکننده‌ای وجود ندارد"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:860
+msgctxt "products:products.noChange"
+msgid "No change"
+msgstr "بدون تغییر"
+
 msgctxt "dashboard:dashboard.noChangeSinceYesterday"
 msgid "No change since yesterday"
 msgstr "بدون تغییر نسبت به دیروز"
@@ -3963,7 +4070,7 @@ msgctxt "diagnostics:message.noDeadLetters"
 msgid "No dead letters."
 msgstr "پیام ناموفقی وجود ندارد."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:439 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:441
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:274 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:276
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:densePricing.noEligibleSelectedChanges"
 msgid "No eligible selected changes are available for Review."
@@ -4055,7 +4162,7 @@ msgctxt "diagnostics:message.noProcessedWebhookReceipt"
 msgid "No processed webhook receipt yet."
 msgstr "هنوز وب‌هوک پردازش‌شده‌ای وجود ندارد."
 
-#: frontend/src/pages/Products.tsx:166
+#: frontend/src/pages/Products.tsx:158
 msgctxt "products:products.noProductConnectorConfigured"
 msgid "No product connector configured"
 msgstr "اتصال‌دهنده محصولی پیکربندی نشده است"
@@ -4076,7 +4183,7 @@ msgctxt "dashboard:dashboard.catalogIsEmpty"
 msgid "No products are currently available for daily work."
 msgstr "در حال حاضر محصولی برای کار روزانه در دسترس نیست."
 
-#: frontend/src/pages/Products.tsx:181
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:461 frontend/src/pages/Products.tsx:169
 msgctxt "products:products.noProductsFound"
 msgid "No products found"
 msgstr "محصولی پیدا نشد"
@@ -4348,7 +4455,7 @@ msgctxt "sources:sourceConfiguration.accessScopePolicy"
 msgid "Only users with existing Source and Workspace permissions may change these columns or create a Workspace."
 msgstr "فقط کاربرانی که مجوزهای فعلی منبع و فضای کاری را دارند می‌توانند این ستون‌ها را تغییر دهند یا فضای کاری بسازند."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:605
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:510
 msgctxt "workspace:densePricing.confirmApplyScope"
 msgid "Only {{count}} checksum-bound, Reviewed field changes will enter the shared Write Pipeline."
 msgstr "فقط {{count}} تغییر فیلد بازبینی‌شده و متصل به چک‌سام انتخاب، وارد خط نوشتن مشترک می‌شود."
@@ -4411,7 +4518,7 @@ msgctxt "diagnostics:diagnostics.openSources"
 msgid "Open Sources"
 msgstr "بازکردن منابع"
 
-#: frontend/src/pages/Products.tsx:166
+#: frontend/src/pages/Products.tsx:158
 msgctxt "products:products.openSources"
 msgid "Open Sources"
 msgstr "بازکردن منابع"
@@ -4570,7 +4677,12 @@ msgctxt "diagnostics:diagnostics.checkGroups.other"
 msgid "Other checks"
 msgstr "سایر بررسی‌ها"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:543
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "common:status.outOfStock"
+msgid "Out of stock"
+msgstr "ناموجود"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:397
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "products:products.outOfStock"
 msgid "Out of stock"
@@ -4607,7 +4719,7 @@ msgctxt "activity:action.setup_owner_created"
 msgid "Owner account created"
 msgstr "حساب مالک ایجاد شد"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:596 frontend/src/pages/UnifiedWorkspace.tsx:249
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:484 frontend/src/pages/UnifiedWorkspace.tsx:249
 msgctxt "workspace:sourceCentricWorkspace.page"
 msgid "Page"
 msgstr "صفحه"
@@ -4779,7 +4891,6 @@ msgctxt "sources:sourceImportWizard.previewAnXlsxOrCsvThenCreate"
 msgid "Preview an XLSX or CSV, then create an internal managed FlowHub Sheet."
 msgstr "ابتدا فایل XLSX یا CSV را پیش‌نمایش کنید، سپس یک برگه داخلی مدیریت‌شده FlowHub بسازید."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:569
 msgctxt "workspace:densePricing.previewBulkChange"
 msgid "Preview bulk change"
 msgstr "پیش‌نمایش تغییر گروهی"
@@ -4788,6 +4899,11 @@ msgstr "پیش‌نمایش تغییر گروهی"
 msgctxt "workspace:workspace.previewFirstThenRunSafetyChecksBefore"
 msgid "Preview first, then run safety checks before approval. Rows with errors cannot enter Dry Run."
 msgstr "ابتدا پیش‌نمایش را ایجاد کنید، سپس پیش از تأیید، بررسی‌های ایمنی را اجرا کنید. ردیف‌های دارای خطا نمی‌توانند وارد اجرای آزمایشی شوند."
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:879 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:881
+msgctxt "products:products.previewOfChanges"
+msgid "Preview of changes"
+msgstr "پیش‌نمایش تغییرات"
 
 #: frontend/src/pages/Workspace.tsx:301
 msgctxt "workspace:workspace.previewPreparedSuccessfully"
@@ -4824,7 +4940,7 @@ msgctxt "products:column.previous"
 msgid "Previous"
 msgstr "قبلی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:597 frontend/src/pages/UnifiedWorkspace.tsx:248
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:483 frontend/src/pages/UnifiedWorkspace.tsx:248
 msgctxt "workspace:sourceCentricWorkspace.previous"
 msgid "Previous"
 msgstr "قبلی"
@@ -4838,7 +4954,7 @@ msgctxt "sources:sourceConfiguration.previousSampleRow"
 msgid "Previous sample row"
 msgstr "ردیف نمونه قبلی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:977 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:981 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:985
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:928
 msgctxt "workspace:densePricing.previousValue"
 msgid "Previous value"
 msgstr "مقدار قبلی"
@@ -4847,9 +4963,15 @@ msgctxt "common:field.price"
 msgid "Price"
 msgstr "قیمت"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:453
 msgctxt "products:column.price"
 msgid "Price"
 msgstr "قیمت"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:452
+msgctxt "products:products.priceWithCurrency"
+msgid "Price ({{currency}})"
+msgstr "قیمت ({{currency}})"
 
 #: frontend/src/pages/Workspace.tsx:91
 #. Stock means the sellable inventory value supported by a Channel.
@@ -4879,7 +5001,12 @@ msgctxt "activity:category.pricing"
 msgid "Pricing"
 msgstr "قیمت‌گذاری"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:521
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:803 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:805 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:806 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:809
+msgctxt "products:products.bulkPricing"
+msgid "Pricing"
+msgstr "قیمت‌گذاری"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:374
 msgctxt "workspace:densePricing.pricingToolbar"
 msgid "Pricing Grid toolbar"
 msgstr "نوار ابزار جدول قیمت‌گذاری"
@@ -4894,7 +5021,7 @@ msgctxt "dashboard:dashboard.pricingWorkflow"
 msgid "Pricing workflow"
 msgstr "فرایند قیمت‌گذاری"
 
-#: frontend/src/pages/Products.tsx:111
+#: frontend/src/pages/Products.tsx:109
 msgctxt "products:products.pricingWorkspace"
 msgid "Pricing workspace"
 msgstr "فضای کاری قیمت‌گذاری"
@@ -4913,12 +5040,12 @@ msgctxt "dataQuality:dataQuality.product"
 msgid "Product"
 msgstr "محصول"
 
-#: frontend/src/pages/Products.tsx:181
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:449 frontend/src/pages/Products.tsx:169
 msgctxt "products:column.product"
 msgid "Product"
 msgstr "محصول"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:977 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:981 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:985 frontend/src/features/sourceWorkspace/densePricingGrid.ts:74 frontend/src/features/unifiedWorkspace/gridModel.ts:90
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:928 frontend/src/features/unifiedWorkspace/gridModel.ts:90
 msgctxt "workspace:gridModel.product"
 msgid "Product"
 msgstr "محصول"
@@ -4951,7 +5078,7 @@ msgctxt "commerce:commerceHub.productCacheRefreshedSuccessfully"
 msgid "Product cache refreshed successfully"
 msgstr "کش محصولات با موفقیت به‌روزرسانی شد"
 
-#: frontend/src/pages/Products.tsx:166
+#: frontend/src/pages/Products.tsx:158
 msgctxt "products:products.productCatalog"
 msgid "Product catalog"
 msgstr "فهرست محصولات"
@@ -4984,7 +5111,6 @@ msgctxt "sources:sourceConfiguration.productIdentifier"
 msgid "Product identifier"
 msgstr "شناسه محصول"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:70
 msgctxt "workspace:densePricing.productIdentity"
 msgid "Product identity"
 msgstr "مشخصات محصول"
@@ -5062,7 +5188,7 @@ msgctxt "diagnostics:reason.product_cache_refresh_in_progress"
 msgid "Product synchronization is still in progress."
 msgstr "همگام‌سازی محصولات همچنان در حال اجرا است."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:580 frontend/src/pages/Products.tsx:149 frontend/src/pages/Products.tsx:172 frontend/src/pages/UnifiedWorkspace.tsx:256
+#: frontend/src/pages/UnifiedWorkspace.tsx:256
 msgctxt "workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid"
 msgid "Production Grid is disabled. Configure a valid commercial Handsontable license."
 msgstr "گرید محیط عملیاتی غیرفعال است. یک مجوز تجاری معتبر Handsontable پیکربندی کنید."
@@ -5079,7 +5205,7 @@ msgctxt "navigation:topbar.products"
 msgid "Products"
 msgstr "محصولات"
 
-#: frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:21 frontend/src/pages/Products.tsx:166 frontend/src/pages/Products.tsx:178
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:347 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:19 frontend/src/pages/Products.tsx:158 frontend/src/pages/Products.tsx:166
 msgctxt "products:products.products"
 msgid "Products"
 msgstr "محصولات"
@@ -5335,7 +5461,6 @@ msgctxt "workspace:statusDisplay.ready"
 msgid "Ready"
 msgstr "آماده"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:977
 msgctxt "workspace:sourceCentricWorkspace.readyChanges"
 msgid "Ready changes"
 msgstr "تغییرات آماده"
@@ -5433,7 +5558,6 @@ msgctxt "diagnostics:diagnostics.checkGroups.recoveryQueues"
 msgid "Recovery and queues"
 msgstr "بازیابی و صف‌ها"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:552 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:39
 msgctxt "workspace:densePricing.redo"
 msgid "Redo"
 msgstr "انجام دوباره"
@@ -5543,6 +5667,11 @@ msgctxt "settings:rateLimits.reset"
 msgid "Reset"
 msgstr "بازنشانی"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:619
+msgctxt "products:products.resetRowChanges"
+msgid "Reset row changes"
+msgstr "بازنشانی تغییرات ردیف"
+
 #: frontend/src/pages/DataQuality.tsx:197
 msgctxt "dataQuality:dataQuality.resolvedSinceLastRead"
 msgid "Resolved since last read"
@@ -5557,7 +5686,6 @@ msgctxt "workspace:workspace.steps.result"
 msgid "Result"
 msgstr "نتیجه"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:977
 msgctxt "workspace:densePricing.resultingValue"
 msgid "Resulting value"
 msgstr "مقدار نهایی"
@@ -5577,7 +5705,7 @@ msgctxt "settings:setup.retryDatabaseCheck"
 msgid "Retry database check"
 msgstr "بررسی دوباره پایگاه داده"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:505 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:517 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:518 frontend/src/pages/Products.tsx:178 frontend/src/pages/Products.tsx:181
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:337 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:371 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:372 frontend/src/pages/Products.tsx:166 frontend/src/pages/Products.tsx:169
 msgctxt "products:products.retryInlinePricing"
 msgid "Retry inline pricing"
 msgstr "تلاش دوباره برای ویرایش قیمت‌ها"
@@ -5633,7 +5761,7 @@ msgctxt "settings:setup.review"
 msgid "Review"
 msgstr "بازبینی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:573 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:52 frontend/src/pages/UnifiedWorkspace.tsx:175
+#: frontend/src/pages/UnifiedWorkspace.tsx:175
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.review"
 msgid "Review"
@@ -5644,7 +5772,7 @@ msgctxt "workspace:sourceCentricWorkspace.reviewDryRun"
 msgid "Review & Dry Run"
 msgstr "بازبینی و اجرای آزمایشی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:981 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:985 frontend/src/pages/UnifiedWorkspace.tsx:162
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:928 frontend/src/pages/UnifiedWorkspace.tsx:162
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:unifiedWorkspace.reviewChanges"
 msgid "Review Changes"
@@ -5661,7 +5789,7 @@ msgctxt "dashboard:dashboard.reviewRequired"
 msgid "Review Required"
 msgstr "نیازمند بازبینی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:453
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:287
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.reviewAndDryRunComplete"
 msgid "Review and Dry Run complete"
@@ -5688,7 +5816,7 @@ msgctxt "workspace:workspace.reviewConnectorSettingsBeforeUsingWorkspace"
 msgid "Review connector settings before using Workspace."
 msgstr "پیش از استفاده از فضای کاری، تنظیمات اتصال‌دهنده را بررسی کنید."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:432 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:444 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:455
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:267 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:279 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:289
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:sourceCentricWorkspace.reviewCouldNotBeCompleted"
 msgid "Review could not be completed"
@@ -5907,7 +6035,7 @@ msgctxt "common:status.running"
 msgid "Running"
 msgstr "در حال اجرا"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:75 frontend/src/pages/Products.tsx:181
+#: frontend/src/pages/Products.tsx:169
 msgctxt "products:column.sku"
 msgid "SKU"
 msgstr "شناسه کالا"
@@ -5929,6 +6057,11 @@ msgstr "نمونه {{current}} از {{total}}"
 msgctxt "sources:sourceConfiguration.save"
 msgid "Save"
 msgstr "ذخیره"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:357 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:21
+msgctxt "products:products.saveChanges"
+msgid "Save Changes"
+msgstr "ذخیره تغییرات"
 
 #: frontend/src/pages/RateLimits.tsx:204 frontend/src/pages/Settings.tsx:202
 msgctxt "settings:rateLimits.saveChanges"
@@ -5986,6 +6119,11 @@ msgctxt "sources:sourceConfiguration.saveAValidMappingAndSheetRevision"
 msgid "Save valid column choices and a Sheet version first."
 msgstr "ابتدا انتخاب ستون‌های معتبر و یک نسخه از برگه را ذخیره کنید."
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:410 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:412
+msgctxt "products:products.savedViews"
+msgid "Saved Views"
+msgstr "نماهای ذخیره‌شده"
+
 #: frontend/src/pages/CommerceHub.tsx:866
 msgctxt "commerce:commerceHub.savedVendor"
 msgid "Saved vendor ("
@@ -5996,7 +6134,7 @@ msgctxt "commerce:commerceHub.saving"
 msgid "Saving"
 msgstr "در حال ذخیره"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:427
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:262
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:sourceCentricWorkspace.savingDraft"
 msgid "Saving Draft"
@@ -6046,7 +6184,7 @@ msgctxt "settings:rateLimits.scope"
 msgid "Scope"
 msgstr "دامنه"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:581 frontend/src/pages/UnifiedWorkspace.tsx:259
+#: frontend/src/pages/UnifiedWorkspace.tsx:259
 msgctxt "workspace:unifiedWorkspace.scrollableWorkspaceGrid"
 msgid "Scrollable Workspace Grid"
 msgstr "گرید پیمایش‌پذیر فضای کاری"
@@ -6061,7 +6199,6 @@ msgctxt "workspace:unifiedWorkspace.search"
 msgid "Search"
 msgstr "جست‌وجو"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:523 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:32 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:33
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.searchSourceProducts"
 msgid "Search Source Products"
@@ -6085,6 +6222,11 @@ msgstr "جست‌وجوی نام یا SKU..."
 msgctxt "navigation:topbar.globalSearchHint"
 msgid "Search products, orders, sources..."
 msgstr "جست‌وجوی محصول، سفارش یا منبع..."
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:382 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:383 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:29
+msgctxt "products:products.searchProducts"
+msgid "Search products..."
+msgstr "جست‌وجوی محصولات..."
 
 #: frontend/src/pages/Setup.tsx:494
 msgctxt "settings:setup.searchTimezones"
@@ -6114,7 +6256,6 @@ msgctxt "diagnostics:diagnostics.summaryDescription"
 msgid "See what needs attention first, then expand technical details when needed."
 msgstr "ابتدا موارد نیازمند بررسی را ببینید و در صورت نیاز جزئیات فنی را باز کنید."
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:73
 msgctxt "products:column.select"
 msgid "Select"
 msgstr "انتخاب"
@@ -6151,7 +6292,7 @@ msgctxt "sources:sourceConfiguration.selectAll"
 msgid "Select all"
 msgstr "انتخاب همه"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:913 frontend/src/pages/Workspace.tsx:658
+#: frontend/src/pages/Workspace.tsx:658
 msgctxt "workspace:workspace.selectAllEligible"
 msgid "Select all eligible"
 msgstr "انتخاب همه موارد واجد شرایط"
@@ -6165,7 +6306,6 @@ msgctxt "sources:sourceConfiguration.selectAtLeastOneWorksheet"
 msgid "Select at least one worksheet for these shared rules."
 msgstr "برای این قواعد مشترک دست‌کم یک برگه را انتخاب کنید."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:904
 msgctxt "workspace:densePricing.selectChangedField"
 msgid "Select changed {{field}} field"
 msgstr "انتخاب فیلد تغییریافته {{field}}"
@@ -6194,7 +6334,6 @@ msgctxt "workspace:sourceCentricWorkspace.selectListing"
 msgid "Select {{channel}} {{listing}}"
 msgstr "انتخاب {{channel}}، {{listing}}"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:98
 msgctxt "workspace:densePricing.selectField"
 msgid "Select {{field}}"
 msgstr "انتخاب {{field}}"
@@ -6211,6 +6350,12 @@ msgstr "انتخاب {{product}} برای فضای کاری"
 msgctxt "workspace:densePricing.counter.selected"
 msgid "Selected"
 msgstr "انتخاب‌شده"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:872 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:873
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.selectedChannel"
+msgid "Selected Channel"
+msgstr "کانال انتخاب‌شده"
 
 msgctxt "workspace:sourceCentricWorkspace.selectedChanges"
 msgid "Selected changes"
@@ -6254,7 +6399,7 @@ msgctxt "settings:setup.serverErrorHttp"
 msgid "Server error (HTTP {{status}})"
 msgstr "خطای سرور (HTTP {{status}})"
 
-#: frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:27 frontend/src/pages/UnifiedWorkspace.tsx:217
+#: frontend/src/pages/UnifiedWorkspace.tsx:217
 msgctxt "workspace:unifiedWorkspace.serverSideWorkspaceFilters"
 msgid "Server-side Workspace filters"
 msgstr "فیلترهای سمت سرور فضای کاری"
@@ -6275,6 +6420,12 @@ msgstr "تعیین وضعیت"
 msgctxt "workspace:densePricing.setStock"
 msgid "Set stock"
 msgstr "تعیین موجودی"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:836
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "products:products.setStockQuantity"
+msgid "Set stock quantity"
+msgstr "تعیین مقدار موجودی"
 
 msgctxt "settings:setup.setTheDomainTimezoneAndDefaultCurrency"
 msgid "Set the domain, timezone, and default currency for this installation."
@@ -6405,6 +6556,13 @@ msgctxt "products:products.showingOf"
 msgid "Showing {{value1}}-{{value2}} of {{value3}}"
 msgstr "نمایش {{value1}} تا {{value2}} از {{value3}}"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:480
+msgctxt "products:products.showingProducts"
+msgid "Showing {{value}} product"
+msgid_plural "Showing {{value}} products"
+msgstr[0] "نمایش {{value}} محصول"
+msgstr[1] "نمایش {{value}} محصول"
+
 #: frontend/src/pages/Login.tsx:192
 msgctxt "authentication:login.signIn"
 msgid "Sign in"
@@ -6486,7 +6644,6 @@ msgctxt "flowhubSheet:flowHubSheet.sort"
 msgid "Sort"
 msgstr "مرتب‌سازی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:550 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:36
 msgctxt "workspace:densePricing.sortProduct"
 msgid "Sort Product"
 msgstr "مرتب‌سازی محصول"
@@ -6556,7 +6713,6 @@ msgctxt "sources:sourceConfiguration.sourceProductName"
 msgid "Source Product Name"
 msgstr "نام محصول"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:513
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "workspace:sourceCentricWorkspace.sourceProductWorkspaceImmutableSnapshot"
 msgid "Source Product Workspace · Immutable Snapshot"
@@ -6807,6 +6963,10 @@ msgctxt "commerce:dataRole.spreadsheetPriceInput"
 msgid "Spreadsheet price input"
 msgstr "ورودی قیمت از صفحه‌گسترده"
 
+msgctxt "common:status.stale"
+msgid "Stale"
+msgstr "قدیمی"
+
 #. Review is the immutable validation result required before Apply.
 msgctxt "common:status.staleReview"
 msgid "Stale Review"
@@ -6846,7 +7006,7 @@ msgctxt "settings:users.status"
 msgid "Status"
 msgstr "وضعیت"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:977 frontend/src/pages/UnifiedWorkspace.tsx:237
+#: frontend/src/pages/UnifiedWorkspace.tsx:237
 msgctxt "workspace:unifiedWorkspace.status"
 msgid "Status"
 msgstr "وضعیت"
@@ -6873,9 +7033,14 @@ msgctxt "settings:setup.stepOf"
 msgid "Step {{step}} of {{total}}"
 msgstr "مرحله {{step}} از {{total}}"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:540
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "common:field.stock"
+msgid "Stock"
+msgstr "موجودی"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:454
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "products:column.stock"
 msgid "Stock"
 msgstr "موجودی"
 
@@ -6884,6 +7049,12 @@ msgstr "موجودی"
 msgctxt "workspace:workspace.stock"
 msgid "Stock"
 msgstr "موجودی"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:827 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:829 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:830 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:833 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:840
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "products:products.stockQuantity"
+msgid "Stock Quantity"
+msgstr "موجودی انبار"
 
 #: frontend/src/pages/Workspace.tsx:90
 #. Stock means the sellable inventory value supported by a Channel.
@@ -7534,6 +7705,7 @@ msgctxt "dataQuality:dataQuality.totalIssues"
 msgid "Total issues"
 msgstr "همه مشکلات"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:461
 msgctxt "products:products.tryAdjustingTheSearchOrFilter"
 msgid "Try adjusting the search or filter."
 msgstr "جست‌وجو یا فیلتر را تغییر دهید."
@@ -7569,12 +7741,12 @@ msgctxt "flowhubSheet:flowHubSheet.tryAgain"
 msgid "Try again."
 msgstr "دوباره تلاش کنید."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:536 frontend/src/pages/Products.tsx:181
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:435 frontend/src/pages/Products.tsx:169
 msgctxt "products:column.type"
 msgid "Type"
 msgstr "نوع"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:76 frontend/src/features/unifiedWorkspace/gridModel.ts:91
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:91
 msgctxt "workspace:gridModel.type"
 msgid "Type"
 msgstr "نوع"
@@ -7760,7 +7932,6 @@ msgctxt "workspace:sourceCentricWorkspace.unchangedProducts"
 msgid "Unchanged products"
 msgstr "محصولات بدون تغییر"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:551 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:38
 msgctxt "workspace:densePricing.undo"
 msgid "Undo"
 msgstr "واگرد"
@@ -8046,7 +8217,7 @@ msgctxt "diagnostics:stateDescription.healthy"
 msgid "Verified evidence confirms normal operation."
 msgstr "شواهد تأییدشده نشان می‌دهد عملکرد عادی است."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:989
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:932
 #. Reconciliation verifies an uncertain external write without blindly redispatching it.
 msgctxt "workspace:sourceCentricWorkspace.verifiedSuccessIsShownOnlyAfterExact"
 msgid "Verified success is shown only after exact provider verification. Uncertain outcomes require reconciliation."
@@ -8269,6 +8440,12 @@ msgctxt "settings:setup.welcomeToFlowhub"
 msgid "Welcome to FlowHub"
 msgstr "به FlowHub خوش آمدید"
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:842
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "products:products.stockOverwriteHelper"
+msgid "Will overwrite existing stock values."
+msgstr "مقادیر موجودی فعلی جایگزین خواهند شد."
+
 msgctxt "products:products.woocommerce"
 msgid "WooCommerce"
 msgstr "WooCommerce"
@@ -8372,7 +8549,6 @@ msgctxt "workspace:unifiedWorkspace.workspaceGrid"
 msgid "Workspace Grid"
 msgstr "گرید فضای کاری"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:555 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:42
 msgctxt "workspace:sourceCentricWorkspace.workspaceChangeSummary"
 msgid "Workspace change summary"
 msgstr "خلاصه تغییرات فضای کاری"
@@ -8564,7 +8740,7 @@ msgctxt "settings:setup.of"
 msgid "of"
 msgstr "از"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:596
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:484
 msgctxt "workspace:sourceCentricWorkspace.of"
 msgid "of"
 msgstr "از"
@@ -8611,7 +8787,7 @@ msgctxt "products:products.selected"
 msgid "selected"
 msgstr "انتخاب‌شده"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:985
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:928
 msgctxt "workspace:sourceCentricWorkspace.selected"
 msgid "selected"
 msgstr "انتخاب‌شده"
@@ -8634,6 +8810,11 @@ msgstr "تا اتصال بررسی شود."
 msgctxt "products:products.unchanged"
 msgid "unchanged"
 msgstr "بدون تغییر"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:841
+msgctxt "products:products.units"
+msgid "units"
+msgstr "واحد"
 
 #: frontend/src/pages/FlowHubSheet.tsx:116
 msgctxt "flowhubSheet:flowHubSheet.unsavedCells"
@@ -8695,7 +8876,7 @@ msgid_plural "{{count}} connected"
 msgstr[0] "{{count}} متصل"
 msgstr[1] "{{count}} متصل"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:453
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:287
 #. Review is the immutable validation result required before Apply.
 msgctxt "workspace:densePricing.selectionBoundToReview"
 msgid "{{count}} eligible field change was bound to the immutable Review selection."
@@ -8724,7 +8905,6 @@ msgid_plural "{{count}} monitored destinations"
 msgstr[0] "{{count}} مقصد پایش‌شده"
 msgstr[1] "{{count}} مقصد پایش‌شده"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:514
 msgctxt "workspace:densePricing.pendingChanges"
 msgid "{{count}} pending change"
 msgid_plural "{{count}} pending changes"
@@ -8745,6 +8925,7 @@ msgid_plural "{{count}} products ready for Review."
 msgstr[0] "{{count}} محصول آماده بازبینی است."
 msgstr[1] "{{count}} محصول آماده بازبینی است."
 
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:795
 msgctxt "products:products.productsSelected"
 msgid "{{count}} products selected"
 msgstr "{{count}} محصول انتخاب شد"
@@ -8805,13 +8986,13 @@ msgctxt "dashboard:dashboard.failedUpdatesExplanation"
 msgid "{{failed}} failed and {{pending}} pending marketplace updates require attention."
 msgstr "{{failed}} به‌روزرسانی ناموفق و {{pending}} به‌روزرسانی در انتظار بازارگاه نیازمند توجه‌اند."
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:96 frontend/src/features/unifiedWorkspace/gridModel.ts:110
+#: frontend/src/features/unifiedWorkspace/gridModel.ts:110
 #. Current is the latest verified or cached Channel value.
 msgctxt "workspace:gridModel.currentField"
 msgid "{{field}} Current"
 msgstr "{{field}} فعلی"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:981 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:985 frontend/src/features/sourceWorkspace/densePricingGrid.ts:97 frontend/src/features/unifiedWorkspace/gridModel.ts:111
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:928 frontend/src/features/unifiedWorkspace/gridModel.ts:111
 #. Target is the proposed value that may be applied after Review.
 msgctxt "workspace:gridModel.targetField"
 msgid "{{field}} Target"
@@ -8855,18 +9036,15 @@ msgctxt "workspace:sourceCentricWorkspace.listingChannelSummary"
 msgid "{{listings}} Listings across {{channels}} Channels"
 msgstr "{{listings}} لیستینگ در {{channels}} کانال"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:561
 #. Current is the latest verified or cached Channel value.
 msgctxt "workspace:densePricing.pendingHidden"
 msgid "{{pending}} pending changes | {{hidden}} hidden by current filters"
 msgstr "{{pending}} تغییر در انتظار | {{hidden}} مورد با فیلتر فعلی پنهان است"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:977
 msgctxt "workspace:densePricing.bulkPreviewSummary"
 msgid "{{products}} products | {{listings}} Listings | {{fields}} field changes | {{blocked}} blocked"
 msgstr "{{products}} محصول | {{listings}} لیستینگ | {{fields}} تغییر فیلد | {{blocked}} مسدود"
 
-#: frontend/src/features/sourceWorkspace/densePricingGrid.ts:189
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "workspace:densePricing.additionalListing"
 msgid "{{product}} - Listing {{number}}"
@@ -8897,7 +9075,7 @@ msgctxt "sources:sourceConfiguration.pricingWorkspaceName"
 msgid "{{source}} pricing"
 msgstr "قیمت‌گذاری {{source}}"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:981 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:985
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:928
 msgctxt "workspace:densePricing.reviewSummary"
 msgid "{{total}} Reviewed | {{selected}} selected | {{blocked}} blocked"
 msgstr "{{total}} بازبینی‌شده | {{selected}} انتخاب‌شده | {{blocked}} مسدود"
@@ -9020,6 +9198,14 @@ msgid "{{value}} changed product is waiting for Review."
 msgid_plural "{{value}} changed products are waiting for Review."
 msgstr[0] "{{value}} محصول تغییریافته در انتظار بازبینی است."
 msgstr[1] "{{value}} محصول تغییریافته در انتظار بازبینی‌اند."
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:796
+#. Listing means one independently identifiable product record in a sales Channel.
+msgctxt "products:products.channelListingsAffected"
+msgid "{{value}} channel listing affected"
+msgid_plural "{{value}} channel listings affected"
+msgstr[0] "{{value}} فهرست کانال تحت‌تأثیر"
+msgstr[1] "{{value}} فهرست کانال تحت‌تأثیر"
 
 #: frontend/src/pages/Dashboard.tsx:546
 msgctxt "dashboard:dashboard.dryRunStageCount"
@@ -9152,7 +9338,6 @@ msgid_plural "{{value}} warnings should be reviewed before publishing."
 msgstr[0] "{{value}} هشدار باید پیش از انتشار بررسی شود."
 msgstr[1] "{{value}} هشدار باید پیش از انتشار بررسی شوند."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:893
 msgctxt "workspace:densePricing.cellValueStatus"
 msgid "{{value}}; status {{status}}"
 msgstr "{{value}}؛ وضعیت {{status}}"

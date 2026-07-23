@@ -388,6 +388,593 @@
   }
 }
 
+/* Figma: Screen/Products — plain product-grouped channel table replacing the
+   dense Grid. One row per Listing; Product name/thumbnail spans its group. */
+
+.fh-products-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fh-products-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.fh-products-search {
+  position: relative;
+  display: flex;
+  min-width: 240px;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+.fh-products-search-icon {
+  position: absolute;
+  inset-inline-start: 12px;
+  color: var(--fh-text-muted);
+  pointer-events: none;
+}
+
+.fh-products-search-input {
+  width: 100%;
+  min-height: 40px;
+  padding-inline-start: 36px;
+  padding-inline-end: 32px;
+  color: var(--fh-text-primary);
+  background: var(--fh-ui-control);
+  border: 1px solid var(--fh-ui-border-strong);
+  border-radius: var(--fh-radius-lg);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.fh-products-search-input::placeholder {
+  color: var(--fh-text-placeholder);
+}
+
+.fh-products-search-input:focus {
+  outline: none;
+  border-color: var(--fh-brand-500);
+  box-shadow: var(--fh-focus-ring);
+}
+
+.fh-products-search-clear {
+  position: absolute;
+  inset-inline-end: 10px;
+  display: inline-flex;
+  color: var(--fh-text-muted);
+  background: transparent;
+  border: 0;
+}
+
+.fh-products-search-clear:hover {
+  color: var(--fh-text-secondary);
+}
+
+.fh-chip-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.fh-chip-select select {
+  min-height: 40px;
+  padding: 8px 32px 8px 14px;
+  color: var(--fh-text-secondary);
+  background: var(--fh-ui-control);
+  border: 1px solid var(--fh-ui-border-strong);
+  border-radius: var(--fh-radius-lg);
+  font-size: 13px;
+  line-height: 20px;
+  appearance: none;
+}
+
+.fh-chip-select select:hover:not(:disabled) {
+  border-color: var(--fh-ui-border-emphasis);
+}
+
+.fh-chip-caret {
+  position: absolute;
+  inset-inline-end: 10px;
+  color: var(--fh-text-muted);
+  pointer-events: none;
+}
+
+.fh-chip-select-skeleton {
+  width: 132px;
+  height: 40px;
+  background: var(--fh-ui-surface-subtle);
+  border-radius: var(--fh-radius-lg);
+}
+
+.fh-products-filters {
+  position: relative;
+}
+
+.fh-chip {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  color: var(--fh-text-secondary);
+  background: var(--fh-ui-control);
+  border: 1px solid var(--fh-ui-border-strong);
+  border-radius: var(--fh-radius-lg);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.fh-chip:hover {
+  color: var(--fh-text-primary);
+  background: var(--fh-ui-control-hover);
+}
+
+.fh-chip-active {
+  color: var(--fh-brand-700);
+  background: var(--fh-info-surface);
+  border-color: var(--fh-info-border);
+}
+
+.dark .fh-chip-active {
+  color: var(--fh-brand-300);
+}
+
+.fh-products-filters-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-end: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 260px;
+}
+
+.fh-products-card {
+  width: 100%;
+  overflow: hidden;
+  background: var(--fh-ui-card);
+  border: 1px solid var(--fh-ui-border);
+  border-radius: var(--fh-radius-2xl);
+  box-shadow: var(--fh-shadow-xs);
+}
+
+.fh-products-table {
+  width: 100%;
+  /* Fixed layout anchors column identity to the header row. Continuation
+     rows (rowSpan skips the Product column) have fewer cells than the
+     header; auto layout mis-assigns their remaining cells to the wrong
+     columns, so the grid must be pinned explicitly. */
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.fh-products-table thead th {
+  padding: 13px 20px;
+  color: var(--fh-text-muted);
+  background: var(--fh-ui-surface-muted);
+  border-bottom: 1px solid var(--fh-ui-border);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  text-align: start;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.fh-products-table thead th.fh-products-col-product {
+  width: 26%;
+}
+
+.fh-products-table thead th:nth-child(2) { width: 14%; }
+.fh-products-table thead th:nth-child(3) { width: 14%; }
+.fh-products-table thead th:nth-child(4) { width: 12%; }
+.fh-products-table thead th:nth-child(5) { width: 14%; }
+.fh-products-table thead th:nth-child(6) { width: 12%; }
+
+.fh-products-table thead th.fh-products-col-actions {
+  width: 8%;
+}
+
+.fh-products-group:not(:last-child) tr:last-child td {
+  border-bottom: 1px solid var(--fh-ui-border);
+}
+
+/* Figma alternates a subtle tint per product group (not per row) for scanability.
+   Painted per-cell (not on the tbody) so it is not affected by rowSpan cells. */
+.fh-products-table tbody.fh-products-group:nth-of-type(even) > tr > td {
+  background: var(--fh-ui-surface-subtle);
+}
+
+.fh-products-table td {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--fh-ui-border-strong, var(--fh-ui-border));
+  border-bottom-color: color-mix(in srgb, var(--fh-ui-border) 55%, transparent);
+  vertical-align: middle;
+}
+
+.fh-products-table tbody tr[data-pricing-row]:hover {
+  background: var(--fh-ui-surface-muted);
+}
+
+.fh-products-product-cell {
+  white-space: nowrap;
+}
+
+.fh-products-product-inner,
+.fh-products-thumb,
+.fh-products-name {
+  display: flex;
+}
+
+.fh-products-product-inner {
+  align-items: center;
+  gap: 12px;
+}
+
+.fh-products-thumb {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--fh-text-muted);
+  background: var(--fh-ui-surface-subtle);
+  border-radius: var(--fh-radius-md);
+}
+
+.fh-products-name {
+  align-items: center;
+  color: var(--fh-text-primary);
+  font-weight: 600;
+  white-space: normal;
+}
+
+.fh-products-channel-cell {
+  color: var(--fh-text-secondary);
+}
+
+.fh-products-sync-cell {
+  color: var(--fh-text-muted);
+  white-space: nowrap;
+}
+
+.fh-products-input-cell {
+  white-space: nowrap;
+}
+
+.fh-cell-input {
+  width: 112px;
+  min-height: 34px;
+  padding: 6px 10px;
+  color: var(--fh-text-primary);
+  background: var(--fh-ui-control);
+  border: 1px solid var(--fh-ui-border-strong);
+  border-radius: var(--fh-radius-md);
+  font-size: 13px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.fh-cell-input-narrow {
+  width: 64px;
+  text-align: center;
+}
+
+.fh-cell-input:focus {
+  outline: none;
+  border-color: var(--fh-brand-500);
+  box-shadow: var(--fh-focus-ring);
+}
+
+.fh-cell-input:disabled {
+  color: var(--fh-text-disabled);
+  background: var(--fh-ui-control-disabled);
+  cursor: not-allowed;
+}
+
+.fh-cell-input[data-cell-status="edited"] {
+  border-color: var(--fh-brand-400);
+  box-shadow: inset 0 -2px 0 var(--fh-brand-500);
+}
+
+.fh-cell-input[data-cell-status="blocked"] {
+  border-color: var(--fh-error-300);
+  box-shadow: inset 0 -2px 0 var(--fh-error-500);
+}
+
+.fh-products-availability-cell {
+  white-space: nowrap;
+}
+
+.fh-availability {
+  position: relative;
+  display: inline-flex;
+}
+
+.fh-availability select {
+  min-height: 26px;
+  padding: 2px 24px 2px 10px;
+  color: var(--fh-text-secondary);
+  background: var(--fh-ui-surface-subtle);
+  border: 1px solid var(--fh-ui-border);
+  border-radius: var(--fh-radius-full);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  appearance: none;
+}
+
+.fh-availability select:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.fh-availability-caret {
+  position: absolute;
+  inset-inline-end: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: inherit;
+  pointer-events: none;
+}
+
+.fh-availability[data-tone="success"] select {
+  color: var(--fh-success-700);
+  background: var(--fh-success-surface);
+  border-color: var(--fh-success-border);
+}
+
+.fh-availability[data-tone="warning"] select {
+  color: var(--fh-warning-700);
+  background: var(--fh-warning-surface);
+  border-color: var(--fh-warning-border);
+}
+
+.fh-availability[data-tone="danger"] select {
+  color: var(--fh-error-700);
+  background: var(--fh-danger-surface);
+  border-color: var(--fh-danger-border);
+}
+
+.dark .fh-availability[data-tone="success"] select { color: var(--fh-success-400); }
+.dark .fh-availability[data-tone="warning"] select { color: var(--fh-warning-400); }
+.dark .fh-availability[data-tone="danger"] select { color: var(--fh-error-400); }
+
+.fh-products-actions-cell {
+  text-align: end;
+}
+
+.fh-row-actions {
+  position: relative;
+  display: inline-flex;
+}
+
+.fh-row-actions-trigger {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  color: var(--fh-text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--fh-radius-md);
+}
+
+.fh-row-actions-trigger:hover {
+  color: var(--fh-text-primary);
+  background: var(--fh-ui-surface-subtle);
+}
+
+.fh-row-actions-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-end: 0;
+  z-index: 40;
+  min-width: 180px;
+}
+
+.fh-products-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Modal/BulkEdit */
+
+.fh-bulk-modal {
+  display: flex;
+  max-height: 88vh;
+  width: 100%;
+  max-width: 640px;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fh-bulk-subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.fh-bulk-close {
+  flex-shrink: 0;
+}
+
+.fh-bulk-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding: 16px 18px;
+}
+
+.fh-bulk-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--fh-ui-border);
+}
+
+.fh-bulk-section:last-of-type {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.fh-bulk-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fh-bulk-section-title {
+  color: var(--fh-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fh-bulk-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.fh-bulk-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fh-text-secondary);
+  font-size: 13px;
+}
+
+.fh-bulk-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fh-bulk-help {
+  color: var(--fh-text-muted);
+  font-size: 12px;
+}
+
+.fh-bulk-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.fh-bulk-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fh-bulk-toggle {
+  position: relative;
+  display: inline-flex;
+  width: 34px;
+  height: 20px;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 2px;
+  background: var(--fh-ui-border-strong);
+  border: 0;
+  border-radius: var(--fh-radius-full);
+  transition: background-color 120ms ease;
+}
+
+.fh-bulk-toggle-on {
+  background: var(--fh-brand-500);
+}
+
+.fh-bulk-toggle-knob {
+  width: 16px;
+  height: 16px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: var(--fh-shadow-xs);
+  transition: transform 120ms ease;
+}
+
+.fh-bulk-toggle-on .fh-bulk-toggle-knob {
+  transform: translateX(14px);
+}
+
+.fh-bulk-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--fh-ui-surface-muted);
+  border: 1px solid var(--fh-ui-border);
+  border-radius: var(--fh-radius-lg);
+}
+
+.fh-bulk-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--fh-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fh-bulk-preview-live {
+  color: var(--fh-text-muted);
+  font-weight: 400;
+  text-transform: none;
+}
+
+.fh-bulk-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fh-bulk-preview-row {
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.fh-bulk-preview-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fh-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fh-bulk-preview-values {
+  color: var(--fh-text-secondary);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .fh-products-search {
+    flex-basis: 100%;
+  }
+}
+
 /* =========================================================
    Design tokens
    ========================================================= */

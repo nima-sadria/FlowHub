@@ -1,26 +1,8 @@
-import { HotTable, type HotTableRef } from '@handsontable/react-wrapper'
-import Handsontable from 'handsontable'
-import { CheckboxCellType, NumericCellType, TextCellType, registerCellType } from 'handsontable/cellTypes'
-import {
-  Autofill,
-  CopyPaste,
-  DataProvider,
-  DragToScroll,
-  DropdownMenu,
-  Filters,
-  ManualColumnResize,
-  MultiColumnSorting,
-  NestedHeaders,
-  StretchColumns,
-  registerPlugin,
-} from 'handsontable/plugins'
-import type { BaseRenderer } from 'handsontable/renderers'
-import 'handsontable/styles/handsontable.min.css'
-import 'handsontable/styles/ht-theme-main.min.css'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Empty from '../../components/Empty'
 import Icon from '../../components/Icon'
 import PageShell from '../../components/PageShell'
-import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../../components/ResourceOrdering'
+import { ResourceOptionGroups } from '../../components/ResourceOrdering'
 import { translate } from '../../i18n'
 import { formatField, formatStatus } from '../../i18n/display'
 import { localizedApiError } from '../../i18n/errors'
@@ -45,51 +27,32 @@ import {
   selectedPricingDraftChanges,
   setPricingFieldSelected,
   undoPricingWorkspace,
+  type BulkPreviewItem,
   type BulkTransformationKind,
   type BulkTransformationPreview,
   type PricingFieldDescriptor,
   type PricingFieldChange,
-  type PricingFieldIdentity,
   type PricingWorkspaceState,
 } from '../pricingWorkspace'
 import { channelIdentitySignals, prepareResourceCollection, sourceChannelSignals } from '../resourceOrdering/resourceOrdering'
 import { formatChannelDisplayName } from '../unifiedWorkspace/channelDisplayName'
-import { sanitizeGridHtml } from '../unifiedWorkspace/handsontableIdentity'
-import { resolveHandsontableLicense } from '../unifiedWorkspace/handsontableLicense'
 import { workspaceApplyIdempotencyKey } from '../unifiedWorkspace/useUnifiedWorkspaceController'
 import { inputHint } from '../../utils/inputHint'
 import { sourceWorkspaceApi } from './api'
 import PricingWorkspaceStartup from './PricingWorkspaceStartup'
-import {
-  buildDensePricingDefinition,
-  cellIsReadOnly,
-  cellStatus,
-  identityForCell,
-  listingIdsForRecord,
-  type DensePricingDefinition,
-  type DensePricingColumnMeta,
-  type DensePricingRecord,
-  type PricingField,
-} from './densePricingGrid'
-import type { GroupedWorkspacePage, SourceChannel } from './types'
+import type { GroupedListing, GroupedProduct, GroupedWorkspacePage, SourceChannel } from './types'
 
-registerCellType(CheckboxCellType)
-registerCellType(NumericCellType)
-registerCellType(TextCellType)
-for (const plugin of [
-  Autofill,
-  CopyPaste,
-  DataProvider,
-  DragToScroll,
-  DropdownMenu,
-  Filters,
-  ManualColumnResize,
-  MultiColumnSorting,
-  NestedHeaders,
-  StretchColumns,
-]) registerPlugin(plugin)
+// Figma: Screen/Products (21 Product Screens) — page header with Save Changes
+// and Bulk Edit, search + filter chips, and one product-grouped channel table
+// with inline price/stock/availability editing. Review, dry run, and apply
+// continue through the existing draft dialogs; Modal/BulkEdit hosts the bulk
+// transformation workflow.
 
 type View = 'changed' | 'ready' | 'blocked' | 'unchanged' | 'all'
+type PricingField = 'price' | 'stock' | 'status'
+
+const FIELDS: readonly PricingField[] = ['price', 'stock', 'status']
+const VIEWS: readonly View[] = ['all', 'changed', 'ready', 'blocked', 'unchanged']
 
 interface ReviewContext {
   reviewId: string
@@ -97,16 +60,6 @@ interface ReviewContext {
   selectionChecksum: string
   selectedCount: number
 }
-
-const BULK_ACTIONS: Array<{ kind: BulkTransformationKind; label: string }> = [
-  { kind: 'set_price', label: 'workspace:densePricing.setExactPrice' },
-  { kind: 'increase_price_fixed', label: 'workspace:densePricing.increasePriceFixed' },
-  { kind: 'decrease_price_fixed', label: 'workspace:densePricing.decreasePriceFixed' },
-  { kind: 'increase_price_percent', label: 'workspace:densePricing.increasePricePercent' },
-  { kind: 'decrease_price_percent', label: 'workspace:densePricing.decreasePricePercent' },
-  { kind: 'set_stock', label: 'workspace:densePricing.setStock' },
-  { kind: 'set_status', label: 'workspace:densePricing.setStatus' },
-]
 
 export interface DensePricingWorkspaceProps {
   workspace: UnifiedWorkspaceResource
@@ -118,82 +71,6 @@ export interface DensePricingWorkspaceProps {
   initialSearch?: string
 }
 
-interface DensePricingGridProps {
-  definition: DensePricingDefinition
-  gridMinWidth: number
-  height: number
-  hotRef: React.RefObject<HotTableRef>
-  licenseKey: string
-  onChange: (changes: Handsontable.CellChange[] | null, source: Handsontable.ChangeSource) => void
-  onSelection: (startRow: number, startColumn: number, endRow: number, endColumn: number) => void
-  onKeyDown: (event: KeyboardEvent) => void
-}
-
-const DensePricingGrid = memo(function DensePricingGrid({
-  definition,
-  gridMinWidth,
-  height,
-  hotRef,
-  licenseKey,
-  onChange,
-  onSelection,
-  onKeyDown,
-}: DensePricingGridProps) {
-  const cellProperties = useCallback(
-    (row: number, _column: number, prop: string | number) => gridCellSettings(hotRef, definition.columnMeta, row, prop),
-    [definition.columnMeta, hotRef],
-  )
-  const annotateCell = useCallback(
-    (td: HTMLTableCellElement, visualRow: number, _visualColumn: number, prop: string | number) => {
-      annotatePricingCell(hotRef, definition.columnMeta, td, visualRow, prop)
-    },
-    [definition.columnMeta, hotRef],
-  )
-  const markVirtualViewport = useCallback(() => {
-    const viewport = hotRef.current?.hotInstance?.rootElement.querySelector<HTMLElement>('.wtHolder')
-    if (viewport?.dataset.pricingVirtualViewport !== 'true') viewport?.setAttribute('data-pricing-virtual-viewport', 'true')
-  }, [hotRef])
-
-  return (
-    <div className="ht-theme-main fh-handsontable fh-pricing-grid" data-pricing-grid style={{ minWidth: gridMinWidth }}>
-      <HotTable
-        ref={hotRef}
-        data={definition.records}
-        columns={definition.columns}
-        nestedHeaders={definition.nestedHeaders}
-        rowHeaders
-        width="100%"
-        height={height}
-        rowHeights={30}
-        autoColumnSize={false}
-        autoRowSize={false}
-        columnHeaderHeight={28}
-        fixedColumnsStart={5}
-        stretchH="none"
-        renderAllRows={false}
-        renderAllColumns={false}
-        viewportRowRenderingOffset={8}
-        viewportColumnRenderingOffset={4}
-        manualColumnResize
-        multiColumnSorting
-        filters
-        dropdownMenu={['filter_by_condition', 'filter_by_value', 'filter_action_bar']}
-        copyPaste={{ pasteMode: 'overwrite' }}
-        fillHandle={{ autoInsertRow: false }}
-        undo={false}
-        licenseKey={licenseKey}
-        sanitizer={sanitizeGridHtml}
-        cells={cellProperties}
-        afterChange={onChange}
-        afterSelection={onSelection}
-        beforeKeyDown={onKeyDown}
-        afterRenderer={annotateCell}
-        afterRender={markVirtualViewport}
-      />
-    </div>
-  )
-})
-
 export default function DensePricingWorkspace({
   workspace,
   service,
@@ -202,7 +79,6 @@ export default function DensePricingWorkspace({
   initialSearch = '',
 }: DensePricingWorkspaceProps) {
   const notify = useNotification()
-  const hotRef = useRef<HotTableRef>(null)
   const gridLoaderRef = useRef(createLatestGridLoader<GroupedWorkspacePage>())
   const persistenceScope = `${workspace.snapshot.id}:${workspace.snapshot.checksum}:${workspace.draft.id}`
   const [grid, setGrid] = useState<GroupedWorkspacePage | null>(null)
@@ -222,15 +98,12 @@ export default function DensePricingWorkspace({
   const [busy, setBusy] = useState<string | null>(null)
   const [review, setReview] = useState<ReviewResource | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
-  const [localReviewOpen, setLocalReviewOpen] = useState(false)
   const [reviewContext, setReviewContext] = useState<ReviewContext | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [applyResult, setApplyResult] = useState<ApplyResource | null>(null)
-  const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set())
-  const [bulkKind, setBulkKind] = useState<BulkTransformationKind>('increase_price_percent')
-  const [bulkValue, setBulkValue] = useState('5')
-  const [bulkPreview, setBulkPreview] = useState<BulkTransformationPreview | null>(null)
-  const [tableHeight, setTableHeight] = useState(() => viewportTableHeight())
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [rowMenuFor, setRowMenuFor] = useState<string | null>(null)
   const [gridError, setGridError] = useState<string | null>(null)
   const [channelInventoryError, setChannelInventoryError] = useState<string | null>(null)
 
@@ -257,7 +130,7 @@ export default function DensePricingWorkspace({
       setChannelInventory(result.items)
       setChannelInventoryError(null)
     } catch (error) {
-      // Keep the last verified inventory. If none exists, the Grid remains a
+      // Keep the last verified inventory. If none exists, the table remains a
       // useful cached read surface while all target fields fail closed.
       setChannelInventoryError(localizedApiError(error, 'products:products.inlinePricingUnavailable'))
     } finally {
@@ -279,21 +152,6 @@ export default function DensePricingWorkspace({
     void loadChannelInventory()
   }, [loadChannelInventory])
   useEffect(() => {
-    let frame = 0
-    const resize = () => {
-      window.cancelAnimationFrame(frame)
-      frame = window.requestAnimationFrame(() => {
-        const nextHeight = viewportTableHeight()
-        setTableHeight(current => current === nextHeight ? current : nextHeight)
-      })
-    }
-    window.addEventListener('resize', resize)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('resize', resize)
-    }
-  }, [])
-  useEffect(() => {
     pricingStateRef.current = pricingState
     try { persistPricingWorkspaceState(window.sessionStorage, pricingState) } catch { /* Storage is optional. */ }
   }, [pricingState])
@@ -307,10 +165,6 @@ export default function DensePricingWorkspace({
     ? prepareResourceCollection(channelInventory, item => sourceChannelSignals(item))
     : prepareResourceCollection(discoveredChannelIds.map(channelId => ({ channelId })), item => channelIdentitySignals(item)),
   [channelInventory, discoveredChannelIds])
-  const stableChannelIds = useMemo(() => channelResources.ordered
-    .filter(channel => channel.section === 'active')
-    .map(channel => channel.id), [channelResources])
-  const displayedChannelIds = useMemo(() => channelFilter ? [channelFilter] : stableChannelIds, [channelFilter, stableChannelIds])
   const baseDescriptors = useMemo(() => grid ? pricingDescriptors(grid, channelById) : [], [channelById, grid])
   const descriptors = useMemo(() => baseDescriptors.map(descriptor => validateDescriptorTarget(
     descriptor,
@@ -329,7 +183,6 @@ export default function DensePricingWorkspace({
     setReview(null)
     setReviewContext(null)
     setReviewOpen(false)
-    setLocalReviewOpen(false)
     setConfirming(false)
     setApplyResult(null)
   }, [descriptors, pricingState])
@@ -342,83 +195,65 @@ export default function DensePricingWorkspace({
         .filter(listing => !channelFilter || listing.channelId === channelFilter)
         .map(listing => channelById.has(listing.channelId) ? listing : {
           ...listing,
-          fields: Object.fromEntries(Object.entries(listing.fields).map(([field, value]) => [field, { ...value, readOnly: true }])) as GroupedWorkspacePage['items'][number]['children'][number]['fields'],
+          fields: Object.fromEntries(Object.entries(listing.fields).map(([field, value]) => [field, { ...value, readOnly: true }])) as GroupedListing['fields'],
         }),
-    })),
+    })).filter(product => product.children.length > 0),
   } : null, [channelById, channelFilter, grid])
-  const definition = useMemo(() => visibleGrid ? buildDensePricingDefinition(visibleGrid, identity => {
-    const change = pricingFieldChange(pricingState, identity)
-    return change ? { targetValue: change.targetValue, selected: isPricingFieldSelected(change) } : null
-  }, displayedChannelIds) : null, [displayedChannelIds, pricingState, visibleGrid])
   const visibleKeys = useMemo(() => new Set(visibleDescriptors.map(descriptor => pricingFieldKey(descriptor.identity))), [visibleDescriptors])
   const summary = useMemo(() => pricingWorkspaceSummary(pricingState, visibleKeys), [pricingState, visibleKeys])
-  const bulkScopeCount = selectedRowKeys.size || new Set(selectedPricingChanges(pricingState).map(change => change.identity.listingId)).size
   const pageCount = Math.max(1, Math.ceil((grid?.total ?? 0) / (grid?.pageSize || 100)))
-  const gridMinWidth = Math.max(1180, (definition?.columns.length ?? 1) * 104)
-  const license = resolveHandsontableLicense(import.meta.env.VITE_HANDSONTABLE_LICENSE_KEY, import.meta.env.PROD)
+  // Figma labels the Price column with the catalog currency; the label stays
+  // generic whenever visible listings disagree.
+  const priceCurrency = useMemo(() => {
+    const currencies = new Set<string>()
+    for (const product of visibleGrid?.items ?? []) {
+      for (const listing of product.children) {
+        const currency = listing.fields.price.currency?.trim()
+        if (currency) currencies.add(currency.toUpperCase())
+      }
+    }
+    return currencies.size === 1 ? [...currencies][0] : null
+  }, [visibleGrid])
+
   const mutatePricingState = useCallback((update: (current: PricingWorkspaceState) => PricingWorkspaceState) => {
     setPricingState(current => update(current))
     setReview(null)
     setReviewContext(null)
     setReviewOpen(false)
-    setLocalReviewOpen(false)
     setApplyResult(null)
   }, [])
 
-  const handleGridChanges = useCallback((changes: Handsontable.CellChange[] | null, source: Handsontable.ChangeSource) => {
-    if (!changes || source === 'loadData' || !definition) return
-    const targetEdits: Array<{ descriptor: PricingFieldDescriptor; targetValue: string }> = []
-    const selections: Array<{ identity: PricingFieldIdentity; selected: boolean }> = []
-    const productSelections: Array<{ listingIds: ReadonlySet<string>; selected: boolean }> = []
-    for (const [visualRow, propValue, , value] of changes) {
-      const prop = String(propValue)
-      const physicalRow = hotRef.current?.hotInstance?.toPhysicalRow(visualRow) ?? visualRow
-      const record = hotRef.current?.hotInstance?.getSourceDataAtRow(physicalRow) as DensePricingRecord | undefined
-      const meta = definition.columnMeta.get(prop)
-      if (!record || !meta) continue
-      if (meta.kind === 'product_selection') {
-        productSelections.push({ listingIds: listingIdsForRecord(record, definition.channelIds), selected: Boolean(value) })
-        continue
-      }
-      const identity = identityForCell(record, meta)
-      if (!identity) continue
-      if (meta.kind === 'selection') selections.push({ identity, selected: Boolean(value) })
-      if (meta.kind === 'target') {
-        const descriptor = descriptorMap.get(pricingFieldKey(identity))
-        if (descriptor) {
-          const targetValue = String(value ?? '')
-          targetEdits.push({
-            descriptor: validateDescriptorTarget(descriptor, channelById.get(identity.channelId), targetValue),
-            targetValue,
-          })
-        }
-      }
-    }
-    if (!targetEdits.length && !selections.length && !productSelections.length) return
+  const commitEdit = useCallback((descriptor: PricingFieldDescriptor, rawValue: string) => {
+    const targetValue = rawValue.trim()
+    mutatePricingState(current => editPricingFields(current, [{
+      descriptor: validateDescriptorTarget(descriptor, channelById.get(descriptor.identity.channelId), targetValue),
+      targetValue,
+    }]))
+  }, [channelById, mutatePricingState])
+
+  const resetListingChanges = useCallback((listing: GroupedListing, product: GroupedProduct) => {
     mutatePricingState(current => {
-      let next = targetEdits.length ? editPricingFields(current, targetEdits) : current
-      for (const selection of selections) next = setPricingFieldSelected(next, selection.identity, selection.selected)
-      for (const productSelection of productSelections) {
-        next = setProductListingsSelected(next, descriptors, productSelection.listingIds, productSelection.selected)
+      const edits: Array<{ descriptor: PricingFieldDescriptor; targetValue: string }> = []
+      for (const field of FIELDS) {
+        const identity = { productId: product.sourceProductId, listingId: listing.listingId, channelId: listing.channelId, field }
+        if (!pricingFieldChange(current, identity)) continue
+        const descriptor = descriptorMap.get(pricingFieldKey(identity))
+        if (descriptor) edits.push({ descriptor, targetValue: descriptor.currentValue ?? '' })
+      }
+      return edits.length ? editPricingFields(current, edits) : current
+    })
+  }, [descriptorMap, mutatePricingState])
+
+  const setListingSelected = useCallback((listing: GroupedListing, product: GroupedProduct, selected: boolean) => {
+    mutatePricingState(current => {
+      let next = current
+      for (const field of FIELDS) {
+        const identity = { productId: product.sourceProductId, listingId: listing.listingId, channelId: listing.channelId, field }
+        if (pricingFieldChange(next, identity)) next = setPricingFieldSelected(next, identity, selected)
       }
       return next
     })
-  }, [channelById, definition, descriptorMap, descriptors, mutatePricingState])
-
-  const handleGridSelection = useCallback((startRow: number, startColumn: number, endRow: number, endColumn: number) => {
-    // Cell focus is not a bulk-row selection. Only an explicit row-header
-    // selection changes this scope; otherwise selected changed Listings apply.
-    if (startColumn >= 0 && endColumn >= 0) return
-    const selected = new Set<string>()
-    const first = Math.min(startRow, endRow)
-    const last = Math.max(startRow, endRow)
-    for (let visualRow = first; visualRow <= last; visualRow += 1) {
-      const physicalRow = hotRef.current?.hotInstance?.toPhysicalRow(visualRow) ?? visualRow
-      const record = hotRef.current?.hotInstance?.getSourceDataAtRow(physicalRow) as DensePricingRecord | undefined
-      if (record?.rowKey) selected.add(record.rowKey)
-    }
-    setSelectedRowKeys(current => setsEqual(current, selected) ? current : selected)
-  }, [])
+  }, [mutatePricingState])
 
   async function saveAndReview() {
     if (!grid || summary.changed === 0 || summary.selected === 0) return
@@ -448,7 +283,6 @@ export default function DensePricingWorkspace({
       setReview({ ...created, items: created.items.map(item => ({ ...item, selected: selectedIdSet.has(item.id) })) })
       setReviewContext({ reviewId: created.id, revisionId: revision.id, selectionChecksum: selection.selectionChecksum, selectedCount: selectedIds.length })
       setDraftVersion(revision.draftVersion)
-      setLocalReviewOpen(false)
       setReviewOpen(true)
       notify.success({ title: translate('workspace:sourceCentricWorkspace.reviewAndDryRunComplete'), description: translate('workspace:densePricing.selectionBoundToReview', { count: selectedIds.length }) })
     } catch (error) {
@@ -472,141 +306,748 @@ export default function DensePricingWorkspace({
     } finally { setBusy(null) }
   }
 
-  function previewBulk() {
-    const scoped = bulkScopeDescriptors(descriptors, definition?.records ?? [], selectedRowKeys, pricingState)
-    const value = bulkValue.trim()
-    const validatedScope = scoped.map(descriptor => validateDescriptorTarget(
-      descriptor,
-      channelById.get(descriptor.identity.channelId),
-      bulkKind === 'set_status' && descriptor.identity.field === 'status'
-        ? value
-        : descriptor.targetValue ?? descriptor.currentValue ?? '',
-    ))
-    setBulkPreview(previewBulkTransformation(pricingState, validatedScope, { kind: bulkKind, value }))
-  }
-
-  function confirmBulk() {
-    if (!bulkPreview) return
-    mutatePricingState(current => applyBulkTransformation(current, bulkPreview))
-    setBulkPreview(null)
-  }
-
   const undo = useCallback(() => mutatePricingState(undoPricingWorkspace), [mutatePricingState])
   const redo = useCallback(() => mutatePricingState(redoPricingWorkspace), [mutatePricingState])
-  const handleGridKeyDown = useCallback((event: KeyboardEvent) => {
-    if (!(event.ctrlKey || event.metaKey)) return
-    const key = event.key.toLowerCase()
-    if (key === 'z' && !event.shiftKey) { event.preventDefault(); undo() }
-    if (key === 'y' || (key === 'z' && event.shiftKey)) { event.preventDefault(); redo() }
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return
+      const target = event.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return
+      const key = event.key.toLowerCase()
+      if (key === 'z' && !event.shiftKey) { event.preventDefault(); undo() }
+      if (key === 'y' || (key === 'z' && event.shiftKey)) { event.preventDefault(); redo() }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [redo, undo])
+  useEffect(() => {
+    if (!rowMenuFor && !filtersOpen) return
+    const close = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('[data-row-actions]') || target?.closest('[data-products-filters]')) return
+      setRowMenuFor(null)
+      setFiltersOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [filtersOpen, rowMenuFor])
 
-  if (!grid || !definition || !channelInventoryReady) {
+  if (!grid || !channelInventoryReady) {
     const loadingState = gridError ? <div className="fh-card fh-card-pad">
       <div className="fh-alert fh-alert-danger" role="alert"><Icon name="alert" /><span>{gridError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void load()}>{translate('products:products.retryInlinePricing')}</button></div>
     </div> : <PricingWorkspaceStartup workspaceName={workspace.name} />
     return embedded ? loadingState : <PageShell>{loadingState}</PageShell>
   }
 
+  const totalProducts = grid.total
+  const filterCount = (categoryFilter ? 1 : 0) + (productTypeFilter ? 1 : 0)
   const content = <>
-    <div className="fh-pricing-workspace" data-pricing-workspace data-products-critical-controls>
-      {!embedded && <header className="fh-pricing-header">
-        <div className="min-w-0"><h1 className="fh-page-title truncate">{workspace.name}</h1><p className="fh-text-caption">{translate('workspace:sourceCentricWorkspace.sourceProductWorkspaceImmutableSnapshot')} {workspace.snapshot.id.slice(0, 8)}</p></div>
-        <span className={`fh-workspace-dirty ${summary.changed ? 'fh-workspace-dirty-active' : ''}`}>{summary.changed ? translate('workspace:densePricing.pendingChanges', { count: summary.changed }) : translate('workspace:sourceCentricWorkspace.draftSaved')}</span>
-      </header>}
+    <div className="fh-products-screen" data-pricing-workspace data-products-critical-controls>
+      <div className="fh-page-header">
+        <h1 className="fh-page-title">{translate('products:products.products')}</h1>
+        {/* i18n-ignore: utility classes, not user-facing copy */}
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            className="fh-button-primary fh-button-sm"
+            data-products-save
+            disabled={summary.changed === 0 || summary.selected === 0 || busy !== null}
+            onClick={() => reviewContext ? setReviewOpen(true) : void saveAndReview()}
+          >
+            {translate('products:products.saveChanges')}
+          </button>
+          <button
+            type="button"
+            className="fh-button-secondary fh-button-sm"
+            data-products-bulk-edit
+            disabled={busy !== null}
+            onClick={() => setBulkOpen(true)}
+          >
+            {translate('products:products.bulkEdit')}
+          </button>
+        </div>
+      </div>
 
-      {gridError && <div className="fh-alert fh-alert-danger m-2" role="alert"><Icon name="alert" /><span>{gridError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void load()}>{translate('products:products.retryInlinePricing')}</button></div>}
-      {channelInventoryError && <div className="fh-alert fh-alert-warning m-2" role="alert"><Icon name="info" /><span>{channelInventoryError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void loadChannelInventory()}>{translate('products:products.retryInlinePricing')}</button></div>}
+      {gridError && <div className="fh-alert fh-alert-danger" role="alert"><Icon name="alert" /><span>{gridError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void load()}>{translate('products:products.retryInlinePricing')}</button></div>}
+      {channelInventoryError && <div className="fh-alert fh-alert-warning" role="alert"><Icon name="info" /><span>{channelInventoryError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void loadChannelInventory()}>{translate('products:products.retryInlinePricing')}</button></div>}
 
-      <div className="fh-pricing-controls-sticky" data-pricing-controls-sticky>
-      <section className="fh-pricing-toolbar" aria-label={translate('workspace:densePricing.pricingToolbar')}>
-        <form className="flex min-w-[240px] flex-1 items-center gap-2" onSubmit={event => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()) }}>
-          <input className="fh-input h-9 min-w-0" type="search" value={searchInput} onChange={event => setSearchInput(event.target.value)} {...inputHint(translate('workspace:sourceCentricWorkspace.searchSourceProducts'))} aria-label={translate('workspace:sourceCentricWorkspace.searchSourceProducts')} />
-          <button className="fh-button-secondary fh-button-sm" type="submit"><Icon name="search" /> {translate('workspace:unifiedWorkspace.filterServerData')}</button>
-          <select className="fh-select h-9 w-auto" value={view} onChange={event => { setView(event.target.value as View); setPage(1) }} aria-label={translate('workspace:densePricing.changeStateFilter')}>
-            {(['all', 'changed', 'ready', 'blocked', 'unchanged'] as const).map(value => <option key={value} value={value}>{translate(`workspace:densePricing.view.${value}`)}</option>)}
-          </select>
-          <select className="fh-select h-9 w-auto" name="channelId" value={channelFilter} onChange={event => { setChannelFilter(event.target.value); setSelectedRowKeys(new Set()); setPage(1) }} aria-label={translate('workspace:unifiedWorkspace.channel')}>
-            <option value="">{translate('common:selector.allChannels')}</option>
-            <ResourceOptionGroups resources={channelResources} isOptionDisabled={channel => channel.section !== 'active'} />
-          </select>
-          <select className="fh-select h-9 w-auto" name="categoryId" value={categoryFilter} onChange={event => { setCategoryFilter(event.target.value); setPage(1) }} aria-label={translate('products:column.categories')}>
-            <option value="">{translate('products:products.allCategories')}</option>
-            {categoryOptions.map(category => <option key={category.value} value={category.value}>{category.label}</option>)}
-          </select>
-          <select className="fh-select h-9 w-auto" name="productType" value={productTypeFilter} onChange={event => { setProductTypeFilter(event.target.value as typeof productTypeFilter); setPage(1) }} aria-label={translate('products:column.type')}>
-            <option value="">{translate('products:products.allTypes')}</option>
-            {(['simple', 'variation', 'variable'] as const).map(type => <option key={type} value={type}>{translate(`products:productType.${type}`)}</option>)}
-          </select>
-          <select className="fh-select h-9 w-auto" name="stockState" value={stockFilter} onChange={event => { setStockFilter(event.target.value as typeof stockFilter); setPage(1) }} aria-label={translate('common:field.stock')}>
-            <option value="">{translate('products:products.allStockStates')}</option>
+      <div className="fh-products-toolbar" aria-label={translate('workspace:densePricing.pricingToolbar')}>
+        <form className="fh-products-search" onSubmit={event => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()) }}>
+          <Icon name="search" size="sm" className="fh-products-search-icon" />
+          <input
+            className="fh-products-search-input"
+            type="search"
+            value={searchInput}
+            onChange={event => setSearchInput(event.target.value)}
+            {...inputHint(translate('products:products.searchProducts'))}
+            aria-label={translate('products:products.searchProducts')}
+          />
+          {searchInput && <button
+            type="button"
+            className="fh-products-search-clear"
+            aria-label={translate('products:products.clearSearch')}
+            onClick={() => { setSearchInput(''); setSearch(''); setPage(1) }}
+          ><Icon name="close" size="sm" /></button>}
+        </form>
+        <label className="fh-chip-select">
+          <span className="sr-only">{translate('products:products.allStatuses')}</span>
+          <select value={stockFilter} onChange={event => { setStockFilter(event.target.value as typeof stockFilter); setPage(1) }}>
+            <option value="">{translate('products:products.allStatuses')}</option>
             <option value="in_stock">{translate('products:products.inStock')}</option>
             <option value="out_of_stock">{translate('products:products.outOfStock')}</option>
           </select>
-        </form>
-        <button type="button" className="fh-button-secondary fh-button-sm" data-pricing-sort="product" onClick={() => {
-          const plugin = hotRef.current?.hotInstance?.getPlugin('multiColumnSorting')
-          const current = plugin?.getSortConfig() as { sortOrder?: 'asc' | 'desc' }[] | undefined
-          plugin?.sort({ column: 1, sortOrder: current?.[0]?.sortOrder === 'asc' ? 'desc' : 'asc' })
-        }}><Icon name="filter" /> {translate('workspace:densePricing.sortProduct')}</button>
-        <button type="button" className="fh-button-secondary fh-button-sm" data-pricing-undo disabled={!pricingState.past.length} onClick={undo}>{translate('workspace:densePricing.undo')}</button>
-        <button type="button" className="fh-button-secondary fh-button-sm" data-pricing-redo disabled={!pricingState.future.length} onClick={redo}>{translate('workspace:densePricing.redo')}</button>
-      </section>
-
-      <section className="fh-pricing-summary" aria-label={translate('workspace:sourceCentricWorkspace.workspaceChangeSummary')}>
-        {(['changed', 'selected', 'ready', 'warning', 'blocked'] as const).map(key => <span key={key} className={`fh-pricing-counter fh-pricing-counter-${key}`}><strong>{formatNumber(summary[key])}</strong> {translate(`workspace:densePricing.counter.${key}`)}</span>)}
-        <div className="fh-pricing-channels" aria-label={translate('workspace:sourceCentricWorkspace.channels')}>
-          {/* i18n-ignore: utility classes, not user-facing copy */}
-          <ResourceSectionList resources={channelResources} className="flex flex-wrap gap-2" renderItem={channel => <span className="inline-flex items-center gap-1 text-xs"><span>{channel.displayName}</span><ResourceStateBadge badge={channel.badge} /></span>} />
+          <Icon name="chevronDown" size="sm" className="fh-chip-caret" />
+        </label>
+        <label className="fh-chip-select">
+          <span className="sr-only">{translate('products:products.allChannels')}</span>
+          <select name="channelId" value={channelFilter} onChange={event => { setChannelFilter(event.target.value); setPage(1) }}>
+            <option value="">{translate('products:products.allChannels')}</option>
+            <ResourceOptionGroups resources={channelResources} isOptionDisabled={channel => channel.section !== 'active'} />
+          </select>
+          <Icon name="chevronDown" size="sm" className="fh-chip-caret" />
+        </label>
+        <label className="fh-chip-select">
+          <span className="sr-only">{translate('products:products.savedViews')}</span>
+          <select value={view} onChange={event => { setView(event.target.value as View); setPage(1) }} data-products-view>
+            <option value="all" disabled hidden>{translate('products:products.savedViews')}</option>
+            {VIEWS.map(value => <option key={value} value={value}>{translate(`workspace:densePricing.view.${value}`)}</option>)}
+          </select>
+          <Icon name="chevronDown" size="sm" className="fh-chip-caret" />
+        </label>
+        <div className="fh-products-filters" data-products-filters>
+          <button
+            type="button"
+            className={`fh-chip ${filterCount ? 'fh-chip-active' : ''}`}
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen(open => !open)}
+          >
+            <Icon name="filter" size="sm" /> {translate('products:products.filters')}{filterCount ? ` (${formatNumber(filterCount)})` : ''}
+          </button>
+          {filtersOpen && <div className="fh-dropdown fh-products-filters-panel">
+            <label className="fh-field">
+              <span className="fh-label">{translate('products:column.categories')}</span>
+              <select className="fh-select" name="categoryId" value={categoryFilter} onChange={event => { setCategoryFilter(event.target.value); setPage(1) }}>
+                <option value="">{translate('products:products.allCategories')}</option>
+                {categoryOptions.map(category => <option key={category.value} value={category.value}>{category.label}</option>)}
+              </select>
+            </label>
+            <label className="fh-field">
+              <span className="fh-label">{translate('products:column.type')}</span>
+              <select className="fh-select" name="productType" value={productTypeFilter} onChange={event => { setProductTypeFilter(event.target.value as typeof productTypeFilter); setPage(1) }}>
+                <option value="">{translate('products:products.allTypes')}</option>
+                {(['simple', 'variation', 'variable'] as const).map(type => <option key={type} value={type}>{translate(`products:productType.${type}`)}</option>)}
+              </select>
+            </label>
+          </div>}
         </div>
-        <span className="fh-text-caption" data-pending-summary>{translate('workspace:densePricing.pendingHidden', { pending: summary.changed, hidden: summary.hidden })}</span>
-      </section>
-
-      <section className="fh-pricing-bulk" data-bulk-toolbar aria-label={translate('workspace:densePricing.bulkTransformationToolbar')}>
-        <select className="fh-select h-9 w-auto min-w-[190px]" data-bulk-action value={bulkKind} onChange={event => setBulkKind(event.target.value as BulkTransformationKind)} aria-label={translate('workspace:densePricing.bulkAction')}>
-          {BULK_ACTIONS.map(action => <option key={action.kind} value={action.kind}>{translate(action.label)}</option>)}
-        </select>
-        <input className="fh-input h-9 w-32" data-bulk-value value={bulkValue} onChange={event => setBulkValue(event.target.value)} aria-label={translate('workspace:densePricing.bulkValue')} />
-        <button type="button" className="fh-button-secondary fh-button-sm" data-bulk-preview disabled={bulkScopeCount === 0} onClick={previewBulk}><Icon name="preview" /> {translate('workspace:densePricing.previewBulkChange')}</button>
-        <span className="fh-text-caption">{translate('workspace:densePricing.selectedRowsScope', { count: bulkScopeCount })}</span>
-        {/* i18n-ignore: utility classes, not user-facing copy */}
-        <div className="ms-auto flex items-center gap-2">
-          <button data-pricing-review className="fh-button-secondary fh-button-sm" type="button" disabled={summary.selected === 0 || busy !== null} onClick={() => reviewContext ? setReviewOpen(true) : setLocalReviewOpen(true)}>{translate('workspace:unifiedWorkspace.review')}</button>
-          <button data-pricing-dry-run className="fh-button-secondary fh-button-sm" type="button" disabled={summary.changed === 0 || summary.selected === 0 || busy !== null || reviewContext !== null} onClick={() => void saveAndReview()}><Icon name="dryRun" /> {translate('products:products.dryRun')}</button>
-          <button data-pricing-apply className="fh-button-primary fh-button-sm" type="button" disabled={!reviewContext || review?.status !== 'ready' || busy !== null} onClick={() => setConfirming(true)}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.apply')} {reviewContext?.selectedCount ?? 0}</button>
-        </div>
-      </section>
       </div>
 
-      {!license.licenseKey ? <div className="fh-alert fh-alert-danger"><Icon name="alert" /><span>{translate('workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid')}</span></div> :
-        <div className="fh-grid-scroll fh-pricing-grid-scroll" data-pricing-grid-scroll role="region" aria-label={translate('workspace:unifiedWorkspace.scrollableWorkspaceGrid')}>
-          {/* i18n-ignore: Handsontable theme and component classes */}
-          <DensePricingGrid
-            definition={definition}
-            gridMinWidth={gridMinWidth}
-            height={tableHeight}
-            hotRef={hotRef}
-            licenseKey={license.licenseKey}
-            onChange={handleGridChanges}
-            onSelection={handleGridSelection}
-            onKeyDown={handleGridKeyDown}
-          />
-        </div>}
+      <div className="fh-products-card" data-products-table>
+        <table className="fh-products-table">
+          <thead>
+            <tr>
+              <th scope="col" className="fh-products-col-product">{translate('products:column.product')}</th>
+              <th scope="col">{translate('products:column.channel')}</th>
+              <th scope="col">{priceCurrency
+                ? translate('products:products.priceWithCurrency', { currency: formatCurrencyLabel(priceCurrency) })
+                : translate('products:column.price')}</th>
+              <th scope="col">{translate('products:column.stock')}</th>
+              <th scope="col">{translate('products:column.availability')}</th>
+              <th scope="col">{translate('products:column.lastSync')}</th>
+              <th scope="col" className="fh-products-col-actions">{translate('products:column.actions')}</th>
+            </tr>
+          </thead>
+          {visibleGrid && visibleGrid.items.length === 0 && <tbody>
+            <tr><td colSpan={7}><Empty title={translate('products:products.noProductsFound')} description={translate('products:products.tryAdjustingTheSearchOrFilter')} /></td></tr>
+          </tbody>}
+          {visibleGrid?.items.map(product => <ProductGroup
+            key={product.sourceProductId}
+            product={product}
+            channelById={channelById}
+            descriptorMap={descriptorMap}
+            pricingState={pricingState}
+            rowMenuFor={rowMenuFor}
+            onToggleRowMenu={setRowMenuFor}
+            onCommitEdit={commitEdit}
+            onResetListing={resetListingChanges}
+            onSetListingSelected={setListingSelected}
+          />)}
+        </table>
+      </div>
 
-      <footer className="fh-pricing-footer">
-        <span className="fh-text-caption">{translate('workspace:sourceCentricWorkspace.page')} {page} {translate('workspace:sourceCentricWorkspace.of')} {pageCount}</span>
-        <div className="flex gap-2"><button className="fh-button-secondary fh-button-sm" disabled={page <= 1 || busy !== null} onClick={() => setPage(value => value - 1)}>{translate('workspace:sourceCentricWorkspace.previous')}</button><button className="fh-button-secondary fh-button-sm" disabled={page >= pageCount || busy !== null} onClick={() => setPage(value => value + 1)}>{translate('workspace:sourceCentricWorkspace.next')}</button></div>
-      </footer>
-      {busy && <p className="fh-text-caption px-3 py-2" role="status">{busy}...</p>}
+      <div className="fh-products-footer">
+        <span className="fh-text-caption" data-products-count>
+          {translate('products:products.showingProducts', { count: totalProducts, value: formatNumber(totalProducts) })}
+        </span>
+        {pageCount > 1 && <div className="flex items-center gap-2">
+          <button className="fh-button-secondary fh-button-sm" type="button" disabled={page <= 1 || busy !== null} onClick={() => setPage(value => value - 1)}>{translate('workspace:sourceCentricWorkspace.previous')}</button>
+          <span className="fh-text-caption">{translate('workspace:sourceCentricWorkspace.page')} {formatNumber(page)} {translate('workspace:sourceCentricWorkspace.of')} {formatNumber(pageCount)}</span>
+          <button className="fh-button-secondary fh-button-sm" type="button" disabled={page >= pageCount || busy !== null} onClick={() => setPage(value => value + 1)}>{translate('workspace:sourceCentricWorkspace.next')}</button>
+        </div>}
+      </div>
+      {busy && <p className="fh-text-caption" role="status">{busy}...</p>}
     </div>
 
-    {bulkPreview && <BulkPreviewDialog preview={bulkPreview} onCancel={() => setBulkPreview(null)} onConfirm={confirmBulk} />}
-    {localReviewOpen && <LocalReviewDialog changes={selectedPricingChanges(pricingState)} grid={grid} onClose={() => setLocalReviewOpen(false)} />}
-    {reviewOpen && review && <ReviewDialog review={review} grid={grid} onClose={() => setReviewOpen(false)} />}
+    {bulkOpen && <BulkEditDialog
+      grid={grid}
+      descriptors={descriptors}
+      channelById={channelById}
+      channelFilter={channelFilter}
+      pricingState={pricingState}
+      onClose={() => setBulkOpen(false)}
+      onApply={sections => {
+        mutatePricingState(current => applyBulkSections(current, sections, descriptors, channelById, channelFilter))
+        setBulkOpen(false)
+      }}
+    />}
+    {reviewOpen && review && <ReviewDialog
+      review={review}
+      grid={grid}
+      canApply={review.status === 'ready' && reviewContext !== null && busy === null}
+      onApply={() => setConfirming(true)}
+      onClose={() => setReviewOpen(false)}
+    />}
     {confirming && reviewContext && <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:sourceCentricWorkspace.applyConfirmation')}><div className="fh-card fh-card-pad max-w-lg"><h2 className="fh-page-title">{translate('workspace:sourceCentricWorkspace.confirmSelectedApply')}</h2><p className="fh-text-caption mt-2">{translate('workspace:densePricing.confirmApplyScope', { count: reviewContext.selectedCount })}</p>{/* i18n-ignore: utility classes, not user-facing copy */}<div className="mt-5 flex justify-end gap-2"><button className="fh-button-secondary" type="button" onClick={() => setConfirming(false)}>{translate('workspace:sourceCentricWorkspace.cancel')}</button><button className="fh-button-primary" type="button" onClick={() => void apply()}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.confirmApply')}</button></div></div></div>}
     {applyResult && <ApplyResults result={applyResult} />}
   </>
   return embedded ? content : <PageShell>{content}</PageShell>
 }
+
+interface ProductGroupProps {
+  product: GroupedProduct
+  channelById: ReadonlyMap<string, SourceChannel>
+  descriptorMap: ReadonlyMap<string, PricingFieldDescriptor>
+  pricingState: PricingWorkspaceState
+  rowMenuFor: string | null
+  onToggleRowMenu: (listingId: string | null) => void
+  onCommitEdit: (descriptor: PricingFieldDescriptor, rawValue: string) => void
+  onResetListing: (listing: GroupedListing, product: GroupedProduct) => void
+  onSetListingSelected: (listing: GroupedListing, product: GroupedProduct, selected: boolean) => void
+}
+
+const ProductGroup = memo(function ProductGroup({
+  product,
+  channelById,
+  descriptorMap,
+  pricingState,
+  rowMenuFor,
+  onToggleRowMenu,
+  onCommitEdit,
+  onResetListing,
+  onSetListingSelected,
+}: ProductGroupProps) {
+  return (
+    <tbody className="fh-products-group" data-product-group data-product-id={product.sourceProductId}>
+      {product.children.map((listing, index) => {
+        const changedIdentities = FIELDS
+          .map(field => ({ productId: product.sourceProductId, listingId: listing.listingId, channelId: listing.channelId, field }))
+          .filter(identity => pricingFieldChange(pricingState, identity))
+        const hasChanges = changedIdentities.length > 0
+        const allSelected = hasChanges && changedIdentities.every(identity => {
+          const change = pricingFieldChange(pricingState, identity)
+          return change ? isPricingFieldSelected(change) : false
+        })
+        return (
+          <tr key={listing.listingId} data-pricing-row data-listing-id={listing.listingId} data-channel-id={listing.channelId}>
+            {/* Every row keeps the same cell count (fixed table layout requires
+                stable column counts per row); the product cell is only
+                populated on the group's first row and left empty after. */}
+            <td className="fh-products-product-cell">
+              {index === 0 && <span className="fh-products-product-inner">
+                <span className="fh-products-thumb" aria-hidden="true"><Icon name="products" /></span>
+                <span className="fh-products-name">{product.name}</span>
+              </span>}
+            </td>
+            <td className="fh-products-channel-cell">{formatChannelDisplayName(listing.channelId)}</td>
+            <td className="fh-products-input-cell">
+              <TargetInput
+                descriptor={descriptorMap.get(fieldKey(product, listing, 'price'))}
+                pricingState={pricingState}
+                field="price"
+                inputMode="decimal"
+                ariaLabel={translate('products:products.fieldEditLabel', {
+                  product: product.name,
+                  channel: formatChannelDisplayName(listing.channelId),
+                  field: formatField('price'),
+                })}
+                onCommit={onCommitEdit}
+              />
+            </td>
+            <td className="fh-products-input-cell">
+              <TargetInput
+                descriptor={descriptorMap.get(fieldKey(product, listing, 'stock'))}
+                pricingState={pricingState}
+                field="stock"
+                inputMode="numeric"
+                narrow
+                ariaLabel={translate('products:products.fieldEditLabel', {
+                  product: product.name,
+                  channel: formatChannelDisplayName(listing.channelId),
+                  field: formatField('stock'),
+                })}
+                onCommit={onCommitEdit}
+              />
+            </td>
+            <td className="fh-products-availability-cell">
+              <AvailabilitySelect
+                descriptor={descriptorMap.get(fieldKey(product, listing, 'status'))}
+                channel={channelById.get(listing.channelId)}
+                pricingState={pricingState}
+                ariaLabel={translate('products:products.fieldEditLabel', {
+                  product: product.name,
+                  channel: formatChannelDisplayName(listing.channelId),
+                  field: formatField('status'),
+                })}
+                onCommit={onCommitEdit}
+              />
+            </td>
+            <td className="fh-products-sync-cell">{formatStatus(listing.cacheFreshness)}</td>
+            <td className="fh-products-actions-cell">
+              <div className="fh-row-actions" data-row-actions>
+                <button
+                  type="button"
+                  className="fh-row-actions-trigger"
+                  data-row-menu-trigger
+                  data-listing-id={listing.listingId}
+                  aria-haspopup="menu"
+                  aria-expanded={rowMenuFor === listing.listingId}
+                  aria-label={translate('products:products.rowActions', {
+                    product: product.name,
+                    channel: formatChannelDisplayName(listing.channelId),
+                  })}
+                  onClick={() => onToggleRowMenu(rowMenuFor === listing.listingId ? null : listing.listingId)}
+                >
+                  <Icon name="more" size="sm" />
+                </button>
+                {rowMenuFor === listing.listingId && <div className="fh-dropdown fh-row-actions-menu" role="menu">
+                  <button type="button" role="menuitem" className="fh-dropdown-item" data-row-menu-action="reset" disabled={!hasChanges} onClick={() => { onResetListing(listing, product); onToggleRowMenu(null) }}>
+                    {translate('products:products.resetRowChanges')}
+                  </button>
+                  <button type="button" role="menuitem" className="fh-dropdown-item" data-row-menu-action="toggle-selection" disabled={!hasChanges} onClick={() => { onSetListingSelected(listing, product, !allSelected); onToggleRowMenu(null) }}>
+                    {allSelected ? translate('products:products.excludeFromSave') : translate('products:products.includeInSave')}
+                  </button>
+                </div>}
+              </div>
+            </td>
+          </tr>
+        )
+      })}
+    </tbody>
+  )
+})
+
+interface TargetInputProps {
+  descriptor: PricingFieldDescriptor | undefined
+  pricingState: PricingWorkspaceState
+  field: PricingField
+  inputMode: 'decimal' | 'numeric'
+  narrow?: boolean
+  ariaLabel: string
+  onCommit: (descriptor: PricingFieldDescriptor, rawValue: string) => void
+}
+
+function TargetInput({ descriptor, pricingState, field, inputMode, narrow = false, ariaLabel, onCommit }: TargetInputProps) {
+  const change = descriptor ? pricingFieldChange(pricingState, descriptor.identity) : undefined
+  const committedValue = change?.targetValue ?? descriptor?.targetValue ?? descriptor?.currentValue ?? ''
+  const [draft, setDraft] = useState<string | null>(null)
+  const status = cellEditStatus(descriptor, change)
+  const disabled = !descriptor || !descriptor.policy.writable || descriptor.policy.comingSoon || !descriptor.policy.channelEnabled || !descriptor.policy.supported || !descriptor.policy.mapped
+  return (
+    <input
+      className={`fh-cell-input ${narrow ? 'fh-cell-input-narrow' : ''}`}
+      type="text"
+      inputMode={inputMode}
+      dir="ltr"
+      value={draft ?? committedValue}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      data-target-field={field}
+      data-listing-id={descriptor?.identity.listingId}
+      data-channel-id={descriptor?.identity.channelId}
+      data-cell-status={status}
+      onChange={event => setDraft(event.target.value)}
+      onFocus={() => setDraft(committedValue)}
+      onBlur={() => {
+        if (descriptor && draft !== null && draft.trim() !== committedValue) onCommit(descriptor, draft)
+        setDraft(null)
+      }}
+      onKeyDown={event => {
+        if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur() }
+        if (event.key === 'Escape') { setDraft(null); event.currentTarget.blur() }
+      }}
+    />
+  )
+}
+
+interface AvailabilitySelectProps {
+  descriptor: PricingFieldDescriptor | undefined
+  channel: SourceChannel | undefined
+  pricingState: PricingWorkspaceState
+  ariaLabel: string
+  onCommit: (descriptor: PricingFieldDescriptor, rawValue: string) => void
+}
+
+function AvailabilitySelect({ descriptor, channel, pricingState, ariaLabel, onCommit }: AvailabilitySelectProps) {
+  const change = descriptor ? pricingFieldChange(pricingState, descriptor.identity) : undefined
+  const value = change?.targetValue ?? descriptor?.targetValue ?? descriptor?.currentValue ?? ''
+  const supported = channel ? capabilityStatuses(channel.capabilities) ?? [] : []
+  const options = [...new Set([...(value ? [value] : []), ...supported])]
+  const disabled = !descriptor || !descriptor.policy.writable || descriptor.policy.comingSoon || !descriptor.policy.channelEnabled || !descriptor.policy.supported || !descriptor.policy.mapped || options.length === 0
+  const status = cellEditStatus(descriptor, change)
+  if (!value && options.length === 0) {
+    return <span className="fh-text-caption">{'—'}</span>
+  }
+  return (
+    <span className="fh-availability" data-tone={statusTone(value)}>
+      <select
+        value={value}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        data-target-field="status"
+        data-listing-id={descriptor?.identity.listingId}
+        data-channel-id={descriptor?.identity.channelId}
+        data-cell-status={status}
+        onChange={event => { if (descriptor) onCommit(descriptor, event.target.value) }}
+      >
+        {options.map(option => <option key={option} value={option}>{formatStatus(option)}</option>)}
+      </select>
+      <Icon name="chevronDown" size="sm" className="fh-availability-caret" />
+    </span>
+  )
+}
+
+interface BulkSectionConfig {
+  pricingEnabled: boolean
+  pricingKind: Extract<BulkTransformationKind, 'increase_price_percent' | 'decrease_price_percent' | 'set_price'>
+  pricingValue: string
+  stockEnabled: boolean
+  stockValue: string
+  statusEnabled: boolean
+  statusValue: string
+  scope: 'all' | 'selected_channel'
+}
+
+interface BulkEditDialogProps {
+  grid: GroupedWorkspacePage
+  descriptors: readonly PricingFieldDescriptor[]
+  channelById: ReadonlyMap<string, SourceChannel>
+  channelFilter: string
+  pricingState: PricingWorkspaceState
+  onClose: () => void
+  onApply: (sections: BulkSectionConfig) => void
+}
+
+// Figma: Modal/BulkEdit — Pricing, Stock Quantity, and Availability Status
+// sections with channel scope and an auto-updating preview, applied to the
+// local draft through the shared bulk transformation engine.
+function BulkEditDialog({ grid, descriptors, channelById, channelFilter, pricingState, onClose, onApply }: BulkEditDialogProps) {
+  const [pricingEnabled, setPricingEnabled] = useState(true)
+  const [pricingKind, setPricingKind] = useState<BulkSectionConfig['pricingKind']>('increase_price_percent')
+  const [pricingValue, setPricingValue] = useState('')
+  const [stockEnabled, setStockEnabled] = useState(false)
+  const [stockValue, setStockValue] = useState('')
+  const [statusEnabled, setStatusEnabled] = useState(false)
+  const [statusValue, setStatusValue] = useState('')
+  const [scope, setScope] = useState<BulkSectionConfig['scope']>(channelFilter ? 'selected_channel' : 'all')
+
+  const sections: BulkSectionConfig = {
+    pricingEnabled, pricingKind, pricingValue,
+    stockEnabled, stockValue,
+    statusEnabled, statusValue,
+    scope,
+  }
+  const scopedDescriptors = useMemo(
+    () => bulkScopeDescriptors(descriptors, channelFilter, scope),
+    [channelFilter, descriptors, scope],
+  )
+  const preview = useMemo(
+    () => previewBulkSections(pricingState, sections, scopedDescriptors, channelById),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sections is rebuilt per render from its parts.
+    [channelById, pricingState, scopedDescriptors, pricingEnabled, pricingKind, pricingValue, stockEnabled, stockValue, statusEnabled, statusValue],
+  )
+  const listingById = useMemo(() => {
+    const map = new Map<string, { productName: string; sku: string | null }>()
+    for (const product of grid.items) {
+      for (const listing of product.children) {
+        map.set(listing.listingId, { productName: product.name, sku: listing.sku })
+      }
+    }
+    return map
+  }, [grid])
+  const statusOptions = useMemo(() => {
+    const options = new Set<string>()
+    for (const descriptor of scopedDescriptors) {
+      if (descriptor.identity.field !== 'status') continue
+      const channel = channelById.get(descriptor.identity.channelId)
+      for (const status of channel ? capabilityStatuses(channel.capabilities) ?? [] : []) options.add(status)
+    }
+    return [...options]
+  }, [channelById, scopedDescriptors])
+
+  const scopedProducts = new Set(scopedDescriptors.map(descriptor => descriptor.identity.productId)).size
+  const scopedListings = new Set(scopedDescriptors.map(descriptor => descriptor.identity.listingId)).size
+  const channelCount = new Set(descriptors.map(descriptor => descriptor.identity.channelId)).size
+  const affectedProducts = new Set(preview.items.filter(item => !item.blockedReason && item.resultingValue !== null).map(item => item.descriptor.identity.productId)).size
+  const applyDisabled = preview.fieldsAffected === 0
+
+  return (
+    <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" data-bulk-edit-dialog aria-label={translate('products:products.bulkEditProducts')}>
+      <div className="fh-card fh-bulk-modal">
+        <div className="fh-panel-header">
+          <div className="min-w-0">
+            <h2 className="fh-section-title">{translate('products:products.bulkEditProducts')}</h2>
+            <p className="fh-text-caption fh-bulk-subtitle">
+              <span className="fh-badge fh-badge-neutral">{translate('products:products.productsSelected', { count: scopedProducts })}</span>
+              <span>{translate('products:products.channelListingsAffected', { count: scopedListings, value: formatNumber(scopedListings) })}</span>
+            </p>
+          </div>
+          <button type="button" className="fh-icon-button fh-bulk-close" aria-label={translate('workspace:sourceCentricWorkspace.cancel')} onClick={onClose}><Icon name="close" size="sm" /></button>
+        </div>
+
+        <div className="fh-bulk-body">
+          <section className="fh-bulk-section" aria-label={translate('products:products.bulkPricing')}>
+            <header className="fh-bulk-section-header">
+              <span className="fh-bulk-section-title">{translate('products:products.bulkPricing')}</span>
+              <BulkToggle checked={pricingEnabled} onChange={setPricingEnabled} label={translate('products:products.bulkPricing')} />
+            </header>
+            {pricingEnabled && <>
+              <div className="fh-bulk-options" role="radiogroup" aria-label={translate('products:products.bulkPricing')}>
+                {([
+                  ['increase_price_percent', 'products:products.increaseByPercentage'],
+                  ['decrease_price_percent', 'products:products.decreaseByPercentage'],
+                  ['set_price', 'products:products.setFixedPrice'],
+                ] as const).map(([kind, label]) => <label key={kind} className="fh-bulk-radio">
+                  <input type="radio" name="bulk-pricing-kind" value={kind} checked={pricingKind === kind} onChange={() => setPricingKind(kind)} />
+                  <span>{translate(label)}</span>
+                </label>)}
+              </div>
+              <div className="fh-bulk-value">
+                <input className="fh-cell-input" dir="ltr" inputMode="decimal" value={pricingValue} onChange={event => setPricingValue(event.target.value)} aria-label={translate('workspace:densePricing.bulkValue')} data-bulk-pricing-value />
+                <span className="fh-text-caption">{pricingKind === 'set_price' ? '' : '%'}</span>
+                <span className="fh-bulk-help">{translate('products:products.appliedToBasePrice')}</span>
+              </div>
+            </>}
+          </section>
+
+          <section className="fh-bulk-section" aria-label={translate('products:products.stockQuantity')}>
+            <header className="fh-bulk-section-header">
+              <span className="fh-bulk-section-title">{translate('products:products.stockQuantity')}</span>
+              <BulkToggle checked={stockEnabled} onChange={setStockEnabled} label={translate('products:products.stockQuantity')} />
+            </header>
+            {stockEnabled && <>
+              <div className="fh-bulk-options" role="radiogroup" aria-label={translate('products:products.stockQuantity')}>
+                <label className="fh-bulk-radio">
+                  <input type="radio" name="bulk-stock-kind" checked readOnly />
+                  <span>{translate('products:products.setStockQuantity')}</span>
+                </label>
+              </div>
+              <div className="fh-bulk-value">
+                <input className="fh-cell-input fh-cell-input-narrow" dir="ltr" inputMode="numeric" value={stockValue} onChange={event => setStockValue(event.target.value)} aria-label={translate('products:products.stockQuantity')} data-bulk-stock-value />
+                <span className="fh-text-caption">{translate('products:products.units')}</span>
+                <span className="fh-bulk-help">{translate('products:products.stockOverwriteHelper')}</span>
+              </div>
+            </>}
+          </section>
+
+          <section className="fh-bulk-section" aria-label={translate('products:products.availabilityStatus')}>
+            <header className="fh-bulk-section-header">
+              <span className="fh-bulk-section-title">{translate('products:products.availabilityStatus')}</span>
+              <BulkToggle checked={statusEnabled} onChange={setStatusEnabled} label={translate('products:products.availabilityStatus')} />
+            </header>
+            <div className="fh-bulk-columns">
+              {statusEnabled && <div className="fh-bulk-options" role="radiogroup" aria-label={translate('products:products.availabilityStatus')}>
+                {statusOptions.map(option => <label key={option} className="fh-bulk-radio">
+                  <input type="radio" name="bulk-status-value" value={option} checked={statusValue === option} onChange={() => setStatusValue(option)} />
+                  <span>{formatStatus(option)}</span>
+                </label>)}
+                <label className="fh-bulk-radio">
+                  <input type="radio" name="bulk-status-value" value="" checked={statusValue === ''} onChange={() => setStatusValue('')} />
+                  <span>{translate('products:products.noChange')}</span>
+                </label>
+              </div>}
+              <div className="fh-bulk-scope">
+                <span className="fh-bulk-section-title">{translate('products:products.channelScope')}</span>
+                <label className="fh-bulk-radio">
+                  <input type="radio" name="bulk-scope" value="all" checked={scope === 'all'} onChange={() => setScope('all')} />
+                  <span>{translate('products:products.allChannelsCount', { value: formatNumber(channelCount) })}</span>
+                </label>
+                <label className="fh-bulk-radio">
+                  <input type="radio" name="bulk-scope" value="selected_channel" checked={scope === 'selected_channel'} disabled={!channelFilter} onChange={() => setScope('selected_channel')} />
+                  <span>{channelFilter
+                    ? `${translate('products:products.selectedChannel')} · ${formatChannelDisplayName(channelFilter)}`
+                    : translate('products:products.selectedChannel')}</span>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section className="fh-bulk-preview" aria-label={translate('products:products.previewOfChanges')} data-bulk-preview>
+            <header className="fh-bulk-preview-header">
+              <span>{translate('products:products.previewOfChanges')}</span>
+              <span className="fh-bulk-preview-live">{translate('products:products.autoUpdating')}</span>
+            </header>
+            {preview.items.length === 0
+              ? <p className="fh-text-caption">{translate('workspace:densePricing.selectedRowsScope', { count: 0, value: formatNumber(0) })}</p>
+              : <ul className="fh-bulk-preview-list">
+                {preview.items.slice(0, 6).map(item => {
+                  const listing = listingById.get(item.descriptor.identity.listingId)
+                  return <li key={item.key} className="fh-bulk-preview-row">
+                    <span className="fh-text-mono">{listing?.sku ?? item.descriptor.identity.productId}</span>
+                    <span className="fh-bulk-preview-name">{listing?.productName ?? item.descriptor.identity.productId}</span>
+                    <span className="fh-bulk-preview-values" dir="ltr">
+                      {item.previousValue || '—'} → {item.blockedReason ? translate('workspace:sourceCentricWorkspace.blockedRows') : item.resultingValue ?? '—'}
+                    </span>
+                  </li>
+                })}
+              </ul>}
+          </section>
+        </div>
+
+        <div className="fh-panel-footer">
+          <button type="button" className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:sourceCentricWorkspace.cancel')}</button>
+          <button type="button" className="fh-button-primary fh-button-sm" data-bulk-apply disabled={applyDisabled} onClick={() => onApply(sections)}>
+            {translate('products:products.applyToDraft', { value: formatNumber(affectedProducts) })}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BulkToggle({ checked, onChange, label }: { checked: boolean; onChange: (next: boolean) => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      className={`fh-bulk-toggle ${checked ? 'fh-bulk-toggle-on' : ''}`}
+      onClick={() => onChange(!checked)}
+    >
+      <span className="fh-bulk-toggle-knob" />
+    </button>
+  )
+}
+
+function ReviewDialog({ review, grid, canApply, onApply, onClose }: { review: ReviewResource; grid: GroupedWorkspacePage; canApply: boolean; onApply: () => void; onClose: () => void }) {
+  return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:unifiedWorkspace.reviewChanges')}><div className="fh-card max-h-[88vh] w-full max-w-6xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:unifiedWorkspace.reviewChanges')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.reviewSummary', { total: review.summary.total, selected: review.items.filter(item => item.selected).length, blocked: review.summary.blocked })}</p></div><button className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button></div><div className="overflow-x-auto"><table className="fh-table min-w-[900px]"><thead><tr><th>{translate('workspace:gridModel.product')}</th><th>{translate('workspace:unifiedWorkspace.channel')}</th><th>{translate('workspace:densePricing.field')}</th><th>{translate('workspace:densePricing.previousValue')}</th><th>{translate('workspace:gridModel.targetField', { field: '' })}</th><th>{translate('workspace:sourceCentricWorkspace.selected')}</th></tr></thead><tbody>{review.items.map(item => { const product = grid.items.find(row => row.children.some(child => child.listingId === item.listingId)); return <tr key={item.id}><td>{product?.name ?? item.canonicalProductId}</td><td>{formatChannelDisplayName(item.channelId)}</td><td>{formatField(item.field)}</td><td>{item.current ?? '—'}</td><td>{item.target}</td><td>{item.selected ? '✓' : '—'}</td></tr> })}</tbody></table></div><div className="fh-panel-footer"><button className="fh-button-secondary" type="button" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button><button className="fh-button-primary" type="button" data-pricing-apply disabled={!canApply} onClick={onApply}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.apply')}</button></div></div></div>
+}
+
+function ApplyResults({ result }: { result: ApplyResource }) {
+  return <section className="fh-card fh-card-pad" aria-label={translate('workspace:sourceCentricWorkspace.applyResults')}><h2 className="fh-section-title">{translate('workspace:sourceCentricWorkspace.applyResultStatus', { status: formatStatus(result.status) })}</h2><p className="fh-text-caption">{translate('workspace:sourceCentricWorkspace.verifiedSuccessIsShownOnlyAfterExact')}</p><div className="mt-3 grid gap-2">{result.items.map(item => <div className="flex items-center gap-2 rounded border border-border p-2" key={item.id}><Icon name={item.status === 'applied' ? 'success' : item.status === 'failed' ? 'error' : 'warning'} /><span>{formatChannelDisplayName(item.channelId)} · {formatField(item.field)}</span><strong className="ms-auto">{formatStatus(item.status)}</strong></div>)}</div></section>
+}
+
+// -- Presentation helpers ----------------------------------------------------
+
+function fieldKey(product: GroupedProduct, listing: GroupedListing, field: PricingField): string {
+  return pricingFieldKey({ productId: product.sourceProductId, listingId: listing.listingId, channelId: listing.channelId, field })
+}
+
+function cellEditStatus(descriptor: PricingFieldDescriptor | undefined, change: PricingFieldChange | null | undefined): string {
+  if (!descriptor) return 'unavailable'
+  if (change) return descriptor.policy.valid ? 'edited' : 'blocked'
+  if (!descriptor.policy.writable || descriptor.policy.comingSoon || !descriptor.policy.supported || !descriptor.policy.mapped || !descriptor.policy.channelEnabled) return 'read_only'
+  return descriptor.policy.valid ? 'unchanged' : 'blocked'
+}
+
+const AVAILABLE_STATUS_LITERALS = new Set(['instock', 'in_stock', 'active', 'publish', 'published', 'available', 'enabled'])
+const UNAVAILABLE_STATUS_LITERALS = new Set(['outofstock', 'out_of_stock', 'inactive', 'unavailable', 'disabled', 'archived'])
+
+function statusTone(value: string): 'success' | 'warning' | 'danger' | 'neutral' {
+  const literal = value.trim().toLowerCase()
+  if (!literal) return 'neutral'
+  if (AVAILABLE_STATUS_LITERALS.has(literal)) return 'success'
+  if (UNAVAILABLE_STATUS_LITERALS.has(literal)) return 'danger'
+  return 'warning'
+}
+
+function formatCurrencyLabel(currency: string): string {
+  try {
+    const parts = new Intl.NumberFormat(undefined, { style: 'currency', currency, currencyDisplay: 'symbol' }).formatToParts(1)
+    return parts.find(part => part.type === 'currency')?.value ?? currency
+  } catch {
+    return currency
+  }
+}
+
+export function bulkScopeDescriptors(
+  descriptors: readonly PricingFieldDescriptor[],
+  channelFilter: string,
+  scope: 'all' | 'selected_channel',
+): PricingFieldDescriptor[] {
+  if (scope === 'selected_channel' && channelFilter) {
+    return descriptors.filter(descriptor => descriptor.identity.channelId === channelFilter)
+  }
+  return [...descriptors]
+}
+
+interface ComposedBulkPreview {
+  items: BulkTransformationPreview['items']
+  fieldsAffected: number
+}
+
+function bulkSectionTransformations(sections: BulkSectionConfig): Array<{ kind: BulkTransformationKind; value: string; field: PricingField }> {
+  const transformations: Array<{ kind: BulkTransformationKind; value: string; field: PricingField }> = []
+  if (sections.pricingEnabled && sections.pricingValue.trim()) {
+    transformations.push({ kind: sections.pricingKind, value: sections.pricingValue.trim(), field: 'price' })
+  }
+  if (sections.stockEnabled && sections.stockValue.trim()) {
+    transformations.push({ kind: 'set_stock', value: sections.stockValue.trim(), field: 'stock' })
+  }
+  if (sections.statusEnabled && sections.statusValue.trim()) {
+    transformations.push({ kind: 'set_status', value: sections.statusValue.trim(), field: 'status' })
+  }
+  return transformations
+}
+
+function previewBulkSections(
+  state: PricingWorkspaceState,
+  sections: BulkSectionConfig,
+  scopedDescriptors: readonly PricingFieldDescriptor[],
+  channelById: ReadonlyMap<string, SourceChannel>,
+): ComposedBulkPreview {
+  let current = state
+  const items: BulkPreviewItem[] = []
+  let fieldsAffected = 0
+  for (const transformation of bulkSectionTransformations(sections)) {
+    const validatedScope = scopedDescriptors.map(descriptor => validateDescriptorTarget(
+      descriptor,
+      channelById.get(descriptor.identity.channelId),
+      transformation.kind === 'set_status' && descriptor.identity.field === 'status'
+        ? transformation.value
+        : pricingFieldChange(current, descriptor.identity)?.targetValue ?? descriptor.targetValue ?? descriptor.currentValue ?? '',
+    ))
+    const preview = previewBulkTransformation(current, validatedScope, { kind: transformation.kind, value: transformation.value })
+    items.push(...preview.items.filter(item => item.descriptor.identity.field === transformation.field))
+    fieldsAffected += preview.fieldsAffected
+    current = applyBulkTransformation(current, preview)
+  }
+  return { items, fieldsAffected }
+}
+
+export function applyBulkSections(
+  state: PricingWorkspaceState,
+  sections: BulkSectionConfig,
+  descriptors: readonly PricingFieldDescriptor[],
+  channelById: ReadonlyMap<string, SourceChannel>,
+  channelFilter: string,
+): PricingWorkspaceState {
+  const scoped = bulkScopeDescriptors(descriptors, channelFilter, sections.scope)
+  let current = state
+  for (const transformation of bulkSectionTransformations(sections)) {
+    const validatedScope = scoped.map(descriptor => validateDescriptorTarget(
+      descriptor,
+      channelById.get(descriptor.identity.channelId),
+      transformation.kind === 'set_status' && descriptor.identity.field === 'status'
+        ? transformation.value
+        : pricingFieldChange(current, descriptor.identity)?.targetValue ?? descriptor.targetValue ?? descriptor.currentValue ?? '',
+    ))
+    current = applyBulkTransformation(current, previewBulkTransformation(current, validatedScope, { kind: transformation.kind, value: transformation.value }))
+  }
+  return current
+}
+
+// -- Safety-critical helpers (exports covered by DensePricingWorkspace.safety.test) --
 
 export function pricingDescriptors(grid: GroupedWorkspacePage, channelById: ReadonlyMap<string, SourceChannel>): PricingFieldDescriptor[] {
   return grid.items.flatMap(product => product.children.flatMap(listing => (['price', 'stock', 'status'] as PricingField[]).map(field => {
@@ -829,172 +1270,7 @@ export function setProductListingsSelected(
   return next
 }
 
-function setsEqual(left: Set<string>, right: Set<string>): boolean {
-  if (left.size !== right.size) return false
-  for (const value of left) if (!right.has(value)) return false
-  return true
-}
-
-function bulkScopeDescriptors(
-  descriptors: PricingFieldDescriptor[],
-  records: DensePricingRecord[],
-  selectedRowKeys: Set<string>,
-  state: PricingWorkspaceState,
-): PricingFieldDescriptor[] {
-  const listingIds = selectedRowKeys.size
-    ? new Set(records.filter(record => selectedRowKeys.has(record.rowKey)).flatMap(record => Object.entries(record).filter(([key, value]) => key.endsWith('__listing_id') && value).map(([, value]) => String(value))))
-    : new Set(selectedPricingChanges(state).map(change => change.identity.listingId))
-  if (!listingIds.size) return []
-  return descriptors.filter(descriptor => listingIds.has(descriptor.identity.listingId))
-}
-
-function gridCellSettings(
-  hotRef: React.RefObject<HotTableRef>,
-  columnMeta: Map<string, DensePricingColumnMeta>,
-  row: number,
-  propValue: string | number,
-): Handsontable.CellProperties {
-  const settings = {} as FlowHubCellProperties
-  const instance = hotRef.current?.hotInstance
-  const prop = String(propValue)
-  // Handsontable's `cells` callback receives physical indexes. Keeping source
-  // lookup physical is what preserves Listing policy after visual sorting.
-  const record = instance?.getSourceDataAtRow(row) as DensePricingRecord | undefined
-  const meta = columnMeta.get(prop)
-  if (!record || !meta) return settings
-  settings.readOnly = cellIsReadOnly(record, meta)
-  if (meta.kind === 'target') {
-    const status = cellStatus(record, meta)
-    settings.className = `fh-cell-status fh-cell-status-${status}`
-    settings.flowhubStatus = status
-    settings.renderer = targetCellRenderer
-  }
-  if (meta.kind === 'selection') {
-    settings.flowhubField = meta.field
-    settings.renderer = fieldSelectionRenderer
-  }
-  if (meta.kind === 'product_selection') {
-    settings.renderer = productSelectionRenderer
-  }
-  if (record.productType === 'variable') settings.className = `${settings.className ?? ''} fh-pricing-variable-parent`.trim()
-  return settings
-}
-
-interface FlowHubCellProperties extends Handsontable.CellProperties {
-  flowhubField?: PricingField
-  flowhubStatus?: string
-}
-
-const targetCellRenderer: BaseRenderer = (hot, td, renderedRow, renderedColumn, cellProp, value, properties) => {
-  Handsontable.renderers.TextRenderer(hot, td, renderedRow, renderedColumn, cellProp, value, properties)
-  const status = (properties as FlowHubCellProperties).flowhubStatus ?? 'unavailable'
-  const formattedStatus = formatStatus(status)
-  setDatasetValue(td, 'cellStatus', formattedStatus)
-  const label = translate('workspace:densePricing.cellValueStatus', { value: String(value ?? ''), status: formattedStatus })
-  if (td.getAttribute('aria-label') !== label) td.setAttribute('aria-label', label)
-}
-
-const fieldSelectionRenderer: BaseRenderer = (hot, td, renderedRow, renderedColumn, cellProp, value, properties) => {
-  Handsontable.renderers.CheckboxRenderer(hot, td, renderedRow, renderedColumn, cellProp, value, properties)
-  const input = td.querySelector('input')
-  const field = (properties as FlowHubCellProperties).flowhubField
-  if (!input || !field) return
-  setDatasetValue(input, 'fieldSelection', 'true')
-  setDatasetValue(input, 'field', field)
-  const label = translate('workspace:densePricing.selectChangedField', { field: formatField(field) })
-  if (input.getAttribute('aria-label') !== label) input.setAttribute('aria-label', label)
-}
-
-const productSelectionRenderer: BaseRenderer = (hot, td, renderedRow, renderedColumn, cellProp, value, properties) => {
-  Handsontable.renderers.CheckboxRenderer(hot, td, renderedRow, renderedColumn, cellProp, value, properties)
-  const input = td.querySelector('input')
-  if (!input) return
-  setDatasetValue(input, 'productSelection', 'true')
-  const label = translate('workspace:workspace.selectAllEligible')
-  if (input.getAttribute('aria-label') !== label) input.setAttribute('aria-label', label)
-}
-
-function annotatePricingCell(
-  hotRef: React.RefObject<HotTableRef>,
-  columnMeta: Map<string, DensePricingColumnMeta>,
-  td: HTMLTableCellElement,
-  visualRow: number,
-  propValue: string | number,
-) {
-  const instance = hotRef.current?.hotInstance
-  const physicalRow = instance?.toPhysicalRow(visualRow) ?? visualRow
-  const record = instance?.getSourceDataAtRow(physicalRow) as DensePricingRecord | undefined
-  const prop = String(propValue)
-  const meta = columnMeta.get(prop)
-  if (!record) return
-  // Walkontable recycles TD elements while scrolling. Remove identity annotations
-  // from the previous rendered cell before binding the current immutable identity.
-  const input = td.querySelector('input')
-  const rowElement = td.parentElement
-  if (rowElement) {
-    setDatasetValue(rowElement, 'pricingRow', 'true')
-    setDatasetValue(rowElement, 'productId', record.productId)
-  }
-  setDatasetValue(td, 'productId', record.productId)
-  setDatasetValue(td, 'channelId', meta?.channelId)
-  setDatasetValue(td, 'field', meta?.field)
-  setDatasetValue(td, 'targetField', meta?.kind === 'target' ? meta.field : undefined)
-  setDatasetValue(td, 'fieldSelection', meta?.kind === 'selection' ? 'true' : undefined)
-  setDatasetValue(td, 'productSelection', meta?.kind === 'product_selection' ? 'true' : undefined)
-  setDatasetValue(input, 'listingId', undefined)
-  setDatasetValue(input, 'channelId', undefined)
-  setDatasetValue(input, 'productSelection', meta?.kind === 'product_selection' ? 'true' : undefined)
-  if (meta?.kind === 'target' && meta.channelId && meta.field) {
-    const identity = identityForCell(record, meta)
-    setDatasetValue(td, 'listingId', identity?.listingId)
-  } else {
-    setDatasetValue(td, 'listingId', undefined)
-  }
-  if (meta?.kind === 'selection' && meta.channelId && meta.field) {
-    const identity = identityForCell(record, meta)
-    if (identity) {
-      setDatasetValue(td, 'listingId', identity.listingId)
-      setDatasetValue(input, 'listingId', identity.listingId)
-      setDatasetValue(input, 'channelId', identity.channelId)
-    }
-  }
-}
-
-function setDatasetValue(
-  element: HTMLElement | undefined | null,
-  key: string,
-  value: string | undefined,
-) {
-  if (!element) return
-  if (value === undefined) {
-    if (key in element.dataset) delete element.dataset[key]
-    return
-  }
-  if (element.dataset[key] !== value) element.dataset[key] = value
-}
-
-function BulkPreviewDialog({ preview, onCancel, onConfirm }: { preview: BulkTransformationPreview; onCancel: () => void; onConfirm: () => void }) {
-  return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" data-bulk-preview-dialog aria-label={translate('workspace:densePricing.bulkPreview')}><div className="fh-card max-h-[85vh] w-full max-w-4xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:densePricing.bulkPreview')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.bulkPreviewSummary', { products: preview.productsAffected, listings: preview.listingsAffected, fields: preview.fieldsAffected, blocked: preview.blockedItems })}</p></div></div><div className="overflow-x-auto"><table className="fh-table min-w-[720px]"><thead><tr><th>{translate('workspace:gridModel.product')}</th><th>{translate('workspace:unifiedWorkspace.channel')}</th><th>{translate('workspace:densePricing.field')}</th><th>{translate('workspace:densePricing.previousValue')}</th><th>{translate('workspace:densePricing.resultingValue')}</th><th>{translate('workspace:unifiedWorkspace.status')}</th></tr></thead><tbody>{preview.items.slice(0, 100).map(item => <tr key={item.key}><td>{item.descriptor.identity.productId}</td><td>{formatChannelDisplayName(item.descriptor.identity.channelId)}</td><td>{formatField(item.descriptor.identity.field)}</td><td>{item.previousValue}</td><td>{item.resultingValue ?? '—'}</td><td>{item.blockedReason ? translate('workspace:sourceCentricWorkspace.blockedRows') : translate('workspace:sourceCentricWorkspace.readyChanges')}</td></tr>)}</tbody></table></div><div className="fh-panel-footer"><button className="fh-button-secondary" onClick={onCancel}>{translate('workspace:sourceCentricWorkspace.cancel')}</button><button className="fh-button-primary" data-bulk-confirm disabled={preview.fieldsAffected === 0} onClick={onConfirm}>{translate('workspace:densePricing.applyBulkChanges')}</button></div></div></div>
-}
-
-function LocalReviewDialog({ changes, grid, onClose }: { changes: readonly PricingFieldChange[]; grid: GroupedWorkspacePage; onClose: () => void }) {
-  return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" data-local-pricing-review aria-label={translate('workspace:unifiedWorkspace.reviewChanges')}><div className="fh-card max-h-[88vh] w-full max-w-5xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:unifiedWorkspace.reviewChanges')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.reviewSummary', { total: changes.length, selected: changes.length, blocked: 0 })}</p></div><button className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button></div><div className="overflow-x-auto"><table className="fh-table min-w-[760px]"><thead><tr><th>{translate('workspace:gridModel.product')}</th><th>{translate('workspace:unifiedWorkspace.channel')}</th><th>{translate('workspace:densePricing.field')}</th><th>{translate('workspace:densePricing.previousValue')}</th><th>{translate('workspace:gridModel.targetField', { field: '' })}</th></tr></thead><tbody>{changes.map(change => { const product = grid.items.find(row => row.children.some(child => child.listingId === change.identity.listingId)); return <tr key={change.key}><td>{product?.name ?? change.identity.productId}</td><td>{formatChannelDisplayName(change.identity.channelId)}</td><td>{formatField(change.identity.field)}</td><td>{change.currentValue ?? '—'}</td><td>{change.targetValue}</td></tr> })}</tbody></table></div></div></div>
-}
-
-function ReviewDialog({ review, grid, onClose }: { review: ReviewResource; grid: GroupedWorkspacePage; onClose: () => void }) {
-  return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:unifiedWorkspace.reviewChanges')}><div className="fh-card max-h-[88vh] w-full max-w-6xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:unifiedWorkspace.reviewChanges')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.reviewSummary', { total: review.summary.total, selected: review.items.filter(item => item.selected).length, blocked: review.summary.blocked })}</p></div><button className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button></div><div className="overflow-x-auto"><table className="fh-table min-w-[900px]"><thead><tr><th>{translate('workspace:gridModel.product')}</th><th>{translate('workspace:unifiedWorkspace.channel')}</th><th>{translate('workspace:densePricing.field')}</th><th>{translate('workspace:densePricing.previousValue')}</th><th>{translate('workspace:gridModel.targetField', { field: '' })}</th><th>{translate('workspace:sourceCentricWorkspace.selected')}</th></tr></thead><tbody>{review.items.map(item => { const product = grid.items.find(row => row.children.some(child => child.listingId === item.listingId)); return <tr key={item.id}><td>{product?.name ?? item.canonicalProductId}</td><td>{formatChannelDisplayName(item.channelId)}</td><td>{formatField(item.field)}</td><td>{item.current ?? '—'}</td><td>{item.target}</td><td>{item.selected ? '✓' : '—'}</td></tr> })}</tbody></table></div></div></div>
-}
-
-function ApplyResults({ result }: { result: ApplyResource }) {
-  return <section className="fh-card fh-card-pad mt-4" aria-label={translate('workspace:sourceCentricWorkspace.applyResults')}><h2 className="fh-section-title">{translate('workspace:sourceCentricWorkspace.applyResultStatus', { status: formatStatus(result.status) })}</h2><p className="fh-text-caption">{translate('workspace:sourceCentricWorkspace.verifiedSuccessIsShownOnlyAfterExact')}</p><div className="mt-3 grid gap-2">{result.items.map(item => <div className="flex items-center gap-2 rounded border border-border p-2" key={item.id}><Icon name={item.status === 'applied' ? 'success' : item.status === 'failed' ? 'error' : 'warning'} /><span>{formatChannelDisplayName(item.channelId)} · {formatField(item.field)}</span><strong className="ms-auto">{formatStatus(item.status)}</strong></div>)}</div></section>
-}
-
 function restoreState(workspaceId: string, scopeId: string): PricingWorkspaceState {
   if (typeof window === 'undefined') return createPricingWorkspaceState(workspaceId, [], scopeId)
   try { return restorePricingWorkspaceState(window.sessionStorage, workspaceId, scopeId) } catch { return createPricingWorkspaceState(workspaceId, [], scopeId) }
-}
-
-function viewportTableHeight(): number {
-  if (typeof window === 'undefined') return 560
-  return Math.max(480, window.innerHeight - 320)
 }

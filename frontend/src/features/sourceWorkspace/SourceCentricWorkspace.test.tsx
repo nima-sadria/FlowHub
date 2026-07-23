@@ -10,67 +10,13 @@ import { sourceWorkspaceApi } from './api'
 import SourceCentricWorkspace from './SourceCentricWorkspace'
 import type { GroupedListing, GroupedWorkspacePage, SourceChannel } from './types'
 
-vi.mock('@handsontable/react-wrapper', async () => {
-  const React = await import('react')
-  const HotTable = React.forwardRef(function MockHotTable(
-    props: {
-      afterChange?: (changes: Array<[number, string, unknown, unknown]>, source: string) => void
-      columns?: Array<{ data?: string }>
-      data?: Array<Record<string, unknown>>
-    },
-    ref: React.ForwardedRef<unknown>,
-  ) {
-    const rootRef = React.useRef<HTMLDivElement>(null)
-    const rows = props.data ?? []
-    const columns = props.columns ?? []
-    React.useImperativeHandle(ref, () => ({
-      hotInstance: {
-        colToProp: (column: number) => columns[column]?.data,
-        getPlugin: () => ({ sort: vi.fn() }),
-        getSourceDataAtRow: (row: number) => rows[row],
-        rootElement: rootRef.current,
-        toPhysicalRow: (row: number) => row,
-        toVisualColumn: (column: number) => column,
-        toVisualRow: (row: number) => row,
-      },
-    }), [columns, rows])
-    return React.createElement('div', { ref: rootRef, 'data-mocked-handsontable': 'true' }, rows.flatMap((row, rowIndex) =>
-      columns.flatMap(column => {
-        const prop = String(column.data ?? '')
-        const match = /^(.*)__(price|stock|status)__target$/.exec(prop)
-        const selectionMatch = /^(.*)__(price|stock|status)__selected$/.exec(prop)
-        const identityMatch = match ?? selectionMatch
-        if (!identityMatch) return []
-        const listingId = String(row[`${identityMatch[1]}__listing_id`] ?? '')
-        if (!listingId) return []
-        if (selectionMatch) {
-          return React.createElement('input', {
-            type: 'checkbox',
-            'data-listing-id': listingId,
-            'data-field-selection': selectionMatch[2],
-            defaultChecked: Boolean(row[prop]),
-            key: `${rowIndex}:${prop}`,
-            onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
-              props.afterChange?.([[rowIndex, prop, row[prop], event.currentTarget.checked]], 'edit')
-            },
-          })
-        }
-        return React.createElement('input', {
-          'data-listing-id': listingId,
-          'data-target-field': identityMatch[2],
-          defaultValue: String(row[prop] ?? ''),
-          key: `${rowIndex}:${prop}`,
-          onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
-            props.afterChange?.([[rowIndex, prop, row[prop], event.currentTarget.value]], 'edit')
-          },
-        })
-      }),
-    ))
-  })
-  return { HotTable }
-})
-
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+function setInputValue(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+  setter?.call(input, value)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+}
 
 const WORKSPACE: UnifiedWorkspaceResource = {
   id: 'workspace-1',
@@ -192,7 +138,7 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     await renderWorkspace(container, root, service, true)
 
     expect(container.querySelector('[data-pricing-workspace]')).toBeTruthy()
-    expect(container.querySelector('[data-pricing-controls-sticky]')).toBeTruthy()
+    expect(container.querySelector('[data-products-critical-controls]')).toBeTruthy()
     expect(container.querySelector('.fh-page')).toBeNull()
   })
 
@@ -202,24 +148,15 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     expect(targetPrice).toBeTruthy()
 
     await act(async () => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
-      setter?.call(targetPrice, '125')
-      targetPrice?.dispatchEvent(new Event('input', { bubbles: true }))
+      targetPrice?.focus()
+      setInputValue(targetPrice!, '125')
+      targetPrice?.blur()
     })
-    const reviewButton = container.querySelector<HTMLButtonElement>('[data-pricing-review]')
-    expect(reviewButton).toBeTruthy()
+    const saveButton = container.querySelector<HTMLButtonElement>('[data-products-save]')
+    expect(saveButton).toBeTruthy()
+    expect(saveButton?.disabled).toBe(false)
     await act(async () => {
-      reviewButton?.click()
-      await Promise.resolve()
-    })
-
-    expect(container.querySelector('[data-local-pricing-review]')).toBeTruthy()
-    expect(service.saveDraft).not.toHaveBeenCalled()
-
-    const dryRunButton = container.querySelector<HTMLButtonElement>('[data-pricing-dry-run]')
-    expect(dryRunButton).toBeTruthy()
-    await act(async () => {
-      dryRunButton?.click()
+      saveButton?.click()
       await Promise.resolve()
     })
 
@@ -234,17 +171,24 @@ describe('SourceCentricWorkspace Channel ordering', () => {
 
   it('saves only exact selected fields with replace mode after manual deselection', async () => {
     await renderWorkspace(container, root, service)
-    const deselect = container.querySelector<HTMLInputElement>('[data-listing-id="snap-black"][data-field-selection="price"]')
-    expect(deselect).toBeTruthy()
-    expect(deselect?.checked).toBe(true)
+    const trigger = container.querySelector<HTMLButtonElement>('[data-row-menu-trigger][data-listing-id="snap-black"]')
+    expect(trigger).toBeTruthy()
 
     await act(async () => {
-      deselect?.click()
+      trigger?.click()
       await Promise.resolve()
     })
-    const dryRunButton = container.querySelector<HTMLButtonElement>('[data-pricing-dry-run]')
+    const excludeAction = container.querySelector<HTMLButtonElement>('[data-row-menu-action="toggle-selection"]')
+    expect(excludeAction).toBeTruthy()
+    expect(excludeAction?.disabled).toBe(false)
     await act(async () => {
-      dryRunButton?.click()
+      excludeAction?.click()
+      await Promise.resolve()
+    })
+
+    const saveButton = container.querySelector<HTMLButtonElement>('[data-products-save]')
+    await act(async () => {
+      saveButton?.click()
       await Promise.resolve()
     })
 

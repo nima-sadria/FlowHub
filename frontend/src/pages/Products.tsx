@@ -7,7 +7,6 @@ import Icon from '../components/Icon'
 import LocalizedText from '../components/LocalizedText'
 import PageShell from '../components/PageShell'
 import PricingWorkspaceStartup from '../features/sourceWorkspace/PricingWorkspaceStartup'
-import { resolveHandsontableLicense } from '../features/unifiedWorkspace/handsontableLicense'
 import { translate } from '../i18n'
 import { formatProductType } from '../i18n/display'
 import { formatNumber } from '../i18n/format'
@@ -66,7 +65,6 @@ export default function Products() {
   const [categories, setCategories] = useState<Category[]>([])
   const [catalogConfigured, setCatalogConfigured] = useState<boolean | undefined>(undefined)
   const [catalogLoading, setCatalogLoading] = useState(false)
-  const gridLicense = resolveHandsontableLicense(import.meta.env.VITE_HANDSONTABLE_LICENSE_KEY, import.meta.env.PROD)
   const categoryOptions = useMemo(
     () => categories.map(category => ({ value: category.name, label: category.name })),
     [categories],
@@ -143,12 +141,6 @@ export default function Products() {
   }
 
   if (workspace && unifiedWorkspace) {
-    if (!gridLicense.licenseKey) {
-      return <PageShell><PricingWorkspaceStartup
-        workspaceName={workspace.name}
-        blockedMessage={translate('workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid')}
-      /></PageShell>
-    }
     return <PageShell>
       <Suspense fallback={<PricingWorkspaceStartup workspaceName={workspace.name} />}>
         <DensePricingWorkspace
@@ -167,11 +159,7 @@ export default function Products() {
   }
 
   if (loading && !error) {
-    return <PageShell><PricingWorkspaceStartup
-      blockedMessage={!gridLicense.licenseKey
-        ? translate('workspace:unifiedWorkspace.productionGridIsDisabledConfigureAValid')
-        : undefined}
-    /></PageShell>
+    return <PageShell><PricingWorkspaceStartup /></PageShell>
   }
 
   return <PageShell>
