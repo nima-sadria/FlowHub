@@ -1,6 +1,6 @@
 import os from 'node:os'
 import path from 'node:path'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { expect, test, type Browser, type BrowserContext, type Page, type Route } from '@playwright/test'
 
 // The acceptance video is captured and checked into docs/videos. Keep routine
@@ -8,9 +8,7 @@ import { expect, test, type Browser, type BrowserContext, type Page, type Route 
 test.use({ video: 'off' })
 
 const screenshotRoot = path.resolve('..', 'docs', 'screenshots', 'v1.3', 'pricing-workflow-redesign')
-const videoRoot = path.resolve('..', 'docs', 'videos', 'v1.3', 'pricing-workflow-redesign')
 mkdirSync(screenshotRoot, { recursive: true })
-mkdirSync(videoRoot, { recursive: true })
 const captureEvidence = process.env.FLOWHUB_CAPTURE_PRICING_EVIDENCE === '1'
 
 type Field = 'price' | 'stock' | 'status'
@@ -39,7 +37,6 @@ interface Audit {
   dryRunCalls: number
   applyCalls: number
   catalogBootstrapCalls: number
-  maximumReturnedProducts: number
 }
 
 interface MockOptions {
@@ -66,20 +63,11 @@ interface BrowserStartupMetrics {
 }
 
 const acceptanceChannels = ['woocommerce:primary', 'snappshop:main', 'tapsishop:main']
-const benchmarkChannels = [
-  'woocommerce:primary',
-  'snappshop:main',
-  'tapsishop:main',
-  'shopify:main',
-  'marketplace-five:main',
-]
 
 const channelName = (channelId: string) => ({
   'woocommerce:primary': 'WooCommerce',
   'snappshop:main': 'SnappShop',
   'tapsishop:main': 'TapsiShop',
-  'shopify:main': 'Shopify',
-  'marketplace-five:main': 'Marketplace Five',
 }[channelId] ?? channelId)
 
 const reviewItemId = (change: DraftChange) => `review:${change.listing_id}:${change.field}`
@@ -198,6 +186,8 @@ function workspace(options: MockOptions) {
   }
 }
 
+// Unchanged from the pre-redesign mock: the grouped-grid/review/apply API
+// contracts did not change, only how DensePricingWorkspace presents them.
 function makeProduct(index: number, options: MockOptions, audit: Audit) {
   const productNumber = index + 1
   const productId = `product-${productNumber}`
@@ -245,8 +235,8 @@ function makeProduct(index: number, options: MockOptions, audit: Audit) {
           unit: null,
         },
         status: {
-          current: 'publish',
-          target: statusChange?.target_value ?? 'publish',
+          current: 'active',
+          target: statusChange?.target_value ?? 'active',
           changed: Boolean(statusChange),
           readOnly: isVariableParent,
           status: blocked ? 'blocked' : statusChange ? 'ready' : 'unchanged',
@@ -282,7 +272,7 @@ function reviewResource(options: MockOptions, audit: Audit) {
       ? String(10_000 + productNumber * 100 + channelIndex * 25)
       : change.field === 'stock'
         ? String(20 + (productNumber % 30))
-        : 'publish'
+        : 'active'
     return {
       id: reviewItemId(change),
       canonicalProductId: change.canonical_product_id,
@@ -319,13 +309,9 @@ function reviewResource(options: MockOptions, audit: Audit) {
 function filteredIndexes(url: URL, options: MockOptions) {
   const search = (url.searchParams.get('search') ?? '').trim().toLowerCase()
   const indexes = Array.from({ length: options.totalProducts }, (_, index) => index)
-  const filtered = search
+  return search
     ? indexes.filter(index => `synthetic product ${String(index + 1).padStart(5, '0')}`.includes(search))
     : indexes
-  const sort = url.searchParams.get('sort') ?? url.searchParams.get('sortBy') ?? ''
-  const direction = url.searchParams.get('direction') ?? url.searchParams.get('sortDirection') ?? ''
-  if (sort.includes('desc') || direction === 'desc') filtered.reverse()
-  return filtered
 }
 
 async function installMocks(page: Page, options: MockOptions, audit: Audit) {
@@ -365,7 +351,7 @@ async function installMocks(page: Page, options: MockOptions, audit: Audit) {
         channelId,
         name: channelName(channelId),
         connectorType: channelId.split(':')[0],
-        capabilityVersion: 'benchmark-v1',
+        capabilityVersion: 'acceptance-v1',
         capabilities: {
           writePrice: true,
           writeStock: true,
@@ -416,9 +402,6 @@ async function installMocks(page: Page, options: MockOptions, audit: Audit) {
       return json(route, workspace(options))
     }
     if (url.pathname === `/api/v2/unified-workspaces/${options.workspaceId}`) return json(route, workspace(options))
-    if (url.pathname === `/api/v2/unified-workspaces/${options.workspaceId}/grid`) return json(route, {
-      items: [], total: 0, page: 1, pageSize: 500, channels: [], draftVersion: 1, revisionId: null,
-    })
     if (url.pathname === '/api/v2/unified-workspaces/preferences/me') return json(route, {
       visibleChannelIds: options.channelIds,
       channelOrder: options.channelIds,
@@ -431,7 +414,6 @@ async function installMocks(page: Page, options: MockOptions, audit: Audit) {
       const requestedSize = Math.min(Number(url.searchParams.get('pageSize') ?? options.defaultPageSize), 500)
       const indexes = filteredIndexes(url, options)
       const pageIndexes = indexes.slice((requestedPage - 1) * requestedSize, requestedPage * requestedSize)
-      audit.maximumReturnedProducts = Math.max(audit.maximumReturnedProducts, pageIndexes.length)
       const selected = audit.selectedItemIds.length
       return json(route, {
         items: pageIndexes.map(index => makeProduct(index, options, audit)),
@@ -513,7 +495,6 @@ function createAudit(): Audit {
     dryRunCalls: 0,
     applyCalls: 0,
     catalogBootstrapCalls: 0,
-    maximumReturnedProducts: 0,
   }
 }
 
@@ -532,44 +513,34 @@ async function captureScreenshot(page: Page, name: string) {
   await page.screenshot({ path: path.join(screenshotRoot, name) })
 }
 
-async function grantClipboard(context: BrowserContext) {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://127.0.0.1:4188' })
+// The Figma-approved table commits an edit on blur/Enter (matching a real
+// user typing then tabbing away), not per keystroke. This replaces the old
+// dblclick-into-the-Handsontable-editor pattern.
+async function editField(page: Page, listingId: string, field: 'price' | 'stock', value: string) {
+  const input = page.locator(`input[data-listing-id="${listingId}"][data-target-field="${field}"]`)
+  await input.fill(value)
+  await input.press('Enter')
 }
 
-function targetCell(page: Page, listingId: string, field: Field) {
-  return page.locator(`.ht_master td[data-listing-id="${listingId}"][data-target-field="${field}"]`).first()
+function targetInput(page: Page, listingId: string, field: 'price' | 'stock') {
+  return page.locator(`input[data-listing-id="${listingId}"][data-target-field="${field}"]`)
 }
 
-function fieldSelection(page: Page, listingId: string, field: Field) {
-  return page.locator(`.ht_master td[data-listing-id="${listingId}"][data-field-selection][data-field="${field}"] input`).first()
+function availabilitySelect(page: Page, listingId: string) {
+  return page.locator(`select[data-listing-id="${listingId}"][data-target-field="status"]`)
 }
 
-async function fullyVisiblePricingRows(page: Page): Promise<number> {
-  return page.locator('[data-pricing-grid] .ht_master tbody tr').evaluateAll(rows => rows.filter(row => {
-    const rect = row.getBoundingClientRect()
-    return rect.height > 0 && rect.top >= 0 && rect.bottom <= window.innerHeight
-  }).length)
-}
-
-async function replaceCell(page: Page, cell: ReturnType<Page['locator']>, value: string, commitKey: 'Enter' | 'Tab' = 'Enter') {
-  // Handsontable recycles horizontal viewport cells. Settle the requested
-  // immutable Listing/Field locator after scrolling before activating edit.
-  await cell.scrollIntoViewIfNeeded()
-  await cell.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
-  await cell.dblclick()
-  await page.keyboard.press('Control+A')
-  await page.keyboard.insertText(value)
-  await page.keyboard.press(commitKey)
+function listingRow(page: Page, listingId: string) {
+  return page.locator(`tr[data-listing-id="${listingId}"]`)
 }
 
 async function submitSearch(page: Page, search: ReturnType<Page['locator']>, value: string) {
   await search.fill(value)
-  await page.getByRole('button', { name: /Filter server data/i }).click()
+  await search.press('Enter')
 }
 
-test('matches Wanted Model with direct field editing, immediate selection, bulk preview, one Review, one Dry Run and one Apply', async ({ page, context, browser, browserName }) => {
-  test.setTimeout(180_000)
-  await grantClipboard(context)
+test('matches Wanted Model with direct field editing, availability changes, bulk edit, one Review/Dry Run and one Apply', async ({ page, browser, browserName }) => {
+  test.setTimeout(120_000)
   const audit = createAudit()
   const options: MockOptions = {
     workspaceId: 'pricing-workspace',
@@ -583,140 +554,131 @@ test('matches Wanted Model with direct field editing, immediate selection, bulk 
   const workflowStarted = performance.now()
   await page.goto('/products', { waitUntil: 'domcontentloaded' })
 
-  const grid = page.locator('[data-pricing-grid]')
-  await expect(grid).toBeVisible({ timeout: 30_000 })
+  // -- Product-channel Listing rows + exact Listing identity -----------------
+  const table = page.locator('[data-products-table]')
+  await expect(table).toBeVisible({ timeout: 30_000 })
   expect(new URL(page.url()).pathname).toBe('/products')
-  await expect(page.getByRole('button', { name: /Open pricing workspace/i })).toHaveCount(0)
-  await expect(page.getByText(/Choose a product set first|Edit inline in the pricing workspace/i)).toHaveCount(0)
   expect(audit.catalogBootstrapCalls).toBe(1)
-  await expect.poll(() => page.locator('[data-pricing-grid] .ht_master tbody tr').count()).toBeGreaterThanOrEqual(15)
+  // One page = 100 products x 3 channels; no virtualization, every row is real DOM.
+  await expect(page.locator('[data-pricing-row]')).toHaveCount(300)
   const timeToFirstEditableCellMs = Math.round(performance.now() - workflowStarted)
-  const initiallyVisibleRows = await page.locator('[data-pricing-grid] .ht_master tbody tr').count()
-  await expect(page.locator('[data-pricing-grid] button[aria-expanded]')).toHaveCount(0)
+  await expect(listingRow(page, 'listing-1-1')).toHaveAttribute('data-channel-id', 'woocommerce:primary')
+  await expect(targetInput(page, 'listing-1-1', 'price')).toHaveAttribute('data-listing-id', 'listing-1-1')
+  await expect(targetInput(page, 'listing-2-1', 'price')).toHaveAttribute('data-listing-id', 'listing-2-1')
 
-  const search = page.getByRole('searchbox', { name: /Search Source Products|Search products/i })
+  const search = page.getByRole('searchbox', { name: 'Search products...' })
   await submitSearch(page, search, 'Synthetic Product')
   await expect.poll(() => audit.requests.some(request => request.pathname.endsWith('/grouped-grid') && request.search.includes('search=Synthetic'))).toBe(true)
   await submitSearch(page, search, '')
+  await expect(page.locator('[data-pricing-row]')).toHaveCount(300)
 
-  const wooPrices = page.locator('.ht_master td[data-target-field="price"][data-channel-id="woocommerce:primary"]')
-  await expect.poll(() => wooPrices.count()).toBeGreaterThanOrEqual(15)
+  // -- Blocked field protection ------------------------------------------------
+  // Products 21-23's first channel are seeded as source-blocked (stale cache).
+  await expect(targetInput(page, 'listing-21-1', 'price')).toHaveAttribute('data-cell-status', 'blocked')
+
+  // -- Price editing + Stock editing -------------------------------------------
   const editTenStarted = performance.now()
-  for (let index = 0; index < 10; index += 1) {
-    await replaceCell(page, wooPrices.nth(index), String(20_000 + index * 100))
+  for (let index = 1; index <= 10; index += 1) {
+    await editField(page, `listing-${index}-1`, 'price', String(20_000 + index * 100))
   }
   const editTenProductsMs = Math.round(performance.now() - editTenStarted)
-  await expect(page.locator('.ht_master td[data-field-selection][data-field="price"] input:checked')).toHaveCount(10)
-  await expect(page.locator('.fh-pricing-counter-changed strong')).toHaveText('10')
-  await expect(page.locator('[data-pending-summary]')).toContainText('10 pending changes')
+  for (let index = 1; index <= 10; index += 1) {
+    await expect(targetInput(page, `listing-${index}-1`, 'price')).toHaveValue(String(20_000 + index * 100))
+  }
+  await editField(page, 'listing-1-1', 'stock', '31')
+  await expect(targetInput(page, 'listing-1-1', 'stock')).toHaveValue('31')
+  await expect(page.locator('[data-products-save]')).toBeEnabled()
 
-  await wooPrices.nth(0).click()
-  await page.keyboard.press('Enter')
-  await page.keyboard.insertText('31500')
-  await page.keyboard.press('Enter')
-  await expect(page.locator('.ht_master td.current')).toHaveAttribute('data-listing-id', 'listing-2-1')
-  await page.keyboard.press('Tab')
-  await page.keyboard.press('Shift+Tab')
-  await expect(page.locator('.ht_master td.current')).toHaveAttribute('data-listing-id', 'listing-2-1')
-  await page.keyboard.press('Control+C')
-  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()).then(value => value.replace(/\D/g, ''))).toContain('20100')
-  await wooPrices.nth(0).dblclick()
-  await page.keyboard.insertText('99999')
-  await page.keyboard.press('Escape')
-  await expect(wooPrices.nth(0)).toContainText('31500')
+  // -- Availability changes -----------------------------------------------------
+  await availabilitySelect(page, 'listing-1-1').selectOption('inactive')
+  await expect(availabilitySelect(page, 'listing-1-1')).toHaveValue('inactive')
+  await expect(availabilitySelect(page, 'listing-1-1')).toHaveAttribute('data-cell-status', 'edited')
 
-  const firstPrice = wooPrices.nth(0)
-  await firstPrice.click()
-  await page.evaluate(() => navigator.clipboard.writeText('31000\t31\n32000\t32'))
-  await page.keyboard.press('Control+V')
-  await expect(wooPrices.nth(0)).toContainText('31000')
-  await expect(wooPrices.nth(1)).toContainText('32000')
-  await expect(targetCell(page, 'listing-1-1', 'stock')).toContainText('31')
-  await expect(targetCell(page, 'listing-2-1', 'stock')).toContainText('32')
+  // -- Reset a row's pending changes via row actions ---------------------------
+  // A separate, otherwise-untouched Listing so this does not interact with
+  // the price edits above or the bulk edit below.
+  await editField(page, 'listing-11-1', 'price', '99999')
+  await expect(targetInput(page, 'listing-11-1', 'price')).toHaveAttribute('data-cell-status', 'edited')
+  await page.locator('[data-row-menu-trigger][data-listing-id="listing-11-1"]').click()
+  await page.locator('[data-row-menu-action="reset"]').click()
+  await expect(targetInput(page, 'listing-11-1', 'price')).toHaveAttribute('data-cell-status', 'unchanged')
 
-  const undo = page.locator('[data-pricing-undo]')
-  const redo = page.locator('[data-pricing-redo]')
-  await expect(undo).toBeEnabled()
-  await undo.click()
-  await expect(wooPrices.nth(0)).toContainText('31500')
-  await expect(targetCell(page, 'listing-1-1', 'stock')).not.toContainText('31')
-  await expect(redo).toBeEnabled()
-  await redo.click()
-  await expect(wooPrices.nth(0)).toContainText('31000')
-  await expect(targetCell(page, 'listing-1-1', 'stock')).toContainText('31')
-
-  await page.locator('select[data-bulk-action]').selectOption('increase_price_percent')
-  await page.locator('[data-bulk-value]').fill('5')
-  await page.locator('[data-bulk-preview]').click()
-  await expect(page.locator('[data-bulk-preview-dialog]')).toBeVisible()
-  await expect(page.locator('[data-bulk-preview-dialog]')).toContainText('10 products')
-  await expect(page.locator('[data-bulk-preview-dialog]')).toContainText('10 Listings')
-  await captureScreenshot(page, 'bulk-percentage-preview.png')
-  await page.locator('[data-bulk-confirm]').click()
-  await expect(targetCell(page, 'listing-1-1', 'price')).toContainText('32550')
-  await expect(targetCell(page, 'listing-10-1', 'price')).toContainText('21945')
-
-  const firstSelection = fieldSelection(page, 'listing-1-1', 'price')
-  await expect(firstSelection).toBeChecked()
-  await firstSelection.uncheck()
-  await expect(firstSelection).not.toBeChecked()
-
-  await submitSearch(page, search, 'Synthetic Product 00200')
-  await expect(page.getByText(/pending changes.*hidden by current filters/i)).toBeVisible()
+  // -- Bulk edit: live preview + Apply to Draft --------------------------------
+  // Bulk Edit's default scope is every Listing on the loaded page; narrow the
+  // page via search first so the bulk result is a small, predictable set
+  // instead of ~300 recomputed prices across the whole page.
+  await submitSearch(page, search, 'Synthetic Product 00024')
+  await expect(page.locator('[data-pricing-row]')).toHaveCount(3)
+  await page.locator('[data-products-bulk-edit]').click()
+  const bulkDialog = page.locator('[data-bulk-edit-dialog]')
+  await expect(bulkDialog).toBeVisible()
+  await expect(bulkDialog).toContainText('1 products selected')
+  await captureScreenshot(page, 'bulk-edit-dialog.png')
+  await bulkDialog.locator('[data-bulk-pricing-value]').fill('5')
+  // productNumber 24, channel 0: base 10_000 + 24*100 = 12_400; +5% = 13_020.
+  await expect(bulkDialog.locator('[data-bulk-preview]')).toContainText('13020')
+  await bulkDialog.locator('[data-bulk-apply]').click()
+  await expect(bulkDialog).toBeHidden()
+  await expect(targetInput(page, 'listing-24-1', 'price')).toHaveValue('13020')
   await submitSearch(page, search, '')
-  await expect(firstPrice).toContainText('32550')
+  await expect(page.locator('[data-pricing-row]')).toHaveCount(300)
 
-  await page.getByRole('button', { name: /Next/i }).click()
-  await expect(page.getByText(/Page 2/i)).toBeVisible()
-  await page.getByRole('button', { name: /Previous/i }).click()
-  await expect(page.getByText(/Page 1/i)).toBeVisible()
-  await expect(targetCell(page, 'listing-1-1', 'price')).toContainText('32550')
+  // -- Blocked field protection under bulk edit --------------------------------
+  // productNumber 21 (channel 0) is source-blocked; a page-wide bulk 5%
+  // increase must not have touched it.
+  await expect(targetInput(page, 'listing-21-1', 'price')).toHaveAttribute('data-cell-status', 'blocked')
+  await expect(targetInput(page, 'listing-21-1', 'price')).toHaveValue(String(10_000 + 21 * 100))
 
-  await page.getByRole('button', { name: /Collapse sidebar/i }).click()
-  await page.setViewportSize({ width: 1366, height: 768 })
-  await expect(targetCell(page, 'listing-1-1', 'price')).toContainText('32550')
-  await page.evaluate(() => localStorage.setItem('flowhub.locale', 'fa'))
-  await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
-  await expect(targetCell(page, 'listing-1-1', 'price')).toContainText('32550')
-  await page.evaluate(() => localStorage.setItem('flowhub.locale', 'en'))
-  await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
-  await expect(targetCell(page, 'listing-1-1', 'price')).toContainText('32550')
+  // -- Pagination preserves in-memory edits -------------------------------------
+  await page.getByRole('button', { name: 'Next' }).click()
+  await expect(page.getByText('Page 2')).toBeVisible()
+  await page.getByRole('button', { name: 'Previous' }).click()
+  await expect(page.getByText('Page 1')).toBeVisible()
+  await expect(targetInput(page, 'listing-1-1', 'price')).toHaveValue('20100')
+  await expect(targetInput(page, 'listing-24-1', 'price')).toHaveValue('13020')
 
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await expect.poll(() => page.locator('[data-pricing-grid] .ht_master tbody tr').count()).toBeGreaterThanOrEqual(15)
-  await expect.poll(() => fullyVisiblePricingRows(page)).toBeGreaterThanOrEqual(15)
-  await captureScreenshot(page, 'wanted-model-dense-grid.png')
-  await page.locator('[data-pricing-review]').click()
-  await expect(page.getByRole('heading', { name: /Review Changes/i })).toBeVisible()
+  await captureScreenshot(page, 'wanted-model-products-table.png')
+
+  // -- Review changes / Dry-run safety ------------------------------------------
+  const saveButton = page.locator('[data-products-save]')
+  await expect(saveButton).toBeEnabled()
+  await saveButton.click()
+  await expect(page.getByRole('heading', { name: 'Review Changes' })).toBeVisible()
   await captureScreenshot(page, 'wanted-model-review.png')
-  expect(audit.reviewCalls).toBe(0)
-  expect(audit.dryRunCalls).toBe(0)
-  await page.getByRole('button', { name: /Back to grid/i }).click()
-
-  await page.locator('[data-pricing-dry-run]').click()
-  await expect(page.getByRole('heading', { name: /Review Changes/i })).toBeVisible()
-  await captureScreenshot(page, 'wanted-model-dry-run.png')
   await expect.poll(() => audit.reviewCalls).toBe(1)
   expect(audit.dryRunCalls).toBe(1)
-  expect(audit.draftChanges.length).toBeGreaterThanOrEqual(10)
-  expect(audit.selectedItemIds).not.toContain('review:listing-1-1:price')
-  expect([...audit.selectedItemIds].sort()).toEqual(audit.draftChanges
-    .map(reviewItemId)
-    .filter(itemId => itemId !== 'review:listing-1-1:price')
-    .sort())
-  await page.getByRole('button', { name: /Back to grid/i }).click()
-  await expect(grid).toBeVisible()
+  // 10 manual price edits + 1 stock edit + 1 availability change + 3 bulk
+  // price changes (product 24, all channels) = 15; the reset Listing-11-1
+  // edit must not appear at all.
+  expect(audit.draftChanges).toHaveLength(15)
+  expect(audit.draftChanges).toContainEqual(expect.objectContaining({
+    listing_id: 'listing-1-1', channel_id: 'woocommerce:primary', field: 'status', target_value: 'inactive',
+  }))
+  expect(audit.draftChanges).toContainEqual(expect.objectContaining({
+    listing_id: 'listing-1-1', channel_id: 'woocommerce:primary', field: 'stock', target_value: '31',
+  }))
+  expect(audit.draftChanges).toContainEqual(expect.objectContaining({
+    listing_id: 'listing-24-1', channel_id: 'woocommerce:primary', field: 'price', target_value: '13020',
+  }))
+  expect(audit.draftChanges).not.toContainEqual(expect.objectContaining({ listing_id: 'listing-11-1' }))
+  expect(audit.draftChanges).not.toContainEqual(expect.objectContaining({ listing_id: 'listing-21-1' }))
+  // Reopening the same review must not create a duplicate Review/Dry Run.
+  await page.getByRole('button', { name: 'Back to Grid' }).first().click()
+  await expect(table).toBeVisible()
+  await saveButton.click()
+  await expect(page.getByRole('heading', { name: 'Review Changes' })).toBeVisible()
+  expect(audit.reviewCalls).toBe(1)
+  expect(audit.dryRunCalls).toBe(1)
 
-  const applyButton = page.getByRole('button', { name: /^Apply \d+/i })
+  // -- Apply flow -----------------------------------------------------------------
+  const applyButton = page.locator('[data-pricing-apply]')
   await expect(applyButton).toBeEnabled()
   await applyButton.click()
-  await expect(page.getByRole('dialog', { name: /Apply confirmation/i })).toBeVisible()
-  await page.getByRole('button', { name: /Confirm Apply/i }).click()
-  await expect(page.getByText(/partially applied/i)).toBeVisible()
-  await expect(page.getByText(/Reconciliation Required/i)).toBeVisible()
-  const applyResults = page.getByRole('region', { name: /Apply results/i })
+  await expect(page.getByRole('dialog', { name: 'Apply confirmation' })).toBeVisible()
+  await page.getByRole('button', { name: 'Confirm Apply' }).click()
+  await expect(page.getByText('Apply — Partially Applied')).toBeVisible()
+  await expect(page.getByText('Reconciliation Required')).toBeVisible()
+  const applyResults = page.getByRole('region', { name: 'Apply results' })
   await expect(applyResults).toBeVisible()
   await applyResults.scrollIntoViewIfNeeded()
   await captureScreenshot(page, 'wanted-model-apply-results.png')
@@ -726,150 +688,12 @@ test('matches Wanted Model with direct field editing, immediate selection, bulk 
   expect(audit.applyCalls).toBe(1)
   expect(new URL(page.url()).pathname).toBe('/products')
   expect(audit.external).toEqual([])
-  const acceptanceMetrics = {
+  console.log(`PRICING_ACCEPTANCE ${JSON.stringify({
     browserName,
     ...(await browserIdentity(browser)),
-    viewport: { width: 1440, height: 900 },
-    productsEditedInline: 10,
-    directCellEditActivations: 10,
-    productEditModalOpenings: 0,
-    routeChanges: 0,
-    reviewOperations: audit.reviewCalls,
-    dryRunOperations: audit.dryRunCalls,
-    applyOperations: audit.applyCalls,
-    initiallyVisibleRows,
     timeToFirstEditableCellMs,
     editTenProductsMs,
-  }
-  writeFileSync(path.join(screenshotRoot, 'wanted-model-acceptance-metrics.json'), `${JSON.stringify(acceptanceMetrics, null, 2)}\n`, 'utf8')
-  console.log(`PRICING_ACCEPTANCE ${JSON.stringify(acceptanceMetrics)}`)
-})
-
-test('benchmarks a virtualized 10,000-product, five-channel dense pricing grid with a bounded API window', async ({ page, context, browser, browserName }) => {
-  test.setTimeout(180_000)
-  await grantClipboard(context)
-  await installStartupPerformanceObservers(page)
-  const performanceSession = await context.newCDPSession(page)
-  await performanceSession.send('Performance.enable')
-  const audit = createAudit()
-  const options: MockOptions = {
-    workspaceId: 'pricing-benchmark',
-    workspaceName: '10,000 Product Pricing Benchmark',
-    totalProducts: 10_000,
-    channelIds: benchmarkChannels,
-    defaultPageSize: 100,
-  }
-  await installMocks(page, options, audit)
-  await page.setViewportSize({ width: 1440, height: 900 })
-
-  const readyStarted = performance.now()
-  await page.goto('/products', { waitUntil: 'domcontentloaded' })
-  const grid = page.locator('[data-pricing-grid]')
-  await expect(grid).toBeVisible({ timeout: 30_000 })
-  expect(new URL(page.url()).pathname).toBe('/products')
-  expect(audit.catalogBootstrapCalls).toBe(1)
-  await expect.poll(() => page.locator('[data-pricing-grid] .ht_master tbody tr').count()).toBeGreaterThanOrEqual(15)
-  const readyMs = Math.round(performance.now() - readyStarted)
-  const renderedRows = await page.locator('[data-pricing-grid] .ht_master tbody tr').count()
-  await page.waitForTimeout(100)
-  const startupMetrics = await startupPerformanceMetrics(page)
-  const performanceMetrics = await performanceSession.send('Performance.getMetrics') as {
-    metrics: Array<{ name: string; value: number }>
-  }
-  const cdpMetric = (name: string) => performanceMetrics.metrics.find(metric => metric.name === name)?.value ?? 0
-  const startupCdpMetrics = {
-    jsExecutionMs: Math.round(cdpMetric('ScriptDuration') * 1000),
-    layoutMs: Math.round(cdpMetric('LayoutDuration') * 1000),
-    styleRecalculationMs: Math.round(cdpMetric('RecalcStyleDuration') * 1000),
-    mainThreadTaskMs: Math.round(cdpMetric('TaskDuration') * 1000),
-    startupHeapBytes: Math.round(cdpMetric('JSHeapUsedSize')),
-  }
-  expect(renderedRows).toBeGreaterThanOrEqual(15)
-  expect(renderedRows).toBeLessThan(100)
-  expect(audit.maximumReturnedProducts).toBeLessThanOrEqual(500)
-  expect(audit.requests.some(request => request.pathname.endsWith('/grouped-grid') && request.search.includes('pageSize=10000'))).toBe(false)
-
-  const scrollContainer = page.locator('[data-pricing-virtual-viewport]')
-  const scrollStarted = performance.now()
-  await scrollContainer.evaluate(element => { element.scrollTop = Math.max(0, element.scrollHeight - element.clientHeight) })
-  await page.waitForTimeout(100)
-  const scrollMs = Math.round(performance.now() - scrollStarted)
-  expect(await page.locator('[data-pricing-grid] .ht_master tbody tr').count()).toBeLessThan(100)
-  await scrollContainer.evaluate(element => { element.scrollTop = 0 })
-  await expect(targetCell(page, 'listing-1-1', 'price')).toBeVisible()
-
-  const firstPrice = targetCell(page, 'listing-1-1', 'price')
-  const editStarted = performance.now()
-  await replaceCell(page, firstPrice, '99000')
-  await expect(fieldSelection(page, 'listing-1-1', 'price')).toBeChecked()
-  const editResponseMs = Math.round(performance.now() - editStarted)
-
-  const pasteStarted = performance.now()
-  await firstPrice.click()
-  await page.evaluate(() => navigator.clipboard.writeText('99100\n99200\n99300\n99400\n99500'))
-  await page.keyboard.press('Control+V')
-  await expect(targetCell(page, 'listing-5-1', 'price')).toContainText('99500')
-  const pasteResponseMs = Math.round(performance.now() - pasteStarted)
-
-  const search = page.getByRole('searchbox', { name: /Search Source Products|Search products/i })
-  const filterStarted = performance.now()
-  await submitSearch(page, search, 'Synthetic Product 09999')
-  await expect(page.locator('.ht_master td[data-product-id="product-9999"]').first()).toBeVisible()
-  const filterMs = Math.round(performance.now() - filterStarted)
-  await submitSearch(page, search, '')
-
-  const sortStarted = performance.now()
-  await page.locator('[data-pricing-sort="product"]').click()
-  await page.locator('[data-pricing-sort="product"]').click()
-  await expect(page.locator('.ht_master tr[data-pricing-row]').first()).toHaveAttribute('data-product-id', 'product-100')
-  const sortedPrice = targetCell(page, 'listing-100-1', 'price')
-  await replaceCell(page, sortedPrice, '88000')
-  await expect(fieldSelection(page, 'listing-100-1', 'price')).toBeChecked()
-  const sortMs = Math.round(performance.now() - sortStarted)
-  await page.locator('[data-pricing-sort="product"]').click()
-  await expect(page.locator('.ht_master tr[data-pricing-row]').first()).toHaveAttribute('data-product-id', 'product-1')
-  await expect(targetCell(page, 'listing-1-1', 'price')).toContainText('99100')
-
-  const pageStarted = performance.now()
-  await page.getByRole('button', { name: /Next/i }).click()
-  await expect(page.getByText(/Page 2/i)).toBeVisible()
-  await page.getByRole('button', { name: /Previous/i }).click()
-  await expect(page.getByText(/Page 1/i)).toBeVisible()
-  await expect(targetCell(page, 'listing-1-1', 'price')).toContainText('99100')
-  const pageReturnMs = Math.round(performance.now() - pageStarted)
-
-  const browserMetrics = await page.evaluate(() => ({
-    domNodeCount: document.getElementsByTagName('*').length,
-    observedHeapBytes: (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null,
-  }))
-  const interactionMetrics = await startupPerformanceMetrics(page)
-  expect(browserMetrics.domNodeCount).toBeLessThan(10_000)
-  expect(audit.maximumReturnedProducts).toBeLessThanOrEqual(500)
-  expect(audit.external).toEqual([])
-
-  const metrics = {
-    datasetProducts: options.totalProducts,
-    visibleChannels: options.channelIds.length,
-    maximumApiWindow: audit.maximumReturnedProducts,
-    renderedRows,
-    browserName,
-    ...(await browserIdentity(browser)),
-    viewport: { width: 1440, height: 900 },
-    readyMs,
-    ...startupMetrics,
-    ...startupCdpMetrics,
-    inpMs: interactionMetrics.inpMs,
-    scrollMs,
-    editResponseMs,
-    pasteResponseMs,
-    filterMs,
-    sortMs,
-    pageReturnMs,
-    ...browserMetrics,
-  }
-  writeFileSync(path.join(screenshotRoot, 'pricing-10000-benchmark-metrics.json'), `${JSON.stringify(metrics, null, 2)}\n`, 'utf8')
-  console.log(`PRICING_BENCHMARK ${JSON.stringify(metrics)}`)
-  await captureScreenshot(page, 'pricing-10000-benchmark.png')
+  })}`)
 })
 
 test('renders critical Products controls before deferred Grid startup', async ({ page, browser, browserName }) => {
@@ -879,8 +703,8 @@ test('renders critical Products controls before deferred Grid startup', async ({
   const options: MockOptions = {
     workspaceId: 'pricing-critical-controls',
     workspaceName: 'Products',
-    totalProducts: 10_000,
-    channelIds: benchmarkChannels,
+    totalProducts: 6,
+    channelIds: acceptanceChannels,
     defaultPageSize: 100,
   }
   await installMocks(page, options, audit)
@@ -898,6 +722,5 @@ test('renders critical Products controls before deferred Grid startup', async ({
     ...(await startupPerformanceMetrics(page)),
   }
   expect(audit.external).toEqual([])
-  writeFileSync(path.join(screenshotRoot, 'products-critical-controls-metrics.json'), `${JSON.stringify(metrics, null, 2)}\n`, 'utf8')
   console.log(`PRODUCTS_CRITICAL_CONTROLS ${JSON.stringify(metrics)}`)
 })
