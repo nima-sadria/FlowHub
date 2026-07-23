@@ -7,7 +7,7 @@ import { AuthContext, type AuthContextValue, type AuthUser } from '../auth'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { RateLimitSettings } from '../services/types'
-import RateLimits from './RateLimits'
+import RateLimits, { RateLimitsPanel } from './RateLimits'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -120,6 +120,26 @@ describe('RateLimits', () => {
     expect(page.textContent).toContain('Read requests per minute')
     expect(page.textContent).toContain('Write requests per minute')
     expect(page.textContent).toContain('Rolling window')
+  })
+
+  it('preserves delay labels in the embedded advanced settings panel', async () => {
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <NotificationProvider>
+            <AuthContext.Provider value={authValue()}>
+              <ServiceProvider services={services()}>
+                <RateLimitsPanel embedded />
+              </ServiceProvider>
+            </AuthContext.Provider>
+          </NotificationProvider>
+        </MemoryRouter>,
+      )
+    })
+    await act(async () => { await Promise.resolve() })
+
+    expect(container.textContent).toContain('Read delay1.00 seconds')
+    expect(container.textContent).toContain('Write delay2.00 seconds')
   })
 
   it('validates the existing RPM contract', async () => {
