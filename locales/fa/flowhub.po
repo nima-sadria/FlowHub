@@ -69,7 +69,7 @@ msgctxt "sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated"
 msgid "A new protected version of your column setup was saved."
 msgstr "یک نسخه محافظت‌شده جدید از تنظیم ستون‌ها ذخیره شد."
 
-#: frontend/src/components/UserManagement.tsx:155
+#: frontend/src/components/UserManagement.tsx:154
 msgctxt "settings:users.passwordConfigured"
 msgid "A password will be stored securely."
 msgstr "رمز عبور به‌صورت امن ذخیره می‌شود."
@@ -168,7 +168,7 @@ msgctxt "sources:sourceConfiguration.section.accessScope"
 msgid "Access scope"
 msgstr "دامنه دسترسی"
 
-#: frontend/src/components/UserManagement.tsx:239
+#: frontend/src/components/UserManagement.tsx:238
 msgctxt "settings:users.deleteHistoryWarning"
 msgid "Accounts with protected business history cannot be deleted. Disable them instead."
 msgstr "حساب‌های دارای سابقه کسب‌وکار محافظت‌شده قابل حذف نیستند؛ آن‌ها را غیرفعال کنید."
@@ -215,7 +215,7 @@ msgctxt "settings:setup.active"
 msgid "Active"
 msgstr "فعال"
 
-#: frontend/src/components/UserManagement.tsx:187
+#: frontend/src/components/UserManagement.tsx:186
 msgctxt "settings:users.enabled"
 msgid "Active"
 msgstr "فعال"
@@ -285,7 +285,7 @@ msgctxt "dashboard:dashboard.addYourFirstSource"
 msgid "Add your first source"
 msgstr "اولین منبع خود را اضافه کنید"
 
-#: frontend/src/pages/RateLimits.tsx:287
+#: frontend/src/pages/RateLimits.tsx:187
 msgctxt "settings:rateLimits.operationalLimitsDescription"
 msgid "Adjust only when sustained usage requires more capacity."
 msgstr "فقط زمانی تغییر دهید که استفاده پایدار به ظرفیت بیشتری نیاز دارد."
@@ -303,7 +303,7 @@ msgctxt "commerce:commerceHub.adminPermissionRequired"
 msgid "Admin permission required"
 msgstr "دسترسی مدیر لازم است"
 
-#: frontend/src/pages/RateLimits.tsx:296
+#: frontend/src/pages/RateLimits.tsx:196
 msgctxt "settings:rateLimits.adminRequiredOperationalLimits"
 msgid "Administrator access is required to change operational limits."
 msgstr "برای تغییر محدودیت‌های عملیاتی، دسترسی مدیر لازم است."
@@ -726,7 +726,6 @@ msgctxt "workspace:workspace.automaticApplyIsDisabled"
 msgid "Automatic apply is disabled."
 msgstr "اعمال خودکار غیرفعال است."
 
-#: frontend/src/pages/RateLimits.tsx:237
 msgctxt "settings:rateLimits.automaticSync"
 msgid "Automatic sync"
 msgstr "همگام‌سازی خودکار"
@@ -956,7 +955,7 @@ msgctxt "common:action.cancel"
 msgid "Cancel"
 msgstr "انصراف"
 
-#: frontend/src/components/UserManagement.tsx:137 frontend/src/components/UserManagement.tsx:223 frontend/src/components/UserManagement.tsx:231 frontend/src/components/UserManagement.tsx:240
+#: frontend/src/components/UserManagement.tsx:136 frontend/src/components/UserManagement.tsx:222 frontend/src/components/UserManagement.tsx:230 frontend/src/components/UserManagement.tsx:239
 msgctxt "settings:users.cancel"
 msgid "Cancel"
 msgstr "انصراف"
@@ -1038,12 +1037,12 @@ msgctxt "commerce:capability.categoryRead"
 msgid "Category read"
 msgstr "خواندن دسته‌بندی‌ها"
 
-#: frontend/src/components/UserManagement.tsx:218
+#: frontend/src/components/UserManagement.tsx:217
 msgctxt "settings:users.changePassword"
 msgid "Change password"
 msgstr "تغییر رمز عبور"
 
-#: frontend/src/components/UserManagement.tsx:229
+#: frontend/src/components/UserManagement.tsx:228
 msgctxt "settings:users.changePasswordFor"
 msgid "Change password for {{username}}"
 msgstr "تغییر رمز عبور {{username}}"
@@ -1978,7 +1977,7 @@ msgctxt "sources:sourceConfiguration.copyMappingFrom"
 msgid "Copy columns from another Channel"
 msgstr "کپی ستون‌ها از کانال دیگر"
 
-#: frontend/src/components/UserManagement.tsx:158 frontend/src/components/UserManagement.tsx:230
+#: frontend/src/components/UserManagement.tsx:157 frontend/src/components/UserManagement.tsx:229
 msgctxt "settings:users.copyPassword"
 msgid "Copy entered password"
 msgstr "کپی رمز واردشده"
@@ -2071,7 +2070,7 @@ msgctxt "settings:setup.createInitialOwner"
 msgid "Create the initial FlowHub owner account."
 msgstr "حساب مالک اولیه FlowHub را ایجاد کنید."
 
-#: frontend/src/components/UserManagement.tsx:137 frontend/src/components/UserManagement.tsx:167
+#: frontend/src/components/UserManagement.tsx:136 frontend/src/components/UserManagement.tsx:166
 msgctxt "settings:users.create"
 msgid "Create user"
 msgstr "ایجاد کاربر"
@@ -2081,7 +2080,7 @@ msgctxt "orders:orders.created"
 msgid "Created"
 msgstr "ایجادشده"
 
-#: frontend/src/components/UserManagement.tsx:181
+#: frontend/src/components/UserManagement.tsx:180
 msgctxt "settings:users.createdOn"
 msgid "Created {{date}}"
 msgstr "ایجادشده در {{date}}"
@@ -2325,7 +2324,7 @@ msgctxt "diagnostics:diagnostics.delayMilliseconds"
 msgid "Delay {{value}} ms"
 msgstr "تأخیر {{value}} میلی‌ثانیه"
 
-#: frontend/src/components/UserManagement.tsx:220 frontend/src/components/UserManagement.tsx:240
+#: frontend/src/components/UserManagement.tsx:219 frontend/src/components/UserManagement.tsx:239
 msgctxt "settings:users.delete"
 msgid "Delete"
 msgstr "حذف"
@@ -2347,12 +2346,12 @@ msgctxt "sources:sourceCenter.deleteUnusedSource"
 msgid "Delete unused Source"
 msgstr "حذف منبع بدون استفاده"
 
-#: frontend/src/components/UserManagement.tsx:237
+#: frontend/src/components/UserManagement.tsx:236
 msgctxt "settings:users.deleteTitle"
 msgid "Delete user"
 msgstr "حذف کاربر"
 
-#: frontend/src/components/UserManagement.tsx:238
+#: frontend/src/components/UserManagement.tsx:237
 msgctxt "settings:users.deleteConfirmation"
 msgid "Delete {{username}}?"
 msgstr "کاربر {{username}} حذف شود؟"
@@ -2437,7 +2436,7 @@ msgctxt "diagnostics:diagnostics.diagnosticsUpdated"
 msgid "Diagnostics updated"
 msgstr "اطلاعات عیب‌یابی به‌روزرسانی شد"
 
-#: frontend/src/components/UserManagement.tsx:217
+#: frontend/src/components/UserManagement.tsx:216
 msgctxt "settings:users.disable"
 msgid "Disable"
 msgstr "غیرفعال‌کردن"
@@ -2456,7 +2455,7 @@ msgctxt "common:resourceGroup.disabled"
 msgid "Disabled"
 msgstr "غیرفعال"
 
-#: frontend/src/pages/Diagnostics.tsx:198 frontend/src/pages/Orders.tsx:264 frontend/src/pages/RateLimits.tsx:235 frontend/src/pages/RateLimits.tsx:236 frontend/src/pages/RateLimits.tsx:237
+#: frontend/src/pages/Diagnostics.tsx:198 frontend/src/pages/Orders.tsx:264
 msgctxt "common:status.disabled"
 msgid "Disabled"
 msgstr "غیرفعال"
@@ -2465,7 +2464,7 @@ msgctxt "diagnostics:state.disabled"
 msgid "Disabled"
 msgstr "غیرفعال"
 
-#: frontend/src/components/UserManagement.tsx:187
+#: frontend/src/components/UserManagement.tsx:186
 msgctxt "settings:users.disabled"
 msgid "Disabled"
 msgstr "غیرفعال"
@@ -2480,7 +2479,6 @@ msgctxt "workspace:workspace.disabled"
 msgid "Disabled"
 msgstr "غیرفعال"
 
-#: frontend/src/pages/RateLimits.tsx:195
 msgctxt "settings:rateLimits.discard"
 msgid "Discard"
 msgstr "نادیده‌گرفتن تغییرات"
@@ -2556,7 +2554,7 @@ msgctxt "settings:settings.currencyOption.EUR"
 msgid "EUR — Euro"
 msgstr "EUR — یورو"
 
-#: frontend/src/components/UserManagement.tsx:189
+#: frontend/src/components/UserManagement.tsx:188
 msgctxt "settings:users.edit"
 msgid "Edit"
 msgstr "ویرایش"
@@ -2581,7 +2579,7 @@ msgctxt "products:products.fieldEditLabel"
 msgid "Edit {{field}} for {{product}} on {{channel}}"
 msgstr "ویرایش {{field}} برای {{product}} در {{channel}}"
 
-#: frontend/src/components/UserManagement.tsx:199
+#: frontend/src/components/UserManagement.tsx:198
 msgctxt "settings:users.editUserFor"
 msgid "Edit {{username}}"
 msgstr "ویرایش {{username}}"
@@ -2617,7 +2615,7 @@ msgctxt "settings:setup.email"
 msgid "Email"
 msgstr "ایمیل"
 
-#: frontend/src/components/UserManagement.tsx:217
+#: frontend/src/components/UserManagement.tsx:216
 msgctxt "settings:users.enable"
 msgid "Enable"
 msgstr "فعال‌کردن"
@@ -3135,7 +3133,6 @@ msgctxt "workspace:sourceCentricWorkspace.generateAFreshReview"
 msgid "Generate a fresh Review."
 msgstr "یک بازبینی تازه ایجاد کنید."
 
-#: frontend/src/pages/RateLimits.tsx:234
 msgctxt "common:status.global"
 msgid "Global"
 msgstr "سراسری"
@@ -3144,7 +3141,6 @@ msgctxt "navigation:topbar.globalApiRateLimits"
 msgid "Global API Rate Limits"
 msgstr "محدودیت سراسری درخواست‌های API"
 
-#: frontend/src/pages/RateLimits.tsx:248 frontend/src/pages/RateLimits.tsx:270
 msgctxt "settings:rateLimits.globalApiRateLimits"
 msgid "Global API Rate Limits"
 msgstr "محدودیت سراسری درخواست‌های API"
@@ -3206,7 +3202,7 @@ msgctxt "commerce:commerceHub.hideEnteredSecret"
 msgid "Hide entered secret"
 msgstr "پنهان‌کردن مقدار واردشده"
 
-#: frontend/src/components/UserManagement.tsx:157 frontend/src/components/UserManagement.tsx:230 frontend/src/pages/Login.tsx:180
+#: frontend/src/components/UserManagement.tsx:156 frontend/src/components/UserManagement.tsx:229 frontend/src/pages/Login.tsx:180
 msgctxt "settings:users.hidePassword"
 msgid "Hide password"
 msgstr "پنهان‌کردن رمز عبور"
@@ -3356,7 +3352,6 @@ msgctxt "diagnostics:state.info"
 msgid "Information"
 msgstr "اطلاع‌رسانی"
 
-#: frontend/src/pages/RateLimits.tsx:249 frontend/src/pages/RateLimits.tsx:271
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "settings:rateLimits.inheritedByEverySourceAndChannel"
 msgid "Inherited by every Source and Channel"
@@ -3626,7 +3621,7 @@ msgctxt "orders:orders.latestUpdate"
 msgid "Latest update"
 msgstr "آخرین به‌روزرسانی"
 
-#: frontend/src/pages/RateLimits.tsx:304
+#: frontend/src/pages/RateLimits.tsx:204
 msgctxt "settings:rateLimits.limitResetPolicy"
 msgid "Limit reset policy"
 msgstr "سیاست بازنشانی محدودیت"
@@ -3773,7 +3768,7 @@ msgctxt "workspace:unifiedWorkspace.loadingImmutableWorkspaceSnapshot"
 msgid "Loading immutable Workspace Snapshot..."
 msgstr "در حال بارگذاری اسنپ‌شات تغییرناپذیر فضای کاری..."
 
-#: frontend/src/pages/RateLimits.tsx:290
+#: frontend/src/pages/RateLimits.tsx:190
 msgctxt "settings:rateLimits.loadingOperationalLimits"
 msgid "Loading operational limits"
 msgstr "در حال بارگذاری محدودیت‌های عملیاتی"
@@ -3805,7 +3800,7 @@ msgctxt "dashboard:dashboard.loadingCatalogSummary"
 msgid "Loading the managed product catalog."
 msgstr "در حال بارگذاری فهرست محصولات مدیریت‌شده."
 
-#: frontend/src/components/UserManagement.tsx:172
+#: frontend/src/components/UserManagement.tsx:171
 msgctxt "settings:users.loading"
 msgid "Loading users..."
 msgstr "در حال بارگذاری کاربران..."
@@ -3829,7 +3824,7 @@ msgctxt "products:products.loading"
 msgid "Loading..."
 msgstr "در حال بارگذاری..."
 
-#: frontend/src/pages/RateLimits.tsx:213 frontend/src/pages/Settings.tsx:130
+#: frontend/src/pages/Settings.tsx:130
 msgctxt "settings:rateLimits.loading"
 msgid "Loading..."
 msgstr "در حال بارگذاری..."
@@ -3955,6 +3950,11 @@ msgctxt "common:status.missing"
 msgid "Missing"
 msgstr "بدون داده"
 
+#: frontend/src/pages/RateLimits.tsx:171
+msgctxt "settings:rateLimits.monitorAndAdjustOperationalCapacity"
+msgid "Monitor and adjust operational capacity."
+msgstr "ظرفیت عملیاتی را پایش و تنظیم کنید."
+
 msgctxt "dashboard:dashboard.monitorPendingUpdates"
 msgid "Monitor pending updates until verification is complete."
 msgstr "به‌روزرسانی‌های در انتظار را تا پایان راستی‌آزمایی پیگیری کنید."
@@ -4075,7 +4075,7 @@ msgctxt "workspace:workspace.newPreview"
 msgid "New Preview"
 msgstr "پیش‌نمایش جدید"
 
-#: frontend/src/components/UserManagement.tsx:230
+#: frontend/src/components/UserManagement.tsx:229
 msgctxt "settings:users.newPassword"
 msgid "New password"
 msgstr "رمز عبور جدید"
@@ -4762,7 +4762,7 @@ msgctxt "common:status.operational"
 msgid "Operational"
 msgstr "عملیاتی"
 
-#: frontend/src/pages/RateLimits.tsx:286
+#: frontend/src/pages/RateLimits.tsx:186
 msgctxt "settings:rateLimits.operationalLimits"
 msgid "Operational limits"
 msgstr "محدودیت‌های عملیاتی"
@@ -4924,7 +4924,6 @@ msgctxt "diagnostics:diagnostics.overallState"
 msgid "Overall State"
 msgstr "وضعیت کلی"
 
-#: frontend/src/pages/RateLimits.tsx:235
 msgctxt "settings:rateLimits.overrides"
 msgid "Overrides"
 msgstr "استثناها"
@@ -4979,7 +4978,7 @@ msgctxt "settings:setup.password"
 msgid "Password"
 msgstr "رمز عبور"
 
-#: frontend/src/components/UserManagement.tsx:151
+#: frontend/src/components/UserManagement.tsx:150
 msgctxt "settings:users.password"
 msgid "Password"
 msgstr "رمز عبور"
@@ -5075,7 +5074,7 @@ msgctxt "diagnostics:diagnostics.pleaseTryAgain"
 msgid "Please try again."
 msgstr "دوباره تلاش کنید."
 
-#: frontend/src/pages/RateLimits.tsx:132 frontend/src/pages/RateLimits.tsx:177 frontend/src/pages/Settings.tsx:99
+#: frontend/src/pages/RateLimits.tsx:106 frontend/src/pages/RateLimits.tsx:151 frontend/src/pages/Settings.tsx:99
 msgctxt "settings:rateLimits.pleaseTryAgain"
 msgid "Please try again."
 msgstr "دوباره تلاش کنید."
@@ -5094,7 +5093,6 @@ msgctxt "settings:setup.pleaseWait"
 msgid "Please wait..."
 msgstr "لطفاً صبر کنید..."
 
-#: frontend/src/pages/RateLimits.tsx:232
 msgctxt "settings:rateLimits.policy"
 msgid "Policy"
 msgstr "سیاست"
@@ -5557,7 +5555,7 @@ msgctxt "diagnostics:diagnostics.queueLength"
 msgid "Queue length"
 msgstr "طول صف"
 
-#: frontend/src/pages/RateLimits.tsx:282
+#: frontend/src/pages/RateLimits.tsx:182
 msgctxt "settings:rateLimits.queueLength"
 msgid "Queue length"
 msgstr "طول صف"
@@ -5567,6 +5565,11 @@ msgid "Rate Limiter"
 msgstr "محدودکننده نرخ"
 
 msgctxt "navigation:sidebar.rateLimits"
+msgid "Rate Limits"
+msgstr "محدودیت نرخ"
+
+#: frontend/src/pages/RateLimits.tsx:170
+msgctxt "settings:rateLimits.title"
 msgid "Rate Limits"
 msgstr "محدودیت نرخ"
 
@@ -5596,7 +5599,6 @@ msgctxt "diagnostics:diagnostics.readRequestsMinute"
 msgid "Read Requests / Minute"
 msgstr "درخواست‌های خواندن در دقیقه"
 
-#: frontend/src/pages/RateLimits.tsx:216
 msgctxt "settings:rateLimits.readRequestsMinute"
 msgid "Read Requests / Minute"
 msgstr "درخواست‌های خواندن در دقیقه"
@@ -5610,7 +5612,6 @@ msgctxt "diagnostics:dimension.readCapability"
 msgid "Read capability"
 msgstr "قابلیت خواندن"
 
-#: frontend/src/pages/RateLimits.tsx:224
 msgctxt "settings:rateLimits.readDelay"
 msgid "Read delay"
 msgstr "تأخیر خواندن"
@@ -5634,12 +5635,12 @@ msgctxt "dashboard:dashboard.readRecorded"
 msgid "Read recorded"
 msgstr "خواندن ثبت شده"
 
-#: frontend/src/pages/RateLimits.tsx:300
+#: frontend/src/pages/RateLimits.tsx:200
 msgctxt "settings:rateLimits.operationalReadRequestsMinute"
 msgid "Read requests per minute"
 msgstr "درخواست‌های خواندن در دقیقه"
 
-#: frontend/src/pages/RateLimits.tsx:143
+#: frontend/src/pages/RateLimits.tsx:117
 msgctxt "validation:rateLimits.readRequestsRange"
 msgid "Read requests per minute must be between {{min}} and {{max}}."
 msgstr "تعداد درخواست‌های خواندن در دقیقه باید بین {{min}} و {{max}} باشد."
@@ -5899,12 +5900,12 @@ msgctxt "diagnostics:diagnostics.requestsAvailableNow"
 msgid "Requests available now"
 msgstr "درخواست‌های قابل ارسال اکنون"
 
-#: frontend/src/pages/RateLimits.tsx:280
+#: frontend/src/pages/RateLimits.tsx:180
 msgctxt "settings:rateLimits.requestsCompleted"
 msgid "Requests completed"
 msgstr "درخواست‌های تکمیل‌شده"
 
-#: frontend/src/pages/RateLimits.tsx:281
+#: frontend/src/pages/RateLimits.tsx:181
 msgctxt "settings:rateLimits.requestsDelayed"
 msgid "Requests delayed"
 msgstr "درخواست‌های با تأخیر"
@@ -5930,7 +5931,7 @@ msgctxt "diagnostics:reason.configuration_complete"
 msgid "Required configuration is present."
 msgstr "پیکربندی موردنیاز کامل است."
 
-#: frontend/src/pages/RateLimits.tsx:311 frontend/src/pages/Settings.tsx:163
+#: frontend/src/pages/RateLimits.tsx:211 frontend/src/pages/Settings.tsx:163
 msgctxt "settings:rateLimits.reset"
 msgid "Reset"
 msgstr "بازنشانی"
@@ -6256,17 +6257,17 @@ msgctxt "flowhubSheet:flowHubSheet.revisionIsImmutableAndReadyForSnapshot"
 msgid "Revision {{value1}} is immutable and ready for Snapshot creation."
 msgstr "بازبینی {{value1}} تغییرناپذیر و آماده ایجاد اسنپ‌شات است."
 
-#: frontend/src/components/UserManagement.tsx:161 frontend/src/components/UserManagement.tsx:202
+#: frontend/src/components/UserManagement.tsx:160 frontend/src/components/UserManagement.tsx:201
 msgctxt "settings:users.role"
 msgid "Role"
 msgstr "نقش"
 
-#: frontend/src/components/UserManagement.tsx:204
+#: frontend/src/components/UserManagement.tsx:203
 msgctxt "settings:users.roleFor"
 msgid "Role for {{username}}"
 msgstr "نقش {{username}}"
 
-#: frontend/src/pages/RateLimits.tsx:306
+#: frontend/src/pages/RateLimits.tsx:206
 msgctxt "settings:rateLimits.rollingWindow"
 msgid "Rolling window"
 msgstr "پنجره لغزان"
@@ -6364,7 +6365,7 @@ msgctxt "products:products.saveChanges"
 msgid "Save Changes"
 msgstr "ذخیره تغییرات"
 
-#: frontend/src/pages/RateLimits.tsx:204 frontend/src/pages/Settings.tsx:167
+#: frontend/src/pages/Settings.tsx:167
 msgctxt "settings:rateLimits.saveChanges"
 msgid "Save Changes"
 msgstr "ذخیره تغییرات"
@@ -6390,12 +6391,12 @@ msgctxt "commerce:commerceHub.saveConfiguration"
 msgid "Save configuration"
 msgstr "ذخیره پیکربندی"
 
-#: frontend/src/pages/RateLimits.tsx:314
+#: frontend/src/pages/RateLimits.tsx:214
 msgctxt "settings:rateLimits.saveLimits"
 msgid "Save limits"
 msgstr "ذخیره محدودیت‌ها"
 
-#: frontend/src/components/UserManagement.tsx:231
+#: frontend/src/components/UserManagement.tsx:230
 msgctxt "settings:users.savePassword"
 msgid "Save password"
 msgstr "ذخیره رمز عبور"
@@ -6451,7 +6452,7 @@ msgctxt "sources:sourceConfiguration.savedAsImmutableRevision"
 msgid "Saving creates a new immutable column-setup revision."
 msgstr "ذخیره‌کردن، نسخه تغییرناپذیر جدیدی از تنظیم ستون‌ها می‌سازد."
 
-#: frontend/src/pages/RateLimits.tsx:204 frontend/src/pages/RateLimits.tsx:314 frontend/src/pages/Settings.tsx:167
+#: frontend/src/pages/RateLimits.tsx:214 frontend/src/pages/Settings.tsx:167
 msgctxt "settings:rateLimits.saving"
 msgid "Saving..."
 msgstr "در حال ذخیره..."
@@ -6466,7 +6467,6 @@ msgctxt "dataQuality:dataQuality.scanReference"
 msgid "Scan reference"
 msgstr "شناسه بررسی"
 
-#: frontend/src/pages/RateLimits.tsx:236
 msgctxt "settings:rateLimits.scheduler"
 msgid "Scheduler"
 msgstr "زمان‌بند"
@@ -6485,7 +6485,6 @@ msgctxt "settings:setup.schemaStatus"
 msgid "Schema status"
 msgstr "وضعیت ساختار"
 
-#: frontend/src/pages/RateLimits.tsx:234
 msgctxt "settings:rateLimits.scope"
 msgid "Scope"
 msgstr "دامنه"
@@ -6787,7 +6786,7 @@ msgctxt "activity:event.settings_changed"
 msgid "Settings changed"
 msgstr "تنظیمات تغییر کرد"
 
-#: frontend/src/pages/RateLimits.tsx:171 frontend/src/pages/Settings.tsx:93
+#: frontend/src/pages/RateLimits.tsx:145 frontend/src/pages/Settings.tsx:93
 msgctxt "settings:rateLimits.settingsSavedSuccessfully"
 msgid "Settings saved successfully"
 msgstr "تنظیمات با موفقیت ذخیره شد"
@@ -6866,7 +6865,7 @@ msgctxt "sources:sourceConfiguration.showOnlyProblems"
 msgid "Show only problems"
 msgstr "فقط مشکلات را نشان بده"
 
-#: frontend/src/components/UserManagement.tsx:156 frontend/src/components/UserManagement.tsx:230 frontend/src/pages/Login.tsx:181
+#: frontend/src/components/UserManagement.tsx:155 frontend/src/components/UserManagement.tsx:229 frontend/src/pages/Login.tsx:181
 msgctxt "settings:users.showPassword"
 msgid "Show password"
 msgstr "نمایش رمز عبور"
@@ -8214,7 +8213,7 @@ msgctxt "products:products.unableToLoadProducts"
 msgid "Unable to load products."
 msgstr "بارگذاری محصولات ممکن نیست."
 
-#: frontend/src/pages/RateLimits.tsx:131
+#: frontend/src/pages/RateLimits.tsx:105
 msgctxt "settings:rateLimits.unableToLoadSettings"
 msgid "Unable to load settings"
 msgstr "بارگذاری تنظیمات ممکن نیست"
@@ -8241,7 +8240,7 @@ msgctxt "commerce:commerceHub.unableToSaveChannelSettings"
 msgid "Unable to save channel settings"
 msgstr "ذخیره تنظیمات کانال ممکن نشد"
 
-#: frontend/src/pages/RateLimits.tsx:176 frontend/src/pages/Settings.tsx:98
+#: frontend/src/pages/RateLimits.tsx:150 frontend/src/pages/Settings.tsx:98
 msgctxt "settings:rateLimits.unableToSaveSettings"
 msgid "Unable to save settings"
 msgstr "ذخیره تنظیمات ممکن نیست"
@@ -8542,7 +8541,7 @@ msgctxt "settings:setup.username"
 msgid "Username"
 msgstr "نام کاربری"
 
-#: frontend/src/components/UserManagement.tsx:147
+#: frontend/src/components/UserManagement.tsx:146
 msgctxt "settings:users.username"
 msgid "Username"
 msgstr "نام کاربری"
@@ -8675,7 +8674,7 @@ msgctxt "dashboard:dashboard.viewProducts"
 msgid "View Products"
 msgstr "مشاهده محصولات"
 
-#: frontend/src/components/UserManagement.tsx:219
+#: frontend/src/components/UserManagement.tsx:218
 msgctxt "settings:users.viewActivity"
 msgid "View activity"
 msgstr "مشاهده فعالیت"
@@ -9026,7 +9025,6 @@ msgctxt "diagnostics:diagnostics.writeRequestsMinute"
 msgid "Write Requests / Minute"
 msgstr "درخواست‌های نوشتن در دقیقه"
 
-#: frontend/src/pages/RateLimits.tsx:217
 msgctxt "settings:rateLimits.writeRequestsMinute"
 msgid "Write Requests / Minute"
 msgstr "درخواست‌های نوشتن در دقیقه"
@@ -9035,7 +9033,6 @@ msgctxt "diagnostics:dimension.writeCapability"
 msgid "Write capability"
 msgstr "قابلیت نوشتن"
 
-#: frontend/src/pages/RateLimits.tsx:225
 msgctxt "settings:rateLimits.writeDelay"
 msgid "Write delay"
 msgstr "تأخیر نوشتن"
@@ -9045,12 +9042,12 @@ msgctxt "commerce:commerceHub.writeEnabled2"
 msgid "Write enabled"
 msgstr "نوشتن فعال"
 
-#: frontend/src/pages/RateLimits.tsx:301
+#: frontend/src/pages/RateLimits.tsx:201
 msgctxt "settings:rateLimits.operationalWriteRequestsMinute"
 msgid "Write requests per minute"
 msgstr "درخواست‌های نوشتن در دقیقه"
 
-#: frontend/src/pages/RateLimits.tsx:144
+#: frontend/src/pages/RateLimits.tsx:118
 msgctxt "validation:rateLimits.writeRequestsRange"
 msgid "Write requests per minute must be between {{min}} and {{max}}."
 msgstr "تعداد درخواست‌های نوشتن در دقیقه باید بین {{min}} و {{max}} باشد."
@@ -9069,7 +9066,7 @@ msgctxt "commerce:commerceHub.yes"
 msgid "Yes"
 msgstr "بله"
 
-#: frontend/src/components/UserManagement.tsx:179
+#: frontend/src/components/UserManagement.tsx:178
 msgctxt "settings:users.you"
 msgid "You"
 msgstr "شما"
@@ -9092,7 +9089,7 @@ msgctxt "authentication:access.permissionDeniedDescription"
 msgid "Your account does not have permission to view this content."
 msgstr "حساب شما اجازه مشاهده این محتوا را ندارد."
 
-#: frontend/src/pages/RateLimits.tsx:172 frontend/src/pages/Settings.tsx:94
+#: frontend/src/pages/RateLimits.tsx:146 frontend/src/pages/Settings.tsx:94
 msgctxt "settings:rateLimits.yourChangesHaveBeenApplied"
 msgid "Your changes have been applied."
 msgstr "تغییرات شما اعمال شد."
@@ -9722,7 +9719,6 @@ msgctxt "diagnostics:units.milliseconds"
 msgid "{{value}} ms"
 msgstr "{{value}} میلی‌ثانیه"
 
-#: frontend/src/pages/RateLimits.tsx:22
 msgctxt "settings:rateLimits.milliseconds"
 msgid "{{value}} ms"
 msgstr "{{value}} میلی‌ثانیه"
@@ -9792,7 +9788,6 @@ msgctxt "diagnostics:units.seconds"
 msgid "{{value}} seconds"
 msgstr "{{value}} ثانیه"
 
-#: frontend/src/pages/RateLimits.tsx:21
 msgctxt "settings:rateLimits.seconds"
 msgid "{{value}} seconds"
 msgstr "{{value}} ثانیه"

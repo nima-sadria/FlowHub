@@ -114,6 +114,8 @@ async function renderPage() {
 describe('RateLimits', () => {
   it('renders live limiter diagnostics and existing RPM settings', async () => {
     const page = await renderPage()
+    expect(page.querySelector('h1')?.textContent).toBe('Rate Limits')
+    expect(page.textContent).toContain('Monitor and adjust operational capacity.')
     expect(page.textContent).toContain(`Requests completed${(24).toLocaleString()}`)
     expect(page.textContent).toContain(`Requests delayed${(3).toLocaleString()}`)
     expect(page.textContent).toContain(`Queue length${(2).toLocaleString()}`)

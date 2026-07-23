@@ -69,7 +69,7 @@ msgctxt "sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated"
 msgid "A new protected version of your column setup was saved."
 msgstr "A new protected version of your column setup was saved."
 
-#: frontend/src/components/UserManagement.tsx:155
+#: frontend/src/components/UserManagement.tsx:154
 msgctxt "settings:users.passwordConfigured"
 msgid "A password will be stored securely."
 msgstr "A password will be stored securely."
@@ -168,7 +168,7 @@ msgctxt "sources:sourceConfiguration.section.accessScope"
 msgid "Access scope"
 msgstr "Access scope"
 
-#: frontend/src/components/UserManagement.tsx:239
+#: frontend/src/components/UserManagement.tsx:238
 msgctxt "settings:users.deleteHistoryWarning"
 msgid "Accounts with protected business history cannot be deleted. Disable them instead."
 msgstr "Accounts with protected business history cannot be deleted. Disable them instead."
@@ -215,7 +215,7 @@ msgctxt "settings:setup.active"
 msgid "Active"
 msgstr "Active"
 
-#: frontend/src/components/UserManagement.tsx:187
+#: frontend/src/components/UserManagement.tsx:186
 msgctxt "settings:users.enabled"
 msgid "Active"
 msgstr "Active"
@@ -285,7 +285,7 @@ msgctxt "dashboard:dashboard.addYourFirstSource"
 msgid "Add your first source"
 msgstr "Add your first source"
 
-#: frontend/src/pages/RateLimits.tsx:287
+#: frontend/src/pages/RateLimits.tsx:187
 msgctxt "settings:rateLimits.operationalLimitsDescription"
 msgid "Adjust only when sustained usage requires more capacity."
 msgstr "Adjust only when sustained usage requires more capacity."
@@ -303,7 +303,7 @@ msgctxt "commerce:commerceHub.adminPermissionRequired"
 msgid "Admin permission required"
 msgstr "Admin permission required"
 
-#: frontend/src/pages/RateLimits.tsx:296
+#: frontend/src/pages/RateLimits.tsx:196
 msgctxt "settings:rateLimits.adminRequiredOperationalLimits"
 msgid "Administrator access is required to change operational limits."
 msgstr "Administrator access is required to change operational limits."
@@ -726,7 +726,6 @@ msgctxt "workspace:workspace.automaticApplyIsDisabled"
 msgid "Automatic apply is disabled."
 msgstr "Automatic apply is disabled."
 
-#: frontend/src/pages/RateLimits.tsx:237
 msgctxt "settings:rateLimits.automaticSync"
 msgid "Automatic sync"
 msgstr "Automatic sync"
@@ -956,7 +955,7 @@ msgctxt "common:action.cancel"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: frontend/src/components/UserManagement.tsx:137 frontend/src/components/UserManagement.tsx:223 frontend/src/components/UserManagement.tsx:231 frontend/src/components/UserManagement.tsx:240
+#: frontend/src/components/UserManagement.tsx:136 frontend/src/components/UserManagement.tsx:222 frontend/src/components/UserManagement.tsx:230 frontend/src/components/UserManagement.tsx:239
 msgctxt "settings:users.cancel"
 msgid "Cancel"
 msgstr "Cancel"
@@ -1038,12 +1037,12 @@ msgctxt "commerce:capability.categoryRead"
 msgid "Category read"
 msgstr "Category read"
 
-#: frontend/src/components/UserManagement.tsx:218
+#: frontend/src/components/UserManagement.tsx:217
 msgctxt "settings:users.changePassword"
 msgid "Change password"
 msgstr "Change password"
 
-#: frontend/src/components/UserManagement.tsx:229
+#: frontend/src/components/UserManagement.tsx:228
 msgctxt "settings:users.changePasswordFor"
 msgid "Change password for {{username}}"
 msgstr "Change password for {{username}}"
@@ -1978,7 +1977,7 @@ msgctxt "sources:sourceConfiguration.copyMappingFrom"
 msgid "Copy columns from another Channel"
 msgstr "Copy columns from another Channel"
 
-#: frontend/src/components/UserManagement.tsx:158 frontend/src/components/UserManagement.tsx:230
+#: frontend/src/components/UserManagement.tsx:157 frontend/src/components/UserManagement.tsx:229
 msgctxt "settings:users.copyPassword"
 msgid "Copy entered password"
 msgstr "Copy entered password"
@@ -2071,7 +2070,7 @@ msgctxt "settings:setup.createInitialOwner"
 msgid "Create the initial FlowHub owner account."
 msgstr "Create the initial FlowHub owner account."
 
-#: frontend/src/components/UserManagement.tsx:137 frontend/src/components/UserManagement.tsx:167
+#: frontend/src/components/UserManagement.tsx:136 frontend/src/components/UserManagement.tsx:166
 msgctxt "settings:users.create"
 msgid "Create user"
 msgstr "Create user"
@@ -2081,7 +2080,7 @@ msgctxt "orders:orders.created"
 msgid "Created"
 msgstr "Created"
 
-#: frontend/src/components/UserManagement.tsx:181
+#: frontend/src/components/UserManagement.tsx:180
 msgctxt "settings:users.createdOn"
 msgid "Created {{date}}"
 msgstr "Created {{date}}"
@@ -2325,7 +2324,7 @@ msgctxt "diagnostics:diagnostics.delayMilliseconds"
 msgid "Delay {{value}} ms"
 msgstr "Delay {{value}} ms"
 
-#: frontend/src/components/UserManagement.tsx:220 frontend/src/components/UserManagement.tsx:240
+#: frontend/src/components/UserManagement.tsx:219 frontend/src/components/UserManagement.tsx:239
 msgctxt "settings:users.delete"
 msgid "Delete"
 msgstr "Delete"
@@ -2347,12 +2346,12 @@ msgctxt "sources:sourceCenter.deleteUnusedSource"
 msgid "Delete unused Source"
 msgstr "Delete unused Source"
 
-#: frontend/src/components/UserManagement.tsx:237
+#: frontend/src/components/UserManagement.tsx:236
 msgctxt "settings:users.deleteTitle"
 msgid "Delete user"
 msgstr "Delete user"
 
-#: frontend/src/components/UserManagement.tsx:238
+#: frontend/src/components/UserManagement.tsx:237
 msgctxt "settings:users.deleteConfirmation"
 msgid "Delete {{username}}?"
 msgstr "Delete {{username}}?"
@@ -2437,7 +2436,7 @@ msgctxt "diagnostics:diagnostics.diagnosticsUpdated"
 msgid "Diagnostics updated"
 msgstr "Diagnostics updated"
 
-#: frontend/src/components/UserManagement.tsx:217
+#: frontend/src/components/UserManagement.tsx:216
 msgctxt "settings:users.disable"
 msgid "Disable"
 msgstr "Disable"
@@ -2456,7 +2455,7 @@ msgctxt "common:resourceGroup.disabled"
 msgid "Disabled"
 msgstr "Disabled"
 
-#: frontend/src/pages/Diagnostics.tsx:198 frontend/src/pages/Orders.tsx:264 frontend/src/pages/RateLimits.tsx:235 frontend/src/pages/RateLimits.tsx:236 frontend/src/pages/RateLimits.tsx:237
+#: frontend/src/pages/Diagnostics.tsx:198 frontend/src/pages/Orders.tsx:264
 msgctxt "common:status.disabled"
 msgid "Disabled"
 msgstr "Disabled"
@@ -2465,7 +2464,7 @@ msgctxt "diagnostics:state.disabled"
 msgid "Disabled"
 msgstr "Disabled"
 
-#: frontend/src/components/UserManagement.tsx:187
+#: frontend/src/components/UserManagement.tsx:186
 msgctxt "settings:users.disabled"
 msgid "Disabled"
 msgstr "Disabled"
@@ -2480,7 +2479,6 @@ msgctxt "workspace:workspace.disabled"
 msgid "Disabled"
 msgstr "Disabled"
 
-#: frontend/src/pages/RateLimits.tsx:195
 msgctxt "settings:rateLimits.discard"
 msgid "Discard"
 msgstr "Discard"
@@ -2556,7 +2554,7 @@ msgctxt "settings:settings.currencyOption.EUR"
 msgid "EUR — Euro"
 msgstr "EUR — Euro"
 
-#: frontend/src/components/UserManagement.tsx:189
+#: frontend/src/components/UserManagement.tsx:188
 msgctxt "settings:users.edit"
 msgid "Edit"
 msgstr "Edit"
@@ -2581,7 +2579,7 @@ msgctxt "products:products.fieldEditLabel"
 msgid "Edit {{field}} for {{product}} on {{channel}}"
 msgstr "Edit {{field}} for {{product}} on {{channel}}"
 
-#: frontend/src/components/UserManagement.tsx:199
+#: frontend/src/components/UserManagement.tsx:198
 msgctxt "settings:users.editUserFor"
 msgid "Edit {{username}}"
 msgstr "Edit {{username}}"
@@ -2617,7 +2615,7 @@ msgctxt "settings:setup.email"
 msgid "Email"
 msgstr "Email"
 
-#: frontend/src/components/UserManagement.tsx:217
+#: frontend/src/components/UserManagement.tsx:216
 msgctxt "settings:users.enable"
 msgid "Enable"
 msgstr "Enable"
@@ -3135,7 +3133,6 @@ msgctxt "workspace:sourceCentricWorkspace.generateAFreshReview"
 msgid "Generate a fresh Review."
 msgstr "Generate a fresh Review."
 
-#: frontend/src/pages/RateLimits.tsx:234
 msgctxt "common:status.global"
 msgid "Global"
 msgstr "Global"
@@ -3144,7 +3141,6 @@ msgctxt "navigation:topbar.globalApiRateLimits"
 msgid "Global API Rate Limits"
 msgstr "Global API Rate Limits"
 
-#: frontend/src/pages/RateLimits.tsx:248 frontend/src/pages/RateLimits.tsx:270
 msgctxt "settings:rateLimits.globalApiRateLimits"
 msgid "Global API Rate Limits"
 msgstr "Global API Rate Limits"
@@ -3206,7 +3202,7 @@ msgctxt "commerce:commerceHub.hideEnteredSecret"
 msgid "Hide entered secret"
 msgstr "Hide entered secret"
 
-#: frontend/src/components/UserManagement.tsx:157 frontend/src/components/UserManagement.tsx:230 frontend/src/pages/Login.tsx:180
+#: frontend/src/components/UserManagement.tsx:156 frontend/src/components/UserManagement.tsx:229 frontend/src/pages/Login.tsx:180
 msgctxt "settings:users.hidePassword"
 msgid "Hide password"
 msgstr "Hide password"
@@ -3356,7 +3352,6 @@ msgctxt "diagnostics:state.info"
 msgid "Information"
 msgstr "Information"
 
-#: frontend/src/pages/RateLimits.tsx:249 frontend/src/pages/RateLimits.tsx:271
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "settings:rateLimits.inheritedByEverySourceAndChannel"
 msgid "Inherited by every Source and Channel"
@@ -3626,7 +3621,7 @@ msgctxt "orders:orders.latestUpdate"
 msgid "Latest update"
 msgstr "Latest update"
 
-#: frontend/src/pages/RateLimits.tsx:304
+#: frontend/src/pages/RateLimits.tsx:204
 msgctxt "settings:rateLimits.limitResetPolicy"
 msgid "Limit reset policy"
 msgstr "Limit reset policy"
@@ -3773,7 +3768,7 @@ msgctxt "workspace:unifiedWorkspace.loadingImmutableWorkspaceSnapshot"
 msgid "Loading immutable Workspace Snapshot..."
 msgstr "Loading immutable Workspace Snapshot..."
 
-#: frontend/src/pages/RateLimits.tsx:290
+#: frontend/src/pages/RateLimits.tsx:190
 msgctxt "settings:rateLimits.loadingOperationalLimits"
 msgid "Loading operational limits"
 msgstr "Loading operational limits"
@@ -3805,7 +3800,7 @@ msgctxt "dashboard:dashboard.loadingCatalogSummary"
 msgid "Loading the managed product catalog."
 msgstr "Loading the managed product catalog."
 
-#: frontend/src/components/UserManagement.tsx:172
+#: frontend/src/components/UserManagement.tsx:171
 msgctxt "settings:users.loading"
 msgid "Loading users..."
 msgstr "Loading users..."
@@ -3829,7 +3824,7 @@ msgctxt "products:products.loading"
 msgid "Loading..."
 msgstr "Loading..."
 
-#: frontend/src/pages/RateLimits.tsx:213 frontend/src/pages/Settings.tsx:130
+#: frontend/src/pages/Settings.tsx:130
 msgctxt "settings:rateLimits.loading"
 msgid "Loading..."
 msgstr "Loading..."
@@ -3955,6 +3950,11 @@ msgctxt "common:status.missing"
 msgid "Missing"
 msgstr "Missing"
 
+#: frontend/src/pages/RateLimits.tsx:171
+msgctxt "settings:rateLimits.monitorAndAdjustOperationalCapacity"
+msgid "Monitor and adjust operational capacity."
+msgstr "Monitor and adjust operational capacity."
+
 msgctxt "dashboard:dashboard.monitorPendingUpdates"
 msgid "Monitor pending updates until verification is complete."
 msgstr "Monitor pending updates until verification is complete."
@@ -4075,7 +4075,7 @@ msgctxt "workspace:workspace.newPreview"
 msgid "New Preview"
 msgstr "New Preview"
 
-#: frontend/src/components/UserManagement.tsx:230
+#: frontend/src/components/UserManagement.tsx:229
 msgctxt "settings:users.newPassword"
 msgid "New password"
 msgstr "New password"
@@ -4762,7 +4762,7 @@ msgctxt "common:status.operational"
 msgid "Operational"
 msgstr "Operational"
 
-#: frontend/src/pages/RateLimits.tsx:286
+#: frontend/src/pages/RateLimits.tsx:186
 msgctxt "settings:rateLimits.operationalLimits"
 msgid "Operational limits"
 msgstr "Operational limits"
@@ -4924,7 +4924,6 @@ msgctxt "diagnostics:diagnostics.overallState"
 msgid "Overall State"
 msgstr "Overall State"
 
-#: frontend/src/pages/RateLimits.tsx:235
 msgctxt "settings:rateLimits.overrides"
 msgid "Overrides"
 msgstr "Overrides"
@@ -4979,7 +4978,7 @@ msgctxt "settings:setup.password"
 msgid "Password"
 msgstr "Password"
 
-#: frontend/src/components/UserManagement.tsx:151
+#: frontend/src/components/UserManagement.tsx:150
 msgctxt "settings:users.password"
 msgid "Password"
 msgstr "Password"
@@ -5075,7 +5074,7 @@ msgctxt "diagnostics:diagnostics.pleaseTryAgain"
 msgid "Please try again."
 msgstr "Please try again."
 
-#: frontend/src/pages/RateLimits.tsx:132 frontend/src/pages/RateLimits.tsx:177 frontend/src/pages/Settings.tsx:99
+#: frontend/src/pages/RateLimits.tsx:106 frontend/src/pages/RateLimits.tsx:151 frontend/src/pages/Settings.tsx:99
 msgctxt "settings:rateLimits.pleaseTryAgain"
 msgid "Please try again."
 msgstr "Please try again."
@@ -5094,7 +5093,6 @@ msgctxt "settings:setup.pleaseWait"
 msgid "Please wait..."
 msgstr "Please wait..."
 
-#: frontend/src/pages/RateLimits.tsx:232
 msgctxt "settings:rateLimits.policy"
 msgid "Policy"
 msgstr "Policy"
@@ -5557,7 +5555,7 @@ msgctxt "diagnostics:diagnostics.queueLength"
 msgid "Queue length"
 msgstr "Queue length"
 
-#: frontend/src/pages/RateLimits.tsx:282
+#: frontend/src/pages/RateLimits.tsx:182
 msgctxt "settings:rateLimits.queueLength"
 msgid "Queue length"
 msgstr "Queue length"
@@ -5567,6 +5565,11 @@ msgid "Rate Limiter"
 msgstr "Rate Limiter"
 
 msgctxt "navigation:sidebar.rateLimits"
+msgid "Rate Limits"
+msgstr "Rate Limits"
+
+#: frontend/src/pages/RateLimits.tsx:170
+msgctxt "settings:rateLimits.title"
 msgid "Rate Limits"
 msgstr "Rate Limits"
 
@@ -5596,7 +5599,6 @@ msgctxt "diagnostics:diagnostics.readRequestsMinute"
 msgid "Read Requests / Minute"
 msgstr "Read Requests / Minute"
 
-#: frontend/src/pages/RateLimits.tsx:216
 msgctxt "settings:rateLimits.readRequestsMinute"
 msgid "Read Requests / Minute"
 msgstr "Read Requests / Minute"
@@ -5610,7 +5612,6 @@ msgctxt "diagnostics:dimension.readCapability"
 msgid "Read capability"
 msgstr "Read capability"
 
-#: frontend/src/pages/RateLimits.tsx:224
 msgctxt "settings:rateLimits.readDelay"
 msgid "Read delay"
 msgstr "Read delay"
@@ -5634,12 +5635,12 @@ msgctxt "dashboard:dashboard.readRecorded"
 msgid "Read recorded"
 msgstr "Read recorded"
 
-#: frontend/src/pages/RateLimits.tsx:300
+#: frontend/src/pages/RateLimits.tsx:200
 msgctxt "settings:rateLimits.operationalReadRequestsMinute"
 msgid "Read requests per minute"
 msgstr "Read requests per minute"
 
-#: frontend/src/pages/RateLimits.tsx:143
+#: frontend/src/pages/RateLimits.tsx:117
 msgctxt "validation:rateLimits.readRequestsRange"
 msgid "Read requests per minute must be between {{min}} and {{max}}."
 msgstr "Read requests per minute must be between {{min}} and {{max}}."
@@ -5899,12 +5900,12 @@ msgctxt "diagnostics:diagnostics.requestsAvailableNow"
 msgid "Requests available now"
 msgstr "Requests available now"
 
-#: frontend/src/pages/RateLimits.tsx:280
+#: frontend/src/pages/RateLimits.tsx:180
 msgctxt "settings:rateLimits.requestsCompleted"
 msgid "Requests completed"
 msgstr "Requests completed"
 
-#: frontend/src/pages/RateLimits.tsx:281
+#: frontend/src/pages/RateLimits.tsx:181
 msgctxt "settings:rateLimits.requestsDelayed"
 msgid "Requests delayed"
 msgstr "Requests delayed"
@@ -5930,7 +5931,7 @@ msgctxt "diagnostics:reason.configuration_complete"
 msgid "Required configuration is present."
 msgstr "Required configuration is present."
 
-#: frontend/src/pages/RateLimits.tsx:311 frontend/src/pages/Settings.tsx:163
+#: frontend/src/pages/RateLimits.tsx:211 frontend/src/pages/Settings.tsx:163
 msgctxt "settings:rateLimits.reset"
 msgid "Reset"
 msgstr "Reset"
@@ -6256,17 +6257,17 @@ msgctxt "flowhubSheet:flowHubSheet.revisionIsImmutableAndReadyForSnapshot"
 msgid "Revision {{value1}} is immutable and ready for Snapshot creation."
 msgstr "Revision {{value1}} is immutable and ready for Snapshot creation."
 
-#: frontend/src/components/UserManagement.tsx:161 frontend/src/components/UserManagement.tsx:202
+#: frontend/src/components/UserManagement.tsx:160 frontend/src/components/UserManagement.tsx:201
 msgctxt "settings:users.role"
 msgid "Role"
 msgstr "Role"
 
-#: frontend/src/components/UserManagement.tsx:204
+#: frontend/src/components/UserManagement.tsx:203
 msgctxt "settings:users.roleFor"
 msgid "Role for {{username}}"
 msgstr "Role for {{username}}"
 
-#: frontend/src/pages/RateLimits.tsx:306
+#: frontend/src/pages/RateLimits.tsx:206
 msgctxt "settings:rateLimits.rollingWindow"
 msgid "Rolling window"
 msgstr "Rolling window"
@@ -6364,7 +6365,7 @@ msgctxt "products:products.saveChanges"
 msgid "Save Changes"
 msgstr "Save Changes"
 
-#: frontend/src/pages/RateLimits.tsx:204 frontend/src/pages/Settings.tsx:167
+#: frontend/src/pages/Settings.tsx:167
 msgctxt "settings:rateLimits.saveChanges"
 msgid "Save Changes"
 msgstr "Save Changes"
@@ -6390,12 +6391,12 @@ msgctxt "commerce:commerceHub.saveConfiguration"
 msgid "Save configuration"
 msgstr "Save configuration"
 
-#: frontend/src/pages/RateLimits.tsx:314
+#: frontend/src/pages/RateLimits.tsx:214
 msgctxt "settings:rateLimits.saveLimits"
 msgid "Save limits"
 msgstr "Save limits"
 
-#: frontend/src/components/UserManagement.tsx:231
+#: frontend/src/components/UserManagement.tsx:230
 msgctxt "settings:users.savePassword"
 msgid "Save password"
 msgstr "Save password"
@@ -6451,7 +6452,7 @@ msgctxt "sources:sourceConfiguration.savedAsImmutableRevision"
 msgid "Saving creates a new immutable column-setup revision."
 msgstr "Saving creates a new immutable column-setup revision."
 
-#: frontend/src/pages/RateLimits.tsx:204 frontend/src/pages/RateLimits.tsx:314 frontend/src/pages/Settings.tsx:167
+#: frontend/src/pages/RateLimits.tsx:214 frontend/src/pages/Settings.tsx:167
 msgctxt "settings:rateLimits.saving"
 msgid "Saving..."
 msgstr "Saving..."
@@ -6466,7 +6467,6 @@ msgctxt "dataQuality:dataQuality.scanReference"
 msgid "Scan reference"
 msgstr "Scan reference"
 
-#: frontend/src/pages/RateLimits.tsx:236
 msgctxt "settings:rateLimits.scheduler"
 msgid "Scheduler"
 msgstr "Scheduler"
@@ -6485,7 +6485,6 @@ msgctxt "settings:setup.schemaStatus"
 msgid "Schema status"
 msgstr "Schema status"
 
-#: frontend/src/pages/RateLimits.tsx:234
 msgctxt "settings:rateLimits.scope"
 msgid "Scope"
 msgstr "Scope"
@@ -6787,7 +6786,7 @@ msgctxt "activity:event.settings_changed"
 msgid "Settings changed"
 msgstr "Settings changed"
 
-#: frontend/src/pages/RateLimits.tsx:171 frontend/src/pages/Settings.tsx:93
+#: frontend/src/pages/RateLimits.tsx:145 frontend/src/pages/Settings.tsx:93
 msgctxt "settings:rateLimits.settingsSavedSuccessfully"
 msgid "Settings saved successfully"
 msgstr "Settings saved successfully"
@@ -6866,7 +6865,7 @@ msgctxt "sources:sourceConfiguration.showOnlyProblems"
 msgid "Show only problems"
 msgstr "Show only problems"
 
-#: frontend/src/components/UserManagement.tsx:156 frontend/src/components/UserManagement.tsx:230 frontend/src/pages/Login.tsx:181
+#: frontend/src/components/UserManagement.tsx:155 frontend/src/components/UserManagement.tsx:229 frontend/src/pages/Login.tsx:181
 msgctxt "settings:users.showPassword"
 msgid "Show password"
 msgstr "Show password"
@@ -8214,7 +8213,7 @@ msgctxt "products:products.unableToLoadProducts"
 msgid "Unable to load products."
 msgstr "Unable to load products."
 
-#: frontend/src/pages/RateLimits.tsx:131
+#: frontend/src/pages/RateLimits.tsx:105
 msgctxt "settings:rateLimits.unableToLoadSettings"
 msgid "Unable to load settings"
 msgstr "Unable to load settings"
@@ -8241,7 +8240,7 @@ msgctxt "commerce:commerceHub.unableToSaveChannelSettings"
 msgid "Unable to save channel settings"
 msgstr "Unable to save channel settings"
 
-#: frontend/src/pages/RateLimits.tsx:176 frontend/src/pages/Settings.tsx:98
+#: frontend/src/pages/RateLimits.tsx:150 frontend/src/pages/Settings.tsx:98
 msgctxt "settings:rateLimits.unableToSaveSettings"
 msgid "Unable to save settings"
 msgstr "Unable to save settings"
@@ -8542,7 +8541,7 @@ msgctxt "settings:setup.username"
 msgid "Username"
 msgstr "Username"
 
-#: frontend/src/components/UserManagement.tsx:147
+#: frontend/src/components/UserManagement.tsx:146
 msgctxt "settings:users.username"
 msgid "Username"
 msgstr "Username"
@@ -8675,7 +8674,7 @@ msgctxt "dashboard:dashboard.viewProducts"
 msgid "View Products"
 msgstr "View Products"
 
-#: frontend/src/components/UserManagement.tsx:219
+#: frontend/src/components/UserManagement.tsx:218
 msgctxt "settings:users.viewActivity"
 msgid "View activity"
 msgstr "View activity"
@@ -9026,7 +9025,6 @@ msgctxt "diagnostics:diagnostics.writeRequestsMinute"
 msgid "Write Requests / Minute"
 msgstr "Write Requests / Minute"
 
-#: frontend/src/pages/RateLimits.tsx:217
 msgctxt "settings:rateLimits.writeRequestsMinute"
 msgid "Write Requests / Minute"
 msgstr "Write Requests / Minute"
@@ -9035,7 +9033,6 @@ msgctxt "diagnostics:dimension.writeCapability"
 msgid "Write capability"
 msgstr "Write capability"
 
-#: frontend/src/pages/RateLimits.tsx:225
 msgctxt "settings:rateLimits.writeDelay"
 msgid "Write delay"
 msgstr "Write delay"
@@ -9045,12 +9042,12 @@ msgctxt "commerce:commerceHub.writeEnabled2"
 msgid "Write enabled"
 msgstr "Write enabled"
 
-#: frontend/src/pages/RateLimits.tsx:301
+#: frontend/src/pages/RateLimits.tsx:201
 msgctxt "settings:rateLimits.operationalWriteRequestsMinute"
 msgid "Write requests per minute"
 msgstr "Write requests per minute"
 
-#: frontend/src/pages/RateLimits.tsx:144
+#: frontend/src/pages/RateLimits.tsx:118
 msgctxt "validation:rateLimits.writeRequestsRange"
 msgid "Write requests per minute must be between {{min}} and {{max}}."
 msgstr "Write requests per minute must be between {{min}} and {{max}}."
@@ -9069,7 +9066,7 @@ msgctxt "commerce:commerceHub.yes"
 msgid "Yes"
 msgstr "Yes"
 
-#: frontend/src/components/UserManagement.tsx:179
+#: frontend/src/components/UserManagement.tsx:178
 msgctxt "settings:users.you"
 msgid "You"
 msgstr "You"
@@ -9092,7 +9089,7 @@ msgctxt "authentication:access.permissionDeniedDescription"
 msgid "Your account does not have permission to view this content."
 msgstr "Your account does not have permission to view this content."
 
-#: frontend/src/pages/RateLimits.tsx:172 frontend/src/pages/Settings.tsx:94
+#: frontend/src/pages/RateLimits.tsx:146 frontend/src/pages/Settings.tsx:94
 msgctxt "settings:rateLimits.yourChangesHaveBeenApplied"
 msgid "Your changes have been applied."
 msgstr "Your changes have been applied."
@@ -9722,7 +9719,6 @@ msgctxt "diagnostics:units.milliseconds"
 msgid "{{value}} ms"
 msgstr "{{value}} ms"
 
-#: frontend/src/pages/RateLimits.tsx:22
 msgctxt "settings:rateLimits.milliseconds"
 msgid "{{value}} ms"
 msgstr "{{value}} ms"
@@ -9792,7 +9788,6 @@ msgctxt "diagnostics:units.seconds"
 msgid "{{value}} seconds"
 msgstr "{{value}} seconds"
 
-#: frontend/src/pages/RateLimits.tsx:21
 msgctxt "settings:rateLimits.seconds"
 msgid "{{value}} seconds"
 msgstr "{{value}} seconds"

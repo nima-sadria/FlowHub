@@ -5,7 +5,6 @@ import { useAuth } from '../auth'
 import Icon from '../components/Icon'
 import Spinner from '../components/loading/Spinner'
 import PageShell from '../components/PageShell'
-import { formatNumber } from '../i18n/format'
 import SettingsNav from '../components/SettingsNav'
 import { useNotification } from '../notifications/NotificationProvider'
 import { useServices } from '../services/ServiceContext'
@@ -14,36 +13,11 @@ import type { RateLimitSettings } from '../services/types'
 const MIN_RPM = 1
 const MAX_RPM = 1000
 
-function delayLabel(rpm: number): string {
-  if (!rpm || rpm < MIN_RPM) return '-'
-  const seconds = 60 / rpm
-  return seconds >= 1
-    ? translate('settings:rateLimits.seconds', { value: formatNumber(seconds, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })
-    : translate('settings:rateLimits.milliseconds', { value: formatNumber(seconds * 1000, { maximumFractionDigits: 0 }) })
-}
-
 interface RateLimitDiagnostics {
   requests_completed?: number
   requests_delayed?: number
   queue_length?: number
   throttle_count?: number
-}
-
-function NumberField({ label, value, onChange }: {
-  label: string
-  value: number
-  onChange: (value: number) => void
-}) {
-  return (
-    <div className="fh-field">
-      <label className="fh-help-text">{label}</label>
-      <input type="number" min={MIN_RPM} max={MAX_RPM} value={value} onChange={event => onChange(Number(event.target.value))} className="fh-input" />
-    </div>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return <div className="fh-stat-tile"><div className="fh-stat-tile-label uppercase tracking-[0.08em]">{label}</div><div className="fh-stat-tile-value">{value}</div></div>
 }
 
 interface DiagnosticsResponse {
@@ -100,7 +74,7 @@ function StepperField({ label, value, disabled, onChange }: {
   )
 }
 
-export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
+export default function RateLimits() {
   const { settings } = useServices()
   const { user, authFetch } = useAuth()
   const { success, error: notifyError } = useNotification()
@@ -181,80 +155,6 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
     }
   }
 
-  const actions = dirty && (
-    <div className="fh-actions">
-      <button
-        onClick={() => {
-          if (!current) return
-          setReadRpm(current.read_requests_per_minute)
-          setWriteRpm(current.write_requests_per_minute)
-        }}
-        className="fh-button-secondary"
-      >
-        <Icon name="close" />
-        {translate('settings:rateLimits.discard')}
-      </button>
-      <button
-        onClick={() => void save()}
-        disabled={saving || Boolean(validation)}
-        className="fh-button-primary"
-      >
-        {saving && <Spinner size="sm" className="text-white" />}
-        {!saving && <Icon name="save" />}
-        {saving ? translate('settings:rateLimits.saving') : translate('settings:rateLimits.saveChanges')}
-      </button>
-    </div>
-  )
-
-  const editor = (
-    <>
-      <div className="fh-card fh-card-pad">
-        {loading ? (
-          <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />{translate('settings:rateLimits.loading')}</div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <NumberField label={translate('settings:rateLimits.readRequestsMinute')} value={readRpm} onChange={setReadRpm} />
-            <NumberField label={translate('settings:rateLimits.writeRequestsMinute')} value={writeRpm} onChange={setWriteRpm} />
-            {validation && (
-              <div className="fh-alert fh-alert-danger">
-                {validation}
-              </div>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Stat label={translate('settings:rateLimits.readDelay')} value={delayLabel(readRpm)} />
-              <Stat label={translate('settings:rateLimits.writeDelay')} value={delayLabel(writeRpm)} />
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="fh-card fh-card-pad">
-        <p className="fh-section-label mb-3">{translate('settings:rateLimits.policy')}</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Stat label={translate('settings:rateLimits.scope')} value={translate('common:status.global')} />
-          <Stat label={translate('settings:rateLimits.overrides')} value={translate('common:status.disabled')} />
-          <Stat label={translate('settings:rateLimits.scheduler')} value={translate('common:status.disabled')} />
-          <Stat label={translate('settings:rateLimits.automaticSync')} value={translate('common:status.disabled')} />
-        </div>
-      </div>
-    </>
-  )
-
-  if (embedded) {
-    return (
-      <section id="rate-limits" className="flex flex-col gap-4">
-        <div className="fh-page-header">
-          <div>
-            <h2 className="fh-section-title">{translate('settings:rateLimits.globalApiRateLimits')}</h2>
-            <p className="fh-section-subtitle mt-0.5">{translate('settings:rateLimits.inheritedByEverySourceAndChannel')}</p>
-          </div>
-          {actions}
-        </div>
-        {editor}
-      </section>
-    )
-  }
-
   const completed = diagnostics?.requests_completed ?? 0
   const delayed = diagnostics?.requests_delayed ?? 0
   const queued = diagnostics?.queue_length ?? 0
@@ -267,8 +167,8 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
     <PageShell>
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">{translate('settings:rateLimits.globalApiRateLimits')}</h1>
-          <p className="fh-page-subtitle">{translate('settings:rateLimits.inheritedByEverySourceAndChannel')}</p>
+          <h1 className="fh-page-title">{translate('settings:rateLimits.title')}</h1>
+          <p className="fh-page-subtitle">{translate('settings:rateLimits.monitorAndAdjustOperationalCapacity')}</p>
         </div>
       </div>
 
@@ -321,8 +221,4 @@ export function RateLimitsPanel({ embedded = false }: { embedded?: boolean }) {
       </div>
     </PageShell>
   )
-}
-
-export default function RateLimits() {
-  return <RateLimitsPanel />
 }
