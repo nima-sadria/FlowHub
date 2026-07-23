@@ -1366,6 +1366,145 @@ button.fh-inline-status {
   color: var(--fh-brand-300);
 }
 
+/* Figma: Screen/Channels — KPI stat row, condensed search/filter toolbar, and
+   a flat grid of sales-channel cards (icon, health badge, "Checked x ago",
+   listings count, Configure link, Test/Refresh actions). */
+
+.fh-channels-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.fh-channels-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.fh-channels-search {
+  position: relative;
+  display: flex;
+  min-width: 240px;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+.fh-channels-search-icon {
+  position: absolute;
+  inset-inline-start: 12px;
+  color: var(--fh-text-muted);
+  pointer-events: none;
+}
+
+.fh-channels-search-input {
+  width: 100%;
+  min-height: 40px;
+  padding-inline-start: 36px;
+  padding-inline-end: 32px;
+  color: var(--fh-text-primary);
+  background: var(--fh-ui-control);
+  border: 1px solid var(--fh-ui-border-strong);
+  border-radius: var(--fh-radius-lg);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.fh-channels-search-input::placeholder {
+  color: var(--fh-text-placeholder);
+}
+
+.fh-channels-search-input:focus {
+  outline: none;
+  border-color: var(--fh-brand-500);
+  box-shadow: var(--fh-focus-ring);
+}
+
+.fh-channels-search-clear {
+  position: absolute;
+  inset-inline-end: 10px;
+  display: inline-flex;
+  color: var(--fh-text-muted);
+  background: transparent;
+  border: 0;
+}
+
+.fh-channels-search-clear:hover {
+  color: var(--fh-text-secondary);
+}
+
+.fh-channels-count {
+  color: var(--fh-text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.fh-channels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.fh-channel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--fh-ui-elevated);
+  border: 1px solid var(--fh-ui-border);
+  border-radius: var(--fh-radius-xl);
+}
+
+.fh-channel-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fh-channel-card-name {
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--fh-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fh-channel-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fh-channel-card-configure {
+  flex-shrink: 0;
+  color: var(--fh-brand-700);
+  background: transparent;
+  border: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fh-channel-card-configure:hover {
+  text-decoration: underline;
+}
+
+.dark .fh-channel-card-configure {
+  color: var(--fh-brand-300);
+}
+
+.fh-channel-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* =========================================================
    Design tokens
    ========================================================= */
