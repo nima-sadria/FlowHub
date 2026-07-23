@@ -1571,6 +1571,108 @@ button.fh-inline-status {
   }
 }
 
+.fh-dataquality-card-suffix {
+  margin-inline-start: 8px;
+  color: var(--fh-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fh-dataquality-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 16px;
+}
+
+.fh-dataquality-search {
+  position: relative;
+  display: flex;
+  min-width: 220px;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+.fh-dataquality-search-icon {
+  position: absolute;
+  inset-inline-start: 12px;
+  color: var(--fh-text-muted);
+  pointer-events: none;
+}
+
+.fh-dataquality-search-input {
+  width: 100%;
+  min-height: 40px;
+  padding-inline-start: 36px;
+  padding-inline-end: 12px;
+  color: var(--fh-text-primary);
+  background: var(--fh-ui-control);
+  border: 1px solid var(--fh-ui-border-strong);
+  border-radius: var(--fh-radius-lg);
+}
+
+.fh-dataquality-search-input::placeholder {
+  color: var(--fh-text-placeholder);
+}
+
+.fh-dataquality-search-input:focus {
+  outline: none;
+  border-color: var(--fh-brand-500);
+  box-shadow: var(--fh-focus-ring);
+}
+
+.fh-dataquality-count {
+  color: var(--fh-text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.fh-dataquality-filters {
+  position: relative;
+}
+
+.fh-dataquality-filters-panel {
+  display: grid;
+  gap: 12px;
+  width: min(90vw, 420px);
+  padding: 16px;
+  margin-top: 8px;
+  background: var(--fh-ui-elevated);
+  border: 1px solid var(--fh-ui-border);
+  border-radius: var(--fh-radius-xl);
+  box-shadow: var(--fh-shadow-lg);
+}
+
+@media (min-width: 640px) {
+  .fh-dataquality-filters-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.fh-dataquality-th {
+  padding: 10px 12px;
+  color: var(--fh-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: start;
+  border-bottom: 1px solid var(--fh-ui-border);
+  white-space: nowrap;
+}
+
+.fh-dataquality-row {
+  border-bottom: 1px solid var(--fh-ui-border);
+}
+
+.fh-dataquality-row:last-child {
+  border-bottom: 0;
+}
+
+.fh-dataquality-td {
+  padding: 12px;
+  vertical-align: top;
+}
+
 /* =========================================================
    Design tokens
    ========================================================= */

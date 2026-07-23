@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
+import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { DataQualitySummary, SourceChannel, SourceProfile } from '../features/sourceWorkspace/types'
 import DataQuality from './DataQuality'
 
@@ -13,14 +14,23 @@ const base: DataQualitySummary = { state: 'never_checked', totalIssues: 0, block
 describe('DataQuality summary states', () => {
   let container: HTMLDivElement
   let root: ReturnType<typeof createRoot>
+  const getProducts = vi.fn()
+
   beforeEach(() => {
     container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container)
     vi.spyOn(sourceWorkspaceApi, 'listSources').mockResolvedValue({ items: [] })
     vi.spyOn(sourceWorkspaceApi, 'channels').mockResolvedValue({ items: [] })
     vi.spyOn(sourceWorkspaceApi, 'scanDataQuality').mockResolvedValue({ summary: { ...base, state: 'healthy' } })
+    getProducts.mockReset().mockResolvedValue({ items: [], total: 100, page: 1, pageSize: 1 })
   })
   afterEach(() => { act(() => root.unmount()); container.remove(); vi.restoreAllMocks() })
-  async function render() { await act(async () => { root.render(<MemoryRouter><DataQuality /></MemoryRouter>); await Promise.resolve(); await Promise.resolve() }) }
+  async function render() {
+    const services = { products: { getProducts }, health: {}, sources: {}, workspace: {}, settings: {}, activity: {}, commerce: {}, writePipeline: {}, orders: {} } as unknown as Services
+    await act(async () => {
+      root.render(<MemoryRouter><ServiceProvider services={services}><DataQuality /></ServiceProvider></MemoryRouter>)
+      await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    })
+  }
 
   it('distinguishes never checked from a healthy scan', async () => {
     vi.spyOn(sourceWorkspaceApi, 'dataQuality').mockResolvedValue({ items: [], counts: {}, total: 0, summary: base })
@@ -29,18 +39,24 @@ describe('DataQuality summary states', () => {
     expect(container.textContent).not.toContain('No data problems found')
   })
 
-  it('shows business summary before collapsed filters and keeps default filters unrestrictive', async () => {
-    const issue = { id: 'i-1', sourceId: 'source-1', channelId: 'woocommerce:primary', category: 'invalid_value', severity: 'blocked', code: 'INVALID_NUMERIC_VALUE', summary: 'Invalid', recommendedAction: 'Correct', technicalDetails: { field: 'price' } }
-    vi.spyOn(sourceWorkspaceApi, 'dataQuality').mockResolvedValue({ items: [issue], counts: { blocked: 1 }, total: 1, summary: { ...base, state: 'issues_found', totalIssues: 1, blockingIssues: 1, affectedProducts: 1, affectedSources: 1, productsChecked: 10, categories: [{ category: 'invalid_value', count: 1 }] } })
+  it('renders a real issue table with severity, catalog coverage, and a working search/severity toolbar', async () => {
+    const issue = { id: 'i-1', sourceId: 'source-1', channelId: 'woocommerce:primary', sourceProductName: 'Classic T-Shirt', category: 'invalid_value', severity: 'blocked', code: 'INVALID_NUMERIC_VALUE', summary: 'Invalid', recommendedAction: 'Correct', technicalDetails: { field: 'price' } }
+    vi.spyOn(sourceWorkspaceApi, 'dataQuality').mockResolvedValue({ items: [issue], counts: { blocked: 1 }, total: 1, summary: { ...base, state: 'issues_found', totalIssues: 1, blockingIssues: 1, productsChecked: 50, checkedAt: new Date().toISOString() } })
     await render()
     const text = container.textContent ?? ''
-    expect(text.indexOf('Data Quality Summary')).toBeLessThan(text.indexOf('Filters and search'))
+
+    expect(text).toContain('Blocking issues')
+    expect(text).toContain('Warnings')
+    expect(text).toContain('Products checked')
+    expect(text).toContain('Last check')
+    expect(getProducts).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 1 }))
+    expect(text).toContain('50%')
+
     expect(text).toContain('Invalid value')
+    expect(text).toContain('Classic T-Shirt')
     expect(text).toContain('Blocked')
-    expect(text).toContain('Recommended actions')
-    expect(text).toContain('Ready9')
-    expect(text).toContain('No previous read to compare')
     expect(container.querySelector('a[href^="/products?dataQualityIssue=INVALID_NUMERIC_VALUE"]')).not.toBeNull()
+
     const request = vi.mocked(sourceWorkspaceApi.dataQuality).mock.calls[0][0]
     expect(request.has('sourceId')).toBe(false)
     expect(request.has('severity')).toBe(false)
@@ -53,11 +69,16 @@ describe('DataQuality summary states', () => {
     expect(filteredRequest?.get('severity')).toBe('blocked')
     expect(blockingCard?.getAttribute('aria-pressed')).toBe('true')
 
-    const productsCard = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Affected products'))
-    await act(async () => { productsCard!.dispatchEvent(new MouseEvent('click', { bubbles: true })); await Promise.resolve() })
-    const filters = Array.from(container.querySelectorAll('details')).find(details => details.textContent?.includes('Filters and search'))
-    expect(filters?.open).toBe(true)
-    expect(document.activeElement?.getAttribute('placeholder')).toBe('Source Product name')
+    const searchInput = container.querySelector('input[type="search"]') as HTMLInputElement
+    const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      valueSetter?.call(searchInput, 'Classic')
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }))
+      await Promise.resolve()
+    })
+    const searchCalls = vi.mocked(sourceWorkspaceApi.dataQuality).mock.calls
+    const searchRequest = searchCalls[searchCalls.length - 1]?.[0]
+    expect(searchRequest?.get('product')).toBe('Classic')
   })
 
   it('routes Source setup issues to the affected Source instead of a technical dead end', async () => {
@@ -94,7 +115,7 @@ describe('DataQuality summary states', () => {
     expect(container.textContent).not.toContain('No data problems found')
   })
 
-  it('keeps All filters explicit while grouping and ordering Source and Channel options', async () => {
+  it('keeps the collapsed Filters panel explicit while grouping and ordering Source and Channel options', async () => {
     const source = (id: string, name: string, status = 'active'): SourceProfile => ({
       id, name, status, sourceKind: 'flowhub_sheet', externalSourceId: null,
       worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2,

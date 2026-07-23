@@ -315,17 +315,14 @@ msgctxt "commerce:commerceHub.advancedSettings"
 msgid "Advanced settings"
 msgstr "Advanced settings"
 
-#: frontend/src/pages/DataQuality.tsx:194
 msgctxt "dataQuality:dataQuality.affectedChannels"
 msgid "Affected Channels"
 msgstr "Affected Channels"
 
-#: frontend/src/pages/DataQuality.tsx:195
 msgctxt "dataQuality:dataQuality.affectedSources"
 msgid "Affected Sources"
 msgstr "Affected Sources"
 
-#: frontend/src/pages/DataQuality.tsx:193
 msgctxt "dataQuality:dataQuality.affectedProducts"
 msgid "Affected products"
 msgstr "Affected products"
@@ -346,7 +343,7 @@ msgctxt "common:selector.allChannels"
 msgid "All Channels"
 msgstr "All Channels"
 
-#: frontend/src/pages/DataQuality.tsx:231 frontend/src/pages/DataQuality.tsx:238
+#: frontend/src/pages/DataQuality.tsx:228
 msgctxt "dataQuality:dataQuality.allChannels"
 msgid "All Channels"
 msgstr "All Channels"
@@ -363,7 +360,7 @@ msgid_plural "All Channels ({{value}})"
 msgstr[0] "All Channels ({{value}})"
 msgstr[1] "All Channels ({{value}})"
 
-#: frontend/src/pages/DataQuality.tsx:229
+#: frontend/src/pages/DataQuality.tsx:227
 msgctxt "dataQuality:dataQuality.allSources"
 msgid "All Sources"
 msgstr "All Sources"
@@ -428,7 +425,7 @@ msgctxt "orders:orders.allSynchronized"
 msgid "All orders are synchronized"
 msgstr "All orders are synchronized"
 
-#: frontend/src/pages/DataQuality.tsx:235
+#: frontend/src/pages/DataQuality.tsx:230
 msgctxt "dataQuality:dataQuality.allMappingStates"
 msgid "All product-link states"
 msgstr "All product-link states"
@@ -441,7 +438,7 @@ msgctxt "activity:activity.allSeverities"
 msgid "All severities"
 msgstr "All severities"
 
-#: frontend/src/pages/DataQuality.tsx:233
+#: frontend/src/pages/DataQuality.tsx:214 frontend/src/pages/DataQuality.tsx:216
 msgctxt "dataQuality:dataQuality.allSeverities"
 msgid "All severities"
 msgstr "All severities"
@@ -479,7 +476,7 @@ msgctxt "commerce:commerceHub.allWorksheets"
 msgid "All worksheets"
 msgstr "All worksheets"
 
-#: frontend/src/pages/DataQuality.tsx:230
+#: frontend/src/pages/DataQuality.tsx:229
 msgctxt "dataQuality:dataQuality.allWorksheets"
 msgid "All worksheets"
 msgstr "All worksheets"
@@ -786,7 +783,7 @@ msgctxt "common:status.blocked"
 msgid "Blocked"
 msgstr "Blocked"
 
-#: frontend/src/pages/DataQuality.tsx:233 frontend/src/pages/DataQuality.tsx:68
+#: frontend/src/pages/DataQuality.tsx:217 frontend/src/pages/DataQuality.tsx:68
 msgctxt "dataQuality:dataQuality.blocked"
 msgid "Blocked"
 msgstr "Blocked"
@@ -827,7 +824,7 @@ msgctxt "dashboard:dashboard.blockingIssues"
 msgid "Blocking issues"
 msgstr "Blocking issues"
 
-#: frontend/src/pages/DataQuality.tsx:190 frontend/src/pages/Workspace.tsx:518
+#: frontend/src/pages/DataQuality.tsx:195 frontend/src/pages/Workspace.tsx:518
 msgctxt "dataQuality:dataQuality.blockingIssues"
 msgid "Blocking issues"
 msgstr "Blocking issues"
@@ -1010,7 +1007,6 @@ msgctxt "activity:activity.category"
 msgid "Category"
 msgstr "Category"
 
-#: frontend/src/pages/DataQuality.tsx:234
 msgctxt "dataQuality:dataQuality.category"
 msgid "Category"
 msgstr "Category"
@@ -1033,7 +1029,6 @@ msgctxt "settings:users.changePasswordFor"
 msgid "Change password for {{username}}"
 msgstr "Change password for {{username}}"
 
-#: frontend/src/pages/DataQuality.tsx:196
 msgctxt "dataQuality:dataQuality.trendSinceLastRead"
 msgid "Change since last read"
 msgstr "Change since last read"
@@ -1092,7 +1087,7 @@ msgctxt "common:labels.channel"
 msgid "Channel"
 msgstr "Channel"
 
-#: frontend/src/pages/DataQuality.tsx:231
+#: frontend/src/pages/DataQuality.tsx:228
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dataQuality:dataQuality.channel"
 msgid "Channel"
@@ -1356,7 +1351,7 @@ msgctxt "dashboard:dashboard.checkingDailyServices"
 msgid "Checking the services needed for daily work."
 msgstr "Checking the services needed for daily work."
 
-#: frontend/src/pages/DataQuality.tsx:184
+#: frontend/src/pages/DataQuality.tsx:191
 msgctxt "dataQuality:dataQuality.checking"
 msgid "Checking..."
 msgstr "Checking..."
@@ -1806,7 +1801,7 @@ msgctxt "settings:setup.connectionDescription"
 msgid "Confirms that FlowHub can reach its database."
 msgstr "Confirms that FlowHub can reach its database."
 
-#: frontend/src/pages/DataQuality.tsx:235
+#: frontend/src/pages/DataQuality.tsx:230
 msgctxt "dataQuality:dataQuality.conflict"
 msgid "Conflict"
 msgstr "Conflict"
@@ -2205,7 +2200,7 @@ msgctxt "commerce:type.dataLayer"
 msgid "Data Layer"
 msgstr "Data Layer"
 
-#: frontend/src/pages/DataQuality.tsx:183
+#: frontend/src/pages/DataQuality.tsx:190
 msgctxt "dataQuality:dataQuality.dataQuality"
 msgid "Data Quality"
 msgstr "Data Quality"
@@ -2222,7 +2217,7 @@ msgctxt "sources:sourceCenter.dataQuality2"
 msgid "Data Quality"
 msgstr "Data Quality"
 
-#: frontend/src/pages/DataQuality.tsx:188 frontend/src/pages/Workspace.tsx:507
+#: frontend/src/pages/Workspace.tsx:507
 msgctxt "dataQuality:dataQuality.summary"
 msgid "Data Quality Summary"
 msgstr "Data Quality Summary"
@@ -2663,7 +2658,7 @@ msgctxt "common:status.error"
 msgid "Error"
 msgstr "Error"
 
-#: frontend/src/pages/DataQuality.tsx:233 frontend/src/pages/DataQuality.tsx:69
+#: frontend/src/pages/DataQuality.tsx:218 frontend/src/pages/DataQuality.tsx:69
 msgctxt "dataQuality:dataQuality.error"
 msgid "Error"
 msgstr "Error"
@@ -2870,7 +2865,7 @@ msgctxt "products:products.filters"
 msgid "Filters"
 msgstr "Filters"
 
-#: frontend/src/pages/DataQuality.tsx:227
+#: frontend/src/pages/DataQuality.tsx:225
 msgctxt "dataQuality:dataQuality.filters"
 msgid "Filters and search"
 msgstr "Filters and search"
@@ -3370,12 +3365,15 @@ msgctxt "commerce:capability.inventoryRead"
 msgid "Inventory read"
 msgstr "Inventory read"
 
-#: frontend/src/pages/DataQuality.tsx:234
+#: frontend/src/pages/DataQuality.tsx:243
+msgctxt "dataQuality:dataQuality.issue"
+msgid "Issue"
+msgstr "Issue"
+
 msgctxt "dataQuality:dataQuality.issueCategory"
 msgid "Issue category"
 msgstr "Issue category"
 
-#: frontend/src/pages/DataQuality.tsx:238
 msgctxt "dataQuality:dataQuality.issueList"
 msgid "Issue list"
 msgstr "Issue list"
@@ -3442,7 +3440,12 @@ msgctxt "commerce:commerceHub.lastCacheRefresh"
 msgid "Last cache refresh:"
 msgstr "Last cache refresh:"
 
-#: frontend/src/pages/DataQuality.tsx:188 frontend/src/pages/DataQuality.tsx:88
+#: frontend/src/pages/DataQuality.tsx:198
+msgctxt "dataQuality:dataQuality.lastCheckLabel"
+msgid "Last check"
+msgstr "Last check"
+
+#: frontend/src/pages/DataQuality.tsx:101
 msgctxt "dataQuality:dataQuality.lastCheck"
 msgid "Last check:"
 msgstr "Last check:"
@@ -3591,7 +3594,7 @@ msgctxt "diagnostics:diagnostics.limiterDelay"
 msgid "Limiter delay"
 msgstr "Limiter delay"
 
-#: frontend/src/pages/DataQuality.tsx:235
+#: frontend/src/pages/DataQuality.tsx:230
 msgctxt "dataQuality:dataQuality.resolved"
 msgid "Linked"
 msgstr "Linked"
@@ -3905,7 +3908,6 @@ msgctxt "dashboard:dashboard.monitorPendingUpdates"
 msgid "Monitor pending updates until verification is complete."
 msgstr "Monitor pending updates until verification is complete."
 
-#: frontend/src/pages/DataQuality.tsx:201
 msgctxt "dataQuality:dataQuality.mostCommonProblems"
 msgid "Most common problems"
 msgstr "Most common problems"
@@ -3998,6 +4000,11 @@ msgstr "Network error. Check your connection and try again."
 msgctxt "authentication:login.networkError"
 msgid "Network error. Please check your connection and try again."
 msgstr "Network error. Please check your connection and try again."
+
+#: frontend/src/pages/DataQuality.tsx:198
+msgctxt "dataQuality:dataQuality.never"
+msgid "Never"
+msgstr "Never"
 
 msgctxt "products:products.neverSynced"
 msgid "Never synced"
@@ -4296,7 +4303,6 @@ msgctxt "dashboard:dashboard.noOrdersYet"
 msgid "No orders yet"
 msgstr "No orders yet"
 
-#: frontend/src/pages/DataQuality.tsx:196
 msgctxt "dataQuality:dataQuality.noPreviousRead"
 msgid "No previous read to compare"
 msgstr "No previous read to compare"
@@ -4513,7 +4519,7 @@ msgctxt "dashboard:dashboard.notEnoughOrderData"
 msgid "Not enough order data"
 msgstr "Not enough order data"
 
-#: frontend/src/pages/DataQuality.tsx:235
+#: frontend/src/pages/DataQuality.tsx:230
 msgctxt "dataQuality:dataQuality.unmapped"
 msgid "Not linked"
 msgstr "Not linked"
@@ -4613,7 +4619,7 @@ msgctxt "workspace:densePricing.confirmApplyScope"
 msgid "Only {{count}} checksum-bound, Reviewed field changes will enter the shared Write Pipeline."
 msgstr "Only {{count}} checksum-bound, Reviewed field changes will enter the shared Write Pipeline."
 
-#: frontend/src/pages/DataQuality.tsx:220 frontend/src/pages/DataQuality.tsx:238
+#: frontend/src/pages/DataQuality.tsx:257
 msgctxt "dataQuality:dataQuality.openIssue"
 msgid "Open"
 msgstr "Open"
@@ -4699,7 +4705,6 @@ msgctxt "products:products.openPricingWorkspace"
 msgid "Open pricing workspace"
 msgstr "Open pricing workspace"
 
-#: frontend/src/pages/DataQuality.tsx:208
 msgctxt "dataQuality:dataQuality.recommendedActionsDescription"
 msgid "Open the relevant workflow to resolve the highest-impact issues first."
 msgstr "Open the relevant workflow to resolve the highest-impact issues first."
@@ -5228,7 +5233,6 @@ msgctxt "common:status.processing"
 msgid "Processing"
 msgstr "Processing"
 
-#: frontend/src/pages/DataQuality.tsx:232
 msgctxt "dataQuality:dataQuality.product"
 msgid "Product"
 msgstr "Product"
@@ -5313,12 +5317,11 @@ msgctxt "workspace:densePricing.productIdentity"
 msgid "Product identity"
 msgstr "Product identity"
 
-#: frontend/src/pages/DataQuality.tsx:235
+#: frontend/src/pages/DataQuality.tsx:230
 msgctxt "dataQuality:dataQuality.mappingState"
 msgid "Product link status"
 msgstr "Product link status"
 
-#: frontend/src/pages/DataQuality.tsx:238
 msgctxt "dataQuality:dataQuality.columnSetup"
 msgid "Product link:"
 msgstr "Product link:"
@@ -5423,7 +5426,7 @@ msgctxt "workspace:sourceCentricWorkspace.productsAreParentsEachChannelListingRe
 msgid "Products are parents. Each Channel Listing remains independently identifiable and selectable."
 msgstr "Products are parents. Each Channel Listing remains independently identifiable and selectable."
 
-#: frontend/src/pages/DataQuality.tsx:241
+#: frontend/src/pages/DataQuality.tsx:197 frontend/src/pages/DataQuality.tsx:266
 msgctxt "dataQuality:dataQuality.productsChecked"
 msgid "Products checked"
 msgstr "Products checked"
@@ -5637,7 +5640,6 @@ msgctxt "common:status.ready"
 msgid "Ready"
 msgstr "Ready"
 
-#: frontend/src/pages/DataQuality.tsx:192
 msgctxt "dataQuality:dataQuality.readyProducts"
 msgid "Ready"
 msgstr "Ready"
@@ -5687,6 +5689,11 @@ msgctxt "settings:setup.readyToFinish"
 msgid "Ready to finish"
 msgstr "Ready to finish"
 
+#: frontend/src/pages/DataQuality.tsx:198
+msgctxt "dataQuality:dataQuality.recent"
+msgid "Recent"
+msgstr "Recent"
+
 msgctxt "dashboard:dashboard.activityListMeaning"
 msgid "Recent actions that may require seller follow-up."
 msgstr "Recent actions that may require seller follow-up."
@@ -5713,12 +5720,10 @@ msgctxt "sources:sourceCenter.recommended"
 msgid "Recommended"
 msgstr "Recommended"
 
-#: frontend/src/pages/DataQuality.tsx:238
 msgctxt "dataQuality:dataQuality.recommendedAction"
 msgid "Recommended action:"
 msgstr "Recommended action:"
 
-#: frontend/src/pages/DataQuality.tsx:207
 msgctxt "dataQuality:dataQuality.recommendedActions"
 msgid "Recommended actions"
 msgstr "Recommended actions"
@@ -5747,6 +5752,11 @@ msgstr "Reconciliation Required"
 msgctxt "workspace:statusDisplay.reconciliationRequired"
 msgid "Reconciliation Required"
 msgstr "Reconciliation Required"
+
+#: frontend/src/pages/DataQuality.tsx:244
+msgctxt "dataQuality:dataQuality.record"
+msgid "Record"
+msgstr "Record"
 
 msgctxt "dashboard:dashboard.ordersTodayExplanation"
 msgid "Recorded revenue: {{revenue}}. {{trend}}."
@@ -5874,7 +5884,11 @@ msgctxt "products:products.resetRowChanges"
 msgid "Reset row changes"
 msgstr "Reset row changes"
 
-#: frontend/src/pages/DataQuality.tsx:197
+#: frontend/src/pages/DataQuality.tsx:190
+msgctxt "dataQuality:dataQuality.resolveIssuesBlockingReliableCommerceData"
+msgid "Resolve issues blocking reliable commerce data."
+msgstr "Resolve issues blocking reliable commerce data."
+
 msgctxt "dataQuality:dataQuality.resolvedSinceLastRead"
 msgid "Resolved since last read"
 msgstr "Resolved since last read"
@@ -6237,7 +6251,11 @@ msgctxt "orders:orders.runReadOnlySync"
 msgid "Run a read-only synchronization to import marketplace orders."
 msgstr "Run a read-only synchronization to import marketplace orders."
 
-#: frontend/src/pages/DataQuality.tsx:184 frontend/src/pages/DataQuality.tsx:90
+#: frontend/src/pages/DataQuality.tsx:103 frontend/src/pages/DataQuality.tsx:191
+msgctxt "dataQuality:dataQuality.runCheck"
+msgid "Run check"
+msgstr "Run check"
+
 msgctxt "dataQuality:dataQuality.runCheckAgain"
 msgid "Run check again"
 msgstr "Run check again"
@@ -6388,7 +6406,7 @@ msgctxt "sources:sourceConfiguration.saving"
 msgid "Saving..."
 msgstr "Saving..."
 
-#: frontend/src/pages/DataQuality.tsx:241
+#: frontend/src/pages/DataQuality.tsx:266
 msgctxt "dataQuality:dataQuality.scanReference"
 msgid "Scan reference"
 msgstr "Scan reference"
@@ -6447,6 +6465,11 @@ msgctxt "settings:setup.searchCurrencies"
 msgid "Search currencies..."
 msgstr "Search currencies..."
 
+#: frontend/src/pages/DataQuality.tsx:209 frontend/src/pages/DataQuality.tsx:210
+msgctxt "dataQuality:dataQuality.searchIssues"
+msgid "Search issues"
+msgstr "Search issues"
+
 msgctxt "products:products.searchNameOrSku"
 msgid "Search name or SKU..."
 msgstr "Search name or SKU..."
@@ -6489,7 +6512,7 @@ msgctxt "dashboard:dashboard.businessOverviewDescription"
 msgid "See what happened, what needs attention, and what to do next."
 msgstr "See what happened, what needs attention, and what to do next."
 
-#: frontend/src/pages/DataQuality.tsx:183 frontend/src/pages/Workspace.tsx:508
+#: frontend/src/pages/Workspace.tsx:508
 msgctxt "dataQuality:dataQuality.summaryFirstDescription"
 msgid "See what needs attention before filtering or opening technical details."
 msgstr "See what needs attention before filtering or opening technical details."
@@ -6750,7 +6773,7 @@ msgctxt "activity:activity.severity"
 msgid "Severity"
 msgstr "Severity"
 
-#: frontend/src/pages/DataQuality.tsx:233
+#: frontend/src/pages/DataQuality.tsx:245
 msgctxt "dataQuality:dataQuality.severity"
 msgid "Severity"
 msgstr "Severity"
@@ -6922,7 +6945,7 @@ msgctxt "commerce:type.source"
 msgid "Source"
 msgstr "Source"
 
-#: frontend/src/pages/DataQuality.tsx:229
+#: frontend/src/pages/DataQuality.tsx:227
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dataQuality:dataQuality.source"
 msgid "Source"
@@ -6981,7 +7004,6 @@ msgctxt "sources:sourceCenter.sourceProductIdentityStaysSeparateFromChannel"
 msgid "Source Product identity stays separate from Channel Listing identity."
 msgstr "Source Product identity stays separate from Channel Listing identity."
 
-#: frontend/src/pages/DataQuality.tsx:232
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dataQuality:dataQuality.sourceProductName"
 msgid "Source Product name"
@@ -7195,7 +7217,7 @@ msgctxt "sources:sourceCenter.sources"
 msgid "Sources"
 msgstr "Sources"
 
-#: frontend/src/pages/DataQuality.tsx:241
+#: frontend/src/pages/DataQuality.tsx:266
 msgctxt "dataQuality:dataQuality.sourcesChecked"
 msgid "Sources checked"
 msgstr "Sources checked"
@@ -7521,7 +7543,6 @@ msgctxt "activity:activity.technicalDetails"
 msgid "Technical details"
 msgstr "Technical details"
 
-#: frontend/src/pages/DataQuality.tsx:238
 msgctxt "dataQuality:dataQuality.technicalDetails"
 msgid "Technical details"
 msgstr "Technical details"
@@ -8310,6 +8331,11 @@ msgctxt "settings:setup.updateRequired"
 msgid "Update required"
 msgstr "Update required"
 
+#: frontend/src/pages/DataQuality.tsx:246
+msgctxt "dataQuality:dataQuality.updated"
+msgid "Updated"
+msgstr "Updated"
+
 #: frontend/src/pages/SourceCenter.tsx:524
 msgctxt "sources:sourceCenter.updatedPrefix"
 msgid "Updated"
@@ -8590,7 +8616,7 @@ msgctxt "orders:orders.viewFailed"
 msgid "View failed"
 msgstr "View failed"
 
-#: frontend/src/pages/DataQuality.tsx:241
+#: frontend/src/pages/DataQuality.tsx:266
 msgctxt "dataQuality:dataQuality.viewLastScanDetails"
 msgid "View last scan details"
 msgstr "View last scan details"
@@ -8653,7 +8679,7 @@ msgctxt "common:status.warning"
 msgid "Warning"
 msgstr "Warning"
 
-#: frontend/src/pages/DataQuality.tsx:233 frontend/src/pages/DataQuality.tsx:70
+#: frontend/src/pages/DataQuality.tsx:219 frontend/src/pages/DataQuality.tsx:70
 msgctxt "dataQuality:dataQuality.warning"
 msgid "Warning"
 msgstr "Warning"
@@ -8667,7 +8693,7 @@ msgctxt "dashboard:dashboard.warnings"
 msgid "Warnings"
 msgstr "Warnings"
 
-#: frontend/src/pages/DataQuality.tsx:191 frontend/src/pages/Workspace.tsx:516
+#: frontend/src/pages/DataQuality.tsx:196 frontend/src/pages/Workspace.tsx:516
 msgctxt "dataQuality:dataQuality.warnings"
 msgid "Warnings"
 msgstr "Warnings"
@@ -8802,7 +8828,7 @@ msgctxt "commerce:commerceHub.worksheet"
 msgid "Worksheet"
 msgstr "Worksheet"
 
-#: frontend/src/pages/DataQuality.tsx:230
+#: frontend/src/pages/DataQuality.tsx:229
 msgctxt "dataQuality:dataQuality.worksheet"
 msgid "Worksheet"
 msgstr "Worksheet"
@@ -9184,7 +9210,6 @@ msgid_plural "{{count}} Listings selected"
 msgstr[0] "{{count}} Listing selected"
 msgstr[1] "{{count}} Listings selected"
 
-#: frontend/src/pages/DataQuality.tsx:218
 msgctxt "dataQuality:dataQuality.affectedProductCount"
 msgid "{{count}} affected product"
 msgid_plural "{{count}} affected products"
@@ -9226,6 +9251,13 @@ msgid "{{count}} enabled Channel"
 msgid_plural "{{count}} enabled Channels"
 msgstr[0] "{{count}} enabled Channel"
 msgstr[1] "{{count}} enabled Channels"
+
+#: frontend/src/pages/DataQuality.tsx:223
+msgctxt "dataQuality:dataQuality.issuesCount"
+msgid "{{count}} issue"
+msgid_plural "{{count}} issues"
+msgstr[0] "{{count}} issue"
+msgstr[1] "{{count}} issues"
 
 #: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:167
 msgctxt "sources:sourceConfiguration.issueCount"
@@ -9427,7 +9459,7 @@ msgctxt "diagnostics:diagnostics.readWriteAllowance"
 msgid "{{read}} read / {{write}} write"
 msgstr "{{read}} read / {{write}} write"
 
-#: frontend/src/pages/DataQuality.tsx:89
+#: frontend/src/pages/DataQuality.tsx:102
 msgctxt "dataQuality:dataQuality.healthyCoverage"
 msgid "{{sources}} Sources and {{products}} products were checked."
 msgstr "{{sources}} Sources and {{products}} products were checked."

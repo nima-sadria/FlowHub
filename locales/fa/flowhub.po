@@ -315,17 +315,14 @@ msgctxt "commerce:commerceHub.advancedSettings"
 msgid "Advanced settings"
 msgstr "تنظیمات پیشرفته"
 
-#: frontend/src/pages/DataQuality.tsx:194
 msgctxt "dataQuality:dataQuality.affectedChannels"
 msgid "Affected Channels"
 msgstr "کانال‌های درگیر"
 
-#: frontend/src/pages/DataQuality.tsx:195
 msgctxt "dataQuality:dataQuality.affectedSources"
 msgid "Affected Sources"
 msgstr "منابع درگیر"
 
-#: frontend/src/pages/DataQuality.tsx:193
 msgctxt "dataQuality:dataQuality.affectedProducts"
 msgid "Affected products"
 msgstr "محصولات درگیر"
@@ -346,7 +343,7 @@ msgctxt "common:selector.allChannels"
 msgid "All Channels"
 msgstr "همه کانال‌ها"
 
-#: frontend/src/pages/DataQuality.tsx:231 frontend/src/pages/DataQuality.tsx:238
+#: frontend/src/pages/DataQuality.tsx:228
 msgctxt "dataQuality:dataQuality.allChannels"
 msgid "All Channels"
 msgstr "همه کانال‌ها"
@@ -363,7 +360,7 @@ msgid_plural "All Channels ({{value}})"
 msgstr[0] "همه کانال‌ها ({{value}})"
 msgstr[1] "همه کانال‌ها ({{value}})"
 
-#: frontend/src/pages/DataQuality.tsx:229
+#: frontend/src/pages/DataQuality.tsx:227
 msgctxt "dataQuality:dataQuality.allSources"
 msgid "All Sources"
 msgstr "همه منابع"
@@ -428,7 +425,7 @@ msgctxt "orders:orders.allSynchronized"
 msgid "All orders are synchronized"
 msgstr "همه سفارش‌ها همگام‌سازی شده‌اند"
 
-#: frontend/src/pages/DataQuality.tsx:235
+#: frontend/src/pages/DataQuality.tsx:230
 msgctxt "dataQuality:dataQuality.allMappingStates"
 msgid "All product-link states"
 msgstr "همه وضعیت‌های ارتباط محصول"
@@ -441,7 +438,7 @@ msgctxt "activity:activity.allSeverities"
 msgid "All severities"
 msgstr "همه سطح‌ها"
 
-#: frontend/src/pages/DataQuality.tsx:233
+#: frontend/src/pages/DataQuality.tsx:214 frontend/src/pages/DataQuality.tsx:216
 msgctxt "dataQuality:dataQuality.allSeverities"
 msgid "All severities"
 msgstr "همه سطح‌ها"
@@ -479,7 +476,7 @@ msgctxt "commerce:commerceHub.allWorksheets"
 msgid "All worksheets"
 msgstr "همه برگه‌ها"
 
-#: frontend/src/pages/DataQuality.tsx:230
+#: frontend/src/pages/DataQuality.tsx:229
 msgctxt "dataQuality:dataQuality.allWorksheets"
 msgid "All worksheets"
 msgstr "همه برگه‌ها"
@@ -786,7 +783,7 @@ msgctxt "common:status.blocked"
 msgid "Blocked"
 msgstr "مسدود"
 
-#: frontend/src/pages/DataQuality.tsx:233 frontend/src/pages/DataQuality.tsx:68
+#: frontend/src/pages/DataQuality.tsx:217 frontend/src/pages/DataQuality.tsx:68
 msgctxt "dataQuality:dataQuality.blocked"
 msgid "Blocked"
 msgstr "مسدود"
@@ -827,7 +824,7 @@ msgctxt "dashboard:dashboard.blockingIssues"
 msgid "Blocking issues"
 msgstr "مشکلات مسدودکننده"
 
-#: frontend/src/pages/DataQuality.tsx:190 frontend/src/pages/Workspace.tsx:518
+#: frontend/src/pages/DataQuality.tsx:195 frontend/src/pages/Workspace.tsx:518
 msgctxt "dataQuality:dataQuality.blockingIssues"
 msgid "Blocking issues"
 msgstr "مشکلات مسدودکننده"
@@ -1010,7 +1007,6 @@ msgctxt "activity:activity.category"
 msgid "Category"
 msgstr "دسته"
 
-#: frontend/src/pages/DataQuality.tsx:234
 msgctxt "dataQuality:dataQuality.category"
 msgid "Category"
 msgstr "دسته‌بندی"
@@ -1033,7 +1029,6 @@ msgctxt "settings:users.changePasswordFor"
 msgid "Change password for {{username}}"
 msgstr "تغییر رمز عبور {{username}}"
 
-#: frontend/src/pages/DataQuality.tsx:196
 msgctxt "dataQuality:dataQuality.trendSinceLastRead"
 msgid "Change since last read"
 msgstr "تغییر نسبت به آخرین خواندن"
@@ -1092,7 +1087,7 @@ msgctxt "common:labels.channel"
 msgid "Channel"
 msgstr "کانال"
 
-#: frontend/src/pages/DataQuality.tsx:231
+#: frontend/src/pages/DataQuality.tsx:228
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dataQuality:dataQuality.channel"
 msgid "Channel"
@@ -1356,7 +1351,7 @@ msgctxt "dashboard:dashboard.checkingDailyServices"
 msgid "Checking the services needed for daily work."
 msgstr "در حال بررسی سرویس‌های لازم برای کار روزانه."
 
-#: frontend/src/pages/DataQuality.tsx:184
+#: frontend/src/pages/DataQuality.tsx:191
 msgctxt "dataQuality:dataQuality.checking"
 msgid "Checking..."
 msgstr "در حال بررسی..."
@@ -1806,7 +1801,7 @@ msgctxt "settings:setup.connectionDescription"
 msgid "Confirms that FlowHub can reach its database."
 msgstr "دسترسی FlowHub به پایگاه داده را تأیید می‌کند."
 
-#: frontend/src/pages/DataQuality.tsx:235
+#: frontend/src/pages/DataQuality.tsx:230
 msgctxt "dataQuality:dataQuality.conflict"
 msgid "Conflict"
 msgstr "تعارض"
@@ -2205,7 +2200,7 @@ msgctxt "commerce:type.dataLayer"
 msgid "Data Layer"
 msgstr "لایه داده"
 
-#: frontend/src/pages/DataQuality.tsx:183
+#: frontend/src/pages/DataQuality.tsx:190
 msgctxt "dataQuality:dataQuality.dataQuality"
 msgid "Data Quality"
 msgstr "کیفیت داده"
@@ -2222,7 +2217,7 @@ msgctxt "sources:sourceCenter.dataQuality2"
 msgid "Data Quality"
 msgstr "کیفیت داده"
 
-#: frontend/src/pages/DataQuality.tsx:188 frontend/src/pages/Workspace.tsx:507
+#: frontend/src/pages/Workspace.tsx:507
 msgctxt "dataQuality:dataQuality.summary"
 msgid "Data Quality Summary"
 msgstr "خلاصه کیفیت داده"
@@ -2663,7 +2658,7 @@ msgctxt "common:status.error"
 msgid "Error"
 msgstr "خطا"
 
-#: frontend/src/pages/DataQuality.tsx:233 frontend/src/pages/DataQuality.tsx:69
+#: frontend/src/pages/DataQuality.tsx:218 frontend/src/pages/DataQuality.tsx:69
 msgctxt "dataQuality:dataQuality.error"
 msgid "Error"
 msgstr "خطا"
@@ -2870,7 +2865,7 @@ msgctxt "products:products.filters"
 msgid "Filters"
 msgstr "فیلترها"
 
-#: frontend/src/pages/DataQuality.tsx:227
+#: frontend/src/pages/DataQuality.tsx:225
 msgctxt "dataQuality:dataQuality.filters"
 msgid "Filters and search"
 msgstr "فیلتر و جست‌وجو"
@@ -3370,12 +3365,15 @@ msgctxt "commerce:capability.inventoryRead"
 msgid "Inventory read"
 msgstr "خواندن موجودی"
 
-#: frontend/src/pages/DataQuality.tsx:234
+#: frontend/src/pages/DataQuality.tsx:243
+msgctxt "dataQuality:dataQuality.issue"
+msgid "Issue"
+msgstr "مشکل"
+
 msgctxt "dataQuality:dataQuality.issueCategory"
 msgid "Issue category"
 msgstr "دسته‌بندی مشکل"
 
-#: frontend/src/pages/DataQuality.tsx:238
 msgctxt "dataQuality:dataQuality.issueList"
 msgid "Issue list"
 msgstr "فهرست مشکلات"
@@ -3442,7 +3440,12 @@ msgctxt "commerce:commerceHub.lastCacheRefresh"
 msgid "Last cache refresh:"
 msgstr "آخرین به‌روزرسانی کش:"
 
-#: frontend/src/pages/DataQuality.tsx:188 frontend/src/pages/DataQuality.tsx:88
+#: frontend/src/pages/DataQuality.tsx:198
+msgctxt "dataQuality:dataQuality.lastCheckLabel"
+msgid "Last check"
+msgstr "آخرین بررسی"
+
+#: frontend/src/pages/DataQuality.tsx:101
 msgctxt "dataQuality:dataQuality.lastCheck"
 msgid "Last check:"
 msgstr "آخرین بررسی:"
@@ -3591,7 +3594,7 @@ msgctxt "diagnostics:diagnostics.limiterDelay"
 msgid "Limiter delay"
 msgstr "تأخیر محدودکننده"
 
-#: frontend/src/pages/DataQuality.tsx:235
+#: frontend/src/pages/DataQuality.tsx:230
 msgctxt "dataQuality:dataQuality.resolved"
 msgid "Linked"
 msgstr "مرتبط"
@@ -3905,7 +3908,6 @@ msgctxt "dashboard:dashboard.monitorPendingUpdates"
 msgid "Monitor pending updates until verification is complete."
 msgstr "به‌روزرسانی‌های در انتظار را تا پایان راستی‌آزمایی پیگیری کنید."
 
-#: frontend/src/pages/DataQuality.tsx:201
 msgctxt "dataQuality:dataQuality.mostCommonProblems"
 msgid "Most common problems"
 msgstr "مشکلات پرتکرار"
@@ -3998,6 +4000,11 @@ msgstr "خطای شبکه. اتصال خود را بررسی و دوباره ت�
 msgctxt "authentication:login.networkError"
 msgid "Network error. Please check your connection and try again."
 msgstr "خطای شبکه. اتصال خود را بررسی و دوباره تلاش کنید."
+
+#: frontend/src/pages/DataQuality.tsx:198
+msgctxt "dataQuality:dataQuality.never"
+msgid "Never"
+msgstr "هرگز"
 
 msgctxt "products:products.neverSynced"
 msgid "Never synced"
@@ -4296,7 +4303,6 @@ msgctxt "dashboard:dashboard.noOrdersYet"
 msgid "No orders yet"
 msgstr "هنوز سفارشی ثبت نشده است"
 
-#: frontend/src/pages/DataQuality.tsx:196
 msgctxt "dataQuality:dataQuality.noPreviousRead"
 msgid "No previous read to compare"
 msgstr "خواندن قبلی برای مقایسه وجود ندارد"
@@ -4513,7 +4519,7 @@ msgctxt "dashboard:dashboard.notEnoughOrderData"
 msgid "Not enough order data"
 msgstr "داده سفارش کافی نیست"
 
-#: frontend/src/pages/DataQuality.tsx:235
+#: frontend/src/pages/DataQuality.tsx:230
 msgctxt "dataQuality:dataQuality.unmapped"
 msgid "Not linked"
 msgstr "بدون ارتباط"
@@ -4613,7 +4619,7 @@ msgctxt "workspace:densePricing.confirmApplyScope"
 msgid "Only {{count}} checksum-bound, Reviewed field changes will enter the shared Write Pipeline."
 msgstr "فقط {{count}} تغییر فیلد بازبینی‌شده و متصل به چک‌سام انتخاب، وارد خط نوشتن مشترک می‌شود."
 
-#: frontend/src/pages/DataQuality.tsx:220 frontend/src/pages/DataQuality.tsx:238
+#: frontend/src/pages/DataQuality.tsx:257
 msgctxt "dataQuality:dataQuality.openIssue"
 msgid "Open"
 msgstr "باز کردن"
@@ -4699,7 +4705,6 @@ msgctxt "products:products.openPricingWorkspace"
 msgid "Open pricing workspace"
 msgstr "باز کردن فضای کاری قیمت‌گذاری"
 
-#: frontend/src/pages/DataQuality.tsx:208
 msgctxt "dataQuality:dataQuality.recommendedActionsDescription"
 msgid "Open the relevant workflow to resolve the highest-impact issues first."
 msgstr "برای رفع مهم‌ترین مشکلات، مستقیماً به بخش مرتبط بروید."
@@ -5228,7 +5233,6 @@ msgctxt "common:status.processing"
 msgid "Processing"
 msgstr "در حال پردازش"
 
-#: frontend/src/pages/DataQuality.tsx:232
 msgctxt "dataQuality:dataQuality.product"
 msgid "Product"
 msgstr "محصول"
@@ -5313,12 +5317,11 @@ msgctxt "workspace:densePricing.productIdentity"
 msgid "Product identity"
 msgstr "مشخصات محصول"
 
-#: frontend/src/pages/DataQuality.tsx:235
+#: frontend/src/pages/DataQuality.tsx:230
 msgctxt "dataQuality:dataQuality.mappingState"
 msgid "Product link status"
 msgstr "وضعیت ارتباط محصول"
 
-#: frontend/src/pages/DataQuality.tsx:238
 msgctxt "dataQuality:dataQuality.columnSetup"
 msgid "Product link:"
 msgstr "ارتباط محصول:"
@@ -5423,7 +5426,7 @@ msgctxt "workspace:sourceCentricWorkspace.productsAreParentsEachChannelListingRe
 msgid "Products are parents. Each Channel Listing remains independently identifiable and selectable."
 msgstr "محصولات ردیف والد هستند. هویت و انتخاب هر لیستینگ کانال مستقل باقی می‌ماند."
 
-#: frontend/src/pages/DataQuality.tsx:241
+#: frontend/src/pages/DataQuality.tsx:197 frontend/src/pages/DataQuality.tsx:266
 msgctxt "dataQuality:dataQuality.productsChecked"
 msgid "Products checked"
 msgstr "محصولات بررسی‌شده"
@@ -5637,7 +5640,6 @@ msgctxt "common:status.ready"
 msgid "Ready"
 msgstr "آماده"
 
-#: frontend/src/pages/DataQuality.tsx:192
 msgctxt "dataQuality:dataQuality.readyProducts"
 msgid "Ready"
 msgstr "آماده"
@@ -5687,6 +5689,11 @@ msgctxt "settings:setup.readyToFinish"
 msgid "Ready to finish"
 msgstr "آماده تکمیل"
 
+#: frontend/src/pages/DataQuality.tsx:198
+msgctxt "dataQuality:dataQuality.recent"
+msgid "Recent"
+msgstr "اخیر"
+
 msgctxt "dashboard:dashboard.activityListMeaning"
 msgid "Recent actions that may require seller follow-up."
 msgstr "اقدام‌های اخیر که ممکن است به پیگیری فروشنده نیاز داشته باشند."
@@ -5713,12 +5720,10 @@ msgctxt "sources:sourceCenter.recommended"
 msgid "Recommended"
 msgstr "پیشنهادی"
 
-#: frontend/src/pages/DataQuality.tsx:238
 msgctxt "dataQuality:dataQuality.recommendedAction"
 msgid "Recommended action:"
 msgstr "اقدام پیشنهادی:"
 
-#: frontend/src/pages/DataQuality.tsx:207
 msgctxt "dataQuality:dataQuality.recommendedActions"
 msgid "Recommended actions"
 msgstr "اقدام‌های پیشنهادی"
@@ -5747,6 +5752,11 @@ msgstr "نیازمند تطبیق مجدد"
 msgctxt "workspace:statusDisplay.reconciliationRequired"
 msgid "Reconciliation Required"
 msgstr "نیازمند تطبیق مجدد"
+
+#: frontend/src/pages/DataQuality.tsx:244
+msgctxt "dataQuality:dataQuality.record"
+msgid "Record"
+msgstr "رکورد"
 
 msgctxt "dashboard:dashboard.ordersTodayExplanation"
 msgid "Recorded revenue: {{revenue}}. {{trend}}."
@@ -5874,7 +5884,11 @@ msgctxt "products:products.resetRowChanges"
 msgid "Reset row changes"
 msgstr "بازنشانی تغییرات ردیف"
 
-#: frontend/src/pages/DataQuality.tsx:197
+#: frontend/src/pages/DataQuality.tsx:190
+msgctxt "dataQuality:dataQuality.resolveIssuesBlockingReliableCommerceData"
+msgid "Resolve issues blocking reliable commerce data."
+msgstr "مشکلاتی که مانع قابل‌اعتماد بودن داده‌های فروش می‌شوند را برطرف کنید."
+
 msgctxt "dataQuality:dataQuality.resolvedSinceLastRead"
 msgid "Resolved since last read"
 msgstr "برطرف‌شده از آخرین خواندن"
@@ -6237,7 +6251,11 @@ msgctxt "orders:orders.runReadOnlySync"
 msgid "Run a read-only synchronization to import marketplace orders."
 msgstr "برای دریافت سفارش‌های بازارگاه، همگام‌سازی فقط‌خواندنی را اجرا کنید."
 
-#: frontend/src/pages/DataQuality.tsx:184 frontend/src/pages/DataQuality.tsx:90
+#: frontend/src/pages/DataQuality.tsx:103 frontend/src/pages/DataQuality.tsx:191
+msgctxt "dataQuality:dataQuality.runCheck"
+msgid "Run check"
+msgstr "اجرای بررسی"
+
 msgctxt "dataQuality:dataQuality.runCheckAgain"
 msgid "Run check again"
 msgstr "بررسی دوباره"
@@ -6388,7 +6406,7 @@ msgctxt "sources:sourceConfiguration.saving"
 msgid "Saving..."
 msgstr "در حال ذخیره..."
 
-#: frontend/src/pages/DataQuality.tsx:241
+#: frontend/src/pages/DataQuality.tsx:266
 msgctxt "dataQuality:dataQuality.scanReference"
 msgid "Scan reference"
 msgstr "شناسه بررسی"
@@ -6447,6 +6465,11 @@ msgctxt "settings:setup.searchCurrencies"
 msgid "Search currencies..."
 msgstr "جست‌وجوی واحدهای پول..."
 
+#: frontend/src/pages/DataQuality.tsx:209 frontend/src/pages/DataQuality.tsx:210
+msgctxt "dataQuality:dataQuality.searchIssues"
+msgid "Search issues"
+msgstr "جست‌وجوی مشکلات"
+
 msgctxt "products:products.searchNameOrSku"
 msgid "Search name or SKU..."
 msgstr "جست‌وجوی نام یا SKU..."
@@ -6489,7 +6512,7 @@ msgctxt "dashboard:dashboard.businessOverviewDescription"
 msgid "See what happened, what needs attention, and what to do next."
 msgstr "ببینید چه اتفاقی افتاده، چه چیزی نیازمند توجه است و گام بعدی چیست."
 
-#: frontend/src/pages/DataQuality.tsx:183 frontend/src/pages/Workspace.tsx:508
+#: frontend/src/pages/Workspace.tsx:508
 msgctxt "dataQuality:dataQuality.summaryFirstDescription"
 msgid "See what needs attention before filtering or opening technical details."
 msgstr "پیش از فیلترکردن یا دیدن جزئیات فنی، موارد نیازمند بررسی را ببینید."
@@ -6750,7 +6773,7 @@ msgctxt "activity:activity.severity"
 msgid "Severity"
 msgstr "شدت"
 
-#: frontend/src/pages/DataQuality.tsx:233
+#: frontend/src/pages/DataQuality.tsx:245
 msgctxt "dataQuality:dataQuality.severity"
 msgid "Severity"
 msgstr "شدت"
@@ -6922,7 +6945,7 @@ msgctxt "commerce:type.source"
 msgid "Source"
 msgstr "منبع"
 
-#: frontend/src/pages/DataQuality.tsx:229
+#: frontend/src/pages/DataQuality.tsx:227
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dataQuality:dataQuality.source"
 msgid "Source"
@@ -6981,7 +7004,6 @@ msgctxt "sources:sourceCenter.sourceProductIdentityStaysSeparateFromChannel"
 msgid "Source Product identity stays separate from Channel Listing identity."
 msgstr "هویت محصول منبع از شناسه همان محصول در هر کانال جدا باقی می‌ماند."
 
-#: frontend/src/pages/DataQuality.tsx:232
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dataQuality:dataQuality.sourceProductName"
 msgid "Source Product name"
@@ -7195,7 +7217,7 @@ msgctxt "sources:sourceCenter.sources"
 msgid "Sources"
 msgstr "منابع"
 
-#: frontend/src/pages/DataQuality.tsx:241
+#: frontend/src/pages/DataQuality.tsx:266
 msgctxt "dataQuality:dataQuality.sourcesChecked"
 msgid "Sources checked"
 msgstr "منابع بررسی‌شده"
@@ -7521,7 +7543,6 @@ msgctxt "activity:activity.technicalDetails"
 msgid "Technical details"
 msgstr "جزئیات فنی"
 
-#: frontend/src/pages/DataQuality.tsx:238
 msgctxt "dataQuality:dataQuality.technicalDetails"
 msgid "Technical details"
 msgstr "جزئیات فنی"
@@ -8310,6 +8331,11 @@ msgctxt "settings:setup.updateRequired"
 msgid "Update required"
 msgstr "نیازمند به‌روزرسانی"
 
+#: frontend/src/pages/DataQuality.tsx:246
+msgctxt "dataQuality:dataQuality.updated"
+msgid "Updated"
+msgstr "به‌روزرسانی"
+
 #: frontend/src/pages/SourceCenter.tsx:524
 msgctxt "sources:sourceCenter.updatedPrefix"
 msgid "Updated"
@@ -8590,7 +8616,7 @@ msgctxt "orders:orders.viewFailed"
 msgid "View failed"
 msgstr "مشاهده موارد ناموفق"
 
-#: frontend/src/pages/DataQuality.tsx:241
+#: frontend/src/pages/DataQuality.tsx:266
 msgctxt "dataQuality:dataQuality.viewLastScanDetails"
 msgid "View last scan details"
 msgstr "نمایش جزئیات آخرین بررسی"
@@ -8653,7 +8679,7 @@ msgctxt "common:status.warning"
 msgid "Warning"
 msgstr "هشدار"
 
-#: frontend/src/pages/DataQuality.tsx:233 frontend/src/pages/DataQuality.tsx:70
+#: frontend/src/pages/DataQuality.tsx:219 frontend/src/pages/DataQuality.tsx:70
 msgctxt "dataQuality:dataQuality.warning"
 msgid "Warning"
 msgstr "هشدار"
@@ -8667,7 +8693,7 @@ msgctxt "dashboard:dashboard.warnings"
 msgid "Warnings"
 msgstr "هشدارها"
 
-#: frontend/src/pages/DataQuality.tsx:191 frontend/src/pages/Workspace.tsx:516
+#: frontend/src/pages/DataQuality.tsx:196 frontend/src/pages/Workspace.tsx:516
 msgctxt "dataQuality:dataQuality.warnings"
 msgid "Warnings"
 msgstr "هشدارها"
@@ -8802,7 +8828,7 @@ msgctxt "commerce:commerceHub.worksheet"
 msgid "Worksheet"
 msgstr "برگه"
 
-#: frontend/src/pages/DataQuality.tsx:230
+#: frontend/src/pages/DataQuality.tsx:229
 msgctxt "dataQuality:dataQuality.worksheet"
 msgid "Worksheet"
 msgstr "برگه"
@@ -9184,7 +9210,6 @@ msgid_plural "{{count}} Listings selected"
 msgstr[0] "{{count}} لیستینگ انتخاب‌شده"
 msgstr[1] "{{count}} لیستینگ انتخاب‌شده"
 
-#: frontend/src/pages/DataQuality.tsx:218
 msgctxt "dataQuality:dataQuality.affectedProductCount"
 msgid "{{count}} affected product"
 msgid_plural "{{count}} affected products"
@@ -9226,6 +9251,13 @@ msgid "{{count}} enabled Channel"
 msgid_plural "{{count}} enabled Channels"
 msgstr[0] "{{count}} کانال فعال"
 msgstr[1] "{{count}} کانال فعال"
+
+#: frontend/src/pages/DataQuality.tsx:223
+msgctxt "dataQuality:dataQuality.issuesCount"
+msgid "{{count}} issue"
+msgid_plural "{{count}} issues"
+msgstr[0] "{{count}} مشکل"
+msgstr[1] "{{count}} مشکل"
 
 #: frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx:167
 msgctxt "sources:sourceConfiguration.issueCount"
@@ -9427,7 +9459,7 @@ msgctxt "diagnostics:diagnostics.readWriteAllowance"
 msgid "{{read}} read / {{write}} write"
 msgstr "{{read}} خواندن / {{write}} نوشتن"
 
-#: frontend/src/pages/DataQuality.tsx:89
+#: frontend/src/pages/DataQuality.tsx:102
 msgctxt "dataQuality:dataQuality.healthyCoverage"
 msgid "{{sources}} Sources and {{products}} products were checked."
 msgstr "{{sources}} منبع و {{products}} محصول بررسی شد."
