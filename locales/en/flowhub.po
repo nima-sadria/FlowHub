@@ -208,7 +208,7 @@ msgctxt "dashboard:dashboard.activeSources"
 msgid "Active Sources"
 msgstr "Active Sources"
 
-#: frontend/src/pages/Activity.tsx:174
+#: frontend/src/pages/Activity.tsx:264
 msgctxt "activity:activity.activity"
 msgid "Activity"
 msgstr "Activity"
@@ -378,7 +378,7 @@ msgctxt "workspace:workspace.allApprovedUpdatesHaveBeenCompleted"
 msgid "All approved updates have been completed."
 msgstr "All approved updates have been completed."
 
-#: frontend/src/pages/Activity.tsx:184
+#: frontend/src/pages/Activity.tsx:311
 msgctxt "activity:activity.allCategories"
 msgid "All categories"
 msgstr "All categories"
@@ -387,6 +387,11 @@ msgstr "All categories"
 msgctxt "sources:sourceConfiguration.allChangesSaved"
 msgid "All changes saved"
 msgstr "All changes saved"
+
+#: frontend/src/pages/Activity.tsx:293 frontend/src/pages/Activity.tsx:295
+msgctxt "activity:activity.allChannels"
+msgid "All channels"
+msgstr "All channels"
 
 #: frontend/src/pages/Dashboard.tsx:381 frontend/src/pages/Dashboard.tsx:390
 msgctxt "dashboard:dashboard.allClear"
@@ -432,7 +437,6 @@ msgctxt "workspace:densePricing.view.all"
 msgid "All products"
 msgstr "All products"
 
-#: frontend/src/pages/Activity.tsx:185
 msgctxt "activity:activity.allSeverities"
 msgid "All severities"
 msgstr "All severities"
@@ -441,6 +445,11 @@ msgstr "All severities"
 msgctxt "dataQuality:dataQuality.allSeverities"
 msgid "All severities"
 msgstr "All severities"
+
+#: frontend/src/pages/Activity.tsx:285 frontend/src/pages/Activity.tsx:287
+msgctxt "activity:activity.allStatuses"
+msgid "All statuses"
+msgstr "All statuses"
 
 msgctxt "common:selector.allStatuses"
 msgid "All statuses"
@@ -459,6 +468,11 @@ msgstr "All stock states"
 msgctxt "navigation:sidebar.allSystemsOperational"
 msgid "All systems operational"
 msgstr "All systems operational"
+
+#: frontend/src/pages/Activity.tsx:301 frontend/src/pages/Activity.tsx:303
+msgctxt "activity:activity.allUsers"
+msgid "All users"
+msgstr "All users"
 
 #: frontend/src/pages/CommerceHub.tsx:958
 msgctxt "commerce:commerceHub.allWorksheets"
@@ -991,7 +1005,7 @@ msgctxt "products:column.categories"
 msgid "Categories"
 msgstr "Categories"
 
-#: frontend/src/pages/Activity.tsx:184
+#: frontend/src/pages/Activity.tsx:311
 msgctxt "activity:activity.category"
 msgid "Category"
 msgstr "Category"
@@ -1056,7 +1070,6 @@ msgctxt "workspace:workspace.changesApprovedSuccessfully"
 msgid "Changes approved successfully"
 msgstr "Changes approved successfully"
 
-#: frontend/src/pages/Activity.tsx:189
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "activity:activity.channel"
 msgid "Channel"
@@ -2687,7 +2700,7 @@ msgctxt "diagnostics:diagnostics.estimatedWaitTime"
 msgid "Estimated wait time"
 msgstr "Estimated wait time"
 
-#: frontend/src/pages/Activity.tsx:198
+#: frontend/src/pages/Activity.tsx:328
 msgctxt "activity:activity.eventsWillAppearHereAsTheSystem"
 msgid "Events will appear here as the system runs."
 msgstr "Events will appear here as the system runs."
@@ -2753,6 +2766,11 @@ msgstr "Expand sidebar"
 msgctxt "sources:sourceConfiguration.explicitZero"
 msgid "Explicit zero"
 msgstr "Explicit zero"
+
+#: frontend/src/pages/Activity.tsx:268
+msgctxt "activity:activity.export"
+msgid "Export"
+msgstr "Export"
 
 msgctxt "diagnostics:dimension.externalApi"
 msgid "External API"
@@ -2836,6 +2854,11 @@ msgstr "Filter rows"
 msgctxt "workspace:unifiedWorkspace.filterServerData"
 msgid "Filter server data"
 msgstr "Filter server data"
+
+#: frontend/src/pages/Activity.tsx:309
+msgctxt "activity:activity.filters"
+msgid "Filters"
+msgstr "Filters"
 
 #: frontend/src/pages/Orders.tsx:331
 msgctxt "orders:orders.filters"
@@ -3027,7 +3050,7 @@ msgctxt "products:column.freshness"
 msgid "Freshness"
 msgstr "Freshness"
 
-#: frontend/src/pages/Activity.tsx:186
+#: frontend/src/pages/Activity.tsx:312
 msgctxt "activity:activity.fromDate"
 msgid "From date"
 msgstr "From date"
@@ -3225,12 +3248,11 @@ msgctxt "sources:sourceCenter.importYourSpreadsheet"
 msgid "Import your spreadsheet"
 msgstr "Import your spreadsheet"
 
-#: frontend/src/pages/Activity.tsx:200
 msgctxt "activity:activity.importantActivity"
 msgid "Important activity"
 msgstr "Important activity"
 
-#: frontend/src/pages/Activity.tsx:175
+#: frontend/src/pages/Activity.tsx:265
 msgctxt "activity:activity.businessHistoryDescription"
 msgid "Important seller and operational events, with routine system noise kept out of the way."
 msgstr "Important seller and operational events, with routine system noise kept out of the way."
@@ -3605,7 +3627,7 @@ msgctxt "dashboard:dashboard.liveCommerceOverview"
 msgid "Live commerce overview"
 msgstr "Live commerce overview"
 
-#: frontend/src/pages/Activity.tsx:204
+#: frontend/src/pages/Activity.tsx:334
 msgctxt "activity:activity.loadMoreRemaining"
 msgid "Load more ({{value1}} remaining)"
 msgstr "Load more ({{value1}} remaining)"
@@ -3739,7 +3761,7 @@ msgctxt "settings:users.loading"
 msgid "Loading users..."
 msgstr "Loading users..."
 
-#: frontend/src/pages/Activity.tsx:195 frontend/src/pages/Activity.tsx:204
+#: frontend/src/pages/Activity.tsx:324 frontend/src/pages/Activity.tsx:334
 msgctxt "activity:activity.loading"
 msgid "Loading..."
 msgstr "Loading..."
@@ -4111,7 +4133,7 @@ msgctxt "dashboard:dashboard.noActiveSources"
 msgid "No active Sources"
 msgstr "No active Sources"
 
-#: frontend/src/pages/Activity.tsx:198
+#: frontend/src/pages/Activity.tsx:328
 msgctxt "activity:activity.noActivityYet"
 msgid "No activity yet"
 msgstr "No activity yet"
@@ -4763,6 +4785,15 @@ msgctxt "activity:action.order_synchronized"
 msgid "Order synchronized"
 msgstr "Order synchronized"
 
+msgctxt "activity:event.order_synchronized"
+msgid "Order synchronized"
+msgstr "Order synchronized"
+
+#: frontend/src/pages/Activity.tsx:341
+msgctxt "activity:activity.orderSyncs"
+msgid "Order syncs"
+msgstr "Order syncs"
+
 msgctxt "activity:category.orders"
 msgid "Orders"
 msgstr "Orders"
@@ -4928,6 +4959,11 @@ msgstr "Pending"
 msgctxt "products:products.pendingEdits"
 msgid "Pending edits"
 msgstr "Pending edits"
+
+#: frontend/src/pages/Activity.tsx:343
+msgctxt "activity:activity.permissionChanges"
+msgid "Permission changes"
+msgstr "Permission changes"
 
 #: frontend/src/pages/Settings.tsx:213
 msgctxt "settings:language.persian"
@@ -5142,6 +5178,10 @@ msgctxt "activity:action.price_updated"
 msgid "Price updated"
 msgstr "Price updated"
 
+msgctxt "activity:event.price_updated"
+msgid "Price updated"
+msgstr "Price updated"
+
 msgctxt "commerce:capability.priceWrite"
 msgid "Price write"
 msgstr "Price write"
@@ -5235,6 +5275,11 @@ msgstr "Product cache refreshed successfully"
 msgctxt "products:products.productCatalog"
 msgid "Product catalog"
 msgstr "Product catalog"
+
+#: frontend/src/pages/Activity.tsx:340
+msgctxt "activity:activity.productChanges"
+msgid "Product changes"
+msgstr "Product changes"
 
 msgctxt "sources:sourceConfiguration.productColumns"
 msgid "Product columns"
@@ -5857,6 +5902,10 @@ msgctxt "settings:settings.retry"
 msgid "Retry"
 msgstr "Retry"
 
+msgctxt "activity:event.retry_completed"
+msgid "Retry completed"
+msgstr "Retry completed"
+
 #: frontend/src/pages/Setup.tsx:577
 msgctxt "settings:setup.retryDatabaseCheck"
 msgid "Retry database check"
@@ -6153,7 +6202,7 @@ msgctxt "settings:rateLimits.rollingWindow"
 msgid "Rolling window"
 msgstr "Rolling window"
 
-#: frontend/src/pages/Activity.tsx:201
+#: frontend/src/pages/Activity.tsx:331
 msgctxt "activity:activity.routineSystemActivity"
 msgid "Routine system activity"
 msgstr "Routine system activity"
@@ -6373,7 +6422,7 @@ msgctxt "workspace:unifiedWorkspace.scrollableWorkspaceGrid"
 msgid "Scrollable Workspace Grid"
 msgstr "Scrollable Workspace Grid"
 
-#: frontend/src/components/Topbar.tsx:176 frontend/src/pages/Activity.tsx:182
+#: frontend/src/components/Topbar.tsx:176 frontend/src/pages/Activity.tsx:280 frontend/src/pages/Activity.tsx:281
 msgctxt "activity:activity.search"
 msgid "Search"
 msgstr "Search"
@@ -6387,11 +6436,6 @@ msgstr "Search"
 msgctxt "workspace:sourceCentricWorkspace.searchSourceProducts"
 msgid "Search Source Products"
 msgstr "Search Source Products"
-
-#: frontend/src/pages/Activity.tsx:180
-msgctxt "activity:activity.filters"
-msgid "Search and filters"
-msgstr "Search and filters"
 
 #: frontend/src/pages/Channels.tsx:217 frontend/src/pages/Channels.tsx:218
 msgctxt "commerce:commerceHub.searchChannels"
@@ -6702,7 +6746,6 @@ msgctxt "commerce:commerceHub.setupState"
 msgid "Setup state:"
 msgstr "Setup state:"
 
-#: frontend/src/pages/Activity.tsx:185
 msgctxt "activity:activity.severity"
 msgid "Severity"
 msgstr "Severity"
@@ -6751,7 +6794,7 @@ msgctxt "settings:users.showPassword"
 msgid "Show password"
 msgstr "Show password"
 
-#: frontend/src/pages/Activity.tsx:190
+#: frontend/src/pages/Activity.tsx:315
 msgctxt "activity:activity.showRoutineSystemEvents"
 msgid "Show routine and debug events"
 msgstr "Show routine and debug events"
@@ -6862,7 +6905,7 @@ msgctxt "flowhubSheet:flowHubSheet.sortSheetByColumn"
 msgid "Sort Sheet by column"
 msgstr "Sort Sheet by column"
 
-#: frontend/src/pages/Activity.tsx:188
+#: frontend/src/pages/Activity.tsx:314
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "activity:activity.source"
 msgid "Source"
@@ -7068,11 +7111,22 @@ msgctxt "dashboard:dashboard.sourceReadiness"
 msgid "Source readiness"
 msgstr "Source readiness"
 
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "activity:event.source_refreshed"
+msgid "Source refreshed"
+msgstr "Source refreshed"
+
 #: frontend/src/pages/CommerceHub.tsx:1216
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceRefreshedSuccessfully"
 msgid "Source refreshed successfully"
 msgstr "Source refreshed successfully"
+
+#: frontend/src/pages/Activity.tsx:342
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "activity:activity.sourceRefreshes"
+msgid "Source refreshes"
+msgstr "Source refreshes"
 
 #: frontend/src/pages/CommerceHub.tsx:141
 #. Source means the spreadsheet or managed sheet supplying product targets.
@@ -7219,6 +7273,10 @@ msgctxt "workspace:unifiedWorkspace.status"
 msgid "Status"
 msgstr "Status"
 
+msgctxt "activity:event.status_updated"
+msgid "Status updated"
+msgstr "Status updated"
+
 msgctxt "commerce:capability.statusWrite"
 msgid "Status write"
 msgstr "Status write"
@@ -7289,6 +7347,11 @@ msgstr "Stock status read"
 msgctxt "commerce:capability.stockStatusWrite"
 msgid "Stock status write"
 msgstr "Stock status write"
+
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "activity:event.stock_updated"
+msgid "Stock updated"
+msgstr "Stock updated"
 
 #: frontend/src/pages/Workspace.tsx:488
 #. Stock means the sellable inventory value supported by a Channel.
@@ -7406,7 +7469,7 @@ msgctxt "orders:orders.syncing"
 msgid "Synchronizing..."
 msgstr "Synchronizing..."
 
-#: frontend/src/pages/Activity.tsx:49
+#: frontend/src/pages/Activity.tsx:75
 msgctxt "activity:category.system"
 msgid "System"
 msgstr "System"
@@ -7453,7 +7516,7 @@ msgctxt "products:products.tapsiShop"
 msgid "Tapsi Shop"
 msgstr "Tapsi Shop"
 
-#: frontend/src/pages/Activity.tsx:95
+#: frontend/src/pages/Activity.tsx:127
 msgctxt "activity:activity.technicalDetails"
 msgid "Technical details"
 msgstr "Technical details"
@@ -7879,7 +7942,7 @@ msgctxt "settings:settings.timezone"
 msgid "Timezone"
 msgstr "Timezone"
 
-#: frontend/src/pages/Activity.tsx:187
+#: frontend/src/pages/Activity.tsx:313
 msgctxt "activity:activity.toDate"
 msgid "To date"
 msgstr "To date"
@@ -7888,6 +7951,11 @@ msgstr "To date"
 msgctxt "orders:orders.dateTo"
 msgid "To date"
 msgstr "To date"
+
+#: frontend/src/pages/Activity.tsx:323 frontend/src/pages/Activity.tsx:338
+msgctxt "activity:activity.today"
+msgid "Today"
+msgstr "Today"
 
 #. Current is the latest verified or cached Channel value.
 msgctxt "dashboard:dashboard.ordersMeaning"
@@ -8301,7 +8369,6 @@ msgctxt "authentication:login.useWorkspaceAccount"
 msgid "Use your workspace account."
 msgstr "Use your workspace account."
 
-#: frontend/src/pages/Activity.tsx:183
 msgctxt "activity:activity.user"
 msgid "User"
 msgstr "User"
@@ -8351,6 +8418,10 @@ msgstr "User password changed"
 msgctxt "activity:action.user_password_reset"
 msgid "User password reset"
 msgstr "User password reset"
+
+msgctxt "activity:event.user_permissions_changed"
+msgid "User permissions changed"
+msgstr "User permissions changed"
 
 msgctxt "activity:action.user_role_changed"
 msgid "User role changed"
@@ -8746,6 +8817,10 @@ msgctxt "sources:sourceConfiguration.section.worksheetColumns"
 msgid "Worksheet columns"
 msgstr "Worksheet columns"
 
+msgctxt "activity:event.worksheet_enabled"
+msgid "Worksheet enabled"
+msgstr "Worksheet enabled"
+
 #: frontend/src/pages/CommerceHub.tsx:970
 msgctxt "commerce:commerceHub.worksheetName"
 msgid "Worksheet name"
@@ -8942,7 +9017,6 @@ msgctxt "workspace:workspace.blockingError"
 msgid "blocking error"
 msgstr "blocking error"
 
-#: frontend/src/pages/Activity.tsx:92
 msgctxt "activity:activity.by"
 msgid "by"
 msgstr "by"
@@ -9231,7 +9305,7 @@ msgid_plural "{{count}} sources"
 msgstr[0] "{{count}} source"
 msgstr[1] "{{count}} sources"
 
-#: frontend/src/pages/Activity.tsx:94
+#: frontend/src/pages/Activity.tsx:126
 msgctxt "activity:activity.groupedRoutineSummary"
 msgid "{{count}} successful routine event"
 msgid_plural "{{count}} successful routine events"
@@ -9379,7 +9453,7 @@ msgctxt "workspace:sourceCentricWorkspace.eligibleChangesWereAutomaticallySelect
 msgid "{{value1}} eligible changes were automatically selected. Blocked items remain excluded."
 msgstr "{{value1}} eligible changes were automatically selected. Blocked items remain excluded."
 
-#: frontend/src/pages/Activity.tsx:195
+#: frontend/src/pages/Activity.tsx:324
 msgctxt "activity:activity.events"
 msgid "{{value1}} events"
 msgstr "{{value1}} events"

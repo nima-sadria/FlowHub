@@ -3,6 +3,7 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AuthContext, type AuthContextValue } from '../auth'
 import { changeLocale } from '../i18n'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { ActivityEvent } from '../services/types'
@@ -10,10 +11,13 @@ import Activity from './Activity'
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
+const admin: AuthContextValue = { user: { username: 'owner', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: vi.fn().mockRejectedValue(new Error('not mocked in this test')) }
+
 describe('Activity business history', () => {
   let container: HTMLDivElement
   let root: ReturnType<typeof createRoot>
   const getEvents = vi.fn()
+  const getChannels = vi.fn()
 
   beforeEach(async () => {
     await changeLocale('en')
@@ -26,23 +30,27 @@ describe('Activity business history', () => {
       { id: 'token-2', timestamp: new Date(), kind: 'system_log', level: 'debug', category: 'system', actor: 'owner', action: 'token_refreshed', detail: null },
     ]
     getEvents.mockResolvedValue({ items: events, total: 3, page: 1, pageSize: 30 })
+    getChannels.mockResolvedValue({ items: [], relationship_map: { nodes: [], example: [], runtime_write_blocked: true, read_only: true } })
   })
 
   afterEach(async () => {
     act(() => root.unmount())
     container.remove()
     getEvents.mockReset()
+    getChannels.mockReset()
     await changeLocale('en')
   })
 
   async function render(path = '/activity') {
     const services = {
       activity: { getEvents },
+      commerce: { getChannels },
       health: {}, products: {}, sources: {}, workspace: {}, settings: {},
-      commerce: {}, writePipeline: {}, orders: {},
+      writePipeline: {}, orders: {},
     } as unknown as Services
     await act(async () => {
-      root.render(<MemoryRouter initialEntries={[path]}><ServiceProvider services={services}><Activity /></ServiceProvider></MemoryRouter>)
+      root.render(<AuthContext.Provider value={admin}><MemoryRouter initialEntries={[path]}><ServiceProvider services={services}><Activity /></ServiceProvider></MemoryRouter></AuthContext.Provider>)
+      await Promise.resolve()
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -50,7 +58,7 @@ describe('Activity business history', () => {
 
   it('puts important business events first and groups repetitive token refresh entries', async () => {
     await render()
-    expect(container.textContent).toContain('Important activity')
+    expect(container.textContent).toContain('Today')
     expect(container.textContent).toContain('Product preview failed')
     expect(container.textContent).toContain('Routine system activity (1)')
     expect(container.textContent).toContain('2 successful routine events')
@@ -65,5 +73,28 @@ describe('Activity business history', () => {
     expect(category).toBeTruthy()
     expect(container.textContent).toContain('Show routine and debug events')
     expect(container.textContent).toContain('Technical details')
+  })
+
+  it('exports the currently loaded events as CSV', async () => {
+    await render()
+    const originalCreateObjectURL = URL.createObjectURL
+    const originalRevokeObjectURL = URL.revokeObjectURL
+    const originalAnchorClick = HTMLAnchorElement.prototype.click
+    URL.createObjectURL = vi.fn().mockReturnValue('blob:mock')
+    URL.revokeObjectURL = vi.fn()
+    HTMLAnchorElement.prototype.click = vi.fn()
+    try {
+      const exportButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Export')) as HTMLButtonElement
+      expect(exportButton).toBeTruthy()
+      expect(exportButton.disabled).toBe(false)
+      exportButton.click()
+      expect(URL.createObjectURL).toHaveBeenCalledTimes(1)
+      const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0][0] as Blob
+      expect(blob.type).toContain('text/csv')
+    } finally {
+      URL.createObjectURL = originalCreateObjectURL
+      URL.revokeObjectURL = originalRevokeObjectURL
+      HTMLAnchorElement.prototype.click = originalAnchorClick
+    }
   })
 })

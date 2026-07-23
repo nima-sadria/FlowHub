@@ -208,7 +208,7 @@ msgctxt "dashboard:dashboard.activeSources"
 msgid "Active Sources"
 msgstr "منابع فعال"
 
-#: frontend/src/pages/Activity.tsx:174
+#: frontend/src/pages/Activity.tsx:264
 msgctxt "activity:activity.activity"
 msgid "Activity"
 msgstr "فعالیت‌ها"
@@ -378,7 +378,7 @@ msgctxt "workspace:workspace.allApprovedUpdatesHaveBeenCompleted"
 msgid "All approved updates have been completed."
 msgstr "همه به‌روزرسانی‌های تأییدشده تکمیل شدند."
 
-#: frontend/src/pages/Activity.tsx:184
+#: frontend/src/pages/Activity.tsx:311
 msgctxt "activity:activity.allCategories"
 msgid "All categories"
 msgstr "همه دسته‌ها"
@@ -387,6 +387,11 @@ msgstr "همه دسته‌ها"
 msgctxt "sources:sourceConfiguration.allChangesSaved"
 msgid "All changes saved"
 msgstr "همه تغییرات ذخیره شده‌اند"
+
+#: frontend/src/pages/Activity.tsx:293 frontend/src/pages/Activity.tsx:295
+msgctxt "activity:activity.allChannels"
+msgid "All channels"
+msgstr "همه کانال‌ها"
 
 #: frontend/src/pages/Dashboard.tsx:381 frontend/src/pages/Dashboard.tsx:390
 msgctxt "dashboard:dashboard.allClear"
@@ -432,7 +437,6 @@ msgctxt "workspace:densePricing.view.all"
 msgid "All products"
 msgstr "همه محصولات"
 
-#: frontend/src/pages/Activity.tsx:185
 msgctxt "activity:activity.allSeverities"
 msgid "All severities"
 msgstr "همه سطح‌ها"
@@ -441,6 +445,11 @@ msgstr "همه سطح‌ها"
 msgctxt "dataQuality:dataQuality.allSeverities"
 msgid "All severities"
 msgstr "همه سطح‌ها"
+
+#: frontend/src/pages/Activity.tsx:285 frontend/src/pages/Activity.tsx:287
+msgctxt "activity:activity.allStatuses"
+msgid "All statuses"
+msgstr "همه وضعیت‌ها"
 
 msgctxt "common:selector.allStatuses"
 msgid "All statuses"
@@ -459,6 +468,11 @@ msgstr "همه وضعیت‌های موجودی"
 msgctxt "navigation:sidebar.allSystemsOperational"
 msgid "All systems operational"
 msgstr "همه سامانه‌ها فعال‌اند"
+
+#: frontend/src/pages/Activity.tsx:301 frontend/src/pages/Activity.tsx:303
+msgctxt "activity:activity.allUsers"
+msgid "All users"
+msgstr "همه کاربران"
 
 #: frontend/src/pages/CommerceHub.tsx:958
 msgctxt "commerce:commerceHub.allWorksheets"
@@ -991,7 +1005,7 @@ msgctxt "products:column.categories"
 msgid "Categories"
 msgstr "دسته‌بندی‌ها"
 
-#: frontend/src/pages/Activity.tsx:184
+#: frontend/src/pages/Activity.tsx:311
 msgctxt "activity:activity.category"
 msgid "Category"
 msgstr "دسته"
@@ -1056,7 +1070,6 @@ msgctxt "workspace:workspace.changesApprovedSuccessfully"
 msgid "Changes approved successfully"
 msgstr "تغییرات با موفقیت تأیید شد"
 
-#: frontend/src/pages/Activity.tsx:189
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "activity:activity.channel"
 msgid "Channel"
@@ -2687,7 +2700,7 @@ msgctxt "diagnostics:diagnostics.estimatedWaitTime"
 msgid "Estimated wait time"
 msgstr "زمان انتظار تقریبی"
 
-#: frontend/src/pages/Activity.tsx:198
+#: frontend/src/pages/Activity.tsx:328
 msgctxt "activity:activity.eventsWillAppearHereAsTheSystem"
 msgid "Events will appear here as the system runs."
 msgstr "رویدادها هنگام اجرای سیستم در اینجا نمایش داده می‌شوند."
@@ -2753,6 +2766,11 @@ msgstr "بازکردن نوار کناری"
 msgctxt "sources:sourceConfiguration.explicitZero"
 msgid "Explicit zero"
 msgstr "صفر صریح"
+
+#: frontend/src/pages/Activity.tsx:268
+msgctxt "activity:activity.export"
+msgid "Export"
+msgstr "خروجی"
 
 msgctxt "diagnostics:dimension.externalApi"
 msgid "External API"
@@ -2836,6 +2854,11 @@ msgstr "فیلتر ردیف‌ها"
 msgctxt "workspace:unifiedWorkspace.filterServerData"
 msgid "Filter server data"
 msgstr "فیلتر داده‌های سرور"
+
+#: frontend/src/pages/Activity.tsx:309
+msgctxt "activity:activity.filters"
+msgid "Filters"
+msgstr "فیلترها"
 
 #: frontend/src/pages/Orders.tsx:331
 msgctxt "orders:orders.filters"
@@ -3027,7 +3050,7 @@ msgctxt "products:column.freshness"
 msgid "Freshness"
 msgstr "تازگی"
 
-#: frontend/src/pages/Activity.tsx:186
+#: frontend/src/pages/Activity.tsx:312
 msgctxt "activity:activity.fromDate"
 msgid "From date"
 msgstr "از تاریخ"
@@ -3225,12 +3248,11 @@ msgctxt "sources:sourceCenter.importYourSpreadsheet"
 msgid "Import your spreadsheet"
 msgstr "صفحه‌گسترده خود را وارد کنید"
 
-#: frontend/src/pages/Activity.tsx:200
 msgctxt "activity:activity.importantActivity"
 msgid "Important activity"
 msgstr "فعالیت‌های مهم"
 
-#: frontend/src/pages/Activity.tsx:175
+#: frontend/src/pages/Activity.tsx:265
 msgctxt "activity:activity.businessHistoryDescription"
 msgid "Important seller and operational events, with routine system noise kept out of the way."
 msgstr "رویدادهای مهم فروش و عملیات، بدون شلوغی رویدادهای تکراری سیستم."
@@ -3605,7 +3627,7 @@ msgctxt "dashboard:dashboard.liveCommerceOverview"
 msgid "Live commerce overview"
 msgstr "نمای زنده فروش"
 
-#: frontend/src/pages/Activity.tsx:204
+#: frontend/src/pages/Activity.tsx:334
 msgctxt "activity:activity.loadMoreRemaining"
 msgid "Load more ({{value1}} remaining)"
 msgstr "بارگذاری بیشتر ({{value1}} باقی‌مانده)"
@@ -3739,7 +3761,7 @@ msgctxt "settings:users.loading"
 msgid "Loading users..."
 msgstr "در حال بارگذاری کاربران..."
 
-#: frontend/src/pages/Activity.tsx:195 frontend/src/pages/Activity.tsx:204
+#: frontend/src/pages/Activity.tsx:324 frontend/src/pages/Activity.tsx:334
 msgctxt "activity:activity.loading"
 msgid "Loading..."
 msgstr "در حال بارگذاری..."
@@ -4111,7 +4133,7 @@ msgctxt "dashboard:dashboard.noActiveSources"
 msgid "No active Sources"
 msgstr "هیچ منبع فعالی نیست"
 
-#: frontend/src/pages/Activity.tsx:198
+#: frontend/src/pages/Activity.tsx:328
 msgctxt "activity:activity.noActivityYet"
 msgid "No activity yet"
 msgstr "هنوز فعالیتی ثبت نشده است"
@@ -4763,6 +4785,15 @@ msgctxt "activity:action.order_synchronized"
 msgid "Order synchronized"
 msgstr "سفارش همگام شد"
 
+msgctxt "activity:event.order_synchronized"
+msgid "Order synchronized"
+msgstr "سفارش همگام شد"
+
+#: frontend/src/pages/Activity.tsx:341
+msgctxt "activity:activity.orderSyncs"
+msgid "Order syncs"
+msgstr "همگام‌سازی سفارش‌ها"
+
 msgctxt "activity:category.orders"
 msgid "Orders"
 msgstr "سفارش‌ها"
@@ -4928,6 +4959,11 @@ msgstr "در انتظار"
 msgctxt "products:products.pendingEdits"
 msgid "Pending edits"
 msgstr "ویرایش‌های در انتظار"
+
+#: frontend/src/pages/Activity.tsx:343
+msgctxt "activity:activity.permissionChanges"
+msgid "Permission changes"
+msgstr "تغییرات دسترسی"
 
 #: frontend/src/pages/Settings.tsx:213
 msgctxt "settings:language.persian"
@@ -5142,6 +5178,10 @@ msgctxt "activity:action.price_updated"
 msgid "Price updated"
 msgstr "قیمت به‌روزرسانی شد"
 
+msgctxt "activity:event.price_updated"
+msgid "Price updated"
+msgstr "قیمت به‌روزرسانی شد"
+
 msgctxt "commerce:capability.priceWrite"
 msgid "Price write"
 msgstr "نوشتن قیمت"
@@ -5235,6 +5275,11 @@ msgstr "کش محصولات با موفقیت به‌روزرسانی شد"
 msgctxt "products:products.productCatalog"
 msgid "Product catalog"
 msgstr "فهرست محصولات"
+
+#: frontend/src/pages/Activity.tsx:340
+msgctxt "activity:activity.productChanges"
+msgid "Product changes"
+msgstr "تغییرات محصول"
 
 msgctxt "sources:sourceConfiguration.productColumns"
 msgid "Product columns"
@@ -5857,6 +5902,10 @@ msgctxt "settings:settings.retry"
 msgid "Retry"
 msgstr "تلاش دوباره"
 
+msgctxt "activity:event.retry_completed"
+msgid "Retry completed"
+msgstr "تلاش مجدد کامل شد"
+
 #: frontend/src/pages/Setup.tsx:577
 msgctxt "settings:setup.retryDatabaseCheck"
 msgid "Retry database check"
@@ -6153,7 +6202,7 @@ msgctxt "settings:rateLimits.rollingWindow"
 msgid "Rolling window"
 msgstr "پنجره لغزان"
 
-#: frontend/src/pages/Activity.tsx:201
+#: frontend/src/pages/Activity.tsx:331
 msgctxt "activity:activity.routineSystemActivity"
 msgid "Routine system activity"
 msgstr "فعالیت‌های تکراری سیستم"
@@ -6373,7 +6422,7 @@ msgctxt "workspace:unifiedWorkspace.scrollableWorkspaceGrid"
 msgid "Scrollable Workspace Grid"
 msgstr "گرید پیمایش‌پذیر فضای کاری"
 
-#: frontend/src/components/Topbar.tsx:176 frontend/src/pages/Activity.tsx:182
+#: frontend/src/components/Topbar.tsx:176 frontend/src/pages/Activity.tsx:280 frontend/src/pages/Activity.tsx:281
 msgctxt "activity:activity.search"
 msgid "Search"
 msgstr "جست‌وجو"
@@ -6387,11 +6436,6 @@ msgstr "جست‌وجو"
 msgctxt "workspace:sourceCentricWorkspace.searchSourceProducts"
 msgid "Search Source Products"
 msgstr "جست‌وجوی محصولات منبع"
-
-#: frontend/src/pages/Activity.tsx:180
-msgctxt "activity:activity.filters"
-msgid "Search and filters"
-msgstr "جست‌وجو و فیلترها"
 
 #: frontend/src/pages/Channels.tsx:217 frontend/src/pages/Channels.tsx:218
 msgctxt "commerce:commerceHub.searchChannels"
@@ -6702,7 +6746,6 @@ msgctxt "commerce:commerceHub.setupState"
 msgid "Setup state:"
 msgstr "وضعیت راه‌اندازی:"
 
-#: frontend/src/pages/Activity.tsx:185
 msgctxt "activity:activity.severity"
 msgid "Severity"
 msgstr "شدت"
@@ -6751,7 +6794,7 @@ msgctxt "settings:users.showPassword"
 msgid "Show password"
 msgstr "نمایش رمز عبور"
 
-#: frontend/src/pages/Activity.tsx:190
+#: frontend/src/pages/Activity.tsx:315
 msgctxt "activity:activity.showRoutineSystemEvents"
 msgid "Show routine and debug events"
 msgstr "نمایش رویدادهای تکراری و اشکال‌زدایی"
@@ -6862,7 +6905,7 @@ msgctxt "flowhubSheet:flowHubSheet.sortSheetByColumn"
 msgid "Sort Sheet by column"
 msgstr "مرتب‌سازی برگه بر اساس ستون"
 
-#: frontend/src/pages/Activity.tsx:188
+#: frontend/src/pages/Activity.tsx:314
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "activity:activity.source"
 msgid "Source"
@@ -7068,11 +7111,22 @@ msgctxt "dashboard:dashboard.sourceReadiness"
 msgid "Source readiness"
 msgstr "آمادگی منابع"
 
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "activity:event.source_refreshed"
+msgid "Source refreshed"
+msgstr "منبع به‌روزرسانی شد"
+
 #: frontend/src/pages/CommerceHub.tsx:1216
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceRefreshedSuccessfully"
 msgid "Source refreshed successfully"
 msgstr "منبع با موفقیت به‌روزرسانی شد"
+
+#: frontend/src/pages/Activity.tsx:342
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "activity:activity.sourceRefreshes"
+msgid "Source refreshes"
+msgstr "به‌روزرسانی منابع"
 
 #: frontend/src/pages/CommerceHub.tsx:141
 #. Source means the spreadsheet or managed sheet supplying product targets.
@@ -7219,6 +7273,10 @@ msgctxt "workspace:unifiedWorkspace.status"
 msgid "Status"
 msgstr "وضعیت"
 
+msgctxt "activity:event.status_updated"
+msgid "Status updated"
+msgstr "وضعیت به‌روزرسانی شد"
+
 msgctxt "commerce:capability.statusWrite"
 msgid "Status write"
 msgstr "نوشتن وضعیت"
@@ -7289,6 +7347,11 @@ msgstr "خواندن وضعیت موجودی"
 msgctxt "commerce:capability.stockStatusWrite"
 msgid "Stock status write"
 msgstr "نوشتن وضعیت موجودی"
+
+#. Stock means the sellable inventory value supported by a Channel.
+msgctxt "activity:event.stock_updated"
+msgid "Stock updated"
+msgstr "موجودی به‌روزرسانی شد"
 
 #: frontend/src/pages/Workspace.tsx:488
 #. Stock means the sellable inventory value supported by a Channel.
@@ -7406,7 +7469,7 @@ msgctxt "orders:orders.syncing"
 msgid "Synchronizing..."
 msgstr "در حال همگام‌سازی..."
 
-#: frontend/src/pages/Activity.tsx:49
+#: frontend/src/pages/Activity.tsx:75
 msgctxt "activity:category.system"
 msgid "System"
 msgstr "سیستم"
@@ -7453,7 +7516,7 @@ msgctxt "products:products.tapsiShop"
 msgid "Tapsi Shop"
 msgstr "TapsiShop"
 
-#: frontend/src/pages/Activity.tsx:95
+#: frontend/src/pages/Activity.tsx:127
 msgctxt "activity:activity.technicalDetails"
 msgid "Technical details"
 msgstr "جزئیات فنی"
@@ -7879,7 +7942,7 @@ msgctxt "settings:settings.timezone"
 msgid "Timezone"
 msgstr "منطقه زمانی"
 
-#: frontend/src/pages/Activity.tsx:187
+#: frontend/src/pages/Activity.tsx:313
 msgctxt "activity:activity.toDate"
 msgid "To date"
 msgstr "تا تاریخ"
@@ -7888,6 +7951,11 @@ msgstr "تا تاریخ"
 msgctxt "orders:orders.dateTo"
 msgid "To date"
 msgstr "تا تاریخ"
+
+#: frontend/src/pages/Activity.tsx:323 frontend/src/pages/Activity.tsx:338
+msgctxt "activity:activity.today"
+msgid "Today"
+msgstr "امروز"
 
 #. Current is the latest verified or cached Channel value.
 msgctxt "dashboard:dashboard.ordersMeaning"
@@ -8301,7 +8369,6 @@ msgctxt "authentication:login.useWorkspaceAccount"
 msgid "Use your workspace account."
 msgstr "از حساب فضای کاری خود استفاده کنید."
 
-#: frontend/src/pages/Activity.tsx:183
 msgctxt "activity:activity.user"
 msgid "User"
 msgstr "کاربر"
@@ -8351,6 +8418,10 @@ msgstr "رمز عبور کاربر تغییر کرد"
 msgctxt "activity:action.user_password_reset"
 msgid "User password reset"
 msgstr "گذرواژه کاربر بازنشانی شد"
+
+msgctxt "activity:event.user_permissions_changed"
+msgid "User permissions changed"
+msgstr "دسترسی‌های کاربر تغییر کرد"
 
 msgctxt "activity:action.user_role_changed"
 msgid "User role changed"
@@ -8746,6 +8817,10 @@ msgctxt "sources:sourceConfiguration.section.worksheetColumns"
 msgid "Worksheet columns"
 msgstr "ستون‌های برگه‌ها"
 
+msgctxt "activity:event.worksheet_enabled"
+msgid "Worksheet enabled"
+msgstr "کاربرگ فعال شد"
+
 #: frontend/src/pages/CommerceHub.tsx:970
 msgctxt "commerce:commerceHub.worksheetName"
 msgid "Worksheet name"
@@ -8942,7 +9017,6 @@ msgctxt "workspace:workspace.blockingError"
 msgid "blocking error"
 msgstr "خطای مسدودکننده"
 
-#: frontend/src/pages/Activity.tsx:92
 msgctxt "activity:activity.by"
 msgid "by"
 msgstr "توسط"
@@ -9231,7 +9305,7 @@ msgid_plural "{{count}} sources"
 msgstr[0] "{{count}} منبع"
 msgstr[1] "{{count}} منبع"
 
-#: frontend/src/pages/Activity.tsx:94
+#: frontend/src/pages/Activity.tsx:126
 msgctxt "activity:activity.groupedRoutineSummary"
 msgid "{{count}} successful routine event"
 msgid_plural "{{count}} successful routine events"
@@ -9379,7 +9453,7 @@ msgctxt "workspace:sourceCentricWorkspace.eligibleChangesWereAutomaticallySelect
 msgid "{{value1}} eligible changes were automatically selected. Blocked items remain excluded."
 msgstr "{{value1}} تغییر واجد شرایط به‌طور خودکار انتخاب شد. موارد مسدود همچنان کنار گذاشته می‌شوند."
 
-#: frontend/src/pages/Activity.tsx:195
+#: frontend/src/pages/Activity.tsx:324
 msgctxt "activity:activity.events"
 msgid "{{value1}} events"
 msgstr "{{value1}} رویداد"

@@ -1505,6 +1505,72 @@ button.fh-inline-status {
   gap: 8px;
 }
 
+.fh-activity-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.fh-activity-search {
+  position: relative;
+  display: flex;
+  min-width: 220px;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+.fh-activity-search-icon {
+  position: absolute;
+  inset-inline-start: 12px;
+  color: var(--fh-text-muted);
+  pointer-events: none;
+}
+
+.fh-activity-search-input {
+  width: 100%;
+  min-height: 40px;
+  padding-inline-start: 36px;
+  padding-inline-end: 12px;
+  color: var(--fh-text-primary);
+  background: var(--fh-ui-control);
+  border: 1px solid var(--fh-ui-border-strong);
+  border-radius: var(--fh-radius-lg);
+}
+
+.fh-activity-search-input::placeholder {
+  color: var(--fh-text-placeholder);
+}
+
+.fh-activity-search-input:focus {
+  outline: none;
+  border-color: var(--fh-brand-500);
+  box-shadow: var(--fh-focus-ring);
+}
+
+.fh-activity-filters {
+  position: relative;
+}
+
+.fh-activity-filters-panel {
+  display: grid;
+  gap: 12px;
+  width: min(90vw, 420px);
+  padding: 16px;
+  margin-top: 8px;
+  background: var(--fh-ui-elevated);
+  border: 1px solid var(--fh-ui-border);
+  border-radius: var(--fh-radius-xl);
+  box-shadow: var(--fh-shadow-lg);
+}
+
+@media (min-width: 640px) {
+  .fh-activity-filters-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* =========================================================
    Design tokens
    ========================================================= */
