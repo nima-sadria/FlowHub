@@ -69,7 +69,7 @@ msgctxt "sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated"
 msgid "A new protected version of your column setup was saved."
 msgstr "یک نسخه محافظت‌شده جدید از تنظیم ستون‌ها ذخیره شد."
 
-#: frontend/src/components/UserManagement.tsx:152
+#: frontend/src/components/UserManagement.tsx:155
 msgctxt "settings:users.passwordConfigured"
 msgid "A password will be stored securely."
 msgstr "رمز عبور به‌صورت امن ذخیره می‌شود."
@@ -168,10 +168,15 @@ msgctxt "sources:sourceConfiguration.section.accessScope"
 msgid "Access scope"
 msgstr "دامنه دسترسی"
 
-#: frontend/src/components/UserManagement.tsx:226
+#: frontend/src/components/UserManagement.tsx:239
 msgctxt "settings:users.deleteHistoryWarning"
 msgid "Accounts with protected business history cannot be deleted. Disable them instead."
 msgstr "حساب‌های دارای سابقه کسب‌وکار محافظت‌شده قابل حذف نیستند؛ آن‌ها را غیرفعال کنید."
+
+#: frontend/src/pages/UserManagement.tsx:12
+msgctxt "settings:users.description"
+msgid "Accounts, roles, and permissions."
+msgstr "حساب‌ها، نقش‌ها و دسترسی‌ها."
 
 msgctxt "dashboard:dashboard.totalProductsAcrossChannels"
 msgid "Across connected Channels"
@@ -187,7 +192,6 @@ msgctxt "products:column.actions"
 msgid "Actions"
 msgstr "عملیات"
 
-#: frontend/src/components/UserManagement.tsx:176
 msgctxt "settings:users.actions"
 msgid "Actions"
 msgstr "عملیات"
@@ -208,6 +212,11 @@ msgid "Active"
 msgstr "فعال"
 
 msgctxt "settings:setup.active"
+msgid "Active"
+msgstr "فعال"
+
+#: frontend/src/components/UserManagement.tsx:187
+msgctxt "settings:users.enabled"
 msgid "Active"
 msgstr "فعال"
 
@@ -947,7 +956,7 @@ msgctxt "common:action.cancel"
 msgid "Cancel"
 msgstr "انصراف"
 
-#: frontend/src/components/UserManagement.tsx:134 frontend/src/components/UserManagement.tsx:218 frontend/src/components/UserManagement.tsx:227
+#: frontend/src/components/UserManagement.tsx:137 frontend/src/components/UserManagement.tsx:223 frontend/src/components/UserManagement.tsx:231 frontend/src/components/UserManagement.tsx:240
 msgctxt "settings:users.cancel"
 msgid "Cancel"
 msgstr "انصراف"
@@ -1029,12 +1038,12 @@ msgctxt "commerce:capability.categoryRead"
 msgid "Category read"
 msgstr "خواندن دسته‌بندی‌ها"
 
-#: frontend/src/components/UserManagement.tsx:201
+#: frontend/src/components/UserManagement.tsx:218
 msgctxt "settings:users.changePassword"
 msgid "Change password"
 msgstr "تغییر رمز عبور"
 
-#: frontend/src/components/UserManagement.tsx:216
+#: frontend/src/components/UserManagement.tsx:229
 msgctxt "settings:users.changePasswordFor"
 msgid "Change password for {{username}}"
 msgstr "تغییر رمز عبور {{username}}"
@@ -1969,7 +1978,7 @@ msgctxt "sources:sourceConfiguration.copyMappingFrom"
 msgid "Copy columns from another Channel"
 msgstr "کپی ستون‌ها از کانال دیگر"
 
-#: frontend/src/components/UserManagement.tsx:155 frontend/src/components/UserManagement.tsx:217
+#: frontend/src/components/UserManagement.tsx:158 frontend/src/components/UserManagement.tsx:230
 msgctxt "settings:users.copyPassword"
 msgid "Copy entered password"
 msgstr "کپی رمز واردشده"
@@ -2044,11 +2053,6 @@ msgctxt "products:products.createWorkspace"
 msgid "Create Workspace"
 msgstr "ایجاد فضای کاری"
 
-#: frontend/src/components/UserManagement.tsx:130 frontend/src/pages/UserManagement.tsx:12
-msgctxt "settings:users.description"
-msgid "Create accounts, assign operational roles, and control access."
-msgstr "ایجاد حساب، تعیین نقش عملیاتی و کنترل دسترسی کاربران."
-
 msgctxt "settings:setup.createOrConfirmTheInitialOwnerAccount"
 msgid "Create or confirm the initial owner account."
 msgstr "حساب مالک اولیه را ایجاد یا تأیید کنید."
@@ -2067,7 +2071,7 @@ msgctxt "settings:setup.createInitialOwner"
 msgid "Create the initial FlowHub owner account."
 msgstr "حساب مالک اولیه FlowHub را ایجاد کنید."
 
-#: frontend/src/components/UserManagement.tsx:134 frontend/src/components/UserManagement.tsx:164
+#: frontend/src/components/UserManagement.tsx:137 frontend/src/components/UserManagement.tsx:167
 msgctxt "settings:users.create"
 msgid "Create user"
 msgstr "ایجاد کاربر"
@@ -2076,6 +2080,11 @@ msgstr "ایجاد کاربر"
 msgctxt "orders:orders.created"
 msgid "Created"
 msgstr "ایجادشده"
+
+#: frontend/src/components/UserManagement.tsx:181
+msgctxt "settings:users.createdOn"
+msgid "Created {{date}}"
+msgstr "ایجادشده در {{date}}"
 
 msgctxt "products:products.creating"
 msgid "Creating..."
@@ -2316,7 +2325,7 @@ msgctxt "diagnostics:diagnostics.delayMilliseconds"
 msgid "Delay {{value}} ms"
 msgstr "تأخیر {{value}} میلی‌ثانیه"
 
-#: frontend/src/components/UserManagement.tsx:203 frontend/src/components/UserManagement.tsx:227
+#: frontend/src/components/UserManagement.tsx:220 frontend/src/components/UserManagement.tsx:240
 msgctxt "settings:users.delete"
 msgid "Delete"
 msgstr "حذف"
@@ -2338,12 +2347,12 @@ msgctxt "sources:sourceCenter.deleteUnusedSource"
 msgid "Delete unused Source"
 msgstr "حذف منبع بدون استفاده"
 
-#: frontend/src/components/UserManagement.tsx:224
+#: frontend/src/components/UserManagement.tsx:237
 msgctxt "settings:users.deleteTitle"
 msgid "Delete user"
 msgstr "حذف کاربر"
 
-#: frontend/src/components/UserManagement.tsx:225
+#: frontend/src/components/UserManagement.tsx:238
 msgctxt "settings:users.deleteConfirmation"
 msgid "Delete {{username}}?"
 msgstr "کاربر {{username}} حذف شود؟"
@@ -2428,7 +2437,7 @@ msgctxt "diagnostics:diagnostics.diagnosticsUpdated"
 msgid "Diagnostics updated"
 msgstr "اطلاعات عیب‌یابی به‌روزرسانی شد"
 
-#: frontend/src/components/UserManagement.tsx:200
+#: frontend/src/components/UserManagement.tsx:217
 msgctxt "settings:users.disable"
 msgid "Disable"
 msgstr "غیرفعال‌کردن"
@@ -2456,7 +2465,7 @@ msgctxt "diagnostics:state.disabled"
 msgid "Disabled"
 msgstr "غیرفعال"
 
-#: frontend/src/components/UserManagement.tsx:197
+#: frontend/src/components/UserManagement.tsx:187
 msgctxt "settings:users.disabled"
 msgid "Disabled"
 msgstr "غیرفعال"
@@ -2547,6 +2556,11 @@ msgctxt "settings:settings.currencyOption.EUR"
 msgid "EUR — Euro"
 msgstr "EUR — یورو"
 
+#: frontend/src/components/UserManagement.tsx:189
+msgctxt "settings:users.edit"
+msgid "Edit"
+msgstr "ویرایش"
+
 #: frontend/src/pages/UnifiedWorkspace.tsx:244
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "workspace:unifiedWorkspace.editTargetCellsInlineCurrentValuesIdentities"
@@ -2566,6 +2580,11 @@ msgstr "ویرایش قیمت‌ها"
 msgctxt "products:products.fieldEditLabel"
 msgid "Edit {{field}} for {{product}} on {{channel}}"
 msgstr "ویرایش {{field}} برای {{product}} در {{channel}}"
+
+#: frontend/src/components/UserManagement.tsx:199
+msgctxt "settings:users.editUserFor"
+msgid "Edit {{username}}"
+msgstr "ویرایش {{username}}"
 
 msgctxt "products:products.editableValueUnit"
 msgid "Editable value unit: {{unit}}"
@@ -2598,7 +2617,7 @@ msgctxt "settings:setup.email"
 msgid "Email"
 msgstr "ایمیل"
 
-#: frontend/src/components/UserManagement.tsx:200
+#: frontend/src/components/UserManagement.tsx:217
 msgctxt "settings:users.enable"
 msgid "Enable"
 msgstr "فعال‌کردن"
@@ -2621,11 +2640,6 @@ msgstr "برای پایش کانال، آن را فعال کنید."
 
 #: frontend/src/pages/CommerceHub.tsx:824
 msgctxt "commerce:commerceHub.enabled"
-msgid "Enabled"
-msgstr "فعال"
-
-#: frontend/src/components/UserManagement.tsx:197
-msgctxt "settings:users.enabled"
 msgid "Enabled"
 msgstr "فعال"
 
@@ -3192,7 +3206,7 @@ msgctxt "commerce:commerceHub.hideEnteredSecret"
 msgid "Hide entered secret"
 msgstr "پنهان‌کردن مقدار واردشده"
 
-#: frontend/src/components/UserManagement.tsx:154 frontend/src/components/UserManagement.tsx:217 frontend/src/pages/Login.tsx:180
+#: frontend/src/components/UserManagement.tsx:157 frontend/src/components/UserManagement.tsx:230 frontend/src/pages/Login.tsx:180
 msgctxt "settings:users.hidePassword"
 msgid "Hide password"
 msgstr "پنهان‌کردن رمز عبور"
@@ -3791,7 +3805,7 @@ msgctxt "dashboard:dashboard.loadingCatalogSummary"
 msgid "Loading the managed product catalog."
 msgstr "در حال بارگذاری فهرست محصولات مدیریت‌شده."
 
-#: frontend/src/components/UserManagement.tsx:169
+#: frontend/src/components/UserManagement.tsx:172
 msgctxt "settings:users.loading"
 msgid "Loading users..."
 msgstr "در حال بارگذاری کاربران..."
@@ -4061,7 +4075,7 @@ msgctxt "workspace:workspace.newPreview"
 msgid "New Preview"
 msgstr "پیش‌نمایش جدید"
 
-#: frontend/src/components/UserManagement.tsx:217
+#: frontend/src/components/UserManagement.tsx:230
 msgctxt "settings:users.newPassword"
 msgid "New password"
 msgstr "رمز عبور جدید"
@@ -4965,7 +4979,7 @@ msgctxt "settings:setup.password"
 msgid "Password"
 msgstr "رمز عبور"
 
-#: frontend/src/components/UserManagement.tsx:148
+#: frontend/src/components/UserManagement.tsx:151
 msgctxt "settings:users.password"
 msgid "Password"
 msgstr "رمز عبور"
@@ -6242,12 +6256,12 @@ msgctxt "flowhubSheet:flowHubSheet.revisionIsImmutableAndReadyForSnapshot"
 msgid "Revision {{value1}} is immutable and ready for Snapshot creation."
 msgstr "بازبینی {{value1}} تغییرناپذیر و آماده ایجاد اسنپ‌شات است."
 
-#: frontend/src/components/UserManagement.tsx:158 frontend/src/components/UserManagement.tsx:174
+#: frontend/src/components/UserManagement.tsx:161 frontend/src/components/UserManagement.tsx:202
 msgctxt "settings:users.role"
 msgid "Role"
 msgstr "نقش"
 
-#: frontend/src/components/UserManagement.tsx:186
+#: frontend/src/components/UserManagement.tsx:204
 msgctxt "settings:users.roleFor"
 msgid "Role for {{username}}"
 msgstr "نقش {{username}}"
@@ -6381,7 +6395,7 @@ msgctxt "settings:rateLimits.saveLimits"
 msgid "Save limits"
 msgstr "ذخیره محدودیت‌ها"
 
-#: frontend/src/components/UserManagement.tsx:218
+#: frontend/src/components/UserManagement.tsx:231
 msgctxt "settings:users.savePassword"
 msgid "Save password"
 msgstr "ذخیره رمز عبور"
@@ -6852,7 +6866,7 @@ msgctxt "sources:sourceConfiguration.showOnlyProblems"
 msgid "Show only problems"
 msgstr "فقط مشکلات را نشان بده"
 
-#: frontend/src/components/UserManagement.tsx:153 frontend/src/components/UserManagement.tsx:217 frontend/src/pages/Login.tsx:181
+#: frontend/src/components/UserManagement.tsx:156 frontend/src/components/UserManagement.tsx:230 frontend/src/pages/Login.tsx:181
 msgctxt "settings:users.showPassword"
 msgid "Show password"
 msgstr "نمایش رمز عبور"
@@ -7329,7 +7343,6 @@ msgctxt "settings:settings.status"
 msgid "Status"
 msgstr "وضعیت"
 
-#: frontend/src/components/UserManagement.tsx:175
 msgctxt "settings:users.status"
 msgid "Status"
 msgstr "وضعیت"
@@ -8176,7 +8189,7 @@ msgctxt "products:products.unableToCreateManualWorkspace"
 msgid "Unable to create Manual Workspace."
 msgstr "ایجاد فضای کاری دستی ممکن نیست."
 
-#: frontend/src/components/UserManagement.tsx:112 frontend/src/components/UserManagement.tsx:117
+#: frontend/src/components/UserManagement.tsx:113 frontend/src/components/UserManagement.tsx:119
 msgctxt "settings:users.deleteFailed"
 msgid "Unable to delete user."
 msgstr "حذف کاربر ممکن نیست."
@@ -8206,7 +8219,7 @@ msgctxt "settings:rateLimits.unableToLoadSettings"
 msgid "Unable to load settings"
 msgstr "بارگذاری تنظیمات ممکن نیست"
 
-#: frontend/src/components/UserManagement.tsx:53
+#: frontend/src/components/UserManagement.tsx:54
 msgctxt "settings:users.loadFailed"
 msgid "Unable to load users."
 msgstr "بارگذاری کاربران ممکن نیست."
@@ -8239,7 +8252,7 @@ msgctxt "commerce:commerceHub.unableToSaveSourceSettings"
 msgid "Unable to save source settings"
 msgstr "ذخیره تنظیمات منبع ممکن نشد"
 
-#: frontend/src/components/UserManagement.tsx:79 frontend/src/components/UserManagement.tsx:98
+#: frontend/src/components/UserManagement.tsx:80 frontend/src/components/UserManagement.tsx:99
 msgctxt "settings:users.saveFailed"
 msgid "Unable to save user."
 msgstr "ذخیره کاربر ممکن نیست."
@@ -8465,7 +8478,7 @@ msgctxt "common:role.user"
 msgid "User"
 msgstr "کاربر"
 
-#: frontend/src/components/UserManagement.tsx:129 frontend/src/pages/UserManagement.tsx:11
+#: frontend/src/pages/UserManagement.tsx:11
 msgctxt "settings:users.title"
 msgid "User Management"
 msgstr "مدیریت کاربران"
@@ -8529,7 +8542,7 @@ msgctxt "settings:setup.username"
 msgid "Username"
 msgstr "نام کاربری"
 
-#: frontend/src/components/UserManagement.tsx:144 frontend/src/components/UserManagement.tsx:173
+#: frontend/src/components/UserManagement.tsx:147
 msgctxt "settings:users.username"
 msgid "Username"
 msgstr "نام کاربری"
@@ -8541,6 +8554,11 @@ msgstr "کاربران"
 msgctxt "navigation:sidebar.users"
 msgid "Users"
 msgstr "کاربران"
+
+#: frontend/src/components/UserManagement.tsx:134
+msgctxt "settings:users.usersAndRoles"
+msgid "Users and roles"
+msgstr "کاربران و نقش‌ها"
 
 msgctxt "common:status.valid"
 msgid "Valid"
@@ -8657,7 +8675,7 @@ msgctxt "dashboard:dashboard.viewProducts"
 msgid "View Products"
 msgstr "مشاهده محصولات"
 
-#: frontend/src/components/UserManagement.tsx:202
+#: frontend/src/components/UserManagement.tsx:219
 msgctxt "settings:users.viewActivity"
 msgid "View activity"
 msgstr "مشاهده فعالیت"
@@ -9051,7 +9069,7 @@ msgctxt "commerce:commerceHub.yes"
 msgid "Yes"
 msgstr "بله"
 
-#: frontend/src/components/UserManagement.tsx:183
+#: frontend/src/components/UserManagement.tsx:179
 msgctxt "settings:users.you"
 msgid "You"
 msgstr "شما"

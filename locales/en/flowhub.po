@@ -69,7 +69,7 @@ msgctxt "sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated"
 msgid "A new protected version of your column setup was saved."
 msgstr "A new protected version of your column setup was saved."
 
-#: frontend/src/components/UserManagement.tsx:152
+#: frontend/src/components/UserManagement.tsx:155
 msgctxt "settings:users.passwordConfigured"
 msgid "A password will be stored securely."
 msgstr "A password will be stored securely."
@@ -168,10 +168,15 @@ msgctxt "sources:sourceConfiguration.section.accessScope"
 msgid "Access scope"
 msgstr "Access scope"
 
-#: frontend/src/components/UserManagement.tsx:226
+#: frontend/src/components/UserManagement.tsx:239
 msgctxt "settings:users.deleteHistoryWarning"
 msgid "Accounts with protected business history cannot be deleted. Disable them instead."
 msgstr "Accounts with protected business history cannot be deleted. Disable them instead."
+
+#: frontend/src/pages/UserManagement.tsx:12
+msgctxt "settings:users.description"
+msgid "Accounts, roles, and permissions."
+msgstr "Accounts, roles, and permissions."
 
 msgctxt "dashboard:dashboard.totalProductsAcrossChannels"
 msgid "Across connected Channels"
@@ -187,7 +192,6 @@ msgctxt "products:column.actions"
 msgid "Actions"
 msgstr "Actions"
 
-#: frontend/src/components/UserManagement.tsx:176
 msgctxt "settings:users.actions"
 msgid "Actions"
 msgstr "Actions"
@@ -208,6 +212,11 @@ msgid "Active"
 msgstr "Active"
 
 msgctxt "settings:setup.active"
+msgid "Active"
+msgstr "Active"
+
+#: frontend/src/components/UserManagement.tsx:187
+msgctxt "settings:users.enabled"
 msgid "Active"
 msgstr "Active"
 
@@ -947,7 +956,7 @@ msgctxt "common:action.cancel"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: frontend/src/components/UserManagement.tsx:134 frontend/src/components/UserManagement.tsx:218 frontend/src/components/UserManagement.tsx:227
+#: frontend/src/components/UserManagement.tsx:137 frontend/src/components/UserManagement.tsx:223 frontend/src/components/UserManagement.tsx:231 frontend/src/components/UserManagement.tsx:240
 msgctxt "settings:users.cancel"
 msgid "Cancel"
 msgstr "Cancel"
@@ -1029,12 +1038,12 @@ msgctxt "commerce:capability.categoryRead"
 msgid "Category read"
 msgstr "Category read"
 
-#: frontend/src/components/UserManagement.tsx:201
+#: frontend/src/components/UserManagement.tsx:218
 msgctxt "settings:users.changePassword"
 msgid "Change password"
 msgstr "Change password"
 
-#: frontend/src/components/UserManagement.tsx:216
+#: frontend/src/components/UserManagement.tsx:229
 msgctxt "settings:users.changePasswordFor"
 msgid "Change password for {{username}}"
 msgstr "Change password for {{username}}"
@@ -1969,7 +1978,7 @@ msgctxt "sources:sourceConfiguration.copyMappingFrom"
 msgid "Copy columns from another Channel"
 msgstr "Copy columns from another Channel"
 
-#: frontend/src/components/UserManagement.tsx:155 frontend/src/components/UserManagement.tsx:217
+#: frontend/src/components/UserManagement.tsx:158 frontend/src/components/UserManagement.tsx:230
 msgctxt "settings:users.copyPassword"
 msgid "Copy entered password"
 msgstr "Copy entered password"
@@ -2044,11 +2053,6 @@ msgctxt "products:products.createWorkspace"
 msgid "Create Workspace"
 msgstr "Create Workspace"
 
-#: frontend/src/components/UserManagement.tsx:130 frontend/src/pages/UserManagement.tsx:12
-msgctxt "settings:users.description"
-msgid "Create accounts, assign operational roles, and control access."
-msgstr "Create accounts, assign operational roles, and control access."
-
 msgctxt "settings:setup.createOrConfirmTheInitialOwnerAccount"
 msgid "Create or confirm the initial owner account."
 msgstr "Create or confirm the initial owner account."
@@ -2067,7 +2071,7 @@ msgctxt "settings:setup.createInitialOwner"
 msgid "Create the initial FlowHub owner account."
 msgstr "Create the initial FlowHub owner account."
 
-#: frontend/src/components/UserManagement.tsx:134 frontend/src/components/UserManagement.tsx:164
+#: frontend/src/components/UserManagement.tsx:137 frontend/src/components/UserManagement.tsx:167
 msgctxt "settings:users.create"
 msgid "Create user"
 msgstr "Create user"
@@ -2076,6 +2080,11 @@ msgstr "Create user"
 msgctxt "orders:orders.created"
 msgid "Created"
 msgstr "Created"
+
+#: frontend/src/components/UserManagement.tsx:181
+msgctxt "settings:users.createdOn"
+msgid "Created {{date}}"
+msgstr "Created {{date}}"
 
 msgctxt "products:products.creating"
 msgid "Creating..."
@@ -2316,7 +2325,7 @@ msgctxt "diagnostics:diagnostics.delayMilliseconds"
 msgid "Delay {{value}} ms"
 msgstr "Delay {{value}} ms"
 
-#: frontend/src/components/UserManagement.tsx:203 frontend/src/components/UserManagement.tsx:227
+#: frontend/src/components/UserManagement.tsx:220 frontend/src/components/UserManagement.tsx:240
 msgctxt "settings:users.delete"
 msgid "Delete"
 msgstr "Delete"
@@ -2338,12 +2347,12 @@ msgctxt "sources:sourceCenter.deleteUnusedSource"
 msgid "Delete unused Source"
 msgstr "Delete unused Source"
 
-#: frontend/src/components/UserManagement.tsx:224
+#: frontend/src/components/UserManagement.tsx:237
 msgctxt "settings:users.deleteTitle"
 msgid "Delete user"
 msgstr "Delete user"
 
-#: frontend/src/components/UserManagement.tsx:225
+#: frontend/src/components/UserManagement.tsx:238
 msgctxt "settings:users.deleteConfirmation"
 msgid "Delete {{username}}?"
 msgstr "Delete {{username}}?"
@@ -2428,7 +2437,7 @@ msgctxt "diagnostics:diagnostics.diagnosticsUpdated"
 msgid "Diagnostics updated"
 msgstr "Diagnostics updated"
 
-#: frontend/src/components/UserManagement.tsx:200
+#: frontend/src/components/UserManagement.tsx:217
 msgctxt "settings:users.disable"
 msgid "Disable"
 msgstr "Disable"
@@ -2456,7 +2465,7 @@ msgctxt "diagnostics:state.disabled"
 msgid "Disabled"
 msgstr "Disabled"
 
-#: frontend/src/components/UserManagement.tsx:197
+#: frontend/src/components/UserManagement.tsx:187
 msgctxt "settings:users.disabled"
 msgid "Disabled"
 msgstr "Disabled"
@@ -2547,6 +2556,11 @@ msgctxt "settings:settings.currencyOption.EUR"
 msgid "EUR — Euro"
 msgstr "EUR — Euro"
 
+#: frontend/src/components/UserManagement.tsx:189
+msgctxt "settings:users.edit"
+msgid "Edit"
+msgstr "Edit"
+
 #: frontend/src/pages/UnifiedWorkspace.tsx:244
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "workspace:unifiedWorkspace.editTargetCellsInlineCurrentValuesIdentities"
@@ -2566,6 +2580,11 @@ msgstr "Edit prices"
 msgctxt "products:products.fieldEditLabel"
 msgid "Edit {{field}} for {{product}} on {{channel}}"
 msgstr "Edit {{field}} for {{product}} on {{channel}}"
+
+#: frontend/src/components/UserManagement.tsx:199
+msgctxt "settings:users.editUserFor"
+msgid "Edit {{username}}"
+msgstr "Edit {{username}}"
 
 msgctxt "products:products.editableValueUnit"
 msgid "Editable value unit: {{unit}}"
@@ -2598,7 +2617,7 @@ msgctxt "settings:setup.email"
 msgid "Email"
 msgstr "Email"
 
-#: frontend/src/components/UserManagement.tsx:200
+#: frontend/src/components/UserManagement.tsx:217
 msgctxt "settings:users.enable"
 msgid "Enable"
 msgstr "Enable"
@@ -2621,11 +2640,6 @@ msgstr "Enable the channel when it should be monitored."
 
 #: frontend/src/pages/CommerceHub.tsx:824
 msgctxt "commerce:commerceHub.enabled"
-msgid "Enabled"
-msgstr "Enabled"
-
-#: frontend/src/components/UserManagement.tsx:197
-msgctxt "settings:users.enabled"
 msgid "Enabled"
 msgstr "Enabled"
 
@@ -3192,7 +3206,7 @@ msgctxt "commerce:commerceHub.hideEnteredSecret"
 msgid "Hide entered secret"
 msgstr "Hide entered secret"
 
-#: frontend/src/components/UserManagement.tsx:154 frontend/src/components/UserManagement.tsx:217 frontend/src/pages/Login.tsx:180
+#: frontend/src/components/UserManagement.tsx:157 frontend/src/components/UserManagement.tsx:230 frontend/src/pages/Login.tsx:180
 msgctxt "settings:users.hidePassword"
 msgid "Hide password"
 msgstr "Hide password"
@@ -3791,7 +3805,7 @@ msgctxt "dashboard:dashboard.loadingCatalogSummary"
 msgid "Loading the managed product catalog."
 msgstr "Loading the managed product catalog."
 
-#: frontend/src/components/UserManagement.tsx:169
+#: frontend/src/components/UserManagement.tsx:172
 msgctxt "settings:users.loading"
 msgid "Loading users..."
 msgstr "Loading users..."
@@ -4061,7 +4075,7 @@ msgctxt "workspace:workspace.newPreview"
 msgid "New Preview"
 msgstr "New Preview"
 
-#: frontend/src/components/UserManagement.tsx:217
+#: frontend/src/components/UserManagement.tsx:230
 msgctxt "settings:users.newPassword"
 msgid "New password"
 msgstr "New password"
@@ -4965,7 +4979,7 @@ msgctxt "settings:setup.password"
 msgid "Password"
 msgstr "Password"
 
-#: frontend/src/components/UserManagement.tsx:148
+#: frontend/src/components/UserManagement.tsx:151
 msgctxt "settings:users.password"
 msgid "Password"
 msgstr "Password"
@@ -6242,12 +6256,12 @@ msgctxt "flowhubSheet:flowHubSheet.revisionIsImmutableAndReadyForSnapshot"
 msgid "Revision {{value1}} is immutable and ready for Snapshot creation."
 msgstr "Revision {{value1}} is immutable and ready for Snapshot creation."
 
-#: frontend/src/components/UserManagement.tsx:158 frontend/src/components/UserManagement.tsx:174
+#: frontend/src/components/UserManagement.tsx:161 frontend/src/components/UserManagement.tsx:202
 msgctxt "settings:users.role"
 msgid "Role"
 msgstr "Role"
 
-#: frontend/src/components/UserManagement.tsx:186
+#: frontend/src/components/UserManagement.tsx:204
 msgctxt "settings:users.roleFor"
 msgid "Role for {{username}}"
 msgstr "Role for {{username}}"
@@ -6381,7 +6395,7 @@ msgctxt "settings:rateLimits.saveLimits"
 msgid "Save limits"
 msgstr "Save limits"
 
-#: frontend/src/components/UserManagement.tsx:218
+#: frontend/src/components/UserManagement.tsx:231
 msgctxt "settings:users.savePassword"
 msgid "Save password"
 msgstr "Save password"
@@ -6852,7 +6866,7 @@ msgctxt "sources:sourceConfiguration.showOnlyProblems"
 msgid "Show only problems"
 msgstr "Show only problems"
 
-#: frontend/src/components/UserManagement.tsx:153 frontend/src/components/UserManagement.tsx:217 frontend/src/pages/Login.tsx:181
+#: frontend/src/components/UserManagement.tsx:156 frontend/src/components/UserManagement.tsx:230 frontend/src/pages/Login.tsx:181
 msgctxt "settings:users.showPassword"
 msgid "Show password"
 msgstr "Show password"
@@ -7329,7 +7343,6 @@ msgctxt "settings:settings.status"
 msgid "Status"
 msgstr "Status"
 
-#: frontend/src/components/UserManagement.tsx:175
 msgctxt "settings:users.status"
 msgid "Status"
 msgstr "Status"
@@ -8176,7 +8189,7 @@ msgctxt "products:products.unableToCreateManualWorkspace"
 msgid "Unable to create Manual Workspace."
 msgstr "Unable to create Manual Workspace."
 
-#: frontend/src/components/UserManagement.tsx:112 frontend/src/components/UserManagement.tsx:117
+#: frontend/src/components/UserManagement.tsx:113 frontend/src/components/UserManagement.tsx:119
 msgctxt "settings:users.deleteFailed"
 msgid "Unable to delete user."
 msgstr "Unable to delete user."
@@ -8206,7 +8219,7 @@ msgctxt "settings:rateLimits.unableToLoadSettings"
 msgid "Unable to load settings"
 msgstr "Unable to load settings"
 
-#: frontend/src/components/UserManagement.tsx:53
+#: frontend/src/components/UserManagement.tsx:54
 msgctxt "settings:users.loadFailed"
 msgid "Unable to load users."
 msgstr "Unable to load users."
@@ -8239,7 +8252,7 @@ msgctxt "commerce:commerceHub.unableToSaveSourceSettings"
 msgid "Unable to save source settings"
 msgstr "Unable to save source settings"
 
-#: frontend/src/components/UserManagement.tsx:79 frontend/src/components/UserManagement.tsx:98
+#: frontend/src/components/UserManagement.tsx:80 frontend/src/components/UserManagement.tsx:99
 msgctxt "settings:users.saveFailed"
 msgid "Unable to save user."
 msgstr "Unable to save user."
@@ -8465,7 +8478,7 @@ msgctxt "common:role.user"
 msgid "User"
 msgstr "User"
 
-#: frontend/src/components/UserManagement.tsx:129 frontend/src/pages/UserManagement.tsx:11
+#: frontend/src/pages/UserManagement.tsx:11
 msgctxt "settings:users.title"
 msgid "User Management"
 msgstr "User Management"
@@ -8529,7 +8542,7 @@ msgctxt "settings:setup.username"
 msgid "Username"
 msgstr "Username"
 
-#: frontend/src/components/UserManagement.tsx:144 frontend/src/components/UserManagement.tsx:173
+#: frontend/src/components/UserManagement.tsx:147
 msgctxt "settings:users.username"
 msgid "Username"
 msgstr "Username"
@@ -8541,6 +8554,11 @@ msgstr "Users"
 msgctxt "navigation:sidebar.users"
 msgid "Users"
 msgstr "Users"
+
+#: frontend/src/components/UserManagement.tsx:134
+msgctxt "settings:users.usersAndRoles"
+msgid "Users and roles"
+msgstr "Users and roles"
 
 msgctxt "common:status.valid"
 msgid "Valid"
@@ -8657,7 +8675,7 @@ msgctxt "dashboard:dashboard.viewProducts"
 msgid "View Products"
 msgstr "View Products"
 
-#: frontend/src/components/UserManagement.tsx:202
+#: frontend/src/components/UserManagement.tsx:219
 msgctxt "settings:users.viewActivity"
 msgid "View activity"
 msgstr "View activity"
@@ -9051,7 +9069,7 @@ msgctxt "commerce:commerceHub.yes"
 msgid "Yes"
 msgstr "Yes"
 
-#: frontend/src/components/UserManagement.tsx:183
+#: frontend/src/components/UserManagement.tsx:179
 msgctxt "settings:users.you"
 msgid "You"
 msgstr "You"

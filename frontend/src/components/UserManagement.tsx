@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth'
 import { apiErrorMessage, apiFetch } from '../api/client'
 import { translate } from '../i18n'
-import Badge from './Badge'
+import { formatDate } from '../i18n/format'
 import Icon from './Icon'
 import SecretField from './SecretField'
 
@@ -38,6 +38,7 @@ export default function UserManagement() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<UserRole>('viewer')
+  const [editTargetId, setEditTargetId] = useState<number | null>(null)
   const [passwordTarget, setPasswordTarget] = useState<ManagedUser | null>(null)
   const [replacementPassword, setReplacementPassword] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<ManagedUser | null>(null)
@@ -112,6 +113,7 @@ export default function UserManagement() {
         throw new Error(body?.detail || translate('settings:users.deleteFailed'))
       }
       setDeleteTarget(null)
+      setEditTargetId(null)
       await loadUsers()
     } catch (requestError) {
       setError(apiErrorMessage(requestError, translate('settings:users.deleteFailed')))
@@ -122,15 +124,15 @@ export default function UserManagement() {
 
   if (!currentUser?.is_admin && !currentUser?.is_super_admin) return null
 
+  const editTarget = editTargetId !== null ? users.find(candidate => candidate.id === editTargetId) ?? null : null
+  const editingSelf = editTarget?.username === currentUser.username
+  const editingProtected = Boolean(editTarget?.is_super_admin && !currentUser.is_super_admin)
+
   return (
     <section className="fh-card overflow-hidden" aria-labelledby="user-management-title">
       <div className="fh-panel-header">
-        <div>
-          <h2 className="fh-section-title" id="user-management-title">{translate('settings:users.title')}</h2>
-          <p className="fh-section-subtitle mt-1">{translate('settings:users.description')}</p>
-        </div>
+        <h2 className="fh-section-title" id="user-management-title">{translate('settings:users.usersAndRoles')}</h2>
         <button type="button" className="fh-button-primary" onClick={() => setShowCreate(current => !current)}>
-          <Icon name={showCreate ? 'close' : 'add'} />
           {showCreate ? translate('settings:users.cancel') : translate('settings:users.create')}
         </button>
       </div>
@@ -167,49 +169,59 @@ export default function UserManagement() {
         )}
 
         {loading ? <p className="fh-text-body-sm">{translate('settings:users.loading')}</p> : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-start">
-              <thead><tr className="border-b border-border text-start">
-                <th className="p-3 text-start">{translate('settings:users.username')}</th>
-                <th className="p-3 text-start">{translate('settings:users.role')}</th>
-                <th className="p-3 text-start">{translate('settings:users.status')}</th>
-                <th className="p-3 text-start">{translate('settings:users.actions')}</th>
-              </tr></thead>
-              <tbody>
-                {users.map(managedUser => {
-                  const isSelf = managedUser.username === currentUser.username
-                  const protectedTarget = managedUser.is_super_admin && !currentUser.is_super_admin
-                  return <tr className="border-b border-border last:border-0" key={managedUser.id}>
-                    <td className="p-3 font-medium">{managedUser.username}{isSelf && <span className="fh-text-caption ms-2">{translate('settings:users.you')}</span>}</td>
-                    <td className="p-3">
-                      <select
-                        aria-label={translate('settings:users.roleFor', { username: managedUser.username })}
-                        className="fh-select !py-1"
-                        value={managedUser.role}
-                        disabled={busyId === managedUser.id || isSelf || protectedTarget}
-                        onChange={event => void updateUser(managedUser, { role: event.target.value as UserRole })}
-                      >
-                        {((managedUser.role === 'super_admin' ? ['super_admin', ...EDITABLE_ROLES] : EDITABLE_ROLES) as UserRole[])
-                          .filter(candidate => currentUser.is_super_admin || !['owner', 'super_admin'].includes(candidate))
-                          .map(candidate => <option value={candidate} key={candidate}>{roleLabel(candidate)}</option>)}
-                      </select>
-                    </td>
-                    <td className="p-3"><Badge variant={managedUser.is_active ? 'success' : 'info'}>{managedUser.is_active ? translate('settings:users.enabled') : translate('settings:users.disabled')}</Badge></td>
-                    <td className="p-3">
-                      <div className="flex flex-wrap gap-2">
-                        <button className="fh-button-secondary !px-2 !py-1" type="button" disabled={busyId === managedUser.id || isSelf || protectedTarget} onClick={() => void updateUser(managedUser, { is_active: !managedUser.is_active })}>{managedUser.is_active ? translate('settings:users.disable') : translate('settings:users.enable')}</button>
-                        <button className="fh-button-secondary !px-2 !py-1" type="button" disabled={busyId === managedUser.id || protectedTarget} onClick={() => setPasswordTarget(managedUser)}>{translate('settings:users.changePassword')}</button>
-                        <a className="fh-button-secondary !px-2 !py-1" href={`/activity?user=${encodeURIComponent(managedUser.username)}`}>{translate('settings:users.viewActivity')}</a>
-                        <button className="fh-button-danger !px-2 !py-1" type="button" disabled={busyId === managedUser.id || isSelf || protectedTarget} onClick={() => setDeleteTarget(managedUser)}><Icon name="delete" />{translate('settings:users.delete')}</button>
-                      </div>
-                    </td>
-                  </tr>
-                })}
-              </tbody>
-            </table>
+          <div className="flex flex-col">
+            {users.map(managedUser => (
+              <div className="flex items-center justify-between gap-3 border-b border-border py-3 last:border-0" key={managedUser.id}>
+                <div>
+                  <p className="fh-text-body-sm font-medium">
+                    {managedUser.username}
+                    {managedUser.username === currentUser.username && <span className="fh-text-caption ms-2">{translate('settings:users.you')}</span>}
+                  </p>
+                  <p className="fh-text-caption">{translate('settings:users.createdOn', { date: formatDate(managedUser.created_at) })}</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="fh-text-body-sm text-secondary">{roleLabel(managedUser.role)}</span>
+                  <span className={['fh-inline-status', managedUser.is_active ? 'fh-inline-status-success' : ''].filter(Boolean).join(' ')}>
+                    <span aria-hidden="true" className={['fh-status-dot', managedUser.is_active ? 'fh-status-dot-success' : 'fh-status-dot-neutral'].join(' ')} />
+                    {managedUser.is_active ? translate('settings:users.enabled') : translate('settings:users.disabled')}
+                  </span>
+                  <button type="button" className="fh-toolbar-link" onClick={() => setEditTargetId(managedUser.id)}>{translate('settings:users.edit')}</button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
+
+      {editTarget && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="edit-user-title">
+        <div className="fh-card w-full max-w-lg p-5">
+          <h3 className="fh-section-title" id="edit-user-title">{translate('settings:users.editUserFor', { username: editTarget.username })}</h3>
+
+          <label className="fh-field mt-4">
+            <span className="fh-help-text">{translate('settings:users.role')}</span>
+            <select
+              aria-label={translate('settings:users.roleFor', { username: editTarget.username })}
+              className="fh-select"
+              value={editTarget.role}
+              disabled={busyId === editTarget.id || editingSelf || editingProtected}
+              onChange={event => void updateUser(editTarget, { role: event.target.value as UserRole })}
+            >
+              {((editTarget.role === 'super_admin' ? ['super_admin', ...EDITABLE_ROLES] : EDITABLE_ROLES) as UserRole[])
+                .filter(candidate => currentUser.is_super_admin || !['owner', 'super_admin'].includes(candidate))
+                .map(candidate => <option value={candidate} key={candidate}>{roleLabel(candidate)}</option>)}
+            </select>
+          </label>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button className="fh-button-secondary" type="button" disabled={busyId === editTarget.id || editingSelf || editingProtected} onClick={() => void updateUser(editTarget, { is_active: !editTarget.is_active })}>{editTarget.is_active ? translate('settings:users.disable') : translate('settings:users.enable')}</button>
+            <button className="fh-button-secondary" type="button" disabled={busyId === editTarget.id || editingProtected} onClick={() => setPasswordTarget(editTarget)}>{translate('settings:users.changePassword')}</button>
+            <a className="fh-button-secondary" href={`/activity?user=${encodeURIComponent(editTarget.username)}`}>{translate('settings:users.viewActivity')}</a>
+            <button className="fh-button-danger" type="button" disabled={busyId === editTarget.id || editingSelf || editingProtected} onClick={() => setDeleteTarget(editTarget)}><Icon name="delete" />{translate('settings:users.delete')}</button>
+          </div>
+
+          <div className="mt-5 flex justify-end"><button className="fh-button-secondary" type="button" onClick={() => setEditTargetId(null)}>{translate('settings:users.cancel')}</button></div>
+        </div>
+      </div>}
 
       {passwordTarget && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="password-dialog-title">
         <form className="fh-card w-full max-w-lg p-5" onSubmit={event => { event.preventDefault(); void updateUser(passwordTarget, { password: replacementPassword }) }}>
