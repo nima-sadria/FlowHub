@@ -59,26 +59,33 @@ export default function Settings() {
   const [draft, setDraft] = useState<AppSettings | null>(null)
   const [draftLanguage, setDraftLanguage] = useState<FlowHubLocale>(language.startsWith('fa') ? 'fa' : 'en')
   const [saving, setSaving] = useState(false)
-  const [dirty, setDirty] = useState(false)
+  const [loadingError, setLoadingError] = useState(false)
 
   const loadSettings = useCallback(() => {
-    settings.getSettings().then(s => {
-      setAppSettings(s)
-      setDraft(s)
-    })
+    setLoadingError(false)
+    settings.getSettings()
+      .then(s => {
+        setAppSettings(s)
+        setDraft(s)
+      })
+      .catch(() => setLoadingError(true))
   }, [settings])
 
   useEffect(() => { loadSettings() }, [loadSettings])
   useEffect(() => { setDraftLanguage(language.startsWith('fa') ? 'fa' : 'en') }, [language])
 
+  const dirty = Boolean(draft && appSettings && (
+    draft.timezone !== appSettings.timezone
+    || draft.currency !== appSettings.currency
+    || draftLanguage !== (language.startsWith('fa') ? 'fa' : 'en')
+  ))
+
   function updateDraft(patch: Partial<AppSettings>) {
     setDraft(d => d ? { ...d, ...patch } : d)
-    setDirty(true)
   }
 
   function updateDraftLanguage(next: FlowHubLocale) {
     setDraftLanguage(next)
-    setDirty(true)
   }
 
   async function handleSave() {
@@ -88,7 +95,6 @@ export default function Settings() {
       await settings.updateSettings(draft)
       setAppSettings(draft)
       if (draftLanguage !== (language.startsWith('fa') ? 'fa' : 'en')) void changeLocale(draftLanguage)
-      setDirty(false)
       success({
         title: translate('settings:rateLimits.settingsSavedSuccessfully'),
         description: translate('settings:rateLimits.yourChangesHaveBeenApplied'),
@@ -106,7 +112,6 @@ export default function Settings() {
   function handleReset() {
     setDraft(appSettings)
     setDraftLanguage(language.startsWith('fa') ? 'fa' : 'en')
-    setDirty(false)
   }
 
   return (
@@ -126,7 +131,16 @@ export default function Settings() {
             <p className="fh-section-title">{translate('settings:settings.workspacePreferences')}</p>
             <p className="fh-section-subtitle mt-1">{translate('settings:settings.regionalDefaultsUsedAcrossSellerWorkflows')}</p>
 
-            {!draft ? (
+            {loadingError ? (
+              <div className="fh-alert fh-alert-danger mt-4" role="alert">
+                <Icon name="error" />
+                <span className="flex-1">{translate('settings:rateLimits.unableToLoadSettings')}</span>
+                <button type="button" onClick={loadSettings} className="fh-toolbar-link">
+                  <Icon name="retry" />
+                  {translate('common:action.retry')}
+                </button>
+              </div>
+            ) : !draft ? (
               <div className="mt-4 flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />{translate('settings:rateLimits.loading')}</div>
             ) : (
               <>
