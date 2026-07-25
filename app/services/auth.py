@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import jwt
@@ -39,7 +39,7 @@ def create_token(
         "sub": username,
         "role": resolved_role,
         "pv": permission_version,
-        "exp": datetime.utcnow() + timedelta(hours=24),
+        "exp": datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=24),
     }
     return jwt.encode(payload, s.jwt_secret, algorithm="HS256")
 

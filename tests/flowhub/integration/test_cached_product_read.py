@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import create_engine
@@ -35,7 +35,7 @@ def _cached_product() -> DlProductCache:
         stock_qty=5,
         stock_status="instock",
         freshness="fresh",
-        last_fetched_at=datetime.utcnow(),
+        last_fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
         exists=True,
     )
 

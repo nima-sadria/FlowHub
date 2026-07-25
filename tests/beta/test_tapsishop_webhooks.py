@@ -216,7 +216,7 @@ def test_retry_dead_letter_metrics_and_admin_replay(client, db, auth_headers):
 
 
 def _seed_tapsi_channel(db, channel_id: str, webhook_token: str) -> None:
-    from datetime import datetime
+    from datetime import datetime, timezone
     from app.flowhub.integration_platform.models import IntegrationConnectorInstance, IntegrationConnectorSetting
 
     db.add(IntegrationConnectorInstance(
@@ -227,8 +227,8 @@ def _seed_tapsi_channel(db, channel_id: str, webhook_token: str) -> None:
         enabled=True,
         read_only=False,
         status="configured",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
     ))
     db.add(IntegrationConnectorSetting(
         connector_id=channel_id,
@@ -236,7 +236,7 @@ def _seed_tapsi_channel(db, channel_id: str, webhook_token: str) -> None:
         value_json=webhook_token,
         secret=True,
         configured=True,
-        updated_at=datetime.utcnow(),
+        updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
     ))
     db.commit()
 

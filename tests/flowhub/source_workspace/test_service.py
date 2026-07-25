@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
-from datetime import datetime
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -226,7 +226,7 @@ def test_one_source_resolves_three_independent_channel_targets_and_preserves_dis
             connector_version="1",
             freshness="fresh",
             fetch_status="success",
-            fetched_at=datetime.utcnow(),
+            fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
         for listing in listings
     ]
@@ -398,7 +398,7 @@ def test_external_source_is_read_once_and_resolves_three_independent_channel_col
                     connector_version="1",
                     freshness="fresh",
                     fetch_status="success",
-                    fetched_at=datetime.utcnow(),
+                    fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
                 )
                 for listing in listings
             ],
@@ -524,7 +524,7 @@ def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_inv
                         connector_version="1",
                         freshness="fresh",
                         fetch_status="success",
-                        fetched_at=datetime.utcnow(),
+                        fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
                     )
                     for listing in listings
                 ],

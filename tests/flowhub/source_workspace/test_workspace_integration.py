@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -37,8 +37,8 @@ def test_source_product_workspace_groups_listings_and_auto_selects_ready_changes
             stock_status="instock",
             manage_stock=True,
             freshness="fresh",
-            last_fetched_at=datetime.utcnow(),
-            last_successful_read=datetime.utcnow(),
+            last_fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            last_successful_read=datetime.now(timezone.utc).replace(tzinfo=None),
             exists=True,
             record_hash="cache-101",
         )

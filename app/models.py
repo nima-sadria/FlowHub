@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, DateTime, Enum as SAEnum, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
@@ -29,7 +29,7 @@ class SyncJob(Base):
     )
 
     id = Column(Integer, primary_key=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     completed_at = Column(DateTime, nullable=True)
     status = Column(SAEnum(JobStatus), default=JobStatus.preview)
     total_count = Column(Integer, default=0)
@@ -146,7 +146,7 @@ class AppUser(Base):
     is_admin = Column(Boolean, nullable=False, default=False)
     permission_version = Column(Integer, nullable=False, default=1)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     updated_at = Column(DateTime, nullable=True)
     # Granular permissions - defaults mirror safe non-admin baseline
     can_access_site   = Column(Boolean, nullable=False, default=True)
@@ -165,7 +165,7 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String, nullable=False, index=True)
     action = Column(String, nullable=False)  # "login"|"fetch"|"apply"|"update_price"|"update_stock"
-    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), index=True)
     ip_address = Column(String, nullable=True)
     job_id = Column(Integer, nullable=True)
     detail = Column(Text, nullable=True)  # JSON: product_id, old/new values, parent_id
@@ -190,7 +190,7 @@ class ChangeHistory(Base):
     new_manage_stock = Column(Boolean, nullable=True)
     old_stock_quantity = Column(Integer, nullable=True)
     new_stock_quantity = Column(Integer, nullable=True)
-    changed_at = Column(DateTime, default=datetime.utcnow, index=True)
+    changed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), index=True)
     username = Column(String, nullable=True)
     job_id = Column(Integer, nullable=True, index=True)
     source = Column(String, nullable=True)              # apply | direct_edit | rollback | emergency | undo
@@ -205,7 +205,7 @@ class EmergencyBatch(Base):
     __tablename__ = "emergency_batches"
 
     id = Column(Integer, primary_key=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     created_by = Column(String, nullable=False)
     operation = Column(String, nullable=False)   # pct_increase | pct_decrease | fixed_increase | fixed_decrease
     value = Column(Float, nullable=False)        # percent (0-100] or fixed amount (>0)
@@ -258,7 +258,7 @@ class ChangeTracking(Base):
 
     id = Column(Integer, primary_key=True)
     product_id = Column(Integer, nullable=False, index=True)
-    detected_at = Column(DateTime, default=datetime.utcnow, index=True)
+    detected_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), index=True)
     field_name = Column(String, nullable=True)          # price | stock_status | stock_quantity
     old_value = Column(String, nullable=True)
     new_value = Column(String, nullable=True)
@@ -279,4 +279,4 @@ class DailyMetrics(Base):
     validation_errors = Column(Integer, default=0)
     apply_jobs = Column(Integer, default=0)
     rollback_jobs = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

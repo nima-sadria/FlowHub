@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -62,7 +62,7 @@ class RateLimitService:
         return result
 
     def record_acquire(self, result: RateLimitAcquireResult, *, connector_type: str | None = None) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         row = self.db.query(DlConnectorTelemetry).filter_by(connector_id=result.connector_id).first()
         if row is None:
             row = DlConnectorTelemetry(

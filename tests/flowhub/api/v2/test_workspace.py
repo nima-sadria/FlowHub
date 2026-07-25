@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 
 import pytest
@@ -141,7 +141,7 @@ class TestWorkspacePreview:
                 images=[{"src": "https://example.test/image.jpg"}],
                 freshness="fresh",
                 exists=True,
-                last_fetched_at=datetime.utcnow(),
+                last_fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
             )
         )
         configured_db.commit()

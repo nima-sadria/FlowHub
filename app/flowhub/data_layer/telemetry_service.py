@@ -49,7 +49,7 @@ class ConnectorTelemetryService:
         latency_ms: Optional[float] = None,
     ) -> DlConnectorTelemetry:
         """Increment telemetry counters for a connector."""
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         row = (
             self._db.query(DlConnectorTelemetry)
             .filter_by(connector_id=connector_id)
@@ -81,7 +81,7 @@ class ConnectorTelemetryService:
         row = self._db.query(DlConnectorTelemetry).filter_by(connector_id=connector_id).first()
         if row is not None:
             row.last_refresh_duration_ms = duration_ms
-            row.updated_at = datetime.datetime.utcnow()
+            row.updated_at = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
             self._db.commit()
 
     def set_preview_duration(self, connector_id: str, duration_ms: float) -> None:
@@ -89,7 +89,7 @@ class ConnectorTelemetryService:
         row = self._db.query(DlConnectorTelemetry).filter_by(connector_id=connector_id).first()
         if row is not None:
             row.last_preview_duration_ms = duration_ms
-            row.updated_at = datetime.datetime.utcnow()
+            row.updated_at = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
             self._db.commit()
 
 

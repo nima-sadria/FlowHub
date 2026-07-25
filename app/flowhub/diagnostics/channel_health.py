@@ -11,7 +11,7 @@ import asyncio
 import logging
 import os
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from time import monotonic
 from typing import Any, cast
 
@@ -73,7 +73,7 @@ class ChannelHealthReporter:
                 )
                 items.append(self._unavailable_channel_shape(channel_id))
         return {
-            "checkedAt": _iso(datetime.utcnow()),
+            "checkedAt": _iso(datetime.now(timezone.utc).replace(tzinfo=None)),
             "summary": _summary(items),
             "items": items,
             "orderSyncRunner": self._runner_state(),
@@ -131,7 +131,7 @@ class ChannelHealthReporter:
                 continue
             async with lock:
                 current = self._health(cid)
-                if current and current.checked_at > datetime.utcnow() - timedelta(seconds=HEALTH_CACHE_SECONDS):
+                if current and current.checked_at > datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=HEALTH_CACHE_SECONDS):
                     continue
                 external_call_performed = await self._refresh_one(cid) or external_call_performed
         payload = self.report()
@@ -1344,11 +1344,11 @@ def _iso(value: datetime | None) -> str | None:
 
 
 def _is_stale(value: datetime, maximum_age: timedelta) -> bool:
-    return value < datetime.utcnow() - maximum_age
+    return value < datetime.now(timezone.utc).replace(tzinfo=None) - maximum_age
 
 
 def _age_text(value: datetime) -> str:
-    seconds = max(0, int((datetime.utcnow() - value).total_seconds()))
+    seconds = max(0, int((datetime.now(timezone.utc).replace(tzinfo=None) - value).total_seconds()))
     days = seconds // 86_400
     if days:
         return f"{days} day" if days == 1 else f"{days} days"

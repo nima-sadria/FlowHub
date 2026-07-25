@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -297,7 +297,7 @@ def _settings():
 
 
 def _seed_channel(db, channel_id: str, connector_type: str, *, enabled: bool, settings: dict) -> None:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     db.add(_integration_models.IntegrationConnectorInstance(
         id=channel_id,
         connector_type=connector_type,
@@ -338,7 +338,7 @@ def _seed_receipt(db, channel_id: str) -> None:
             "orderDetail": {"orderId": "T-1", "orderNumber": "T-1", "status": "1"},
             "items": [{"orderItemId": "tap-item-1", "productId": "tap-prod-1", "sku": None, "quantity": 1, "price": 9000}],
         },
-        acknowledged_at=datetime.utcnow(),
+        acknowledged_at=datetime.now(timezone.utc).replace(tzinfo=None),
         processing_state="queued",
     ))
     db.commit()

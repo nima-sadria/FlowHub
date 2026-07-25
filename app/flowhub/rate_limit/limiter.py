@@ -11,7 +11,7 @@ import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import RLock
 
 DEFAULT_READ_RPM = 60
@@ -100,7 +100,7 @@ class AsyncTokenBucket:
             if delayed:
                 self._requests_delayed += 1
                 self._throttle_events += 1
-                self._last_throttle_at = datetime.utcnow()
+                self._last_throttle_at = datetime.now(timezone.utc).replace(tzinfo=None)
                 self._last_connector_delay_ms = delay * 1000
 
         started = self._clock()

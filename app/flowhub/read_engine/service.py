@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from typing import Any
 
@@ -54,7 +54,7 @@ class IncrementalReadEngine:
         return "metadata_filter"
 
     def eligible_cached_product_ids(self, connector_id: str, *, now: datetime | None = None) -> list[str]:
-        now = now or datetime.utcnow()
+        now = now or datetime.now(timezone.utc).replace(tzinfo=None)
         cutoff = now - timedelta(days=365)
         rows = self.db.query(DlProductCache).filter_by(connector_id=connector_id).all()
         eligible: list[str] = []
@@ -82,7 +82,7 @@ class IncrementalReadEngine:
             resume_pending=not force_full,
         )
         job.status = "running"
-        job.started_at = job.started_at or datetime.utcnow()
+        job.started_at = job.started_at or datetime.now(timezone.utc).replace(tzinfo=None)
         self.db.commit()
 
         meta = dict(job.meta or {})
@@ -156,7 +156,7 @@ class IncrementalReadEngine:
             unseen.update({"exists": False, "freshness": "stale"}, synchronize_session=False)
 
         job.status = "completed"
-        job.completed_at = datetime.utcnow()
+        job.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         if job.started_at:
             job.duration_ms = (job.completed_at - job.started_at).total_seconds() * 1000
         self.db.commit()
@@ -200,7 +200,7 @@ class IncrementalReadEngine:
             raise IncrementalReadUnsupported("incremental_read_unsupported: connector cannot batch read product IDs")
 
         eligible_cache = set(self.eligible_cached_product_ids(adapter.connector_id))
-        cutoff = datetime.utcnow() - timedelta(days=365)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=365)
         selected: list[str] = []
         seen: set[str] = set()
         cursor: str | None = None
@@ -254,7 +254,7 @@ class IncrementalReadEngine:
         if existing and not resume_pending:
             existing.status = "failed"
             existing.error_message = "Superseded by a new full manual refresh."
-            existing.completed_at = datetime.utcnow()
+            existing.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
             self.db.commit()
         job = DlRefreshJob(
             job_type="manual",
@@ -268,7 +268,7 @@ class IncrementalReadEngine:
                 "scheduler_started": False,
                 "automatic_sync": False,
             },
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
         self.db.add(job)
         self.db.commit()
@@ -292,7 +292,7 @@ class IncrementalReadEngine:
         product_id = self._product_id(item)
         if not product_id:
             return
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         price = item.get("last_price", item.get("price"))
         if price in (None, ""):
             price = item.get("sale_price") or item.get("regular_price")

@@ -41,7 +41,7 @@ R2 (7.4A R2 remediation) - LOW: deterministic sort secondary key:
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("NEXTCLOUD_URL", "http://example.invalid")
@@ -73,7 +73,7 @@ _HTTP_USER = "http_user_74a"
 
 
 def _now() -> datetime:
-    return datetime.utcnow()
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 @pytest.fixture(scope="module")

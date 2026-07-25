@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -124,7 +124,7 @@ def _add_listing(
                 connector_version="1",
                 freshness="fresh",
                 fetch_status="success",
-                fetched_at=datetime.utcnow(),
+                fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
             ),
         ]
     )

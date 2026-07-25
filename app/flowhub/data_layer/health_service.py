@@ -50,7 +50,7 @@ class ConnectorHealthService:
         """Insert or update a connector health record."""
         if status not in _VALID_STATUSES:
             raise ValueError(f"Invalid health status: {status!r}")
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         row = (
             self._db.query(DlConnectorHealth)
             .filter_by(connector_id=connector_id)

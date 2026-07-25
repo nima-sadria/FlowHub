@@ -11,7 +11,7 @@ import asyncio
 import json
 import math
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Any, Protocol
 
@@ -226,7 +226,7 @@ class WritePipelineService:
         self._assert_batch_hash_matches(batch)
         batch.status = "approved"
         batch.approved_by = user.username
-        batch.approved_at = datetime.utcnow()
+        batch.approved_at = datetime.now(timezone.utc).replace(tzinfo=None)
         batch.approval_reason = body.reason
         self._record_event(
             batch.id,
@@ -364,7 +364,7 @@ class WritePipelineService:
                 correlation_id=correlation_id,
                 commit=False,
             )
-        batch.executed_at = datetime.utcnow()
+        batch.executed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         batch.status = (
             "applied"
             if failure_count == 0 and reconciliation_count == 0
@@ -831,7 +831,7 @@ class WritePipelineService:
             typed_cache.regular_price = stored_price
             typed_cache.price = stored_price
             typed_cache.freshness = "fresh"
-            typed_cache.last_successful_read = datetime.utcnow()
+            typed_cache.last_successful_read = datetime.now(timezone.utc).replace(tzinfo=None)
             typed_cache.record_hash = sha256(
                 "|".join(
                     str(value or "")

@@ -21,7 +21,7 @@ import asyncio
 import inspect
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -56,7 +56,7 @@ Base.metadata.create_all(bind=engine)
 # -- DB helpers ----------------------------------------------------------------
 
 def _now():
-    return datetime.utcnow()
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _make_parent(db, wc_id, manage_stock="false", stock_status="instock",

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -253,9 +253,9 @@ async def test_overlapping_snappshop_scheduler_run_is_rejected(db):
         connector_type="snappshop",
         source=CHANNEL_LEASE_SOURCE,
         cursor=None,
-        locked_at=datetime.utcnow(),
+        locked_at=datetime.now(timezone.utc).replace(tzinfo=None),
         lock_owner="worker-1",
-        lease_expires_at=datetime.utcnow() + timedelta(minutes=5),
+        lease_expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
     ))
     db.commit()
 
@@ -297,7 +297,7 @@ def test_expired_lease_can_be_reacquired_and_old_owner_cannot_release(db_engine)
     with Session() as db:
         old = OrderSyncService(db).acquire_checkpoint_lease("snapp:expired", "snappshop", "snappshop_events", owner="old-owner", lease_seconds=1)
         row = db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:expired", source=CHANNEL_LEASE_SOURCE).one()
-        row.lease_expires_at = datetime.utcnow() - timedelta(seconds=1)
+        row.lease_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
         db.commit()
 
     with Session() as db:
@@ -330,7 +330,7 @@ def test_expired_lease_cannot_heartbeat_or_revive(db):
     service = OrderSyncService(db)
     lease = service.acquire_checkpoint_lease("snapp:heartbeat-expired", "snappshop", "snappshop_events", owner="owner")
     row = db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:heartbeat-expired", source=CHANNEL_LEASE_SOURCE).one()
-    expired_at = datetime.utcnow() - timedelta(seconds=1)
+    expired_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
     row.lease_expires_at = expired_at
     db.commit()
 
@@ -358,7 +358,7 @@ def test_checkpoint_commit_requires_current_unexpired_owner(db_engine):
         assert checkpoint.cursor == "valid-cursor"
 
         lease_row = owner_db.query(_order_models.OrderSyncCheckpoint).filter_by(channel_id="snapp:commit", source=CHANNEL_LEASE_SOURCE).one()
-        lease_row.lease_expires_at = datetime.utcnow() - timedelta(seconds=1)
+        lease_row.lease_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
         owner_db.commit()
         checkpoint.cursor = "expired-cursor"
         with pytest.raises(OrderSyncLeaseError) as expired:
@@ -397,7 +397,7 @@ async def test_expired_lease_rolls_back_channel_work_and_records_sanitized_failu
             lease_row = db.query(_order_models.OrderSyncCheckpoint).filter_by(
                 channel_id="snapp:lease-lost", source=CHANNEL_LEASE_SOURCE
             ).one()
-            lease_row.lease_expires_at = datetime.utcnow() - timedelta(seconds=1)
+            lease_row.lease_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
             db.commit()
             page = await super().list_order_events(pagination)
             for event in page.items:
@@ -457,10 +457,10 @@ async def test_webhook_lease_loss_rolls_back_entire_receipt_unit(db_engine, mode
                 channel_id="tapsi:1", source=CHANNEL_LEASE_SOURCE
             ).one()
             if mode == "expired":
-                row.lease_expires_at = datetime.utcnow() - timedelta(seconds=1)
+                row.lease_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
             else:
                 row.lock_owner = "replacement-owner"
-                row.lease_expires_at = datetime.utcnow() + timedelta(minutes=5)
+                row.lease_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5)
             self.db.commit()
             return super()._record_event(event, source=source)
 
@@ -519,10 +519,10 @@ async def test_reconciliation_lease_loss_rolls_back_page(db_engine, mode, expect
                 channel_id="tapsi:1", source=CHANNEL_LEASE_SOURCE
             ).one()
             if mode == "expired":
-                row.lease_expires_at = datetime.utcnow() - timedelta(seconds=1)
+                row.lease_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
             else:
                 row.lock_owner = "replacement-owner"
-                row.lease_expires_at = datetime.utcnow() + timedelta(minutes=5)
+                row.lease_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5)
             processing.commit()
             return await super().list_orders(pagination)
 
@@ -591,7 +591,7 @@ async def test_snappshop_lease_expiry_does_not_acknowledge(db):
             row = db.query(_order_models.OrderSyncCheckpoint).filter_by(
                 channel_id="snapp:ack-expired", source=CHANNEL_LEASE_SOURCE
             ).one()
-            row.lease_expires_at = datetime.utcnow() - timedelta(seconds=1)
+            row.lease_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
             db.commit()
             page = await super().list_order_events(pagination)
             for event in page.items:
@@ -812,7 +812,7 @@ def _receipt(db, request_id: str, change_type: int) -> None:
             "orderDetail": {"orderId": "T-200", "orderNumber": "T-200", "status": str(change_type)},
             "items": [{"orderItemId": "tap-item-1", "productId": "tap-prod-1", "sku": None, "quantity": 3, "price": 9000}],
         },
-        acknowledged_at=datetime.utcnow(),
+        acknowledged_at=datetime.now(timezone.utc).replace(tzinfo=None),
         processing_state="queued",
     ))
     db.commit()

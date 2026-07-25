@@ -8,7 +8,7 @@ import math
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -200,7 +200,7 @@ class SpreadsheetSourceReadService:
                 self.finalize_read_reservation(reservation.id, "failed", error_code="INTEGRATION_ERROR")
             self.config.set_many(
                 {
-                    _LAST_READ_AT_KEY: _iso(datetime.utcnow()),
+                    _LAST_READ_AT_KEY: _iso(datetime.now(timezone.utc).replace(tzinfo=None)),
                     _LAST_READ_STATUS_KEY: "failed",
                 },
                 updated_by="source_read",
@@ -228,7 +228,7 @@ class SpreadsheetSourceReadService:
                 self.finalize_read_reservation(reservation.id, "failed", error_code="SOURCE_VALIDATION_ERROR")
             self.config.set_many(
                 {
-                    _LAST_READ_AT_KEY: _iso(datetime.utcnow()),
+                    _LAST_READ_AT_KEY: _iso(datetime.now(timezone.utc).replace(tzinfo=None)),
                     _LAST_READ_STATUS_KEY: "failed",
                 },
                 updated_by="source_read",
@@ -254,7 +254,7 @@ class SpreadsheetSourceReadService:
                 self.finalize_read_reservation(reservation.id, "failed", error_code=type(exc).__name__[:120])
             self.config.set_many(
                 {
-                    _LAST_READ_AT_KEY: _iso(datetime.utcnow()),
+                    _LAST_READ_AT_KEY: _iso(datetime.now(timezone.utc).replace(tzinfo=None)),
                     _LAST_READ_STATUS_KEY: "failed",
                 },
                 updated_by="source_read",
@@ -328,7 +328,7 @@ class SpreadsheetSourceReadService:
         }
 
     def read_policy_state(self, *, now: datetime | None = None) -> dict:
-        now = now or datetime.utcnow()
+        now = now or datetime.now(timezone.utc).replace(tzinfo=None)
         policy = self.read_policy()
         legacy_history = _recent_history(self.config.get(_HISTORY_KEY), now)
         reservations = (
@@ -372,7 +372,7 @@ class SpreadsheetSourceReadService:
         if manual and not policy["manual_read_allowed"]:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Manual source read is disabled by source read policy.")
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         self.db.commit()
         dialect = self.db.get_bind().dialect.name
         if dialect == "sqlite":
@@ -446,12 +446,12 @@ class SpreadsheetSourceReadService:
             raise RuntimeError("Source read reservation is missing.")
         if reservation.status == "reserved":
             reservation.status = final_status
-            reservation.completed_at = datetime.utcnow()
+            reservation.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
             reservation.error_code = error_code
             self.db.commit()
 
         values = {
-            _LAST_READ_AT_KEY: _iso(reservation.completed_at or datetime.utcnow()),
+            _LAST_READ_AT_KEY: _iso(reservation.completed_at or datetime.now(timezone.utc).replace(tzinfo=None)),
             _LAST_READ_STATUS_KEY: (
                 "failed" if final_status == "failed" else "completed_with_errors" if stats and stats["error_rows"] else "completed"
             ),
@@ -478,7 +478,7 @@ class SpreadsheetSourceReadService:
             },
             severity="error" if final_status == "failed" else "info",
         )
-        return self.read_policy_state(now=reservation.completed_at or datetime.utcnow())
+        return self.read_policy_state(now=reservation.completed_at or datetime.now(timezone.utc).replace(tzinfo=None))
 
     def _required_config(self, key: str) -> str:
         value = self.config.get(key)
@@ -497,7 +497,7 @@ class SpreadsheetSourceReadService:
         duplicate_count: int,
         invalid_row_count: int,
     ) -> DlSourceSnapshot:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         integrity_hash = hashlib.sha256(content).hexdigest()
         snapshot = (
             self.db.query(DlSourceSnapshot)
@@ -541,7 +541,7 @@ class SpreadsheetSourceReadService:
             event_name=event_name,
             message=message,
             severity=severity,
-            metadata={**metadata, "actor": actor, "timestamp": _iso(datetime.utcnow())},
+            metadata={**metadata, "actor": actor, "timestamp": _iso(datetime.now(timezone.utc).replace(tzinfo=None))},
         )
 
 
@@ -674,7 +674,7 @@ def _recent_history(value: str | None, now: datetime) -> list[datetime]:
 
 
 def _source_read_limit_exception(state: dict, *, now: datetime | None = None) -> HTTPException:
-    current = now or datetime.utcnow()
+    current = now or datetime.now(timezone.utc).replace(tzinfo=None)
     reset_at = str(state.get("reset_at") or "") or None
     retry_after = 0
     if reset_at:

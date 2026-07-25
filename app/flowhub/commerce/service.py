@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from time import monotonic
 from urllib.parse import urlparse
 
@@ -274,7 +274,7 @@ class CommerceHubService:
                 {"code": "CHANNEL_DISABLED", "message": "WooCommerce channel is disabled."},
             )
 
-        started = datetime.utcnow()
+        started = datetime.now(timezone.utc).replace(tzinfo=None)
         adapter: WooCommerceProductReadAdapter | None = None
         self.integration.record_event(
             connector_id=channel_id,
@@ -301,7 +301,7 @@ class CommerceHubService:
             )
             warnings = list(adapter.warnings)
             result_status = "completed_with_warnings" if warnings else "completed"
-            completed = datetime.utcnow()
+            completed = datetime.now(timezone.utc).replace(tzinfo=None)
             self._mark_latest_refresh_status(channel_id, result_status, completed)
             result = self._cache_refresh_result(
                 adapter,
@@ -322,7 +322,7 @@ class CommerceHubService:
             return result
 
         except Exception as exc:
-            completed = datetime.utcnow()
+            completed = datetime.now(timezone.utc).replace(tzinfo=None)
             cache_rows_upserted, result_status = self._mark_latest_refresh_failed(channel_id, exc, completed)
             safe_error = normalize_upstream_error(exc, source="woocommerce")
             errors = [safe_error["message"]]
@@ -880,8 +880,8 @@ class CommerceHubService:
             enabled=False,
             read_only=True,
             status="disabled",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
         self.db.add(row)
         if commit:
@@ -912,7 +912,7 @@ class CommerceHubService:
             row.enabled = not bool(meta.get("placeholder"))
         row.read_only = access_mode != ACCESS_MODE_WRITE_ENABLED
         row.status = "disabled" if not row.enabled else "configured"
-        row.updated_at = datetime.utcnow()
+        row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         if commit:
             self.db.commit()
         else:
@@ -1800,7 +1800,7 @@ class CommerceHubService:
         return f"corr_{uuid.uuid4().hex[:12]}"
 
     def _checked_at(self) -> str:
-        return self._iso(datetime.utcnow()) or ""
+        return self._iso(datetime.now(timezone.utc).replace(tzinfo=None)) or ""
 
     def _iso(self, value: datetime | None) -> str | None:
         if value is None:

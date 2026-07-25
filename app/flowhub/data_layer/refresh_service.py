@@ -50,7 +50,7 @@ class RefreshJobService:
         meta: Optional[dict] = None,
     ) -> DlRefreshJob:
         """Create a new refresh job record."""
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         job = DlRefreshJob(
             job_type=job_type,
             entity_type=entity_type,
@@ -78,7 +78,7 @@ class RefreshJobService:
         row = self._db.query(DlRefreshJob).filter_by(id=job_id).first()
         if row is None:
             return None
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         row.status = status
         if status == "running":
             row.started_at = now

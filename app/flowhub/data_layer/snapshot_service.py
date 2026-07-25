@@ -51,7 +51,7 @@ class SourceSnapshotService:
         sheet_names: Optional[list] = None,
     ) -> DlSourceSnapshot:
         """Insert or update a source snapshot record. Increments version_seq on update."""
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         row = (
             self._db.query(DlSourceSnapshot)
             .filter_by(connector_id=connector_id, file_path=file_path)
@@ -119,7 +119,7 @@ class DestinationSnapshotService:
         source_connector_id: Optional[str] = None,
     ) -> DlDestinationSnapshot:
         """Insert or update a destination snapshot record."""
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         row = (
             self._db.query(DlDestinationSnapshot)
             .filter_by(connector_id=connector_id, product_id=product_id)

@@ -4,7 +4,7 @@ import asyncio
 import json
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -83,7 +83,7 @@ def auth_headers(client, db):
 def test_operational_tapsishop_health_uses_sanitized_local_evidence(db):
     from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(db, "tapsishop:main", "tapsishop", enabled=True, settings={"token": None, "webhook_token": None, "token_refresh_enabled": True})
     _seed_health(db, "tapsishop:main", "tapsishop", "healthy", now, last_success_at=now, detail="Vendor information check succeeded.")
     _seed_product_read(db, "tapsishop:main", now)
@@ -104,7 +104,7 @@ def test_disabled_channel_is_disabled_not_error(db):
     from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
 
     _seed_channel(db, "snappshop:main", "snappshop", enabled=False, settings={"token": None, "agent_identifier": "agent"})
-    _seed_health(db, "snappshop:main", "snappshop", "unhealthy", datetime.utcnow(), error_class="authentication")
+    _seed_health(db, "snappshop:main", "snappshop", "unhealthy", datetime.now(timezone.utc).replace(tzinfo=None), error_class="authentication")
 
     item = _item(ChannelHealthReporter(db).report(), "snappshop:main")
 
@@ -116,7 +116,7 @@ def test_snappshop_diagnostics_separate_vendor_and_product_cache_state(db):
     from app.flowhub.data_layer.models import DlRefreshJob
     from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(
         db,
         "snappshop:main",
@@ -155,7 +155,7 @@ def test_snappshop_diagnostics_separate_vendor_and_product_cache_state(db):
 def test_invalid_token_is_error_and_timeout_is_unable_to_check(db):
     from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(db, "snappshop:main", "snappshop", enabled=True, settings={"token": None, "agent_identifier": "agent"})
     _seed_health(db, "snappshop:main", "snappshop", "unhealthy", now, error_class="authentication")
     _seed_channel(db, "woocommerce:primary", "woocommerce", enabled=True, settings={"url": "https://store.example", "key": None, "secret": None})
@@ -175,7 +175,7 @@ def test_invalid_token_is_error_and_timeout_is_unable_to_check(db):
 def test_malformed_response_stale_sync_delayed_webhook_and_dead_letter_are_visible(db):
     from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     stale = now - timedelta(days=3)
     _seed_channel(
         db,
@@ -205,7 +205,7 @@ def test_tapsishop_token_refresh_diagnostics_are_channel_scoped(db):
     from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
     from app.flowhub.integration_platform.models import IntegrationConnectorEvent
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(db, "tapsishop:main", "tapsishop", enabled=True, settings={"token": None, "token_refresh_enabled": True})
     _seed_channel(db, "tapsishop:second", "tapsishop", enabled=True, settings={"token": None, "token_refresh_enabled": True})
     _seed_health(db, "tapsishop:main", "tapsishop", "healthy", now, last_success_at=now)
@@ -298,7 +298,7 @@ def test_source_connector_instances_do_not_appear_in_channel_health(db):
 def test_diagnostics_status_reports_last_successful_source_read(client, db, auth_headers):
     from app.flowhub.data_layer.models import DlSourceSnapshot
 
-    read_at = datetime.utcnow() - timedelta(minutes=5)
+    read_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5)
     _seed_channel(
         db,
         "nextcloud:primary",
@@ -348,7 +348,7 @@ def test_refresh_reports_external_call_only_when_provider_boundary_was_used(db, 
 
     health = ChannelHealthReporter(db)._health("woocommerce:primary")
     assert health is not None
-    health.checked_at = datetime.utcnow() - timedelta(minutes=2)
+    health.checked_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=2)
     db.commit()
 
     async def provider_result(self, channel_id):
@@ -470,7 +470,7 @@ def _seed_channel(db, channel_id: str, connector_type: str, *, enabled: bool, se
         IntegrationConnectorSetting,
     )
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     db.add(IntegrationConnectorInstance(
         id=channel_id,
         connector_type=connector_type,

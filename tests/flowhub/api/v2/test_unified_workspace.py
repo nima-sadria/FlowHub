@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -112,8 +112,8 @@ def _seed(db, *, product_type: str = "simple", currency: str = "EUR", unit: str 
             stock_status="instock",
             manage_stock=True,
             freshness="fresh",
-            last_fetched_at=datetime.utcnow(),
-            last_successful_read=datetime.utcnow(),
+            last_fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            last_successful_read=datetime.now(timezone.utc).replace(tzinfo=None),
             exists=True,
             record_hash="woo-cache-1",
         )
@@ -1571,8 +1571,8 @@ def test_catalog_scope_rejects_empty_and_over_limit(client, auth_headers, db, mo
             stock_qty=2,
             stock_status="instock",
             freshness="fresh",
-            last_fetched_at=datetime.utcnow(),
-            last_successful_read=datetime.utcnow(),
+            last_fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            last_successful_read=datetime.now(timezone.utc).replace(tzinfo=None),
             exists=True,
         )
     )
@@ -1632,8 +1632,8 @@ def test_grouped_grid_filters_products_but_preserves_all_channel_children(
             stock_qty=0,
             stock_status="outofstock",
             freshness="fresh",
-            last_fetched_at=datetime.utcnow(),
-            last_successful_read=datetime.utcnow(),
+            last_fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            last_successful_read=datetime.now(timezone.utc).replace(tzinfo=None),
             exists=True,
             record_hash="snapp-cache-101",
         )

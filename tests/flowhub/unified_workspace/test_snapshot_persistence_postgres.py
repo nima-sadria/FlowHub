@@ -13,7 +13,7 @@ import re
 import uuid
 from collections.abc import Generator
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import cast
 
 import pytest
@@ -133,8 +133,8 @@ def postgres_api(postgres_engine: Engine) -> Generator[PostgresApi, None, None]:
                     stock_status="instock",
                     manage_stock=True,
                     freshness="fresh",
-                    last_fetched_at=datetime.utcnow(),
-                    last_successful_read=datetime.utcnow(),
+                    last_fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
+                    last_successful_read=datetime.now(timezone.utc).replace(tzinfo=None),
                     exists=True,
                     record_hash="postgres-workspace-cache-101",
                 ),

@@ -7,7 +7,7 @@ channel adapters.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import (
@@ -27,7 +27,7 @@ from app.flowhub.database import FlowHubBase
 
 
 def _utcnow() -> datetime:
-    return datetime.utcnow()
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class WriteBatch(FlowHubBase):

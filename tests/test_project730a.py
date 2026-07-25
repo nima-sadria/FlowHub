@@ -16,7 +16,7 @@ import asyncio
 import inspect
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch, call
 
 import httpx
@@ -314,12 +314,12 @@ def test_get_last_wc_modified_time_returns_max():
         db.add(ProductCache(
             wc_id=1001, parent_id=0, product_type="simple",
             date_modified_gmt="2024-01-15T10:00:00",
-            last_synced_at=datetime.utcnow(), last_seen_at=datetime.utcnow(),
+            last_synced_at=datetime.now(timezone.utc).replace(tzinfo=None), last_seen_at=datetime.now(timezone.utc).replace(tzinfo=None),
         ))
         db.add(ProductCache(
             wc_id=1002, parent_id=0, product_type="simple",
             date_modified_gmt="2024-03-20T15:30:00",
-            last_synced_at=datetime.utcnow(), last_seen_at=datetime.utcnow(),
+            last_synced_at=datetime.now(timezone.utc).replace(tzinfo=None), last_seen_at=datetime.now(timezone.utc).replace(tzinfo=None),
         ))
         db.commit()
 
@@ -347,13 +347,13 @@ def test_get_last_wc_modified_time_ignores_variations():
         db.add(ProductCache(
             wc_id=2001, parent_id=999, product_type="variation",
             date_modified_gmt="2024-12-31T23:59:59",
-            last_synced_at=datetime.utcnow(), last_seen_at=datetime.utcnow(),
+            last_synced_at=datetime.now(timezone.utc).replace(tzinfo=None), last_seen_at=datetime.now(timezone.utc).replace(tzinfo=None),
         ))
         # Top-level parent with an OLDER date - this is what should be returned
         db.add(ProductCache(
             wc_id=2002, parent_id=0, product_type="variable",
             date_modified_gmt="2024-06-01T08:00:00",
-            last_synced_at=datetime.utcnow(), last_seen_at=datetime.utcnow(),
+            last_synced_at=datetime.now(timezone.utc).replace(tzinfo=None), last_seen_at=datetime.now(timezone.utc).replace(tzinfo=None),
         ))
         db.commit()
 

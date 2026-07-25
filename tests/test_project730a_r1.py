@@ -15,7 +15,7 @@ Coverage:
 import asyncio
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -49,7 +49,7 @@ from app.services.woocommerce import (  # noqa: E402
 # -- DB helpers ----------------------------------------------------------------
 
 def _now():
-    return datetime.utcnow()
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _make_parent_row(db, wc_id, name="Parent", categories='[{"id":10,"name":"Cat A"}]',

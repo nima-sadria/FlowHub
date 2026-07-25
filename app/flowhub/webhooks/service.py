@@ -6,7 +6,7 @@ import hmac
 import json
 import math
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from typing import Any
 
@@ -68,7 +68,7 @@ class WebhookIngestionService:
             )
             return AcceptedWebhook(existing, duplicate=True)
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         receipt = WebhookReceipt(
             channel_id=channel_id,
             provider="tapsishop",
@@ -124,7 +124,7 @@ class WebhookIngestionService:
         attempt_no = receipt.attempt_count
         if error_category:
             retryable = error_category in TRANSIENT_ERRORS and attempt_no < MAX_PROCESSING_ATTEMPTS
-            next_attempt_at = datetime.utcnow() + _backoff(attempt_no) if retryable else None
+            next_attempt_at = datetime.now(timezone.utc).replace(tzinfo=None) + _backoff(attempt_no) if retryable else None
             receipt.processing_state = "retry_scheduled" if retryable else "dead_letter"
             receipt.last_error_category = error_category
             receipt.next_attempt_at = next_attempt_at
@@ -147,7 +147,7 @@ class WebhookIngestionService:
             return self._receipt_shape(receipt)
 
         receipt.processing_state = "processed"
-        receipt.processed_at = datetime.utcnow()
+        receipt.processed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         receipt.last_error_category = None
         receipt.next_attempt_at = None
         self.db.add(WebhookProcessingAttempt(

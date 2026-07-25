@@ -10,7 +10,7 @@ from __future__ import annotations
 import csv
 import io
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -222,7 +222,7 @@ class LoggingPlatformService:
         policies = body.get("policies") if isinstance(body, dict) else None
         if not isinstance(policies, list):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "policies must be a list.")
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         for policy in policies:
             if not isinstance(policy, dict):
                 continue
@@ -279,7 +279,7 @@ class LoggingPlatformService:
         severity = str(item.get("severity") or "info").lower()
         if severity not in SEVERITIES:
             severity = "info"
-        timestamp = _parse_datetime(str(item.get("timestamp"))) if item.get("timestamp") else datetime.utcnow()
+        timestamp = _parse_datetime(str(item.get("timestamp"))) if item.get("timestamp") else datetime.now(timezone.utc).replace(tzinfo=None)
         correlation_id = str(item.get("correlation_id") or self._correlation_id())
         request_id = str(item.get("request_id") or "")
         row = LoggingEntry(
@@ -407,11 +407,11 @@ class LoggingPlatformService:
 
 def _parse_datetime(value: str) -> datetime:
     if not value or value == "None":
-        return datetime.utcnow()
+        return datetime.now(timezone.utc).replace(tzinfo=None)
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
     except ValueError:
-        return datetime.utcnow()
+        return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _iso(value: datetime | None) -> str | None:

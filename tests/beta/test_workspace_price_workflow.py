@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 import pytest
@@ -280,8 +280,8 @@ def test_source_read_limit_returns_structured_429_and_retry_after(
         id="srr_existing",
         source_id="nextcloud:primary",
         user_id="existing",
-        reserved_at=datetime.utcnow() - timedelta(minutes=5),
-        completed_at=datetime.utcnow() - timedelta(minutes=5),
+        reserved_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
+        completed_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
         status="succeeded",
     ))
     configured_db.commit()
@@ -686,7 +686,7 @@ def test_workspace_preview_returns_422_for_unidentifiable_source_row(
         version_seq=1,
         integrity_hash="bad-location",
         parsed_row_count=1,
-        snapshotted_at=datetime.utcnow(),
+        snapshotted_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     configured_db.add(snapshot)
     configured_db.commit()
@@ -955,8 +955,8 @@ def test_preview_blocks_incomplete_cache_refresh(client, auth_headers, configure
             connector_id="woocommerce:primary",
             status=refresh_status,
             triggered_by="tester",
-            created_at=datetime.utcnow(),
-            completed_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            completed_at=datetime.now(timezone.utc).replace(tzinfo=None),
             meta={"products_stored": 1},
         )
     )
@@ -986,8 +986,8 @@ def test_preview_allows_completed_with_warnings_cache_refresh(client, auth_heade
             connector_id="woocommerce:primary",
             status="completed_with_warnings",
             triggered_by="tester",
-            created_at=datetime.utcnow(),
-            completed_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            completed_at=datetime.now(timezone.utc).replace(tzinfo=None),
             meta={"products_stored": 1},
         )
     )
@@ -1296,7 +1296,7 @@ def _cache_product(
             freshness="fresh",
             exists=True,
             raw_data=raw_data or {},
-            last_fetched_at=datetime.utcnow(),
+            last_fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
     )
     db.commit()

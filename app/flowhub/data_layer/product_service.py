@@ -78,7 +78,7 @@ class ProductReadModelService:
             .filter_by(connector_id=connector_id, product_id=product_id)
             .first()
         )
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         if row is None:
             row = DlProductCache(connector_id=connector_id, product_id=product_id)
             self._db.add(row)

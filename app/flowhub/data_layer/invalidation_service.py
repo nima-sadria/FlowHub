@@ -46,7 +46,7 @@ class InvalidationService:
             entity_id=entity_id,
             connector_id=connector_id,
             reason=reason,
-            created_at=datetime.datetime.utcnow(),
+            created_at=datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None),
         )
         self._db.add(ev)
         self._db.commit()

@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from hashlib import sha256
 
 from fastapi import HTTPException, status
@@ -167,7 +167,7 @@ class ProductPricingService:
         self._assert_still_current(op)
         op.status = "approved"
         op.approved_by = user.username
-        op.approved_at = datetime.utcnow()
+        op.approved_at = datetime.now(timezone.utc).replace(tzinfo=None)
         op.approval_reason = str(body.get("reason") or "").strip() or None
         self._audit(
             "multi_channel_price_approved",
@@ -270,7 +270,7 @@ class ProductPricingService:
                     upstream_reference=result.external_response_id,
                     commit=False,
                 )
-        op.applied_at = datetime.utcnow()
+        op.applied_at = datetime.now(timezone.utc).replace(tzinfo=None)
         op.status = (
             "reconciliation_required"
             if reconciliation
@@ -642,7 +642,7 @@ class ProductPricingService:
             "unit": channel.get("unit") if channel else None,
             "result": result,
             "upstream_reference": upstream_reference,
-            "timestamp": _iso(datetime.utcnow()),
+            "timestamp": _iso(datetime.now(timezone.utc).replace(tzinfo=None)),
         }
         self.integration.record_event(
             connector_id=str(channel.get("channelId") if channel else "multi-channel-pricing"),

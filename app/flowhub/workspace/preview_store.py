@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
@@ -45,7 +45,7 @@ class WorkspacePreviewStore:
         summary: dict,
         now: datetime | None = None,
     ) -> DlWorkspacePreview:
-        created_at = now or datetime.utcnow()
+        created_at = now or datetime.now(timezone.utc).replace(tzinfo=None)
         expires_at = created_at + timedelta(minutes=PREVIEW_TTL_MINUTES)
         immutable_rows = json.loads(_canonical_json(rows))
         immutable_summary = json.loads(_canonical_json(summary))
@@ -88,7 +88,7 @@ class WorkspacePreviewStore:
         source_config_hash: str,
         now: datetime | None = None,
     ) -> DlWorkspacePreview | None:
-        current_time = now or datetime.utcnow()
+        current_time = now or datetime.now(timezone.utc).replace(tzinfo=None)
         previews = (
             self.db.query(DlWorkspacePreview)
             .filter(DlWorkspacePreview.source_id == source_id)
@@ -175,7 +175,7 @@ class WorkspacePreviewStore:
             raise PreviewValidationError("PREVIEW_NOT_FOUND", 404)
         if int(preview.owner_user_id) != int(user.id):
             raise PreviewValidationError("PREVIEW_OWNERSHIP_MISMATCH", 403)
-        if preview.expires_at <= (now or datetime.utcnow()):
+        if preview.expires_at <= (now or datetime.now(timezone.utc).replace(tzinfo=None)):
             raise PreviewValidationError("PREVIEW_EXPIRED", 409)
         if not selected_row_ids:
             raise PreviewValidationError("PREVIEW_ROW_NOT_ELIGIBLE", 422)

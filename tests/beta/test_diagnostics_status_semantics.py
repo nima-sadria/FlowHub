@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import create_engine
@@ -47,7 +47,7 @@ def db():
 
 def test_never_checked_is_neutral_and_exposes_complete_evidence_contract(db):
     _seed_channel(db, "woocommerce:primary", "woocommerce")
-    _seed_product_read(db, "woocommerce:primary", datetime.utcnow())
+    _seed_product_read(db, "woocommerce:primary", datetime.now(timezone.utc).replace(tzinfo=None))
 
     item = _item(db, "woocommerce:primary")
 
@@ -71,7 +71,7 @@ def test_never_checked_is_neutral_and_exposes_complete_evidence_contract(db):
 
 
 def test_failed_credentials_are_a_verified_actionable_error(db):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(db, "woocommerce:primary", "woocommerce")
     _seed_health(db, "woocommerce:primary", "unhealthy", now, error_class="authentication")
     _seed_product_read(db, "woocommerce:primary", now)
@@ -84,7 +84,7 @@ def test_failed_credentials_are_a_verified_actionable_error(db):
 
 
 def test_unsupported_optional_capabilities_are_not_applicable_and_do_not_lower_health(db):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(db, "woocommerce:primary", "woocommerce")
     _seed_health(db, "woocommerce:primary", "healthy", now, last_success_at=now)
     _seed_product_read(db, "woocommerce:primary", now)
@@ -107,7 +107,7 @@ def test_unsupported_external_api_probe_is_not_applicable(db):
 
 
 def test_fresh_and_stale_product_sync_have_evidence_based_states(db):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(db, "woocommerce:primary", "woocommerce")
     _seed_health(db, "woocommerce:primary", "healthy", now, last_success_at=now)
     cache = _seed_product_read(db, "woocommerce:primary", now)
@@ -124,7 +124,7 @@ def test_fresh_and_stale_product_sync_have_evidence_based_states(db):
 
 
 def test_required_order_sync_without_success_is_warning_but_woocommerce_is_not_applicable(db):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(db, "snappshop:main", "snappshop")
     _seed_polling_policy(db, "snappshop:main", enabled=True)
     _seed_health(db, "snappshop:main", "healthy", now, last_success_at=now)
@@ -166,7 +166,7 @@ def test_webhook_and_polling_intentionally_disabled_are_neutral(db, monkeypatch)
 
 
 def test_historical_webhook_receipts_do_not_reenable_a_disabled_webhook(db):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(db, "tapsishop:main", "tapsishop", settings={"token": None})
     db.add(WebhookReceipt(
         channel_id="tapsishop:main",
@@ -189,7 +189,7 @@ def test_historical_webhook_receipts_do_not_reenable_a_disabled_webhook(db):
 
 
 def test_globally_disabled_channel_overrides_historical_health(db):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(db, "woocommerce:primary", "woocommerce", enabled=False)
     _seed_health(db, "woocommerce:primary", "healthy", now, last_success_at=now)
 
@@ -200,7 +200,7 @@ def test_globally_disabled_channel_overrides_historical_health(db):
 
 
 def test_disabled_channels_do_not_lower_a_healthy_active_summary(db):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(db, "woocommerce:primary", "woocommerce")
     _seed_health(db, "woocommerce:primary", "healthy", now, last_success_at=now)
     _seed_product_read(db, "woocommerce:primary", now)
@@ -226,7 +226,7 @@ def _seed_channel(
         "tapsishop": {"token": None},
     }
     values = defaults.get(connector_type, {}) if settings is None else settings
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     db.add(IntegrationConnectorInstance(
         id=channel_id,
         connector_type=connector_type,
@@ -276,7 +276,7 @@ def _seed_polling_policy(db, channel_id: str, *, enabled: bool) -> None:
         enabled=enabled,
         interval_seconds=900,
         jitter_seconds=60,
-        updated_at=datetime.utcnow(),
+        updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
     ))
     db.commit()
 

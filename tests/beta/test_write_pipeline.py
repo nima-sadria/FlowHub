@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
 
@@ -189,7 +189,7 @@ def _set_preview(
             integrity_hash="a" * 64,
             version_seq=1,
             sheet_names=["Sheet1"],
-            snapshotted_at=datetime.utcnow(),
+            snapshotted_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
         db.add(source_snapshot)
         db.commit()
@@ -578,7 +578,7 @@ def test_expired_preview_is_rejected(client, auth_headers, db):
     from app.flowhub.data_layer.models import DlWorkspacePreview
 
     preview = db.get(DlWorkspacePreview, "preview-test")
-    preview.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    preview.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
     db.commit()
 
     response = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload())

@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -176,8 +176,8 @@ class MetadataFilterAdapter:
         from app.flowhub.read_engine.contracts import ReadPage
 
         self.calls.append(("metadata", {"cursor": cursor}))
-        recent = (datetime.utcnow() - timedelta(days=5)).isoformat()
-        old = (datetime.utcnow() - timedelta(days=400)).isoformat()
+        recent = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=5)).isoformat()
+        old = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=400)).isoformat()
         return ReadPage(
             items=[
                 {"product_id": "priced", "last_modified": old},
@@ -299,8 +299,8 @@ def test_incremental_sync_skips_products_without_previous_price(db):
     from app.flowhub.data_layer.models import DlProductCache
     from app.flowhub.read_engine.service import IncrementalReadEngine
 
-    old = (datetime.utcnow() - timedelta(days=400)).isoformat()
-    recent = (datetime.utcnow() - timedelta(days=5)).isoformat()
+    old = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=400)).isoformat()
+    recent = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=5)).isoformat()
     db.add_all([
         DlProductCache(connector_id="woocommerce:primary", product_id="priced", last_price="9.00", last_modified=old),
         DlProductCache(connector_id="woocommerce:primary", product_id="old-empty", last_price=None, price=None, last_modified=old),
@@ -320,7 +320,7 @@ async def test_metadata_filter_fetches_metadata_before_selected_products(db):
     from app.flowhub.data_layer.models import DlProductCache
     from app.flowhub.read_engine.service import IncrementalReadEngine
 
-    old = (datetime.utcnow() - timedelta(days=400)).isoformat()
+    old = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=400)).isoformat()
     db.add_all([
         DlProductCache(connector_id="woocommerce:primary", product_id="priced", last_price="9.00", last_modified=old),
         DlProductCache(connector_id="woocommerce:primary", product_id="recent-empty", last_price=None, price=None, last_modified=old),
@@ -367,7 +367,7 @@ async def test_incremental_sync_prefers_modified_since_when_supported(db):
         connector_id="woocommerce:primary",
         product_id="101",
         last_price="10.00",
-        last_successful_read=datetime.utcnow() - timedelta(hours=1),
+        last_successful_read=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1),
     ))
     db.commit()
     adapter = FakeReadAdapter(
@@ -589,7 +589,7 @@ def test_diagnostics_status_uses_data_layer_health_detail_without_http_500(clien
     from app.flowhub.data_layer.models import DlConnectorHealth
     from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     db.add(IntegrationConnectorInstance(
         id="snappshop:main", connector_type="snappshop", name="Snapp Shop",
         version="1.0.0", enabled=False, read_only=True, status="disabled",
@@ -612,7 +612,7 @@ def test_diagnostics_status_isolates_one_connector_contract_failure(client, auth
     from app.flowhub.integration_platform.models import IntegrationConnectorInstance
     from app.flowhub.integration_platform.service import IntegrationPlatformService
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     for channel_id, connector_type in (("snappshop:main", "snappshop"), ("tapsishop:main", "tapsishop")):
         db.add(IntegrationConnectorInstance(
             id=channel_id, connector_type=connector_type, name=channel_id,

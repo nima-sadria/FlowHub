@@ -324,7 +324,7 @@ def _run_bootstrap_users() -> None:
                 seeded.append(f"{username}(admin)")
             elif email and not existing.email:
                 existing.email = email
-                existing.updated_at = datetime.utcnow()
+                existing.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
                 email_filled.append(username)
         for username, email in user_entries:
             existing = db.query(AppUser).filter(AppUser.username == username).first()
@@ -335,7 +335,7 @@ def _run_bootstrap_users() -> None:
                 seeded.append(f"{username}(user)")
             elif email and not existing.email:
                 existing.email = email
-                existing.updated_at = datetime.utcnow()
+                existing.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
                 email_filled.append(username)
         if seeded or email_filled:
             db.commit()
@@ -518,7 +518,7 @@ async def _auto_fetch_loop(interval_secs: int) -> None:
 async def _cleanup_stale_jobs():
     db = SessionLocal()
     try:
-        cutoff = datetime.utcnow() - timedelta(hours=1)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
         db.query(SyncJob).filter(
             SyncJob.status == JobStatus.preview,
             SyncJob.created_at < cutoff,
@@ -932,7 +932,7 @@ def _record_change_history(
         new_manage_stock=new_manage_stock,
         old_stock_quantity=old_stock_quantity,
         new_stock_quantity=new_stock_quantity,
-        changed_at=datetime.utcnow(),
+        changed_at=datetime.now(timezone.utc).replace(tzinfo=None),
         username=username,
         job_id=job_id,
         source=source,
@@ -950,7 +950,7 @@ def _upsert_daily_metrics(db: Session, date: str, **increments: int) -> None:
     Uses its own nested logic on the caller's session; caller commits."""
     row = db.query(DailyMetrics).filter(DailyMetrics.date == date).first()
     if row is None:
-        row = DailyMetrics(date=date, created_at=datetime.utcnow())
+        row = DailyMetrics(date=date, created_at=datetime.now(timezone.utc).replace(tzinfo=None))
         db.add(row)
         db.flush()
     for field, delta in increments.items():
@@ -961,7 +961,7 @@ def _upsert_daily_metrics(db: Session, date: str, **increments: int) -> None:
 
 
 def _today_str() -> str:
-    return datetime.utcnow().strftime("%Y-%m-%d")
+    return datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d")
 
 
 def _record_change_tracking(
@@ -977,7 +977,7 @@ def _record_change_tracking(
     """Insert a change_tracking row for a single detected field drift. Caller commits."""
     db.add(ChangeTracking(
         product_id=product_id,
-        detected_at=datetime.utcnow(),
+        detected_at=datetime.now(timezone.utc).replace(tzinfo=None),
         field_name=field_name,
         old_value=None if old_value is None else str(old_value),
         new_value=None if new_value is None else str(new_value),
@@ -2179,7 +2179,7 @@ async def fetch_light_stream(
 
     # Capture fetch_start BEFORE querying WC so products modified during the fetch
     # are not silently swallowed by the window.
-    fetch_start = datetime.utcnow()
+    fetch_start = datetime.now(timezone.utc).replace(tzinfo=None)
     modified_before = fetch_start.strftime("%Y-%m-%dT%H:%M:%S")
 
     # Watermark: prefer WC's own date_modified_gmt; fall back to cache upsert time.
@@ -2563,7 +2563,7 @@ async def update_app_user(
             perm_changed = True
     if perm_changed:
         row.permission_version = (row.permission_version or 1) + 1
-    row.updated_at = datetime.utcnow()
+    row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
     _audit(caller, "user_access_update", ip=_client_ip(request),
            detail={"target": username, "perm_bumped": perm_changed})
@@ -2613,7 +2613,7 @@ async def revoke_user_tokens(
     if row is None:
         raise HTTPException(404, "User not found")
     row.permission_version = (row.permission_version or 1) + 1
-    row.updated_at = datetime.utcnow()
+    row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
     _audit(caller, "token_revoke", ip=_client_ip(request),
            detail={"target": username, "new_pv": row.permission_version})
@@ -2645,7 +2645,7 @@ async def set_maintenance_mode(
         row = AppSetting(key="maintenance_mode")
         db.add(row)
     row.value = json.dumps({"enabled": body.enabled, "message": body.message})
-    row.updated_at = datetime.utcnow()
+    row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     row.updated_by = caller
     db.commit()
     action = "maintenance_enabled" if body.enabled else "maintenance_disabled"
@@ -2917,7 +2917,7 @@ async def get_dashboard(user: dict = Depends(require_permission("can_access_site
         product_stats["in_stock"] = sum(1 for i in items if i.stock_status == "instock")
         product_stats["out_of_stock"] = sum(1 for i in items if i.stock_status == "outofstock")
 
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
     recent_jobs = (
         db.query(SyncJob)
         .filter(SyncJob.status == JobStatus.completed, SyncJob.created_at >= thirty_days_ago)
@@ -2999,7 +2999,7 @@ async def get_analytics(user: dict = Depends(require_permission("can_access_site
         .all()
     )
 
-    one_week_ago = datetime.utcnow() - timedelta(days=7)
+    one_week_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=7)
 
     in_stock_no_price = []
     has_price_out_of_stock = []
@@ -3073,7 +3073,7 @@ async def get_brand_coverage(user: dict = Depends(require_permission("can_access
 # -- Analytics Dashboard v1 ----------------------------------------------------
 
 def _today_utc_start() -> datetime:
-    n = datetime.utcnow()
+    n = datetime.now(timezone.utc).replace(tzinfo=None)
     return n.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
@@ -3231,7 +3231,7 @@ async def analytics_admin_trend(
     db: Session = Depends(get_db),
 ):
     """Daily metrics for the last N days (1-30), with zero-fill for missing days."""
-    end = datetime.utcnow().date()
+    end = datetime.now(timezone.utc).replace(tzinfo=None).date()
     start_str = str(end - timedelta(days=days - 1))
     rows = (
         db.query(DailyMetrics)
@@ -3368,7 +3368,7 @@ async def analytics_seller_staleness(
 ):
     """Products by staleness bucket based on last Apply date.
     Stale = never applied, or last apply > 3 days ago."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     cutoff_3 = now - timedelta(days=3)
     cutoff_5 = now - timedelta(days=5)
 
@@ -3491,7 +3491,7 @@ async def analytics_daily_changes(
     """4-color daily Apply-changes bar chart: became_instock, became_outofstock, price_updated, stock_updated.
     Only ChangeHistory rows with a matching SyncItem(status=updated) are counted, so failed
     Apply attempts (whose ChangeHistory row is written before the WC call) are excluded."""
-    end = datetime.utcnow().date()
+    end = datetime.now(timezone.utc).replace(tzinfo=None).date()
     start = end - timedelta(days=days - 1)
     start_dt = datetime(start.year, start.month, start.day)
 
@@ -3722,7 +3722,7 @@ async def update_price(
     except Exception as exc:
         raise HTTPException(502, f"Excel writeback failed: {exc}")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if body.job_id:
         item = (
             db.query(SyncItem)
@@ -4059,7 +4059,7 @@ async def confirm_sync(
 
     for item in to_skip:
         item.status = ItemStatus.skipped
-        item.synced_at = datetime.utcnow()
+        item.synced_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
     if to_update:
         updates = [
@@ -4097,7 +4097,7 @@ async def confirm_sync(
             _audit(username, "apply_failed", ip, job_id, {"error": str(exc)})
             raise HTTPException(502, f"WooCommerce batch update failed: {exc}")
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         result_map = {r["product_id"]: r for r in wc_results}
         for item in to_update:
             r = result_map.get(item.product_id, {})
@@ -4141,7 +4141,7 @@ async def confirm_sync(
     job.failed_count  = sum(1 for i in items if i.status == ItemStatus.failed)
     job.skipped_count = sum(1 for i in items if i.status == ItemStatus.skipped)
     job.status = JobStatus.completed
-    job.completed_at = datetime.utcnow()
+    job.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
     _upsert_daily_metrics(
         db, _today_str(),
         apply_jobs=1,
@@ -4228,7 +4228,7 @@ async def dry_run_sync(
         scope_json = json.dumps(effective_scope, ensure_ascii=False)
         job.dry_run_summary      = json.dumps(summary, ensure_ascii=False)
         job.dry_run_status       = dr_status
-        job.dry_run_completed_at = datetime.utcnow()
+        job.dry_run_completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         job.dry_run_scope        = scope_json
         db.commit()
 
@@ -4278,7 +4278,7 @@ async def spreadsheet_meta_endpoint(user: dict = Depends(require_permission("can
     cached = get_cached_xlsx_meta()
     is_fresh = bool(current["etag"] and current["etag"] == cached.get("etag"))
     return {
-        "current": {**current, "checked_at": datetime.utcnow().isoformat() + "Z"},
+        "current": {**current, "checked_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"},
         "cached": cached,
         "is_fresh": is_fresh,
     }
@@ -4655,7 +4655,7 @@ async def apply_stream(
 
             for item in to_skip:
                 item.status = ItemStatus.skipped
-                item.synced_at = datetime.utcnow()
+                item.synced_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
             if to_update:
                 updates = [
@@ -4687,7 +4687,7 @@ async def apply_stream(
                     )
                 db.commit()
 
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
                 result_map: dict[int, dict] = {}
                 completed = 0
                 total_to_update = len(to_update)
@@ -4786,7 +4786,7 @@ async def apply_stream(
             job.failed_count  = sum(1 for i in items if i.status == ItemStatus.failed)
             job.skipped_count = sum(1 for i in items if i.status == ItemStatus.skipped)
             job.status = JobStatus.completed
-            job.completed_at = datetime.utcnow()
+            job.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
             # Phase C: analytics + completion audit
             _upsert_daily_metrics(
                 db, _today_str(),
@@ -5292,7 +5292,7 @@ async def emergency_apply(
             # Checkpoint B: commit durable marker before any DB finalization.
             # wc_write_succeeded=True means a checkpoint B failure routes to needs_reconcile, never failed.
             item.status = "wc_succeeded"
-            item.wc_success_at = datetime.utcnow()
+            item.wc_success_at = datetime.now(timezone.utc).replace(tzinfo=None)
             db.commit()
 
             try:
@@ -5314,7 +5314,7 @@ async def emergency_apply(
                 _invalidate_dry_runs_for_product(db, item.product_id)
                 # Checkpoint C: fully finalized.
                 item.status = "applied"
-                item.applied_at = datetime.utcnow()
+                item.applied_at = datetime.now(timezone.utc).replace(tzinfo=None)
                 db.commit()
                 applied += 1
             except Exception as exc2:
@@ -5333,7 +5333,7 @@ async def emergency_apply(
                 # WC returned success but checkpoint B commit itself failed.
                 # Must NOT mark as failed - WC was already written; needs operator reconciliation.
                 item.status = "needs_reconcile"
-                item.wc_success_at = datetime.utcnow()  # best-effort: WC succeeded at approximately this time
+                item.wc_success_at = datetime.now(timezone.utc).replace(tzinfo=None)  # best-effort: WC succeeded at approximately this time
                 item.error = f"WC write succeeded but checkpoint commit failed: {exc}"
                 db.commit()
                 reconcile_count += 1
@@ -5355,7 +5355,7 @@ async def emergency_apply(
         batch.status = "partially_failed"
     else:
         batch.status = "failed"
-    batch.applied_at = datetime.utcnow()
+    batch.applied_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
 
     _audit(username, "emergency_apply_done", ip, detail={

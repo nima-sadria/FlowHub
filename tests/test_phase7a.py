@@ -23,7 +23,7 @@ os.environ.setdefault("WC_SECRET", "x")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from datetime import datetime, timedelta  # noqa: E402
+from datetime import datetime, timedelta, timezone  # noqa: E402, timezone
 
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
@@ -80,7 +80,7 @@ def _ch(db, job, product_id: int, old_s=None, new_s: str = "instock",
         new_stock_status=new_s,
         old_stock_quantity=old_q,
         new_stock_quantity=new_q,
-        changed_at=datetime.utcnow(),
+        changed_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(row)
     db.flush()

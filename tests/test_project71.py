@@ -15,7 +15,7 @@ Coverage:
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Set env vars before any app import - get_settings() is @lru_cache'd.
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
@@ -92,7 +92,7 @@ def _set_maintenance(enabled: bool, message: str = "") -> None:
             row = AppSetting(key="maintenance_mode")
             db.add(row)
         row.value = json.dumps({"enabled": enabled, "message": message})
-        row.updated_at = datetime.utcnow()
+        row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         row.updated_by = "test_helper"
         db.commit()
     finally:

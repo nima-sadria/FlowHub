@@ -36,7 +36,7 @@ import io
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
@@ -298,7 +298,7 @@ def test_capability_retry_exhaustion_returns_none_not_cached():
         db.commit()
         row = ProductCache(
             wc_id=9301, parent_id=0, product_type="variable",
-            last_synced_at=datetime.utcnow(), last_seen_at=datetime.utcnow(), cache_version=1,
+            last_synced_at=datetime.now(timezone.utc).replace(tzinfo=None), last_seen_at=datetime.now(timezone.utc).replace(tzinfo=None), cache_version=1,
         )
         db.add(row)
         db.commit()
@@ -381,7 +381,7 @@ def test_capability_retry_exhaustion_records_wc_failure(client):
         db.commit()
         row = ProductCache(
             wc_id=9310, parent_id=0, product_type="variable",
-            last_synced_at=datetime.utcnow(), last_seen_at=datetime.utcnow(), cache_version=1,
+            last_synced_at=datetime.now(timezone.utc).replace(tzinfo=None), last_seen_at=datetime.now(timezone.utc).replace(tzinfo=None), cache_version=1,
         )
         db.add(row)
         db.commit()
@@ -438,7 +438,7 @@ def test_capability_unsupported_schema_records_wc_success(client):
         db.commit()
         row = ProductCache(
             wc_id=9311, parent_id=0, product_type="variable",
-            last_synced_at=datetime.utcnow(), last_seen_at=datetime.utcnow(), cache_version=1,
+            last_synced_at=datetime.now(timezone.utc).replace(tzinfo=None), last_seen_at=datetime.now(timezone.utc).replace(tzinfo=None), cache_version=1,
         )
         db.add(row)
         db.commit()
@@ -499,7 +499,7 @@ def test_capability_malformed_json_returns_none_not_cached(client):
         db.commit()
         row = ProductCache(
             wc_id=9312, parent_id=0, product_type="variable",
-            last_synced_at=datetime.utcnow(), last_seen_at=datetime.utcnow(), cache_version=1,
+            last_synced_at=datetime.now(timezone.utc).replace(tzinfo=None), last_seen_at=datetime.now(timezone.utc).replace(tzinfo=None), cache_version=1,
         )
         db.add(row)
         db.commit()

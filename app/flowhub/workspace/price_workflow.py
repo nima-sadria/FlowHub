@@ -15,7 +15,7 @@ import math
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from time import monotonic
 from typing import Any
 
@@ -85,7 +85,7 @@ class WorkspacePriceWorkflowService:
         *,
         source_config_hash: str | None = None,
     ) -> WorkspacePreviewResponse:
-        started = datetime.utcnow()
+        started = datetime.now(timezone.utc).replace(tzinfo=None)
         preview_id = f"wp_{uuid.uuid4().hex[:16]}"
         self._required_config("nextcloud.spreadsheet_path")
         self._require_channel_config()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -122,7 +122,7 @@ def test_exact_variation_id_wins_over_same_channel_parent_sku(client, auth_heade
             price="235400000",
             regular_price="235400000",
             freshness="fresh",
-            last_successful_read=datetime.utcnow(),
+            last_successful_read=datetime.now(timezone.utc).replace(tzinfo=None),
             exists=True,
         )
     )
@@ -139,7 +139,7 @@ def test_exact_variation_id_wins_over_same_channel_parent_sku(client, auth_heade
             price="125000",
             regular_price="125000",
             freshness="fresh",
-            last_successful_read=datetime.utcnow(),
+            last_successful_read=datetime.now(timezone.utc).replace(tzinfo=None),
             exists=True,
         )
     )
@@ -535,8 +535,8 @@ def _seed_product(db, *, tapsi: bool = True, snapp_read_only: bool = False) -> N
                 enabled=True,
                 read_only=read_only,
                 status="configured",
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+                updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
             )
         )
     db.add(
@@ -550,7 +550,7 @@ def _seed_product(db, *, tapsi: bool = True, snapp_read_only: bool = False) -> N
             regular_price="100",
             price="100",
             freshness="fresh",
-            last_successful_read=datetime.utcnow(),
+            last_successful_read=datetime.now(timezone.utc).replace(tzinfo=None),
             exists=True,
         )
     )
@@ -564,7 +564,7 @@ def _seed_product(db, *, tapsi: bool = True, snapp_read_only: bool = False) -> N
             regular_price="100000",
             price="100000",
             freshness="fresh",
-            last_successful_read=datetime.utcnow(),
+            last_successful_read=datetime.now(timezone.utc).replace(tzinfo=None),
             exists=True,
             stock_qty=5,
         )
@@ -580,7 +580,7 @@ def _seed_product(db, *, tapsi: bool = True, snapp_read_only: bool = False) -> N
                 regular_price="1000000",
                 price="1000000",
                 freshness="fresh",
-                last_successful_read=datetime.utcnow(),
+                last_successful_read=datetime.now(timezone.utc).replace(tzinfo=None),
                 exists=True,
                 stock_qty=5,
             )

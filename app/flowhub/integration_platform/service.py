@@ -12,7 +12,7 @@ import logging
 import traceback
 import uuid
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timezone
 from hashlib import sha256
 
 from fastapi import HTTPException, status
@@ -245,7 +245,7 @@ class IntegrationPlatformService:
                 ],
                 commit=False,
             )
-        row.updated_at = datetime.utcnow()
+        row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self.record_event(
             connector_id=connector_id,
             event_name="connector_updated",
@@ -263,7 +263,7 @@ class IntegrationPlatformService:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
         row.enabled = enabled
         row.read_only = True
-        row.updated_at = datetime.utcnow()
+        row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self.record_event(
             connector_id=connector_id,
             event_name="connector_enabled" if enabled else "connector_disabled",
@@ -448,7 +448,7 @@ class IntegrationPlatformService:
         definition = self.get_registry_definition(connector_type)
         values = self._normalize_connector_settings(connector_type, values, reject_invalid=False) or {}
         row = self.db.get(IntegrationConnectorInstance, connector_id)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         if row is None:
             row = IntegrationConnectorInstance(
                 id=connector_id,
@@ -684,7 +684,7 @@ class IntegrationPlatformService:
 
     def diagnostics_run(self, target: str = "all") -> dict:
         self.bootstrap_from_app_config()
-        started = datetime.utcnow()
+        started = datetime.now(timezone.utc).replace(tzinfo=None)
         definitions = registry.list_definitions()
         if target != "all":
             definitions = [d for d in definitions if d.connector.identity.type == target]
@@ -699,9 +699,9 @@ class IntegrationPlatformService:
             instance = instances.get(definition.connector.identity.type)
             health = self._latest_health(instance.id) if instance else None
             for check in definition.diagnostics_contract.checks:
-                check_started = datetime.utcnow()
+                check_started = datetime.now(timezone.utc).replace(tzinfo=None)
                 check_status, message, skipped = self._diagnostic_check_result(check.name, instance, health)
-                check_duration_ms = (datetime.utcnow() - check_started).total_seconds() * 1000
+                check_duration_ms = (datetime.now(timezone.utc).replace(tzinfo=None) - check_started).total_seconds() * 1000
                 checks.append(
                     {
                         "check_name": check.name,
@@ -718,7 +718,7 @@ class IntegrationPlatformService:
                         "skipped_because": skipped,
                     }
                 )
-        completed = datetime.utcnow()
+        completed = datetime.now(timezone.utc).replace(tzinfo=None)
         overall = "ok" if checks and all(c["status"] == "pass" for c in checks) else "skip"
         return {
             "target": target,
@@ -874,7 +874,7 @@ class IntegrationPlatformService:
         policy.jitter_seconds = int(body.get("jitter_seconds", policy.jitter_seconds or 60))
         policy.last_run_at = None
         policy.next_run_at = None
-        policy.updated_at = datetime.utcnow()
+        policy.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self.record_event(
             connector_id=connector_id,
             event_name="polling_policy_updated",
@@ -1044,7 +1044,7 @@ class IntegrationPlatformService:
         existing = {item.key: item for item in row.settings}
         definition = registry.get_definition(row.connector_type)
         non_secret_keys = self._definition_non_secret_keys(definition) if definition else set()
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         for item in settings:
             secret = item.secret or (_is_secret_key(item.key) and item.key not in non_secret_keys)
             configured = item.configured or item.value not in (None, "")

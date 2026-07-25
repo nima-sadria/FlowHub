@@ -19,7 +19,7 @@ import socket
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -271,7 +271,7 @@ class OrderSyncRunner:
             row = db.query(OrderSyncCheckpoint).filter_by(channel_id=channel_id, source=source).first()
             if row is None or row.next_run_at is None:
                 return True
-            return row.next_run_at <= datetime.utcnow() or row.last_run_at is None or row.last_run_at < datetime.utcnow() - timedelta(seconds=max(1, interval_seconds))
+            return row.next_run_at <= datetime.now(timezone.utc).replace(tzinfo=None) or row.last_run_at is None or row.last_run_at < datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=max(1, interval_seconds))
 
     def _snappshop_connector(self, channel_id: str, settings: dict[str, Any]) -> SnappShopConnector | None:
         try:
@@ -333,7 +333,7 @@ class OrderSyncRunner:
                 severity=severity,
                 message=message,
                 metadata_json=redact_sensitive(metadata),
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc).replace(tzinfo=None),
             ))
             db.commit()
 
@@ -403,7 +403,7 @@ def _upsert_setting(db: Session, channel_id: str, key: str, value: Any, *, secre
     row.value_json = value
     row.configured = value not in (None, "")
     row.secret = secret
-    row.updated_at = datetime.utcnow()
+    row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
 
 
