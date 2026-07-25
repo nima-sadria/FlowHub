@@ -27,6 +27,21 @@ services:
       target: frontend-build
     image: flowhub-frontend-build:latest
 
+  flowhub-migrate:
+    # One-shot schema migration. Applies the FlowHub Alembic head before the
+    # app and order-sync-runner start, so required tables (e.g.
+    # ip_connector_events) exist. Uses FLOWHUB_DATABASE_URL from .env via
+    # alembic_flowhub/env.py. This is the canonical migration command; do not
+    # run the legacy root `alembic upgrade head` (it requires DATABASE_URL).
+    image: flowhub:latest
+    command: ["alembic", "-c", "alembic_flowhub.ini", "upgrade", "head"]
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   app:
     build:
       context: .
@@ -47,6 +62,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      flowhub-migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8085/api/health"]
       interval: 30s
@@ -67,6 +84,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      flowhub-migrate:
+        condition: service_completed_successfully
 
   postgres:
     image: postgres:16-alpine
