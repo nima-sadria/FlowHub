@@ -14,6 +14,7 @@ import {
 } from '../features/resourceOrdering/resourceOrdering'
 import { translate } from '../i18n'
 import { formatRelativeTime } from '../i18n/format'
+import { inputHint } from '../utils/inputHint'
 import { useNotification } from '../notifications/NotificationProvider'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceChannel } from '../services/types'
@@ -214,7 +215,7 @@ export default function Channels() {
             type="search"
             value={query}
             onChange={event => setQuery(event.target.value)}
-            placeholder={translate('commerce:commerceHub.searchChannels')}
+            {...inputHint(translate('commerce:commerceHub.searchChannels'))}
             aria-label={translate('commerce:commerceHub.searchChannels')}
           />
           {query && <button type="button" className="fh-channels-search-clear" aria-label={translate('commerce:commerceHub.clearSearch')} onClick={() => setQuery('')}><Icon name="close" size="sm" /></button>}

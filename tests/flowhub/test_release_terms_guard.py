@@ -70,6 +70,13 @@ INTERNAL_TERM_PATTERNS = {
         r'\bselected\.placeholder\b',
         r'\bselectedType\.placeholder\b',
     ),
+    # Channels.tsx reads the same typed `placeholder: boolean` channel field
+    # (services/types.ts) as CommerceHub.tsx to gate coming-soon entries. This
+    # path-exact allowance covers only that field access; it does not permit
+    # release labels or fixture content.
+    "frontend/src/pages/Channels.tsx": (
+        r'\bchannel\.placeholder\b',
+    ),
     # `placeholder` is an existing typed implementation-state signal used by
     # the shared Source/Channel ordering policy.  This path-exact allowance
     # does not permit release labels or fixture content elsewhere.

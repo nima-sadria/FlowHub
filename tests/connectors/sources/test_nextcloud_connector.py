@@ -291,8 +291,9 @@ def test_no_direct_httpx_import_in_connector():
     import ast
     import pathlib
 
-    connector_src = pathlib.Path(
-        "C:/Users/nimas/OneDrive/Documents/GitHub/FlowHub/app/connectors/sources/nextcloud/connector.py"
+    connector_src = (
+        pathlib.Path(__file__).resolve().parents[3]
+        / "app" / "connectors" / "sources" / "nextcloud" / "connector.py"
     ).read_text()
     tree = ast.parse(connector_src)
     for node in ast.walk(tree):

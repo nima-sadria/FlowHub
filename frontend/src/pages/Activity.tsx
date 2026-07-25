@@ -9,6 +9,7 @@ import { SkeletonCard } from '../components/loading/Skeleton'
 import PageShell from '../components/PageShell'
 import { translate } from '../i18n'
 import { formatRelativeTime } from '../i18n/format'
+import { inputHint } from '../utils/inputHint'
 import { useServices } from '../services/ServiceContext'
 import type { ActivityEvent, ActivityLevel } from '../services/types'
 
@@ -277,7 +278,7 @@ export default function Activity() {
           type="search"
           value={filters.search}
           onChange={event => updateFilter('search', event.target.value)}
-          placeholder={translate('activity:activity.search')}
+          {...inputHint(translate('activity:activity.search'))}
           aria-label={translate('activity:activity.search')}
         />
       </form>

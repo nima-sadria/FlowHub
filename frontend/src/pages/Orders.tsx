@@ -10,6 +10,7 @@ import { formatDateTime, formatRelativeTime } from '../i18n/format'
 import { useServices } from '../services/ServiceContext'
 import type { OrderSyncStatus } from '../services/orders/OrderService'
 import type { ChannelOrderDetail, ChannelOrderListItem } from '../services/types'
+import { inputHint } from '../utils/inputHint'
 import { formatMoney } from '../utils/price'
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral'
@@ -300,7 +301,7 @@ export default function Orders() {
             type="search"
             value={searchInput}
             onChange={event => setSearchInput(event.target.value)}
-            placeholder={translate('orders:orders.searchOrders')}
+            {...inputHint(translate('orders:orders.searchOrders'))}
             aria-label={translate('orders:orders.searchOrders')}
           />
           {searchInput && <button type="button" className="fh-orders-search-clear" aria-label={translate('orders:orders.clearSearch')} onClick={() => { setSearchInput(''); setSearch(''); setPage(1) }}><Icon name="close" size="sm" /></button>}
