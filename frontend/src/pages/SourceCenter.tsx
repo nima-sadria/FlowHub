@@ -113,6 +113,8 @@ export default function SourceCenter() {
   const [worksheetMappings, setWorksheetMappings] = useState<Record<string, SourceMapping | null>>({})
   const [totalProducts, setTotalProducts] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
   const [creating, setCreating] = useState(false)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<SourceFilter>('all')
@@ -181,6 +183,8 @@ export default function SourceCenter() {
 
   useEffect(() => {
     let active = true
+    setLoading(true)
+    setLoadError(false)
     Promise.allSettled([
       sourceWorkspaceApi.listSources(),
       commerce.getSources(),
@@ -191,10 +195,11 @@ export default function SourceCenter() {
         if (managedResult.status === 'fulfilled') setSources(managedResult.value.items)
         if (integrationResult.status === 'fulfilled') setIntegrations(integrationResult.value.items)
         if (productsResult.status === 'fulfilled') setTotalProducts(productsResult.value.total)
+        if (managedResult.status === 'rejected' && integrationResult.status === 'rejected') setLoadError(true)
       })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [commerce, products])
+  }, [commerce, products, reloadToken])
 
   useEffect(() => {
     let active = true
@@ -457,7 +462,17 @@ export default function SourceCenter() {
         <span className="fh-sources-count ms-auto">{translate('sources:sourceCenter.sourcesCount', { count: cards.length })}</span>
       </div>
 
-      {loading ? <p className="fh-card fh-card-pad fh-text-caption">{translate('sources:sourceCenter.loadingSources')}</p> : visibleCards.length === 0 ? (
+      {loadError && !loading ? (
+        <div className="fh-alert fh-alert-danger mb-4" role="alert">
+          <Icon name="error" />
+          <span className="flex-1">{translate('sources:sourceCenter.loadFailed')}</span>
+          <button type="button" className="fh-button-secondary fh-button-sm" onClick={() => setReloadToken(value => value + 1)}>
+            {translate('common:action.retry')}
+          </button>
+        </div>
+      ) : null}
+
+      {loading ? <p className="fh-card fh-card-pad fh-text-caption">{translate('sources:sourceCenter.loadingSources')}</p> : loadError ? null : visibleCards.length === 0 ? (
         <div className="fh-card fh-card-pad"><Empty title={translate('sources:sourceCenter.noManagedSourceYetCreateAFlowhub')} description="" /></div>
       ) : (
         <div className="fh-sources-grid" data-testid="source-card-groups">

@@ -32,6 +32,7 @@
   "sourceCenter.keepAnExternalSourceLinked": "حفظ اتصال منبع خارجی",
   "sourceCenter.linkedExternalSource": "منبع خارجی متصل",
   "sourceCenter.loadingSources": "در حال بارگذاری منابع...",
+  "sourceCenter.loadFailed": "منابع بارگیری نشدند. دوباره تلاش کنید.",
   "sourceCenter.sheetCreationFailed": "برگه ایجاد نشد",
   "sourceCenter.tryAgainNoSourceCreated": "دوباره تلاش کنید. هیچ منبعی ایجاد نشد.",
   "sourceCenter.managedSources": "منابع مدیریت‌شده",
