@@ -2808,6 +2808,31 @@ select,
     border-color: var(--fh-ui-border-emphasis);
   }
 
+  .fh-source-options > button {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+
+  .fh-source-options > button > .fh-text-caption {
+    margin-bottom: 20px;
+  }
+
+  .fh-source-options > button > .fh-button-primary,
+  .fh-source-options > button > .fh-button-secondary {
+    margin-top: auto;
+    margin-bottom: 0;
+  }
+
+  /* Make the two secondary buttons blue like the primary */
+  .fh-source-options > button > .fh-button-secondary {
+    background-color: rgb(70, 95, 255);
+    color: rgb(255, 255, 255);
+    border-color: rgb(70, 95, 255);
+  }
+
   .fh-button-ghost {
     min-height: 44px;
     display: inline-flex;
