@@ -1,0 +1,83 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "FlowHub: prepare local development",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\dev\\prepare.ps1"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "FlowHub: start local stack",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\dev\\start_local.ps1",
+        "-NoBrowser"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "FlowHub: stop local stack",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\dev\\stop_local.ps1"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "FlowHub: live Playwright smoke",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\dev\\test_live.ps1"
+      ],
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "FlowHub: backend logs",
+      "type": "shell",
+      "command": "Get-Content",
+      "args": [
+        "-LiteralPath",
+        "${workspaceFolder}\\.local\\dev\\logs\\backend.stderr.log",
+        "-Wait"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "FlowHub: frontend logs",
+      "type": "shell",
+      "command": "Get-Content",
+      "args": [
+        "-LiteralPath",
+        "${workspaceFolder}\\.local\\dev\\logs\\frontend.stdout.log",
+        "-Wait"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FlowHub: Full Stack + Browser",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:5173",
+      "webRoot": "${workspaceFolder}/frontend",
+      "userDataDir": "${workspaceFolder}/.local/browser-profile/vscode",
+      "sourceMaps": true,
+      "preLaunchTask": "FlowHub: start local stack",
+      "postDebugTask": "FlowHub: stop local stack"
+    }
+  ]
+}

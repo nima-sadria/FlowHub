@@ -1,5 +1,4 @@
 .env
-.env
 *.db
 data/
 __pycache__/
@@ -7,10 +6,25 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .DS_Store
 
+# Local development runtime, credentials, and machine configuration
+.local/
+.mcp.json
+.mcp.local.json
+.claude/settings.local.json
 .claude/settings*.json
 .claude/worktrees/
+.vscode/settings.json
+.vscode/*.local.json
+*.local.env
+*.local.json
+*.debug.log
+debug-*.log
+tmp/
+temp/
 
 adminator.zip
 adminator_theme/
@@ -22,6 +36,15 @@ frontend/dist/
 frontend/.vite/
 frontend/test-results/
 frontend/playwright-report/
+frontend/blob-report/
+frontend/.playwright/
+frontend/e2e/.auth/
+frontend/videos/
+frontend/traces/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
 static/assets/
 /free-react-tailwind-admin-dashboard-main/
 

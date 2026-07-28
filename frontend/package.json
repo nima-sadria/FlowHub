@@ -9,6 +9,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:live": "playwright test --config playwright.live.config.ts",
+    "test:e2e:live:headed": "playwright test --config playwright.live.config.ts --headed",
+    "test:e2e:live:debug": "playwright test --config playwright.live.config.ts --debug",
     "benchmark:e2e": "playwright test e2e/unified-workspace-performance.spec.ts --reporter=line",
     "i18n:extract": "node scripts/i18n.mjs extract",
     "i18n:validate": "node scripts/i18n.mjs validate",
@@ -24,6 +27,7 @@
     "react-router-dom": "^6.27.0"
   },
   "devDependencies": {
+    "@playwright/mcp": "^0.0.78",
     "@playwright/test": "^1.61.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
