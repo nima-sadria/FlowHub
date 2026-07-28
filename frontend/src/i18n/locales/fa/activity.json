@@ -45,6 +45,7 @@
   "activity.importantActivity": "فعالیت‌های مهم",
   "activity.info": "اطلاعات",
   "activity.loading": "در حال بارگذاری...",
+  "activity.loadFailed": "فعالیت‌ها بارگیری نشدند. دوباره تلاش کنید.",
   "activity.loadMoreRemaining": "بارگذاری بیشتر ({{value1}} باقی‌مانده)",
   "activity.noActivityYet": "هنوز فعالیتی ثبت نشده است",
   "activity.orderSyncs": "همگام‌سازی سفارش‌ها",

@@ -97,4 +97,19 @@ describe('Activity business history', () => {
       HTMLAnchorElement.prototype.click = originalAnchorClick
     }
   })
+
+  it('shows a retryable error when Activity cannot be loaded', async () => {
+    getEvents.mockRejectedValueOnce(new Error('offline'))
+    await render()
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Activity could not be loaded')
+    const retry = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Retry') as HTMLButtonElement
+    await act(async () => {
+      retry.click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(container.textContent).toContain('Product preview failed')
+  })
 })
