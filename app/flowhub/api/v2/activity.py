@@ -268,12 +268,14 @@ async def list_activity(
     fetch_limit = offset + per_page
     login_rows: list[FlowHubLoginAudit] = (
         login_query
-        .order_by(FlowHubLoginAudit.created_at.desc())
+        .order_by(FlowHubLoginAudit.created_at.desc(), FlowHubLoginAudit.id.desc())
         .limit(fetch_limit)
         .all()
     )
     unified_rows: list[tuple[UnifiedAuditEntry, str | None]] = (
-        unified_query.order_by(UnifiedAuditEntry.occurred_at.desc())
+        unified_query.order_by(
+            UnifiedAuditEntry.occurred_at.desc(), UnifiedAuditEntry.id.desc()
+        )
         .limit(fetch_limit)
         .all()
     )
