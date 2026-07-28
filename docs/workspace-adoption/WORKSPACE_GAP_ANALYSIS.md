@@ -52,4 +52,3 @@ AUTH-005 and SRC-001 through SRC-003 are validated. The audit then resumes
 page-by-page for Dashboard, Sources, Channels, Products, Orders, Settings, and
 both Workspace surfaces. WS-001 through WS-003 remain explicit architecture
 holds and must not be silently patched as UI-only changes.
-

@@ -103,4 +103,3 @@ still exposes both a legacy `/workspace` workflow and the unified
 directly from its action button without a separate manifest-bound confirmation
 dialog. Resolving those boundaries changes user workflow and requires the
 Owner decisions recorded in `WORKSPACE_OWNER_DECISIONS.md`.
-
