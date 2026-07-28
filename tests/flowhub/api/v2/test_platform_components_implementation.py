@@ -351,6 +351,39 @@ def test_logging_platform_ingestion_search_redaction_retention(client, auth_head
     assert policies["audit_security"] == 365
 
 
+def test_frontend_logging_rejects_unbounded_batches_and_entries(client, auth_headers):
+    batch = client.post(
+        "/api/v2/logging/frontend",
+        headers=auth_headers,
+        json={
+            "logs": [
+                {"category": "UI Events", "message": f"event-{index}"}
+                for index in range(101)
+            ]
+        },
+    )
+    assert batch.status_code == 422
+    assert "at most 100" in batch.json()["detail"]
+
+    oversized = client.post(
+        "/api/v2/logging/frontend",
+        headers=auth_headers,
+        json={
+            "logs": [
+                {
+                    "category": "Unexpected Exceptions",
+                    "message": "x" * (64 * 1024),
+                }
+            ]
+        },
+    )
+    assert oversized.status_code == 200
+    assert oversized.json()["accepted"] == 0
+    assert oversized.json()["rejections"] == [
+        {"index": 0, "reason": "log_too_large"}
+    ]
+
+
 def test_logging_redacts_secret_like_message_and_exception_strings(client, auth_headers):
     secret_messages = [
         "password=pw-value",

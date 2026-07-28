@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -51,6 +52,8 @@ SECRET_MARKERS = {
     "webhook_secret",
     "bearer",
 }
+MAX_FRONTEND_LOG_BATCH = 100
+MAX_FRONTEND_LOG_BYTES = 64 * 1024
 
 
 class LoggingPlatformService:
@@ -155,11 +158,19 @@ class LoggingPlatformService:
         logs = body.get("logs") if isinstance(body, dict) else None
         if not isinstance(logs, list):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "logs must be a list.")
+        if len(logs) > MAX_FRONTEND_LOG_BATCH:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                f"logs must contain at most {MAX_FRONTEND_LOG_BATCH} entries.",
+            )
         accepted = 0
         rejections: list[dict] = []
         for index, item in enumerate(logs):
             if not isinstance(item, dict):
                 rejections.append({"index": index, "reason": "invalid_log"})
+                continue
+            if len(json.dumps(item, default=str).encode("utf-8")) > MAX_FRONTEND_LOG_BYTES:
+                rejections.append({"index": index, "reason": "log_too_large"})
                 continue
             if item.get("category") not in FRONTEND_CATEGORIES:
                 rejections.append({"index": index, "reason": "category_not_allowed"})
@@ -201,8 +212,6 @@ class LoggingPlatformService:
         )
         self.db.commit()
         if fmt == "json":
-            import json
-
             return "application/json", json.dumps(result["items"])
         output = io.StringIO()
         writer = csv.DictWriter(output, fieldnames=list(result["items"][0].keys()) if result["items"] else ["id"])
