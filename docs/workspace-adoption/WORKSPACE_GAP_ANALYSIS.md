@@ -10,12 +10,12 @@
 
 | ID | Severity | Current behavior | Target behavior | Disposition |
 | --- | --- | --- | --- | --- |
-| AUTH-001 | P0 | `/api/auth/me` returns legacy `can_*` permissions only | Return canonical Workspace permissions plus compatibility aliases | Implement now |
-| AUTH-002 | P0 | Source and Workspace routes use `can_access_site` or `can_fetch` | Route guards use `workspace.read`, `workspace.create`, and related capabilities | Implement now |
-| AUTH-003 | P0 | Viewer can reach Source creation/import/edit controls | Mutating controls require their exact capability; viewer remains read-only | Implement now |
-| AUTH-004 | P1 | Any API 403 changes the whole app to `permission_denied` | Action-level 403 remains local; only `/auth/me` defines global access state | Implement now |
-| AUTH-005 | P0 | Maintenance write guard allows admin roles only, while role policy grants operators `apply.execute` | Enforce `apply.execute`; retain owner/super-admin maintenance bypass | Implement now |
-| AUTH-006 | P2 | Permission strings are repeated in frontend code | Use typed/shared frontend constants without introducing a new framework | Implement now |
+| AUTH-001 | P0 | `/api/auth/me` returned legacy `can_*` permissions only | Return canonical Workspace permissions plus compatibility aliases | Resolved in `d0caca5` |
+| AUTH-002 | P0 | Source and Workspace routes used `can_access_site` or `can_fetch` | Route guards use `workspace.read`, `workspace.create`, and related capabilities | Resolved in `d0caca5` |
+| AUTH-003 | P0 | Viewer could reach Source creation/import/edit controls | Mutating controls require their exact capability; viewer remains read-only | Resolved in `d0caca5` |
+| AUTH-004 | P1 | Any API 403 changed the whole app to `permission_denied` | Action-level 403 remains local; only `/auth/me` defines global access state | Resolved in `d0caca5` |
+| AUTH-005 | P0 | Maintenance write guard allowed admin roles only, while role policy granted operators `apply.execute` | Enforce `apply.execute`; retain owner/super-admin maintenance bypass | Resolved in `d0caca5` |
+| AUTH-006 | P2 | Permission strings were repeated in frontend code | Use typed/shared frontend constants without introducing a new framework | Resolved in `d0caca5` |
 
 ## Workflow Gaps
 
@@ -31,24 +31,36 @@
 
 | ID | Severity | Current behavior | Target behavior | Disposition |
 | --- | --- | --- | --- | --- |
-| SRC-001 | P1 | Source Configuration renders editable controls for all readers | `workspace.read` can inspect; `workspace.edit` enables mapping mutation | Implement now |
-| SRC-002 | P1 | FlowHub Sheet renders editable cells/actions for all route users | `workspace.read` can inspect; `draft.save` enables revision mutation | Implement now |
-| SRC-003 | P1 | Add Source and import entry points are visible without `workspace.create` | Creation paths require `workspace.create` in route and component | Implement now |
-| SRC-004 | P2 | External Commerce Source controls use separate admin role checks | Preserve Sources/Channels separation; audit later for capability alignment | Continue audit |
+| SRC-001 | P1 | Source Configuration rendered editable controls for all readers | `workspace.read` can inspect; `workspace.edit` enables mapping mutation | Resolved in `d0caca5` |
+| SRC-002 | P1 | FlowHub Sheet rendered editable cells/actions for all route users | `workspace.read` can inspect; `draft.save` enables revision mutation | Resolved in `d0caca5` |
+| SRC-003 | P1 | Add Source and import entry points were visible without `workspace.create` | Creation paths require `workspace.create` in route and component | Resolved in `d0caca5` |
+| SRC-004 | P2 | External connector setup appeared to non-admin Source creators | Preserve Sources/Channels separation and backend admin policy | Resolved in `727ab5e` |
+| SRC-005 | P1 | Total Source-list failure rendered an empty state with no recovery | Preserve partial results; show retry when both authoritative lists fail | Resolved in `d3eec97` |
 
 ## Contract and Recovery Gaps
 
 | ID | Severity | Current behavior | Target behavior | Disposition |
 | --- | --- | --- | --- | --- |
-| CON-001 | P1 | Browser cannot distinguish all backend Workspace capabilities | `/api/auth/me` is the canonical frontend capability contract | Implement now |
-| CON-002 | P1 | Action-level permission denial can destroy authenticated UI state | Preserve session and render local error | Implement now |
+| CON-001 | P1 | Browser could not distinguish all backend Workspace capabilities | `/api/auth/me` is the canonical frontend capability contract | Resolved in `d0caca5` |
+| CON-002 | P1 | Action-level permission denial could destroy authenticated UI state | Preserve session and render local error | Resolved in `d0caca5` |
 | CON-003 | P2 | Permission model is role-derived in code | Role-derived policy is acceptable until custom grants are approved | No schema change |
 | CON-004 | P2 | Reference specification is present only in the Owner working tree during this audit | Adoption docs record reviewed filenames; reference publication remains Owner-controlled | Documented risk |
 
+## Page Integration Findings
+
+| ID | Page | Severity | Root cause | Layer | Disposition |
+| --- | --- | --- | --- | --- | --- |
+| UI-001 | Channels | P1 | Primary list rejection had no error/retry state | Frontend | Resolved in `727ab5e` |
+| UI-002 | Channels | P1 | Add/Configure controls were visible to readers although backend requires admin | Frontend/contract | Resolved in `727ab5e` |
+| UI-003 | Channels | P2 | KPI numbers used host locale instead of FlowHub locale | Frontend | Resolved in `727ab5e` |
+| UI-004 | Sources | P1 | Sheet creation rejection escaped without user feedback | Frontend | Resolved in `727ab5e` |
+| UI-005 | Orders | P1 | Detail rejection was swallowed and left no recovery message | Frontend | Resolved in `727ab5e` |
+| UI-006 | Activity | P1 | Primary history rejection escaped its async handler | Frontend | Resolved in `e3955ee` |
+| UI-007 | Sources | P1 | Total Source-list rejection looked like a valid empty state | Frontend | Resolved in `d3eec97` |
+
 ## Integration Audit Status
 
-The prior Integration Audit HOLD is resolved only after AUTH-001 through
-AUTH-005 and SRC-001 through SRC-003 are validated. The audit then resumes
-page-by-page for Dashboard, Sources, Channels, Products, Orders, Settings, and
-both Workspace surfaces. WS-001 through WS-003 remain explicit architecture
-holds and must not be silently patched as UI-only changes.
+The authorization-contract HOLD is resolved. The page-by-page audit is
+complete and all non-architectural findings above are committed. Overall
+Workspace adoption remains HOLD on WS-001 through WS-003 and must not be
+silently patched as UI-only behavior.

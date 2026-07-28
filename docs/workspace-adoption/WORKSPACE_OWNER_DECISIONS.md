@@ -90,3 +90,14 @@ New decisions must identify:
 - migration requirement;
 - test and rollout gate; and
 - whether provider writes remain disabled until acceptance.
+
+## Audit Disposition
+
+The authorization contract and all small/medium integration findings are
+resolved. Implementation must now stop at OD-004 and OD-005. Until those
+decisions are approved:
+
+- keep both Workspace routes;
+- do not alter Apply payloads or persistence;
+- do not represent the current immediate unified Apply action as canonical;
+- do not merge, release, deploy, or execute provider writes from this audit.

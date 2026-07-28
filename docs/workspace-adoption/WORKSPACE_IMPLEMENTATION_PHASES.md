@@ -19,7 +19,7 @@ Exit criteria:
 
 ## Phase 1: Authorization Contract
 
-**Status:** Approved for implementation.
+**Status:** Complete in `d0caca5`.
 
 Work:
 
@@ -46,7 +46,7 @@ Commit boundary:
 
 ## Phase 2: Integration Audit Resume
 
-**Status:** Starts after Phase 1 passes.
+**Status:** Complete for current routes and controls.
 
 Audit each page:
 
@@ -76,6 +76,19 @@ visible control
 Small and medium fixes are committed by coherent page or contract boundary.
 Architecture changes are added to `WORKSPACE_OWNER_DECISIONS.md` and stop that
 specific implementation path.
+
+Completed remediation:
+
+- `727ab5e`: Channels authorization/recovery/localization, Source creation
+  feedback, and Order-detail recovery.
+- `e3955ee`: Activity history load recovery.
+- `d3eec97`: Source-list total-failure recovery.
+
+Validation:
+
+- 58 frontend files and 416 tests passed.
+- Frontend production build and i18n validation passed.
+- Backend execution validation remains pending in a Python-capable environment.
 
 ## Phase 3: Canonical Workspace UX
 

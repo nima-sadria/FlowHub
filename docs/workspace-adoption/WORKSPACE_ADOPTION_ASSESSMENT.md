@@ -92,14 +92,54 @@ The adoption must preserve these invariants:
 9. Reconciliation reads state and never blindly retransmits an uncertain write.
 10. Every write is attributable to an authenticated actor.
 
+## Integration Audit Coverage
+
+The resumed audit traced each visible action through its frontend service,
+HTTP method/path, backend dependency, domain service, response handling, and
+loading/error state.
+
+| Surface | Principal contract | Result |
+| --- | --- | --- |
+| Login and Setup | `/api/auth/*`, `/api/v2/setup/*` | Aligned; guarded forms and tested error states |
+| Dashboard | dashboard, product, order, Source, activity, and diagnostics reads | Aligned; read-only navigation and partial-data behavior preserved |
+| Sources | `/api/v2/source-profiles`, `/sources`, `/sheets`, `/data-quality` | Aligned after capability, read-only, creation, removal, and recovery fixes |
+| Channels and Commerce | `/api/v2/commerce/*` | Aligned; admin-only configuration/actions and reader-safe list UI |
+| Products | catalog Workspace, grouped grid, Draft, Review, Selection, Apply | Contract-aligned; final confirmation architecture remains OD-005 |
+| Orders | list, detail, sync status, explicit WooCommerce read sync | Aligned after detail-error recovery; provider mutation remains false |
+| Activity | `/api/v2/activity` plus local CSV export | Aligned after load-error recovery |
+| Settings and Rate Limits | `/api/v2/settings*` | Aligned; admin route and backend dependency agree |
+| Users | `/api/v2/users*` | Aligned; admin-only CRUD and validation tests |
+| Diagnostics | `/api/v2/diagnostics/*` and health reads | Aligned; explicit refresh and failure presentation |
+| Legacy Workspace | `/api/v2/workspace`, `/api/v2/write-pipeline` | Operational but not canonical; blocked on OD-004 |
+| Unified Workspace | `/api/v2/unified-workspaces/*` | Strong persistence and reconciliation; blocked on OD-005 confirmation boundary |
+
+No frontend control was found to call a nonexistent route. No audited Preview,
+Review, diagnostic, Source-list, Product-list, or Order-list action performs a
+provider write. The explicit Apply paths were inspected statically and were not
+executed.
+
+## Validation Evidence
+
+- Frontend focused permission tests: 109 passed.
+- Full frontend suite: 58 files and 416 tests passed.
+- Frontend production build: passed.
+- i18n validation: 2,067 messages; no missing keys, placeholder mismatches,
+  unapproved hardcoded strings, or critical Persian leakage.
+- `git diff --check`: passed.
+- Backend tests and Python compilation could not run because this Windows
+  checkout has no usable Python interpreter, Docker engine, or installed WSL
+  distribution. Backend conclusions are static and test-source based.
+
 ## Current Assessment
 
-**Authorization adoption:** approved and implementable without a migration.
+**Authorization adoption:** complete without a migration. Canonical Workspace
+permissions are exposed by `/api/auth/me`, enforced at route/action level, and
+legacy aliases remain compatible.
 
-**Full canonical Workspace convergence:** partially implemented. The unified
-engine has strong persistence and write-safety foundations, but the application
-still exposes both a legacy `/workspace` workflow and the unified
-`/workspace/:workspaceId` workflow. The unified frontend also submits Apply
-directly from its action button without a separate manifest-bound confirmation
-dialog. Resolving those boundaries changes user workflow and requires the
-Owner decisions recorded in `WORKSPACE_OWNER_DECISIONS.md`.
+**Integration audit:** complete for the current routes and controls. All small
+and medium findings were remediated and frontend validation is green.
+
+**Full canonical Workspace convergence:** HOLD. The application still exposes
+legacy and unified Workspace workflows, and the unified Apply contract lacks a
+separate exact-operation confirmation boundary. These are architecture changes
+requiring OD-004 and OD-005 before implementation.
