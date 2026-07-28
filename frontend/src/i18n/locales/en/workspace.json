@@ -174,6 +174,7 @@
   "unifiedWorkspace.visibleChannels": "Visible Channels",
   "unifiedWorkspace.warnings": "Warnings",
   "unifiedWorkspace.workspaceControls": "Workspace controls",
+  "unifiedWorkspace.readOnlyPermission": "You can inspect this Workspace. Editing requires Workspace edit permission.",
   "unifiedWorkspace.workspaceGrid": "Workspace Grid",
   "unifiedWorkspace.workspaceServiceUnavailable": "Workspace service unavailable",
   "unifiedWorkspace.workspaceUnavailable": "Workspace unavailable",

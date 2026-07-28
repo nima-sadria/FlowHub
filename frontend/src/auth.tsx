@@ -151,7 +151,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       clearAuth()
     }
-    if (r.status === 403) setStatus('permission_denied')
     if (r.status === 503) {
       // Detect a maintenance-mode block and immediately activate the overlay,
       // even for sessions that were already authenticated before maintenance was enabled.

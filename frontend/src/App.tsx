@@ -20,6 +20,7 @@ import { ApiOrderService } from './services/orders/ApiOrderService'
 import { ApiUnifiedWorkspaceService } from './services/unifiedWorkspace/ApiUnifiedWorkspaceService'
 import AppShell from './components/AppShell'
 import Products from './pages/Products'
+import { WORKSPACE_PERMISSION } from './utils/workspacePermissions'
 
 const Activity = lazy(() => import('./pages/Activity'))
 const Channels = lazy(() => import('./pages/Channels'))
@@ -167,16 +168,16 @@ function SetupGate() {
           <Route path="/home" element={<RequirePermission permission="can_access_site"><Dashboard /></RequirePermission>} />
           <Route path="/products" element={<RequirePermission permission="can_fetch"><Products /></RequirePermission>} />
           <Route path="/orders" element={<RequirePermission permission="can_fetch"><Orders /></RequirePermission>} />
-          <Route path="/sources" element={<RequirePermission permission="can_access_site"><SourceCenter /></RequirePermission>} />
-          <Route path="/sources/new" element={<RequirePermission permission="can_access_site"><SourceCenter /></RequirePermission>} />
-          <Route path="/sources/import" element={<RequirePermission permission="can_access_site"><SourceImportWizard /></RequirePermission>} />
-          <Route path="/sources/:sourceId" element={<RequirePermission permission="can_access_site"><SourceConfiguration /></RequirePermission>} />
-          <Route path="/sheets/:sheetId" element={<RequirePermission permission="can_fetch"><FlowHubSheet /></RequirePermission>} />
-          <Route path="/data-quality" element={<RequirePermission permission="can_fetch"><DataQuality /></RequirePermission>} />
+          <Route path="/sources" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><SourceCenter /></RequirePermission>} />
+          <Route path="/sources/new" element={<RequirePermission permission={WORKSPACE_PERMISSION.create}><SourceCenter /></RequirePermission>} />
+          <Route path="/sources/import" element={<RequirePermission permission={WORKSPACE_PERMISSION.create}><SourceImportWizard /></RequirePermission>} />
+          <Route path="/sources/:sourceId" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><SourceConfiguration /></RequirePermission>} />
+          <Route path="/sheets/:sheetId" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><FlowHubSheet /></RequirePermission>} />
+          <Route path="/data-quality" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><DataQuality /></RequirePermission>} />
           <Route path="/channels" element={<RequirePermission permission="can_access_site"><Channels /></RequirePermission>} />
           <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
           <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
-          <Route path="/workspace/:workspaceId" element={<RequirePermission permission="can_fetch"><UnifiedWorkspace /></RequirePermission>} />
+          <Route path="/workspace/:workspaceId" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><UnifiedWorkspace /></RequirePermission>} />
           <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
           <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
           <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />

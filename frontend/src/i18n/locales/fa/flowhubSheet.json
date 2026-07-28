@@ -25,6 +25,7 @@
   "flowHubSheet.sort": "مرتب‌سازی",
   "flowHubSheet.sortSheetByColumn": "مرتب‌سازی برگه بر اساس ستون",
   "flowHubSheet.tryAgain": "دوباره تلاش کنید.",
+  "flowHubSheet.readOnlyPermission": "می‌توانید این شیت را مشاهده کنید. ذخیره نسخه جدید به مجوز ذخیره پیش‌نویس نیاز دارد.",
   "flowHubSheet.unsavedCells": "سلول ذخیره‌نشده ·",
   "flowHubSheet.virtualizedFlowhubSheet": "برگه مجازی‌سازی‌شده FlowHub"
 }

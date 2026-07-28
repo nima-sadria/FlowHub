@@ -64,6 +64,7 @@
   "sourceCenter.worksheetsEnabledCount_one": "{{count}} کاربرگ فعال",
   "sourceCenter.worksheetsEnabledCount_other": "{{count}} کاربرگ فعال",
   "sourceConfiguration.accessScopePolicy": "فقط کاربرانی که مجوزهای فعلی منبع و فضای کاری را دارند می‌توانند این ستون‌ها را تغییر دهند یا فضای کاری بسازند.",
+  "sourceConfiguration.readOnlyPermission": "می‌توانید این منبع را مشاهده کنید. تغییر نگاشت آن به مجوز ویرایش فضای کاری نیاز دارد.",
   "sourceConfiguration.addAtLeastOneWorksheet": "پیش از ذخیره، دست‌کم یک برگه را اضافه و فعال کنید.",
   "sourceConfiguration.addWorksheet": "افزودن برگه",
   "sourceConfiguration.allChangesSaved": "همه تغییرات ذخیره شده‌اند",
