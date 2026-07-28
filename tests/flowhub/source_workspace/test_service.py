@@ -155,6 +155,23 @@ def test_sheet_patch_inserts_rows_before_cells_with_foreign_keys_enforced() -> N
     assert sheet["rows"][0]["cells"]["name"]["value"] == "QA Product"
 
 
+def test_source_timestamps_are_explicit_utc_values() -> None:
+    db = _session()
+    user = _user(db)
+    source = SourceWorkspaceService(db).create_source(
+        name="Timestamp source",
+        source_kind="external",
+        external_source_id="nextcloud:primary",
+        worksheet_mode="selected",
+        worksheet_name="Prices",
+        data_start_row=2,
+        user=user,
+    )
+
+    assert source["createdAt"].tzinfo is timezone.utc
+    assert source["updatedAt"].tzinfo is timezone.utc
+
+
 def test_mapping_supports_arbitrary_columns_multiple_channels_and_conservative_policy() -> None:
     db = _session()
     user = _user(db)
