@@ -126,7 +126,7 @@ def test_commerce_sources_do_not_list_marketplace_channels(client, auth_headers)
 
     assert response.status_code == 200
     names = {item["name"] for item in response.json()["items"]}
-    assert {"Nextcloud", "CSV", "Google Sheets", "ERP / API Import"}.issubset(names)
+    assert {"Nextcloud", "Excel", "Google Sheets", "ERP / API Import"}.issubset(names)
     assert "Snapp Shop" not in names
     assert "Tapsi Shop" not in names
 

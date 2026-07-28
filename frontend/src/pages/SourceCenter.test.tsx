@@ -220,6 +220,18 @@ describe('SourceCenter safe lifecycle', () => {
     expect(container.textContent).toContain('No Source was created')
   })
 
+  it('creates a new Sheet named FlowSheet', async () => {
+    const created = { id: 'sheet-new', sourceId: 'source-new', name: 'FlowSheet', version: 1, revisionId: null, columns: [], rows: [], total: 0, page: 1, pageSize: 200 }
+    vi.spyOn(sourceWorkspaceApi, 'createSheet').mockResolvedValueOnce(created)
+    await render(admin)
+    const add = Array.from(container.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Add source') as HTMLButtonElement
+    await act(async () => add.click())
+    const create = Array.from(container.querySelectorAll('[role="dialog"] button')).find(item => item.textContent?.includes('Create Sheet')) as HTMLButtonElement
+    await act(async () => { create.click(); await Promise.resolve(); await Promise.resolve() })
+
+    expect(sourceWorkspaceApi.createSheet).toHaveBeenCalledWith('FlowSheet')
+  })
+
   it('shows retry when both authoritative Source lists fail', async () => {
     vi.mocked(sourceWorkspaceApi.listSources).mockRejectedValueOnce(new Error('managed offline'))
     vi.mocked(commerce.getSources).mockRejectedValueOnce(new Error('commerce offline'))
