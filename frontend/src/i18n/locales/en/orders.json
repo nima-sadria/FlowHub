@@ -27,6 +27,7 @@
   "orders.lastSynchronized": "Last synchronized",
   "orders.latestUpdate": "Latest update",
   "orders.loadFailed": "Orders could not be loaded. Retry without changing any marketplace data.",
+  "orders.orderDetailFailed": "Order details could not be loaded. Try again.",
   "orders.loading": "Loading...",
   "orders.loadingOrderDetail": "Loading order detail...",
   "orders.marketplaceOrderId": "Marketplace order ID",

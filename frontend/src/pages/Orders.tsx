@@ -198,8 +198,12 @@ export default function Orders() {
   async function openDetail(order: ChannelOrderListItem) {
     if (!orders) return
     setDetailLoading(true)
+    setError('')
     try {
       setSelected(await orders.getOrder(order.internalId))
+    } catch {
+      setSelected(null)
+      setError(translate('orders:orders.orderDetailFailed'))
     } finally {
       setDetailLoading(false)
     }
