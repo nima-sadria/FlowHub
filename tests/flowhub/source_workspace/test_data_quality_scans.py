@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import timezone
 from typing import Any
 
 import pytest
@@ -122,6 +123,7 @@ def test_data_quality_distinguishes_never_checked_from_a_healthy_scan(
     assert result["summary"]["productsChecked"] == 1
     assert result["summary"]["sourcesChecked"] == 1
     assert result["summary"]["checkedAt"] is not None
+    assert result["summary"]["checkedAt"].tzinfo is timezone.utc
     lifecycle = service.source_lifecycle(source["id"], user)
     assert lifecycle["action"] == "archive"
     assert lifecycle["protectedHistory"]["dataQualityScans"] == 1
