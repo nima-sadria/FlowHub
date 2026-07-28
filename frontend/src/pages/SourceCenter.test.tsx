@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../auth'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 import type { SourceLifecycleImpact, SourceProfile } from '../features/sourceWorkspace/types'
+import NotificationContainer from '../notifications/NotificationContainer'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { CommerceService } from '../services/commerce/CommerceService'
@@ -15,6 +16,7 @@ import SourceCenter from './SourceCenter'
 const source: SourceProfile = { id: 'source-1', name: 'Synthetic prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 3, mappingVersion: 2, sheetId: 'sheet-1', createdAt: null, updatedAt: null }
 const admin: AuthContextValue = { user: { username: 'admin', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: fetch }
 const viewer: AuthContextValue = { ...admin, user: { username: 'viewer', role: 'user', is_admin: false, is_super_admin: false, permissions: { can_access_site: true, 'workspace.read': true } } }
+const operator: AuthContextValue = { ...admin, user: { username: 'operator', role: 'operator', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true, 'workspace.create': true } } }
 const commerce = {
   getSources: vi.fn(),
 } as unknown as CommerceService
@@ -95,7 +97,7 @@ describe('SourceCenter safe lifecycle', () => {
 
   async function render(auth = admin) {
     await act(async () => {
-      root.render(<AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter><ServiceProvider services={services}><SourceCenter /></ServiceProvider></MemoryRouter></NotificationProvider></AuthContext.Provider>)
+      root.render(<AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter><ServiceProvider services={services}><SourceCenter /></ServiceProvider></MemoryRouter><NotificationContainer /></NotificationProvider></AuthContext.Provider>)
       await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
     })
   }
@@ -195,6 +197,27 @@ describe('SourceCenter safe lifecycle', () => {
   it('does not expose Source creation to a read-only viewer', async () => {
     await render(viewer)
     expect(Array.from(container.querySelectorAll('button')).some(item => item.textContent?.trim() === 'Add source')).toBe(false)
+  })
+
+  it('keeps admin-only external connector setup hidden from an operator', async () => {
+    await render(operator)
+    const add = Array.from(container.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Add source') as HTMLButtonElement
+    await act(async () => add.click())
+
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Create Sheet')
+    expect(container.querySelector('[role="dialog"]')?.textContent).not.toContain('Manage external Sources')
+  })
+
+  it('reports Sheet creation failure without navigating', async () => {
+    vi.spyOn(sourceWorkspaceApi, 'createSheet').mockRejectedValueOnce(new Error('create failed'))
+    await render(admin)
+    const add = Array.from(container.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Add source') as HTMLButtonElement
+    await act(async () => add.click())
+    const create = Array.from(container.querySelectorAll('[role="dialog"] button')).find(item => item.textContent?.includes('Create Sheet')) as HTMLButtonElement
+    await act(async () => { create.click(); await Promise.resolve(); await Promise.resolve() })
+
+    expect(container.textContent).toContain('Sheet could not be created')
+    expect(container.textContent).toContain('No Source was created')
   })
 
   it('groups managed Sources consistently and sorts display names inside each group', async () => {

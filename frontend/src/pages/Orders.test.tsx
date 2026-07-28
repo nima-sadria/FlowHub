@@ -157,6 +157,26 @@ describe('Orders page', () => {
 
     expect(retriedChannelId).toBe('woocommerce:primary')
   })
+
+  it('shows a recoverable error when order details cannot be loaded', async () => {
+    const mock = services()
+    mock.orders!.getOrder = async () => { throw new Error('detail unavailable') }
+
+    await act(async () => {
+      root.render(<ServiceProvider services={mock}><Orders /></ServiceProvider>)
+    })
+    await flush()
+
+    const detailButton = Array.from(container.querySelectorAll('button')).find(
+      button => button.textContent === 'T-200',
+    )
+    await act(async () => {
+      detailButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await flush()
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Order details could not be loaded')
+  })
 })
 
 function services(): Services {

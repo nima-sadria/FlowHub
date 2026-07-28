@@ -129,6 +129,7 @@ export default function SourceCenter() {
   const impactRequestRef = useRef(0)
   const canCreateSources = effectiveHasPerm(user, WORKSPACE_PERMISSION.create)
   const canManageSources = effectiveHasPerm(user, WORKSPACE_PERMISSION.admin)
+  const canManageConnectors = user?.is_admin === true
 
   const cards = useMemo<SourceCardModel[]>(() => {
     const integrationById = new Map(integrations.map(item => [item.id, item]))
@@ -296,6 +297,11 @@ export default function SourceCenter() {
     try {
       const sheet = await sourceWorkspaceApi.createSheet(translate('sources:sourceCenter.defaultPricingSheetName'))
       navigate(`/sheets/${sheet.id}`)
+    } catch {
+      notify.error({
+        title: translate('sources:sourceCenter.sheetCreationFailed'),
+        description: translate('sources:sourceCenter.tryAgainNoSourceCreated'),
+      })
     } finally {
       setCreating(false)
     }
@@ -568,12 +574,14 @@ export default function SourceCenter() {
                 <span className="fh-text-caption mt-2 block">{translate('sources:sourceCenter.bringAnExistingXlsxOrCsvFile')}</span>
                 <span className="fh-button-secondary mt-4 w-full">{translate('sources:sourceCenter.importSpreadsheet')}</span>
               </button>
-              <button className="fh-card fh-card-pad text-start transition hover:border-accent" type="button" onClick={() => navigate('/commerce?tab=sources')}>
-                <Icon name="connect" size="md" />
-                <strong className="mt-3 block text-text-base">{translate('sources:sourceCenter.keepAnExternalSourceLinked')}</strong>
-                <span className="fh-text-caption mt-2 block">{translate('sources:sourceCenter.forWorkflowsThatRemainManagedOutsideFlowhub')}</span>
-                <span className="fh-button-secondary mt-4 w-full">{translate('sources:sourceCenter.manageExternalSources')}</span>
-              </button>
+              {canManageConnectors && (
+                <button className="fh-card fh-card-pad text-start transition hover:border-accent" type="button" onClick={() => navigate('/commerce?tab=sources')}>
+                  <Icon name="connect" size="md" />
+                  <strong className="mt-3 block text-text-base">{translate('sources:sourceCenter.keepAnExternalSourceLinked')}</strong>
+                  <span className="fh-text-caption mt-2 block">{translate('sources:sourceCenter.forWorkflowsThatRemainManagedOutsideFlowhub')}</span>
+                  <span className="fh-button-secondary mt-4 w-full">{translate('sources:sourceCenter.manageExternalSources')}</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
