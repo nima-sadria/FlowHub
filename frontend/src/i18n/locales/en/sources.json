@@ -32,6 +32,7 @@
   "sourceCenter.keepAnExternalSourceLinked": "Keep an external Source linked",
   "sourceCenter.linkedExternalSource": "Linked external Source",
   "sourceCenter.loadingSources": "Loading Sources...",
+  "sourceCenter.loadFailed": "Sources could not be loaded. Try again.",
   "sourceCenter.sheetCreationFailed": "Sheet could not be created",
   "sourceCenter.tryAgainNoSourceCreated": "Try again. No Source was created.",
   "sourceCenter.managedSources": "Managed Sources",

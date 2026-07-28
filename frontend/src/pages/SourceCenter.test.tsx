@@ -220,6 +220,18 @@ describe('SourceCenter safe lifecycle', () => {
     expect(container.textContent).toContain('No Source was created')
   })
 
+  it('shows retry when both authoritative Source lists fail', async () => {
+    vi.mocked(sourceWorkspaceApi.listSources).mockRejectedValueOnce(new Error('managed offline'))
+    vi.mocked(commerce.getSources).mockRejectedValueOnce(new Error('commerce offline'))
+    await render(admin)
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Sources could not be loaded')
+    const retry = Array.from(container.querySelectorAll('button')).find(item => item.textContent === 'Retry') as HTMLButtonElement
+    await act(async () => { retry.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
+
+    expect(container.querySelector('[data-source-card="source-1"]')).not.toBeNull()
+  })
+
   it('groups managed Sources consistently and sorts display names inside each group', async () => {
     const activeZebra = { ...source, id: 'source-z', name: 'Zebra prices' }
     const activeAlpha = { ...source, id: 'source-a', name: 'Alpha prices' }
