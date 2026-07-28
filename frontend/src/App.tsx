@@ -178,7 +178,7 @@ function SetupGate() {
           <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
           <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
           <Route path="/workspace/:workspaceId" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><UnifiedWorkspace /></RequirePermission>} />
-          <Route path="/activity" element={<RequirePermission permission="can_view_logs"><Activity /></RequirePermission>} />
+          <Route path="/activity" element={<RequirePermission permission={WORKSPACE_PERMISSION.readAudit}><Activity /></RequirePermission>} />
           <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
           <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
           <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />

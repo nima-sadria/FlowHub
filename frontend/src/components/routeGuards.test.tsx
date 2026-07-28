@@ -59,7 +59,7 @@ const deniedUser = makeUser({
 // Allowed: can_access_site=true + can_fetch=true (default makeUser)
 const allowedUser = makeUser()
 // Elevated users
-const logsUser = makeUser({ permissions: { ...allowedUser.permissions, can_view_logs: true } as Record<string, boolean> })
+const logsUser = makeUser({ permissions: { ...allowedUser.permissions, [WORKSPACE_PERMISSION.readAudit]: true } as Record<string, boolean> })
 const settingsUser = makeUser({ permissions: { ...allowedUser.permissions, can_view_settings: true } as Record<string, boolean> })
 // Admin and super admin bypass all permission checks
 const adminUser = makeUser({ is_admin: true, permissions: { can_access_site: false, can_fetch: false, can_view_logs: false, can_view_settings: false } })
@@ -102,7 +102,7 @@ function RouteMatrix({ initialPath }: { initialPath: string }) {
         <Route path="/sources" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
         <Route path="/commerce" element={<RequirePermission permission="can_access_site"><span>commerce-page</span></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><span>workspace-page</span></RequirePermission>} />
-        <Route path="/activity" element={<RequirePermission permission="can_view_logs"><span>activity-page</span></RequirePermission>} />
+        <Route path="/activity" element={<RequirePermission permission={WORKSPACE_PERMISSION.readAudit}><span>activity-page</span></RequirePermission>} />
         <Route path="/data-quality" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><span>data-quality-page</span></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><span>diagnostics-page</span></RequirePermission>} />
         <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><span>rate-limits-page</span></RequirePermission>} />
@@ -421,12 +421,12 @@ describe('Router - /rate-limits', () => {
 // --- Router - /activity -------------------------------------------------------
 
 describe('Router - /activity', () => {
-  it('renders Activity for user with can_view_logs=true', () => {
+  it('renders Activity for user with audit.read', () => {
     const c = renderAuth(<RouteMatrix initialPath="/activity" />, makeAuth(logsUser))
     expect(c.textContent).toContain('activity-page')
   })
 
-  it('shows Access Denied for user without can_view_logs', () => {
+  it('shows Access Denied for user without audit.read', () => {
     const c = renderAuth(<RouteMatrix initialPath="/activity" />, makeAuth(allowedUser))
     expect(c.textContent).not.toContain('activity-page')
     expect(c.textContent).toContain('Access Denied')
@@ -538,7 +538,7 @@ describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => 
     expect(c.querySelector('a[href="/channels"]')).not.toBeNull()
   })
 
-  it('hides Activity link (no can_view_logs)', () => {
+  it('hides Activity link without audit.read', () => {
     const c = renderSidebar(allowedUser)
     expect(c.querySelector('a[href="/activity"]')).toBeNull()
   })
@@ -629,7 +629,7 @@ describe('Sidebar - settings user (can_view_settings=true)', () => {
   })
 })
 
-describe('Sidebar - logs user (can_view_logs=true)', () => {
+describe('Sidebar - audit reader', () => {
   it('shows Activity link', () => {
     const c = renderSidebar(logsUser)
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()

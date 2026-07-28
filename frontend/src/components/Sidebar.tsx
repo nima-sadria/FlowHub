@@ -70,7 +70,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     sectionKey: 'navigation:sidebar.operations',
     items: [
-      { labelKey: 'navigation:sidebar.activity', to: '/activity', icon: routeIconMap.Activity, permission: 'can_view_logs' },
+      { labelKey: 'navigation:sidebar.activity', to: '/activity', icon: routeIconMap.Activity, permission: WORKSPACE_PERMISSION.readAudit },
       { labelKey: 'navigation:sidebar.dataQuality', to: '/data-quality', icon: 'dataQuality', permission: WORKSPACE_PERMISSION.read },
       { labelKey: 'navigation:sidebar.diagnostics', to: '/diagnostics', icon: routeIconMap.Diagnostics, permission: 'can_view_settings' },
     ],
