@@ -24,6 +24,20 @@
 }
 
 @font-face {
+  font-family: "Yekan Bakh";
+  src: url("/static/fonts/YekanBakh-VF.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0600-06FF,
+    U+0750-077F,
+    U+08A0-08FF,
+    U+FB50-FDFF,
+    U+FE70-FEFF;
+}
+
+@font-face {
   font-family: "Vazirmatn";
   src: url("/static/fonts/Vazirmatn-VF.ttf") format("truetype");
   font-weight: 100 900;
@@ -1688,6 +1702,7 @@ button.fh-inline-status {
     sans-serif;
 
   --fh-font-family-persian:
+    "Yekan Bakh",
     "Vazirmatn",
     Tahoma,
     "Segoe UI",
