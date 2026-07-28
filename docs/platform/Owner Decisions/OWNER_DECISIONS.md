@@ -43,9 +43,10 @@ committed as archived evidence. Canonical rules are already merged here.
 
 ### OD-008: Retention and archival
 
-Define retention, legal/audit requirements, archive format, deletion
-authorization, and restore behavior for audit, operation, history, diagnostics,
-webhook, metric, and log records.
+Review the existing application-log category defaults and define enforcement,
+legal/audit requirements, archive format, deletion authorization, and restore
+behavior for authoritative audit, operation, history, diagnostics, webhook,
+and metric records.
 
 ### OD-009: Durable diagnostic history
 
@@ -68,8 +69,14 @@ Approve the canonical candidate/verification/activation persistence boundary
 for active runtime configuration. Current local Integration Platform metadata
 is read-only/unverified and must not be mistaken for activated configuration.
 
+### OD-013: Operational read scope
+
+Choose whether Activity, Unified Logging, Dashboard, diagnostics, metrics, and
+analytics are instance-wide or owner-scoped. If administrators may cross owner
+boundaries, define the reason-required override contract and audit evidence.
+Current reads are authenticated but several projections are instance-wide.
+
 ## Decision Template
 
 Every new decision records affected invariants, API and persistence impact,
 compatibility, migration, authorization, tests, rollout, and rollback.
-

@@ -43,3 +43,10 @@ Frontend diagnostic ingestion, if enabled, MUST be bounded, rate-limited,
 authenticated, and redacted. User-visible errors remain localized and
 actionable; logs retain safe technical context.
 
+## Retention
+
+FlowHub currently stores configurable category defaults for application logs:
+30 days for operational logs, 90 days for Connector telemetry, and 365 days
+for audit/security log projections. Automated enforcement and retention of
+authoritative audit, operation, and confirmed-history records remain separate
+Owner decisions.

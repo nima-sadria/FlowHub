@@ -14,10 +14,10 @@ not an authorization boundary.
 | `workspace.create` | Create a Workspace or Source-owned Workspace resource |
 | `workspace.edit` | Edit Workspace or Source configuration |
 | `draft.save` | Persist Draft revisions or managed Sheet changes |
-| `review.run` | Generate Review from immutable inputs |
+| `review.generate` | Generate Review from immutable inputs |
 | `apply.execute` | Submit approved Write Pipeline work |
 | `channel_cache.refresh` | Explicitly refresh Channel cache |
-| `mapping.manage` | Manage Source-to-Channel identity mappings |
+| `mapping.approve` | Approve Source-to-Channel identity mappings |
 | `audit.read` | Read actor and operation evidence within scope |
 | `workspace.admin` | Administrative Workspace operations |
 
@@ -48,4 +48,3 @@ and audit event. Secrets remain inaccessible even to broad operational reads.
 `/api/auth/me` is the canonical frontend identity and capability contract. It
 returns canonical permissions and temporary legacy aliases. Removing aliases
 requires an Owner-approved compatibility release.
-
