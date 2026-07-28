@@ -143,6 +143,7 @@ export default function Activity() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [channels, setChannels] = useState<Array<{ id: string; name: string }>>([])
   const [knownUsers, setKnownUsers] = useState<string[]>([])
   const [todayCounts, setTodayCounts] = useState<TodayCategoryCounts>({ products: null, orders: null, sources: null, users: null })
@@ -162,6 +163,7 @@ export default function Activity() {
   const loadPage = useCallback(async (requestedPage: number, append: boolean) => {
     if (requestedPage === 1) setLoading(true)
     else setLoadingMore(true)
+    setLoadError(false)
     try {
       const result = await activity.getEvents({
         page: requestedPage,
@@ -178,6 +180,8 @@ export default function Activity() {
       })
       setEvents(previous => append ? [...previous, ...result.items] : result.items)
       setTotal(result.total)
+    } catch {
+      setLoadError(true)
     } finally {
       setLoading(false)
       setLoadingMore(false)
@@ -317,6 +321,16 @@ export default function Activity() {
         </div>
       </details>
     </div>
+
+    {loadError && (
+      <div className="fh-alert fh-alert-danger mb-4" role="alert">
+        <Icon name="error" />
+        <span className="flex-1">{translate('activity:activity.loadFailed')}</span>
+        <button type="button" className="fh-button-secondary fh-button-sm" onClick={() => void loadPage(1, false)}>
+          {translate('common:action.retry')}
+        </button>
+      </div>
+    )}
 
     <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
       <div className="fh-card">
