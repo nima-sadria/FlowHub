@@ -42,6 +42,7 @@ All files under the following new domain paths are **Keep** and canonical:
 - `docs/platform/DOCUMENT_MERGE_REPORT.md`
 - `docs/platform/DOCUMENT_ARCHIVE_INDEX.md`
 - `docs/platform/DOCUMENT_DEPRECATION_REPORT.md`
+- `docs/platform/PLATFORM_COMPLIANCE_REPORT.md`
 
 ## Reference Specification Classification
 
@@ -185,4 +186,3 @@ and are classified **Archive**:
 **None.** Deletion was intentionally deferred because link/reference analysis
 and Owner approval are required. The canonical specification contains the
 useful platform rules without destructive documentation cleanup.
-

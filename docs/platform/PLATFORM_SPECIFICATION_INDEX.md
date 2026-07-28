@@ -79,6 +79,7 @@ Source acquisition
 | Migration | [Migration/PLATFORM_MIGRATION.md](Migration/PLATFORM_MIGRATION.md) |
 | Owner decisions | [Owner Decisions/OWNER_DECISIONS.md](Owner%20Decisions/OWNER_DECISIONS.md) |
 | Traceability | [Reference/REFERENCE_TRACEABILITY.md](Reference/REFERENCE_TRACEABILITY.md) |
+| Compliance evidence | [PLATFORM_COMPLIANCE_REPORT.md](PLATFORM_COMPLIANCE_REPORT.md) |
 
 ## Document Governance
 
@@ -94,7 +95,8 @@ Source acquisition
 ## Current Compliance
 
 The granular authorization contract and audited application integrations are
-implemented. Full Workspace convergence is on HOLD for the canonical route and
-exact-operation confirmation decisions. Operational retention, durable
-diagnostic history, and alert transport also require explicit Owner decisions.
-
+implemented. Current sampled compliance is 84%. Full convergence is on HOLD
+for the decisions listed in `PLATFORM_COMPLIANCE_REPORT.md`, including the
+canonical Workspace route, exact-operation confirmation, Connector activation,
+operational read scope, retention, diagnostics history, alerts, and report
+artifacts.
