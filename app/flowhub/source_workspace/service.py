@@ -1111,6 +1111,9 @@ class SourceWorkspaceService:
                 )
         # One flush/commit for the full bulk revision, never one transaction per cell.
         self.db.add_all(row_models)
+        # SheetCell stores scalar foreign keys rather than ORM relationships, so
+        # SQLAlchemy cannot infer that pending rows must be inserted first.
+        self.db.flush()
         self.db.add_all(cell_models)
         sheet.current_version = version
         sheet.updated_at = utcnow()
