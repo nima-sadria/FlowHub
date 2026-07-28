@@ -582,25 +582,25 @@ export default function SourceCenter() {
                 <Icon name="close" />
               </button>
             </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-3" aria-label={translate('sources:sourceCenter.sourceOptions')}>
+            <div className="fh-source-options mt-5 grid gap-4 md:grid-cols-3" aria-label={translate('sources:sourceCenter.sourceOptions')}>
               <button className="fh-card fh-card-pad text-start transition hover:border-accent" type="button" disabled={creating} onClick={() => void createFlowHubSheet()}>
                 <Icon name="file" size="md" />
                 <strong className="mt-3 block text-text-base">{translate('sources:sourceCenter.flowhubSheet')}</strong>
                 <span className="fh-text-caption mt-2 block">{translate('sources:sourceCenter.recommendedForEasierMappingSafeFormulasAnd')}</span>
-                <span className="fh-button-primary mt-4 w-full">{creating ? translate('sources:sourceCenter.creating') : translate('sources:sourceCenter.createSheet')}</span>
+                <span className="fh-button-primary w-full">{creating ? translate('sources:sourceCenter.creating') : translate('sources:sourceCenter.createSheet')}</span>
               </button>
               <button className="fh-card fh-card-pad text-start transition hover:border-accent" type="button" onClick={() => navigate('/sources/import')}>
                 <Icon name="upload" size="md" />
                 <strong className="mt-3 block text-text-base">{translate('sources:sourceCenter.importYourSpreadsheet')}</strong>
                 <span className="fh-text-caption mt-2 block">{translate('sources:sourceCenter.bringAnExistingXlsxOrCsvFile')}</span>
-                <span className="fh-button-secondary mt-4 w-full">{translate('sources:sourceCenter.importSpreadsheet')}</span>
+                <span className="fh-button-secondary w-full">{translate('sources:sourceCenter.importSpreadsheet')}</span>
               </button>
               {canManageConnectors && (
                 <button className="fh-card fh-card-pad text-start transition hover:border-accent" type="button" onClick={() => navigate('/commerce?tab=sources')}>
                   <Icon name="connect" size="md" />
                   <strong className="mt-3 block text-text-base">{translate('sources:sourceCenter.keepAnExternalSourceLinked')}</strong>
                   <span className="fh-text-caption mt-2 block">{translate('sources:sourceCenter.forWorkflowsThatRemainManagedOutsideFlowhub')}</span>
-                  <span className="fh-button-secondary mt-4 w-full">{translate('sources:sourceCenter.manageExternalSources')}</span>
+                  <span className="fh-button-secondary w-full">{translate('sources:sourceCenter.manageExternalSources')}</span>
                 </button>
               )}
             </div>
