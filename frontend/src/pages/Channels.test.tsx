@@ -106,6 +106,28 @@ describe('Channels page', () => {
     expect(container.querySelector('[data-channel-card="digikala:pos"]')?.textContent).toContain('Disabled')
   })
 
+  it('excludes Coming Soon placeholders from the Connected Channels KPI', async () => {
+    getChannels.mockResolvedValueOnce({
+      items: [
+        channel(),
+        channel({
+          id: 'future:main',
+          provider: 'future',
+          name: 'Future Channel',
+          implemented: false,
+          placeholder: true,
+          credential_status: 'not_configured',
+        }),
+      ],
+      relationship_map: { nodes: [], example: [], runtime_write_blocked: true, read_only: true },
+    })
+
+    await render()
+
+    expect(container.querySelector('.fh-kpi-card-value')?.textContent).toBe('1')
+    expect(container.querySelectorAll('[data-channel-card]')).toHaveLength(2)
+  })
+
   it('filters channels by search text', async () => {
     await render()
 

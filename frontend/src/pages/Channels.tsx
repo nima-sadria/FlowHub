@@ -75,6 +75,10 @@ export default function Channels() {
     () => channelResources.ordered.filter(resource => resource.tier === 'attention').length,
     [channelResources],
   )
+  const connectedChannelsCount = useMemo(
+    () => channelResources.ordered.filter(resource => resource.tier !== 'comingSoon').length,
+    [channelResources],
+  )
   const healthyListingsTotal = useMemo(
     () => channels.reduce((sum, channel) => sum + (channel.cached_products || 0), 0),
     [channels],
@@ -182,7 +186,7 @@ export default function Channels() {
             <span className="fh-kpi-card-label">{translate('commerce:commerceHub.connectedChannels')}</span>
             <span className="fh-kpi-card-icon"><Icon name="channels" size="sm" /></span>
           </div>
-          <div className="fh-kpi-card-value">{channels.length}</div>
+          <div className="fh-kpi-card-value">{connectedChannelsCount}</div>
         </div>
         <div className="fh-kpi-card">
           <div className="fh-kpi-card-head">

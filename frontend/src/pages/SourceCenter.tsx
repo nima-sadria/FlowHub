@@ -178,6 +178,10 @@ export default function SourceCenter() {
     () => sourceResources.ordered.filter(resource => resource.tier === 'attention').length,
     [sourceResources],
   )
+  const connectedSourcesCount = useMemo(
+    () => cards.filter(card => card.profile !== null).length,
+    [cards],
+  )
 
   removalBusyRef.current = deleting
 
@@ -418,7 +422,7 @@ export default function SourceCenter() {
             <span className="fh-kpi-card-label">{translate('sources:sourceCenter.connectedSources')}</span>
             <span className="fh-kpi-card-icon"><Icon name="products" size="sm" /></span>
           </div>
-          <div className="fh-kpi-card-value">{cards.length}</div>
+          <div className="fh-kpi-card-value">{connectedSourcesCount}</div>
         </div>
         <div className="fh-kpi-card">
           <div className="fh-kpi-card-head">
@@ -552,7 +556,9 @@ export default function SourceCenter() {
                 <div className="fh-source-card-row">
                   <span className="fh-text-caption">
                     {worksheetsEnabled === null
-                      ? translate('sources:sourceConfiguration.loading')
+                      ? resource.section === 'comingSoon'
+                        ? translate('common:status.unavailable')
+                        : translate('sources:sourceConfiguration.loading')
                       : translate('sources:sourceCenter.worksheetsEnabledCount', { count: worksheetsEnabled })}
                   </span>
                   {canOpen && (
