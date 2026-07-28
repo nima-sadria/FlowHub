@@ -35,6 +35,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.flowhub.database import get_db
+from app.flowhub.unified_workspace.authorization import workspace_permissions_for_role
 
 from .dependencies import get_current_user
 from .jwt_service import create_access_token
@@ -242,7 +243,11 @@ async def refresh(
 
 @router.get("/auth/me", response_model=MeResponse)
 async def me(current_user: FlowHubUser = Depends(get_current_user)) -> MeResponse:
-    permissions = _ROLE_PERMISSIONS.get(current_user.role, _ROLE_PERMISSIONS["viewer"])
+    legacy_permissions = _ROLE_PERMISSIONS.get(current_user.role, _ROLE_PERMISSIONS["viewer"])
+    permissions = {
+        **legacy_permissions,
+        **workspace_permissions_for_role(current_user.role),
+    }
     return MeResponse(
         username=current_user.username,
         role=current_user.role,

@@ -23,6 +23,7 @@ import { useNotification } from '../notifications/NotificationProvider'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceSource } from '../services/types'
 import { effectiveHasPerm } from '../utils/permissions'
+import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 
 const KIND_LABELS: Record<SourceProfile['sourceKind'], string> = {
   flowhub_sheet: 'sources:sourceCenter.flowhubSheet',
@@ -126,7 +127,8 @@ export default function SourceCenter() {
   const removalTriggerRef = useRef<HTMLButtonElement | null>(null)
   const removalBusyRef = useRef(false)
   const impactRequestRef = useRef(0)
-  const canManageSources = effectiveHasPerm(user, 'workspace.admin')
+  const canCreateSources = effectiveHasPerm(user, WORKSPACE_PERMISSION.create)
+  const canManageSources = effectiveHasPerm(user, WORKSPACE_PERMISSION.admin)
 
   const cards = useMemo<SourceCardModel[]>(() => {
     const integrationById = new Map(integrations.map(item => [item.id, item]))
@@ -392,9 +394,11 @@ export default function SourceCenter() {
           <h1 className="fh-page-title">{translate('sources:sourceCenter.sources')}</h1>
           <p className="fh-page-subtitle">{translate('sources:sourceCenter.manageProductDataSourcesSubtitle')}</p>
         </div>
-        <button className="fh-button-primary" type="button" onClick={() => setAddPanelOpen(true)}>
-          <Icon name="add" /> {translate('sources:sources.addSource')}
-        </button>
+        {canCreateSources && (
+          <button className="fh-button-primary" type="button" onClick={() => setAddPanelOpen(true)}>
+            <Icon name="add" /> {translate('sources:sources.addSource')}
+          </button>
+        )}
       </div>
 
       <div className="fh-sources-kpi-row">
@@ -542,7 +546,7 @@ export default function SourceCenter() {
         </div>
       )}
 
-      {addPanelOpen && (
+      {canCreateSources && addPanelOpen && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="source-add-title">
           <div className="fh-card fh-card-pad w-full max-w-3xl">
             <div className="flex items-center justify-between gap-3">

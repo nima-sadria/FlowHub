@@ -7,6 +7,7 @@ import { MemoryRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthContext, RequirePermission } from '../auth'
 import type { AuthContextValue, AuthUser } from '../auth'
 import Sidebar from './Sidebar'
+import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 
 // --- Test infrastructure -----------------------------------------------------
 
@@ -24,6 +25,9 @@ function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
       can_edit_stock: true,
       can_view_logs: false,
       can_view_settings: false,
+      [WORKSPACE_PERMISSION.read]: true,
+      [WORKSPACE_PERMISSION.create]: true,
+      [WORKSPACE_PERMISSION.edit]: true,
     },
     ...overrides,
   }
@@ -95,11 +99,11 @@ function RouteMatrix({ initialPath }: { initialPath: string }) {
         <Route path="/home" element={<RequirePermission permission="can_access_site"><span>home-page</span></RequirePermission>} />
         <Route path="/products" element={<RequirePermission permission="can_fetch"><span>products-page</span></RequirePermission>} />
         <Route path="/orders" element={<RequirePermission permission="can_fetch"><span>orders-page</span></RequirePermission>} />
-        <Route path="/sources" element={<RequirePermission permission="can_access_site"><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
+        <Route path="/sources" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><Navigate to="/commerce?tab=sources" replace /></RequirePermission>} />
         <Route path="/commerce" element={<RequirePermission permission="can_access_site"><span>commerce-page</span></RequirePermission>} />
         <Route path="/workspace" element={<RequirePermission permission="can_fetch"><span>workspace-page</span></RequirePermission>} />
         <Route path="/activity" element={<RequirePermission permission="can_view_logs"><span>activity-page</span></RequirePermission>} />
-        <Route path="/data-quality" element={<RequirePermission permission="can_fetch"><span>data-quality-page</span></RequirePermission>} />
+        <Route path="/data-quality" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><span>data-quality-page</span></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><span>diagnostics-page</span></RequirePermission>} />
         <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><span>rate-limits-page</span></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="can_view_settings"><span>settings-page</span></RequirePermission>} />
@@ -173,6 +177,19 @@ describe('RequirePermission - direct render', () => {
     )
     expect(c.textContent).not.toContain('workspace')
     expect(c.textContent).toContain('Access Denied')
+  })
+
+  it('evaluates canonical Workspace permissions independently of legacy site aliases', () => {
+    const user = makeUser({ permissions: { can_access_site: false, [WORKSPACE_PERMISSION.read]: true } })
+    const c = renderAuth(
+      <MemoryRouter>
+        <RequirePermission permission={WORKSPACE_PERMISSION.read}>
+          <span>workspace-read</span>
+        </RequirePermission>
+      </MemoryRouter>,
+      makeAuth(user),
+    )
+    expect(c.textContent).toContain('workspace-read')
   })
 
   it('adminOnly denies regular users', () => {

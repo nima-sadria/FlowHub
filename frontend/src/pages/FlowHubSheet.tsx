@@ -9,6 +9,9 @@ import { useNotification } from '../notifications/NotificationProvider'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 import type { FlowHubSheetPage } from '../features/sourceWorkspace/types'
 import { sheetWindow } from '../features/sourceWorkspace/sheetWindow'
+import { useAuth } from '../auth'
+import { effectiveHasPerm } from '../utils/permissions'
+import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 
 const ROW_HEIGHT = 38
 const VIEWPORT_HEIGHT = 520
@@ -18,6 +21,8 @@ export default function FlowHubSheet() {
   const { sheetId = '' } = useParams()
   const navigate = useNavigate()
   const notify = useNotification()
+  const { user } = useAuth()
+  const canSaveDraft = effectiveHasPerm(user, WORKSPACE_PERMISSION.saveDraft)
   const [sheet, setSheet] = useState<FlowHubSheetPage | null>(null)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -75,6 +80,7 @@ export default function FlowHubSheet() {
   }
 
   async function save() {
+    if (!canSaveDraft) return
     if (!sheet || (Object.keys(changes).length === 0 && Object.keys(columnNames).length === 0)) return
     const payload = Object.entries(changes).map(([identity, value]) => {
       const separator = identity.indexOf(':')
@@ -88,6 +94,7 @@ export default function FlowHubSheet() {
   }
 
   async function appendRows() {
+    if (!canSaveDraft) return
     if (!sheet) return
     const updated = await sourceWorkspaceApi.appendRows(sheet)
     setSheet(updated); setChanges({})
@@ -96,18 +103,19 @@ export default function FlowHubSheet() {
   if (!sheet) return <PageShell><div className="fh-card fh-card-pad">{translate('flowhubSheet:flowHubSheet.loadingFlowhubSheet')}</div></PageShell>
   const pageCount = Math.max(1, Math.ceil(sheet.total / sheet.pageSize))
   return <PageShell>
-    <div className="fh-page-header"><div><h1 className="fh-page-title">{sheet.name}</h1><p className="fh-page-subtitle">{translate('flowhubSheet:flowHubSheet.revisionSummary', { revision: sheet.version, rows: formatNumber(sheet.total) })}</p></div><div className="flex gap-2"><button className="fh-button-secondary" type="button" onClick={() => navigate(`/sources/${sheet.sourceId}`)}><Icon name="settings" /> {translate('flowhubSheet:flowHubSheet.configureMapping')}</button><button className="fh-button-primary" type="button" disabled={!Object.keys(changes).length && !Object.keys(columnNames).length} onClick={() => void save()}><Icon name="save" /> {translate('flowhubSheet:flowHubSheet.saveRevision')}</button></div></div>
+    <div className="fh-page-header"><div><h1 className="fh-page-title">{sheet.name}</h1><p className="fh-page-subtitle">{translate('flowhubSheet:flowHubSheet.revisionSummary', { revision: sheet.version, rows: formatNumber(sheet.total) })}</p></div><div className="flex gap-2"><button className="fh-button-secondary" type="button" onClick={() => navigate(`/sources/${sheet.sourceId}`)}><Icon name="settings" /> {translate('flowhubSheet:flowHubSheet.configureMapping')}</button>{canSaveDraft && <button className="fh-button-primary" type="button" disabled={!Object.keys(changes).length && !Object.keys(columnNames).length} onClick={() => void save()}><Icon name="save" /> {translate('flowhubSheet:flowHubSheet.saveRevision')}</button>}</div></div>
+    {!canSaveDraft && <div className="fh-alert fh-alert-info" role="status"><Icon name="info" /><span>{translate('flowhubSheet:flowHubSheet.readOnlyPermission')}</span></div>}
     <section className="fh-card" aria-label={translate('flowhubSheet:flowHubSheet.flowhubSheetEditor')}>
-      <div className="fh-panel-header"><div><p className="fh-section-title">{translate('flowhubSheet:flowHubSheet.productAndPricingSheet')}</p><p className="fh-text-caption">{translate('flowhubSheet:flowHubSheet.formulasAreCalculatedByTheDeterministicFlowhub')}</p></div><div className="flex flex-wrap gap-2"><input className="fh-input fh-button-sm" type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(1) }} placeholder={translate('flowhubSheet:flowHubSheet.filterRows')} aria-label={translate('flowhubSheet:flowHubSheet.filterSheetRows')} /><select className="fh-input fh-button-sm" value={sortColumn} onChange={event => { setSortColumn(event.target.value); setPage(1) }} aria-label={translate('flowhubSheet:flowHubSheet.sortSheetByColumn')}><option value="">{translate('flowhubSheet:flowHubSheet.rowOrder')}</option>{sheet.columns.map(column => <option value={column.columnKey} key={column.columnKey}>{column.name}</option>)}</select><button className="fh-button-secondary fh-button-sm" type="button" disabled={!sortColumn} onClick={() => setSortDirection(value => value === "asc" ? "desc" : "asc")}>{translate('flowhubSheet:flowHubSheet.sort')} {sortDirection}</button><button className="fh-button-secondary fh-button-sm" type="button" disabled={!selected} onClick={fillDown}>{translate('flowhubSheet:flowHubSheet.fillDown')}</button><button className="fh-button-secondary fh-button-sm" type="button" onClick={() => void appendRows()}><Icon name="add" /> {translate('flowhubSheet:flowHubSheet.add20Rows')}</button></div></div>
+      <div className="fh-panel-header"><div><p className="fh-section-title">{translate('flowhubSheet:flowHubSheet.productAndPricingSheet')}</p><p className="fh-text-caption">{translate('flowhubSheet:flowHubSheet.formulasAreCalculatedByTheDeterministicFlowhub')}</p></div><div className="flex flex-wrap gap-2"><input className="fh-input fh-button-sm" type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(1) }} placeholder={translate('flowhubSheet:flowHubSheet.filterRows')} aria-label={translate('flowhubSheet:flowHubSheet.filterSheetRows')} /><select className="fh-input fh-button-sm" value={sortColumn} onChange={event => { setSortColumn(event.target.value); setPage(1) }} aria-label={translate('flowhubSheet:flowHubSheet.sortSheetByColumn')}><option value="">{translate('flowhubSheet:flowHubSheet.rowOrder')}</option>{sheet.columns.map(column => <option value={column.columnKey} key={column.columnKey}>{column.name}</option>)}</select><button className="fh-button-secondary fh-button-sm" type="button" disabled={!sortColumn} onClick={() => setSortDirection(value => value === "asc" ? "desc" : "asc")}>{translate('flowhubSheet:flowHubSheet.sort')} {sortDirection}</button>{canSaveDraft && <><button className="fh-button-secondary fh-button-sm" type="button" disabled={!selected} onClick={fillDown}>{translate('flowhubSheet:flowHubSheet.fillDown')}</button><button className="fh-button-secondary fh-button-sm" type="button" onClick={() => void appendRows()}><Icon name="add" /> {translate('flowhubSheet:flowHubSheet.add20Rows')}</button></>}</div></div>
       <div className="fh-sheet-scroll" role="region" aria-label={translate('flowhubSheet:flowHubSheet.virtualizedFlowhubSheet')}>
-        <div className="fh-sheet-header" style={{ gridTemplateColumns: `64px repeat(${sheet.columns.length}, minmax(160px, 1fr))` }}><span>#</span>{sheet.columns.map(column => <input className="fh-sheet-column-name" aria-label={translate('flowhubSheet:flowHubSheet.columnName', { column: column.name })} key={column.columnKey} value={columnNames[column.columnKey] ?? column.name} onChange={event => setColumnNames(current => ({ ...current, [column.columnKey]: event.target.value }))} />)}</div>
+        <div className="fh-sheet-header" style={{ gridTemplateColumns: `64px repeat(${sheet.columns.length}, minmax(160px, 1fr))` }}><span>#</span>{sheet.columns.map(column => <input className="fh-sheet-column-name" aria-label={translate('flowhubSheet:flowHubSheet.columnName', { column: column.name })} disabled={!canSaveDraft} key={column.columnKey} value={columnNames[column.columnKey] ?? column.name} onChange={event => setColumnNames(current => ({ ...current, [column.columnKey]: event.target.value }))} />)}</div>
         <div ref={viewport} className="fh-sheet-viewport" style={{ height: VIEWPORT_HEIGHT }} onScroll={event => setScrollTop(event.currentTarget.scrollTop)}>
           <div className="relative" style={{ height: sheet.rows.length * ROW_HEIGHT, minWidth: Math.max(800, sheet.columns.length * 160 + 64) }}>
             {windowed.rows.map((row, index) => {
               const physicalIndex = windowed.start + index
               return <div className="fh-sheet-row absolute inset-x-0" style={{ top: physicalIndex * ROW_HEIGHT, height: ROW_HEIGHT, gridTemplateColumns: `64px repeat(${sheet.columns.length}, minmax(160px, 1fr))` }} key={row.rowKey} data-row-key={row.rowKey}><span className="fh-sheet-row-number">{row.position}</span>{sheet.columns.map((column, columnIndex) => {
                 const cell = row.cells[column.columnKey]
-                return <input key={column.columnKey} className={`fh-sheet-cell ${cell?.error ? "fh-sheet-cell-error" : ''}`} aria-label={translate('flowhubSheet:flowHubSheet.rowColumn', { row: row.position, column: column.name })} title={cell?.error ?? cell?.formula ?? ''} dir="auto" value={valueAt(row.rowKey, column.columnKey)} onFocus={() => setSelected({ rowKey: row.rowKey, columnKey: column.columnKey })} onChange={event => setChanges(current => ({ ...current, [cellKey(row.rowKey, column.columnKey)]: event.target.value }))} onPaste={event => paste(event, physicalIndex, columnIndex)} />
+                return <input key={column.columnKey} className={`fh-sheet-cell ${cell?.error ? "fh-sheet-cell-error" : ''}`} aria-label={translate('flowhubSheet:flowHubSheet.rowColumn', { row: row.position, column: column.name })} disabled={!canSaveDraft} title={cell?.error ?? cell?.formula ?? ''} dir="auto" value={valueAt(row.rowKey, column.columnKey)} onFocus={() => setSelected({ rowKey: row.rowKey, columnKey: column.columnKey })} onChange={event => setChanges(current => ({ ...current, [cellKey(row.rowKey, column.columnKey)]: event.target.value }))} onPaste={event => paste(event, physicalIndex, columnIndex)} />
               })}</div>
             })}
           </div>

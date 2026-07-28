@@ -124,6 +124,13 @@ def test_operator_has_operational_workspace_permissions_but_not_settings(client,
     assert body["permissions"]["can_fetch"] is True
     assert body["permissions"]["can_apply"] is True
     assert body["permissions"]["can_view_settings"] is False
+    assert body["permissions"]["workspace.read"] is True
+    assert body["permissions"]["workspace.create"] is True
+    assert body["permissions"]["workspace.edit"] is True
+    assert body["permissions"]["draft.save"] is True
+    assert body["permissions"]["review.generate"] is True
+    assert body["permissions"]["apply.execute"] is True
+    assert body["permissions"]["workspace.admin"] is False
 
     from app.flowhub.auth.models import FlowHubUser
     from app.flowhub.unified_workspace.authorization import has_workspace_permission
@@ -132,6 +139,10 @@ def test_operator_has_operational_workspace_permissions_but_not_settings(client,
     assert has_workspace_permission(operator, "review.generate")
     assert has_workspace_permission(operator, "apply.execute")
     assert not has_workspace_permission(operator, "workspace.admin")
+
+    from app.flowhub.maintenance import require_write_operation_available
+
+    assert require_write_operation_available(operator, db) is operator
 
 
 def test_unused_user_can_be_deleted_and_action_is_audited(client, db):

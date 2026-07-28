@@ -13,12 +13,12 @@ from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.auth.repository import create_audit_event
 from app.flowhub.database import get_db
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.unified_workspace.authorization import has_workspace_permission
 
 
 MAINTENANCE_CONFIG_KEY = "maintenance_mode"
 MAINTENANCE_ERROR_CODE = "MAINTENANCE_MODE_ACTIVE"
 MAINTENANCE_ERROR_MESSAGE = "Write operations are unavailable while maintenance mode is active."
-_WRITE_ROLES = frozenset({"owner", "super_admin", "admin"})
 _MAINTENANCE_BYPASS_ROLES = frozenset({"owner", "super_admin"})
 
 
@@ -56,8 +56,14 @@ def require_write_operation_available(
     db: Session = Depends(get_db),
 ) -> FlowHubUser:
     """Authorize an operator and block write-batch advancement during maintenance."""
-    if user.role not in _WRITE_ROLES:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin permission required.")
+    if not has_workspace_permission(user, "apply.execute"):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            {
+                "code": "WORKSPACE_PERMISSION_DENIED",
+                "message": "Permission apply.execute is required.",
+            },
+        )
 
     try:
         maintenance = load_maintenance_state(db)

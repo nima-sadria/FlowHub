@@ -64,6 +64,7 @@
   "sourceCenter.worksheetsEnabledCount_one": "{{count}} worksheet enabled",
   "sourceCenter.worksheetsEnabledCount_other": "{{count}} worksheets enabled",
   "sourceConfiguration.accessScopePolicy": "Only users with existing Source and Workspace permissions may change these columns or create a Workspace.",
+  "sourceConfiguration.readOnlyPermission": "You can inspect this Source. Changing its mapping requires Workspace edit permission.",
   "sourceConfiguration.addAtLeastOneWorksheet": "Add and enable at least one worksheet before saving.",
   "sourceConfiguration.addWorksheet": "Add worksheet",
   "sourceConfiguration.allChangesSaved": "All changes saved",

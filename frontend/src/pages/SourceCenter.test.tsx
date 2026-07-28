@@ -192,6 +192,11 @@ describe('SourceCenter safe lifecycle', () => {
     expect(container.textContent).not.toContain('Delete Source')
   })
 
+  it('does not expose Source creation to a read-only viewer', async () => {
+    await render(viewer)
+    expect(Array.from(container.querySelectorAll('button')).some(item => item.textContent?.trim() === 'Add source')).toBe(false)
+  })
+
   it('groups managed Sources consistently and sorts display names inside each group', async () => {
     const activeZebra = { ...source, id: 'source-z', name: 'Zebra prices' }
     const activeAlpha = { ...source, id: 'source-a', name: 'Alpha prices' }

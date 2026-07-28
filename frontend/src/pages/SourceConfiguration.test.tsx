@@ -8,6 +8,7 @@ import type { SourceChannel, SourceMapping, SourceProfile } from '../features/so
 import { changeLocale, translate } from '../i18n'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import SourceConfiguration from './SourceConfiguration'
+import { AuthContext, type AuthContextValue } from '../auth'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -71,16 +72,32 @@ const source: SourceProfile & { mapping: SourceMapping | null } = {
   mapping,
 }
 
-async function renderPage() {
+const editorAuth: AuthContextValue = {
+  user: { username: 'operator', role: 'operator', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true, 'workspace.create': true, 'workspace.edit': true } },
+  status: 'authenticated',
+  refreshUser: async () => {},
+  clearAuth: () => {},
+  logout: async () => {},
+  authFetch: fetch,
+}
+
+const viewerAuth: AuthContextValue = {
+  ...editorAuth,
+  user: { username: 'viewer', role: 'viewer', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true } },
+}
+
+async function renderPage(auth = editorAuth) {
   await act(async () => {
     root.render(
-      <MemoryRouter initialEntries={['/sources/source-1']}>
-        <NotificationProvider>
-          <Routes>
-            <Route path="/sources/:sourceId" element={<SourceConfiguration />} />
-          </Routes>
-        </NotificationProvider>
-      </MemoryRouter>,
+      <AuthContext.Provider value={auth}>
+        <MemoryRouter initialEntries={['/sources/source-1']}>
+          <NotificationProvider>
+            <Routes>
+              <Route path="/sources/:sourceId" element={<SourceConfiguration />} />
+            </Routes>
+          </NotificationProvider>
+        </MemoryRouter>
+      </AuthContext.Provider>,
     )
     await Promise.resolve()
     await Promise.resolve()
@@ -145,6 +162,14 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).toContain('Column letter')
     expect(container.textContent).toContain('Exact header')
     expect(container.textContent).toContain('FlowHub Sheet column')
+  })
+
+  it('renders Source configuration read-only without edit permission', async () => {
+    await renderPage(viewerAuth)
+    expect(container.textContent).toContain('You can inspect this Source')
+    expect(container.querySelector('fieldset[disabled]')).not.toBeNull()
+    expect(container.textContent).not.toContain('Save column setup')
+    expect(container.textContent).not.toContain('Open Workspace')
   })
 
   it.each([
