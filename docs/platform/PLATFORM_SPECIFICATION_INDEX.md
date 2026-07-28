@@ -95,7 +95,7 @@ Source acquisition
 ## Current Compliance
 
 The granular authorization contract and audited application integrations are
-implemented. Current sampled compliance is 84%. Full convergence is on HOLD
+implemented. Current assessed compliance is 84%. Full convergence is on HOLD
 for the decisions listed in `PLATFORM_COMPLIANCE_REPORT.md`, including the
 canonical Workspace route, exact-operation confirmation, Connector activation,
 operational read scope, retention, diagnostics history, alerts, and report

@@ -100,7 +100,7 @@ FlowHub terminology.
 | `docs/release/ROLLBACK.md` | Current rollback procedure |
 | `docs/RELEASE_CHECKLIST.md` | Current release validation |
 | `docs/releases/FLOWHUB_V1.2_STABLE.md` | Historical release evidence |
-| `docs/releases/FLOWHUB_V1.3_BETA.md` | Current beta release evidence |
+| FlowHub v1.3 pre-release record | Current pre-release evidence |
 | `docs/reports/FLOWHUB_V1.3_PDF_BUG_REMEDIATION.md` | Historical remediation evidence |
 | `docs/reports/PRICING_WORKFLOW_VIDEO_COMPARISON.md` | UX research evidence |
 | `docs/ROADMAP.md` | Current repository roadmap pointer |
@@ -126,7 +126,7 @@ They remain in place as audit evidence until Owner-approved archival.
 
 ## Historical Documents Archived
 
-The following are already legacy compatibility stubs or phase/audit artifacts
+The following are already legacy compatibility records or phase/audit artifacts
 and are classified **Archive**:
 
 - `docs/A2_ARCHITECTURE.md`

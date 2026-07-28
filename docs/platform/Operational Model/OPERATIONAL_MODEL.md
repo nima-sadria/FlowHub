@@ -15,7 +15,7 @@ it, what work was attempted, and what an operator can safely do next.
 | Audit event | Who did what and with which outcome | Actor accountability |
 | Operation attempt | Exact dispatch and transport result | Execution evidence |
 | Confirmed change | Verified business before/after state | Business history |
-| Metric sample | Bounded counter or aggregate | Performance analysis |
+| Metric observation | Bounded counter or aggregate | Performance analysis |
 | Analytics projection | Scoped derived interpretation | Reporting only |
 
 These records MUST NOT be collapsed into a single generic log.
@@ -44,4 +44,3 @@ Schedulers MUST NOT start merely because local Connector metadata was created.
 Retention, durable diagnostic-run history, external alert transport, and
 auditable report artifacts are not yet canonical runtime capabilities. They
 are Owner decisions, not implied features.
-

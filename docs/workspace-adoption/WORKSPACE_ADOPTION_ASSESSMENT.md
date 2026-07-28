@@ -123,7 +123,7 @@ executed.
 - Frontend focused permission tests: 109 passed.
 - Full frontend suite: 58 files and 416 tests passed.
 - Frontend production build: passed.
-- i18n validation: 2,067 messages; no missing keys, placeholder mismatches,
+- i18n validation: 2,067 messages; no missing keys, interpolation mismatches,
   unapproved hardcoded strings, or critical Persian leakage.
 - `git diff --check`: passed.
 - Backend tests and Python compilation could not run because this Windows

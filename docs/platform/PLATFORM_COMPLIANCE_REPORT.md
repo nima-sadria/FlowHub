@@ -10,14 +10,14 @@ No provider write, Production access, merge, release, or deployment occurred.
 
 ## Compliance Score
 
-**84%: 64 of 76 sampled platform controls are compliant.**
+**84%: 64 of 76 assessed platform controls are compliant.**
 
 This is an evidence-weighted adoption score, not test coverage. A control is
-compliant only when code or existing tests demonstrate the canonical behavior.
+compliant only when code or existing tests establish the canonical behavior.
 Owner-decision items and unavailable backend execution validation are not
 counted as compliant.
 
-| Domain | Compliant | Sampled | Status |
+| Domain | Compliant | Assessed | Status |
 | --- | ---: | ---: | --- |
 | Architecture | 4 | 4 | Already compliant |
 | Workspace | 8 | 10 | Architecture decisions required |
@@ -108,4 +108,3 @@ counted as compliant.
 **HOLD.** The canonical documentation and all safe minor/medium findings found
 in this pass are implemented. Further alignment crosses Owner-level
 architecture boundaries, primarily OD-004, OD-005, OD-012, and OD-013.
-

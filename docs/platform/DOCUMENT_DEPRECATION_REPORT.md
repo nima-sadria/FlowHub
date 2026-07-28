@@ -16,7 +16,7 @@ New gaps, phases, and decisions belong in:
 - `Migration/PLATFORM_MIGRATION.md`
 - `DOCUMENT_MERGE_REPORT.md`
 
-## Deprecated Compatibility Stubs
+## Deprecated Compatibility Records
 
 All files identified as historical in `DOCUMENT_MERGE_REPORT.md` are
 deprecated. Their pointers to `docs/architecture/CURRENT_ARCHITECTURE.md`
@@ -42,4 +42,3 @@ Provider-specific terminology remains valid inside adapter documentation.
 - unversioned confirmation behavior without an exact approved operation object.
 
 No runtime deprecation was executed by this documentation consolidation.
-

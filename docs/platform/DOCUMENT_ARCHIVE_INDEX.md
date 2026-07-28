@@ -10,11 +10,11 @@ why the current system exists but cannot override
 
 | Group | Documents | Reason |
 | --- | --- | --- |
-| Legacy compatibility stubs | root `ARCHITECTURE`, `MASTER_SPEC`, `PLATFORM_MAP`, `A2_ARCHITECTURE`, `AI_OPERATING_MANUAL`, `PHASE_5_CUTOVER_PLAN`, `RELEASE_STRATEGY` | Content already replaced by current release docs |
+| Legacy compatibility records | root `ARCHITECTURE`, `MASTER_SPEC`, `PLATFORM_MAP`, `A2_ARCHITECTURE`, `AI_OPERATING_MANUAL`, `PHASE_5_CUTOVER_PLAN`, `RELEASE_STRATEGY` | Content already replaced by current release docs |
 | Agent/audit instructions | `docs/agents/*` | Time-bound development evidence |
-| Control-plane stubs | `docs/control-plane/*` | Pre-release placeholders, not current contracts |
+| Control-plane records | `docs/control-plane/*` | Pre-release drafts, not current contracts |
 | Phase records | `docs/phases/*` | Completed implementation history |
-| Legacy platform stubs | all prior nine-line `docs/platform/*.md` compatibility files | Superseded placeholders |
+| Legacy platform records | all prior nine-line `docs/platform/*.md` compatibility files | Superseded drafts |
 | Workspace adoption | `docs/workspace-adoption/*` after Owner approval | Rules merged into canonical platform docs |
 | External references | Owner-provided `workspace-spec/*` and `operational-spec/*` | Source evidence; not FlowHub canonical architecture |
 
@@ -34,4 +34,3 @@ No file was moved. A future archival commit must:
 ## Deletion
 
 No archive entry is approved for deletion in this pass.
-

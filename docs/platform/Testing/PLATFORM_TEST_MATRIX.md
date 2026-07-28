@@ -29,7 +29,7 @@ Every implementation commit runs:
 5. migration validation when persistence changes;
 6. `git diff --check`.
 
-Provider-write tests use fakes or disposable environments. They MUST NOT target
+Provider-write tests use test doubles or disposable environments. They MUST NOT target
 Production.
 
 ## Traceability
@@ -37,4 +37,3 @@ Production.
 Tests SHOULD cite the canonical rule or decision ID they protect. Historical
 WooPrice test names are reference evidence only and are not FlowHub acceptance
 criteria.
-
