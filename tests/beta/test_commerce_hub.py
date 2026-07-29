@@ -153,7 +153,11 @@ def test_commerce_type_routes_mark_future_placeholders_read_only(client, auth_he
     assert channel_types["tapsishop"]["placeholder"] is False
     assert channel_types["tapsishop"]["read_only"] is True
     assert channel_types["tapsishop"]["write_blocked"] is True
-    for provider in ("digikala", "technolife", "shopify"):
+    assert channel_types["digikala"]["implemented"] is True
+    assert channel_types["digikala"]["placeholder"] is False
+    assert channel_types["digikala"]["read_only"] is True
+    assert channel_types["digikala"]["write_blocked"] is True
+    for provider in ("technolife", "shopify", "magento"):
         assert channel_types[provider]["placeholder"] is True
         assert channel_types[provider]["read_only"] is True
         assert channel_types[provider]["write_blocked"] is True
@@ -341,7 +345,7 @@ def test_placeholder_connection_test_does_not_call_external_system(client, auth_
     )
     monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client.httpx.AsyncClient", FailingAsyncClient)
 
-    response = client.post("/api/v2/commerce/channels/digikala:main/test", headers=auth_headers, json={})
+    response = client.post("/api/v2/commerce/channels/technolife:main/test", headers=auth_headers, json={})
 
     assert response.status_code == 200
     data = response.json()

@@ -28,8 +28,18 @@ describe('Source icon registry', () => {
   it('uses the Microsoft Office asset only for explicit spreadsheet identities', () => {
     expect(sourceIconPath({ sourceType: 'xlsx' })).toBe(SOURCE_ICON_ASSETS.microsoftOffice)
     expect(sourceIconPath({ fileName: 'daily-prices.XLSX' })).toBe(SOURCE_ICON_ASSETS.microsoftOffice)
-    expect(sourceIconPath({ sourceType: 'csv' })).toBe(SOURCE_ICON_FALLBACK)
     expect(sourceIconPath({ sourceType: 'imported_sheet' })).toBe(SOURCE_ICON_ASSETS.microsoftOffice)
+  })
+
+  it('resolves the Excel connector and Google Sheets from explicit provider identities', () => {
+    expect(sourceIconPath({ provider: 'csv' })).toBe(SOURCE_ICON_ASSETS.excel)
+    expect(sourceIconPath({ sourceType: 'csv' })).toBe(SOURCE_ICON_ASSETS.excel)
+    expect(sourceIconPath({ provider: 'gsheets:price-list' })).toBe(SOURCE_ICON_ASSETS.gsheets)
+  })
+
+  it('resolves the newly added channel brands', () => {
+    expect(sourceIconPath('shopify:main')).toBe(SOURCE_ICON_ASSETS.shopify)
+    expect(sourceIconPath('magento:main')).toBe(SOURCE_ICON_ASSETS.magento)
   })
 
   it('falls back without deriving a brand from missing or unknown metadata', () => {

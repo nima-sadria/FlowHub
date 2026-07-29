@@ -14,7 +14,7 @@ import { useNotification } from '../notifications/NotificationProvider'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
 import { formatDateTime } from '../i18n/format'
-import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
+import { formatChannelDisplayName, localizedChannelBrandName } from '../features/unifiedWorkspace/channelDisplayName'
 import { formatCapabilityList, formatCommerceType, formatDataRole, formatStatus } from '../i18n/display'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
@@ -189,10 +189,10 @@ function ChannelCard({ channel, badge, onTest, onRefresh, onConfigure, testing, 
     <div className="fh-card fh-card-pad flex flex-col gap-3" title={formatCapabilityList(channel.capabilities_summary)}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <BrandIcon identity={{ provider: channel.provider }} label={channel.name} size={44} />
+          <BrandIcon identity={{ provider: channel.provider }} label={localizedChannelBrandName(channel.provider, channel.name)} size={44} />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="fh-section-title">{channel.name}</h3>
+              <h3 className="fh-section-title">{localizedChannelBrandName(channel.provider, channel.name)}</h3>
               <ResourceStateBadge badge={badge} />
             </div>
           </div>

@@ -425,6 +425,45 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
             ("health_record", "health"),
         ),
     ),
+    "magento": ConnectorDefinition(
+        connector=ConnectorDescriptor(
+            identity=ConnectorIdentity(
+                id="magento",
+                name="Magento",
+                type="magento",
+                version="1.0.0",
+                enabled=False,
+                read_only=True,
+            ),
+            capabilities=ConnectorCapabilities(
+                read_products=True,
+                read_categories=True,
+                read_inventory=True,
+                read_orders=False,
+                write_prices=False,
+                write_inventory=False,
+                webhook=False,
+                polling=False,
+                oauth=False,
+                api_key=True,
+                supports_modified_since=True,
+                supports_delta_sync=True,
+                supports_updated_after=True,
+                supports_pagination=True,
+                supports_batch_read=True,
+            ),
+            status=ConnectorHealthStatus.DISABLED,
+        ),
+        settings_schema=[
+            ConnectorSettingDefinition(key="seller_id", label="Seller/store ID", required=False),
+            ConnectorSettingDefinition(key="api_token", label="API key/token", required=False, secret=True),
+        ],
+        diagnostics_contract=_diagnostics(
+            ("settings", "configuration"),
+            ("placeholder", "capability_detection"),
+            ("health_record", "health"),
+        ),
+    ),
 }
 
 

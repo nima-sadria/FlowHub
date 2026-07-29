@@ -80,20 +80,20 @@ _CHANNELS = [
         "placeholder": False,
     },
     {
+        "id": "digikala:main",
+        "provider": "digikala",
+        "name": "Digikala",
+        "status": "current",
+        "implemented": True,
+        "placeholder": False,
+    },
+    {
         "id": "tapsishop:main",
         "provider": "tapsishop",
         "name": "Tapsi Shop",
         "status": "current",
         "implemented": True,
         "placeholder": False,
-    },
-    {
-        "id": "digikala:main",
-        "provider": "digikala",
-        "name": "Digikala",
-        "status": "future",
-        "implemented": False,
-        "placeholder": True,
     },
     {
         "id": "technolife:main",
@@ -107,6 +107,14 @@ _CHANNELS = [
         "id": "shopify:main",
         "provider": "shopify",
         "name": "Shopify",
+        "status": "future",
+        "implemented": False,
+        "placeholder": True,
+    },
+    {
+        "id": "magento:main",
+        "provider": "magento",
+        "name": "Magento",
         "status": "future",
         "implemented": False,
         "placeholder": True,
@@ -1743,7 +1751,9 @@ class CommerceHubService:
             required = {"token", "agent_identifier", "vendor_id"}
         elif instance.connector_type == "tapsishop":
             required = {"token"}
-        elif instance.connector_type in {"digikala", "technolife", "shopify"}:
+        elif instance.connector_type == "digikala":
+            required = {"api_token"}
+        elif instance.connector_type in {"technolife", "shopify", "magento"}:
             required = {"api_token"}
         elif instance.connector_type == "nextcloud":
             required = {"url", "username", "password"}

@@ -12,6 +12,7 @@ import {
   type ResourceBadge,
   type ResourceTier,
 } from '../features/resourceOrdering/resourceOrdering'
+import { localizedChannelBrandName } from '../features/unifiedWorkspace/channelDisplayName'
 import { translate } from '../i18n'
 import { formatNumber, formatRelativeTime } from '../i18n/format'
 import { inputHint } from '../utils/inputHint'
@@ -265,8 +266,8 @@ export default function Channels() {
             return (
               <article className="fh-channel-card" data-channel-card={channel.id} key={channel.id}>
                 <div className="fh-channel-card-head">
-                  <BrandIcon identity={{ provider: channel.provider }} label={channel.name} size={36} />
-                  <h2 className="fh-channel-card-name">{channel.name}</h2>
+                  <BrandIcon identity={{ provider: channel.provider }} label={localizedChannelBrandName(channel.provider, channel.name)} size={36} />
+                  <h2 className="fh-channel-card-name">{localizedChannelBrandName(channel.provider, channel.name)}</h2>
                 </div>
 
                 <div className="fh-channel-card-row">

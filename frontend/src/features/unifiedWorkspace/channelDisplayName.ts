@@ -1,10 +1,26 @@
-import { translate } from '../../i18n'
+import i18n, { translate } from '../../i18n'
 
 const CHANNEL_TYPE_LABELS: Record<string, string> = {
   woocommerce: 'WooCommerce',
   snappshop: 'SnappShop',
   tapsishop: 'TapsiShop',
   shopify: 'Shopify',
+}
+
+const CHANNEL_BRAND_NAMES_FA: Readonly<Record<string, string>> = Object.freeze({
+  woocommerce: 'ووکامرس',
+  snappshop: 'اسنپ شاپ',
+  digikala: 'دیجی کالا',
+  tapsishop: 'تپ سی شاپ',
+  technolife: 'تکنولایف',
+  shopify: 'شاپیفای',
+  magento: 'مجنتو',
+})
+
+/** Localize a channel/connector brand name for display only — ids, sorting, and API calls always use the English name. */
+export function localizedChannelBrandName(provider: string, fallbackName: string): string {
+  if (i18n.resolvedLanguage !== 'fa') return fallbackName
+  return CHANNEL_BRAND_NAMES_FA[provider] ?? fallbackName
 }
 
 function humanize(value: string): string {

@@ -17,6 +17,8 @@ export type ResourceBadge = 'configured' | 'healthy' | 'warning' | 'disabled' | 
 export interface ResourceOrderingSignals {
   id: string
   displayName: string
+  /** Overrides displayName for alphabetical tiebreak only, without changing the rendered label. */
+  sortName?: string | null
   status?: string | null
   healthStatus?: string | null
   credentialStatus?: string | null
@@ -202,16 +204,17 @@ export function prepareResourceCollection<T>(
       item,
       id: signals.id,
       displayName: signals.displayName,
+      sortName: signals.sortName ?? signals.displayName,
       inputPosition,
       ...classification,
     }
   }).sort((left, right) => {
     const tier = TIER_ORDER[left.tier] - TIER_ORDER[right.tier]
     if (tier !== 0) return tier
-    const name = COLLATOR.compare(left.displayName, right.displayName)
+    const name = COLLATOR.compare(left.sortName, right.sortName)
     return name !== 0 ? name : left.inputPosition - right.inputPosition
   })
-  const ordered: OrderedResource<T>[] = orderedWithInputPosition.map(({ inputPosition: _inputPosition, ...resource }) => resource)
+  const ordered: OrderedResource<T>[] = orderedWithInputPosition.map(({ inputPosition: _inputPosition, sortName: _sortName, ...resource }) => resource)
 
   const sections = SECTION_ORDER.flatMap(key => {
     const sectionItems = ordered.filter(item => item.section === key)
@@ -273,6 +276,7 @@ export function commerceSourceSignals(source: CommerceSource): ResourceOrderingS
   return {
     id: source.id,
     displayName: source.name,
+    sortName: source.provider === 'erp' ? `￿${source.name}` : source.name,
     status: source.status,
     healthStatus: source.health?.status,
     credentialStatus: source.credential_status,
@@ -283,10 +287,26 @@ export function commerceSourceSignals(source: CommerceSource): ResourceOrderingS
   }
 }
 
+const CHANNEL_PRIORITY: Readonly<Record<string, number>> = Object.freeze({
+  woocommerce: 1,
+  snappshop: 2,
+  digikala: 3,
+  tapsishop: 4,
+  technolife: 5,
+  shopify: 6,
+  magento: 7,
+})
+
+function channelSortName(provider: string, name: string): string {
+  const priority = CHANNEL_PRIORITY[provider]
+  return priority === undefined ? name : `${String(priority).padStart(2, '0')}_${name}`
+}
+
 export function commerceChannelSignals(channel: CommerceChannelRuntime): ResourceOrderingSignals {
   return {
     id: channel.id,
     displayName: channel.name,
+    sortName: channelSortName(channel.provider, channel.name),
     status: channel.status,
     healthStatus: channel.health?.status,
     credentialStatus: channel.credential_status,
@@ -302,6 +322,9 @@ export function commerceTypeSignals(item: CommerceTypeOption): ResourceOrderingS
   return {
     id: item.id,
     displayName: item.name,
+    sortName: item.type === 'Channel'
+      ? channelSortName(item.provider, item.name)
+      : item.provider === 'erp' ? `￿${item.name}` : item.name,
     configured: item.implemented && !item.placeholder,
     implemented: item.implemented,
     placeholder: item.placeholder,

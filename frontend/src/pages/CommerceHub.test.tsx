@@ -958,7 +958,7 @@ describe('CommerceHub', () => {
       addChannel?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
     expect(c.textContent).toContain('Channel type')
-    expect(c.textContent).toContain('Bearer token')
+    expect(c.textContent).toContain('Store URL')
 
     const sourcesScreen = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
     const addSource = Array.from(sourcesScreen.querySelectorAll('button')).find(button => button.textContent === 'Add source')
@@ -1260,7 +1260,7 @@ describe('CommerceHub', () => {
     })
 
     expect(Array.from(c.querySelectorAll('[data-resource-id]')).map(item => item.getAttribute('data-resource-id')))
-      .toEqual(['nextcloud:primary', 'csv:import', 'erp:api-import', 'gsheets:price-list'])
+      .toEqual(['nextcloud:primary', 'csv:import', 'gsheets:price-list', 'erp:api-import'])
     expect(Array.from(c.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section')))
       .toEqual(['active', 'comingSoon'])
   })

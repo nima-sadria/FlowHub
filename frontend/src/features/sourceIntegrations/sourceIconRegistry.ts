@@ -2,9 +2,13 @@ export const SOURCE_ICON_FALLBACK = '/static/logos/FlowHub%20favicon.png?v=4'
 
 export const SOURCE_ICON_ASSETS = Object.freeze({
   digikala: '/static/win11-icon/brand/DIGIKALA.webp',
+  excel: '/static/logos/brands/excel.svg',
+  gsheets: '/static/logos/brands/google-sheets.svg',
+  magento: '/static/logos/brands/magento.svg',
   microsoftOffice: '/static/win11-icon/brand/Microsoft%20Office.webp',
   nextcloud: '/static/win11-icon/brand/Nextcloud.webp',
   onlyoffice: '/static/win11-icon/brand/Onlyoffice.webp',
+  shopify: '/static/logos/brands/shopify.svg',
   snappshop: '/static/win11-icon/brand/Snapp%20Shop.webp',
   tapsishop: '/static/win11-icon/brand/Tapsi%20Shop.webp',
   technolife: '/static/win11-icon/brand/Technolife.webp',
@@ -20,9 +24,14 @@ export interface SourceIconIdentity {
 export type SourceIconIdentityInput = SourceIconIdentity | string | null | undefined
 
 const SOURCE_ICON_ALIASES: Readonly<Record<string, keyof typeof SOURCE_ICON_ASSETS>> = Object.freeze({
+  csv: 'excel',
   digikala: 'digikala',
-  excel: 'microsoftOffice',
+  excel: 'excel',
+  google_sheets: 'gsheets',
+  googlesheets: 'gsheets',
+  gsheets: 'gsheets',
   imported_sheet: 'microsoftOffice',
+  magento: 'magento',
   microsoft_office: 'microsoftOffice',
   nextcloud: 'nextcloud',
   nextcloud_excel: 'nextcloud',
@@ -30,6 +39,7 @@ const SOURCE_ICON_ALIASES: Readonly<Record<string, keyof typeof SOURCE_ICON_ASSE
   office: 'microsoftOffice',
   onlyoffice: 'onlyoffice',
   onlyoffice_spreadsheet: 'onlyoffice',
+  shopify: 'shopify',
   snapp_shop: 'snappshop',
   snappshop: 'snappshop',
   spreadsheet_import: 'microsoftOffice',
