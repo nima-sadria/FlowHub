@@ -16,6 +16,12 @@ Editing a source file is not the change taking effect. A UI task is not complete
 
 Keep the dev servers and the Playwright browser session running across the whole debugging session rather than restarting per-change — restart automatically only if one drops.
 
+## Assets the Owner provides directly
+When the Owner pastes a screenshot/image or names a file path, treat it as the spec — don't go looking for it. Specifically:
+- Don't search temp folders, clipboard caches, Downloads, or unrelated directories trying to recover a pasted image or guess where an asset lives.
+- If a referenced asset (e.g. a logo file) isn't where it needs to be, ask once for the correct path/file, then proceed immediately once given — don't re-search after asking.
+- Filesystem investigation is for understanding *code*, not for hunting down assets the Owner is expected to supply. Before searching, check: does this search directly help implement the requested change? If not, don't run it — ask instead.
+
 ## Verification before calling a UI change done
 Run the app and verify with Browser MCP (Playwright) rather than reasoning from code alone. Scale the checklist to what the change actually touches — don't run axes that can't be affected by the diff (e.g. a copy-only rename doesn't need a tablet/mobile viewport sweep or permission-role checks if it isn't gated).
 
@@ -40,5 +46,6 @@ State explicitly which of the above were actually checked for a given change —
 3. Check console + network.
 4. Check related/affected pages.
 5. Add regression tests covering the fix.
-6. Commit.
-7. Push `audit/integration-20260728` to `origin` after commits are ready — **not** to `main` directly. This branch tracks `origin/main`; a bare `git push` would fast-forward `main`, so push explicitly to the named branch, or confirm the target before pushing if that ever changes.
+6. Report what changed and stop — do **not** commit yet.
+7. Wait for explicit Owner approval before committing.
+8. Once approved: commit, then push `audit/integration-20260728` to `origin` — **not** to `main` directly. This branch tracks `origin/main`; a bare `git push` would fast-forward `main`, so push explicitly to the named branch, or confirm the target before pushing if that ever changes.
