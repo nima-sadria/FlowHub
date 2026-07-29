@@ -23,7 +23,7 @@ _FLOWHUB_CANONICAL_INSTALL_DIR="/opt/FlowHub"
 _FLOWHUB_LEGACY_INSTALL_DIR="/opt/flowhub" # Legacy Compatibility
 _FLOWHUB_INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-${_FLOWHUB_CANONICAL_INSTALL_DIR}}"
 _FLOWHUB_REPO_URL="https://github.com/nima-sadria/FlowHub.git"
-_FLOWHUB_BRANCH="main"
+_FLOWHUB_BRANCH="${FLOWHUB_BRANCH:-main}"
 _FLOWHUB_BOOTSTRAP_REFRESH=0
 
 for _flowhub_bootstrap_arg in "$@"; do
@@ -871,10 +871,10 @@ step_uninstall() {
 step_update_repository() {
     if [[ -d "${INSTALL_DIR}/.git" ]]; then
         echo ""
-        echo "  Updating repository from origin/main..."
-        git -C "$INSTALL_DIR" fetch origin main
-        git -C "$INSTALL_DIR" checkout -B main origin/main
-        git -C "$INSTALL_DIR" reset --hard origin/main
+        echo "  Updating repository from origin/${_FLOWHUB_BRANCH}..."
+        git -C "$INSTALL_DIR" fetch origin "$_FLOWHUB_BRANCH"
+        git -C "$INSTALL_DIR" checkout -B "$_FLOWHUB_BRANCH" "origin/${_FLOWHUB_BRANCH}"
+        git -C "$INSTALL_DIR" reset --hard "origin/${_FLOWHUB_BRANCH}"
         normalize_legacy_release_files "$INSTALL_DIR"
     fi
 }

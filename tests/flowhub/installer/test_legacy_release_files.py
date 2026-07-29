@@ -50,12 +50,13 @@ def test_legacy_path_migration_preserves_old_release_files_when_copying_missing_
     assert "for item in .env .env.beta docker-compose.yml docker-compose.beta.yml storage backups logs; do" in src
 
 
-def test_upgrade_resets_installed_checkout_to_current_main_release():
+def test_upgrade_resets_installed_checkout_to_configured_release_branch():
     src = _src()
     body = src[src.index("step_update_repository()") : src.index("# ---- Upgrade path")]
-    assert 'git -C "$INSTALL_DIR" fetch origin main' in body
-    assert "git -C \"$INSTALL_DIR\" checkout -B main origin/main" in body
-    assert "git -C \"$INSTALL_DIR\" reset --hard origin/main" in body
+    assert '_FLOWHUB_BRANCH="${FLOWHUB_BRANCH:-main}"' in src
+    assert 'git -C "$INSTALL_DIR" fetch origin "$_FLOWHUB_BRANCH"' in body
+    assert 'git -C "$INSTALL_DIR" checkout -B "$_FLOWHUB_BRANCH" "origin/${_FLOWHUB_BRANCH}"' in body
+    assert 'git -C "$INSTALL_DIR" reset --hard "origin/${_FLOWHUB_BRANCH}"' in body
     assert 'normalize_legacy_release_files "$INSTALL_DIR"' in body
 
 
