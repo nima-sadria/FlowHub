@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router'
 import { useAuth } from '../auth'
 import { apiFetch } from '../api/client'
 import Badge from '../components/Badge'

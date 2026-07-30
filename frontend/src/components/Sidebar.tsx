@@ -1,5 +1,5 @@
 import { translate } from '../i18n'
-import { NavLink, useLocation, useSearchParams } from 'react-router-dom'
+import { NavLink, useLocation, useSearchParams } from 'react-router'
 import type { AuthUser } from '../auth'
 import Icon, { routeIconMap } from './Icon'
 import type { IconName } from './Icon'

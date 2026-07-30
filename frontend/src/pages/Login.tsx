@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useAuth } from '../auth'
 import Spinner from '../components/loading/Spinner'
 import { useDirection } from '../direction'

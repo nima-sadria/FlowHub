@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { translate } from '../i18n'
 import { useAuth } from '../auth'
 import { effectiveHasPerm } from '../utils/permissions'

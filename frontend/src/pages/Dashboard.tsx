@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { apiFetch } from '../api/client'
 import { useAuth } from '../auth'
 import Badge from '../components/Badge'

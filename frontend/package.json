@@ -18,15 +18,15 @@
     "@handsontable/react-wrapper": "^18.0.0",
     "handsontable": "^18.0.0",
     "i18next": "^26.3.6",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "react-i18next": "^17.0.9",
-    "react-router-dom": "^6.27.0"
+    "react-router": "8.3.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.4.20",
     "gettext-parser": "^9.1.1",

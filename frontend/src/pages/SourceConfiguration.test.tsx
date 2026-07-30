@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 import type { SourceChannel, SourceMapping, SourceProfile } from '../features/sourceWorkspace/types'

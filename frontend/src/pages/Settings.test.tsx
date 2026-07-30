@@ -6,7 +6,7 @@ import { AuthContext, type AuthContextValue, type AuthUser } from '../auth'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { AppSettings } from '../services/types'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter } from 'react-router'
 import Settings from './Settings'
 
 let container: HTMLDivElement

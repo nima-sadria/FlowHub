@@ -1,7 +1,7 @@
 import { translate } from './i18n'
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router'
 import { AuthProvider, RequirePermission, AccessState, useAuth } from './auth'
 import { DirectionProvider } from './direction'
 import { ThemeProvider } from './theme/ThemeProvider'

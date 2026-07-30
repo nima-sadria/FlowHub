@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter } from 'react-router'
 import { AuthContext, type AuthContextValue, type AuthUser } from '../auth'
 import { ApiError } from '../api/client'
 import { NotificationProvider } from '../notifications/NotificationProvider'

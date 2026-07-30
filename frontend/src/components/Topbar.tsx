@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router'
 import i18n, { translate } from '../i18n'
 import Icon from './Icon'
 import IconButton from './IconButton'

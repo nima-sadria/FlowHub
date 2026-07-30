@@ -1,6 +1,6 @@
 import { translate } from '../i18n'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../auth'
 import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'

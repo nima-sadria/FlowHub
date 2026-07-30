@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useAuth } from '../auth'
 import Badge, { type BadgeVariant } from '../components/Badge'
 import BrandIcon from '../components/BrandIcon'

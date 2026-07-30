@@ -1,6 +1,6 @@
 import { translate } from '../i18n'
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router'
 import { HotTable, type HotTableRef } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'

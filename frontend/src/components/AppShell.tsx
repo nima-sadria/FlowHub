@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../auth'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'

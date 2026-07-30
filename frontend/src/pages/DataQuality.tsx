@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { ApiError } from '../api/client'
 import PageShell from '../components/PageShell'
 import Badge, { type BadgeVariant } from '../components/Badge'
