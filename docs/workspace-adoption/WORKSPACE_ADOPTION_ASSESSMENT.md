@@ -121,12 +121,12 @@ executed.
 ## Validation Evidence
 
 - Frontend focused integration tests: 8 files and 124 tests passed.
-- Full frontend suite: 58 files and 418 tests passed.
+- Full frontend suite: 58 files and 419 tests passed.
 - Frontend production build: passed.
 - i18n validation: 2,067 messages; no missing keys, interpolation mismatches,
   unapproved hardcoded strings, or critical Persian leakage.
 - `git diff --check`: passed.
-- Full backend suite: 2,989 passed and 30 environment-dependent tests skipped.
+- Full backend suite: 3,002 passed and 30 environment-dependent tests skipped.
 - Focused auth, activity, Sources, Sheets, logging, and installer suites passed.
 - SQLite migrations, API health, setup status, SPA routing, and static assets
   were verified against an isolated production build.

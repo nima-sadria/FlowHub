@@ -86,7 +86,7 @@ Completed remediation:
 
 Validation:
 
-- 58 frontend files and 418 tests passed.
+- 58 frontend files and 419 tests passed.
 - Frontend production build and i18n validation passed.
 - The full backend suite passed with only environment-dependent skips.
 - Focused auth, activity, Sources, Sheets, logging, and installer suites passed.
