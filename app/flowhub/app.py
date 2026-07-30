@@ -56,8 +56,16 @@ Active routes:
 
 from __future__ import annotations
 
+import mimetypes
 import os
 from pathlib import Path
+
+# Python's mimetypes module does not register image/webp on every platform
+# (notably some Windows Python builds), which makes StaticFiles fall back to
+# application/octet-stream for .webp assets. Browsers can refuse to render
+# an <img> whose response is mislabeled that way, so register it explicitly
+# before any StaticFiles mount is created.
+mimetypes.add_type("image/webp", ".webp")
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exception_handlers import http_exception_handler
