@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import i18n, { translate } from '../i18n'
 import Icon from './Icon'
@@ -6,6 +6,8 @@ import IconButton from './IconButton'
 import { useTheme } from '../theme/ThemeProvider'
 import { useDirection } from '../direction'
 import { inputHint } from '../utils/inputHint'
+import type { ExchangeRateService } from '../services/exchangeRates/ExchangeRateService'
+import type { ExchangeRateSnapshotView } from '../services/types'
 
 interface Props {
   onMenuClick: () => void
@@ -13,6 +15,7 @@ interface Props {
   sidebarCollapsed: boolean
   user: { username: string; role?: string } | null
   onLogout: () => void
+  exchangeRates?: ExchangeRateService
 }
 
 const LANGUAGES = [
@@ -102,12 +105,89 @@ function SignOutIcon() {
   )
 }
 
+function formatDecimalString(value: string, locale: string): string {
+  const match = value.trim().match(/^([+-]?)(\d+)(?:\.(\d+))?$/)
+  if (!match) return value
+  const [, sign, integerPart, rawFraction = ''] = match
+  const fraction = rawFraction.replace(/0+$/, '')
+  const grouped = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(BigInt(integerPart))
+  const decimalSeparator = new Intl.NumberFormat(locale)
+    .formatToParts(1.1)
+    .find(part => part.type === 'decimal')?.value ?? '.'
+  const localizedSign = sign === '-' ? '−' : sign
+  return `${localizedSign}${grouped}${fraction ? `${decimalSeparator}${fraction}` : ''}`
+}
+
+function ExchangeRateStrip({ service, language }: { service: ExchangeRateService; language: string }) {
+  const [rates, setRates] = useState<ExchangeRateSnapshotView[]>([])
+
+  useEffect(() => {
+    let active = true
+    const load = () => service.getLatest().then(data => { if (active) setRates(data.rates.slice(0, 3)) }).catch(() => { if (active) setRates([]) })
+    void load()
+    const interval = window.setInterval(load, 5 * 60 * 1000)
+    const onUpdated = () => { void load() }
+    window.addEventListener('flowhub:exchange-rates-updated', onUpdated)
+    return () => { active = false; window.clearInterval(interval); window.removeEventListener('flowhub:exchange-rates-updated', onUpdated) }
+  }, [service])
+
+  if (rates.length !== 3) return null
+  const locale = language.startsWith('fa') ? 'fa-IR' : 'en-US'
+  const label = locale === 'fa-IR' ? 'نرخ ارز' : 'Exchange rates'
+  const rateItems = rates.map(rate => {
+    const name = locale === 'fa-IR' ? rate.display_name_fa : rate.display_name
+    const increased = rate.change !== null && !rate.change.trim().startsWith('-')
+    const direction = rate.change !== null ? (increased ? '↑' : '↓') : ''
+    const freshness = rate.status === 'stale'
+      ? (locale === 'fa-IR' ? 'داده قدیمی' : 'Stale')
+      : rate.status === 'unavailable'
+        ? (locale === 'fa-IR' ? 'در دسترس نیست' : 'Unavailable')
+        : rate.status === 'disabled'
+          ? (locale === 'fa-IR' ? 'ارائه‌دهنده غیرفعال است' : 'Provider disabled')
+          : ''
+    const tooltip = [
+      name,
+      freshness,
+      rate.fetched_at ? new Date(rate.fetched_at).toLocaleString(locale) : '',
+    ].filter(Boolean).join(' · ')
+    return (
+      <span
+        key={`${rate.provider}-${rate.external_symbol}`}
+        className={['fh-topbar-rate', rate.status === 'stale' ? 'fh-topbar-rate-stale' : ''].join(' ')}
+        title={tooltip}
+        aria-label={tooltip || name}
+      >
+        <span className="fh-topbar-rate-name">{name}</span>
+        <span className="fh-topbar-rate-value">{rate.value === null ? '—' : formatDecimalString(rate.value, locale)}</span>
+        {direction && (
+          <span className="fh-topbar-rate-change" aria-label={increased ? 'increased' : 'decreased'}>
+            {direction}
+          </span>
+        )}
+      </span>
+    )
+  })
+  return (
+    <>
+      <div className="fh-topbar-rates hidden lg:flex" aria-label={label}>{rateItems}</div>
+      <details className="fh-topbar-rates-compact lg:hidden">
+        <summary aria-label={label}>
+          <span>{label}</span>
+          <span aria-hidden="true">3</span>
+        </summary>
+        <div className="fh-topbar-rates-compact-menu">{rateItems}</div>
+      </details>
+    </>
+  )
+}
+
 export default function Topbar({
   onMenuClick,
   onToggleCollapse,
   sidebarCollapsed,
   user,
   onLogout,
+  exchangeRates,
 }: Props) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -179,6 +259,8 @@ export default function Topbar({
             onChange={event => setSearchTerm(event.target.value)}
           />
         </form>
+
+        {exchangeRates && <ExchangeRateStrip service={exchangeRates} language={language} />}
 
         <div className="ms-auto flex items-center gap-1.5 sm:gap-2">
           <button

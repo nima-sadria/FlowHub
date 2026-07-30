@@ -87,6 +87,22 @@ services:
       flowhub-migrate:
         condition: service_completed_successfully
 
+  exchange-rate-runner:
+    image: flowhub:latest
+    restart: unless-stopped
+    command: ["python", "-m", "app.flowhub.exchange_rates.runner"]
+    env_file:
+      - .env
+    volumes:
+      - ./storage:/data/storage
+      - ./backups:/data/backups
+      - ./logs:/data/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      flowhub-migrate:
+        condition: service_completed_successfully
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped

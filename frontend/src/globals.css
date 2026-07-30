@@ -3699,6 +3699,83 @@ select,
     flex: 0 1 360px;
   }
 
+  .fh-topbar-rates {
+    min-width: 0;
+    max-width: 560px;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .fh-topbar-rates-compact {
+    position: relative;
+    flex: 0 0 auto;
+  }
+
+  .fh-topbar-rates-compact summary {
+    display: inline-flex;
+    height: 34px;
+    cursor: pointer;
+    list-style: none;
+    align-items: center;
+    gap: 6px;
+    padding: 0 9px;
+    color: var(--fh-text-secondary);
+    background: var(--fh-ui-surface-muted);
+    border: 1px solid var(--fh-ui-border);
+    border-radius: var(--fh-radius-md);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .fh-topbar-rates-compact summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .fh-topbar-rates-compact-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    inset-inline-start: 0;
+    z-index: 60;
+    display: flex;
+    min-width: 220px;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    background: var(--fh-ui-surface);
+    border: 1px solid var(--fh-ui-border);
+    border-radius: var(--fh-radius-lg);
+    box-shadow: var(--fh-shadow-lg);
+  }
+
+  .fh-topbar-rates-compact-menu .fh-topbar-rate {
+    max-width: none;
+    justify-content: space-between;
+  }
+
+  .fh-topbar-rate {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 180px;
+    align-items: baseline;
+    gap: 5px;
+    padding: 6px 8px;
+    color: var(--fh-text-secondary);
+    background: var(--fh-ui-surface-muted);
+    border: 1px solid var(--fh-ui-border);
+    border-radius: var(--fh-radius-md);
+    font-size: 11px;
+    line-height: 14px;
+    white-space: nowrap;
+  }
+
+  .dark .fh-topbar-rate { background: var(--fh-ui-surface-subtle); }
+  .fh-topbar-rate-stale { border-color: var(--fh-warning-500); }
+  .fh-topbar-rate-name { max-width: 86px; overflow: hidden; text-overflow: ellipsis; }
+  .fh-topbar-rate-value { color: var(--fh-text-primary); font-variant-numeric: tabular-nums; }
+  .fh-topbar-rate-change { color: var(--fh-success-600); font-weight: 700; }
+  .fh-topbar-rate-stale .fh-topbar-rate-change { color: var(--fh-warning-600); }
+
   .fh-topbar-search input {
     width: 100%;
     height: 36px;

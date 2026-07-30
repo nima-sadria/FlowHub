@@ -1,19 +1,28 @@
 import { Link } from 'react-router-dom'
 import { translate } from '../i18n'
+import { useAuth } from '../auth'
+import { effectiveHasPerm } from '../utils/permissions'
 
-export type SettingsSectionName = 'general' | 'users' | 'rateLimits' | 'advanced'
+export type SettingsSectionName = 'general' | 'exchangeRates' | 'users' | 'rateLimits' | 'advanced'
 
-const ITEMS: Array<{ id: SettingsSectionName; labelKey: string; to?: string }> = [
-  { id: 'general', labelKey: 'settings:settings.general', to: '/settings' },
-  { id: 'users', labelKey: 'navigation:sidebar.users', to: '/settings/users' },
-  { id: 'rateLimits', labelKey: 'navigation:sidebar.rateLimits', to: '/rate-limits' },
-  { id: 'advanced', labelKey: 'settings:settings.advanced' },
+const ITEMS: Array<{ id: SettingsSectionName; labelKey: string; to?: string; permission?: string; adminOnly?: boolean }> = [
+  { id: 'general', labelKey: 'settings:settings.general', to: '/settings', permission: 'can_view_settings' },
+  { id: 'exchangeRates', labelKey: 'settings:exchangeRates.title', to: '/settings/exchange-rates' },
+  { id: 'users', labelKey: 'navigation:sidebar.users', to: '/settings/users', permission: 'can_view_settings', adminOnly: true },
+  { id: 'rateLimits', labelKey: 'navigation:sidebar.rateLimits', to: '/rate-limits', permission: 'can_view_settings' },
+  { id: 'advanced', labelKey: 'settings:settings.advanced', permission: 'can_view_settings' },
 ]
 
 export default function SettingsNav({ active }: { active: SettingsSectionName }) {
+  const { user } = useAuth()
+  const isAdmin = Boolean(user?.is_admin || user?.is_super_admin)
+  const items = ITEMS.filter(item => {
+    if (item.adminOnly && !isAdmin) return false
+    return !item.permission || effectiveHasPerm(user, item.permission)
+  })
   return (
     <nav aria-label={translate('settings:settings.settings')} className="fh-card flex w-full flex-col gap-1 p-2.5 lg:w-[220px] lg:flex-shrink-0">
-      {ITEMS.map(item => {
+      {items.map(item => {
         return item.to ? (
           <Link
             key={item.id}

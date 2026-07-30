@@ -46,7 +46,14 @@ class Settings(BaseSettings):
     # Set DISABLE_DOCS=true in production to hide /docs and /openapi.json.
     disable_docs: bool = False
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    # The repository hosts both the legacy app and the canonical FlowHub
+    # runtime. Ignore the canonical runtime's FLOWHUB_* keys when the legacy
+    # settings object reads their shared local .env file.
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
 @lru_cache

@@ -535,6 +535,68 @@ export interface RateLimitSettings {
   runtime_write_blocked: boolean
 }
 
+// -- Exchange rates -----------------------------------------------------------
+
+export type ExchangeRateStatus = 'fresh' | 'stale' | 'unavailable' | 'disabled'
+
+export interface ExchangeRateDefinition {
+  provider: string
+  external_symbol: string
+  canonical_code: string
+  display_name: string
+  display_name_fa: string
+  classification: string
+  side: string | null
+  unit: string
+}
+
+export interface ExchangeRateSnapshotView extends ExchangeRateDefinition {
+  position: number
+  value: string | null
+  change: string | null
+  provider_timestamp: string | null
+  fetched_at: string | null
+  status: ExchangeRateStatus
+  snapshot_id: string | null
+}
+
+export interface ExchangeRateAdminConfig {
+  provider_id: string
+  provider_type: string
+  display_name: string
+  enabled: boolean
+  base_url: string
+  request_timeout: number
+  refreshes_per_day: number
+  daily_request_limit: number
+  reserved_request_count: number
+  schedule_timezone: string
+  api_key_configured: boolean
+  api_key_masked: string
+}
+
+export interface ExchangeRateDiagnostics extends ExchangeRateAdminConfig {
+  status: string
+  estimated_scheduled_usage: number
+  safe_scheduled_limit: number
+  internal_daily_usage: number
+  internal_completed_usage: number
+  provider_usage: { daily_usage: number | null; hourly_usage: number | null; monthly_usage: number | null; last_use: string | null } | null
+  effective_usage: number
+  remaining_safe_requests: number
+  usage_discrepancy: number | null
+  usage_reconciliation_status: string
+  usage_reconciled_at: string | null
+  usage_error_code: string | null
+  last_success_at: string | null
+  last_failure_at: string | null
+  last_error: string | null
+  next_scheduled_refresh: string | null
+  next_eligible_refresh: string | null
+  runner_state: string | null
+  runner_heartbeat_at: string | null
+}
+
 // -- Commerce Hub --------------------------------------------------------------
 
 export interface CommerceHealth {

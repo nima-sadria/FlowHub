@@ -66,22 +66,29 @@ the Integrations area and must not be required for first boot.
 | `FLOWHUB_NEXTCLOUD_PASSWORD` | empty | Connector secret, configured after setup |
 | `FLOWHUB_WOOCOMMERCE_URL` | empty | Connector setting, configured after setup |
 | `FLOWHUB_WOOCOMMERCE_KEY` | empty | Connector secret, configured after setup |
+| `FLOWHUB_NAVASAN_API_KEY` | empty | Server-side Navasan API credential |
 | `FLOWHUB_WOOCOMMERCE_SECRET` | empty | Connector secret, configured after setup |
 
 ---
 
 ## Secret Separation Model
 
-Secrets live **only** in environment variables (`.env` file, mode 600).
-They are **never** stored in:
+Bootstrap and deployment-managed secrets live **only** in environment variables
+(`.env` file, mode 600). They are **never** stored in:
 - The managed TOML config file (`$FLOWHUB_STORAGE_PATH/config/flowhub.toml`)
 - The database
 - Log files
 - API responses
 
-The six secret variables are `FLOWHUB_JWT_SECRET`, `FLOWHUB_REST_API_SECRET`,
+The secret variables are `FLOWHUB_JWT_SECRET`, `FLOWHUB_REST_API_SECRET`,
 `FLOWHUB_POSTGRES_PASSWORD`, `FLOWHUB_NEXTCLOUD_PASSWORD`, `FLOWHUB_WOOCOMMERCE_KEY`,
-`FLOWHUB_WOOCOMMERCE_SECRET`. They are declared in `SECRET_FIELDS`.
+`FLOWHUB_WOOCOMMERCE_SECRET`, and `FLOWHUB_NAVASAN_API_KEY`. They are declared in
+`SECRET_FIELDS`.
+
+Runtime connector credentials configured through existing Super Admin screens
+use the application configuration store and are always excluded from safe reads
+and API responses. Environment credentials take precedence when both sources
+are present.
 
 In `FlowHubConfig`, secrets are `pydantic.SecretStr`. They are redacted in `repr()`
 and `str()`. To access the raw value: `config.jwt_secret.get_secret_value()`.

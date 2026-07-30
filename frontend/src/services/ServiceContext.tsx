@@ -9,6 +9,7 @@ import type { CommerceService } from './commerce/CommerceService'
 import type { WritePipelineService } from './writePipeline/WritePipelineService'
 import type { OrderService } from './orders/OrderService'
 import type { UnifiedWorkspaceService } from './unifiedWorkspace/UnifiedWorkspaceService'
+import type { ExchangeRateService } from './exchangeRates/ExchangeRateService'
 
 export interface Services {
   health: HealthService
@@ -21,6 +22,7 @@ export interface Services {
   writePipeline: WritePipelineService
   orders?: OrderService
   unifiedWorkspace?: UnifiedWorkspaceService
+  exchangeRates?: ExchangeRateService
 }
 
 const ServiceContext = createContext<Services | null>(null)
@@ -33,4 +35,8 @@ export function useServices(): Services {
   const ctx = useContext(ServiceContext)
   if (!ctx) throw new Error('useServices must be used inside ServiceProvider')
   return ctx
+}
+
+export function useOptionalServices(): Services | null {
+  return useContext(ServiceContext)
 }

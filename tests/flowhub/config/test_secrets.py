@@ -12,6 +12,7 @@ class TestSecretFields:
             "FLOWHUB_REST_API_SECRET",
             "FLOWHUB_POSTGRES_PASSWORD",
             "FLOWHUB_NEXTCLOUD_PASSWORD",
+            "FLOWHUB_NAVASAN_API_KEY",
             "FLOWHUB_WOOCOMMERCE_KEY",
             "FLOWHUB_WOOCOMMERCE_SECRET",
         }

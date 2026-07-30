@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter, useLocation } from 'react-router-dom'
@@ -7,6 +7,7 @@ import { DirectionProvider } from '../direction'
 import { ThemeProvider } from '../theme/ThemeProvider'
 import Topbar from './Topbar'
 import { changeLocale } from '../i18n'
+import type { ExchangeRateService } from '../services/exchangeRates/ExchangeRateService'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -31,7 +32,7 @@ function LocationProbe() {
   return <output data-location>{`${location.pathname}${location.search}`}</output>
 }
 
-function renderTopbar({ initialPath = '/home', sidebarCollapsed = false } = {}) {
+function renderTopbar({ initialPath = '/home', sidebarCollapsed = false, exchangeRates }: { initialPath?: string; sidebarCollapsed?: boolean; exchangeRates?: ExchangeRateService } = {}) {
   act(() => {
     root.render(
       <MemoryRouter initialEntries={[initialPath]}>
@@ -43,6 +44,7 @@ function renderTopbar({ initialPath = '/home', sidebarCollapsed = false } = {}) 
               onToggleCollapse={() => undefined}
               sidebarCollapsed={sidebarCollapsed}
               onLogout={() => undefined}
+              exchangeRates={exchangeRates}
             />
             <LocationProbe />
           </DirectionProvider>
@@ -113,6 +115,28 @@ describe('Topbar', () => {
 
     expect(document.documentElement.dir).toBe('rtl')
     expect(document.documentElement.lang).toBe('fa')
+  })
+
+  it('renders exactly three cached rates and a deliberate compact menu without numeric precision loss', async () => {
+    const exchangeRates = {
+      getLatest: vi.fn(async () => ({
+        selections: ['usd_sell', 'eur', 'aed_sell'],
+        rates: [
+          { provider: 'navasan', external_symbol: 'usd_sell', canonical_code: 'USD_TEHRAN_SELL', display_name: 'USD Tehran Sell', display_name_fa: 'دلار', classification: 'market', side: 'sell', unit: 'IRR', position: 0, value: '123456789012345678.12500000', change: '1', provider_timestamp: null, fetched_at: null, status: 'fresh' as const, snapshot_id: '1' },
+          { provider: 'navasan', external_symbol: 'eur', canonical_code: 'EUR_MARKET', display_name: 'EUR Market', display_name_fa: 'یورو', classification: 'market', side: null, unit: 'IRR', position: 1, value: '2', change: '-1', provider_timestamp: null, fetched_at: null, status: 'stale' as const, snapshot_id: '2' },
+          { provider: 'navasan', external_symbol: 'aed_sell', canonical_code: 'AED_DUBAI_SELL', display_name: 'AED Dubai Sell', display_name_fa: 'درهم', classification: 'market', side: 'sell', unit: 'IRR', position: 2, value: null, change: null, provider_timestamp: null, fetched_at: null, status: 'unavailable' as const, snapshot_id: null },
+        ],
+      })),
+    } as unknown as ExchangeRateService
+
+    renderTopbar({ exchangeRates })
+    await act(async () => { await Promise.resolve() })
+
+    const desktop = container.querySelector('.fh-topbar-rates')
+    expect(desktop?.querySelectorAll('.fh-topbar-rate')).toHaveLength(3)
+    expect(desktop?.textContent).toContain('123,456,789,012,345,678.125')
+    expect(container.querySelector('details.fh-topbar-rates-compact')).not.toBeNull()
+    expect(exchangeRates.getLatest).toHaveBeenCalledTimes(1)
   })
 
 })

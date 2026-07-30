@@ -77,6 +77,10 @@ class FlowHubConfig(BaseModel):
     scheduler_poll_seconds: int = Field(
         default=int(DEFAULTS["FLOWHUB_SCHEDULER_POLL_SECONDS"]), ge=1
     )
+    exchange_rate_runner_enabled: bool = Field(default=True)
+    exchange_rate_runner_poll_seconds: int = Field(
+        default=int(DEFAULTS["FLOWHUB_EXCHANGE_RATE_RUNNER_POLL_SECONDS"]), ge=5
+    )
     order_sync_enabled: bool = Field(default=True)
     order_sync_runner_poll_seconds: int = Field(default=int(DEFAULTS["FLOWHUB_ORDER_SYNC_RUNNER_POLL_SECONDS"]), ge=1)
     order_sync_poll_interval_seconds: int = Field(default=int(DEFAULTS["FLOWHUB_ORDER_SYNC_POLL_INTERVAL_SECONDS"]), ge=1)
@@ -255,6 +259,13 @@ class FlowHubConfig(BaseModel):
             ),
             scheduler_poll_seconds=_get_int(
                 "FLOWHUB_SCHEDULER_POLL_SECONDS", int(DEFAULTS["FLOWHUB_SCHEDULER_POLL_SECONDS"])
+            ),
+            exchange_rate_runner_enabled=_get_bool(
+                "FLOWHUB_EXCHANGE_RATE_RUNNER_ENABLED", True
+            ),
+            exchange_rate_runner_poll_seconds=_get_int(
+                "FLOWHUB_EXCHANGE_RATE_RUNNER_POLL_SECONDS",
+                int(DEFAULTS["FLOWHUB_EXCHANGE_RATE_RUNNER_POLL_SECONDS"]),
             ),
             order_sync_enabled=_get_bool("FLOWHUB_ORDER_SYNC_ENABLED", True),
             order_sync_runner_poll_seconds=_get_int("FLOWHUB_ORDER_SYNC_RUNNER_POLL_SECONDS", int(DEFAULTS["FLOWHUB_ORDER_SYNC_RUNNER_POLL_SECONDS"])),

@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import { useOptionalServices } from '../services/ServiceContext'
 
 type HealthStatus = 'ok' | 'error' | 'loading'
 
@@ -13,6 +14,7 @@ const HEALTH_MAX_RETRIES = 3
 export default function AppShell() {
   const { user, logout, authFetch } = useAuth()
   const navigate = useNavigate()
+  const exchangeRates = useOptionalServices()?.exchangeRates
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('wp-sb-col') === '1'
@@ -104,6 +106,7 @@ export default function AppShell() {
           sidebarCollapsed={sidebarCollapsed}
           user={user}
           onLogout={handleLogout}
+          exchangeRates={exchangeRates}
         />
         <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-bg-base">
           <Outlet />

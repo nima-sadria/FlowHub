@@ -28,6 +28,7 @@ _SECRET_KEYS: frozenset[str] = frozenset({
     "snappshop.token",
     "tapsishop.token",
     "tapsishop.webhook_token",
+    "exchange_rates.navasan.api_key",
 })
 
 

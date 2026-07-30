@@ -43,7 +43,7 @@ def test_legacy_revision_and_core_tables_upgrade_without_data_loss(tmp_path, mon
         table
         for table in FlowHubBase.metadata.sorted_tables
         if table.name != "flowhub_users"
-        and not table.name.startswith(("uw_", "sc_"))
+        and not table.name.startswith(("uw_", "sc_", "fh_exchange_rate_"))
     ]
     FlowHubBase.metadata.create_all(engine, tables=legacy_tables)
     with engine.begin() as conn:

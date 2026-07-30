@@ -30,6 +30,8 @@ Active routes:
   POST /api/v2/settings                        - update non-credential settings
   POST /api/v2/settings/woocommerce            - replace connector credentials
   POST /api/v2/settings/nextcloud              - replace connector credentials
+  GET  /api/v2/exchange-rates/me               - read the authenticated user's cached rates
+  PUT  /api/v2/exchange-rates/me               - update the authenticated user's ordered rates
   GET  /api/v2/commerce/sources                - Commerce Hub source catalog
   GET  /api/v2/commerce/channels               - Commerce Hub channel catalog
   GET  /api/v2/activity                        - paginated audit log
@@ -80,6 +82,7 @@ from app.flowhub.api.v2.config import router as config_router
 from app.flowhub.api.v2.dashboard import router as dashboard_router
 from app.flowhub.api.v2.data_layer_routes import router as data_layer_router
 from app.flowhub.api.v2.diagnostics import router as diagnostics_router
+from app.flowhub.api.v2.exchange_rates import router as exchange_rates_router
 from app.flowhub.api.v2.integration_platform import router as integration_platform_router
 from app.flowhub.api.v2.integrations import router as integrations_router
 from app.flowhub.api.v2.logging import router as logging_router
@@ -229,6 +232,7 @@ app.include_router(config_router, prefix="/api/v2")
 app.include_router(activity_router, prefix="/api/v2")
 app.include_router(dashboard_router, prefix="/api/v2")
 app.include_router(diagnostics_router, prefix="/api/v2")
+app.include_router(exchange_rates_router, prefix="/api/v2")
 app.include_router(read_engine_router, prefix="/api/v2")
 app.include_router(data_layer_router, prefix="/api/v2")
 app.include_router(webhooks_router, prefix="/api/v2")
