@@ -34,7 +34,7 @@
   "sourceCenter.loadingSources": "در حال بارگذاری منابع...",
   "sourceCenter.loadFailed": "منابع بارگیری نشدند. دوباره تلاش کنید.",
   "sourceCenter.sheetCreationFailed": "برگه ایجاد نشد",
-  "sourceCenter.tryAgainNoSourceCreated": "دوباره تلاش کنید. هیچ منبعی ایجاد نشد.",
+  "sourceCenter.sheetCreationRecovery": "پیش از تلاش دوباره، فهرست منابع را بررسی کنید؛ ممکن است درخواست تکمیل شده باشد.",
   "sourceCenter.managedSources": "منابع مدیریت‌شده",
   "sourceCenter.manageExternalSources": "مدیریت منابع خارجی",
   "sourceCenter.manageProductDataSourcesSubtitle": "منابع داده محصول و تازگی کاربرگ‌ها را مدیریت کنید.",

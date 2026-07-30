@@ -309,7 +309,7 @@ export default function SourceCenter() {
     } catch {
       notify.error({
         title: translate('sources:sourceCenter.sheetCreationFailed'),
-        description: translate('sources:sourceCenter.tryAgainNoSourceCreated'),
+        description: translate('sources:sourceCenter.sheetCreationRecovery'),
       })
     } finally {
       setCreating(false)

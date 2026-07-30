@@ -34,7 +34,7 @@
   "sourceCenter.loadingSources": "Loading Sources...",
   "sourceCenter.loadFailed": "Sources could not be loaded. Try again.",
   "sourceCenter.sheetCreationFailed": "Sheet could not be created",
-  "sourceCenter.tryAgainNoSourceCreated": "Try again. No Source was created.",
+  "sourceCenter.sheetCreationRecovery": "Check Sources before trying again; the request may have completed.",
   "sourceCenter.managedSources": "Managed Sources",
   "sourceCenter.manageExternalSources": "Manage external Sources",
   "sourceCenter.manageProductDataSourcesSubtitle": "Manage product data sources and worksheet freshness.",

@@ -217,7 +217,7 @@ describe('SourceCenter safe lifecycle', () => {
     await act(async () => { create.click(); await Promise.resolve(); await Promise.resolve() })
 
     expect(container.textContent).toContain('Sheet could not be created')
-    expect(container.textContent).toContain('No Source was created')
+    expect(container.textContent).toContain('Check Sources before trying again')
   })
 
   it('creates a new Sheet named FlowSheet', async () => {
