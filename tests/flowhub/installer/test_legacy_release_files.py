@@ -52,8 +52,13 @@ def test_legacy_path_migration_preserves_old_release_files_when_copying_missing_
 
 def test_upgrade_resets_installed_checkout_to_configured_release_branch():
     src = _src()
+    validation = src[src.index("_validate_flowhub_branch()") : src.index("_bs_clone_or_pull()")]
+    bootstrap = src[src.index("_bs_clone_or_pull()") : src.index("# Bootstrap detection")]
     body = src[src.index("step_update_repository()") : src.index("# ---- Upgrade path")]
     assert '_FLOWHUB_BRANCH="${FLOWHUB_BRANCH:-main}"' in src
+    assert 'git check-ref-format --branch "$_FLOWHUB_BRANCH"' in validation
+    assert bootstrap.index("_validate_flowhub_branch") < bootstrap.index("git -C")
+    assert body.index("_validate_flowhub_branch") < body.index("git -C")
     assert 'git -C "$INSTALL_DIR" fetch origin "$_FLOWHUB_BRANCH"' in body
     assert 'git -C "$INSTALL_DIR" checkout -B "$_FLOWHUB_BRANCH" "origin/${_FLOWHUB_BRANCH}"' in body
     assert 'git -C "$INSTALL_DIR" reset --hard "origin/${_FLOWHUB_BRANCH}"' in body

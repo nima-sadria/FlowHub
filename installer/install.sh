@@ -401,7 +401,15 @@ _bs_install_docker() {
     _docker_install_report_failure
 }
 
+_validate_flowhub_branch() {
+    if ! git check-ref-format --branch "$_FLOWHUB_BRANCH" >/dev/null 2>&1; then
+        echo "ERROR: FLOWHUB_BRANCH is not a valid Git branch name." >&2
+        return 1
+    fi
+}
+
 _bs_clone_or_pull() {
+    _validate_flowhub_branch
     _bs_migrate_legacy_install
     if [[ -d "${_FLOWHUB_INSTALL_DIR}/.git" ]]; then
         echo "  Existing FlowHub repository detected at ${_FLOWHUB_INSTALL_DIR}."
@@ -870,6 +878,7 @@ step_uninstall() {
 
 step_update_repository() {
     if [[ -d "${INSTALL_DIR}/.git" ]]; then
+        _validate_flowhub_branch
         echo ""
         echo "  Updating repository from origin/${_FLOWHUB_BRANCH}..."
         git -C "$INSTALL_DIR" fetch origin "$_FLOWHUB_BRANCH"
