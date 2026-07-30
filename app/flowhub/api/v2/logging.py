@@ -9,8 +9,10 @@ from app.flowhub.auth.dependencies import get_current_user
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.database import get_db
 from app.flowhub.logging_platform.service import LoggingPlatformService
+from app.flowhub.unified_workspace.authorization import require_workspace_permission
 
 router = APIRouter(prefix="/logging", tags=["logging"])
+_require_audit_read = require_workspace_permission("audit.read")
 
 
 def _service(db: Session = Depends(get_db)) -> LoggingPlatformService:
@@ -65,7 +67,7 @@ def _filters(
 @router.get("/summary")
 async def summary(
     filters: dict = Depends(_filters),
-    _: FlowHubUser = Depends(get_current_user),
+    _: FlowHubUser = Depends(_require_audit_read),
     service: LoggingPlatformService = Depends(_service),
 ) -> dict:
     return service.summary(filters)
@@ -74,7 +76,7 @@ async def summary(
 @router.get("/logs")
 async def logs(
     filters: dict = Depends(_filters),
-    _: FlowHubUser = Depends(get_current_user),
+    _: FlowHubUser = Depends(_require_audit_read),
     service: LoggingPlatformService = Depends(_service),
 ) -> dict:
     return service.search(filters)
@@ -83,7 +85,7 @@ async def logs(
 @router.get("/logs/{log_id}")
 async def log_detail(
     log_id: str,
-    _: FlowHubUser = Depends(get_current_user),
+    _: FlowHubUser = Depends(_require_audit_read),
     service: LoggingPlatformService = Depends(_service),
 ) -> dict:
     return service.detail(log_id)
@@ -94,7 +96,7 @@ async def correlation(
     correlation_id: str,
     page: int = 1,
     page_size: int = 50,
-    _: FlowHubUser = Depends(get_current_user),
+    _: FlowHubUser = Depends(_require_audit_read),
     service: LoggingPlatformService = Depends(_service),
 ) -> dict:
     return service.correlation(correlation_id, page=page, page_size=page_size)
@@ -103,7 +105,7 @@ async def correlation(
 @router.get("/requests/{request_id}")
 async def request_trace(
     request_id: str,
-    _: FlowHubUser = Depends(get_current_user),
+    _: FlowHubUser = Depends(_require_audit_read),
     service: LoggingPlatformService = Depends(_service),
 ) -> dict:
     return service.request_trace(request_id)
@@ -140,7 +142,7 @@ async def export(
 
 @router.get("/retention")
 async def retention(
-    _: FlowHubUser = Depends(get_current_user),
+    _: FlowHubUser = Depends(_require_audit_read),
     service: LoggingPlatformService = Depends(_service),
 ) -> dict:
     return service.retention()
@@ -158,7 +160,7 @@ async def update_retention(
 
 @router.get("/live")
 async def live(
-    _: FlowHubUser = Depends(get_current_user),
+    _: FlowHubUser = Depends(_require_audit_read),
     service: LoggingPlatformService = Depends(_service),
 ) -> dict:
     return service.live_contract()
@@ -166,7 +168,7 @@ async def live(
 
 @router.get("/redaction-policy")
 async def redaction_policy(
-    _: FlowHubUser = Depends(get_current_user),
+    _: FlowHubUser = Depends(_require_audit_read),
     service: LoggingPlatformService = Depends(_service),
 ) -> dict:
     return service.redaction_policy()

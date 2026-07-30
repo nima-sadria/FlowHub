@@ -5,6 +5,7 @@ import Icon, { routeIconMap } from './Icon'
 import type { IconName } from './Icon'
 import IconButton from './IconButton'
 import { effectiveHasPerm } from '../utils/permissions'
+import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 
 type HealthStatus = 'ok' | 'error' | 'loading'
 
@@ -54,7 +55,7 @@ const NAV_GROUPS: NavGroup[] = [
         labelKey: 'navigation:sidebar.sources',
         to: '/sources',
         icon: routeIconMap.Sources,
-        permission: 'can_access_site',
+        permission: WORKSPACE_PERMISSION.read,
         isActive: (pathname, tab) => pathname === '/sources' || (pathname === '/commerce' && tab === 'sources'),
       },
       {
@@ -69,8 +70,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     sectionKey: 'navigation:sidebar.operations',
     items: [
-      { labelKey: 'navigation:sidebar.activity', to: '/activity', icon: routeIconMap.Activity, permission: 'can_view_logs' },
-      { labelKey: 'navigation:sidebar.dataQuality', to: '/data-quality', icon: 'dataQuality', permission: 'can_fetch' },
+      { labelKey: 'navigation:sidebar.activity', to: '/activity', icon: routeIconMap.Activity, permission: WORKSPACE_PERMISSION.readAudit },
+      { labelKey: 'navigation:sidebar.dataQuality', to: '/data-quality', icon: 'dataQuality', permission: WORKSPACE_PERMISSION.read },
       { labelKey: 'navigation:sidebar.diagnostics', to: '/diagnostics', icon: routeIconMap.Diagnostics, permission: 'can_view_settings' },
     ],
   },

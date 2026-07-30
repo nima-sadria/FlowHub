@@ -82,6 +82,13 @@ class TestMe:
         assert perms["can_fetch"] is True
         assert perms["can_view_logs"] is True
         assert perms["can_view_settings"] is True
+        assert perms["workspace.read"] is True
+        assert perms["workspace.create"] is True
+        assert perms["workspace.edit"] is True
+        assert perms["draft.save"] is True
+        assert perms["review.generate"] is True
+        assert perms["apply.execute"] is True
+        assert perms["workspace.admin"] is True
 
     def test_me_unauthenticated_returns_401(self, client):
         r = client.get("/api/auth/me")
@@ -198,6 +205,11 @@ class TestViewerRole:
         assert me["is_admin"] is False
         assert me["permissions"].get("can_access_site") is True
         assert me["permissions"].get("can_fetch") is not True
+        assert me["permissions"]["workspace.read"] is True
+        assert me["permissions"]["audit.read"] is True
+        assert me["permissions"]["workspace.create"] is False
+        assert me["permissions"]["workspace.edit"] is False
+        assert me["permissions"]["apply.execute"] is False
 
 
 class TestTrustedProxyHeaders:

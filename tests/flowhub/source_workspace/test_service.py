@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import base64
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
@@ -26,6 +26,19 @@ from app.flowhub.unified_workspace.models import (
 
 def _session() -> Session:
     engine = create_engine("sqlite:///:memory:")
+    FlowHubBase.metadata.create_all(engine)
+    return Session(engine)
+
+
+def _foreign_key_session() -> Session:
+    engine = create_engine("sqlite:///:memory:")
+
+    @event.listens_for(engine, "connect")
+    def _enable_foreign_keys(dbapi_connection, _connection_record) -> None:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     FlowHubBase.metadata.create_all(engine)
     return Session(engine)
 
@@ -107,6 +120,56 @@ def test_sheet_revisions_are_batched_versioned_and_formula_calculated() -> None:
     assert sheet["version"] == 3
     assert sheet["rows"][0]["cells"]["target"]["value"] == "120"
     assert sheet["rows"][0]["cells"]["target"]["formula"] == "=B1*1.2"
+
+
+def test_sheet_patch_inserts_rows_before_cells_with_foreign_keys_enforced() -> None:
+    db = _foreign_key_session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+    sheet = service.create_sheet(
+        name="Foreign key ordering",
+        columns=[{"column_key": "name", "name": "Name", "position": 1}],
+        user=user,
+    )
+    sheet = service.append_sheet_rows(
+        sheet_id=sheet["id"],
+        expected_version=sheet["version"],
+        count=1,
+        user=user,
+    )
+
+    sheet = service.patch_sheet_revision(
+        sheet_id=sheet["id"],
+        expected_version=sheet["version"],
+        changes=[
+            {
+                "row_key": sheet["rows"][0]["rowKey"],
+                "column_key": "name",
+                "value": "QA Product",
+            }
+        ],
+        user=user,
+    )
+
+    assert sheet["version"] == 3
+    assert sheet["rows"][0]["cells"]["name"]["value"] == "QA Product"
+
+
+def test_source_timestamps_are_explicit_utc_values() -> None:
+    db = _session()
+    user = _user(db)
+    source = SourceWorkspaceService(db).create_source(
+        name="Timestamp source",
+        source_kind="external",
+        external_source_id="nextcloud:primary",
+        worksheet_mode="selected",
+        worksheet_name="Prices",
+        data_start_row=2,
+        user=user,
+    )
+
+    assert source["createdAt"].tzinfo is UTC
+    assert source["updatedAt"].tzinfo is UTC
 
 
 def test_mapping_supports_arbitrary_columns_multiple_channels_and_conservative_policy() -> None:

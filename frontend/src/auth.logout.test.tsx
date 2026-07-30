@@ -15,10 +15,14 @@ describe('AuthProvider logout', () => {
   let container: HTMLDivElement
   let root: Root
   let logoutFn: (() => Promise<void>) | null = null
+  let authFetchFn: ReturnType<typeof useAuth>['authFetch'] | null = null
+  let currentStatus: ReturnType<typeof useAuth>['status'] | null = null
 
   function Consumer() {
-    const { logout } = useAuth()
+    const { logout, authFetch, status } = useAuth()
     logoutFn = logout
+    authFetchFn = authFetch
+    currentStatus = status
     return null
   }
 
@@ -36,6 +40,8 @@ describe('AuthProvider logout', () => {
     localStorage.clear()
     vi.restoreAllMocks()
     logoutFn = null
+    authFetchFn = null
+    currentStatus = null
   })
 
   it('revokes the refresh token server-side and clears local auth', async () => {
@@ -106,5 +112,34 @@ describe('AuthProvider logout', () => {
 
     expect(localStorage.getItem('wp_token')).toBeNull()
     expect(localStorage.getItem('wp_refresh_token')).toBeNull()
+  })
+
+  it('keeps the authenticated session when one action is denied', async () => {
+    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url === '/api/auth/me') {
+        return jsonResponse({
+          username: 'viewer',
+          role: 'viewer',
+          is_admin: false,
+          is_super_admin: false,
+          permissions: { 'workspace.read': true },
+        })
+      }
+      if (url === '/api/v2/denied-action') return jsonResponse({ detail: 'Forbidden' }, 403)
+      throw new Error(`unexpected fetch: ${url}`)
+    })
+
+    await act(async () => {
+      root.render(<AuthProvider><Consumer /></AuthProvider>)
+    })
+    expect(currentStatus).toBe('authenticated')
+
+    await act(async () => {
+      const response = await authFetchFn?.('/api/v2/denied-action')
+      expect(response?.status).toBe(403)
+    })
+
+    expect(currentStatus).toBe('authenticated')
   })
 })

@@ -25,6 +25,7 @@
   "flowHubSheet.sort": "Sort",
   "flowHubSheet.sortSheetByColumn": "Sort Sheet by column",
   "flowHubSheet.tryAgain": "Try again.",
+  "flowHubSheet.readOnlyPermission": "You can view this Sheet. Saving revisions requires Draft save permission.",
   "flowHubSheet.unsavedCells": "unsaved cells ·",
   "flowHubSheet.virtualizedFlowhubSheet": "Virtualized FlowHub Sheet"
 }

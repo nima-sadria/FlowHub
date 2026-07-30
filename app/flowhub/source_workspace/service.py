@@ -9,6 +9,7 @@ import json
 import re
 import uuid
 from collections import defaultdict
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -90,6 +91,14 @@ DEFAULT_VALUE_POLICY = {
     "formula": "calculated_value",
     "invalid": "blocked",
 }
+
+
+def _utc_timestamp(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _id() -> str:
@@ -1111,6 +1120,9 @@ class SourceWorkspaceService:
                 )
         # One flush/commit for the full bulk revision, never one transaction per cell.
         self.db.add_all(row_models)
+        # SheetCell stores scalar foreign keys rather than ORM relationships, so
+        # SQLAlchemy cannot infer that pending rows must be inserted first.
+        self.db.flush()
         self.db.add_all(cell_models)
         sheet.current_version = version
         sheet.updated_at = utcnow()
@@ -1739,7 +1751,7 @@ class SourceWorkspaceService:
             ),
             "productsChecked": int(scoped.get("productsChecked", scan.products_checked)),
             "sourcesChecked": 1 if scoped_to_global_scan else scan.sources_checked,
-            "checkedAt": scan.checked_at,
+            "checkedAt": _utc_timestamp(scan.checked_at),
             "scanId": scan.id,
             "errorCode": scan.error_code,
             "categories": [
@@ -1933,8 +1945,8 @@ class SourceWorkspaceService:
             "version": source.version,
             "mappingVersion": mapping.version if mapping else 0,
             "sheetId": sheet.id if sheet else None,
-            "createdAt": source.created_at,
-            "updatedAt": source.updated_at,
+            "createdAt": _utc_timestamp(source.created_at),
+            "updatedAt": _utc_timestamp(source.updated_at),
         }
 
     def _mapping_shape(self, revision: SourceMappingRevision | None) -> dict[str, Any] | None:

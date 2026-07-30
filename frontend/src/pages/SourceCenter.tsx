@@ -23,6 +23,7 @@ import { useNotification } from '../notifications/NotificationProvider'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceSource } from '../services/types'
 import { effectiveHasPerm } from '../utils/permissions'
+import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 
 const KIND_LABELS: Record<SourceProfile['sourceKind'], string> = {
   flowhub_sheet: 'sources:sourceCenter.flowhubSheet',
@@ -112,6 +113,8 @@ export default function SourceCenter() {
   const [worksheetMappings, setWorksheetMappings] = useState<Record<string, SourceMapping | null>>({})
   const [totalProducts, setTotalProducts] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
   const [creating, setCreating] = useState(false)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<SourceFilter>('all')
@@ -126,7 +129,9 @@ export default function SourceCenter() {
   const removalTriggerRef = useRef<HTMLButtonElement | null>(null)
   const removalBusyRef = useRef(false)
   const impactRequestRef = useRef(0)
-  const canManageSources = effectiveHasPerm(user, 'workspace.admin')
+  const canCreateSources = effectiveHasPerm(user, WORKSPACE_PERMISSION.create)
+  const canManageSources = effectiveHasPerm(user, WORKSPACE_PERMISSION.admin)
+  const canManageConnectors = user?.is_admin === true
 
   const cards = useMemo<SourceCardModel[]>(() => {
     const integrationById = new Map(integrations.map(item => [item.id, item]))
@@ -173,11 +178,17 @@ export default function SourceCenter() {
     () => sourceResources.ordered.filter(resource => resource.tier === 'attention').length,
     [sourceResources],
   )
+  const connectedSourcesCount = useMemo(
+    () => cards.filter(card => card.profile !== null).length,
+    [cards],
+  )
 
   removalBusyRef.current = deleting
 
   useEffect(() => {
     let active = true
+    setLoading(true)
+    setLoadError(false)
     Promise.allSettled([
       sourceWorkspaceApi.listSources(),
       commerce.getSources(),
@@ -188,10 +199,11 @@ export default function SourceCenter() {
         if (managedResult.status === 'fulfilled') setSources(managedResult.value.items)
         if (integrationResult.status === 'fulfilled') setIntegrations(integrationResult.value.items)
         if (productsResult.status === 'fulfilled') setTotalProducts(productsResult.value.total)
+        if (managedResult.status === 'rejected' && integrationResult.status === 'rejected') setLoadError(true)
       })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [commerce, products])
+  }, [commerce, products, reloadToken])
 
   useEffect(() => {
     let active = true
@@ -294,6 +306,11 @@ export default function SourceCenter() {
     try {
       const sheet = await sourceWorkspaceApi.createSheet(translate('sources:sourceCenter.defaultPricingSheetName'))
       navigate(`/sheets/${sheet.id}`)
+    } catch {
+      notify.error({
+        title: translate('sources:sourceCenter.sheetCreationFailed'),
+        description: translate('sources:sourceCenter.sheetCreationRecovery'),
+      })
     } finally {
       setCreating(false)
     }
@@ -392,9 +409,11 @@ export default function SourceCenter() {
           <h1 className="fh-page-title">{translate('sources:sourceCenter.sources')}</h1>
           <p className="fh-page-subtitle">{translate('sources:sourceCenter.manageProductDataSourcesSubtitle')}</p>
         </div>
-        <button className="fh-button-primary" type="button" onClick={() => setAddPanelOpen(true)}>
-          <Icon name="add" /> {translate('sources:sources.addSource')}
-        </button>
+        {canCreateSources && (
+          <button className="fh-button-primary" type="button" onClick={() => setAddPanelOpen(true)}>
+            <Icon name="add" /> {translate('sources:sources.addSource')}
+          </button>
+        )}
       </div>
 
       <div className="fh-sources-kpi-row">
@@ -403,7 +422,7 @@ export default function SourceCenter() {
             <span className="fh-kpi-card-label">{translate('sources:sourceCenter.connectedSources')}</span>
             <span className="fh-kpi-card-icon"><Icon name="products" size="sm" /></span>
           </div>
-          <div className="fh-kpi-card-value">{cards.length}</div>
+          <div className="fh-kpi-card-value">{connectedSourcesCount}</div>
         </div>
         <div className="fh-kpi-card">
           <div className="fh-kpi-card-head">
@@ -447,7 +466,17 @@ export default function SourceCenter() {
         <span className="fh-sources-count ms-auto">{translate('sources:sourceCenter.sourcesCount', { count: cards.length })}</span>
       </div>
 
-      {loading ? <p className="fh-card fh-card-pad fh-text-caption">{translate('sources:sourceCenter.loadingSources')}</p> : visibleCards.length === 0 ? (
+      {loadError && !loading ? (
+        <div className="fh-alert fh-alert-danger mb-4" role="alert">
+          <Icon name="error" />
+          <span className="flex-1">{translate('sources:sourceCenter.loadFailed')}</span>
+          <button type="button" className="fh-button-secondary fh-button-sm" onClick={() => setReloadToken(value => value + 1)}>
+            {translate('common:action.retry')}
+          </button>
+        </div>
+      ) : null}
+
+      {loading ? <p className="fh-card fh-card-pad fh-text-caption">{translate('sources:sourceCenter.loadingSources')}</p> : loadError ? null : visibleCards.length === 0 ? (
         <div className="fh-card fh-card-pad"><Empty title={translate('sources:sourceCenter.noManagedSourceYetCreateAFlowhub')} description="" /></div>
       ) : (
         <div className="fh-sources-grid" data-testid="source-card-groups">
@@ -527,7 +556,9 @@ export default function SourceCenter() {
                 <div className="fh-source-card-row">
                   <span className="fh-text-caption">
                     {worksheetsEnabled === null
-                      ? translate('sources:sourceConfiguration.loading')
+                      ? resource.section === 'comingSoon'
+                        ? translate('common:status.unavailable')
+                        : translate('sources:sourceConfiguration.loading')
                       : translate('sources:sourceCenter.worksheetsEnabledCount', { count: worksheetsEnabled })}
                   </span>
                   {canOpen && (
@@ -542,7 +573,7 @@ export default function SourceCenter() {
         </div>
       )}
 
-      {addPanelOpen && (
+      {canCreateSources && addPanelOpen && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="source-add-title">
           <div className="fh-card fh-card-pad w-full max-w-3xl">
             <div className="flex items-center justify-between gap-3">
@@ -551,25 +582,27 @@ export default function SourceCenter() {
                 <Icon name="close" />
               </button>
             </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-3" aria-label={translate('sources:sourceCenter.sourceOptions')}>
+            <div className="fh-source-options mt-5 grid gap-4 md:grid-cols-3" aria-label={translate('sources:sourceCenter.sourceOptions')}>
               <button className="fh-card fh-card-pad text-start transition hover:border-accent" type="button" disabled={creating} onClick={() => void createFlowHubSheet()}>
                 <Icon name="file" size="md" />
                 <strong className="mt-3 block text-text-base">{translate('sources:sourceCenter.flowhubSheet')}</strong>
                 <span className="fh-text-caption mt-2 block">{translate('sources:sourceCenter.recommendedForEasierMappingSafeFormulasAnd')}</span>
-                <span className="fh-button-primary mt-4 w-full">{creating ? translate('sources:sourceCenter.creating') : translate('sources:sourceCenter.createSheet')}</span>
+                <span className="fh-button-primary w-full">{creating ? translate('sources:sourceCenter.creating') : translate('sources:sourceCenter.createSheet')}</span>
               </button>
               <button className="fh-card fh-card-pad text-start transition hover:border-accent" type="button" onClick={() => navigate('/sources/import')}>
                 <Icon name="upload" size="md" />
                 <strong className="mt-3 block text-text-base">{translate('sources:sourceCenter.importYourSpreadsheet')}</strong>
                 <span className="fh-text-caption mt-2 block">{translate('sources:sourceCenter.bringAnExistingXlsxOrCsvFile')}</span>
-                <span className="fh-button-secondary mt-4 w-full">{translate('sources:sourceCenter.importSpreadsheet')}</span>
+                <span className="fh-button-secondary w-full">{translate('sources:sourceCenter.importSpreadsheet')}</span>
               </button>
-              <button className="fh-card fh-card-pad text-start transition hover:border-accent" type="button" onClick={() => navigate('/commerce?tab=sources')}>
-                <Icon name="connect" size="md" />
-                <strong className="mt-3 block text-text-base">{translate('sources:sourceCenter.keepAnExternalSourceLinked')}</strong>
-                <span className="fh-text-caption mt-2 block">{translate('sources:sourceCenter.forWorkflowsThatRemainManagedOutsideFlowhub')}</span>
-                <span className="fh-button-secondary mt-4 w-full">{translate('sources:sourceCenter.manageExternalSources')}</span>
-              </button>
+              {canManageConnectors && (
+                <button className="fh-card fh-card-pad text-start transition hover:border-accent" type="button" onClick={() => navigate('/commerce?tab=sources')}>
+                  <Icon name="connect" size="md" />
+                  <strong className="mt-3 block text-text-base">{translate('sources:sourceCenter.keepAnExternalSourceLinked')}</strong>
+                  <span className="fh-text-caption mt-2 block">{translate('sources:sourceCenter.forWorkflowsThatRemainManagedOutsideFlowhub')}</span>
+                  <span className="fh-button-secondary w-full">{translate('sources:sourceCenter.manageExternalSources')}</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

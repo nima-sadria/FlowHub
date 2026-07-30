@@ -23,7 +23,7 @@ _FLOWHUB_CANONICAL_INSTALL_DIR="/opt/FlowHub"
 _FLOWHUB_LEGACY_INSTALL_DIR="/opt/flowhub" # Legacy Compatibility
 _FLOWHUB_INSTALL_DIR="${FLOWHUB_INSTALL_DIR:-${_FLOWHUB_CANONICAL_INSTALL_DIR}}"
 _FLOWHUB_REPO_URL="https://github.com/nima-sadria/FlowHub.git"
-_FLOWHUB_BRANCH="main"
+_FLOWHUB_BRANCH="${FLOWHUB_BRANCH:-main}"
 _FLOWHUB_BOOTSTRAP_REFRESH=0
 
 for _flowhub_bootstrap_arg in "$@"; do
@@ -401,7 +401,17 @@ _bs_install_docker() {
     _docker_install_report_failure
 }
 
+_validate_flowhub_branch() {
+    local normalized_branch
+    if ! normalized_branch="$(git check-ref-format --branch "$_FLOWHUB_BRANCH" 2>/dev/null)" \
+        || [[ "$normalized_branch" != "$_FLOWHUB_BRANCH" ]]; then
+        echo "ERROR: FLOWHUB_BRANCH is not a valid Git branch name." >&2
+        return 1
+    fi
+}
+
 _bs_clone_or_pull() {
+    _validate_flowhub_branch
     _bs_migrate_legacy_install
     if [[ -d "${_FLOWHUB_INSTALL_DIR}/.git" ]]; then
         echo "  Existing FlowHub repository detected at ${_FLOWHUB_INSTALL_DIR}."
@@ -870,11 +880,12 @@ step_uninstall() {
 
 step_update_repository() {
     if [[ -d "${INSTALL_DIR}/.git" ]]; then
+        _validate_flowhub_branch
         echo ""
-        echo "  Updating repository from origin/main..."
-        git -C "$INSTALL_DIR" fetch origin main
-        git -C "$INSTALL_DIR" checkout -B main origin/main
-        git -C "$INSTALL_DIR" reset --hard origin/main
+        echo "  Updating repository from origin/${_FLOWHUB_BRANCH}..."
+        git -C "$INSTALL_DIR" fetch origin "$_FLOWHUB_BRANCH"
+        git -C "$INSTALL_DIR" checkout -B "$_FLOWHUB_BRANCH" "origin/${_FLOWHUB_BRANCH}"
+        git -C "$INSTALL_DIR" reset --hard "origin/${_FLOWHUB_BRANCH}"
         normalize_legacy_release_files "$INSTALL_DIR"
     fi
 }

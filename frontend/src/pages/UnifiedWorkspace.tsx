@@ -24,6 +24,9 @@ import {
   prepareResourceCollection,
   workspaceChannelSignals,
 } from '../features/resourceOrdering/resourceOrdering'
+import { useAuth } from '../auth'
+import { effectiveHasPerm } from '../utils/permissions'
+import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 
 registerAllModules()
 
@@ -66,6 +69,11 @@ function UnifiedWorkspaceRoute({ workspaceId, service }: { workspaceId: string; 
 
 function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
   const { unifiedWorkspace } = useServices()
+  const { user } = useAuth()
+  const canEditWorkspace = effectiveHasPerm(user, WORKSPACE_PERMISSION.edit)
+  const canSaveDraft = effectiveHasPerm(user, WORKSPACE_PERMISSION.saveDraft)
+  const canGenerateReview = effectiveHasPerm(user, WORKSPACE_PERMISSION.generateReview)
+  const canApply = effectiveHasPerm(user, WORKSPACE_PERMISSION.apply)
   const controller = useUnifiedWorkspaceController(workspaceId, unifiedWorkspace!)
   const channelResources = useMemo(
     () => prepareResourceCollection(controller.grid?.channels ?? [], workspaceChannelSignals),
@@ -115,6 +123,7 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
       </div>
 
       {controller.error && <div className="fh-alert fh-alert-danger" role="alert"><Icon name="alert" /><span>{controller.error}</span></div>}
+      {!canEditWorkspace && <div className="fh-alert fh-alert-info" role="status"><Icon name="info" /><span>{translate('workspace:unifiedWorkspace.readOnlyPermission')}</span></div>}
 
       <section className="fh-card fh-card-pad space-y-4" aria-label={translate('workspace:unifiedWorkspace.workspaceControls')}>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -155,13 +164,13 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
-          <button type="button" className="fh-button-primary" disabled={controller.dirtyCount === 0 || controller.action !== null} onClick={() => void controller.saveDraft()}>
+          <button type="button" className="fh-button-primary" disabled={!canSaveDraft || controller.dirtyCount === 0 || controller.action !== null} onClick={() => void controller.saveDraft()}>
             <Icon name="apply" /> {translate('workspace:unifiedWorkspace.saveDraft')}
           </button>
-          <button type="button" className="fh-button-secondary" disabled={controller.dirtyCount > 0 || !controller.grid.revisionId || controller.action !== null} onClick={() => void controller.createReview()}>
+          <button type="button" className="fh-button-secondary" disabled={!canGenerateReview || controller.dirtyCount > 0 || !controller.grid.revisionId || controller.action !== null} onClick={() => void controller.createReview()}>
             <Icon name="preview" /> {translate('workspace:unifiedWorkspace.reviewChanges')}
           </button>
-          <button type="button" className="fh-button-primary" disabled={!controller.review || controller.review.status !== "ready" || controller.dirtyCount > 0 || controller.action !== null} onClick={() => void controller.applySelected()}>
+          <button type="button" className="fh-button-primary" disabled={!canApply || !controller.review || controller.review.status !== "ready" || controller.dirtyCount > 0 || controller.action !== null} onClick={() => void controller.applySelected()}>
             <Icon name="apply" /> {translate('workspace:unifiedWorkspace.applySelectedOnly')}
           </button>
           {controller.action && <span className="fh-text-caption" role="status">{controller.action}...</span>}
@@ -192,7 +201,7 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
             <button
               type="button"
               className="fh-button-secondary mt-3"
-              disabled={controller.action !== null}
+              disabled={!canApply || controller.action !== null}
               onClick={() => void controller.reconcileApply()}
             >
               {translate('workspace:unifiedWorkspace.verifyUncertainListings')}
@@ -279,6 +288,7 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
             sanitizer={sanitizeGridHtml}
             cells={(row: number, column: number) => {
               const settings = {} as Handsontable.CellProperties
+              if (!canEditWorkspace) settings.readOnly = true
               const columnSetting = controller.definition.columns[column]
               const prop = typeof columnSetting?.data === 'string' ? columnSetting.data : ''
               const meta = controller.definition.columnMeta.get(prop)
@@ -302,7 +312,7 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
               return settings
             }}
             afterChange={(changes: Handsontable.CellChange[] | null, source: Handsontable.ChangeSource) => {
-              if (!changes || source === 'loadData') return
+              if (!canEditWorkspace || !changes || source === 'loadData') return
               for (const [row, prop, _oldValue, value] of changes) {
                 const identity = sourceRecordAtVisualRow(hotRef.current?.hotInstance, row)
                 if (identity) controller.editCell(identity.listingId, String(prop), value)

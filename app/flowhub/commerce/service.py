@@ -131,7 +131,7 @@ _SOURCES = [
     {
         "id": "csv:import",
         "provider": "csv",
-        "name": "CSV",
+        "name": "Excel",
         "type": "Source",
         "status": "future",
         "implemented": False,

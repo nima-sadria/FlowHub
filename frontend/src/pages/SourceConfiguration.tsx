@@ -28,6 +28,9 @@ import WorksheetRuleEditor, {
   emptyChannelFields as emptyWorksheetChannelFields,
   type WorksheetCopyIntent,
 } from './sourceConfiguration/WorksheetRuleEditor'
+import { useAuth } from '../auth'
+import { effectiveHasPerm } from '../utils/permissions'
+import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 
 interface PendingWorksheetCopy {
   intent: WorksheetCopyIntent
@@ -184,6 +187,9 @@ export default function SourceConfiguration() {
   const { sourceId = '' } = useParams()
   const navigate = useNavigate()
   const notify = useNotification()
+  const { user } = useAuth()
+  const canCreateWorkspace = effectiveHasPerm(user, WORKSPACE_PERMISSION.create)
+  const canEditSource = effectiveHasPerm(user, WORKSPACE_PERMISSION.edit)
   const [source, setSource] = useState<(SourceProfile & { mapping: SourceMapping | null }) | null>(null)
   const [channels, setChannels] = useState<SourceChannel[]>([])
   const [sourceFields, setSourceFields] = useState<FieldMapping[]>(SOURCE_FIELDS.map(([field, _label, required]) => emptyMapping(field, required)))
@@ -584,6 +590,7 @@ export default function SourceConfiguration() {
   }
 
   async function save() {
+    if (!canEditSource) return
     if (!source) return
     const payload = mappingPayload()
     if (!payload || previewedFingerprint !== configurationFingerprint) return
@@ -609,6 +616,7 @@ export default function SourceConfiguration() {
   }
 
   async function createWorkspace() {
+    if (!canCreateWorkspace) return
     if (!source) return
     const workspace = await sourceWorkspaceApi.createWorkspace(
       source.id,
@@ -618,6 +626,7 @@ export default function SourceConfiguration() {
   }
 
   async function loadPreview() {
+    if (!canEditSource) return
     const payload = mappingPayload()
     if (!payload) return
     setPreviewing(true)
@@ -679,10 +688,14 @@ export default function SourceConfiguration() {
         <div>
           <h1 className="fh-page-title">{source.name}</h1>
         </div>
-        <button className="fh-button-primary" type="button" disabled={!source.mapping} onClick={() => void createWorkspace()}>
-          <Icon name="workspace" /> {translate('sources:sourceConfiguration.openWorkspace')}
-        </button>
+        {canCreateWorkspace && (
+          <button className="fh-button-primary" type="button" disabled={!source.mapping} onClick={() => void createWorkspace()}>
+            <Icon name="workspace" /> {translate('sources:sourceConfiguration.openWorkspace')}
+          </button>
+        )}
       </div>
+
+      {!canEditSource && <div className="fh-alert fh-alert-info mb-5" role="status"><Icon name="info" /><span>{translate('sources:sourceConfiguration.readOnlyPermission')}</span></div>}
 
       <div className="mb-5 grid gap-3">
         <ConfigurationSection title={translate('sources:sourceConfiguration.section.general')} description={translate('sources:sourceConfiguration.section.generalHelp')} defaultOpen>
@@ -717,6 +730,7 @@ export default function SourceConfiguration() {
         </section>
       )}
 
+      <fieldset className="contents" disabled={!canEditSource}>
       <ConfigurationSection title={translate('sources:sourceConfiguration.worksheetRules')} description={translate('sources:sourceConfiguration.worksheetRulesSectionHelp')}>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'shared' ? 'border-accent bg-accent/5' : 'border-border'}`} title={translate('sources:sourceConfiguration.sharedWorksheetRulesHelp')}>
@@ -1007,13 +1021,14 @@ export default function SourceConfiguration() {
           </>
         )}
       </section>
+      </fieldset>
 
       <div className="sticky bottom-3 z-30 mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-bg-base/95 p-3 shadow-lg backdrop-blur" data-testid="source-configuration-actions">
         <span className={`fh-badge ${dirty ? 'fh-badge-warning' : 'fh-badge-success'}`}>{dirty ? translate('sources:sourceConfiguration.unsavedChanges') : translate('sources:sourceConfiguration.allChangesSaved')}</span>
         <span className="fh-text-caption">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
         <div className="ms-auto flex flex-wrap gap-2">
-          <button className="fh-button-secondary" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>
-          <button className="fh-button-primary" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>
+          {canEditSource && <button className="fh-button-secondary" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>}
+          {canEditSource && <button className="fh-button-primary" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
           <button className="fh-button-secondary" type="button" onClick={closeConfiguration}><Icon name="close" /> {translate('sources:sourceConfiguration.close')}</button>
         </div>
       </div>

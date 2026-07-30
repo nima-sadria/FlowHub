@@ -16,9 +16,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import String, case, cast, or_
 from sqlalchemy.orm import Session
 
-from app.flowhub.auth.dependencies import get_current_user
 from app.flowhub.auth.models import FlowHubLoginAudit, FlowHubUser
 from app.flowhub.database import get_db
+from app.flowhub.unified_workspace.authorization import require_workspace_permission
 from app.flowhub.unified_workspace.models import UnifiedAuditEntry
 
 router = APIRouter(prefix="/activity", tags=["activity"])
@@ -172,7 +172,9 @@ _UNIFIED_LEVEL = case(
 
 @router.get("")
 async def list_activity(
-    _: Annotated[FlowHubUser, Depends(get_current_user)],
+    _: Annotated[
+        FlowHubUser, Depends(require_workspace_permission("audit.read"))
+    ],
     db: Annotated[Session, Depends(get_db)],
     page: Annotated[int, Query(ge=1)] = 1,
     pageSize: Annotated[int, Query(ge=1, le=100)] = 20,
@@ -266,12 +268,14 @@ async def list_activity(
     fetch_limit = offset + per_page
     login_rows: list[FlowHubLoginAudit] = (
         login_query
-        .order_by(FlowHubLoginAudit.created_at.desc())
+        .order_by(FlowHubLoginAudit.created_at.desc(), FlowHubLoginAudit.id.desc())
         .limit(fetch_limit)
         .all()
     )
     unified_rows: list[tuple[UnifiedAuditEntry, str | None]] = (
-        unified_query.order_by(UnifiedAuditEntry.occurred_at.desc())
+        unified_query.order_by(
+            UnifiedAuditEntry.occurred_at.desc(), UnifiedAuditEntry.id.desc()
+        )
         .limit(fetch_limit)
         .all()
     )

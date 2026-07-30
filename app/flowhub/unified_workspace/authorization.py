@@ -44,6 +44,11 @@ ROLE_WORKSPACE_PERMISSIONS: dict[str, frozenset[str]] = {
 }
 
 
+def workspace_permissions_for_role(role: str) -> dict[str, bool]:
+    granted = ROLE_WORKSPACE_PERMISSIONS.get(role, frozenset())
+    return {permission: permission in granted for permission in sorted(WORKSPACE_PERMISSIONS)}
+
+
 def has_workspace_permission(user: FlowHubUser, permission: str) -> bool:
     return permission in ROLE_WORKSPACE_PERMISSIONS.get(user.role, frozenset())
 

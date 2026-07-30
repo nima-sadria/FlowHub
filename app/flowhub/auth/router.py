@@ -18,10 +18,12 @@ Security properties:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from functools import lru_cache
 import ipaddress
 import os
+from datetime import datetime, timedelta, timezone
+from functools import lru_cache
+
+from app.flowhub.unified_workspace.authorization import workspace_permissions_for_role
 
 _UTC = timezone.utc
 
@@ -242,7 +244,11 @@ async def refresh(
 
 @router.get("/auth/me", response_model=MeResponse)
 async def me(current_user: FlowHubUser = Depends(get_current_user)) -> MeResponse:
-    permissions = _ROLE_PERMISSIONS.get(current_user.role, _ROLE_PERMISSIONS["viewer"])
+    legacy_permissions = _ROLE_PERMISSIONS.get(current_user.role, _ROLE_PERMISSIONS["viewer"])
+    permissions = {
+        **legacy_permissions,
+        **workspace_permissions_for_role(current_user.role),
+    }
     return MeResponse(
         username=current_user.username,
         role=current_user.role,

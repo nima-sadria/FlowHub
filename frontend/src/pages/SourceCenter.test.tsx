@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../auth'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 import type { SourceLifecycleImpact, SourceProfile } from '../features/sourceWorkspace/types'
+import NotificationContainer from '../notifications/NotificationContainer'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { CommerceService } from '../services/commerce/CommerceService'
@@ -15,6 +16,7 @@ import SourceCenter from './SourceCenter'
 const source: SourceProfile = { id: 'source-1', name: 'Synthetic prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 3, mappingVersion: 2, sheetId: 'sheet-1', createdAt: null, updatedAt: null }
 const admin: AuthContextValue = { user: { username: 'admin', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: fetch }
 const viewer: AuthContextValue = { ...admin, user: { username: 'viewer', role: 'user', is_admin: false, is_super_admin: false, permissions: { can_access_site: true, 'workspace.read': true } } }
+const operator: AuthContextValue = { ...admin, user: { username: 'operator', role: 'operator', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true, 'workspace.create': true } } }
 const commerce = {
   getSources: vi.fn(),
 } as unknown as CommerceService
@@ -95,7 +97,7 @@ describe('SourceCenter safe lifecycle', () => {
 
   async function render(auth = admin) {
     await act(async () => {
-      root.render(<AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter><ServiceProvider services={services}><SourceCenter /></ServiceProvider></MemoryRouter></NotificationProvider></AuthContext.Provider>)
+      root.render(<AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter><ServiceProvider services={services}><SourceCenter /></ServiceProvider></MemoryRouter><NotificationContainer /></NotificationProvider></AuthContext.Provider>)
       await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
     })
   }
@@ -192,6 +194,56 @@ describe('SourceCenter safe lifecycle', () => {
     expect(container.textContent).not.toContain('Delete Source')
   })
 
+  it('does not expose Source creation to a read-only viewer', async () => {
+    await render(viewer)
+    expect(Array.from(container.querySelectorAll('button')).some(item => item.textContent?.trim() === 'Add source')).toBe(false)
+  })
+
+  it('keeps admin-only external connector setup hidden from an operator', async () => {
+    await render(operator)
+    const add = Array.from(container.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Add source') as HTMLButtonElement
+    await act(async () => add.click())
+
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Create Sheet')
+    expect(container.querySelector('[role="dialog"]')?.textContent).not.toContain('Manage external Sources')
+  })
+
+  it('reports Sheet creation failure without navigating', async () => {
+    vi.spyOn(sourceWorkspaceApi, 'createSheet').mockRejectedValueOnce(new Error('create failed'))
+    await render(admin)
+    const add = Array.from(container.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Add source') as HTMLButtonElement
+    await act(async () => add.click())
+    const create = Array.from(container.querySelectorAll('[role="dialog"] button')).find(item => item.textContent?.includes('Create Sheet')) as HTMLButtonElement
+    await act(async () => { create.click(); await Promise.resolve(); await Promise.resolve() })
+
+    expect(container.textContent).toContain('Sheet could not be created')
+    expect(container.textContent).toContain('Check Sources before trying again')
+  })
+
+  it('creates a new Sheet named FlowSheet', async () => {
+    const created = { id: 'sheet-new', sourceId: 'source-new', name: 'FlowSheet', version: 1, revisionId: null, columns: [], rows: [], total: 0, page: 1, pageSize: 200 }
+    vi.spyOn(sourceWorkspaceApi, 'createSheet').mockResolvedValueOnce(created)
+    await render(admin)
+    const add = Array.from(container.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Add source') as HTMLButtonElement
+    await act(async () => add.click())
+    const create = Array.from(container.querySelectorAll('[role="dialog"] button')).find(item => item.textContent?.includes('Create Sheet')) as HTMLButtonElement
+    await act(async () => { create.click(); await Promise.resolve(); await Promise.resolve() })
+
+    expect(sourceWorkspaceApi.createSheet).toHaveBeenCalledWith('FlowSheet')
+  })
+
+  it('shows retry when both authoritative Source lists fail', async () => {
+    vi.mocked(sourceWorkspaceApi.listSources).mockRejectedValueOnce(new Error('managed offline'))
+    vi.mocked(commerce.getSources).mockRejectedValueOnce(new Error('commerce offline'))
+    await render(admin)
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Sources could not be loaded')
+    const retry = Array.from(container.querySelectorAll('button')).find(item => item.textContent === 'Retry') as HTMLButtonElement
+    await act(async () => { retry.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
+
+    expect(container.querySelector('[data-source-card="source-1"]')).not.toBeNull()
+  })
+
   it('groups managed Sources consistently and sorts display names inside each group', async () => {
     const activeZebra = { ...source, id: 'source-z', name: 'Zebra prices' }
     const activeAlpha = { ...source, id: 'source-a', name: 'Alpha prices' }
@@ -233,7 +285,11 @@ describe('SourceCenter safe lifecycle', () => {
     expect(container.querySelectorAll('[data-source-card]')).toHaveLength(2)
     expect(container.querySelector('[data-source-card="source-1"]')?.textContent).toContain('Healthy')
     expect(container.querySelector('[data-source-card="source-1"] [data-source-icon]')?.getAttribute('data-source-icon')?.toLowerCase()).toContain('nextcloud.webp')
-    expect(container.querySelector('[data-source-card="integration:gsheets:price-list"]')?.textContent).toContain('Coming Soon')
+    const comingSoonCard = container.querySelector('[data-source-card="integration:gsheets:price-list"]')
+    expect(comingSoonCard?.textContent).toContain('Coming Soon')
+    expect(comingSoonCard?.textContent).toContain('Unavailable')
+    expect(comingSoonCard?.textContent).not.toContain('Loading...')
+    expect(container.querySelector('.fh-kpi-card-value')?.textContent).toBe('1')
     const sections = Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section'))
     expect([...new Set(sections)]).toEqual(['active', 'comingSoon'])
     expect(container.querySelector('[data-testid="source-card-groups"]')?.className).toContain('fh-sources-grid')

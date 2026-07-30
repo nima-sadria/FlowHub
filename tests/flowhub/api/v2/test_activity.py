@@ -87,6 +87,37 @@ class TestActivityEndpoint:
         r = client.get("/api/v2/activity")
         assert r.status_code == 401
 
+    def test_requires_canonical_audit_permission(self, client, db):
+        from app.flowhub.auth.models import FlowHubUser
+        from app.flowhub.auth.password import hash_password
+
+        user = FlowHubUser(
+            username="legacyactivity",
+            hashed_password=hash_password("pass1234"),
+            role="legacy",
+        )
+        db.add(user)
+        db.commit()
+        login = client.post(
+            "/api/auth/login",
+            json={"username": "legacyactivity", "password": "pass1234"},
+        )
+        assert login.status_code == 200
+
+        response = client.get(
+            "/api/v2/activity",
+            headers={"Authorization": f"Bearer {login.json()['token']}"},
+        )
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "WORKSPACE_PERMISSION_DENIED"
+
+        logs = client.get(
+            "/api/v2/logging/logs",
+            headers={"Authorization": f"Bearer {login.json()['token']}"},
+        )
+        assert logs.status_code == 403
+        assert logs.json()["detail"]["code"] == "WORKSPACE_PERMISSION_DENIED"
+
     def test_returns_paginated_shape(self, client, auth_headers):
         r = client.get("/api/v2/activity", headers=auth_headers)
         assert r.status_code == 200

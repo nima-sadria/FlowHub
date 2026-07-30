@@ -97,4 +97,78 @@ describe('Activity business history', () => {
       HTMLAnchorElement.prototype.click = originalAnchorClick
     }
   })
+
+  it('shows a retryable error when Activity cannot be loaded', async () => {
+    getEvents.mockRejectedValueOnce(new Error('offline'))
+    await render()
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Activity could not be loaded')
+    const retry = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Retry') as HTMLButtonElement
+    await act(async () => {
+      retry.click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(container.textContent).toContain('Product preview failed')
+  })
+
+  it('does not skip a page after loading more fails and the activity list is retried', async () => {
+    const firstPage = Array.from({ length: 30 }, (_, index): ActivityEvent => ({
+      id: `page-1-${index}`,
+      timestamp: new Date(),
+      kind: 'user_action',
+      level: 'info',
+      category: 'products',
+      actor: 'owner',
+      action: 'preview_completed',
+      detail: null,
+    }))
+    const secondPage: ActivityEvent[] = [{
+      id: 'page-2-event',
+      timestamp: new Date(),
+      kind: 'user_action',
+      level: 'success',
+      category: 'orders',
+      actor: 'owner',
+      action: 'sync_completed',
+      detail: null,
+    }]
+    let secondPageAttempts = 0
+    getEvents.mockImplementation(({ page, pageSize }: { page: number; pageSize: number }) => {
+      if (pageSize === 1) return Promise.resolve({ items: [], total: 0, page, pageSize })
+      if (page === 1) return Promise.resolve({ items: firstPage, total: 31, page, pageSize })
+      if (page === 2 && secondPageAttempts++ === 0) return Promise.reject(new Error('offline'))
+      if (page === 2) return Promise.resolve({ items: secondPage, total: 31, page, pageSize })
+      return Promise.reject(new Error(`unexpected page ${page}`))
+    })
+    await render()
+
+    const loadMore = () => Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Load more')) as HTMLButtonElement
+    await act(async () => {
+      loadMore().click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Activity could not be loaded')
+
+    const retry = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Retry') as HTMLButtonElement
+    await act(async () => {
+      retry.click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      loadMore().click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const loadedPages = getEvents.mock.calls
+      .map(([options]) => options)
+      .filter(options => options.pageSize === 30)
+      .map(options => options.page)
+    expect(loadedPages).toEqual([1, 2, 1, 2])
+    expect(container.textContent).toContain('Sync Completed')
+  })
 })

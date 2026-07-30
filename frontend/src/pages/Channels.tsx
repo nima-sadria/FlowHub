@@ -13,7 +13,7 @@ import {
   type ResourceTier,
 } from '../features/resourceOrdering/resourceOrdering'
 import { translate } from '../i18n'
-import { formatRelativeTime } from '../i18n/format'
+import { formatNumber, formatRelativeTime } from '../i18n/format'
 import { inputHint } from '../utils/inputHint'
 import { useNotification } from '../notifications/NotificationProvider'
 import { useServices } from '../services/ServiceContext'
@@ -52,6 +52,7 @@ export default function Channels() {
   const [channels, setChannels] = useState<CommerceChannel[]>([])
   const [ordersToday, setOrdersToday] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<ChannelFilter>('all')
   const [testingId, setTestingId] = useState<string | null>(null)
@@ -74,6 +75,10 @@ export default function Channels() {
     () => channelResources.ordered.filter(resource => resource.tier === 'attention').length,
     [channelResources],
   )
+  const connectedChannelsCount = useMemo(
+    () => channelResources.ordered.filter(resource => resource.tier !== 'comingSoon').length,
+    [channelResources],
+  )
   const healthyListingsTotal = useMemo(
     () => channels.reduce((sum, channel) => sum + (channel.cached_products || 0), 0),
     [channels],
@@ -81,6 +86,7 @@ export default function Channels() {
 
   async function load() {
     setLoading(true)
+    setLoadError(false)
     try {
       const today = todayIsoDate()
       const [channelsResult, ordersResult] = await Promise.allSettled([
@@ -88,6 +94,7 @@ export default function Channels() {
         orders ? orders.getOrders({ page: 1, pageSize: 1, dateFrom: today, dateTo: today }) : Promise.resolve(null),
       ])
       if (channelsResult.status === 'fulfilled') setChannels(channelsResult.value.items)
+      else setLoadError(true)
       if (ordersResult.status === 'fulfilled' && ordersResult.value) setOrdersToday(ordersResult.value.total)
     } finally {
       setLoading(false)
@@ -166,9 +173,11 @@ export default function Channels() {
           <h1 className="fh-page-title">{translate('commerce:commerceHub.channels2')}</h1>
           <p className="fh-page-subtitle">{translate('commerce:commerceHub.commerceSystemsThatReceiveCatalogVisibilityFrom')}</p>
         </div>
-        <button className="fh-button-primary" type="button" onClick={() => navigate('/commerce?tab=channels')}>
-          <Icon name="add" /> {translate('commerce:commerceHub.addChannel')}
-        </button>
+        {canManageCommerce && (
+          <button className="fh-button-primary" type="button" onClick={() => navigate('/commerce?tab=channels')}>
+            <Icon name="add" /> {translate('commerce:commerceHub.addChannel')}
+          </button>
+        )}
       </div>
 
       <div className="fh-channels-kpi-row">
@@ -177,14 +186,14 @@ export default function Channels() {
             <span className="fh-kpi-card-label">{translate('commerce:commerceHub.connectedChannels')}</span>
             <span className="fh-kpi-card-icon"><Icon name="channels" size="sm" /></span>
           </div>
-          <div className="fh-kpi-card-value">{channels.length}</div>
+          <div className="fh-kpi-card-value">{connectedChannelsCount}</div>
         </div>
         <div className="fh-kpi-card">
           <div className="fh-kpi-card-head">
             <span className="fh-kpi-card-label">{translate('commerce:commerceHub.healthyListings')}</span>
             <span className="fh-kpi-card-icon"><Icon name="channels" size="sm" /></span>
           </div>
-          <div className="fh-kpi-card-value">{healthyListingsTotal.toLocaleString()}</div>
+          <div className="fh-kpi-card-value">{formatNumber(healthyListingsTotal)}</div>
         </div>
         <div className="fh-kpi-card">
           <div className="fh-kpi-card-head">
@@ -202,7 +211,7 @@ export default function Channels() {
               <span className="fh-kpi-card-label">{translate('commerce:commerceHub.ordersToday')}</span>
               <span className="fh-kpi-card-icon"><Icon name="channels" size="sm" /></span>
             </div>
-            <div className="fh-kpi-card-value">{ordersToday !== null ? ordersToday.toLocaleString() : '—'}</div>
+            <div className="fh-kpi-card-value">{ordersToday !== null ? formatNumber(ordersToday) : '—'}</div>
           </div>
         )}
       </div>
@@ -234,7 +243,17 @@ export default function Channels() {
         <span className="fh-channels-count ms-auto">{translate('commerce:commerceHub.channelsCount', { count: channels.length })}</span>
       </div>
 
-      {loading ? <p className="fh-card fh-card-pad fh-text-caption">{translate('commerce:commerceHub.loadingCommerceHub')}</p> : visibleChannels.length === 0 ? (
+      {loadError && !loading ? (
+        <div className="fh-alert fh-alert-danger mb-4" role="alert">
+          <Icon name="error" />
+          <span className="flex-1">{translate('commerce:commerceHub.unableToLoadCommerceHub')}</span>
+          <button type="button" className="fh-button-secondary fh-button-sm" onClick={() => void load()}>
+            {translate('common:action.retry')}
+          </button>
+        </div>
+      ) : null}
+
+      {loading ? <p className="fh-card fh-card-pad fh-text-caption">{translate('commerce:commerceHub.loadingCommerceHub')}</p> : loadError ? null : visibleChannels.length === 0 ? (
         <div className="fh-card fh-card-pad"><Empty title={translate('commerce:commerceHub.noChannelsFound')} description="" /></div>
       ) : (
         <div className="fh-channels-grid">
@@ -242,7 +261,7 @@ export default function Channels() {
             const channel = resource.item
             const canOpen = resource.section === 'active'
             const supportsProductCache = ['woocommerce', 'snappshop'].includes(channel.provider) && !channel.placeholder
-            const isConfigurable = channel.implemented && !channel.placeholder && ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider)
+            const isConfigurable = canManageCommerce && channel.implemented && !channel.placeholder && ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider)
             return (
               <article className="fh-channel-card" data-channel-card={channel.id} key={channel.id}>
                 <div className="fh-channel-card-head">

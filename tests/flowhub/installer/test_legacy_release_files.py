@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
+import pytest
 
 INSTALL = Path("installer/install.sh")
 
@@ -50,13 +52,56 @@ def test_legacy_path_migration_preserves_old_release_files_when_copying_missing_
     assert "for item in .env .env.beta docker-compose.yml docker-compose.beta.yml storage backups logs; do" in src
 
 
-def test_upgrade_resets_installed_checkout_to_current_main_release():
+def test_upgrade_resets_installed_checkout_to_configured_release_branch():
     src = _src()
+    validation = src[src.index("_validate_flowhub_branch()") : src.index("_bs_clone_or_pull()")]
+    bootstrap = src[src.index("_bs_clone_or_pull()") : src.index("# Bootstrap detection")]
     body = src[src.index("step_update_repository()") : src.index("# ---- Upgrade path")]
-    assert 'git -C "$INSTALL_DIR" fetch origin main' in body
-    assert "git -C \"$INSTALL_DIR\" checkout -B main origin/main" in body
-    assert "git -C \"$INSTALL_DIR\" reset --hard origin/main" in body
+    assert '_FLOWHUB_BRANCH="${FLOWHUB_BRANCH:-main}"' in src
+    assert 'normalized_branch="$(git check-ref-format --branch "$_FLOWHUB_BRANCH"' in validation
+    assert '[[ "$normalized_branch" != "$_FLOWHUB_BRANCH" ]]' in validation
+    assert bootstrap.index("_validate_flowhub_branch") < bootstrap.index("git -C")
+    assert body.index("_validate_flowhub_branch") < body.index("git -C")
+    assert 'git -C "$INSTALL_DIR" fetch origin "$_FLOWHUB_BRANCH"' in body
+    assert 'git -C "$INSTALL_DIR" checkout -B "$_FLOWHUB_BRANCH" "origin/${_FLOWHUB_BRANCH}"' in body
+    assert 'git -C "$INSTALL_DIR" reset --hard "origin/${_FLOWHUB_BRANCH}"' in body
     assert 'normalize_legacy_release_files "$INSTALL_DIR"' in body
+
+
+@pytest.mark.parametrize("branch", ["main", "release/1.2", "feature/foo.bar", "hotfix-123"])
+def test_configured_release_branch_validation_preserves_valid_names(branch: str):
+    result = subprocess.run(
+        ["git", "check-ref-format", "--branch", branch],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip() == branch
+
+
+@pytest.mark.parametrize(
+    "branch",
+    [
+        "-b",
+        "--upload-pack=/tmp/pwn",
+        "main:refs/heads/pwn",
+        "+main:refs/heads/pwn",
+        "feature name",
+        "feature..name",
+        "feature~1",
+        "feature^{}",
+        "@{-1}",
+    ],
+)
+def test_configured_release_branch_validation_rejects_invalid_or_rewritten_names(branch: str):
+    result = subprocess.run(
+        ["git", "check-ref-format", "--branch", branch],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0 or result.stdout.strip() != branch
 
 
 def test_runtime_contract_blocks_stale_beta_runtime_before_migration():

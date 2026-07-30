@@ -27,6 +27,7 @@
   "orders.lastSynchronized": "آخرین همگام‌سازی",
   "orders.latestUpdate": "آخرین به‌روزرسانی",
   "orders.loadFailed": "سفارش‌ها بارگیری نشدند. بدون تغییر داده‌های بازارگاه دوباره تلاش کنید.",
+  "orders.orderDetailFailed": "جزئیات سفارش بارگیری نشد. دوباره تلاش کنید.",
   "orders.loading": "در حال بارگذاری...",
   "orders.loadingOrderDetail": "در حال بارگذاری جزئیات سفارش...",
   "orders.marketplaceOrderId": "شناسه سفارش بازارگاه",
