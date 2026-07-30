@@ -402,7 +402,9 @@ _bs_install_docker() {
 }
 
 _validate_flowhub_branch() {
-    if ! git check-ref-format --branch "$_FLOWHUB_BRANCH" >/dev/null 2>&1; then
+    local normalized_branch
+    if ! normalized_branch="$(git check-ref-format --branch "$_FLOWHUB_BRANCH" 2>/dev/null)" \
+        || [[ "$normalized_branch" != "$_FLOWHUB_BRANCH" ]]; then
         echo "ERROR: FLOWHUB_BRANCH is not a valid Git branch name." >&2
         return 1
     fi

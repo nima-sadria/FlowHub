@@ -180,6 +180,7 @@ export default function Activity() {
       })
       setEvents(previous => append ? [...previous, ...result.items] : result.items)
       setTotal(result.total)
+      setPage(requestedPage)
     } catch {
       setLoadError(true)
     } finally {
@@ -241,7 +242,6 @@ export default function Activity() {
 
   function loadMore() {
     const next = page + 1
-    setPage(next)
     void loadPage(next, true)
   }
 

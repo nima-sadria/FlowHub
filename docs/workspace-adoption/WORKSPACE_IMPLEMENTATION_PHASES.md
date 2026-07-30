@@ -19,7 +19,7 @@ Exit criteria:
 
 ## Phase 1: Authorization Contract
 
-**Status:** Complete in `d0caca5`.
+**Status:** Complete in `557e221`.
 
 Work:
 
@@ -79,10 +79,10 @@ specific implementation path.
 
 Completed remediation:
 
-- `727ab5e`: Channels authorization/recovery/localization, Source creation
+- `acaff4d`: Channels authorization/recovery/localization, Source creation
   feedback, and Order-detail recovery.
-- `e3955ee`: Activity history load recovery.
-- `d3eec97`: Source-list total-failure recovery.
+- `b0615d8`: Activity history load recovery.
+- `2e836ef`: Source-list total-failure recovery.
 
 Validation:
 
