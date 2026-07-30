@@ -100,4 +100,4 @@ decisions are approved:
 - keep both Workspace routes;
 - do not alter Apply payloads or persistence;
 - do not represent the current immediate unified Apply action as canonical;
-- do not merge, release, deploy, or execute provider writes from this audit.
+- do not release, deploy, or execute provider writes before owner approval.

@@ -120,15 +120,16 @@ executed.
 
 ## Validation Evidence
 
-- Frontend focused permission tests: 109 passed.
-- Full frontend suite: 58 files and 416 tests passed.
+- Frontend focused integration tests: 8 files and 124 tests passed.
+- Full frontend suite: 58 files and 418 tests passed.
 - Frontend production build: passed.
-- i18n validation: 2,067 messages; no missing keys, placeholder mismatches,
+- i18n validation: 2,067 messages; no missing keys, interpolation mismatches,
   unapproved hardcoded strings, or critical Persian leakage.
 - `git diff --check`: passed.
-- Backend tests and Python compilation could not run because this Windows
-  checkout has no usable Python interpreter, Docker engine, or installed WSL
-  distribution. Backend conclusions are static and test-source based.
+- Full backend suite: 2,989 passed and 30 environment-dependent tests skipped.
+- Focused auth, activity, Sources, Sheets, logging, and installer suites passed.
+- SQLite migrations, API health, setup status, SPA routing, and static assets
+  were verified against an isolated production build.
 
 ## Current Assessment
 
