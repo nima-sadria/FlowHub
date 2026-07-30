@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -168,8 +168,8 @@ def test_source_timestamps_are_explicit_utc_values() -> None:
         user=user,
     )
 
-    assert source["createdAt"].tzinfo is timezone.utc
-    assert source["updatedAt"].tzinfo is timezone.utc
+    assert source["createdAt"].tzinfo is UTC
+    assert source["updatedAt"].tzinfo is UTC
 
 
 def test_mapping_supports_arbitrary_columns_multiple_channels_and_conservative_policy() -> None:

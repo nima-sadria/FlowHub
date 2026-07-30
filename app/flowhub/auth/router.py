@@ -18,10 +18,12 @@ Security properties:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from functools import lru_cache
 import ipaddress
 import os
+from datetime import datetime, timedelta, timezone
+from functools import lru_cache
+
+from app.flowhub.unified_workspace.authorization import workspace_permissions_for_role
 
 _UTC = timezone.utc
 
@@ -35,7 +37,6 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.flowhub.database import get_db
-from app.flowhub.unified_workspace.authorization import workspace_permissions_for_role
 
 from .dependencies import get_current_user
 from .jwt_service import create_access_token
