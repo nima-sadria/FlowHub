@@ -17,6 +17,7 @@ os.environ.setdefault("FLOWHUB_JWT_SECRET", "test-bu4-jwt-secret-32-bytes-min!")
 # Import auth models (conftest already does this, but be explicit)
 from app.flowhub.integration_platform import models as _ip_models  # noqa: F401 - registers ip_* tables
 from app.flowhub.auth import models as _auth_models  # noqa: F401 - registers FlowHubBase tables
+from app.flowhub.auth.models import FlowHubUser
 # Import setup model so FlowHubAppConfig is registered with FlowHubBase.metadata
 from app.flowhub.setup import models as _setup_models  # noqa: F401 - registers flowhub_app_config
 from app.flowhub.api.v2 import setup as setup_api
@@ -267,6 +268,16 @@ class TestSetupAdmin:
         })
         assert r.status_code == 200
         assert AppConfigService(db).get("admin.email") == "admin@example.com"
+        user = db.query(FlowHubUser).filter(FlowHubUser.username == "admin").one()
+        assert user.email == "admin@example.com"
+        login = client.post(
+            "/api/auth/login",
+            json={
+                "identifier": " ADMIN@EXAMPLE.COM ",
+                "password": "securepassword123",
+            },
+        )
+        assert login.status_code == 200
 
     def test_rejects_short_password(self, client):
         r = client.post("/api/v2/setup/admin", json={

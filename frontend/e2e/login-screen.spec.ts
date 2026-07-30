@@ -67,7 +67,7 @@ async function assertFigmaLoginHierarchy(page: Page, locale: 'en' | 'fa') {
 
   if (locale === 'en') {
     await expect(page.getByText('Use your workspace account.')).toBeVisible()
-    await expect(page.locator('label[for="login-identifier"]')).toHaveText('Email')
+    await expect(page.locator('label[for="login-identifier"]')).toHaveText('Email or username')
     await expect(page.locator('label[for="login-password"]')).toHaveText('Password')
     await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
     await expect(page.getByText('Need access? Contact your workspace Owner.')).toBeVisible()
@@ -80,7 +80,7 @@ async function assertFigmaLoginHierarchy(page: Page, locale: 'en' | 'fa') {
     await expect(page.locator('input[type="checkbox"]')).toHaveCount(0)
   } else {
     await expect(page.getByText('با حساب فضای کاری خود وارد شوید.')).toBeVisible()
-    await expect(page.getByText('ایمیل', { exact: true })).toBeVisible()
+    await expect(page.getByText('ایمیل یا نام کاربری', { exact: true })).toBeVisible()
   }
 }
 

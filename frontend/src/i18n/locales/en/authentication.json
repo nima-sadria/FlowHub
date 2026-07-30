@@ -9,7 +9,7 @@
   "login.contactOwner": "Need access? Contact your workspace Owner.",
   "login.flowhub": "FlowHub",
   "login.footerLinks": "Privacy · Security · Support",
-  "login.invalidCredentials": "Invalid credentials. Please check your username and password.",
+  "login.invalidCredentials": "Invalid credentials. Please check your email or username and password.",
   "login.loginFailedHttp": "Login failed (HTTP {{status}}). Please try again.",
   "login.networkError": "Network error. Please check your connection and try again.",
   "login.password": "Password",
@@ -19,7 +19,7 @@
   "login.signingIn": "Signing in...",
   "login.signInToFlowhub": "Sign in to FlowHub",
   "login.tooManyAttempts": "Too many login attempts. Please wait a moment and try again.",
-  "login.username": "Email",
-  "login.usernameHint": "Administrator email",
+  "login.username": "Email or username",
+  "login.usernameHint": "you@example.com or admin",
   "login.useWorkspaceAccount": "Use your workspace account."
 }

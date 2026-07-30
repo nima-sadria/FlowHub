@@ -33,7 +33,7 @@ def _utcnow() -> datetime:
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.flowhub.database import get_db
@@ -48,7 +48,7 @@ from .repository import (
     create_audit_event,
     get_active_refresh_token,
     get_user_by_id,
-    get_user_by_username,
+    get_user_by_login_identifier,
     revoke_refresh_token,
     store_refresh_token,
 )
@@ -109,8 +109,16 @@ _ROLE_PERMISSIONS: dict[str, dict[str, bool]] = {
 # -- Request / Response schemas ------------------------------------------------
 
 class LoginRequest(BaseModel):
-    username: str
+    identifier: str = Field(validation_alias=AliasChoices("identifier", "username"))
     password: str
+
+    @field_validator("identifier")
+    @classmethod
+    def _clean_identifier(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Email or username is required.")
+        return cleaned
 
 
 class TokenResponse(BaseModel):
@@ -183,15 +191,15 @@ async def login(
     ip = _client_ip(request)
 
     if not consume_login_attempt(db, ip):
-        create_audit_event(db, username=body.username, event="login_rate_limited", ip_address=ip)
+        create_audit_event(db, username=body.identifier, event="login_rate_limited", ip_address=ip)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many login attempts. Please wait and try again.",
         )
 
-    user = get_user_by_username(db, body.username)
+    user = get_user_by_login_identifier(db, body.identifier)
     if not user or not user.is_active or not verify_password(body.password, user.hashed_password):
-        create_audit_event(db, username=body.username, event="login_failed", ip_address=ip)
+        create_audit_event(db, username=body.identifier, event="login_failed", ip_address=ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
 
     clear_login_attempts(db, ip)

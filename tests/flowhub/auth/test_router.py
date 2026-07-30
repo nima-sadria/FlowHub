@@ -24,6 +24,24 @@ class TestLogin:
         assert "refresh_token" in data
         assert data["token_type"] == "bearer"
 
+    def test_email_identifier_is_trimmed_and_case_insensitive(self, client, admin_user):
+        r = client.post(
+            "/api/auth/login",
+            json={
+                "identifier": " TestAdmin@Example.COM ",
+                "password": "correct-horse-battery",
+            },
+        )
+        assert r.status_code == 200
+        assert "token" in r.json()
+
+    def test_legacy_username_request_field_remains_supported(self, client, admin_user):
+        r = client.post(
+            "/api/auth/login",
+            json={"username": "testadmin", "password": "correct-horse-battery"},
+        )
+        assert r.status_code == 200
+
     def test_wrong_password_returns_401(self, client, admin_user):
         r = client.post("/api/auth/login", json={"username": "testadmin", "password": "wrong"})
         assert r.status_code == 401

@@ -194,7 +194,13 @@ def create_admin(
             typer.echo(f"ERROR: User '{username}' already exists.", err=True)
             raise typer.Exit(1)
 
-        create_user(db, username=username, hashed_password=hash_password(password), role="admin")
+        create_user(
+            db,
+            username=username,
+            email=email,
+            hashed_password=hash_password(password),
+            role="admin",
+        )
         create_audit_event(db, username=username, event="admin_created_cli", ip_address="cli")
         typer.echo(f"Administrator '{username}' created.")
     finally:

@@ -10,6 +10,7 @@ _UTC = timezone.utc
 def _utcnow() -> datetime:
     return datetime.now(_UTC).replace(tzinfo=None)
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .models import FlowHubLoginAudit, FlowHubRefreshToken, FlowHubUser
@@ -19,14 +20,45 @@ def get_user_by_username(db: Session, username: str) -> FlowHubUser | None:
     return db.query(FlowHubUser).filter(FlowHubUser.username == username).first()
 
 
+def get_user_by_email(db: Session, email: str) -> FlowHubUser | None:
+    normalized = email.strip().lower()
+    if not normalized:
+        return None
+    return (
+        db.query(FlowHubUser)
+        .filter(func.lower(FlowHubUser.email) == normalized)
+        .first()
+    )
+
+
+def get_user_by_login_identifier(db: Session, identifier: str) -> FlowHubUser | None:
+    """Resolve an email or username while preserving username login."""
+    normalized = identifier.strip()
+    if not normalized:
+        return None
+    return get_user_by_username(db, normalized) or get_user_by_email(db, normalized)
+
+
 def get_user_by_id(db: Session, user_id: int) -> FlowHubUser | None:
     return db.query(FlowHubUser).filter(FlowHubUser.id == user_id).first()
 
 
 def create_user(
-    db: Session, *, username: str, hashed_password: str, role: str = "admin"
+    db: Session,
+    *,
+    username: str,
+    hashed_password: str,
+    role: str = "admin",
+    email: str | None = None,
 ) -> FlowHubUser:
-    user = FlowHubUser(username=username, hashed_password=hashed_password, role=role, is_active=True)
+    normalized_email = email.strip().lower() if email else None
+    user = FlowHubUser(
+        username=username,
+        email=normalized_email,
+        hashed_password=hashed_password,
+        role=role,
+        is_active=True,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)

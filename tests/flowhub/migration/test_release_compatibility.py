@@ -42,10 +42,32 @@ def test_legacy_revision_and_core_tables_upgrade_without_data_loss(tmp_path, mon
     legacy_tables = [
         table
         for table in FlowHubBase.metadata.sorted_tables
-        if not table.name.startswith(("uw_", "sc_"))
+        if table.name != "flowhub_users"
+        and not table.name.startswith(("uw_", "sc_"))
     ]
     FlowHubBase.metadata.create_all(engine, tables=legacy_tables)
     with engine.begin() as conn:
+        conn.execute(
+            sa.text(
+                """
+                CREATE TABLE flowhub_users (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    username VARCHAR(150) NOT NULL UNIQUE,
+                    hashed_password VARCHAR(512) NOT NULL,
+                    role VARCHAR(50) NOT NULL DEFAULT 'viewer',
+                    is_active BOOLEAN NOT NULL DEFAULT 1,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+        )
+        conn.execute(sa.text("CREATE INDEX ix_flowhub_users_id ON flowhub_users (id)"))
+        conn.execute(
+            sa.text(
+                "CREATE UNIQUE INDEX ix_flowhub_users_username "
+                "ON flowhub_users (username)"
+            )
+        )
         conn.execute(sa.text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
         conn.execute(sa.text("INSERT INTO alembic_version (version_num) VALUES ('beta_007')"))
         conn.execute(sa.text("ALTER TABLE flowhub_users RENAME TO beta_users"))

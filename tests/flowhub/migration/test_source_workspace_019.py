@@ -386,8 +386,17 @@ def test_sqlite_migrated_schema_allows_service_to_finalize_scan(
                 )
             )
         with Session(engine) as db:
-            user = db.get(FlowHubUser, 1)
-            assert user is not None
+            # This fixture intentionally stops at FLOWHUB_019. Querying the
+            # current ORM model would select columns introduced by later
+            # revisions (for example FLOWHUB_020.email), so use a detached
+            # actor with the historical row's identity.
+            user = FlowHubUser(
+                id=1,
+                username="service-owner",
+                hashed_password="x",
+                role="admin",
+                is_active=True,
+            )
             service = SourceWorkspaceService(db)
 
             async def evaluate(_source_id: str, _user: FlowHubUser) -> dict[str, object]:

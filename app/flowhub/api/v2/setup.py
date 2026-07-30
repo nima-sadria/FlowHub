@@ -331,6 +331,7 @@ async def setup_admin(
     hashed = hash_password(body.password)
     user = FlowHubUser(
         username=body.username,
+        email=body.email,
         hashed_password=hashed,
         role="owner",
         is_active=True,

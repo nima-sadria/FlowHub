@@ -9,7 +9,7 @@
   "login.contactOwner": "برای دسترسی با مالک فضای کاری خود تماس بگیرید.",
   "login.flowhub": "FlowHub",
   "login.footerLinks": "حریم خصوصی · امنیت · پشتیبانی",
-  "login.invalidCredentials": "اطلاعات ورود نادرست است. نام کاربری و رمز عبور را بررسی کنید.",
+  "login.invalidCredentials": "اطلاعات ورود نادرست است. ایمیل یا نام کاربری و رمز عبور را بررسی کنید.",
   "login.loginFailedHttp": "ورود ناموفق بود (HTTP {{status}}). دوباره تلاش کنید.",
   "login.networkError": "خطای شبکه. اتصال خود را بررسی و دوباره تلاش کنید.",
   "login.password": "رمز عبور",
@@ -19,7 +19,7 @@
   "login.signingIn": "در حال ورود...",
   "login.signInToFlowhub": "ورود به FlowHub",
   "login.tooManyAttempts": "تلاش‌های ورود بیش از حد مجاز است. کمی صبر کنید و دوباره تلاش کنید.",
-  "login.username": "ایمیل",
-  "login.usernameHint": "ایمیل مدیر",
+  "login.username": "ایمیل یا نام کاربری",
+  "login.usernameHint": "ایمیل یا نام کاربری مدیر",
   "login.useWorkspaceAccount": "با حساب فضای کاری خود وارد شوید."
 }

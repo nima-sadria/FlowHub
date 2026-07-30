@@ -81,6 +81,7 @@ def admin_user(db):
     return create_user(
         db,
         username="testadmin",
+        email="testadmin@example.com",
         hashed_password=hash_password("correct-horse-battery"),
         role="admin",
     )
