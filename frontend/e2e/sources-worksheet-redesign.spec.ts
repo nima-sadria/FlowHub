@@ -361,8 +361,10 @@ async function installStrictMockApi(page: Page, audit: TrafficAudit, locale: 'en
       maintenance: { enabled: false, message: '' },
     })
     if (pathname === '/api/health') return json({ status: 'ok', version: 'sources-redesign-isolated' })
+    if (pathname === '/api/v2/exchange-rates/me') return json({ selections: [], rates: [] })
     if (pathname === '/api/v2/source-profiles') return json({ items: sourceProfiles })
     if (pathname === '/api/v2/source-profiles/channels') return json({ items: channels })
+    if (pathname === '/api/v2/products') return json({ items: [], total: 1035, page: 1, pageSize: 1, configured: true })
     if (pathname === '/api/v2/commerce/sources') return json({
       items: integrations,
       relationship_map: {
@@ -374,6 +376,8 @@ async function installStrictMockApi(page: Page, audit: TrafficAudit, locale: 'en
     })
     if (pathname === '/api/v2/commerce/source-types' || pathname === '/api/v2/commerce/channel-types') return json({ items: [] })
     if (pathname === '/api/v2/sources/source-logitech/configuration') return json(sourceConfiguration)
+    if (pathname === '/api/v2/sources/source-flowhub/configuration') return json({ ...sourceProfiles[1], mapping: null, legacyMapping: null })
+    if (pathname === '/api/v2/sources/source-archive/configuration') return json({ ...sourceProfiles[2], mapping: null, legacyMapping: null })
     if (pathname === '/api/v2/sources/source-logitech/worksheets') return json({
       sourceId: 'source-logitech',
       sourceRevisionId: 'source-revision-logitech-9',
@@ -416,7 +420,11 @@ test.describe.serial('Sources integrations and per-worksheet Channel rules', () 
       }))
       expect(cards.every(card => card.left >= 0 && card.right <= viewport.width)).toBe(true)
       const firstGroupRowCount = new Set(cards.filter(card => card.top === cards[0].top).map(card => card.left)).size
-      expect(firstGroupRowCount).toBe(viewport.width >= 1280 ? 3 : viewport.width >= 1024 ? 2 : 1)
+      const gridWidth = await page.getByTestId('source-card-groups').evaluate(element => element.getBoundingClientRect().width)
+      // Production CSS uses auto-fill with minmax(240px, 1fr) and a 12px gap.
+      // Verify that every supported width fills the maximum complete row.
+      const expectedFirstRowCount = Math.min(6, Math.max(1, Math.floor((gridWidth + 12) / (240 + 12))))
+      expect(firstGroupRowCount).toBe(expectedFirstRowCount)
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
       await page.screenshot({ path: path.join(screenshotRoot, `sources-overview-en-${viewport.width}x${viewport.height}.png`), fullPage: true })
     }

@@ -39,7 +39,7 @@ jobs:
         working-directory: frontend
         run: |
           set +e
-          npm run test:e2e -- --grep "virtualizes" --reporter=line --trace on 2>&1 | tee e2e-benchmark.log
+          npm run test:e2e -- --grep "@browser-benchmark" --reporter=line --trace on 2>&1 | tee e2e-benchmark.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
             detail=$(tail -80 e2e-benchmark.log | tr '\n' ' ' | cut -c1-6000)

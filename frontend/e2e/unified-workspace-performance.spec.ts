@@ -2,7 +2,7 @@ import os from 'node:os'
 import { expect, test, type Page, type Route } from '@playwright/test'
 
 const TOTAL_PRODUCTS = 10_000
-const PAGE_SIZE = 500
+const GROUPED_PAGE_SIZE = 100
 const channels = Array.from({ length: 5 }, (_, index) => ({
   channelId: `configured-channel-${index + 1}`,
   readPrice: true,
@@ -27,7 +27,7 @@ function row(index: number) {
   const channel = channels[index % channels.length]
   return {
     rowId: `row-${index}`,
-    canonicalProductId: `product-${Math.floor(index / 2)}`,
+    canonicalProductId: `product-${index}`,
     canonicalName: `Product ${String(index).padStart(5, '0')}`,
     displayName: `Product ${String(index).padStart(5, '0')}`,
     productType: index % 25 === 0 ? 'variation' : 'simple',
@@ -59,30 +59,33 @@ function groupedProduct(index: number) {
     category: null,
     brand: null,
     productType: item.productType,
-    mappedChannelCount: 1,
-    listingCount: 1,
+    mappedChannelCount: channels.length,
+    listingCount: channels.length,
     changedListingCount: 0,
     selectedListingCount: 0,
     state: 'unchanged',
-    children: [{
-      listingId: item.listingId,
-      channelId: item.channelId,
-      listingLabel: item.listingLabel,
-      externalId: item.externalPrimaryId,
-      externalIdType: item.externalIdType,
-      sku: item.sku,
-      mappingState: item.mappingState,
-      cacheFreshness: item.cacheFreshness,
-      state: 'unchanged',
-      changedFields: [],
-      selected: false,
-      reviewItemIds: [],
-      fields: {
-        price: { ...item.fields.price, changed: false, status: 'unchanged' },
-        stock: { ...item.fields.stock, changed: false, status: 'unchanged' },
-        status: { ...item.fields.status, changed: false, status: 'unchanged' },
-      },
-    }],
+    children: channels.map((channel, channelIndex) => {
+      const listing = row(index * channels.length + channelIndex)
+      return {
+        listingId: `listing-${index}-${channelIndex + 1}`,
+        channelId: channel.channelId,
+        listingLabel: `${channel.channelId} Listing ${index}`,
+        externalId: `external-${index}-${channelIndex + 1}`,
+        externalIdType: listing.externalIdType,
+        sku: `${item.sku}-${channelIndex + 1}`,
+        mappingState: listing.mappingState,
+        cacheFreshness: listing.cacheFreshness,
+        state: 'unchanged',
+        changedFields: [],
+        selected: false,
+        reviewItemIds: [],
+        fields: {
+          price: { ...listing.fields.price, currency: channel.currency, unit: channel.unit, changed: false, status: 'unchanged' },
+          stock: { ...listing.fields.stock, changed: false, status: 'unchanged' },
+          status: { ...listing.fields.status, changed: false, status: 'unchanged' },
+        },
+      }
+    }),
   }
 }
 
@@ -120,6 +123,8 @@ async function installApi(page: Page) {
       body: JSON.stringify(body),
     })
     if (url.pathname === '/api/v2/setup/status') return json({ completed: true })
+    if (url.pathname === '/api/health') return json({ status: 'ok' })
+    if (url.pathname === '/api/v2/exchange-rates/me') return json({ selections: [], rates: [] })
     if (url.pathname === '/api/auth/me') return json({
       username: 'browser-admin', role: 'admin', is_admin: true, is_super_admin: false,
       permissions: { can_access_site: true, can_fetch: true, can_view_logs: true, can_view_settings: true },
@@ -140,25 +145,9 @@ async function installApi(page: Page) {
       draft: { id: 'draft-browser', version: 0, currentRevisionId: null, status: 'draft' },
       createdAt: new Date().toISOString(),
     })
-    if (url.pathname === '/api/v2/unified-workspaces/browser-benchmark/grid') {
-      const requestedPage = Number(url.searchParams.get('page') ?? 1)
-      const search = (url.searchParams.get('search') ?? '').toLowerCase()
-      const start = (requestedPage - 1) * PAGE_SIZE
-      let items = Array.from({ length: PAGE_SIZE }, (_, offset) => row(start + offset))
-      if (search) items = items.filter(item => item.canonicalName.toLowerCase().includes(search))
-      return json({
-        items,
-        total: search ? items.length : TOTAL_PRODUCTS,
-        page: requestedPage,
-        pageSize: PAGE_SIZE,
-        channels,
-        draftVersion: 0,
-        revisionId: null,
-      })
-    }
     if (url.pathname === '/api/v2/unified-workspaces/browser-benchmark/grouped-grid') {
       const requestedPage = Number(url.searchParams.get('page') ?? 1)
-      const requestedSize = Math.min(Number(url.searchParams.get('pageSize') ?? 100), 500)
+      const requestedSize = Math.min(Number(url.searchParams.get('pageSize') ?? GROUPED_PAGE_SIZE), 500)
       const search = (url.searchParams.get('search') ?? '').toLowerCase()
       const all = Array.from({ length: TOTAL_PRODUCTS }, (_, index) => index)
       const matching = search ? all.filter(index => `product ${String(index).padStart(5, '0')}`.includes(search)) : all
@@ -170,7 +159,8 @@ async function installApi(page: Page) {
   return requests
 }
 
-test('virtualizes a paged 10,000-product, five-channel Workspace in Chromium', async ({ page, browser, browserName }) => {
+test('@browser-benchmark bounds a paginated 10,000-product, five-channel Workspace in Chromium', async ({ page, browser, browserName }) => {
+  test.setTimeout(60_000)
   const requests = await installApi(page)
   page.on('console', message => console.log(`browser:${message.type()}:${message.text()}`))
   page.on('pageerror', error => console.log(`browser-error:${error.message}`))
@@ -182,39 +172,70 @@ test('virtualizes a paged 10,000-product, five-channel Workspace in Chromium', a
     const url = new URL(response.url())
     return url.pathname === '/api/v2/unified-workspaces/browser-benchmark'
   })
+  const firstPageResponse = page.waitForResponse(response => {
+    const url = new URL(response.url())
+    return url.pathname === '/api/v2/unified-workspaces/browser-benchmark/grouped-grid'
+      && url.searchParams.get('page') === '1'
+      && !url.searchParams.has('search')
+  })
   await page.goto('/workspace/browser-benchmark', { waitUntil: 'domcontentloaded' })
   expect((await workspaceResponse).status()).toBe(200)
-  // CI browsers can spend several seconds compiling the Handsontable chunk;
-  // wait for the API-backed readiness signal rather than racing the default
-  // five-second locator timeout.
+  expect((await firstPageResponse).status()).toBe(200)
   await expect(page).toHaveURL('/products?workspace=browser-benchmark')
-  await expect(page.locator('[data-pricing-grid]')).toBeVisible()
+  await expect(page.locator('[data-products-table]')).toBeVisible({ timeout: 30_000 })
   const readyMs = Math.round(performance.now() - started)
-  const initialRows = await page.locator('.ht_master tbody tr').count()
-  expect(initialRows).toBeGreaterThan(0)
-  expect(initialRows).toBeLessThan(100)
-  expect(requests.some(url => url.pathname.endsWith('/grouped-grid') && url.searchParams.get('pageSize') === '100')).toBe(true)
-  expect(requests.some(url => url.pathname.endsWith('/grouped-grid') && url.searchParams.get('pageSize') === '10000')).toBe(false)
-
-  const scrollStarted = performance.now()
-  await page.locator('.wtHolder').last().evaluate(element => { element.scrollTop = element.scrollHeight })
-  await page.waitForTimeout(100)
-  const scrollMs = Math.round(performance.now() - scrollStarted)
-  expect(await page.locator('.ht_master tbody tr').count()).toBeLessThan(100)
-
-  await page.getByRole('button', { name: 'Next' }).click()
-  await expect(page.getByText('Page 2 of 100')).toBeVisible()
-  expect(requests.some(url => url.pathname.endsWith('/grouped-grid') && url.searchParams.get('page') === '2')).toBe(true)
-
-  await page.getByRole('searchbox', { name: /Search Source Products/i }).fill('Product 00500')
-  await page.getByRole('button', { name: 'Filter server data' }).click()
-  await expect(page.getByText('Page 1 of 1')).toBeVisible()
-  expect(requests.some(url => url.searchParams.get('search') === 'Product 00500')).toBe(true)
-
-  const metrics = await page.evaluate(() => ({
+  const initialProducts = await page.locator('[data-product-group]').count()
+  const initialRows = await page.locator('[data-pricing-row]').count()
+  const initialProductIds = await page.locator('[data-product-group]').evaluateAll(elements =>
+    elements.map(element => element.getAttribute('data-product-id')),
+  )
+  const initialListingIds = await page.locator('[data-pricing-row]').evaluateAll(elements =>
+    elements.map(element => element.getAttribute('data-listing-id')),
+  )
+  const initialChannelIds = await page.locator('[data-pricing-row]').evaluateAll(elements =>
+    elements.map(element => element.getAttribute('data-channel-id')),
+  )
+  expect(initialProducts).toBe(GROUPED_PAGE_SIZE)
+  expect(initialRows).toBe(GROUPED_PAGE_SIZE * channels.length)
+  expect(new Set(initialProductIds).size).toBe(GROUPED_PAGE_SIZE)
+  expect(new Set(initialListingIds).size).toBe(GROUPED_PAGE_SIZE * channels.length)
+  expect(new Set(initialChannelIds)).toEqual(new Set(channels.map(channel => channel.channelId)))
+  const initialMetrics = await page.evaluate(() => ({
     heap: (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null,
     domNodes: document.getElementsByTagName('*').length,
   }))
+  expect(requests.some(url => url.pathname.endsWith('/grouped-grid') && url.searchParams.get('pageSize') === String(GROUPED_PAGE_SIZE))).toBe(true)
+  expect(requests.some(url => url.pathname.endsWith('/grouped-grid') && url.searchParams.get('pageSize') === '10000')).toBe(false)
+  await expect(page.getByText('Page 1 of 100')).toBeVisible()
+
+  const paginationStarted = performance.now()
+  await page.getByRole('button', { name: 'Next' }).click()
+  await expect(page.getByText('Page 2 of 100')).toBeVisible()
+  await expect(page.locator('[data-product-group]').first()).toHaveAttribute('data-product-id', 'product-100')
+  const paginationMs = Math.round(performance.now() - paginationStarted)
+  expect(await page.locator('[data-product-group]').count()).toBe(GROUPED_PAGE_SIZE)
+  expect(await page.locator('[data-pricing-row]').count()).toBe(GROUPED_PAGE_SIZE * channels.length)
+  expect(requests.some(url => url.pathname.endsWith('/grouped-grid') && url.searchParams.get('page') === '2')).toBe(true)
+
+  const searchStarted = performance.now()
+  const search = page.getByRole('searchbox', { name: /Search products/i })
+  await search.fill('Product 00500')
+  await search.press('Enter')
+  await expect(page.locator('[data-product-group]')).toHaveCount(1)
+  await expect(page.locator('[data-pricing-row]')).toHaveCount(channels.length)
+  await expect(page.locator('[data-product-group]')).toHaveAttribute('data-product-id', 'product-500')
+  await expect(page.locator('[data-products-count]')).toContainText('1 product')
+  const searchMs = Math.round(performance.now() - searchStarted)
+  expect(requests.some(url => url.searchParams.get('search') === 'Product 00500')).toBe(true)
+
+  const filteredMetrics = await page.evaluate(() => ({
+    heap: (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null,
+    domNodes: document.getElementsByTagName('*').length,
+  }))
+  const groupedRequests = requests.filter(url => url.pathname.endsWith('/grouped-grid'))
+  expect(groupedRequests.length).toBeGreaterThanOrEqual(3)
+  expect(groupedRequests.every(url => url.searchParams.get('pageSize') === String(GROUPED_PAGE_SIZE))).toBe(true)
+  expect(requests.some(url => url.pathname.endsWith('/browser-benchmark/grid'))).toBe(false)
   console.log(JSON.stringify({
     browserName,
     browserVersion: browser.version(),
@@ -223,15 +244,25 @@ test('virtualizes a paged 10,000-product, five-channel Workspace in Chromium', a
     logicalCpuCount: os.cpus().length,
     totalMemoryBytes: os.totalmem(),
     readyMs,
-    scrollMs,
-    initialApiRowCount: 100,
+    paginationMs,
+    searchMs,
+    totalProducts: TOTAL_PRODUCTS,
+    channelCount: channels.length,
+    initialApiProductCount: GROUPED_PAGE_SIZE,
+    initialProducts,
     initialRows,
-    ...metrics,
+    initialHeap: initialMetrics.heap,
+    initialDomNodes: initialMetrics.domNodes,
+    filteredHeap: filteredMetrics.heap,
+    filteredDomNodes: filteredMetrics.domNodes,
   }))
-  expect(metrics.domNodes).toBeLessThan(10_000)
+  expect(readyMs).toBeLessThan(30_000)
+  expect(paginationMs).toBeLessThan(10_000)
+  expect(searchMs).toBeLessThan(10_000)
+  expect(initialMetrics.domNodes).toBeLessThan(20_000)
 })
 
-test('keeps visible Listing identity through sort, filter, paging, keyboard and paste', async ({ page, context }) => {
+test('keeps visible Listing identity through filter, paging, keyboard and paste', async ({ page, context }) => {
   const submitted: Array<{ changes: Array<{ listing_id: string; target_value: string }> }> = []
   const savedTargets = new Map<string, string>()
   let draftVersion = 0
@@ -244,6 +275,8 @@ test('keeps visible Listing identity through sort, filter, paging, keyboard and 
     if (!url.pathname.startsWith('/api/')) return route.continue()
     const json = (body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
     if (url.pathname === '/api/v2/setup/status') return json({ completed: true })
+    if (url.pathname === '/api/health') return json({ status: 'ok' })
+    if (url.pathname === '/api/v2/exchange-rates/me') return json({ selections: [], rates: [] })
     if (url.pathname === '/api/auth/me') return json({
       username: 'identity-admin', role: 'admin', is_admin: true, is_super_admin: false,
       permissions: { can_access_site: true, can_fetch: true, can_view_logs: true, can_view_settings: true },
@@ -337,35 +370,32 @@ test('keeps visible Listing identity through sort, filter, paging, keyboard and 
 
   await page.goto('/workspace/identity-workspace')
   await expect(page).toHaveURL('/products?workspace=identity-workspace')
-  await expect(page.locator('[data-pricing-grid]')).toBeVisible()
-  await page.locator('[data-pricing-sort="product"]').click()
-  await page.locator('[data-pricing-sort="product"]').click()
-  const betaTarget = page.locator('.ht_master td[data-listing-id="listing-b"][data-target-field="price"]').first()
+  await expect(page.locator('[data-products-table]')).toBeVisible()
+  const betaTarget = page.locator('input[data-listing-id="listing-b"][data-target-field="price"]')
   await expect(betaTarget).toBeVisible()
-  await betaTarget.dblclick()
-  await page.keyboard.press('Control+A')
-  await page.keyboard.type('225')
-  await page.keyboard.press('Enter')
-  await expect(page.locator('[data-pending-summary]')).toContainText('1 pending change')
+  await betaTarget.fill('225')
+  await betaTarget.press('Enter')
+  await expect(betaTarget).toHaveValue('225')
+  await expect(betaTarget).toHaveAttribute('data-cell-status', 'edited')
+  await expect(page.locator('[data-products-save]')).toBeEnabled()
 
   await page.getByRole('button', { name: 'Next' }).click()
   await expect(page.getByText('Page 2 of 2')).toBeVisible()
   await page.getByRole('button', { name: 'Previous' }).click()
   await expect(page.getByText('Page 1 of 2')).toBeVisible()
-  await expect(page.locator('.ht_master td[data-listing-id="listing-b"][data-target-field="price"]').first()).toContainText('225')
+  await expect(page.locator('input[data-listing-id="listing-b"][data-target-field="price"]')).toHaveValue('225')
 
-  await page.getByRole('searchbox', { name: /Search Source Products/i }).fill('Beta')
-  await page.getByRole('button', { name: 'Filter server data' }).click()
-  await expect(page.locator('.ht_master td[data-listing-id="listing-b"]')).not.toHaveCount(0)
-  const pastedTarget = page.locator('.ht_master td[data-listing-id="listing-b"][data-target-field="price"]').first()
+  const search = page.getByRole('searchbox', { name: /Search products/i })
+  await search.fill('Beta')
+  await search.press('Enter')
+  await expect(page.locator('tr[data-listing-id="listing-b"]')).toBeVisible()
+  const pastedTarget = page.locator('input[data-listing-id="listing-b"][data-target-field="price"]')
   await pastedTarget.click()
   await page.evaluate(() => navigator.clipboard.writeText('230'))
+  await page.keyboard.press('Control+A')
   await page.keyboard.press('Control+V')
-  await expect(page.locator('[data-pending-summary]')).toContainText('1 pending change')
-
-  const checkbox = page.locator('.ht_master td[data-listing-id="listing-b"][data-field-selection][data-field="price"] input').first()
-  await expect(checkbox).toBeChecked()
-  await checkbox.uncheck()
-  await expect(checkbox).not.toBeChecked()
-  await expect(page.locator('[data-pending-summary]')).toContainText('1 pending change')
+  await pastedTarget.press('Enter')
+  await expect(pastedTarget).toHaveValue('230')
+  await expect(pastedTarget).toHaveAttribute('data-cell-status', 'edited')
+  await expect(page.locator('[data-products-save]')).toBeEnabled()
 })

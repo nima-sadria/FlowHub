@@ -55,6 +55,7 @@ async function installDataQualityMocks(page: Page, audit: TrafficAudit) {
     }
     if (url.pathname === '/api/v2/setup/status' && method === 'GET') return json(route, { completed: true })
     if (url.pathname === '/api/health' && method === 'GET') return json(route, { status: 'ok', env: 'test', version: 'data-quality-visual-mock' })
+    if (url.pathname === '/api/v2/exchange-rates/me' && method === 'GET') return json(route, { selections: [], rates: [] })
     if (url.pathname === '/api/v2/source-profiles' && method === 'GET') return json(route, { items: [] })
     if (url.pathname === '/api/v2/source-profiles/channels' && method === 'GET') return json(route, { items: [] })
     if (url.pathname === '/api/v2/products' && method === 'GET') return json(route, { items: [], total: 2418, page: 1, pageSize: 1 })

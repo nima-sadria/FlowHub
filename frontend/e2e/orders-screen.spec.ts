@@ -116,6 +116,7 @@ async function installOrdersMocks(page: Page, audit: TrafficAudit) {
     }
     if (url.pathname === '/api/v2/setup/status' && method === 'GET') return json(route, { completed: true })
     if (url.pathname === '/api/health' && method === 'GET') return json(route, { status: 'ok', env: 'test', version: 'orders-visual-mock' })
+    if (url.pathname === '/api/v2/exchange-rates/me' && method === 'GET') return json(route, { selections: [], rates: [] })
     if (url.pathname === '/api/v2/orders' && method === 'GET') return json(route, ordersListResource())
     if (url.pathname === '/api/v2/orders/sync-status' && method === 'GET') return json(route, syncStatusResource())
     if (/^\/api\/v2\/orders\/channels\/[^/]+\/sync$/.test(url.pathname) && method === 'POST') {

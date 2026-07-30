@@ -47,6 +47,7 @@ async function installSettingsMocks(page: Page, audit: TrafficAudit) {
     }
     if (url.pathname === '/api/v2/setup/status' && method === 'GET') return json(route, { completed: true })
     if (url.pathname === '/api/health' && method === 'GET') return json(route, { status: 'ok', env: 'test', version: 'settings-visual-mock' })
+    if (url.pathname === '/api/v2/exchange-rates/me' && method === 'GET') return json(route, { selections: [], rates: [] })
     if (url.pathname === '/api/v2/settings' && method === 'GET') {
       return json(route, {
         woocommerceUrl: '', nextcloudUrl: '', syncIntervalMinutes: 60,

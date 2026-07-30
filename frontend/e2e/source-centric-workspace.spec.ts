@@ -30,6 +30,7 @@ async function installMockApi(page: Page) {
     if (url.pathname === '/api/v2/setup/status') return json({ completed: true })
     if (url.pathname === '/api/auth/me') return json({ username: 'visual-owner', role: 'admin', is_admin: true, is_super_admin: false, permissions: { can_access_site: true, can_fetch: true, can_view_logs: true, can_view_settings: true }, maintenance: { enabled: false, message: '' } })
     if (url.pathname === '/api/health') return json({ status: 'ok' })
+    if (url.pathname === '/api/v2/exchange-rates/me') return json({ selections: [], rates: [] })
     if (url.pathname === '/api/v2/commerce/sources') return json({
       relationship_map: { nodes: ['Source', 'FlowHub / Data Layer', 'Channel'], example: ['Nextcloud', 'Data Layer', 'WooCommerce'], runtime_write_blocked: true, read_only: true },
       items: [{ id: 'nextcloud:primary', provider: 'nextcloud', name: 'Nextcloud', type: 'Source', status: 'configured', implemented: true, placeholder: false, credential_status: 'configured', last_health_check: '2026-07-15T08:00:00Z', data_role: 'Spreadsheet price input', action_label: 'Manage', action_href: '', health: { status: 'healthy', message: 'Connected', latency_ms: 18, error_code: null }, read_policy: { enabled: true, max_reads_per_24h: 10, manual_read_allowed: true, reads_used_last_24h: 2, reads_remaining: 8, reset_at: null, last_read_at: '2026-07-15T07:30:00Z' }, read_status: { enabled: true, max_reads_per_24h: 10, manual_read_allowed: true, reads_used_last_24h: 2, reads_remaining: 8, reset_at: null, last_read_at: '2026-07-15T07:30:00Z', last_read_status: 'completed', last_row_count: 10000, last_warning_count: 0, last_error_count: 0 }, read_only: true, runtime_write_blocked: true, settings_available: true }],
@@ -99,6 +100,7 @@ async function installMockApi(page: Page) {
       const products = [{ sourceProductId: 'product-cable', name: 'iPhone Cable', sourceKey: 'CABLE-01', cost: '11000', category: 'Accessories', brand: null, productType: 'simple', mappedChannelCount: 3, listingCount: 4, changedListingCount: 3, selectedListingCount: 2, state: 'ready', children: [{ listingId: 'wc-cable', channelId: 'woocommerce:primary', listingLabel: 'Main Listing', externalId: '101', externalIdType: 'product_id', sku: 'CABLE', mappingState: 'resolved', cacheFreshness: 'fresh', state: 'ready', changedFields: ['price'], selected: true, reviewItemIds: ['review-wc'], fields: { price: fields('12000', '12500', 'ready', 'TOMAN'), stock: fields('8', '8', 'unchanged'), status: fields('publish', 'publish', 'unchanged') } }, { listingId: 'snap-white', channelId: 'snappshop:main', listingLabel: 'White Listing', externalId: 'SN-11', externalIdType: 'product_number', sku: 'CABLE-W', mappingState: 'resolved', cacheFreshness: 'fresh', state: 'ready', changedFields: ['price'], selected: true, reviewItemIds: ['review-snap'], fields: { price: fields('12600', '12900', 'ready', 'TOMAN'), stock: fields('5', '5', 'unchanged'), status: fields('active', 'active', 'unchanged') } }, { listingId: 'snap-black', channelId: 'snappshop:main', listingLabel: 'Black Listing', externalId: 'SN-12', externalIdType: 'product_number', sku: 'CABLE-B', mappingState: 'resolved', cacheFreshness: 'stale', state: 'blocked', changedFields: ['price'], selected: false, reviewItemIds: [], fields: { price: fields('12600', '12900', 'blocked', 'TOMAN'), stock: fields('0', '0', 'unchanged'), status: fields('inactive', 'inactive', 'unchanged') } }, { listingId: 'tapsi-main', channelId: 'tapsishop:main', listingLabel: 'Main Listing', externalId: 'TP-22', externalIdType: 'seller_sku', sku: 'CABLE', mappingState: 'resolved', cacheFreshness: 'fresh', state: 'unchanged', changedFields: [], selected: false, reviewItemIds: [], fields: { price: fields('12700', '12700', 'unchanged', 'TOMAN'), stock: fields('4', '4', 'unchanged'), status: fields('active', 'active', 'unchanged') } }] }]
       return json({ items: requestedView === 'unchanged' ? [] : products, total: 10_000, page: 1, pageSize: 100, view: requestedView, summary: { ready: 28, blocked: 12, unchanged: 1376, selected: 26 }, draftVersion: 1, revisionId: 'revision-source', reviewId: 'review-source', reviewStatus: 'ready', selectionChecksum: 'd'.repeat(64) })
     }
+    if (url.pathname === '/api/v2/products') return json({ items: [], total: 10_000, page: 1, pageSize: 1, configured: true })
     if (url.pathname === '/api/v2/data-quality') return json({ items: [{ id: 'issue-1', channelId: 'snappshop:main', category: 'stale_cache', severity: 'blocked', code: 'CHANNEL_CACHE_STALE', summary: 'SnappShop cache is too old for a safe Review.', recommendedAction: 'Refresh the isolated Channel cache, then generate a new Review.', technicalDetails: { cacheVersion: 4, maximumAge: '15m' } }, { id: 'issue-2', channelId: 'woocommerce:primary', category: 'invalid_price', severity: 'error', code: 'INVALID_NUMERIC_VALUE', summary: 'Source row 42 contains text in the Price field.', recommendedAction: 'Enter a numeric price or leave the mapped cell blank.', technicalDetails: { row: 42 } }], counts: { stale_cache: 1, invalid_price: 1 }, total: 2 })
     if (url.pathname.includes('/apply')) return json({ id: 'mock-apply', workspaceId: 'source-visual-workspace', status: 'applied', correlationId: 'mock-only', items: [] })
     return json({}, 404)
@@ -112,31 +114,24 @@ test('source-centric daily Workspace is understandable and responsive with isola
     await page.goto('/workspace/source-visual-workspace')
     await expect(page).toHaveURL(/\/products\?workspace=source-visual-workspace$/)
     await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
-    // Dense pricing counters describe the locally tracked field scope rather
-    // than the legacy server summary. Two eligible price changes and one
-    // blocked price change are present in this fixture.
-    await expect(page.locator('.fh-pricing-counter-changed strong')).toHaveText('3')
-    await expect(page.locator('.fh-pricing-counter-selected strong')).toHaveText('2')
-    await expect(page.locator('.fh-pricing-counter-ready strong')).toHaveText('2')
-    await expect(page.locator('.fh-pricing-counter-blocked strong')).toHaveText('1')
-    await expect(page.getByText(/White Listing/).first()).toBeVisible()
-    await expect(page.getByText(/Black Listing/).first()).toBeVisible()
+    await expect(page.locator('[data-products-table]')).toBeVisible()
+    await expect(page.locator('[data-product-group]')).toHaveCount(1)
+    await expect(page.locator('[data-pricing-row]')).toHaveCount(4)
+    await expect(page.locator('input[data-listing-id="wc-cable"][data-target-field="price"]')).toHaveAttribute('data-cell-status', 'edited')
+    await expect(page.locator('input[data-listing-id="snap-white"][data-target-field="price"]')).toHaveAttribute('data-cell-status', 'edited')
+    await expect(page.locator('input[data-listing-id="snap-black"][data-target-field="price"]')).toHaveAttribute('data-cell-status', 'blocked')
+    await expect(page.locator('[data-products-count]')).toContainText('10,000')
+    await expect(page.locator('[data-products-save]')).toBeEnabled()
     await page.screenshot({ path: path.join(screenshotRoot, `workspace-${viewport.width}x${viewport.height}.png`), fullPage: true })
   }
-  await page.locator('.ht_master td[data-listing-id="snap-white"][data-field-selection][data-field="price"] input').first().uncheck()
-  const reviewButton = page.locator('[data-pricing-review]')
-  const dryRunButton = page.locator('[data-pricing-dry-run]')
-  await expect(reviewButton).toHaveText('Review')
-  await expect(dryRunButton).toHaveText('Dry Run')
-  await reviewButton.click()
-  await expect(page.getByRole('dialog', { name: 'Review Changes' })).toBeVisible()
-  await page.getByRole('button', { name: 'Back to Grid' }).click()
+  await page.locator('[data-row-menu-trigger][data-listing-id="snap-white"]').click()
+  await page.locator('[data-row-menu-action="toggle-selection"]').click()
   const selectionRequest = page.waitForRequest(request => request.method() === 'PUT' && new URL(request.url()).pathname.endsWith('/reviews/review-source/selection'))
-  await dryRunButton.click()
+  await page.locator('[data-products-save]').click()
   const selectionPayload = JSON.parse((await selectionRequest).postData() ?? '{}') as { review_item_ids?: string[] }
   expect(selectionPayload.review_item_ids).toEqual(['review-wc'])
-  await page.getByRole('button', { name: 'Back to Grid' }).click()
-  await page.getByRole('button', { name: /^Apply 1/i }).click()
+  await expect(page.getByRole('dialog', { name: 'Review Changes' })).toBeVisible()
+  await page.locator('[data-pricing-apply]').click()
   await expect(page.getByRole('dialog', { name: 'Apply confirmation' })).toBeVisible()
   await page.screenshot({ path: path.join(screenshotRoot, 'apply-confirmation.png'), fullPage: true })
 })
@@ -148,8 +143,9 @@ test('all pricing Workspace compatibility routes redirect to the Products pricin
     await page.goto(`/workspace/${workspaceId}`)
     await expect(page).toHaveURL(new RegExp(`/products\\?workspace=${workspaceId}$`))
     await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
-    await expect(page.locator('[data-pricing-review]')).toHaveText('Review')
-    await expect(page.locator('[data-pricing-dry-run]')).toHaveText('Dry Run')
+    await expect(page.locator('[data-products-table]')).toBeVisible()
+    await expect(page.locator('[data-pricing-row]')).toHaveCount(4)
+    await expect(page.locator('[data-products-save]')).toBeEnabled()
   }
 })
 
@@ -177,7 +173,8 @@ test('Source configuration, FlowHub Sheet, import, and Data Quality render from 
   await expect(page.getByText('Choose XLSX or CSV')).toBeVisible()
   await page.screenshot({ path: path.join(screenshotRoot, 'import-wizard.png'), fullPage: true })
   await page.goto('/data-quality')
-  await page.getByLabel('Issue list').getByText('stale cache', { exact: true }).click()
+  await expect(page.getByRole('table')).toBeVisible()
+  await expect(page.getByText('stale cache', { exact: true })).toBeVisible()
   await expect(page.getByText('SnappShop cache is too old for a safe Review.')).toBeVisible()
   await page.screenshot({ path: path.join(screenshotRoot, 'data-quality.png'), fullPage: true })
 })
@@ -221,8 +218,8 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
     if (name === 'sources') await expect(page.getByText('منابع', { exact: true }).first()).toBeVisible()
     if (name === 'settings') await expect(page.getByText('تنظیمات', { exact: true }).first()).toBeVisible()
     if (name === 'dashboard') {
-      await expect(page.getByText('متصل', { exact: true }).first()).toBeVisible()
       await expect(page.getByText('visual-owner', { exact: true }).first()).toBeVisible()
+      await expect(page.locator('body')).not.toContainText('\uFFFD')
     }
     if (name === 'commerce-sources') {
       const sourceCard = page.getByRole('heading', { name: 'Nextcloud' }).locator('xpath=ancestor::div[contains(@class, "fh-card")][1]')
@@ -237,7 +234,8 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
       await expect(channelCard.getByText('محصولات ذخیره‌شده در کش', { exact: false })).toBeVisible()
     }
     if (name === 'diagnostics') {
-      await expect(page.getByText('۶ ثانیه', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'عیب‌یابی', exact: true })).toBeVisible()
+      await expect(page.getByText('0 از 0 آماده', { exact: true }).first()).toBeVisible()
       await expect(page.getByText('هنوز بررسی نشده', { exact: true }).first()).toBeVisible()
     }
     if (name === 'workspace') await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
@@ -248,24 +246,19 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
 
   await page.goto('/workspace/source-visual-workspace')
   await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
-  // Handsontable maintains overlay clones for the frozen identity columns;
-  // every rendered clone must preserve the same immutable Source key.
-  const sourceKeyCells = page.getByText('CABLE-01', { exact: false })
-  await expect(sourceKeyCells.first()).toBeVisible()
-  expect(await sourceKeyCells.allTextContents()).toEqual(expect.arrayContaining(['CABLE-01']))
+  // The paginated Products table keeps immutable product and Listing
+  // identities on the grouped rows even though technical IDs are not shown.
+  await expect(page.locator('[data-product-group][data-product-id="product-cable"]')).toBeVisible()
+  await expect(page.locator('[data-pricing-row][data-listing-id="wc-cable"]')).toBeVisible()
+  await expect(page.locator('[data-pricing-row][data-listing-id="snap-white"]')).toBeVisible()
   const sidebar = page.locator('aside').first()
   const sidebarBox = await sidebar.boundingBox()
   expect(sidebarBox).not.toBeNull()
   expect(sidebarBox!.x).toBeGreaterThan(1000)
-  await expect(page.locator('[data-pricing-review]')).toHaveText('بازبینی')
-  await expect(page.locator('[data-pricing-dry-run]')).toHaveText('اجرای آزمایشی')
-  await page.locator('[data-pricing-review]').click()
+  await expect(page.locator('[data-products-save]')).toHaveText('ذخیره تغییرات')
+  await page.locator('[data-products-save]').click()
   await expect(page.getByRole('dialog', { name: 'بازبینی تغییرات' })).toBeVisible()
-  await page.getByRole('button', { name: 'بازگشت به جدول' }).click()
-  await page.locator('[data-pricing-dry-run]').click()
-  await expect(page.getByRole('dialog', { name: 'بازبینی تغییرات' })).toBeVisible()
-  await page.getByRole('button', { name: 'بازگشت به جدول' }).click()
-  await page.getByRole('button', { name: /^اعمال 2$/ }).click()
+  await page.locator('[data-pricing-apply]').click()
   await expect(page.getByRole('dialog', { name: 'تأیید اعمال تغییرات' })).toBeVisible()
   await page.screenshot({ path: path.join(i18nScreenshotRoot, 'rtl-apply-confirmation.png'), fullPage: true })
 })

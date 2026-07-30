@@ -514,6 +514,7 @@ async function installStrictMockApi(page: Page, audit: MockAudit, locale: 'en' |
       maintenance: { enabled: false, message: '' },
     })
     if (pathname === '/api/health') return json({ status: 'ok', version: 'ordering-isolated' })
+    if (pathname === '/api/v2/exchange-rates/me') return json({ selections: [], rates: [] })
     if (pathname === '/api/v2/source-profiles') return json({ items: sourceProfiles })
     if (pathname === '/api/v2/source-profiles/channels') return json({ items: sourceChannels })
     if (pathname === '/api/v2/sources/source-csv/configuration') return json(sourceConfiguration())
@@ -579,10 +580,13 @@ async function installStrictMockApi(page: Page, audit: MockAudit, locale: 'en' |
 }
 
 async function expectGroupedOrder(page: Page, expectedIds: readonly string[]) {
-  const resourceIds = page.locator('[data-resource-section] [data-resource-id]')
+  const resourceIds = page.locator('[data-resource-id]')
   await expect(resourceIds.first()).toBeVisible()
   expect(await resourceIds.evaluateAll(elements => elements.map(element => element.getAttribute('data-resource-id')))).toEqual(expectedIds)
-  expect(await page.locator('[data-resource-section]').evaluateAll(elements => elements.map(element => element.getAttribute('data-resource-section')))).toEqual([
+  const sections = await resourceIds.evaluateAll(elements => elements.map(element => (
+    element.closest('[data-resource-section]')?.getAttribute('data-resource-section')
+  )))
+  expect(sections.filter((section, index) => index === 0 || section !== sections[index - 1])).toEqual([
     'active',
     'disabled',
     'comingSoon',
@@ -622,7 +626,7 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
   await page.goto('/sources')
   await expectGroupedOrder(page, sourceOrder)
   await expect(page.locator('[data-resource-id="source-csv"]')).toContainText('Healthy')
-  await expect(page.locator('[data-resource-id="source-nextcloud"]')).toContainText('Warning')
+  await expect(page.locator('[data-resource-id="source-nextcloud"]')).toContainText('Needs review')
   await expect(page.locator('[data-resource-id="source-disabled"]')).toContainText('Disabled')
   await expect(page.locator('[data-resource-id="source-erp"]')).toContainText('Coming Soon')
   await page.screenshot({ path: path.join(screenshotRoot, 'en-sources.png'), fullPage: true })
@@ -660,17 +664,13 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
   await page.screenshot({ path: path.join(screenshotRoot, 'en-source-configuration.png'), fullPage: true })
 
   await page.goto('/workspace/ordering-workspace')
-  await expectGroupedOrder(page, channelOrder)
-  // Resource chips expose availability; field-level checkboxes exist only for
-  // Listings that actually participate in the dense pricing grid. Disabled
-  // and Coming Soon Channels must never receive a selectable/editable cell.
-  await expect(page.locator('[data-resource-id="disabled:main"]')).toContainText('Disabled')
-  await expect(page.locator('[data-resource-id="digikala:future"]')).toContainText('Coming Soon')
-  await expect(page.locator('.ht_master [data-channel-id="disabled:main"]')).toHaveCount(0)
-  await expect(page.locator('.ht_master [data-channel-id="digikala:future"]')).toHaveCount(0)
-  const activeSelection = page.locator('.ht_master input[data-channel-id="snappshop:main"][data-listing-id="listing-ordering-1"]')
-  await expect(activeSelection).toHaveCount(3)
-  await expect(page.locator('.ht_master input[data-channel-id="snappshop:main"][data-listing-id="listing-ordering-1"]:checked')).toHaveCount(1)
+  await expect(page.locator('[data-products-table]')).toBeVisible()
+  await expect(page.locator('[data-pricing-row]')).toHaveCount(1)
+  await expect(page.locator('[data-pricing-row]')).toHaveAttribute('data-channel-id', 'snappshop:main')
+  // Disabled and Coming Soon Channels remain discoverable in the ordered
+  // filter, but never become editable rows in the Products table.
+  await expect(page.locator('[data-pricing-row][data-channel-id="disabled:main"]')).toHaveCount(0)
+  await expect(page.locator('[data-pricing-row][data-channel-id="digikala:future"]')).toHaveCount(0)
   const workspaceChannelFilter = page.locator('select[name="channelId"]')
   await expect(workspaceChannelFilter).toHaveValue('')
   await expectGroupedChannelOptions(workspaceChannelFilter)
@@ -722,7 +722,6 @@ test('the same ordering remains stable in Persian RTL without translating techni
     ['sources', '/sources', sourceOrder],
     ['commerce-channels', '/commerce?tab=channels', channelOrder],
     ['source-configuration', '/sources/source-csv', channelOrder],
-    ['workspace', '/workspace/ordering-workspace', channelOrder],
   ] as const
 
   for (const [name, route, expectedOrder] of routes) {
@@ -731,9 +730,16 @@ test('the same ordering remains stable in Persian RTL without translating techni
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     if (name === 'source-configuration') await openSourceConfigurationChannelColumns(page)
     await expectGroupedOrder(page, expectedOrder)
-    await expect(page.locator('[data-resource-section="active"]')).not.toHaveAttribute('aria-label', 'Active')
     await page.screenshot({ path: path.join(screenshotRoot, `fa-${name}.png`), fullPage: true })
   }
+
+  await page.goto('/workspace/ordering-workspace')
+  await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+  await expect(page.locator('[data-products-table]')).toBeVisible()
+  await expect(page.locator('[data-pricing-row]')).toHaveAttribute('data-channel-id', 'snappshop:main')
+  await expectGroupedChannelOptions(page.locator('select[name="channelId"]'))
+  await page.screenshot({ path: path.join(screenshotRoot, 'fa-workspace.png'), fullPage: true })
 
   await page.goto('/products')
   await expect(page.locator('html')).toHaveAttribute('lang', 'fa')

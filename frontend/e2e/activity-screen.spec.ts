@@ -86,6 +86,7 @@ async function installActivityMocks(page: Page, audit: TrafficAudit) {
     }
     if (url.pathname === '/api/v2/setup/status' && method === 'GET') return json(route, { completed: true })
     if (url.pathname === '/api/health' && method === 'GET') return json(route, { status: 'ok', env: 'test', version: 'activity-visual-mock' })
+    if (url.pathname === '/api/v2/exchange-rates/me' && method === 'GET') return json(route, { selections: [], rates: [] })
 
     if (url.pathname === '/api/v2/activity' && method === 'GET') {
       const category = url.searchParams.get('category')

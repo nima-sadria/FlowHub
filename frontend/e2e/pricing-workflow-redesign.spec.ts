@@ -345,6 +345,7 @@ async function installMocks(page: Page, options: MockOptions, audit: Audit) {
       maintenance: { enabled: false, message: '' },
     })
     if (url.pathname === '/api/health') return json(route, { status: 'ok', env: 'test' })
+    if (url.pathname === '/api/v2/exchange-rates/me') return json(route, { selections: [], rates: [] })
     if (url.pathname === '/api/v2/products/categories') return json(route, { items: [] })
     if (url.pathname === '/api/v2/source-profiles/channels') return json(route, {
       items: options.channelIds.map(channelId => ({

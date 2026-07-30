@@ -164,6 +164,9 @@ async function installStrictDashboardMocks(page: Page, audit: TrafficAudit) {
     if (url.pathname === '/api/health' && method === 'GET') {
       return json(route, { status: 'ok', env: 'test', version: 'dashboard-visual-mock' })
     }
+    if (url.pathname === '/api/v2/exchange-rates/me' && method === 'GET') {
+      return json(route, { selections: [], rates: [] })
+    }
     if (url.pathname === '/api/v2/diagnostics/channels/health' && method === 'GET') {
       return json(route, {
         checkedAt: iso(0, 2),

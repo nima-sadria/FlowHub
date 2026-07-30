@@ -217,6 +217,7 @@ async function installIsolatedMockApi(page: Page, state: MockState) {
       maintenance: { enabled: false, message: '' },
     })
     if (pathname === '/api/health' && method === 'GET') return json({ status: 'ok', version: 'pdf-remediation-mock' })
+    if (pathname === '/api/v2/exchange-rates/me' && method === 'GET') return json({ selections: [], rates: [] })
 
     if (pathname === '/api/v2/commerce/sources' && method === 'GET') return json({
       items: [],
@@ -224,6 +225,7 @@ async function installIsolatedMockApi(page: Page, state: MockState) {
     })
     if (pathname === '/api/v2/source-profiles' && method === 'GET') return json({ items: [sourceProfile()] })
     if (pathname === '/api/v2/source-profiles/channels' && method === 'GET') return json({ items: channelItems })
+    if (pathname === '/api/v2/products' && method === 'GET') return json({ items: [], total: 0, page: 1, pageSize: 1, configured: true })
     if (pathname === '/api/v2/sources/source-pdf-audit/configuration' && method === 'GET') {
       return json({ ...sourceProfile(), mapping: sharedMapping, legacyMapping: null })
     }
@@ -373,8 +375,9 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
     state.lifecycleAction = 'archive'
     await openDeleteDialog()
     await page.getByRole('button', { name: 'Archive Source' }).click()
-    await expect(page.getByRole('heading', { name: 'Disabled' })).toBeVisible()
-    await expect(page.locator('.fh-badge').filter({ hasText: /^Disabled$/ })).toBeVisible()
+    const archivedCard = page.locator('[data-source-card="source-pdf-audit"]')
+    await expect(archivedCard.getByRole('heading', { name: 'Synthetic Daily Prices' })).toBeVisible()
+    await expect(archivedCard.locator('.fh-badge').filter({ hasText: /^Disabled$/ })).toBeVisible()
     expect(state.deletePayloads).toEqual([{ expected_source_version: 7, confirmation_name: 'Synthetic Daily Prices' }])
     await screenshot(page, 'source-archived-result-en-1280x720')
   })
@@ -450,10 +453,12 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
     for (const viewport of viewports) {
       await page.setViewportSize(viewport)
       await page.reload()
-      await expect(page.getByRole('heading', { name: 'Data Quality Summary' })).toBeVisible()
-      await expect(page.getByText('Blocking issues')).toBeVisible()
-      await expect(page.getByText('Most common problems')).toBeVisible()
-      await expect(page.getByRole('heading', { name: 'Issue list' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Data Quality', exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Blocking issues 1' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Warnings 1' })).toBeVisible()
+      await expect(page.getByRole('table')).toContainText('Invalid value')
+      await expect(page.getByRole('table')).toContainText('Columns not configured')
+      await expect(page.getByText('View last scan details', { exact: true })).toBeVisible()
       await screenshot(page, `data-quality-issues-en-${viewport.width}x${viewport.height}`)
     }
 
@@ -468,12 +473,14 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
     for (const viewport of viewports) {
       await page.setViewportSize(viewport)
       await page.goto('/diagnostics')
-      await expect(page.getByRole('heading', { name: 'System status' })).toBeVisible()
-      await expect(page.getByText('Requests available now')).toBeVisible()
-      await expect(page.getByText('No wait expected')).toBeVisible()
-      await expect(page.getByText('WooCommerce', { exact: true })).toBeVisible()
-      await expect(page.getByText('SnappShop', { exact: true })).toBeVisible()
-      await expect(page.getByText('Nextcloud synthetic Source', { exact: true })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Diagnostics', exact: true })).toBeVisible()
+      await expect(page.getByRole('region', { name: 'System health' })).toBeVisible()
+      await expect(page.getByText('1 of 2 ready', { exact: true })).toBeVisible()
+      await expect(page.getByText('1 of 1 ready', { exact: true })).toBeVisible()
+      const systemHealth = page.getByRole('region', { name: 'System health' })
+      await expect(systemHealth.getByRole('heading', { name: 'WooCommerce' })).toBeVisible()
+      await expect(systemHealth.getByRole('heading', { name: 'SnappShop' })).toBeVisible()
+      await expect(systemHealth.getByRole('heading', { name: 'Nextcloud synthetic Source' })).toBeVisible()
       await expect(page.getByText('Must not render as Source')).toHaveCount(0)
       await screenshot(page, `diagnostics-summary-en-${viewport.width}x${viewport.height}`)
     }

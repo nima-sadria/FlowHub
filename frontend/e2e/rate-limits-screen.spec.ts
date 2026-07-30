@@ -53,6 +53,7 @@ async function installRateLimitsMocks(page: Page, audit: TrafficAudit) {
     }
     if (url.pathname === '/api/v2/setup/status' && method === 'GET') return json(route, { completed: true })
     if (url.pathname === '/api/health' && method === 'GET') return json(route, { status: 'ok', env: 'test', version: 'rate-limits-visual-mock' })
+    if (url.pathname === '/api/v2/exchange-rates/me' && method === 'GET') return json(route, { selections: [], rates: [] })
     if (url.pathname === '/api/v2/settings/rate-limits' && method === 'GET') {
       return json(route, {
         read_requests_per_minute: 60,
