@@ -1313,8 +1313,9 @@ button.fh-inline-status {
 
 .fh-sources-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 320px));
   gap: 12px;
+  justify-content: start;
 }
 
 .fh-source-card {
@@ -1462,8 +1463,16 @@ button.fh-inline-status {
 
 .fh-channels-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 320px));
   gap: 12px;
+  justify-content: start;
+}
+
+@media (max-width: 640px) {
+  .fh-sources-grid,
+  .fh-channels-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .fh-channel-card {

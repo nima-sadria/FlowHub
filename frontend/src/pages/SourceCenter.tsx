@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../auth'
-import Badge, { type BadgeVariant } from '../components/Badge'
-import BrandIcon from '../components/BrandIcon'
+import type { BadgeVariant } from '../components/Badge'
 import Empty from '../components/Empty'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
+import { ManagementResourceSections } from '../components/ResourceOrdering'
+import OperationalResourceCard, { type OperationalResourceAction, type OperationalResourceState } from '../components/OperationalResourceCard'
 import {
-  commerceSourceSignals,
   prepareResourceCollection,
   type ResourceBadge,
   type ResourceOrderingSignals,
@@ -16,14 +16,15 @@ import {
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 import type { SourceLifecycleImpact, SourceMapping, SourceProfile } from '../features/sourceWorkspace/types'
 import { translate } from '../i18n'
-import { formatDataRole } from '../i18n/display'
-import { formatRelativeTime } from '../i18n/format'
+import { formatDataRole, formatStatus } from '../i18n/display'
+import { formatNumber, formatRelativeTime } from '../i18n/format'
 import { localizedApiError } from '../i18n/errors'
 import { useNotification } from '../notifications/NotificationProvider'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceSource } from '../services/types'
 import { effectiveHasPerm } from '../utils/permissions'
 import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
+import { RESOURCE_QA_SOURCE_ID, resourceQaFixtureState, withConnectedSourceFixture } from '../dev/resourceQaFixtures'
 
 const KIND_LABELS: Record<SourceProfile['sourceKind'], string> = {
   flowhub_sheet: 'sources:sourceCenter.flowhubSheet',
@@ -46,7 +47,13 @@ function sourceIsEnabled(source: SourceProfile): boolean {
 
 function sourceCardSignals(card: SourceCardModel): ResourceOrderingSignals {
   if (!card.profile && card.integration) {
-    return { ...commerceSourceSignals(card.integration), id: card.id, displayName: card.displayName }
+    return {
+      id: card.id,
+      displayName: card.displayName,
+      configured: card.integration.credential_status === 'configured',
+      implemented: card.integration.implemented,
+      placeholder: card.integration.placeholder,
+    }
   }
 
   const source = card.profile as SourceProfile
@@ -57,10 +64,6 @@ function sourceCardSignals(card: SourceCardModel): ResourceOrderingSignals {
   return {
     id: card.id,
     displayName: card.displayName,
-    status: source.status,
-    healthStatus: integration?.health.status,
-    credentialStatus: integration?.credential_status,
-    activityStatuses: [integration?.status, integration?.read_status?.last_read_status],
     enabled: sourceEnabled && integrationAvailable,
     configured: active
       && integrationAvailable
@@ -73,6 +76,9 @@ function sourceCardSignals(card: SourceCardModel): ResourceOrderingSignals {
 
 function sourceCardDescription(card: SourceCardModel): string {
   if (card.profile) return translate(KIND_LABELS[card.profile.sourceKind])
+  if (card.integration?.provider === 'erp' || card.integration?.id === 'erp:api-import') {
+    return translate('sources:sourceCenter.erpApiImportDescription')
+  }
   const rawRole = card.integration?.data_role
   const localizedRole = formatDataRole(rawRole)
   return rawRole && localizedRole !== rawRole
@@ -93,9 +99,8 @@ function sourceBadgeTone(badge: ResourceBadge): BadgeVariant {
 }
 
 function sourceBadgeLabel(badge: ResourceBadge): string {
-  if (badge === 'healthy' || badge === 'configured') return translate('sources:sourceCenter.healthy')
-  if (badge === 'warning') return translate('sources:sourceCenter.needsReview')
-  if (badge === 'disabled') return translate('common:resourceBadge.disabled')
+  if (badge === 'healthy' || badge === 'configured') return translate('common:status.connected')
+  if (badge === 'warning' || badge === 'disabled') return translate('common:status.setupRequired')
   return translate('common:resourceBadge.comingSoon')
 }
 
@@ -103,8 +108,21 @@ function cardUpdatedAt(card: SourceCardModel): string | null {
   return card.profile?.updatedAt ?? card.integration?.read_status?.last_read_at ?? null
 }
 
+function operationalState(tier: ResourceTier): OperationalResourceState {
+  if (tier === 'configured') return 'connected'
+  if (tier === 'comingSoon') return 'comingSoon'
+  return 'setupRequired'
+}
+
+function sourceNeedsOperationalAttention(source: CommerceSource | null): boolean {
+  if (!source) return false
+  return ['degraded', 'error', 'failed', 'partial_failed', 'unhealthy'].includes(source.health.status)
+    || ['failed', 'partial_failed', 'completed_with_errors'].includes(source.read_status?.last_read_status ?? '')
+}
+
 export default function SourceCenter() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { commerce, products } = useServices()
   const { user } = useAuth()
   const notify = useNotification()
@@ -114,6 +132,7 @@ export default function SourceCenter() {
   const [totalProducts, setTotalProducts] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
+  const [partialLoadError, setPartialLoadError] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
   const [creating, setCreating] = useState(false)
   const [query, setQuery] = useState('')
@@ -124,14 +143,20 @@ export default function SourceCenter() {
   const [pendingImpact, setPendingImpact] = useState<SourceLifecycleImpact | null>(null)
   const [checkingImpact, setCheckingImpact] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [testingSourceId, setTestingSourceId] = useState<string | null>(null)
+  const [readingSourceId, setReadingSourceId] = useState<string | null>(null)
   const removalOverlayRef = useRef<HTMLDivElement | null>(null)
   const removalCancelRef = useRef<HTMLButtonElement | null>(null)
   const removalTriggerRef = useRef<HTMLButtonElement | null>(null)
   const removalBusyRef = useRef(false)
   const impactRequestRef = useRef(0)
   const canCreateSources = effectiveHasPerm(user, WORKSPACE_PERMISSION.create)
+  const canEditSources = effectiveHasPerm(user, WORKSPACE_PERMISSION.edit)
   const canManageSources = effectiveHasPerm(user, WORKSPACE_PERMISSION.admin)
   const canManageConnectors = user?.is_admin === true
+  const canViewActivity = effectiveHasPerm(user, WORKSPACE_PERMISSION.readAudit)
+  const canViewDiagnostics = effectiveHasPerm(user, 'can_view_settings')
+  const qaFixture = resourceQaFixtureState(location.search)
 
   const cards = useMemo<SourceCardModel[]>(() => {
     const integrationById = new Map(integrations.map(item => [item.id, item]))
@@ -179,9 +204,14 @@ export default function SourceCenter() {
     [sourceResources],
   )
   const connectedSourcesCount = useMemo(
-    () => cards.filter(card => card.profile !== null).length,
-    [cards],
+    () => sourceResources.ordered.filter(resource => resource.tier === 'configured').length,
+    [sourceResources],
   )
+  const setupRequiredSourcesCount = useMemo(
+    () => sourceResources.ordered.filter(resource => resource.tier === 'attention' || resource.tier === 'disabled').length,
+    [sourceResources],
+  )
+  const filtersActive = query.trim().length > 0 || filter !== 'all'
 
   removalBusyRef.current = deleting
 
@@ -189,6 +219,7 @@ export default function SourceCenter() {
     let active = true
     setLoading(true)
     setLoadError(false)
+    setPartialLoadError(false)
     Promise.allSettled([
       sourceWorkspaceApi.listSources(),
       commerce.getSources(),
@@ -196,18 +227,30 @@ export default function SourceCenter() {
     ])
       .then(([managedResult, integrationResult, productsResult]) => {
         if (!active) return
-        if (managedResult.status === 'fulfilled') setSources(managedResult.value.items)
-        if (integrationResult.status === 'fulfilled') setIntegrations(integrationResult.value.items)
+        let nextSources = managedResult.status === 'fulfilled' ? managedResult.value.items : []
+        let nextIntegrations = integrationResult.status === 'fulfilled' ? integrationResult.value.items : []
+        if (qaFixture === 'empty') {
+          nextSources = []
+          nextIntegrations = nextIntegrations.filter(item => item.placeholder || !item.implemented)
+        } else if (qaFixture === 'connected') {
+          const fixture = withConnectedSourceFixture(nextSources, nextIntegrations)
+          nextSources = fixture.profiles
+          nextIntegrations = fixture.integrations
+        }
+        if (managedResult.status === 'fulfilled' || qaFixture === 'connected' || qaFixture === 'empty') setSources(nextSources)
+        if (integrationResult.status === 'fulfilled' || qaFixture === 'connected' || qaFixture === 'empty') setIntegrations(nextIntegrations)
         if (productsResult.status === 'fulfilled') setTotalProducts(productsResult.value.total)
-        if (managedResult.status === 'rejected' && integrationResult.status === 'rejected') setLoadError(true)
+        const authoritativeUnavailable = managedResult.status === 'rejected' && integrationResult.status === 'rejected'
+        setLoadError(authoritativeUnavailable)
+        setPartialLoadError(qaFixture === 'partial' || (!authoritativeUnavailable && [managedResult, integrationResult, productsResult].some(result => result.status === 'rejected')))
       })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [commerce, products, reloadToken])
+  }, [commerce, products, qaFixture, reloadToken])
 
   useEffect(() => {
     let active = true
-    const managedIds = sources.filter(source => source.mappingVersion > 0).map(source => source.id)
+    const managedIds = sources.filter(source => source.mappingVersion > 0 && source.id !== RESOURCE_QA_SOURCE_ID).map(source => source.id)
     if (managedIds.length === 0) return
     Promise.allSettled(managedIds.map(id => sourceWorkspaceApi.source(id))).then(results => {
       if (!active) return
@@ -316,6 +359,65 @@ export default function SourceCenter() {
     }
   }
 
+  async function reloadIntegrations() {
+    const result = await commerce.getSources()
+    setIntegrations(result.items)
+  }
+
+  async function testSourceConnection(sourceId: string) {
+    if (!canManageConnectors) return
+    setTestingSourceId(sourceId)
+    try {
+      const result = await commerce.testSource(sourceId)
+      if (result.ok) {
+        notify.success({
+          title: translate('commerce:commerceHub.sourceConnectedSuccessfully'),
+          description: translate('commerce:commerceHub.theSourceIsReadyToUse'),
+        })
+      } else {
+        notify.error({
+          title: translate('commerce:commerceHub.unableToConnectToTheSource'),
+          description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+        })
+      }
+      await reloadIntegrations()
+    } catch {
+      notify.error({
+        title: translate('commerce:commerceHub.unableToConnectToTheSource'),
+        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+      })
+    } finally {
+      setTestingSourceId(null)
+    }
+  }
+
+  async function readSourceNow(sourceId: string) {
+    if (!canManageConnectors) return
+    setReadingSourceId(sourceId)
+    try {
+      const result = await commerce.readSource(sourceId)
+      if (result.ok) {
+        notify.success({
+          title: translate('commerce:commerceHub.sourceRefreshedSuccessfully'),
+          description: translate('commerce:commerceHub.rowsLoaded', { count: result.rows_read }),
+        })
+      } else {
+        notify.error({
+          title: translate('commerce:commerceHub.unableToRefreshTheSource'),
+          description: translate('commerce:commerceHub.pleaseTryAgain'),
+        })
+      }
+      await reloadIntegrations()
+    } catch {
+      notify.error({
+        title: translate('commerce:commerceHub.unableToRefreshTheSource'),
+        description: translate('commerce:commerceHub.pleaseTryAgain'),
+      })
+    } finally {
+      setReadingSourceId(null)
+    }
+  }
+
   async function removeSource() {
     if (!pendingDelete) return
     setDeleting(true)
@@ -366,20 +468,17 @@ export default function SourceCenter() {
     }
   }
 
-  function openPrimary(card: SourceCardModel) {
+  function openPrimary(card: SourceCardModel, setup = false) {
     if (card.profile) {
-      if (!sourceIsEnabled(card.profile)) return
-      if (card.profile.sheetId && card.profile.mappingVersion > 0) navigate(`/sheets/${card.profile.sheetId}`)
+      if (setup) navigate(`/sources/${card.profile.id}`)
+      else if (!sourceIsEnabled(card.profile)) navigate(`/sources/${card.profile.id}`)
+      else if (card.profile.sheetId && card.profile.mappingVersion > 0) navigate(`/sheets/${card.profile.sheetId}`)
       else navigate(`/sources/${card.profile.id}`)
       return
     }
-    if (card.integration?.implemented && !card.integration.placeholder) navigate('/commerce?tab=sources')
-  }
-
-  function primaryLabel(card: SourceCardModel): string {
-    if (card.profile?.sheetId && card.profile.mappingVersion > 0) return translate('sources:sourceCenter.openSheet')
-    if (card.profile) return translate('sources:sourceCenter.configureColumns')
-    return translate('sources:sourceCenter.manageExternalSources')
+    if (card.integration?.implemented && !card.integration.placeholder) {
+      navigate(`/commerce?tab=sources&resource=${encodeURIComponent(card.integration.id)}`)
+    }
   }
 
   function worksheetsEnabledCount(card: SourceCardModel): number | null {
@@ -407,7 +506,7 @@ export default function SourceCenter() {
       <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">{translate('sources:sourceCenter.sources')}</h1>
-          <p className="fh-page-subtitle">{translate('sources:sourceCenter.manageProductDataSourcesSubtitle')}</p>
+          <p className="fh-page-subtitle">{translate('sources:sourceCenter.operationalSubtitle')}</p>
         </div>
         {canCreateSources && (
           <button className="fh-button-primary" type="button" onClick={() => setAddPanelOpen(true)}>
@@ -415,6 +514,11 @@ export default function SourceCenter() {
           </button>
         )}
       </div>
+
+      <section className="fh-card fh-card-pad mb-5" aria-label={translate('sources:sourceCenter.operationalFlow')}>
+        <p className="fh-text-body-sm font-semibold text-text-base" dir="ltr">{translate('sources:sourceCenter.operationalFlow')}</p>
+        <p className="fh-text-caption mt-1">{translate('sources:sourceCenter.operationalFlowHelp')}</p>
+      </section>
 
       <div className="fh-sources-kpi-row">
         <div className="fh-kpi-card">
@@ -476,39 +580,115 @@ export default function SourceCenter() {
         </div>
       ) : null}
 
-      {loading ? <p className="fh-card fh-card-pad fh-text-caption">{translate('sources:sourceCenter.loadingSources')}</p> : loadError ? null : visibleCards.length === 0 ? (
-        <div className="fh-card fh-card-pad"><Empty title={translate('sources:sourceCenter.noManagedSourceYetCreateAFlowhub')} description="" /></div>
-      ) : (
-        <div className="fh-sources-grid" data-testid="source-card-groups">
-          {visibleCards.map(resource => {
+      {partialLoadError && !loading ? (
+        <div className="fh-alert fh-alert-warning mb-4" role="status">
+          <Icon name="warning" />
+          <span className="flex-1">
+            <strong className="block">{translate('sources:sourceCenter.partialLoadTitle')}</strong>
+            <span className="fh-text-caption">{translate('sources:sourceCenter.partialLoadDescription')}</span>
+          </span>
+          <button type="button" className="fh-button-secondary fh-button-sm" onClick={() => setReloadToken(value => value + 1)}>{translate('common:action.retry')}</button>
+          {canViewDiagnostics && <button type="button" className="fh-button-secondary fh-button-sm" onClick={() => navigate('/diagnostics')}>{translate('common:action.diagnostics')}</button>}
+        </div>
+      ) : null}
+
+      {!loading && !loadError && !filtersActive && connectedSourcesCount === 0 && setupRequiredSourcesCount === 0 && (
+        <div className="fh-card fh-card-pad mb-5" data-testid="sources-onboarding-empty-state">
+          <Empty
+            title={translate('sources:sourceCenter.noManagedSourceYetCreateAFlowhub')}
+            description={translate('sources:sourceCenter.recommendedForEasierMappingSafeFormulasAnd')}
+            action={canCreateSources ? { label: translate('sources:sources.addSource'), onClick: () => setAddPanelOpen(true) } : undefined}
+          />
+        </div>
+      )}
+
+      {loading ? <p className="fh-card fh-card-pad fh-text-caption" role="status" aria-live="polite" aria-busy="true">{translate('sources:sourceCenter.loadingSources')}</p> : loadError ? null : visibleCards.length === 0 && (filtersActive || cards.length > 0) ? (
+        <div className="fh-card fh-card-pad" data-testid="sources-filter-empty-state">
+          <Empty
+            title={translate('sources:sourceCenter.noSourcesFound')}
+            description={translate('sources:sourceCenter.adjustSearchOrFilters')}
+            action={{ label: translate('sources:sourceCenter.clearFilters'), onClick: () => { setQuery(''); setFilter('all') } }}
+          />
+        </div>
+      ) : visibleCards.length === 0 ? null : (
+        <div data-testid="source-card-groups">
+          <ManagementResourceSections resources={prepareResourceCollection(visibleCards.map(resource => resource.item), sourceCardSignals)} className="fh-sources-grid" renderItem={resource => {
             const card = resource.item
             const source = card.profile
             const integration = card.integration
-            const integrationAvailable = !integration || (integration.implemented && !integration.placeholder)
-            const canOpen = Boolean(resource.section === 'active' && (source
-              ? sourceIsEnabled(source) && integrationAvailable
-              : integration?.implemented && !integration.placeholder))
-            const showConfigureSecondary = Boolean(canOpen && source?.sheetId && source.mappingVersion > 0)
-            const showDelete = Boolean(canOpen && canManageSources && source?.status === 'active')
-            const showMenu = showConfigureSecondary || showDelete
+            const state = operationalState(resource.tier)
+            const canSetup = Boolean(source ? canEditSources : canManageConnectors)
+            const showDelete = Boolean(state === 'connected' && canManageSources && source?.status === 'active')
             const updatedAt = cardUpdatedAt(card)
             const worksheetsEnabled = worksheetsEnabledCount(card)
-            const hasBrandIdentity = Boolean(integration || source?.sourceKind === 'external')
+            const readStatus = integration?.read_status
+            const lastReadAt = readStatus?.last_read_at ?? null
+            const validationStatus = readStatus
+              ? translate('sources:sourceCenter.validationSummary', {
+                warnings: readStatus.last_warning_count ?? 0,
+                errors: readStatus.last_error_count ?? 0,
+              })
+              : source?.mappingVersion
+                ? translate('sources:sourceCenter.mappingReady')
+                : translate('sources:sourceCenter.mappingRequired')
+            const setupReason = source && !sourceIsEnabled(source)
+              ? translate('sources:sourceCenter.setupReasonDisabled')
+              : integration && integration.credential_status !== 'configured'
+                ? translate('sources:sourceCenter.setupReasonConnection')
+                : translate('sources:sourceCenter.setupReasonMapping')
+            const facts = state === 'comingSoon' ? [] : state === 'setupRequired'
+              ? [
+                { label: translate('sources:sourceCenter.sourceTypeLabel'), value: sourceCardDescription(card) },
+                { label: translate('sources:sourceCenter.validationStatus'), value: validationStatus },
+              ]
+              : [
+                { label: translate('sources:sourceCenter.sourceTypeLabel'), value: sourceCardDescription(card) },
+                { label: translate('sources:sourceCenter.healthLabel'), value: formatStatus(integration?.health.status ?? source?.status) },
+                { label: translate('sources:sourceCenter.lastSuccessfulRead'), value: lastReadAt ? formatRelativeTime(lastReadAt) : translate('sources:sourceCenter.notReadYet') },
+                ...(readStatus?.last_row_count !== null && readStatus?.last_row_count !== undefined
+                  ? [{ label: translate('sources:sourceCenter.recordsImported'), value: formatNumber(readStatus.last_row_count) }]
+                  : []),
+                { label: translate('sources:sourceCenter.validationStatus'), value: validationStatus },
+                { label: translate('sources:sourceCenter.dataFreshness'), value: lastReadAt || updatedAt ? formatRelativeTime((lastReadAt ?? updatedAt) as string) : translate('sources:sourceCenter.notReadYet') },
+                ...(worksheetsEnabled !== null
+                  ? [{ label: translate('sources:sourceConfiguration.worksheet'), value: translate('sources:sourceCenter.worksheetsEnabledCount', { count: worksheetsEnabled }) }]
+                  : []),
+                ...(readStatus ? [{ label: translate('sources:sourceCenter.readsRemaining'), value: readStatus.reads_remaining }] : []),
+              ]
+            const actions: OperationalResourceAction[] = state === 'setupRequired'
+              ? canSetup ? [{ label: translate('common:action.setupNow'), primary: true, onClick: () => openPrimary(card, true) }] : []
+              : state === 'comingSoon' ? [] : [
+                { label: translate('common:action.open'), onClick: () => openPrimary(card) },
+                ...(integration && canManageConnectors
+                  ? [{ label: testingSourceId === integration.id ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection'), disabled: testingSourceId === integration.id, onClick: () => void testSourceConnection(integration.id) }]
+                  : []),
+                ...(integration && canManageConnectors && (readStatus?.manual_read_allowed ?? integration.read_policy?.manual_read_allowed)
+                  ? [{ label: readingSourceId === integration.id ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow'), disabled: readingSourceId === integration.id, onClick: () => void readSourceNow(integration.id) }]
+                  : []),
+                ...(source ? [{ label: translate('common:action.mapping'), onClick: () => navigate(`/sources/${source.id}`) }] : []),
+                ...(canViewActivity ? [{ label: translate('common:action.viewActivity'), onClick: () => navigate(`/activity?source=${encodeURIComponent(integration?.id ?? source?.id ?? card.id)}`) }] : []),
+                ...(canViewDiagnostics ? [{ label: translate('common:action.diagnostics'), onClick: () => navigate(`/diagnostics#source-${integration?.id ?? source?.id ?? card.id}`) }] : []),
+              ]
             return (
-              <article
-                className="fh-source-card"
-                data-source-card={card.id}
-                data-resource-id={card.id}
-                data-resource-section={resource.section}
-                key={card.id}
-                title={sourceCardDescription(card)}
-              >
-                <div className="fh-source-card-head">
-                  {hasBrandIdentity
-                    ? <BrandIcon identity={{ provider: integration?.provider ?? source?.externalSourceId, sourceType: source?.sourceKind }} label={card.displayName} size={36} />
-                    : <span className="fh-source-card-icon"><Icon name="sources" size="md" /></span>}
-                  <h2 className="fh-source-card-name">{card.displayName}</h2>
-                  {showMenu && (
+              <OperationalResourceCard
+                resourceId={card.id}
+                resourceType="source"
+                provider={integration?.provider ?? source?.externalSourceId}
+                sourceType={source?.sourceKind}
+                name={card.displayName}
+                description={sourceCardDescription(card)}
+                state={state}
+                statusLabel={sourceBadgeLabel(resource.badge)}
+                statusVariant={sourceBadgeTone(resource.badge)}
+                statusDetail={state === 'connected' && updatedAt ? `${translate('sources:sourceCenter.updatedPrefix')} ${formatRelativeTime(updatedAt)}` : undefined}
+                facts={facts}
+                issue={state === 'setupRequired'
+                  ? setupReason
+                  : sourceNeedsOperationalAttention(integration)
+                    ? `${formatStatus(integration?.health.status)} · ${formatStatus(integration?.read_status?.last_read_status)}`
+                    : undefined}
+                actions={actions}
+                headerAction={showDelete ? (
                     <div className="fh-menu-anchor" data-source-menu>
                       <button
                         className="fh-row-actions-trigger"
@@ -522,54 +702,26 @@ export default function SourceCenter() {
                       </button>
                       {openMenuId === card.id && source && (
                         <div className="fh-dropdown fh-row-actions-menu" role="menu">
-                          {showConfigureSecondary && (
-                            <button className="fh-dropdown-item" type="button" role="menuitem" onClick={() => { setOpenMenuId(null); navigate(`/sources/${source.id}`) }}>
-                              {translate('sources:sourceCenter.configureColumns')}
-                            </button>
-                          )}
-                          {showDelete && (
-                            <button
-                              className="fh-dropdown-item"
-                              type="button"
-                              role="menuitem"
-                              onClick={event => {
-                                removalTriggerRef.current = event.currentTarget
-                                  .closest('[data-source-card]')
-                                  ?.querySelector<HTMLButtonElement>('[data-source-menu-trigger]') ?? null
-                                void openRemoval(source)
-                              }}
-                            >
-                              <Icon name="delete" /> {translate('sources:sourceCenter.deleteSource')}
-                            </button>
-                          )}
+                          <button
+                            className="fh-dropdown-item"
+                            type="button"
+                            role="menuitem"
+                            onClick={event => {
+                              removalTriggerRef.current = event.currentTarget
+                                .closest('[data-source-card]')
+                                ?.querySelector<HTMLButtonElement>('[data-source-menu-trigger]') ?? null
+                              void openRemoval(source)
+                            }}
+                          >
+                            <Icon name="delete" /> {translate('sources:sourceCenter.deleteSource')}
+                          </button>
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-
-                <div className="fh-source-card-row">
-                  <Badge dot variant={sourceBadgeTone(resource.badge)}>{sourceBadgeLabel(resource.badge)}</Badge>
-                  {updatedAt && <span className="fh-text-caption">{translate('sources:sourceCenter.updatedPrefix')} {formatRelativeTime(updatedAt)}</span>}
-                </div>
-
-                <div className="fh-source-card-row">
-                  <span className="fh-text-caption">
-                    {worksheetsEnabled === null
-                      ? resource.section === 'comingSoon'
-                        ? translate('common:status.unavailable')
-                        : translate('sources:sourceConfiguration.loading')
-                      : translate('sources:sourceCenter.worksheetsEnabledCount', { count: worksheetsEnabled })}
-                  </span>
-                  {canOpen && (
-                    <button className="fh-source-card-configure" type="button" onClick={() => openPrimary(card)}>
-                      {primaryLabel(card)}
-                    </button>
-                  )}
-                </div>
-              </article>
+                  ) : undefined}
+              />
             )
-          })}
+          }} />
         </div>
       )}
 

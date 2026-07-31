@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { changeLocale } from '../i18n'
 import { prepareResourceCollection, type ResourceOrderingSignals } from '../features/resourceOrdering/resourceOrdering'
-import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from './ResourceOrdering'
+import { ManagementResourceSections, ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from './ResourceOrdering'
 
 interface Fixture {
   id: string
@@ -117,5 +117,16 @@ describe('ResourceSectionList', () => {
     ))).toEqual(['active', 'warning', 'disabled', 'coming-soon'])
     expect(container.textContent).not.toContain('Coming Soon')
     expect(container.querySelector('[data-resource-section="active"]')?.getAttribute('aria-label')).not.toBe('Active')
+  })
+})
+
+describe('ManagementResourceSections', () => {
+  it('uses h2 group headings so card titles can nest at h3', () => {
+    act(() => {
+      root.render(<ManagementResourceSections resources={resources} renderItem={item => <h3>{item.displayName}</h3>} />)
+    })
+
+    expect(container.querySelectorAll('[data-resource-section] > h2')).toHaveLength(3)
+    expect(container.querySelectorAll('[data-resource-section] h3')).toHaveLength(4)
   })
 })

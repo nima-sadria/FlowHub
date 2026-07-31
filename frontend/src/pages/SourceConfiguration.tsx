@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { ApiError } from '../api/client'
 import Icon from '../components/Icon'
 import BrandIcon from '../components/BrandIcon'
 import PageShell from '../components/PageShell'
@@ -37,9 +38,9 @@ interface PendingWorksheetCopy {
   destinationWorksheetNames: string[]
 }
 
-function ConfigurationSection({ title, description, defaultOpen = false, children }: { title: string; description?: string; defaultOpen?: boolean; children: ReactNode }) {
+function ConfigurationSection({ id, title, description, defaultOpen = false, children }: { id?: string; title: string; description?: string; defaultOpen?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(defaultOpen)
-  return <details className="fh-card group" open={open} onToggle={event => {
+  return <details id={id} className="fh-card group scroll-mt-4" open={open} onToggle={event => {
     const next = event.currentTarget.open
     if (next !== open) setOpen(next)
   }}>
@@ -190,7 +191,12 @@ export default function SourceConfiguration() {
   const { user } = useAuth()
   const canCreateWorkspace = effectiveHasPerm(user, WORKSPACE_PERMISSION.create)
   const canEditSource = effectiveHasPerm(user, WORKSPACE_PERMISSION.edit)
+  const canViewActivity = effectiveHasPerm(user, WORKSPACE_PERMISSION.readAudit)
+  const canViewDiagnostics = effectiveHasPerm(user, 'can_view_settings')
   const [source, setSource] = useState<(SourceProfile & { mapping: SourceMapping | null }) | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadFailure, setLoadFailure] = useState<{ notFound: boolean; reason: string } | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
   const [channels, setChannels] = useState<SourceChannel[]>([])
   const [sourceFields, setSourceFields] = useState<FieldMapping[]>(SOURCE_FIELDS.map(([field, _label, required]) => emptyMapping(field, required)))
   const [channelFields, setChannelFields] = useState<Record<string, FieldMapping[]>>({})
@@ -224,6 +230,9 @@ export default function SourceConfiguration() {
 
   useEffect(() => {
     let active = true
+    setLoading(true)
+    setLoadFailure(null)
+    setSource(null)
     Promise.all([sourceWorkspaceApi.source(sourceId), sourceWorkspaceApi.channels()]).then(([loaded, available]) => {
       if (!active) return
       setSource(loaded)
@@ -281,13 +290,16 @@ export default function SourceConfiguration() {
       }
       setBaselineFingerprint(null)
     }).catch(error => {
-      notify.error({
-        title: translate('sources:sourceConfiguration.sourceConfigurationUnavailable'),
-        description: localizedApiError(error, 'sources:sourceConfiguration.tryAgain'),
+      if (!active) return
+      setLoadFailure({
+        notFound: error instanceof ApiError && error.status === 404,
+        reason: localizedApiError(error, 'sources:sourceConfiguration.tryAgain'),
       })
+    }).finally(() => {
+      if (active) setLoading(false)
     })
     return () => { active = false }
-  }, [notify, sourceId])
+  }, [reloadToken, sourceId])
 
   const configurationFingerprint = useMemo(() => JSON.stringify({
     sourceFields,
@@ -656,8 +668,41 @@ export default function SourceConfiguration() {
     [channels, configuredChannelIds],
   )
 
-  if (!source) {
-    return <PageShell><p className="fh-card fh-card-pad">{translate('sources:sourceConfiguration.loadingSourceConfiguration')}</p></PageShell>
+  if (loading) {
+    return <PageShell><p className="fh-card fh-card-pad" role="status" aria-live="polite" aria-busy="true">{translate('sources:sourceConfiguration.loadingSourceConfiguration')}</p></PageShell>
+  }
+
+  if (loadFailure || !source) {
+    const notFound = loadFailure?.notFound === true
+    return (
+      <PageShell>
+        <section className="fh-card fh-card-pad" role="alert" aria-busy="false">
+          <h1 className="fh-page-title">
+            {notFound
+              ? translate('sources:sourceConfiguration.sourceNotFound')
+              : translate('sources:sourceConfiguration.sourceConfigurationUnavailable')}
+          </h1>
+          <p className="fh-page-subtitle mt-2">
+            {loadFailure?.reason ?? translate('sources:sourceConfiguration.loadFailureDescription')}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button className="fh-button-primary" type="button" onClick={() => navigate('/sources')}>
+              {translate('sources:sourceConfiguration.backToSources')}
+            </button>
+            {!notFound && (
+              <button className="fh-button-secondary" type="button" onClick={() => setReloadToken(current => current + 1)}>
+                {translate('common:action.retry')}
+              </button>
+            )}
+            {canViewDiagnostics && (
+              <button className="fh-button-secondary" type="button" onClick={() => navigate(`/diagnostics#source-${encodeURIComponent(sourceId)}`)}>
+                {translate('common:action.diagnostics')}
+              </button>
+            )}
+          </div>
+        </section>
+      </PageShell>
+    )
   }
 
   const previewSummary = preview?.businessSummary ?? null
@@ -695,17 +740,30 @@ export default function SourceConfiguration() {
         )}
       </div>
 
+      <nav className="mb-5 flex gap-2 overflow-x-auto pb-1" aria-label={translate('sources:sourceConfiguration.sourceName')}>
+        {[
+          ['overview', 'sources:sourceConfiguration.detail.overview'],
+          ['connection', 'sources:sourceConfiguration.detail.connection'],
+          ['data-mapping', 'sources:sourceConfiguration.detail.dataMapping'],
+          ['normalization', 'sources:sourceConfiguration.detail.normalization'],
+          ['validation', 'sources:sourceConfiguration.detail.validation'],
+          ['snapshots', 'sources:sourceConfiguration.detail.snapshots'],
+          ['activity', 'sources:sourceConfiguration.detail.activity'],
+          ['diagnostics', 'sources:sourceConfiguration.detail.diagnostics'],
+        ].map(([id, label]) => <a className="fh-button-secondary fh-button-sm whitespace-nowrap" href={`#${id}`} key={id}>{translate(label)}</a>)}
+      </nav>
+
       {!canEditSource && <div className="fh-alert fh-alert-info mb-5" role="status"><Icon name="info" /><span>{translate('sources:sourceConfiguration.readOnlyPermission')}</span></div>}
 
       <div className="mb-5 grid gap-3">
-        <ConfigurationSection title={translate('sources:sourceConfiguration.section.general')} description={translate('sources:sourceConfiguration.section.generalHelp')} defaultOpen>
+        <ConfigurationSection id="overview" title={translate('sources:sourceConfiguration.section.general')} description={translate('sources:sourceConfiguration.section.generalHelp')} defaultOpen>
           <dl className="grid gap-3 sm:grid-cols-3">
             <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceName')}</dt><dd className="font-medium text-text-base">{source.name}</dd></div>
             <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceType')}</dt><dd className="font-medium text-text-base">{source.sourceKind === 'flowhub_sheet' ? translate('sources:sourceCenter.flowhubSheet') : source.sourceKind === 'imported_sheet' ? translate('sources:sourceCenter.importedSpreadsheet') : translate('sources:sourceCenter.linkedExternalSource')}</dd></div>
             <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.columnSetupStatus')}</dt><dd><span className={`fh-badge ${source.mapping ? 'fh-badge-success' : 'fh-badge-warning'}`}>{source.mapping ? translate('common:status.ready') : translate('sources:sourceConfiguration.notConfigured')}</span></dd></div>
           </dl>
         </ConfigurationSection>
-        <ConfigurationSection title={translate('sources:sourceConfiguration.section.connection')} description={translate('sources:sourceConfiguration.section.connectionHelp')} defaultOpen>
+        <ConfigurationSection id="connection" title={translate('sources:sourceConfiguration.section.connection')} description={translate('sources:sourceConfiguration.section.connectionHelp')} defaultOpen>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <BrandIcon
               identity={{ provider: source.externalSourceId, sourceType: source.sourceKind }}
@@ -730,7 +788,7 @@ export default function SourceConfiguration() {
         </section>
       )}
 
-      <fieldset className="contents" disabled={!canEditSource}>
+      <fieldset className="contents" id="data-mapping" disabled={!canEditSource}>
       <ConfigurationSection title={translate('sources:sourceConfiguration.worksheetRules')} description={translate('sources:sourceConfiguration.worksheetRulesSectionHelp')}>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'shared' ? 'border-accent bg-accent/5' : 'border-border'}`} title={translate('sources:sourceConfiguration.sharedWorksheetRulesHelp')}>
@@ -876,7 +934,7 @@ export default function SourceConfiguration() {
           }} />
           </div>
         </ConfigurationSection>
-        <ConfigurationSection title={translate('sources:sourceConfiguration.section.valueHandling')} description={translate('sources:sourceConfiguration.section.valueHandlingHelp')}>
+        <ConfigurationSection id="normalization" title={translate('sources:sourceConfiguration.section.valueHandling')} description={translate('sources:sourceConfiguration.section.valueHandlingHelp')}>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Object.entries(POLICY_OPTIONS).map(([key, options]) => (
               <label className="fh-field-label capitalize" key={key}>
@@ -957,7 +1015,7 @@ export default function SourceConfiguration() {
         </ConfigurationSection>
       </div>}
 
-      <section className="fh-card mt-5" aria-label={translate('sources:sourceConfiguration.sourcePreview')}>
+      <section className="fh-card mt-5 scroll-mt-4" id="validation" aria-label={translate('sources:sourceConfiguration.sourcePreview')}>
         <div className="fh-panel-header">
           <div>
             <h2 className="fh-section-title">{translate('sources:sourceConfiguration.sourcePreview')}</h2>
@@ -1023,13 +1081,28 @@ export default function SourceConfiguration() {
       </section>
       </fieldset>
 
-      <div className="sticky bottom-3 z-30 mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-bg-base/95 p-3 shadow-lg backdrop-blur" data-testid="source-configuration-actions">
+      <div className="mt-5 grid gap-3 lg:grid-cols-3">
+        <section className="fh-card fh-card-pad scroll-mt-4" id="snapshots">
+          <h2 className="fh-section-title">{translate('sources:sourceConfiguration.detail.snapshots')}</h2>
+          <p className="fh-text-caption mt-2">{translate('sources:sourceConfiguration.detail.snapshotsHelp')}</p>
+        </section>
+        <section className="fh-card fh-card-pad scroll-mt-4" id="activity">
+          <h2 className="fh-section-title">{translate('sources:sourceConfiguration.detail.activity')}</h2>
+          {canViewActivity && <button className="fh-button-secondary mt-4" type="button" onClick={() => navigate(`/activity?source=${encodeURIComponent(source.externalSourceId ?? source.id)}`)}>{translate('common:action.viewActivity')}</button>}
+        </section>
+        <section className="fh-card fh-card-pad scroll-mt-4" id="diagnostics">
+          <h2 className="fh-section-title">{translate('sources:sourceConfiguration.detail.diagnostics')}</h2>
+          {canViewDiagnostics && <button className="fh-button-secondary mt-4" type="button" onClick={() => navigate(`/diagnostics#source-${source.externalSourceId ?? source.id}`)}>{translate('common:action.diagnostics')}</button>}
+        </section>
+      </div>
+
+      <div className="sticky bottom-2 z-30 mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-bg-base/95 p-2 shadow-lg backdrop-blur sm:bottom-3 sm:gap-3 sm:p-3" data-testid="source-configuration-actions">
         <span className={`fh-badge ${dirty ? 'fh-badge-warning' : 'fh-badge-success'}`}>{dirty ? translate('sources:sourceConfiguration.unsavedChanges') : translate('sources:sourceConfiguration.allChangesSaved')}</span>
-        <span className="fh-text-caption">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
-        <div className="ms-auto flex flex-wrap gap-2">
-          {canEditSource && <button className="fh-button-secondary" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>}
-          {canEditSource && <button className="fh-button-primary" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
-          <button className="fh-button-secondary" type="button" onClick={closeConfiguration}><Icon name="close" /> {translate('sources:sourceConfiguration.close')}</button>
+        <span className="fh-text-caption hidden sm:inline">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
+        <div className="order-last flex w-full flex-nowrap gap-2 overflow-x-auto pb-1 sm:order-none sm:ms-auto sm:w-auto sm:flex-wrap sm:overflow-visible sm:pb-0">
+          {canEditSource && <button className="fh-button-secondary fh-button-sm shrink-0" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>}
+          {canEditSource && <button className="fh-button-primary fh-button-sm shrink-0" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
+          <button className="fh-button-secondary fh-button-sm shrink-0" type="button" onClick={closeConfiguration}><Icon name="close" /> {translate('sources:sourceConfiguration.close')}</button>
         </div>
       </div>
 

@@ -1,23 +1,29 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../auth'
-import Badge, { type BadgeVariant } from '../components/Badge'
-import BrandIcon from '../components/BrandIcon'
+import type { BadgeVariant } from '../components/Badge'
 import Empty from '../components/Empty'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
+import { ManagementResourceSections } from '../components/ResourceOrdering'
+import OperationalResourceCard, { type OperationalResourceAction, type OperationalResourceState } from '../components/OperationalResourceCard'
 import {
-  commerceChannelSignals,
   prepareResourceCollection,
   type ResourceBadge,
+  type ResourceOrderingSignals,
   type ResourceTier,
 } from '../features/resourceOrdering/resourceOrdering'
 import { translate } from '../i18n'
+import { formatCapabilityList, formatStatus } from '../i18n/display'
 import { formatNumber, formatRelativeTime } from '../i18n/format'
 import { inputHint } from '../utils/inputHint'
 import { useNotification } from '../notifications/NotificationProvider'
 import { useServices } from '../services/ServiceContext'
-import type { CommerceChannel } from '../services/types'
+import type { CommerceChannel, CommerceTypeOption } from '../services/types'
+import { effectiveHasPerm } from '../utils/permissions'
+import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
+import { ConfigPanel } from './CommerceHub'
+import { resourceQaFixtureState, withConnectedChannelFixture } from '../dev/resourceQaFixtures'
 
 type ChannelFilter = 'all' | 'active' | 'attention' | 'disabled' | 'comingSoon'
 
@@ -34,10 +40,31 @@ function channelBadgeTone(badge: ResourceBadge): BadgeVariant {
 }
 
 function channelBadgeLabel(badge: ResourceBadge): string {
-  if (badge === 'healthy' || badge === 'configured') return translate('commerce:commerceHub.channelHealthy')
-  if (badge === 'warning') return translate('commerce:commerceHub.needsReview')
-  if (badge === 'disabled') return translate('common:resourceBadge.disabled')
+  if (badge === 'healthy' || badge === 'configured') return translate('common:status.connected')
+  if (badge === 'warning' || badge === 'disabled') return translate('common:status.setupRequired')
   return translate('common:resourceBadge.comingSoon')
+}
+
+function channelLifecycleSignals(channel: CommerceChannel): ResourceOrderingSignals {
+  return {
+    id: channel.id,
+    displayName: channel.name,
+    enabled: channel.status !== 'disabled' && channel.status !== 'inactive',
+    configured: channel.credential_status === 'configured',
+    implemented: channel.implemented,
+    placeholder: channel.placeholder,
+  }
+}
+
+function operationalState(tier: ResourceTier): OperationalResourceState {
+  if (tier === 'configured') return 'connected'
+  if (tier === 'comingSoon') return 'comingSoon'
+  return 'setupRequired'
+}
+
+function channelNeedsOperationalAttention(channel: CommerceChannel): boolean {
+  return ['degraded', 'error', 'failed', 'partial_failed', 'unhealthy'].includes(channel.health.status)
+    || ['failed', 'partial_failed', 'completed_with_errors'].includes(channel.cache_refresh_status)
 }
 
 function todayIsoDate(): string {
@@ -49,18 +76,31 @@ export default function Channels() {
   const { user } = useAuth()
   const notify = useNotification()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [channels, setChannels] = useState<CommerceChannel[]>([])
+  const [channelTypes, setChannelTypes] = useState<CommerceTypeOption[]>([])
+  const [setupLoading, setSetupLoading] = useState(false)
+  const [setupError, setSetupError] = useState(false)
   const [ordersToday, setOrdersToday] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
+  const [partialLoadError, setPartialLoadError] = useState(false)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<ChannelFilter>('all')
   const [testingId, setTestingId] = useState<string | null>(null)
   const [refreshingId, setRefreshingId] = useState<string | null>(null)
+  const setupDialogRef = useRef<HTMLDivElement | null>(null)
+  const setupTriggerRef = useRef<HTMLElement | null>(null)
   const canManageCommerce = user?.is_admin === true
+  const canViewActivity = effectiveHasPerm(user, WORKSPACE_PERMISSION.readAudit)
+  const canViewDiagnostics = effectiveHasPerm(user, 'can_view_settings')
+  const setupTarget = searchParams.get('setup')
+  const setupResourceId = setupTarget && setupTarget !== 'new' ? setupTarget : null
+  const qaFixture = resourceQaFixtureState(`?${searchParams.toString()}`)
+  const setupResourceUnavailable = Boolean(setupResourceId && channelTypes.length > 0 && !channelTypes.some(item => item.id === setupResourceId))
 
   const channelResources = useMemo(
-    () => prepareResourceCollection(channels, commerceChannelSignals),
+    () => prepareResourceCollection(channels, channelLifecycleSignals),
     [channels],
   )
   const visibleChannels = useMemo(() => {
@@ -72,36 +112,117 @@ export default function Channels() {
         || resource.item.provider.toLocaleLowerCase().includes(normalizedQuery))
   }, [channelResources, filter, query])
   const needsAttentionCount = useMemo(
-    () => channelResources.ordered.filter(resource => resource.tier === 'attention').length,
+    () => channelResources.ordered.filter(resource => resource.tier === 'attention' || resource.tier === 'disabled').length,
     [channelResources],
   )
   const connectedChannelsCount = useMemo(
-    () => channelResources.ordered.filter(resource => resource.tier !== 'comingSoon').length,
+    () => channelResources.ordered.filter(resource => resource.tier === 'configured').length,
     [channelResources],
   )
   const healthyListingsTotal = useMemo(
-    () => channels.reduce((sum, channel) => sum + (channel.cached_products || 0), 0),
-    [channels],
+    () => channelResources.ordered
+      .filter(resource => resource.tier === 'configured')
+      .reduce((sum, resource) => sum + (resource.item.cached_products || 0), 0),
+    [channelResources],
   )
 
   async function load() {
     setLoading(true)
     setLoadError(false)
+    setPartialLoadError(false)
     try {
       const today = todayIsoDate()
       const [channelsResult, ordersResult] = await Promise.allSettled([
         commerce.getChannels(),
         orders ? orders.getOrders({ page: 1, pageSize: 1, dateFrom: today, dateTo: today }) : Promise.resolve(null),
       ])
-      if (channelsResult.status === 'fulfilled') setChannels(channelsResult.value.items)
+      if (channelsResult.status === 'fulfilled') {
+        setChannels(qaFixture === 'connected'
+          ? withConnectedChannelFixture(channelsResult.value.items)
+          : qaFixture === 'empty'
+            ? []
+            : channelsResult.value.items)
+      }
       else setLoadError(true)
       if (ordersResult.status === 'fulfilled' && ordersResult.value) setOrdersToday(ordersResult.value.total)
+      if (qaFixture === 'partial' || (channelsResult.status === 'fulfilled' && ordersResult.status === 'rejected')) setPartialLoadError(true)
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { void load() }, [commerce, orders])
+  useEffect(() => { void load() }, [commerce, orders, qaFixture])
+
+  useEffect(() => {
+    if (!setupTarget || !canManageCommerce) return
+    let active = true
+    setSetupLoading(true)
+    setSetupError(false)
+    commerce.getChannelTypes()
+      .then(result => {
+        if (active) setChannelTypes(result.items)
+      })
+      .catch(() => {
+        if (active) setSetupError(true)
+      })
+      .finally(() => {
+        if (active) setSetupLoading(false)
+      })
+    return () => { active = false }
+  }, [canManageCommerce, commerce, setupTarget])
+
+  useEffect(() => {
+    if (!setupTarget) return
+    function handleDialogKeys(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeSetup()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(setupDialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href]') ?? [])
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', handleDialogKeys)
+    return () => window.removeEventListener('keydown', handleDialogKeys)
+  }, [setupTarget])
+
+  useEffect(() => {
+    if (!setupTarget) return
+    const frame = window.requestAnimationFrame(() => {
+      const dialog = setupDialogRef.current
+      if (!dialog || dialog.contains(document.activeElement)) return
+      dialog.querySelector<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled])')?.focus()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [channelTypes.length, setupError, setupLoading, setupTarget])
+
+  function openSetup(resourceId?: string) {
+    setupTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const next = new URLSearchParams(searchParams)
+    next.set('setup', resourceId ?? 'new')
+    setSearchParams(next)
+  }
+
+  function closeSetup() {
+    const next = new URLSearchParams(searchParams)
+    next.delete('setup')
+    setSearchParams(next, { replace: true })
+    window.requestAnimationFrame(() => setupTriggerRef.current?.focus())
+  }
+
+  async function handleSetupSaved() {
+    await load()
+    closeSetup()
+  }
 
   async function handleTest(channelId: string) {
     if (!canManageCommerce) {
@@ -171,14 +292,19 @@ export default function Channels() {
       <div className="fh-page-header">
         <div>
           <h1 className="fh-page-title">{translate('commerce:commerceHub.channels2')}</h1>
-          <p className="fh-page-subtitle">{translate('commerce:commerceHub.commerceSystemsThatReceiveCatalogVisibilityFrom')}</p>
+          <p className="fh-page-subtitle">{translate('commerce:commerceHub.channelOperationalSubtitle')}</p>
         </div>
         {canManageCommerce && (
-          <button className="fh-button-primary" type="button" onClick={() => navigate('/commerce?tab=channels')}>
+          <button className="fh-button-primary" type="button" onClick={() => openSetup()}>
             <Icon name="add" /> {translate('commerce:commerceHub.addChannel')}
           </button>
         )}
       </div>
+
+      <section className="fh-card fh-card-pad mb-5" aria-label={translate('commerce:commerceHub.channelOperationalFlow')}>
+        <p className="fh-text-body-sm font-semibold text-text-base" dir="ltr">{translate('commerce:commerceHub.channelOperationalFlow')}</p>
+        <p className="fh-text-caption mt-1">{translate('commerce:commerceHub.channelOperationalFlowHelp')}</p>
+      </section>
 
       <div className="fh-channels-kpi-row">
         <div className="fh-kpi-card">
@@ -253,59 +379,125 @@ export default function Channels() {
         </div>
       ) : null}
 
-      {loading ? <p className="fh-card fh-card-pad fh-text-caption">{translate('commerce:commerceHub.loadingCommerceHub')}</p> : loadError ? null : visibleChannels.length === 0 ? (
-        <div className="fh-card fh-card-pad"><Empty title={translate('commerce:commerceHub.noChannelsFound')} description="" /></div>
+      {partialLoadError && !loading ? (
+        <div className="fh-alert fh-alert-warning mb-4" role="status">
+          <Icon name="warning" />
+          <span className="flex-1">
+            <strong className="block">{translate('commerce:commerceHub.partialLoadTitle')}</strong>
+            <span className="fh-text-caption">{translate('commerce:commerceHub.partialLoadDescription')}</span>
+          </span>
+          <button type="button" className="fh-button-secondary fh-button-sm" onClick={() => void load()}>{translate('common:action.retry')}</button>
+          {canViewDiagnostics && <button type="button" className="fh-button-secondary fh-button-sm" onClick={() => navigate('/diagnostics')}>{translate('common:action.diagnostics')}</button>}
+        </div>
+      ) : null}
+
+      {loading ? <p className="fh-card fh-card-pad fh-text-caption" role="status" aria-live="polite" aria-busy="true">{translate('commerce:commerceHub.loadingCommerceHub')}</p> : loadError ? null : visibleChannels.length === 0 ? (
+        <div className="fh-card fh-card-pad"><Empty title={translate('commerce:commerceHub.noChannelsFound')} description={translate('commerce:commerceHub.channelOperationalSubtitle')} action={canManageCommerce ? { label: translate('commerce:commerceHub.addChannel'), onClick: () => openSetup() } : undefined} /></div>
       ) : (
-        <div className="fh-channels-grid">
-          {visibleChannels.map(resource => {
-            const channel = resource.item
-            const canOpen = resource.section === 'active'
-            const supportsProductCache = ['woocommerce', 'snappshop'].includes(channel.provider) && !channel.placeholder
-            const isConfigurable = canManageCommerce && channel.implemented && !channel.placeholder && ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider)
-            return (
-              <article className="fh-channel-card" data-channel-card={channel.id} key={channel.id}>
-                <div className="fh-channel-card-head">
-                  <BrandIcon identity={{ provider: channel.provider }} label={channel.name} size={36} />
-                  <h2 className="fh-channel-card-name">{channel.name}</h2>
-                </div>
+        <ManagementResourceSections resources={prepareResourceCollection(visibleChannels.map(resource => resource.item), channelLifecycleSignals)} className="fh-sources-grid fh-channels-grid" renderItem={resource => {
+          const channel = resource.item
+          const state = operationalState(resource.tier)
+          const supportsProductCache = ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider) && !channel.placeholder
+          const lastActivityAt = channel.last_cache_refresh ?? channel.last_health_check
+          const accessMode = channel.read_only || channel.write_blocked
+            ? translate('commerce:commerceHub.readOnly2')
+            : translate('commerce:commerceHub.writeEnabled2')
+          const capabilities = channel.capabilities_summary.length > 0
+            ? formatCapabilityList(channel.capabilities_summary.slice(0, 3))
+            : translate('common:status.unavailable')
+          const setupReason = channel.status === 'disabled' || channel.status === 'inactive'
+            ? translate('commerce:commerceHub.setupReasonDisabled')
+            : translate('commerce:commerceHub.setupReasonCredentials')
+          const facts = state === 'comingSoon' ? [] : state === 'setupRequired'
+            ? [
+              { label: translate('commerce:commerceHub.accessMode'), value: accessMode },
+              { label: translate('commerce:commerceHub.setupState'), value: formatStatus(channel.configuration_state ?? channel.credential_status) },
+            ]
+            : [
+              { label: translate('commerce:commerceHub.accessMode'), value: accessMode },
+              { label: translate('commerce:commerceHub.channelHealthLabel'), value: formatStatus(channel.health.status) },
+              { label: translate('commerce:commerceHub.channelLastActivity'), value: lastActivityAt ? formatRelativeTime(lastActivityAt) : translate('commerce:commerceHub.noRecentActivity') },
+              { label: translate('commerce:commerceHub.cachedProducts'), value: formatNumber(channel.cached_products) },
+              { label: translate('commerce:commerceHub.channelCapabilitiesLabel'), value: capabilities },
+              ...(channel.cached_variations > 0 ? [{ label: translate('commerce:commerceHub.cachedVariations'), value: formatNumber(channel.cached_variations) }] : []),
+            ]
+          const actions: OperationalResourceAction[] = state === 'setupRequired'
+            ? canManageCommerce ? [{ label: translate('common:action.setupNow'), primary: true, onClick: () => openSetup(channel.id) }] : []
+            : state === 'comingSoon' ? [] : [
+              { label: translate('common:action.open'), onClick: () => navigate(`/channels/${encodeURIComponent(channel.id)}`) },
+              ...(canManageCommerce ? [{ label: testingId === channel.id ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection'), disabled: testingId === channel.id, onClick: () => void handleTest(channel.id) }] : []),
+              ...(canManageCommerce && supportsProductCache ? [{ label: refreshingId === channel.id ? translate('commerce:commerceHub.refreshing') : translate('commerce:commerceHub.refreshProductCache'), disabled: refreshingId === channel.id, onClick: () => void handleRefresh(channel.id) }] : []),
+              ...(canViewActivity ? [{ label: translate('common:action.viewActivity'), onClick: () => navigate(`/activity?channel=${encodeURIComponent(channel.id)}`) }] : []),
+              ...(canViewDiagnostics ? [{ label: translate('common:action.diagnostics'), onClick: () => navigate(`/diagnostics#channel-${channel.id}`) }] : []),
+              ...(canManageCommerce ? [{ label: translate('common:action.settings'), onClick: () => openSetup(channel.id) }] : []),
+            ]
+          return (
+            <OperationalResourceCard
+              resourceId={channel.id}
+              resourceType="channel"
+              provider={channel.provider}
+              name={channel.name}
+              description={formatStatus(channel.provider)}
+              state={state}
+              statusLabel={channelBadgeLabel(resource.badge)}
+              statusVariant={channelBadgeTone(resource.badge)}
+              statusDetail={state === 'connected'
+                ? lastActivityAt ? formatRelativeTime(lastActivityAt) : translate('commerce:commerceHub.noRecentActivity')
+                : undefined}
+              facts={facts}
+              issue={state === 'setupRequired'
+                ? setupReason
+                : channelNeedsOperationalAttention(channel)
+                  ? translate('commerce:commerceHub.channelOperationalIssue')
+                  : undefined}
+              actions={actions}
+            />
+          )
+        }} />
+      )}
 
-                <div className="fh-channel-card-row">
-                  <Badge dot variant={channelBadgeTone(resource.badge)}>{channelBadgeLabel(resource.badge)}</Badge>
-                  <span className="fh-text-caption">
-                    {!canOpen
-                      ? translate('common:resourceBadge.disabled')
-                      : channel.last_health_check
-                        ? `${translate('commerce:commerceHub.checkedPrefix')} ${formatRelativeTime(channel.last_health_check)}`
-                        : translate('commerce:commerceHub.notChecked')}
-                  </span>
+      {setupTarget && canManageCommerce && (
+        <div
+          ref={setupDialogRef}
+          className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={setupResourceId ? translate('common:action.settings') : translate('commerce:commerceHub.addChannel')}
+          data-testid="channel-configuration-dialog"
+        >
+          <div className="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto">
+            {setupLoading ? (
+              <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm" role="status" aria-live="polite" aria-busy="true">
+                {translate('commerce:commerceHub.loadingChannelConfiguration')}
+              </div>
+            ) : setupError || setupResourceUnavailable ? (
+              <div className="fh-card fh-card-pad" role="alert">
+                <h2 className="fh-section-title">{setupResourceUnavailable ? translate('commerce:commerceHub.channelDetails.loadFailed') : translate('commerce:commerceHub.unableToLoadCommerceHub')}</h2>
+                <p className="fh-section-subtitle mt-1">{translate('commerce:commerceHub.pleaseTryAgain')}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button type="button" className="fh-button-secondary" onClick={closeSetup}>{translate('commerce:commerceHub.close')}</button>
+                  {!setupResourceUnavailable && <button type="button" className="fh-button-primary" onClick={() => {
+                    setSetupError(false)
+                    setSetupLoading(true)
+                    commerce.getChannelTypes()
+                      .then(result => setChannelTypes(result.items))
+                      .catch(() => setSetupError(true))
+                      .finally(() => setSetupLoading(false))
+                  }}>{translate('common:action.retry')}</button>}
                 </div>
-
-                <div className="fh-channel-card-row">
-                  <span className="fh-text-caption">{translate('commerce:commerceHub.listingsCount', { count: channel.cached_products })}</span>
-                  {!canOpen ? (
-                    <span className="fh-text-caption">{translate('common:resourceBadge.disabled')}</span>
-                  ) : isConfigurable ? (
-                    <button type="button" className="fh-channel-card-configure" onClick={() => navigate('/commerce?tab=channels')}>
-                      {translate('commerce:commerceHub.configure')}
-                    </button>
-                  ) : null}
-                </div>
-
-                {canManageCommerce && canOpen && (
-                  <div className="fh-channel-card-actions">
-                    <button type="button" className="fh-button-secondary fh-button-sm" disabled={testingId === channel.id} onClick={() => void handleTest(channel.id)}>
-                      {testingId === channel.id ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection')}
-                    </button>
-                    {supportsProductCache && (
-                      <button type="button" className="fh-button-secondary fh-button-sm" disabled={refreshingId === channel.id} onClick={() => void handleRefresh(channel.id)}>
-                        {refreshingId === channel.id ? translate('commerce:commerceHub.refreshing') : translate('commerce:commerceHub.refreshProductCache')}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </article>
-            )
-          })}
+              </div>
+            ) : (
+              <ConfigPanel
+                key={setupTarget}
+                kind="channel"
+                types={channelTypes}
+                initialResourceId={setupResourceId}
+                headingLevel={2}
+                onCancel={closeSetup}
+                onSaved={handleSetupSaved}
+              />
+            )}
+          </div>
         </div>
       )}
     </PageShell>

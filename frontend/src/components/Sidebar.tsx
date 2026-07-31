@@ -49,21 +49,21 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    sectionKey: 'navigation:sidebar.integrations',
+    sectionKey: 'navigation:sidebar.commerceHub',
     items: [
       {
         labelKey: 'navigation:sidebar.sources',
         to: '/sources',
         icon: routeIconMap.Sources,
         permission: WORKSPACE_PERMISSION.read,
-        isActive: (pathname, tab) => pathname === '/sources' || (pathname === '/commerce' && tab === 'sources'),
+        isActive: pathname => pathname === '/sources' || pathname.startsWith('/sources/'),
       },
       {
         labelKey: 'navigation:sidebar.channels',
         to: '/channels',
         icon: routeIconMap.Channels,
         permission: 'can_access_site',
-        isActive: (pathname, tab) => pathname === '/channels' || (pathname === '/commerce' && tab !== 'sources'),
+        isActive: pathname => pathname === '/channels' || pathname.startsWith('/channels/'),
       },
     ],
   },

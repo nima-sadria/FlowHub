@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
+import { ApiError } from '../api/client'
 import type { SourceChannel, SourceMapping, SourceProfile } from '../features/sourceWorkspace/types'
 import { changeLocale, translate } from '../i18n'
 import { NotificationProvider } from '../notifications/NotificationProvider'
@@ -86,11 +87,11 @@ const viewerAuth: AuthContextValue = {
   user: { username: 'viewer', role: 'viewer', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true } },
 }
 
-async function renderPage(auth = editorAuth) {
+async function renderPage(auth = editorAuth, initialEntry = '/sources/source-1') {
   await act(async () => {
     root.render(
       <AuthContext.Provider value={auth}>
-        <MemoryRouter initialEntries={['/sources/source-1']}>
+        <MemoryRouter initialEntries={[initialEntry]}>
           <NotificationProvider>
             <Routes>
               <Route path="/sources/:sourceId" element={<SourceConfiguration />} />
@@ -148,6 +149,49 @@ describe('SourceConfiguration per-Channel mappings', () => {
     container.remove()
     vi.restoreAllMocks()
     await changeLocale('en')
+  })
+
+  it('exposes an accessible loading state while the Source request is pending', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockImplementationOnce(() => new Promise(() => {}))
+
+    await renderPage()
+
+    const status = container.querySelector('[role="status"]') as HTMLElement
+    expect(status.textContent).toContain('Loading Source configuration')
+    expect(status.getAttribute('aria-busy')).toBe('true')
+  })
+
+  it('ends loading and renders a Source-not-found state on a 404', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockRejectedValueOnce(new ApiError(404, 'Source does not exist'))
+
+    await renderPage(editorAuth, '/sources/not-a-real-source')
+
+    expect(container.querySelector('h1')?.textContent).toContain('Source not found')
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Source does not exist')
+    expect(button('Back to Sources')).toBeTruthy()
+    expect(Array.from(container.querySelectorAll('button')).some(item => item.textContent?.includes('Retry'))).toBe(false)
+  })
+
+  it('offers Retry for a meaningful transient Source load failure', async () => {
+    vi.mocked(sourceWorkspaceApi.source)
+      .mockRejectedValueOnce(new Error('temporary outage'))
+      .mockResolvedValueOnce(source)
+
+    await renderPage()
+    await act(async () => { button('Retry').click(); await Promise.resolve(); await Promise.resolve() })
+
+    expect(sourceWorkspaceApi.source).toHaveBeenCalledTimes(2)
+    expect(container.querySelector('h1')?.textContent).toContain('Daily prices')
+  })
+
+  it('keeps the mobile action area compact without page-level horizontal overflow', async () => {
+    await renderPage()
+
+    const actionBar = container.querySelector('[data-testid="source-configuration-actions"]') as HTMLElement
+    const actionRow = actionBar.querySelector('.overflow-x-auto') as HTMLElement
+    expect(actionBar.className).toContain('p-2')
+    expect(actionRow.className).toContain('w-full')
+    expect(Array.from(actionRow.querySelectorAll('button')).every(item => item.className.includes('fh-button-sm'))).toBe(true)
   })
 
   it('renders dynamic friendly Channel sections and keeps unavailable Channels disabled', async () => {

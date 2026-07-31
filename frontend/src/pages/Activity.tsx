@@ -154,8 +154,8 @@ export default function Activity() {
     severity: '',
     dateFrom: '',
     dateTo: '',
-    source: '',
-    channel: '',
+    source: searchParams.get('source') ?? '',
+    channel: searchParams.get('channel') ?? '',
     includeDebug: false,
   })
   const PAGE_SIZE = 30

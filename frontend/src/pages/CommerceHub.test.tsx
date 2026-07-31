@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { AuthContext, type AuthContextValue, type AuthUser } from '../auth'
 import { ApiError } from '../api/client'
 import { NotificationProvider } from '../notifications/NotificationProvider'
@@ -10,7 +10,7 @@ import NotificationContainer from '../notifications/NotificationContainer'
 import { ServiceProvider } from '../services/ServiceContext'
 import type { Services } from '../services/ServiceContext'
 import type { CommerceService } from '../services/commerce/CommerceService'
-import CommerceHub from './CommerceHub'
+import CommerceHub, { CommerceHubContent } from './CommerceHub'
 import { changeLocale, translate } from '../i18n'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 
@@ -140,7 +140,6 @@ const commerce: CommerceService = {
           { key: 'token_refresh_enabled', label: 'Token refresh enabled', required: false, secret: false },
           { key: 'token_refresh_name', label: 'Token refresh name', required: false, secret: false },
           { key: 'revoke_current_token', label: 'Revoke current token on refresh', required: false, secret: false },
-          { key: 'token_refresh_expired_at', label: 'Token refresh expiration', required: false, secret: false },
           { key: 'token', label: 'Authorization token', required: true, secret: true },
           { key: 'webhook_token', label: 'Webhook token', required: false, secret: true },
         ]),
@@ -420,7 +419,7 @@ async function renderPage(user = adminUser, commerceOverride: CommerceService = 
         <AuthContext.Provider value={authValue(user)}>
           <MemoryRouter key={initialEntries[0]} initialEntries={initialEntries}>
             <ServiceProvider services={{ ...services, commerce: commerceOverride }}>
-              <CommerceHub key={initialEntries[0]} />
+              <CommerceHubContent key={initialEntries[0]} />
             </ServiceProvider>
             <NotificationContainer />
           </MemoryRouter>
@@ -444,6 +443,39 @@ function inputByLabel(c: HTMLElement, labelText: string): HTMLInputElement {
   const input = label?.querySelector('input')
   expect(input).toBeTruthy()
   return input as HTMLInputElement
+}
+
+function LocationProbe() {
+  const location = useLocation()
+  return <p data-testid="redirect-location">{location.pathname}{location.search}</p>
+}
+
+async function renderLegacyRedirect(initialEntry: string) {
+  await act(async () => {
+    root.render(
+      <NotificationProvider>
+        <AuthContext.Provider value={authValue(adminUser)}>
+          <MemoryRouter initialEntries={[initialEntry]}>
+            <ServiceProvider services={services}>
+              <Routes>
+                <Route path="/commerce" element={<CommerceHub />} />
+                <Route path="/channels" element={<LocationProbe />} />
+              </Routes>
+            </ServiceProvider>
+          </MemoryRouter>
+        </AuthContext.Provider>
+      </NotificationProvider>,
+    )
+    await Promise.resolve()
+  })
+}
+
+function selectByLabel(c: HTMLElement, labelText: string): HTMLSelectElement {
+  const label = Array.from(c.querySelectorAll('label'))
+    .find(item => item.textContent?.toLowerCase().includes(labelText.toLowerCase()))
+  const select = label?.querySelector('select')
+  expect(select).toBeTruthy()
+  return select as HTMLSelectElement
 }
 
 function resourceAction(c: HTMLElement, resourceName: string, actionName: string): HTMLButtonElement {
@@ -475,6 +507,18 @@ function fillNextcloudCredentials(c: HTMLElement, baseUrl = 'https://softpple.bu
 }
 
 describe('CommerceHub', () => {
+  it('redirects legacy Channel URLs to the canonical Channels workflow', async () => {
+    await renderLegacyRedirect('/commerce?tab=channels&resource=woocommerce%3Aprimary')
+    expect(container.querySelector('[data-testid="redirect-location"]')?.textContent)
+      .toBe('/channels?setup=woocommerce%3Aprimary')
+  })
+
+  it('redirects a legacy Commerce landing URL without rendering duplicate Channel cards', async () => {
+    await renderLegacyRedirect('/commerce')
+    expect(container.querySelector('[data-testid="redirect-location"]')?.textContent).toBe('/channels')
+    expect(container.querySelectorAll('[data-channel-card]')).toHaveLength(0)
+  })
+
   it('localizes channel statuses and capabilities in Persian', async () => {
     await changeLocale('fa')
     const c = await renderPage()
@@ -705,9 +749,16 @@ describe('CommerceHub', () => {
     const secretInputs = Array.from(c.querySelectorAll('input[type="password"]')) as HTMLInputElement[]
     expect(secretInputs).toHaveLength(2)
     expect(secretInputs.every(input => input.value === '')).toBe(true)
+    expect(c.textContent).toContain('TapsiShop API URL')
+    expect(c.textContent).toContain('TapsiShop authorization token')
     expect(c.textContent).toContain('Webhook registration')
     expect(c.textContent).toContain('Webhook credential: Configured')
+    expect(c.textContent).toContain('Dry Run, Review, Approval, Apply')
+    expect(c.textContent).toContain('Variations, listing creation, categories, attributes, discounts, and courier review are unavailable')
     expect((inputByLabel(c, 'Webhook URL')).value).toContain('/api/v2/webhooks/tapsishop/tapsishop%3Amain')
+    const accessMode = selectByLabel(c, 'Access mode')
+    expect(Array.from(accessMode.options).map(option => option.value)).toEqual(['read_only', 'write_enabled'])
+    expect(accessMode.value).toBe('read_only')
   })
 
   it('refreshes a marketplace card from Configure to Settings after save', async () => {

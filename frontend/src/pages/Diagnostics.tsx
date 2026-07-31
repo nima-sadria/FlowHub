@@ -384,7 +384,7 @@ function ChannelHealthRow({
     'product_cache_refresh_failed',
   ].includes(channel.reason_code ?? '')
   return (
-    <article className="rounded-lg border border-border p-4" data-testid={`diagnostics-channel-${channel.channelId}`} data-resource-id={channel.channelId}>
+    <article id={`channel-${channel.channelId}`} className="rounded-lg border border-border p-4" data-testid={`diagnostics-channel-${channel.channelId}`} data-resource-id={channel.channelId}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -436,7 +436,7 @@ function SourceHealthRow({ connector, displayName }: { connector: ConnectorStatu
   const presentation = sourcePresentation(connector)
   const lastChecked = connectorLastChecked(connector)
   return (
-    <article className="rounded-lg border border-border p-4" data-resource-id={connector.id}>
+    <article id={`source-${connector.id}`} className="rounded-lg border border-border p-4" data-resource-id={connector.id}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">

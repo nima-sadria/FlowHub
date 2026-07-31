@@ -65,3 +65,26 @@ export function ResourceSectionList<T>({
     </section>
   ))}</>
 }
+
+export function ManagementResourceSections<T>({
+  resources,
+  renderItem,
+  className = 'space-y-3',
+}: {
+  resources: ResourceCollection<T>
+  renderItem: (item: OrderedResource<T>) => ReactNode
+  className?: string
+}) {
+  const groups = [
+    { key: 'connected', label: translate('common:status.connected'), items: resources.ordered.filter(item => item.tier === 'configured') },
+    { key: 'setupRequired', label: translate('common:status.setupRequired'), items: resources.ordered.filter(item => item.tier === 'attention' || item.tier === 'disabled') },
+    { key: 'comingSoon', label: translate('common:resourceGroup.comingSoon'), items: resources.ordered.filter(item => item.tier === 'comingSoon') },
+  ] as const
+
+  return <div className="grid gap-7">{groups.filter(group => group.items.length > 0).map(group => (
+    <section className="min-w-0" key={group.key} data-resource-section={group.key} aria-label={group.label}>
+      <h2 className="fh-text-caption mb-2 font-semibold uppercase tracking-wide text-wp-muted">{group.label}</h2>
+      <div className={className}>{group.items.map(item => <div className="h-full min-w-0" key={item.id} data-resource-id={item.id}>{renderItem(item)}</div>)}</div>
+    </section>
+  ))}</div>
+}

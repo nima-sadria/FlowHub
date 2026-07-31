@@ -25,6 +25,7 @@ import { WORKSPACE_PERMISSION } from './utils/workspacePermissions'
 
 const Activity = lazy(() => import('./pages/Activity'))
 const Channels = lazy(() => import('./pages/Channels'))
+const ChannelDetail = lazy(() => import('./pages/ChannelDetail'))
 const CommerceHub = lazy(() => import('./pages/CommerceHub'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const DataQuality = lazy(() => import('./pages/DataQuality'))
@@ -178,6 +179,7 @@ function SetupGate() {
           <Route path="/sheets/:sheetId" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><FlowHubSheet /></RequirePermission>} />
           <Route path="/data-quality" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><DataQuality /></RequirePermission>} />
           <Route path="/channels" element={<RequirePermission permission="can_access_site"><Channels /></RequirePermission>} />
+          <Route path="/channels/:channelId" element={<RequirePermission permission="can_access_site"><ChannelDetail /></RequirePermission>} />
           <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
           <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
           <Route path="/workspace/:workspaceId" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><UnifiedWorkspace /></RequirePermission>} />

@@ -95,9 +95,9 @@ describe('SourceCenter safe lifecycle', () => {
   })
   afterEach(() => { act(() => root.unmount()); container.remove(); vi.restoreAllMocks() })
 
-  async function render(auth = admin) {
+  async function render(auth = admin, initialEntry = '/sources') {
     await act(async () => {
-      root.render(<AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter><ServiceProvider services={services}><SourceCenter /></ServiceProvider></MemoryRouter><NotificationContainer /></NotificationProvider></AuthContext.Provider>)
+      root.render(<AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter initialEntries={[initialEntry]}><ServiceProvider services={services}><SourceCenter /></ServiceProvider></MemoryRouter><NotificationContainer /></NotificationProvider></AuthContext.Provider>)
       await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
     })
   }
@@ -257,9 +257,9 @@ describe('SourceCenter safe lifecycle', () => {
     expect(Array.from(container.querySelectorAll('[data-resource-id]')).map(item => item.getAttribute('data-resource-id')))
       .toEqual(['source-a', 'source-z', 'source-b'])
     const sections = Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section'))
-    expect([...new Set(sections)]).toEqual(['active', 'disabled'])
-    expect(container.querySelector('[data-resource-id="source-a"]')?.textContent).toContain('Healthy')
-    expect(container.querySelector('[data-resource-id="source-b"]')?.textContent).toContain('Disabled')
+    expect([...new Set(sections)]).toEqual(['connected', 'setupRequired'])
+    expect(container.querySelector('[data-resource-id="source-a"]')?.textContent).toContain('Connected')
+    expect(container.querySelector('[data-resource-id="source-b"]')?.textContent).toContain('Setup required')
     expect(sections).not.toContain('comingSoon')
   })
 
@@ -283,16 +283,60 @@ describe('SourceCenter safe lifecycle', () => {
     await render()
 
     expect(container.querySelectorAll('[data-source-card]')).toHaveLength(2)
-    expect(container.querySelector('[data-source-card="source-1"]')?.textContent).toContain('Healthy')
+    expect(container.querySelector('[data-source-card="source-1"]')?.textContent).toContain('Connected')
     expect(container.querySelector('[data-source-card="source-1"] [data-source-icon]')?.getAttribute('data-source-icon')?.toLowerCase()).toContain('nextcloud.webp')
     const comingSoonCard = container.querySelector('[data-source-card="integration:gsheets:price-list"]')
     expect(comingSoonCard?.textContent).toContain('Coming Soon')
-    expect(comingSoonCard?.textContent).toContain('Unavailable')
-    expect(comingSoonCard?.textContent).not.toContain('Loading...')
+    expect(comingSoonCard?.querySelectorAll('button')).toHaveLength(0)
     expect(container.querySelector('.fh-kpi-card-value')?.textContent).toBe('1')
     const sections = Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section'))
-    expect([...new Set(sections)]).toEqual(['active', 'comingSoon'])
-    expect(container.querySelector('[data-testid="source-card-groups"]')?.className).toContain('fh-sources-grid')
+    expect([...new Set(sections)]).toEqual(['connected', 'comingSoon'])
+    expect(container.querySelector('[data-testid="source-card-groups"] .fh-sources-grid')).not.toBeNull()
+  })
+
+  it('does not show an unfinished external Source as connected by default', async () => {
+    const unfinishedNextcloud: SourceProfile = {
+      ...source,
+      id: 'nextcloud-draft',
+      name: 'Nextcloud',
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      mappingVersion: 0,
+      sheetId: null,
+    }
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [unfinishedNextcloud] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [
+        commerceSource('nextcloud:primary', 'Nextcloud', { healthy: true }),
+        commerceSource('gsheets:price-list', 'Google Sheets', { placeholder: true }),
+      ],
+    })
+
+    await render()
+
+    const unfinishedCard = container.querySelector('[data-source-card="nextcloud-draft"]')
+    expect(unfinishedCard?.textContent).toContain('Setup required')
+    expect(unfinishedCard?.textContent).toContain('Setup now')
+    expect(container.querySelector('[data-source-card="integration:nextcloud:primary"]')).toBeNull()
+    expect(container.querySelector('[data-source-card="integration:gsheets:price-list"]')?.textContent).toContain('Coming Soon')
+    expect(container.querySelector('.fh-kpi-card-value')?.textContent).toBe('0')
+  })
+
+  it('shows an actionable onboarding state when only future integrations are available', async () => {
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [commerceSource('gsheets:price-list', 'Google Sheets', { placeholder: true })],
+    })
+
+    await render()
+
+    const onboarding = container.querySelector('[data-testid="sources-onboarding-empty-state"]')
+    expect(onboarding?.textContent).toContain('No managed Source yet')
+    expect(onboarding?.textContent).toContain('Recommended for easier column setup')
+    expect(onboarding?.querySelector('button')?.textContent).toContain('Add source')
+    expect(container.querySelector('[data-source-card="integration:gsheets:price-list"]')?.textContent).toContain('Coming Soon')
   })
 
   it('merges a legacy managed Source with Commerce metadata when their stable IDs match', async () => {
@@ -353,6 +397,20 @@ describe('SourceCenter safe lifecycle', () => {
     expect(card.textContent).not.toContain('synthetic_source_role_v9')
   })
 
+  it('uses provider-specific copy for the ERP and API Import integration', async () => {
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [commerceSource('erp:api-import', 'ERP / API Import', { placeholder: true })],
+    })
+
+    await render()
+
+    const card = container.querySelector('[data-source-card="integration:erp:api-import"]') as HTMLElement
+    expect(card.title).toContain('Structured business data from an ERP system or external API.')
+    expect(card.textContent).not.toContain('External spreadsheet Source')
+  })
+
   it('searches managed Sources and filters cards by shared resource state', async () => {
     vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({
       items: [
@@ -384,6 +442,42 @@ describe('SourceCenter safe lifecycle', () => {
     })
     expect(Array.from(container.querySelectorAll('[data-source-card]')).map(item => item.getAttribute('data-source-card')))
       .toEqual(['source-z'])
+  })
+
+  it('distinguishes a filtered no-results state from the onboarding empty state', async () => {
+    await render()
+
+    const search = container.querySelector('input[type="search"]') as HTMLInputElement
+    const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      valueSetter?.call(search, 'does-not-exist')
+      search.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+
+    const emptyState = container.querySelector('[data-testid="sources-filter-empty-state"]') as HTMLElement
+    expect(emptyState.textContent).toContain('No sources found')
+    expect(emptyState.textContent).not.toContain('No managed Source yet')
+    const clear = Array.from(emptyState.querySelectorAll('button')).find(item => item.textContent?.includes('Clear filters')) as HTMLButtonElement
+    await act(async () => clear.click())
+    expect(container.querySelector('[data-source-card="source-1"]')).not.toBeNull()
+  })
+
+  it('exposes isolated development-only connected and partial-failure QA states', async () => {
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [commerceSource('nextcloud:primary', 'Nextcloud', { configured: false })],
+    })
+    await render(admin, '/sources?qa=connected')
+    expect(container.querySelector('[data-source-card="qa-connected-source"]')?.textContent).toContain('Connected')
+    expect(vi.mocked(sourceWorkspaceApi.source).mock.calls.some(([sourceId]) => sourceId === 'qa-connected-source')).toBe(false)
+
+    act(() => root.unmount())
+    root = createRoot(container)
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [source] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce(emptyCommerceSources)
+    await render(admin, '/sources?qa=partial')
+    expect(container.textContent).toContain('Some Source information is unavailable')
   })
 
   it('opens a focused Add Source panel with the three supported entry paths', async () => {

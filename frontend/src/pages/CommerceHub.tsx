@@ -1,6 +1,6 @@
 import { translate } from '../i18n'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { Navigate, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../auth'
 import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'
@@ -182,7 +182,7 @@ function ChannelCard({ channel, badge, onTest, onRefresh, onConfigure, testing, 
   canManage: boolean
 }) {
   const isWooCommerce = channel.provider === 'woocommerce' && !channel.placeholder
-  const supportsProductCache = ['woocommerce', 'snappshop'].includes(channel.provider) && !channel.placeholder
+  const supportsProductCache = ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider) && !channel.placeholder
   const isConfigurable = channel.implemented && !channel.placeholder && ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider)
   const isConfigured = channel.credential_status === 'configured'
   return (
@@ -293,6 +293,19 @@ function fieldLabel(kind: FormKind, provider: string, key: string, fallback: str
   if (kind === 'channel' && provider === 'woocommerce' && key === 'url') return translate('commerce:commerceHub.fields.storeUrl')
   if (kind === 'channel' && provider === 'woocommerce' && key === 'key') return translate('commerce:commerceHub.fields.consumerKey')
   if (kind === 'channel' && provider === 'woocommerce' && key === 'secret') return translate('commerce:commerceHub.fields.consumerSecret')
+  if (kind === 'channel' && provider === 'tapsishop') {
+    const labels: Record<string, string> = {
+      base_url: translate('commerce:commerceHub.fields.tapsishopBaseUrl'),
+      request_timeout: translate('commerce:commerceHub.fields.requestTimeout'),
+      selected_vendor_id: translate('commerce:commerceHub.fields.tapsishopVendorId'),
+      token_refresh_enabled: translate('commerce:commerceHub.fields.tokenRefreshEnabled'),
+      token_refresh_name: translate('commerce:commerceHub.fields.tokenRefreshName'),
+      revoke_current_token: translate('commerce:commerceHub.fields.revokeCurrentToken'),
+      token: translate('commerce:commerceHub.fields.tapsishopAuthorizationToken'),
+      webhook_token: translate('commerce:commerceHub.fields.tapsishopWebhookToken'),
+    }
+    return labels[key] ?? fallback
+  }
   if (['seller_id', 'merchant_id'].includes(key)) return translate('commerce:commerceHub.fields.sellerStoreId')
   if (['api_key', 'api_token'].includes(key)) return translate('commerce:commerceHub.fields.apiKeyToken')
   return fallback
@@ -444,16 +457,18 @@ function NextcloudFilePicker({
   )
 }
 
-function ConfigPanel({
+export function ConfigPanel({
   kind,
   types,
-  initialChannelId,
+  initialResourceId,
+  headingLevel = 3,
   onCancel,
   onSaved,
 }: {
   kind: FormKind
   types: CommerceTypeOption[]
-  initialChannelId?: string | null
+  initialResourceId?: string | null
+  headingLevel?: 2 | 3
   onCancel: () => void
   onSaved: (saved: { kind: FormKind; externalId: string; name: string }) => Promise<void>
 }) {
@@ -464,7 +479,7 @@ function ConfigPanel({
     [types],
   )
   const [selectedId, setSelectedId] = useState(
-    () => preferredResourceId(initialChannelId, typeResources) ?? '',
+    () => preferredResourceId(initialResourceId, typeResources) ?? '',
   )
   const selected = useMemo(
     () => typeResources.ordered.find(item => item.id === selectedId)?.item,
@@ -478,7 +493,7 @@ function ConfigPanel({
   const [secrets, setSecrets] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
-  const [loadingConfiguration, setLoadingConfiguration] = useState(Boolean(initialChannelId))
+  const [loadingConfiguration, setLoadingConfiguration] = useState(kind === 'channel' && Boolean(initialResourceId))
   const [secretStatus, setSecretStatus] = useState<CommerceChannelConfiguration['secrets']>({})
   const [configurationWasConfigured, setConfigurationWasConfigured] = useState(false)
   const [vendors, setVendors] = useState<CommerceVendor[]>([])
@@ -495,7 +510,7 @@ function ConfigPanel({
     : null
 
   useEffect(() => {
-    if (initialChannelId) return
+    if (kind === 'channel' && initialResourceId) return
     setDisplayName(selected?.name ?? '')
     setEnabled(false)
     setDescription('')
@@ -514,14 +529,14 @@ function ConfigPanel({
     setWorksheetMode('all')
     setWorksheetName('')
     setReadPolicy(DEFAULT_READ_POLICY)
-  }, [selected?.id, initialChannelId])
+  }, [selected?.id, initialResourceId, kind])
 
   useEffect(() => {
-    if (kind !== 'channel' || !initialChannelId) return
+    if (kind !== 'channel' || !initialResourceId) return
     let active = true
     setLoadingConfiguration(true)
-    setSelectedId(initialChannelId)
-    commerce.getChannelConfiguration(initialChannelId)
+    setSelectedId(initialResourceId)
+    commerce.getChannelConfiguration(initialResourceId)
       .then(configuration => {
         if (!active) return
         setDisplayName(configuration.display_name)
@@ -542,7 +557,7 @@ function ConfigPanel({
         if (active) setLoadingConfiguration(false)
       })
     return () => { active = false }
-  }, [commerce, initialChannelId, kind, notifyError])
+  }, [commerce, initialResourceId, kind, notifyError])
 
   if (!selected) return null
   const selectedType = selected
@@ -753,16 +768,18 @@ function ConfigPanel({
   }
 
   if (loadingConfiguration) {
-    return <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />{translate('commerce:commerceHub.loadingChannelConfiguration')}</div>
+    return <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm" role="status" aria-live="polite" aria-busy="true"><Spinner size="sm" />{translate('commerce:commerceHub.loadingChannelConfiguration')}</div>
   }
+
+  const HeadingTag = headingLevel === 2 ? 'h2' : 'h3'
 
   return (
     <form onSubmit={event => void submit(event)} className="fh-card overflow-hidden">
       <div className="fh-panel-header !items-start">
         <div>
-          <h3 className="fh-section-title">
-            {initialChannelId ? translate('commerce:commerceHub.configure2', { value1: selected.name }) : kind === "source" ? translate('commerce:commerceHub.addSource') : translate('commerce:commerceHub.addChannel')}
-          </h3>
+          <HeadingTag className="fh-section-title">
+            {initialResourceId ? translate('commerce:commerceHub.configure2', { value1: selected.name }) : kind === "source" ? translate('commerce:commerceHub.addSource') : translate('commerce:commerceHub.addChannel')}
+          </HeadingTag>
           <p className="fh-section-subtitle mt-1">
             {translate('commerce:commerceHub.credentialsAreStoredServerSideAndNever')}
           </p>
@@ -785,7 +802,7 @@ function ConfigPanel({
           <select
             value={selected.id}
             onChange={event => setSelectedId(event.target.value)}
-            disabled={Boolean(initialChannelId)}
+            disabled={Boolean(initialResourceId)}
             className="fh-select"
           >
             <ResourceOptionGroups
@@ -807,7 +824,9 @@ function ConfigPanel({
             <span className="fh-help-text">{translate('commerce:commerceHub.accessMode')}</span>
             <select value={accessMode} onChange={event => setAccessMode(event.target.value as 'read_only' | 'write_enabled')} className="fh-select">
               <option value="read_only">{translate('commerce:commerceHub.readOnly2')}</option>
-              {selected.provider === 'woocommerce' && <option value="write_enabled">{translate('commerce:commerceHub.writeEnabled2')}</option>}
+              {['woocommerce', 'tapsishop'].includes(selected.provider) && (
+                <option value="write_enabled">{translate('commerce:commerceHub.writeEnabled2')}</option>
+              )}
             </select>
           </label>
         )}
@@ -896,6 +915,7 @@ function ConfigPanel({
           <div>
             <p className="fh-form-section-title">{translate('commerce:commerceHub.webhookRegistration')}</p>
             <p className="fh-form-section-description">{translate('commerce:commerceHub.registerThisUrlInTapsishopTheWebhook')}</p>
+            <p className="fh-form-section-description">{translate('commerce:commerceHub.tapsishopWriteSafety')}</p>
           </div>
           <label className="fh-field">
             <span className="fh-help-text">{translate('commerce:commerceHub.webhookUrl')}</span>
@@ -1047,7 +1067,7 @@ function ConfigPanel({
   )
 }
 
-export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
+export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
   const { commerce } = useServices()
   const { user } = useAuth()
   const { success, error: notifyError } = useNotification()
@@ -1065,6 +1085,7 @@ export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
   const [refreshingId, setRefreshingId] = useState<string | null>(null)
   const [refreshResults, setRefreshResults] = useState<Record<string, ChannelCacheRefreshResult>>({})
   const [formKind, setFormKind] = useState<FormKind | null>(null)
+  const [editingSourceId, setEditingSourceId] = useState<string | null>(null)
   const [editingChannelId, setEditingChannelId] = useState<string | null>(null)
   const canManageCommerce = user?.is_admin === true
   const sourceResources = useMemo(
@@ -1081,6 +1102,23 @@ export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
     const queryTab = searchParams.get('tab')
     if (queryTab === 'sources' || queryTab === 'channels') setTab(queryTab)
   }, [searchParams, initialTab])
+
+  useEffect(() => {
+    if (loading || initialTab) return
+    const resourceId = searchParams.get('resource')
+    if (!resourceId) return
+    const queryTab = searchParams.get('tab')
+    if (queryTab === 'sources' && sourceTypes.some(item => item.id === resourceId)) {
+      setEditingSourceId(resourceId)
+      setEditingChannelId(null)
+      setFormKind('source')
+    }
+    if (queryTab === 'channels' && channelTypes.some(item => item.id === resourceId)) {
+      setEditingChannelId(resourceId)
+      setEditingSourceId(null)
+      setFormKind('channel')
+    }
+  }, [channelTypes, initialTab, loading, searchParams, sourceTypes])
 
   async function loadCommerce() {
     const [sourceData, channelData, sourceTypeData, channelTypeData] = await Promise.all([
@@ -1109,6 +1147,7 @@ export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
     setTab(nextTab)
     setSearchParams({ tab: nextTab })
     setFormKind(null)
+    setEditingSourceId(null)
     setEditingChannelId(null)
   }
 
@@ -1271,7 +1310,7 @@ export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
       return
     }
     setTab('channels')
-    setSearchParams({ tab: 'channels' })
+    setSearchParams({ tab: 'channels', resource: channelId })
     setEditingChannelId(channelId)
     setFormKind('channel')
   }
@@ -1324,7 +1363,7 @@ export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
               <p className="fh-section-subtitle mt-1">{translate('commerce:commerceHub.inputSystemsThatFeedFlowhubDataLayer')}</p>
             </div>
             {canManageCommerce ? (
-              <button onClick={() => setFormKind("source")} className="fh-button-primary px-4">
+              <button onClick={() => { setEditingSourceId(null); setFormKind("source") }} className="fh-button-primary px-4">
                 <Icon name="add" />
                 {translate('commerce:commerceHub.addSource')}
               </button>
@@ -1334,7 +1373,13 @@ export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
           </div>
           {formKind === "source" && (
             <div className="mb-4">
-              <ConfigPanel kind="source" types={sourceTypes} onCancel={() => setFormKind(null)} onSaved={reloadAfterSave} />
+              <ConfigPanel
+                kind="source"
+                types={sourceTypes}
+                initialResourceId={editingSourceId}
+                onCancel={() => { setFormKind(null); setEditingSourceId(null); setSearchParams({ tab: 'sources' }) }}
+                onSaved={reloadAfterSave}
+              />
             </div>
           )}
           <div className="grid gap-5">
@@ -1377,8 +1422,8 @@ export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
               <ConfigPanel
                 kind="channel"
                 types={channelTypes}
-                initialChannelId={editingChannelId}
-                onCancel={() => { setFormKind(null); setEditingChannelId(null) }}
+                initialResourceId={editingChannelId}
+                onCancel={() => { setFormKind(null); setEditingChannelId(null); setSearchParams({ tab: 'channels' }) }}
                 onSaved={reloadAfterSave}
               />
             </div>
@@ -1406,4 +1451,19 @@ export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
       )}
     </PageShell>
   )
+}
+
+export default function CommerceHub({ initialTab }: { initialTab?: Tab } = {}) {
+  const [searchParams] = useSearchParams()
+  const requestedTab = initialTab ?? (searchParams.get('tab') === 'sources' ? 'sources' : 'channels')
+
+  if (requestedTab === 'channels') {
+    const legacyResourceId = searchParams.get('resource') ?? searchParams.get('channel')
+    const target = legacyResourceId
+      ? `/channels?setup=${encodeURIComponent(legacyResourceId)}`
+      : '/channels'
+    return <Navigate to={target} replace />
+  }
+
+  return <CommerceHubContent initialTab={initialTab} />
 }
