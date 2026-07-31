@@ -92,7 +92,7 @@ def upgrade() -> None:
         sa.Column("diagnostics_json", sa.JSON(), nullable=False),
     )
     op.create_index("ix_fh_exchange_rate_fetch_runs_provider_id", "fh_exchange_rate_fetch_runs", ["provider_id"])
-    op.execute(sa.text("INSERT INTO fh_exchange_rate_providers (provider_id, provider_type, display_name, enabled, api_key_secret_reference, base_url, request_timeout, refreshes_per_day, daily_request_limit, reserved_request_count, status, request_count, updated_at) VALUES ('navasan', 'navasan', 'Navasan', 0, 'exchange_rates.navasan.api_key', 'https://api.navasan.tech', 10, 1, 120, 10, 'disabled', 0, CURRENT_TIMESTAMP)"))
+    op.execute(sa.text("INSERT INTO fh_exchange_rate_providers (provider_id, provider_type, display_name, enabled, api_key_secret_reference, base_url, request_timeout, refreshes_per_day, daily_request_limit, reserved_request_count, status, request_count, updated_at) VALUES ('navasan', 'navasan', 'Navasan', false, 'exchange_rates.navasan.api_key', 'https://api.navasan.tech', 10, 1, 120, 10, 'disabled', 0, CURRENT_TIMESTAMP)"))
     definitions = [
         ("usd_sell", "USD_TEHRAN_SELL", "USD Tehran Sell", "فروش دلار تهران", "market", "sell"),
         ("usd_buy", "USD_TEHRAN_BUY", "USD Tehran Buy", "خرید دلار تهران", "market", "buy"),
@@ -109,7 +109,7 @@ def upgrade() -> None:
         ("eth", "ETH", "Ethereum", "اتریوم", "crypto", None),
     ]
     for symbol, canonical, name, name_fa, classification, side in definitions:
-        op.execute(sa.text("INSERT INTO fh_exchange_rate_definitions (id, provider_id, external_symbol, canonical_code, display_name, display_name_fa, classification, side, unit, active) VALUES (:id, 'navasan', :symbol, :canonical, :name, :name_fa, :classification, :side, 'IRR', 1)").bindparams(id=f"navasan:{symbol}", symbol=symbol, canonical=canonical, name=name, name_fa=name_fa, classification=classification, side=side))
+        op.execute(sa.text("INSERT INTO fh_exchange_rate_definitions (id, provider_id, external_symbol, canonical_code, display_name, display_name_fa, classification, side, unit, active) VALUES (:id, 'navasan', :symbol, :canonical, :name, :name_fa, :classification, :side, 'IRR', true)").bindparams(id=f"navasan:{symbol}", symbol=symbol, canonical=canonical, name=name, name_fa=name_fa, classification=classification, side=side))
 
 
 def downgrade() -> None:
