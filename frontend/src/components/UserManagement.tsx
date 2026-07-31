@@ -3,6 +3,7 @@ import { useAuth } from '../auth'
 import { apiErrorMessage, apiFetch } from '../api/client'
 import { translate } from '../i18n'
 import { formatDate } from '../i18n/format'
+import Badge from './Badge'
 import Icon from './Icon'
 import SecretField from './SecretField'
 
@@ -181,10 +182,9 @@ export default function UserManagement() {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="fh-text-body-sm text-secondary">{roleLabel(managedUser.role)}</span>
-                  <span className={['fh-inline-status', managedUser.is_active ? 'fh-inline-status-success' : ''].filter(Boolean).join(' ')}>
-                    <span aria-hidden="true" className={['fh-status-dot', managedUser.is_active ? 'fh-status-dot-success' : 'fh-status-dot-neutral'].join(' ')} />
+                  <Badge dot variant={managedUser.is_active ? 'success' : 'disabled'}>
                     {managedUser.is_active ? translate('settings:users.enabled') : translate('settings:users.disabled')}
-                  </span>
+                  </Badge>
                   <button type="button" className="fh-toolbar-link" onClick={() => setEditTargetId(managedUser.id)}>{translate('settings:users.edit')}</button>
                 </div>
               </div>

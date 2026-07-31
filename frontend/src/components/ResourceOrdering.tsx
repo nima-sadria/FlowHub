@@ -18,7 +18,7 @@ function badgePresentation(badge: ResourceBadge): { label: string; variant: Badg
   if (badge === 'healthy') return { label: translate('common:resourceBadge.healthy'), variant: 'success' }
   if (badge === 'configured') return { label: translate('common:resourceBadge.configured'), variant: 'success' }
   if (badge === 'warning') return { label: translate('common:resourceBadge.warning'), variant: 'warning' }
-  if (badge === 'disabled') return { label: translate('common:resourceBadge.disabled'), variant: 'neutral' }
+  if (badge === 'disabled') return { label: translate('common:resourceBadge.disabled'), variant: 'disabled' }
   return { label: translate('common:resourceBadge.comingSoon'), variant: 'neutral' }
 }
 

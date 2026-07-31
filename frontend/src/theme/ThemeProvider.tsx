@@ -1,28 +1,48 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
+
+type FlowHubTheme = 'light' | 'dark'
 
 interface ThemeContextValue {
-  theme: 'light' | 'dark'
+  theme: FlowHubTheme
   toggleTheme: () => void
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('wp_theme') as 'light' | 'dark') ?? 'light'
-  })
+const THEME_STORAGE_KEY = 'wp_theme'
 
-  useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-    localStorage.setItem('wp_theme', theme)
+function storedTheme(): FlowHubTheme {
+  return localStorage.getItem(THEME_STORAGE_KEY) === 'dark' ? 'dark' : 'light'
+}
+
+function applyTheme(theme: FlowHubTheme) {
+  document.documentElement.classList.toggle('dark', theme === 'dark')
+  localStorage.setItem(THEME_STORAGE_KEY, theme)
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<FlowHubTheme>(storedTheme)
+
+  useLayoutEffect(() => {
+    applyTheme(theme)
   }, [theme])
 
+  useLayoutEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== THEME_STORAGE_KEY) return
+      setTheme(event.newValue === 'dark' ? 'dark' : 'light')
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
   const toggleTheme = useCallback(() => {
-    setTheme(t => (t === 'light' ? 'dark' : 'light'))
+    setTheme(current => {
+      const next = current === 'light' ? 'dark' : 'light'
+      // Keep the shell and the trigger icon synchronized in the same event.
+      applyTheme(next)
+      return next
+    })
   }, [])
 
   const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme])

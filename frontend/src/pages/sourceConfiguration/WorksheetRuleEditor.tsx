@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from 'react'
 import Icon from '../../components/Icon'
 import BrandIcon from '../../components/BrandIcon'
+import Badge, { type BadgeVariant } from '../../components/Badge'
 import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../../components/ResourceOrdering'
 import { prepareResourceCollection, sourceChannelSignals } from '../../features/resourceOrdering/resourceOrdering'
 import type { FieldMapping, ReferenceType, SourceChannel, SourceWorksheetRule } from '../../features/sourceWorkspace/types'
@@ -113,7 +114,7 @@ export default function WorksheetRuleEditor({ rule, rowCount, channels, sourceKi
       : enabledChannels.length === 0
         ? 'sources:sourceConfiguration.worksheetStatus.needsColumns'
         : 'sources:sourceConfiguration.worksheetStatus.ready'
-  const statusClass = !rule.enabled ? 'fh-badge-neutral' : missingSourceFields.length > 0 || channelIssueCount > 0 ? 'fh-badge-warning' : enabledChannels.length === 0 ? 'fh-badge-neutral' : 'fh-badge-success'
+  const statusVariant: BadgeVariant = !rule.enabled ? 'disabled' : missingSourceFields.length > 0 || channelIssueCount > 0 ? 'warning' : enabledChannels.length === 0 ? 'pending' : 'success'
   const updateSource = (field: string, mapping: FieldMapping) => onChange({ ...rule, sourceFields: rule.sourceFields.map(item => item.field === field ? mapping : item) })
   const updateChannel = (channelId: string, next: ReturnType<typeof configured>) => onChange({ ...rule, channels: [...rule.channels.filter(item => item.channelId !== channelId), next] })
   const updateChannelField = (channelId: string, field: string, mapping: FieldMapping) => {
@@ -129,7 +130,7 @@ export default function WorksheetRuleEditor({ rule, rowCount, channels, sourceKi
       <input type="checkbox" checked={selected} aria-label={translate('sources:sourceConfiguration.selectWorksheet', { worksheet: rule.worksheetName })} onClick={event => event.stopPropagation()} onChange={event => onSelectedChange(event.target.checked)} />
       <Icon name="file" />
       <span className="min-w-0"><strong className="block truncate text-text-base">{rule.worksheetName}</strong>{rowCount != null && <small className="fh-text-caption">{translate('sources:sourceConfiguration.worksheetRowCount', { count: rowCount })}</small>}</span>
-      <span className={`fh-badge ${statusClass}`}>{translate(statusKey)}</span>
+      <Badge variant={statusVariant}>{translate(statusKey)}</Badge>
       <span className="fh-text-caption ms-auto">{translate('sources:sourceConfiguration.enabledChannelCount', { count: enabledChannels.length })}</span>
     </summary>
     <div className="border-t border-border p-4 space-y-5">
@@ -164,7 +165,7 @@ export default function WorksheetRuleEditor({ rule, rowCount, channels, sourceKi
               if (next && !channelOpen) setExpandedChannels(current => [...new Set([...current, channelInfo.channelId])])
               else if (!next && channelOpen) setExpandedChannels(current => current.filter(channelId => channelId !== channelInfo.channelId))
             }}>
-              <summary className="flex cursor-pointer list-none items-center gap-3 p-3"><BrandIcon identity={{ provider: channelInfo.connectorType || channelInfo.channelId, sourceType: channelInfo.connectorType }} label={orderedChannel.displayName} size={40} /><strong className="text-text-base">{orderedChannel.displayName}</strong><ResourceStateBadge badge={orderedChannel.badge} />{issues.length > 0 && <span className="fh-badge fh-badge-warning ms-auto">{translate('sources:sourceConfiguration.issueCount', { count: issues.length })}</span>}</summary>
+              <summary className="flex cursor-pointer list-none items-center gap-3 p-3"><BrandIcon identity={{ provider: channelInfo.connectorType || channelInfo.channelId, sourceType: channelInfo.connectorType }} label={orderedChannel.displayName} size={40} /><strong className="text-text-base">{orderedChannel.displayName}</strong><ResourceStateBadge badge={orderedChannel.badge} />{issues.length > 0 && <Badge variant="warning" className="ms-auto">{translate('sources:sourceConfiguration.issueCount', { count: issues.length })}</Badge>}</summary>
               <div className="border-t border-border p-3">
                 <div className="mb-3 flex flex-wrap items-end gap-2">
                   <label className="fh-field-label min-w-[220px]">{translate('sources:sourceConfiguration.copyMappingFrom')}<select className="fh-input mt-1" disabled={disabled} value={copyFrom[channelInfo.channelId] ?? ''} onChange={event => setCopyFrom(current => ({ ...current, [channelInfo.channelId]: event.target.value }))}><option value="">{translate('sources:sourceConfiguration.selectChannel')}</option><ResourceOptionGroups resources={copyResources} renderLabel={item => item.displayName} /></select></label>

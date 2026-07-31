@@ -54,6 +54,12 @@ async function installSettingsMocks(page: Page, audit: TrafficAudit) {
         timezone: 'Asia/Tehran', currency: 'USD', currencyUnit: 'USD', environment: 'production',
       })
     }
+    if (url.pathname === '/api/v2/settings' && method === 'POST') {
+      return json(route, {
+        woocommerceUrl: '', nextcloudUrl: '', syncIntervalMinutes: 60,
+        timezone: 'UTC', currency: 'USD', currencyUnit: 'USD', environment: 'production',
+      })
+    }
 
     audit.unhandledApiRequests.push(`${method} ${url.pathname}${url.search}`)
     return json(route, { code: 'UNHANDLED_TEST_REQUEST' }, 500)
@@ -131,3 +137,34 @@ test('settings matches the approved Figma hierarchy in Light/Dark and LTR/RTL at
   expect(audit.externalRequests, 'No request may leave the isolated local browser environment').toEqual([])
   expect(audit.unhandledApiRequests, 'Every Settings API request must be explicitly mocked').toEqual([])
 })
+
+for (const variant of [
+  { locale: 'en', dir: 'ltr' },
+  { locale: 'fa', dir: 'rtl' },
+] as const) {
+  test(`Settings toast stays below the topbar on mobile in ${variant.dir.toUpperCase()}`, async ({ page }) => {
+    const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [] }
+    await installSettingsMocks(page, audit)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await seedSession(page, variant.locale, 'dark')
+    await page.goto('/settings')
+
+    const timezoneSelect = page.locator('select').filter({ has: page.locator('option[value="UTC"]') })
+    await timezoneSelect.selectOption('UTC')
+    await page.locator('main .fh-button-primary').click()
+
+    const toast = page.getByRole('alert')
+    const topbar = page.locator('header').first()
+    await expect(toast).toBeVisible()
+    const [toastBox, topbarBox] = await Promise.all([toast.boundingBox(), topbar.boundingBox()])
+    expect(toastBox).not.toBeNull()
+    expect(topbarBox).not.toBeNull()
+    expect(toastBox!.y).toBeGreaterThanOrEqual(topbarBox!.y + topbarBox!.height + 8)
+    expect(toastBox!.x).toBeGreaterThanOrEqual(0)
+    expect(toastBox!.x + toastBox!.width).toBeLessThanOrEqual(390)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+
+    expect(audit.externalRequests, 'No request may leave the isolated local browser environment').toEqual([])
+    expect(audit.unhandledApiRequests, 'Every Settings API request must be explicitly mocked').toEqual([])
+  })
+}

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router'
 import { ApiError } from '../api/client'
 import Icon from '../components/Icon'
 import BrandIcon from '../components/BrandIcon'
+import Badge from '../components/Badge'
 import PageShell from '../components/PageShell'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
@@ -760,7 +761,7 @@ export default function SourceConfiguration() {
           <dl className="grid gap-3 sm:grid-cols-3">
             <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceName')}</dt><dd className="font-medium text-text-base">{source.name}</dd></div>
             <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceType')}</dt><dd className="font-medium text-text-base">{source.sourceKind === 'flowhub_sheet' ? translate('sources:sourceCenter.flowhubSheet') : source.sourceKind === 'imported_sheet' ? translate('sources:sourceCenter.importedSpreadsheet') : translate('sources:sourceCenter.linkedExternalSource')}</dd></div>
-            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.columnSetupStatus')}</dt><dd><span className={`fh-badge ${source.mapping ? 'fh-badge-success' : 'fh-badge-warning'}`}>{source.mapping ? translate('common:status.ready') : translate('sources:sourceConfiguration.notConfigured')}</span></dd></div>
+            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.columnSetupStatus')}</dt><dd><Badge variant={source.mapping ? 'success' : 'warning'}>{source.mapping ? translate('common:status.ready') : translate('sources:sourceConfiguration.notConfigured')}</Badge></dd></div>
           </dl>
         </ConfigurationSection>
         <ConfigurationSection id="connection" title={translate('sources:sourceConfiguration.section.connection')} description={translate('sources:sourceConfiguration.section.connectionHelp')} defaultOpen>
@@ -1048,8 +1049,8 @@ export default function SourceConfiguration() {
                 const item = currentPreviewItem
                 return <article className="p-4" key={item.rowKey}>
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="fh-badge fh-badge-neutral">{translate('sources:sourceConfiguration.worksheet')}: {item.worksheetName}</span>
-                    <span className="fh-badge fh-badge-neutral">{translate('sources:sourceConfiguration.row')} {item.rowNumber}</span>
+                    <Badge variant="neutral">{translate('sources:sourceConfiguration.worksheet')}: {item.worksheetName}</Badge>
+                    <Badge variant="neutral">{translate('sources:sourceConfiguration.row')} {item.rowNumber}</Badge>
                     <strong className="text-text-base">{String(item.sourceProduct.name || item.sourceProduct.source_key || '—')}</strong>
                     <span className="fh-text-caption">{item.ready
                       ? translate('common:status.ready')
@@ -1097,7 +1098,7 @@ export default function SourceConfiguration() {
       </div>
 
       <div className="sticky bottom-2 z-30 mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-bg-base/95 p-2 shadow-lg backdrop-blur sm:bottom-3 sm:gap-3 sm:p-3" data-testid="source-configuration-actions">
-        <span className={`fh-badge ${dirty ? 'fh-badge-warning' : 'fh-badge-success'}`}>{dirty ? translate('sources:sourceConfiguration.unsavedChanges') : translate('sources:sourceConfiguration.allChangesSaved')}</span>
+        <Badge variant={dirty ? 'warning' : 'success'}>{dirty ? translate('sources:sourceConfiguration.unsavedChanges') : translate('sources:sourceConfiguration.allChangesSaved')}</Badge>
         <span className="fh-text-caption hidden sm:inline">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
         <div className="order-last flex w-full flex-nowrap gap-2 overflow-x-auto pb-1 sm:order-none sm:ms-auto sm:w-auto sm:flex-wrap sm:overflow-visible sm:pb-0">
           {canEditSource && <button className="fh-button-secondary fh-button-sm shrink-0" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>}

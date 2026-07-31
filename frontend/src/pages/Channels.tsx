@@ -411,7 +411,6 @@ export default function Channels() {
           const facts = state === 'comingSoon' ? [] : state === 'setupRequired'
             ? [
               { label: translate('commerce:commerceHub.accessMode'), value: accessMode },
-              { label: translate('commerce:commerceHub.setupState'), value: formatStatus(channel.configuration_state ?? channel.credential_status) },
             ]
             : [
               { label: translate('commerce:commerceHub.accessMode'), value: accessMode },

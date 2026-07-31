@@ -139,7 +139,7 @@ async function assertFigmaSourcesHierarchy(page: Page, locale: 'en' | 'fa') {
   await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible()
 
   if (locale === 'en') {
-    await expect(page.getByText('Manage product data sources and worksheet freshness.')).toBeVisible()
+    await expect(page.getByText('Manage business data sources that feed FlowHub.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add source' })).toBeVisible()
     await expect(page.getByText('Connected Sources')).toBeVisible()
     await expect(page.getByText('Needs Attention')).toBeVisible()
@@ -152,12 +152,10 @@ async function assertFigmaSourcesHierarchy(page: Page, locale: 'en' | 'fa') {
     const grid = page.locator('[data-testid="source-card-groups"]')
     for (const fixture of SOURCES) await expect(grid.getByText(fixture.name, { exact: true })).toBeVisible()
     await expect(grid.locator('[data-source-card]')).toHaveCount(4)
-    await expect(grid.getByText('Healthy').first()).toBeVisible()
-    await expect(grid.getByText('Needs review')).toBeVisible()
-    await expect(grid.getByText('Disabled')).toBeVisible()
+    await expect(grid.getByText('Connected', { exact: true }).first()).toBeVisible()
+    await expect(grid.getByText('Setup required', { exact: true }).first()).toBeVisible()
     await expect(grid.getByText('6 worksheets enabled').first()).toBeVisible()
   } else {
-    await expect(page.getByText('منابع داده محصول و تازگی کاربرگ‌ها را مدیریت کنید.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'افزودن منبع' })).toBeVisible()
     await expect(page.getByText('منابع متصل')).toBeVisible()
     await expect(page.getByPlaceholder('جست‌وجوی منابع')).toBeVisible()

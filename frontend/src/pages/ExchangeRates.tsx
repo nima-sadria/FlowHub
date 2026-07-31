@@ -3,6 +3,7 @@ import { useAuth } from '../auth'
 import { translate } from '../i18n'
 import PageShell from '../components/PageShell'
 import SettingsNav from '../components/SettingsNav'
+import Badge from '../components/Badge'
 import Spinner from '../components/loading/Spinner'
 import Icon from '../components/Icon'
 import { useNotification } from '../notifications/NotificationProvider'
@@ -130,7 +131,7 @@ export default function ExchangeRates() {
     <PageShell>
       <div className="fh-page-header"><div><h1 className="fh-page-title">{translate('settings:exchangeRates.title')}</h1><p className="fh-page-subtitle">{translate('settings:exchangeRates.description')}</p></div></div>
       <div className="flex flex-col items-start gap-4 lg:flex-row">
-        <SettingsNav active="exchangeRates" />
+        <SettingsNav />
         <div className="flex w-full min-w-0 max-w-[820px] flex-col gap-4">
           <section className="fh-card fh-card-pad">
             <p className="fh-section-title">{translate('settings:exchangeRates.yourHeaderRates')}</p>
@@ -140,7 +141,7 @@ export default function ExchangeRates() {
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
                 {selections.map((value, index) => <label className="fh-field" key={index}><span className="fh-help-text">{translate('settings:exchangeRates.position', { value: index + 1 })}</span><select className="fh-select" value={value} onChange={event => setSelections(current => current.map((item, i) => i === index ? event.target.value : item))}>{definitions.filter(item => item.external_symbol === value || filtered.some(filteredItem => filteredItem.external_symbol === item.external_symbol)).map(item => <option key={item.external_symbol} value={item.external_symbol} disabled={selections.some((selectedSymbol, i) => i !== index && selectedSymbol === item.external_symbol)}>{item.display_name} · {item.external_symbol}</option>)}</select></label>)}
               </div>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-2">{rates.slice(0, 3).map(rate => <span key={rate.external_symbol} className="fh-badge fh-badge-neutral">{rate.display_name}: {rate.value ?? '—'} {rate.status === 'stale' ? `· ${translate('settings:exchangeRates.stale')}` : ''}</span>)}</div><button type="button" onClick={() => void saveSelections()} disabled={saving} className="fh-button-primary">{saving && <Spinner size="sm" className="text-white" />}{saving ? translate('settings:rateLimits.saving') : <><Icon name="save" />{translate('settings:rateLimits.saveChanges')}</>}</button></div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-2">{rates.slice(0, 3).map(rate => <Badge key={rate.external_symbol} variant={rate.status === 'stale' ? 'warning' : 'neutral'}>{rate.display_name}: {rate.value ?? '—'} {rate.status === 'stale' ? `· ${translate('settings:exchangeRates.stale')}` : ''}</Badge>)}</div><button type="button" onClick={() => void saveSelections()} disabled={saving} className="fh-button-primary">{saving && <Spinner size="sm" className="text-white" />}{saving ? translate('settings:rateLimits.saving') : <><Icon name="save" />{translate('settings:rateLimits.saveChanges')}</>}</button></div>
             </>}
           </section>
 

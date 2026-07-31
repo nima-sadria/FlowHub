@@ -124,7 +124,7 @@ export default function Settings() {
       </div>
 
       <div className="flex flex-col items-start gap-4 lg:flex-row">
-        <SettingsNav active="general" />
+        <SettingsNav />
 
         <div className="flex w-full min-w-0 max-w-[820px] flex-col gap-4">
           <section className={['fh-card fh-card-pad', dirty ? 'border-accent' : ''].join(' ')}>

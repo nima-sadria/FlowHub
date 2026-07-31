@@ -53,6 +53,10 @@ describe('NotificationContainer', () => {
     expect(container.querySelector('.fh-notification-description')?.textContent).toContain('New information has been loaded.')
     expect(container.textContent).toContain('Your changes have been applied.')
     expect(container.querySelector('button[aria-label="Close notification"] [data-icon="close"]')).not.toBeNull()
+    const region = container.querySelector('[role="region"]')
+    expect(region?.className).toContain('top-[76px]')
+    expect(region?.className).toContain('inset-x-4')
+    expect(region?.className).toContain('sm:end-4')
 
     act(() => { root.unmount() })
     container.remove()

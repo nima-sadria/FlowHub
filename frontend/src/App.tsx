@@ -24,6 +24,7 @@ import Products from './pages/Products'
 import { WORKSPACE_PERMISSION } from './utils/workspacePermissions'
 
 const Activity = lazy(() => import('./pages/Activity'))
+const AdvancedSettings = lazy(() => import('./pages/AdvancedSettings'))
 const Channels = lazy(() => import('./pages/Channels'))
 const ChannelDetail = lazy(() => import('./pages/ChannelDetail'))
 const CommerceHub = lazy(() => import('./pages/CommerceHub'))
@@ -187,6 +188,7 @@ function SetupGate() {
           <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
           <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
           <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
+          <Route path="/settings/advanced" element={<RequirePermission permission="can_view_settings"><AdvancedSettings /></RequirePermission>} />
           <Route path="/settings/exchange-rates" element={<RequirePermission permission="can_access_site"><ExchangeRates /></RequirePermission>} />
           <Route path="/settings/users" element={<RequirePermission permission="can_view_settings" adminOnly><UserManagement /></RequirePermission>} />
         </Route>

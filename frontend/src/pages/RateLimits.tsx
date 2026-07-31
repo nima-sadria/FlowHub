@@ -173,7 +173,7 @@ export default function RateLimits() {
       </div>
 
       <div className="flex flex-col items-start gap-4 lg:flex-row">
-        <SettingsNav active="rateLimits" />
+        <SettingsNav />
 
         <div className="flex w-full max-w-[820px] min-w-0 flex-col gap-3.5">
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">

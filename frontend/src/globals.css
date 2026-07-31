@@ -3091,7 +3091,7 @@ select,
   .fh-button-sm {
     min-height: 36px;
     padding: 8px 14px;
-    border-radius: var(--fh-radius-sm);
+    border-radius: var(--fh-radius-md);
   }
 
   /* Form fields */

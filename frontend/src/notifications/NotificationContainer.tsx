@@ -41,7 +41,7 @@ export default function NotificationContainer() {
 
   return (
     <div
-      className="fixed top-4 end-4 z-50 flex flex-col gap-2 w-full max-w-sm pointer-events-none"
+      className="fixed inset-x-4 top-[76px] z-50 flex w-auto max-w-sm flex-col gap-2 pointer-events-none sm:start-auto sm:end-4 sm:w-full"
       role="region"
       aria-label={translate('notifications:notificationContainer.notifications')}
     >

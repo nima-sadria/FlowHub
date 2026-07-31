@@ -123,7 +123,7 @@ async function assertFigmaChannelsHierarchy(page: Page, locale: 'en' | 'fa') {
     await expect(page.getByRole('button', { name: 'Add channel' })).toBeVisible()
     await expect(page.getByText('Connected Channels')).toBeVisible()
     await expect(page.getByText('Healthy Listings')).toBeVisible()
-    await expect(page.getByText('Needs Attention')).toBeVisible()
+    await expect(page.getByText('Needs Attention', { exact: true })).toBeVisible()
     await expect(page.getByText('Orders Today')).toBeVisible()
     await expect(page.getByText('72').first()).toBeVisible()
     await expect(page.getByPlaceholder('Search channels')).toBeVisible()
@@ -133,9 +133,10 @@ async function assertFigmaChannelsHierarchy(page: Page, locale: 'en' | 'fa') {
     const grid = page.locator('.fh-channels-grid')
     for (const fixture of CHANNELS) await expect(grid.getByText(fixture.name, { exact: true })).toBeVisible()
     await expect(grid.locator('[data-channel-card]')).toHaveCount(4)
-    await expect(grid.getByText('Healthy').first()).toBeVisible()
-    await expect(grid.getByText('Needs review')).toBeVisible()
-    await expect(grid.getByText('Disabled').first()).toBeVisible()
+    await expect(grid.getByText('Connected', { exact: true }).first()).toBeVisible()
+    const setupCard = grid.locator('[data-channel-card="channel-digikala"]')
+    await expect(setupCard.getByText('Setup required', { exact: true })).toHaveCount(1)
+    await expect(setupCard.locator('.fh-badge')).toHaveCount(1)
   } else {
     await expect(page.getByRole('button', { name: 'افزودن کانال' })).toBeVisible()
     await expect(page.getByText('کانال‌های متصل')).toBeVisible()
@@ -166,7 +167,7 @@ test('channels matches the approved Figma hierarchy in Light/Dark and LTR/RTL at
     if (variant.theme === 'dark') {
       await expect(page.locator('html')).toHaveClass(/dark/)
     }
-    await expect(page.locator('.fh-channels-grid')).toBeVisible()
+    await expect(page.locator('.fh-channels-grid').first()).toBeVisible()
     await assertFigmaChannelsHierarchy(page, variant.locale)
     await page.evaluate(() => document.fonts.ready)
     await page.screenshot({

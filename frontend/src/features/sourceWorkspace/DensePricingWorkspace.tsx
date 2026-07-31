@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Badge from '../../components/Badge'
 import Empty from '../../components/Empty'
 import Icon from '../../components/Icon'
 import PageShell from '../../components/PageShell'
@@ -797,7 +798,7 @@ function BulkEditDialog({ grid, descriptors, channelById, channelFilter, pricing
           <div className="min-w-0">
             <h2 className="fh-section-title">{translate('products:products.bulkEditProducts')}</h2>
             <p className="fh-text-caption fh-bulk-subtitle">
-              <span className="fh-badge fh-badge-neutral">{translate('products:products.productsSelected', { count: scopedProducts })}</span>
+              <Badge variant="neutral">{translate('products:products.productsSelected', { count: scopedProducts })}</Badge>
               <span>{translate('products:products.channelListingsAffected', { count: scopedListings, value: formatNumber(scopedListings) })}</span>
             </p>
           </div>

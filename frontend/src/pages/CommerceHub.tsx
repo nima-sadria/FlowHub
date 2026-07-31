@@ -114,7 +114,7 @@ function SourceCard({ source, badge, onTest, onRead, onConfigure, testing, readi
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="fh-badge fh-badge-neutral">{formatStatus(source.health?.status ?? "unknown")}</span>
+        <Badge variant="neutral">{formatStatus(source.health?.status ?? "unknown")}</Badge>
         <span className="fh-text-caption">{translate('commerce:commerceHub.lastRead')} {readStatus?.last_read_at ? formatDateTime(readStatus.last_read_at) : translate('commerce:commerceHub.notRead')}</span>
       </div>
 
@@ -201,7 +201,7 @@ function ChannelCard({ channel, badge, onTest, onRefresh, onConfigure, testing, 
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="fh-badge fh-badge-neutral">{formatStatus(channel.health?.status ?? "unknown")}</span>
+        <Badge variant="neutral">{formatStatus(channel.health?.status ?? "unknown")}</Badge>
         <span className="fh-text-caption">{translate('commerce:commerceHub.lastHealthCheck')} {channel.last_health_check ? formatDateTime(channel.last_health_check) : translate('commerce:commerceHub.notChecked')}</span>
       </div>
 

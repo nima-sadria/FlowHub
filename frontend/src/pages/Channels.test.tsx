@@ -187,6 +187,8 @@ describe('Channels page', () => {
 
     const card = container.querySelector('[data-channel-card="digikala:pos"]') as HTMLElement
     expect(Array.from(card.querySelectorAll('button')).map(button => button.textContent?.trim())).toEqual(['Setup now'])
+    expect(card.querySelectorAll('.fh-badge')).toHaveLength(1)
+    expect(card.textContent?.match(/Setup required/g) ?? []).toHaveLength(1)
     expect(card.textContent).not.toContain('Test connection')
     expect(card.textContent).not.toContain('Refresh product cache')
   })

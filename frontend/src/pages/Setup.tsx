@@ -14,6 +14,7 @@ import type {
   SetupStatus,
 } from '../api/types'
 import Spinner from '../components/loading/Spinner'
+import Badge from '../components/Badge'
 import { useDirection } from '../direction'
 import { translate } from '../i18n'
 import { useTheme } from '../theme/ThemeProvider'
@@ -340,16 +341,12 @@ function SetupChecklist({ current }: { current: Step }) {
               <span className="min-w-0 text-xs leading-4 text-[color:var(--fh-text-secondary)]">
                 {translate(STEP_DETAILS[step].checklistKey)}
               </span>
-              <span className={[
-                'fh-badge shrink-0',
-                state === 'complete'
-                  ? 'fh-badge-success'
-                  : state === 'active'
-                    ? 'fh-badge-info'
-                    : 'fh-badge-neutral',
-              ].join(' ')}>
+              <Badge
+                className="shrink-0"
+                variant={state === 'complete' ? 'success' : state === 'active' ? 'info' : 'pending'}
+              >
                 {translate(`settings:setup.${state}`)}
-              </span>
+              </Badge>
             </div>
           )
         })}
@@ -560,29 +557,22 @@ function DatabaseStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
             <p className="text-[13px] font-medium text-text-base">{translate('settings:setup.connection')}</p>
             <p className="mt-1 text-xs text-[color:var(--fh-text-secondary)]">{translate('settings:setup.connectionDescription')}</p>
           </div>
-          <span className={['fh-badge', status?.connected ? 'fh-badge-success' : 'fh-badge-neutral'].join(' ')}>
+          <Badge variant={status?.connected ? 'success' : 'pending'}>
             {status?.connected ? translate('settings:setup.connected') : translate('settings:setup.notChecked')}
-          </span>
+          </Badge>
         </div>
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-bg-card p-3">
           <div>
             <p className="text-[13px] font-medium text-text-base">{translate('settings:setup.schema')}</p>
             <p className="mt-1 text-xs text-[color:var(--fh-text-secondary)]">{translate('settings:setup.schemaDescription')}</p>
           </div>
-          <span className={[
-            'fh-badge',
-            status?.is_current === true
-              ? 'fh-badge-success'
-              : status?.is_current === false
-                ? 'fh-badge-danger'
-                : 'fh-badge-neutral',
-          ].join(' ')}>
+          <Badge variant={status?.is_current === true ? 'success' : status?.is_current === false ? 'danger' : 'pending'}>
             {status?.is_current === true
               ? translate('settings:setup.upToDate')
               : status?.is_current === false
                 ? translate('settings:setup.updateRequired')
                 : translate('settings:setup.notChecked')}
-          </span>
+          </Badge>
         </div>
       </div>
       <Actions
@@ -824,7 +814,7 @@ export default function Setup({ onComplete }: SetupProps) {
       <main className="fh-card mx-auto mt-5 min-h-[690px] w-full max-w-[900px] overflow-visible p-5 sm:p-6">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-[22px] font-semibold leading-[30px] text-text-base">{translate('settings:setup.setUpWorkspace')}</h1>
-          <span className="fh-badge fh-badge-info shrink-0">{translate('settings:setup.stepOf', { step: stepIndex + 1, total: SETUP_STEPS.length })}</span>
+          <Badge className="shrink-0" variant="info">{translate('settings:setup.stepOf', { step: stepIndex + 1, total: SETUP_STEPS.length })}</Badge>
         </div>
 
         <div className="mt-[18px]">

@@ -78,7 +78,13 @@ const NAV_GROUPS: NavGroup[] = [
   {
     sectionKey: 'navigation:sidebar.settings',
     items: [
-      { labelKey: 'navigation:sidebar.general', to: '/settings', icon: routeIconMap.Settings, permission: 'can_view_settings' },
+      {
+        labelKey: 'navigation:sidebar.general',
+        to: '/settings',
+        icon: routeIconMap.Settings,
+        permission: 'can_view_settings',
+        isActive: pathname => pathname === '/settings',
+      },
       { labelKey: 'navigation:sidebar.users', to: '/settings/users', icon: routeIconMap.Users, permission: 'can_view_settings', adminOnly: true },
       { labelKey: 'navigation:sidebar.rateLimits', to: '/rate-limits', icon: 'sliders', permission: 'can_view_settings' },
     ],

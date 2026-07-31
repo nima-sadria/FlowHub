@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import Badge from '../components/Badge'
 import Empty from '../components/Empty'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
@@ -44,13 +45,8 @@ function canRetryRow(order: ChannelOrderListItem): boolean {
   return order.connectorType === 'woocommerce' && (Boolean(order.errorState) || order.synchronizationState !== 'synced')
 }
 
-function InlineStatus({ tone, children }: { tone: Tone; children: ReactNode }) {
-  return (
-    <span className={`fh-inline-status fh-inline-status-${tone}`}>
-      <span aria-hidden="true" className={`fh-status-dot fh-status-dot-${tone}`} />
-      {children}
-    </span>
-  )
+function InlineStatus({ tone, children }: { tone: Tone; children: string }) {
+  return <Badge dot variant={tone}>{children}</Badge>
 }
 
 function pageNumbers(current: number, total: number): (number | 'ellipsis')[] {

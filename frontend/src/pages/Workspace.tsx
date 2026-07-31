@@ -73,14 +73,7 @@ function PriceChangeRow({ change }: { change: PriceChange }) {
 type Phase = 'idle' | 'previewing' | 'preview_ready' | 'dry_running' | 'dry_run_ready' | 'approving' | 'approved' | 'applying' | 'result' | 'error'
 
 function StepPill({ label, active, done }: { label: string; active: boolean; done: boolean }) {
-  return (
-    <span className={[
-      "fh-badge",
-      active ? "fh-badge-warning" : done ? "fh-badge-success" : "fh-badge-neutral",
-    ].join(' ')}>
-      {label}
-    </span>
-  )
+  return <Badge variant={active ? 'pending' : done ? 'success' : 'neutral'}>{label}</Badge>
 }
 
 function statusLabel(status: WorkspacePreviewRow['status']): string {

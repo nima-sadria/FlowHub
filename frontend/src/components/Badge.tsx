@@ -1,13 +1,19 @@
 import type { ReactNode } from 'react'
 
-export type BadgeVariant =
+export type SemanticBadgeVariant =
   | 'neutral'
-  | 'primary'
   | 'info'
   | 'success'
   | 'warning'
-  | 'error'
+  | 'pending'
+  | 'disabled'
   | 'danger'
+
+// Legacy aliases remain supported while all new status rendering uses the
+// seven semantic variants above.
+export type BadgeVariant = SemanticBadgeVariant
+  | 'primary'
+  | 'error'
   | 'valid'
 
 const VARIANT_CLASS: Record<BadgeVariant, string> = {
@@ -16,6 +22,8 @@ const VARIANT_CLASS: Record<BadgeVariant, string> = {
   info: 'fh-badge-info',
   success: 'fh-badge-success',
   warning: 'fh-badge-warning',
+  pending: 'fh-badge-warning',
+  disabled: 'fh-badge-neutral',
   error: 'fh-badge-error',
   danger: 'fh-badge-danger',
   valid: 'fh-badge-valid',
@@ -27,6 +35,8 @@ const DOT_CLASS: Record<BadgeVariant, string> = {
   info: 'fh-status-dot-info',
   success: 'fh-status-dot-success',
   warning: 'fh-status-dot-warning',
+  pending: 'fh-status-dot-warning',
+  disabled: 'fh-status-dot-neutral',
   error: 'fh-status-dot-error',
   danger: 'fh-status-dot-danger',
   valid: 'fh-status-dot-success',

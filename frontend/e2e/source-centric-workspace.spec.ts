@@ -228,9 +228,10 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
       await expect(page.getByText('محصولات ذخیره‌شده در کش', { exact: false })).toHaveCount(0)
     }
     if (name === 'commerce-channels') {
-      const channelCard = page.getByRole('heading', { name: 'WooCommerce' }).locator('xpath=ancestor::div[contains(@class, "fh-card")][1]')
-      await channelCard.getByText('جزئیات', { exact: true }).click()
-      await expect(channelCard.getByText('خواندن محصولات', { exact: false }).first()).toBeVisible()
+      await expect(page).toHaveURL(/\/channels$/)
+      const channelCard = page.locator('[data-channel-card="woocommerce:primary"]')
+      await expect(channelCard).toBeVisible()
+      await expect(channelCard.getByRole('button', { name: 'باز کردن' })).toBeVisible()
       await expect(channelCard.getByText('محصولات ذخیره‌شده در کش', { exact: false })).toBeVisible()
     }
     if (name === 'diagnostics') {
