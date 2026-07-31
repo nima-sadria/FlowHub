@@ -13,6 +13,7 @@
   "flowHubSheet.of": "of",
   "flowHubSheet.previous": "Previous",
   "flowHubSheet.productAndPricingSheet": "Product and pricing sheet",
+  "flowHubSheet.readOnlyPermission": "You can view this Sheet. Saving revisions requires Draft save permission.",
   "flowHubSheet.renamedColumnsPage": "renamed columns · Page",
   "flowHubSheet.revisionIsImmutableAndReadyForSnapshot": "Revision {{value1}} is immutable and ready for Snapshot creation.",
   "flowHubSheet.revisionSummary": "FlowHub Sheet · Revision {{revision}} · {{rows}} rows",
@@ -25,7 +26,6 @@
   "flowHubSheet.sort": "Sort",
   "flowHubSheet.sortSheetByColumn": "Sort Sheet by column",
   "flowHubSheet.tryAgain": "Try again.",
-  "flowHubSheet.readOnlyPermission": "You can view this Sheet. Saving revisions requires Draft save permission.",
   "flowHubSheet.unsavedCells": "unsaved cells ·",
   "flowHubSheet.virtualizedFlowhubSheet": "Virtualized FlowHub Sheet"
 }

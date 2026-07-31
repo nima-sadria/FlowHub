@@ -1,10 +1,13 @@
 import { translate } from '../../i18n'
 
 const CHANNEL_TYPE_LABELS: Record<string, string> = {
-  woocommerce: 'WooCommerce',
-  snappshop: 'SnappShop',
-  tapsishop: 'TapsiShop',
-  shopify: 'Shopify',
+  woocommerce: 'ووکامرس',
+  snappshop: 'اسنپ شاپ',
+  tapsishop: 'تپ‌سی شاپ',
+  digikala: 'دیجی‌کالا',
+  technolife: 'تکنولایف',
+  magento: 'مجنتو',
+  shopify: 'شاپیفای',
 }
 
 function humanize(value: string): string {

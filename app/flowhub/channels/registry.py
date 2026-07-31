@@ -57,7 +57,7 @@ def default_marketplace_registry() -> MarketplaceConnectorRegistry:
         MarketplaceConnectorDefinition(
             connector_type="woocommerce",
             channel_id="woocommerce:primary",
-            name="WooCommerce",
+            name="ووکامرس",
             capabilities=frozenset({
                 ChannelCapability.PRODUCTS_READ,
                 ChannelCapability.PRODUCTS_WRITE_PRICE,
@@ -72,7 +72,7 @@ def default_marketplace_registry() -> MarketplaceConnectorRegistry:
         MarketplaceConnectorDefinition(
             connector_type="snappshop",
             channel_id="snappshop:main",
-            name="Snapp Shop",
+            name="اسنپ شاپ",
             capabilities=frozenset({
                 ChannelCapability.PRODUCTS_READ,
                 ChannelCapability.PRODUCTS_WRITE_PRICE,
@@ -89,7 +89,7 @@ def default_marketplace_registry() -> MarketplaceConnectorRegistry:
         MarketplaceConnectorDefinition(
             connector_type="tapsishop",
             channel_id="tapsishop:main",
-            name="Tapsi Shop",
+            name="تپ‌سی شاپ",
             capabilities=frozenset({
                 ChannelCapability.PRODUCTS_READ,
                 ChannelCapability.PRODUCTS_WRITE_PRICE,

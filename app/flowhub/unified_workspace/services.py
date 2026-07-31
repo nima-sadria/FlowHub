@@ -2996,9 +2996,9 @@ class UnifiedWorkspaceService:
                 row.capability_version = capabilities.version
                 row.updated_at = utcnow()
         for channel_id, name in (
-            ("digikala:main", "Digikala"),
-            ("technolife:main", "Technolife"),
-            ("shopify:main", "Shopify"),
+            ("digikala:main", "دیجی‌کالا"),
+            ("technolife:main", "تکنولایف"),
+            ("shopify:main", "شاپیفای"),
         ):
             if self.db.get(WorkspaceChannel, channel_id) is None:
                 self.db.add(
