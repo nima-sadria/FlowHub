@@ -188,6 +188,8 @@ test('sources matches the approved Figma hierarchy in Light/Dark and LTR/RTL at 
     await expect(page.locator('[data-testid="source-card-groups"]')).toBeVisible()
     await assertFigmaSourcesHierarchy(page, variant.locale)
     await page.evaluate(() => document.fonts.ready)
+    // Let the shared 300ms shell/theme transition finish before capturing reference pixels.
+    await page.waitForTimeout(500)
     await page.screenshot({
       path: path.join(screenshotRoot, `sources-${variant.theme}-${variant.dir}-1440x900.png`),
       animations: 'disabled',
