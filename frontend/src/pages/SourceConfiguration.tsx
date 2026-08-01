@@ -33,6 +33,9 @@ import WorksheetRuleEditor, {
 import { useAuth } from '../auth'
 import { effectiveHasPerm } from '../utils/permissions'
 import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
+import { useOptionalServices } from '../services/ServiceContext'
+import type { CommerceTypeOption } from '../services/types'
+import { ConfigPanel } from './CommerceHub'
 
 interface PendingWorksheetCopy {
   intent: WorksheetCopyIntent
@@ -161,6 +164,47 @@ function MappingControl({
   )
 }
 
+function CompactMappingControl({
+  mapping,
+  disabled = false,
+  allowInternalColumnId = true,
+  onChange,
+}: {
+  mapping: FieldMapping
+  disabled?: boolean
+  allowInternalColumnId?: boolean
+  onChange: (value: FieldMapping) => void
+}) {
+  return (
+    <div className="grid min-w-[180px] gap-2">
+      <select
+        className="fh-input"
+        aria-label={translate('sources:sourceConfiguration.referenceType', { field: fieldDisplayName(mapping.field) })}
+        disabled={disabled}
+        value={mapping.referenceType}
+        onChange={event => onChange({
+          ...mapping,
+          referenceType: event.target.value as ReferenceType,
+          referenceValue: event.target.value === 'disabled' ? null : mapping.referenceValue,
+        })}
+      >
+        <option value="disabled">{translate('sources:sourceConfiguration.disabled')}</option>
+        <option value="column_letter">{translate('sources:sourceConfiguration.columnLetter')}</option>
+        <option value="header_name">{translate('sources:sourceConfiguration.exactHeader')}</option>
+        {allowInternalColumnId && <option value="column_id">{translate('sources:sourceConfiguration.internalColumnId')}</option>}
+      </select>
+      <input
+        className="fh-input"
+        aria-label={translate('sources:sourceConfiguration.columnReference', { field: fieldDisplayName(mapping.field) })}
+        disabled={disabled || mapping.referenceType === 'disabled'}
+        value={mapping.referenceValue ?? ''}
+        onChange={event => onChange({ ...mapping, referenceValue: event.target.value })}
+        placeholder={translate('sources:sourceConfiguration.exactColumnReference')}
+      />
+    </div>
+  )
+}
+
 function channelValidation(fields: FieldMapping[], enabled: boolean): string[] {
   if (!enabled) return []
   const issues: string[] = []
@@ -187,6 +231,7 @@ function channelValidation(fields: FieldMapping[], enabled: boolean): string[] {
 
 export default function SourceConfiguration() {
   const { sourceId = '' } = useParams()
+  const commerce = useOptionalServices()?.commerce
   const navigate = useNavigate()
   const notify = useNotification()
   const { user } = useAuth()
@@ -194,6 +239,7 @@ export default function SourceConfiguration() {
   const canEditSource = effectiveHasPerm(user, WORKSPACE_PERMISSION.edit)
   const canViewActivity = effectiveHasPerm(user, WORKSPACE_PERMISSION.readAudit)
   const canViewDiagnostics = effectiveHasPerm(user, 'can_view_settings')
+  const canManageCommerce = user?.is_admin === true
   const [source, setSource] = useState<(SourceProfile & { mapping: SourceMapping | null }) | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadFailure, setLoadFailure] = useState<{ notFound: boolean; reason: string } | null>(null)
@@ -228,6 +274,10 @@ export default function SourceConfiguration() {
   const [baselineFingerprint, setBaselineFingerprint] = useState<string | null>(null)
   const [previewedFingerprint, setPreviewedFingerprint] = useState<string | null>(null)
   const [connectionChecking, setConnectionChecking] = useState(false)
+  const [channelSetupId, setChannelSetupId] = useState<string | null>(null)
+  const [channelTypes, setChannelTypes] = useState<CommerceTypeOption[]>([])
+  const [channelSetupLoading, setChannelSetupLoading] = useState(false)
+  const [channelSetupError, setChannelSetupError] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -339,6 +389,11 @@ export default function SourceConfiguration() {
   }
 
   function toggleChannel(channelId: string) {
+    const channel = channels.find(item => item.channelId === channelId)
+    if (channel?.configured === false) {
+      if (canManageCommerce) void openChannelSetup(channelId)
+      return
+    }
     ensureConfigured(channelId)
     const enabled = !Boolean(channelEnabled[channelId])
     setChannelEnabled(current => ({ ...current, [channelId]: enabled }))
@@ -349,6 +404,37 @@ export default function SourceConfiguration() {
         : { channelId, worksheetName: rule.worksheetName, enabled, fields: emptyWorksheetChannelFields() }
       return { ...rule, channels: [...rule.channels.filter(channel => channel.channelId !== channelId), next] }
     }))
+  }
+
+  async function openChannelSetup(channelId?: string) {
+    if (!canManageCommerce || !commerce) return
+    setChannelSetupLoading(true)
+    setChannelSetupError(false)
+    setChannelSetupId(channelId ?? 'new')
+    try {
+      const result = await commerce.getChannelTypes()
+      setChannelTypes(result.items)
+    } catch {
+      setChannelSetupError(true)
+    } finally {
+      setChannelSetupLoading(false)
+    }
+  }
+
+  function closeChannelSetup() {
+    setChannelSetupId(null)
+    setChannelSetupError(false)
+  }
+
+  async function handleChannelSetupSaved(saved: { externalId: string }) {
+    const available = await sourceWorkspaceApi.channels()
+    setChannels(available.items)
+    const configured = available.items.find(item => item.channelId === saved.externalId)
+    if (configured?.configured) {
+      ensureConfigured(saved.externalId)
+      setChannelEnabled(current => ({ ...current, [saved.externalId]: true }))
+    }
+    closeChannelSetup()
   }
 
   function updateSourceField(field: string, value: FieldMapping) {
@@ -756,31 +842,24 @@ export default function SourceConfiguration() {
 
       {!canEditSource && <div className="fh-alert fh-alert-info mb-5" role="status"><Icon name="info" /><span>{translate('sources:sourceConfiguration.readOnlyPermission')}</span></div>}
 
-      <div className="mb-5 grid gap-3">
-        <ConfigurationSection id="overview" title={translate('sources:sourceConfiguration.section.general')} description={translate('sources:sourceConfiguration.section.generalHelp')} defaultOpen>
-          <dl className="grid gap-3 sm:grid-cols-3">
-            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceName')}</dt><dd className="font-medium text-text-base">{source.name}</dd></div>
-            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceType')}</dt><dd className="font-medium text-text-base">{source.sourceKind === 'flowhub_sheet' ? translate('sources:sourceCenter.flowhubSheet') : source.sourceKind === 'imported_sheet' ? translate('sources:sourceCenter.importedSpreadsheet') : translate('sources:sourceCenter.linkedExternalSource')}</dd></div>
-            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.columnSetupStatus')}</dt><dd><Badge variant={source.mapping ? 'success' : 'warning'}>{source.mapping ? translate('common:status.ready') : translate('sources:sourceConfiguration.notConfigured')}</Badge></dd></div>
-          </dl>
-        </ConfigurationSection>
-        <ConfigurationSection id="connection" title={translate('sources:sourceConfiguration.section.connection')} description={translate('sources:sourceConfiguration.section.connectionHelp')} defaultOpen>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <BrandIcon
-              identity={{ provider: source.externalSourceId, sourceType: source.sourceKind }}
-              label={source.name}
-              size={40}
-            />
-            <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>
+      <section className="fh-card mb-5" id="overview">
+        <div className="fh-panel-header">
+          <div className="flex min-w-0 items-center gap-3">
+            <BrandIcon identity={{ provider: source.externalSourceId, sourceType: source.sourceKind }} label={source.name} size={40} />
+            <div className="min-w-0">
+              <h2 className="fh-section-title">{translate('sources:sourceConfiguration.section.general')}</h2>
+              <p className="fh-text-caption truncate">{translate('sources:sourceConfiguration.readOncePolicy')}</p>
+            </div>
           </div>
-        </ConfigurationSection>
-        <ConfigurationSection title={translate('sources:sourceConfiguration.section.readPolicy')} description={translate('sources:sourceConfiguration.section.readPolicyHelp')}>
-          <p className="fh-text-caption">{translate('sources:sourceConfiguration.readOncePolicy')}</p>
-        </ConfigurationSection>
-        <ConfigurationSection title={translate('sources:sourceConfiguration.section.accessScope')} description={translate('sources:sourceConfiguration.section.accessScopeHelp')}>
-          <p className="fh-text-caption">{translate('sources:sourceConfiguration.accessScopePolicy')}</p>
-        </ConfigurationSection>
-      </div>
+          {canEditSource && <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>}
+        </div>
+        <dl className="grid gap-x-6 gap-y-3 border-t border-border p-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceName')}</dt><dd className="font-medium text-text-base">{source.name}</dd></div>
+          <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceType')}</dt><dd className="font-medium text-text-base">{source.sourceKind === 'flowhub_sheet' ? translate('sources:sourceCenter.flowhubSheet') : source.sourceKind === 'imported_sheet' ? translate('sources:sourceCenter.importedSpreadsheet') : translate('sources:sourceCenter.linkedExternalSource')}</dd></div>
+          <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.columnSetupStatus')}</dt><dd><Badge variant={source.mapping ? 'success' : 'warning'}>{source.mapping ? translate('common:status.ready') : translate('sources:sourceConfiguration.notConfigured')}</Badge></dd></div>
+          <div id="connection"><dt className="fh-text-caption">{translate('sources:sourceConfiguration.section.accessScope')}</dt><dd className="font-medium text-text-base">{translate('sources:sourceConfiguration.accessScopePolicy')}</dd></div>
+        </dl>
+      </section>
 
       {source.legacyMapping && !source.mapping && (
         <section className="fh-alert-warning mb-5" role="status">
@@ -852,87 +931,39 @@ export default function SourceConfiguration() {
 
       <div className={`mt-5 space-y-3 ${worksheetRuleMode === 'per_worksheet' ? 'hidden' : ''}`}>
         <ConfigurationSection title={translate('sources:sourceConfiguration.section.channelColumns')} description={translate('sources:sourceConfiguration.section.channelColumnsHelp')}>
-          <div className="space-y-4" aria-label={translate('sources:sourceConfiguration.channelMappings')}>
-          <ResourceSectionList resources={channelResources} renderItem={orderedChannel => {
-            const channel = orderedChannel.item
-            const enabled = Boolean(channelEnabled[channel.channelId])
-            const fields = channelFields[channel.channelId] ?? emptyChannelFields()
-            const issues = channelValidation(fields, enabled)
-            const controlsDisabled = !channel.available || !enabled
-            const copyResources = prepareResourceCollection(
-              configuredChannelResources.ordered
-                .map(item => item.item)
-                .filter(item => item.channelId !== channel.channelId),
-              sourceChannelSignals,
-            )
-            return (
-              <details className="rounded-xl border border-border bg-bg-base" data-channel-id={channel.channelId} key={channel.channelId} open={enabled}>
-                <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-4">
-                  <span aria-hidden="true">▾</span>
-                  <BrandIcon identity={{ provider: channel.connectorType || channel.channelId, sourceType: channel.connectorType }} label={orderedChannel.displayName} size={40} />
-                  <h3 className="font-semibold text-text-base">{orderedChannel.displayName}</h3>
-                  <ResourceStateBadge badge={orderedChannel.badge} />
-                  <label className="fh-inline-check ms-auto" onClick={event => event.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={enabled}
-                      disabled={!channel.available}
-                      onChange={() => toggleChannel(channel.channelId)}
-                    />
-                    {enabled ? translate('sources:sourceConfiguration.enabled') : translate('sources:sourceConfiguration.disabled')}
-                  </label>
-                </summary>
-                <div className="border-t border-border p-4">
-                  <div className="mb-4 flex flex-wrap items-end gap-2">
-                    <label className="fh-field-label min-w-[220px]">
-                      {translate('sources:sourceConfiguration.worksheetOverride')}
-                      <input
-                        className="fh-input mt-1"
-                        disabled={controlsDisabled}
-                        value={channelWorksheets[channel.channelId] ?? ''}
-                        onChange={event => setChannelWorksheets(current => ({ ...current, [channel.channelId]: event.target.value }))}
-                        placeholder={translate('sources:sourceConfiguration.useSourceWorksheet')}
-                      />
-                    </label>
-                    <label className="fh-field-label min-w-[220px]">
-                      {translate('sources:sourceConfiguration.copyMappingFrom')}
-                      <select className="fh-input mt-1" disabled={controlsDisabled} value={copyFrom[channel.channelId] ?? ''} onChange={event => setCopyFrom(current => ({ ...current, [channel.channelId]: event.target.value }))}>
-                        <option value="">{translate('sources:sourceConfiguration.selectChannel')}</option>
-                        <ResourceOptionGroups
-                          resources={copyResources}
-                          renderLabel={item => item.displayName}
-                        />
-                      </select>
-                    </label>
-                    <button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled || !copyFrom[channel.channelId]} onClick={() => copyMapping(channel.channelId)}>
-                      {translate('sources:sourceConfiguration.copyMapping')}
-                    </button>
-                    <button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled} onClick={() => clearMapping(channel.channelId)}>
-                      {translate('sources:sourceConfiguration.clearMapping')}
-                    </button>
-                  </div>
-                  <div className="grid gap-3">
-                    {CHANNEL_FIELDS.map(([field, labelKey]) => (
-                      <label className="grid gap-1" key={field}>
-                        <span className="fh-field-label">{translate(labelKey)}</span>
-                        <MappingControl
-                          mapping={fields.find(item => item.field === field)!}
-                          disabled={controlsDisabled}
-                          allowInternalColumnId={source.sourceKind === 'flowhub_sheet'}
-                          onChange={value => updateChannelField(channel.channelId, field, value)}
-                        />
-                      </label>
-                    ))}
-                  </div>
-                  {issues.length > 0 && (
-                    <ul className="fh-alert-warning mt-4 list-disc ps-5" aria-label={translate('sources:sourceConfiguration.mappingValidation')}>
-                      {issues.map(issue => <li key={issue}>{issue}</li>)}
-                    </ul>
-                  )}
-                </div>
-              </details>
-            )
-          }} />
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="fh-text-caption">{translate('sources:sourceConfiguration.mappingConfiguredAfterConnection')}</p>
+            {canManageCommerce && <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => void openChannelSetup()}><Icon name="add" /> {translate('commerce:commerceHub.addChannel')}</button>}
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-border" aria-label={translate('sources:sourceConfiguration.channelMappings')}>
+            <table className="fh-table min-w-[1480px]">
+              <thead><tr>
+                <th className="w-[240px]">{translate('workspace:unifiedWorkspace.channel')}</th>
+                <th className="w-[140px]">{translate('sources:sourceConfiguration.enabled')}</th>
+                <th className="w-[190px]">{translate('sources:sourceConfiguration.worksheetOverride')}</th>
+                {CHANNEL_FIELDS.map(([field, labelKey]) => <th className="w-[210px]" key={field}>{translate(labelKey)}</th>)}
+                <th className="w-[240px]">{translate('common:action.actions')}</th>
+              </tr></thead>
+              <tbody>{channelResources.ordered.map(orderedChannel => {
+                const channel = orderedChannel.item
+                const enabled = Boolean(channelEnabled[channel.channelId])
+                const fields = channelFields[channel.channelId] ?? emptyChannelFields()
+                const issues = channelValidation(fields, enabled)
+                const configured = channel.configured !== false
+                const controlsDisabled = !channel.available || !configured || !enabled
+                const copyResources = prepareResourceCollection(
+                  configuredChannelResources.ordered.map(item => item.item).filter(item => item.channelId !== channel.channelId),
+                  sourceChannelSignals,
+                )
+                return <tr data-channel-id={channel.channelId} key={channel.channelId}>
+                  <td><div className="flex items-center gap-3"><BrandIcon identity={{ provider: channel.connectorType || channel.channelId, sourceType: channel.connectorType }} label={orderedChannel.displayName} size={36} /><div className="min-w-0"><strong className="block truncate text-text-base">{orderedChannel.displayName}</strong>{configured ? <ResourceStateBadge badge={orderedChannel.badge} /> : <span className="fh-text-caption">{translate('common:status.setupRequired')}</span>}</div></div></td>
+                  <td>{configured ? <label className="fh-inline-check"><input type="checkbox" checked={enabled} disabled={!channel.available} onChange={() => toggleChannel(channel.channelId)} />{enabled ? translate('sources:sourceConfiguration.enabled') : translate('sources:sourceConfiguration.disabled')}</label> : canManageCommerce ? <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => void openChannelSetup(channel.channelId)}>{translate('common:action.setupNow')}</button> : <span className="fh-text-caption">{translate('common:status.setupRequired')}</span>}</td>
+                  <td><input className="fh-input min-w-[170px]" disabled={controlsDisabled} value={channelWorksheets[channel.channelId] ?? ''} onChange={event => setChannelWorksheets(current => ({ ...current, [channel.channelId]: event.target.value }))} placeholder={translate('sources:sourceConfiguration.useSourceWorksheet')} /></td>
+                  {CHANNEL_FIELDS.map(([field]) => <td key={field}><CompactMappingControl mapping={fields.find(item => item.field === field)!} disabled={controlsDisabled} allowInternalColumnId={source.sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channel.channelId, field, value)} /></td>)}
+                  <td><div className="grid min-w-[220px] gap-2"><select className="fh-input" aria-label={translate('sources:sourceConfiguration.copyMappingFrom')} disabled={controlsDisabled} value={copyFrom[channel.channelId] ?? ''} onChange={event => setCopyFrom(current => ({ ...current, [channel.channelId]: event.target.value }))}><option value="">{translate('sources:sourceConfiguration.copyMappingFrom')}</option><ResourceOptionGroups resources={copyResources} renderLabel={item => item.displayName} /></select><div className="flex gap-2"><button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled || !copyFrom[channel.channelId]} onClick={() => copyMapping(channel.channelId)}>{translate('sources:sourceConfiguration.copyMapping')}</button><button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled} aria-label={translate('sources:sourceConfiguration.clearMapping')} onClick={() => clearMapping(channel.channelId)}><Icon name="close" /></button></div>{issues.length > 0 && <span className="fh-field-error">{issues[0]}</span>}</div></td>
+                </tr>
+              })}</tbody>
+            </table>
           </div>
         </ConfigurationSection>
         <ConfigurationSection id="normalization" title={translate('sources:sourceConfiguration.section.valueHandling')} description={translate('sources:sourceConfiguration.section.valueHandlingHelp')}>
@@ -1106,6 +1137,12 @@ export default function SourceConfiguration() {
           <button className="fh-button-secondary fh-button-sm shrink-0" type="button" onClick={closeConfiguration}><Icon name="close" /> {translate('sources:sourceConfiguration.close')}</button>
         </div>
       </div>
+
+      {channelSetupId && canManageCommerce && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('commerce:commerceHub.addChannel')}>
+        <div className="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto">
+          {channelSetupLoading ? <div className="fh-card fh-card-pad fh-text-caption" role="status">{translate('commerce:commerceHub.loadingChannelConfiguration')}</div> : channelSetupError ? <div className="fh-card fh-card-pad" role="alert"><p className="fh-section-title">{translate('commerce:commerceHub.unableToLoadCommerceHub')}</p><div className="mt-4 flex gap-2"><button className="fh-button-secondary" type="button" onClick={closeChannelSetup}>{translate('common:action.cancel')}</button><button className="fh-button-primary" type="button" onClick={() => void openChannelSetup(channelSetupId === 'new' ? undefined : channelSetupId)}>{translate('common:action.retry')}</button></div></div> : <ConfigPanel kind="channel" types={channelTypes} initialResourceId={channelSetupId === 'new' ? null : channelSetupId} headingLevel={2} onCancel={closeChannelSetup} onSaved={handleChannelSetupSaved} />}
+        </div>
+      </div>}
 
       {pendingSharedChannelCopy && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="copy-channel-title">
         <div className="fh-card fh-card-pad w-full max-w-xl">

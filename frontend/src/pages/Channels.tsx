@@ -398,7 +398,7 @@ export default function Channels() {
         <ManagementResourceSections resources={prepareResourceCollection(visibleChannels.map(resource => resource.item), channelLifecycleSignals)} className="fh-sources-grid fh-channels-grid" renderItem={resource => {
           const channel = resource.item
           const state = operationalState(resource.tier)
-          const supportsProductCache = ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider) && !channel.placeholder
+          const supportsProductCache = ['woocommerce', 'snappshop', 'tapsishop', 'technolife'].includes(channel.provider) && !channel.placeholder
           const lastActivityAt = channel.last_cache_refresh ?? channel.last_health_check
           const accessMode = channel.read_only || channel.write_blocked
             ? translate('commerce:commerceHub.readOnly2')

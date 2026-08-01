@@ -103,6 +103,8 @@
   "commerceHub.fields.tapsishopBaseUrl": "نشانی API تپسی‌شاپ",
   "commerceHub.fields.tapsishopVendorId": "شناسه فروشنده / فروشگاه",
   "commerceHub.fields.tapsishopWebhookToken": "توکن وب‌هوک تپسی‌شاپ",
+  "commerceHub.fields.technolifeApiKey": "کلید API تکنولایف",
+  "commerceHub.fields.technolifeEncryptionSecret": "کلید رمزنگاری تکنولایف",
   "commerceHub.fields.tokenRefreshEnabled": "فعال‌سازی نوسازی توکن",
   "commerceHub.fields.tokenRefreshName": "نام توکن نوسازی‌شده",
   "commerceHub.flowhub": "FlowHub",

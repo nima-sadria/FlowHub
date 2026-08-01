@@ -421,9 +421,9 @@ test.describe.serial('Sources integrations and per-worksheet Channel rules', () 
       expect(cards.every(card => card.left >= 0 && card.right <= viewport.width)).toBe(true)
       const firstGroupRowCount = new Set(cards.filter(card => card.top === cards[0].top).map(card => card.left)).size
       const gridWidth = await page.getByTestId('source-card-groups').evaluate(element => element.getBoundingClientRect().width)
-      // Production CSS uses auto-fill with minmax(240px, 1fr) and a 12px gap.
-      // Verify that every supported width fills the maximum complete row.
-      const expectedFirstRowCount = Math.min(6, Math.max(1, Math.floor((gridWidth + 12) / (240 + 12))))
+      const firstGroupCardCount = await page.locator('[data-resource-section]').first().locator('[data-source-card]').count()
+      // Production CSS caps auto-filled cards at 320px with a 12px gap.
+      const expectedFirstRowCount = Math.min(firstGroupCardCount, Math.max(1, Math.floor((gridWidth + 12) / (320 + 12))))
       expect(firstGroupRowCount).toBe(expectedFirstRowCount)
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
       await page.screenshot({ path: path.join(screenshotRoot, `sources-overview-en-${viewport.width}x${viewport.height}.png`), fullPage: true })

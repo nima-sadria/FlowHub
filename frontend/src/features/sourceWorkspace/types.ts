@@ -103,6 +103,7 @@ export interface SourceChannel {
   enabled: boolean
   implementationState: 'implemented' | 'coming_soon' | string
   available: boolean
+  configured?: boolean
 }
 
 export interface FieldMapping {

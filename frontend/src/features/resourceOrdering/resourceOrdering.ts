@@ -328,7 +328,7 @@ export function sourceChannelSignals(channel: SourceChannel): ResourceOrderingSi
     displayName: channel.name,
     enabled: channel.enabled,
     available: channel.available,
-    configured: channel.available,
+    configured: channel.configured ?? channel.available,
     implemented: implementationState === 'implemented'
       ? true
       : COMING_SOON_STATES.has(implementationState)

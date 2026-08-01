@@ -37,8 +37,11 @@ const DEFAULT_READ_POLICY: ReadPolicyDraft = {
   manual_read_allowed: true,
 }
 
-const SNAPPSHOP_ESSENTIAL_FIELDS = new Set(['token', 'agent_identifier'])
-const SNAPPSHOP_ADVANCED_FIELDS = new Set(['base_url', 'agent_header_name', 'request_timeout'])
+const CHANNEL_VISIBLE_FIELDS: Record<string, ReadonlySet<string>> = {
+  snappshop: new Set(['token', 'agent_identifier']),
+  tapsishop: new Set(['token', 'webhook_token']),
+  technolife: new Set(['api_key', 'encryption_secret']),
+}
 
 function snappShopVendorActive(status: string | null | undefined): boolean {
   if (!status) return true
@@ -308,6 +311,13 @@ function fieldLabel(kind: FormKind, provider: string, key: string, fallback: str
     }
     return labels[key] ?? fallback
   }
+  if (kind === 'channel' && provider === 'technolife') {
+    const labels: Record<string, string> = {
+      api_key: translate('commerce:commerceHub.fields.technolifeApiKey'),
+      encryption_secret: translate('commerce:commerceHub.fields.technolifeEncryptionSecret'),
+    }
+    return labels[key] ?? fallback
+  }
   if (['seller_id', 'merchant_id'].includes(key)) return translate('commerce:commerceHub.fields.sellerStoreId')
   if (['api_key', 'api_token'].includes(key)) return translate('commerce:commerceHub.fields.apiKeyToken')
   return fallback
@@ -570,6 +580,8 @@ export function ConfigPanel({
     ? Boolean(settings.agent_identifier?.trim()) && hasSecret('token')
     : selected.provider === 'tapsishop'
       ? hasSecret('token')
+      : selected.provider === 'technolife'
+        ? hasSecret('api_key') && hasSecret('encryption_secret')
       : selected.provider === 'woocommerce'
         ? Boolean(settings.url?.trim()) && hasSecret('key') && hasSecret('secret')
         : true
@@ -725,7 +737,7 @@ export function ConfigPanel({
           label={fieldLabel(kind, selectedType.provider, field.key, field.label)}
           value={secrets[field.key] ?? ''}
           configured={configuredSecret(field.key)}
-          required={selectedType.provider === 'snappshop' && field.required && !configuredSecret(field.key)}
+          required={field.required && !configuredSecret(field.key)}
           onChange={value => setSecrets(current => ({ ...current, [field.key]: value }))}
           configuredHint={translate('commerce:commerceHub.configuredLeaveBlankToKeepUnchanged')}
           revealLabel={translate('commerce:commerceHub.showEnteredSecret', { defaultValue: 'Show entered secret' })}
@@ -750,7 +762,7 @@ export function ConfigPanel({
             max={field.key === "request_timeout" ? 120 : undefined}
             step={field.key === "request_timeout" ? 1 : undefined}
             value={settings[field.key] ?? ''}
-            required={selectedType.provider === 'snappshop' && field.required}
+            required={field.required}
             onChange={event => {
               const value = event.target.value
               setSettings(current => {
@@ -820,16 +832,16 @@ export function ConfigPanel({
           <span className="fh-help-text">{translate('commerce:commerceHub.displayName')}</span>
           <input value={displayName} onChange={event => setDisplayName(event.target.value)} className="fh-input" />
         </label>
-        <label className="fh-field md:col-span-2">
+        {kind === 'source' && <label className="fh-field md:col-span-2">
           <span className="fh-help-text">{translate('commerce:commerceHub.descriptionOptional')}</span>
           <input value={description} onChange={event => setDescription(event.target.value)} className="fh-input" />
-        </label>
+        </label>}
         {kind === 'channel' && (
           <label className="fh-field">
             <span className="fh-help-text">{translate('commerce:commerceHub.accessMode')}</span>
             <select value={accessMode} onChange={event => setAccessMode(event.target.value as 'read_only' | 'write_enabled')} className="fh-select">
               <option value="read_only">{translate('commerce:commerceHub.readOnly2')}</option>
-              {['woocommerce', 'snappshop', 'tapsishop'].includes(selected.provider) && (
+              {['woocommerce', 'snappshop', 'tapsishop', 'technolife'].includes(selected.provider) && (
                 <option value="write_enabled">{translate('commerce:commerceHub.writeEnabled2')}</option>
               )}
             </select>
@@ -869,7 +881,8 @@ export function ConfigPanel({
       <div className="fh-form-grid md:grid-cols-2">
         {selected.settings_schema
           .filter(field => !(kind === "source" && selected.provider === "nextcloud" && field.key === "spreadsheet_path"))
-          .filter(field => selected.provider !== "snappshop" || SNAPPSHOP_ESSENTIAL_FIELDS.has(field.key))
+          .filter(field => !CHANNEL_VISIBLE_FIELDS[selected.provider]
+            || CHANNEL_VISIBLE_FIELDS[selected.provider].has(field.key))
           .map(renderConnectionField)}
       </div>
       </div>
@@ -905,18 +918,6 @@ export function ConfigPanel({
             </select>
           </label>
         </div>
-      )}
-
-      {kind === "channel" && selected.provider === "snappshop" && (
-        <details className="fh-form-section">
-          <summary className="fh-form-section-title cursor-pointer">{translate('commerce:commerceHub.advancedSettings')}</summary>
-          <p className="fh-form-section-description">{translate('commerce:commerceHub.defaultsAreSuitableForNormalSnappshopAccounts')}</p>
-          <div className="fh-form-grid md:grid-cols-2 mt-3">
-            {selected.settings_schema
-              .filter(field => SNAPPSHOP_ADVANCED_FIELDS.has(field.key))
-              .map(renderConnectionField)}
-          </div>
-        </details>
       )}
 
       {kind === "channel" && selected.provider === "tapsishop" && (

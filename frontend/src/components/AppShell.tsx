@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../auth'
 import Sidebar from './Sidebar'
+import SiteFooter from './SiteFooter'
 import Topbar from './Topbar'
 import { useOptionalServices } from '../services/ServiceContext'
 
@@ -20,6 +21,7 @@ export default function AppShell() {
     () => localStorage.getItem('wp-sb-col') === '1'
   )
   const [health, setHealth] = useState<HealthStatus>('loading')
+  const [version, setVersion] = useState<string | null>(null)
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const retryCountRef = useRef(0)
 
@@ -38,6 +40,8 @@ export default function AppShell() {
       try {
         const r = await authFetch('/api/health')
         if (r.ok) {
+          const data = await r.json().catch(() => null) as { version?: string } | null
+          if (data?.version) setVersion(data.version)
           retryCountRef.current = 0
           setHealth('ok')
         } else {
@@ -115,7 +119,10 @@ export default function AppShell() {
           exchangeRates={exchangeRates}
         />
         <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-bg-base">
-          <Outlet />
+          <div className="flex min-h-full flex-col">
+            <div className="flex-1"><Outlet /></div>
+            <SiteFooter version={version} />
+          </div>
         </main>
       </div>
     </div>

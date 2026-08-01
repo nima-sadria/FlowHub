@@ -143,6 +143,12 @@ const commerce: CommerceService = {
           { key: 'token', label: 'Authorization token', required: true, secret: true },
           { key: 'webhook_token', label: 'Webhook token', required: false, secret: true },
         ]),
+        typeOption('technolife:main', 'technolife', 'Technolife', 'Channel', false, [
+          { key: 'base_url', label: 'Base URL', required: false, secret: false },
+          { key: 'request_timeout', label: 'Request timeout seconds', required: false, secret: false },
+          { key: 'api_key', label: 'API key', required: true, secret: true },
+          { key: 'encryption_secret', label: 'Encryption secret', required: true, secret: true },
+        ]),
       ],
     }
   },
@@ -232,7 +238,7 @@ const commerce: CommerceService = {
         channel('snappshop:main', 'Snapp Shop', false),
         channel('tapsishop:main', 'Tapsi Shop', false),
         channel('digikala:main', 'Digikala', true),
-        channel('technolife:main', 'Technolife', true),
+        channel('technolife:main', 'Technolife', false),
         channel('shopify:main', 'Shopify', true),
       ],
     }
@@ -583,7 +589,7 @@ describe('CommerceHub', () => {
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Settings')).toHaveLength(1)
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')).toHaveLength(2)
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Refresh product cache')).toHaveLength(2)
-    for (const planned of ['Digikala', 'Technolife', 'Shopify']) {
+    for (const planned of ['Digikala', 'Shopify']) {
       const card = Array.from(c.querySelectorAll('h3')).find(item => item.textContent === planned)?.closest('.fh-card')
       expect(Array.from(card?.querySelectorAll('button') ?? [])).toHaveLength(0)
     }
@@ -634,16 +640,8 @@ describe('CommerceHub', () => {
 
     expect(c.textContent).toContain('Configure SnappShop')
     expect(c.textContent).toContain('Agent identifier')
-    expect(c.textContent).toContain('Agent header name')
-    expect(c.textContent).toContain('Request timeout seconds')
-    const advanced = c.querySelector('details') as HTMLDetailsElement
-    expect(advanced.open).toBe(false)
-    const timeout = c.querySelector('input[type="number"]') as HTMLInputElement
-    expect(timeout.step).toBe('1')
-    expect(timeout.min).toBe('1')
-    expect(timeout.value).toBe('20')
-    timeout.value = '29'
-    expect(timeout.checkValidity()).toBe(true)
+    expect(c.textContent).not.toContain('Agent header name')
+    expect(c.textContent).not.toContain('Request timeout seconds')
     const token = c.querySelector('input[type="password"]') as HTMLInputElement
     expect(token.value).toBe('')
     expect(c.textContent).toContain('Configured; leave blank to keep unchanged.')
@@ -763,7 +761,7 @@ describe('CommerceHub', () => {
     const secretInputs = Array.from(c.querySelectorAll('input[type="password"]')) as HTMLInputElement[]
     expect(secretInputs).toHaveLength(2)
     expect(secretInputs.every(input => input.value === '')).toBe(true)
-    expect(c.textContent).toContain('TapsiShop API URL')
+    expect(c.textContent).not.toContain('TapsiShop API URL')
     expect(c.textContent).toContain('TapsiShop authorization token')
     expect(c.textContent).toContain('Webhook registration')
     expect(c.textContent).toContain('Webhook credential: Configured')
@@ -1049,6 +1047,7 @@ describe('CommerceHub', () => {
     }
     const c = await renderPage(adminUser, savingCommerce, ['/commerce?tab=sources'])
     await openNextcloudSourceForm(c)
+    fillNextcloudCredentials(c)
     vi.spyOn(sourceWorkspaceApi, 'listSources').mockResolvedValue({
       items: [{
         id: 'managed-nextcloud',
@@ -1188,6 +1187,12 @@ describe('CommerceHub', () => {
     await act(async () => {
       channelType.value = 'woocommerce:primary'
       channelType.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    act(() => {
+      setInputValue(inputByLabel(c, 'Store URL'), 'https://shop.example.test')
+      const secrets = Array.from(c.querySelectorAll('input[type="password"]')) as HTMLInputElement[]
+      setInputValue(secrets[0], 'consumer-key')
+      setInputValue(secrets[1], 'consumer-secret')
     })
     const save = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Save configuration')
 

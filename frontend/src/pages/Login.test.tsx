@@ -69,16 +69,23 @@ describe('Login', () => {
     expect(container.textContent).not.toContain('Remember me')
     expect(container.textContent).not.toContain('Forgot password?')
     expect(container.textContent).toContain('Need access? Contact your workspace Owner.')
-    expect(container.textContent).toContain('Privacy · Security · Support')
+    expect(container.textContent).toContain('نیما صدریا. تمامی حقوق محفوظ است. 1405')
+    expect(container.textContent).toContain('FlowHub')
     expect(container.querySelector('input[type="checkbox"]')).toBeNull()
     expect(container.querySelector('footer a')).toBeNull()
     expect(container.querySelector('[aria-label="Switch to dark mode"]')).not.toBeNull()
   })
 
   it('submits the existing login contract and stores returned tokens', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify({ token: 'access-token', refresh_token: 'refresh-token' }), { status: 200 }),
-    )
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+      if (input === '/api/health') {
+        return new Response(JSON.stringify({ status: 'ok', version: '1.0.0' }), { status: 200 })
+      }
+      return new Response(
+        JSON.stringify({ token: 'access-token', refresh_token: 'refresh-token' }),
+        { status: 200 },
+      )
+    })
     await renderLogin()
 
     const identifier = container.querySelector('#login-identifier') as HTMLInputElement

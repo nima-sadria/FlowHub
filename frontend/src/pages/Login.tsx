@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '../auth'
 import Spinner from '../components/loading/Spinner'
+import SiteFooter from '../components/SiteFooter'
 import { useDirection } from '../direction'
 import { translate } from '../i18n'
 import { useTheme } from '../theme/ThemeProvider'
@@ -198,9 +199,7 @@ export default function Login() {
         </p>
       </main>
 
-      <footer className="text-center text-[11px] leading-4 text-wp-muted">
-        {translate('authentication:login.footerLinks')}
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

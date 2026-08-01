@@ -201,7 +201,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).toContain('TapsiShop Main')
     expect(container.textContent).not.toContain('woocommerce:primary')
     expect(container.textContent).toContain('Coming Soon')
-    const digikala = container.querySelector('details[data-channel-id="digikala:main"]')
+    const digikala = container.querySelector('tr[data-channel-id="digikala:main"]')
     expect(digikala?.querySelector('input[type="checkbox"]')).toHaveProperty('disabled', true)
     expect(container.textContent).toContain('Column letter')
     expect(container.textContent).toContain('Exact header')
@@ -234,15 +234,17 @@ describe('SourceConfiguration per-Channel mappings', () => {
     await renderPage()
 
     expect(document.documentElement.dir).toBe(direction)
-    const sections = Array.from(container.querySelectorAll<HTMLElement>('section[data-resource-section]'))
-    expect(sections.map(section => section.dataset.resourceSection)).toEqual(['active', 'disabled', 'comingSoon'])
-    const resourceIds = (section: HTMLElement) => Array.from(
-      section.querySelectorAll<HTMLElement>(':scope > div > [data-resource-id]'),
-      item => item.dataset.resourceId,
+    const resourceIds = Array.from(
+      container.querySelectorAll<HTMLElement>('tr[data-channel-id]'),
+      item => item.dataset.channelId,
     )
-    expect(resourceIds(sections[0])).toEqual(['snappshop:main', 'tapsishop:main', 'woocommerce:primary'])
-    expect(resourceIds(sections[1])).toEqual(['shopify:secondary'])
-    expect(resourceIds(sections[2])).toEqual(['digikala:main'])
+    expect(resourceIds).toEqual([
+      'snappshop:main',
+      'tapsishop:main',
+      'woocommerce:primary',
+      'shopify:secondary',
+      'digikala:main',
+    ])
     expect(container.textContent).toContain('WooCommerce')
     expect(container.textContent).toContain('SnappShop')
     expect(container.textContent).not.toContain('woocommerce:primary')
@@ -250,7 +252,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
 
   it('preserves technical Channel identities in the API payload and supports explicit enablement', async () => {
     await renderPage()
-    const tapsi = container.querySelector('details[data-channel-id="tapsishop:main"]')
+    const tapsi = container.querySelector('tr[data-channel-id="tapsishop:main"]')
     const checkbox = tapsi?.querySelector('input[type="checkbox"]') as HTMLInputElement
     await act(async () => checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true })))
     await previewThenSave()

@@ -24,6 +24,15 @@ const channelOrder = [
   'digikala:future',
 ] as const
 
+const channelLifecycleOrder = [
+  'attention:main',
+  'snappshop:main',
+  'tapsishop:main',
+  'woocommerce:primary',
+  'disabled:main',
+  'digikala:future',
+] as const
+
 const sourceProfiles = [
   sourceProfile('source-erp', 'ERP / API', 'coming_soon', 'external'),
   sourceProfile('source-nextcloud', 'Nextcloud', 'error', 'external'),
@@ -528,6 +537,7 @@ async function installStrictMockApi(page: Page, audit: MockAudit, locale: 'en' |
       },
     })
     if (pathname === '/api/v2/commerce/channels') return json({ items: commerceChannels })
+    if (pathname === '/api/v2/orders') return json({ items: [], total: 0, page: 1, pageSize: 1 })
     if (pathname === '/api/v2/commerce/source-types') return json({ items: commerceTypes('Source') })
     if (pathname === '/api/v2/commerce/channel-types') return json({ items: commerceTypes('Channel') })
     if (pathname === '/api/v2/unified-workspaces/ordering-workspace') return json({
@@ -579,23 +589,29 @@ async function installStrictMockApi(page: Page, audit: MockAudit, locale: 'en' |
   })
 }
 
-async function expectGroupedOrder(page: Page, expectedIds: readonly string[]) {
+async function expectGroupedOrder(
+  page: Page,
+  expectedIds: readonly string[],
+  expectedSections: readonly string[] = ['connected', 'setupRequired', 'comingSoon'],
+) {
   const resourceIds = page.locator('[data-resource-id]')
   await expect(resourceIds.first()).toBeVisible()
   expect(await resourceIds.evaluateAll(elements => elements.map(element => element.getAttribute('data-resource-id')))).toEqual(expectedIds)
   const sections = await resourceIds.evaluateAll(elements => elements.map(element => (
     element.closest('[data-resource-section]')?.getAttribute('data-resource-section')
   )))
-  expect(sections.filter((section, index) => index === 0 || section !== sections[index - 1])).toEqual([
-    'active',
-    'disabled',
-    'comingSoon',
-  ])
+  expect(sections.filter((section, index) => index === 0 || section !== sections[index - 1])).toEqual(expectedSections)
 }
 
 async function openSourceConfigurationChannelColumns(page: Page) {
-  const section = page.locator('details:has([data-resource-id="snappshop:main"])').first()
+  const section = page.locator('details:has(tr[data-channel-id])').first()
   if (await section.getAttribute('open') === null) await section.locator(':scope > summary').click()
+}
+
+async function expectSourceChannelTableOrder(page: Page, expectedIds: readonly string[]) {
+  const rows = page.locator('tr[data-channel-id]')
+  await expect(rows.first()).toBeVisible()
+  expect(await rows.evaluateAll(elements => elements.map(element => element.getAttribute('data-channel-id')))).toEqual(expectedIds)
 }
 
 async function expectGroupedChannelOptions(select: Locator) {
@@ -626,13 +642,13 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
   await page.goto('/sources')
   await expectGroupedOrder(page, sourceOrder)
   await expect(page.locator('[data-resource-id="source-csv"]')).toContainText('Healthy')
-  await expect(page.locator('[data-resource-id="source-nextcloud"]')).toContainText('Needs review')
-  await expect(page.locator('[data-resource-id="source-disabled"]')).toContainText('Disabled')
+  await expect(page.locator('[data-resource-id="source-nextcloud"]')).toContainText('Setup required')
+  await expect(page.locator('[data-resource-id="source-disabled"]')).toContainText('Setup required')
   await expect(page.locator('[data-resource-id="source-erp"]')).toContainText('Coming Soon')
   await page.screenshot({ path: path.join(screenshotRoot, 'en-sources.png'), fullPage: true })
 
   await page.goto('/commerce?tab=sources')
-  await expectGroupedOrder(page, sourceOrder)
+  await expectGroupedOrder(page, sourceOrder, ['active', 'disabled', 'comingSoon'])
   await page.getByRole('button', { name: 'Add Source' }).click()
   const typeSelector = page.getByLabel('Source type')
   await expect(typeSelector).toHaveValue('source-type-csv')
@@ -649,16 +665,16 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
   await page.getByRole('button', { name: 'Close' }).click()
 
   await page.getByRole('button', { name: 'Channels' }).click()
-  await expectGroupedOrder(page, channelOrder)
+  await expectGroupedOrder(page, channelLifecycleOrder)
   await expect(page.locator('[data-resource-id="snappshop:main"]')).toContainText('Healthy')
-  await expect(page.locator('[data-resource-id="attention:main"]')).toContainText('Warning')
-  await expect(page.locator('[data-resource-id="disabled:main"]')).toContainText('Disabled')
+  await expect(page.locator('[data-resource-id="attention:main"]')).toContainText('Setup required')
+  await expect(page.locator('[data-resource-id="disabled:main"]')).toContainText('Setup required')
   await expect(page.locator('[data-resource-id="digikala:future"]')).toContainText('Coming Soon')
   await page.screenshot({ path: path.join(screenshotRoot, 'en-commerce-channels.png'), fullPage: true })
 
   await page.goto('/sources/source-csv')
   await openSourceConfigurationChannelColumns(page)
-  await expectGroupedOrder(page, channelOrder)
+  await expectSourceChannelTableOrder(page, channelOrder)
   const copySelector = page.getByLabel('Copy columns from another Channel').first()
   await expect(copySelector).toHaveValue('')
   await page.screenshot({ path: path.join(screenshotRoot, 'en-source-configuration.png'), fullPage: true })
@@ -720,7 +736,7 @@ test('the same ordering remains stable in Persian RTL without translating techni
 
   const routes = [
     ['sources', '/sources', sourceOrder],
-    ['commerce-channels', '/commerce?tab=channels', channelOrder],
+    ['commerce-channels', '/commerce?tab=channels', channelLifecycleOrder],
     ['source-configuration', '/sources/source-csv', channelOrder],
   ] as const
 
@@ -729,7 +745,8 @@ test('the same ordering remains stable in Persian RTL without translating techni
     await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     if (name === 'source-configuration') await openSourceConfigurationChannelColumns(page)
-    await expectGroupedOrder(page, expectedOrder)
+    if (name === 'source-configuration') await expectSourceChannelTableOrder(page, expectedOrder)
+    else await expectGroupedOrder(page, expectedOrder)
     await page.screenshot({ path: path.join(screenshotRoot, `fa-${name}.png`), fullPage: true })
   }
 

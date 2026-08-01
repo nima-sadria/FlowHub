@@ -103,6 +103,8 @@
   "commerceHub.fields.tapsishopBaseUrl": "TapsiShop API URL",
   "commerceHub.fields.tapsishopVendorId": "Vendor / store ID",
   "commerceHub.fields.tapsishopWebhookToken": "TapsiShop webhook token",
+  "commerceHub.fields.technolifeApiKey": "Technolife API key",
+  "commerceHub.fields.technolifeEncryptionSecret": "Technolife encryption secret",
   "commerceHub.fields.tokenRefreshEnabled": "Enable token refresh",
   "commerceHub.fields.tokenRefreshName": "Refreshed token name",
   "commerceHub.flowhub": "FlowHub",
