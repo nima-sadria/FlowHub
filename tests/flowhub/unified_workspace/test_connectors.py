@@ -238,7 +238,10 @@ class _SnappProvider:
 @pytest.mark.asyncio
 async def test_snappshop_adapter_batches_at_fifty_and_only_accepts_verified_state():
     provider = _SnappProvider()
-    commerce = SimpleNamespace(_snappshop_connector=lambda: provider)
+    commerce = SimpleNamespace(
+        _snappshop_connector=lambda: provider,
+        channel_write_enabled=lambda _channel_id: True,
+    )
     connector = SnappShopWorkspaceConnector(commerce)
     capabilities = connector.capabilities()
     assert capabilities.maximum_batch_size == 50
@@ -290,7 +293,10 @@ async def test_snappshop_never_accepts_uncertain_or_mismatched_readback(failure)
             return product
 
     connector = SnappShopWorkspaceConnector(
-        SimpleNamespace(_snappshop_connector=lambda: Provider())
+        SimpleNamespace(
+            _snappshop_connector=lambda: Provider(),
+            channel_write_enabled=lambda _channel_id: True,
+        )
     )
     result = (
         await connector.apply_updates(
@@ -326,7 +332,10 @@ async def test_snappshop_adapter_preserves_retry_metadata_and_rejects_unconfigur
             ]
 
     connector = SnappShopWorkspaceConnector(
-        SimpleNamespace(_snappshop_connector=lambda: FailedProvider())
+        SimpleNamespace(
+            _snappshop_connector=lambda: FailedProvider(),
+            channel_write_enabled=lambda _channel_id: True,
+        )
     )
     result = (
         await connector.apply_updates(
@@ -338,9 +347,15 @@ async def test_snappshop_adapter_preserves_retry_metadata_and_rejects_unconfigur
     assert result.external_response_id == "req-1"
     assert result.outcome is WriteOutcome.FAILED
 
-    unavailable = SnappShopWorkspaceConnector(SimpleNamespace(_snappshop_connector=lambda: None))
+    unavailable = SnappShopWorkspaceConnector(
+        SimpleNamespace(
+            _snappshop_connector=lambda: None,
+            channel_write_enabled=lambda _channel_id: False,
+        )
+    )
     assert unavailable.capabilities().health_state == "unconfigured"
-    with pytest.raises(WorkspaceDomainError):
+    assert unavailable.capabilities().write_available is False
+    with pytest.raises(WorkspaceDomainError, match="Read-only"):
         await unavailable.apply_updates([], requested_by="admin")
 
 

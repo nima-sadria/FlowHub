@@ -45,9 +45,18 @@ function snappShopVendorActive(status: string | null | undefined): boolean {
   return ['ACTIVE', 'ENABLED', 'TRUE', '1'].includes(status.trim().toUpperCase())
 }
 
-function SafetyBadges({ readOnly, writeBlocked }: { readOnly: boolean; writeBlocked: boolean }) {
+function SafetyBadges({
+  readOnly,
+  writeBlocked,
+  writeEnabled = false,
+}: {
+  readOnly: boolean
+  writeBlocked: boolean
+  writeEnabled?: boolean
+}) {
   return (
     <div className="flex flex-wrap gap-2">
+      {writeEnabled && <Badge variant="warning">{translate('commerce:commerceHub.writeEnabled2')}</Badge>}
       {readOnly && <Badge variant="neutral">{translate('commerce:commerceHub.readOnlyMode')}</Badge>}
       {writeBlocked && <Badge variant="danger">{translate('commerce:commerceHub.writesBlocked')}</Badge>}
     </div>
@@ -564,7 +573,8 @@ export function ConfigPanel({
       : selected.provider === 'woocommerce'
         ? Boolean(settings.url?.trim()) && hasSecret('key') && hasSecret('secret')
         : true
-  const canSave = selected.provider !== 'snappshop' || Boolean(settings.vendor_id?.trim())
+  const vendorSelectionRequired = selected.provider === 'snappshop' && vendors.length > 0
+  const canSave = !vendorSelectionRequired || Boolean(settings.vendor_id?.trim())
 
   function configurationPayload() {
     return {
@@ -715,6 +725,7 @@ export function ConfigPanel({
           label={fieldLabel(kind, selectedType.provider, field.key, field.label)}
           value={secrets[field.key] ?? ''}
           configured={configuredSecret(field.key)}
+          required={selectedType.provider === 'snappshop' && field.required && !configuredSecret(field.key)}
           onChange={value => setSecrets(current => ({ ...current, [field.key]: value }))}
           configuredHint={translate('commerce:commerceHub.configuredLeaveBlankToKeepUnchanged')}
           revealLabel={translate('commerce:commerceHub.showEnteredSecret', { defaultValue: 'Show entered secret' })}
@@ -739,6 +750,7 @@ export function ConfigPanel({
             max={field.key === "request_timeout" ? 120 : undefined}
             step={field.key === "request_timeout" ? 1 : undefined}
             value={settings[field.key] ?? ''}
+            required={selectedType.provider === 'snappshop' && field.required}
             onChange={event => {
               const value = event.target.value
               setSettings(current => {
@@ -817,7 +829,7 @@ export function ConfigPanel({
             <span className="fh-help-text">{translate('commerce:commerceHub.accessMode')}</span>
             <select value={accessMode} onChange={event => setAccessMode(event.target.value as 'read_only' | 'write_enabled')} className="fh-select">
               <option value="read_only">{translate('commerce:commerceHub.readOnly2')}</option>
-              {['woocommerce', 'tapsishop'].includes(selected.provider) && (
+              {['woocommerce', 'snappshop', 'tapsishop'].includes(selected.provider) && (
                 <option value="write_enabled">{translate('commerce:commerceHub.writeEnabled2')}</option>
               )}
             </select>
@@ -835,7 +847,11 @@ export function ConfigPanel({
           />
           {translate('commerce:commerceHub.enabled')}
         </label>
-        <SafetyBadges readOnly={selected.read_only} writeBlocked={selected.runtime_write_blocked} />
+        <SafetyBadges
+          readOnly={kind === 'source' ? selected.read_only : accessMode === 'read_only'}
+          writeBlocked={kind === 'source' ? selected.runtime_write_blocked : accessMode === 'read_only'}
+          writeEnabled={kind === 'channel' && accessMode === 'write_enabled'}
+        />
         {selected.placeholder && (
           <Badge variant="neutral">
             {kind === "source" ? translate('commerce:commerceHub.plannedSource') : translate('commerce:commerceHub.plannedChannel')}
@@ -871,7 +887,7 @@ export function ConfigPanel({
               onChange={event => setSettings(current => ({ ...current, vendor_id: event.target.value }))}
               className="fh-select"
               disabled={vendors.length === 0 && !settings.vendor_id}
-              required
+              required={vendorSelectionRequired}
             >
               <option value="">{vendors.length ? translate('commerce:commerceHub.selectVendor') : translate('commerce:commerceHub.testConnectionToLoadVendors')}</option>
               {settings.vendor_id && !vendors.some(vendor => vendor.id === settings.vendor_id) && (

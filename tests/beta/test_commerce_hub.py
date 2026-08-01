@@ -73,12 +73,10 @@ def client(db_engine):
 @pytest.fixture(autouse=True)
 def avoid_live_snappshop_vendor_validation(monkeypatch):
     """Configuration persistence tests must not call the real marketplace."""
-    from fastapi import HTTPException, status
-
     async def validate(_self, body):
         settings = body.get("settings") if isinstance(body, dict) else {}
         if not isinstance(settings, dict) or not str(settings.get("vendor_id") or "").strip():
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Select a SnappShop vendor.")
+            return
 
     monkeypatch.setattr(
         "app.flowhub.commerce.service.CommerceHubService._validate_snappshop_vendor_selection",
@@ -1743,15 +1741,50 @@ def test_woocommerce_access_mode_defaults_read_only_until_owner_enables(client, 
     assert detail.json()["write_pipeline_eligible"] is True
 
 
-def test_non_woocommerce_channel_cannot_be_write_enabled(client, auth_headers):
+def test_snappshop_can_be_write_enabled_only_through_protected_pipeline(client, auth_headers):
     response = client.put(
         "/api/v2/commerce/channels/snappshop:main/settings",
         headers=auth_headers,
-        json={"access_mode": "write_enabled"},
+        json={
+            "access_mode": "write_enabled",
+            "settings": {
+                "agent_identifier": "flowhub-agent",
+                "vendor_id": "vendor-1",
+            },
+            "secrets": {"token": "snapp-write-token"},
+        },
     )
 
-    assert response.status_code == 403
-    assert "channel_write_access_unsupported" in response.text
+    assert response.status_code == 200
+    assert "snapp-write-token" not in response.text
+    data = response.json()
+    assert data["access_mode"] == "write_enabled"
+    assert data["read_only"] is False
+    assert data["write_pipeline_eligible"] is True
+    assert data["runtime_write_blocked"] is True
+
+
+def test_snappshop_credentials_can_be_saved_before_vendor_selection(client, auth_headers):
+    response = client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={
+            "access_mode": "read_only",
+            "settings": {"agent_identifier": "flowhub-agent"},
+            "secrets": {"token": "snapp-read-token"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "snapp-read-token" not in response.text
+    detail = client.get(
+        "/api/v2/commerce/channels/snappshop:main",
+        headers=auth_headers,
+    )
+    assert detail.status_code == 200
+    assert detail.json()["credentials_configured"] is True
+    assert detail.json()["vendor_selected"] is False
+    assert detail.json()["credential_status"] == "not_configured"
 
 
 def test_channel_settings_preserve_credential_masking(client, auth_headers):

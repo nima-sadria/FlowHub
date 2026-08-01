@@ -284,6 +284,7 @@ class SnappShopWorkspaceConnector:
         self.commerce = commerce
 
     def capabilities(self) -> ChannelCapabilities:
+        write_enabled = self.commerce.channel_write_enabled(self.channel_id)
         return ChannelCapabilities(
             channel_id=self.channel_id,
             read_price=True,
@@ -306,7 +307,7 @@ class SnappShopWorkspaceConnector:
             supported_statuses=("active", "inactive"),
             currency="IRR",
             unit="TOMAN",
-            write_available=True,
+            write_available=write_enabled,
             version="uw-1.2",
         )
 
@@ -325,6 +326,10 @@ class SnappShopWorkspaceConnector:
     async def apply_updates(
         self, updates: Sequence[ListingUpdateLike], *, requested_by: str
     ) -> list[ListingUpdateResult]:
+        if not self.commerce.channel_write_enabled(self.channel_id):
+            raise WorkspaceDomainError(
+                "SnappShop is Read-only. Enable channel writes before Apply."
+            )
         connector = self.commerce._snappshop_connector()
         if connector is None:
             raise WorkspaceDomainError("SnappShop connector is not configured.")

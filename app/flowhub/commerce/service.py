@@ -950,10 +950,30 @@ class CommerceHubService:
         return ACCESS_MODE_WRITE_ENABLED
 
     def _write_pipeline_supported(self, meta: dict) -> bool:
-        return str(meta.get("id")) == "woocommerce:primary" and not bool(meta.get("placeholder"))
+        return (
+            str(meta.get("id")) in {
+                "woocommerce:primary",
+                "snappshop:main",
+            }
+            and not bool(meta.get("placeholder"))
+        )
 
     def _write_pipeline_eligible(self, meta: dict, instance: IntegrationConnectorInstance | None) -> bool:
-        return self._write_pipeline_supported(meta) and self._access_mode(instance) == ACCESS_MODE_WRITE_ENABLED
+        if str(meta.get("id")) == "snappshop:main" and not self._instance_configured(instance):
+            return False
+        return (
+            self._write_pipeline_supported(meta)
+            and instance is not None
+            and instance.enabled
+            and self._access_mode(instance) == ACCESS_MODE_WRITE_ENABLED
+        )
+
+    def channel_write_enabled(self, channel_id: str) -> bool:
+        """Return the authoritative server-side write-mode state for a channel."""
+
+        meta = self._channel_meta(channel_id)
+        instance = self.db.get(IntegrationConnectorInstance, channel_id)
+        return self._write_pipeline_eligible(meta, instance)
 
     def _has_submitted_credentials(self, meta: dict, body: dict | None) -> bool:
         if not isinstance(body, dict):
@@ -1044,10 +1064,9 @@ class CommerceHubService:
         settings, _ = self._connector_values("snappshop", body)
         selected_vendor_id = str(settings.get("vendor_id") or "").strip()
         if not selected_vendor_id:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                {"code": "SNAPPSHOP_VENDOR_REQUIRED", "message": "Select a SnappShop vendor after testing the connection."},
-            )
+            # Credentials may be saved before vendor discovery. The channel
+            # remains in Setup Required until an active vendor is selected.
+            return
         connector = self._snappshop_connector(body)
         if connector is None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "SnappShop credentials are incomplete.")

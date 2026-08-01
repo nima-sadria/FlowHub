@@ -647,6 +647,17 @@ describe('CommerceHub', () => {
     const token = c.querySelector('input[type="password"]') as HTMLInputElement
     expect(token.value).toBe('')
     expect(c.textContent).toContain('Configured; leave blank to keep unchanged.')
+    const accessMode = selectByLabel(c, 'Access mode')
+    expect(Array.from(accessMode.options).map(option => option.value))
+      .toEqual(['read_only', 'write_enabled'])
+    await act(async () => {
+      accessMode.value = 'write_enabled'
+      accessMode.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    const form = accessMode.closest('form') as HTMLFormElement
+    expect(form.textContent).toContain('Write enabled')
+    expect(form.textContent).not.toContain('Read-only mode')
+    expect(form.textContent).not.toContain('Writes blocked')
 
     const test = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
     expect((test as HTMLButtonElement).disabled).toBe(false)
@@ -664,7 +675,7 @@ describe('CommerceHub', () => {
     expect(c.querySelector('[role="alert"] [data-icon="success"]')).not.toBeNull()
   })
 
-  it('requires explicit vendor selection when multiple active SnappShop vendors are discovered', async () => {
+  it('allows credentials to be saved before discovery and requires a vendor after discovery', async () => {
     const snappCommerce: CommerceService = {
       ...commerce,
       async getChannelConfiguration(channelId) {
@@ -701,6 +712,9 @@ describe('CommerceHub', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
+    const saveBeforeDiscovery = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Save configuration') as HTMLButtonElement
+    expect(saveBeforeDiscovery.disabled).toBe(false)
+
     await act(async () => {
       Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
         ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
