@@ -90,12 +90,18 @@ export default function AppShell() {
     })
   }
 
+  function handleExpandSidebar() {
+    setSidebarCollapsed(false)
+    localStorage.setItem('wp-sb-col', '0')
+  }
+
   return (
     <div className="flex h-screen h-[100dvh] min-h-screen min-h-[100dvh] bg-bg-base overflow-hidden">
       <Sidebar
         open={sidebarOpen}
         collapsed={sidebarCollapsed}
         onClose={() => setSidebarOpen(false)}
+        onExpand={handleExpandSidebar}
         user={user}
         health={health}
       />

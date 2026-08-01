@@ -172,7 +172,8 @@ function ExchangeRateStrip({ service, language }: { service: ExchangeRateService
       <div className="fh-topbar-rates hidden lg:flex" aria-label={label}>{rateItems}</div>
       <details className="fh-topbar-rates-compact lg:hidden">
         <summary aria-label={label}>
-          <span>{label}</span>
+          <Icon name="rateLimits" size="md" />
+          <span className="fh-topbar-rates-compact-label">{label}</span>
           <span aria-hidden="true">3</span>
         </summary>
         <div className="fh-topbar-rates-compact-menu">{rateItems}</div>

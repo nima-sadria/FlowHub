@@ -55,7 +55,7 @@ describe('FlowHub internationalization foundation', () => {
     expect(label).toContain('SKU-FA-001')
     expect(translate('workspace:sourceCentricWorkspace.apply')).toBe('اعمال')
     expect(formatStatus('Unable to check')).toBe('بررسی ممکن نیست')
-    expect(formatRole('super_admin')).toBe('مدیر ارشد')
+    expect(formatRole('super_admin')).toBe('سوپر ادمین')
   })
 
   it('preserves interpolation values and applies English plural rules', () => {

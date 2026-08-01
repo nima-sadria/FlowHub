@@ -1,7 +1,7 @@
 import { translate } from './i18n'
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router'
 import { AuthProvider, RequirePermission, AccessState, useAuth } from './auth'
 import { DirectionProvider } from './direction'
 import { ThemeProvider } from './theme/ThemeProvider'
@@ -126,6 +126,20 @@ function RouteLoading() {
   )
 }
 
+function LegacyRateLimitsRedirect() {
+  const location = useLocation()
+  return (
+    <Navigate
+      replace
+      to={{
+        pathname: '/settings/rate-limits',
+        search: location.search,
+        hash: location.hash,
+      }}
+    />
+  )
+}
+
 // -- Setup Gate ----------------------------------------------------------------
 // Checks /api/v2/setup/status on first load. If setup is not complete, renders
 // only the /setup route and redirects everything else there. Once setup is
@@ -186,11 +200,12 @@ function SetupGate() {
           <Route path="/workspace/:workspaceId" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><UnifiedWorkspace /></RequirePermission>} />
           <Route path="/activity" element={<RequirePermission permission={WORKSPACE_PERMISSION.readAudit}><Activity /></RequirePermission>} />
           <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
-          <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
+          <Route path="/rate-limits" element={<LegacyRateLimitsRedirect />} />
           <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
           <Route path="/settings/advanced" element={<RequirePermission permission="can_view_settings"><AdvancedSettings /></RequirePermission>} />
           <Route path="/settings/exchange-rates" element={<RequirePermission permission="can_access_site"><ExchangeRates /></RequirePermission>} />
           <Route path="/settings/users" element={<RequirePermission permission="can_view_settings" adminOnly><UserManagement /></RequirePermission>} />
+          <Route path="/settings/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

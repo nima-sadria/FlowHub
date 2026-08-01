@@ -9,7 +9,7 @@ const ITEMS: Array<{ id: SettingsSectionName; labelKey: string; to?: string; per
   { id: 'general', labelKey: 'settings:settings.general', to: '/settings', permission: 'can_view_settings' },
   { id: 'exchangeRates', labelKey: 'settings:exchangeRates.title', to: '/settings/exchange-rates' },
   { id: 'users', labelKey: 'navigation:sidebar.users', to: '/settings/users', permission: 'can_view_settings', adminOnly: true },
-  { id: 'rateLimits', labelKey: 'navigation:sidebar.rateLimits', to: '/rate-limits', permission: 'can_view_settings' },
+  { id: 'rateLimits', labelKey: 'navigation:sidebar.rateLimits', to: '/settings/rate-limits', permission: 'can_view_settings' },
   { id: 'advanced', labelKey: 'settings:settings.advanced', to: '/settings/advanced', permission: 'can_view_settings' },
 ]
 

@@ -40,8 +40,8 @@ describe('AdvancedSettings', () => {
       </AuthContext.Provider>,
     ))
 
-    expect(container.querySelector('h1')?.textContent).toBe('Advanced')
-    expect(container.querySelector('a[aria-current="page"]')?.textContent).toBe('Advanced')
+    expect(container.querySelector('h1')?.textContent).toBe('Advanced Settings')
+    expect(container.querySelector('a[aria-current="page"]')?.textContent).toBe('Advanced Settings')
     expect(container.querySelector('.fh-badge-neutral')?.textContent).toBe('Unavailable')
     expect(container.querySelectorAll('button')).toHaveLength(0)
   })

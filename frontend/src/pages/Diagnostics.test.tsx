@@ -321,7 +321,7 @@ describe('Diagnostics', () => {
     const c = await renderPage()
     expect(c.textContent).toContain('System health')
     expect(c.textContent).toContain('WooCommerce')
-    expect(c.textContent).toContain('TapsiShop')
+    expect(c.textContent).toContain('تپ‌سی شاپ')
     expect(c.textContent).toContain('Accepted webhook receipts are waiting for processing.')
     expect(c.textContent).toContain('Overall State')
     expect(c.textContent).toContain('Source Checks')

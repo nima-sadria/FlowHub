@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { translate } from '../i18n'
 import { NavLink, useLocation, useSearchParams } from 'react-router'
 import type { AuthUser } from '../auth'
@@ -13,16 +14,19 @@ interface Props {
   open: boolean
   collapsed: boolean
   onClose: () => void
+  onExpand?: () => void
   user: AuthUser | null
   health: HealthStatus
 }
 
 interface NavItem {
+  id?: string
   labelKey: string
-  to: string
+  to?: string
   icon: IconName
-  permission: string
+  permission?: string
   adminOnly?: boolean
+  children?: NavItem[]
   /** Overrides NavLink's default active matching (query-tab routes). */
   isActive?: (pathname: string, tab: string | null) => boolean
 }
@@ -76,17 +80,48 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    sectionKey: 'navigation:sidebar.settings',
+    sectionKey: null,
     items: [
       {
-        labelKey: 'navigation:sidebar.general',
-        to: '/settings',
+        id: 'settings',
+        labelKey: 'navigation:sidebar.settings',
         icon: routeIconMap.Settings,
-        permission: 'can_view_settings',
-        isActive: pathname => pathname === '/settings',
+        isActive: pathname => pathname === '/settings' || pathname.startsWith('/settings/') || pathname === '/rate-limits',
+        children: [
+          {
+            labelKey: 'navigation:sidebar.general',
+            to: '/settings',
+            icon: routeIconMap.Settings,
+            permission: 'can_view_settings',
+            isActive: pathname => pathname === '/settings',
+          },
+          {
+            labelKey: 'settings:exchangeRates.title',
+            to: '/settings/exchange-rates',
+            icon: 'rateLimits',
+            permission: 'can_access_site',
+          },
+          {
+            labelKey: 'navigation:sidebar.users',
+            to: '/settings/users',
+            icon: routeIconMap.Users,
+            permission: 'can_view_settings',
+            adminOnly: true,
+          },
+          {
+            labelKey: 'navigation:sidebar.rateLimits',
+            to: '/settings/rate-limits',
+            icon: 'sliders',
+            permission: 'can_view_settings',
+          },
+          {
+            labelKey: 'settings:settings.advanced',
+            to: '/settings/advanced',
+            icon: 'diagnostics',
+            permission: 'can_view_settings',
+          },
+        ],
       },
-      { labelKey: 'navigation:sidebar.users', to: '/settings/users', icon: routeIconMap.Users, permission: 'can_view_settings', adminOnly: true },
-      { labelKey: 'navigation:sidebar.rateLimits', to: '/rate-limits', icon: 'sliders', permission: 'can_view_settings' },
     ],
   },
 ]
@@ -97,13 +132,26 @@ const HEALTH_FOOTER: Record<HealthStatus, { dotClass: string; labelKey: string }
   error: { dotClass: 'fh-status-dot-error', labelKey: 'common:status.offline' },
 }
 
-export default function Sidebar({ open, collapsed, onClose, user, health }: Props) {
+export default function Sidebar({ open, collapsed, onClose, onExpand, user, health }: Props) {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const tab = searchParams.get('tab')
+  const settingsRouteActive = location.pathname === '/settings'
+    || location.pathname.startsWith('/settings/')
+    || location.pathname === '/rate-limits'
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
+    settings: settingsRouteActive,
+  })
 
-  function hasPerm(perm: string): boolean {
-    return effectiveHasPerm(user, perm)
+  useEffect(() => {
+    if (settingsRouteActive) {
+      setExpandedItems(current => ({ ...current, settings: true }))
+    }
+  }, [settingsRouteActive])
+
+  function isVisible(item: NavItem): boolean {
+    return (!item.permission || effectiveHasPerm(user, item.permission))
+      && (!item.adminOnly || Boolean(user?.is_admin || user?.is_super_admin))
   }
 
   const itemCls = (active: boolean) =>
@@ -168,30 +216,91 @@ export default function Sidebar({ open, collapsed, onClose, user, health }: Prop
         <nav className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-[23px] pb-4">
           <div className="flex flex-col gap-[18px]">
             {NAV_GROUPS.map(group => {
-              const visible = group.items.filter(item => (
-                hasPerm(item.permission) && (!item.adminOnly || Boolean(user?.is_admin || user?.is_super_admin))
-              ))
+              const visible = group.items.filter(item => {
+                if (!isVisible(item)) return false
+                return !item.children || item.children.some(isVisible)
+              })
               if (visible.length === 0) return null
               return (
-                <div key={group.sectionKey ?? 'primary'} className="flex flex-col gap-[6px]">
+                <div
+                  key={group.sectionKey ?? group.items[0]?.id ?? group.items[0]?.to ?? group.items[0]?.labelKey}
+                  className="flex flex-col gap-[6px]"
+                >
                   {group.sectionKey && (
                     <p className={['fh-menu-section', collapsed ? 'md:hidden' : ''].join(' ')}>
                       {translate(group.sectionKey)}
                     </p>
                   )}
-                  {visible.map(item => (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      onClick={onClose}
-                      className={({ isActive }) =>
-                        itemCls(item.isActive ? item.isActive(location.pathname, tab) : isActive)
-                      }
-                    >
-                      <Icon name={item.icon} className="fh-menu-item-icon" />
-                      <span className={collapsed ? 'md:hidden' : ''}>{translate(item.labelKey)}</span>
-                    </NavLink>
-                  ))}
+                  {visible.map(item => {
+                    if (item.children) {
+                      const itemId = item.id ?? item.labelKey
+                      const submenuId = `sidebar-${itemId}-submenu`
+                      const expanded = Boolean(expandedItems[itemId])
+                      const active = item.isActive?.(location.pathname, tab) ?? false
+                      const visibleChildren = item.children.filter(isVisible)
+                      return (
+                        <div key={itemId}>
+                          <button
+                            type="button"
+                            className={[itemCls(false), active ? 'fh-menu-parent-active' : ''].join(' ')}
+                            aria-expanded={expanded}
+                            aria-controls={submenuId}
+                            data-active={active ? 'true' : undefined}
+                            onClick={() => {
+                              if (collapsed) onExpand?.()
+                              setExpandedItems(current => ({ ...current, [itemId]: !current[itemId] }))
+                            }}
+                          >
+                            <Icon name={item.icon} className="fh-menu-item-icon" />
+                            <span className={collapsed ? 'md:hidden' : ''}>{translate(item.labelKey)}</span>
+                            <Icon
+                              name="chevronDown"
+                              size="md"
+                              className={[
+                                'ms-auto transition-transform duration-150',
+                                collapsed ? 'md:hidden' : '',
+                                expanded ? 'rotate-180' : '',
+                              ].join(' ')}
+                            />
+                          </button>
+
+                          {expanded && (
+                            <div id={submenuId} className="fh-menu-submenu mt-1 flex flex-col gap-1">
+                              {visibleChildren.map(child => (
+                                <NavLink
+                                  key={child.to}
+                                  to={child.to!}
+                                  end
+                                  onClick={onClose}
+                                  className={({ isActive }) => [
+                                    itemCls(child.isActive ? child.isActive(location.pathname, tab) : isActive),
+                                    'fh-menu-submenu-item',
+                                  ].join(' ')}
+                                >
+                                  <Icon name={child.icon} className="fh-menu-item-icon" />
+                                  <span className={collapsed ? 'md:hidden' : ''}>{translate(child.labelKey)}</span>
+                                </NavLink>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to!}
+                        onClick={onClose}
+                        className={({ isActive }) =>
+                          itemCls(item.isActive ? item.isActive(location.pathname, tab) : isActive)
+                        }
+                      >
+                        <Icon name={item.icon} className="fh-menu-item-icon" />
+                        <span className={collapsed ? 'md:hidden' : ''}>{translate(item.labelKey)}</span>
+                      </NavLink>
+                    )
+                  })}
                 </div>
               )
             })}

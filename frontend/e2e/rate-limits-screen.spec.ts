@@ -3,13 +3,14 @@ import { mkdirSync } from 'node:fs'
 import { expect, test, type Page, type Route } from '@playwright/test'
 
 // Visual + structural audit of the Figma Screen/RateLimits hierarchy: the
-// shared Settings sub-navigation (General / Users / Rate Limits / Advanced)
+// shared Settings sub-navigation (General / Exchange Rates / Users / Rate
+// Limits / Advanced Settings)
 // alongside a 3-card capacity summary row and an "Operational limits" card
 // with paired read/write RPM steppers and a disabled "Rolling window"
 // reset-policy select. Figma's own illustrative card labels ("API requests",
 // "Order sync jobs", "Source refreshes") and its "Concurrent jobs" field
 // have no corresponding real, frontend-reachable backend data or endpoint
-// (confirmed by reading RateLimitService.diagnostics(), the /rate-limits
+// (confirmed by reading RateLimitService.diagnostics(), the /settings/rate-limits
 // route contract, and every runtime_config key -- none expose a job
 // concurrency limit via any API) and are intentionally not reproduced;
 // this spec asserts the real Requests completed/delayed and Queue length
@@ -129,7 +130,7 @@ test('rate limits matches the approved Figma hierarchy in Light/Dark and LTR/RTL
 
   for (const variant of variants) {
     await seedSession(page, variant.locale, variant.theme)
-    await page.goto('/rate-limits')
+    await page.goto('/settings/rate-limits')
     await expect(page.locator('html')).toHaveAttribute('lang', variant.locale)
     await expect(page.locator('html')).toHaveAttribute('dir', variant.dir)
     if (variant.theme === 'dark') {

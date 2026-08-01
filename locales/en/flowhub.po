@@ -341,7 +341,7 @@ msgstr "Administrator created"
 #: frontend/src/pages/AdvancedSettings.tsx:11 frontend/src/pages/AdvancedSettings.tsx:20
 msgctxt "settings:settings.advanced"
 msgid "Advanced"
-msgstr "Advanced"
+msgstr "Advanced Settings"
 
 msgctxt "sources:sourceCenter.advanced"
 msgid "Advanced"

@@ -3,8 +3,8 @@ import { mkdirSync } from 'node:fs'
 import { expect, test, type Page, type Route } from '@playwright/test'
 
 // Visual + structural audit of the Figma Screen/UserManagement (Users tab)
-// hierarchy: the shared Settings sub-navigation (General / Users / Rate
-// Limits / Advanced) alongside a single "Users and roles" card listing
+// hierarchy: the shared Settings sub-navigation (General / Exchange Rates /
+// Users / Rate Limits / Advanced Settings) alongside a single "Users and roles" card listing
 // accounts as borderless rows (name + created date, role, status dot, a
 // single Edit action) — no table headers, no always-visible per-row
 // controls. Edit consolidates role/status/password/activity/delete behind

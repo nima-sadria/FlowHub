@@ -660,7 +660,7 @@ describe('CommerceHub', () => {
     expect(vendorSelect.value).toBe('vendor-1')
     expect(vendorSelect.textContent).toContain('Primary Vendor')
     expect(c.textContent).toContain('Channel connected successfully')
-    expect(c.textContent).toContain('SnappShop is ready to use.')
+    expect(c.textContent).toContain('اسنپ شاپ is ready to use.')
     expect(c.querySelector('[role="alert"] [data-icon="success"]')).not.toBeNull()
   })
 

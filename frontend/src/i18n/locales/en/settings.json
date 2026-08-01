@@ -98,7 +98,7 @@
   "rateLimits.writeRequestsMinute": "Write Requests / Minute",
   "rateLimits.yourChangesHaveBeenApplied": "Your changes have been applied.",
   "settings.about": "About",
-  "settings.advanced": "Advanced",
+  "settings.advanced": "Advanced Settings",
   "settings.advancedDescription": "Technical rate limits, scheduler policy, and delays",
   "settings.applicationInformation": "Application information",
   "settings.applicationSettings": "Application settings",

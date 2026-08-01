@@ -37,8 +37,8 @@ describe('SettingsNav active state', () => {
     ['/settings', 'General'],
     ['/settings/exchange-rates', 'Exchange Rates'],
     ['/settings/users', 'Users'],
-    ['/rate-limits', 'Rate Limits'],
-    ['/settings/advanced', 'Advanced'],
+    ['/settings/rate-limits', 'Rate Limits'],
+    ['/settings/advanced', 'Advanced Settings'],
   ] as const) {
     it(`marks only ${label} active on ${path}`, () => {
       act(() => root.render(

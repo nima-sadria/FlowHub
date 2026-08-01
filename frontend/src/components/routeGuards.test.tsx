@@ -105,7 +105,7 @@ function RouteMatrix({ initialPath }: { initialPath: string }) {
         <Route path="/activity" element={<RequirePermission permission={WORKSPACE_PERMISSION.readAudit}><span>activity-page</span></RequirePermission>} />
         <Route path="/data-quality" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><span>data-quality-page</span></RequirePermission>} />
         <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><span>diagnostics-page</span></RequirePermission>} />
-        <Route path="/rate-limits" element={<RequirePermission permission="can_view_settings"><span>rate-limits-page</span></RequirePermission>} />
+        <Route path="/settings/rate-limits" element={<RequirePermission permission="can_view_settings"><span>rate-limits-page</span></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="can_view_settings"><span>settings-page</span></RequirePermission>} />
         <Route path="/settings/users" element={<RequirePermission permission="can_view_settings" adminOnly><span>users-page</span></RequirePermission>} />
       </Routes>
@@ -405,14 +405,14 @@ describe('Router - /settings/users', () => {
   })
 })
 
-describe('Router - /rate-limits', () => {
+describe('Router - /settings/rate-limits', () => {
   it('renders Rate Limits for user with can_view_settings=true', () => {
-    const c = renderAuth(<RouteMatrix initialPath="/rate-limits" />, makeAuth(settingsUser))
+    const c = renderAuth(<RouteMatrix initialPath="/settings/rate-limits" />, makeAuth(settingsUser))
     expect(c.textContent).toContain('rate-limits-page')
   })
 
   it('shows Access Denied for user without can_view_settings', () => {
-    const c = renderAuth(<RouteMatrix initialPath="/rate-limits" />, makeAuth(allowedUser))
+    const c = renderAuth(<RouteMatrix initialPath="/settings/rate-limits" />, makeAuth(allowedUser))
     expect(c.textContent).not.toContain('rate-limits-page')
     expect(c.textContent).toContain('Access Denied')
   })
@@ -442,7 +442,7 @@ describe('Router - /activity', () => {
 
 function renderSidebar(user: AuthUser | null) {
   return renderAuth(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={['/settings']}>
       <Sidebar open collapsed={false} onClose={() => {}} user={user} health="ok" />
     </MemoryRouter>,
     makeAuth(user)
@@ -503,7 +503,7 @@ describe('Sidebar - denied user (can_access_site=false)', () => {
 
   it('does not show Rate Limits as a main sidebar link', () => {
     const c = renderSidebar(deniedUser)
-    expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
+    expect(c.querySelector('a[href="/settings/rate-limits"]')).toBeNull()
   })
 })
 
@@ -560,7 +560,7 @@ describe('Sidebar - allowed user (can_access_site=true, can_fetch=true)', () => 
 
   it('does not show Rate Limits as a main sidebar link', () => {
     const c = renderSidebar(allowedUser)
-    expect(c.querySelector('a[href="/rate-limits"]')).toBeNull()
+    expect(c.querySelector('a[href="/settings/rate-limits"]')).toBeNull()
   })
 })
 
@@ -576,7 +576,7 @@ describe('Sidebar - admin user (is_admin=true)', () => {
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/settings/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings/users"]')).not.toBeNull()
   })
@@ -613,7 +613,7 @@ describe('Sidebar - super admin (is_super_admin=true, is_admin=false)', () => {
     expect(c.querySelector('a[href="/activity"]')).not.toBeNull()
     expect(c.querySelector('a[href="/data-quality"]')).not.toBeNull()
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/settings/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings/users"]')).not.toBeNull()
   })
@@ -623,7 +623,7 @@ describe('Sidebar - settings user (can_view_settings=true)', () => {
   it('shows Diagnostics, Settings, and Rate Limits links', () => {
     const c = renderSidebar(settingsUser)
     expect(c.querySelector('a[href="/diagnostics"]')).not.toBeNull()
-    expect(c.querySelector('a[href="/rate-limits"]')).not.toBeNull()
+    expect(c.querySelector('a[href="/settings/rate-limits"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings"]')).not.toBeNull()
     expect(c.querySelector('a[href="/settings/users"]')).toBeNull()
   })

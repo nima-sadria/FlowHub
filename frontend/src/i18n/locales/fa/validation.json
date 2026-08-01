@@ -1,5 +1,5 @@
 {
-  "rateLimits.readRequestsRange": "طھط¹ط¯ط§ط¯ ط¯ط±ط®ظˆط§ط³طھâ€Œظ‡ط§غŒ ط®ظˆط§ظ†ط¯ظ† ط¯ط± ط¯ظ‚غŒظ‚ظ‡ ط¨ط§غŒط¯ ط¨غŒظ† {{min}} ظˆ {{max}} ط¨ط§ط´ط¯.",
-  "rateLimits.writeRequestsRange": "طھط¹ط¯ط§ط¯ ط¯ط±ط®ظˆط§ط³طھâ€Œظ‡ط§غŒ ظ†ظˆط´طھظ† ط¯ط± ط¯ظ‚غŒظ‚ظ‡ ط¨ط§غŒط¯ ط¨غŒظ† {{min}} ظˆ {{max}} ط¨ط§ط´ط¯.",
-  "setup.validEmailRequired": "غŒع© ظ†ط´ط§ظ†غŒ ط§غŒظ…غŒظ„ ظ…ط¹طھط¨ط± ظˆط§ط±ط¯ ع©ظ†غŒط¯."
+  "rateLimits.readRequestsRange": "تعداد درخواست‌های خواندن در دقیقه باید بین {{min}} و {{max}} باشد.",
+  "rateLimits.writeRequestsRange": "تعداد درخواست‌های نوشتن در دقیقه باید بین {{min}} و {{max}} باشد.",
+  "setup.validEmailRequired": "یک نشانی ایمیل معتبر وارد کنید."
 }
