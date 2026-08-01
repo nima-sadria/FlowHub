@@ -18,6 +18,7 @@ from app.flowhub.unified_workspace.connectors import (
     ListingUpdate,
     SnappShopWorkspaceConnector,
     TapsiShopWorkspaceConnector,
+    TechnolifeWorkspaceConnector,
     WooCommerceWorkspaceConnector,
     WorkspaceConnectorFactory,
 )
@@ -364,12 +365,14 @@ def test_factory_exposes_only_implemented_channels_and_rejects_coming_soon():
     commerce = SimpleNamespace(
         _snappshop_connector=lambda: None,
         _tapsishop_connector=lambda: None,
+        _technolife_connector=lambda: None,
     )
     factory = WorkspaceConnectorFactory(_Pricing(), commerce)
     assert {connector.channel_id for connector in factory.implemented()} == {
         "woocommerce:primary",
         "snappshop:main",
         "tapsishop:main",
+        "technolife:main",
     }
     with pytest.raises(WorkspaceDomainError):
         factory.get("digikala:main")
@@ -458,3 +461,62 @@ async def test_tapsishop_workspace_enforces_read_only_mode_before_provider_io():
             requested_by="admin",
         )
     assert provider_called is False
+
+
+@pytest.mark.asyncio
+async def test_technolife_workspace_requires_parent_and_exact_readback():
+    requests = []
+
+    class Provider:
+        async def update_products(self, updates):
+            requests.extend(updates)
+            return [
+                ChannelProductUpdateResult(
+                    channel_id="technolife:main",
+                    identifiers=updates[0].identifiers,
+                    success=True,
+                    raw={"request_id": "tech-1"},
+                )
+            ]
+
+        async def get_product(self, identifiers):
+            return ChannelProduct(
+                channel_id="technolife:main",
+                connector_type="technolife",
+                identifiers=ChannelIdentifierSet(
+                    external_product_id=identifiers["external_product_id"],
+                    parent_product_number=identifiers["product_number"],
+                ),
+                name="Verified",
+                current_price=125000,
+                currency="IRR",
+                price_unit="RIAL",
+                stock_quantity=4,
+            )
+
+    connector = TechnolifeWorkspaceConnector(
+        SimpleNamespace(
+            _technolife_connector=lambda: Provider(),
+            channel_write_enabled=lambda _channel_id: True,
+        )
+    )
+    update = _update(
+        external_primary_id="ITEM-1",
+        parent_external_id="P-1",
+        product_type="variation",
+        current_price=100000,
+        target_price=125000,
+        target_stock=4,
+        currency="IRR",
+        unit="RIAL",
+    )
+
+    result = (await connector.apply_updates([update], requested_by="admin"))[0]
+
+    assert requests[0].identifiers.external_product_id == "ITEM-1"
+    assert requests[0].identifiers.parent_product_number == "P-1"
+    assert result.outcome is WriteOutcome.VERIFIED_APPLIED
+    assert result.accepted_price == 125000
+    assert result.accepted_stock == 4
+    with pytest.raises(WorkspaceDomainError, match="parent productCode"):
+        connector.validate_update(_update(currency="IRR", unit="RIAL"))

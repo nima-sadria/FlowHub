@@ -102,4 +102,18 @@ def default_marketplace_registry() -> MarketplaceConnectorRegistry:
             implemented=True,
         )
     )
+    registry.register_definition(
+        MarketplaceConnectorDefinition(
+            connector_type="technolife",
+            channel_id="technolife:main",
+            name="Technolife",
+            capabilities=frozenset({
+                ChannelCapability.PRODUCTS_READ,
+                ChannelCapability.PRODUCTS_WRITE_PRICE,
+                ChannelCapability.PRODUCTS_WRITE_STOCK,
+                ChannelCapability.ORDERS_READ,
+            }),
+            implemented=True,
+        )
+    )
     return registry

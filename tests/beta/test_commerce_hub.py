@@ -110,15 +110,15 @@ def test_commerce_channels_report_read_only_write_blocked(client, auth_headers):
     assert data["runtime_write_blocked"] is True
     assert data["write_blocked"] is True
 
-    by_name = {item["name"]: item for item in data["items"]}
-    assert by_name["WooCommerce"]["type"] == "Channel"
-    assert by_name["WooCommerce"]["read_only"] is True
-    assert by_name["WooCommerce"]["access_mode"] == "read_only"
-    assert by_name["WooCommerce"]["write_pipeline_eligible"] is False
-    assert by_name["Snapp Shop"]["placeholder"] is False
-    assert by_name["Snapp Shop"]["write_blocked"] is True
-    assert by_name["Tapsi Shop"]["placeholder"] is False
-    assert by_name["Tapsi Shop"]["write_blocked"] is True
+    by_provider = {item["provider"]: item for item in data["items"]}
+    assert by_provider["woocommerce"]["type"] == "Channel"
+    assert by_provider["woocommerce"]["read_only"] is True
+    assert by_provider["woocommerce"]["access_mode"] == "read_only"
+    assert by_provider["woocommerce"]["write_pipeline_eligible"] is False
+    assert by_provider["snappshop"]["placeholder"] is False
+    assert by_provider["snappshop"]["write_blocked"] is True
+    assert by_provider["tapsishop"]["placeholder"] is False
+    assert by_provider["tapsishop"]["write_blocked"] is True
 
 
 def test_commerce_sources_do_not_list_marketplace_channels(client, auth_headers):
@@ -153,13 +153,17 @@ def test_commerce_type_routes_mark_future_placeholders_read_only(client, auth_he
     assert channel_types["tapsishop"]["placeholder"] is False
     assert channel_types["tapsishop"]["read_only"] is True
     assert channel_types["tapsishop"]["write_blocked"] is True
-    for provider in ("digikala", "technolife", "shopify"):
+    assert channel_types["technolife"]["implemented"] is True
+    assert channel_types["technolife"]["placeholder"] is False
+    assert channel_types["technolife"]["read_only"] is True
+    assert channel_types["technolife"]["write_blocked"] is True
+    for provider in ("digikala", "shopify"):
         assert channel_types[provider]["placeholder"] is True
         assert channel_types[provider]["read_only"] is True
         assert channel_types[provider]["write_blocked"] is True
 
 
-def test_snapp_and_tapsi_registries_are_implemented_and_read_only():
+def test_marketplace_registries_are_implemented_and_read_only():
     from app.flowhub.integration_platform.registry import registry
 
     snapp = registry.get_definition("snappshop")
@@ -178,6 +182,20 @@ def test_snapp_and_tapsi_registries_are_implemented_and_read_only():
     assert tapsi.connector.capabilities.write_prices is True
     assert tapsi.connector.capabilities.write_inventory is True
     assert tapsi.connector.capabilities.webhook is True
+
+    technolife = registry.get_definition("technolife")
+    assert technolife is not None
+    assert technolife.connector.identity.read_only is True
+    assert technolife.connector.capabilities.read_products is True
+    assert technolife.connector.capabilities.read_orders is True
+    assert technolife.connector.capabilities.write_prices is True
+    assert technolife.connector.capabilities.write_inventory is True
+    required_secrets = {
+        field.key
+        for field in technolife.settings_schema
+        if field.required and field.secret
+    }
+    assert required_secrets == {"api_key", "encryption_secret"}
 
 
 def test_woocommerce_connection_test_performs_read_only_api_call_without_secret_leakage(client, auth_headers, monkeypatch):
@@ -1292,7 +1310,7 @@ def test_channel_detail_health_and_capabilities(client, auth_headers):
     capabilities = client.get("/api/v2/commerce/channels/woocommerce:primary/capabilities", headers=auth_headers)
 
     assert detail.status_code == 200
-    assert detail.json()["name"] == "WooCommerce"
+    assert detail.json()["provider"] == "woocommerce"
     assert detail.json()["access_mode"] == "read_only"
     assert detail.json()["read_only"] is True
     assert detail.json()["write_blocked"] is True
@@ -1984,6 +2002,47 @@ def test_marketplace_configuration_requires_admin_and_valid_required_fields(clie
     )
     assert invalid.status_code == 422
     assert client.get("/api/v2/commerce/channels/snappshop:main", headers=auth_headers).json()["credential_status"] == "not_configured"
+
+
+def test_technolife_configuration_requires_and_masks_both_documented_secrets(
+    client, auth_headers
+):
+    import base64
+
+    encryption_secret = base64.b64encode(b"0123456789abcdef").decode("ascii")
+    missing_secret = client.put(
+        "/api/v2/commerce/channels/technolife:main/settings",
+        headers=auth_headers,
+        json={"enabled": True, "settings": {}, "secrets": {"api_key": "api-key"}},
+    )
+    assert missing_secret.status_code == 422
+
+    response = client.put(
+        "/api/v2/commerce/channels/technolife:main/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "access_mode": "write_enabled",
+            "settings": {},
+            "secrets": {
+                "api_key": "api-key",
+                "encryption_secret": encryption_secret,
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert "api-key" not in response.text
+    assert encryption_secret not in response.text
+
+    configuration = client.get(
+        "/api/v2/commerce/channels/technolife:main/configuration",
+        headers=auth_headers,
+    ).json()
+    assert configuration["configured"] is True
+    assert configuration["access_mode"] == "write_enabled"
+    assert configuration["secrets"]["api_key"]["status"] == "configured"
+    assert configuration["secrets"]["encryption_secret"]["status"] == "configured"
+    assert configuration["credentials_returned"] is False
 
 
 def test_snappshop_unsaved_credentials_can_test_and_return_vendor_choices(client, auth_headers, monkeypatch):

@@ -129,6 +129,28 @@ class RunnerWooConnector:
         )
 
 
+class RunnerTechnolifeConnector(RunnerWooConnector):
+    connector_type = "technolife"
+
+    async def list_orders(self, pagination):
+        self.read_calls += 1
+        return PaginatedResult(
+            items=[
+                ChannelOrder(
+                    channel_id=self.channel_id,
+                    connector_type="technolife",
+                    identifiers=ChannelIdentifierSet(order_number="TECH-501"),
+                    status="processing",
+                    items=[],
+                    total=125000,
+                    currency="IRR",
+                    raw={"code": "TECH-501", "status": "processing"},
+                )
+            ],
+            pagination=pagination,
+        )
+
+
 @pytest.mark.asyncio
 async def test_runner_discovers_enabled_channels_filters_capabilities_and_records_heartbeat(session_factory, monkeypatch):
     from app.flowhub.orders.runner import OrderSyncRunner
@@ -217,6 +239,44 @@ async def test_runner_reconciles_woocommerce_through_read_only_shared_service(
             == 1
         )
         assert db.query(_order_models.ChannelInventoryEffectRecord).count() == 0
+
+
+@pytest.mark.asyncio
+async def test_runner_reconciles_technolife_through_shared_order_service(
+    session_factory, monkeypatch
+):
+    from app.flowhub.orders.runner import OrderSyncRunner
+
+    with session_factory() as db:
+        _seed_channel(
+            db,
+            "technolife:main",
+            "technolife",
+            enabled=True,
+            settings={},
+        )
+
+    connector = RunnerTechnolifeConnector("technolife:main")
+    monkeypatch.setattr(
+        OrderSyncRunner,
+        "_technolife_connector",
+        lambda self, channel_id, settings: connector,
+    )
+    runner = OrderSyncRunner(
+        session_factory, settings=_settings(), runner_id="runner-technolife-read"
+    )
+
+    result = await runner.run_once()
+
+    assert connector.read_calls == 1
+    assert result["results"][0]["source"] == "reconciliation"
+    with session_factory() as db:
+        assert (
+            db.query(_order_models.ChannelOrderRecord)
+            .filter_by(channel_id="technolife:main")
+            .count()
+            == 1
+        )
 
 
 @pytest.mark.asyncio

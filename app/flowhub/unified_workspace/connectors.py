@@ -9,6 +9,7 @@ from typing import Protocol
 from app.connectors.common.errors import ConnectorError
 from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
 from app.flowhub.channels.contracts import ChannelIdentifierSet, ChannelProductUpdate
+from app.flowhub.channels.write_validation import ProductWritePolicy, validate_product_write
 from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.product_pricing.service import ProductPricingService
 from app.flowhub.unified_workspace.domain import ChannelCapabilities, WorkspaceDomainError
@@ -122,14 +123,16 @@ class WooCommerceWorkspaceConnector:
         )
 
     def validate_update(self, update: ListingUpdateLike) -> None:
-        if update.target_stock is not None or update.target_status is not None:
-            raise WorkspaceDomainError(
-                "WooCommerce stock and status writes are unavailable in the approved existing connector contract."
-            )
-        if update.target_price is None:
-            raise WorkspaceDomainError("WooCommerce update requires a target price.")
-        if not update.external_primary_id.isdigit():
-            raise WorkspaceDomainError("WooCommerce primary identifier must be numeric.")
+        validate_product_write(
+            update,
+            ProductWritePolicy(
+                channel_name="WooCommerce",
+                write_price=True,
+                write_stock=False,
+                require_price=True,
+                numeric_identifier=True,
+            ),
+        )
         if update.product_type == "variation" and not str(
             update.parent_external_id or ""
         ).isdigit():
@@ -312,16 +315,17 @@ class SnappShopWorkspaceConnector:
         )
 
     def validate_update(self, update: ListingUpdateLike) -> None:
-        if update.target_status is not None:
-            raise WorkspaceDomainError(
-                "SnappShop status writes are unavailable in the current official connector contract."
-            )
-        price = update.target_price if update.target_price is not None else update.current_price
-        stock = update.target_stock if update.target_stock is not None else update.current_stock
-        if price is None or stock is None:
-            raise WorkspaceDomainError("SnappShop updates require explicit price and stock state.")
-        if update.currency != "IRR" or str(update.unit or "").upper() != "TOMAN":
-            raise WorkspaceDomainError("SnappShop prices require currency IRR and unit TOMAN.")
+        validate_product_write(
+            update,
+            ProductWritePolicy(
+                channel_name="SnappShop",
+                write_price=True,
+                write_stock=True,
+                require_complete_price_stock=True,
+                currency="IRR",
+                unit="TOMAN",
+            ),
+        )
 
     async def apply_updates(
         self, updates: Sequence[ListingUpdateLike], *, requested_by: str
@@ -525,20 +529,18 @@ class TapsiShopWorkspaceConnector:
         )
 
     def validate_update(self, update: ListingUpdateLike) -> None:
-        if update.product_type == "variation" or update.parent_external_id is not None:
-            raise WorkspaceDomainError(
-                "TapsiShop variation identity is not documented and variation writes are unavailable."
-            )
-        if update.target_status is not None:
-            raise WorkspaceDomainError(
-                "TapsiShop status writes are unavailable in the official connector contract."
-            )
-        price = update.target_price if update.target_price is not None else update.current_price
-        stock = update.target_stock if update.target_stock is not None else update.current_stock
-        if price is None or stock is None:
-            raise WorkspaceDomainError("TapsiShop updates require explicit price and stock state.")
-        if update.currency != "IRR" or str(update.unit or "").upper() != "RIAL":
-            raise WorkspaceDomainError("TapsiShop prices require currency IRR and unit RIAL.")
+        validate_product_write(
+            update,
+            ProductWritePolicy(
+                channel_name="TapsiShop",
+                write_price=True,
+                write_stock=True,
+                require_complete_price_stock=True,
+                supports_variations=False,
+                currency="IRR",
+                unit="RIAL",
+            ),
+        )
 
     async def apply_updates(
         self, updates: Sequence[ListingUpdateLike], *, requested_by: str
@@ -629,12 +631,213 @@ class TapsiShopWorkspaceConnector:
         ]
 
 
+class TechnolifeWorkspaceConnector:
+    channel_id = "technolife:main"
+
+    def __init__(self, commerce: CommerceHubService) -> None:
+        self.commerce = commerce
+
+    def capabilities(self) -> ChannelCapabilities:
+        write_enabled = self.commerce.channel_write_enabled(self.channel_id)
+        return ChannelCapabilities(
+            channel_id=self.channel_id,
+            read_price=True,
+            write_price=True,
+            read_stock=True,
+            write_stock=True,
+            read_status=True,
+            write_status=False,
+            supports_bulk_update=False,
+            supports_partial_update=True,
+            supports_multiple_listings=True,
+            supports_variations=True,
+            requires_stock_management=False,
+            maximum_batch_size=1,
+            rate_limit_per_minute=None,
+            health_state=(
+                "configured"
+                if self.commerce._technolife_connector() is not None
+                else "unconfigured"
+            ),
+            primary_identifier_type="technolife_seller_item_code",
+            supported_statuses=("active", "hidden"),
+            currency="IRR",
+            unit="RIAL",
+            write_available=write_enabled,
+            version="uw-1.3",
+        )
+
+    def validate_update(self, update: ListingUpdateLike) -> None:
+        validate_product_write(
+            update,
+            ProductWritePolicy(
+                channel_name="Technolife",
+                write_price=True,
+                write_stock=True,
+                currency="IRR",
+                unit="RIAL",
+            ),
+        )
+        if not str(update.parent_external_id or "").strip():
+            raise WorkspaceDomainError(
+                "Technolife writes require the parent productCode for read-back verification."
+            )
+
+    async def apply_updates(
+        self, updates: Sequence[ListingUpdateLike], *, requested_by: str
+    ) -> list[ListingUpdateResult]:
+        del requested_by
+        if not self.commerce.channel_write_enabled(self.channel_id):
+            raise WorkspaceDomainError(
+                "Technolife is Read-only. Enable channel writes before Apply."
+            )
+        connector = self.commerce._technolife_connector()
+        if connector is None:
+            raise WorkspaceDomainError("Technolife connector is not configured.")
+        output: list[ListingUpdateResult] = []
+        for update in updates:
+            self.validate_update(update)
+            provider_results = await connector.update_products(
+                [
+                    ChannelProductUpdate(
+                        channel_id=self.channel_id,
+                        identifiers=ChannelIdentifierSet(
+                            external_product_id=update.external_primary_id,
+                            sku=update.sku,
+                            product_number=update.parent_external_id,
+                            parent_product_number=update.parent_external_id,
+                        ),
+                        price=update.target_price,
+                        stock_quantity=update.target_stock,
+                        currency="IRR",
+                        price_unit="RIAL",
+                        idempotency_key=update.idempotency_key,
+                    )
+                ]
+            )
+            if len(provider_results) != 1:
+                output.append(
+                    ListingUpdateResult(
+                        listing_id=update.listing_id,
+                        outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                        error_category="provider_contract",
+                        error_message="Technolife returned an ambiguous item count.",
+                    )
+                )
+                continue
+            result = provider_results[0]
+            error = result.error
+            verified = False
+            if result.success:
+                try:
+                    observed = await connector.get_product(
+                        {
+                            "external_product_id": update.external_primary_id,
+                            "product_number": str(update.parent_external_id),
+                        }
+                    )
+                    expected_price = (
+                        update.target_price
+                        if update.target_price is not None
+                        else update.current_price
+                    )
+                    expected_stock = (
+                        update.target_stock
+                        if update.target_stock is not None
+                        else update.current_stock
+                    )
+                    verified = (
+                        observed.identifiers.external_product_id
+                        == update.external_primary_id
+                        and observed.current_price == expected_price
+                        and observed.stock_quantity == expected_stock
+                    )
+                except Exception:
+                    verified = False
+            output.append(
+                ListingUpdateResult(
+                    listing_id=update.listing_id,
+                    outcome=(
+                        WriteOutcome.VERIFIED_APPLIED
+                        if result.success and verified
+                        else WriteOutcome.RECONCILIATION_REQUIRED
+                        if result.success
+                        else WriteOutcome.FAILED
+                    ),
+                    provider_accepted=result.success,
+                    response={**result.raw, "verification": {"verified": verified}},
+                    external_response_id=_response_id(result.raw),
+                    error_category=error.category.value if error else None,
+                    error_message=error.message if error else None,
+                    retry_eligible=bool(error and error.retry.safe_to_retry),
+                    accepted_price=update.target_price if verified else None,
+                    accepted_stock=update.target_stock if verified else None,
+                )
+            )
+        return output
+
+    async def verify_updates(
+        self, updates: Sequence[ListingUpdateLike], *, requested_by: str
+    ) -> list[ListingUpdateResult]:
+        del requested_by
+        connector = self.commerce._technolife_connector()
+        if connector is None:
+            raise WorkspaceDomainError("Technolife connector is not configured.")
+        output: list[ListingUpdateResult] = []
+        for update in updates:
+            try:
+                observed = await connector.get_product(
+                    {
+                        "external_product_id": update.external_primary_id,
+                        "product_number": str(update.parent_external_id or ""),
+                    }
+                )
+                expected_price = (
+                    update.target_price
+                    if update.target_price is not None
+                    else update.current_price
+                )
+                expected_stock = (
+                    update.target_stock
+                    if update.target_stock is not None
+                    else update.current_stock
+                )
+                verified = (
+                    observed.current_price == expected_price
+                    and observed.stock_quantity == expected_stock
+                )
+                output.append(
+                    ListingUpdateResult(
+                        listing_id=update.listing_id,
+                        outcome=(
+                            WriteOutcome.VERIFIED_APPLIED
+                            if verified
+                            else WriteOutcome.RECONCILIATION_REQUIRED
+                        ),
+                        response={"verification": {"verified": verified}},
+                        accepted_price=update.target_price if verified else None,
+                        accepted_stock=update.target_stock if verified else None,
+                    )
+                )
+            except Exception as exc:
+                output.append(
+                    ListingUpdateResult(
+                        listing_id=update.listing_id,
+                        outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                        error_category="verification",
+                        error_message=str(exc),
+                    )
+                )
+        return output
+
+
 class WorkspaceConnectorFactory:
     def __init__(self, pricing: ProductPricingService, commerce: CommerceHubService) -> None:
         self._connectors: dict[str, WorkspaceChannelConnector] = {
             "woocommerce:primary": WooCommerceWorkspaceConnector(pricing),
             "snappshop:main": SnappShopWorkspaceConnector(commerce),
             "tapsishop:main": TapsiShopWorkspaceConnector(commerce),
+            "technolife:main": TechnolifeWorkspaceConnector(commerce),
         }
         self._product_pricing_connectors: dict[str, WorkspaceChannelConnector] = dict(
             self._connectors

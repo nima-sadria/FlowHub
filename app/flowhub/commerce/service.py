@@ -37,6 +37,11 @@ from app.flowhub.channels.tapsishop import (
     TapsiShopConnector,
     TapsiShopConnectorError,
 )
+from app.flowhub.channels.technolife import (
+    TECHNOLIFE_BASE_URL,
+    TechnolifeConfig,
+    TechnolifeConnector,
+)
 from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
 from app.flowhub.config.values import parse_config_bool
 from app.flowhub.data_layer.health_service import ConnectorHealthService
@@ -100,9 +105,9 @@ _CHANNELS = [
         "id": "technolife:main",
         "provider": "technolife",
         "name": "تکنولایف",
-        "status": "future",
-        "implemented": False,
-        "placeholder": True,
+        "status": "current",
+        "implemented": True,
+        "placeholder": False,
     },
     {
         "id": "shopify:main",
@@ -253,6 +258,8 @@ class CommerceHubService:
             return await self._test_snappshop_channel_connection(configured, body)
         if str(meta["provider"]) == "tapsishop":
             return await self._test_tapsishop_channel_connection(configured, body)
+        if str(meta["provider"]) == "technolife":
+            return await self._test_technolife_channel_connection(configured, body)
         return self._unsupported_connection_result()
 
     async def refresh_channel_cache(
@@ -266,7 +273,7 @@ class CommerceHubService:
         provider = str(meta["provider"])
         if provider == "snappshop" and not bool(meta.get("placeholder")):
             return await self._refresh_snappshop_channel_cache(channel_id, actor)
-        if provider == "tapsishop" and not bool(meta.get("placeholder")):
+        if provider in {"tapsishop", "technolife"} and not bool(meta.get("placeholder")):
             return await self._refresh_marketplace_channel_cache(channel_id, actor)
         if provider != "woocommerce" or bool(meta.get("placeholder")):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Product cache refresh is not available for this channel.")
@@ -420,7 +427,11 @@ class CommerceHubService:
                     "message": "Marketplace credentials must be saved before refreshing products.",
                 },
             )
-        connector = self._tapsishop_connector()
+        connector = (
+            self._tapsishop_connector()
+            if instance.connector_type == "tapsishop"
+            else self._technolife_connector()
+        )
         if connector is None:
             raise HTTPException(status.HTTP_409_CONFLICT, "Marketplace configuration is incomplete.")
 
@@ -428,31 +439,31 @@ class CommerceHubService:
             connector,
             actor=actor,
             page_size=_env_int(
-                "FLOWHUB_TAPSISHOP_PRODUCT_SYNC_PAGE_SIZE",
-                10,
+                f"FLOWHUB_{connector.connector_type.upper()}_PRODUCT_SYNC_PAGE_SIZE",
+                20 if connector.connector_type == "technolife" else 10,
                 minimum=1,
-                maximum=500,
+                maximum=100 if connector.connector_type == "technolife" else 500,
             ),
             max_pages=_env_int(
-                "FLOWHUB_TAPSISHOP_PRODUCT_SYNC_MAX_PAGES",
+                f"FLOWHUB_{connector.connector_type.upper()}_PRODUCT_SYNC_MAX_PAGES",
                 250,
                 minimum=1,
                 maximum=5_000,
             ),
             retry_attempts=_env_int(
-                "FLOWHUB_TAPSISHOP_PRODUCT_SYNC_RETRIES",
+                f"FLOWHUB_{connector.connector_type.upper()}_PRODUCT_SYNC_RETRIES",
                 2,
                 minimum=0,
                 maximum=5,
             ),
             page_delay_seconds=_env_float(
-                "FLOWHUB_TAPSISHOP_PRODUCT_SYNC_PAGE_DELAY_SECONDS",
+                f"FLOWHUB_{connector.connector_type.upper()}_PRODUCT_SYNC_PAGE_DELAY_SECONDS",
                 1.0,
                 minimum=0.0,
                 maximum=10.0,
             ),
             rate_limit_backoff_seconds=_env_float(
-                "FLOWHUB_TAPSISHOP_PRODUCT_SYNC_RATE_LIMIT_BACKOFF_SECONDS",
+                f"FLOWHUB_{connector.connector_type.upper()}_PRODUCT_SYNC_RATE_LIMIT_BACKOFF_SECONDS",
                 30.0,
                 minimum=1.0,
                 maximum=60.0,
@@ -592,7 +603,7 @@ class CommerceHubService:
         self._validate_channel_configuration(meta, body)
         if provider == "snappshop":
             await self._validate_snappshop_vendor_selection(body)
-        if provider in {"snappshop", "tapsishop"}:
+        if provider in {"snappshop", "tapsishop", "technolife"}:
             return self._update_marketplace_channel_settings(
                 channel_id,
                 meta,
@@ -639,8 +650,10 @@ class CommerceHubService:
             self._ensure_instance(meta, commit=False)
             if provider == "snappshop":
                 self._persist_snappshop_app_config(body, commit=False)
-            else:
+            elif provider == "tapsishop":
                 self._persist_tapsishop_app_config(body, commit=False)
+            else:
+                self._persist_technolife_app_config(body, commit=False)
             self.integration.stage_settings_contract(channel_id, self._settings_body(body))
             self._update_instance_state(meta, body, access_mode=access_mode, commit=False)
             self.integration.record_event(
@@ -733,6 +746,8 @@ class CommerceHubService:
                 return _safe_integer_timeout(value)
             if key == "agent_header_name":
                 return str(value or SNAPPSHOP_DEFAULT_AGENT_HEADER)
+        if provider == "technolife" and key == "request_timeout":
+            return _safe_integer_timeout(value)
         return value
 
     def relationship_map(self) -> dict:
@@ -796,6 +811,14 @@ class CommerceHubService:
             .all()
         )
         cached_variations = sum(1 for row in cache_rows if (row.product_type or "").lower() == "variation")
+        if provider == "technolife":
+            cached_products = len(
+                {str(row.parent_id) for row in cache_rows if row.parent_id not in (None, "")}
+            )
+        elif provider == "snappshop":
+            cached_products = len(cache_rows)
+        else:
+            cached_products = len(cache_rows) - cached_variations
         latest_refresh = self._latest_product_refresh(str(meta["id"]))
         configuration_state = self._channel_configuration_state(instance, health, latest_refresh)
         body = {
@@ -825,7 +848,7 @@ class CommerceHubService:
             "capabilities": capabilities.model_dump(),
             "capabilities_summary": self._capabilities_summary(capabilities),
             "settings_available": definition is not None,
-            "cached_products": len(cache_rows) if provider == "snappshop" else len(cache_rows) - cached_variations,
+            "cached_products": cached_products,
             "cached_variations": cached_variations,
             "last_cache_refresh": self._iso(
                 latest_refresh.completed_at or latest_refresh.started_at or latest_refresh.created_at
@@ -893,6 +916,7 @@ class CommerceHubService:
             "woocommerce": {"url", "key", "secret"},
             "snappshop": {"token", "agent_identifier"},
             "tapsishop": {"token"},
+            "technolife": {"api_key", "encryption_secret"},
         }.get(instance.connector_type, set())
         return bool(required) and all(settings.get(key) and settings[key].configured for key in required)
 
@@ -1043,6 +1067,7 @@ class CommerceHubService:
                 "woocommerce:primary",
                 "snappshop:main",
                 "tapsishop:main",
+                "technolife:main",
             }
             and not bool(meta.get("placeholder"))
         )
@@ -1076,11 +1101,21 @@ class CommerceHubService:
             )
         if provider == "tapsishop":
             return bool(str(secrets.get("token") or self.integration.config.get("tapsishop.token") or "").strip())
+        if provider == "technolife":
+            return bool(
+                str(secrets.get("api_key") or self.integration.config.get("technolife.api_key") or "").strip()
+            ) and bool(
+                str(
+                    secrets.get("encryption_secret")
+                    or self.integration.config.get("technolife.encryption_secret")
+                    or ""
+                ).strip()
+            )
         return False
 
     def _validate_channel_configuration(self, meta: dict, body: dict) -> None:
         provider = str(meta["provider"])
-        if provider not in {"snappshop", "tapsishop"}:
+        if provider not in {"snappshop", "tapsishop", "technolife"}:
             return
         settings, secrets = self._connector_values(provider, body)
         base_url = str(settings.get("base_url") or "").strip()
@@ -1099,8 +1134,10 @@ class CommerceHubService:
         try:
             if provider == "snappshop":
                 SnappShopConfig.from_values(settings=settings, secrets=secrets)
-            else:
+            elif provider == "tapsishop":
                 TapsiShopConfig.from_values(settings=settings, secrets=secrets)
+            else:
+                TechnolifeConfig.from_values(settings=settings, secrets=secrets)
         except (TypeError, ValueError) as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
 
@@ -1113,11 +1150,17 @@ class CommerceHubService:
                 "base_url", "request_timeout", "selected_vendor_id", "token_refresh_enabled",
                 "token_refresh_name", "revoke_current_token",
             ),
+            "technolife": ("base_url", "request_timeout"),
         }.get(provider, ())
-        secret_keys = {"snappshop": ("token",), "tapsishop": ("token", "webhook_token")}.get(provider, ())
+        secret_keys = {
+            "snappshop": ("token",),
+            "tapsishop": ("token", "webhook_token"),
+            "technolife": ("api_key", "encryption_secret"),
+        }.get(provider, ())
         defaults = {
             "snappshop": {"base_url": SNAPPSHOP_BASE_URL, "agent_header_name": "User-Agent", "request_timeout": 30},
             "tapsishop": {"base_url": TAPSISHOP_BASE_URL, "request_timeout": 30},
+            "technolife": {"base_url": TECHNOLIFE_BASE_URL, "request_timeout": 30},
         }.get(provider, {})
         settings = {
             key: submitted_settings[key]
@@ -1130,6 +1173,12 @@ class CommerceHubService:
             settings["agent_header_name"] = str(
                 settings.get("agent_header_name") or SNAPPSHOP_DEFAULT_AGENT_HEADER
             ).strip()
+            if "request_timeout" not in submitted_settings:
+                settings["request_timeout"] = _safe_integer_timeout(settings.get("request_timeout"))
+        elif provider == "technolife":
+            settings["base_url"] = str(
+                settings.get("base_url") or TECHNOLIFE_BASE_URL
+            ).strip().rstrip("/")
             if "request_timeout" not in submitted_settings:
                 settings["request_timeout"] = _safe_integer_timeout(settings.get("request_timeout"))
         secrets = {
@@ -1389,6 +1438,68 @@ class CommerceHubService:
             config=config,
             token_updater=update_token,
         )
+
+    async def _test_technolife_channel_connection(
+        self, configured: bool, body: dict | None = None
+    ) -> dict:
+        connector = self._technolife_connector(body)
+        if not configured or connector is None:
+            return {
+                **self._connection_base(),
+                "ok": False,
+                "connected": False,
+                "authenticated": False,
+                "status": "not_configured",
+                "http_status": None,
+                "latency_ms": None,
+                "checked_at": self._checked_at(),
+                "message": "Technolife is not configured. No external call was performed.",
+                "external_call_performed": False,
+            }
+        started = monotonic()
+        health = await connector.test_connection()
+        latency_ms = health.latency_ms or round((monotonic() - started) * 1000, 2)
+        if health.status != "healthy":
+            error = health.error
+            return {
+                **self._connection_base(),
+                "ok": False,
+                "connected": False,
+                "authenticated": bool(
+                    error
+                    and error.category.value not in {"authentication", "authorization"}
+                ),
+                "status": (
+                    "authentication_failed"
+                    if error and error.category.value == "authentication"
+                    else "error"
+                ),
+                "http_status": error.http_status if error else None,
+                "latency_ms": latency_ms,
+                "checked_at": self._checked_at(),
+                "message": error.message if error else "Technolife connection failed.",
+                "external_call_performed": True,
+            }
+        return {
+            **self._connection_base(),
+            "ok": True,
+            "connected": True,
+            "authenticated": True,
+            "status": "connected",
+            "http_status": 200,
+            "latency_ms": latency_ms,
+            "checked_at": self._checked_at(),
+            "message": "Connected to Technolife. Product probe succeeded.",
+            "external_call_performed": True,
+        }
+
+    def _technolife_connector(self, body: dict | None = None) -> TechnolifeConnector | None:
+        settings, secrets = self._connector_values("technolife", body)
+        try:
+            config = TechnolifeConfig.from_values(settings=settings, secrets=secrets)
+        except (TypeError, ValueError):
+            return None
+        return TechnolifeConnector(channel_id="technolife:main", config=config)
 
     async def _test_nextcloud_source_connection(self) -> dict:
         values = self._nextcloud_values({}, allow_stored=True)
@@ -1721,6 +1832,25 @@ class CommerceHubService:
         if pairs:
             self.integration.config.set_many(pairs, updated_by="commerce_hub", commit=commit)
 
+    def _persist_technolife_app_config(self, body: dict, *, commit: bool = True) -> None:
+        settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
+        secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
+        pairs: dict[str, str] = {
+            "technolife.base_url": str(
+                settings.get("base_url") or TECHNOLIFE_BASE_URL
+            ).strip().rstrip("/"),
+            "technolife.request_timeout": str(
+                _safe_integer_timeout(settings.get("request_timeout"))
+            ),
+        }
+        if secrets.get("api_key"):
+            pairs["technolife.api_key"] = str(secrets["api_key"])
+        if secrets.get("encryption_secret"):
+            pairs["technolife.encryption_secret"] = str(secrets["encryption_secret"])
+        self.integration.config.set_many(
+            pairs, updated_by="commerce_hub", commit=commit
+        )
+
     def _persist_nextcloud_app_config(self, body: dict) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
@@ -1850,7 +1980,9 @@ class CommerceHubService:
             required = {"token", "agent_identifier", "vendor_id"}
         elif instance.connector_type == "tapsishop":
             required = {"token"}
-        elif instance.connector_type in {"digikala", "technolife", "shopify"}:
+        elif instance.connector_type == "technolife":
+            required = {"api_key", "encryption_secret"}
+        elif instance.connector_type in {"digikala", "shopify"}:
             required = {"api_token"}
         elif instance.connector_type == "nextcloud":
             required = {"url", "username", "password"}

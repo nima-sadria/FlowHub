@@ -29,6 +29,7 @@ from app.flowhub.channels.contracts import ChannelCapability
 from app.flowhub.channels.registry import default_marketplace_registry
 from app.flowhub.channels.snappshop import SnappShopConfig, SnappShopConnector
 from app.flowhub.channels.tapsishop import TapsiShopConfig, TapsiShopConnector
+from app.flowhub.channels.technolife import TechnolifeConfig, TechnolifeConnector
 from app.flowhub.channels.woocommerce import WooCommerceOrderConnector
 from app.flowhub.database import _get_engine
 from app.flowhub.integration_platform.models import (
@@ -38,6 +39,7 @@ from app.flowhub.integration_platform.models import (
 )
 from app.flowhub.orders.service import LOCK_TTL_SECONDS, OrderSyncResult, OrderSyncService
 from app.flowhub.security.redaction import redact_sensitive
+from app.flowhub.setup.service import AppConfigService
 
 LOGGER = logging.getLogger("flowhub.orders.runner")
 RUNNER_EVENT_NAME = "order_sync_runner_heartbeat"
@@ -229,6 +231,43 @@ class OrderSyncRunner:
                     )
                 )
                 results.append(self._result_shape(result))
+        elif channel.connector_type == "technolife":
+            connector = self._technolife_connector(channel.id, settings)
+            if (
+                connector
+                and ChannelCapability.ORDERS_READ in capabilities
+                and self._due(
+                    channel.id,
+                    "reconciliation",
+                    self._int_setting(
+                        settings,
+                        "order_sync_reconcile_interval_seconds",
+                        self.settings.reconciliation_interval_seconds,
+                    ),
+                )
+            ):
+                result = await self._bounded(
+                    self._reconcile(
+                        channel.id,
+                        connector,
+                        page_size=self._int_setting(
+                            settings,
+                            "order_sync_reconcile_page_size",
+                            self.settings.reconciliation_page_size,
+                        ),
+                        lease_seconds=self._int_setting(
+                            settings,
+                            "order_sync_lease_seconds",
+                            self.settings.lease_seconds,
+                        ),
+                        interval_seconds=self._int_setting(
+                            settings,
+                            "order_sync_reconcile_interval_seconds",
+                            self.settings.reconciliation_interval_seconds,
+                        ),
+                    )
+                )
+                results.append(self._result_shape(result))
         return results
 
     async def _bounded(self, operation: Any) -> OrderSyncResult:
@@ -316,6 +355,27 @@ class OrderSyncRunner:
                 _upsert_setting(db, channel_id, "token", new_token, secret=True)
 
         return TapsiShopConnector(channel_id=channel_id, config=config, token_updater=update_token)
+
+    def _technolife_connector(
+        self, channel_id: str, settings: dict[str, Any]
+    ) -> TechnolifeConnector | None:
+        with self.session_factory() as db:
+            config_store = AppConfigService(db)
+            secrets = {
+                "api_key": config_store.get("technolife.api_key"),
+                "encryption_secret": config_store.get("technolife.encryption_secret"),
+            }
+        try:
+            config = TechnolifeConfig.from_values(settings=settings, secrets=secrets)
+        except (TypeError, ValueError):
+            self._record_event(
+                channel_id,
+                "order_sync_channel_skipped",
+                "Technolife order reconciliation skipped because configuration is incomplete.",
+                {"category": "configuration"},
+            )
+            return None
+        return TechnolifeConnector(channel_id=channel_id, config=config)
 
     def _record_runner_heartbeat(self, state: str) -> None:
         self._record_event(

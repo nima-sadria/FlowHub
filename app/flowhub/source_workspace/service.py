@@ -131,6 +131,11 @@ class SourceWorkspaceService:
 
     def available_channels(self) -> dict[str, Any]:
         self._ensure_channels()
+        from app.flowhub.commerce.service import CommerceHubService
+
+        commerce_channels = {
+            item["id"]: item for item in CommerceHubService(self.db).list_channels()["items"]
+        }
         channels = (
             self.db.query(WorkspaceChannel)
             .order_by(WorkspaceChannel.name, WorkspaceChannel.id)
@@ -147,6 +152,10 @@ class SourceWorkspaceService:
                     "enabled": item.enabled,
                     "implementationState": item.implementation_state,
                     "available": item.enabled and item.implementation_state == "implemented",
+                    "configured": bool(
+                        commerce_channels.get(item.id, {}).get("credential_status")
+                        == "configured"
+                    ),
                 }
                 for item in channels
             ]
