@@ -47,6 +47,7 @@ INTERNAL_TERM_PATTERNS = {
     "README.md": (r"v1\.3 Beta", r"FLOWHUB_V1\.3_BETA"),
     "docs/i18n/INTERNATIONALIZATION.md": (r"placeholders?",),
     "docs/i18n/TRANSLATOR_GUIDE.md": (r"placeholder",),
+    "docs/exchange-rates.md": (r"Automated tests use fake adapters",),
     "docs/releases/FLOWHUB_V1.3_BETA.md": (r"Beta",),
     "docs/roadmap/NEXT.md": (r"FlowHub v1\.3 Beta",),
     "app/flowhub/commerce/service.py": (
@@ -96,8 +97,10 @@ INTERNAL_TERM_PATTERNS = {
     "frontend/src/pages/SourceCenter.tsx": (
         r"\bplaceholder=",
         r'\b(card\.)?integration\.placeholder\b',
+        r"\bitem\.placeholder\b",
         r"\bplaceholder:\s*integration\?\.placeholder\s*\?\?\s*false",
     ),
+    "frontend/src/pages/ExchangeRates.tsx": (r"\bplaceholder=",),
     "frontend/src/pages/SourceConfiguration.tsx": (
         r"\bplaceholder=",
         r"sourceConfiguration\.(previousSampleRow|nextSampleRow|samplePosition)",
@@ -127,6 +130,12 @@ INTERNAL_TERM_PATTERNS = {
     ),
     "frontend/src/services/types.ts": (
         r'\bplaceholder:\s*boolean\b',
+    ),
+    # These fixtures are gated behind import.meta.env.DEV/test. The only
+    # allowed term is the typed connector lifecycle field used to exclude
+    # unavailable integrations when producing controlled QA data.
+    "frontend/src/dev/resourceQaFixtures.ts": (
+        r"\bitem\.placeholder\b",
     ),
     # This exact Handsontable evaluation token is a security validation
     # constant: the resolver must reject it in Production while permitting it
