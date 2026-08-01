@@ -280,7 +280,7 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
                 write_prices=True,
                 write_inventory=True,
                 webhook=True,
-                polling=False,
+                polling=True,
                 oauth=False,
                 api_key=True,
                 supports_modified_since=False,
@@ -298,7 +298,6 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
             ConnectorSettingDefinition(key="token_refresh_enabled", label="Token refresh enabled", required=False, default=False),
             ConnectorSettingDefinition(key="token_refresh_name", label="Token refresh name", required=False, default="FlowHub"),
             ConnectorSettingDefinition(key="revoke_current_token", label="Revoke current token on refresh", required=False, default=False),
-            ConnectorSettingDefinition(key="token_refresh_expired_at", label="Token refresh expiration", required=False),
             ConnectorSettingDefinition(key="token", label="Authorization token", required=True, secret=True),
             ConnectorSettingDefinition(key="webhook_token", label="Webhook token", required=False, secret=True),
         ],
@@ -312,7 +311,7 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
         connector=ConnectorDescriptor(
             identity=ConnectorIdentity(
                 id="digikala",
-                name="Digikala",
+                name="دیجی‌کالا",
                 type="digikala",
                 version="1.0.0",
                 enabled=False,
@@ -351,7 +350,7 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
         connector=ConnectorDescriptor(
             identity=ConnectorIdentity(
                 id="technolife",
-                name="Technolife",
+                name="تکنولایف",
                 type="technolife",
                 version="1.0.0",
                 enabled=False,
@@ -390,7 +389,7 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
         connector=ConnectorDescriptor(
             identity=ConnectorIdentity(
                 id="shopify",
-                name="Shopify",
+                name="شاپیفای",
                 type="shopify",
                 version="1.0.0",
                 enabled=False,

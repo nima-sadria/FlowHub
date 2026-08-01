@@ -17,6 +17,7 @@ from app.flowhub.channels.contracts import (
 from app.flowhub.unified_workspace.connectors import (
     ListingUpdate,
     SnappShopWorkspaceConnector,
+    TapsiShopWorkspaceConnector,
     WooCommerceWorkspaceConnector,
     WorkspaceConnectorFactory,
 )
@@ -360,11 +361,100 @@ async def test_snappshop_adapter_preserves_retry_metadata_and_rejects_unconfigur
 
 
 def test_factory_exposes_only_implemented_channels_and_rejects_coming_soon():
-    commerce = SimpleNamespace(_snappshop_connector=lambda: None)
+    commerce = SimpleNamespace(
+        _snappshop_connector=lambda: None,
+        _tapsishop_connector=lambda: None,
+    )
     factory = WorkspaceConnectorFactory(_Pricing(), commerce)
     assert {connector.channel_id for connector in factory.implemented()} == {
         "woocommerce:primary",
         "snappshop:main",
+        "tapsishop:main",
     }
     with pytest.raises(WorkspaceDomainError):
         factory.get("digikala:main")
+
+
+@pytest.mark.asyncio
+async def test_tapsishop_workspace_sends_complete_reviewed_state_and_requires_reconciliation():
+    requests = []
+
+    class Provider:
+        async def update_products(self, updates):
+            requests.extend(updates)
+            return [
+                ChannelProductUpdateResult(
+                    channel_id="tapsishop:main",
+                    identifiers=update.identifiers,
+                    success=True,
+                    raw={"referenceCode": update.idempotency_key},
+                )
+                for update in updates
+            ]
+
+    connector = TapsiShopWorkspaceConnector(
+        SimpleNamespace(
+            _tapsishop_connector=lambda: Provider(),
+            channel_write_enabled=lambda _channel_id: True,
+        )
+    )
+    update = _update(
+        currency="IRR",
+        unit="RIAL",
+        current_price=100000,
+        target_price=120000,
+        current_stock=7,
+        target_stock=None,
+    )
+
+    result = (await connector.apply_updates([update], requested_by="admin"))[0]
+
+    assert requests[0].price == 120000
+    assert requests[0].stock_quantity == 7
+    assert requests[0].idempotency_key == "idem-1"
+    assert result.provider_accepted is True
+    assert result.outcome is WriteOutcome.RECONCILIATION_REQUIRED
+    with pytest.raises(WorkspaceDomainError, match="price and stock"):
+        connector.validate_update(
+            _update(
+                currency="IRR",
+                unit="RIAL",
+                current_stock=None,
+                target_stock=None,
+            )
+        )
+    with pytest.raises(WorkspaceDomainError, match="variation"):
+        connector.validate_update(
+            _update(
+                currency="IRR",
+                unit="RIAL",
+                product_type="variation",
+                parent_external_id="parent-1",
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_tapsishop_workspace_enforces_read_only_mode_before_provider_io():
+    provider_called = False
+
+    class Provider:
+        async def update_products(self, updates):
+            nonlocal provider_called
+            provider_called = True
+            return []
+
+    connector = TapsiShopWorkspaceConnector(
+        SimpleNamespace(
+            _tapsishop_connector=lambda: Provider(),
+            channel_write_enabled=lambda _channel_id: False,
+        )
+    )
+
+    assert connector.capabilities().write_available is False
+    with pytest.raises(WorkspaceDomainError, match="Read-only"):
+        await connector.apply_updates(
+            [_update(currency="IRR", unit="RIAL")],
+            requested_by="admin",
+        )
+    assert provider_called is False

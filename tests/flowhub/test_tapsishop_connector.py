@@ -14,7 +14,7 @@ from app.flowhub.channels.marketplace import UnsupportedCapabilityError
 from app.flowhub.channels.tapsishop import (
     TAPSISHOP_AUTH_HEADER,
     TAPSISHOP_BASE_URL,
-    TAPSISHOP_COURIER_REVIEW_METHOD,
+    TAPSISHOP_PRODUCT_UPDATE_URL,
     TAPSISHOP_WEBHOOK_AUTH_HEADER,
     TapsiShopConfig,
     TapsiShopConnector,
@@ -91,6 +91,9 @@ async def test_vendor_information_probe_uses_documented_auth_header():
     assert request["method"] == "GET"
     assert request["url"] == f"{TAPSISHOP_BASE_URL}/vendor-information"
     assert request["headers"][TAPSISHOP_AUTH_HEADER] == "tapsi-secret-token"
+    assert request["headers"]["Accept"] == "text/plain"
+    assert "client-name" not in request["headers"]
+    assert "client-version" not in request["headers"]
     assert vendor.vendor_id == "12"
     assert vendor.name == "Store"
     assert vendor.identifiers.channel_reference_code == "S-12"
@@ -148,6 +151,8 @@ async def test_paginated_product_listing_normalizes_rial_fields():
     assert result.pagination.page == 2
     assert result.pagination.total == 41
     assert result.pagination.total_pages == 3
+    assert result.pagination.has_more is True
+    assert result.pagination.next_page == 3
     product = result.items[0]
     assert product.identifiers.external_product_id == "prod-1"
     assert product.identifiers.product_number == "HS-1"
@@ -174,7 +179,6 @@ async def test_product_update_success_and_partial_failure_preserve_reference_cod
             channel_id="tapsishop:main",
             identifiers=ChannelIdentifierSet(sku="SKU-1"),
             price=100000,
-            discount_price=90000,
             stock_quantity=3,
             currency="IRR",
             price_unit="rial",
@@ -192,12 +196,35 @@ async def test_product_update_success_and_partial_failure_preserve_reference_cod
     ])
 
     sent = FakeAsyncClient.requests[0]["json"]["products"]
-    assert sent[0] == {"id": "SKU-1", "stock": 3, "price": 100000, "referenceCode": "ref-1", "specialPrice": 90000}
+    assert FakeAsyncClient.requests[0]["url"] == TAPSISHOP_PRODUCT_UPDATE_URL
+    assert sent[0] == {"id": "SKU-1", "stock": 3, "price": 100000, "referenceCode": "ref-1"}
     assert results[0].success is True
     assert results[0].raw["referenceCode"] == "ref-1"
     assert results[1].success is False
     assert results[1].error.category == ConnectorErrorCategory.VALIDATION
     assert results[1].raw["referenceCode"] == "ref-2"
+
+
+@pytest.mark.asyncio
+async def test_ambiguous_discount_field_is_not_guessed():
+    with pytest.raises(TapsiShopConnectorError) as exc_info:
+        await connector().update_products(
+            [
+                ChannelProductUpdate(
+                    channel_id="tapsishop:main",
+                    identifiers=ChannelIdentifierSet(sku="SKU-1"),
+                    price=100000,
+                    discount_price=90000,
+                    stock_quantity=3,
+                    currency="IRR",
+                    price_unit="rial",
+                )
+            ]
+        )
+
+    assert exc_info.value.error.category == ConnectorErrorCategory.VALIDATION
+    assert "specialprice or specialPrice" in exc_info.value.error.message
+    assert FakeAsyncClient.requests == []
 
 
 @pytest.mark.asyncio
@@ -211,7 +238,6 @@ async def test_unauthorized_safe_request_refreshes_token_once_and_retries():
             refresh_enabled=True,
             refresh_token_name="FlowHub",
             refresh_revoke_current_token=False,
-            refresh_expired_at="2027-01-01T00:00:00Z",
         ),
         token_updater=updated_tokens.append,
     )
@@ -228,6 +254,8 @@ async def test_unauthorized_safe_request_refreshes_token_once_and_retries():
     assert FakeAsyncClient.requests[1]["url"].endswith("/refresh-token")
     assert FakeAsyncClient.requests[1]["json"]["token"] == "old-token"
     assert FakeAsyncClient.requests[1]["json"]["revokeCurrentToken"] is False
+    assert "expireAt" not in FakeAsyncClient.requests[1]["json"]
+    assert "expiredAt" not in FakeAsyncClient.requests[1]["json"]
     assert FakeAsyncClient.requests[2]["headers"][TAPSISHOP_AUTH_HEADER] == "new-token"
     assert updated_tokens == ["new-token"]
 
@@ -271,6 +299,30 @@ async def test_timeout_malformed_and_422_responses_are_normalized():
             )
         ])
     assert validation.value.error.category == ConnectorErrorCategory.VALIDATION
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status_code", "category", "retryable"),
+    [
+        (401, ConnectorErrorCategory.AUTHENTICATION, False),
+        (429, ConnectorErrorCategory.RATE_LIMIT, True),
+        (503, ConnectorErrorCategory.UPSTREAM_UNAVAILABLE, True),
+    ],
+)
+async def test_http_status_is_preserved_when_provider_error_body_is_not_json(
+    status_code,
+    category,
+    retryable,
+):
+    FakeAsyncClient.responses = [FakeResponse(status_code, ValueError("not json"))]
+
+    with pytest.raises(TapsiShopConnectorError) as exc_info:
+        await connector().list_products()
+
+    assert exc_info.value.error.category == category
+    assert exc_info.value.error.http_status == status_code
+    assert exc_info.value.error.retry.retryable is retryable
 
 
 @pytest.mark.asyncio
@@ -325,7 +377,9 @@ async def test_order_filters_and_detail_normalization_preserve_codes_and_settlem
     }
     assert orders.items[0].status == "READY_TO_SHIP"
     assert detail.identifiers.order_number == "ORD-77"
-    assert detail.items[0].raw["commissionPrice"] == 30000
+    assert detail.identifiers.external_product_id == "77"
+    assert detail.items == []
+    assert detail.raw["items"][0]["commissionPrice"] == 30000
     assert detail.raw["shipments"][0]["number"] == "SHIP-1"
     assert detail.raw["settlement"]["status"] == "pending"
 
@@ -338,23 +392,57 @@ def test_rial_value_handling_rejects_toman_or_fractional_values():
         rial_amount(100000.5, currency="IRR", unit="rial")
     with pytest.raises(TapsiShopConnectorError):
         rial_amount(101, currency="IRR", unit="rial")
+    with pytest.raises(TapsiShopConnectorError):
+        rial_amount(float("inf"), currency="IRR", unit="rial")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stock", [-1, 1.5, float("inf")])
+async def test_product_update_rejects_invalid_stock_without_external_call(stock):
+    with pytest.raises(TapsiShopConnectorError) as exc_info:
+        await connector().update_products([
+            ChannelProductUpdate(
+                channel_id="tapsishop:main",
+                identifiers=ChannelIdentifierSet(sku="SKU-1"),
+                price=100000,
+                stock_quantity=stock,
+                currency="IRR",
+                price_unit="rial",
+            )
+        ])
+
+    assert exc_info.value.error.category == ConnectorErrorCategory.VALIDATION
+    assert FakeAsyncClient.requests == []
 
 
 @pytest.mark.asyncio
 async def test_webhook_authorization_and_success_response():
     event = await connector().receive_webhook(
-        b'{"orderDetail":{"requestId":"req-1","orderId":77,"orderNumber":"ORD-77","changeType":"CHANGE_STATUS","createdOnTimestamp":"2026-01-01T10:00:00Z"}}',
+        b'{"orderDetail":{"orderId":77,"orderNumber":"ORD-77","changeType":1,"createdOnTimestamp":"2026-01-01T10:00:00Z"},"items":[{"requestId":"req-1","orderItemId":9,"orderId":77,"tapsiShopProductId":11,"productId":"SKU-1","quantity":-1,"changeType":1}]}',
         {TAPSISHOP_WEBHOOK_AUTH_HEADER: "webhook-secret-token"},
     )
 
     assert event.event_id == "req-1"
-    assert event.event_type == "CHANGE_STATUS"
+    assert event.event_type == "1"
     assert event.order_identifiers.order_number == "ORD-77"
     assert connector().webhook_success_response()["succeed"] is True
 
     with pytest.raises(TapsiShopConnectorError) as exc_info:
         await connector().receive_webhook(b"{}", {TAPSISHOP_WEBHOOK_AUTH_HEADER: "wrong"})
     assert exc_info.value.error.category == ConnectorErrorCategory.AUTHENTICATION
+
+
+def test_configuration_rejects_non_official_or_non_https_base_urls_and_ambiguous_expiry():
+    with pytest.raises(ValueError, match="official HTTPS"):
+        TapsiShopConfig(token="secret", base_url="http://vendorgw.tapsi.shop/Web/Hub/vendors/v1")
+    with pytest.raises(ValueError, match="official HTTPS"):
+        TapsiShopConfig(token="secret", base_url="https://127.0.0.1/Web/Hub/vendors/v1")
+    with pytest.raises(ValueError, match="expireAt or expiredAt"):
+        TapsiShopConfig(
+            token="secret",
+            base_url=TAPSISHOP_BASE_URL,
+            refresh_expired_at="2027-01-01T00:00:00Z",
+        )
 
 
 @pytest.mark.asyncio
@@ -366,6 +454,5 @@ async def test_courier_read_is_supported_but_review_remains_capability_gated():
 
     assert courier["pickupCode"] == "P-1"
     assert ChannelCapability.COURIER_REVIEW not in c.get_capabilities()
-    assert TAPSISHOP_COURIER_REVIEW_METHOD == "PUT"
     with pytest.raises(UnsupportedCapabilityError):
         await c.review_courier(pickup_code="P-1", is_acceptable=True, include_details=False)

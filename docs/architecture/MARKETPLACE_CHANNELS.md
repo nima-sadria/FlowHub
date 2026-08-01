@@ -213,37 +213,95 @@ Documented defaults and configurable assumptions:
 ## TapsiShop Connector
 
 The TapsiShop channel connector is implemented under
-`app/flowhub/channels/tapsishop.py` from `webhook.v.0.2.pdf`.
+`app/flowhub/channels/tapsishop.py` from the Owner-supplied
+`webhook-v0.2-api-reference.md`, a page-by-page transcription of the official
+v0.2 reference.
 
-Documented defaults and configurable assumptions:
+### Documented contract
 
-- Base URL default: `https://vendorgw.tapsi.shop/Web/Hub/vendors/v1`.
-- The document shows inconsistent path casing in examples. FlowHub constructs
-  every URL through the connector `_url()` helper so path casing can be
-  normalized in one place.
-- Outbound API authentication uses
-  `TapsiShop.Hub.Authorization: {token}`.
-- Incoming webhook authentication uses the separate
-  `TapsiShop.Hub.Webhook-Authorization: {webhook_token}` credential. FlowHub
-  never reuses the outbound token as the webhook token.
-- Webhook acknowledgement uses HTTP 200 with a response body containing
-  `succeed: true`.
-- Health checks call only `GET /vendor-information`; they do not run product or
-  order synchronization.
-- Product writes use rial values at the channel boundary. FlowHub requires
-  explicit `IRR`/`rial` metadata and validates integer multiples of 10 to avoid
-  accidental rial/toman conversion.
-- Token refresh uses `POST /refresh-token`. The PDF sample contains a spacing
-  typo in one rendered path, so the normalized documented task path is isolated
-  as `TAPSISHOP_REFRESH_PATH`.
-- Token refresh occurs only after an authentication failure on a safe request or
-  through the explicit connector refresh method. A per-connector async lock
-  prevents concurrent refreshes, the stored token update is delegated to the
-  existing configuration service, and the original safe request is retried once.
-- Courier lookup is implemented as `GET /courier/{pickupCode}`. Courier review
-  remains capability-gated and is not exposed in the UI until the documented
-  method inconsistency for `/review-courier` is verified against a real API or
-  vendor sandbox. The currently documented method constant is `PUT`.
+- Base URL: `https://vendorgw.tapsi.shop/Web/Hub/vendors/v1`.
+- Outbound authentication:
+  `TapsiShop.Hub.Authorization: {token}`. The vendor-panel token is stored only
+  through FlowHub's secret-setting mechanism.
+- Webhook authentication:
+  `TapsiShop.Hub.Webhook-Authorization: {webhook_token}`. It is a separate
+  write-only secret and is compared in constant time.
+- The samples include `accept: text/plain`, `client-name`, and
+  `client-version`, but do not state whether the client identity headers are
+  required or whether third-party values must be registered. FlowHub sends the
+  documented Accept header and omits the ambiguous client identity headers.
+- `GET /vendor-information` is the connection and vendor-identity probe.
+- `GET /products/{page}/{pageSize}` is page-number based. Provider `id`,
+  `hsin`, and seller `sku` are stored as distinct identifiers. The document
+  provides no parent or variation identity.
+- The update sample uses the exact lowercase URL
+  `PUT https://vendorgw.tapsi.shop/web/hub/vendors/v1/products`; FlowHub keeps
+  that operation URL fixed and uses seller SKU as `id`, stock, rial price, and
+  its operation idempotency key as `referenceCode`.
+- `POST /orders` lists orders from page zero using only documented filters.
+  `GET /orders/{orderId}` reads order details.
+- `GET /courier/{pickupCode}` reads courier details.
+- `POST /refresh-token` refreshes credentials. FlowHub omits custom expiry
+  because the document conflicts between `expireAt` and `expiredAt`.
+
+### FlowHub behavior
+
+- The Base URL is restricted to the official HTTPS gateway, port 443, and API
+  root. Arbitrary URLs, URL credentials, query strings, localhost, private
+  networks, and non-HTTPS schemes are rejected.
+- Manual product-cache refresh reads every page centrally. Safe transient read
+  failures use bounded retries; authentication, validation, and write failures
+  are not retried. A complete successful read atomically replaces only
+  TapsiShop cache rows. Any page failure preserves the last-known-good cache.
+- TapsiShop publishes no numeric rate limit. FlowHub therefore does not claim a
+  provider quota. It applies a conservative local page delay, maximum page
+  count, bounded retry count, and bounded rate-limit backoff. Product reads
+  default to the sample's page size of 10; operators can tune the local page
+  size without changing provider semantics.
+- Read-only mode permits tests and reads. Write-enabled mode only makes the
+  channel eligible for the protected Workspace pipeline.
+- Every product write originates from Dry Run → Review → Approval → Apply.
+  Direct browser/provider writes and automatic Apply are unavailable.
+- The documented update body contains both price and stock and does not define
+  partial semantics. FlowHub sends an explicit complete state, requires both
+  reviewed values, validates integer rial values divisible by 10, and limits
+  batches to one until a provider maximum is documented.
+- A successful provider write remains `reconciliation_required`; the document
+  does not provide an exact single-product read-back endpoint.
+- Token refresh occurs only after authentication failure on a safe request or
+  through the explicit connector operation. Safe requests retry once after a
+  lock-protected refresh. Writes are never automatically retried.
+
+### Documentation gaps and unsupported behavior
+
+FlowHub does not infer behavior for these gaps:
+
+- No listing-creation endpoint: listing creation is unsupported.
+- No category or attribute endpoints: their synchronization is unsupported.
+- No parent/variation identity: variation reads and writes are unsupported.
+- `/web/hub/` in the update example conflicts with `/Web/Hub/` elsewhere:
+  FlowHub follows the exact lowercase update URL and never retries a write
+  against the alternate case. The provider should confirm this in a sandbox.
+- Order-detail fields conflict in places and no order mutation is documented:
+  orders are read-only. The documented order-detail item shape has no quantity,
+  so FlowHub preserves those provider rows in the raw order reference but does
+  not fabricate normalized line quantities.
+
+### Owner/provider decision table
+
+The following questions remain unresolved in the supplied v0.2 reference.
+FlowHub deliberately keeps the affected capability disabled or conservative
+until the Owner supplies provider confirmation. A sample alone is not treated
+as a normative requirement.
+
+| Question | Documentation evidence | Current FlowHub decision | Confirmation needed |
+| --- | --- | --- | --- |
+| Are `client-name` and `client-version` required? | They appear in request samples, but the reference does not define whether they are mandatory, how values are registered, or which values third-party clients may send. | Send the documented authorization and Accept headers only. Do not invent client identity values. | TapsiShop must confirm whether both headers are required and issue or approve exact values for FlowHub. |
+| Is the discount field `specialprice` or `specialPrice`? | The JSON example uses `specialprice`; prose uses `specialPrice`. | Discount writes are disabled. Price and stock writes do not include either field. | TapsiShop must confirm the exact case-sensitive field name, null/clear semantics, validation, and currency unit. |
+| Is refresh expiry `expireAt` or `expiredAt`? | The field table uses `expireAt`; the JSON example uses `expiredAt`. | Token refresh does not send a custom expiry and the UI does not expose one. | TapsiShop must confirm the exact field name, format, timezone, and whether the field is optional. |
+| Is courier review `POST` or `PUT`? | The courier-review operation is described with conflicting HTTP methods. | Courier lookup remains read-only; courier review is unsupported. | TapsiShop must confirm the method, endpoint, request schema, idempotency behavior, and retry safety. |
+| Which rate-limit headers and quotas apply? | No numeric quota, reset window, or response-header contract is defined. | Do not claim a provider quota. Use conservative local pacing and bounded retries; never infer quota state from undocumented headers. | TapsiShop must document quota scope, limits, response headers, reset semantics, and whether retries consume quota. |
+| What is the canonical error schema? | Success envelopes are shown, but HTTP error bodies, stable error codes, retryability, and validation-detail structure are not defined. | Categorize only by HTTP status and transport outcome, return redacted FlowHub errors, and retry only safe reads on timeout, 429, or 5xx within bounded limits. Writes are not retried automatically. | TapsiShop must document error envelopes/codes and which failures are safe to retry. |
 
 ## TapsiShop Webhook Ingestion
 
@@ -266,18 +324,23 @@ successful response is returned only after the receipt is durably stored:
 }
 ```
 
-Idempotency is enforced by `(channel_id, requestId)`. Repeated delivery of an
-already accepted request returns the same TapsiShop-compatible success response
-without creating another receipt or processing attempt. The same `requestId` can
-be accepted independently for another channel.
+The official payload places `requestId` on every item, not at the top level.
+Idempotency is enforced durably for every `(channel_id, item.requestId)` through
+`webhook_provider_event_identities`. A repeated batch is recognized even when
+its item order changes. A partially duplicated batch is rejected rather than
+silently dropping new items or reprocessing old ones. The same request ID can be
+accepted independently for another channel.
 
 The HTTP handler does not mutate canonical inventory, orders, or products. It
 creates an immutable receipt, stores a normalized channel event, and leaves
-business effects to the processing layer. Current normalized `changeType`
-mapping:
+business effects to the processing layer. Current normalized `changeType` and
+quantity mapping:
 
-- `1`: deducted due to purchase
-- `2`: added due to cancellation
+- `1`: deducted due to purchase; item quantity must be `-1`
+- `2`: added due to cancellation; item quantity must be `+1`
+
+Item `tapsiShopProductId` is the external TapsiShop product identity.
+Item `productId` is the seller SKU. They are never merged.
 
 Stored payload data is minimized. FlowHub stores request ID, order/item/product
 identifiers, SKU, quantity, timestamps, prices, payload hash, and processing
@@ -292,5 +355,5 @@ metrics expose received, accepted, duplicate, failed, dead-letter, and processin
 latency counts.
 
 Retention: webhook receipt rows include `retention_until`, currently set to 90
-days after receipt. A future retention worker should purge or archive rows after
-that timestamp according to the deployment's privacy policy.
+days after receipt. Cleanup must retain item identity rows for as long as their
+receipt remains replayable; automated cleanup is not yet implemented.

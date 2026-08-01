@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hmac
 import json
-import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
@@ -15,13 +14,23 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
+from app.flowhub.channels.tapsishop import (
+    normalize_tapsishop_webhook_payload,
+    summarize_tapsishop_webhook,
+)
 from app.flowhub.integration_platform.models import (
     IntegrationConnectorEvent,
     IntegrationConnectorInstance,
     IntegrationConnectorSetting,
 )
 from app.flowhub.security.redaction import redact_sensitive
-from app.flowhub.webhooks.models import WebhookDeadLetter, WebhookProcessingAttempt, WebhookReceipt
+from app.flowhub.setup.service import AppConfigService
+from app.flowhub.webhooks.models import (
+    WebhookDeadLetter,
+    WebhookProcessingAttempt,
+    WebhookProviderEventIdentity,
+    WebhookReceipt,
+)
 
 
 MAX_TAPSISHOP_WEBHOOK_BYTES = 256 * 1024
@@ -53,11 +62,8 @@ class WebhookIngestionService:
     def accept_tapsishop(self, channel_id: str, payload: dict, raw_body: bytes) -> AcceptedWebhook:
         normalized = normalize_tapsishop_payload(payload)
         provider_event_id = normalized["requestId"]
-        existing = (
-            self.db.query(WebhookReceipt)
-            .filter_by(channel_id=channel_id, provider_event_id=provider_event_id)
-            .first()
-        )
+        provider_event_ids = normalized["requestIds"]
+        existing = self._matching_tapsishop_receipt(channel_id, provider_event_ids)
         if existing is not None:
             self._record_event(
                 channel_id,
@@ -83,6 +89,19 @@ class WebhookIngestionService:
             retention_until=now + timedelta(days=WEBHOOK_RETENTION_DAYS),
         )
         self.db.add(receipt)
+        self.db.flush()
+        self.db.add_all(
+            [
+                WebhookProviderEventIdentity(
+                    receipt_id=receipt.id,
+                    channel_id=channel_id,
+                    provider="tapsishop",
+                    provider_event_id=item_event_id,
+                    created_at=now,
+                )
+                for item_event_id in provider_event_ids
+            ]
+        )
         self._record_event(
             channel_id,
             "webhook_accepted",
@@ -100,16 +119,43 @@ class WebhookIngestionService:
             self.db.commit()
         except IntegrityError:
             self.db.rollback()
-            duplicate = (
-                self.db.query(WebhookReceipt)
-                .filter_by(channel_id=channel_id, provider_event_id=provider_event_id)
-                .first()
-            )
+            duplicate = self._matching_tapsishop_receipt(channel_id, provider_event_ids)
             if duplicate is None:
                 raise
             return AcceptedWebhook(duplicate, duplicate=True)
         self.db.refresh(receipt)
         return AcceptedWebhook(receipt, duplicate=False)
+
+    def _matching_tapsishop_receipt(
+        self,
+        channel_id: str,
+        provider_event_ids: list[str],
+    ) -> WebhookReceipt | None:
+        identities = (
+            self.db.query(WebhookProviderEventIdentity)
+            .filter(
+                WebhookProviderEventIdentity.channel_id == channel_id,
+                WebhookProviderEventIdentity.provider_event_id.in_(provider_event_ids),
+            )
+            .all()
+        )
+        if not identities and len(provider_event_ids) == 1:
+            # Compatibility with receipts stored before item-level identities existed.
+            return (
+                self.db.query(WebhookReceipt)
+                .filter_by(channel_id=channel_id, provider_event_id=provider_event_ids[0])
+                .first()
+            )
+        if not identities:
+            return None
+        matched_ids = {identity.provider_event_id for identity in identities}
+        receipt_ids = {identity.receipt_id for identity in identities}
+        if matched_ids == set(provider_event_ids) and len(receipt_ids) == 1:
+            return self.db.get(WebhookReceipt, next(iter(receipt_ids)))
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "TapsiShop webhook contains a partially duplicated requestId batch.",
+        )
 
     def process_receipt(self, receipt_id: int, *, error_category: str | None = None, error_message: str | None = None) -> dict:
         receipt = self.db.get(WebhookReceipt, receipt_id)
@@ -215,6 +261,10 @@ class WebhookIngestionService:
         }
 
     def _secret_setting(self, channel_id: str, key: str) -> str | None:
+        if channel_id == "tapsishop:main" and key == "webhook_token":
+            configured = AppConfigService(self.db).get("tapsishop.webhook_token")
+            if configured:
+                return configured
         row = (
             self.db.query(IntegrationConnectorSetting)
             .filter_by(connector_id=channel_id, key=key, secret=True, configured=True)
@@ -274,106 +324,14 @@ def parse_json_body(raw_body: bytes) -> dict:
 
 
 def normalize_tapsishop_payload(payload: dict[str, Any]) -> dict:
-    order_detail = _dict(payload.get("orderDetail") or payload.get("order") or {})
-    request_id = _required_str(payload.get("requestId") or order_detail.get("requestId"), "requestId")
-    order_id = _required_str(payload.get("orderId") or order_detail.get("orderId") or order_detail.get("id"), "orderId")
-    change_type = _required_int(payload.get("changeType") or order_detail.get("changeType"), "changeType")
-    if change_type not in {1, 2}:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Unsupported TapsiShop changeType.")
-    raw_items = payload.get("items") or order_detail.get("items") or order_detail.get("orderItems")
-    if not isinstance(raw_items, list) or not raw_items:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "items are required.")
-    items = [_normalize_item(item) for item in raw_items]
-    return {
-        "requestId": request_id,
-        "orderId": order_id,
-        "changeType": change_type,
-        "changeTypeLabel": "deducted_due_to_purchase" if change_type == 1 else "added_due_to_cancellation",
-        "occurredAt": _optional_str(payload.get("timestamp") or payload.get("createdAt") or order_detail.get("createdAt")),
-        "orderDetail": {
-            "orderId": order_id,
-            "orderNumber": _optional_str(order_detail.get("orderNumber")),
-            "effectiveDate": _optional_str(order_detail.get("effectiveDate")),
-            "status": _optional_str(order_detail.get("orderStatusId") or order_detail.get("orderStatus")),
-        },
-        "items": items,
-    }
+    try:
+        return normalize_tapsishop_webhook_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
 
 
 def payload_summary(normalized: dict) -> dict:
-    return {
-        "requestId": normalized["requestId"],
-        "orderId": normalized["orderId"],
-        "changeType": normalized["changeType"],
-        "changeTypeLabel": normalized["changeTypeLabel"],
-        "itemCount": len(normalized["items"]),
-        "items": [
-            {
-                "orderItemId": item.get("orderItemId"),
-                "productId": item.get("productId"),
-                "sku": item.get("sku"),
-                "quantity": item.get("quantity"),
-            }
-            for item in normalized["items"]
-        ],
-    }
-
-
-def _normalize_item(raw: Any) -> dict:
-    item = _dict(raw)
-    order_item_id = _required_str(item.get("orderItemId") or item.get("id"), "orderItemId")
-    product_id = _optional_str(item.get("productId") or item.get("productID") or item.get("id"))
-    sku = _optional_str(item.get("sku") or item.get("sellerSku"))
-    if not product_id and not sku:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "productId or SKU is required for each item.")
-    quantity = _required_number(item.get("quantity") or item.get("count"), "quantity")
-    return {
-        "orderItemId": order_item_id,
-        "productId": product_id,
-        "sku": sku,
-        "quantity": quantity,
-        "price": _optional_number(item.get("price") or item.get("finalPrice") or item.get("originalPrice")),
-        "timestamp": _optional_str(item.get("timestamp") or item.get("updatedAt")),
-    }
-
-
-def _dict(value: Any) -> dict:
-    if isinstance(value, dict):
-        return value
-    raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Invalid webhook payload schema.")
-
-
-def _required_str(value: Any, field: str) -> str:
-    if value is None or str(value).strip() == "":
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"{field} is required.")
-    return str(value).strip()
-
-
-def _optional_str(value: Any) -> str | None:
-    return None if value in (None, "") else str(value)
-
-
-def _required_int(value: Any, field: str) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"{field} must be an integer.") from None
-
-
-def _required_number(value: Any, field: str) -> float:
-    try:
-        parsed = float(value)
-    except (TypeError, ValueError):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"{field} must be numeric.") from None
-    if not math.isfinite(parsed) or parsed < 0:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"{field} must be non-negative.")
-    return parsed
-
-
-def _optional_number(value: Any) -> float | None:
-    if value in (None, ""):
-        return None
-    return _required_number(value, "price")
+    return summarize_tapsishop_webhook(normalized)
 
 
 def _backoff(attempt_no: int) -> timedelta:

@@ -140,6 +140,71 @@ def test_duplicate_request_id_acknowledges_without_duplicate_receipt(client, db)
     assert db.query(_webhook_models.WebhookReceipt).filter_by(channel_id="tapsishop:main", provider_event_id="req-1").count() == 1
 
 
+def test_item_level_request_ids_are_durable_across_batch_reordering(client, db):
+    _seed_tapsi_channel(db, "tapsishop:main", "hook-secret")
+    payload = _payload()
+    second_item = {
+        **payload["items"][0],
+        "requestId": "req-2",
+        "orderItemId": "item-2",
+        "tapsiShopProductId": "tapsi-product-2",
+        "productId": "SKU-2",
+    }
+    payload["items"].append(second_item)
+
+    first = _post_webhook(client, "tapsishop:main", payload, "hook-secret")
+    payload["items"].reverse()
+    repeated = _post_webhook(client, "tapsishop:main", payload, "hook-secret")
+
+    assert first.status_code == 200
+    assert repeated.status_code == 200
+    assert repeated.json()["message"] == "Webhook already accepted."
+    identities = db.query(_webhook_models.WebhookProviderEventIdentity).filter_by(
+        channel_id="tapsishop:main"
+    ).all()
+    assert {identity.provider_event_id for identity in identities} == {"req-1", "req-2"}
+    assert len({identity.receipt_id for identity in identities}) == 1
+
+
+def test_partially_duplicated_webhook_batch_is_rejected(client, db):
+    _seed_tapsi_channel(db, "tapsishop:main", "hook-secret")
+    assert _post_webhook(client, "tapsishop:main", _payload(), "hook-secret").status_code == 200
+    payload = _payload()
+    payload["items"].append(
+        {
+            **payload["items"][0],
+            "requestId": "req-new",
+            "orderItemId": "item-new",
+        }
+    )
+
+    response = _post_webhook(client, "tapsishop:main", payload, "hook-secret")
+
+    assert response.status_code == 409
+    assert db.query(_webhook_models.WebhookReceipt).filter_by(channel_id="tapsishop:main").count() == 1
+
+
+@pytest.mark.parametrize(
+    ("change_type", "quantity"),
+    [(1, 1), (2, -1), (1, 0)],
+)
+def test_webhook_rejects_quantity_that_contradicts_documented_change_type(
+    client,
+    db,
+    change_type,
+    quantity,
+):
+    _seed_tapsi_channel(db, "tapsishop:main", "hook-secret")
+    payload = _payload()
+    payload["orderDetail"]["changeType"] = change_type
+    payload["items"][0]["changeType"] = change_type
+    payload["items"][0]["quantity"] = quantity
+
+    response = _post_webhook(client, "tapsishop:main", payload, "hook-secret")
+
+    assert response.status_code == 422
+
+
 def test_same_request_id_on_different_channel_is_independent(client, db):
     _seed_tapsi_channel(db, "tapsishop:main", "hook-secret")
     _seed_tapsi_channel(db, "tapsishop:second", "other-secret")
@@ -218,6 +283,10 @@ def test_retry_dead_letter_metrics_and_admin_replay(client, db, auth_headers):
 def _seed_tapsi_channel(db, channel_id: str, webhook_token: str) -> None:
     from datetime import datetime, timezone
     from app.flowhub.integration_platform.models import IntegrationConnectorInstance, IntegrationConnectorSetting
+    from app.flowhub.setup.models import FlowHubAppConfig
+    from app.flowhub.setup.service import AppConfigService
+
+    FlowHubAppConfig.__table__.create(bind=db.get_bind(), checkfirst=True)
 
     db.add(IntegrationConnectorInstance(
         id=channel_id,
@@ -233,12 +302,18 @@ def _seed_tapsi_channel(db, channel_id: str, webhook_token: str) -> None:
     db.add(IntegrationConnectorSetting(
         connector_id=channel_id,
         key="webhook_token",
-        value_json=webhook_token,
+        value_json=None if channel_id == "tapsishop:main" else webhook_token,
         secret=True,
         configured=True,
         updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
     ))
-    db.commit()
+    db.flush()
+    if channel_id == "tapsishop:main":
+        AppConfigService(db).set(
+            "tapsishop.webhook_token",
+            webhook_token,
+            updated_by="test",
+        )
 
 
 def _post_webhook(client, channel_id: str, payload: dict, token: str):
@@ -251,13 +326,11 @@ def _post_webhook(client, channel_id: str, payload: dict, token: str):
 
 def _payload(request_id: str = "req-1") -> dict:
     return {
-        "requestId": request_id,
-        "orderId": "order-1",
-        "changeType": 1,
-        "timestamp": "2026-07-11T10:00:00Z",
         "orderDetail": {
             "orderId": "order-1",
             "orderNumber": "ORD-1",
+            "changeType": 1,
+            "createdOnTimestamp": "2026-07-11T10:00:00Z",
             "customerName": "Customer Name",
             "customerPhone": "09120000000",
             "nationalCode": "1234567890",
@@ -265,11 +338,16 @@ def _payload(request_id: str = "req-1") -> dict:
         },
         "items": [
             {
+                "requestId": request_id,
                 "orderItemId": "item-1",
-                "productId": "product-1",
-                "sku": "SKU-1",
-                "quantity": 2,
-                "price": 1000000,
+                "orderId": "order-1",
+                "tapsiShopProductId": "tapsi-product-1",
+                "productId": "SKU-1",
+                "quantity": -1,
+                "changeType": 1,
+                "createdOnTimestamp": "2026-07-11T10:00:00Z",
+                "finalPrice": 1000000,
+                "originalPrice": 1100000,
             }
         ],
     }

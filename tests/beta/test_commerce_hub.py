@@ -73,6 +73,8 @@ def client(db_engine):
 @pytest.fixture(autouse=True)
 def avoid_live_snappshop_vendor_validation(monkeypatch):
     """Configuration persistence tests must not call the real marketplace."""
+    from fastapi import HTTPException, status
+
     async def validate(_self, body):
         settings = body.get("settings") if isinstance(body, dict) else {}
         if not isinstance(settings, dict) or not str(settings.get("vendor_id") or "").strip():
@@ -425,12 +427,12 @@ def test_tapsishop_connection_test_performs_vendor_probe_without_secret_leakage(
     assert data["runtime_write_blocked"] is True
     assert request_calls == [{
         "method": "GET",
-        "url": "https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/vendor-information",
-        "headers": {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "TapsiShop.Hub.Authorization": "tapsi-secret-value",
-        },
+            "url": "https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/vendor-information",
+                "headers": {
+                    "Accept": "text/plain",
+                    "Content-Type": "application/json",
+                    "TapsiShop.Hub.Authorization": "tapsi-secret-value",
+                },
         "json": None,
     }]
 
@@ -1787,6 +1789,29 @@ def test_snappshop_credentials_can_be_saved_before_vendor_selection(client, auth
     assert detail.json()["credential_status"] == "not_configured"
 
 
+def test_tapsishop_can_be_write_enabled_only_through_protected_pipeline(
+    client,
+    auth_headers,
+):
+    response = client.put(
+        "/api/v2/commerce/channels/tapsishop:main/settings",
+        headers=auth_headers,
+        json={
+            "access_mode": "write_enabled",
+            "settings": {"base_url": "https://vendorgw.tapsi.shop/Web/Hub/vendors/v1"},
+            "secrets": {"token": "tapsi-write-token"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "tapsi-write-token" not in response.text
+    data = response.json()
+    assert data["access_mode"] == "write_enabled"
+    assert data["read_only"] is False
+    assert data["write_pipeline_eligible"] is True
+    assert data["runtime_write_blocked"] is True
+
+
 def test_channel_settings_preserve_credential_masking(client, auth_headers):
     response = client.put(
         "/api/v2/commerce/channels/snappshop:main/settings",
@@ -2161,7 +2186,6 @@ def test_successful_tapsishop_configuration_commits_state_and_sanitized_audit(
                 "token_refresh_enabled": True,
                 "token_refresh_name": "FlowHub Refresh",
                 "revoke_current_token": False,
-                "token_refresh_expired_at": "2030-01-01T00:00:00Z",
             },
             "secrets": {"token": outbound_token, "webhook_token": webhook_token},
         },

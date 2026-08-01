@@ -21,6 +21,7 @@ from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import ping as ping_woocommerce
 from app.connectors.read.woocommerce import WooCommerceProductReadAdapter
+from app.flowhub.channels.marketplace_product_sync import MarketplaceProductSyncService
 from app.flowhub.channels.snappshop import (
     SNAPPSHOP_BASE_URL,
     SNAPPSHOP_DEFAULT_AGENT_HEADER,
@@ -66,7 +67,7 @@ _CHANNELS = [
     {
         "id": "woocommerce:primary",
         "provider": "woocommerce",
-        "name": "WooCommerce",
+        "name": "ووکامرس",
         "status": "current",
         "implemented": True,
         "placeholder": False,
@@ -74,7 +75,7 @@ _CHANNELS = [
     {
         "id": "snappshop:main",
         "provider": "snappshop",
-        "name": "Snapp Shop",
+        "name": "اسنپ شاپ",
         "status": "current",
         "implemented": True,
         "placeholder": False,
@@ -82,7 +83,7 @@ _CHANNELS = [
     {
         "id": "tapsishop:main",
         "provider": "tapsishop",
-        "name": "Tapsi Shop",
+        "name": "تپ‌سی شاپ",
         "status": "current",
         "implemented": True,
         "placeholder": False,
@@ -90,7 +91,7 @@ _CHANNELS = [
     {
         "id": "digikala:main",
         "provider": "digikala",
-        "name": "Digikala",
+        "name": "دیجی‌کالا",
         "status": "future",
         "implemented": False,
         "placeholder": True,
@@ -98,7 +99,7 @@ _CHANNELS = [
     {
         "id": "technolife:main",
         "provider": "technolife",
-        "name": "Technolife",
+        "name": "تکنولایف",
         "status": "future",
         "implemented": False,
         "placeholder": True,
@@ -106,7 +107,7 @@ _CHANNELS = [
     {
         "id": "shopify:main",
         "provider": "shopify",
-        "name": "Shopify",
+        "name": "شاپیفای",
         "status": "future",
         "implemented": False,
         "placeholder": True,
@@ -265,6 +266,8 @@ class CommerceHubService:
         provider = str(meta["provider"])
         if provider == "snappshop" and not bool(meta.get("placeholder")):
             return await self._refresh_snappshop_channel_cache(channel_id, actor)
+        if provider == "tapsishop" and not bool(meta.get("placeholder")):
+            return await self._refresh_marketplace_channel_cache(channel_id, actor)
         if provider != "woocommerce" or bool(meta.get("placeholder")):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Product cache refresh is not available for this channel.")
         instance = self.db.get(IntegrationConnectorInstance, meta["id"])
@@ -399,6 +402,91 @@ class CommerceHubService:
                 "snappshop",
                 "healthy",
                 detail="SnappShop vendor and product reads completed successfully.",
+            )
+        return payload
+
+    async def _refresh_marketplace_channel_cache(self, channel_id: str, actor: str) -> dict:
+        instance = self.db.get(IntegrationConnectorInstance, channel_id)
+        if instance is None or not instance.enabled:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {"code": "CHANNEL_DISABLED", "message": "Marketplace channel is disabled."},
+            )
+        if not self._instance_configured(instance):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "CHANNEL_NOT_CONFIGURED",
+                    "message": "Marketplace credentials must be saved before refreshing products.",
+                },
+            )
+        connector = self._tapsishop_connector()
+        if connector is None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Marketplace configuration is incomplete.")
+
+        result = await MarketplaceProductSyncService(self.db).run(
+            connector,
+            actor=actor,
+            page_size=_env_int(
+                "FLOWHUB_TAPSISHOP_PRODUCT_SYNC_PAGE_SIZE",
+                10,
+                minimum=1,
+                maximum=500,
+            ),
+            max_pages=_env_int(
+                "FLOWHUB_TAPSISHOP_PRODUCT_SYNC_MAX_PAGES",
+                250,
+                minimum=1,
+                maximum=5_000,
+            ),
+            retry_attempts=_env_int(
+                "FLOWHUB_TAPSISHOP_PRODUCT_SYNC_RETRIES",
+                2,
+                minimum=0,
+                maximum=5,
+            ),
+            page_delay_seconds=_env_float(
+                "FLOWHUB_TAPSISHOP_PRODUCT_SYNC_PAGE_DELAY_SECONDS",
+                1.0,
+                minimum=0.0,
+                maximum=10.0,
+            ),
+            rate_limit_backoff_seconds=_env_float(
+                "FLOWHUB_TAPSISHOP_PRODUCT_SYNC_RATE_LIMIT_BACKOFF_SECONDS",
+                30.0,
+                minimum=1.0,
+                maximum=60.0,
+            ),
+        )
+        payload = {
+            **result.as_dict(),
+            "products_read": result.products_received,
+            "variable_products_read": 0,
+            "variations_read": 0,
+            "cache_rows_upserted": result.products_stored,
+            "warnings": [],
+            "errors": list(result.failures),
+        }
+        if result.failures:
+            latest = self._latest_product_refresh(channel_id)
+            category = (
+                str((latest.meta or {}).get("error_category") or "unexpected_response")
+                if latest
+                else "unexpected_response"
+            )
+            ConnectorHealthService(self.db).upsert(
+                channel_id,
+                connector.connector_type,
+                "unhealthy",
+                detail="Marketplace product synchronization failed.",
+                error_class=category,
+            )
+        else:
+            ConnectorHealthService(self.db).upsert(
+                channel_id,
+                connector.connector_type,
+                "healthy",
+                detail="Marketplace product reads completed successfully.",
             )
         return payload
 
@@ -954,6 +1042,7 @@ class CommerceHubService:
             str(meta.get("id")) in {
                 "woocommerce:primary",
                 "snappshop:main",
+                "tapsishop:main",
             }
             and not bool(meta.get("placeholder"))
         )
@@ -1022,7 +1111,7 @@ class CommerceHubService:
             "snappshop": ("base_url", "agent_identifier", "agent_header_name", "request_timeout", "vendor_id"),
             "tapsishop": (
                 "base_url", "request_timeout", "selected_vendor_id", "token_refresh_enabled",
-                "token_refresh_name", "revoke_current_token", "token_refresh_expired_at",
+                "token_refresh_name", "revoke_current_token",
             ),
         }.get(provider, ())
         secret_keys = {"snappshop": ("token",), "tapsishop": ("token", "webhook_token")}.get(provider, ())
@@ -1618,7 +1707,6 @@ class CommerceHubService:
             ("token_refresh_enabled", "tapsishop.token_refresh_enabled"),
             ("token_refresh_name", "tapsishop.token_refresh_name"),
             ("revoke_current_token", "tapsishop.revoke_current_token"),
-            ("token_refresh_expired_at", "tapsishop.token_refresh_expired_at"),
             ("selected_vendor_id", "tapsishop.selected_vendor_id"),
         ):
             if source_key in settings:

@@ -655,13 +655,13 @@ class OrderSyncService:
                 continue
             items.append(ChannelOrderItem(
                 identifiers=ChannelIdentifierSet(
-                    external_product_id=_to_str(item.get("productId")),
+                    external_product_id=_to_str(item.get("tapsiShopProductId")),
                     sku=_to_str(item.get("sku")),
                     channel_reference_code=_to_str(item.get("orderItemId")),
                 ),
                 name=_to_str(item.get("sku")) or "",
-                quantity=float(item.get("quantity") or 0),
-                unit_price=_to_float(item.get("price")),
+                quantity=abs(float(item.get("quantity") or 0)),
+                unit_price=_to_float(item.get("finalPrice") or item.get("originalPrice")),
                 currency="IRR",
                 raw=item,
             ))
@@ -670,8 +670,8 @@ class OrderSyncService:
             connector_type="tapsishop",
             identifiers=ChannelIdentifierSet(external_product_id=order_id, order_number=_to_str(detail.get("orderNumber"))),
             status=_to_str(detail.get("status")) or _to_str(normalized.get("changeType")) or "UNKNOWN",
-            created_at=_to_str(normalized.get("occurredAt") or detail.get("effectiveDate")),
-            updated_at=_to_str(normalized.get("occurredAt") or detail.get("effectiveDate")),
+            created_at=_to_str(normalized.get("occurredAt") or detail.get("createdOnTimestamp")),
+            updated_at=_to_str(normalized.get("occurredAt") or detail.get("createdOnTimestamp")),
             items=items,
             total=None,
             currency="IRR",

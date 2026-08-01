@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.flowhub.database import FlowHubBase
@@ -33,6 +33,31 @@ class WebhookReceipt(FlowHubBase):
     processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     retention_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class WebhookProviderEventIdentity(FlowHubBase):
+    """Durable provider item identity used to reject webhook re-delivery."""
+
+    __tablename__ = "webhook_provider_event_identities"
+    __table_args__ = (
+        UniqueConstraint(
+            "channel_id",
+            "provider_event_id",
+            name="uq_webhook_provider_event_identity_channel_event",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    receipt_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("webhook_receipts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    channel_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    provider_event_id: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
 
 
 class WebhookProcessingAttempt(FlowHubBase):

@@ -480,12 +480,13 @@ class SnappShopWorkspaceConnector:
         return output
 
 
-class TapsiShopProductPricingConnector:
-    """Compatibility strategy kept outside the Unified Workspace channel set.
+class TapsiShopWorkspaceConnector:
+    """Reviewed combined-state writes over the documented TapsiShop endpoint.
 
-    TapsiShop has no exact product read-back endpoint in the current connector
-    contract.  A successful transport response therefore remains uncertain and
-    is never promoted to ``VERIFIED_APPLIED``.
+    The provider documents a body containing both price and stock and does not
+    document partial-update semantics or an exact product read-back endpoint.
+    FlowHub therefore sends an explicit complete state, limits batches to one,
+    and keeps successful responses in reconciliation-required state.
     """
 
     channel_id = "tapsishop:main"
@@ -494,12 +495,13 @@ class TapsiShopProductPricingConnector:
         self.commerce = commerce
 
     def capabilities(self) -> ChannelCapabilities:
+        write_enabled = self.commerce.channel_write_enabled(self.channel_id)
         return ChannelCapabilities(
             channel_id=self.channel_id,
-            read_price=False,
+            read_price=True,
             write_price=True,
-            read_stock=False,
-            write_stock=False,
+            read_stock=True,
+            write_stock=True,
             read_status=False,
             write_status=False,
             supports_bulk_update=True,
@@ -518,22 +520,34 @@ class TapsiShopProductPricingConnector:
             supported_statuses=(),
             currency="IRR",
             unit="RIAL",
-            write_available=True,
-            version="product-pricing-compatibility-1",
+            write_available=write_enabled,
+            version="uw-1.2",
         )
 
     def validate_update(self, update: ListingUpdateLike) -> None:
-        if update.target_price is None:
-            raise WorkspaceDomainError("TapsiShop update requires a target price.")
+        if update.product_type == "variation" or update.parent_external_id is not None:
+            raise WorkspaceDomainError(
+                "TapsiShop variation identity is not documented and variation writes are unavailable."
+            )
+        if update.target_status is not None:
+            raise WorkspaceDomainError(
+                "TapsiShop status writes are unavailable in the official connector contract."
+            )
+        price = update.target_price if update.target_price is not None else update.current_price
+        stock = update.target_stock if update.target_stock is not None else update.current_stock
+        if price is None or stock is None:
+            raise WorkspaceDomainError("TapsiShop updates require explicit price and stock state.")
         if update.currency != "IRR" or str(update.unit or "").upper() != "RIAL":
             raise WorkspaceDomainError("TapsiShop prices require currency IRR and unit RIAL.")
-        if update.target_stock is not None or update.target_status is not None:
-            raise WorkspaceDomainError("TapsiShop compatibility writes support price only.")
 
     async def apply_updates(
         self, updates: Sequence[ListingUpdateLike], *, requested_by: str
     ) -> list[ListingUpdateResult]:
         del requested_by
+        if not self.commerce.channel_write_enabled(self.channel_id):
+            raise WorkspaceDomainError(
+                "TapsiShop is Read-only. Enable channel writes before Apply."
+            )
         connector = self.commerce._tapsishop_connector()
         if connector is None:
             raise WorkspaceDomainError("TapsiShop connector is not configured.")
@@ -548,7 +562,16 @@ class TapsiShopProductPricingConnector:
                             external_product_id=update.external_primary_id,
                             sku=update.sku,
                         ),
-                        price=update.target_price,
+                        price=(
+                            update.target_price
+                            if update.target_price is not None
+                            else update.current_price
+                        ),
+                        stock_quantity=(
+                            update.target_stock
+                            if update.target_stock is not None
+                            else update.current_stock
+                        ),
                         currency="IRR",
                         price_unit="rial",
                         idempotency_key=update.idempotency_key,
@@ -611,11 +634,11 @@ class WorkspaceConnectorFactory:
         self._connectors: dict[str, WorkspaceChannelConnector] = {
             "woocommerce:primary": WooCommerceWorkspaceConnector(pricing),
             "snappshop:main": SnappShopWorkspaceConnector(commerce),
+            "tapsishop:main": TapsiShopWorkspaceConnector(commerce),
         }
-        self._product_pricing_connectors: dict[str, WorkspaceChannelConnector] = {
-            **self._connectors,
-            "tapsishop:main": TapsiShopProductPricingConnector(commerce),
-        }
+        self._product_pricing_connectors: dict[str, WorkspaceChannelConnector] = dict(
+            self._connectors
+        )
 
     def get(self, channel_id: str) -> WorkspaceChannelConnector:
         connector = self._connectors.get(channel_id)
