@@ -8,7 +8,9 @@
 - `python3 -m pytest tests/flowhub/migration/test_release_compatibility.py -q`
 - `npm test -- --run` and `npm run build` from `frontend/`
 - `git diff --check`
-- Confirm `FLOWHUB_019` is the Alembic head.
+- Confirm `FLOWHUB_022` is the Alembic head.
+- Confirm a purchased `VITE_HANDSONTABLE_LICENSE_KEY` is present before the
+  production Docker image is built; otherwise Workspace remains fail-closed.
 - Confirm a backup manifest and restore-control-flow test pass before tagging.
 - Confirm Docker build and an isolated-stack smoke test on a host with Docker.
 

@@ -14,7 +14,7 @@ def test_release_docs_reference_current_migration_head_and_runner() -> None:
 
     assert "FLOWHUB_019" in release_notes
     assert "FLOWHUB_013`" not in release_notes
-    assert "The current FlowHub migration head is **`FLOWHUB_019`**" in migration_status
+    assert "The current FlowHub migration head is **`FLOWHUB_022`**" in migration_status
     assert "python -m app.flowhub.orders.runner" in order_sync
     assert "source=__channel_lease__" in order_sync
 

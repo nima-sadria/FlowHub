@@ -163,7 +163,9 @@ Compose stack; use an external reverse proxy for public HTTPS.
 Connector credentials can be absent at startup and configured later in the UI.
 Never commit `.env` or expose its secrets in logs, screenshots, or support
 output. Production Handsontable grids require a valid
-`VITE_HANDSONTABLE_LICENSE_KEY`; no license key is committed.
+`VITE_HANDSONTABLE_LICENSE_KEY`; set it in `.env` before the Docker image is
+built. Docker Compose passes it only to the frontend build stage. No license
+key is committed.
 
 ## Local development
 

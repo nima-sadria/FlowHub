@@ -48,6 +48,7 @@ class TestGenerateEnvContent:
             "FLOWHUB_WOOCOMMERCE_URL", "FLOWHUB_WOOCOMMERCE_KEY", "FLOWHUB_WOOCOMMERCE_SECRET",
             "FLOWHUB_TIMEZONE", "FLOWHUB_CURRENCY", "FLOWHUB_ADMIN_EMAIL",
             "FLOWHUB_STORAGE_PATH", "FLOWHUB_BACKUP_PATH", "FLOWHUB_SSL_MODE",
+            "VITE_HANDSONTABLE_LICENSE_KEY",
         ]
         for var in required:
             assert var in content, f"Missing: {var}"

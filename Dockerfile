@@ -6,6 +6,7 @@ WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci --silent
 COPY frontend/ ./
+ARG VITE_HANDSONTABLE_LICENSE_KEY
 RUN npm run build
 
 # -- Stage 2: Python application -----------------------------------------------

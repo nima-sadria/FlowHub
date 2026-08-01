@@ -2,10 +2,13 @@
 
 ## Current release head
 
-The current FlowHub migration head is **`FLOWHUB_019`**.
+The current FlowHub migration head is **`FLOWHUB_022`**.
 
-`FLOWHUB_019` follows `FLOWHUB_018` and adds the persisted worksheet-rule and
-deterministic Source Workspace schema required by the current release.
+`FLOWHUB_022` follows `FLOWHUB_021` and hardens exchange-rate refresh locking
+and per-user configuration. `FLOWHUB_021` introduces exchange-rate storage and
+`FLOWHUB_020` adds user email login. `FLOWHUB_019` follows `FLOWHUB_018` and
+adds the persisted worksheet-rule and deterministic Source Workspace schema
+required by the current release.
 `FLOWHUB_015` follows `FLOWHUB_014` and adds production order-sync lease
 metadata to `channel_order_sync_checkpoints`.
 `FLOWHUB_014` follows `FLOWHUB_013` and creates normalized channel order,

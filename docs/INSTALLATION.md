@@ -25,6 +25,12 @@ The installer clones FlowHub into `/opt/FlowHub`, generates `.env`, generates
 secrets, builds Docker images, runs migrations, creates the initial owner,
 starts services, runs health checks, and prints the application URL.
 
+The installer creates a `VITE_HANDSONTABLE_LICENSE_KEY` placeholder in
+`/opt/FlowHub/.env`. Set it to a purchased Handsontable license before relying
+on Workspace in production, then run `flowhub repair` to rebuild the image.
+Without it, FlowHub starts safely but the Workspace grid remains unavailable by
+design.
+
 ## Clone Install
 
 ```bash

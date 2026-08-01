@@ -446,6 +446,7 @@ def generate_env_content(config: InstallerConfig) -> str:
         f"FLOWHUB_STORAGE_PATH={config.storage_path}",
         f"FLOWHUB_BACKUP_PATH={config.backup_path}",
         f"FLOWHUB_SSL_MODE={config.ssl_mode}",
+        "VITE_HANDSONTABLE_LICENSE_KEY=",
     ]
     return "\n".join(lines) + "\n"
 

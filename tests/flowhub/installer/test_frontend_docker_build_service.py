@@ -13,4 +13,15 @@ def test_frontend_build_service_targets_frontend_stage_only():
     assert "- build" in frontend
     assert "dockerfile: Dockerfile" in frontend
     assert "target: frontend-build" in frontend
+    assert 'VITE_HANDSONTABLE_LICENSE_KEY: "${VITE_HANDSONTABLE_LICENSE_KEY:-}"' in frontend
     assert "image: flowhub-frontend-build:latest" in frontend
+
+    app = src[src.index("  app:") : src.index("  order-sync-runner:")]
+    assert 'VITE_HANDSONTABLE_LICENSE_KEY: "${VITE_HANDSONTABLE_LICENSE_KEY:-}"' in app
+
+
+def test_dockerfile_exposes_license_only_to_frontend_build_stage():
+    dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+    frontend, runtime = dockerfile.split("# -- Stage 2: Python application", maxsplit=1)
+    assert "ARG VITE_HANDSONTABLE_LICENSE_KEY" in frontend
+    assert "VITE_HANDSONTABLE_LICENSE_KEY" not in runtime
