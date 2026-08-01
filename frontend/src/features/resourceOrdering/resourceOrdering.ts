@@ -8,7 +8,7 @@ import type {
 } from '../../services/types'
 import type { WorkspaceChannelDefinition } from '../../services/unifiedWorkspace/types'
 import type { SourceChannel, SourceProfile } from '../sourceWorkspace/types'
-import { formatChannelDisplayName } from '../unifiedWorkspace/channelDisplayName'
+import { formatChannelDisplayName, localizedChannelName } from '../unifiedWorkspace/channelDisplayName'
 
 export type ResourceTier = 'configured' | 'attention' | 'disabled' | 'comingSoon'
 export type ResourceSection = 'active' | 'disabled' | 'comingSoon'
@@ -301,7 +301,7 @@ export function commerceChannelSignals(channel: CommerceChannelRuntime): Resourc
 export function commerceTypeSignals(item: CommerceTypeOption): ResourceOrderingSignals {
   return {
     id: item.id,
-    displayName: item.name,
+    displayName: localizedChannelName(item.id, item.name),
     configured: item.implemented && !item.placeholder,
     implemented: item.implemented,
     placeholder: item.placeholder,

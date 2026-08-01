@@ -1,13 +1,12 @@
-import { translate } from '../../i18n'
+import i18n, { translate } from '../../i18n'
 
-const CHANNEL_TYPE_LABELS: Record<string, string> = {
-  woocommerce: 'ووکامرس',
-  snappshop: 'اسنپ شاپ',
-  tapsishop: 'تپ‌سی شاپ',
-  digikala: 'دیجی‌کالا',
-  technolife: 'تکنولایف',
-  magento: 'مجنتو',
-  shopify: 'شاپیفای',
+const KNOWN_CHANNEL_TYPES = ['woocommerce', 'snappshop', 'tapsishop', 'digikala', 'technolife', 'magento', 'shopify']
+
+/** Locale-aware label for a known connector/channel type, or null for anything else. */
+function channelTypeLabel(type: string): string | null {
+  if (!KNOWN_CHANNEL_TYPES.includes(type)) return null
+  const key = `common:channelType.${type}`
+  return i18n.exists(key) ? translate(key) : null
 }
 
 function humanize(value: string): string {
@@ -31,7 +30,7 @@ export function formatChannelDisplayName(
 ): string {
   const [rawType, ...rawInstanceParts] = channelId.split(':')
   const type = rawType.trim().toLowerCase()
-  const base = CHANNEL_TYPE_LABELS[type] ?? (humanize(rawType) || translate('common:labels.channel'))
+  const base = channelTypeLabel(type) ?? (humanize(rawType) || translate('common:labels.channel'))
   const instance = metadata.instanceLabel?.trim() || humanize(rawInstanceParts.join(':'))
   const configured = metadata.displayName?.trim()
   if (configured) {
@@ -42,4 +41,15 @@ export function formatChannelDisplayName(
   }
   if (!instance || (!metadata.showInstance && ['primary', 'main'].includes(instance.toLowerCase()))) return base
   return `${base} — ${instance}`
+}
+
+/**
+ * Locale-aware display name for a known connector/channel id, falling back to
+ * the given name verbatim for anything else (e.g. Source types, whose curated
+ * names like "ERP / API Import" must not be re-humanized from the raw id).
+ */
+export function localizedChannelName(channelId: string, fallbackName: string): string {
+  const [rawType] = channelId.split(':')
+  if (!KNOWN_CHANNEL_TYPES.includes(rawType.trim().toLowerCase())) return fallbackName
+  return formatChannelDisplayName(channelId)
 }

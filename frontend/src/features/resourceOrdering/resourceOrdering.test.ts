@@ -143,7 +143,7 @@ describe('resource ordering', () => {
 
 describe('resource signal adapters', () => {
   it('formats identity-only, Workspace, and Diagnostics channel ids as friendly display names', () => {
-    expect(channelIdentitySignals({ channelId: 'woocommerce:primary' }).displayName).toBe('ووکامرس')
+    expect(channelIdentitySignals({ channelId: 'woocommerce:primary' }).displayName).toBe('WooCommerce')
     expect(channelIdentitySignals({ channelId: 'snappshop:main' }, 'SnappShop Tehran').displayName).toBe('SnappShop Tehran')
 
     const workspace = {
@@ -152,7 +152,7 @@ describe('resource signal adapters', () => {
       instanceLabel: null,
       healthState: 'healthy',
     } as WorkspaceChannelDefinition
-    expect(workspaceChannelSignals(workspace).displayName).toBe('ووکامرس')
+    expect(workspaceChannelSignals(workspace).displayName).toBe('WooCommerce')
 
     const diagnostic = {
       channelId: 'snappshop:main',
@@ -160,7 +160,7 @@ describe('resource signal adapters', () => {
       status: 'Operational',
       dimensions: {},
     } as ChannelHealthItem
-    expect(diagnosticChannelSignals(diagnostic).displayName).toBe('اسنپ شاپ')
+    expect(diagnosticChannelSignals(diagnostic).displayName).toBe('SnappShop')
   })
 
   it('recognizes configured product channels without overriding other connection states', () => {

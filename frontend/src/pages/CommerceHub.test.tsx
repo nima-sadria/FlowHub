@@ -537,8 +537,8 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Manage connected sales channels')
     expect(c.textContent).toContain('Channels')
     expect(c.textContent).toContain('WooCommerce')
-    expect(c.textContent).toContain('Snapp Shop')
-    expect(c.textContent).toContain('Tapsi Shop')
+    expect(c.textContent).toContain('SnappShop')
+    expect(c.textContent).toContain('TapsiShop')
     expect(c.textContent).toContain('Coming Soon')
     expect(c.textContent).toContain('Read-only mode')
     expect(c.textContent).toContain('Writes blocked')
@@ -625,14 +625,14 @@ describe('CommerceHub', () => {
       },
     }
     const c = await renderPage(adminUser, snappCommerce)
-    const configure = resourceAction(c, 'Snapp Shop', 'Configure')
+    const configure = resourceAction(c, 'SnappShop', 'Configure')
     await act(async () => {
       configure.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
       await Promise.resolve()
     })
 
-    expect(c.textContent).toContain('Configure Snapp Shop')
+    expect(c.textContent).toContain('Configure SnappShop')
     expect(c.textContent).toContain('Agent identifier')
     expect(c.textContent).toContain('Agent header name')
     expect(c.textContent).toContain('Request timeout seconds')
@@ -660,7 +660,7 @@ describe('CommerceHub', () => {
     expect(vendorSelect.value).toBe('vendor-1')
     expect(vendorSelect.textContent).toContain('Primary Vendor')
     expect(c.textContent).toContain('Channel connected successfully')
-    expect(c.textContent).toContain('اسنپ شاپ is ready to use.')
+    expect(c.textContent).toContain('SnappShop is ready to use.')
     expect(c.querySelector('[role="alert"] [data-icon="success"]')).not.toBeNull()
   })
 
@@ -695,7 +695,7 @@ describe('CommerceHub', () => {
       },
     }
     const c = await renderPage(adminUser, snappCommerce)
-    const configure = resourceAction(c, 'Snapp Shop', 'Configure')
+    const configure = resourceAction(c, 'SnappShop', 'Configure')
     await act(async () => {
       configure.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
@@ -739,7 +739,7 @@ describe('CommerceHub', () => {
       },
     }
     const c = await renderPage(adminUser, tapsiCommerce)
-    const configure = resourceAction(c, 'Tapsi Shop', 'Configure')
+    const configure = resourceAction(c, 'TapsiShop', 'Configure')
     await act(async () => {
       configure.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
@@ -789,7 +789,7 @@ describe('CommerceHub', () => {
       },
     }
     const c = await renderPage(adminUser, savingCommerce)
-    const configure = resourceAction(c, 'Snapp Shop', 'Configure')
+    const configure = resourceAction(c, 'SnappShop', 'Configure')
     await act(async () => {
       configure.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
@@ -890,8 +890,8 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('ERP / API Import')
     expect(c.textContent).toContain('Add source')
     expect(c.textContent).toContain('Coming Soon')
-    expect(c.textContent).not.toContain('Snapp Shop')
-    expect(c.textContent).not.toContain('Tapsi Shop')
+    expect(c.textContent).not.toContain('SnappShop')
+    expect(c.textContent).not.toContain('TapsiShop')
   })
 
   it('shows Nextcloud source Test connection action but not planned source test actions', async () => {

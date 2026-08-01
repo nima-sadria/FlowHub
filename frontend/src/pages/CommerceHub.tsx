@@ -14,7 +14,7 @@ import { useNotification } from '../notifications/NotificationProvider'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
 import { formatDateTime } from '../i18n/format'
-import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
+import { localizedChannelName } from '../features/unifiedWorkspace/channelDisplayName'
 import { formatCapabilityList, formatCommerceType, formatDataRole, formatStatus } from '../i18n/display'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
@@ -43,13 +43,6 @@ const SNAPPSHOP_ADVANCED_FIELDS = new Set(['base_url', 'agent_header_name', 'req
 function snappShopVendorActive(status: string | null | undefined): boolean {
   if (!status) return true
   return ['ACTIVE', 'ENABLED', 'TRUE', '1'].includes(status.trim().toUpperCase())
-}
-
-function channelDisplayName(provider: string, fallback: string): string {
-  if (['woocommerce', 'snappshop', 'tapsishop', 'shopify'].includes(provider)) {
-    return formatChannelDisplayName(`${provider}:primary`)
-  }
-  return fallback
 }
 
 function SafetyBadges({ readOnly, writeBlocked }: { readOnly: boolean; writeBlocked: boolean }) {
@@ -189,10 +182,10 @@ function ChannelCard({ channel, badge, onTest, onRefresh, onConfigure, testing, 
     <div className="fh-card fh-card-pad flex flex-col gap-3" title={formatCapabilityList(channel.capabilities_summary)}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <BrandIcon identity={{ provider: channel.provider }} label={channel.name} size={44} />
+          <BrandIcon identity={{ provider: channel.provider }} label={localizedChannelName(channel.id, channel.name)} size={44} />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="fh-section-title">{channel.name}</h3>
+              <h3 className="fh-section-title">{localizedChannelName(channel.id, channel.name)}</h3>
               <ResourceStateBadge badge={badge} />
             </div>
           </div>
@@ -662,7 +655,7 @@ export function ConfigPanel({
             }
           : {
               title: translate('commerce:commerceHub.channelConnectedSuccessfully'),
-              description: translate('commerce:commerceHub.isReadyToUse', { value1: channelDisplayName(selectedType.provider, selectedType.name) }),
+              description: translate('commerce:commerceHub.isReadyToUse', { value1: localizedChannelName(selectedType.id, selectedType.name) }),
             })
       }
       else notifyError({
@@ -778,7 +771,7 @@ export function ConfigPanel({
       <div className="fh-panel-header !items-start">
         <div>
           <HeadingTag className="fh-section-title">
-            {initialResourceId ? translate('commerce:commerceHub.configure2', { value1: selected.name }) : kind === "source" ? translate('commerce:commerceHub.addSource') : translate('commerce:commerceHub.addChannel')}
+            {initialResourceId ? translate('commerce:commerceHub.configure2', { value1: localizedChannelName(selected.id, selected.name) }) : kind === "source" ? translate('commerce:commerceHub.addSource') : translate('commerce:commerceHub.addChannel')}
           </HeadingTag>
           <p className="fh-section-subtitle mt-1">
             {translate('commerce:commerceHub.credentialsAreStoredServerSideAndNever')}
@@ -1191,7 +1184,7 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
       if (result.ok) success({
         title: translate('commerce:commerceHub.channelConnectedSuccessfully'),
         description: channel
-          ? translate('commerce:commerceHub.isReadyToUse', { value1: channelDisplayName(channel.provider, channel.name) })
+          ? translate('commerce:commerceHub.isReadyToUse', { value1: localizedChannelName(channel.id, channel.name) })
           : translate('commerce:commerceHub.theChannelIsReadyToUse'),
       })
       else notifyError({

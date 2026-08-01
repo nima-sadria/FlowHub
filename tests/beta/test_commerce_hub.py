@@ -111,14 +111,14 @@ def test_commerce_channels_report_read_only_write_blocked(client, auth_headers):
     assert data["write_blocked"] is True
 
     by_name = {item["name"]: item for item in data["items"]}
-    assert by_name["ووکامرس"]["type"] == "Channel"
-    assert by_name["ووکامرس"]["read_only"] is True
-    assert by_name["ووکامرس"]["access_mode"] == "read_only"
-    assert by_name["ووکامرس"]["write_pipeline_eligible"] is False
-    assert by_name["اسنپ شاپ"]["placeholder"] is False
-    assert by_name["اسنپ شاپ"]["write_blocked"] is True
-    assert by_name["تپ‌سی شاپ"]["placeholder"] is False
-    assert by_name["تپ‌سی شاپ"]["write_blocked"] is True
+    assert by_name["WooCommerce"]["type"] == "Channel"
+    assert by_name["WooCommerce"]["read_only"] is True
+    assert by_name["WooCommerce"]["access_mode"] == "read_only"
+    assert by_name["WooCommerce"]["write_pipeline_eligible"] is False
+    assert by_name["Snapp Shop"]["placeholder"] is False
+    assert by_name["Snapp Shop"]["write_blocked"] is True
+    assert by_name["Tapsi Shop"]["placeholder"] is False
+    assert by_name["Tapsi Shop"]["write_blocked"] is True
 
 
 def test_commerce_sources_do_not_list_marketplace_channels(client, auth_headers):
@@ -127,8 +127,8 @@ def test_commerce_sources_do_not_list_marketplace_channels(client, auth_headers)
     assert response.status_code == 200
     names = {item["name"] for item in response.json()["items"]}
     assert {"Nextcloud", "Excel", "Google Sheets", "ERP / API Import"}.issubset(names)
-    assert "اسنپ شاپ" not in names
-    assert "تپ‌سی شاپ" not in names
+    assert "Snapp Shop" not in names
+    assert "Tapsi Shop" not in names
 
 
 def test_commerce_type_routes_mark_future_placeholders_read_only(client, auth_headers):
@@ -1292,7 +1292,7 @@ def test_channel_detail_health_and_capabilities(client, auth_headers):
     capabilities = client.get("/api/v2/commerce/channels/woocommerce:primary/capabilities", headers=auth_headers)
 
     assert detail.status_code == 200
-    assert detail.json()["name"] == "ووکامرس"
+    assert detail.json()["name"] == "WooCommerce"
     assert detail.json()["access_mode"] == "read_only"
     assert detail.json()["read_only"] is True
     assert detail.json()["write_blocked"] is True

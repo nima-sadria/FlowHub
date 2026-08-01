@@ -211,7 +211,7 @@ describe('Channels page', () => {
     const setupCard = container.querySelector('[data-channel-card="digikala:pos"]') as HTMLElement
     const setup = Array.from(setupCard.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Setup now') as HTMLButtonElement
     await act(async () => { setup.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
-    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Configure Digikala POS')
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Configure Digikala — Pos')
     expect(getChannelConfiguration).toHaveBeenCalledWith('digikala:pos')
 
     const close = Array.from(container.querySelectorAll('[role="dialog"] button')).find(item => item.textContent?.trim() === 'Close') as HTMLButtonElement
@@ -219,7 +219,7 @@ describe('Channels page', () => {
     const connectedCard = container.querySelector('[data-channel-card="woocommerce:primary"]') as HTMLElement
     const settings = Array.from(connectedCard.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Settings') as HTMLButtonElement
     await act(async () => { settings.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
-    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Configure WooCommerce EU')
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Configure WooCommerce')
     expect(container.querySelectorAll('[data-channel-card]')).toHaveLength(3)
   })
 

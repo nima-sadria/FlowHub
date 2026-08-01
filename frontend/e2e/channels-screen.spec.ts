@@ -29,12 +29,20 @@ function minutesAgo(minutes: number): string {
 }
 
 const CHANNELS: ChannelFixture[] = [
-  { id: 'channel-woocommerce', name: 'WooCommerce EU', provider: 'woocommerce', status: 'active', healthStatus: 'healthy', lastHealthCheck: minutesAgo(2), cachedProducts: 2418 },
-  { id: 'channel-snappshop', name: 'SnappShop Store', provider: 'snappshop', status: 'active', healthStatus: 'degraded', lastHealthCheck: minutesAgo(8), cachedProducts: 1876 },
-  { id: 'channel-tapsishop', name: 'TapsiShop', provider: 'tapsishop', status: 'active', healthStatus: 'healthy', lastHealthCheck: minutesAgo(5), cachedProducts: 940 },
-  { id: 'channel-digikala', name: 'Digikala POS', provider: 'digikala', status: 'disabled', healthStatus: 'unknown', lastHealthCheck: minutesAgo(1440), cachedProducts: 512 },
+  { id: 'woocommerce:primary', name: 'WooCommerce', provider: 'woocommerce', status: 'active', healthStatus: 'healthy', lastHealthCheck: minutesAgo(2), cachedProducts: 2418 },
+  { id: 'snappshop:main', name: 'SnappShop', provider: 'snappshop', status: 'active', healthStatus: 'degraded', lastHealthCheck: minutesAgo(8), cachedProducts: 1876 },
+  { id: 'tapsishop:main', name: 'TapsiShop', provider: 'tapsishop', status: 'active', healthStatus: 'healthy', lastHealthCheck: minutesAgo(5), cachedProducts: 940 },
+  { id: 'digikala:main', name: 'Digikala', provider: 'digikala', status: 'disabled', healthStatus: 'unknown', lastHealthCheck: minutesAgo(1440), cachedProducts: 512 },
 ]
 const ORDERS_TODAY = 72
+
+// Card titles are derived from the channel id via formatChannelDisplayName,
+// which is locale-aware for these known providers (see channelDisplayName.ts)
+// rather than from the raw fixture `name` above.
+const CHANNEL_DISPLAY_NAMES: Record<'en' | 'fa', Record<string, string>> = {
+  en: { woocommerce: 'WooCommerce', snappshop: 'SnappShop', tapsishop: 'TapsiShop', digikala: 'Digikala' },
+  fa: { woocommerce: 'ووکامرس', snappshop: 'اسنپ شاپ', tapsishop: 'تپ‌سی شاپ', digikala: 'دیجی‌کالا' },
+}
 
 interface TrafficAudit {
   externalRequests: string[]
@@ -131,10 +139,10 @@ async function assertFigmaChannelsHierarchy(page: Page, locale: 'en' | 'fa') {
     await expect(page.getByText('4 channels')).toBeVisible()
 
     const grid = page.locator('.fh-channels-grid')
-    for (const fixture of CHANNELS) await expect(grid.getByText(fixture.name, { exact: true })).toBeVisible()
+    for (const fixture of CHANNELS) await expect(grid.getByText(CHANNEL_DISPLAY_NAMES.en[fixture.provider], { exact: true }).first()).toBeVisible()
     await expect(grid.locator('[data-channel-card]')).toHaveCount(4)
     await expect(grid.getByText('Connected', { exact: true }).first()).toBeVisible()
-    const setupCard = grid.locator('[data-channel-card="channel-digikala"]')
+    const setupCard = grid.locator('[data-channel-card="digikala:main"]')
     await expect(setupCard.getByText('Setup required', { exact: true })).toHaveCount(1)
     await expect(setupCard.locator('.fh-badge')).toHaveCount(1)
   } else {
@@ -142,7 +150,7 @@ async function assertFigmaChannelsHierarchy(page: Page, locale: 'en' | 'fa') {
     await expect(page.getByText('کانال‌های متصل')).toBeVisible()
     await expect(page.getByPlaceholder('جست‌وجوی کانال‌ها')).toBeVisible()
     const grid = page.locator('.fh-channels-grid')
-    for (const fixture of CHANNELS) await expect(grid.getByText(fixture.name, { exact: true })).toBeVisible()
+    for (const fixture of CHANNELS) await expect(grid.getByText(CHANNEL_DISPLAY_NAMES.fa[fixture.provider], { exact: true }).first()).toBeVisible()
   }
 }
 

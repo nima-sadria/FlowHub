@@ -14,6 +14,7 @@ import type { CommerceChannelConfiguration } from '../services/commerce/Commerce
 import type { CommerceChannel } from '../services/types'
 import { effectiveHasPerm } from '../utils/permissions'
 import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
+import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 
 const DETAIL_SECTIONS = [
   ['overview', 'commerce:commerceHub.channelDetails.overview'],
@@ -82,7 +83,7 @@ export default function ChannelDetail() {
       if (result.ok) {
         notify.success({
           title: translate('commerce:commerceHub.channelConnectedSuccessfully'),
-          description: translate('commerce:commerceHub.isReadyToUse', { value1: channel.name }),
+          description: translate('commerce:commerceHub.isReadyToUse', { value1: formatChannelDisplayName(channel.id) }),
         })
       } else {
         notify.error({
@@ -133,15 +134,16 @@ export default function ChannelDetail() {
     ? translate('commerce:commerceHub.writeEnabled2')
     : translate('commerce:commerceHub.readOnly2')
   const healthWarning = ['degraded', 'error', 'failed', 'partial_failed', 'unhealthy'].includes(channel.health.status)
+  const displayName = formatChannelDisplayName(channel.id)
 
   return (
     <PageShell>
       <div className="fh-page-header">
         <div className="flex min-w-0 items-center gap-3">
-          <BrandIcon identity={{ provider: channel.provider }} label={channel.name} size={44} />
+          <BrandIcon identity={{ provider: channel.provider }} label={displayName} size={44} />
           <div className="min-w-0">
             <button className="fh-text-caption mb-1" type="button" onClick={() => navigate('/channels')}>← {translate('commerce:commerceHub.channels2')}</button>
-            <h1 className="fh-page-title truncate">{channel.name}</h1>
+            <h1 className="fh-page-title truncate">{displayName}</h1>
             <p className="fh-page-subtitle">{formatStatus(channel.provider)}</p>
           </div>
         </div>

@@ -23,6 +23,7 @@ import type { CommerceChannel, CommerceTypeOption } from '../services/types'
 import { effectiveHasPerm } from '../utils/permissions'
 import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 import { ConfigPanel } from './CommerceHub'
+import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { resourceQaFixtureState, withConnectedChannelFixture } from '../dev/resourceQaFixtures'
 
 type ChannelFilter = 'all' | 'active' | 'attention' | 'disabled' | 'comingSoon'
@@ -48,7 +49,7 @@ function channelBadgeLabel(badge: ResourceBadge): string {
 function channelLifecycleSignals(channel: CommerceChannel): ResourceOrderingSignals {
   return {
     id: channel.id,
-    displayName: channel.name,
+    displayName: formatChannelDisplayName(channel.id),
     enabled: channel.status !== 'disabled' && channel.status !== 'inactive',
     configured: channel.credential_status === 'configured',
     implemented: channel.implemented,
@@ -237,7 +238,7 @@ export default function Channels() {
         notify.success({
           title: translate('commerce:commerceHub.channelConnectedSuccessfully'),
           description: channel
-            ? translate('commerce:commerceHub.isReadyToUse', { value1: channel.name })
+            ? translate('commerce:commerceHub.isReadyToUse', { value1: formatChannelDisplayName(channel.id) })
             : translate('commerce:commerceHub.theChannelIsReadyToUse'),
         })
       } else {
@@ -435,7 +436,7 @@ export default function Channels() {
               resourceId={channel.id}
               resourceType="channel"
               provider={channel.provider}
-              name={channel.name}
+              name={formatChannelDisplayName(channel.id)}
               description={formatStatus(channel.provider)}
               state={state}
               statusLabel={channelBadgeLabel(resource.badge)}
