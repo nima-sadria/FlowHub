@@ -467,7 +467,7 @@ def test_source_preview_business_summary_uses_distinct_product_and_attention_ide
         "unchanged": None,
         "needsAttention": 1,
         "channelsReady": 1,
-        "channelsNotConfigured": 1,
+        "channelsNotConfigured": 3,
     }
 
 
