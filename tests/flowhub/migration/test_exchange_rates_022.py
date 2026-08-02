@@ -78,5 +78,5 @@ def test_exchange_rate_hardening_downgrade_and_reupgrade(tmp_path, monkeypatch):
     with engine.connect() as connection:
         assert connection.execute(
             sa.text("SELECT version_num FROM alembic_version")
-        ).scalar_one() == "FLOWHUB_022"
+        ).scalar_one() == "FLOWHUB_023"
     engine.dispose()
