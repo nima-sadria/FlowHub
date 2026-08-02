@@ -115,3 +115,36 @@ test('login matches the approved Figma hierarchy in Light/Dark and LTR/RTL at 14
   expect(audit.externalRequests, 'No request may leave the isolated local browser environment').toEqual([])
   expect(audit.unhandledApiRequests, 'Every Login API request must be explicitly mocked').toEqual([])
 })
+
+test('language, theme, and password-visibility controls meet the mobile touch-target minimum', async ({ page }) => {
+  const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [] }
+  await installLoginMocks(page, audit)
+  await seedSession(page, 'en', 'light')
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/login')
+  const languageBox = await page.getByRole('button', { name: 'Language' }).boundingBox()
+  const themeBox = await page.getByRole('button', { name: 'Switch to dark mode' }).boundingBox()
+  const passwordToggleBox = await page.getByRole('button', { name: 'Show password' }).boundingBox()
+  for (const box of [languageBox, themeBox]) {
+    expect(box?.width).toBeGreaterThanOrEqual(44)
+    expect(box?.height).toBeGreaterThanOrEqual(44)
+  }
+  // The inline password-field toggle intentionally stays compact (matches the
+  // shared SecretField pattern) but must still clear the WCAG 2.5.8 AA floor.
+  expect(passwordToggleBox?.width).toBeGreaterThanOrEqual(24)
+  expect(passwordToggleBox?.height).toBeGreaterThanOrEqual(24)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+
+  await page.setViewportSize({ width: 1024, height: 1366 })
+  await page.goto('/login')
+  const tabletThemeBox = await page.getByRole('button', { name: 'Switch to dark mode' }).boundingBox()
+  expect(tabletThemeBox?.width).toBeGreaterThanOrEqual(44)
+  expect(tabletThemeBox?.height).toBeGreaterThanOrEqual(44)
+
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/login')
+  const desktopThemeBox = await page.getByRole('button', { name: 'Switch to dark mode' }).boundingBox()
+  expect(desktopThemeBox?.width).toBe(40)
+  expect(desktopThemeBox?.height).toBe(40)
+})

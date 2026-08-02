@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '../auth'
+import IconButton from '../components/IconButton'
 import Spinner from '../components/loading/Spinner'
 import SiteFooter from '../components/SiteFooter'
 import { useDirection } from '../direction'
@@ -92,7 +93,7 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-bg-base px-4 py-6 sm:px-8">
-      <header className="relative flex h-10 w-full max-w-[1376px] items-center justify-center">
+      <header className="relative flex h-11 w-full max-w-[1376px] items-center justify-center">
         <div className="flex items-center gap-1.5" aria-label={translate('authentication:login.flowhub')}>
           <img
             src="/static/logos/FlowHub%20Transparent%20WebP%20%20Logo.webp?v=1"
@@ -102,29 +103,26 @@ export default function Login() {
           />
           <span className="text-[22px] font-semibold leading-[30px] text-text-base">FlowHub</span>
         </div>
-        <div className="absolute end-0 flex items-center">
-          <button
-            type="button"
+        <div className="absolute end-0 flex items-center gap-1">
+          <IconButton
             onClick={() => {
               const nextLanguage = language === 'fa' ? 'en' : 'fa'
               setLanguage(nextLanguage)
               setDirection(nextLanguage === 'fa' ? 'rtl' : 'ltr')
             }}
-            className="px-2 text-xs font-medium text-[color:var(--fh-text-secondary)]"
-            aria-label={translate('settings:language.title')}
+            label={translate('settings:language.title')}
+            className="text-xs font-medium"
           >
             {language === 'fa' ? 'FA' : 'EN'}
-          </button>
-          <button
-            type="button"
+          </IconButton>
+          <IconButton
             onClick={toggleTheme}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[color:var(--fh-text-secondary)] hover:bg-[color:var(--fh-ui-surface-muted)]"
-            aria-label={theme === 'dark'
+            label={theme === 'dark'
               ? translate('navigation:topbar.switchToLightMode')
               : translate('navigation:topbar.switchToDarkMode')}
           >
             <ThemeGlyph theme={theme} />
-          </button>
+          </IconButton>
         </div>
       </header>
 
@@ -163,8 +161,10 @@ export default function Login() {
             <label htmlFor="login-password" className="fh-label">
               {translate('authentication:login.password')}
             </label>
-            <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-bg-card px-3 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
-              <span className="shrink-0 text-wp-muted"><LockGlyph /></span>
+            <div className="relative">
+              <span className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-wp-muted" aria-hidden="true">
+                <LockGlyph />
+              </span>
               <input
                 id="login-password"
                 type={showPassword ? 'text' : 'password'}
@@ -173,20 +173,21 @@ export default function Login() {
                 required
                 autoComplete="current-password"
                 disabled={loading}
-                className="min-w-0 flex-1 border-0 bg-transparent text-[13px] leading-[18px] text-text-base outline-none"
+                className="fh-input ps-10 pe-11"
                 {...inputHint(translate('authentication:login.passwordHint'))}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(current => !current)}
-                disabled={loading}
-                className="shrink-0 text-wp-muted"
-                aria-label={showPassword
-                  ? translate('settings:users.hidePassword')
-                  : translate('settings:users.showPassword')}
-              >
-                <EyeGlyph visible={showPassword} />
-              </button>
+              <div className="absolute inset-y-0 end-2 flex items-center">
+                <IconButton
+                  size="sm"
+                  onClick={() => setShowPassword(current => !current)}
+                  disabled={loading}
+                  label={showPassword
+                    ? translate('settings:users.hidePassword')
+                    : translate('settings:users.showPassword')}
+                >
+                  <EyeGlyph visible={showPassword} />
+                </IconButton>
+              </div>
             </div>
           </div>
 

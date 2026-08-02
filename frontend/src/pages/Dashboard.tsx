@@ -535,7 +535,7 @@ export default function Dashboard() {
             {compactRelTime(lastSync)}
           </span>
         </span>
-        <span className="ms-auto flex items-center gap-2">
+        <span className="ms-auto flex flex-wrap items-center gap-2">
           <span className="text-[11px] font-medium leading-4 text-[color:var(--fh-text-secondary)]">
             {translate('dashboard:dashboard.pricingWorkflow')}
           </span>

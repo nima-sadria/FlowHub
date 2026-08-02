@@ -281,7 +281,7 @@ async function assertFigmaDashboardHierarchy(page: Page, locale: 'en' | 'fa') {
     await expect(page.getByPlaceholder('جست‌وجوی محصول، سفارش یا منبع...')).toBeVisible()
     await expect(page.getByText('همه سامانه‌ها فعال‌اند')).toBeVisible()
     await expect(page.getByText('فا', { exact: true })).toBeVisible()
-    await expect(page.getByText('مدیر', { exact: true })).toBeVisible()
+    await expect(page.getByText('ادمین', { exact: true })).toBeVisible()
     await expect(page.getByText('قیمت به‌روزرسانی شد')).toBeVisible()
     await expect(page.getByText('سفارش همگام شد')).toBeVisible()
     await expect(page.getByText('نمای زنده فروش')).toBeVisible()
@@ -344,4 +344,20 @@ test('dashboard matches the approved Figma hierarchy in Light/Dark and LTR/RTL a
   expect(audit.externalRequests, 'No request may leave the isolated local browser environment').toEqual([])
   expect(audit.unhandledApiRequests, 'Every Dashboard API request must be explicitly mocked').toEqual([])
   expect(audit.writeRequests, 'The visual audit must not execute any write request').toEqual([])
+})
+
+test('the pricing workflow badge strip wraps instead of clipping in Persian/RTL on mobile, and the sidebar/topbar meet the touch-target minimum', async ({ page }) => {
+  const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [], writeRequests: [] }
+  await installStrictDashboardMocks(page, audit)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await seedSession(page, 'fa', 'dark')
+  await page.goto('/home')
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+
+  const menuButtonBox = await page.locator('.fh-icon-button').first().boundingBox()
+  expect(menuButtonBox?.width).toBeGreaterThanOrEqual(44)
+  expect(menuButtonBox?.height).toBeGreaterThanOrEqual(44)
+  expect(audit.writeRequests, 'The mobile audit must not execute any write request').toEqual([])
 })

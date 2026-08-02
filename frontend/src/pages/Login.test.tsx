@@ -76,6 +76,17 @@ describe('Login', () => {
     expect(container.querySelector('[aria-label="Switch to dark mode"]')).not.toBeNull()
   })
 
+  it('uses shared Design System icon buttons for header and password controls so touch targets stay accessible', async () => {
+    await renderLogin()
+
+    const languageButton = container.querySelector('[aria-label="Language"]')
+    const themeButton = container.querySelector('[aria-label="Switch to dark mode"]')
+    const passwordToggle = container.querySelector('[aria-label="Show password"]')
+    expect(languageButton?.className).toContain('fh-icon-button')
+    expect(themeButton?.className).toContain('fh-icon-button')
+    expect(passwordToggle?.className).toContain('fh-icon-button-sm')
+  })
+
   it('submits the existing login contract and stores returned tokens', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
       if (input === '/api/health') {

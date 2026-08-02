@@ -211,6 +211,10 @@ describe('Dashboard', () => {
     expect(container.textContent).toContain('15,000,000 IRR')
     expect(container.textContent).toContain('Blocking')
     expect(container.textContent).toContain('Warnings')
+
+    const pricingLabel = Array.from(container.querySelectorAll('span')).find(el => el.textContent === 'Pricing workflow')
+    const pricingGroup = pricingLabel?.parentElement
+    expect(pricingGroup?.className).toContain('flex-wrap')
   })
 
   it('keeps revenue currencies separate and shows the Last 30 days chart header', async () => {

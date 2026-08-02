@@ -3015,8 +3015,9 @@ select,
   }
 
   .fh-icon-button {
-    width: 40px;
-    height: 40px;
+    /* Mobile-first: 44px meets the touch-target minimum; xl+ restores the denser 40px for desktop. */
+    width: 44px;
+    height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -3027,6 +3028,13 @@ select,
     border-radius: var(--fh-radius-full);
     box-shadow: none;
     transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @media (min-width: 1280px) {
+    .fh-icon-button {
+      width: 40px;
+      height: 40px;
+    }
   }
 
   .fh-icon-button:hover:not(:disabled) {
@@ -3215,9 +3223,16 @@ select,
 
   /* Compact 36px button per the final Figma Action/Button (Medium) */
   .fh-button-sm {
-    min-height: 36px;
+    /* Mobile-first: 44px meets the touch-target minimum; xl+ restores the denser 36px for desktop. */
+    min-height: 44px;
     padding: 7px 14px;
     border-radius: var(--fh-radius-md);
+  }
+
+  @media (min-width: 1280px) {
+    .fh-button-sm {
+      min-height: 36px;
+    }
   }
 
   .fh-button-lg {
@@ -3633,7 +3648,8 @@ select,
   .fh-menu-item {
     position: relative;
     width: 100%;
-    height: 36px;
+    /* Mobile-first: 44px meets the touch-target minimum; xl+ restores the denser 36px for desktop. */
+    height: 44px;
     display: flex;
     align-items: center;
     box-sizing: border-box;
@@ -3648,6 +3664,12 @@ select,
     box-shadow: none;
     cursor: pointer;
     text-decoration: none;
+  }
+
+  @media (min-width: 1280px) {
+    .fh-menu-item {
+      height: 36px;
+    }
   }
 
   .fh-menu-item:hover {
@@ -4172,8 +4194,9 @@ select,
   }
 
   .fh-topbar-action {
-    width: 40px;
-    height: 40px;
+    /* Mobile-first: 44px meets the touch-target minimum; xl+ restores the denser 40px for desktop. */
+    width: 44px;
+    height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -4187,6 +4210,13 @@ select,
     transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  @media (min-width: 1280px) {
+    .fh-topbar-action {
+      width: 40px;
+      height: 40px;
+    }
+  }
+
   .fh-topbar-action:hover:not(:disabled) {
     color: var(--fh-text-primary);
     background: var(--fh-ui-control-hover);
@@ -4197,7 +4227,8 @@ select,
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    height: 36px;
+    /* Mobile-first: 44px meets the touch-target minimum; xl+ restores the denser 36px for desktop. */
+    height: 44px;
     padding: 8px 10px;
     color: var(--fh-text-primary);
     background: var(--fh-ui-surface-muted);
@@ -4206,6 +4237,12 @@ select,
     font-size: 12px;
     line-height: 16px;
     font-weight: 500;
+  }
+
+  @media (min-width: 1280px) {
+    .fh-topbar-pill {
+      height: 36px;
+    }
   }
 
   .dark .fh-topbar-pill {
