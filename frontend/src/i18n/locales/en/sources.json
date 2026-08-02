@@ -102,6 +102,7 @@
   "sourceConfiguration.bulkWorksheetActions": "Bulk worksheet actions",
   "sourceConfiguration.calculatedInWorkspace": "Calculated after Channel comparison",
   "sourceConfiguration.category": "Category",
+  "sourceConfiguration.channelProfilesUnavailable": "Channel profiles are temporarily unavailable. Source settings remain available; retry to load Channel mappings.",
   "sourceConfiguration.channelMappings": "Columns for each Channel",
   "sourceConfiguration.channelMappingsAreIndependent": "Choose where this Channel's product ID, price, stock, and status are read from. FlowHub never copies these choices to another Channel unless you ask it to.",
   "sourceConfiguration.channelsNotConfigured": "Channels not configured",

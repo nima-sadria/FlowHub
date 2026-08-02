@@ -2992,14 +2992,26 @@ class UnifiedWorkspaceService:
                     )
                 )
             else:
+                is_legacy_placeholder = (
+                    row.implementation_state == "coming_soon"
+                    and row.capability_version == "none"
+                    and not row.capabilities_json
+                )
+                row.connector_type = channel_id.split(":", 1)[0]
+                row.name = name
                 row.capabilities_json = payload
                 row.capability_version = capabilities.version
+                if is_legacy_placeholder:
+                    row.implementation_state = "implemented"
+                    row.enabled = True
                 row.updated_at = utcnow()
         for channel_id, name in (
             ("digikala:main", "Digikala"),
             ("technolife:main", "Technolife"),
             ("shopify:main", "Shopify"),
         ):
+            if channel_id in definitions:
+                continue
             if self.db.get(WorkspaceChannel, channel_id) is None:
                 self.db.add(
                     WorkspaceChannel(

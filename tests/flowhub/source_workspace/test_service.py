@@ -90,6 +90,61 @@ def _user(db: Session) -> FlowHubUser:
     return user
 
 
+def test_available_channels_seeds_each_implemented_channel_once_on_empty_database() -> None:
+    db = _session()
+
+    items = SourceWorkspaceService(db).available_channels()["items"]
+
+    technolife = [item for item in items if item["channelId"] == "technolife:main"]
+    assert len(technolife) == 1
+    assert technolife[0]["implementationState"] == "implemented"
+    assert technolife[0]["enabled"] is True
+    assert db.query(WorkspaceChannel).filter_by(id="technolife:main").count() == 1
+
+
+def test_available_channels_upgrades_an_existing_placeholder_to_implemented() -> None:
+    db = _session()
+    db.add(
+        WorkspaceChannel(
+            id="technolife:main",
+            connector_type="technolife",
+            name="Technolife",
+            implementation_state="coming_soon",
+            capabilities_json={},
+            capability_version="none",
+            enabled=False,
+        )
+    )
+    db.commit()
+
+    items = SourceWorkspaceService(db).available_channels()["items"]
+
+    technolife = next(item for item in items if item["channelId"] == "technolife:main")
+    assert technolife["implementationState"] == "implemented"
+    assert technolife["enabled"] is True
+    row = db.get(WorkspaceChannel, "technolife:main")
+    assert row is not None
+    assert row.implementation_state == "implemented"
+    assert row.enabled is True
+    assert row.capability_version != "none"
+
+
+def test_available_channels_preserves_an_intentionally_disabled_implemented_channel() -> None:
+    db = _session()
+    service = SourceWorkspaceService(db)
+    service.available_channels()
+    channel = db.get(WorkspaceChannel, "technolife:main")
+    assert channel is not None
+    channel.enabled = False
+    db.commit()
+
+    items = service.available_channels()["items"]
+
+    technolife = next(item for item in items if item["channelId"] == "technolife:main")
+    assert technolife["implementationState"] == "implemented"
+    assert technolife["enabled"] is False
+
+
 def test_sheet_revisions_are_batched_versioned_and_formula_calculated() -> None:
     db = _session()
     user = _user(db)

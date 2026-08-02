@@ -102,6 +102,7 @@
   "sourceConfiguration.bulkWorksheetActions": "عملیات گروهی برگه‌ها",
   "sourceConfiguration.calculatedInWorkspace": "پس از مقایسه با کانال محاسبه می‌شود",
   "sourceConfiguration.category": "دسته‌بندی",
+  "sourceConfiguration.channelProfilesUnavailable": "نمایه‌های کانال موقتاً در دسترس نیستند. تنظیمات منبع همچنان قابل استفاده است؛ برای بارگذاری نگاشت کانال‌ها دوباره تلاش کنید.",
   "sourceConfiguration.channelMappings": "ستون‌های هر کانال",
   "sourceConfiguration.channelMappingsAreIndependent": "مشخص کنید شناسه محصول، قیمت، موجودی و وضعیت این کانال از کدام ستون فایل خوانده شود. این انتخاب‌ها بدون درخواست شما برای کانال دیگری کپی نمی‌شوند.",
   "sourceConfiguration.channelsNotConfigured": "کانال‌های تنظیم‌نشده",

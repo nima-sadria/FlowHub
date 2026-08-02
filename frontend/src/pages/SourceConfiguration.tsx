@@ -229,6 +229,27 @@ function channelValidation(fields: FieldMapping[], enabled: boolean): string[] {
   return issues
 }
 
+function fallbackChannelsForSource(source: SourceProfile & { mapping: SourceMapping | null }): SourceChannel[] {
+  const channelIds = new Set<string>()
+  source.mapping?.channels.forEach(channel => channelIds.add(channel.channelId))
+  source.mapping?.worksheetRules?.forEach(rule => {
+    rule.channels.forEach(channel => channelIds.add(channel.channelId))
+  })
+  if (source.legacyMapping?.primaryChannelId) channelIds.add(source.legacyMapping.primaryChannelId)
+
+  return Array.from(channelIds, channelId => ({
+    channelId,
+    name: formatChannelDisplayName(channelId, { showInstance: true }),
+    connectorType: channelId.split(':', 1)[0],
+    capabilityVersion: 'unavailable',
+    capabilities: {},
+    enabled: false,
+    implementationState: 'implemented',
+    available: false,
+    configured: true,
+  }))
+}
+
 export default function SourceConfiguration() {
   const { sourceId = '' } = useParams()
   const commerce = useOptionalServices()?.commerce
@@ -245,6 +266,7 @@ export default function SourceConfiguration() {
   const [loadFailure, setLoadFailure] = useState<{ notFound: boolean; reason: string } | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
   const [channels, setChannels] = useState<SourceChannel[]>([])
+  const [channelProfilesUnavailable, setChannelProfilesUnavailable] = useState(false)
   const [sourceFields, setSourceFields] = useState<FieldMapping[]>(SOURCE_FIELDS.map(([field, _label, required]) => emptyMapping(field, required)))
   const [channelFields, setChannelFields] = useState<Record<string, FieldMapping[]>>({})
   const [channelWorksheets, setChannelWorksheets] = useState<Record<string, string>>({})
@@ -284,10 +306,18 @@ export default function SourceConfiguration() {
     setLoading(true)
     setLoadFailure(null)
     setSource(null)
-    Promise.all([sourceWorkspaceApi.source(sourceId), sourceWorkspaceApi.channels()]).then(([loaded, available]) => {
+    setChannelProfilesUnavailable(false)
+    Promise.all([
+      sourceWorkspaceApi.source(sourceId),
+      sourceWorkspaceApi.channels().then(
+        available => ({ ok: true as const, available }),
+        () => ({ ok: false as const }),
+      ),
+    ]).then(([loaded, channelResult]) => {
       if (!active) return
       setSource(loaded)
-      setChannels(available.items)
+      setChannels(channelResult.ok ? channelResult.available.items : fallbackChannelsForSource(loaded))
+      setChannelProfilesUnavailable(!channelResult.ok)
       setDataStartRow(loaded.mapping?.dataStartRow ?? loaded.dataStartRow)
       setWorksheetMode(loaded.mapping?.worksheetMode ?? loaded.worksheetMode)
       setWorksheetName(loaded.mapping?.worksheetName ?? loaded.worksheetName ?? 'Sheet1')
@@ -928,6 +958,15 @@ export default function SourceConfiguration() {
           </div>
         </ConfigurationSection>
       </div>
+
+      {channelProfilesUnavailable && (
+        <div className="fh-alert-warning mt-5 flex flex-wrap items-center justify-between gap-3" role="status">
+          <span>{translate('sources:sourceConfiguration.channelProfilesUnavailable')}</span>
+          <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => setReloadToken(current => current + 1)}>
+            <Icon name="refresh" /> {translate('common:action.retry')}
+          </button>
+        </div>
+      )}
 
       <div className={`mt-5 space-y-3 ${worksheetRuleMode === 'per_worksheet' ? 'hidden' : ''}`}>
         <ConfigurationSection title={translate('sources:sourceConfiguration.section.channelColumns')} description={translate('sources:sourceConfiguration.section.channelColumnsHelp')}>

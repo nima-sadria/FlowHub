@@ -184,6 +184,19 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.querySelector('h1')?.textContent).toContain('Daily prices')
   })
 
+  it('keeps Source Configuration available when Channel profiles cannot load', async () => {
+    vi.mocked(sourceWorkspaceApi.channels).mockRejectedValueOnce(new ApiError(500, 'Channel profiles unavailable'))
+
+    await renderPage()
+
+    expect(container.querySelector('h1')?.textContent).toContain('Daily prices')
+    expect(container.textContent).not.toContain('Source configuration unavailable')
+    expect(container.textContent).toContain('Channel profiles are temporarily unavailable')
+    const woocommerce = container.querySelector('tr[data-channel-id="woocommerce:primary"]')
+    expect(woocommerce).not.toBeNull()
+    expect(woocommerce?.querySelector('input[type="checkbox"]')).toHaveProperty('disabled', true)
+  })
+
   it('keeps the mobile action area compact without page-level horizontal overflow', async () => {
     await renderPage()
 
