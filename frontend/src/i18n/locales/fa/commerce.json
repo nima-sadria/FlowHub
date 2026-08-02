@@ -163,6 +163,7 @@
   "commerceHub.readsRemaining": "خواندن باقی‌مانده:",
   "commerceHub.received": "دریافت‌شده،",
   "commerceHub.refreshing": "در حال به‌روزرسانی",
+  "commerceHub.refreshCache": "به‌روزرسانی کش",
   "commerceHub.refreshProductCache": "به‌روزرسانی کش محصولات",
   "commerceHub.refreshStatus": "وضعیت به‌روزرسانی:",
   "commerceHub.registerThisUrlInTapsishopTheWebhook": "این نشانی اینترنتی را در تپ‌سی شاپ ثبت کنید. اطلاعات ورود webhook جدا از توکن API خروجی نگهداری می‌شود.",

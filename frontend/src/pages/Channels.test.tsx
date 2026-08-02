@@ -190,7 +190,7 @@ describe('Channels page', () => {
     expect(card.querySelectorAll('.fh-badge')).toHaveLength(1)
     expect(card.textContent?.match(/Setup required/g) ?? []).toHaveLength(1)
     expect(card.textContent).not.toContain('Test connection')
-    expect(card.textContent).not.toContain('Refresh product cache')
+    expect(card.textContent).not.toContain('Refresh cache')
   })
 
   it('opens Add Channel on the canonical page without rendering a second card collection', async () => {
@@ -235,7 +235,7 @@ describe('Channels page', () => {
     expect(actionLabels).not.toContain('Add channel')
     expect(actionLabels).not.toContain('Setup now')
     expect(actionLabels).not.toContain('Test connection')
-    expect(actionLabels).not.toContain('Refresh product cache')
+    expect(actionLabels).not.toContain('Refresh cache')
     expect(actionLabels).not.toContain('Settings')
   })
 

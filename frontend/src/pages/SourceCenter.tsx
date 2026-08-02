@@ -656,18 +656,18 @@ export default function SourceCenter() {
                 ...(readStatus ? [{ label: translate('sources:sourceCenter.readsRemaining'), value: readStatus.reads_remaining }] : []),
               ]
             const actions: OperationalResourceAction[] = state === 'setupRequired'
-              ? canSetup ? [{ label: translate('common:action.setupNow'), primary: true, onClick: () => openPrimary(card, true) }] : []
+              ? canSetup ? [{ label: translate('common:action.setupNow'), icon: 'settings', primary: true, onClick: () => openPrimary(card, true) }] : []
               : state === 'comingSoon' ? [] : [
-                { label: translate('common:action.open'), onClick: () => openPrimary(card) },
+                { label: translate('common:action.open'), icon: 'preview', onClick: () => openPrimary(card) },
                 ...(integration && canManageConnectors
-                  ? [{ label: testingSourceId === integration.id ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection'), disabled: testingSourceId === integration.id, onClick: () => void testSourceConnection(integration.id) }]
+                  ? [{ label: testingSourceId === integration.id ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection'), icon: 'testConnection' as const, disabled: testingSourceId === integration.id, onClick: () => void testSourceConnection(integration.id) }]
                   : []),
                 ...(integration && canManageConnectors && (readStatus?.manual_read_allowed ?? integration.read_policy?.manual_read_allowed)
-                  ? [{ label: readingSourceId === integration.id ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow'), disabled: readingSourceId === integration.id, onClick: () => void readSourceNow(integration.id) }]
+                  ? [{ label: readingSourceId === integration.id ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow'), icon: 'refresh' as const, disabled: readingSourceId === integration.id, onClick: () => void readSourceNow(integration.id) }]
                   : []),
-                ...(source ? [{ label: translate('common:action.mapping'), onClick: () => navigate(`/sources/${source.id}`) }] : []),
-                ...(canViewActivity ? [{ label: translate('common:action.viewActivity'), onClick: () => navigate(`/activity?source=${encodeURIComponent(integration?.id ?? source?.id ?? card.id)}`) }] : []),
-                ...(canViewDiagnostics ? [{ label: translate('common:action.diagnostics'), onClick: () => navigate(`/diagnostics#source-${integration?.id ?? source?.id ?? card.id}`) }] : []),
+                ...(source ? [{ label: translate('common:action.mapping'), icon: 'settings' as const, onClick: () => navigate(`/sources/${source.id}`) }] : []),
+                ...(canViewActivity ? [{ label: translate('common:action.viewActivity'), icon: 'preview' as const, onClick: () => navigate(`/activity?source=${encodeURIComponent(integration?.id ?? source?.id ?? card.id)}`) }] : []),
+                ...(canViewDiagnostics ? [{ label: translate('common:action.diagnostics'), icon: 'diagnostics' as const, onClick: () => navigate(`/diagnostics#source-${integration?.id ?? source?.id ?? card.id}`) }] : []),
               ]
             return (
               <OperationalResourceCard

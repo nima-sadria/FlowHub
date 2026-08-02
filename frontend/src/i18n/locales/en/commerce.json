@@ -163,6 +163,7 @@
   "commerceHub.readsRemaining": "Reads remaining:",
   "commerceHub.received": "received,",
   "commerceHub.refreshing": "Refreshing",
+  "commerceHub.refreshCache": "Refresh cache",
   "commerceHub.refreshProductCache": "Refresh product cache",
   "commerceHub.refreshStatus": "Refresh status:",
   "commerceHub.registerThisUrlInTapsishopTheWebhook": "Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token.",

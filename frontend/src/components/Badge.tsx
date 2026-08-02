@@ -18,7 +18,7 @@ export type BadgeVariant = SemanticBadgeVariant
 
 const VARIANT_CLASS: Record<BadgeVariant, string> = {
   neutral: 'fh-badge-neutral',
-  primary: 'fh-badge-info',
+  primary: 'fh-badge-primary',
   info: 'fh-badge-info',
   success: 'fh-badge-success',
   warning: 'fh-badge-warning',

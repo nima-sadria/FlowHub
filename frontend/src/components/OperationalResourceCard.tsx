@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import Badge, { type BadgeVariant } from './Badge'
 import BrandIcon from './BrandIcon'
+import Icon, { type IconName } from './Icon'
 
 export type OperationalResourceState = 'connected' | 'setupRequired' | 'comingSoon'
 
@@ -12,6 +13,7 @@ export interface OperationalResourceFact {
 export interface OperationalResourceAction {
   label: string
   onClick: () => void
+  icon?: IconName
   disabled?: boolean
   primary?: boolean
 }
@@ -90,7 +92,7 @@ export default function OperationalResourceCard({
       )}
 
       {!comingSoon && actions.length > 0 && (
-        <div className="mt-auto flex flex-wrap gap-2 border-t border-border pt-3">
+        <div className="fh-source-card-actions">
           {actions.map(action => (
             <button
               className={`${action.primary || setupRequired ? 'fh-button-primary' : 'fh-button-secondary'} fh-button-sm`}
@@ -99,6 +101,7 @@ export default function OperationalResourceCard({
               onClick={action.onClick}
               key={action.label}
             >
+              {action.icon && <Icon name={action.icon} size="sm" />}
               {action.label}
             </button>
           ))}

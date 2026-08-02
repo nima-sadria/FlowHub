@@ -555,7 +555,7 @@ describe('CommerceHub', () => {
   it('shows configuration actions only for implemented channels', async () => {
     const c = await renderPage()
 
-    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Refresh product cache')).toHaveLength(1)
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Refresh cache')).toHaveLength(1)
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Settings')).toHaveLength(0)
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')).toHaveLength(3)
     expect(c.textContent).toContain('Cached products: 2')
@@ -567,7 +567,7 @@ describe('CommerceHub', () => {
 
     const sources = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
 
-    expect(sources.textContent).not.toContain('Refresh product cache')
+    expect(sources.textContent).not.toContain('Refresh cache')
     expect(Array.from(sources.querySelectorAll('button')).filter(button => button.textContent === 'Read now')).toHaveLength(1)
   })
 
@@ -588,7 +588,7 @@ describe('CommerceHub', () => {
 
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Settings')).toHaveLength(1)
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')).toHaveLength(2)
-    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Refresh product cache')).toHaveLength(2)
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Refresh cache')).toHaveLength(2)
     for (const planned of ['Digikala', 'Shopify']) {
       const card = Array.from(c.querySelectorAll('h3')).find(item => item.textContent === planned)?.closest('.fh-card')
       expect(Array.from(card?.querySelectorAll('button') ?? [])).toHaveLength(0)
@@ -844,7 +844,7 @@ describe('CommerceHub', () => {
     }
     const c = await renderPage(adminUser, refreshCommerce)
     const refreshButton = Array.from(c.querySelectorAll('button'))
-      .find(button => button.textContent === 'Refresh product cache')
+      .find(button => button.textContent === 'Refresh cache')
 
     await act(async () => {
       refreshButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -882,7 +882,7 @@ describe('CommerceHub', () => {
 
     await act(async () => {
       Array.from(c.querySelectorAll('button'))
-        .find(button => button.textContent === 'Refresh product cache')
+        .find(button => button.textContent === 'Refresh cache')
         ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
     })

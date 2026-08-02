@@ -197,7 +197,7 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
           </IconButton>
 
           <img
-            src="/static/logos/FlowHub%20favicon.png?v=4"
+            src="/static/logos/FlowHub%20Transparent%20WebP%20%20Logo.webp?v=1"
             alt=""
             aria-hidden="true"
             className="h-[34px] w-[34px] flex-shrink-0 select-none object-contain"

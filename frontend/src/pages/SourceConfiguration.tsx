@@ -1139,7 +1139,7 @@ export default function SourceConfiguration() {
       </div>
 
       {channelSetupId && canManageCommerce && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('commerce:commerceHub.addChannel')}>
-        <div className="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto">
+        <div className="max-h-[calc(100vh-2rem)] w-full max-w-[45rem] overflow-y-auto">
           {channelSetupLoading ? <div className="fh-card fh-card-pad fh-text-caption" role="status">{translate('commerce:commerceHub.loadingChannelConfiguration')}</div> : channelSetupError ? <div className="fh-card fh-card-pad" role="alert"><p className="fh-section-title">{translate('commerce:commerceHub.unableToLoadCommerceHub')}</p><div className="mt-4 flex gap-2"><button className="fh-button-secondary" type="button" onClick={closeChannelSetup}>{translate('common:action.cancel')}</button><button className="fh-button-primary" type="button" onClick={() => void openChannelSetup(channelSetupId === 'new' ? undefined : channelSetupId)}>{translate('common:action.retry')}</button></div></div> : <ConfigPanel kind="channel" types={channelTypes} initialResourceId={channelSetupId === 'new' ? null : channelSetupId} headingLevel={2} onCancel={closeChannelSetup} onSaved={handleChannelSetupSaved} />}
         </div>
       </div>}

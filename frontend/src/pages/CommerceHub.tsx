@@ -282,7 +282,7 @@ function ChannelCard({ channel, badge, onTest, onRefresh, onConfigure, testing, 
               >
                 {refreshing && <Spinner size="sm" />}
                 {!refreshing && <Icon name="refresh" />}
-                {refreshing ? translate('commerce:commerceHub.refreshing') : translate('commerce:commerceHub.refreshProductCache')}
+                {refreshing ? translate('commerce:commerceHub.refreshing') : translate('commerce:commerceHub.refreshCache')}
               </button>
             )}
           </div>
@@ -792,7 +792,7 @@ export function ConfigPanel({
 
   return (
     <form onSubmit={event => void submit(event)} className="fh-card overflow-hidden">
-      <div className="fh-panel-header !items-start">
+      <div className="fh-panel-header">
         <div>
           <HeadingTag className="fh-section-title">
             {initialResourceId ? translate('commerce:commerceHub.configure2', { value1: localizedChannelName(selected.id, selected.name) }) : kind === "source" ? translate('commerce:commerceHub.addSource') : translate('commerce:commerceHub.addChannel')}

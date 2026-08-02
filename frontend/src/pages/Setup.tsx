@@ -783,7 +783,7 @@ export default function Setup({ onComplete }: SetupProps) {
     <div className="min-h-screen bg-bg-base px-4 py-6 sm:px-8">
       <header className="mx-auto flex h-10 w-full max-w-[1376px] items-center">
         <div className="flex items-center gap-1.5">
-          <img src="/static/logos/FlowHub%20favicon.png?v=4" alt="" className="h-[34px] w-[34px] object-contain" />
+          <img src="/static/logos/FlowHub%20Transparent%20WebP%20%20Logo.webp?v=1" alt="" aria-hidden="true" className="h-[34px] w-[34px] object-contain" />
           <span className="text-[22px] font-semibold leading-[30px] text-text-base">FlowHub</span>
         </div>
         <div className="flex-1" />

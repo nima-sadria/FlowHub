@@ -1,4 +1,4 @@
-export const SOURCE_ICON_FALLBACK = '/static/logos/FlowHub%20favicon.png?v=4'
+export const SOURCE_ICON_FALLBACK = '/static/logos/FlowHub%20Transparent%20WebP%20%20Logo.webp?v=1'
 
 export const SOURCE_ICON_ASSETS = Object.freeze({
   digikala: '/static/win11-icon/brand/DIGIKALA.webp',

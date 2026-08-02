@@ -93,11 +93,15 @@ export default function Login() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-bg-base px-4 py-6 sm:px-8">
       <header className="relative flex h-10 w-full max-w-[1376px] items-center justify-center">
-        <img
-          src="/static/logos/FlowHub.webp?v=4"
-          alt={translate('authentication:login.flowhub')}
-          className="h-[34px] w-auto max-w-[132px] object-contain"
-        />
+        <div className="flex items-center gap-1.5" aria-label={translate('authentication:login.flowhub')}>
+          <img
+            src="/static/logos/FlowHub%20Transparent%20WebP%20%20Logo.webp?v=1"
+            alt=""
+            aria-hidden="true"
+            className="h-[34px] w-[34px] object-contain"
+          />
+          <span className="text-[22px] font-semibold leading-[30px] text-text-base">FlowHub</span>
+        </div>
         <div className="absolute end-0 flex items-center">
           <button
             type="button"

@@ -53,7 +53,7 @@ describe('SourceIcon', () => {
     expect(image.src).toContain(SOURCE_ICON_ASSETS.microsoftOffice)
 
     act(() => image.dispatchEvent(new Event('error')))
-    expect(image.src).toContain('FlowHub%20favicon.png')
+    expect(image.src).toContain('FlowHub%20Transparent%20WebP%20%20Logo.webp')
     expect(container.querySelector('[data-source-icon]')?.getAttribute('data-source-icon')).toBe(SOURCE_ICON_FALLBACK)
 
     act(() => image.dispatchEvent(new Event('error')))

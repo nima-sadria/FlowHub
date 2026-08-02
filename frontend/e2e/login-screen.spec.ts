@@ -1,13 +1,11 @@
-import path from 'node:path'
-import { mkdirSync } from 'node:fs'
 import { expect, test, type Page, type Route } from '@playwright/test'
 
 // Visual + structural audit of the Figma Screen/Login: a centered card with
 // FlowHub wordmark + language/theme toggles above it, "Sign in to FlowHub"
 // heading, an Email field (Figma relabeled this from the prior "Username"
 // text), a password field with a lock icon and reveal toggle, a primary
-// Sign in button, a contact-owner hint, and a Privacy/Security/Support
-// footer. Figma's frame also shows a "Remember me" checkbox and a "Forgot
+// Sign in button, a contact-owner hint, and the shared FlowHub copyright +
+// installed-version footer. Figma's frame also shows a "Remember me" checkbox and a "Forgot
 // password?" link on every variant, and a "Continue with SSO" button on
 // only one of its four variants (dark/LTR, absent from light/LTR,
 // light/RTL, and -- by the same inconsistency -- presumably dark/RTL).
@@ -21,9 +19,6 @@ import { expect, test, type Page, type Route } from '@playwright/test'
 // real, working fields. Captures 1440x900 evidence for Light/Dark and
 // LTR/RTL. All network traffic is mocked inside this spec; nothing leaves
 // the isolated browser.
-
-const screenshotRoot = path.resolve('..', 'docs', 'screenshots', 'v1.3', 'login-screen')
-mkdirSync(screenshotRoot, { recursive: true })
 
 interface TrafficAudit {
   externalRequests: string[]
@@ -71,7 +66,8 @@ async function assertFigmaLoginHierarchy(page: Page, locale: 'en' | 'fa') {
     await expect(page.locator('label[for="login-password"]')).toHaveText('Password')
     await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
     await expect(page.getByText('Need access? Contact your workspace Owner.')).toBeVisible()
-    await expect(page.getByText('Privacy · Security · Support')).toBeVisible()
+    await expect(page.getByRole('contentinfo')).toContainText('1405')
+    await expect(page.getByRole('contentinfo')).toContainText('FlowHub vlogin-visual-mock')
 
     // No real backing exists for these -- see spec header for the evidence.
     await expect(page.getByText('Remember me')).toHaveCount(0)
@@ -80,11 +76,14 @@ async function assertFigmaLoginHierarchy(page: Page, locale: 'en' | 'fa') {
     await expect(page.locator('input[type="checkbox"]')).toHaveCount(0)
   } else {
     await expect(page.getByText('با حساب فضای کاری خود وارد شوید.')).toBeVisible()
-    await expect(page.getByText('ایمیل یا نام کاربری', { exact: true })).toBeVisible()
+    await expect(page.locator('label[for="login-identifier"]')).toBeVisible()
+    await expect(page.locator('label[for="login-password"]')).toBeVisible()
+    await expect(page.getByRole('contentinfo')).toContainText('1405')
+    await expect(page.getByRole('contentinfo')).toContainText('FlowHub vlogin-visual-mock')
   }
 }
 
-test('login matches the approved Figma hierarchy in Light/Dark and LTR/RTL at 1440x900', async ({ page }) => {
+test('login matches the approved Figma hierarchy in Light/Dark and LTR/RTL at 1440x900', async ({ page }, testInfo) => {
   test.setTimeout(180_000)
   const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [] }
   await installLoginMocks(page, audit)
@@ -108,7 +107,7 @@ test('login matches the approved Figma hierarchy in Light/Dark and LTR/RTL at 14
     await assertFigmaLoginHierarchy(page, variant.locale)
     await page.evaluate(() => document.fonts.ready)
     await page.screenshot({
-      path: path.join(screenshotRoot, `login-${variant.theme}-${variant.dir}-1440x900.png`),
+      path: testInfo.outputPath(`login-${variant.theme}-${variant.dir}-1440x900.png`),
       animations: 'disabled',
     })
   }

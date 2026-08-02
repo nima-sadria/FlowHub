@@ -422,14 +422,14 @@ export default function Channels() {
               ...(channel.cached_variations > 0 ? [{ label: translate('commerce:commerceHub.cachedVariations'), value: formatNumber(channel.cached_variations) }] : []),
             ]
           const actions: OperationalResourceAction[] = state === 'setupRequired'
-            ? canManageCommerce ? [{ label: translate('common:action.setupNow'), primary: true, onClick: () => openSetup(channel.id) }] : []
+            ? canManageCommerce ? [{ label: translate('common:action.setupNow'), icon: 'settings', primary: true, onClick: () => openSetup(channel.id) }] : []
             : state === 'comingSoon' ? [] : [
-              { label: translate('common:action.open'), onClick: () => navigate(`/channels/${encodeURIComponent(channel.id)}`) },
-              ...(canManageCommerce ? [{ label: testingId === channel.id ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection'), disabled: testingId === channel.id, onClick: () => void handleTest(channel.id) }] : []),
-              ...(canManageCommerce && supportsProductCache ? [{ label: refreshingId === channel.id ? translate('commerce:commerceHub.refreshing') : translate('commerce:commerceHub.refreshProductCache'), disabled: refreshingId === channel.id, onClick: () => void handleRefresh(channel.id) }] : []),
-              ...(canViewActivity ? [{ label: translate('common:action.viewActivity'), onClick: () => navigate(`/activity?channel=${encodeURIComponent(channel.id)}`) }] : []),
-              ...(canViewDiagnostics ? [{ label: translate('common:action.diagnostics'), onClick: () => navigate(`/diagnostics#channel-${channel.id}`) }] : []),
-              ...(canManageCommerce ? [{ label: translate('common:action.settings'), onClick: () => openSetup(channel.id) }] : []),
+              { label: translate('common:action.open'), icon: 'preview', onClick: () => navigate(`/channels/${encodeURIComponent(channel.id)}`) },
+              ...(canManageCommerce ? [{ label: testingId === channel.id ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection'), icon: 'testConnection' as const, disabled: testingId === channel.id, onClick: () => void handleTest(channel.id) }] : []),
+              ...(canManageCommerce && supportsProductCache ? [{ label: refreshingId === channel.id ? translate('commerce:commerceHub.refreshing') : translate('commerce:commerceHub.refreshCache'), icon: 'refresh' as const, disabled: refreshingId === channel.id, onClick: () => void handleRefresh(channel.id) }] : []),
+              ...(canViewActivity ? [{ label: translate('common:action.viewActivity'), icon: 'preview' as const, onClick: () => navigate(`/activity?channel=${encodeURIComponent(channel.id)}`) }] : []),
+              ...(canViewDiagnostics ? [{ label: translate('common:action.diagnostics'), icon: 'diagnostics' as const, onClick: () => navigate(`/diagnostics#channel-${channel.id}`) }] : []),
+              ...(canManageCommerce ? [{ label: translate('common:action.settings'), icon: 'settings' as const, onClick: () => openSetup(channel.id) }] : []),
             ]
           return (
             <OperationalResourceCard
@@ -465,7 +465,7 @@ export default function Channels() {
           aria-label={setupResourceId ? translate('common:action.settings') : translate('commerce:commerceHub.addChannel')}
           data-testid="channel-configuration-dialog"
         >
-          <div className="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto">
+          <div className="max-h-[calc(100vh-2rem)] w-full max-w-[45rem] overflow-y-auto">
             {setupLoading ? (
               <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm" role="status" aria-live="polite" aria-busy="true">
                 {translate('commerce:commerceHub.loadingChannelConfiguration')}

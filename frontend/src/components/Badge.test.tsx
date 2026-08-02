@@ -30,4 +30,11 @@ describe('Badge semantic mapping', () => {
     expect(badges.find(badge => badge.textContent === 'pending')?.className).toContain('fh-badge-warning')
     expect(badges.find(badge => badge.textContent === 'disabled')?.className).toContain('fh-badge-neutral')
   })
+
+  it('keeps primary badges distinct from info badges', () => {
+    act(() => root.render(<><Badge variant="primary">primary</Badge><Badge variant="info">info</Badge></>))
+
+    expect(container.querySelector('.fh-badge-primary')?.textContent).toBe('primary')
+    expect(container.querySelector('.fh-badge-info')?.textContent).toBe('info')
+  })
 })
