@@ -54,7 +54,7 @@ describe('NotificationContainer', () => {
     expect(container.textContent).toContain('Your changes have been applied.')
     expect(container.querySelector('button[aria-label="Close notification"] [data-icon="close"]')).not.toBeNull()
     const region = container.querySelector('[role="region"]')
-    expect(region?.className).toContain('top-[76px]')
+    expect(region?.className).toContain('top-[calc(var(--fh-topbar-height)+8px)]')
     expect(region?.className).toContain('inset-x-4')
     expect(region?.className).toContain('sm:end-4')
 
