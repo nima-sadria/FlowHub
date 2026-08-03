@@ -265,7 +265,8 @@ def test_mapping_supports_arbitrary_columns_multiple_channels_and_conservative_p
                 "channel_id": "snappshop:main",
                 "fields": [
                     {"field": "external_id", "reference_type": "column_letter", "reference_value": "P"},
-                    {"field": "stock", "reference_type": "disabled", "reference_value": None},
+                    {"field": "stock", "reference_type": "column_letter", "reference_value": "Q"},
+                    {"field": "status", "reference_type": "column_letter", "reference_value": "R"},
                 ],
             },
         ],
@@ -358,7 +359,11 @@ def test_one_source_resolves_three_independent_channel_targets_and_preserves_dis
             {"column_key": "wc-id", "name": "Woo ID", "position": 2},
             {"column_key": "wc-price", "name": "Woo Price", "position": 3},
             {"column_key": "wc-stock", "name": "Woo Stock", "position": 4},
+            {"column_key": "snap-stock", "name": "موجودی اسنپ", "position": 5},
+            {"column_key": "snap-status", "name": "وضعیت اسنپ", "position": 6},
             {"column_key": "snap-price", "name": "قیمت اسنپ", "position": 7},
+            {"column_key": "tapsi-stock", "name": "Tapsi Stock", "position": 8},
+            {"column_key": "tapsi-status", "name": "Tapsi Status", "position": 9},
             {"column_key": "tapsi-price", "name": "Tapsi Price", "position": 10},
             {"column_key": "snap-id", "name": "SNP", "position": 15},
             {"column_key": "tapsi-id", "name": "Seller SKU", "position": 16},
@@ -379,8 +384,12 @@ def test_one_source_resolves_three_independent_channel_targets_and_preserves_dis
             {"row_key": row_key, "column_key": "wc-stock", "value": "8"},
             {"row_key": row_key, "column_key": "snap-id", "value": "1826345203"},
             {"row_key": row_key, "column_key": "snap-price", "value": "12900000"},
+            {"row_key": row_key, "column_key": "snap-stock", "value": "12"},
+            {"row_key": row_key, "column_key": "snap-status", "value": "instock"},
             {"row_key": row_key, "column_key": "tapsi-id", "value": "7785746738"},
             {"row_key": row_key, "column_key": "tapsi-price", "value": "12700000"},
+            {"row_key": row_key, "column_key": "tapsi-stock", "value": "6"},
+            {"row_key": row_key, "column_key": "tapsi-status", "value": "instock"},
         ],
         user=user,
     )
@@ -405,8 +414,8 @@ def test_one_source_resolves_three_independent_channel_targets_and_preserves_dis
             "fields": [
                 {"field": "external_id", "reference_type": "column_letter", "reference_value": "O"},
                 {"field": "price", "reference_type": "header_name", "reference_value": "قیمت اسنپ"},
-                {"field": "stock", "reference_type": "disabled", "reference_value": None},
-                {"field": "status", "reference_type": "disabled", "reference_value": None},
+                {"field": "stock", "reference_type": "column_letter", "reference_value": "E"},
+                {"field": "status", "reference_type": "column_letter", "reference_value": "F"},
             ],
         },
         {
@@ -415,8 +424,8 @@ def test_one_source_resolves_three_independent_channel_targets_and_preserves_dis
             "fields": [
                 {"field": "external_id", "reference_type": "column_id", "reference_value": "tapsi-id"},
                 {"field": "price", "reference_type": "column_letter", "reference_value": "J"},
-                {"field": "stock", "reference_type": "disabled", "reference_value": None},
-                {"field": "status", "reference_type": "disabled", "reference_value": None},
+                {"field": "stock", "reference_type": "column_letter", "reference_value": "H"},
+                {"field": "status", "reference_type": "column_letter", "reference_value": "I"},
             ],
         },
     ]
@@ -435,8 +444,8 @@ def test_one_source_resolves_three_independent_channel_targets_and_preserves_dis
     targets = {item["channelId"]: item["targets"] for item in analysis["candidates"]}
     assert targets == {
         "woocommerce:primary": {"price": "12500000", "stock": "8"},
-        "snappshop:main": {"price": "12900000"},
-        "tapsishop:main": {"price": "12700000"},
+        "snappshop:main": {"price": "12900000", "stock": "12", "status": "instock"},
+        "tapsishop:main": {"price": "12700000", "stock": "6", "status": "instock"},
     }
 
     updated_source = service.get_source(source["id"], user)
@@ -554,6 +563,8 @@ def test_external_source_is_read_once_and_resolves_three_independent_channel_col
                 "fields": [
                     {"field": "external_id", "reference_type": "column_letter", "reference_value": "O"},
                     {"field": "price", "reference_type": "header_name", "reference_value": "قیمت اسنپ"},
+                    {"field": "stock", "reference_type": "column_letter", "reference_value": "E"},
+                    {"field": "status", "reference_type": "column_letter", "reference_value": "F"},
                 ],
             },
             {
@@ -561,6 +572,8 @@ def test_external_source_is_read_once_and_resolves_three_independent_channel_col
                 "fields": [
                     {"field": "external_id", "reference_type": "column_letter", "reference_value": "P"},
                     {"field": "price", "reference_type": "column_letter", "reference_value": "J"},
+                    {"field": "stock", "reference_type": "column_letter", "reference_value": "K"},
+                    {"field": "status", "reference_type": "column_letter", "reference_value": "L"},
                 ],
             },
         ],
@@ -569,8 +582,8 @@ def test_external_source_is_read_once_and_resolves_three_independent_channel_col
     )
     read_count = 0
     rows = [
-        ["نام محصول", "Woo ID", "Woo Price", "Woo Stock", None, None, "قیمت اسنپ", None, None, "Tapsi Price", None, None, None, None, "SNP", "Seller SKU"],
-        ["کابل آیفون", "51550", "12500000", "8", None, None, "12900000", None, None, "12700000", None, None, None, None, "1826345203", "7785746738"],
+        ["نام محصول", "Woo ID", "Woo Price", "Woo Stock", "Snap Stock", "Snap Status", "قیمت اسنپ", None, None, "Tapsi Price", "Tapsi Stock", "Tapsi Status", None, None, "SNP", "Seller SKU"],
+        ["کابل آیفون", "51550", "12500000", "8", "12", "instock", "12900000", None, None, "12700000", "6", "instock", None, None, "1826345203", "7785746738"],
     ]
 
     async def fake_read_external_source(*_args: object, **_kwargs: object) -> SimpleNamespace:
@@ -586,8 +599,8 @@ def test_external_source_is_read_once_and_resolves_three_independent_channel_col
     assert read_count == 1
     assert {item["channelId"]: item["targets"] for item in analysis["candidates"]} == {
         "woocommerce:primary": {"price": "12500000"},
-        "snappshop:main": {"price": "12900000"},
-        "tapsishop:main": {"price": "12700000"},
+        "snappshop:main": {"price": "12900000", "stock": "12", "status": "instock"},
+        "tapsishop:main": {"price": "12700000", "stock": "6", "status": "instock"},
     }
 
 
@@ -717,7 +730,7 @@ def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_inv
                     {"field": "external_id", "reference_type": "column_letter", "reference_value": "G"},
                     {"field": "price", "reference_type": "column_letter", "reference_value": "E"},
                     {"field": "stock", "reference_type": "column_letter", "reference_value": "F"},
-                    {"field": "status", "reference_type": "disabled", "reference_value": None},
+                    {"field": "status", "reference_type": "column_letter", "reference_value": "K"},
                 ],
             },
             {
@@ -726,7 +739,7 @@ def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_inv
                     {"field": "external_id", "reference_type": "column_letter", "reference_value": "J"},
                     {"field": "price", "reference_type": "column_letter", "reference_value": "H"},
                     {"field": "stock", "reference_type": "column_letter", "reference_value": "I"},
-                    {"field": "status", "reference_type": "disabled", "reference_value": None},
+                    {"field": "status", "reference_type": "column_letter", "reference_value": "L"},
                 ],
             },
         ],
@@ -747,6 +760,8 @@ def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_inv
                 "Tapsi Price",
                 "Tapsi Stock",
                 "Tapsi ID",
+                "Snapp Status",
+                "Tapsi Status",
             ],
             [
                 "LOGITECH-MX-MASTER4-GRY",
@@ -759,6 +774,8 @@ def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_inv
                 "32950000",
                 "5",
                 "7785746738",
+                "instock",
+                "instock",
             ],
             [
                 "LOGITECH-M705-GRY",
@@ -771,6 +788,8 @@ def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_inv
                 "9900000",
                 "4",
                 "509240408",
+                "instock",
+                "instock",
             ],
         ]
     }
@@ -803,10 +822,12 @@ def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_inv
         ("external:Logitech:2", "snappshop:main"): {
             "price": "36550000",
             "stock": "7",
+            "status": "instock",
         },
         ("external:Logitech:2", "tapsishop:main"): {
             "price": "32950000",
             "stock": "5",
+            "status": "instock",
         },
         ("external:Logitech:3", "woocommerce:primary"): {
             "price": "8000000",
@@ -815,6 +836,7 @@ def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_inv
         ("external:Logitech:3", "tapsishop:main"): {
             "price": "9900000",
             "stock": "4",
+            "status": "instock",
         },
     }
     assert any(
@@ -1010,8 +1032,8 @@ def test_channel_added_after_source_creation_can_receive_its_own_mapping() -> No
                 "fields": [
                     {"field": "external_id", "reference_type": "column_id", "reference_value": "market-id"},
                     {"field": "price", "reference_type": "column_id", "reference_value": "market-price"},
-                    {"field": "stock", "reference_type": "disabled", "reference_value": None},
-                    {"field": "status", "reference_type": "disabled", "reference_value": None},
+                    {"field": "stock", "reference_type": "column_letter", "reference_value": "D"},
+                    {"field": "status", "reference_type": "column_letter", "reference_value": "E"},
                 ],
             }
         ],
@@ -1065,6 +1087,93 @@ def test_coming_soon_channel_cannot_be_enabled_for_source_processing() -> None:
         assert getattr(exc, "detail", {}).get("code") == "CHANNEL_UNAVAILABLE"
     else:
         raise AssertionError("Coming Soon Channel mapping unexpectedly participated")
+
+
+def test_enabling_a_non_woocommerce_channel_without_stock_and_status_is_rejected() -> None:
+    db = _session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+    sheet = service.create_sheet(
+        name="Stock and status required",
+        columns=[
+            {"column_key": "name", "name": "Name", "position": 1},
+            {"column_key": "id", "name": "ID", "position": 2},
+            {"column_key": "price", "name": "Price", "position": 3},
+        ],
+        user=user,
+    )
+    source = service.get_source(sheet["sourceId"], user)
+    try:
+        service.save_mapping(
+            source_id=source["id"],
+            expected_source_version=source["version"],
+            worksheet_mode="selected",
+            worksheet_name="Sheet1",
+            data_start_row=1,
+            source_fields=[
+                {"field": "name", "reference_type": "column_id", "reference_value": "name", "required": True}
+            ],
+            channel_mappings=[
+                {
+                    "channel_id": "snappshop:main",
+                    "enabled": True,
+                    "fields": [
+                        {"field": "external_id", "reference_type": "column_id", "reference_value": "id"},
+                        {"field": "price", "reference_type": "column_id", "reference_value": "price"},
+                        {"field": "stock", "reference_type": "disabled", "reference_value": None},
+                        {"field": "status", "reference_type": "disabled", "reference_value": None},
+                    ],
+                }
+            ],
+            value_policy={},
+            user=user,
+        )
+    except Exception as exc:
+        assert getattr(exc, "detail", {}).get("code") == "CHANNEL_STOCK_STATUS_REQUIRED"
+    else:
+        raise AssertionError("SnappShop enabled without Stock and Status mappings unexpectedly saved")
+
+
+def test_enabling_woocommerce_without_stock_and_status_is_allowed() -> None:
+    db = _session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+    sheet = service.create_sheet(
+        name="WooCommerce QTY is optional",
+        columns=[
+            {"column_key": "name", "name": "Name", "position": 1},
+            {"column_key": "id", "name": "ID", "position": 2},
+            {"column_key": "price", "name": "Price", "position": 3},
+        ],
+        user=user,
+    )
+    source = service.get_source(sheet["sourceId"], user)
+    mapping = service.save_mapping(
+        source_id=source["id"],
+        expected_source_version=source["version"],
+        worksheet_mode="selected",
+        worksheet_name="Sheet1",
+        data_start_row=1,
+        source_fields=[
+            {"field": "name", "reference_type": "column_id", "reference_value": "name", "required": True}
+        ],
+        channel_mappings=[
+            {
+                "channel_id": "woocommerce:primary",
+                "enabled": True,
+                "fields": [
+                    {"field": "external_id", "reference_type": "column_id", "reference_value": "id"},
+                    {"field": "price", "reference_type": "column_id", "reference_value": "price"},
+                    {"field": "stock", "reference_type": "disabled", "reference_value": None},
+                    {"field": "status", "reference_type": "disabled", "reference_value": None},
+                ],
+            }
+        ],
+        value_policy={},
+        user=user,
+    )
+    woocommerce = next(item for item in mapping["channels"] if item["channelId"] == "woocommerce:primary")
+    assert woocommerce["enabled"] is True
 
 
 def test_csv_import_preserves_original_bytes_and_metadata() -> None:

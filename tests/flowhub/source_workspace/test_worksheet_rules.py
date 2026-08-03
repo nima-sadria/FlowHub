@@ -196,8 +196,8 @@ def test_per_worksheet_rules_use_different_layouts_ignore_sheet_and_read_once(
                         "fields": [
                             {"field": "external_id", "reference_type": "column_letter", "reference_value": "D"},
                             {"field": "price", "reference_type": "column_letter", "reference_value": "A"},
-                            {"field": "stock", "reference_type": "disabled", "reference_value": None},
-                            {"field": "status", "reference_type": "disabled", "reference_value": None},
+                            {"field": "stock", "reference_type": "column_letter", "reference_value": "E"},
+                            {"field": "status", "reference_type": "column_letter", "reference_value": "F"},
                         ],
                     }
                 ],
@@ -223,7 +223,7 @@ def test_per_worksheet_rules_use_different_layouts_ignore_sheet_and_read_once(
     read_count = 0
     worksheets = {
         "فروش مستقیم": [["نام", "شناسه وو", "قیمت وو"], ["Cable WC", "51550", "12500000"]],
-        "بازار": [["گزارش"], ["قیمت", "نام", "unused", "SNP"], ["12900000", "Cable Snap", None, "1826345203"]],
+        "بازار": [["گزارش"], ["قیمت", "نام", "unused", "SNP", "Stock", "Status"], ["12900000", "Cable Snap", None, "1826345203", "4", "instock"]],
         "یادداشت‌ها": [["Cable ignored", "999", "999"]],
     }
 
@@ -240,7 +240,7 @@ def test_per_worksheet_rules_use_different_layouts_ignore_sheet_and_read_once(
     assert read_count == 1
     assert {item["channelId"]: item["targets"] for item in result["candidates"]} == {
         "woocommerce:primary": {"price": "12500000"},
-        "snappshop:main": {"price": "12900000"},
+        "snappshop:main": {"price": "12900000", "stock": "4", "status": "instock"},
     }
     assert all("یادداشت‌ها" not in item["sourceRowKey"] for item in result["candidates"])
 
@@ -501,6 +501,8 @@ def test_source_preview_marks_a_recognized_row_with_an_issue_as_attention(
                 "fields": [
                     {"field": "external_id", "reference_type": "column_letter", "reference_value": "B"},
                     {"field": "price", "reference_type": "column_letter", "reference_value": "C"},
+                    {"field": "stock", "reference_type": "column_letter", "reference_value": "D"},
+                    {"field": "status", "reference_type": "column_letter", "reference_value": "E"},
                 ],
             },
         ],
@@ -544,8 +546,8 @@ def test_unsaved_mapping_preview_resolves_rows_without_persisting_or_invalidatin
             snapshot=SimpleNamespace(id="unsaved-preview-snapshot", version_seq=1),
             worksheets={
                 "Pricing": [
-                    ["Name", "Woo ID", "Woo Price", "Snapp ID", "Snapp Price"],
-                    ["Cable", "wc-1", "100", "snap-1", "125"],
+                    ["Name", "Woo ID", "Woo Price", "Snapp ID", "Snapp Price", "Snapp Stock", "Snapp Status"],
+                    ["Cable", "wc-1", "100", "snap-1", "125", "9", "instock"],
                 ]
             },
         )
@@ -594,6 +596,16 @@ def test_unsaved_mapping_preview_resolves_rows_without_persisting_or_invalidatin
                             "reference_type": "column_letter",
                             "reference_value": "E",
                         },
+                        {
+                            "field": "stock",
+                            "reference_type": "column_letter",
+                            "reference_value": "F",
+                        },
+                        {
+                            "field": "status",
+                            "reference_type": "column_letter",
+                            "reference_value": "G",
+                        },
                     ],
                 },
             ],
@@ -606,7 +618,7 @@ def test_unsaved_mapping_preview_resolves_rows_without_persisting_or_invalidatin
     assert preview["items"][0]["channels"] == [
         {
             "channelId": "snappshop:main",
-            "fields": {"external_id": "snap-1", "price": "125"},
+            "fields": {"external_id": "snap-1", "price": "125", "stock": "9", "status": "instock"},
         },
         {
             "channelId": "woocommerce:primary",

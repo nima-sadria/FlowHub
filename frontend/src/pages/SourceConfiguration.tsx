@@ -205,12 +205,34 @@ function CompactMappingControl({
   )
 }
 
-function channelValidation(fields: FieldMapping[], enabled: boolean): string[] {
+const WOOCOMMERCE_CONNECTOR_TYPE = 'woocommerce'
+
+function isFieldFilled(field: FieldMapping | undefined): boolean {
+  return Boolean(field && field.referenceType !== 'disabled' && field.referenceValue?.trim())
+}
+
+function channelMappedStatus(fields: FieldMapping[], connectorType: string | undefined): { mapped: boolean; missingFields: string[] } {
+  const missingFields: string[] = []
+  if (!isFieldFilled(fields.find(item => item.field === 'external_id'))) missingFields.push(fieldDisplayName('external_id'))
+  if (connectorType !== WOOCOMMERCE_CONNECTOR_TYPE) {
+    if (!isFieldFilled(fields.find(item => item.field === 'stock'))) missingFields.push(fieldDisplayName('stock'))
+    if (!isFieldFilled(fields.find(item => item.field === 'status'))) missingFields.push(fieldDisplayName('status'))
+  }
+  return { mapped: missingFields.length === 0, missingFields }
+}
+
+function channelValidation(fields: FieldMapping[], enabled: boolean, connectorType: string | undefined): string[] {
   if (!enabled) return []
   const issues: string[] = []
-  const identifier = fields.find(item => item.field === 'external_id')
-  if (!identifier || identifier.referenceType === 'disabled' || !identifier.referenceValue?.trim()) {
+  if (!isFieldFilled(fields.find(item => item.field === 'external_id'))) {
     issues.push(translate('sources:sourceConfiguration.productIdentifierRequired'))
+  }
+  if (connectorType !== WOOCOMMERCE_CONNECTOR_TYPE) {
+    const stockFilled = isFieldFilled(fields.find(item => item.field === 'stock'))
+    const statusFilled = isFieldFilled(fields.find(item => item.field === 'status'))
+    if (!stockFilled || !statusFilled) {
+      issues.push(translate('sources:sourceConfiguration.stockStatusRequired'))
+    }
   }
   const references = new Map<string, string>()
   for (const field of fields) {
@@ -978,28 +1000,41 @@ export default function SourceConfiguration() {
             <table className="fh-table min-w-[1480px]">
               <thead><tr>
                 <th className="w-[240px]">{translate('workspace:unifiedWorkspace.channel')}</th>
-                <th className="w-[140px]">{translate('sources:sourceConfiguration.enabled')}</th>
+                <th className="w-[140px]">{translate('sources:sourceConfiguration.mapped')}</th>
                 <th className="w-[190px]">{translate('sources:sourceConfiguration.worksheetOverride')}</th>
                 {CHANNEL_FIELDS.map(([field, labelKey]) => <th className="w-[210px]" key={field}>{translate(labelKey)}</th>)}
                 <th className="w-[240px]">{translate('common:action.actions')}</th>
+                <th className="w-[150px] text-end">{translate('sources:sourceConfiguration.enableHeader')}</th>
               </tr></thead>
               <tbody>{channelResources.ordered.map(orderedChannel => {
                 const channel = orderedChannel.item
                 const enabled = Boolean(channelEnabled[channel.channelId])
                 const fields = channelFields[channel.channelId] ?? emptyChannelFields()
-                const issues = channelValidation(fields, enabled)
+                const issues = channelValidation(fields, enabled, channel.connectorType)
                 const configured = channel.configured !== false
-                const controlsDisabled = !channel.available || !configured || !enabled
+                const mappedStatus = channelMappedStatus(fields, channel.connectorType)
+                const controlsDisabled = !channel.available || !configured
+                const canToggle = channel.available && configured && (enabled || mappedStatus.mapped)
                 const copyResources = prepareResourceCollection(
                   configuredChannelResources.ordered.map(item => item.item).filter(item => item.channelId !== channel.channelId),
                   sourceChannelSignals,
                 )
                 return <tr data-channel-id={channel.channelId} key={channel.channelId}>
                   <td><div className="flex items-center gap-3"><BrandIcon identity={{ provider: channel.connectorType || channel.channelId, sourceType: channel.connectorType }} label={orderedChannel.displayName} size={36} /><div className="min-w-0"><strong className="block truncate text-text-base">{orderedChannel.displayName}</strong>{configured ? <ResourceStateBadge badge={orderedChannel.badge} /> : <span className="fh-text-caption">{translate('common:status.setupRequired')}</span>}</div></div></td>
-                  <td>{configured ? <label className="fh-inline-check"><input type="checkbox" checked={enabled} disabled={!channel.available} onChange={() => toggleChannel(channel.channelId)} />{enabled ? translate('sources:sourceConfiguration.enabled') : translate('sources:sourceConfiguration.disabled')}</label> : canManageCommerce ? <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => void openChannelSetup(channel.channelId)}>{translate('common:action.setupNow')}</button> : <span className="fh-text-caption">{translate('common:status.setupRequired')}</span>}</td>
+                  <td>{!configured
+                    ? <span className="fh-text-caption">{translate('common:status.setupRequired')}</span>
+                    : <Badge variant={mappedStatus.mapped ? 'success' : 'warning'}>{mappedStatus.mapped ? translate('sources:sourceConfiguration.mapped') : translate('sources:sourceConfiguration.mappingIncomplete')}</Badge>}</td>
                   <td><input className="fh-input min-w-[170px]" disabled={controlsDisabled} value={channelWorksheets[channel.channelId] ?? ''} onChange={event => setChannelWorksheets(current => ({ ...current, [channel.channelId]: event.target.value }))} placeholder={translate('sources:sourceConfiguration.useSourceWorksheet')} /></td>
                   {CHANNEL_FIELDS.map(([field]) => <td key={field}><CompactMappingControl mapping={fields.find(item => item.field === field)!} disabled={controlsDisabled} allowInternalColumnId={source.sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channel.channelId, field, value)} /></td>)}
                   <td><div className="grid min-w-[220px] gap-2"><select className="fh-input" aria-label={translate('sources:sourceConfiguration.copyMappingFrom')} disabled={controlsDisabled} value={copyFrom[channel.channelId] ?? ''} onChange={event => setCopyFrom(current => ({ ...current, [channel.channelId]: event.target.value }))}><option value="">{translate('sources:sourceConfiguration.copyMappingFrom')}</option><ResourceOptionGroups resources={copyResources} renderLabel={item => item.displayName} /></select><div className="flex gap-2"><button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled || !copyFrom[channel.channelId]} onClick={() => copyMapping(channel.channelId)}>{translate('sources:sourceConfiguration.copyMapping')}</button><button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled} aria-label={translate('sources:sourceConfiguration.clearMapping')} onClick={() => clearMapping(channel.channelId)}><Icon name="close" /></button></div>{issues.length > 0 && <span className="fh-field-error">{issues[0]}</span>}</div></td>
+                  <td className="text-end">{!configured
+                    ? (canManageCommerce
+                      ? <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => void openChannelSetup(channel.channelId)}>{translate('common:action.setupNow')}</button>
+                      : <span className="fh-text-caption">{translate('common:status.setupRequired')}</span>)
+                    : <label className="fh-inline-check justify-end" title={canToggle ? undefined : translate('sources:sourceConfiguration.completeMappingToEnable', { fields: mappedStatus.missingFields.join(', ') })}>
+                        <input type="checkbox" checked={enabled} disabled={!canToggle} onChange={() => toggleChannel(channel.channelId)} />
+                        {enabled ? translate('sources:sourceConfiguration.enabled') : translate('sources:sourceConfiguration.disabled')}
+                      </label>}</td>
                 </tr>
               })}</tbody>
             </table>

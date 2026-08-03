@@ -233,6 +233,21 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).toContain('FlowHub Sheet column')
   })
 
+  it('allows an already-enabled incomplete Channel to be disabled but not re-enabled until mapping is complete', async () => {
+    await renderPage()
+
+    const snapp = container.querySelector('tr[data-channel-id="snappshop:main"]')
+    const checkbox = snapp?.querySelector('input[type="checkbox"]') as HTMLInputElement
+    expect(checkbox.checked).toBe(true)
+    expect(checkbox.disabled).toBe(false)
+
+    await act(async () => checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+
+    expect(checkbox.checked).toBe(false)
+    expect(checkbox.disabled).toBe(true)
+    expect(snapp?.textContent).toContain('Incomplete')
+  })
+
   it('renders Source configuration read-only without edit permission', async () => {
     await renderPage(viewerAuth)
     expect(container.textContent).toContain('You can inspect this Source')

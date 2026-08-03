@@ -62,11 +62,22 @@ function ColumnSelector({ mapping, disabled, allowInternalColumnId, invalid = fa
   </div>
 }
 
-export function channelValidationIssues(fields: FieldMapping[], enabled: boolean): string[] {
+const WOOCOMMERCE_CONNECTOR_TYPE = 'woocommerce'
+
+function isFieldFilled(field: FieldMapping | undefined): boolean {
+  return Boolean(field && field.referenceType !== 'disabled' && field.referenceValue?.trim())
+}
+
+export function channelValidationIssues(fields: FieldMapping[], enabled: boolean, connectorType?: string): string[] {
   if (!enabled) return []
   const issues: string[] = []
   const identifier = fields.find(item => item.field === 'external_id')
   if (!identifier || identifier.referenceType === 'disabled' || !identifier.referenceValue?.trim()) issues.push(translate('sources:sourceConfiguration.productIdentifierRequired'))
+  if (connectorType !== WOOCOMMERCE_CONNECTOR_TYPE) {
+    const stockFilled = isFieldFilled(fields.find(item => item.field === 'stock'))
+    const statusFilled = isFieldFilled(fields.find(item => item.field === 'status'))
+    if (!stockFilled || !statusFilled) issues.push(translate('sources:sourceConfiguration.stockStatusRequired'))
+  }
   const refs = new Map<string, string>()
   for (const field of fields) {
     if (field.referenceType === 'disabled' || !field.referenceValue?.trim()) continue
@@ -106,7 +117,7 @@ export default function WorksheetRuleEditor({ rule, rowCount, channels, sourceKi
   const missingSourceFields = rule.enabled ? rule.sourceFields.filter(sourceFieldMissing) : []
   const configured = (channelId: string) => rule.channels.find(item => item.channelId === channelId) ?? { channelId, worksheetName: rule.worksheetName, enabled: false, fields: emptyChannelFields() }
   const enabledChannels = rule.channels.filter(channel => channel.enabled)
-  const channelIssueCount = enabledChannels.reduce((total, channel) => total + channelValidationIssues(channel.fields, true).length, 0)
+  const channelIssueCount = enabledChannels.reduce((total, channel) => total + channelValidationIssues(channel.fields, true, channels.find(item => item.channelId === channel.channelId)?.connectorType).length, 0)
   const statusKey = !rule.enabled
     ? 'sources:sourceConfiguration.worksheetStatus.ignored'
     : missingSourceFields.length > 0 || channelIssueCount > 0
@@ -157,7 +168,7 @@ export default function WorksheetRuleEditor({ rule, rowCount, channels, sourceKi
             const channelInfo = orderedChannel.item
             const channel = configured(channelInfo.channelId)
             const disabled = !rule.enabled || !channelInfo.available
-            const issues = channelValidationIssues(channel.fields, true)
+            const issues = channelValidationIssues(channel.fields, true, channelInfo.connectorType)
             const copyResources = prepareResourceCollection(channels.filter(candidate => candidate.channelId !== channelInfo.channelId && rule.channels.some(item => item.channelId === candidate.channelId)), sourceChannelSignals)
             const channelOpen = expandedChannels.includes(channelInfo.channelId)
             return <details className="rounded-lg border border-border bg-bg-subtle" data-channel-rule={channelInfo.channelId} open={channelOpen} onToggle={event => {

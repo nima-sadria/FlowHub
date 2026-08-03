@@ -2264,6 +2264,19 @@ class SourceWorkspaceService:
                 raise _unprocessable(
                     "CHANNEL_EXTERNAL_ID_REQUIRED", "Every enabled Channel requires an External Listing ID mapping."
                 )
+            if enabled and channel.connector_type != "woocommerce":
+                stock = next((item for item in fields if item["field"] == "stock"), None)
+                status = next((item for item in fields if item["field"] == "status"), None)
+                if (
+                    stock is None
+                    or stock["referenceType"] == "disabled"
+                    or status is None
+                    or status["referenceType"] == "disabled"
+                ):
+                    raise _unprocessable(
+                        "CHANNEL_STOCK_STATUS_REQUIRED",
+                        "Every enabled Channel other than WooCommerce also requires Stock and Status mappings.",
+                    )
             result.append(
                 {
                     "channelId": channel_id,
