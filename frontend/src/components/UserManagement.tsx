@@ -142,7 +142,7 @@ export default function UserManagement() {
         {error && <div className="fh-alert fh-alert-danger mb-4" role="alert"><Icon name="error" />{error}</div>}
 
         {showCreate && (
-          <form className="mb-5 grid gap-3 rounded-lg border border-border bg-bg-subtle p-4 md:grid-cols-3" onSubmit={event => void createUser(event)}>
+          <form className="mb-5 grid gap-3 rounded-2xl border border-border bg-bg-subtle p-4 md:grid-cols-3" onSubmit={event => void createUser(event)}>
             <label className="fh-field">
               <span className="fh-help-text">{translate('settings:users.username')}</span>
               <input className="fh-input" minLength={3} maxLength={150} required value={username} onChange={event => setUsername(event.target.value)} autoComplete="off" />

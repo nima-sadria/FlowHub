@@ -197,13 +197,16 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(woocommerce?.querySelector('input[type="checkbox"]')).toHaveProperty('disabled', true)
   })
 
-  it('keeps the mobile action area compact without page-level horizontal overflow', async () => {
+  it('keeps every mobile action visible without horizontal scrolling', async () => {
     await renderPage()
 
     const actionBar = container.querySelector('[data-testid="source-configuration-actions"]') as HTMLElement
-    const actionRow = actionBar.querySelector('.overflow-x-auto') as HTMLElement
+    const actionRow = actionBar.querySelector('.grid.grid-cols-2') as HTMLElement
+    const primary = actionRow.querySelector('.fh-button-primary') as HTMLButtonElement
     expect(actionBar.className).toContain('p-2')
     expect(actionRow.className).toContain('w-full')
+    expect(actionRow.className).not.toContain('overflow-x-auto')
+    expect(primary.className).toContain('col-span-2')
     expect(Array.from(actionRow.querySelectorAll('button')).every(item => item.className.includes('fh-button-sm'))).toBe(true)
   })
 

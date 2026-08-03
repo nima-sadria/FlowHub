@@ -31,7 +31,7 @@ import { formatMoney } from '../utils/price'
 // Figma: Screen/Dashboard (159:12911) — KPI row, action summary, revenue and
 // orders charts, recent activity, and a unified channel/source health card.
 
-const CARD = 'rounded-lg border border-border bg-bg-card'
+const CARD = 'fh-card'
 const EXCLUDED_ORDER_STATUSES = new Set(['cancelled', 'canceled', 'refunded', 'failed'])
 const TIER_RANK: Record<ResourceTier, number> = { configured: 0, attention: 1, disabled: 2, comingSoon: 3 }
 
@@ -448,7 +448,7 @@ export default function Dashboard() {
 
   return (
     <PageShell className="fh-dashboard-inter">
-      <div className="fh-page-header h-12">
+      <div className="fh-page-header">
         <div className="flex flex-col gap-[2px]">
           <h1 className="fh-page-title">{translate('dashboard:dashboard.dashboard')}</h1>
           <p className="fh-page-subtitle">
@@ -465,42 +465,42 @@ export default function Dashboard() {
       </div>
 
       {kpiLoading ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
+        <div className="fh-grid-12">
+          <div className="sm:col-span-6 xl:col-span-3"><SkeletonCard /></div>
+          <div className="sm:col-span-6 xl:col-span-3"><SkeletonCard /></div>
+          <div className="sm:col-span-6 xl:col-span-3"><SkeletonCard /></div>
+          <div className="sm:col-span-6 xl:col-span-3"><SkeletonCard /></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard
+        <div className="fh-grid-12">
+          <div className="sm:col-span-6 xl:col-span-3"><KpiCard
             label={translate('dashboard:dashboard.productsReady')}
             value={productsReadyValue}
             trend={productsReadyTrend}
             trendTone={productsReadyTone}
             icon="products"
-          />
-          <KpiCard
+          /></div>
+          <div className="sm:col-span-6 xl:col-span-3"><KpiCard
             label={translate('dashboard:dashboard.reviewRequired')}
             value={reviewRequiredValue}
             trend={reviewRequiredTrend}
             trendTone={reviewRequiredTone}
             icon="products"
-          />
-          <KpiCard
+          /></div>
+          <div className="sm:col-span-6 xl:col-span-3"><KpiCard
             label={translate('dashboard:dashboard.applyReady')}
             value={applyReadyValue}
             trend={applyReadyTrend}
             trendTone="neutral"
             icon="products"
-          />
-          <KpiCard
+          /></div>
+          <div className="sm:col-span-6 xl:col-span-3"><KpiCard
             label={translate('dashboard:dashboard.ordersTodayLabel')}
             value={formatNumber(ordersTodayCount)}
             trend={ordersTodayTrend}
             trendTone={ordersTodayTone}
             icon="products"
-          />
+          /></div>
         </div>
       )}
 
@@ -551,7 +551,7 @@ export default function Dashboard() {
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="fh-grid-12 fh-grid-main">
         <ChartCard title={translate('dashboard:dashboard.revenueTrend')}>
           {orderWindow === null ? (
             <SkeletonCard />
@@ -578,7 +578,7 @@ export default function Dashboard() {
         </ChartCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="fh-grid-12 fh-grid-main">
         <div className={[CARD, 'flex h-[176px] flex-col gap-2 overflow-hidden p-3.5'].join(' ')}>
           <div className="flex items-center">
             <p className="text-sm font-semibold leading-[22px] text-text-base">
@@ -599,7 +599,7 @@ export default function Dashboard() {
           ) : (
             recentEvents.slice(0, 2).map(event => (
               <div key={event.id} className="flex items-center gap-3 rounded-md px-3 py-2.5">
-                <span className="inline-flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-[7px] bg-bg-subtle text-[color:var(--fh-text-secondary)]">
+                <span className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-bg-subtle text-[color:var(--fh-text-secondary)]">
                   <Icon name={/order/i.test(event.action) || /order/i.test(event.kind) ? 'orders' : 'products'} size="md" />
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -643,7 +643,7 @@ export default function Dashboard() {
               >
                 <span
                   className={[
-                    'inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md',
+                    'inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl',
                     row.tone === 'success'
                       ? 'bg-[color:var(--fh-success-surface)] text-wp-green'
                       : 'bg-[color:var(--fh-warning-surface)] text-wp-yellow',

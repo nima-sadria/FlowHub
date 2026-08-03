@@ -2,8 +2,27 @@ import { translate } from '../i18n'
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useParams } from 'react-router'
 import { HotTable, type HotTableRef } from '@handsontable/react-wrapper'
-import Handsontable from 'handsontable'
-import { registerAllModules } from 'handsontable/registry'
+import Handsontable from 'handsontable/base'
+import { CheckboxCellType } from 'handsontable/cellTypes/checkboxType'
+import { NumericCellType } from 'handsontable/cellTypes/numericType'
+import { registerCellType } from 'handsontable/cellTypes/registry'
+import { AutoColumnSize } from 'handsontable/plugins/autoColumnSize'
+import { AutoRowSize } from 'handsontable/plugins/autoRowSize'
+import { Autofill } from 'handsontable/plugins/autofill'
+import { CopyPaste } from 'handsontable/plugins/copyPaste'
+import { DragToScroll } from 'handsontable/plugins/dragToScroll'
+import { DropdownMenu } from 'handsontable/plugins/dropdownMenu'
+import { Filters } from 'handsontable/plugins/filters'
+import { ManualColumnMove } from 'handsontable/plugins/manualColumnMove'
+import { ManualColumnResize } from 'handsontable/plugins/manualColumnResize'
+import { MultiColumnSorting } from 'handsontable/plugins/multiColumnSorting'
+import { MultipleSelectionHandles } from 'handsontable/plugins/multipleSelectionHandles'
+import { NestedHeaders } from 'handsontable/plugins/nestedHeaders'
+import { registerPlugin } from 'handsontable/plugins/registry'
+import { StretchColumns } from 'handsontable/plugins/stretchColumns'
+import { TouchScroll } from 'handsontable/plugins/touchScroll'
+import { UndoRedo } from 'handsontable/plugins/undoRedo'
+import { textRenderer } from 'handsontable/renderers/textRenderer'
 import 'handsontable/styles/handsontable.min.css'
 import 'handsontable/styles/ht-theme-main.min.css'
 import PageShell from '../components/PageShell'
@@ -28,7 +47,25 @@ import { useAuth } from '../auth'
 import { effectiveHasPerm } from '../utils/permissions'
 import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 
-registerAllModules()
+registerCellType(CheckboxCellType)
+registerCellType(NumericCellType)
+for (const plugin of [
+  AutoColumnSize,
+  AutoRowSize,
+  Autofill,
+  CopyPaste,
+  DragToScroll,
+  DropdownMenu,
+  Filters,
+  ManualColumnMove,
+  ManualColumnResize,
+  MultiColumnSorting,
+  MultipleSelectionHandles,
+  NestedHeaders,
+  StretchColumns,
+  TouchScroll,
+  UndoRedo,
+]) registerPlugin(plugin)
 
 export default function UnifiedWorkspace() {
   const { workspaceId = '' } = useParams()
@@ -301,7 +338,7 @@ function UnifiedWorkspaceContent({ workspaceId }: { workspaceId: string }) {
                 const display = describeWorkspaceStatus(status)
                 settings.title = `Cell status: ${display.label}`
                 const renderer: Handsontable.renderers.BaseRenderer = (instance, td, visualRow, visualColumn, cellProp, value, properties) => {
-                  Handsontable.renderers.TextRenderer(instance, td, visualRow, visualColumn, cellProp, value, properties)
+                  textRenderer(instance, td, visualRow, visualColumn, cellProp, value, properties)
                   td.dataset.cellStatus = display.label
                   td.dataset.cellIcon = display.icon
                   td.dataset.cellCritical = String(display.critical)

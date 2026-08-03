@@ -31,15 +31,37 @@ afterEach(() => {
   container.remove()
 })
 
-function renderAt(path: string, { collapsed = false, onExpand = () => undefined } = {}) {
+function renderAt(path: string, { collapsed = false, open = true, onExpand = () => undefined } = {}) {
   act(() => root.render(
     <MemoryRouter initialEntries={[path]}>
-      <Sidebar open collapsed={collapsed} onClose={() => undefined} onExpand={onExpand} user={user} health="ok" />
+      <Sidebar open={open} collapsed={collapsed} onClose={() => undefined} onExpand={onExpand} user={user} health="ok" />
     </MemoryRouter>,
   ))
 }
 
 describe('Sidebar Settings active state', () => {
+  it('keeps the FlowHub lockup left-to-right and places the mobile close action after it', () => {
+    renderAt('/home', { open: false })
+
+    const brand = container.querySelector<HTMLElement>('[aria-label="FlowHub"]')
+    const close = container.querySelector<HTMLButtonElement>('[aria-label="Close navigation"]')
+    expect(brand?.dir).toBe('ltr')
+    expect(brand?.nextElementSibling).toBe(close)
+    expect(close?.className).toContain('ms-auto')
+  })
+
+  it('keeps the sidebar off-canvas below xl and uses the canonical 290/90 widths', () => {
+    renderAt('/home', { open: false })
+
+    const expanded = container.querySelector('aside')
+    expect(expanded?.className).toContain('xl:sticky')
+    expect(expanded?.className).toContain('xl:w-[290px]')
+    expect(expanded?.className).toContain('xl:!translate-x-0')
+
+    renderAt('/home', { collapsed: true, open: false })
+    expect(container.querySelector('aside')?.className).toContain('xl:w-[90px]')
+  })
+
   it('does not keep General active on the Users route', () => {
     renderAt('/settings/users')
     const active = Array.from(container.querySelectorAll('.fh-menu-item-active'))

@@ -169,8 +169,8 @@ function ExchangeRateStrip({ service, language }: { service: ExchangeRateService
   })
   return (
     <>
-      <div className="fh-topbar-rates hidden lg:flex" aria-label={label}>{rateItems}</div>
-      <details className="fh-topbar-rates-compact lg:hidden">
+      <div className="fh-topbar-rates hidden xl:flex" aria-label={label}>{rateItems}</div>
+      <details className="fh-topbar-rates-compact xl:hidden">
         <summary aria-label={label}>
           <Icon name="rateLimits" size="md" />
           <span className="fh-topbar-rates-compact-label">{label}</span>
@@ -194,6 +194,7 @@ export default function Topbar({
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [langOpen, setLangOpen] = useState(false)
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const { theme, toggleTheme } = useTheme()
   const { language, setLanguage, setDirection } = useDirection()
@@ -226,10 +227,10 @@ export default function Topbar({
 
   return (
     <header className="fh-topbar">
-      <div className="fh-topbar-inner">
+      <div className="fh-topbar-primary">
         <IconButton
           onClick={onMenuClick}
-          className="md:hidden"
+          className="xl:hidden"
           label={translate('navigation:topbar.openNavigation')}
         >
           <MenuIcon />
@@ -237,22 +238,39 @@ export default function Topbar({
 
         <button
           type="button"
+          className="fh-topbar-mobile-brand xl:hidden"
+          onClick={() => navigate('/home')}
+          aria-label={translate('navigation:sidebar.flowhub')}
+          dir="ltr"
+        >
+          <img
+            src="/static/logos/FlowHub%20Transparent%20WebP%20%20Logo.webp?v=1"
+            alt=""
+            aria-hidden="true"
+          />
+          <span>{translate('navigation:sidebar.flowhub')}</span>
+        </button>
+
+        <button
+          type="button"
           onClick={onToggleCollapse}
           aria-label={translate(sidebarCollapsed
             ? 'navigation:sidebar.expandSidebar'
             : 'navigation:sidebar.collapseSidebar')}
-          className="fh-topbar-action hidden md:inline-flex"
+          className="fh-topbar-action hidden xl:inline-flex"
         >
           <Icon name="panelToggle" size="lg" mirrorRtl />
         </button>
 
         <form
           onSubmit={handleSearchSubmit}
-          className="fh-topbar-search hidden sm:block"
+          className="fh-topbar-search hidden xl:block"
           role="search"
         >
           <Icon name="search" className="fh-topbar-search-icon" />
           <input
+            id="global-search"
+            name="global-search"
             type="search"
             aria-label={translate('activity:activity.search')}
             {...inputHint(translate('navigation:topbar.globalSearchHint'))}
@@ -261,9 +279,25 @@ export default function Topbar({
           />
         </form>
 
-        {exchangeRates && <ExchangeRateStrip service={exchangeRates} language={language} />}
+        <IconButton
+          onClick={() => setMobileActionsOpen(open => !open)}
+          className="fh-topbar-more xl:hidden"
+          label={translate('common:action.actions')}
+          aria-controls="topbar-mobile-actions"
+          aria-expanded={mobileActionsOpen}
+        >
+          <Icon name="more" size="lg" />
+        </IconButton>
 
-        <div className="ms-auto flex items-center gap-1.5 sm:gap-2">
+        <div
+          id="topbar-mobile-actions"
+          className={[
+            'fh-topbar-actions',
+            mobileActionsOpen ? 'fh-topbar-actions-open' : '',
+          ].filter(Boolean).join(' ')}
+        >
+          {exchangeRates && <ExchangeRateStrip service={exchangeRates} language={language} />}
+
           <button
             type="button"
             onClick={toggleTheme}
@@ -299,11 +333,11 @@ export default function Topbar({
               onClick={() => setLangOpen(open => !open)}
               aria-label={translate('settings:language.title')}
               aria-expanded={langOpen}
-              className="fh-topbar-pill rtl:flex-row-reverse"
+              className="fh-topbar-pill fh-topbar-language rtl:flex-row-reverse"
             >
               <Icon name="globe" size="lg" />
-              <span>{translate('navigation:topbar.languageBadge')}</span>
-              <Icon name="chevronDown" size="md" />
+              <span className="fh-topbar-language-label">{translate('navigation:topbar.languageBadge')}</span>
+              <Icon name="chevronDown" size="md" className="fh-topbar-language-chevron" />
             </button>
 
             {langOpen && (
@@ -340,7 +374,7 @@ export default function Topbar({
                 onClick={() => setMenuOpen(open => !open)}
                 aria-label={translate('navigation:topbar.userMenu')}
                 aria-expanded={menuOpen}
-                className="flex items-center gap-2.5 rounded-lg py-1 ps-2 pe-1 hover:bg-bg-subtle rtl:flex-row-reverse"
+                className="fh-topbar-user flex items-center gap-2.5 rounded-lg py-1 ps-2 pe-1 hover:bg-bg-subtle rtl:flex-row-reverse"
               >
                 <span className="fh-user-avatar">
                   {user.username.slice(0, 2).toUpperCase()}

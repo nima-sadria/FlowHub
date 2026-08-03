@@ -114,7 +114,7 @@ describe('Channels page', () => {
 
   async function render(auth = admin, initialEntry = '/channels') {
     await act(async () => {
-      root.render(<AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter initialEntries={[initialEntry]}><ServiceProvider services={services}><Channels /></ServiceProvider></MemoryRouter></NotificationProvider></AuthContext.Provider>)
+      root.render(<main><AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter initialEntries={[initialEntry]}><ServiceProvider services={services}><Channels /></ServiceProvider></MemoryRouter></NotificationProvider></AuthContext.Provider></main>)
       await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
     })
   }
@@ -213,9 +213,11 @@ describe('Channels page', () => {
     await act(async () => { setup.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
     expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Configure Digikala — Pos')
     expect(getChannelConfiguration).toHaveBeenCalledWith('digikala:pos')
+    expect(container.querySelector('main')?.className).toContain('fh-modal-scroll-lock')
 
     const close = Array.from(container.querySelectorAll('[role="dialog"] button')).find(item => item.textContent?.trim() === 'Close') as HTMLButtonElement
     await act(async () => close.click())
+    expect(container.querySelector('main')?.className).not.toContain('fh-modal-scroll-lock')
     const connectedCard = container.querySelector('[data-channel-card="woocommerce:primary"]') as HTMLElement
     const settings = Array.from(connectedCard.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Settings') as HTMLButtonElement
     await act(async () => { settings.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })

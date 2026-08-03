@@ -157,7 +157,7 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
   const itemCls = (active: boolean) =>
     [
       'fh-menu-item group',
-      collapsed ? 'md:justify-center md:px-0' : '',
+      collapsed ? 'xl:justify-center xl:px-0' : '',
       active ? 'fh-menu-item-active' : '',
     ].join(' ')
 
@@ -167,7 +167,7 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
     <>
       {open && (
         <div
-          className="fixed inset-0 bg-black/45 backdrop-blur-[1px] z-20 md:hidden"
+          className="fixed inset-0 z-[9998] bg-black/45 backdrop-blur-[1px] xl:hidden"
           onClick={onClose}
         />
       )}
@@ -176,41 +176,47 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
         className={[
           'flex h-screen h-[100dvh] min-h-0 flex-shrink-0 flex-col border-e border-border',
           'bg-[color:var(--fh-nav-bg)]',
-          'fixed md:sticky top-0 inset-y-0 start-0 z-30',
+          'fixed top-0 inset-y-0 start-0 z-[9999] xl:sticky',
           'transition-all duration-300 ease-in-out',
-          open ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full md:!translate-x-0',
-          collapsed ? 'w-[290px] max-w-[86vw] md:w-[88px]' : 'w-[290px] max-w-[86vw] md:w-[290px]',
+          open ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full xl:!translate-x-0',
+          collapsed ? 'w-[290px] max-w-[86vw] xl:w-[90px]' : 'w-[290px] max-w-[86vw] xl:w-[290px]',
         ].join(' ')}
       >
         <div
           className={[
             'flex h-[72px] flex-shrink-0 items-center gap-[6px]',
-            collapsed ? 'px-[23px] md:justify-center md:px-3' : 'px-[23px]',
+            collapsed ? 'px-[23px] xl:justify-center xl:px-3' : 'px-[23px]',
           ].join(' ')}
         >
+          <div
+            className="flex min-w-0 items-center gap-[6px]"
+            dir="ltr"
+            aria-label={translate('navigation:sidebar.flowhub')}
+          >
+            <img
+              src="/static/logos/FlowHub%20Transparent%20WebP%20%20Logo.webp?v=1"
+              alt=""
+              aria-hidden="true"
+              className="h-[34px] w-[34px] flex-shrink-0 select-none object-contain"
+            />
+
+            <span
+              className={[
+                collapsed ? 'xl:hidden' : '',
+                'truncate text-[22px] font-semibold leading-8 text-[color:var(--fh-nav-text)]',
+              ].join(' ')}
+            >
+              {translate('navigation:sidebar.flowhub')}
+            </span>
+          </div>
+
           <IconButton
             onClick={onClose}
-            className="md:hidden border-transparent shadow-none bg-transparent"
+            className="ms-auto border-transparent bg-transparent shadow-none xl:hidden"
             label={translate('navigation:sidebar.closeNavigation')}
           >
             <Icon name="close" size="lg" />
           </IconButton>
-
-          <img
-            src="/static/logos/FlowHub%20Transparent%20WebP%20%20Logo.webp?v=1"
-            alt=""
-            aria-hidden="true"
-            className="h-[34px] w-[34px] flex-shrink-0 select-none object-contain"
-          />
-
-          <span
-            className={[
-              collapsed ? 'md:hidden' : '',
-              'truncate text-[22px] font-semibold leading-8 text-[color:var(--fh-nav-text)]',
-            ].join(' ')}
-          >
-            {translate('navigation:sidebar.flowhub')}
-          </span>
         </div>
 
         <nav className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-[23px] pb-4">
@@ -227,7 +233,7 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
                   className="flex flex-col gap-[6px]"
                 >
                   {group.sectionKey && (
-                    <p className={['fh-menu-section', collapsed ? 'md:hidden' : ''].join(' ')}>
+                    <p className={['fh-menu-section', collapsed ? 'xl:hidden' : ''].join(' ')}>
                       {translate(group.sectionKey)}
                     </p>
                   )}
@@ -252,13 +258,13 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
                             }}
                           >
                             <Icon name={item.icon} className="fh-menu-item-icon" />
-                            <span className={collapsed ? 'md:hidden' : ''}>{translate(item.labelKey)}</span>
+                            <span className={collapsed ? 'xl:hidden' : ''}>{translate(item.labelKey)}</span>
                             <Icon
                               name="chevronDown"
                               size="md"
                               className={[
                                 'ms-auto transition-transform duration-150',
-                                collapsed ? 'md:hidden' : '',
+                                collapsed ? 'xl:hidden' : '',
                                 expanded ? 'rotate-180' : '',
                               ].join(' ')}
                             />
@@ -278,7 +284,7 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
                                   ].join(' ')}
                                 >
                                   <Icon name={child.icon} className="fh-menu-item-icon" />
-                                  <span className={collapsed ? 'md:hidden' : ''}>{translate(child.labelKey)}</span>
+                                  <span className={collapsed ? 'xl:hidden' : ''}>{translate(child.labelKey)}</span>
                                 </NavLink>
                               ))}
                             </div>
@@ -297,7 +303,7 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
                         }
                       >
                         <Icon name={item.icon} className="fh-menu-item-icon" />
-                        <span className={collapsed ? 'md:hidden' : ''}>{translate(item.labelKey)}</span>
+                        <span className={collapsed ? 'xl:hidden' : ''}>{translate(item.labelKey)}</span>
                       </NavLink>
                     )
                   })}
@@ -311,13 +317,13 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
           <div
             className={[
               'flex items-center gap-2 px-3',
-              collapsed ? 'md:justify-center md:px-0' : '',
+              collapsed ? 'xl:justify-center xl:px-0' : '',
             ].join(' ')}
           >
             <span className={['fh-status-dot h-2 w-2', footer.dotClass].join(' ')} />
             <span
               className={[
-                collapsed ? 'md:hidden' : '',
+                collapsed ? 'xl:hidden' : '',
                 'text-xs leading-4 text-[color:var(--fh-nav-text-muted)]',
               ].join(' ')}
             >

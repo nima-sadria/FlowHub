@@ -857,7 +857,7 @@ export default function SourceConfiguration() {
         )}
       </div>
 
-      <nav className="mb-5 flex gap-2 overflow-x-auto pb-1" aria-label={translate('sources:sourceConfiguration.sourceName')}>
+      <nav className="no-scrollbar mb-5 flex snap-x gap-2 overflow-x-auto pb-1" aria-label={translate('sources:sourceConfiguration.sourceName')}>
         {[
           ['overview', 'sources:sourceConfiguration.detail.overview'],
           ['connection', 'sources:sourceConfiguration.detail.connection'],
@@ -867,7 +867,7 @@ export default function SourceConfiguration() {
           ['snapshots', 'sources:sourceConfiguration.detail.snapshots'],
           ['activity', 'sources:sourceConfiguration.detail.activity'],
           ['diagnostics', 'sources:sourceConfiguration.detail.diagnostics'],
-        ].map(([id, label]) => <a className="fh-button-secondary fh-button-sm whitespace-nowrap" href={`#${id}`} key={id}>{translate(label)}</a>)}
+        ].map(([id, label]) => <a className="fh-button-secondary fh-button-sm snap-start whitespace-nowrap" href={`#${id}`} key={id}>{translate(label)}</a>)}
       </nav>
 
       {!canEditSource && <div className="fh-alert fh-alert-info mb-5" role="status"><Icon name="info" /><span>{translate('sources:sourceConfiguration.readOnlyPermission')}</span></div>}
@@ -1170,10 +1170,10 @@ export default function SourceConfiguration() {
       <div className="sticky bottom-2 z-30 mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-bg-base/95 p-2 shadow-lg backdrop-blur sm:bottom-3 sm:gap-3 sm:p-3" data-testid="source-configuration-actions">
         <Badge variant={dirty ? 'warning' : 'success'}>{dirty ? translate('sources:sourceConfiguration.unsavedChanges') : translate('sources:sourceConfiguration.allChangesSaved')}</Badge>
         <span className="fh-text-caption hidden sm:inline">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
-        <div className="order-last flex w-full flex-nowrap gap-2 overflow-x-auto pb-1 sm:order-none sm:ms-auto sm:w-auto sm:flex-wrap sm:overflow-visible sm:pb-0">
-          {canEditSource && <button className="fh-button-secondary fh-button-sm shrink-0" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>}
-          {canEditSource && <button className="fh-button-primary fh-button-sm shrink-0" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
-          <button className="fh-button-secondary fh-button-sm shrink-0" type="button" onClick={closeConfiguration}><Icon name="close" /> {translate('sources:sourceConfiguration.close')}</button>
+        <div className="order-last grid w-full grid-cols-2 gap-2 sm:order-none sm:ms-auto sm:flex sm:w-auto sm:flex-wrap">
+          {canEditSource && <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>}
+          {canEditSource && <button className="fh-button-primary fh-button-sm order-first col-span-2 w-full sm:order-none sm:w-auto" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
+          <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" onClick={closeConfiguration}><Icon name="close" /> {translate('sources:sourceConfiguration.close')}</button>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import { translate } from '../i18n'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Badge from '../components/Badge'
+import Alert from '../components/Alert'
 import { useServices } from '../services/ServiceContext'
 import type { WorkspacePreview, PriceChange, WorkspacePreviewRow, WritePipelineBatch, WritePipelineItem } from '../services/types'
 import { useNotification } from '../notifications/NotificationProvider'
@@ -483,17 +484,11 @@ export default function Workspace() {
             </div>
           </div>
 
-          <div className="fh-alert fh-alert-warning">
-            <Icon name="alert" className="mt-0.5 h-5 w-5 text-wp-yellow" />
-            <div>
-              <p className="fh-text-body font-medium text-wp-yellow">
-                {preview.summary.valid_changes + preview.summary.warning_rows} {translate('workspace:workspace.eligibleRow')}{preview.summary.valid_changes + preview.summary.warning_rows !== 1 ? 's' : ''}; {preview.summary.error_rows} {translate('workspace:workspace.blockingError')}{preview.summary.error_rows !== 1 ? 's' : ''}
-              </p>
-              <p className="fh-text-caption mt-0.5">
-                {translate('workspace:workspace.previewFirstThenRunSafetyChecksBefore')}
-              </p>
-            </div>
-          </div>
+          <Alert
+            variant="warning"
+            title={`${preview.summary.valid_changes + preview.summary.warning_rows} ${translate('workspace:workspace.eligibleRow')}${preview.summary.valid_changes + preview.summary.warning_rows !== 1 ? 's' : ''}; ${preview.summary.error_rows} ${translate('workspace:workspace.blockingError')}${preview.summary.error_rows !== 1 ? 's' : ''}`}
+            message={translate('workspace:workspace.previewFirstThenRunSafetyChecksBefore')}
+          />
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -716,13 +711,11 @@ export default function Workspace() {
       {/* Error */}
       {phase === "error" && (
         <div className="fh-card fh-card-pad flex flex-col gap-4">
-          <div className="fh-alert fh-alert-danger">
-            <Icon name="disconnect" className="mt-0.5 h-5 w-5 text-wp-red" />
-            <div>
-              <p className="fh-text-body font-semibold text-wp-red">{errorTitle ?? "An error occurred"}</p>
-              <p className="fh-text-body text-wp-red">{errorMsg ?? "Please try again."}</p>
-            </div>
-          </div>
+          <Alert
+            variant="error"
+            title={errorTitle ?? "An error occurred"}
+            message={errorMsg ?? "Please try again."}
+          />
           <button
             onClick={() => setPhase("idle")}
             className="fh-button-secondary self-start"

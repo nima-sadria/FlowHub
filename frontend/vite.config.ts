@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import { loadEnv } from 'vite'
 
 export default defineConfig(({ mode }) => {
@@ -7,10 +8,24 @@ export default defineConfig(({ mode }) => {
   const backendPort = env.FLOWHUB_DEV_BACKEND_PORT ?? '8000'
 
   return {
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
     build: {
       outDir: 'dist',
       emptyOutDir: true,
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                name: 'handsontable',
+                test: /node_modules[\\/]handsontable[\\/]/,
+                maxSize: 400 * 1024,
+                priority: 10,
+              },
+            ],
+          },
+        },
+      },
     },
     test: {
       environment: 'jsdom',

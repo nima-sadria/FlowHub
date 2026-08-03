@@ -116,7 +116,7 @@ test('login matches the approved Figma hierarchy in Light/Dark and LTR/RTL at 14
   expect(audit.unhandledApiRequests, 'Every Login API request must be explicitly mocked').toEqual([])
 })
 
-test('language, theme, and password-visibility controls meet the mobile touch-target minimum', async ({ page }) => {
+test('language, theme, and password-visibility controls meet the mobile touch-target minimum', async ({ page }, testInfo) => {
   const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [] }
   await installLoginMocks(page, audit)
   await seedSession(page, 'en', 'light')
@@ -135,6 +135,36 @@ test('language, theme, and password-visibility controls meet the mobile touch-ta
   expect(passwordToggleBox?.width).toBeGreaterThanOrEqual(24)
   expect(passwordToggleBox?.height).toBeGreaterThanOrEqual(24)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+
+  const ltrBrandBox = await page.locator('.fh-login-brand').boundingBox()
+  const ltrControlsBox = await page.locator('.fh-login-controls').boundingBox()
+  const ltrCardBox = await page.locator('.fh-login-card').boundingBox()
+  const ltrFooterBox = await page.locator('.fh-login-footer').boundingBox()
+  expect(ltrBrandBox).not.toBeNull()
+  expect(ltrControlsBox).not.toBeNull()
+  expect(ltrCardBox?.width).toBeLessThanOrEqual(440)
+  expect(ltrControlsBox!.x).toBeGreaterThan(ltrBrandBox!.x)
+  expect(ltrFooterBox!.y).toBeGreaterThan(ltrCardBox!.y + ltrCardBox!.height)
+  await page.screenshot({
+    path: testInfo.outputPath('login-light-ltr-390x844.png'),
+    animations: 'disabled',
+  })
+
+  await page.locator('.fh-login-language').click()
+  await page.locator('.fh-login-theme').click()
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+  await expect(page.locator('html')).toHaveClass(/dark/)
+  const rtlBrandBox = await page.locator('.fh-login-brand').boundingBox()
+  const rtlControlsBox = await page.locator('.fh-login-controls').boundingBox()
+  expect(rtlControlsBox!.x + rtlControlsBox!.width).toBeLessThan(rtlBrandBox!.x + rtlBrandBox!.width)
+  await page.screenshot({
+    path: testInfo.outputPath('login-dark-rtl-390x844.png'),
+    animations: 'disabled',
+  })
+
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+  await expect(page.locator('html')).not.toHaveClass(/dark/)
 
   await page.setViewportSize({ width: 1024, height: 1366 })
   await page.goto('/login')

@@ -118,7 +118,7 @@ test('Settings hierarchy, legacy route, responsive spacing, themes, and directio
     if (variant.theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/)
     else await expect(page.locator('html')).not.toHaveClass(/dark/)
 
-    const topbar = page.locator('.fh-topbar-inner')
+    const topbar = page.locator('.fh-topbar-primary')
     const computedPadding = await topbar.evaluate(element => {
       const style = getComputedStyle(element)
       return { left: Number.parseFloat(style.paddingLeft), right: Number.parseFloat(style.paddingRight) }

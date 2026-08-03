@@ -115,7 +115,7 @@ function groupRoutineEvents(events: ActivityEvent[]): ActivityEvent[] {
 function EventRow({ event }: { event: ActivityEvent }) {
   return (
     <article className="flex items-start gap-3 border-b border-border py-3 last:border-0">
-      <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-bg-subtle" aria-hidden="true">
+      <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-bg-subtle" aria-hidden="true">
         <Icon name={eventIcon(event)} />
       </span>
       <div className="min-w-0 flex-1">

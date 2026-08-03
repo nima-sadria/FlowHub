@@ -123,14 +123,14 @@ function SummaryStatusBadge({ status }: { status: SummaryStatus }) {
 
 function SummaryCard({ label, value, detail, status, icon }: SummaryCardProps) {
   return (
-    <article className="rounded-lg border border-border bg-[var(--fh-ui-card)] p-4" data-testid="diagnostics-summary-card">
+    <article className="fh-card p-4" data-testid="diagnostics-summary-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="fh-text-caption font-medium text-wp-muted">{label}</p>
           <p className="mt-1 fh-text-body font-semibold text-text-base">{value}</p>
           {detail && <p className="mt-1 fh-text-caption">{detail}</p>}
         </div>
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-bg-subtle text-wp-muted" aria-hidden="true">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-bg-subtle text-wp-muted" aria-hidden="true">
           <Icon name={icon} />
         </span>
       </div>
@@ -384,11 +384,11 @@ function ChannelHealthRow({
     'product_cache_refresh_failed',
   ].includes(channel.reason_code ?? '')
   return (
-    <article id={`channel-${channel.channelId}`} className="rounded-lg border border-border p-4" data-testid={`diagnostics-channel-${channel.channelId}`} data-resource-id={channel.channelId}>
+    <article id={`channel-${channel.channelId}`} className="fh-card p-4" data-testid={`diagnostics-channel-${channel.channelId}`} data-resource-id={channel.channelId}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name="channel" /></span>
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name="channel" /></span>
             <h3 className="fh-text-body font-semibold text-text-base">{displayName}</h3>
             <DiagnosticStateBadge evidence={channelEvidence} testId={`diagnostics-channel-status-${channel.channelId}`} />
           </div>
@@ -436,11 +436,11 @@ function SourceHealthRow({ connector, displayName }: { connector: ConnectorStatu
   const presentation = sourcePresentation(connector)
   const lastChecked = connectorLastChecked(connector)
   return (
-    <article id={`source-${connector.id}`} className="rounded-lg border border-border p-4" data-resource-id={connector.id}>
+    <article id={`source-${connector.id}`} className="fh-card p-4" data-resource-id={connector.id}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name="file" /></span>
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name="file" /></span>
             <h3 className="fh-text-body font-semibold text-text-base">{displayName}</h3>
             <DiagnosticStateBadge state={presentation.status} testId={`diagnostics-source-status-${connector.id}`} />
           </div>
@@ -475,9 +475,9 @@ function SourceHealthRow({ connector, displayName }: { connector: ConnectorStatu
 
 function BackgroundJobsRow({ runner, status }: { runner: RunnerState; status: DiagnosticState }) {
   return (
-    <article className="rounded-lg border border-border p-4">
+    <article className="fh-card p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name="activity" /></span>
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name="activity" /></span>
         <h3 className="fh-text-body font-semibold text-text-base">{translate('diagnostics:diagnostics.backgroundJobs')}</h3>
         <DiagnosticStateBadge state={status} />
       </div>
@@ -504,7 +504,7 @@ interface RecentCheckEntry {
 function RecentCheckRow({ entry }: { entry: RecentCheckEntry }) {
   return (
     <div className="flex items-center gap-3 border-b border-border py-3 last:border-0">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name={entry.icon} /></span>
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name={entry.icon} /></span>
       <div className="min-w-0 flex-1">
         <p className="fh-text-body-sm font-semibold text-text-base">{entry.title}</p>
         <p className="fh-text-caption truncate">{entry.description}</p>

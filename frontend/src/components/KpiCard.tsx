@@ -15,10 +15,10 @@ export default function KpiCard({ label, value, trend, trendTone = 'neutral', ic
     trendTone === 'danger' ? 'text-wp-red' :
     'text-wp-muted'
   return (
-    <div className="flex h-[132px] flex-col gap-3 rounded-lg border border-border bg-bg-card p-4">
+    <div className="fh-stat-card h-[132px]">
       <div className="flex items-center gap-2">
         <p className="text-[13px] font-medium leading-[18px] text-[color:var(--fh-text-secondary)]">{label}</p>
-        <span className="ms-auto inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-[color:var(--fh-info-surface)] text-accent">
+        <span className="ms-auto inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[color:var(--fh-info-surface)] text-accent">
           <Icon name={icon} size="sm" />
         </span>
       </div>

@@ -197,6 +197,14 @@ export default function Channels() {
   }, [setupTarget])
 
   useEffect(() => {
+    if (!setupTarget || !canManageCommerce) return
+    const pageScroller = setupDialogRef.current?.closest('main') ?? document.querySelector('main')
+    if (!(pageScroller instanceof HTMLElement)) return
+    pageScroller.classList.add('fh-modal-scroll-lock')
+    return () => { pageScroller.classList.remove('fh-modal-scroll-lock') }
+  }, [canManageCommerce, setupTarget])
+
+  useEffect(() => {
     if (!setupTarget) return
     const frame = window.requestAnimationFrame(() => {
       const dialog = setupDialogRef.current

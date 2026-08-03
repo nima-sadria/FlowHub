@@ -92,18 +92,9 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-bg-base px-4 py-6 sm:px-8">
-      <header className="relative flex h-11 w-full max-w-[1376px] items-center justify-center">
-        <div className="flex items-center gap-1.5" aria-label={translate('authentication:login.flowhub')}>
-          <img
-            src="/static/logos/FlowHub%20Transparent%20WebP%20%20Logo.webp?v=1"
-            alt=""
-            aria-hidden="true"
-            className="h-[34px] w-[34px] object-contain"
-          />
-          <span className="text-[22px] font-semibold leading-[30px] text-text-base">FlowHub</span>
-        </div>
-        <div className="absolute end-0 flex items-center gap-1">
+    <div className="fh-login-shell">
+      <header className="fh-login-header">
+        <div className="fh-login-controls">
           <IconButton
             onClick={() => {
               const nextLanguage = language === 'fa' ? 'en' : 'fa'
@@ -111,12 +102,13 @@ export default function Login() {
               setDirection(nextLanguage === 'fa' ? 'rtl' : 'ltr')
             }}
             label={translate('settings:language.title')}
-            className="text-xs font-medium"
+            className="fh-login-language text-xs font-medium"
           >
             {language === 'fa' ? 'FA' : 'EN'}
           </IconButton>
           <IconButton
             onClick={toggleTheme}
+            className="fh-login-theme"
             label={theme === 'dark'
               ? translate('navigation:topbar.switchToLightMode')
               : translate('navigation:topbar.switchToDarkMode')}
@@ -126,85 +118,103 @@ export default function Login() {
         </div>
       </header>
 
-      <main className="w-full max-w-[460px] rounded-lg border border-border bg-bg-card p-6 shadow-[0_8px_24px_-4px_rgba(15,23,41,0.1)] sm:p-10">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold leading-[30px] text-text-base">
-            {translate('authentication:login.signInToFlowhub')}
-          </h1>
-          <p className="mt-4 text-[13px] leading-[22px] text-[color:var(--fh-text-secondary)]">
-            {translate('authentication:login.useWorkspaceAccount')}
-          </p>
-        </div>
-
-        {error && <div role="alert" className="fh-error-alert mt-5">{error}</div>}
-
-        <form onSubmit={event => { void handleSubmit(event) }} className="mt-6 flex flex-col gap-4">
-          <div className="fh-field">
-            <label htmlFor="login-identifier" className="fh-label">
-              {translate('authentication:login.username')}
-            </label>
-            <input
-              id="login-identifier"
-              type="text"
-              value={identifier}
-              onChange={event => setIdentifier(event.target.value)}
-              required
-              autoComplete="username"
-              autoFocus
-              disabled={loading}
-              className="fh-input"
-              {...inputHint(translate('authentication:login.usernameHint'))}
+      <div className="fh-login-content">
+        <div className="fh-login-stack">
+          <div className="fh-login-brand" dir="ltr" aria-label={translate('authentication:login.flowhub')}>
+            <img
+              src="/static/logos/FlowHub%20Transparent%20WebP%20%20Logo.webp?v=1"
+              alt=""
+              aria-hidden="true"
+              className="h-[34px] w-[34px] object-contain"
             />
+            <span className="text-[22px] font-semibold leading-[30px] text-text-base">FlowHub</span>
           </div>
 
-          <div className="fh-field">
-            <label htmlFor="login-password" className="fh-label">
-              {translate('authentication:login.password')}
-            </label>
-            <div className="relative">
-              <span className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-wp-muted" aria-hidden="true">
-                <LockGlyph />
-              </span>
+          <main className="fh-login-card">
+          <div className="text-center">
+            <h1 className="text-2xl font-semibold leading-[30px] text-text-base">
+              {translate('authentication:login.signInToFlowhub')}
+            </h1>
+            <p className="mt-4 text-[13px] leading-[22px] text-[color:var(--fh-text-secondary)]">
+              {translate('authentication:login.useWorkspaceAccount')}
+            </p>
+          </div>
+
+          {error && <div role="alert" className="fh-error-alert mt-5">{error}</div>}
+
+          <form onSubmit={event => { void handleSubmit(event) }} className="mt-6 flex flex-col gap-4">
+            <div className="fh-field">
+              <label htmlFor="login-identifier" className="fh-label">
+                {translate('authentication:login.username')}
+              </label>
               <input
-                id="login-password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={event => setPassword(event.target.value)}
+                id="login-identifier"
+                name="identifier"
+                type="text"
+                value={identifier}
+                onChange={event => setIdentifier(event.target.value)}
                 required
-                autoComplete="current-password"
+                autoComplete="username"
+                autoFocus
                 disabled={loading}
-                className="fh-input ps-10 pe-11"
-                {...inputHint(translate('authentication:login.passwordHint'))}
+                className="fh-input fh-login-input"
+                {...inputHint(translate('authentication:login.usernameHint'))}
               />
-              <div className="absolute inset-y-0 end-2 flex items-center">
-                <IconButton
-                  size="sm"
-                  onClick={() => setShowPassword(current => !current)}
+            </div>
+
+            <div className="fh-field">
+              <label htmlFor="login-password" className="fh-label">
+                {translate('authentication:login.password')}
+              </label>
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-wp-muted" aria-hidden="true">
+                  <LockGlyph />
+                </span>
+                <input
+                  id="login-password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={event => setPassword(event.target.value)}
+                  required
+                  autoComplete="current-password"
                   disabled={loading}
-                  label={showPassword
-                    ? translate('settings:users.hidePassword')
-                    : translate('settings:users.showPassword')}
-                >
-                  <EyeGlyph visible={showPassword} />
-                </IconButton>
+                  className="fh-input fh-login-input ps-10 pe-11"
+                  {...inputHint(translate('authentication:login.passwordHint'))}
+                />
+                <div className="absolute inset-y-0 end-2 flex items-center">
+                  <IconButton
+                    size="sm"
+                    onClick={() => setShowPassword(current => !current)}
+                    disabled={loading}
+                    label={showPassword
+                      ? translate('settings:users.hidePassword')
+                      : translate('settings:users.showPassword')}
+                  >
+                    <EyeGlyph visible={showPassword} />
+                  </IconButton>
+                </div>
               </div>
             </div>
-          </div>
 
-          <button type="submit" disabled={loading} className="fh-button-primary fh-button-sm mt-1 w-full">
-            {loading && <Spinner size="sm" className="text-white" />}
-            {loading
-              ? translate('authentication:login.signingIn')
-              : translate('authentication:login.signIn')}
-          </button>
-        </form>
+            <button type="submit" disabled={loading} className="fh-button-primary fh-button-sm mt-1 w-full">
+              {loading && <Spinner size="sm" className="text-white" />}
+              {loading
+                ? translate('authentication:login.signingIn')
+                : translate('authentication:login.signIn')}
+            </button>
+          </form>
 
-        <p className="mt-6 text-center text-xs leading-4 text-wp-muted">
-          {translate('authentication:login.contactOwner')}
-        </p>
-      </main>
+          <p className="mt-6 text-center text-xs leading-4 text-wp-muted">
+            {translate('authentication:login.contactOwner')}
+          </p>
+          </main>
+        </div>
+      </div>
 
-      <SiteFooter />
+      <div className="fh-login-footer">
+        <SiteFooter />
+      </div>
     </div>
   )
 }

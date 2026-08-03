@@ -59,10 +59,33 @@ describe('Topbar', () => {
     renderTopbar()
 
     expect(container.querySelector('input[aria-label="Search"]')).not.toBeNull()
+    expect(container.querySelector('#global-search[name="global-search"]')).not.toBeNull()
     expect(container.querySelector('[aria-label="Notifications"]')).not.toBeNull()
     expect(container.querySelector('[aria-label="Switch to dark mode"]')).not.toBeNull()
     expect(container.querySelector('[aria-label="Language"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="Language"]')?.className).toContain('fh-topbar-language')
     expect(container.querySelector('[aria-label="Collapse sidebar"]')).not.toBeNull()
+  })
+
+  it('uses a two-level mobile header with an independently toggled action row', () => {
+    renderTopbar()
+
+    const primary = container.querySelector('.fh-topbar-primary')
+    const brand = container.querySelector<HTMLButtonElement>('.fh-topbar-mobile-brand')
+    const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="topbar-mobile-actions"]')
+    const actions = container.querySelector('#topbar-mobile-actions')
+    const search = container.querySelector('form.fh-topbar-search')
+
+    expect(primary).not.toBeNull()
+    expect(brand?.getAttribute('dir')).toBe('ltr')
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false')
+    expect(actions?.className).not.toContain('fh-topbar-actions-open')
+    expect(search?.className).toContain('xl:block')
+
+    act(() => { toggle!.click() })
+
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true')
+    expect(actions?.className).toContain('fh-topbar-actions-open')
   })
 
   it('shows the signed-in user with role in the account chip', () => {
@@ -70,6 +93,7 @@ describe('Topbar', () => {
 
     const account = container.querySelector('[aria-label="User menu"]')
     expect(account?.textContent).toContain('admin')
+    expect(account?.className).toContain('fh-topbar-user')
   })
 
   it('switches the sidebar toggle label with the collapsed state', () => {

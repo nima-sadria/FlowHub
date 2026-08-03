@@ -63,17 +63,27 @@ describe('Login', () => {
   it('renders the approved authentication frame and controls', async () => {
     await renderLogin()
 
+    expect(container.querySelector('.fh-login-shell')).not.toBeNull()
+    expect(container.querySelector('.fh-login-header')).not.toBeNull()
+    expect(container.querySelector('.fh-login-content')).not.toBeNull()
+    expect(container.querySelector('.fh-login-stack > .fh-login-brand + main.fh-login-card')).not.toBeNull()
+    expect(container.querySelector('main.fh-login-card')).not.toBeNull()
+    expect(container.querySelector('.fh-login-footer footer')).not.toBeNull()
     expect(container.textContent).toContain('Sign in to FlowHub')
     expect(container.textContent).toContain('Use your workspace account.')
     expect(container.querySelector('label[for="login-identifier"]')?.textContent).toBe('Email or username')
+    expect(container.querySelector('#login-identifier[name="identifier"]')).not.toBeNull()
+    expect(container.querySelector('#login-password[name="password"]')).not.toBeNull()
     expect(container.textContent).not.toContain('Remember me')
     expect(container.textContent).not.toContain('Forgot password?')
     expect(container.textContent).toContain('Need access? Contact your workspace Owner.')
     expect(container.textContent).toContain('نیما صدریا. تمامی حقوق محفوظ است. 1405')
     expect(container.textContent).toContain('FlowHub')
+    expect(container.querySelector('[aria-label="FlowHub"]')?.getAttribute('dir')).toBe('ltr')
     expect(container.querySelector('input[type="checkbox"]')).toBeNull()
     expect(container.querySelector('footer a')).toBeNull()
     expect(container.querySelector('[aria-label="Switch to dark mode"]')).not.toBeNull()
+    expect(Array.from(container.querySelectorAll('.fh-input')).every(input => input.classList.contains('fh-login-input'))).toBe(true)
   })
 
   it('uses shared Design System icon buttons for header and password controls so touch targets stay accessible', async () => {
