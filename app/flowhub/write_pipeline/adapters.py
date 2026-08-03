@@ -6,6 +6,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
+from app.connectors.common.current_state import CurrentStateRequest, CurrentStateResult
+
 
 class WriteItemContract(Protocol):
     channel_product_id: str
@@ -44,7 +46,7 @@ class ChannelWriteAdapter(Protocol):
     ) -> dict[str, object]:
         """Execute one already-approved write item."""
 
-    async def verify_item(
-        self, item: WriteItemContract, context: ChannelWriteContext
-    ) -> dict[str, object]:
-        """Read back one updated item after a successful write."""
+    async def fetch_current_state(
+        self, request: CurrentStateRequest, context: ChannelWriteContext
+    ) -> CurrentStateResult:
+        """Read current state in provider-optimal batches with item evidence."""

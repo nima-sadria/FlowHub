@@ -7,8 +7,10 @@ this adapter while FlowHub consumes normalized channel contracts.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import os
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -17,6 +19,15 @@ from urllib.parse import urlparse
 import httpx
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from app.connectors.common.current_state import (
+    CurrentStateError,
+    CurrentStateRecord,
+    CurrentStateRequest,
+    CurrentStateResult,
+    CurrentStateStrategy,
+    TransportRecorder,
+    failed_current_state,
+)
 from app.flowhub.channels.contracts import (
     ChannelCapability,
     ChannelHealth,
@@ -129,27 +140,13 @@ class TechnolifeConnector(BaseMarketplaceConnector):
         if not isinstance(products, list):
             raise TechnolifeConnectorError(self._unexpected("Malformed Technolife product list."))
 
-        normalized: list[ChannelProduct] = []
-        for product in products:
-            if not isinstance(product, dict):
-                continue
-            product_code = _string(product.get("code"))
-            if not product_code:
-                continue
-            items_payload = await self._request(
-                "GET", f"/v1/products/{product_code}/items", safe_to_retry=True
-            )
-            items_root = _payload_root(items_payload)
-            seller_items = items_root.get("data")
-            if not isinstance(seller_items, list):
-                raise TechnolifeConnectorError(
-                    self._unexpected("Malformed Technolife seller item list.")
-                )
-            normalized.extend(
-                _product_from_payload(self.channel_id, product, item)
-                for item in seller_items
-                if isinstance(item, dict) and _string(item.get("code"))
-            )
+        valid_products = [
+            product
+            for product in products
+            if isinstance(product, dict) and _string(product.get("code"))
+        ]
+        groups = await self._fetch_product_item_groups(valid_products)
+        normalized = [item for group in groups for item in group]
 
         total = _optional_int(root.get("count"))
         total_pages = ((total + page_size - 1) // page_size) if total is not None else None
@@ -212,6 +209,117 @@ class TechnolifeConnector(BaseMarketplaceConnector):
         if item is None:
             raise TechnolifeConnectorError(self._not_found("Technolife seller item was not found."))
         return _product_from_payload(self.channel_id, product, item)
+
+    async def fetch_current_state(
+        self, request: CurrentStateRequest
+    ) -> CurrentStateResult:
+        if request.channel_id != self.channel_id:
+            return failed_current_state(
+                request,
+                strategy=CurrentStateStrategy.GROUPED_COLLECTION,
+                category="validation",
+                message="Current-state request channel does not match Technolife.",
+            )
+        recorder = TransportRecorder(
+            strategy=CurrentStateStrategy.GROUPED_COLLECTION,
+            purpose=request.purpose,
+            entities_requested=len(request.entities),
+        )
+        records: dict[str, CurrentStateRecord] = {}
+        errors: dict[str, CurrentStateError] = {}
+        pending_by_parent: dict[str, list] = {}
+        for entity in request.entities:
+            parent_id = str(entity.parent_external_id or "").strip()
+            if not parent_id:
+                errors[entity.key] = CurrentStateError(
+                    key=entity.key,
+                    category="validation",
+                    message="Technolife current-state lookup requires productCode.",
+                )
+                continue
+            pending_by_parent.setdefault(parent_id, []).append(entity)
+
+        # The mapped productCode is already the exact collection scope required
+        # by Technolife's seller-item endpoint. Avoid scanning /v1/products.
+        found_products = [{"code": code} for code in pending_by_parent]
+        item_groups = await self._fetch_product_item_groups(
+            found_products,
+            transport=recorder,
+            return_exceptions=True,
+        )
+        for product, group in zip(found_products, item_groups, strict=True):
+            product_code = _string(product.get("code"))
+            entities = pending_by_parent.get(product_code, [])
+            if isinstance(group, Exception):
+                for entity in entities:
+                    errors[entity.key] = (
+                        _technolife_state_error(entity.key, group)
+                        if isinstance(group, TechnolifeConnectorError)
+                        else CurrentStateError(
+                            key=entity.key,
+                            category="unexpected_response",
+                            message="Technolife seller-item retrieval failed.",
+                        )
+                    )
+                continue
+            by_external_id = {
+                str(item.identifiers.external_product_id or ""): item for item in group
+            }
+            for entity in entities:
+                product_state = by_external_id.get(entity.external_id)
+                if product_state is None:
+                    errors[entity.key] = CurrentStateError(
+                        key=entity.key,
+                        category="not_found",
+                        message="Technolife seller item was not found.",
+                    )
+                else:
+                    records[entity.key] = _current_state_record(entity.key, product_state)
+
+        return CurrentStateResult(
+            records=records,
+            errors=errors,
+            transport=recorder.finish(entities_returned=len(records)),
+        )
+
+    async def _fetch_product_item_groups(
+        self,
+        products: list[dict[str, Any]],
+        *,
+        transport: TransportRecorder | None = None,
+        return_exceptions: bool = False,
+    ) -> list:
+        semaphore = asyncio.Semaphore(8)
+
+        async def fetch(product: dict[str, Any]) -> list[ChannelProduct]:
+            product_code = _string(product.get("code"))
+            async with semaphore:
+                if transport is not None:
+                    transport.record_batch()
+                items_payload = await self._request(
+                    "GET",
+                    f"/v1/products/{product_code}/items",
+                    safe_to_retry=True,
+                    transport=transport,
+                    stage="seller_item_collection",
+                )
+            seller_items = _payload_root(items_payload).get("data")
+            if not isinstance(seller_items, list):
+                raise TechnolifeConnectorError(
+                    self._unexpected("Malformed Technolife seller item list.")
+                )
+            return [
+                _product_from_payload(self.channel_id, product, item)
+                for item in seller_items
+                if isinstance(item, dict) and _string(item.get("code"))
+            ]
+
+        return list(
+            await asyncio.gather(
+                *(fetch(product) for product in products),
+                return_exceptions=return_exceptions,
+            )
+        )
 
     async def update_products(
         self, updates: list[ChannelProductUpdate]
@@ -337,12 +445,16 @@ class TechnolifeConnector(BaseMarketplaceConnector):
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
         safe_to_retry: bool,
+        transport: TransportRecorder | None = None,
+        stage: str = "provider_request",
     ) -> dict[str, Any]:
         headers = {
             "Accept": "application/json",
             "Authorization": f"Bearer {self.config.api_key}",
             "encrypted-secret": encrypt_endpoint(self.config.encryption_secret, path),
         }
+        started = time.perf_counter()
+        failed = False
         try:
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(self.config.timeout_seconds)
@@ -354,7 +466,9 @@ class TechnolifeConnector(BaseMarketplaceConnector):
                     params=params,
                     json=json,
                 )
+            return self._decode_response(response, safe_to_retry=safe_to_retry)
         except httpx.TimeoutException as exc:
+            failed = True
             raise TechnolifeConnectorError(
                 self._categorized(
                     ConnectorErrorCategory.TIMEOUT,
@@ -363,6 +477,7 @@ class TechnolifeConnector(BaseMarketplaceConnector):
                 )
             ) from exc
         except httpx.HTTPError as exc:
+            failed = True
             raise TechnolifeConnectorError(
                 self._categorized(
                     ConnectorErrorCategory.UPSTREAM_UNAVAILABLE,
@@ -370,7 +485,16 @@ class TechnolifeConnector(BaseMarketplaceConnector):
                     retryable=safe_to_retry,
                 )
             ) from exc
-        return self._decode_response(response, safe_to_retry=safe_to_retry)
+        except Exception:
+            failed = True
+            raise
+        finally:
+            if transport is not None:
+                transport.record_request(
+                    stage=stage,
+                    duration_ms=(time.perf_counter() - started) * 1000,
+                    failed=failed,
+                )
 
     def _decode_response(self, response: httpx.Response, *, safe_to_retry: bool) -> dict[str, Any]:
         categories = {
@@ -527,6 +651,32 @@ def _product_from_payload(
         stock_quantity=_optional_float(item.get("available")),
         status="hidden" if bool(item.get("hide")) else "active",
         raw={"product": product, "sellerItem": item},
+    )
+
+
+def _current_state_record(key: str, product: ChannelProduct) -> CurrentStateRecord:
+    return CurrentStateRecord(
+        key=key,
+        provider=product.connector_type,
+        external_id=str(product.identifiers.external_product_id or ""),
+        parent_external_id=product.identifiers.parent_product_number,
+        price=product.current_price,
+        stock=product.stock_quantity,
+        status=product.status,
+        currency=product.currency,
+        unit=product.price_unit,
+        raw=product.raw,
+    )
+
+
+def _technolife_state_error(
+    key: str, exc: TechnolifeConnectorError
+) -> CurrentStateError:
+    return CurrentStateError(
+        key=key,
+        category=exc.error.category.value,
+        message=exc.error.message,
+        retry_eligible=exc.error.retry.retryable,
     )
 
 

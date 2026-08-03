@@ -3,6 +3,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
+from app.connectors.common.current_state import CurrentStateIdentity, CurrentStateRequest
 from app.flowhub.channels.contracts import (
     ChannelIdentifierSet,
     ChannelProductUpdate,
@@ -157,6 +158,139 @@ async def test_product_pagination_follows_next_link_when_total_pages_is_missing(
 
     assert [item.identifiers.external_product_id for item in products] == ["p1", "p2"]
     assert [request["params"] for request in FakeAsyncClient.requests] == [{"page": 1}, {"page": 2}]
+
+
+@pytest.mark.asyncio
+async def test_current_state_scans_collections_once_and_preserves_item_errors():
+    FakeAsyncClient.responses = [
+        FakeResponse(
+            200,
+            {
+                "status": True,
+                "data": [{"id": "p1", "title": "One", "price": 1000, "stock": 1}],
+                "meta": {
+                    "pagination": {
+                        "current_page": 1,
+                        "per_page": 20,
+                        "total_pages": 2,
+                    }
+                },
+            },
+        ),
+        FakeResponse(
+            200,
+            {
+                "status": True,
+                "data": [{"id": "p2", "title": "Two", "price": 2000, "stock": 2}],
+                "meta": {
+                    "pagination": {
+                        "current_page": 2,
+                        "per_page": 20,
+                        "total_pages": 2,
+                    }
+                },
+            },
+        ),
+    ]
+    request = CurrentStateRequest(
+        channel_id="snappshop:main",
+        entities=(
+            CurrentStateIdentity(key="listing-2", external_id="p2"),
+            CurrentStateIdentity(key="listing-missing", external_id="missing"),
+        ),
+        required_fields=frozenset({"price", "stock"}),
+    )
+
+    result = await connector().fetch_current_state(request)
+
+    assert result.records["listing-2"].price == 2000
+    assert result.errors["listing-missing"].category == "not_found"
+    assert result.transport.entities_requested == 2
+    assert result.transport.entities_returned == 1
+    assert result.transport.requests_issued == 2
+    assert result.transport.batches_issued == 2
+    assert result.transport.bottleneck_stage == "product_collection"
+    assert [item["params"] for item in FakeAsyncClient.requests] == [
+        {"page": 1},
+        {"page": 2},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_current_state_resolves_unconfigured_vendor_only_once():
+    FakeAsyncClient.responses = [
+        FakeResponse(
+            200,
+            {"status": True, "data": [{"id": "vendor-1", "title": "Shop"}]},
+        ),
+        FakeResponse(
+            200,
+            {
+                "status": True,
+                "data": [{"id": "p1", "title": "One", "price": 1000, "stock": 1}],
+                "meta": {"pagination": {"current_page": 1, "total_pages": 2}},
+            },
+        ),
+        FakeResponse(
+            200,
+            {
+                "status": True,
+                "data": [{"id": "p2", "title": "Two", "price": 2000, "stock": 2}],
+                "meta": {"pagination": {"current_page": 2, "total_pages": 2}},
+            },
+        ),
+    ]
+    subject = SnappShopConnector(
+        channel_id="snappshop:main",
+        config=SnappShopConfig(
+            token="token-secret",
+            agent_identifier="flowhub-agent",
+            vendor_id=None,
+            base_url="https://apix.snappshop.ir/automation/v1",
+        ),
+    )
+    request = CurrentStateRequest(
+        channel_id="snappshop:main",
+        entities=(CurrentStateIdentity(key="listing-2", external_id="p2"),),
+        required_fields=frozenset({"price"}),
+    )
+
+    result = await subject.fetch_current_state(request)
+
+    assert result.records["listing-2"].price == 2000
+    assert result.transport.requests_issued == 3
+    assert result.transport.batches_issued == 2
+    assert sum(item["url"].endswith("/vendors") for item in FakeAsyncClient.requests) == 1
+
+
+@pytest.mark.asyncio
+async def test_current_state_preserves_found_records_when_later_page_fails():
+    FakeAsyncClient.responses = [
+        FakeResponse(
+            200,
+            {
+                "status": True,
+                "data": [{"id": "p1", "title": "One", "price": 1000, "stock": 1}],
+                "meta": {"pagination": {"current_page": 1, "total_pages": 2}},
+            },
+        ),
+        FakeResponse(503, {"status": False, "message": "unavailable"}),
+    ]
+    request = CurrentStateRequest(
+        channel_id="snappshop:main",
+        entities=(
+            CurrentStateIdentity(key="listing-1", external_id="p1"),
+            CurrentStateIdentity(key="listing-2", external_id="p2"),
+        ),
+        required_fields=frozenset({"price", "stock"}),
+    )
+
+    result = await connector().fetch_current_state(request)
+
+    assert set(result.records) == {"listing-1"}
+    assert result.errors["listing-2"].category == "upstream_unavailable"
+    assert result.transport.requests_issued == 2
+    assert result.transport.failed_requests == 1
 
 
 @pytest.mark.asyncio

@@ -7,7 +7,6 @@ registered channel write adapter.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import math
 import uuid
@@ -18,16 +17,15 @@ from typing import Any, Protocol
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.connectors.common.errors import ConnectorError
 from app.flowhub.auth.models import FlowHubUser
+from app.flowhub.data_layer.telemetry_service import ConnectorTelemetryService
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.rate_limit.service import RateLimitService
 from app.flowhub.security.redaction import redact_sensitive
-from app.flowhub.security.upstream_errors import normalize_upstream_error
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.workspace.preview_store import PreviewValidationError, WorkspacePreviewStore
-from app.flowhub.write_pipeline.adapters import ChannelWriteAdapter, ChannelWriteContext
+from app.flowhub.write_pipeline.adapters import ChannelWriteAdapter
 from app.flowhub.write_pipeline.contracts import (
     WritePipelineApprovalRequest,
     WritePipelineBatchShape,
@@ -56,7 +54,6 @@ from app.flowhub.write_pipeline.workspace_contracts import (
 
 MAX_ITEMS = 100
 MAX_DELTA_PERCENT = 50.0
-VERIFY_TIMEOUT_SECONDS = 10.0
 FORBIDDEN_STOCK_KEYS = frozenset(
     {
         "stock",
@@ -635,6 +632,7 @@ class WritePipelineService:
                         verify_intents, requested_by=command.requested_by
                     )
                 )
+            self._record_transport_reports(channel_id, channel_results)
             for result in channel_results:
                 # Provider I/O may outlive the original worker lease.  Recheck
                 # ownership before persisting any outcome so a stale worker
@@ -663,6 +661,42 @@ class WritePipelineService:
                 results.append(result)
             self.db.commit()
         return results
+
+    def _record_transport_reports(
+        self,
+        channel_id: str,
+        results: list[WorkspaceWriteResult],
+    ) -> None:
+        unique: dict[str, dict[str, Any]] = {}
+        for result in results:
+            verification = result.response.get("verification")
+            if not isinstance(verification, dict):
+                continue
+            report = verification.get("transport")
+            if not isinstance(report, dict):
+                continue
+            report_key = str(report.get("operation_id") or "")
+            if not report_key:
+                report_key = json.dumps(report, sort_keys=True, default=str)
+            unique[report_key] = report
+        if not unique:
+            return
+        telemetry = ConnectorTelemetryService(self.db)
+        connector_type = channel_id.split(":", 1)[0]
+        for report in unique.values():
+            requests = int(report.get("requests_issued") or 0)
+            if requests <= 0:
+                continue
+            provider_ms = float(report.get("provider_response_ms") or 0)
+            telemetry.increment(
+                channel_id,
+                connector_type,
+                requests=requests,
+                errors=int(report.get("failed_requests") or 0),
+                retries=int(report.get("retries") or 0),
+                products_fetched=int(report.get("entities_returned") or 0),
+                latency_ms=(provider_ms / requests) if requests else None,
+            )
 
     def _assert_workspace_fence(self, command: WorkspaceWriteBatchCommand) -> None:
         """Fail closed when Apply ownership changed during provider I/O."""
@@ -1161,57 +1195,6 @@ class WritePipelineService:
         if current == 0:
             return 0.0
         return ((proposed - current) / current) * 100.0
-
-    async def _verify_applied_item(
-        self,
-        adapter: ChannelWriteAdapter,
-        item: WriteItem,
-        context: ChannelWriteContext,
-    ) -> dict[str, Any]:
-        try:
-            async with asyncio.timeout(VERIFY_TIMEOUT_SECONDS):
-                result = await adapter.verify_item(item, context)
-            return _safe_provider_result(
-                {
-                    "verified": bool(result.get("verified")),
-                    "observed_price": result.get("observed_price"),
-                    "expected_price": result.get("expected_price", item.proposed_price),
-                    "verification_error": result.get("verification_error"),
-                }
-            )
-        except ConnectorError as exc:
-            return {
-                "verified": False,
-                "observed_price": None,
-                "expected_price": item.proposed_price,
-                "verification_error": normalize_upstream_error(exc, source="woocommerce")[
-                    "message"
-                ],
-            }
-        except TimeoutError:
-            return {
-                "verified": False,
-                "observed_price": None,
-                "expected_price": item.proposed_price,
-                "verification_error": "verification_timeout",
-            }
-        except Exception as exc:  # pragma: no cover - defensive adapter boundary
-            return {
-                "verified": False,
-                "observed_price": None,
-                "expected_price": item.proposed_price,
-                "verification_error": normalize_upstream_error(exc, source="woocommerce")[
-                    "message"
-                ],
-            }
-
-    def _verification_skipped_result(self) -> dict[str, Any]:
-        return {
-            "verified": False,
-            "observed_price": None,
-            "expected_price": None,
-            "verification_error": "verification_skipped_batch_too_large",
-        }
 
     def _result_summary(self, row: WriteBatch) -> dict[str, Any]:
         attempted = len(row.items) if row.executed_at else 0

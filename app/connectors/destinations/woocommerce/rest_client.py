@@ -24,10 +24,12 @@ Supported operations:
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 import httpx
 
+from app.connectors.common.current_state import TransportRecorder
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.flowhub.rate_limit import acquire_connector_rate_limit
@@ -146,6 +148,9 @@ async def _get_raw(
     path: str,
     params: dict[str, Any] | None = None,
     timeout: httpx.Timeout | None = None,
+    *,
+    transport: TransportRecorder | None = None,
+    stage: str = "provider_read",
 ) -> httpx.Response:
     """GET with exponential back-off retry on transient errors.
 
@@ -157,14 +162,28 @@ async def _get_raw(
     total_slept = 0.0
 
     for attempt in range(_MAX_RETRIES + 1):
+        rate_limit_started = time.perf_counter()
+        await acquire_connector_rate_limit("woocommerce:primary", "read")
+        if transport is not None:
+            transport.record_stage(
+                stage="rate_limit_wait",
+                duration_ms=(time.perf_counter() - rate_limit_started) * 1000,
+            )
+        request_started = time.perf_counter()
         try:
-            await acquire_connector_rate_limit("woocommerce:primary", "read")
             async with httpx.AsyncClient(
                 auth=_auth(creds),
                 follow_redirects=True,
             ) as client:
                 r = await client.get(url, params=params or {}, timeout=effective_timeout)
         except httpx.TimeoutException as exc:
+            if transport is not None:
+                transport.record_request(
+                    stage=stage,
+                    duration_ms=(time.perf_counter() - request_started) * 1000,
+                    retry=attempt > 0,
+                    failed=True,
+                )
             if attempt >= _MAX_RETRIES:
                 raise ConnectorError(
                     code=ConnectorErrorCode.TIMEOUT,
@@ -184,6 +203,13 @@ async def _get_raw(
             total_slept += sleep_for
             continue
         except httpx.ConnectError as exc:
+            if transport is not None:
+                transport.record_request(
+                    stage=stage,
+                    duration_ms=(time.perf_counter() - request_started) * 1000,
+                    retry=attempt > 0,
+                    failed=True,
+                )
             if attempt >= _MAX_RETRIES:
                 raise ConnectorError(
                     code=ConnectorErrorCode.NETWORK,
@@ -202,6 +228,14 @@ async def _get_raw(
             await asyncio.sleep(sleep_for)
             total_slept += sleep_for
             continue
+
+        if transport is not None:
+            transport.record_request(
+                stage=stage,
+                duration_ms=(time.perf_counter() - request_started) * 1000,
+                retry=attempt > 0,
+                failed=r.status_code != 200,
+            )
 
         if r.status_code not in _RETRY_STATUSES:
             if r.status_code != 200:
@@ -317,9 +351,20 @@ async def list_variations(
         ) from exc
 
 
-async def ping(creds: WooCommerceCredentials) -> dict:
+async def ping(
+    creds: WooCommerceCredentials,
+    *,
+    transport: TransportRecorder | None = None,
+) -> dict:
     """Lightweight connectivity probe - fetch one product to verify API access."""
-    result = await _get_raw(creds, "/products", params={"per_page": 1, "_fields": "id"}, timeout=_TIMEOUT_QUICK)
+    result = await _get_raw(
+        creds,
+        "/products",
+        params={"per_page": 1, "_fields": "id"},
+        timeout=_TIMEOUT_QUICK,
+        transport=transport,
+        stage="connection_probe",
+    )
     try:
         data = result.json()
     except Exception as exc:
@@ -346,6 +391,7 @@ async def list_products_paged(
     status: str = "publish",
     product_ids: list[int] | None = None,
     modified_since: Any | None = None,
+    transport: TransportRecorder | None = None,
 ) -> tuple[list[dict], int, int]:
     """Return (products, total_count, total_pages) for one page.
 
@@ -371,7 +417,14 @@ async def list_products_paged(
         else:
             params["modified_after"] = str(modified_since)
 
-    r = await _get_raw(creds, "/products", params=params, timeout=_TIMEOUT_PAGE)
+    r = await _get_raw(
+        creds,
+        "/products",
+        params=params,
+        timeout=_TIMEOUT_PAGE,
+        transport=transport,
+        stage="product_batch_read",
+    )
     total = int(r.headers.get("X-WP-Total", "0"))
     total_pages = int(r.headers.get("X-WP-TotalPages", "1"))
     try:
@@ -383,6 +436,46 @@ async def list_products_paged(
             provider="woocommerce",
         ) from exc
     return data, total, total_pages
+
+
+async def list_variations_by_ids(
+    creds: WooCommerceCredentials,
+    parent_product_id: int,
+    variation_ids: list[int],
+    *,
+    fields: str = "id,parent_id,regular_price,price,sale_price",
+    transport: TransportRecorder | None = None,
+) -> list[dict]:
+    """Read up to 100 selected variations from one parent collection."""
+    if not variation_ids:
+        return []
+    r = await _get_raw(
+        creds,
+        f"/products/{parent_product_id}/variations",
+        params={
+            "include": ",".join(str(item) for item in variation_ids),
+            "per_page": min(len(variation_ids), 100),
+            "_fields": fields,
+        },
+        timeout=_TIMEOUT_PAGE,
+        transport=transport,
+        stage="variation_batch_read",
+    )
+    try:
+        data = r.json()
+    except Exception as exc:
+        raise ConnectorError(
+            code=ConnectorErrorCode.PROVIDER_ERROR,
+            message="WooCommerce returned an invalid variation response.",
+            provider="woocommerce",
+        ) from exc
+    if not isinstance(data, list):
+        raise ConnectorError(
+            code=ConnectorErrorCode.PROVIDER_ERROR,
+            message="WooCommerce returned an invalid variation response.",
+            provider="woocommerce",
+        )
+    return data
 
 
 async def list_orders_paged(

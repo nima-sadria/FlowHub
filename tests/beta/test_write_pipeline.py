@@ -19,6 +19,41 @@ from app.flowhub.setup import models as _setup_models  # noqa: F401
 from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: F401
 
 
+def _mock_woocommerce_current_state(monkeypatch, adapter_type, prices: dict[str, float]):
+    from app.connectors.common.current_state import (
+        CurrentStateRecord,
+        CurrentStateResult,
+        CurrentStateStrategy,
+        TransportRecorder,
+    )
+
+    async def fetch_current_state(_adapter, request, _context):
+        recorder = TransportRecorder(
+            strategy=CurrentStateStrategy.BATCH_BY_ID,
+            purpose=request.purpose,
+            entities_requested=len(request.entities),
+        )
+        recorder.record_batch()
+        recorder.record_request(stage="test_batch_read", duration_ms=1)
+        records = {
+            entity.key: CurrentStateRecord(
+                key=entity.key,
+                provider="woocommerce",
+                external_id=entity.external_id,
+                parent_external_id=entity.parent_external_id,
+                price=prices[entity.external_id],
+            )
+            for entity in request.entities
+        }
+        return CurrentStateResult(
+            records=records,
+            errors={},
+            transport=recorder.finish(entities_returned=len(records)),
+        )
+
+    monkeypatch.setattr(adapter_type, "fetch_current_state", fetch_current_state)
+
+
 @pytest.fixture()
 def db_engine():
     from sqlalchemy import create_engine
@@ -457,18 +492,10 @@ def test_execution_requires_second_action_after_approval(client, auth_headers, m
         calls["count"] += 1
         return {"provider": "woocommerce", "product_id": item.channel_product_id, "regular_price": "110.00"}
 
-    async def fake_verify(_adapter, item, _context):
-        return {
-            "verified": True,
-            "provider": "woocommerce",
-            "product_id": int(item.channel_product_id),
-            "parent_product_id": None,
-            "variation_id": None,
-            "regular_price": "110.00",
-        }
-
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
-    monkeypatch.setattr(WooCommercePriceWriteAdapter, "verify_item", fake_verify)
+    _mock_woocommerce_current_state(
+        monkeypatch, WooCommercePriceWriteAdapter, {"101": 110.0}
+    )
     created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
 
     blocked = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
@@ -880,36 +907,79 @@ def test_woocommerce_adapter_is_registered_for_price_updates_only():
     assert registry.get("shopify:main", "price_update") is None
 
 
-def test_apply_records_read_back_verification_and_audit_metadata(client, auth_headers, monkeypatch):
+def test_apply_records_read_back_verification_and_audit_metadata(
+    client, auth_headers, db, monkeypatch
+):
     from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
+    from app.flowhub.data_layer.models import DlConnectorTelemetry
+    from app.flowhub.data_layer.telemetry_service import ConnectorTelemetryService
 
     async def fake_execute(_adapter, item, _context):
         return {"provider": "woocommerce", "product_id": item.channel_product_id, "regular_price": "110.00"}
 
-    async def fake_verify(_adapter, item, _context):
-        return {
-            "provider": "woocommerce",
-            "verified": True,
-            "product_id": int(item.channel_product_id),
-            "parent_product_id": None,
-            "variation_id": None,
-            "observed_price": 110.0,
-            "expected_price": item.proposed_price,
-            "verification_error": None,
-        }
-
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
-    monkeypatch.setattr(WooCommercePriceWriteAdapter, "verify_item", fake_verify)
+    _mock_woocommerce_current_state(
+        monkeypatch, WooCommercePriceWriteAdapter, {"101": 110.0}
+    )
+    telemetry_calls: list[dict] = []
+    original_increment = ConnectorTelemetryService.increment
+
+    def track_increment(service, connector_id, connector_type, **values):
+        telemetry_calls.append(
+            {
+                "connector_id": connector_id,
+                "connector_type": connector_type,
+                **values,
+            }
+        )
+        return original_increment(service, connector_id, connector_type, **values)
+
+    monkeypatch.setattr(ConnectorTelemetryService, "increment", track_increment)
     created = client.post("/api/v2/write-pipeline/dry-run", headers=auth_headers, json=_payload()).json()
     client.post(f"/api/v2/write-pipeline/batches/{created['id']}/approve", headers=auth_headers, json={"reason": "ok"})
     _enable_woocommerce_write(client, auth_headers)
+    db.expire_all()
+    telemetry_before = (
+        db.query(DlConnectorTelemetry)
+        .filter(DlConnectorTelemetry.connector_id == "woocommerce:primary")
+        .one_or_none()
+    )
+    requests_before = telemetry_before.request_count if telemetry_before else 0
+    products_before = telemetry_before.products_fetched if telemetry_before else 0
 
     response = client.post(f"/api/v2/write-pipeline/batches/{created['id']}/execute", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
     assert data["items"][0]["verification"]["verified"] is True
+    transport = data["items"][0]["verification"]["transport"]
+    assert transport["strategy"] == "batch_by_id"
+    assert transport["entities_requested"] == 1
+    assert transport["requests_issued"] == 1
+    assert transport["batches_issued"] == 1
+    assert transport["bottleneck_stage"] == "test_batch_read"
     assert data["resultSummary"]["verified_count"] == 1
+    db.expire_all()
+    telemetry = (
+        db.query(DlConnectorTelemetry)
+        .filter(DlConnectorTelemetry.connector_id == "woocommerce:primary")
+        .one_or_none()
+    )
+    assert telemetry is not None
+    assert telemetry_calls == [
+        {
+            "connector_id": "woocommerce:primary",
+            "connector_type": "woocommerce",
+            "requests": 1,
+            "errors": 0,
+            "retries": 0,
+            "products_fetched": 1,
+            "latency_ms": 1.0,
+        }
+    ]
+    # One write acquisition plus one grouped current-state read.
+    assert telemetry.request_count == requests_before + 2
+    assert telemetry.products_fetched == products_before + 1
     events = client.get(f"/api/v2/write-pipeline/batches/{created['id']}/events", headers=auth_headers).json()
     applied_event = [item for item in events if item["eventType"] == "item_applied"][0]
     assert applied_event["metadata"]["source"]["sourceFilePath"] == "/prices.xlsx"
@@ -947,20 +1017,10 @@ def test_apply_records_variation_audit_metadata(client, auth_headers, db, monkey
             "stock_update": False,
         }
 
-    async def fake_verify(_adapter, item, _context):
-        return {
-            "provider": "woocommerce",
-            "verified": True,
-            "product_id": 201,
-            "parent_product_id": 100,
-            "variation_id": 201,
-            "observed_price": 132.0,
-            "expected_price": item.proposed_price,
-            "verification_error": None,
-        }
-
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
-    monkeypatch.setattr(WooCommercePriceWriteAdapter, "verify_item", fake_verify)
+    _mock_woocommerce_current_state(
+        monkeypatch, WooCommercePriceWriteAdapter, {"201": 132.0}
+    )
     created = client.post(
         "/api/v2/write-pipeline/dry-run",
         headers=auth_headers,
@@ -1006,19 +1066,10 @@ def test_partial_failure_is_recorded_with_safe_provider_error(client, auth_heade
             )
         return {"provider": "woocommerce", "product_id": item.channel_product_id, "regular_price": "110.00"}
 
-    async def fake_verify(_adapter, item, _context):
-        return {
-            "provider": "woocommerce",
-            "verified": True,
-            "product_id": int(item.channel_product_id),
-            "parent_product_id": None,
-            "variation_id": None,
-            "observed_price": 110.0,
-            "expected_price": item.proposed_price,
-        }
-
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
-    monkeypatch.setattr(WooCommercePriceWriteAdapter, "verify_item", fake_verify)
+    _mock_woocommerce_current_state(
+        monkeypatch, WooCommercePriceWriteAdapter, {"101": 110.0}
+    )
     created = client.post(
         "/api/v2/write-pipeline/dry-run",
         headers=auth_headers,

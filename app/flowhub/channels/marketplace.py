@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from app.connectors.common.current_state import (
+    CurrentStateRequest,
+    CurrentStateResult,
+    unsupported_current_state,
+)
 from app.flowhub.channels.contracts import (
     ChannelCapability,
     ChannelConnectorConfig,
@@ -60,6 +65,11 @@ class MarketplaceConnector(Protocol):
 
     async def get_product(self, identifiers: dict[str, str]) -> ChannelProduct:
         """Return one normalized product when products.read is supported."""
+
+    async def fetch_current_state(
+        self, request: CurrentStateRequest
+    ) -> CurrentStateResult:
+        """Retrieve current product state with per-entity evidence."""
 
     async def update_products(self, updates: list[ChannelProductUpdate]) -> list[ChannelProductUpdateResult]:
         """Apply supported product writes. Implementations must not blindly retry unsafe writes."""
@@ -129,6 +139,14 @@ class BaseMarketplaceConnector:
 
     async def get_product(self, identifiers: dict[str, str]) -> ChannelProduct:
         raise UnsupportedCapabilityError(ChannelCapability.PRODUCTS_READ, self.channel_id, self.connector_type)
+
+    async def fetch_current_state(
+        self, request: CurrentStateRequest
+    ) -> CurrentStateResult:
+        return unsupported_current_state(
+            request,
+            message=f"{self.connector_type} does not provide verified product read-back.",
+        )
 
     async def update_products(self, updates: list[ChannelProductUpdate]) -> list[ChannelProductUpdateResult]:
         write_caps = {

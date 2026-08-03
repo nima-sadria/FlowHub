@@ -7,6 +7,7 @@ and channel-native identifier handling stays at this adapter boundary.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Protocol
@@ -15,6 +16,15 @@ from urllib.parse import parse_qs, urljoin, urlparse
 import httpx
 from sqlalchemy.orm import Session
 
+from app.connectors.common.current_state import (
+    CurrentStateError,
+    CurrentStateRecord,
+    CurrentStateRequest,
+    CurrentStateResult,
+    CurrentStateStrategy,
+    TransportRecorder,
+    failed_current_state,
+)
 from app.flowhub.channels.contracts import (
     ChannelCapability,
     ChannelHealth,
@@ -189,9 +199,28 @@ class SnappShopConnector(BaseMarketplaceConnector):
         self,
         pagination: PageNumberPagination | CursorPagination | None = None,
     ) -> PaginatedResult:
-        vendor_id = await self._selected_vendor_id()
+        return await self._list_products_page(pagination)
+
+    async def _list_products_page(
+        self,
+        pagination: PageNumberPagination | CursorPagination | None = None,
+        *,
+        transport: TransportRecorder | None = None,
+        vendor_id: str | None = None,
+    ) -> PaginatedResult:
+        selected_vendor_id = vendor_id or await self._selected_vendor_id(
+            transport=transport
+        )
         page = pagination.page if isinstance(pagination, PageNumberPagination) else 1
-        payload = await self._request("GET", f"/vendors/{vendor_id}/products", params={"page": page})
+        if transport is not None:
+            transport.record_batch()
+        payload = await self._request(
+            "GET",
+            f"/vendors/{selected_vendor_id}/products",
+            params={"page": page},
+            transport=transport,
+            stage="product_collection",
+        )
         data = _expect_list(payload, self._error("Malformed product list response."))
         page_meta = _page_meta(payload)
         next_page = _next_page_from_link(page_meta)
@@ -229,6 +258,79 @@ class SnappShopConnector(BaseMarketplaceConnector):
         payload = await self._request("GET", f"/vendors/{vendor_id}/products/{product_id}")
         data = _expect_dict(payload.get("data"), self._error("Malformed product response."))
         return _product_from_payload(self.channel_id, data)
+
+    async def fetch_current_state(
+        self, request: CurrentStateRequest
+    ) -> CurrentStateResult:
+        if request.channel_id != self.channel_id:
+            return failed_current_state(
+                request,
+                strategy=CurrentStateStrategy.COLLECTION_SCAN,
+                category="validation",
+                message="Current-state request channel does not match SnappShop.",
+            )
+        recorder = TransportRecorder(
+            strategy=CurrentStateStrategy.COLLECTION_SCAN,
+            purpose=request.purpose,
+            entities_requested=len(request.entities),
+        )
+        records: dict[str, CurrentStateRecord] = {}
+        errors: dict[str, CurrentStateError] = {}
+        pending: dict[str, list] = {}
+        for entity in request.entities:
+            pending.setdefault(entity.external_id, []).append(entity)
+
+        page = 1
+        visited_pages: set[int] = set()
+        try:
+            vendor_id = await self._selected_vendor_id(transport=recorder)
+            while pending and page not in visited_pages:
+                visited_pages.add(page)
+                result = await self._list_products_page(
+                    PageNumberPagination(page=page, page_size=SNAPPSHOP_PRODUCTS_PER_PAGE),
+                    transport=recorder,
+                    vendor_id=vendor_id,
+                )
+                for product in result.items:
+                    external_id = str(product.identifiers.external_product_id or "")
+                    for entity in pending.pop(external_id, []):
+                        records[entity.key] = _current_state_record(entity.key, product)
+                pagination = result.pagination
+                if not isinstance(pagination, PageNumberPagination) or not pagination.has_more:
+                    break
+                page = pagination.next_page or (page + 1)
+        except SnappShopConnectorError as exc:
+            for entities in pending.values():
+                for entity in entities:
+                    errors[entity.key] = CurrentStateError(
+                        key=entity.key,
+                        category=exc.error.category.value,
+                        message=exc.error.message,
+                        retry_eligible=exc.error.retry.retryable,
+                    )
+            pending.clear()
+        except Exception:
+            for entities in pending.values():
+                for entity in entities:
+                    errors[entity.key] = CurrentStateError(
+                        key=entity.key,
+                        category="unexpected_response",
+                        message="SnappShop current-state retrieval failed.",
+                    )
+            pending.clear()
+
+        for entities in pending.values():
+            for entity in entities:
+                errors[entity.key] = CurrentStateError(
+                    key=entity.key,
+                    category="not_found",
+                    message="SnappShop product was not found in the current collection.",
+                )
+        return CurrentStateResult(
+            records=records,
+            errors=errors,
+            transport=recorder.finish(entities_returned=len(records)),
+        )
 
     async def update_products(self, updates: list[ChannelProductUpdate]) -> list[ChannelProductUpdateResult]:
         if len(updates) > SNAPPSHOP_MAX_UPDATE_BATCH:
@@ -305,16 +407,32 @@ class SnappShopConnector(BaseMarketplaceConnector):
         data = _expect_dict(payload.get("data"), self._error("Malformed order response."))
         return _order_from_payload(self.channel_id, data)
 
-    async def _selected_vendor_id(self) -> str:
+    async def _selected_vendor_id(
+        self, *, transport: TransportRecorder | None = None
+    ) -> str:
         if self.config.vendor_id:
             return self.config.vendor_id
-        payload = await self._request("GET", "/vendors")
+        payload = await self._request(
+            "GET",
+            "/vendors",
+            transport=transport,
+            stage="vendor_lookup",
+        )
         data = _expect_list(payload, self._error("Malformed vendor list response."))
         if not data or not isinstance(data[0], dict) or not data[0].get("id"):
             raise SnappShopConnectorError(self._error("No authorized SnappShop vendor id was returned."))
         return str(data[0]["id"])
 
-    async def _request(self, method: str, path: str, *, params: dict | None = None, json: dict | None = None) -> dict:
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict | None = None,
+        json: dict | None = None,
+        transport: TransportRecorder | None = None,
+        stage: str = "provider_request",
+    ) -> dict:
         url = urljoin(f"{self.config.base_url}/", path.lstrip("/"))
         headers = {
             "Authorization": f"Bearer {self.config.token}",
@@ -322,14 +440,28 @@ class SnappShopConnector(BaseMarketplaceConnector):
             "Accept": "application/json",
         }
         timeout = httpx.Timeout(self.config.timeout_seconds)
+        started = time.perf_counter()
+        failed = False
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.request(method, url, headers=headers, params=params, json=json)
+            return self._decode_response(response)
         except httpx.TimeoutException as exc:
+            failed = True
             raise SnappShopConnectorError(self._timeout_error()) from exc
         except httpx.HTTPError as exc:
+            failed = True
             raise SnappShopConnectorError(self._upstream_error("SnappShop request failed.")) from exc
-        return self._decode_response(response)
+        except Exception:
+            failed = True
+            raise
+        finally:
+            if transport is not None:
+                transport.record_request(
+                    stage=stage,
+                    duration_ms=(time.perf_counter() - started) * 1000,
+                    failed=failed,
+                )
 
     def _decode_response(self, response: httpx.Response) -> dict:
         try:
@@ -450,6 +582,21 @@ def _product_from_payload(channel_id: str, item: dict[str, Any]) -> ChannelProdu
         stock_quantity=_optional_float(item.get("stock")),
         status="active" if item.get("active") is True else "inactive" if item.get("active") is False else None,
         raw=item,
+    )
+
+
+def _current_state_record(key: str, product: ChannelProduct) -> CurrentStateRecord:
+    return CurrentStateRecord(
+        key=key,
+        provider=product.connector_type,
+        external_id=str(product.identifiers.external_product_id or ""),
+        parent_external_id=product.identifiers.parent_product_number,
+        price=product.current_price,
+        stock=product.stock_quantity,
+        status=product.status,
+        currency=product.currency,
+        unit=product.price_unit,
+        raw=product.raw,
     )
 
 

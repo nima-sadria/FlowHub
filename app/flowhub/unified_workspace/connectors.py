@@ -2,13 +2,28 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import logging
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from app.connectors.common.current_state import (
+    CurrentStateError,
+    CurrentStateIdentity,
+    CurrentStateRecord,
+    CurrentStateRequest,
+    CurrentStateResult,
+    CurrentStateStrategy,
+    failed_current_state,
+    unsupported_current_state,
+)
 from app.connectors.common.errors import ConnectorError
 from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
-from app.flowhub.channels.contracts import ChannelIdentifierSet, ChannelProductUpdate
+from app.flowhub.channels.contracts import (
+    ChannelIdentifierSet,
+    ChannelProductUpdate,
+    ChannelProductUpdateResult,
+)
 from app.flowhub.channels.write_validation import ProductWritePolicy, validate_product_write
 from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.product_pricing.service import ProductPricingService
@@ -20,6 +35,9 @@ from app.flowhub.write_pipeline.workspace_contracts import (
 from app.flowhub.write_pipeline.workspace_contracts import (
     WriteOutcome,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class ListingUpdateLike(Protocol):
@@ -147,7 +165,9 @@ class WooCommerceWorkspaceConnector:
         context = ChannelWriteContext(
             get_setting=self.pricing.config.get, requested_by=requested_by
         )
-        results: list[ListingUpdateResult] = []
+        completed: dict[str, ListingUpdateResult] = {}
+        responses: dict[str, dict[str, object]] = {}
+        successful: list[ListingUpdateLike] = []
         for update in updates:
             self.validate_update(update)
             try:
@@ -164,71 +184,63 @@ class WooCommerceWorkspaceConnector:
                     "not_found",
                     "provider_error",
                 }
-                results.append(
-                    ListingUpdateResult(
-                        listing_id=update.listing_id,
-                        outcome=(WriteOutcome.FAILED if deterministic else WriteOutcome.RECONCILIATION_REQUIRED),
-                        response={},
-                        error_category=exc.code.value,
-                        error_message=self.pricing._safe_error(exc),
-                        retry_eligible=bool(exc.retryable),
-                    )
+                completed[update.listing_id] = ListingUpdateResult(
+                    listing_id=update.listing_id,
+                    outcome=(
+                        WriteOutcome.FAILED
+                        if deterministic
+                        else WriteOutcome.RECONCILIATION_REQUIRED
+                    ),
+                    response={},
+                    error_category=exc.code.value,
+                    error_message=self.pricing._safe_error(exc),
+                    retry_eligible=bool(exc.retryable),
                 )
             except Exception as exc:
-                results.append(
-                    ListingUpdateResult(
-                        listing_id=update.listing_id,
-                        outcome=WriteOutcome.RECONCILIATION_REQUIRED,
-                        response={},
-                        error_category="provider",
-                        error_message=self.pricing._safe_error(exc),
-                    )
+                completed[update.listing_id] = ListingUpdateResult(
+                    listing_id=update.listing_id,
+                    outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                    response={},
+                    error_category="provider",
+                    error_message=self.pricing._safe_error(exc),
                 )
             else:
-                try:
-                    verification = await adapter.verify_item(_WooWriteItem(update), context)
-                except Exception as exc:
-                    results.append(
-                        ListingUpdateResult(
-                            listing_id=update.listing_id,
-                            outcome=WriteOutcome.RECONCILIATION_REQUIRED,
-                            provider_accepted=True,
-                            response={**response, "verification": {"verified": False}},
-                            external_response_id=_response_id(response),
-                            error_category="verification",
-                            error_message=self.pricing._safe_error(exc),
-                        )
-                    )
-                    continue
-                expected_product_id = int(update.external_primary_id)
-                expected_parent_id = (
-                    int(update.parent_external_id)
-                    if update.product_type == "variation" and update.parent_external_id
-                    else None
-                )
-                verified = (
-                    verification.get("verified") is True
-                    and verification.get("provider") == "woocommerce"
-                    and verification.get("product_id") == expected_product_id
-                    and verification.get("parent_product_id") == expected_parent_id
-                    and verification.get("variation_id")
-                    == (expected_product_id if expected_parent_id is not None else None)
-                )
-                results.append(
-                    ListingUpdateResult(
-                        listing_id=update.listing_id,
-                        outcome=(
-                            WriteOutcome.VERIFIED_APPLIED
-                            if verified
-                            else WriteOutcome.RECONCILIATION_REQUIRED
-                        ),
-                        provider_accepted=True,
-                        response={**response, "verification": verification},
-                        external_response_id=_response_id(response),
-                        accepted_price=update.target_price if verified else None,
-                    )
-                )
-        return results
+                responses[update.listing_id] = response
+                successful.append(update)
+
+        state = await _fetch_current_state(
+            adapter,
+            _current_state_request(
+                self.channel_id, successful, required_fields={"price"}
+            ),
+            context=context,
+            strategy=CurrentStateStrategy.BATCH_BY_ID,
+            safe_error=self.pricing._safe_error,
+        )
+        for update in successful:
+            record = state.records.get(update.listing_id)
+            error = state.errors.get(update.listing_id)
+            verified = _woocommerce_state_matches(update, record)
+            response = responses[update.listing_id]
+            completed[update.listing_id] = ListingUpdateResult(
+                listing_id=update.listing_id,
+                outcome=(
+                    WriteOutcome.VERIFIED_APPLIED
+                    if verified
+                    else WriteOutcome.RECONCILIATION_REQUIRED
+                ),
+                provider_accepted=True,
+                response={
+                    **response,
+                    "verification": _verification_evidence(record, error, verified, state),
+                },
+                external_response_id=_response_id(response),
+                error_category="verification" if error else None,
+                error_message=error.message if error else None,
+                retry_eligible=bool(error and error.retry_eligible),
+                accepted_price=update.target_price if verified else None,
+            )
+        return [completed[update.listing_id] for update in updates]
 
     async def verify_updates(
         self, updates: Sequence[ListingUpdateLike], *, requested_by: str
@@ -237,34 +249,20 @@ class WooCommerceWorkspaceConnector:
         context = ChannelWriteContext(
             get_setting=self.pricing.config.get, requested_by=requested_by
         )
+        state = await _fetch_current_state(
+            adapter,
+            _current_state_request(
+                self.channel_id, updates, required_fields={"price"}
+            ),
+            context=context,
+            strategy=CurrentStateStrategy.BATCH_BY_ID,
+            safe_error=self.pricing._safe_error,
+        )
         results: list[ListingUpdateResult] = []
         for update in updates:
-            try:
-                verification = await adapter.verify_item(_WooWriteItem(update), context)
-            except Exception as exc:
-                results.append(
-                    ListingUpdateResult(
-                        listing_id=update.listing_id,
-                        outcome=WriteOutcome.RECONCILIATION_REQUIRED,
-                        error_category="verification",
-                        error_message=self.pricing._safe_error(exc),
-                    )
-                )
-                continue
-            expected_id = int(update.external_primary_id)
-            expected_parent = (
-                int(update.parent_external_id)
-                if update.product_type == "variation" and update.parent_external_id
-                else None
-            )
-            verified = (
-                verification.get("verified") is True
-                and verification.get("provider") == "woocommerce"
-                and verification.get("product_id") == expected_id
-                and verification.get("parent_product_id") == expected_parent
-                and verification.get("variation_id")
-                == (expected_id if expected_parent is not None else None)
-            )
+            record = state.records.get(update.listing_id)
+            error = state.errors.get(update.listing_id)
+            verified = _woocommerce_state_matches(update, record)
             results.append(
                 ListingUpdateResult(
                     listing_id=update.listing_id,
@@ -273,7 +271,14 @@ class WooCommerceWorkspaceConnector:
                         if verified
                         else WriteOutcome.RECONCILIATION_REQUIRED
                     ),
-                    response={"verification": verification},
+                    response={
+                        "verification": _verification_evidence(
+                            record, error, verified, state
+                        )
+                    },
+                    error_category="verification" if error else None,
+                    error_message=error.message if error else None,
+                    retry_eligible=bool(error and error.retry_eligible),
                     accepted_price=update.target_price if verified else None,
                 )
             )
@@ -337,7 +342,9 @@ class SnappShopWorkspaceConnector:
         connector = self.commerce._snappshop_connector()
         if connector is None:
             raise WorkspaceDomainError("SnappShop connector is not configured.")
-        output: list[ListingUpdateResult] = []
+        provider_outcomes: list[
+            tuple[ListingUpdateLike, ChannelProductUpdateResult]
+        ] = []
         for offset in range(0, len(updates), 50):
             batch = updates[offset : offset + 50]
             requests: list[ChannelProductUpdate] = []
@@ -363,65 +370,73 @@ class SnappShopWorkspaceConnector:
                 )
             provider_results = await connector.update_products(requests)
             for update, result in zip(batch, provider_results, strict=True):
-                error = result.error
-                verified = False
-                observed = None
-                if result.success:
-                    try:
-                        observed = await connector.get_product(
-                            {"external_product_id": update.external_primary_id}
-                        )
-                        expected_price = (
-                            update.target_price
-                            if update.target_price is not None
-                            else update.current_price
-                        )
-                        expected_stock = (
-                            update.target_stock
-                            if update.target_stock is not None
-                            else update.current_stock
-                        )
-                        verified = (
-                            observed.channel_id == self.channel_id
-                            and observed.identifiers.external_product_id
-                            == update.external_primary_id
-                            and observed.identifiers.parent_product_number
-                            == update.parent_external_id
-                            and observed.current_price == expected_price
-                            and observed.stock_quantity == expected_stock
-                            and observed.currency == "IRR"
-                            and str(observed.price_unit or "").lower() == "toman"
-                        )
-                    except Exception:
-                        verified = False
-                output.append(
-                    ListingUpdateResult(
-                        listing_id=update.listing_id,
-                        outcome=(
-                            WriteOutcome.VERIFIED_APPLIED
-                            if result.success and verified
-                            else WriteOutcome.RECONCILIATION_REQUIRED
+                provider_outcomes.append((update, result))
+
+        successful = [update for update, result in provider_outcomes if result.success]
+        state = await _fetch_current_state(
+            connector,
+            _current_state_request(
+                self.channel_id, successful, required_fields={"price", "stock"}
+            ),
+            strategy=CurrentStateStrategy.COLLECTION_SCAN,
+        )
+        output: list[ListingUpdateResult] = []
+        for update, result in provider_outcomes:
+            write_error = result.error
+            record = state.records.get(update.listing_id) if result.success else None
+            state_error = state.errors.get(update.listing_id) if result.success else None
+            verified = result.success and _snappshop_state_matches(update, record)
+            output.append(
+                ListingUpdateResult(
+                    listing_id=update.listing_id,
+                    outcome=(
+                        WriteOutcome.VERIFIED_APPLIED
+                        if verified
+                        else WriteOutcome.RECONCILIATION_REQUIRED
+                        if result.success
+                        else WriteOutcome.FAILED
+                    ),
+                    provider_accepted=result.success,
+                    response={
+                        **result.raw,
+                        "verification": (
+                            _verification_evidence(record, state_error, verified, state)
                             if result.success
-                            else WriteOutcome.FAILED
+                            else {"verified": False, "skipped": "write_failed"}
                         ),
-                        provider_accepted=result.success,
-                        response={**result.raw, "verification": {"verified": verified}},
-                        external_response_id=_response_id(result.raw),
-                        error_category=error.category.value if error else None,
-                        error_message=error.message if error else None,
-                        retry_eligible=bool(error and error.retry.safe_to_retry),
-                        accepted_price=(
-                            update.target_price
-                            if verified and update.target_price is not None
-                            else None
-                        ),
-                        accepted_stock=(
-                            update.target_stock
-                            if verified and update.target_stock is not None
-                            else None
-                        ),
-                    )
+                    },
+                    external_response_id=_response_id(result.raw),
+                    error_category=(
+                        write_error.category.value
+                        if write_error
+                        else "verification"
+                        if state_error
+                        else None
+                    ),
+                    error_message=(
+                        write_error.message
+                        if write_error
+                        else state_error.message
+                        if state_error
+                        else None
+                    ),
+                    retry_eligible=(
+                        bool(write_error.retry.safe_to_retry)
+                        if write_error
+                        else bool(state_error and state_error.retry_eligible)
+                    ),
+                    accepted_price=(
+                        update.target_price
+                        if verified and update.target_price is not None
+                        else None
+                    ),
+                    accepted_stock=(
+                        update.target_stock
+                        if verified and update.target_stock is not None
+                        else None
+                    ),
                 )
+            )
         return output
 
     async def verify_updates(
@@ -431,43 +446,18 @@ class SnappShopWorkspaceConnector:
         connector = self.commerce._snappshop_connector()
         if connector is None:
             raise WorkspaceDomainError("SnappShop connector is not configured.")
+        state = await _fetch_current_state(
+            connector,
+            _current_state_request(
+                self.channel_id, updates, required_fields={"price", "stock"}
+            ),
+            strategy=CurrentStateStrategy.COLLECTION_SCAN,
+        )
         output: list[ListingUpdateResult] = []
         for update in updates:
-            try:
-                observed = await connector.get_product(
-                    {"external_product_id": update.external_primary_id}
-                )
-                expected_price = (
-                    update.target_price
-                    if update.target_price is not None
-                    else update.current_price
-                )
-                expected_stock = (
-                    update.target_stock
-                    if update.target_stock is not None
-                    else update.current_stock
-                )
-                verified = (
-                    observed.channel_id == self.channel_id
-                    and observed.identifiers.external_product_id
-                    == update.external_primary_id
-                    and observed.identifiers.parent_product_number
-                    == update.parent_external_id
-                    and observed.current_price == expected_price
-                    and observed.stock_quantity == expected_stock
-                    and observed.currency == "IRR"
-                    and str(observed.price_unit or "").lower() == "toman"
-                )
-            except Exception as exc:
-                output.append(
-                    ListingUpdateResult(
-                        listing_id=update.listing_id,
-                        outcome=WriteOutcome.RECONCILIATION_REQUIRED,
-                        error_category="verification",
-                        error_message=str(exc),
-                    )
-                )
-                continue
+            record = state.records.get(update.listing_id)
+            error = state.errors.get(update.listing_id)
+            verified = _snappshop_state_matches(update, record)
             output.append(
                 ListingUpdateResult(
                     listing_id=update.listing_id,
@@ -476,7 +466,14 @@ class SnappShopWorkspaceConnector:
                         if verified
                         else WriteOutcome.RECONCILIATION_REQUIRED
                     ),
-                    response={"verification": {"verified": verified}},
+                    response={
+                        "verification": _verification_evidence(
+                            record, error, verified, state
+                        )
+                    },
+                    error_category="verification" if error else None,
+                    error_message=error.message if error else None,
+                    retry_eligible=bool(error and error.retry_eligible),
                     accepted_price=update.target_price if verified else None,
                     accepted_stock=update.target_stock if verified else None,
                 )
@@ -553,6 +550,13 @@ class TapsiShopWorkspaceConnector:
         connector = self.commerce._tapsishop_connector()
         if connector is None:
             raise WorkspaceDomainError("TapsiShop connector is not configured.")
+        state = await _fetch_current_state(
+            connector,
+            _current_state_request(
+                self.channel_id, updates, required_fields={"price", "stock"}
+            ),
+            strategy=CurrentStateStrategy.UNSUPPORTED,
+        )
         output: list[ListingUpdateResult] = []
         for update in updates:
             self.validate_update(update)
@@ -601,7 +605,19 @@ class TapsiShopWorkspaceConnector:
                         else WriteOutcome.FAILED
                     ),
                     provider_accepted=result.success,
-                    response={**(result.raw or {}), "verification": {"verified": False}},
+                    response={
+                        **(result.raw or {}),
+                        "verification": (
+                            _verification_evidence(
+                                None,
+                                state.errors.get(update.listing_id),
+                                False,
+                                state,
+                            )
+                            if result.success
+                            else {"verified": False, "skipped": "write_failed"}
+                        ),
+                    },
                     external_response_id=_response_id(result.raw or {}),
                     error_category=error.category.value if error else None,
                     error_message=(
@@ -618,6 +634,15 @@ class TapsiShopWorkspaceConnector:
         self, updates: Sequence[ListingUpdateLike], *, requested_by: str
     ) -> list[ListingUpdateResult]:
         del requested_by
+        connector = self.commerce._tapsishop_connector()
+        request = _current_state_request(
+            self.channel_id, updates, required_fields={"price", "stock"}
+        )
+        state = await _fetch_current_state(
+            connector,
+            request,
+            strategy=CurrentStateStrategy.UNSUPPORTED,
+        )
         return [
             ListingUpdateResult(
                 listing_id=update.listing_id,
@@ -626,6 +651,14 @@ class TapsiShopWorkspaceConnector:
                 error_category="verification_unavailable",
                 error_message="TapsiShop has no exact product read-back endpoint.",
                 retry_eligible=False,
+                response={
+                    "verification": _verification_evidence(
+                        None,
+                        state.errors.get(update.listing_id),
+                        False,
+                        state,
+                    )
+                },
             )
             for update in updates
         ]
@@ -694,82 +727,94 @@ class TechnolifeWorkspaceConnector:
         connector = self.commerce._technolife_connector()
         if connector is None:
             raise WorkspaceDomainError("Technolife connector is not configured.")
-        output: list[ListingUpdateResult] = []
+        requests: list[ChannelProductUpdate] = []
         for update in updates:
             self.validate_update(update)
-            provider_results = await connector.update_products(
-                [
-                    ChannelProductUpdate(
-                        channel_id=self.channel_id,
-                        identifiers=ChannelIdentifierSet(
-                            external_product_id=update.external_primary_id,
-                            sku=update.sku,
-                            product_number=update.parent_external_id,
-                            parent_product_number=update.parent_external_id,
-                        ),
-                        price=update.target_price,
-                        stock_quantity=update.target_stock,
-                        currency="IRR",
-                        price_unit="RIAL",
-                        idempotency_key=update.idempotency_key,
-                    )
-                ]
-            )
-            if len(provider_results) != 1:
-                output.append(
-                    ListingUpdateResult(
-                        listing_id=update.listing_id,
-                        outcome=WriteOutcome.RECONCILIATION_REQUIRED,
-                        error_category="provider_contract",
-                        error_message="Technolife returned an ambiguous item count.",
-                    )
+            requests.append(
+                ChannelProductUpdate(
+                    channel_id=self.channel_id,
+                    identifiers=ChannelIdentifierSet(
+                        external_product_id=update.external_primary_id,
+                        sku=update.sku,
+                        product_number=update.parent_external_id,
+                        parent_product_number=update.parent_external_id,
+                    ),
+                    price=update.target_price,
+                    stock_quantity=update.target_stock,
+                    currency="IRR",
+                    price_unit="RIAL",
+                    idempotency_key=update.idempotency_key,
                 )
-                continue
-            result = provider_results[0]
-            error = result.error
-            verified = False
-            if result.success:
-                try:
-                    observed = await connector.get_product(
-                        {
-                            "external_product_id": update.external_primary_id,
-                            "product_number": str(update.parent_external_id),
-                        }
-                    )
-                    expected_price = (
-                        update.target_price
-                        if update.target_price is not None
-                        else update.current_price
-                    )
-                    expected_stock = (
-                        update.target_stock
-                        if update.target_stock is not None
-                        else update.current_stock
-                    )
-                    verified = (
-                        observed.identifiers.external_product_id
-                        == update.external_primary_id
-                        and observed.current_price == expected_price
-                        and observed.stock_quantity == expected_stock
-                    )
-                except Exception:
-                    verified = False
+            )
+        provider_results = await connector.update_products(requests)
+        if len(provider_results) != len(updates):
+            return [
+                ListingUpdateResult(
+                    listing_id=update.listing_id,
+                    outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                    error_category="provider_contract",
+                    error_message="Technolife returned an ambiguous item count.",
+                )
+                for update in updates
+            ]
+
+        successful = [
+            update
+            for update, result in zip(updates, provider_results, strict=True)
+            if result.success
+        ]
+        state = await _fetch_current_state(
+            connector,
+            _current_state_request(
+                self.channel_id, successful, required_fields={"price", "stock"}
+            ),
+            strategy=CurrentStateStrategy.GROUPED_COLLECTION,
+        )
+        output: list[ListingUpdateResult] = []
+        for update, result in zip(updates, provider_results, strict=True):
+            write_error = result.error
+            record = state.records.get(update.listing_id) if result.success else None
+            state_error = state.errors.get(update.listing_id) if result.success else None
+            verified = result.success and _technolife_state_matches(update, record)
             output.append(
                 ListingUpdateResult(
                     listing_id=update.listing_id,
                     outcome=(
                         WriteOutcome.VERIFIED_APPLIED
-                        if result.success and verified
+                        if verified
                         else WriteOutcome.RECONCILIATION_REQUIRED
                         if result.success
                         else WriteOutcome.FAILED
                     ),
                     provider_accepted=result.success,
-                    response={**result.raw, "verification": {"verified": verified}},
+                    response={
+                        **result.raw,
+                        "verification": (
+                            _verification_evidence(record, state_error, verified, state)
+                            if result.success
+                            else {"verified": False, "skipped": "write_failed"}
+                        ),
+                    },
                     external_response_id=_response_id(result.raw),
-                    error_category=error.category.value if error else None,
-                    error_message=error.message if error else None,
-                    retry_eligible=bool(error and error.retry.safe_to_retry),
+                    error_category=(
+                        write_error.category.value
+                        if write_error
+                        else "verification"
+                        if state_error
+                        else None
+                    ),
+                    error_message=(
+                        write_error.message
+                        if write_error
+                        else state_error.message
+                        if state_error
+                        else None
+                    ),
+                    retry_eligible=(
+                        bool(write_error.retry.safe_to_retry)
+                        if write_error
+                        else bool(state_error and state_error.retry_eligible)
+                    ),
                     accepted_price=update.target_price if verified else None,
                     accepted_stock=update.target_stock if verified else None,
                 )
@@ -783,51 +828,38 @@ class TechnolifeWorkspaceConnector:
         connector = self.commerce._technolife_connector()
         if connector is None:
             raise WorkspaceDomainError("Technolife connector is not configured.")
+        state = await _fetch_current_state(
+            connector,
+            _current_state_request(
+                self.channel_id, updates, required_fields={"price", "stock"}
+            ),
+            strategy=CurrentStateStrategy.GROUPED_COLLECTION,
+        )
         output: list[ListingUpdateResult] = []
         for update in updates:
-            try:
-                observed = await connector.get_product(
-                    {
-                        "external_product_id": update.external_primary_id,
-                        "product_number": str(update.parent_external_id or ""),
-                    }
+            record = state.records.get(update.listing_id)
+            error = state.errors.get(update.listing_id)
+            verified = _technolife_state_matches(update, record)
+            output.append(
+                ListingUpdateResult(
+                    listing_id=update.listing_id,
+                    outcome=(
+                        WriteOutcome.VERIFIED_APPLIED
+                        if verified
+                        else WriteOutcome.RECONCILIATION_REQUIRED
+                    ),
+                    response={
+                        "verification": _verification_evidence(
+                            record, error, verified, state
+                        )
+                    },
+                    error_category="verification" if error else None,
+                    error_message=error.message if error else None,
+                    retry_eligible=bool(error and error.retry_eligible),
+                    accepted_price=update.target_price if verified else None,
+                    accepted_stock=update.target_stock if verified else None,
                 )
-                expected_price = (
-                    update.target_price
-                    if update.target_price is not None
-                    else update.current_price
-                )
-                expected_stock = (
-                    update.target_stock
-                    if update.target_stock is not None
-                    else update.current_stock
-                )
-                verified = (
-                    observed.current_price == expected_price
-                    and observed.stock_quantity == expected_stock
-                )
-                output.append(
-                    ListingUpdateResult(
-                        listing_id=update.listing_id,
-                        outcome=(
-                            WriteOutcome.VERIFIED_APPLIED
-                            if verified
-                            else WriteOutcome.RECONCILIATION_REQUIRED
-                        ),
-                        response={"verification": {"verified": verified}},
-                        accepted_price=update.target_price if verified else None,
-                        accepted_stock=update.target_stock if verified else None,
-                    )
-                )
-            except Exception as exc:
-                output.append(
-                    ListingUpdateResult(
-                        listing_id=update.listing_id,
-                        outcome=WriteOutcome.RECONCILIATION_REQUIRED,
-                        error_category="verification",
-                        error_message=str(exc),
-                    )
-                )
+            )
         return output
 
 
@@ -859,6 +891,177 @@ class WorkspaceConnectorFactory:
         if connector is None:
             raise WorkspaceDomainError(f"Channel {channel_id} has no approved write strategy.")
         return connector
+
+
+def _current_state_request(
+    channel_id: str,
+    updates: Sequence[ListingUpdateLike],
+    *,
+    required_fields: set[str],
+) -> CurrentStateRequest:
+    return CurrentStateRequest(
+        channel_id=channel_id,
+        entities=tuple(
+            CurrentStateIdentity(
+                key=update.listing_id,
+                external_id=update.external_primary_id,
+                parent_external_id=update.parent_external_id,
+                sku=update.sku,
+            )
+            for update in updates
+        ),
+        required_fields=frozenset(required_fields),
+        purpose="post_apply_verification",
+        max_staleness_seconds=0,
+    )
+
+
+async def _fetch_current_state(
+    provider: object | None,
+    request: CurrentStateRequest,
+    *,
+    strategy: CurrentStateStrategy,
+    context: ChannelWriteContext | None = None,
+    safe_error: Callable[[Exception], str] = str,
+) -> CurrentStateResult:
+    if not request.entities:
+        return failed_current_state(
+            request,
+            strategy=strategy,
+            category="verification",
+            message="No current-state entities were requested.",
+        )
+    fetch = getattr(provider, "fetch_current_state", None)
+    if not callable(fetch):
+        result = unsupported_current_state(
+            request,
+            message="Connector does not provide grouped current-state retrieval.",
+        )
+    else:
+        try:
+            result = await fetch(request, context) if context is not None else await fetch(request)
+        except Exception as exc:
+            result = failed_current_state(
+                request,
+                strategy=strategy,
+                category="verification",
+                message=safe_error(exc),
+            )
+    report = result.transport
+    logger.info(
+        "current_state_transport operation_id=%s channel_id=%s strategy=%s entities=%d returned=%d "
+        "requests=%d batches=%d retries=%d failed_requests=%d duration_ms=%.3f "
+        "slowest_request_ms=%.3f bottleneck_stage=%s",
+        report.operation_id,
+        request.channel_id,
+        report.strategy.value,
+        report.entities_requested,
+        report.entities_returned,
+        report.requests_issued,
+        report.batches_issued,
+        report.retries,
+        report.failed_requests,
+        report.total_duration_ms,
+        report.slowest_request_ms,
+        report.bottleneck_stage,
+    )
+    return result
+
+
+def _verification_evidence(
+    record: CurrentStateRecord | None,
+    error: CurrentStateError | None,
+    verified: bool,
+    result: CurrentStateResult,
+) -> dict[str, object]:
+    return {
+        "verified": verified,
+        "observed": (
+            {
+                "provider": record.provider,
+                "external_id": record.external_id,
+                "parent_external_id": record.parent_external_id,
+                "price": record.price,
+                "stock": record.stock,
+                "status": record.status,
+                "currency": record.currency,
+                "unit": record.unit,
+            }
+            if record is not None
+            else None
+        ),
+        "error": (
+            {
+                "category": error.category,
+                "message": error.message,
+                "retry_eligible": error.retry_eligible,
+            }
+            if error is not None
+            else None
+        ),
+        "transport": result.transport.as_dict(),
+    }
+
+
+def _woocommerce_state_matches(
+    update: ListingUpdateLike, record: CurrentStateRecord | None
+) -> bool:
+    expected_parent = (
+        str(update.parent_external_id)
+        if update.product_type == "variation" and update.parent_external_id is not None
+        else None
+    )
+    expected_price = float(update.target_price or 0)
+    return bool(
+        record is not None
+        and record.provider == "woocommerce"
+        and record.external_id == update.external_primary_id
+        and record.parent_external_id == expected_parent
+        and record.price is not None
+        and abs(record.price - expected_price) < 0.005
+    )
+
+
+def _snappshop_state_matches(
+    update: ListingUpdateLike, record: CurrentStateRecord | None
+) -> bool:
+    expected_price = (
+        update.target_price if update.target_price is not None else update.current_price
+    )
+    expected_stock = (
+        update.target_stock if update.target_stock is not None else update.current_stock
+    )
+    return bool(
+        record is not None
+        and record.provider == "snappshop"
+        and record.external_id == update.external_primary_id
+        and record.parent_external_id == update.parent_external_id
+        and record.price == expected_price
+        and record.stock == expected_stock
+        and record.currency == "IRR"
+        and str(record.unit or "").lower() == "toman"
+    )
+
+
+def _technolife_state_matches(
+    update: ListingUpdateLike, record: CurrentStateRecord | None
+) -> bool:
+    expected_price = (
+        update.target_price if update.target_price is not None else update.current_price
+    )
+    expected_stock = (
+        update.target_stock if update.target_stock is not None else update.current_stock
+    )
+    return bool(
+        record is not None
+        and record.provider == "technolife"
+        and record.external_id == update.external_primary_id
+        and record.parent_external_id == update.parent_external_id
+        and record.price == expected_price
+        and record.stock == expected_stock
+        and record.currency == "IRR"
+        and str(record.unit or "").upper() == "RIAL"
+    )
 
 
 class _WooWriteItem:

@@ -6,9 +6,15 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.connectors.common.current_state import (
+    CurrentStateError,
+    CurrentStateRecord,
+    CurrentStateResult,
+    CurrentStateStrategy,
+    TransportRecorder,
+)
 from app.flowhub.channels.contracts import (
     ChannelIdentifierSet,
-    ChannelProduct,
     ChannelProductUpdateResult,
     ConnectorError,
     ConnectorErrorCategory,
@@ -66,6 +72,58 @@ def _update(**overrides) -> ListingUpdate:
     return ListingUpdate(**values)
 
 
+def _state_result(
+    request,
+    *,
+    records: dict[str, CurrentStateRecord] | None = None,
+    errors: dict[str, CurrentStateError] | None = None,
+    strategy: CurrentStateStrategy = CurrentStateStrategy.BATCH_BY_ID,
+    requests_issued: int = 1,
+) -> CurrentStateResult:
+    recorder = TransportRecorder(
+        strategy=strategy,
+        purpose=request.purpose,
+        entities_requested=len(request.entities),
+    )
+    if requests_issued:
+        recorder.record_batch()
+        for _ in range(requests_issued):
+            recorder.record_request(stage="test_provider", duration_ms=1)
+    current_records = records or {}
+    return CurrentStateResult(
+        records=current_records,
+        errors=errors or {},
+        transport=recorder.finish(entities_returned=len(current_records)),
+    )
+
+
+def _record(
+    entity,
+    *,
+    provider: str,
+    price: float,
+    stock: float | None = None,
+    currency: str | None = None,
+    unit: str | None = None,
+    external_id: str | None = None,
+    parent_external_id: str | None = None,
+) -> CurrentStateRecord:
+    return CurrentStateRecord(
+        key=entity.key,
+        provider=provider,
+        external_id=external_id or entity.external_id,
+        parent_external_id=(
+            entity.parent_external_id
+            if parent_external_id is None
+            else parent_external_id
+        ),
+        price=price,
+        stock=stock,
+        currency=currency,
+        unit=unit,
+    )
+
+
 @pytest.mark.asyncio
 async def test_woocommerce_adapter_validates_verifies_and_redacts_provider_failures(monkeypatch):
     connector = WooCommerceWorkspaceConnector(_Pricing())
@@ -84,23 +142,27 @@ async def test_woocommerce_adapter_validates_verifies_and_redacts_provider_failu
         assert context.requested_by == "admin"
         return {"id": 101}
 
-    async def verify(_self, item, _context):
-        assert item.proposed_price == 125.0
-        return {
-            "provider": "woocommerce",
-            "verified": True,
-            "product_id": 101,
-            "parent_product_id": None,
-            "variation_id": None,
-        }
+    async def fetch_state(_self, request, context):
+        assert context.requested_by == "admin"
+        entity = request.entities[0]
+        return _state_result(
+            request,
+            records={
+                entity.key: _record(
+                    entity,
+                    provider="woocommerce",
+                    price=125.0,
+                )
+            },
+        )
 
     monkeypatch.setattr(
         "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.execute_item",
         execute,
     )
     monkeypatch.setattr(
-        "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.verify_item",
-        verify,
+        "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.fetch_current_state",
+        fetch_state,
     )
     result = (await connector.apply_updates([_update()], requested_by="admin"))[0]
     assert result.outcome is WriteOutcome.VERIFIED_APPLIED
@@ -153,16 +215,28 @@ async def test_woocommerce_never_accepts_stale_wrong_or_cross_channel_readback(
     async def execute(_self, _item, _context):
         return {"id": 101}
 
-    async def verify(_self, _item, _context):
-        return verification
+    async def fetch_state(_self, request, _context):
+        entity = request.entities[0]
+        return _state_result(
+            request,
+            records={
+                entity.key: _record(
+                    entity,
+                    provider=verification["provider"],
+                    external_id=str(verification["product_id"]),
+                    parent_external_id=verification["parent_product_id"],
+                    price=125.0 if verification["verified"] else 100.0,
+                )
+            },
+        )
 
     monkeypatch.setattr(
         "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.execute_item",
         execute,
     )
     monkeypatch.setattr(
-        "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.verify_item",
-        verify,
+        "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.fetch_current_state",
+        fetch_state,
     )
     result = (
         await WooCommerceWorkspaceConnector(_Pricing()).apply_updates(
@@ -178,21 +252,27 @@ async def test_woocommerce_variation_cannot_verify_against_parent_readback(monke
     async def execute(_self, _item, _context):
         return {"id": 501}
 
-    async def parent_readback(_self, _item, _context):
-        return {
-            "provider": "woocommerce",
-            "verified": True,
-            "product_id": 500,
-            "parent_product_id": None,
-            "variation_id": None,
-        }
+    async def parent_readback(_self, request, _context):
+        entity = request.entities[0]
+        return _state_result(
+            request,
+            records={
+                entity.key: _record(
+                    entity,
+                    provider="woocommerce",
+                    external_id="500",
+                    parent_external_id=None,
+                    price=125.0,
+                )
+            },
+        )
 
     monkeypatch.setattr(
         "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.execute_item",
         execute,
     )
     monkeypatch.setattr(
-        "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.verify_item",
+        "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.fetch_current_state",
         parent_readback,
     )
     update = _update(
@@ -209,6 +289,7 @@ async def test_woocommerce_variation_cannot_verify_against_parent_readback(monke
 class _SnappProvider:
     def __init__(self):
         self.batch_sizes = []
+        self.current_state_calls = 0
 
     async def update_products(self, requests):
         self.batch_sizes.append(len(requests))
@@ -222,18 +303,22 @@ class _SnappProvider:
             for request in requests
         ]
 
-    async def get_product(self, identifiers):
-        return ChannelProduct(
-            channel_id="snappshop:main",
-            connector_type="snappshop",
-            identifiers=ChannelIdentifierSet(
-                external_product_id=identifiers["external_product_id"]
-            ),
-            name="Verified",
-            current_price=125.0,
-            currency="IRR",
-            price_unit="toman",
-            stock_quantity=4.0,
+    async def fetch_current_state(self, request):
+        self.current_state_calls += 1
+        return _state_result(
+            request,
+            records={
+                entity.key: _record(
+                    entity,
+                    provider="snappshop",
+                    price=125.0,
+                    stock=4.0,
+                    currency="IRR",
+                    unit="toman",
+                )
+                for entity in request.entities
+            },
+            strategy=CurrentStateStrategy.COLLECTION_SCAN,
         )
 
 
@@ -261,6 +346,7 @@ async def test_snappshop_adapter_batches_at_fifty_and_only_accepts_verified_stat
     ]
     results = await connector.apply_updates(updates, requested_by="admin")
     assert provider.batch_sizes == [50, 1]
+    assert provider.current_state_calls == 1
     assert len(results) == 51
     assert all(item.outcome is WriteOutcome.VERIFIED_APPLIED for item in results)
     assert results[0].accepted_price == 125.0
@@ -279,20 +365,120 @@ async def test_snappshop_adapter_batches_at_fifty_and_only_accepts_verified_stat
 
 
 @pytest.mark.asyncio
+async def test_snappshop_batch_verification_keeps_per_listing_success_and_error():
+    class Provider(_SnappProvider):
+        async def fetch_current_state(self, request):
+            first, second = request.entities
+            return _state_result(
+                request,
+                records={
+                    first.key: _record(
+                        first,
+                        provider="snappshop",
+                        price=125.0,
+                        stock=4.0,
+                        currency="IRR",
+                        unit="toman",
+                    )
+                },
+                errors={
+                    second.key: CurrentStateError(
+                        key=second.key,
+                        category="timeout",
+                        message="second product timed out",
+                        retry_eligible=True,
+                    )
+                },
+                strategy=CurrentStateStrategy.COLLECTION_SCAN,
+            )
+
+    connector = SnappShopWorkspaceConnector(
+        SimpleNamespace(
+            _snappshop_connector=lambda: Provider(),
+            channel_write_enabled=lambda _channel_id: True,
+        )
+    )
+    updates = [
+        _update(
+            listing_id=f"listing-{index}",
+            external_primary_id=str(index),
+            target_stock=4.0,
+            currency="IRR",
+            unit="TOMAN",
+        )
+        for index in range(2)
+    ]
+
+    results = await connector.apply_updates(updates, requested_by="admin")
+
+    assert results[0].outcome is WriteOutcome.VERIFIED_APPLIED
+    assert results[1].outcome is WriteOutcome.RECONCILIATION_REQUIRED
+    assert results[1].error_category == "verification"
+    assert results[1].retry_eligible is True
+    assert results[0].response["verification"]["transport"]["requests_issued"] == 1
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("failure", ["timeout", "wrong_listing", "wrong_channel", "wrong_unit"])
 async def test_snappshop_never_accepts_uncertain_or_mismatched_readback(failure):
     class Provider(_SnappProvider):
-        async def get_product(self, identifiers):
+        async def fetch_current_state(self, request):
             if failure == "timeout":
-                raise TimeoutError("read-back timed out")
-            product = await super().get_product(identifiers)
+                return _state_result(
+                    request,
+                    errors={
+                        entity.key: CurrentStateError(
+                            key=entity.key,
+                            category="timeout",
+                            message="read-back timed out",
+                            retry_eligible=True,
+                        )
+                        for entity in request.entities
+                    },
+                    strategy=CurrentStateStrategy.COLLECTION_SCAN,
+                )
+            entity = request.entities[0]
+            record = _record(
+                entity,
+                provider="snappshop",
+                price=125.0,
+                stock=4.0,
+                currency="IRR",
+                unit="toman",
+            )
             if failure == "wrong_listing":
-                product.identifiers.external_product_id = "unrelated"
+                record = _record(
+                    entity,
+                    provider="snappshop",
+                    external_id="unrelated",
+                    price=125.0,
+                    stock=4.0,
+                    currency="IRR",
+                    unit="toman",
+                )
             elif failure == "wrong_channel":
-                product.channel_id = "woocommerce:primary"
+                record = _record(
+                    entity,
+                    provider="woocommerce",
+                    price=125.0,
+                    stock=4.0,
+                    currency="IRR",
+                    unit="toman",
+                )
             elif failure == "wrong_unit":
-                product.price_unit = "rial"
-            return product
+                record = _record(
+                    entity,
+                    provider="snappshop",
+                    price=125.0,
+                    stock=4.0,
+                    currency="IRR",
+                    unit="rial",
+                )
+            return _state_result(
+                request,
+                records={entity.key: record},
+                strategy=CurrentStateStrategy.COLLECTION_SCAN,
+            )
 
     connector = SnappShopWorkspaceConnector(
         SimpleNamespace(
@@ -479,19 +665,21 @@ async def test_technolife_workspace_requires_parent_and_exact_readback():
                 )
             ]
 
-        async def get_product(self, identifiers):
-            return ChannelProduct(
-                channel_id="technolife:main",
-                connector_type="technolife",
-                identifiers=ChannelIdentifierSet(
-                    external_product_id=identifiers["external_product_id"],
-                    parent_product_number=identifiers["product_number"],
-                ),
-                name="Verified",
-                current_price=125000,
-                currency="IRR",
-                price_unit="RIAL",
-                stock_quantity=4,
+        async def fetch_current_state(self, request):
+            entity = request.entities[0]
+            return _state_result(
+                request,
+                records={
+                    entity.key: _record(
+                        entity,
+                        provider="technolife",
+                        price=125000,
+                        stock=4,
+                        currency="IRR",
+                        unit="RIAL",
+                    )
+                },
+                strategy=CurrentStateStrategy.GROUPED_COLLECTION,
             )
 
     connector = TechnolifeWorkspaceConnector(

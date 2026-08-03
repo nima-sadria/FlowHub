@@ -11,6 +11,14 @@ from collections.abc import Mapping
 from fastapi import HTTPException, status
 
 from app.connectors.common.auth import AuthConfig
+from app.connectors.common.current_state import (
+    CurrentStateError,
+    CurrentStateRequest,
+    CurrentStateResult,
+    CurrentStateStrategy,
+    TransportRecorder,
+)
+from app.connectors.common.errors import ConnectorError
 from app.connectors.destinations.woocommerce.connector import WooCommerceConnector
 from app.flowhub.write_pipeline.adapters import (
     ChannelWriteCapabilities,
@@ -57,44 +65,39 @@ class WooCommercePriceWriteAdapter:
         )
         return {str(key): value for key, value in result.items()}
 
-    async def verify_item(
-        self, item: WriteItemContract, context: ChannelWriteContext
-    ) -> dict[str, object]:
-        connector = await self._connected_connector(context)
-        observed = await connector.read_product_price(
-            int(item.channel_product_id),
-            parent_product_id=_parent_product_id(item),
+    async def fetch_current_state(
+        self, request: CurrentStateRequest, context: ChannelWriteContext
+    ) -> CurrentStateResult:
+        recorder = TransportRecorder(
+            strategy=CurrentStateStrategy.BATCH_BY_ID,
+            purpose=request.purpose,
+            entities_requested=len(request.entities),
         )
-        raw_observed = observed.get("regular_price")
         try:
-            observed_price = float(str(raw_observed).replace(",", "").strip())
-        except (TypeError, ValueError):
-            observed_price = None
-        expected = float(item.proposed_price)
-        verified = observed_price is not None and abs(observed_price - expected) < 0.005
-        expected_parent_id = _parent_product_id(item)
-        expected_product_id = int(item.channel_product_id)
-        identity_verified = (
-            observed.get("provider") == "woocommerce"
-            and observed.get("identity_complete") is True
-            and observed.get("product_id") == expected_product_id
-            and observed.get("parent_product_id") == expected_parent_id
-            and observed.get("variation_id")
-            == (expected_product_id if expected_parent_id is not None else None)
-        )
-        verified = verified and identity_verified
-        return {
-            "provider": "woocommerce",
-            "verified": verified,
-            "observed_price": observed_price,
-            "expected_price": expected,
-            "product_id": observed.get("product_id"),
-            "parent_product_id": observed.get("parent_product_id"),
-            "variation_id": observed.get("variation_id"),
-            "verification_error": None if verified else "observed_price_mismatch",
-        }
+            connector = await self._connected_connector(context, transport=recorder)
+            return await connector.fetch_current_state(request, transport=recorder)
+        except ConnectorError as exc:
+            errors = {
+                entity.key: CurrentStateError(
+                    key=entity.key,
+                    category=exc.code.value,
+                    message=exc.message,
+                    retry_eligible=exc.retryable,
+                )
+                for entity in request.entities
+            }
+            return CurrentStateResult(
+                records={},
+                errors=errors,
+                transport=recorder.finish(entities_returned=0),
+            )
 
-    async def _connected_connector(self, context: ChannelWriteContext) -> WooCommerceConnector:
+    async def _connected_connector(
+        self,
+        context: ChannelWriteContext,
+        *,
+        transport: TransportRecorder | None = None,
+    ) -> WooCommerceConnector:
         auth = AuthConfig(
             auth_type="api_key",
             credentials={
@@ -104,7 +107,13 @@ class WooCommercePriceWriteAdapter:
             },
         )
         connector = WooCommerceConnector()
-        await connector.connect(auth)
+        # The operation immediately performs an authenticated provider request,
+        # so a separate preflight ping would add one remote call per operation.
+        await connector.connect(
+            auth,
+            verify_connection=False,
+            transport=transport,
+        )
         return connector
 
 

@@ -18,6 +18,41 @@ from app.flowhub.setup import models as _setup_models  # noqa: F401
 from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: F401
 
 
+def _mock_woocommerce_current_state(monkeypatch, adapter_type, prices: dict[str, float]):
+    from app.connectors.common.current_state import (
+        CurrentStateRecord,
+        CurrentStateResult,
+        CurrentStateStrategy,
+        TransportRecorder,
+    )
+
+    async def fetch_current_state(_adapter, request, _context):
+        recorder = TransportRecorder(
+            strategy=CurrentStateStrategy.BATCH_BY_ID,
+            purpose=request.purpose,
+            entities_requested=len(request.entities),
+        )
+        recorder.record_batch()
+        recorder.record_request(stage="test_batch_read", duration_ms=1)
+        records = {
+            entity.key: CurrentStateRecord(
+                key=entity.key,
+                provider="woocommerce",
+                external_id=entity.external_id,
+                parent_external_id=entity.parent_external_id,
+                price=prices[entity.external_id],
+            )
+            for entity in request.entities
+        }
+        return CurrentStateResult(
+            records=records,
+            errors={},
+            transport=recorder.finish(entities_returned=len(records)),
+        )
+
+    monkeypatch.setattr(adapter_type, "fetch_current_state", fetch_current_state)
+
+
 @pytest.fixture()
 def db_engine():
     from sqlalchemy import create_engine
@@ -768,26 +803,11 @@ def test_simple_woocommerce_price_workflow_end_to_end_with_mocked_adapter(
             "stock_update": False,
         }
 
-    async def fake_verify(_adapter, item, _context):
-        return {
-            "provider": "woocommerce",
-            "verified": True,
-            # A successful provider read-back must contain the same identity
-            # evidence as the production adapter.  This fixture intentionally
-            # models an exact observation; incomplete observations are covered
-            # by the fail-closed verification regressions elsewhere.
-            "identity_complete": True,
-            "product_id": int(item.channel_product_id),
-            "parent_product_id": None,
-            "variation_id": None,
-            "observed_price": item.proposed_price,
-            "expected_price": item.proposed_price,
-            "verification_error": None,
-        }
-
     monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
-    monkeypatch.setattr(WooCommercePriceWriteAdapter, "verify_item", fake_verify)
+    _mock_woocommerce_current_state(
+        monkeypatch, WooCommercePriceWriteAdapter, {"101": 110.0}
+    )
 
     preview = client.post("/api/v2/workspace/preview", headers=auth_headers).json()
     dry_run = client.post(

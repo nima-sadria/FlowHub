@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
+from app.connectors.common.current_state import CurrentStateStrategy, TransportRecorder
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import (
@@ -193,3 +194,37 @@ def test_ping_403_raises_permission():
     with pytest.raises(ConnectorError) as exc_info:
         asyncio.run(_run())
     assert exc_info.value.code == ConnectorErrorCode.PERMISSION
+
+
+def test_ping_transport_report_counts_provider_retry_attempts():
+    limited = _mock_json_response(429, {})
+    limited.headers = {"Retry-After": "0"}
+    success = _mock_json_response(200, [_PRODUCT_FIXTURE])
+    success.headers = {}
+    recorder = TransportRecorder(
+        strategy=CurrentStateStrategy.BATCH_BY_ID,
+        purpose="verification",
+        entities_requested=1,
+    )
+
+    async def _run():
+        with (
+            patch("httpx.AsyncClient") as MockClient,
+            patch(
+                "app.connectors.destinations.woocommerce.rest_client.asyncio.sleep",
+                new=AsyncMock(),
+            ),
+        ):
+            instance = AsyncMock()
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
+            instance.get = AsyncMock(side_effect=[limited, success])
+            return await ping(_CREDS, transport=recorder)
+
+    result = asyncio.run(_run())
+    report = recorder.finish(entities_returned=1)
+
+    assert result["reachable"] is True
+    assert report.requests_issued == 2
+    assert report.retries == 1
+    assert report.failed_requests == 1

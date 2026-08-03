@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.connectors.common.auth import AuthConfig
+from app.connectors.common.current_state import CurrentStateIdentity, CurrentStateRequest
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.common.health import HealthStatus
 from app.connectors.common.types import ConnectorType
@@ -111,6 +112,22 @@ def test_connect_stores_credentials():
     asyncio.run(_run())
     assert wc._creds is not None
     assert wc._creds.key == "ck_abc"
+
+
+def test_connect_can_bind_credentials_without_redundant_preflight():
+    wc = WooCommerceConnector()
+
+    async def _run():
+        probe = AsyncMock(return_value={"reachable": True, "records_checked": 0})
+        with patch(
+            "app.connectors.destinations.woocommerce.connector.ping",
+            new=probe,
+        ):
+            await wc.connect(_AUTH, verify_connection=False)
+        probe.assert_not_awaited()
+
+    asyncio.run(_run())
+    assert wc._creds is not None
 
 
 def test_disconnect_clears_credentials():
@@ -268,6 +285,162 @@ def test_read_inventory_not_connected_raises():
     with pytest.raises(ConnectorError) as exc_info:
         asyncio.run(wc.read_inventory(1))
     assert exc_info.value.code == ConnectorErrorCode.UNKNOWN
+
+
+@pytest.mark.asyncio
+async def test_current_state_batches_ids_and_isolates_a_failed_product(monkeypatch):
+    wc = WooCommerceConnector()
+    wc._creds = extract_credentials(_AUTH)
+    calls: list[list[int]] = []
+
+    async def list_batch(
+        _creds,
+        *,
+        product_ids,
+        transport,
+        **_kwargs,
+    ):
+        calls.append(product_ids)
+        failed = 2 in product_ids
+        transport.record_request(
+            stage="product_batch_read",
+            duration_ms=2,
+            failed=failed,
+        )
+        if failed:
+            raise ConnectorError(
+                code=ConnectorErrorCode.PROVIDER_ERROR,
+                message="bad product",
+                provider="woocommerce",
+                http_status=400,
+            )
+        return (
+            [
+                {"id": product_id, "regular_price": f"{product_id * 10}.00"}
+                for product_id in product_ids
+            ],
+            len(product_ids),
+            1,
+        )
+
+    monkeypatch.setattr(
+        "app.connectors.destinations.woocommerce.connector.list_products_paged",
+        list_batch,
+    )
+    request = CurrentStateRequest(
+        channel_id="woocommerce:primary",
+        entities=tuple(
+            CurrentStateIdentity(key=f"listing-{product_id}", external_id=str(product_id))
+            for product_id in (1, 2, 3)
+        ),
+        required_fields=frozenset({"price"}),
+    )
+
+    result = await wc.fetch_current_state(request)
+
+    assert result.records["listing-1"].price == 10
+    assert result.records["listing-3"].price == 30
+    assert result.errors["listing-2"].category == "provider_error"
+    assert set(result.errors) == {"listing-2"}
+    assert calls == [[1, 2, 3], [1], [2, 3], [2], [3]]
+    assert result.transport.requests_issued == 5
+    assert result.transport.batches_issued == 5
+    assert result.transport.failed_requests == 3
+
+
+@pytest.mark.asyncio
+async def test_current_state_does_not_split_provider_wide_failure(monkeypatch):
+    wc = WooCommerceConnector()
+    wc._creds = extract_credentials(_AUTH)
+    calls: list[list[int]] = []
+
+    async def list_batch(
+        _creds,
+        *,
+        product_ids,
+        transport,
+        **_kwargs,
+    ):
+        calls.append(product_ids)
+        transport.record_request(
+            stage="product_batch_read", duration_ms=2, failed=True
+        )
+        raise ConnectorError(
+            code=ConnectorErrorCode.PROVIDER_ERROR,
+            message="provider unavailable",
+            provider="woocommerce",
+            http_status=503,
+            retryable=True,
+        )
+
+    monkeypatch.setattr(
+        "app.connectors.destinations.woocommerce.connector.list_products_paged",
+        list_batch,
+    )
+    request = CurrentStateRequest(
+        channel_id="woocommerce:primary",
+        entities=tuple(
+            CurrentStateIdentity(key=f"listing-{product_id}", external_id=str(product_id))
+            for product_id in (1, 2, 3)
+        ),
+        required_fields=frozenset({"price"}),
+    )
+
+    result = await wc.fetch_current_state(request)
+
+    assert calls == [[1, 2, 3]]
+    assert set(result.errors) == {"listing-1", "listing-2", "listing-3"}
+    assert result.transport.requests_issued == 1
+
+
+@pytest.mark.asyncio
+async def test_current_state_groups_variations_by_parent(monkeypatch):
+    wc = WooCommerceConnector()
+    wc._creds = extract_credentials(_AUTH)
+    calls: list[tuple[int, list[int]]] = []
+
+    async def list_variations(
+        _creds,
+        parent_product_id,
+        variation_ids,
+        *,
+        transport,
+        **_kwargs,
+    ):
+        calls.append((parent_product_id, variation_ids))
+        transport.record_request(stage="variation_batch_read", duration_ms=2)
+        return [
+            {
+                "id": variation_id,
+                "regular_price": "125.00",
+            }
+            for variation_id in variation_ids
+        ]
+
+    monkeypatch.setattr(
+        "app.connectors.destinations.woocommerce.connector.list_variations_by_ids",
+        list_variations,
+    )
+    request = CurrentStateRequest(
+        channel_id="woocommerce:primary",
+        entities=(
+            CurrentStateIdentity(
+                key="listing-11", external_id="11", parent_external_id="10"
+            ),
+            CurrentStateIdentity(
+                key="listing-12", external_id="12", parent_external_id="10"
+            ),
+        ),
+        required_fields=frozenset({"price"}),
+    )
+
+    result = await wc.fetch_current_state(request)
+
+    assert calls == [(10, [11, 12])]
+    assert set(result.records) == {"listing-11", "listing-12"}
+    assert result.records["listing-11"].parent_external_id == "10"
+    assert result.transport.requests_issued == 1
+    assert result.transport.batches_issued == 1
 
 
 # -- Isolation check -----------------------------------------------------------

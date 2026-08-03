@@ -5,6 +5,7 @@ import base64
 import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from app.connectors.common.current_state import CurrentStateIdentity, CurrentStateRequest
 from app.flowhub.channels.contracts import (
     ChannelIdentifierSet,
     ChannelProductUpdate,
@@ -145,6 +146,96 @@ async def test_product_listing_reads_seller_items_and_normalizes_rial_values():
     assert product.price_unit == "RIAL"
     assert FakeAsyncClient.requests[0]["params"] == {"page": 1, "limit": 20}
     assert FakeAsyncClient.requests[1]["url"].endswith("/v1/products/P-1/items")
+
+
+@pytest.mark.asyncio
+async def test_current_state_groups_seller_items_by_parent_with_item_diagnostics():
+    FakeAsyncClient.responses = [
+        FakeResponse(
+            200,
+            {
+                "data": [
+                    {
+                        "code": "ITEM-1",
+                        "cash": {"price": 1250000},
+                        "available": 7,
+                    }
+                ]
+            },
+        ),
+        FakeResponse(
+            200,
+            {
+                "data": [
+                    {
+                        "code": "ITEM-2",
+                        "cash": {"price": 2250000},
+                        "available": 3,
+                    }
+                ]
+            },
+        ),
+    ]
+    request = CurrentStateRequest(
+        channel_id="technolife:main",
+        entities=(
+            CurrentStateIdentity(
+                key="listing-1", external_id="ITEM-1", parent_external_id="P-1"
+            ),
+            CurrentStateIdentity(
+                key="listing-2", external_id="ITEM-2", parent_external_id="P-2"
+            ),
+            CurrentStateIdentity(
+                key="listing-missing",
+                external_id="ITEM-X",
+                parent_external_id="P-2",
+            ),
+        ),
+        required_fields=frozenset({"price", "stock"}),
+    )
+
+    result = await connector().fetch_current_state(request)
+
+    assert result.records["listing-1"].price == 1250000
+    assert result.records["listing-2"].stock == 3
+    assert result.errors["listing-missing"].category == "not_found"
+    assert result.transport.requests_issued == 2
+    assert result.transport.batches_issued == 2
+    assert result.transport.entities_returned == 2
+    assert {request["url"].rsplit("/", 2)[-2] for request in FakeAsyncClient.requests} == {
+        "P-1",
+        "P-2",
+    }
+
+
+@pytest.mark.asyncio
+async def test_current_state_isolates_failed_parent_collection():
+    FakeAsyncClient.responses = [
+        FakeResponse(
+            200,
+            {"data": [{"code": "ITEM-1", "cash": {"price": 1250000}, "available": 7}]},
+        ),
+        FakeResponse(503, {"message": "unavailable"}),
+    ]
+    request = CurrentStateRequest(
+        channel_id="technolife:main",
+        entities=(
+            CurrentStateIdentity(
+                key="listing-1", external_id="ITEM-1", parent_external_id="P-1"
+            ),
+            CurrentStateIdentity(
+                key="listing-2", external_id="ITEM-2", parent_external_id="P-2"
+            ),
+        ),
+        required_fields=frozenset({"price", "stock"}),
+    )
+
+    result = await connector().fetch_current_state(request)
+
+    assert set(result.records) == {"listing-1"}
+    assert result.errors["listing-2"].category == "upstream_unavailable"
+    assert result.transport.requests_issued == 2
+    assert result.transport.failed_requests == 1
 
 
 @pytest.mark.asyncio

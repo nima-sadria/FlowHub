@@ -14,16 +14,34 @@ Capabilities:
 from __future__ import annotations
 
 import time
+from collections.abc import Awaitable, Callable, Sequence
 
 from app.connectors.common.auth import AuthConfig
 from app.connectors.common.base import DestinationConnector
+from app.connectors.common.current_state import (
+    CurrentStateError,
+    CurrentStateIdentity,
+    CurrentStateRecord,
+    CurrentStateRequest,
+    CurrentStateResult,
+    CurrentStateStrategy,
+    TransportRecorder,
+    failed_current_state,
+)
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.common.health import HealthResult, HealthStatus
 from app.connectors.common.test_result import ConnectionTestResult
 from app.connectors.common.types import ConnectorCapabilities, ConnectorID
 
 from .auth import WooCommerceCredentials, extract_credentials
-from .rest_client import get_product, get_variation, list_products, ping, update_product_price
+from .rest_client import (
+    get_product,
+    list_products,
+    list_products_paged,
+    list_variations_by_ids,
+    ping,
+    update_product_price,
+)
 
 
 class WooCommerceConnector(DestinationConnector):
@@ -36,8 +54,8 @@ class WooCommerceConnector(DestinationConnector):
       4. list_products(page, per_page)  - paginated product list
       5. read_inventory(product_id)     - stock data for one product
       6. update_price(product_id, price)- Write Pipeline price-only adapter
-      7. read_product_price(product_id) - read-back verification after write
-      8. disconnect()           - clears stored credentials
+      7. fetch_current_state(request)   - grouped post-write verification
+      8. disconnect()                   - clears stored credentials
     """
 
     connector_id: ConnectorID = "woocommerce"
@@ -53,10 +71,17 @@ class WooCommerceConnector(DestinationConnector):
 
     # -- Lifecycle -------------------------------------------------------------
 
-    async def connect(self, auth: AuthConfig) -> None:
+    async def connect(
+        self,
+        auth: AuthConfig,
+        *,
+        verify_connection: bool = True,
+        transport: TransportRecorder | None = None,
+    ) -> None:
         """Store credentials and verify the WooCommerce API is reachable."""
         creds = extract_credentials(auth)
-        await ping(creds)
+        if verify_connection:
+            await ping(creds, transport=transport)
         self._creds = creds
 
     async def disconnect(self) -> None:
@@ -158,25 +183,190 @@ class WooCommerceConnector(DestinationConnector):
         creds = self._require_connected()
         return await update_product_price(creds, product_id, price, parent_product_id=parent_product_id)
 
-    async def read_product_price(self, product_id: int, *, parent_product_id: int | None = None) -> dict:
-        """Read price fields for post-apply verification."""
+    async def fetch_current_state(
+        self,
+        request: CurrentStateRequest,
+        *,
+        transport: TransportRecorder | None = None,
+    ) -> CurrentStateResult:
+        if request.channel_id != "woocommerce:primary":
+            return failed_current_state(
+                request,
+                strategy=CurrentStateStrategy.BATCH_BY_ID,
+                category="validation",
+                message="Current-state request channel does not match WooCommerce.",
+            )
         creds = self._require_connected()
-        if parent_product_id is None:
-            product = await get_product(creds, product_id)
-        else:
-            product = await get_variation(creds, parent_product_id, product_id)
-        observed_id = product.get("id")
-        observed_parent = product.get("parent_id") if parent_product_id is not None else None
-        return {
-            "provider": "woocommerce",
-            # Identity must be provider-observed. Never repair a missing provider
-            # response with values copied from the write request.
-            "product_id": observed_id,
-            "parent_product_id": observed_parent,
-            "variation_id": observed_id if parent_product_id is not None else None,
-            "identity_complete": observed_id is not None
-            and (parent_product_id is None or observed_parent is not None),
-            "regular_price": product.get("regular_price"),
-            "price": product.get("price"),
-            "sale_price": product.get("sale_price"),
-        }
+        recorder = transport or TransportRecorder(
+            strategy=CurrentStateStrategy.BATCH_BY_ID,
+            purpose=request.purpose,
+            entities_requested=len(request.entities),
+        )
+        records: dict[str, CurrentStateRecord] = {}
+        errors: dict[str, CurrentStateError] = {}
+        simple: list[CurrentStateIdentity] = []
+        variations: dict[int, list[CurrentStateIdentity]] = {}
+        for entity in request.entities:
+            if not entity.external_id.isdigit():
+                errors[entity.key] = CurrentStateError(
+                    key=entity.key,
+                    category="validation",
+                    message="WooCommerce product ID must be numeric.",
+                )
+                continue
+            if entity.parent_external_id is None:
+                simple.append(entity)
+                continue
+            if not entity.parent_external_id.isdigit():
+                errors[entity.key] = CurrentStateError(
+                    key=entity.key,
+                    category="validation",
+                    message="WooCommerce parent product ID must be numeric.",
+                )
+                continue
+            variations.setdefault(int(entity.parent_external_id), []).append(entity)
+
+        async def load_simple(batch: Sequence[CurrentStateIdentity]) -> list[dict]:
+            payload, _, _ = await list_products_paged(
+                creds,
+                per_page=len(batch),
+                fields="id,regular_price,price,sale_price",
+                status="any",
+                product_ids=[int(entity.external_id) for entity in batch],
+                transport=recorder,
+            )
+            return payload
+
+        await self._fetch_state_batches(
+            simple,
+            loader=load_simple,
+            recorder=recorder,
+            records=records,
+            errors=errors,
+            parent_id=None,
+        )
+        for parent_id, entities in variations.items():
+            async def load_variations(
+                batch: Sequence[CurrentStateIdentity],
+                *,
+                parent: int = parent_id,
+            ) -> list[dict]:
+                return await list_variations_by_ids(
+                    creds,
+                    parent,
+                    [int(entity.external_id) for entity in batch],
+                    transport=recorder,
+                )
+
+            await self._fetch_state_batches(
+                entities,
+                loader=load_variations,
+                recorder=recorder,
+                records=records,
+                errors=errors,
+                parent_id=parent_id,
+            )
+        return CurrentStateResult(
+            records=records,
+            errors=errors,
+            transport=recorder.finish(entities_returned=len(records)),
+        )
+
+    async def _fetch_state_batches(
+        self,
+        entities: Sequence[CurrentStateIdentity],
+        *,
+        loader: Callable[[Sequence[CurrentStateIdentity]], Awaitable[list[dict]]],
+        recorder: TransportRecorder,
+        records: dict[str, CurrentStateRecord],
+        errors: dict[str, CurrentStateError],
+        parent_id: int | None,
+    ) -> None:
+        for offset in range(0, len(entities), 100):
+            await self._fetch_state_batch_isolated(
+                entities[offset : offset + 100],
+                loader=loader,
+                recorder=recorder,
+                records=records,
+                errors=errors,
+                parent_id=parent_id,
+            )
+
+    async def _fetch_state_batch_isolated(
+        self,
+        entities: Sequence[CurrentStateIdentity],
+        *,
+        loader: Callable[[Sequence[CurrentStateIdentity]], Awaitable[list[dict]]],
+        recorder: TransportRecorder,
+        records: dict[str, CurrentStateRecord],
+        errors: dict[str, CurrentStateError],
+        parent_id: int | None,
+    ) -> None:
+        if not entities:
+            return
+        recorder.record_batch()
+        try:
+            payload = await loader(entities)
+        except ConnectorError as exc:
+            # Split only a deterministic item-scope failure. Retrying a
+            # provider-wide 5xx as a binary tree would recreate N+1 traffic.
+            isolatable = (
+                exc.code is ConnectorErrorCode.PROVIDER_ERROR
+                and exc.http_status is not None
+                and 400 <= exc.http_status < 500
+            )
+            if isolatable and len(entities) > 1:
+                middle = len(entities) // 2
+                await self._fetch_state_batch_isolated(
+                    entities[:middle],
+                    loader=loader,
+                    recorder=recorder,
+                    records=records,
+                    errors=errors,
+                    parent_id=parent_id,
+                )
+                await self._fetch_state_batch_isolated(
+                    entities[middle:],
+                    loader=loader,
+                    recorder=recorder,
+                    records=records,
+                    errors=errors,
+                    parent_id=parent_id,
+                )
+                return
+            for entity in entities:
+                errors[entity.key] = CurrentStateError(
+                    key=entity.key,
+                    category=exc.code.value,
+                    message=exc.message,
+                    retry_eligible=exc.retryable,
+                )
+            return
+
+        by_id = {str(item.get("id")): item for item in payload if item.get("id") is not None}
+        for entity in entities:
+            item = by_id.get(entity.external_id)
+            if item is None:
+                errors[entity.key] = CurrentStateError(
+                    key=entity.key,
+                    category="not_found",
+                    message="WooCommerce product was not returned by the current-state batch.",
+                )
+                continue
+            records[entity.key] = CurrentStateRecord(
+                key=entity.key,
+                provider="woocommerce",
+                external_id=str(item.get("id") or ""),
+                parent_external_id=(
+                    str(parent_id) if parent_id is not None else None
+                ),
+                price=_optional_price(item.get("regular_price")),
+                raw=item,
+            )
+
+
+def _optional_price(value: object) -> float | None:
+    try:
+        return float(str(value).replace(",", "").strip())
+    except (TypeError, ValueError):
+        return None
