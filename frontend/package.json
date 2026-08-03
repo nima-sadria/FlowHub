@@ -18,6 +18,7 @@
     "@handsontable/react-wrapper": "^18.0.0",
     "handsontable": "^18.0.0",
     "i18next": "^26.3.6",
+    "lucide-react": "^1.28.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "react-i18next": "^17.0.9",

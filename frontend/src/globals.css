@@ -3253,38 +3253,20 @@ select,
   }
 
   .fh-svg-icon {
-    display: inline-block;
-    flex-shrink: 0;
-    min-width: 1em;
-    min-height: 1em;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
     vertical-align: -0.125em;
     color: currentColor;
-    background-color: currentColor !important;
-    mask-image: var(--fh-icon-url) !important;
-    mask-position: center !important;
-    mask-repeat: no-repeat !important;
-    mask-size: contain !important;
-    -webkit-mask-image: var(--fh-icon-url) !important;
-    -webkit-mask-position: center !important;
-    -webkit-mask-repeat: no-repeat !important;
-    -webkit-mask-size: contain !important;
+    line-height: 0;
   }
 
   [dir="rtl"] .fh-svg-icon[data-rtl-mirror="true"] {
     transform: scaleX(-1);
   }
 
-  .fh-inline-svg-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: transparent !important;
-    background-image: none !important;
-    -webkit-mask-image: none !important;
-    mask-image: none !important;
-  }
-
-  .fh-inline-svg-icon svg {
+  .fh-svg-icon svg {
     width: 100%;
     height: 100%;
     display: block;
@@ -3944,8 +3926,6 @@ select,
 
   .fh-menu-item-icon {
     flex: 0 0 auto;
-    width: 20px;
-    height: 20px;
     color: var(--fh-nav-text-muted);
     transition:
       color 150ms ease,
@@ -3987,11 +3967,6 @@ select,
     .fh-menu-submenu-item {
       height: 34px;
     }
-  }
-
-  .fh-menu-submenu-item .fh-menu-item-icon {
-    width: 18px;
-    height: 18px;
   }
 
   .fh-menu-section {

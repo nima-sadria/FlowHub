@@ -257,7 +257,7 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
                               setExpandedItems(current => ({ ...current, [itemId]: !current[itemId] }))
                             }}
                           >
-                            <Icon name={item.icon} className="fh-menu-item-icon" />
+                            <Icon name={item.icon} size="lg" className="fh-menu-item-icon" />
                             <span className={collapsed ? 'xl:hidden' : ''}>{translate(item.labelKey)}</span>
                             <Icon
                               name="chevronDown"
@@ -283,7 +283,7 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
                                     'fh-menu-submenu-item',
                                   ].join(' ')}
                                 >
-                                  <Icon name={child.icon} className="fh-menu-item-icon" />
+                                  <Icon name={child.icon} size="md" className="fh-menu-item-icon" />
                                   <span className={collapsed ? 'xl:hidden' : ''}>{translate(child.labelKey)}</span>
                                 </NavLink>
                               ))}
@@ -302,7 +302,7 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
                           itemCls(item.isActive ? item.isActive(location.pathname, tab) : isActive)
                         }
                       >
-                        <Icon name={item.icon} className="fh-menu-item-icon" />
+                        <Icon name={item.icon} size="lg" className="fh-menu-item-icon" />
                         <span className={collapsed ? 'xl:hidden' : ''}>{translate(item.labelKey)}</span>
                       </NavLink>
                     )

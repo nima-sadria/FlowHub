@@ -34,77 +34,6 @@ function roleLabel(role: string): string {
   return role
 }
 
-function MenuIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <line x1="3" y1="12" x2="21" y2="12" />
-      <line x1="3" y1="18" x2="15" y2="18" />
-    </svg>
-  )
-}
-
-function SunIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="4.5" />
-      <path d="M12 2.5v2.5M12 19v2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2.5 12H5M19 12h2.5M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" />
-    </svg>
-  )
-}
-
-function MoonIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M21 12.8A9 9 0 1 1 11.2 3a7.2 7.2 0 0 0 9.8 9.8Z" />
-    </svg>
-  )
-}
-
-function SignOutIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <path d="m16 17 5-5-5-5" />
-      <path d="M21 12H9" />
-    </svg>
-  )
-}
-
 function formatDecimalString(value: string, locale: string): string {
   const match = value.trim().match(/^([+-]?)(\d+)(?:\.(\d+))?$/)
   if (!match) return value
@@ -233,7 +162,7 @@ export default function Topbar({
           className="xl:hidden"
           label={translate('navigation:topbar.openNavigation')}
         >
-          <MenuIcon />
+          <Icon name="menu" size="lg" />
         </IconButton>
 
         <button
@@ -308,7 +237,7 @@ export default function Topbar({
             }
             className="fh-topbar-action"
           >
-            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size="lg" />
           </button>
 
           <button
@@ -411,7 +340,7 @@ export default function Topbar({
                     className="fh-dropdown-item mt-1 text-wp-red hover:bg-wp-red/5 hover:text-wp-red"
                   >
                     <span className="fh-icon-md">
-                      <SignOutIcon />
+                      <Icon name="signOut" size="lg" />
                     </span>
                     {translate('navigation:sidebar.signOut')}
                   </button>
