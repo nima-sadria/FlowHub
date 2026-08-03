@@ -123,6 +123,8 @@ test('language, theme, and password-visibility controls meet the mobile touch-ta
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/login')
+  await expect(page.locator('#login-identifier')).toHaveCSS('font-size', '16px')
+  await expect(page.locator('#login-password')).toHaveCSS('font-size', '16px')
   const languageBox = await page.getByRole('button', { name: 'Language' }).boundingBox()
   const themeBox = await page.getByRole('button', { name: 'Switch to dark mode' }).boundingBox()
   const passwordToggleBox = await page.getByRole('button', { name: 'Show password' }).boundingBox()
@@ -174,7 +176,70 @@ test('language, theme, and password-visibility controls meet the mobile touch-ta
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/login')
+  await expect(page.locator('#login-identifier')).toHaveCSS('font-size', '14px')
+  await expect(page.locator('#login-password')).toHaveCSS('font-size', '14px')
   const desktopThemeBox = await page.getByRole('button', { name: 'Switch to dark mode' }).boundingBox()
   expect(desktopThemeBox?.width).toBe(40)
   expect(desktopThemeBox?.height).toBe(40)
+})
+
+test('the Design System keeps every editable mobile control at 16px in LTR, RTL, light, and dark', async ({ page }) => {
+  const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [] }
+  await installLoginMocks(page, audit)
+  await page.setViewportSize({ width: 430, height: 932 })
+
+  const variants = [
+    { locale: 'en', theme: 'light', dir: 'ltr' },
+    { locale: 'en', theme: 'dark', dir: 'ltr' },
+    { locale: 'fa', theme: 'light', dir: 'rtl' },
+    { locale: 'fa', theme: 'dark', dir: 'rtl' },
+  ] as const
+
+  for (const variant of variants) {
+    await page.goto('/login')
+    await page.evaluate(([locale, theme]) => {
+      localStorage.setItem('flowhub.locale', locale)
+      localStorage.setItem('wp_theme', theme)
+    }, [variant.locale, variant.theme])
+    await page.reload()
+
+    await expect(page.locator('html')).toHaveAttribute('lang', variant.locale)
+    await expect(page.locator('html')).toHaveAttribute('dir', variant.dir)
+    if (variant.theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/)
+    else await expect(page.locator('html')).not.toHaveClass(/dark/)
+
+    await page.evaluate(() => {
+      const fixture = document.createElement('div')
+      fixture.id = 'fh-form-control-contract'
+      fixture.style.cssText = 'position:fixed;inset-inline-start:-10000px;top:0;width:320px;'
+      fixture.innerHTML = `
+        <input data-ds-control class="fh-input" type="text">
+        <input data-ds-control class="fh-input" type="email">
+        <input data-ds-control class="fh-input" type="password">
+        <input data-ds-control class="fh-products-search-input" type="search">
+        <input data-ds-control class="fh-cell-input" type="number">
+        <input data-ds-control class="fh-sheet-cell" type="date">
+        <input data-ds-control class="fh-sheet-column-name" type="time">
+        <textarea data-ds-control class="fh-textarea"></textarea>
+        <select data-ds-control class="fh-select"><option>Standard</option></select>
+        <span class="fh-chip-select"><select data-ds-control><option>Compact filter</option></select></span>
+        <span class="fh-availability"><select data-ds-control><option>Availability</option></select></span>
+      `
+      document.body.append(fixture)
+    })
+
+    const computedSizes = await page.locator('#fh-form-control-contract [data-ds-control]').evaluateAll(controls =>
+      controls.map(control => getComputedStyle(control).fontSize),
+    )
+    expect(new Set(computedSizes)).toEqual(new Set(['16px']))
+    await expect(page.locator('#login-identifier')).toHaveCSS('font-size', '16px')
+    await expect(page.locator('#login-password')).toHaveCSS('font-size', '16px')
+  }
+
+  const viewportPolicy = await page.locator('meta[name="viewport"]').getAttribute('content')
+  expect(viewportPolicy).toContain('width=device-width')
+  expect(viewportPolicy).not.toContain('maximum-scale')
+  expect(viewportPolicy).not.toContain('user-scalable=no')
+  expect(audit.externalRequests, 'No request may leave the isolated local browser environment').toEqual([])
+  expect(audit.unhandledApiRequests, 'Every Login API request must be explicitly mocked').toEqual([])
 })

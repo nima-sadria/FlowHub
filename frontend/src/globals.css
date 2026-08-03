@@ -1876,6 +1876,11 @@ button.fh-inline-status {
   --fh-text-xs: 12px;
   --fh-leading-xs: 18px;
 
+  /* Form controls stay compact on pointer-accurate desktop layouts. Mobile
+     and touch-first devices use 16px to prevent focus zoom in iOS Safari. */
+  --fh-control-font-size: var(--fh-text-sm);
+  --fh-control-font-size-mobile: var(--fh-text-md);
+
   /* Brand palette */
 
   --fh-brand-25: #f2f7ff;
@@ -3591,7 +3596,7 @@ select,
     border: 1px solid var(--fh-ui-border-strong);
     border-radius: var(--fh-radius-md);
     box-shadow: none;
-    font-size: 14px;
+    font-size: var(--fh-control-font-size);
     line-height: 20px;
   }
 
@@ -5818,6 +5823,17 @@ span.flatpickr-weekday {
 /* =========================================================
    Responsive typography
    ========================================================= */
+
+@media (max-width: 767px), (hover: none) and (pointer: coarse) {
+  /* iOS Safari zooms focused controls rendered below 16px. This global
+     contract also covers compact and third-party editors without disabling
+     user pinch zoom. Non-text controls keep their native sizing. */
+  input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="image"]):not([type="hidden"]),
+  textarea,
+  select {
+    font-size: var(--fh-control-font-size-mobile) !important;
+  }
+}
 
 @media (max-width: 767px) {
   .fh-page-title {

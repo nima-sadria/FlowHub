@@ -279,6 +279,7 @@ modules and historical phase documents are not the current architecture.
 - [Source Workspace API](docs/api/SOURCE_WORKSPACE_API.md)
 - [Unified Workspace API](docs/api/UNIFIED_WORKSPACE_API.md)
 - [Internationalization](docs/i18n/INTERNATIONALIZATION.md)
+- [Frontend Design System](docs/DESIGN_SYSTEM.md)
 - [Installation](docs/INSTALLATION.md)
 - [Upgrade](docs/UPGRADE.md)
 - [Backup and Restore](docs/BACKUP_RESTORE.md)
