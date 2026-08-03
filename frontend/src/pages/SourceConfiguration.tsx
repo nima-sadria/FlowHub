@@ -898,7 +898,7 @@ export default function SourceConfiguration() {
         </section>
       )}
 
-      <fieldset className="contents" id="data-mapping" disabled={!canEditSource}>
+      <fieldset className="min-w-0" id="data-mapping" disabled={!canEditSource}>
       <ConfigurationSection title={translate('sources:sourceConfiguration.worksheetRules')} description={translate('sources:sourceConfiguration.worksheetRulesSectionHelp')}>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'shared' ? 'border-accent bg-accent/5' : 'border-border'}`} title={translate('sources:sourceConfiguration.sharedWorksheetRulesHelp')}>

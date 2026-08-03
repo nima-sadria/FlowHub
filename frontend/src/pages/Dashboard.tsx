@@ -72,6 +72,27 @@ interface HealthRow {
   onClick: () => void
 }
 
+type StatusMetricState = 'neutral' | 'muted' | 'unavailable' | 'not-read' | 'warning' | 'error' | 'success'
+
+function StatusMetric({
+  id,
+  label,
+  value,
+  state,
+}: {
+  id: string
+  label: string
+  value: string
+  state: StatusMetricState
+}) {
+  return (
+    <div className="fh-status-strip-cell" data-status-metric={id}>
+      <span className="fh-status-strip-label" title={label}>{label}</span>
+      <span className="fh-status-strip-value" data-state={state}>{value}</span>
+    </div>
+  )
+}
+
 function dashboardLocale(): string {
   return i18n.resolvedLanguage ?? i18n.language ?? 'en'
 }
@@ -325,6 +346,19 @@ export default function Dashboard() {
     : orderWindow === null
       ? translate('common:status.loading')
       : fallbackRevenueText || '-'
+  const revenueUnavailable = translate('dashboard:dashboard.revenueUnavailable')
+  const revenueValue = businessLoading
+    ? translate('common:status.loading')
+    : revenueText && revenueText !== '-'
+      ? revenueText
+      : revenueUnavailable
+  const revenueState: StatusMetricState = businessLoading
+    ? 'muted'
+    : revenueValue === revenueUnavailable
+      ? 'unavailable'
+      : 'neutral'
+  const freshnessValue = compactRelTime(lastSync)
+  const freshnessState: StatusMetricState = lastSync ? 'neutral' : 'not-read'
 
   const revenueSeries = useMemo(() => {
     const currencies = new Map<string, Map<string, number>>()
@@ -504,51 +538,47 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className={[CARD, 'flex min-h-[52px] flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2'].join(' ')}>
-        <span className="flex items-center gap-1.5">
-          <span className="text-[11px] leading-4 text-wp-muted">
-            {translate('dashboard:dashboard.revenueToday')}
-          </span>
-          <span className="text-[13px] font-semibold leading-[22px] text-wp-green">
-            {businessLoading
-              ? translate('common:status.loading')
-              : businessError && !orderWindow
-                ? translate('dashboard:dashboard.revenueUnavailable')
-                : revenueText || translate('dashboard:dashboard.revenueUnavailable')}
-          </span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="text-[11px] leading-4 text-wp-muted">{translate('dashboard:dashboard.blocking')}</span>
-          <span className={['text-[13px] font-semibold leading-[22px]', blockingCount > 0 ? 'text-wp-red' : 'text-text-base'].join(' ')}>
-            {formatNumber(blockingCount)}
-          </span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="text-[11px] leading-4 text-wp-muted">{translate('dashboard:dashboard.warnings')}</span>
-          <span className={['text-[13px] font-semibold leading-[22px]', warningCount > 0 ? 'text-wp-yellow' : 'text-text-base'].join(' ')}>
-            {formatNumber(warningCount)}
-          </span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="text-[11px] leading-4 text-wp-muted">{translate('dashboard:dashboard.sourceFreshness')}</span>
-          <span className="text-[13px] font-semibold leading-[22px] text-wp-green">
-            {compactRelTime(lastSync)}
-          </span>
-        </span>
-        <span className="ms-auto flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-medium leading-4 text-[color:var(--fh-text-secondary)]">
+      <div className={[CARD, 'fh-status-strip'].join(' ')}>
+        <StatusMetric
+          id="revenue"
+          label={translate('dashboard:dashboard.revenueToday')}
+          value={revenueValue}
+          state={revenueState}
+        />
+        <StatusMetric
+          id="blocking"
+          label={translate('dashboard:dashboard.blocking')}
+          value={formatNumber(blockingCount)}
+          state={blockingCount > 0 ? 'error' : 'neutral'}
+        />
+        <StatusMetric
+          id="warnings"
+          label={translate('dashboard:dashboard.warnings')}
+          value={formatNumber(warningCount)}
+          state={warningCount > 0 ? 'warning' : 'neutral'}
+        />
+        <StatusMetric
+          id="freshness"
+          label={translate('dashboard:dashboard.sourceFreshness')}
+          value={freshnessValue}
+          state={freshnessState}
+        />
+        <div className="fh-status-strip-footer">
+          <span className="fh-status-strip-footer-label">
             {translate('dashboard:dashboard.pricingWorkflow')}
           </span>
-          <Badge dot variant="warning">
-            {translate('dashboard:dashboard.reviewStageCount', { count: reviewStageCount, value: formatNumber(reviewStageCount) })}
-          </Badge>
-          <Badge dot variant="info">
-            {translate('dashboard:dashboard.dryRunStageCount', { count: dryRunStageCount, value: formatNumber(dryRunStageCount) })}
-          </Badge>
-          <Badge dot variant="success">
-            {translate('dashboard:dashboard.applyStageCount', { count: applyStageCount, value: formatNumber(applyStageCount) })}
-          </Badge>
-        </span>
+          <span className="fh-status-strip-badges">
+            <Badge className="fh-status-strip-badge" dot variant={reviewStageCount > 0 ? 'warning' : 'neutral'}>
+              {translate('dashboard:dashboard.reviewStageCount', { count: reviewStageCount, value: formatNumber(reviewStageCount) })}
+            </Badge>
+            <Badge className="fh-status-strip-badge" dot variant={dryRunStageCount > 0 ? 'info' : 'neutral'}>
+              {translate('dashboard:dashboard.dryRunStageCount', { count: dryRunStageCount, value: formatNumber(dryRunStageCount) })}
+            </Badge>
+            <Badge className="fh-status-strip-badge" dot variant={applyStageCount > 0 ? 'success' : 'neutral'}>
+              {translate('dashboard:dashboard.applyStageCount', { count: applyStageCount, value: formatNumber(applyStageCount) })}
+            </Badge>
+          </span>
+        </div>
       </div>
 
       <div className="fh-grid-12 fh-grid-main">

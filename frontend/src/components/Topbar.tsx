@@ -16,6 +16,7 @@ interface Props {
   user: { username: string; role?: string } | null
   onLogout: () => void
   exchangeRates?: ExchangeRateService
+  hasUnreadNotifications?: boolean
 }
 
 const LANGUAGES = [
@@ -49,10 +50,22 @@ function formatDecimalString(value: string, locale: string): string {
 
 function ExchangeRateStrip({ service, language }: { service: ExchangeRateService; language: string }) {
   const [rates, setRates] = useState<ExchangeRateSnapshotView[]>([])
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'unavailable'>('loading')
 
   useEffect(() => {
     let active = true
-    const load = () => service.getLatest().then(data => { if (active) setRates(data.rates.slice(0, 3)) }).catch(() => { if (active) setRates([]) })
+    const load = () => service.getLatest()
+      .then(data => {
+        if (!active) return
+        const nextRates = data.rates.slice(0, 3)
+        setRates(nextRates)
+        setLoadState(nextRates.length > 0 ? 'ready' : 'unavailable')
+      })
+      .catch(() => {
+        if (!active) return
+        setRates([])
+        setLoadState('unavailable')
+      })
     void load()
     const interval = window.setInterval(load, 5 * 60 * 1000)
     const onUpdated = () => { void load() }
@@ -60,9 +73,11 @@ function ExchangeRateStrip({ service, language }: { service: ExchangeRateService
     return () => { active = false; window.clearInterval(interval); window.removeEventListener('flowhub:exchange-rates-updated', onUpdated) }
   }, [service])
 
-  if (rates.length !== 3) return null
   const locale = language.startsWith('fa') ? 'fa-IR' : 'en-US'
-  const label = locale === 'fa-IR' ? 'نرخ ارز' : 'Exchange rates'
+  const label = translate('settings:exchangeRates.title')
+  const availabilityLabel = loadState === 'loading'
+    ? translate('common:status.loading')
+    : translate('common:status.unavailable')
   const rateItems = rates.map(rate => {
     const name = locale === 'fa-IR' ? rate.display_name_fa : rate.display_name
     const increased = rate.change !== null && !rate.change.trim().startsWith('-')
@@ -96,16 +111,28 @@ function ExchangeRateStrip({ service, language }: { service: ExchangeRateService
       </span>
     )
   })
+  const unavailableItem = (
+    <span className="fh-topbar-rate fh-topbar-rate-unavailable" data-state={loadState} role="status">
+      <span className="fh-topbar-rate-name">{label}</span>
+      <span className="fh-topbar-rate-value">{availabilityLabel}</span>
+    </span>
+  )
+  const renderedItems = rates.length > 0 ? rateItems : unavailableItem
+
   return (
     <>
-      <div className="fh-topbar-rates hidden xl:flex" aria-label={label}>{rateItems}</div>
+      <div className="fh-topbar-rates hidden xl:flex" aria-label={label}>{renderedItems}</div>
       <details className="fh-topbar-rates-compact xl:hidden">
-        <summary aria-label={label}>
+        <summary className="fh-topbar-control" aria-label={label} data-state={loadState}>
           <Icon name="rateLimits" size="md" />
-          <span className="fh-topbar-rates-compact-label">{label}</span>
-          <span aria-hidden="true">3</span>
+          <span className="sr-only">{label}</span>
+          {rates.length > 0 && (
+            <span className="fh-topbar-control-badge" aria-label={String(rates.length)}>
+              {rates.length}
+            </span>
+          )}
         </summary>
-        <div className="fh-topbar-rates-compact-menu">{rateItems}</div>
+        <div className="fh-topbar-rates-compact-menu">{renderedItems}</div>
       </details>
     </>
   )
@@ -118,6 +145,7 @@ export default function Topbar({
   user,
   onLogout,
   exchangeRates,
+  hasUnreadNotifications = false,
 }: Props) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -159,10 +187,10 @@ export default function Topbar({
       <div className="fh-topbar-primary">
         <IconButton
           onClick={onMenuClick}
-          className="xl:hidden"
+          className="fh-topbar-ghost xl:hidden"
           label={translate('navigation:topbar.openNavigation')}
         >
-          <Icon name="menu" size="lg" />
+          <Icon name="menu" size="lg" strokeWidth={1.75} />
         </IconButton>
 
         <button
@@ -186,9 +214,9 @@ export default function Topbar({
           aria-label={translate(sidebarCollapsed
             ? 'navigation:sidebar.expandSidebar'
             : 'navigation:sidebar.collapseSidebar')}
-          className="fh-topbar-action hidden xl:inline-flex"
+          className="fh-topbar-ghost hidden xl:inline-flex"
         >
-          <Icon name="panelToggle" size="lg" mirrorRtl />
+          <Icon name="panelToggle" size="lg" mirrorRtl strokeWidth={1.75} />
         </button>
 
         <form
@@ -210,12 +238,12 @@ export default function Topbar({
 
         <IconButton
           onClick={() => setMobileActionsOpen(open => !open)}
-          className="fh-topbar-more xl:hidden"
+          className="fh-topbar-ghost fh-topbar-more xl:hidden"
           label={translate('common:action.actions')}
           aria-controls="topbar-mobile-actions"
           aria-expanded={mobileActionsOpen}
         >
-          <Icon name="more" size="lg" />
+          <Icon name="more" size="lg" strokeWidth={1.75} />
         </IconButton>
 
         <div
@@ -235,7 +263,7 @@ export default function Topbar({
                 ? translate('navigation:topbar.switchToLightMode')
                 : translate('navigation:topbar.switchToDarkMode')
             }
-            className="fh-topbar-action"
+            className="fh-topbar-control"
           >
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} size="lg" />
           </button>
@@ -244,7 +272,8 @@ export default function Topbar({
             type="button"
             onClick={() => navigate('/activity')}
             aria-label={translate('notifications:notificationContainer.notifications')}
-            className="fh-topbar-action"
+            className="fh-topbar-control fh-topbar-notification"
+            data-unread={hasUnreadNotifications ? 'true' : undefined}
           >
             <Icon name="bell" size="lg" />
           </button>
@@ -262,7 +291,7 @@ export default function Topbar({
               onClick={() => setLangOpen(open => !open)}
               aria-label={translate('settings:language.title')}
               aria-expanded={langOpen}
-              className="fh-topbar-pill fh-topbar-language rtl:flex-row-reverse"
+              className="fh-topbar-control fh-topbar-language"
             >
               <Icon name="globe" size="lg" />
               <span className="fh-topbar-language-label">{translate('navigation:topbar.languageBadge')}</span>
@@ -303,7 +332,7 @@ export default function Topbar({
                 onClick={() => setMenuOpen(open => !open)}
                 aria-label={translate('navigation:topbar.userMenu')}
                 aria-expanded={menuOpen}
-                className="fh-topbar-user flex items-center gap-2.5 rounded-lg py-1 ps-2 pe-1 hover:bg-bg-subtle rtl:flex-row-reverse"
+                className="fh-topbar-user"
               >
                 <span className="fh-user-avatar">
                   {user.username.slice(0, 2).toUpperCase()}
@@ -320,12 +349,14 @@ export default function Topbar({
                   )}
                 </span>
 
-                <Icon name="chevronDown" size="md" className="hidden text-wp-muted sm:inline-flex" />
+                <span className="fh-topbar-user-chevron" aria-hidden="true">
+                  <Icon name="chevronDown" size="sm" />
+                </span>
               </button>
 
               {menuOpen && (
-                <div className="fh-dropdown absolute end-0 top-full z-50 mt-2 w-56">
-                  <div className="rounded-xl border border-border bg-bg-base px-3 py-3">
+                <div className="fh-dropdown fh-topbar-account-menu absolute end-0 top-full z-50 mt-2">
+                  <div className="fh-topbar-account-profile">
                     <div className="text-[13px] font-medium leading-5 text-text-base">
                       {user.username}
                     </div>

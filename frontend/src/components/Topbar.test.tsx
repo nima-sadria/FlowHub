@@ -32,7 +32,7 @@ function LocationProbe() {
   return <output data-location>{`${location.pathname}${location.search}`}</output>
 }
 
-function renderTopbar({ initialPath = '/home', sidebarCollapsed = false, exchangeRates }: { initialPath?: string; sidebarCollapsed?: boolean; exchangeRates?: ExchangeRateService } = {}) {
+function renderTopbar({ initialPath = '/home', sidebarCollapsed = false, exchangeRates, hasUnreadNotifications }: { initialPath?: string; sidebarCollapsed?: boolean; exchangeRates?: ExchangeRateService; hasUnreadNotifications?: boolean } = {}) {
   act(() => {
     root.render(
       <MemoryRouter initialEntries={[initialPath]}>
@@ -45,6 +45,7 @@ function renderTopbar({ initialPath = '/home', sidebarCollapsed = false, exchang
               sidebarCollapsed={sidebarCollapsed}
               onLogout={() => undefined}
               exchangeRates={exchangeRates}
+              hasUnreadNotifications={hasUnreadNotifications}
             />
             <LocationProbe />
           </DirectionProvider>
@@ -65,6 +66,9 @@ describe('Topbar', () => {
     expect(container.querySelector('[aria-label="Language"]')).not.toBeNull()
     expect(container.querySelector('[aria-label="Language"]')?.className).toContain('fh-topbar-language')
     expect(container.querySelector('[aria-label="Collapse sidebar"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="Collapse sidebar"]')?.className).toContain('fh-topbar-ghost')
+    expect(container.querySelector('[aria-label="Notifications"]')?.className).toContain('fh-topbar-control')
+    expect(container.querySelector('[aria-label="Notifications"]')?.getAttribute('data-unread')).toBeNull()
   })
 
   it('uses a two-level mobile header with an independently toggled action row', () => {
@@ -94,6 +98,20 @@ describe('Topbar', () => {
     const account = container.querySelector('[aria-label="User menu"]')
     expect(account?.textContent).toContain('admin')
     expect(account?.className).toContain('fh-topbar-user')
+    expect(account?.querySelector('.fh-topbar-user-chevron')).not.toBeNull()
+
+    act(() => { (account as HTMLButtonElement).click() })
+
+    expect(account?.getAttribute('aria-expanded')).toBe('true')
+    expect(container.querySelector('.fh-topbar-account-menu')).not.toBeNull()
+    expect(container.querySelector('.fh-topbar-account-profile')).not.toBeNull()
+    expect(container.querySelector('.fh-topbar-account-menu .rounded-xl.border')).toBeNull()
+  })
+
+  it('derives the notification indicator from unread state', () => {
+    renderTopbar({ hasUnreadNotifications: true })
+
+    expect(container.querySelector('[aria-label="Notifications"]')?.getAttribute('data-unread')).toBe('true')
   })
 
   it('switches the sidebar toggle label with the collapsed state', () => {
@@ -160,7 +178,24 @@ describe('Topbar', () => {
     expect(desktop?.querySelectorAll('.fh-topbar-rate')).toHaveLength(3)
     expect(desktop?.textContent).toContain('123,456,789,012,345,678.125')
     expect(container.querySelector('details.fh-topbar-rates-compact')).not.toBeNull()
+    expect(container.querySelector('.fh-topbar-rates-compact summary [data-icon="rateLimits"]')).not.toBeNull()
+    expect(container.querySelector('.fh-topbar-control-badge')?.textContent).toBe('3')
     expect(exchangeRates.getLatest).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the exchange-rate control visible when provider data is unavailable', async () => {
+    const exchangeRates = {
+      getLatest: vi.fn(async () => ({ selections: [], rates: [] })),
+    } as unknown as ExchangeRateService
+
+    renderTopbar({ exchangeRates })
+    await act(async () => { await Promise.resolve() })
+
+    expect(container.querySelector('.fh-topbar-rates-compact summary [data-icon="rateLimits"]')).not.toBeNull()
+    expect(container.querySelector('.fh-topbar-rates .fh-topbar-rate-unavailable')).not.toBeNull()
+    expect(container.querySelector('.fh-topbar-rates-compact summary')?.getAttribute('data-state')).toBe('unavailable')
+    expect(container.textContent).toContain('Unavailable')
+    expect(container.querySelector('.fh-topbar-control-badge')).toBeNull()
   })
 
 })

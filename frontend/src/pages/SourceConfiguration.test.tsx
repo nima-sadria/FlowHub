@@ -210,6 +210,15 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(Array.from(actionRow.querySelectorAll('button')).every(item => item.className.includes('fh-button-sm'))).toBe(true)
   })
 
+  it('keeps the mapping workflow inside one full-width grid item', async () => {
+    await renderPage()
+
+    const mappingWorkflow = container.querySelector('fieldset#data-mapping') as HTMLFieldSetElement
+    expect(mappingWorkflow).not.toBeNull()
+    expect(mappingWorkflow.className).toContain('min-w-0')
+    expect(mappingWorkflow.className).not.toContain('contents')
+  })
+
   it('renders dynamic friendly Channel sections and keeps unavailable Channels disabled', async () => {
     await renderPage()
     expect(container.textContent).toContain('WooCommerce Primary')

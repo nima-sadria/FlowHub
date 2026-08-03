@@ -212,9 +212,17 @@ describe('Dashboard', () => {
     expect(container.textContent).toContain('Blocking')
     expect(container.textContent).toContain('Warnings')
 
-    const pricingLabel = Array.from(container.querySelectorAll('span')).find(el => el.textContent === 'Pricing workflow')
-    const pricingGroup = pricingLabel?.parentElement
-    expect(pricingGroup?.className).toContain('flex-wrap')
+    const strip = container.querySelector('.fh-status-strip')
+    expect(strip).not.toBeNull()
+    expect(strip?.querySelectorAll('.fh-status-strip-cell')).toHaveLength(4)
+    expect(strip?.querySelector('.fh-status-strip-footer')).not.toBeNull()
+    expect(strip?.querySelector('.fh-status-strip-badges')).not.toBeNull()
+    expect(strip?.querySelectorAll('.fh-status-strip-badge')).toHaveLength(3)
+
+    expect(strip?.querySelector('[data-status-metric="revenue"] .fh-status-strip-value')?.getAttribute('data-state')).toBe('neutral')
+    expect(strip?.querySelector('[data-status-metric="blocking"] .fh-status-strip-value')?.getAttribute('data-state')).toBe('error')
+    expect(strip?.querySelector('[data-status-metric="warnings"] .fh-status-strip-value')?.getAttribute('data-state')).toBe('warning')
+    expect(strip?.querySelector('[data-status-metric="freshness"] .fh-status-strip-value')?.getAttribute('data-state')).toBe('neutral')
   })
 
   it('keeps revenue currencies separate and shows the Last 30 days chart header', async () => {

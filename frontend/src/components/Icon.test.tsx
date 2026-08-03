@@ -36,6 +36,22 @@ describe('Icon', () => {
     expect(Object.values(routeIconMap)).not.toContain('')
   })
 
+  it('uses the dollar control icon for exchange rates and supports tuned stroke weight', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    act(() => {
+      root.render(<Icon name="rateLimits" strokeWidth={1.75} />)
+    })
+
+    expect(container.querySelector('[data-icon="rateLimits"] svg')?.getAttribute('stroke-width')).toBe('1.75')
+    expect(container.querySelector('[data-icon="rateLimits"] svg circle')).not.toBeNull()
+
+    act(() => { root.unmount() })
+    container.remove()
+  })
+
   it('resolves all notification states through the centralized icon assets', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)

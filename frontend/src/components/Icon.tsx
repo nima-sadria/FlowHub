@@ -7,11 +7,11 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  CircleDollarSign,
   CircleAlert,
   CircleCheck,
   CircleX,
   ClipboardList,
-  Clock3,
   Copy,
   Database,
   Download,
@@ -92,7 +92,7 @@ const ICONS = {
   previous: ChevronLeft,
   preview: Eye,
   products: Package,
-  rateLimits: Clock3,
+  rateLimits: CircleDollarSign,
   refresh: RefreshCw,
   replay: RotateCcw,
   retry: RefreshCw,
@@ -137,6 +137,7 @@ interface IconProps extends HTMLAttributes<HTMLSpanElement> {
   label?: string
   size?: 'sm' | 'md' | 'lg'
   mirrorRtl?: boolean
+  strokeWidth?: number
 }
 
 export default function Icon({
@@ -144,6 +145,7 @@ export default function Icon({
   label,
   size = 'sm',
   mirrorRtl = false,
+  strokeWidth = 2,
   className = '',
   ...props
 }: IconProps) {
@@ -161,7 +163,7 @@ export default function Icon({
       className={iconClass}
       {...props}
     >
-      <Glyph aria-hidden="true" focusable="false" strokeWidth={2} />
+      <Glyph aria-hidden="true" focusable="false" strokeWidth={strokeWidth} />
     </span>
   )
 }
