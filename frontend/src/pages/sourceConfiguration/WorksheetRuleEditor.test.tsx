@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SourceChannel, SourceWorksheetRule } from '../../features/sourceWorkspace/types'
 import { changeLocale } from '../../i18n'
-import WorksheetRuleEditor from './WorksheetRuleEditor'
+import WorksheetRuleEditor, { detectFieldMapping, smartInputDisplayValue } from './WorksheetRuleEditor'
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -34,6 +34,45 @@ const RULE: SourceWorksheetRule = {
     ],
   })),
 }
+
+describe('smart column mapping', () => {
+  it('infers column letters, exact headers, and internal column IDs', () => {
+    expect(detectFieldMapping('price', ' h ', false)).toEqual({
+      field: 'price',
+      referenceType: 'column_letter',
+      referenceValue: 'H',
+      required: false,
+    })
+    expect(detectFieldMapping('price', 'Price (Toman)', false)).toEqual({
+      field: 'price',
+      referenceType: 'header_name',
+      referenceValue: 'Price (Toman)',
+      required: false,
+    })
+    expect(detectFieldMapping('price', '#wc-price', true)).toEqual({
+      field: 'price',
+      referenceType: 'column_id',
+      referenceValue: 'wc-price',
+      required: false,
+    })
+    expect(smartInputDisplayValue(detectFieldMapping('price', '#wc-price', true))).toBe('#wc-price')
+  })
+
+  it('treats internal IDs as headers when unsupported and preserves required on clear', () => {
+    expect(detectFieldMapping('name', '#product-name', false, true)).toEqual({
+      field: 'name',
+      referenceType: 'header_name',
+      referenceValue: '#product-name',
+      required: true,
+    })
+    expect(detectFieldMapping('name', '   ', true, true)).toEqual({
+      field: 'name',
+      referenceType: 'disabled',
+      referenceValue: null,
+      required: true,
+    })
+  })
+})
 
 describe('WorksheetRuleEditor resource ordering', () => {
   let container: HTMLDivElement

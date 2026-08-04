@@ -228,9 +228,13 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).toContain('Coming Soon')
     const digikala = container.querySelector('tr[data-channel-id="digikala:main"]')
     expect(digikala?.querySelector('input[type="checkbox"]')).toHaveProperty('disabled', true)
-    expect(container.textContent).toContain('Column letter')
-    expect(container.textContent).toContain('Exact header')
-    expect(container.textContent).toContain('FlowHub Sheet column')
+    const sourceNameReference = translate('sources:sourceConfiguration.columnReference', { field: translate('sources:sourceConfiguration.sourceProductName') })
+    const sourceNameInput = container.querySelector(`[aria-label="${sourceNameReference}"]`) as HTMLInputElement
+    expect(sourceNameInput.value).toBe('A')
+    expect(sourceNameInput.title).toBe(translate('sources:sourceConfiguration.smartInputHelpWithInternal'))
+    expect(sourceNameInput.placeholder).toBe(translate('sources:sourceConfiguration.smartInputPlaceholder'))
+    expect(container.textContent).toContain(translate('sources:sourceConfiguration.modeTagColumn'))
+    expect(container.textContent).toContain(translate('sources:sourceConfiguration.modeTagHeader'))
   })
 
   it('allows an already-enabled incomplete Channel to be disabled but not re-enabled until mapping is complete', async () => {
@@ -313,7 +317,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).toContain('قیمت')
     expect(container.textContent).toContain('موجودی')
     expect(container.textContent).toContain('WooCommerce')
-    const localizedPriceReference = translate('sources:sourceConfiguration.referenceType', { field: translate('common:field.price') })
+    const localizedPriceReference = translate('sources:sourceConfiguration.columnReference', { field: translate('common:field.price') })
     expect(container.querySelector(`[aria-label="${localizedPriceReference}"]`)).not.toBeNull()
     expect(container.querySelector('[aria-label*="external_id"]')).toBeNull()
   })
@@ -646,9 +650,9 @@ describe('SourceConfiguration per-Channel mappings', () => {
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: perWorksheet })
     await renderPage()
 
-    const accessibleName = translate('sources:sourceConfiguration.referenceType', { field: translate('sources:sourceConfiguration.sourceProductName') })
+    const accessibleName = translate('sources:sourceConfiguration.columnReference', { field: translate('sources:sourceConfiguration.sourceProductName') })
     const worksheetEditor = container.querySelector('details[data-worksheet-rule="Missing product name"]') as HTMLDetailsElement
-    const selector = worksheetEditor.querySelector(`[aria-label="${accessibleName}"]`) as HTMLSelectElement
+    const selector = worksheetEditor.querySelector(`[aria-label="${accessibleName}"]`) as HTMLInputElement
     const error = worksheetEditor.querySelector('[role="alert"]') as HTMLElement
     expect(selector.getAttribute('aria-invalid')).toBe('true')
     expect(selector.getAttribute('aria-describedby')).toBe(error.id)

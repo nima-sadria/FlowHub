@@ -28,6 +28,7 @@ import {
 import WorksheetRuleEditor, {
   createWorksheetRule,
   emptyChannelFields as emptyWorksheetChannelFields,
+  SmartColumnInput,
   type WorksheetCopyIntent,
 } from './sourceConfiguration/WorksheetRuleEditor'
 import { useAuth } from '../auth'
@@ -113,96 +114,6 @@ function fieldDisplayName(field: string): string {
   const channelDefinition = CHANNEL_FIELDS.find(([candidate]) => candidate === field)
   const translationKey = sourceDefinition?.[1] ?? channelDefinition?.[1]
   return translationKey ? translate(translationKey) : field
-}
-
-function MappingControl({
-  mapping,
-  disabled = false,
-  allowInternalColumnId = true,
-  onChange,
-}: {
-  mapping: FieldMapping
-  disabled?: boolean
-  allowInternalColumnId?: boolean
-  onChange: (value: FieldMapping) => void
-}) {
-  return (
-    <div className="grid min-w-0 gap-2 sm:grid-cols-[180px_minmax(0,1fr)]">
-      <label className="grid gap-1">
-        <span className="fh-text-caption">{translate('sources:sourceConfiguration.mappingMethod')}</span>
-        <select
-          className="fh-input"
-          aria-label={translate('sources:sourceConfiguration.referenceType', { field: fieldDisplayName(mapping.field) })}
-          disabled={disabled}
-          value={mapping.referenceType}
-          onChange={event => onChange({
-            ...mapping,
-            referenceType: event.target.value as ReferenceType,
-            referenceValue: event.target.value === 'disabled' ? null : mapping.referenceValue,
-          })}
-        >
-          <option value="disabled">{translate('sources:sourceConfiguration.disabled')}</option>
-          <option value="column_letter">{translate('sources:sourceConfiguration.columnLetter')}</option>
-          <option value="header_name">{translate('sources:sourceConfiguration.exactHeader')}</option>
-          {allowInternalColumnId && <option value="column_id">{translate('sources:sourceConfiguration.internalColumnId')}</option>}
-        </select>
-      </label>
-      <label className="grid gap-1">
-        <span className="fh-text-caption">{translate('sources:sourceConfiguration.column')}</span>
-        <input
-          className="fh-input"
-          aria-label={translate('sources:sourceConfiguration.columnReference', { field: fieldDisplayName(mapping.field) })}
-          disabled={disabled || mapping.referenceType === 'disabled'}
-          value={mapping.referenceValue ?? ''}
-          onChange={event => onChange({ ...mapping, referenceValue: event.target.value })}
-          placeholder={mapping.referenceType === 'column_letter'
-            ? translate('sources:sourceConfiguration.exampleColumn')
-            : translate('sources:sourceConfiguration.exactColumnReference')}
-        />
-      </label>
-    </div>
-  )
-}
-
-function CompactMappingControl({
-  mapping,
-  disabled = false,
-  allowInternalColumnId = true,
-  onChange,
-}: {
-  mapping: FieldMapping
-  disabled?: boolean
-  allowInternalColumnId?: boolean
-  onChange: (value: FieldMapping) => void
-}) {
-  return (
-    <div className="grid min-w-[180px] gap-2">
-      <select
-        className="fh-input"
-        aria-label={translate('sources:sourceConfiguration.referenceType', { field: fieldDisplayName(mapping.field) })}
-        disabled={disabled}
-        value={mapping.referenceType}
-        onChange={event => onChange({
-          ...mapping,
-          referenceType: event.target.value as ReferenceType,
-          referenceValue: event.target.value === 'disabled' ? null : mapping.referenceValue,
-        })}
-      >
-        <option value="disabled">{translate('sources:sourceConfiguration.disabled')}</option>
-        <option value="column_letter">{translate('sources:sourceConfiguration.columnLetter')}</option>
-        <option value="header_name">{translate('sources:sourceConfiguration.exactHeader')}</option>
-        {allowInternalColumnId && <option value="column_id">{translate('sources:sourceConfiguration.internalColumnId')}</option>}
-      </select>
-      <input
-        className="fh-input"
-        aria-label={translate('sources:sourceConfiguration.columnReference', { field: fieldDisplayName(mapping.field) })}
-        disabled={disabled || mapping.referenceType === 'disabled'}
-        value={mapping.referenceValue ?? ''}
-        onChange={event => onChange({ ...mapping, referenceValue: event.target.value })}
-        placeholder={translate('sources:sourceConfiguration.exactColumnReference')}
-      />
-    </div>
-  )
 }
 
 const WOOCOMMERCE_CONNECTOR_TYPE = 'woocommerce'
@@ -969,7 +880,7 @@ export default function SourceConfiguration() {
           {SOURCE_FIELDS.map(([field, labelKey]) => (
             <label className="grid gap-1" key={field}>
               <span className="fh-field-label">{translate(labelKey)}</span>
-              <MappingControl
+              <SmartColumnInput
                 mapping={sourceFields.find(item => item.field === field)!}
                 allowInternalColumnId={source.sourceKind === 'flowhub_sheet'}
                 onChange={value => updateSourceField(field, value)}
@@ -1025,7 +936,7 @@ export default function SourceConfiguration() {
                     ? <span className="fh-text-caption">{translate('common:status.setupRequired')}</span>
                     : <Badge variant={mappedStatus.mapped ? 'success' : 'warning'}>{mappedStatus.mapped ? translate('sources:sourceConfiguration.mapped') : translate('sources:sourceConfiguration.mappingIncomplete')}</Badge>}</td>
                   <td><input className="fh-input min-w-[170px]" disabled={controlsDisabled} value={channelWorksheets[channel.channelId] ?? ''} onChange={event => setChannelWorksheets(current => ({ ...current, [channel.channelId]: event.target.value }))} placeholder={translate('sources:sourceConfiguration.useSourceWorksheet')} /></td>
-                  {CHANNEL_FIELDS.map(([field]) => <td key={field}><CompactMappingControl mapping={fields.find(item => item.field === field)!} disabled={controlsDisabled} allowInternalColumnId={source.sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channel.channelId, field, value)} /></td>)}
+                  {CHANNEL_FIELDS.map(([field]) => <td key={field}><SmartColumnInput mapping={fields.find(item => item.field === field)!} disabled={controlsDisabled} allowInternalColumnId={source.sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channel.channelId, field, value)} /></td>)}
                   <td><div className="grid min-w-[220px] gap-2"><select className="fh-input" aria-label={translate('sources:sourceConfiguration.copyMappingFrom')} disabled={controlsDisabled} value={copyFrom[channel.channelId] ?? ''} onChange={event => setCopyFrom(current => ({ ...current, [channel.channelId]: event.target.value }))}><option value="">{translate('sources:sourceConfiguration.copyMappingFrom')}</option><ResourceOptionGroups resources={copyResources} renderLabel={item => item.displayName} /></select><div className="flex gap-2"><button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled || !copyFrom[channel.channelId]} onClick={() => copyMapping(channel.channelId)}>{translate('sources:sourceConfiguration.copyMapping')}</button><button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled} aria-label={translate('sources:sourceConfiguration.clearMapping')} onClick={() => clearMapping(channel.channelId)}><Icon name="close" /></button></div>{issues.length > 0 && <span className="fh-field-error">{issues[0]}</span>}</div></td>
                   <td className="text-end">{!configured
                     ? (canManageCommerce

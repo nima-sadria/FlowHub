@@ -55,11 +55,58 @@ export function createWorksheetRule(name: string): SourceWorksheetRule {
   return { worksheetName: name, enabled: true, dataStartRow: 2, valuePolicy: { ...DEFAULT_SOURCE_VALUE_POLICY }, sourceFields: emptySourceFields(), channels: [] }
 }
 
-function ColumnSelector({ mapping, disabled, allowInternalColumnId, invalid = false, describedBy, onChange }: { mapping: FieldMapping; disabled: boolean; allowInternalColumnId: boolean; invalid?: boolean; describedBy?: string; onChange: (mapping: FieldMapping) => void }) {
-  return <div className="grid min-w-0 gap-2 sm:grid-cols-[170px_minmax(0,1fr)]">
-    <label className="grid gap-1"><span className="fh-text-caption">{translate('sources:sourceConfiguration.mappingMethod')}</span><select className="fh-input" disabled={disabled} value={mapping.referenceType} aria-label={translate('sources:sourceConfiguration.referenceType', { field: fieldDisplayName(mapping.field) })} aria-invalid={invalid || undefined} aria-describedby={invalid ? describedBy : undefined} onChange={event => onChange({ ...mapping, referenceType: event.target.value as ReferenceType, referenceValue: event.target.value === 'disabled' ? null : mapping.referenceValue })}><option value="disabled">{translate('sources:sourceConfiguration.disabled')}</option><option value="column_letter">{translate('sources:sourceConfiguration.columnLetter')}</option><option value="header_name">{translate('sources:sourceConfiguration.exactHeader')}</option>{allowInternalColumnId && <option value="column_id">{translate('sources:sourceConfiguration.internalColumnId')}</option>}</select></label>
-    <label className="grid gap-1"><span className="fh-text-caption">{translate('sources:sourceConfiguration.column')}</span><input className="fh-input" disabled={disabled || mapping.referenceType === 'disabled'} value={mapping.referenceValue ?? ''} aria-label={translate('sources:sourceConfiguration.columnReference', { field: fieldDisplayName(mapping.field) })} aria-invalid={invalid || undefined} aria-describedby={invalid ? describedBy : undefined} title={mapping.referenceType === 'column_letter' ? translate('sources:sourceConfiguration.exampleColumn') : translate('sources:sourceConfiguration.exactColumnReference')} onChange={event => onChange({ ...mapping, referenceValue: event.target.value })} /></label>
-  </div>
+export function detectFieldMapping(field: string, rawValue: string, allowInternalColumnId: boolean, required = false): FieldMapping {
+  const trimmed = rawValue.trim()
+  if (!trimmed) return emptyFieldMapping(field, required)
+  if (allowInternalColumnId && trimmed.startsWith('#') && trimmed.length > 1) {
+    return { field, referenceType: 'column_id', referenceValue: trimmed.slice(1), required }
+  }
+  if (/^[A-Za-z]{1,3}$/.test(trimmed)) {
+    return { field, referenceType: 'column_letter', referenceValue: trimmed.toUpperCase(), required }
+  }
+  return { field, referenceType: 'header_name', referenceValue: rawValue, required }
+}
+
+export function smartInputDisplayValue(mapping: FieldMapping): string {
+  if (mapping.referenceType === 'disabled') return ''
+  if (mapping.referenceType === 'column_id') return `#${mapping.referenceValue ?? ''}`
+  return mapping.referenceValue ?? ''
+}
+
+const MODE_TAG_KEYS: Partial<Record<ReferenceType, string>> = {
+  column_letter: 'sources:sourceConfiguration.modeTagColumn',
+  header_name: 'sources:sourceConfiguration.modeTagHeader',
+  column_id: 'sources:sourceConfiguration.modeTagInternal',
+}
+
+export function SmartColumnInput({ mapping, disabled = false, allowInternalColumnId = true, invalid = false, describedBy, detectedHeader, onChange }: { mapping: FieldMapping; disabled?: boolean; allowInternalColumnId?: boolean; invalid?: boolean; describedBy?: string; detectedHeader?: string | null; onChange: (mapping: FieldMapping) => void }) {
+  const displayValue = smartInputDisplayValue(mapping)
+  const modeTagKey = MODE_TAG_KEYS[mapping.referenceType]
+  const ariaLabel = translate('sources:sourceConfiguration.columnReference', { field: fieldDisplayName(mapping.field) })
+  return (
+    <div className="grid gap-1">
+      <div className="relative min-w-0">
+        {modeTagKey && <span className="pointer-events-none absolute -top-2 start-2 z-10 rounded-full bg-accent/10 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-accent">{translate(modeTagKey)}</span>}
+        <input
+          className="fh-input pe-8"
+          disabled={disabled}
+          value={displayValue}
+          aria-label={ariaLabel}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? describedBy : undefined}
+          placeholder={translate('sources:sourceConfiguration.smartInputPlaceholder')}
+          title={allowInternalColumnId ? translate('sources:sourceConfiguration.smartInputHelpWithInternal') : translate('sources:sourceConfiguration.smartInputHelp')}
+          onChange={event => onChange(detectFieldMapping(mapping.field, event.target.value, allowInternalColumnId, mapping.required))}
+        />
+        {displayValue && !disabled && (
+          <button type="button" className="absolute inset-y-0 end-1 flex items-center px-1 text-text-muted hover:text-text-base" aria-label={translate('common:action.clear')} onClick={() => onChange(emptyFieldMapping(mapping.field, mapping.required))}>
+            <Icon name="close" className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      {displayValue && detectedHeader && <span className="fh-text-caption">{translate('sources:sourceConfiguration.detectedHeaderHint', { value: displayValue, header: detectedHeader })}</span>}
+    </div>
+  )
 }
 
 const WOOCOMMERCE_CONNECTOR_TYPE = 'woocommerce'
@@ -156,7 +203,7 @@ export default function WorksheetRuleEditor({ rule, rowCount, channels, sourceKi
           {SOURCE_FIELD_DEFINITIONS.map(([field, key]) => {
             const mapping = rule.sourceFields.find(item => item.field === field) ?? emptyFieldMapping(field, field === 'name')
             const invalid = sourceFieldMissing(mapping)
-            return <div className="grid gap-1" key={field}><span className="fh-field-label">{translate(key)}</span><ColumnSelector mapping={mapping} disabled={!rule.enabled} invalid={invalid} describedBy={sourceErrorId} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateSource(field, value)} /></div>
+            return <div className="grid gap-1" key={field}><span className="fh-field-label">{translate(key)}</span><SmartColumnInput mapping={mapping} disabled={!rule.enabled} invalid={invalid} describedBy={sourceErrorId} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateSource(field, value)} /></div>
           })}
         </div>
         {missingSourceFields.length > 0 && <p className="fh-alert-warning mt-3" id={sourceErrorId} role="alert">{translate('sources:sourceConfiguration.sourceProductNameRequired')}</p>}
@@ -184,7 +231,7 @@ export default function WorksheetRuleEditor({ rule, rowCount, channels, sourceKi
                   <button className="fh-button-secondary fh-button-sm" type="button" disabled={disabled} onClick={() => onRequestCopy({ kind: 'channel_to_worksheets', worksheetName: rule.worksheetName, channelId: channelInfo.channelId })}>{translate('sources:sourceConfiguration.copyToWorksheets')}</button>
                   <button className="fh-button-secondary fh-button-sm" type="button" disabled={disabled} onClick={() => updateChannel(channelInfo.channelId, { ...channel, fields: emptyChannelFields() })}>{translate('sources:sourceConfiguration.clearMapping')}</button>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-2">{CHANNEL_FIELD_DEFINITIONS.map(([field, key]) => <div className="grid gap-1" key={field}><span className="fh-field-label">{translate(key)}</span><ColumnSelector mapping={channel.fields.find(item => item.field === field) ?? emptyFieldMapping(field)} disabled={disabled} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channelInfo.channelId, field, value)} /></div>)}</div>
+                <div className="grid gap-3 lg:grid-cols-2">{CHANNEL_FIELD_DEFINITIONS.map(([field, key]) => <div className="grid gap-1" key={field}><span className="fh-field-label">{translate(key)}</span><SmartColumnInput mapping={channel.fields.find(item => item.field === field) ?? emptyFieldMapping(field)} disabled={disabled} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channelInfo.channelId, field, value)} /></div>)}</div>
                 {issues.length > 0 && <ul className="fh-alert-warning mt-3 list-disc ps-5">{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
               </div>
             </details>
