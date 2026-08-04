@@ -191,6 +191,7 @@
   "setup.ownerNetworkError": "هنگام ایجاد حساب مالک خطای شبکه رخ داد.",
   "setup.password": "رمز عبور",
   "setup.passwordHint": "حداقل ۸ نویسه",
+  "setup.passwordTooShort": "رمز عبور باید حداقل ۸ نویسه داشته باشد.",
   "setup.passwordsDoNotMatch": "رمزهای عبور یکسان نیستند.",
   "setup.pending": "در انتظار",
   "setup.pleaseWait": "لطفاً صبر کنید...",

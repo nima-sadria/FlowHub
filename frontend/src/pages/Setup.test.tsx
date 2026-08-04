@@ -6,6 +6,8 @@ import { DirectionProvider } from '../direction'
 import { ThemeProvider } from '../theme/ThemeProvider'
 import Setup, { SearchableListbox, validateSetupEmail } from './Setup'
 
+;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 
@@ -150,6 +152,72 @@ describe('Setup', () => {
       currency: 'USD',
     }))
     expect(container.textContent).toContain('Database readiness')
+  })
+
+  it('explains owner password requirements and enables creation only for matching valid passwords', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+      const url = String(input)
+      if (url.endsWith('/api/v2/setup/status')) {
+        return new Response(JSON.stringify({ completed: false, has_admin: false }), { status: 200 })
+      }
+      if (url.endsWith('/api/v2/setup/server-profile')) {
+        return new Response(JSON.stringify({ ok: true }), { status: 200 })
+      }
+      if (url.endsWith('/api/v2/setup/database')) {
+        return new Response(JSON.stringify({ connected: true, is_current: true }), { status: 200 })
+      }
+      throw new Error(`Unexpected request: ${url}`)
+    })
+
+    const findButton = async (label: string) => {
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const button = Array.from(container.querySelectorAll('button'))
+          .find(item => item.textContent?.includes(label)) as HTMLButtonElement | undefined
+        if (button) return button
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+      }
+      throw new Error(`Expected button containing "${label}". Page text: ${container.textContent}`)
+    }
+    const clickButton = async (label: string) => {
+      const button = await findButton(label)
+      await act(async () => {
+        button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      })
+    }
+    const changeInput = async (input: HTMLInputElement, value: string) => {
+      await act(async () => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+        setter?.call(input, value)
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+      })
+    }
+
+    await renderSetup()
+    await clickButton('Continue to database')
+    await clickButton('Check Database')
+    await clickButton('Continue to owner')
+
+    const email = container.querySelector('#owner-email') as HTMLInputElement
+    const password = container.querySelector('#owner-password') as HTMLInputElement
+    const confirm = container.querySelector('#owner-confirm') as HTMLInputElement
+    const createOwner = () => Array.from(container.querySelectorAll('button'))
+      .find(item => item.textContent?.includes('Create owner')) as HTMLButtonElement
+
+    expect(container.textContent).toContain('At least 8 characters')
+    await changeInput(email, 'admin@example.com')
+    await changeInput(password, 'short')
+    await changeInput(confirm, 'short')
+    expect(container.textContent).toContain('Password must be at least 8 characters.')
+    expect(createOwner().disabled).toBe(true)
+
+    await changeInput(password, 'long-enough')
+    await changeInput(confirm, 'different')
+    expect(container.textContent).toContain('Passwords do not match.')
+    expect(createOwner().disabled).toBe(true)
+
+    await changeInput(confirm, 'long-enough')
+    expect(container.textContent).not.toContain('Passwords do not match.')
+    expect(createOwner().disabled).toBe(false)
   })
 
   it('saves the server profile and exits without advancing when "Save and exit" is used', async () => {

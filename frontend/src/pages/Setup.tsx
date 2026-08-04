@@ -604,10 +604,27 @@ function OwnerStep({
   const [email, setEmail] = useState('')
   const [emailTouched, setEmailTouched] = useState(false)
   const [password, setPassword] = useState('')
+  const [passwordTouched, setPasswordTouched] = useState(false)
   const [confirm, setConfirm] = useState('')
+  const [confirmTouched, setConfirmTouched] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const emailError = hasAdmin ? null : validateSetupEmail(email)
+  const passwordError = !hasAdmin && passwordTouched && password.length < 8
+    ? translate('settings:setup.passwordTooShort')
+    : null
+  const confirmError = !hasAdmin && confirmTouched
+    ? confirm.length < 8
+      ? translate('settings:setup.passwordTooShort')
+      : password !== confirm
+        ? translate('settings:setup.passwordsDoNotMatch')
+        : null
+    : null
+  const ownerFormInvalid = !username.trim()
+    || Boolean(emailError)
+    || password.length < 8
+    || confirm.length < 8
+    || password !== confirm
 
   async function createOwner() {
     if (hasAdmin) {
@@ -618,8 +635,13 @@ function OwnerStep({
       setEmailTouched(true)
       return
     }
+    if (password.length < 8 || confirm.length < 8) {
+      setPasswordTouched(true)
+      setConfirmTouched(true)
+      return
+    }
     if (password !== confirm) {
-      setError(translate('settings:setup.passwordsDoNotMatch'))
+      setConfirmTouched(true)
       return
     }
     setError(null)
@@ -676,8 +698,29 @@ function OwnerStep({
               error={emailTouched ? emailError : null}
             />
           </div>
-          <Field id="owner-password" label={translate('settings:setup.password')} type="password" value={password} onChange={setPassword} templateVariable={translate('settings:setup.passwordHint')} disabled={loading} />
-          <Field id="owner-confirm" label={translate('settings:setup.confirmPassword')} type="password" value={confirm} onChange={setConfirm} templateVariable={translate('settings:setup.confirmPasswordHint')} disabled={loading} />
+          <Field
+            id="owner-password"
+            label={translate('settings:setup.password')}
+            type="password"
+            value={password}
+            onChange={value => { setPassword(value); setPasswordTouched(true) }}
+            templateVariable={translate('settings:setup.passwordHint')}
+            hint={passwordError ? undefined : translate('settings:setup.passwordHint')}
+            error={passwordError}
+            disabled={loading}
+            autoComplete="new-password"
+          />
+          <Field
+            id="owner-confirm"
+            label={translate('settings:setup.confirmPassword')}
+            type="password"
+            value={confirm}
+            onChange={value => { setConfirm(value); setConfirmTouched(true) }}
+            templateVariable={translate('settings:setup.confirmPasswordHint')}
+            error={confirmError}
+            disabled={loading}
+            autoComplete="new-password"
+          />
         </div>
       )}
       <Actions
@@ -685,7 +728,7 @@ function OwnerStep({
         onNext={() => { void createOwner() }}
         nextLabel={hasAdmin ? translate('settings:setup.continueToReview') : translate('settings:setup.createOwner')}
         loading={loading}
-        nextDisabled={!hasAdmin && (!username.trim() || Boolean(emailError) || password.length < 8 || confirm.length < 8)}
+        nextDisabled={!hasAdmin && ownerFormInvalid}
       />
     </StepSection>
   )

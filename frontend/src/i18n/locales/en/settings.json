@@ -191,6 +191,7 @@
   "setup.ownerNetworkError": "Network error while creating the owner account.",
   "setup.password": "Password",
   "setup.passwordHint": "At least 8 characters",
+  "setup.passwordTooShort": "Password must be at least 8 characters.",
   "setup.passwordsDoNotMatch": "Passwords do not match.",
   "setup.pending": "Pending",
   "setup.pleaseWait": "Please wait...",
