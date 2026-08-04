@@ -244,6 +244,7 @@
   "sourceConfiguration.section.worksheetColumns": "ستون‌های برگه‌ها",
   "sourceConfiguration.section.worksheetColumnsHelp": "فیلدهای مشترک محصول و ستون‌های مستقل هر کانال را برای هر برگه تنظیم کنید.",
   "sourceConfiguration.selectAll": "انتخاب همه",
+  "sourceConfiguration.selectSpreadsheetBeforeWorksheetDetection": "اتصال معتبر است. پیش از شناسایی برگه‌ها، در تنظیمات منبع یک فایل صفحه‌گسترده انتخاب کنید.",
   "sourceConfiguration.selectAtLeastOneWorksheet": "برای این قواعد مشترک دست‌کم یک برگه را انتخاب کنید.",
   "sourceConfiguration.selectChannel": "انتخاب کانال",
   "sourceConfiguration.selectedWorksheet": "برگه انتخاب‌شده",

@@ -1,15 +1,18 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 import { ApiError } from '../api/client'
 import type { SourceChannel, SourceMapping, SourceProfile } from '../features/sourceWorkspace/types'
 import { changeLocale, translate } from '../i18n'
 import { NotificationProvider } from '../notifications/NotificationProvider'
+import NotificationContainer from '../notifications/NotificationContainer'
 import SourceConfiguration from './SourceConfiguration'
 import { AuthContext, type AuthContextValue } from '../auth'
+import { ServiceProvider, type Services } from '../services/ServiceContext'
+import type { CommerceService } from '../services/commerce/CommerceService'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -87,15 +90,28 @@ const viewerAuth: AuthContextValue = {
   user: { username: 'viewer', role: 'viewer', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true } },
 }
 
-async function renderPage(auth = editorAuth, initialEntry = '/sources/source-1') {
+const adminAuth: AuthContextValue = {
+  ...editorAuth,
+  user: { ...editorAuth.user!, username: 'admin', role: 'admin', is_admin: true },
+}
+
+function LocationProbe() {
+  const location = useLocation()
+  return <span data-testid="location-probe">{location.pathname}{location.search}</span>
+}
+
+async function renderPage(auth = editorAuth, initialEntry = '/sources/source-1', services?: Services) {
+  const routes = <Routes>
+    <Route path="/sources/:sourceId" element={<SourceConfiguration />} />
+  </Routes>
   await act(async () => {
     root.render(
       <AuthContext.Provider value={auth}>
         <MemoryRouter initialEntries={[initialEntry]}>
           <NotificationProvider>
-            <Routes>
-              <Route path="/sources/:sourceId" element={<SourceConfiguration />} />
-            </Routes>
+            {services ? <ServiceProvider services={services}>{routes}</ServiceProvider> : routes}
+            <LocationProbe />
+            <NotificationContainer />
           </NotificationProvider>
         </MemoryRouter>
       </AuthContext.Provider>,
@@ -195,6 +211,66 @@ describe('SourceConfiguration per-Channel mappings', () => {
     const woocommerce = container.querySelector('tr[data-channel-id="woocommerce:primary"]')
     expect(woocommerce).not.toBeNull()
     expect(woocommerce?.querySelector('input[type="checkbox"]')).toHaveProperty('disabled', true)
+  })
+
+  it('offers a direct route back to external Source connection settings', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValueOnce({
+      ...source,
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+    })
+
+    await renderPage(adminAuth)
+    await act(async () => button('Source settings').click())
+
+    expect(container.querySelector('[data-testid="location-probe"]')?.textContent)
+      .toBe('/commerce?tab=sources&resource=nextcloud%3Aprimary')
+  })
+
+  it('reports a valid external connection without requiring a spreadsheet path', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
+      ...source,
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      mapping: null,
+      mappingVersion: 0,
+      sheetId: null,
+    })
+    const worksheets = vi.spyOn(sourceWorkspaceApi, 'worksheets')
+    const testSource = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 'operational',
+      message: 'Connection successful. Select a spreadsheet file to enable preview.',
+      external_call_performed: true,
+      read_only: true,
+      runtime_write_blocked: true,
+      write_blocked: true,
+      webdav_reachable: true,
+      spreadsheet_found: null,
+    })
+    const services = {
+      commerce: { testSource } as unknown as CommerceService,
+      health: {},
+      products: {},
+      sources: {},
+      workspace: {},
+      settings: {},
+      activity: {},
+      writePipeline: {},
+    } as Services
+
+    await renderPage(editorAuth, '/sources/source-1', services)
+    await act(async () => {
+      button('Test connection').click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(testSource).toHaveBeenCalledWith('nextcloud:primary')
+    expect(worksheets).not.toHaveBeenCalled()
+    expect(container.textContent).toContain('Source connection is ready')
+    expect(container.textContent).toContain('Select a spreadsheet file in Source settings before detecting worksheets.')
+    expect(container.textContent).not.toContain('Missing required setting: nextcloud.spreadsheet_path')
   })
 
   it('keeps every mobile action visible without horizontal scrolling', async () => {

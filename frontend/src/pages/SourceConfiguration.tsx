@@ -549,6 +549,24 @@ export default function SourceConfiguration() {
   async function testConnection() {
     setConnectionChecking(true)
     try {
+      if (source?.sourceKind === 'external' && source.externalSourceId && commerce) {
+        const connection = await commerce.testSource(source.externalSourceId)
+        if (!connection.ok) {
+          notify.error({
+            title: translate('sources:sourceConfiguration.connectionCheckFailed'),
+            description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+          })
+          return
+        }
+        if (connection.spreadsheet_found !== true) {
+          setDetectedWorksheets([])
+          notify.success({
+            title: translate('sources:sourceConfiguration.connectionReady'),
+            description: translate('sources:sourceConfiguration.selectSpreadsheetBeforeWorksheetDetection'),
+          })
+          return
+        }
+      }
       const result = await sourceWorkspaceApi.worksheets(sourceId)
       setDetectedWorksheets(result.items)
       notify.success({ title: translate('sources:sourceConfiguration.connectionReady'), description: translate('sources:sourceConfiguration.worksheetsDetected', { count: result.items.length }) })
@@ -814,7 +832,10 @@ export default function SourceConfiguration() {
               <p className="fh-text-caption truncate">{translate('sources:sourceConfiguration.readOncePolicy')}</p>
             </div>
           </div>
-          {canEditSource && <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>}
+          <div className="fh-actions">
+            {canManageCommerce && source.sourceKind === 'external' && source.externalSourceId && <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => navigate(`/commerce?tab=sources&resource=${encodeURIComponent(source.externalSourceId as string)}`)}><Icon name="settings" /> {translate('commerce:commerceHub.sourceSettings')}</button>}
+            {canEditSource && <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>}
+          </div>
         </div>
         <dl className="grid gap-x-6 gap-y-3 border-t border-border p-4 sm:grid-cols-2 xl:grid-cols-4">
           <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceName')}</dt><dd className="font-medium text-text-base">{source.name}</dd></div>

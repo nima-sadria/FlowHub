@@ -809,8 +809,8 @@ def test_nextcloud_test_connection_with_webdav_url_succeeds_without_spreadsheet_
     monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fake_browse)
     monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.get_resource_info", fail_info)
 
-    save = client.put(
-        "/api/v2/commerce/sources/nextcloud:primary/settings",
+    response = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/test",
         headers=auth_headers,
         json={
             "enabled": True,
@@ -818,9 +818,6 @@ def test_nextcloud_test_connection_with_webdav_url_succeeds_without_spreadsheet_
             "secrets": {"password": "app-password-secret"},
         },
     )
-    assert save.status_code == 200
-
-    response = client.post("/api/v2/commerce/sources/nextcloud:primary/test", headers=auth_headers, json={})
 
     assert response.status_code == 200
     assert "app-password-secret" not in response.text
@@ -833,6 +830,70 @@ def test_nextcloud_test_connection_with_webdav_url_succeeds_without_spreadsheet_
     assert data["normalized_webdav_url"] == "https://example.com/nextcloud/remote.php/dav/files/woo/"
     assert data["message"] == "Connection successful. Select a spreadsheet file to enable preview."
     assert calls == ["browse:/"]
+
+
+def test_nextcloud_test_connection_uses_draft_credentials_without_persisting_them(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.setup.service import AppConfigService
+
+    observed: dict[str, str] = {}
+
+    async def fake_browse(self, path="/"):
+        observed.update(
+            url=self._creds.url,
+            username=self._creds.username,
+            password=self._creds.password,
+        )
+        return {"path": path, "directories": [], "files": [], "read_only": True, "write_blocked": True}
+
+    async def fake_info(self, path):
+        return {"name": "draft.xlsx", "path": path, "type": "file", "extension": ".xlsx", "supported": True}
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fake_browse)
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.get_resource_info", fake_info)
+
+    stored = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://stored.example.test",
+                "username": "stored-user",
+                "spreadsheet_path": "/stored.xlsx",
+            },
+            "secrets": {"password": "stored-password"},
+        },
+    )
+    assert stored.status_code == 200
+
+    response = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/test",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://draft.example.test",
+                "username": "draft-user",
+                "spreadsheet_path": "/draft.xlsx",
+            },
+            "secrets": {"password": "draft-password"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert "draft-password" not in response.text
+    assert observed == {
+        "url": "https://draft.example.test",
+        "username": "draft-user",
+        "password": "draft-password",
+    }
+    config = AppConfigService(db)
+    assert config.get("nextcloud.url") == "https://stored.example.test"
+    assert config.get("nextcloud.username") == "stored-user"
+    assert config.get("nextcloud.password") == "stored-password"
 
 
 def test_nextcloud_test_connection_rejects_stored_public_share_url(client, auth_headers, db, monkeypatch):
@@ -938,7 +999,11 @@ def test_nextcloud_test_connection_wrong_credentials_fail_safely(client, auth_he
         headers=auth_headers,
         json={
             "enabled": True,
-            "settings": {"url": "https://softpple.business", "username": "woo"},
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/prices.xlsx",
+            },
             "secrets": {"password": "wrong-secret"},
         },
     )
@@ -959,6 +1024,63 @@ def test_nextcloud_test_connection_wrong_credentials_fail_safely(client, auth_he
     assert detail.status_code == 200
     assert detail.json()["health"]["status"] == "unhealthy"
     assert detail.json()["health"]["error_code"] == "authentication_failed"
+
+
+def test_nextcloud_source_settings_allow_credentials_before_spreadsheet_selection(
+    client, auth_headers, db
+):
+    from app.flowhub.setup.service import AppConfigService
+
+    response = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"url": "https://softpple.business", "username": "woo"},
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "app-password-secret" not in response.text
+    config = AppConfigService(db)
+    assert config.get("nextcloud.url") == "https://softpple.business"
+    assert config.get("nextcloud.username") == "woo"
+    assert config.get("nextcloud.password") == "app-password-secret"
+    assert config.get("nextcloud.spreadsheet_path") in (None, "")
+    detail = client.get("/api/v2/commerce/sources/nextcloud:primary", headers=auth_headers)
+    assert detail.status_code == 200
+    # The credentials are saved, but the Source remains incomplete until a
+    # spreadsheet is selected.
+    assert detail.json()["credential_status"] == "not_configured"
+
+
+def test_nextcloud_source_configuration_returns_editable_values_without_secrets(client, auth_headers, db):
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(db).set_many(
+        {
+            "nextcloud.url": "https://softpple.business",
+            "nextcloud.username": "wrong-user",
+            "nextcloud.password": "wrong-secret",
+        },
+        updated_by="test",
+    )
+
+    response = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["configured"] is False
+    assert data["settings"]["url"] == "https://softpple.business"
+    assert data["settings"]["username"] == "wrong-user"
+    assert data["settings"].get("spreadsheet_path") in (None, "")
+    assert data["secrets"]["password"]["status"] == "configured"
+    assert data["credentials_returned"] is False
+    assert "wrong-secret" not in response.text
 
 
 def test_nextcloud_test_connection_missing_spreadsheet_fails_clearly(client, auth_headers, monkeypatch):

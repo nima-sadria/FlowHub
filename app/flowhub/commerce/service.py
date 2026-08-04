@@ -501,7 +501,7 @@ class CommerceHubService:
             )
         return payload
 
-    async def test_source_connection(self, source_id: str) -> dict:
+    async def test_source_connection(self, source_id: str, body: dict | None = None) -> dict:
         meta = self._source_meta(source_id)
         item = self._source_contract(meta)
         configured = item["credential_status"] == "configured"
@@ -509,7 +509,7 @@ class CommerceHubService:
         if placeholder:
             message = f"{meta['name']} is a read-only planned source. No external call was performed."
         elif str(meta["provider"]) == "nextcloud":
-            return await self._test_nextcloud_source_connection()
+            return await self._test_nextcloud_source_connection(body)
         elif configured:
             message = "Local source configuration is present. No external call was performed."
         else:
@@ -696,6 +696,44 @@ class CommerceHubService:
             if key in body
         )
         return sorted(str(key) for key in changed)
+
+    def get_source_configuration(self, source_id: str) -> dict:
+        meta = self._source_meta(source_id)
+        definition = registry.get_definition(str(meta["provider"]))
+        if bool(meta.get("placeholder")) or definition is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Source settings are not available.")
+        if meta["provider"] == "nextcloud":
+            self.integration.bootstrap_from_app_config()
+        instance = self.db.get(IntegrationConnectorInstance, source_id)
+        settings: dict[str, object] = {
+            item.key: item.default
+            for item in definition.settings_schema
+            if not item.secret and item.default is not None
+        }
+        secret_status: dict[str, dict[str, str | None]] = {}
+        if instance is not None:
+            for item in instance.settings:
+                if item.secret:
+                    secret_status[item.key] = {
+                        "status": "configured" if item.configured else "not_configured",
+                        "replaced_at": self._iso(item.updated_at),
+                    }
+                else:
+                    settings[item.key] = self._configuration_setting_value(
+                        str(meta["provider"]), item.key, item.value_json
+                    )
+        return {
+            "source_id": source_id,
+            "provider": meta["provider"],
+            "display_name": instance.name if instance else meta["name"],
+            "configured": self._instance_configured(instance),
+            "enabled": bool(instance and instance.enabled),
+            "access_mode": ACCESS_MODE_READ_ONLY,
+            "settings": settings,
+            "secrets": secret_status,
+            "settings_schema": [item.model_dump() for item in definition.settings_schema],
+            "credentials_returned": False,
+        }
 
     def get_channel_configuration(self, channel_id: str) -> dict:
         meta = self._channel_meta(channel_id)
@@ -1501,8 +1539,8 @@ class CommerceHubService:
             return None
         return TechnolifeConnector(channel_id="technolife:main", config=config)
 
-    async def _test_nextcloud_source_connection(self) -> dict:
-        values = self._nextcloud_values({}, allow_stored=True)
+    async def _test_nextcloud_source_connection(self, body: dict | None = None) -> dict:
+        values = self._nextcloud_values(body or {}, allow_stored=True)
         if not values["url"] or not values["password"]:
             return {
                 **self._connection_base(),
@@ -1748,9 +1786,23 @@ class CommerceHubService:
         return values
 
     def _validate_nextcloud_source_body(self, body: dict) -> None:
-        values = self._nextcloud_values(body, allow_stored=False)
+        values = self._nextcloud_values(body, allow_stored=True)
         if values["url"]:
-            self._normalize_nextcloud_url(values["url"], values["username"])
+            normalized = self._normalize_nextcloud_url(values["url"], values["username"])
+            values["username"] = values["username"] or normalized["username"]
+        # Connection credentials can be saved before the user chooses a workbook.
+        # Reading and worksheet discovery still require spreadsheet_path.
+        required = ("url", "username", "password")
+        missing = [key for key in required if not values[key]]
+        if missing:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {
+                    "code": "NEXTCLOUD_REQUIRED_SETTINGS_MISSING",
+                    "message": f"Missing required Nextcloud setting(s): {', '.join(missing)}.",
+                    "fields": missing,
+                },
+            )
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         if "source_mapping" in settings:
             normalize_source_mapping(settings.get("source_mapping"))
@@ -1985,7 +2037,7 @@ class CommerceHubService:
         elif instance.connector_type in {"digikala", "shopify"}:
             required = {"api_token"}
         elif instance.connector_type == "nextcloud":
-            required = {"url", "username", "password"}
+            required = {"url", "username", "password", "spreadsheet_path"}
         elif instance.connector_type == "csv":
             required = {"file_path"}
         elif instance.connector_type == "gsheets":

@@ -45,15 +45,29 @@ export interface CommerceChannelConfiguration {
   credentials_returned: false
 }
 
+export interface CommerceSourceConfiguration {
+  source_id: string
+  provider: string
+  display_name: string
+  configured: boolean
+  enabled: boolean
+  access_mode: 'read_only'
+  settings: Record<string, unknown>
+  secrets: Record<string, { status: string; replaced_at: string | null }>
+  settings_schema: CommerceTypeOption['settings_schema']
+  credentials_returned: false
+}
+
 export interface CommerceService {
   getSources(): Promise<{ items: CommerceSource[]; relationship_map: CommerceRelationshipMap }>
   getChannels(): Promise<{ items: CommerceChannel[] }>
   getSourceTypes(): Promise<{ items: CommerceTypeOption[] }>
   getChannelTypes(): Promise<{ items: CommerceTypeOption[] }>
+  getSourceConfiguration(sourceId: string): Promise<CommerceSourceConfiguration>
   getChannelConfiguration(channelId: string): Promise<CommerceChannelConfiguration>
   saveSource(sourceId: string, payload: CommerceConfigPayload): Promise<CommerceSettingsResult>
   saveChannel(channelId: string, payload: CommerceConfigPayload): Promise<CommerceSettingsResult>
-  testSource(sourceId: string): Promise<ConnectionCheckResult>
+  testSource(sourceId: string, payload?: CommerceConfigPayload): Promise<ConnectionCheckResult>
   testChannel(channelId: string, payload?: CommerceConfigPayload): Promise<ConnectionCheckResult>
   refreshChannelCache(channelId: string): Promise<ChannelCacheRefreshResult>
   readSource(sourceId: string): Promise<SourceReadResult>

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../auth'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
@@ -37,6 +37,11 @@ const services: Services = {
 const emptyCommerceSources = {
   items: [],
   relationship_map: { nodes: [], example: [], runtime_write_blocked: true, read_only: true },
+}
+
+function LocationProbe() {
+  const location = useLocation()
+  return <span data-testid="location-probe">{location.pathname}{location.search}</span>
 }
 
 function commerceSource(
@@ -97,7 +102,7 @@ describe('SourceCenter safe lifecycle', () => {
 
   async function render(auth = admin, initialEntry = '/sources') {
     await act(async () => {
-      root.render(<AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter initialEntries={[initialEntry]}><ServiceProvider services={services}><SourceCenter /></ServiceProvider></MemoryRouter><NotificationContainer /></NotificationProvider></AuthContext.Provider>)
+      root.render(<AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter initialEntries={[initialEntry]}><ServiceProvider services={services}><SourceCenter /></ServiceProvider><LocationProbe /></MemoryRouter><NotificationContainer /></NotificationProvider></AuthContext.Provider>)
       await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
     })
   }
@@ -321,6 +326,31 @@ describe('SourceCenter safe lifecycle', () => {
     expect(container.querySelector('[data-source-card="integration:nextcloud:primary"]')).toBeNull()
     expect(container.querySelector('[data-source-card="integration:gsheets:price-list"]')?.textContent).toContain('Coming Soon')
     expect(container.querySelector('.fh-kpi-card-value')?.textContent).toBe('0')
+  })
+
+  it('routes Setup now to connection settings when an external Source credential set is incomplete', async () => {
+    const incompleteNextcloud: SourceProfile = {
+      ...source,
+      id: 'nextcloud-draft',
+      name: 'Nextcloud',
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      mappingVersion: 0,
+      sheetId: null,
+    }
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [incompleteNextcloud] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [commerceSource('nextcloud:primary', 'Nextcloud', { configured: false })],
+    })
+
+    await render()
+    const setup = Array.from(container.querySelectorAll('[data-source-card="nextcloud-draft"] button'))
+      .find(item => item.textContent?.trim() === 'Setup now') as HTMLButtonElement
+    await act(async () => setup.click())
+
+    expect(container.querySelector('[data-testid="location-probe"]')?.textContent)
+      .toBe('/commerce?tab=sources&resource=nextcloud%3Aprimary')
   })
 
   it('shows an actionable onboarding state when only future integrations are available', async () => {

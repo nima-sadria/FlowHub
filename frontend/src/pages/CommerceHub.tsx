@@ -4,9 +4,10 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../auth'
 import { apiErrorMessage } from '../api/client'
 import Badge from '../components/Badge'
+import Alert from '../components/Alert'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeField, CommerceTypeOption } from '../services/types'
-import type { ChannelCacheRefreshResult, CommerceChannelConfiguration, CommerceVendor, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
+import type { ChannelCacheRefreshResult, CommerceSourceConfiguration, CommerceVendor, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
 import Spinner from '../components/loading/Spinner'
 import SecretField from '../components/SecretField'
 import BrandIcon from '../components/BrandIcon'
@@ -91,11 +92,12 @@ function RelationshipMap({ map }: { map: CommerceRelationshipMap | null }) {
   )
 }
 
-function SourceCard({ source, badge, onTest, onRead, onConfigure, testing, reading, canManage }: {
+function SourceCard({ source, badge, onTest, onRead, onEdit, onConfigure, testing, reading, canManage }: {
   source: CommerceSource
   badge: ResourceBadge
   onTest: (sourceId: string) => void
   onRead: (sourceId: string) => void
+  onEdit: (sourceId: string) => void
   onConfigure: (sourceId: string) => void
   testing: boolean
   reading: boolean
@@ -144,11 +146,19 @@ function SourceCard({ source, badge, onTest, onRead, onConfigure, testing, readi
             <button
               type="button"
               aria-label={translate('commerce:commerceHub.sourceSettings')}
-              onClick={() => onConfigure(source.id)}
+              onClick={() => onEdit(source.id)}
               className="fh-button-secondary fh-button-sm"
             >
               <Icon name="settings" />
               {translate('commerce:commerceHub.settings')}
+            </button>
+            <button
+              type="button"
+              onClick={() => onConfigure(source.id)}
+              className="fh-button-secondary fh-button-sm"
+            >
+              <Icon name="workspace" />
+              {translate('sources:sourceCenter.configureColumns')}
             </button>
             <button
               onClick={() => onTest(source.id)}
@@ -505,8 +515,8 @@ export function ConfigPanel({
   const [secrets, setSecrets] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
-  const [loadingConfiguration, setLoadingConfiguration] = useState(kind === 'channel' && Boolean(initialResourceId))
-  const [secretStatus, setSecretStatus] = useState<CommerceChannelConfiguration['secrets']>({})
+  const [loadingConfiguration, setLoadingConfiguration] = useState(Boolean(initialResourceId))
+  const [secretStatus, setSecretStatus] = useState<CommerceSourceConfiguration['secrets']>({})
   const [configurationWasConfigured, setConfigurationWasConfigured] = useState(false)
   const [vendors, setVendors] = useState<CommerceVendor[]>([])
   const [vendorInformation, setVendorInformation] = useState<CommerceVendor | null>(null)
@@ -514,6 +524,11 @@ export function ConfigPanel({
   const [pickerLoading, setPickerLoading] = useState(false)
   const [pickerData, setPickerData] = useState<NextcloudBrowseResult | null>(null)
   const [pickerError, setPickerError] = useState<string | null>(null)
+  const [connectionFeedback, setConnectionFeedback] = useState<{
+    variant: 'success' | 'error'
+    title: string
+    message: string
+  } | null>(null)
   const [worksheetMode, setWorksheetMode] = useState<'all' | 'selected'>('all')
   const [worksheetName, setWorksheetName] = useState('')
   const [readPolicy, setReadPolicy] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
@@ -522,7 +537,7 @@ export function ConfigPanel({
     : null
 
   useEffect(() => {
-    if (kind === 'channel' && initialResourceId) return
+    if (initialResourceId) return
     setDisplayName(selected?.name ?? '')
     setEnabled(false)
     setDescription('')
@@ -538,30 +553,57 @@ export function ConfigPanel({
     setPickerOpen(false)
     setPickerData(null)
     setPickerError(null)
+    setConnectionFeedback(null)
     setWorksheetMode('all')
     setWorksheetName('')
     setReadPolicy(DEFAULT_READ_POLICY)
   }, [selected?.id, initialResourceId, kind])
 
   useEffect(() => {
-    if (kind !== 'channel' || !initialResourceId) return
+    if (!initialResourceId) return
     let active = true
     setLoadingConfiguration(true)
     setSelectedId(initialResourceId)
-    commerce.getChannelConfiguration(initialResourceId)
+    const request = kind === 'source'
+      ? commerce.getSourceConfiguration(initialResourceId)
+      : commerce.getChannelConfiguration(initialResourceId)
+    request
       .then(configuration => {
         if (!active) return
         setDisplayName(configuration.display_name)
         setEnabled(configuration.enabled)
         setAccessMode(configuration.access_mode)
-        setSettings(Object.fromEntries(Object.entries(configuration.settings).map(([key, value]) => [key, value == null ? '' : String(value)])))
+        const loadedSettings = configuration.settings
+        if (kind === 'source' && configuration.provider === 'nextcloud') {
+          const loadedReadPolicy = loadedSettings.source_read_policy
+          if (loadedReadPolicy && typeof loadedReadPolicy === 'object' && !Array.isArray(loadedReadPolicy)) {
+            const policy = loadedReadPolicy as Partial<ReadPolicyDraft>
+            setReadPolicy({
+              enabled: typeof policy.enabled === 'boolean' ? policy.enabled : DEFAULT_READ_POLICY.enabled,
+              max_reads_per_24h: typeof policy.max_reads_per_24h === 'number'
+                ? policy.max_reads_per_24h
+                : DEFAULT_READ_POLICY.max_reads_per_24h,
+              manual_read_allowed: typeof policy.manual_read_allowed === 'boolean'
+                ? policy.manual_read_allowed
+                : DEFAULT_READ_POLICY.manual_read_allowed,
+            })
+          }
+          setWorksheetMode(loadedSettings.worksheet_mode === 'selected' ? 'selected' : 'all')
+          setWorksheetName(typeof loadedSettings.worksheet_name === 'string' ? loadedSettings.worksheet_name : '')
+        }
+        setSettings(Object.fromEntries(Object.entries(loadedSettings)
+          .filter(([key, value]) => !['source_read_policy', 'source_mapping', 'worksheet_mode', 'worksheet_name'].includes(key)
+            && (value == null || ['string', 'number', 'boolean'].includes(typeof value)))
+          .map(([key, value]) => [key, value == null ? '' : String(value)])))
         setSecrets({})
         setSecretStatus(configuration.secrets)
         setConfigurationWasConfigured(configuration.configured)
       })
       .catch(() => {
         if (active) notifyError({
-          title: translate('commerce:commerceHub.unableToLoadChannelSettings'),
+          title: kind === 'source'
+            ? translate('commerce:commerceHub.unableToLoadSourceSettings')
+            : translate('commerce:commerceHub.unableToLoadChannelSettings'),
           description: translate('commerce:commerceHub.pleaseTryAgain'),
         })
       })
@@ -576,17 +618,23 @@ export function ConfigPanel({
 
   const configuredSecret = (key: string) => secretStatus[key]?.status === 'configured'
   const hasSecret = (key: string) => Boolean(secrets[key]?.trim()) || configuredSecret(key)
-  const canTest = selected.provider === 'snappshop'
-    ? Boolean(settings.agent_identifier?.trim()) && hasSecret('token')
-    : selected.provider === 'tapsishop'
-      ? hasSecret('token')
-      : selected.provider === 'technolife'
-        ? hasSecret('api_key') && hasSecret('encryption_secret')
-      : selected.provider === 'woocommerce'
-        ? Boolean(settings.url?.trim()) && hasSecret('key') && hasSecret('secret')
-        : true
+  const canTest = selected.provider === 'nextcloud'
+    ? Boolean(settings.url?.trim()) && hasNextcloudUsername(settings) && hasSecret('password')
+    : selected.provider === 'snappshop'
+      ? Boolean(settings.agent_identifier?.trim()) && hasSecret('token')
+      : selected.provider === 'tapsishop'
+        ? hasSecret('token')
+        : selected.provider === 'technolife'
+          ? hasSecret('api_key') && hasSecret('encryption_secret')
+          : selected.provider === 'woocommerce'
+            ? Boolean(settings.url?.trim()) && hasSecret('key') && hasSecret('secret')
+            : true
   const vendorSelectionRequired = selected.provider === 'snappshop' && vendors.length > 0
-  const canSave = !vendorSelectionRequired || Boolean(settings.vendor_id?.trim())
+  const nextcloudSaveReady = selected.provider !== 'nextcloud'
+    || (Boolean(settings.url?.trim())
+      && hasNextcloudUsername(settings)
+      && hasSecret('password'))
+  const canSave = nextcloudSaveReady && (!vendorSelectionRequired || Boolean(settings.vendor_id?.trim()))
 
   function configurationPayload() {
     return {
@@ -615,10 +663,41 @@ export function ConfigPanel({
     setSaving(true)
     try {
       const payload = configurationPayload()
+      if (kind === 'source' && selectedType.provider === 'nextcloud') {
+        let verification
+        try {
+          verification = await commerce.testSource(selectedType.id, payload)
+        } catch {
+          const failure = {
+            title: translate('commerce:commerceHub.unableToConnectToTheSource'),
+            description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+          }
+          setConnectionFeedback({ variant: 'error', title: failure.title, message: failure.description })
+          notifyError(failure)
+          return
+        }
+        if (!verification.ok) {
+          const failure = {
+            title: translate('commerce:commerceHub.unableToConnectToTheSource'),
+            description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+          }
+          setConnectionFeedback({ variant: 'error', title: failure.title, message: failure.description })
+          notifyError(failure)
+          return
+        }
+      }
       if (kind === 'source') await commerce.saveSource(selectedType.id, payload)
       else await commerce.saveChannel(selectedType.id, payload)
+      const nextcloudNeedsSpreadsheet = kind === 'source'
+        && selectedType.provider === 'nextcloud'
+        && !settings.spreadsheet_path?.trim()
       success(kind === 'source'
-        ? configurationWasConfigured
+        ? nextcloudNeedsSpreadsheet
+          ? {
+              title: translate('commerce:commerceHub.sourceConnectionSaved'),
+              description: translate('commerce:commerceHub.selectSpreadsheetToFinishSourceSetup'),
+            }
+          : configurationWasConfigured
           ? {
               title: translate('commerce:commerceHub.sourceSettingsUpdatedSuccessfully'),
               description: translate('commerce:commerceHub.yourChangesHaveBeenSaved'),
@@ -652,10 +731,11 @@ export function ConfigPanel({
       notifyError(nextcloudUrlError)
       return
     }
+    setConnectionFeedback(null)
     setTesting(true)
     try {
       const result = kind === 'source'
-        ? await commerce.testSource(selectedType.id)
+        ? await commerce.testSource(selectedType.id, configurationPayload())
         : await commerce.testChannel(selectedType.id, configurationPayload())
       if (result.ok) {
         const discoveredVendors = result.vendors ?? []
@@ -670,6 +750,13 @@ export function ConfigPanel({
             setSettings(current => ({ ...current, vendor_id: current.vendor_id || suggested }))
           }
         }
+        if (kind === 'source') {
+          setConnectionFeedback({
+            variant: 'success',
+            title: translate('commerce:commerceHub.connectionDetailsVerified'),
+            message: translate('commerce:commerceHub.connectionDetailsVerifiedDescription'),
+          })
+        }
         success(kind === 'source'
           ? {
               title: translate('commerce:commerceHub.sourceConnectedSuccessfully'),
@@ -680,15 +767,25 @@ export function ConfigPanel({
               description: translate('commerce:commerceHub.isReadyToUse', { value1: localizedChannelName(selectedType.id, selectedType.name) }),
             })
       }
-      else notifyError({
-        title: kind === 'source' ? translate('commerce:commerceHub.unableToConnectToTheSource') : translate('commerce:commerceHub.unableToConnectToTheChannel'),
-        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
-      })
+      else {
+        const failure = {
+          title: kind === 'source' ? translate('commerce:commerceHub.unableToConnectToTheSource') : translate('commerce:commerceHub.unableToConnectToTheChannel'),
+          description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+        }
+        if (kind === 'source') {
+          setConnectionFeedback({ variant: 'error', title: failure.title, message: failure.description })
+        }
+        notifyError(failure)
+      }
     } catch {
-      notifyError({
+      const failure = {
         title: kind === 'source' ? translate('commerce:commerceHub.unableToConnectToTheSource') : translate('commerce:commerceHub.unableToConnectToTheChannel'),
         description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
-      })
+      }
+      if (kind === 'source') {
+        setConnectionFeedback({ variant: 'error', title: failure.title, message: failure.description })
+      }
+      notifyError(failure)
     } finally {
       setTesting(false)
     }
@@ -700,7 +797,7 @@ export function ConfigPanel({
       notifyError(nextcloudUrlError)
       return
     }
-    if (!settings.url || !hasNextcloudUsername(settings) || !secrets.password) {
+    if (!settings.url || !hasNextcloudUsername(settings) || !hasSecret('password')) {
       const message = translate('commerce:commerceHub.validation.nextcloudCredentialsRequired')
       setPickerError(message)
       notifyError(message)
@@ -726,10 +823,12 @@ export function ConfigPanel({
   function selectNextcloudFile(file: NextcloudBrowseItem) {
     if (!file.supported) return
     setSettings(current => ({ ...current, spreadsheet_path: file.path }))
+    setConnectionFeedback(null)
     setPickerOpen(false)
   }
 
   function renderConnectionField(field: CommerceTypeField) {
+    const fieldName = `commerce.${kind}.${selectedType.provider}.${field.key}`
     if (field.secret) {
       return (
         <SecretField
@@ -738,7 +837,10 @@ export function ConfigPanel({
           value={secrets[field.key] ?? ''}
           configured={configuredSecret(field.key)}
           required={field.required && !configuredSecret(field.key)}
-          onChange={value => setSecrets(current => ({ ...current, [field.key]: value }))}
+          onChange={value => {
+            setSecrets(current => ({ ...current, [field.key]: value }))
+            setConnectionFeedback(null)
+          }}
           configuredHint={translate('commerce:commerceHub.configuredLeaveBlankToKeepUnchanged')}
           revealLabel={translate('commerce:commerceHub.showEnteredSecret', { defaultValue: 'Show entered secret' })}
           concealLabel={translate('commerce:commerceHub.hideEnteredSecret', { defaultValue: 'Hide entered secret' })}
@@ -752,12 +854,18 @@ export function ConfigPanel({
         {["token_refresh_enabled", "revoke_current_token"].includes(field.key) ? (
           <input
             type="checkbox"
+            name={fieldName}
             checked={settings[field.key] === "true"}
-            onChange={event => setSettings(current => ({ ...current, [field.key]: String(event.target.checked) }))}
+            onChange={event => {
+              setSettings(current => ({ ...current, [field.key]: String(event.target.checked) }))
+              setConnectionFeedback(null)
+            }}
           />
         ) : (
           <input
             type={field.key === "request_timeout" ? "number" : "text"}
+            name={fieldName}
+            autoComplete={field.key === 'username' ? 'username' : field.key === 'url' ? 'url' : 'off'}
             min={field.key === "request_timeout" ? 1 : undefined}
             max={field.key === "request_timeout" ? 120 : undefined}
             step={field.key === "request_timeout" ? 1 : undefined}
@@ -765,6 +873,7 @@ export function ConfigPanel({
             required={field.required}
             onChange={event => {
               const value = event.target.value
+              setConnectionFeedback(null)
               setSettings(current => {
                 const next = { ...current, [field.key]: value }
                 if (selectedType.provider === 'nextcloud' && field.key === 'url' && !next.username) {
@@ -785,7 +894,7 @@ export function ConfigPanel({
   }
 
   if (loadingConfiguration) {
-    return <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm" role="status" aria-live="polite" aria-busy="true"><Spinner size="sm" />{translate('commerce:commerceHub.loadingChannelConfiguration')}</div>
+    return <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm" role="status" aria-live="polite" aria-busy="true"><Spinner size="sm" />{kind === 'source' ? translate('commerce:commerceHub.loadingSourceConfiguration') : translate('commerce:commerceHub.loadingChannelConfiguration')}</div>
   }
 
   const HeadingTag = headingLevel === 2 ? 'h2' : 'h3'
@@ -885,6 +994,30 @@ export function ConfigPanel({
             || CHANNEL_VISIBLE_FIELDS[selected.provider].has(field.key))
           .map(renderConnectionField)}
       </div>
+      {kind === 'source' && !selected.placeholder && (
+        <div className="mt-4 border-t border-border pt-4" data-source-connection-actions>
+          <div className="fh-actions justify-end">
+            <button type="button" onClick={() => void testConnection()} disabled={testing || !canTest} className="fh-button-secondary px-4">
+              {testing && <Spinner size="sm" />}
+              {!testing && <Icon name="testConnection" />}
+              {testing ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection')}
+            </button>
+            <button type="submit" disabled={saving || !canSave} className="fh-button-primary px-4">
+              {saving && <Spinner size="sm" />}
+              {!saving && <Icon name="save" />}
+              {saving ? translate('commerce:commerceHub.saving') : translate('commerce:commerceHub.saveConnection')}
+            </button>
+          </div>
+          {connectionFeedback && (
+            <Alert
+              className="mt-4"
+              variant={connectionFeedback.variant}
+              title={connectionFeedback.title}
+              message={connectionFeedback.message}
+            />
+          )}
+        </div>
+      )}
       </div>
 
       {kind === "channel" && selected.provider === "snappshop" && (
@@ -1297,6 +1430,18 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
     })
   }
 
+  function handleSourceEdit(sourceId: string) {
+    if (!canManageCommerce) {
+      notifyError(translate('commerce:commerceHub.adminPermissionRequired'))
+      return
+    }
+    setTab('sources')
+    setSearchParams({ tab: 'sources', resource: sourceId })
+    setEditingSourceId(sourceId)
+    setEditingChannelId(null)
+    setFormKind('source')
+  }
+
   async function handleSourceConfigure(sourceId: string) {
     if (!canManageCommerce) {
       notifyError(translate('commerce:commerceHub.adminPermissionRequired'))
@@ -1402,6 +1547,7 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
                 badge={resource.badge}
                 onTest={(id) => void handleSourceTest(id)}
                 onRead={(id) => void handleSourceRead(id)}
+                onEdit={handleSourceEdit}
                 onConfigure={handleSourceConfigure}
                 testing={testingId === resource.id}
                 reading={readingId === resource.id}

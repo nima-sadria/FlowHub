@@ -469,6 +469,15 @@ export default function SourceCenter() {
   }
 
   function openPrimary(card: SourceCardModel, setup = false) {
+    if (
+      setup
+      && card.integration?.implemented
+      && !card.integration.placeholder
+      && card.integration.credential_status !== 'configured'
+    ) {
+      navigate(`/commerce?tab=sources&resource=${encodeURIComponent(card.integration.id)}`)
+      return
+    }
     if (card.profile) {
       if (setup) navigate(`/sources/${card.profile.id}`)
       else if (!sourceIsEnabled(card.profile)) navigate(`/sources/${card.profile.id}`)

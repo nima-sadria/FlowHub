@@ -51,14 +51,25 @@ async def get_source_detail(
     return service.get_source(source_id)
 
 
-@router.post("/sources/{source_id}/test")
-async def test_source_connection(
+@router.get("/sources/{source_id}/configuration")
+async def get_source_configuration(
     source_id: str,
     user: FlowHubUser = Depends(get_current_user),
     service: CommerceHubService = Depends(_service),
 ) -> dict:
     _require_admin(user)
-    return await service.test_source_connection(source_id)
+    return service.get_source_configuration(source_id)
+
+
+@router.post("/sources/{source_id}/test")
+async def test_source_connection(
+    source_id: str,
+    body: dict | None = None,
+    user: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    _require_admin(user)
+    return await service.test_source_connection(source_id, body)
 
 
 @router.post("/sources/{source_id}/browse")

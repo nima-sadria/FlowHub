@@ -244,6 +244,7 @@
   "sourceConfiguration.section.worksheetColumns": "Worksheet columns",
   "sourceConfiguration.section.worksheetColumnsHelp": "Configure shared product fields and independent Channel columns for each worksheet.",
   "sourceConfiguration.selectAll": "Select all",
+  "sourceConfiguration.selectSpreadsheetBeforeWorksheetDetection": "Connection is valid. Select a spreadsheet file in Source settings before detecting worksheets.",
   "sourceConfiguration.selectAtLeastOneWorksheet": "Select at least one worksheet for these shared rules.",
   "sourceConfiguration.selectChannel": "Select a Channel",
   "sourceConfiguration.selectedWorksheet": "Selected worksheet",
