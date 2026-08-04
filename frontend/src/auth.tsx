@@ -1,6 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { effectiveHasPerm } from './utils/permissions'
 import { translate } from './i18n'
+import {
+  AUTH_SESSION_EXPIRED_EVENT,
+  authFetch as sharedAuthFetch,
+  authHeaders,
+  clearStoredAuth,
+  refreshAuthSession,
+} from './api/authFetch'
 
 type PermissionMap = Record<string, boolean>
 
@@ -30,38 +37,6 @@ export interface AuthContextValue {
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
-
-function clearStoredAuth() {
-  localStorage.removeItem('wp_token')
-  localStorage.removeItem('wp_refresh_token')
-  localStorage.removeItem('wp_user')
-}
-
-function authHeaders(init?: RequestInit) {
-  const headers = new Headers(init?.headers)
-  const token = localStorage.getItem('wp_token') ?? ''
-  if (token) headers.set('Authorization', `Bearer ${token}`)
-  return headers
-}
-
-async function attemptTokenRefresh(): Promise<boolean> {
-  const refreshToken = localStorage.getItem('wp_refresh_token') ?? ''
-  if (!refreshToken) return false
-  try {
-    const r = await fetch('/api/auth/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    })
-    if (!r.ok) return false
-    const data = await r.json() as { token: string; refresh_token: string }
-    localStorage.setItem('wp_token', data.token)
-    localStorage.setItem('wp_refresh_token', data.refresh_token)
-    return true
-  } catch {
-    return false
-  }
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -94,33 +69,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     const token = localStorage.getItem('wp_token') ?? ''
+    const storedRefreshToken = localStorage.getItem('wp_refresh_token') ?? ''
+    setStatus('loading')
+
+    if (!token && !storedRefreshToken) {
+      setUser(null)
+      setStatus('login_required')
+      return
+    }
+
     if (!token) {
-      // No access token - try refresh before giving up
-      const refreshed = await attemptTokenRefresh()
+      const refreshed = await refreshAuthSession()
       if (!refreshed) {
+        clearStoredAuth()
         setUser(null)
         setStatus('login_required')
         return
       }
     }
 
-    setStatus('loading')
     try {
-      const r = await fetch('/api/auth/me', { headers: authHeaders() })
+      const r = await sharedAuthFetch('/api/auth/me')
       if (r.status === 401) {
-        // Access token rejected - attempt silent refresh once
-        const refreshed = await attemptTokenRefresh()
-        if (refreshed) {
-          const r2 = await fetch('/api/auth/me', { headers: authHeaders() })
-          if (r2.ok) {
-            const nextUser = (await r2.json()) as AuthUser
-            setUser(nextUser)
-            setStatus('authenticated')
-            localStorage.setItem('wp_user', JSON.stringify(nextUser))
-            return
-          }
-        }
-        clearStoredAuth()
         setUser(null)
         setStatus('login_required')
         return
@@ -142,15 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const authFetch = useCallback(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const r = await fetch(input, { ...init, headers: authHeaders(init) })
-    if (r.status === 401) {
-      // Silent refresh: try once, retry the original request, then logout
-      const refreshed = await attemptTokenRefresh()
-      if (refreshed) {
-        return fetch(input, { ...init, headers: authHeaders(init) })
-      }
-      clearAuth()
-    }
+    const r = await sharedAuthFetch(input, init)
     if (r.status === 503) {
       // Detect a maintenance-mode block and immediately activate the overlay,
       // even for sessions that were already authenticated before maintenance was enabled.
@@ -164,11 +126,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch { /* not a JSON maintenance response - ignore */ }
     }
     return r
-  }, [clearAuth])
+  }, [])
 
   useEffect(() => {
     void refreshUser()
   }, [refreshUser])
+
+  useEffect(() => {
+    const onSessionExpired = () => {
+      setUser(null)
+      setStatus('login_required')
+    }
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, onSessionExpired)
+    return () => window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, onSessionExpired)
+  }, [])
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {

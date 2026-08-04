@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { AuthProvider, useAuth } from './auth'
+import { authFetch as serviceAuthFetch } from './api/authFetch'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -141,5 +142,41 @@ describe('AuthProvider logout', () => {
     })
 
     expect(currentStatus).toBe('authenticated')
+  })
+
+  it('updates the provider when a standalone API service cannot refresh the session', async () => {
+    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url === '/api/auth/me') {
+        return jsonResponse({
+          username: 'admin',
+          role: 'owner',
+          is_admin: true,
+          is_super_admin: true,
+          permissions: {},
+        })
+      }
+      if (url === '/api/v2/source-profiles') {
+        return jsonResponse({ detail: 'Expired access token' }, 401)
+      }
+      if (url === '/api/auth/refresh') {
+        return jsonResponse({ detail: 'Invalid refresh token' }, 401)
+      }
+      throw new Error(`unexpected fetch: ${url}`)
+    })
+
+    await act(async () => {
+      root.render(<AuthProvider><Consumer /></AuthProvider>)
+    })
+    expect(currentStatus).toBe('authenticated')
+
+    await act(async () => {
+      const response = await serviceAuthFetch('/api/v2/source-profiles')
+      expect(response.status).toBe(401)
+    })
+
+    expect(currentStatus).toBe('login_required')
+    expect(localStorage.getItem('wp_token')).toBeNull()
+    expect(localStorage.getItem('wp_refresh_token')).toBeNull()
   })
 })
