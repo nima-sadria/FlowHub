@@ -101,7 +101,7 @@ async def update_source_settings(
     service: CommerceHubService = Depends(_service),
 ) -> dict:
     _require_admin(user)
-    return service.update_source_settings(source_id, body)
+    return service.update_source_settings(source_id, body, user=user)
 
 
 @router.get("/channels")
@@ -176,7 +176,9 @@ async def update_channel_settings(
     service: CommerceHubService = Depends(_service),
 ) -> dict:
     _require_admin(user)
-    return await service.update_channel_settings(channel_id, body, actor=user.username)
+    return await service.update_channel_settings(
+        channel_id, body, actor=user.username, user=user
+    )
 
 
 @router.get("/channels/{channel_id}/configuration")

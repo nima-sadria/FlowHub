@@ -58,12 +58,19 @@ class SettingsPatch(BaseModel):
 
     @model_validator(mode="after")
     def _validate_currency_unit_pair(self):
+        if (self.currency is None) != (self.currencyUnit is None):
+            raise ValueError("Currency and currency unit must be updated together.")
         if (
             self.currency == "IRR"
-            and self.currencyUnit is not None
             and self.currencyUnit not in {"RIAL", "TOMAN"}
         ):
             raise ValueError("IRR requires an explicit RIAL or TOMAN pricing unit.")
+        if (
+            self.currency is not None
+            and self.currency != "IRR"
+            and self.currencyUnit != self.currency
+        ):
+            raise ValueError("Non-IRR currency units must match the selected currency.")
         if self.currencyUnit is not None and not re.match(r"^[A-Z]{3,12}$", self.currencyUnit):
             raise ValueError("Currency unit must contain 3-12 uppercase letters.")
         return self

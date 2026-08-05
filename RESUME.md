@@ -199,6 +199,13 @@ migration semantics, preserving unresolved state and forbidding magnitude-based
 RIAL/TOMAN inference. Do not start Source Acquisition runtime or Pricing UI
 until that phase is approved.
 
+Phase 2B is complete. Source and Channel declarations are independently
+versioned Currency Profiles. Missing declarations remain unresolved; no
+RIAL/TOMAN inference occurs. Source-backed Workspace creation now fails closed
+before a Pricing Review can be created when its Source declaration is missing.
+Raw Source preview remains outside that gate. Existing Pricing Matrix binding
+continues to isolate unresolved Channels as per-Channel Review issues.
+
 ## Temporary TODOs
 
 There are no temporary `TODO`/`FIXME` comments in code. The remaining work is represented by the phases below, not by placeholder implementation.

@@ -19,6 +19,7 @@ from sqlalchemy import tuple_
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
+from app.flowhub.pricing_matrix.service import PricingMatrixService
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.source_workspace.formula import (
     FORMULA_ENGINE_VERSION,
@@ -171,6 +172,8 @@ class SourceWorkspaceService:
         worksheet_name: str | None,
         data_start_row: int,
         user: FlowHubUser,
+        currency: str | None = None,
+        currency_unit: str | None = None,
     ) -> dict[str, Any]:
         if source_kind not in {"flowhub_sheet", "imported_sheet", "external"}:
             raise _unprocessable("SOURCE_KIND_INVALID", "Unsupported Source kind.")
@@ -202,6 +205,21 @@ class SourceWorkspaceService:
                     owner_user_id=user.id,
                     current_version=0,
                 )
+            )
+        if currency or currency_unit:
+            if not currency or not currency_unit:
+                raise _unprocessable(
+                    "SOURCE_CURRENCY_INCOMPLETE",
+                    "Both Source currency and currency unit are required.",
+                )
+            PricingMatrixService(self.db).declare_unit(
+                scope="source",
+                scope_reference=source.id,
+                currency=currency,
+                unit=currency_unit,
+                user=user,
+                connector_config_version="source-profile-v1",
+                commit=False,
             )
         self.db.commit()
         return self._source_shape(source)
@@ -1942,6 +1960,9 @@ class SourceWorkspaceService:
     def _source_shape(self, source: SourceProfile) -> dict[str, Any]:
         mapping = self.sources.latest_mapping(source.id)
         sheet = self.sheets.for_source(source.id)
+        currency_profile = PricingMatrixService(self.db).unit_declaration(
+            "source", source.id
+        )
         return {
             "id": source.id,
             "name": source.name,
@@ -1956,6 +1977,7 @@ class SourceWorkspaceService:
             "sheetId": sheet.id if sheet else None,
             "createdAt": _utc_timestamp(source.created_at),
             "updatedAt": _utc_timestamp(source.updated_at),
+            "currencyProfile": currency_profile,
         }
 
     def _mapping_shape(self, revision: SourceMappingRevision | None) -> dict[str, Any] | None:

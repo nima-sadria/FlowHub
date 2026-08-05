@@ -26,7 +26,7 @@ from pathlib import Path
 from alembic.config import Config as AlembicConfig
 from alembic.script import ScriptDirectory
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -165,6 +165,15 @@ class ServerProfilePayload(BaseModel):
     environment: str = "production"
     timezone: str = "UTC"
     currency: str = "USD"
+    currencyUnit: str = "USD"
+
+    @model_validator(mode="after")
+    def _validate_currency_unit(self):
+        if self.currency == "IRR" and self.currencyUnit not in {"RIAL", "TOMAN"}:
+            raise ValueError("IRR requires an explicit RIAL or TOMAN display unit.")
+        if self.currency != "IRR" and self.currencyUnit != self.currency:
+            raise ValueError("Non-IRR display units must match the selected currency.")
+        return self
 
     @field_validator("domain")
     @classmethod
@@ -262,6 +271,7 @@ async def setup_server_profile(
             "server.environment": "production",
             "server.timezone": body.timezone,
             "server.currency": body.currency,
+            "server.currency_unit": body.currencyUnit,
         },
         updated_by="setup_wizard",
     )

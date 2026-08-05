@@ -170,10 +170,11 @@ class TestUpdateSettings:
 
     def test_update_currency(self, client, auth_headers, db):
         r = client.post("/api/v2/settings", headers=auth_headers,
-                        json={"currency": "IRR"})
+                        json={"currency": "IRR", "currencyUnit": "RIAL"})
         assert r.status_code == 200
         from app.flowhub.setup.service import AppConfigService
         assert AppConfigService(db).get("server.currency") == "IRR"
+        assert AppConfigService(db).get("server.currency_unit") == "RIAL"
 
     def test_rejects_invalid_timezone(self, client, auth_headers):
         r = client.post("/api/v2/settings", headers=auth_headers,
@@ -203,10 +204,15 @@ class TestUpdateSettings:
         assert r.status_code == 403
 
     def test_owner_can_update_settings(self, client, owner_headers, db):
-        r = client.post("/api/v2/settings", headers=owner_headers, json={"currency": "IRR"})
+        r = client.post(
+            "/api/v2/settings",
+            headers=owner_headers,
+            json={"currency": "IRR", "currencyUnit": "RIAL"},
+        )
         assert r.status_code == 200
         from app.flowhub.setup.service import AppConfigService
         assert AppConfigService(db).get("server.currency") == "IRR"
+        assert AppConfigService(db).get("server.currency_unit") == "RIAL"
 
 
 # -- POST /api/v2/settings/woocommerce ----------------------------------------

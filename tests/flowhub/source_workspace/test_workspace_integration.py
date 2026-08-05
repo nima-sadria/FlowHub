@@ -116,6 +116,13 @@ def test_source_product_workspace_groups_listings_and_auto_selects_ready_changes
         user=user,
     )
     source = source_service.get_source(sheet["sourceId"], user)
+    pricing.declare_unit(
+        scope="source",
+        scope_reference=source["id"],
+        currency="EUR",
+        unit="EUR",
+        user=user,
+    )
     source_service.save_mapping(
         source_id=source["id"],
         expected_source_version=source["version"],
