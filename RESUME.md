@@ -279,17 +279,15 @@ and retains its data-loss assertions.
 
 Verification for this stage:
 
-- Beta Source/Workspace fixture and historical compatibility test: 129 passed.
+- Source/Workspace fixture and historical compatibility test: 129 passed.
 - Full migration suite: 34 passed, 7 skipped.
 - Source/Workspace/Acquisition/connector/no-direct-HTTP regression selection:
   198 passed, 6 skipped.
-- Full backend suite: 3200 passed, 26 skipped, 1 tracked failure.
+- Full backend suite after Stage 10A.2: 3201 passed, 26 skipped, 0 failures.
 
-The remaining failure is
-`tests/beta/test_multi_channel_pricing.py::test_apply_reports_channel_specific_partial_failure`:
-the current write-attempt projection is `reconciliation_required`, while the
-legacy assertion expects `failed`. This is a separate Stage 10A.2 semantic
-decision and was intentionally not changed here.
+The multi-channel outcome mismatch was resolved in Stage 10A.2 by correcting
+the fixture so it reaches the intended provider results and proves their
+durable attempt evidence.
 
 ## Stage 7 completed: schema assessment and structural drift
 
@@ -374,7 +372,7 @@ There are no temporary `TODO`/`FIXME` comments in code. The remaining work is re
    - `frontend/src/components/SiteFooter.tsx`: `FlowHub v`
    - `frontend/src/pages/ExchangeRates.tsx`: `/ day ·`
 6. Migration rollout gates remain: complete Appendix A from the real translator inventory, add a fixture for every supported legacy formula shape, and resolve or explicitly quarantine the documented 255 broken formulas before activation.
-7. The full backend suite has one unrelated pre-existing failure in `tests/beta/test_multi_channel_pricing.py`: a validation failure is currently projected as `reconciliation_required` while the test expects `failed`.
+7. The full backend suite previously had one multi-channel pricing fixture failure: a validation failure was projected as `reconciliation_required` while the test expected `failed`.
 
 ## Required migrations
 
@@ -439,14 +437,13 @@ Known test noise: the frontend suite emitted jsdom/Handsontable CSS parse warnin
 
 ## Required tests still pending
 
-1. Resolve or explicitly accept the unrelated beta multi-channel pricing projection mismatch.
-2. Execute the PostgreSQL `FLOWHUB_024` clean-install test when the disposable
+1. Execute the PostgreSQL `FLOWHUB_024` clean-install test when the disposable
    `FLOWHUB_TEST_POSTGRES_URL` is available.
-3. Write Pipeline fold/projection tests for all documented terminal states.
-4. Explicit Source/Channel unit migration and unresolved-unit tests.
-5. Frontend tests for all new Pricing UI states after that UI exists.
-6. i18n validation after the two pre-existing hardcoded strings are addressed in a separate scoped change.
-7. Implement Source Acquisition Phase 3C schema assessment and structural drift handling.
+2. Write Pipeline fold/projection tests for all documented terminal states.
+3. Explicit Source/Channel unit migration and unresolved-unit tests.
+4. Frontend tests for all new Pricing UI states after that UI exists.
+5. i18n validation after the two pre-existing hardcoded strings are addressed in a separate scoped change.
+6. Implement Source Acquisition Phase 3C schema assessment and structural drift handling.
 
 ## Browser verification still pending
 
@@ -506,3 +503,25 @@ Estimated total remaining for release-grade completion: **115k-197k tokens**. Th
 5. Re-run the relevant backend and frontend checks if the environment changed.
 6. Resume with Phase 3C schema assessment and structural drift handling over persisted Observations.
 7. Review the current uncommitted feature set before committing; do not mix unrelated legacy test behavior changes into the Pricing Matrix commit.
+
+## Backend Stage 10A.2 outcome semantics
+
+The remaining multi-channel mismatch was a fixture defect, not a production
+projection defect. The fixture marked SnappShop writable but omitted the three
+configured-setting records required by the authoritative Commerce gate. As a
+result, the synthetic provider validation rejection was never reached and the
+post-intent local gate exception was conservatively classified as
+`reconciliation_required`.
+
+The corrected fixture now reaches both providers and asserts durable evidence:
+
+- SnappShop returns a deterministic validation rejection, records `failed`, and
+  never records `reconciliation_required`.
+- TapsiShop accepts the write without exact read-back, records
+  `provider_accepted` plus `reconciliation_required`.
+- The aggregate remains `reconciliation_required` because one external final
+  state is genuinely unknown.
+
+No callable API, enum, production projection, or frontend contract changed.
+PostgreSQL verification remains pending until an isolated
+`FLOWHUB_TEST_POSTGRES_URL` is configured.

@@ -414,10 +414,13 @@ def test_apply_reports_channel_specific_partial_failure(client, auth_headers, db
     snapp = next(item for item in loaded["channels"] if item["channelId"] == "snappshop:main")
     tapsi = next(item for item in loaded["channels"] if item["channelId"] == "tapsishop:main")
 
+    provider_calls: list[tuple[str, str]] = []
+
     class SuccessConnector:
         async def update_products(self, updates):
             from app.flowhub.channels.contracts import ChannelProductUpdateResult
 
+            provider_calls.append((updates[0].channel_id, "accepted"))
             return [
                 ChannelProductUpdateResult(
                     channel_id=updates[0].channel_id,
@@ -435,6 +438,7 @@ def test_apply_reports_channel_specific_partial_failure(client, auth_headers, db
                 ConnectorErrorCategory,
             )
 
+            provider_calls.append((updates[0].channel_id, "validation_rejected"))
             return [
                 ChannelProductUpdateResult(
                     channel_id=updates[0].channel_id,
@@ -499,6 +503,36 @@ def test_apply_reports_channel_specific_partial_failure(client, auth_headers, db
     assert data["summary"]["success"] == 0
     assert data["summary"]["reconciliationRequired"] == 1
     assert data["summary"]["failed"] == 1
+    assert provider_calls == [
+        ("snappshop:main", "validation_rejected"),
+        ("tapsishop:main", "accepted"),
+    ]
+    assert by_channel["snappshop:main"]["result"]["providerAccepted"] is False
+    assert by_channel["snappshop:main"]["result"]["errorCategory"] == "validation"
+    assert by_channel["tapsishop:main"]["result"]["providerAccepted"] is True
+
+    from app.flowhub.write_pipeline.models import (
+        ProviderWriteAttempt,
+        ProviderWriteAttemptEvent,
+    )
+
+    attempts = {
+        row.channel_id: row
+        for row in db.query(ProviderWriteAttempt).filter_by(operation_id=op_id).all()
+    }
+    outcomes = {
+        channel_id: {
+            event.outcome
+            for event in db.query(ProviderWriteAttemptEvent)
+            .filter_by(attempt_id=attempt.id)
+            .all()
+        }
+        for channel_id, attempt in attempts.items()
+    }
+    assert "failed" in outcomes["snappshop:main"]
+    assert "reconciliation_required" not in outcomes["snappshop:main"]
+    assert "provider_accepted" in outcomes["tapsishop:main"]
+    assert "reconciliation_required" in outcomes["tapsishop:main"]
     snapp_row = (
         db.query(_data_layer_models.DlProductCache)
         .filter_by(connector_id="snappshop:main", product_id="snap-101")
@@ -517,7 +551,10 @@ def test_apply_reports_channel_specific_partial_failure(client, auth_headers, db
 
 def _seed_product(db, *, tapsi: bool = True, snapp_read_only: bool = False) -> None:
     from app.flowhub.data_layer.models import DlProductCache
-    from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+    from app.flowhub.integration_platform.models import (
+        IntegrationConnectorInstance,
+        IntegrationConnectorSetting,
+    )
     from app.flowhub.setup.service import AppConfigService
 
     AppConfigService(db).set("server.currency", "EUR")
@@ -539,6 +576,21 @@ def _seed_product(db, *, tapsi: bool = True, snapp_read_only: bool = False) -> N
                 updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
             )
         )
+    if not snapp_read_only:
+        for key, secret in (
+            ("token", True),
+            ("agent_identifier", False),
+            ("vendor_id", False),
+        ):
+            db.add(
+                IntegrationConnectorSetting(
+                    connector_id="snappshop:main",
+                    key=key,
+                    value_json=None,
+                    secret=secret,
+                    configured=True,
+                )
+            )
     db.add(
         DlProductCache(
             connector_id="woocommerce:primary",
