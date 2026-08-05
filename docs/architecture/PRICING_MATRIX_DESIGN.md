@@ -3,7 +3,7 @@
 **Status:** Proposed baseline, implementation pending
 **Related:** `ADR-SOURCE-001`, `SOURCE_ACQUISITION_DESIGN.md`,
 `UNIFIED_MULTI_CHANNEL_WORKSPACE.md`
-**Supersedes:** the Formula Engine section of `SOURCE_CENTRIC_PRICING_WORKSPACE.md`
+**Supersession:** pending `ADR-PRICING-001`
 **Date:** 2026-08-05
 **Revision:** 13
 
@@ -47,9 +47,9 @@ These are decided, not open:
 
 ## Superseding the Formula Engine
 
-`SOURCE_CENTRIC_PRICING_WORKSPACE.md` currently permits a Formula Engine. This
-specification supersedes that section. A new ADR must record the reversal and
-the disposition of existing formula data.
+`SOURCE_CENTRIC_PRICING_WORKSPACE.md` currently permits a Formula Engine. Upon
+acceptance, `ADR-PRICING-001` supersedes that section and records the reversal
+and the disposition of existing formula data.
 
 ### Scope of the prohibition
 
