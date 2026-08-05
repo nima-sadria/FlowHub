@@ -72,16 +72,16 @@ def test_exchange_rate_hardening_downgrade_and_reupgrade(tmp_path, monkeypatch):
     db_path = tmp_path / "roundtrip-022.sqlite"
     db_url = f"sqlite:///{db_path}"
     monkeypatch.setenv("FLOWHUB_DATABASE_URL", db_url)
-    command.upgrade(config(), "head")
+    command.upgrade(config(), "FLOWHUB_022")
     command.downgrade(config(), "FLOWHUB_021")
     engine = sa.create_engine(db_url)
     assert "request_completed_count" not in {
         column["name"]
         for column in sa.inspect(engine).get_columns("fh_exchange_rate_providers")
     }
-    command.upgrade(config(), "head")
+    command.upgrade(config(), "FLOWHUB_022")
     with engine.connect() as connection:
         assert connection.execute(
             sa.text("SELECT version_num FROM alembic_version")
-        ).scalar_one() == head_revision()
+        ).scalar_one() == "FLOWHUB_022"
     engine.dispose()

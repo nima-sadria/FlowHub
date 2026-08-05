@@ -235,3 +235,29 @@ Only an active Channel can be deactivated. It returns the updated inactive
 Do not change a field name, enum, error code, or route consumed by the
 frontend without updating this file and `RESUME.md` in the same backend commit.
 Additive fields are allowed when documented here.
+
+## Claude UI Phase 1 Decisions
+
+- **PM-1:** Current callable endpoints have no common envelope or
+  `contract_version`. Their documented object shapes are authoritative. The
+  common envelope proposed for future evidence views is deferred.
+- **PM-2:** Requests use `snake_case`; service responses use `camelCase`.
+  This is the current API contract and must not be normalized by the frontend.
+- **PM-3:** Current list endpoints return complete `{"items": [...]}` lists and
+  have no pagination. Cursor pagination is deferred to future evidence APIs.
+- **PM-4:** Monetary integers and exact identifiers may exceed JavaScript safe
+  integer precision. Clients must send integer values as decimal strings when
+  needed; FastAPI accepts those values and validates them as integers. Current
+  responses can contain JSON numbers for backward compatibility, so the UI
+  must preserve them as text/BigInt rather than passing them through
+  JavaScript `number` arithmetic. Response integer-string normalization is a
+  future additive contract change, not part of this phase.
+- **PM-5:** Lifecycle Head fields `currentEventId`, `effectiveActivationId`,
+  `policyRevisionId`, and `channelConfigRevisionId` are nullable when status is
+  `inactive`. Lifecycle event activation fields are nullable only for a
+  `deactivate` event.
+- **PM-6:** Rule requests use `snake_case`; rule responses use existing
+  `camelCase` fields such as `rateValue` and `roundStepMinor`.
+- **PM-7:** `workspace_precondition` is not exposed by the current callable
+  configuration API. It belongs to the future Workspace evidence contract and
+  is deferred; current Review/Apply safety checks remain server-side.

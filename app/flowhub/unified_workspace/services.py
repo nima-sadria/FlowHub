@@ -515,12 +515,24 @@ class UnifiedWorkspaceService:
             )
         self._seed_channels()
         preview = await WorkspacePriceWorkflowService(self.db).preview_from_nextcloud(user)
-        global_profile = self._global_currency_profile()
-        currency_profile = (
-            self._source_currency_profile("nextcloud:primary", source_currency, source_unit)
-            if source_currency or source_unit
-            else global_profile
-        )
+        if (source_currency is None) != (source_unit is None):
+            raise self._unprocessable(
+                "SOURCE_CURRENCY_INCOMPLETE", "Both Source currency and currency unit are required."
+            )
+        if source_currency and source_unit:
+            currency_profile = self._source_currency_profile(
+                "nextcloud:primary", source_currency, source_unit
+            )
+        else:
+            declaration = self.pricing_matrix.unit_declaration("source", "nextcloud:primary")
+            if declaration["status"] != "resolved":
+                raise self._unprocessable(
+                    "SOURCE_UNIT_UNRESOLVED",
+                    "Pricing Workspace requires an explicit Source currency and unit declaration.",
+                )
+            currency_profile = self.db.get(CurrencyProfile, declaration["currencyProfileId"])
+            if currency_profile is None:
+                raise self._conflict("SOURCE_CURRENCY_PROFILE_MISSING", "Source currency profile is unavailable.")
         workspace_id = _id()
         snapshot_id = _id()
         workspace = UnifiedWorkspace(
@@ -708,6 +720,15 @@ class UnifiedWorkspaceService:
         self._seed_channels()
         source_service = SourceWorkspaceService(self.db)
         analysis = await source_service.snapshot_candidates(source_id, user)
+        source_declaration = self.pricing_matrix.unit_declaration("source", source_id)
+        if source_declaration["status"] != "resolved":
+            raise self._unprocessable(
+                "SOURCE_UNIT_UNRESOLVED",
+                "Pricing Workspace requires an explicit Source currency and unit declaration.",
+            )
+        currency_profile = self.db.get(CurrencyProfile, source_declaration["currencyProfileId"])
+        if currency_profile is None:
+            raise self._conflict("SOURCE_CURRENCY_PROFILE_MISSING", "Source currency profile is unavailable.")
         # Fence Source archival/deletion after acquisition and through the
         # immutable Workspace/Snapshot commit. If lifecycle or configuration
         # changed during an external read, no Workspace is created from it.
@@ -716,7 +737,6 @@ class UnifiedWorkspaceService:
             user,
             expected_source_version=int(analysis["source"]["version"]),
         )
-        currency_profile = self._global_currency_profile()
         workspace_id = _id()
         snapshot_id = _id()
         workspace = UnifiedWorkspace(

@@ -21,6 +21,7 @@ from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import ping as ping_woocommerce
 from app.connectors.read.woocommerce import WooCommerceProductReadAdapter
+from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.channels.marketplace_product_sync import MarketplaceProductSyncService
 from app.flowhub.channels.snappshop import (
     SNAPPSHOP_BASE_URL,
@@ -52,9 +53,11 @@ from app.flowhub.integration_platform.registry import registry
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.integrations.errors import IntegrationError
 from app.flowhub.integrations.nextcloud import NextcloudClient
+from app.flowhub.pricing_matrix.service import PricingMatrixService
 from app.flowhub.read_engine.manual import ManualReadService
 from app.flowhub.read_engine.service import IncrementalReadEngine
 from app.flowhub.security.upstream_errors import UpstreamServiceError, normalize_upstream_error
+from app.flowhub.source_workspace.models import SourceProfile
 from app.flowhub.sources.spreadsheet_source import (
     SpreadsheetSourceReadService,
     normalize_read_policy,
@@ -570,7 +573,9 @@ class CommerceHubService:
         )
         return reader.manual_read_response(result)
 
-    def update_source_settings(self, source_id: str, body: dict) -> dict:
+    def update_source_settings(
+        self, source_id: str, body: dict, *, user: FlowHubUser | None = None
+    ) -> dict:
         meta = self._source_meta(source_id)
         provider = str(meta["provider"])
         if registry.get_definition(provider) is None:
@@ -582,6 +587,9 @@ class CommerceHubService:
         if provider == "nextcloud":
             self._persist_nextcloud_app_config(body)
         result = self.integration.update_settings_contract(source_id, self._settings_body(body))
+        currency_profile = self._save_currency_declaration(
+            scope="source", scope_reference=source_id, body=body, user=user
+        )
         return {
             **result,
             "source_id": source_id,
@@ -590,9 +598,17 @@ class CommerceHubService:
             "runtime_write_blocked": True,
             "write_blocked": True,
             "write_pipeline_eligible": False,
+            "currency_profile": currency_profile,
         }
 
-    async def update_channel_settings(self, channel_id: str, body: dict, *, actor: str = "system") -> dict:
+    async def update_channel_settings(
+        self,
+        channel_id: str,
+        body: dict,
+        *,
+        actor: str = "system",
+        user: FlowHubUser | None = None,
+    ) -> dict:
         meta = self._channel_meta(channel_id)
         provider = str(meta["provider"])
         if registry.get_definition(provider) is None:
@@ -604,13 +620,19 @@ class CommerceHubService:
         if provider == "snappshop":
             await self._validate_snappshop_vendor_selection(body)
         if provider in {"snappshop", "tapsishop", "technolife"}:
-            return self._update_marketplace_channel_settings(
+            result = self._update_marketplace_channel_settings(
                 channel_id,
                 meta,
                 body,
                 actor=actor,
                 access_mode=access_mode,
             )
+            return {
+                **result,
+                "currency_profile": self._save_currency_declaration(
+                    scope="channel", scope_reference=channel_id, body=body, user=user
+                ),
+            }
         self._ensure_instance(meta)
         if provider == "woocommerce":
             self._persist_woocommerce_app_config(body)
@@ -625,6 +647,9 @@ class CommerceHubService:
         instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         effective_access_mode = self._access_mode(instance)
         write_pipeline_eligible = self._write_pipeline_eligible(meta, instance)
+        currency_profile = self._save_currency_declaration(
+            scope="channel", scope_reference=channel_id, body=body, user=user
+        )
         return {
             **result,
             "channel_id": channel_id,
@@ -633,6 +658,7 @@ class CommerceHubService:
             "runtime_write_blocked": True,
             "write_blocked": not write_pipeline_eligible,
             "write_pipeline_eligible": write_pipeline_eligible,
+            "currency_profile": currency_profile,
         }
 
     def _update_marketplace_channel_settings(
@@ -733,6 +759,9 @@ class CommerceHubService:
             "secrets": secret_status,
             "settings_schema": [item.model_dump() for item in definition.settings_schema],
             "credentials_returned": False,
+            "currency_profile": PricingMatrixService(self.db).unit_declaration(
+                "source", source_id
+            ),
         }
 
     def get_channel_configuration(self, channel_id: str) -> dict:
@@ -774,7 +803,68 @@ class CommerceHubService:
             "settings_schema": [item.model_dump() for item in definition.settings_schema] if definition else [],
             "webhook_path": f"/api/v2/webhooks/tapsishop/{channel_id}" if meta["provider"] == "tapsishop" else None,
             "credentials_returned": False,
+            "currency_profile": PricingMatrixService(self.db).unit_declaration(
+                "channel", channel_id
+            ),
         }
+
+    def _save_currency_declaration(
+        self,
+        *,
+        scope: str,
+        scope_reference: str,
+        body: dict,
+        user: FlowHubUser | None,
+    ) -> dict:
+        currency = str(body.get("currency") or "").strip().upper()
+        currency_unit = str(
+            body.get("currency_unit") or body.get("currencyUnit") or ""
+        ).strip().upper()
+        service = PricingMatrixService(self.db)
+        if not currency and not currency_unit:
+            return service.unit_declaration(scope, scope_reference)
+        if not currency or not currency_unit:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "Both currency and currency_unit are required.",
+            )
+        if user is None:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "An authenticated actor is required to declare monetary units.",
+            )
+        connector_version = str(body.get("configuration_version") or "commerce-v1")
+        declaration = service.declare_unit(
+            scope=scope,
+            scope_reference=scope_reference,
+            currency=currency,
+            unit=currency_unit,
+            user=user,
+            connector_config_version=connector_version,
+            commit=False,
+        )
+        if scope == "source":
+            managed_source = (
+                self.db.query(SourceProfile)
+                .filter_by(external_source_id=scope_reference)
+                .one_or_none()
+            )
+            if managed_source is not None:
+                service.declare_unit(
+                    scope="source",
+                    scope_reference=managed_source.id,
+                    currency=currency,
+                    unit=currency_unit,
+                    user=user,
+                    connector_config_version=connector_version,
+                    commit=False,
+                )
+        try:
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+        return declaration
 
     def _configuration_setting_value(self, provider: str, key: str, value: object) -> object:
         if provider == "tapsishop" and key in {"token_refresh_enabled", "revoke_current_token"}:

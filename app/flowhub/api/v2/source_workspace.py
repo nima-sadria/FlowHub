@@ -117,6 +117,14 @@ class SourceCreateRequest(StrictModel):
     worksheet_mode: Literal["all", "selected"] = "selected"
     worksheet_name: str | None = Field(default="Sheet1", max_length=240)
     data_start_row: int = Field(default=1, ge=1, le=1_000_000)
+    currency: str | None = Field(default=None, min_length=3, max_length=12)
+    currency_unit: str | None = Field(default=None, min_length=1, max_length=24)
+
+    @model_validator(mode="after")
+    def complete_currency_declaration(self) -> SourceCreateRequest:
+        if (self.currency is None) != (self.currency_unit is None):
+            raise ValueError("Provide both currency and currency_unit.")
+        return self
 
 
 class SourceLifecycleRequest(StrictModel):

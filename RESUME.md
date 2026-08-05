@@ -185,10 +185,26 @@ deactivation attempts return `409 pricing_policy_head_conflict`; retry requires
 refetching the Head version. Workspace binding revalidation remains enforced at
 Review creation, Apply start, after locks, and before Write Pipeline dispatch.
 
-Exact next task: Phase 2A - verify Pricing Matrix migration integrity from
-supported heads, including clean installation, upgrade/downgrade policy,
-constraints, indexes, and deterministic Channel Head seeding. Do not start
-Phase 2B, Source Acquisition runtime, or Pricing UI until that phase is approved.
+Phase 2A is complete. `FLOWHUB_024` now imports Pricing Matrix metadata into
+Alembic, matches the persistence model's indexes and constraints, seeds one
+version-zero Channel Policy Head for every pre-existing Channel without
+inferring currency units, and is explicitly forward-only. SQLite coverage
+verifies clean installation, `FLOWHUB_023 -> FLOWHUB_024` preservation,
+idempotent seed behavior, schema parity, and non-destructive downgrade refusal.
+PostgreSQL clean-install coverage is present and requires the configured local
+disposable `FLOWHUB_TEST_POSTGRES_URL`.
+
+Exact next task: Phase 2B - implement explicit Source and Channel currency-unit
+migration semantics, preserving unresolved state and forbidding magnitude-based
+RIAL/TOMAN inference. Do not start Source Acquisition runtime or Pricing UI
+until that phase is approved.
+
+Phase 2B is complete. Source and Channel declarations are independently
+versioned Currency Profiles. Missing declarations remain unresolved; no
+RIAL/TOMAN inference occurs. Source-backed Workspace creation now fails closed
+before a Pricing Review can be created when its Source declaration is missing.
+Raw Source preview remains outside that gate. Existing Pricing Matrix binding
+continues to isolate unresolved Channels as per-Channel Review issues.
 
 ## Temporary TODOs
 
@@ -196,7 +212,8 @@ There are no temporary `TODO`/`FIXME` comments in code. The remaining work is re
 
 ## Remaining blockers
 
-1. Pricing Matrix migration integrity and broader persistence tests remain to be completed.
+1. PostgreSQL migration coverage is skipped locally until `FLOWHUB_TEST_POSTGRES_URL`
+   points to an isolated local test database.
 2. Browser verification has not been performed for this backend phase.
 3. The new Pricing UI described by `PRICING_UI_CONTRACT.md` has not been implemented.
 4. Source Acquisition runtime described by `SOURCE_ACQUISITION_DESIGN.md` has not been implemented.
@@ -208,7 +225,8 @@ There are no temporary `TODO`/`FIXME` comments in code. The remaining work is re
 
 ## Required migrations
 
-`alembic_flowhub/versions/flowhub_024_pricing_matrix.py` is a draft linear migration from `FLOWHUB_023`. It creates:
+`alembic_flowhub/versions/flowhub_024_pricing_matrix.py` is a linear migration from
+`FLOWHUB_023`. It creates:
 
 - `pm_policy_revisions`
 - `pm_product_group_revisions`
@@ -220,14 +238,14 @@ There are no temporary `TODO`/`FIXME` comments in code. The remaining work is re
 - `pm_workspace_bindings`
 - `pm_attention_signals`
 
-Before any commit or deployment of the feature:
-
-1. Compare every table, column, constraint, and index against `app/flowhub/pricing_matrix/models.py`.
-2. Test upgrade from a real `FLOWHUB_023` schema.
-3. Verify the channel-head seed statement is deterministic and idempotent for the supported database engines.
-4. Test downgrade on a disposable database.
-5. Define and test migration handling for existing Sources and Channels whose units are unresolved. Never infer RIAL/TOMAN from price magnitude.
-6. Confirm unresolved units permit only the raw/unit-resolution views allowed by the design and block Pricing Preview, Dry Run, and Apply.
+Migration integrity completed for SQLite. `FLOWHUB_024` is explicitly
+**forward-only**: downgrade raises `NotImplementedError` rather than deleting
+immutable policy, activation, or Workspace-binding audit records. Restore a
+verified backup for rollback. The migration seeds heads deterministically for
+existing Channels and creates no currency profile or Channel configuration
+revision, so currency units remain unresolved until Phase 2B explicitly handles
+them. PostgreSQL has an isolated clean-install test that remains pending local
+execution until `FLOWHUB_TEST_POSTGRES_URL` is configured.
 
 ## Verification completed during stabilization
 
@@ -254,7 +272,8 @@ Known test noise: the frontend suite emitted jsdom/Handsontable CSS parse warnin
 ## Required tests still pending
 
 1. Resolve or explicitly accept the unrelated beta multi-channel pricing projection mismatch.
-2. Pricing Matrix migration integrity and persistence tests.
+2. Execute the PostgreSQL `FLOWHUB_024` clean-install test when the disposable
+   `FLOWHUB_TEST_POSTGRES_URL` is available.
 3. Write Pipeline fold/projection tests for all documented terminal states.
 4. Explicit Source/Channel unit migration and unresolved-unit tests.
 5. Frontend tests for all new Pricing UI states after that UI exists.
@@ -297,7 +316,7 @@ These are engineering estimates, not budgets or guarantees:
 | Phase | Scope | Expected tokens |
 |---|---|---:|
 | 1 | Workspace/Write Pipeline binding, revalidation, and race-safe tests | completed this phase |
-| 2A | Verify Pricing Matrix migration integrity | 10k-18k |
+| 2A | Verify Pricing Matrix migration integrity | completed |
 | 2B | Implement explicit Source/Channel currency-unit migration semantics | 12k-20k |
 | 3 | Implement Source Acquisition runs, observations, resource bindings, schema assessment, diagnostics, telemetry, SSRF controls, and retention holds | 45k-75k |
 | 4 | Implement Pricing/Source UI contract in EN/FA, RTL/LTR, light/dark, responsive layouts | 35k-60k |
@@ -313,5 +332,5 @@ Estimated total remaining for release-grade completion: **125k-215k tokens**. Th
 3. Confirm `git diff --cached --stat` is empty before making feature commits.
 4. Do not reset, restore, clean, or stash the preserved work.
 5. Re-run the relevant backend and frontend checks if the environment changed.
-6. Resume with Phase 2A Pricing Matrix migration integrity tests.
+6. Resume with Phase 2B explicit Source/Channel currency-unit migration semantics.
 7. Review the current uncommitted feature set before committing; do not mix unrelated legacy test behavior changes into the Pricing Matrix commit.
