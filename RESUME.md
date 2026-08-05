@@ -210,9 +210,21 @@ normalized opaque identifiers and replay the exact retained Run; keys with a
 different intent conflict. The Run migration is forward-only because deleting
 Run audit and retry lineage is unsafe.
 
-Exact next task: Phase 3B - implement immutable Source Observations and
-evidence/provenance records that are produced by a completed Run. Do not add
-provider acquisition, diagnostics, schema assessment, or UI in that phase.
+Phase 3B is complete. `FLOWHUB_026` adds immutable, provider-neutral Source
+Observations that are permanently linked to exactly one successful Acquisition
+Run. Each Observation has a deterministic per-Source/per-scope version, resource
+identity and checksum, observed timestamp, bounded non-secret provenance, an
+append-only checksum-linked Evidence chain, and append-only generic Snapshot
+References. Replaying identical persistence for the same Run is idempotent;
+divergent replay conflicts. A retry never changes prior records and may create
+only a new Observation for its new successful Run. No provider execution,
+resource binding, parsing, schema assessment, Diagnostics, scheduler, API, or UI
+was added.
+
+Exact next task: Phase 3C - implement Source schema assessment and structural
+drift handling over persisted Observations. Do not add provider execution,
+resource binding runtime, SSRF protection, scheduling, UI, or browser work in
+that phase.
 
 ## Temporary TODOs
 
@@ -262,6 +274,14 @@ and partial unique active-run lease constraint. SQLite migration and model-parit
 tests pass. PostgreSQL migration execution remains pending until
 `FLOWHUB_TEST_POSTGRES_URL` is configured.
 
+`alembic_flowhub/versions/flowhub_026_source_observations.py` is a linear,
+forward-only migration from `FLOWHUB_025`. It creates the immutable Observation,
+Evidence, Snapshot Reference, and per-Source/per-scope Observation-version head
+tables. SQLite coverage verifies clean installation, `FLOWHUB_025 ->
+FLOWHUB_026` preservation, model parity, append-only application behavior, retry
+lineage, and non-destructive downgrade refusal. PostgreSQL migration execution
+remains pending until `FLOWHUB_TEST_POSTGRES_URL` is configured.
+
 ## Verification completed during stabilization
 
 - Fresh `git fetch origin --prune`: local feature base and `origin/main` both `df928cc7a3cff50b0055bcf7cb94117034ff8986`.
@@ -293,7 +313,7 @@ Known test noise: the frontend suite emitted jsdom/Handsontable CSS parse warnin
 4. Explicit Source/Channel unit migration and unresolved-unit tests.
 5. Frontend tests for all new Pricing UI states after that UI exists.
 6. i18n validation after the two pre-existing hardcoded strings are addressed in a separate scoped change.
-7. Implement Source Acquisition Phase 3B Observations and evidence records.
+7. Implement Source Acquisition Phase 3C schema assessment and structural drift handling.
 
 ## Browser verification still pending
 
@@ -335,13 +355,14 @@ These are engineering estimates, not budgets or guarantees:
 | 2A | Verify Pricing Matrix migration integrity | completed |
 | 2B | Implement explicit Source/Channel currency-unit migration semantics | 12k-20k |
 | 3A | Source Acquisition Run lifecycle, idempotency, lease, cancellation, retry persistence | completed |
-| 3B | Immutable Source Observations, evidence, and provenance | 10k-18k |
-| 3C-3E | Binding, schema assessment, Diagnostics, security, and Source integration | 30k-52k |
+| 3B | Immutable Source Observations, evidence, and provenance | completed |
+| 3C | Schema assessment, structural drift, mapping invalidation, and Diagnostics | 10k-18k |
+| 3D-3E | Acquisition security and Source integration | 18k-30k |
 | 4 | Implement Pricing/Source UI contract in EN/FA, RTL/LTR, light/dark, responsive layouts | 35k-60k |
 | 5 | Translator inventory, Appendix A, legacy fixtures, and broken-formula rollout gates | 10k-15k |
 | 6 | Full regression, browser matrix, cleanup, documentation, commits, and deployment verification | 10k-20k |
 
-Estimated total remaining for release-grade completion: **125k-215k tokens**. The next backend slice is approximately **10k-18k tokens**, excluding Source Acquisition runtime and complete UI.
+Estimated total remaining for release-grade completion: **115k-197k tokens**. The next backend slice is approximately **10k-18k tokens**, excluding provider execution and complete UI.
 
 ## Resume checklist
 
@@ -350,5 +371,5 @@ Estimated total remaining for release-grade completion: **125k-215k tokens**. Th
 3. Confirm `git diff --cached --stat` is empty before making feature commits.
 4. Do not reset, restore, clean, or stash the preserved work.
 5. Re-run the relevant backend and frontend checks if the environment changed.
-6. Resume with Phase 2B explicit Source/Channel currency-unit migration semantics.
+6. Resume with Phase 3C schema assessment and structural drift handling over persisted Observations.
 7. Review the current uncommitted feature set before committing; do not mix unrelated legacy test behavior changes into the Pricing Matrix commit.

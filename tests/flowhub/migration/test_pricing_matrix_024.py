@@ -7,7 +7,6 @@ import pytest
 import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
-from alembic.script import ScriptDirectory
 
 ROOT = Path(__file__).resolve().parents[3]
 PRICING_TABLES = {
@@ -27,10 +26,6 @@ def _config() -> Config:
     config = Config(str(ROOT / "alembic_flowhub.ini"))
     config.set_main_option("script_location", str(ROOT / "alembic_flowhub"))
     return config
-
-
-def _current_head() -> str:
-    return ScriptDirectory.from_config(_config()).get_current_head()
 
 
 def _upgrade_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, revision: str) -> tuple[str, sa.Engine]:
@@ -70,9 +65,10 @@ def _reset_postgres(url: str) -> None:
 def test_clean_install_reaches_pricing_matrix_head_with_model_parity(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _, engine = _upgrade_database(tmp_path, monkeypatch, "head")
+    _, engine = _upgrade_database(tmp_path, monkeypatch, "FLOWHUB_024")
     try:
-        assert _current_head() == "FLOWHUB_024"
+        with engine.connect() as connection:
+            assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == "FLOWHUB_024"
         inspector = sa.inspect(engine)
         assert PRICING_TABLES <= set(inspector.get_table_names())
 
@@ -215,7 +211,7 @@ def test_upgrade_from_023_preserves_channels_and_seeds_heads_idempotently(
 def test_pricing_matrix_downgrade_is_explicitly_unsupported_and_non_destructive(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _, engine = _upgrade_database(tmp_path, monkeypatch, "head")
+    _, engine = _upgrade_database(tmp_path, monkeypatch, "FLOWHUB_024")
     try:
         with pytest.raises(NotImplementedError, match="forward-only"):
             command.downgrade(_config(), "FLOWHUB_023")
@@ -235,7 +231,7 @@ def test_postgresql_clean_install_reaches_024_with_pricing_matrix_schema(
     url = _postgres_test_url()
     _reset_postgres(url)
     monkeypatch.setenv("FLOWHUB_DATABASE_URL", url)
-    command.upgrade(_config(), "head")
+    command.upgrade(_config(), "FLOWHUB_024")
     engine = sa.create_engine(url)
     try:
         inspector = sa.inspect(engine)

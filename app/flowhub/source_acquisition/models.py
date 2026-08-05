@@ -6,12 +6,14 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
     Integer,
     String,
+    UniqueConstraint,
     event,
     inspect,
     text,
@@ -130,3 +132,117 @@ def _reject_run_delete(
 
 event.listen(AcquisitionRun, "before_update", _reject_terminal_mutation)
 event.listen(AcquisitionRun, "before_delete", _reject_run_delete)
+
+
+class SourceObservationVersionHead(FlowHubBase):
+    """Mutable allocator; immutable Observations never calculate their own version."""
+
+    __tablename__ = "saq_observation_version_heads"
+
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("sc_sources.id", ondelete="RESTRICT"), primary_key=True
+    )
+    resource_scope: Mapped[str] = mapped_column(String(240), primary_key=True)
+    next_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class SourceObservation(FlowHubBase):
+    """Immutable provider-neutral fact recorded for one successful Acquisition Run."""
+
+    __tablename__ = "saq_observations"
+    __table_args__ = (
+        CheckConstraint("observation_version > 0", name="ck_saq_observation_version"),
+        UniqueConstraint("acquisition_run_id", name="uq_saq_observation_run"),
+        UniqueConstraint(
+            "source_id",
+            "resource_scope",
+            "observation_version",
+            name="uq_saq_observation_scope_version",
+        ),
+        UniqueConstraint("checksum", name="uq_saq_observation_checksum"),
+        Index("ix_saq_observations_source_scope_observed", "source_id", "resource_scope", "observed_at"),
+        Index("ix_saq_observations_resource_identity_hash", "resource_identity_hash"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    acquisition_run_id: Mapped[str] = mapped_column(
+        ForeignKey("saq_runs.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("sc_sources.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    resource_scope: Mapped[str] = mapped_column(String(240), nullable=False)
+    resource_identity: Mapped[str] = mapped_column(String(240), nullable=False)
+    resource_identity_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    observation_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class SourceObservationEvidence(FlowHubBase):
+    """Append-only evidence chain for one immutable Observation."""
+
+    __tablename__ = "saq_observation_evidence"
+    __table_args__ = (
+        CheckConstraint("sequence_number > 0", name="ck_saq_evidence_sequence"),
+        UniqueConstraint("observation_id", "sequence_number", name="uq_saq_evidence_sequence"),
+        Index("ix_saq_evidence_observation_recorded", "observation_id", "recorded_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    observation_id: Mapped[str] = mapped_column(
+        ForeignKey("saq_observations.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    sequence_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    evidence_kind: Mapped[str] = mapped_column(String(80), nullable=False)
+    evidence_reference: Mapped[str] = mapped_column(String(500), nullable=False)
+    previous_evidence_checksum: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    evidence_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class SourceObservationSnapshotReference(FlowHubBase):
+    """Append-only reference to a snapshot without coupling this phase to Workspace creation."""
+
+    __tablename__ = "saq_observation_snapshot_references"
+    __table_args__ = (
+        UniqueConstraint(
+            "observation_id",
+            "snapshot_kind",
+            "snapshot_reference",
+            name="uq_saq_observation_snapshot_reference",
+        ),
+        Index("ix_saq_snapshot_reference_observation", "observation_id", "linked_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    observation_id: Mapped[str] = mapped_column(
+        ForeignKey("saq_observations.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    snapshot_kind: Mapped[str] = mapped_column(String(80), nullable=False)
+    snapshot_reference: Mapped[str] = mapped_column(String(240), nullable=False)
+    snapshot_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    linked_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+_APPEND_ONLY_OBSERVATION_MODELS = (
+    SourceObservation,
+    SourceObservationEvidence,
+    SourceObservationSnapshotReference,
+)
+
+
+def _reject_append_only_mutation(
+    _mapper: Mapper[Any], _connection: Connection, target: Any
+) -> None:
+    raise ImmutableRecordError(f"{target.__class__.__name__} records are append-only.")
+
+
+for _model in _APPEND_ONLY_OBSERVATION_MODELS:
+    event.listen(_model, "before_update", _reject_append_only_mutation)
+    event.listen(_model, "before_delete", _reject_append_only_mutation)

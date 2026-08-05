@@ -6,7 +6,6 @@ import pytest
 import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
-from alembic.script import ScriptDirectory
 
 ROOT = Path(__file__).resolve().parents[3]
 RUN_TABLE = "saq_runs"
@@ -28,9 +27,10 @@ def _upgrade_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, revision:
 def test_clean_install_reaches_025_with_source_acquisition_run_schema(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    engine = _upgrade_database(tmp_path, monkeypatch, "head")
+    engine = _upgrade_database(tmp_path, monkeypatch, "FLOWHUB_025")
     try:
-        assert ScriptDirectory.from_config(_config()).get_current_head() == "FLOWHUB_025"
+        with engine.connect() as connection:
+            assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == "FLOWHUB_025"
         inspector = sa.inspect(engine)
         from app.flowhub.source_acquisition.models import AcquisitionRun
 
