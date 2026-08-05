@@ -166,6 +166,11 @@ Channel Configuration Revision.
 The lifecycle is append-only. The mutable head is the current projection and
 contains the authoritative `headVersion` concurrency value.
 
+Heads are seeded by the Pricing Matrix migration and when a Channel receives a
+unit declaration. A lifecycle mutation never creates a Head implicitly. A
+missing Head is a fail-closed backend consistency error
+(`pricing_policy_head_missing`), not a version-zero lifecycle state.
+
 ### `GET /channels/{channelId}/head`
 
 ```text

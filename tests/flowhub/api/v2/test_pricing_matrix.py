@@ -223,6 +223,83 @@ def test_channel_activation_lifecycle_and_deactivation_contract(
     assert repeated.json()["detail"]["code"] == "pricing_policy_not_activated"
 
 
+def test_simultaneous_activation_attempts_use_one_authoritative_head_version(
+    client, admin_headers, seeded_channel
+):
+    policy = client.post("/api/v2/pricing-matrix/policies", headers=admin_headers, json=_policy_payload()).json()
+    client.put(
+        f"/api/v2/pricing-matrix/units/channel/{seeded_channel}",
+        headers=admin_headers,
+        json={"currency": "EUR", "unit": "EUR"},
+    )
+    # Two operators read the same initial Head before either writes.
+    operator_a_version = client.get(
+        f"/api/v2/pricing-matrix/channels/{seeded_channel}/head", headers=admin_headers
+    ).json()["headVersion"]
+    operator_b_version = operator_a_version
+
+    first = _activate(client, admin_headers, seeded_channel, policy["id"], operator_a_version)
+    second = _activate(client, admin_headers, seeded_channel, policy["id"], operator_b_version)
+
+    assert first.status_code == 200
+    assert second.status_code == 409
+    assert second.json()["detail"]["code"] == "pricing_policy_head_conflict"
+    events = client.get(
+        f"/api/v2/pricing-matrix/channels/{seeded_channel}/lifecycle-events", headers=admin_headers
+    ).json()["items"]
+    assert [event["eventKind"] for event in events] == ["activate"]
+
+
+def test_stale_deactivation_is_rejected_then_succeeds_after_head_refetch(
+    client, admin_headers, seeded_channel
+):
+    first_policy = client.post("/api/v2/pricing-matrix/policies", headers=admin_headers, json=_policy_payload()).json()
+    replacement_policy = client.post(
+        "/api/v2/pricing-matrix/policies",
+        headers=admin_headers,
+        json=_policy_payload(name="Replacement policy"),
+    ).json()
+    client.put(
+        f"/api/v2/pricing-matrix/units/channel/{seeded_channel}",
+        headers=admin_headers,
+        json={"currency": "EUR", "unit": "EUR"},
+    )
+    assert _activate(client, admin_headers, seeded_channel, first_policy["id"], 0).status_code == 200
+
+    # One actor activates a replacement while another holds the stale Head.
+    stale_version = 1
+    assert _activate(client, admin_headers, seeded_channel, replacement_policy["id"], stale_version).status_code == 200
+    stale_deactivation = client.post(
+        f"/api/v2/pricing-matrix/channels/{seeded_channel}/deactivate",
+        headers=admin_headers,
+        json={"expected_head_version": stale_version, "reason": "Stale pause"},
+    )
+    assert stale_deactivation.status_code == 409
+    assert stale_deactivation.json()["detail"]["code"] == "pricing_policy_head_conflict"
+
+    fresh_head = client.get(
+        f"/api/v2/pricing-matrix/channels/{seeded_channel}/head", headers=admin_headers
+    ).json()
+    retry = client.post(
+        f"/api/v2/pricing-matrix/channels/{seeded_channel}/deactivate",
+        headers=admin_headers,
+        json={"expected_head_version": fresh_head["headVersion"], "reason": "Refetched pause"},
+    )
+    assert retry.status_code == 200
+    assert retry.json()["status"] == "inactive"
+
+
+def test_lifecycle_mutation_requires_a_preseeded_head(client, admin_headers, seeded_channel):
+    response = client.post(
+        f"/api/v2/pricing-matrix/channels/{seeded_channel}/deactivate",
+        headers=admin_headers,
+        json={"expected_head_version": 0, "reason": "No head"},
+    )
+    # An inactive Channel is rejected before a lifecycle event can be appended.
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "pricing_policy_not_activated"
+
+
 def test_viewer_can_read_but_cannot_change_pricing_matrix(client, admin_headers, viewer_headers):
     assert client.get("/api/v2/pricing-matrix/policies", headers=viewer_headers).status_code == 200
     assert (

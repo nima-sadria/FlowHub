@@ -483,7 +483,11 @@ class PricingMatrixService:
                 "effectiveActivationId": None,
                 "status": "inactive",
             }
-        event = self.db.get(PricingPolicyLifecycleEvent, head.current_event_id)
+        event = (
+            self.db.get(PricingPolicyLifecycleEvent, head.current_event_id)
+            if head.current_event_id is not None
+            else None
+        )
         return {
             "channelId": channel_id,
             "headVersion": head.head_version,
@@ -670,9 +674,10 @@ class PricingMatrixService:
         if head is None:
             if self.db.get(WorkspaceChannel, channel_id) is None:
                 raise PricingMatrixError("channel_not_found")
-            head = ChannelPricingPolicyHead(channel_id=channel_id, head_version=0)
-            self.db.add(head)
-            self.db.flush()
+            # Heads are seeded by migration and by a Channel unit declaration.
+            # Creating one here would turn a lifecycle mutation into a race-prone
+            # initialization path with an ambiguous expected version.
+            raise PricingMatrixError("pricing_policy_head_missing")
         if head.head_version != expected_head_version:
             raise PricingMatrixError("pricing_policy_head_conflict")
         event_id = _id()

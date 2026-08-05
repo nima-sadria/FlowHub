@@ -179,9 +179,16 @@ The Pricing Matrix API and persistence contract is complete for policy revisions
 Product Group revisions, unit declarations, and Channel activation lifecycle.
 `FRONTEND_CONTRACT.md` is the callable backend contract for the frontend team.
 
-Exact next task: complete Pricing Matrix CAS and concurrency safety (Phase 1B),
-including deterministic stale-write and retry tests. Do not start Source
-Acquisition runtime or Pricing UI until that phase is approved.
+Phase 1B is complete. Lifecycle mutations use only the pre-seeded authoritative
+Channel Policy Head and fail closed when it is missing. Stale activation and
+deactivation attempts return `409 pricing_policy_head_conflict`; retry requires
+refetching the Head version. Workspace binding revalidation remains enforced at
+Review creation, Apply start, after locks, and before Write Pipeline dispatch.
+
+Exact next task: Phase 2A - verify Pricing Matrix migration integrity from
+supported heads, including clean installation, upgrade/downgrade policy,
+constraints, indexes, and deterministic Channel Head seeding. Do not start
+Phase 2B, Source Acquisition runtime, or Pricing UI until that phase is approved.
 
 ## Temporary TODOs
 
@@ -189,7 +196,7 @@ There are no temporary `TODO`/`FIXME` comments in code. The remaining work is re
 
 ## Remaining blockers
 
-1. Pricing Matrix CAS/concurrency and broader persistence tests remain to be completed.
+1. Pricing Matrix migration integrity and broader persistence tests remain to be completed.
 2. Browser verification has not been performed for this backend phase.
 3. The new Pricing UI described by `PRICING_UI_CONTRACT.md` has not been implemented.
 4. Source Acquisition runtime described by `SOURCE_ACQUISITION_DESIGN.md` has not been implemented.
@@ -247,7 +254,7 @@ Known test noise: the frontend suite emitted jsdom/Handsontable CSS parse warnin
 ## Required tests still pending
 
 1. Resolve or explicitly accept the unrelated beta multi-channel pricing projection mismatch.
-2. Pricing Matrix CAS/concurrency and persistence tests.
+2. Pricing Matrix migration integrity and persistence tests.
 3. Write Pipeline fold/projection tests for all documented terminal states.
 4. Explicit Source/Channel unit migration and unresolved-unit tests.
 5. Frontend tests for all new Pricing UI states after that UI exists.
@@ -290,13 +297,14 @@ These are engineering estimates, not budgets or guarantees:
 | Phase | Scope | Expected tokens |
 |---|---|---:|
 | 1 | Workspace/Write Pipeline binding, revalidation, and race-safe tests | completed this phase |
-| 2 | Finish Pricing Matrix CAS/concurrency and migration tests | 20k-35k |
+| 2A | Verify Pricing Matrix migration integrity | 10k-18k |
+| 2B | Implement explicit Source/Channel currency-unit migration semantics | 12k-20k |
 | 3 | Implement Source Acquisition runs, observations, resource bindings, schema assessment, diagnostics, telemetry, SSRF controls, and retention holds | 45k-75k |
 | 4 | Implement Pricing/Source UI contract in EN/FA, RTL/LTR, light/dark, responsive layouts | 35k-60k |
 | 5 | Translator inventory, Appendix A, legacy fixtures, and broken-formula rollout gates | 10k-15k |
 | 6 | Full regression, browser matrix, cleanup, documentation, commits, and deployment verification | 10k-20k |
 
-Estimated total remaining for release-grade completion: **125k-215k tokens**. The next backend slice is approximately **20k-35k tokens**, excluding Source Acquisition runtime and complete UI.
+Estimated total remaining for release-grade completion: **125k-215k tokens**. The next backend slice is approximately **10k-18k tokens**, excluding Source Acquisition runtime and complete UI.
 
 ## Resume checklist
 
@@ -305,5 +313,5 @@ Estimated total remaining for release-grade completion: **125k-215k tokens**. Th
 3. Confirm `git diff --cached --stat` is empty before making feature commits.
 4. Do not reset, restore, clean, or stash the preserved work.
 5. Re-run the relevant backend and frontend checks if the environment changed.
-6. Resume with Pricing Matrix CAS/concurrency and remaining migration contract tests.
+6. Resume with Phase 2A Pricing Matrix migration integrity tests.
 7. Review the current uncommitted feature set before committing; do not mix unrelated legacy test behavior changes into the Pricing Matrix commit.
