@@ -226,6 +226,51 @@ drift handling over persisted Observations. Do not add provider execution,
 resource binding runtime, SSRF protection, scheduling, UI, or browser work in
 that phase.
 
+## Stage 7 completed: schema assessment and structural drift
+
+Stage 7 adds `FLOWHUB_027`, the provider-neutral
+`SourceSchemaAssessmentService`, immutable Mapping schema expectations,
+immutable Assessments, structural Diff records, machine-readable Diagnostics,
+focused tests, and `SOURCE_SCHEMA_ASSESSMENT_CONTRACT.md`. It adds no API,
+provider execution, UI, scheduler, or drift-acceptance path.
+
+Schema comparison preserves raw headers and compares a deterministic
+`header-canonical-v1` representation: NFKC, Arabic Yeh/Kaf normalization,
+bidi-control removal, and whitespace/ZWNJ removal. Assessment execution status
+and freshness are independent. Freshness is a read-time projection and becomes
+stale when a newer scoped Observation, Mapping revision, or algorithm exists.
+
+The local build environment was repaired without changing dependency policy:
+`pyproject.toml` now uses the valid `setuptools.build_meta` backend and
+explicitly discovers only `app*` and `cli*` packages. The prior
+`setuptools.backends.legacy:build` value was the verified cause of
+`ModuleNotFoundError: setuptools.backends`; the isolated uv build reproduced it
+before the repair. `uv sync`, an isolated wheel build, project import, Python,
+pytest, and the focused Stage 7 suite now pass.
+
+Focused verification completed:
+
+```text
+tests/flowhub/source_acquisition/test_schema_assessment.py
+tests/flowhub/source_acquisition/test_observations.py
+tests/flowhub/source_acquisition/test_run_service.py
+tests/flowhub/migration/test_source_schema_assessments_027.py
+tests/flowhub/migration/test_source_observations_026.py
+```
+
+The Stage 7 files are:
+
+- `alembic_flowhub/versions/flowhub_027_source_schema_assessments.py`
+- `app/flowhub/source_acquisition/models.py`
+- `app/flowhub/source_acquisition/schema_assessment.py`
+- `app/flowhub/source_acquisition/__init__.py`
+- `docs/architecture/SOURCE_SCHEMA_ASSESSMENT_CONTRACT.md`
+- `tests/flowhub/source_acquisition/test_schema_assessment.py`
+- `tests/flowhub/migration/test_source_schema_assessments_027.py`
+
+PostgreSQL execution remains pending unless `FLOWHUB_TEST_POSTGRES_URL` is
+actually configured.
+
 ## Temporary TODOs
 
 There are no temporary `TODO`/`FIXME` comments in code. The remaining work is represented by the phases below, not by placeholder implementation.

@@ -230,10 +230,159 @@ class SourceObservationSnapshotReference(FlowHubBase):
     linked_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
 
 
+class SourceMappingSchemaExpectation(FlowHubBase):
+    """Immutable expected header contract for one Source Mapping revision."""
+
+    __tablename__ = "saq_mapping_schema_expectations"
+    __table_args__ = (
+        UniqueConstraint("mapping_revision_id", name="uq_saq_mapping_schema_expectation_revision"),
+        UniqueConstraint("checksum", name="uq_saq_mapping_schema_expectation_checksum"),
+        Index("ix_saq_mapping_schema_expectations_source_created", "source_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("sc_sources.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    mapping_revision_id: Mapped[str] = mapped_column(
+        ForeignKey("sc_source_mapping_revisions.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    canonicalization_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    raw_headers_json: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    canonical_headers_json: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    raw_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    canonical_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    required_canonical_headers_json: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class SourceSchemaAssessment(FlowHubBase):
+    """Immutable schema comparison over one Observation and Mapping identity."""
+
+    __tablename__ = "saq_schema_assessments"
+    __table_args__ = (
+        CheckConstraint(
+            "execution_status IN ('not_run','pending','running','passed','failed','skipped','not_applicable')",
+            name="ck_saq_assessment_execution_status",
+        ),
+        CheckConstraint(
+            "schema_status IS NULL OR schema_status IN ('match','drift','ambiguous','no_mapping')",
+            name="ck_saq_assessment_schema_status",
+        ),
+        CheckConstraint("duration_ms IS NULL OR duration_ms >= 0", name="ck_saq_assessment_duration"),
+        UniqueConstraint(
+            "observation_id",
+            "mapping_identity",
+            "assessment_algorithm_version",
+            name="uq_saq_assessment_identity",
+        ),
+        UniqueConstraint("checksum", name="uq_saq_assessment_checksum"),
+        Index("ix_saq_assessments_source_status_created", "source_id", "schema_status", "created_at"),
+        Index("ix_saq_assessments_mapping_created", "mapping_revision_id", "created_at"),
+        Index("ix_saq_assessments_observation_created", "observation_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    observation_id: Mapped[str] = mapped_column(
+        ForeignKey("saq_observations.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("sc_sources.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    resource_scope: Mapped[str] = mapped_column(String(240), nullable=False)
+    mapping_revision_id: Mapped[str | None] = mapped_column(
+        ForeignKey("sc_source_mapping_revisions.id", ondelete="RESTRICT"), nullable=True
+    )
+    mapping_expectation_id: Mapped[str | None] = mapped_column(
+        ForeignKey("saq_mapping_schema_expectations.id", ondelete="RESTRICT"), nullable=True
+    )
+    mapping_identity: Mapped[str] = mapped_column(String(80), nullable=False)
+    assessment_algorithm_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    canonicalization_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    execution_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    schema_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    observed_raw_headers_json: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    observed_canonical_headers_json: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    expected_raw_headers_json: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    expected_canonical_headers_json: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    observed_raw_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    observed_canonical_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    expected_raw_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    expected_canonical_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    freshness_basis_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    assessed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class SourceSchemaDriftRecord(FlowHubBase):
+    """One immutable, position-aware structural difference in an Assessment."""
+
+    __tablename__ = "saq_schema_drift_records"
+    __table_args__ = (
+        UniqueConstraint("assessment_id", "sequence_number", name="uq_saq_drift_sequence"),
+        CheckConstraint("sequence_number > 0", name="ck_saq_drift_sequence"),
+        CheckConstraint(
+            "change_kind IN ('added','removed','reordered','rename_candidate','duplicate_header',"
+            "'canonical_collision','required_field_missing','unsupported_shape')",
+            name="ck_saq_drift_change_kind",
+        ),
+        Index("ix_saq_drift_assessment_sequence", "assessment_id", "sequence_number"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    assessment_id: Mapped[str] = mapped_column(
+        ForeignKey("saq_schema_assessments.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    sequence_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    change_kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    expected_position: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    observed_position: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    expected_raw_value: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    expected_canonical_value: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    observed_raw_value: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    observed_canonical_value: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    confidence: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    evidence_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    algorithm_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class SourceSchemaDiagnostic(FlowHubBase):
+    """Machine-readable, immutable assessment diagnostic without localized prose."""
+
+    __tablename__ = "saq_schema_diagnostics"
+    __table_args__ = (
+        UniqueConstraint("assessment_id", "sequence_number", name="uq_saq_diagnostic_sequence"),
+        CheckConstraint("sequence_number > 0", name="ck_saq_diagnostic_sequence"),
+        Index("ix_saq_diagnostics_assessment_created", "assessment_id", "created_at"),
+        Index("ix_saq_diagnostics_reason_created", "reason_code", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    assessment_id: Mapped[str] = mapped_column(
+        ForeignKey("saq_schema_assessments.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    sequence_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    stage_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    execution_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(120), nullable=False)
+    recommended_action_code: Mapped[str] = mapped_column(String(120), nullable=False)
+    action_parameters_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
 _APPEND_ONLY_OBSERVATION_MODELS = (
     SourceObservation,
     SourceObservationEvidence,
     SourceObservationSnapshotReference,
+    SourceMappingSchemaExpectation,
+    SourceSchemaAssessment,
+    SourceSchemaDriftRecord,
+    SourceSchemaDiagnostic,
 )
 
 

@@ -5,8 +5,13 @@ from app.flowhub.source_acquisition.models import (
     SourceObservation,
     SourceObservationEvidence,
     SourceObservationSnapshotReference,
+    SourceMappingSchemaExpectation,
+    SourceSchemaAssessment,
+    SourceSchemaDiagnostic,
+    SourceSchemaDriftRecord,
 )
 from app.flowhub.source_acquisition.observations import SourceObservationService
+from app.flowhub.source_acquisition.schema_assessment import SourceSchemaAssessmentService
 from app.flowhub.source_acquisition.service import SourceAcquisitionService
 
 __all__ = [
@@ -14,6 +19,11 @@ __all__ = [
     "SourceAcquisitionService",
     "SourceObservation",
     "SourceObservationEvidence",
+    "SourceMappingSchemaExpectation",
+    "SourceSchemaAssessment",
+    "SourceSchemaDiagnostic",
+    "SourceSchemaDriftRecord",
     "SourceObservationService",
     "SourceObservationSnapshotReference",
+    "SourceSchemaAssessmentService",
 ]
