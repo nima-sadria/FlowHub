@@ -36,6 +36,7 @@ const Login = lazy(() => import('./pages/Login'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const Orders = lazy(() => import('./pages/Orders'))
 const RateLimits = lazy(() => import('./pages/RateLimits'))
+const PricingMatrix = lazy(() => import('./pages/PricingMatrix'))
 const Settings = lazy(() => import('./pages/Settings'))
 const ExchangeRates = lazy(() => import('./pages/ExchangeRates'))
 const Setup = lazy(() => import('./pages/Setup'))
@@ -203,6 +204,7 @@ function SetupGate() {
           <Route path="/rate-limits" element={<LegacyRateLimitsRedirect />} />
           <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
           <Route path="/settings/advanced" element={<RequirePermission permission="can_view_settings"><AdvancedSettings /></RequirePermission>} />
+          <Route path="/settings/pricing" element={<RequirePermission permission="can_view_settings"><PricingMatrix /></RequirePermission>} />
           <Route path="/settings/exchange-rates" element={<RequirePermission permission="can_access_site"><ExchangeRates /></RequirePermission>} />
           <Route path="/settings/users" element={<RequirePermission permission="can_view_settings" adminOnly><UserManagement /></RequirePermission>} />
           <Route path="/settings/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />

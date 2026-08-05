@@ -11,24 +11,35 @@
  * Workspace Preview, Apply Result, `allowed_actions`, the `contract_version`
  * envelope) is intentionally NOT represented here and is NOT callable.
  *
- * Conventions taken verbatim from FRONTEND_CONTRACT.md:
- * - Request bodies use snake_case field names (as shown in the doc examples).
- * - Responses use camelCase field names (as shown in the doc examples).
- * - IDs, checksums, and versions are opaque strings; do not parse or do
- *   arithmetic on them.
+ * Conventions confirmed by FRONTEND_CONTRACT.md "Claude UI Phase 1 Decisions"
+ * (PM-1 … PM-7), synchronized from main:
+ * - No response envelope or `contract_version` on the callable endpoints; the
+ *   documented object shapes are authoritative (PM-1).
+ * - Request bodies use snake_case; responses use camelCase; the frontend must
+ *   not normalize either direction (PM-2, PM-6).
+ * - Lists are complete `{ items: [...] }` with no pagination (PM-3).
+ * - PM-4: monetary integers and exact identifiers may exceed JavaScript's safe
+ *   integer range. Requests may SEND them as decimal strings; responses may
+ *   still arrive as JSON numbers today. Model them as `ExactInteger`
+ *   (`string | number`) and only ever render them as text (see
+ *   `formatExactInteger` in `presentation.ts`) — never through `number` math.
+ * - PM-5: Head activation fields are nullable when `status` is `inactive`;
+ *   lifecycle event activation fields are nullable only for a `deactivate`
+ *   event. Modeled as `| null` below.
  * - `headVersion` is an opaque concurrency token: keep it from the last Head
  *   response and send it back unchanged. A 409 (`pricing_policy_head_conflict`)
  *   means refetch the Head and Lifecycle Events before retrying.
- *
- * Fields typed `| null` reflect states the contract implies can be absent (for
- * example an inactive Head with no activation). Where the contract does not
- * enumerate nullability, or the per-rule casing of the PolicyRevision response,
- * the point is filed as an Open Question for Codex in PRICING_UI_CONTRACT.md
- * (PM-5, PM-6) and typed conservatively rather than presented as confirmed.
  */
 
 export const PRICING_MATRIX_BASE_PATH = '/api/v2/pricing-matrix'
 export const PRICING_MATRIX_CONTRACT_VERSION = 'v1-draft'
+
+/**
+ * An integer that may exceed JS `Number.MAX_SAFE_INTEGER` (PM-4). Today it can
+ * arrive as a JSON number or a decimal string; treat it as opaque text and
+ * never do arithmetic on it in the UI.
+ */
+export type ExactInteger = string | number
 
 export type RateMode = 'percent_bp' | 'multiplier_ppm'
 export type RoundOrder = 'round_then_surcharge' | 'surcharge_then_round'
@@ -54,16 +65,14 @@ export interface PolicyRuleInput {
   readonly rate_mode: RateMode
   /**
    * Basis points (`percent_bp`) or parts-per-million (`multiplier_ppm`).
-   * NOTE: the contract's request example shows these as JSON numbers, while its
-   * "Important Frontend Rules" say to treat monetary integers as strings where
-   * JS precision could be affected. Typed as `number` to match the documented
-   * request example; the tension is filed as Open Question PM-4 for Codex.
+   * PM-4: send as a decimal string when the value could exceed JS safe integer
+   * range; FastAPI accepts and validates it as an integer.
    */
-  readonly rate_value: number
-  readonly fixed_addend_minor: number
+  readonly rate_value: ExactInteger
+  readonly fixed_addend_minor: ExactInteger
   readonly round_mode: RoundMode
-  readonly round_step_minor: number
-  readonly surcharge_minor: number
+  readonly round_step_minor: ExactInteger
+  readonly surcharge_minor: ExactInteger
   readonly guards: Record<string, unknown>
 }
 
@@ -80,21 +89,20 @@ export interface CreatePolicyRequest {
 }
 
 /**
- * Per-rule shape inside a `PolicyRevision` response. FRONTEND_CONTRACT.md lists
- * `rules[]` on the response but does not enumerate its per-rule field names;
- * camelCase is inferred to match the rest of the response envelope. Confirm via
- * Open Question PM-6 before building UI that reads individual rule fields.
+ * Per-rule shape inside a `PolicyRevision` response. PM-6 confirmed rule
+ * responses use camelCase fields such as `rateValue` and `roundStepMinor`.
+ * Monetary fields are `ExactInteger` per PM-4 — render as text only.
  */
 export interface PolicyRuleView {
   readonly channelId: string
   readonly productRef: string | null
   readonly productGroupRevisionId: string | null
   readonly rateMode: RateMode
-  readonly rateValue: string
-  readonly fixedAddendMinor: string
+  readonly rateValue: ExactInteger
+  readonly fixedAddendMinor: ExactInteger
   readonly roundMode: RoundMode
-  readonly roundStepMinor: string
-  readonly surchargeMinor: string
+  readonly roundStepMinor: ExactInteger
+  readonly surchargeMinor: ExactInteger
   readonly guards: Record<string, unknown>
 }
 
@@ -178,8 +186,8 @@ export interface PutUnitRequest {
 
 export interface ChannelPolicyHead {
   readonly channelId: string
-  /** Opaque concurrency token — keep and resend unchanged (see file header). */
-  readonly headVersion: number
+  /** Opaque concurrency token (PM-4 `ExactInteger`) — keep and resend unchanged. */
+  readonly headVersion: ExactInteger
   readonly currentEventId: string | null
   readonly effectiveActivationId: string | null
   readonly status: ChannelStatus
@@ -204,11 +212,11 @@ export interface LifecycleEvent {
 
 export interface ActivateRequest {
   readonly policy_revision_id: string
-  readonly expected_head_version: number
+  readonly expected_head_version: ExactInteger
   readonly reason: string
 }
 
 export interface DeactivateRequest {
-  readonly expected_head_version: number
+  readonly expected_head_version: ExactInteger
   readonly reason: string
 }

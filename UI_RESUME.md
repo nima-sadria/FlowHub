@@ -1,11 +1,14 @@
-# FlowHub UI continuation handover — Pricing Matrix (Claude UI Phase 1)
+# FlowHub UI continuation handover — Pricing Matrix (Claude UI Phases 1–2)
 
 ## Read this first
 
 This document is the **UI-side** companion to Codex's backend `RESUME.md`. It
-records the state of **Claude UI Phase 1** for the Pricing Matrix. It is scoped
-to the *currently callable* backend contract and deliberately stops short of
-building the Pricing Matrix UI.
+records the state of the Claude UI work for the Pricing Matrix:
+
+- **Stage 1** (commit `30334ca`) — contract-boundary correction + callable-endpoint
+  mapping and client scaffolding.
+- **Stage 2** — read-only Pricing Matrix surfaces built on the callable contract,
+  after merging Codex's PM-1…PM-7 answers from `main`.
 
 - **Do not** treat this file as a backend contract. The callable contract is
   `FRONTEND_CONTRACT.md` at the repository root.
@@ -16,10 +19,15 @@ building the Pricing Matrix UI.
 
 - Worktree: `C:\Users\nima\Documents\GitHub\FlowHub-Claude-UI` (dedicated, Claude-owned)
 - Branch: `claude/ui-phase-1`
-- Base commit (Phase 1B): `6d91edb28c89e0b9fc0a435ea25f6887ea1fdce4`
+- Stage 1 base commit (Phase 1B): `6d91edb`
+- **Stage 2 contract sync:** `main` (`6eb5610`, Backend Phase 2A/2B + the
+  PM-1…PM-7 answers) was merged into `claude/ui-phase-1` at merge commit
+  `e2ec982` (`--no-ff`; the approved Stage 1 commit `30334ca` is preserved as a
+  parent — no rebase, no squash). No conflicts.
 - Isolated from Codex `main` worktree (`C:\Users\nima\Documents\GitHub\FlowHub`).
-- No backend files, migrations, backend tests, `RESUME.md`, or root
-  `FRONTEND_CONTRACT.md` were modified in this phase.
+- Claude modified **no** backend files, migrations, backend tests, `RESUME.md`,
+  or root `FRONTEND_CONTRACT.md`. (Those files appear in the branch only via the
+  merge of Codex's own `main` commits.)
 
 ## Contract boundary — corrected
 
@@ -62,8 +70,25 @@ contract satisfies it, partially satisfies it, or has not reached it:
 | Channel activation gating (`operation_gate allowed|blocked`) | **Partial** — activate/deactivate lifecycle + head `status` exist; per-channel gate *evidence* projection does not | — |
 | Contract-revision / fail-closed mechanism | **Conflict** — callable contract uses a doc + `RESUME.md` change process, not the fail-closed unknown-version/enum handling | PM-1/PM-2/PM-3 |
 
-No conflict above was silently resolved. Each is filed under *Open Questions for
+No conflict above was silently resolved. Each was filed under *Open Questions for
 Codex* in `PRICING_UI_CONTRACT.md` (PM-1 … PM-7).
+
+**Resolution (synced from `main` `6eb5610`):** Codex answered all of PM-1 … PM-7
+in `FRONTEND_CONTRACT.md` → "Claude UI Phase 1 Decisions". Summary:
+
+- **PM-1** no envelope / `contract_version`; documented shapes authoritative.
+- **PM-2 / PM-6** requests `snake_case`, responses `camelCase`; frontend must not normalize.
+- **PM-3** lists are complete `{ items: [...] }`, no pagination.
+- **PM-4** monetary integers/ids may exceed JS safe range: send as decimal strings
+  when needed; responses may still be JSON numbers → render as text/BigInt, never
+  `number` math. (Reflected as `ExactInteger` in `types.ts` + `formatExactInteger`.)
+- **PM-5** head activation fields nullable when `inactive`; event activation fields
+  nullable only for `deactivate`.
+- **PM-7** `workspace_precondition` not exposed by the callable API; deferred;
+  Review/Apply safety stays server-side.
+
+The `PRICING_UI_CONTRACT.md` Open Questions section is retained as the historical
+record; the authoritative answers live in `FRONTEND_CONTRACT.md`.
 
 ## Implemented endpoints → frontend types & client (mapped this phase)
 
@@ -87,17 +112,16 @@ Source: `FRONTEND_CONTRACT.md`. Base path `/api/v2/pricing-matrix`. Client:
 | `/channels/{channelId}/deactivate` | POST | `DeactivateRequest` | `ChannelPolicyHead` | `deactivateChannel` |
 
 The client is a thin, lightweight feature-api object (same pattern as
-`features/sourceWorkspace/api.ts`), built on `apiFetch` + `authFetch`. It is
-**not** yet registered in `ServiceContext` and is **not** imported by any page —
-that wiring is Phase 2.
+`features/sourceWorkspace/api.ts`), built on `apiFetch` + `authFetch`. Stage 2's
+`PricingMatrix` page consumes it directly; it is **not** registered in
+`ServiceContext` (deliberate — no app-wide DI change for a read-only surface).
 
 Scaffolding notes / faithfulness:
 - Every method maps 1:1 to a documented, implemented route. No mocks, no
   fabricated endpoints, no clients for routes absent from `FRONTEND_CONTRACT.md`.
-- `headVersion` is typed as an opaque concurrency token (keep & resend
-  unchanged; refetch on 409).
-- Under-specified points are typed conservatively and flagged (PM-4 monetary
-  number-vs-string; PM-5 nullability; PM-6 response rule casing).
+- `headVersion` and monetary fields are typed as `ExactInteger` (PM-4) and
+  rendered only as text via `formatExactInteger` — never through `number` math.
+- Nullability follows PM-5; rule response casing follows PM-6.
 
 ## Reusable frontend components inventory
 
@@ -122,10 +146,12 @@ Existing pieces the Pricing Matrix UI should reuse (do not re-invent):
   `DomainStatusPresentation`-style mapping. A Pricing equivalent (label/tone/
   icon per domain enum) should follow it — colors never hardcoded at page level.
 
-## Routes & component boundaries — for what is callable today only (DESIGN, not wired)
+## Routes & component boundaries — for what is callable today only
 
-Scoped strictly to the callable endpoints. These are **proposed** boundaries for
-Phase 2 to implement; nothing below was added to `App.tsx` in Phase 1.
+Scoped strictly to the callable endpoints. Stage 1 proposed these boundaries;
+**Stage 2 implemented them** as a single consolidated read-only page (see
+"UI Stage 2 — delivered" below). Mutations and future evidence surfaces remain
+out of scope.
 
 - **Pricing policies (read):** route `/settings/pricing` (guard
   `can_view_settings` / `workspace.read`).
@@ -147,54 +173,94 @@ Explicitly **out of scope today** (await backend per `PRICING_UI_CONTRACT.md`):
 pricing preview grid, apply-result views, diagnostics stages, source acquisition,
 `allowed_actions` gating, attention-signal surfaces.
 
-## Files changed in Claude UI Phase 1
+## UI Stage 2 — delivered
 
-- `docs/architecture/PRICING_UI_CONTRACT.md` — added Contract Boundary section +
-  Open Questions for Codex (only additions; existing body preserved).
-- `frontend/src/features/pricingMatrix/types.ts` — new (callable-contract types).
-- `frontend/src/features/pricingMatrix/api.ts` — new (`pricingMatrixApi` client).
-- `frontend/src/features/pricingMatrix/index.ts` — new (barrel re-export).
-- `UI_RESUME.md` — new (this file).
+One coherent read-only page at **`/settings/pricing`** (`RequirePermission
+"can_view_settings"`; the API additionally enforces `workspace.read`), presenting
+three surfaces driven by a shared selected-policy context:
 
-## Verification
+1. **Pricing policies** — `listPolicies` (summaries) → select → `getPolicy`
+   (metadata + rules table).
+2. **Channel policy lifecycle** — for each channel a rule targets (derived from
+   the policy's rules, so only pricing-matrix endpoints are used): `getChannelHead`
+   (status + nullable head fields per PM-5) and `listChannelLifecycleEvents`
+   (collapsible timeline).
+3. **Unit declarations** — `getUnit('channel', id)` per targeted channel;
+   unresolved states are called out explicitly with a warning.
 
-Run in the `FlowHub-Claude-UI` worktree after `npm ci` (fresh worktree;
-`package-lock.json` unchanged):
+Design & safety properties:
+- **Read-only.** No create/edit/delete/activate/deactivate; no preview, dry-run,
+  apply, diagnostics, or source-acquisition. Only endpoints in
+  `FRONTEND_CONTRACT.md` are called; channel identities are derived from policy
+  rules, so no non-contract endpoint is used.
+- **String-safe money (PM-4):** all monetary/ID integers render via
+  `formatExactInteger` — text only, no `number` arithmetic; `<bdi dir="ltr">`
+  isolates IDs/numbers under RTL.
+- **Fail-closed:** unknown enum values / malformed shapes raise
+  `ContractMismatchError` → a distinct "unsupported response" state instead of
+  rendering wrong data.
+- **All required states:** loading, empty, permission-denied (403),
+  unavailable (transport/5xx, with HTTP status), validation-error (422), and
+  contract-mismatch — each with a distinct `data-testid` and presentation.
+- **i18n / a11y:** new `pricing` namespace (EN + FA), reuses `PageShell`,
+  `Alert`, `Badge`, `Icon`, `Empty`, `Spinner`, `.fh-card`, `.fh-table`; status
+  via a `pricing` `DomainPresentation` mapping (no hardcoded page-level colors).
 
-- **TypeScript project build** — `npx tsc -b`: **passed** (exit 0). Type-checks
-  the new `features/pricingMatrix/*` files against the whole project.
-- **Frontend unit suite** — `npx vitest run`: **67 files, 484 tests passed**,
-  0 failures. (Handsontable/jsdom CSS parse noise is pre-existing and did not
-  fail the run.)
-- **Not separately run, with rationale:**
-  - Full `vite build` bundle — the new modules are additive and not yet imported
-    by any entry, so they are not in the bundle graph; `tsc -b` already
-    type-checked them.
-  - `i18n:validate` — known pre-existing non-zero exit from two hardcoded strings
-    (`SiteFooter.tsx`, `ExchangeRates.tsx`) per `RESUME.md`; this phase added no
-    UI strings.
-  - Backend suites — backend was not touched.
+### Files added / changed
+
+Stage 1 (commit `30334ca`): `docs/architecture/PRICING_UI_CONTRACT.md`,
+`frontend/src/features/pricingMatrix/{types,api,index}.ts`, `UI_RESUME.md`.
+
+Stage 2:
+- `frontend/src/features/pricingMatrix/types.ts` — synced to PM-4/5/6
+  (`ExactInteger`; monetary/head fields).
+- `frontend/src/features/pricingMatrix/presentation.ts` — new (formatting, enum
+  guards, `DomainPresentation`, validators + `ContractMismatchError`, error
+  classification).
+- `frontend/src/features/pricingMatrix/presentation.test.ts` — new (unit tests).
+- `frontend/src/features/pricingMatrix/index.ts` — re-export presentation.
+- `frontend/src/pages/PricingMatrix.tsx` — new (the read-only page).
+- `frontend/src/pages/PricingMatrix.test.tsx` — new (surface + state tests).
+- `frontend/src/i18n/locales/en/pricing.json`, `.../fa/pricing.json` — new.
+- `frontend/src/i18n/index.ts` — registered the `pricing` namespace.
+- `frontend/src/App.tsx` — lazy route `/settings/pricing`.
+- `UI_RESUME.md` — this update.
+
+`i18n` manifests were left unchanged (they gate FA completeness, which stays
+`true`; the new keys have full EN + FA translations).
+
+## Verification (Stage 2)
+
+Run in the `FlowHub-Claude-UI` worktree after `npm ci` (`package-lock.json`
+unchanged):
+
+- **Targeted tests** — `vitest run` on `presentation.test.ts` +
+  `PricingMatrix.test.tsx`: **28 passed**.
+- **TypeScript build** — `npx tsc -b`: **passed** (exit 0).
+- **Full frontend unit suite** — `npx vitest run`: **69 files, 512 tests passed**,
+  0 failures.
+- **Production build** — `npm run build` (`tsc -b` + `vite build`): **passed**;
+  `PricingMatrix` emits its own ~20 kB lazy chunk.
+- `i18n:validate` not run — its pre-existing non-zero exit (two legacy hardcoded
+  strings) is unrelated; the `pricing` namespace has complete EN + FA keys.
 
 ## Not done (by design)
 
-- No Pricing Matrix UI components, pages, or routes were built or wired.
+- No mutations (activate/deactivate/create/edit), no preview/apply/diagnostics/
+  source-acquisition, no `allowed_actions` gating.
 - No `ServiceContext` registration for the pricing client.
-- No i18n strings, no CSS, no backend/mocks.
-- UI Phase 2 was **not** started.
+- No nav entry in `SettingsNav` (route reachable at `/settings/pricing`; nav
+  wiring deferred to avoid touching shared nav + its tests).
+- Not pushed; Codex `main` untouched.
 
 ## Exact next recommended UI phase
 
-**UI Phase 2 — Read-only Pricing surfaces on the callable contract**, pending
-Owner approval and pending Codex answers to Open Questions PM-1 … PM-7 (envelope,
-casing, pagination materially affect type generation). Suggested first slice:
-
-1. `PricingPoliciesPage` at `/settings/pricing`: list + detail (read-only),
-   reusing `PageShell`/`Badge`/`Alert`, EN/FA + light/dark + responsive.
-2. `ChannelPolicyLifecyclePanel`: head + lifecycle events (read-only first;
-   activate/deactivate mutations only after the head-version/409 refetch flow and
-   `workspace.admin` gating are covered by tests).
-3. A `PricingStatusPresentation` mapping (mirrors `diagnosticPresentation.ts`)
-   for `status` / `eventKind` / unit-resolution states.
-
-Do not implement preview, apply, diagnostics, or source-acquisition UI until
-those contracts become callable in `FRONTEND_CONTRACT.md`.
+**UI Stage 3** — once Codex exposes the future evidence endpoints in
+`FRONTEND_CONTRACT.md` (Workspace Pricing Preview, Apply Result, Diagnostics,
+Source Acquisition, `allowed_actions`), extend beyond read-only. Nearer-term
+follow-ups that stay on the current callable contract, if the Owner wants them:
+a `SettingsNav` entry for `/settings/pricing`; mutation surfaces
+(activate/deactivate with the head-version/409 refetch flow behind
+`workspace.admin`); and policy/product-group authoring (`createPolicy` /
+`createProductGroup`). Do not implement preview, apply, diagnostics, or
+source-acquisition UI until those contracts become callable.
