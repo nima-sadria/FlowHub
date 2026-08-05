@@ -43,6 +43,7 @@ from app.flowhub.orders import models as _order_models  # noqa: E402, F401
 from app.flowhub.product_pricing import models as _product_pricing_models  # noqa: E402, F401
 from app.flowhub.pricing_matrix import models as _pricing_matrix_models  # noqa: E402, F401
 from app.flowhub.setup import models as _setup_models  # noqa: E402, F401
+from app.flowhub.source_acquisition import models as _source_acquisition_models  # noqa: E402, F401
 from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: E402, F401
 from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: E402, F401
 from app.flowhub.webhooks import models as _webhook_models  # noqa: E402, F401

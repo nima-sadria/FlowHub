@@ -194,17 +194,25 @@ idempotent seed behavior, schema parity, and non-destructive downgrade refusal.
 PostgreSQL clean-install coverage is present and requires the configured local
 disposable `FLOWHUB_TEST_POSTGRES_URL`.
 
-Exact next task: Phase 2B - implement explicit Source and Channel currency-unit
-migration semantics, preserving unresolved state and forbidding magnitude-based
-RIAL/TOMAN inference. Do not start Source Acquisition runtime or Pricing UI
-until that phase is approved.
-
 Phase 2B is complete. Source and Channel declarations are independently
 versioned Currency Profiles. Missing declarations remain unresolved; no
 RIAL/TOMAN inference occurs. Source-backed Workspace creation now fails closed
 before a Pricing Review can be created when its Source declaration is missing.
 Raw Source preview remains outside that gate. Existing Pricing Matrix binding
 continues to isolate unresolved Channels as per-Channel Review issues.
+
+Phase 3A is complete. `FLOWHUB_025` adds durable append-safe Source Acquisition
+Runs only: lifecycle status/result separation, Source/scope idempotency,
+database-enforced active-run uniqueness, worker lease ownership, cancellation,
+abandonment, and retry lineage. No provider read, Observation, Binding,
+Diagnostics, scheduler, or callable API was added. Idempotency keys are NFKC
+normalized opaque identifiers and replay the exact retained Run; keys with a
+different intent conflict. The Run migration is forward-only because deleting
+Run audit and retry lineage is unsafe.
+
+Exact next task: Phase 3B - implement immutable Source Observations and
+evidence/provenance records that are produced by a completed Run. Do not add
+provider acquisition, diagnostics, schema assessment, or UI in that phase.
 
 ## Temporary TODOs
 
@@ -247,6 +255,13 @@ revision, so currency units remain unresolved until Phase 2B explicitly handles
 them. PostgreSQL has an isolated clean-install test that remains pending local
 execution until `FLOWHUB_TEST_POSTGRES_URL` is configured.
 
+`alembic_flowhub/versions/flowhub_025_source_acquisition_runs.py` is a linear,
+forward-only migration from `FLOWHUB_024`. It creates `saq_runs` with the
+status/result checks, self-referential retry lineage, idempotency uniqueness,
+and partial unique active-run lease constraint. SQLite migration and model-parity
+tests pass. PostgreSQL migration execution remains pending until
+`FLOWHUB_TEST_POSTGRES_URL` is configured.
+
 ## Verification completed during stabilization
 
 - Fresh `git fetch origin --prune`: local feature base and `origin/main` both `df928cc7a3cff50b0055bcf7cb94117034ff8986`.
@@ -278,6 +293,7 @@ Known test noise: the frontend suite emitted jsdom/Handsontable CSS parse warnin
 4. Explicit Source/Channel unit migration and unresolved-unit tests.
 5. Frontend tests for all new Pricing UI states after that UI exists.
 6. i18n validation after the two pre-existing hardcoded strings are addressed in a separate scoped change.
+7. Implement Source Acquisition Phase 3B Observations and evidence records.
 
 ## Browser verification still pending
 
@@ -318,7 +334,9 @@ These are engineering estimates, not budgets or guarantees:
 | 1 | Workspace/Write Pipeline binding, revalidation, and race-safe tests | completed this phase |
 | 2A | Verify Pricing Matrix migration integrity | completed |
 | 2B | Implement explicit Source/Channel currency-unit migration semantics | 12k-20k |
-| 3 | Implement Source Acquisition runs, observations, resource bindings, schema assessment, diagnostics, telemetry, SSRF controls, and retention holds | 45k-75k |
+| 3A | Source Acquisition Run lifecycle, idempotency, lease, cancellation, retry persistence | completed |
+| 3B | Immutable Source Observations, evidence, and provenance | 10k-18k |
+| 3C-3E | Binding, schema assessment, Diagnostics, security, and Source integration | 30k-52k |
 | 4 | Implement Pricing/Source UI contract in EN/FA, RTL/LTR, light/dark, responsive layouts | 35k-60k |
 | 5 | Translator inventory, Appendix A, legacy fixtures, and broken-formula rollout gates | 10k-15k |
 | 6 | Full regression, browser matrix, cleanup, documentation, commits, and deployment verification | 10k-20k |
