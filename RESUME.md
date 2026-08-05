@@ -255,6 +255,42 @@ use private-address Source targets must supply the deployment-owned
 PostgreSQL execution was not claimed because no disposable
 `FLOWHUB_TEST_POSTGRES_URL` was configured for this stage.
 
+## Stage 10A.1 completed: release test infrastructure and fixture alignment
+
+`requirements-test.txt` is the authoritative test dependency manifest and
+already declares `pytest-asyncio>=0.23.0`; the failure was a local environment
+that had not been installed from that manifest, not a missing production or
+test dependency declaration. `uv pip install -r requirements-test.txt` restores
+the complete test environment and async collection succeeds without temporary
+pytest dependency injection.
+
+Legacy beta Source and Workspace fixtures now provide workbook responses through
+the current `SourceHttpClient` boundary. The shared `tests/beta_source_http.py`
+helper converts their synthetic logical WebDAV download fixtures into bounded,
+network-free `SourceHttpResponse` values; no retired direct Nextcloud download
+path is restored. The upstream-error fixture now asserts the Stage 9 stable
+gateway contract (`502` / `upstream_rejected`) and continues to prove that raw
+HTML and secrets never reach the response.
+
+The historical beta_007 migration fixture now excludes `saq_` Source
+Acquisition tables, preventing current ORM metadata from pre-creating the
+`FLOWHUB_025` migration target. It still upgrades through the complete chain
+and retains its data-loss assertions.
+
+Verification for this stage:
+
+- Beta Source/Workspace fixture and historical compatibility test: 129 passed.
+- Full migration suite: 34 passed, 7 skipped.
+- Source/Workspace/Acquisition/connector/no-direct-HTTP regression selection:
+  198 passed, 6 skipped.
+- Full backend suite: 3200 passed, 26 skipped, 1 tracked failure.
+
+The remaining failure is
+`tests/beta/test_multi_channel_pricing.py::test_apply_reports_channel_specific_partial_failure`:
+the current write-attempt projection is `reconciliation_required`, while the
+legacy assertion expects `failed`. This is a separate Stage 10A.2 semantic
+decision and was intentionally not changed here.
+
 ## Stage 7 completed: schema assessment and structural drift
 
 Stage 7 adds `FLOWHUB_027`, the provider-neutral

@@ -8,6 +8,8 @@ from threading import Barrier
 
 import pytest
 
+from tests.beta_source_http import install_nextcloud_download
+
 os.environ.setdefault("FLOWHUB_DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("FLOWHUB_JWT_SECRET", "test-commerce-hub-jwt-secret-32bytes!")
 
@@ -1213,7 +1215,7 @@ def test_nextcloud_manual_read_now_uses_mapping_and_never_writes(client, auth_he
     async def fail_write(*args, **kwargs):
         raise AssertionError("Manual source read must not write to WooCommerce")
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fail_write)
 
     save = client.put(
@@ -1258,7 +1260,7 @@ def test_nextcloud_source_read_rate_limit_is_enforced(client, auth_headers, monk
             rows=[["Limited Product", "101", "125.00", "SKU-101"]],
         ), {"etag": "etag-limit"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
     save = client.put(
         "/api/v2/commerce/sources/nextcloud:primary/settings",
         headers=auth_headers,
@@ -1303,7 +1305,7 @@ def test_failed_outbound_source_read_consumes_reserved_quota(client, auth_header
     async def fail_download(self, path):
         raise IntegrationError("nextcloud", path, "WebDAV unavailable", status_code=502)
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fail_download)
+    install_nextcloud_download(monkeypatch, fail_download)
     save = client.put(
         "/api/v2/commerce/sources/nextcloud:primary/settings",
         headers=auth_headers,
@@ -1398,7 +1400,7 @@ def test_duplicate_rows_are_errors_and_manual_read_counts_reconcile(client, auth
             ],
         ), {"etag": "etag-duplicates"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
     save = client.put(
         "/api/v2/commerce/sources/nextcloud:primary/settings",
         headers=auth_headers,
@@ -2744,7 +2746,7 @@ def test_nextcloud_source_read_html_error_returns_safe_structured_payload(client
             status_code=504,
         )
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fail_download)
+    install_nextcloud_download(monkeypatch, fail_download)
     save = client.put(
         "/api/v2/commerce/sources/nextcloud:primary/settings",
         headers=auth_headers,
@@ -2758,9 +2760,12 @@ def test_nextcloud_source_read_html_error_returns_safe_structured_payload(client
 
     response = client.post("/api/v2/commerce/sources/nextcloud:primary/read", headers=auth_headers)
 
-    assert response.status_code == 504
-    assert response.json()["code"] == "SOURCE_UPSTREAM_ERROR"
-    assert response.json()["message"] == "The external service returned an invalid or unavailable response."
+    # The acquisition boundary deliberately normalizes upstream transport
+    # failures to its stable gateway response instead of reflecting raw status.
+    assert response.status_code == 502
+    detail = response.json()["detail"]
+    assert detail["code"] == "upstream_rejected"
+    assert detail["message"] == "Source acquisition failed."
     assert "<html" not in response.text.lower()
     assert "private-token" not in response.text
 

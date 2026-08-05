@@ -8,6 +8,8 @@ from io import BytesIO
 
 import pytest
 
+from tests.beta_source_http import install_nextcloud_download
+
 os.environ.setdefault("FLOWHUB_DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("FLOWHUB_JWT_SECRET", "test-workspace-workflow-jwt-secret-32bytes!")
 
@@ -166,7 +168,7 @@ def test_nextcloud_spreadsheet_import_success_generates_preview_and_dry_run(
         assert path == "/prices.xlsx"
         return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "etag-1", "last_modified": "now"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
     assert preview.status_code == 200
@@ -246,7 +248,7 @@ async def test_concurrent_identical_preview_reuses_one_source_read(
         await asyncio.sleep(0.05)
         return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "etag-1", "last_modified": "now"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
     user = configured_db.query(FlowHubUser).filter(FlowHubUser.role == "admin").one()
     service = WorkspacePriceWorkflowService(configured_db)
 
@@ -279,7 +281,7 @@ async def test_authorized_admin_reuses_shared_snapshot_with_owned_preview(
         calls += 1
         return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "etag-shared", "last_modified": "now"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
     first_user = FlowHubUser(username="first-preview-admin", hashed_password=hash_password("password123"), role="admin")
     second_user = FlowHubUser(username="second-preview-admin", hashed_password=hash_password("password123"), role="admin")
     configured_db.add_all([first_user, second_user])
@@ -348,7 +350,7 @@ def test_failed_preview_validation_consumes_one_completed_read_without_automatic
         calls += 1
         return _xlsx([]), {"etag": "etag-empty", "last_modified": "now"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", empty_download)
+    install_nextcloud_download(monkeypatch, empty_download)
 
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
 
@@ -406,7 +408,7 @@ def test_workspace_preview_succeeds_after_woocommerce_channel_cache_refresh(
 
     monkeypatch.setattr("app.connectors.read.woocommerce.list_products_paged", fake_list_products)
     monkeypatch.setattr("app.connectors.read.woocommerce.list_variations", no_variations)
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     refresh = client.post(
         "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
@@ -463,7 +465,7 @@ def test_spreadsheet_path_selected_from_source_settings_feeds_preview_workflow(
         assert path == "/Selected/Prices.xlsx"
         return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "etag-1", "last_modified": "now"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
 
@@ -493,7 +495,7 @@ def test_variation_row_matched_by_variation_id_is_eligible_for_dry_run(
     async def fake_download(self, path):
         return _xlsx([["Parent Hoodie - Blue / XL", 201, "132.00", "VAR-201"]]), {"etag": "etag-var"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
 
@@ -561,7 +563,7 @@ def test_variation_row_matched_by_sku_if_safe(client, auth_headers, configured_d
     async def fake_download(self, path):
         return _xlsx([["Parent Hoodie - Red / L", "", "115.00", "VAR-202"]]), {"etag": "etag-var-sku"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
 
@@ -597,7 +599,7 @@ def test_workspace_preview_generates_distinct_ids_for_sku_only_source_rows(
             ["SKU Product B", None, "120.00", "SKU-B"],
         ]), {"etag": "sku-only", "last_modified": "now"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
     assert preview.status_code == 200
@@ -634,7 +636,7 @@ def test_workspace_preview_keeps_duplicate_business_identifiers_distinct(
             ["Duplicate SKU B", None, "140.00", "DUP-SKU"],
         ]), {"etag": "duplicates", "last_modified": "now"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
     assert preview.status_code == 200
@@ -672,7 +674,7 @@ def test_workspace_preview_keeps_identical_content_on_different_rows_distinct(
             ["Same Row", None, "110.00", "SAME-SKU"],
         ]), {"etag": "same-content", "last_modified": "now"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
     assert preview.status_code == 200
@@ -694,7 +696,7 @@ def test_workspace_preview_distinguishes_same_row_number_across_sheets(
         assert path == "/prices.xlsx"
         return _xlsx_two_sheets_same_row(), {"etag": "two-sheets", "last_modified": "now"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
     assert preview.status_code == 200
@@ -773,7 +775,7 @@ def test_variation_row_missing_parent_id_fails_closed(client, auth_headers, conf
     async def fake_download(self, path):
         return _xlsx([["Orphan Variation", 203, "110.00", "VAR-203"]]), {"etag": "etag-orphan"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
 
@@ -803,7 +805,7 @@ def test_simple_woocommerce_price_workflow_end_to_end_with_mocked_adapter(
             "stock_update": False,
         }
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
     monkeypatch.setattr(WooCommercePriceWriteAdapter, "execute_item", fake_execute)
     _mock_woocommerce_current_state(
         monkeypatch, WooCommercePriceWriteAdapter, {"101": 110.0}
@@ -884,7 +886,7 @@ def test_workspace_preview_classifies_validation_errors_warnings_and_unchanged(
             ]
         ), {"etag": "etag-2"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
     assert response.status_code == 200
@@ -956,7 +958,7 @@ def test_preview_fails_safely_when_cache_is_empty(client, auth_headers, configur
     async def fake_download(self, path):
         raise AssertionError("empty product cache must fail before source download")
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
     assert response.status_code == 409
     assert "product cache is empty" in response.text
@@ -985,7 +987,7 @@ def test_preview_blocks_incomplete_cache_refresh(client, auth_headers, configure
     async def fake_download(self, path):
         raise AssertionError("incomplete cache refresh must fail before source download")
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
 
     assert response.status_code == 409
@@ -1017,7 +1019,7 @@ def test_preview_allows_completed_with_warnings_cache_refresh(client, auth_heade
         assert path == "/prices.xlsx"
         return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "etag-warning"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
 
     assert response.status_code == 200
@@ -1043,7 +1045,7 @@ def test_preview_fails_safely_when_channel_credentials_are_missing(client, auth_
     async def fake_download(self, path):
         raise AssertionError("missing channel credentials must fail before source download")
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
 
     assert response.status_code == 422
@@ -1158,7 +1160,7 @@ def test_workspace_preview_uses_configured_mapping_and_reads_stock(
             rows=[["Mapped Product", "12", "SKU-101", "125.00", "101"]],
         ), {"etag": "etag-mapped"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
 
@@ -1202,7 +1204,7 @@ def test_price_disabled_generates_no_price_changes(client, auth_headers, configu
     async def fake_download(self, path):
         return _xlsx([["Stock Only", 101, "999.00", "8"]]), {"etag": "etag-price-disabled"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
 
@@ -1238,7 +1240,7 @@ def test_stock_only_row_is_visible_but_excluded_from_write_changes(
     async def fake_download(self, path):
         return _xlsx([["Stock Only", 101, "100.00", "8"]]), {"etag": "etag-stock-only"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
 
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
 
@@ -1263,7 +1265,7 @@ def test_selected_worksheet_is_read_and_missing_worksheet_fails(
     async def fake_download(self, path):
         return _xlsx_multi_sheet(), {"etag": "etag-sheets"}
 
-    monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+    install_nextcloud_download(monkeypatch, fake_download)
     AppConfigService(configured_db).set_many(
         {"nextcloud.worksheet_mode": "selected", "nextcloud.worksheet_name": "Prices"},
         updated_by="test",
