@@ -14,7 +14,10 @@ os.environ.setdefault("FLOWHUB_JWT_SECRET", "test-bu5-workspace-jwt-secret-32byt
 from app.flowhub.auth import models as _auth_models  # noqa: F401
 from app.flowhub.data_layer import models as _dl_models  # noqa: F401
 from app.flowhub.integration_platform import models as _ip_models  # noqa: F401
+from app.flowhub.source_acquisition import models as _source_acquisition_models  # noqa: F401
+from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
+from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
 
 
 @pytest.fixture()
@@ -125,7 +128,7 @@ class TestWorkspacePreview:
 
     def test_preview_returns_source_driven_rows(self, client, auth_headers, configured_db, monkeypatch):
         from app.flowhub.data_layer.models import DlProductCache
-        from app.flowhub.integrations.nextcloud import NextcloudClient
+        from app.connectors.common.source_http import SourceHttpClient, SourceHttpResponse
 
         configured_db.add(
             DlProductCache(
@@ -146,13 +149,20 @@ class TestWorkspacePreview:
         )
         configured_db.commit()
 
-        async def fake_download(self, path):
-            assert path == "/prices.xlsx"
-            return _xlsx([["Test Product", 101, "110.00", "SKU-101"]]), {"etag": "abc", "last_modified": "today"}
+        async def fake_request(self, method, url, **kwargs):
+            assert method == "GET"
+            assert url.endswith("/prices.xlsx")
+            assert kwargs["basic_auth"] == ("user", "pass")
+            return SourceHttpResponse(
+                200,
+                {"etag": "abc", "last-modified": "today"},
+                _xlsx([["Test Product", 101, "110.00", "SKU-101"]]),
+                url,
+            )
 
-        monkeypatch.setattr(NextcloudClient, "download_file", fake_download)
+        monkeypatch.setattr(SourceHttpClient, "request", fake_request)
         response = client.post("/api/v2/workspace/preview", headers=auth_headers)
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         data = response.json()
         assert data["state"] == "preview_ready"
         assert data["totalChanges"] == 1

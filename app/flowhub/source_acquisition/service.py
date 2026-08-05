@@ -113,6 +113,58 @@ class SourceAcquisitionService:
             now=now,
         )
 
+    def complete_with_observation(
+        self,
+        run_id: str,
+        *,
+        worker_id: str,
+        result: str,
+        resource_identity: str,
+        provenance: dict[str, Any],
+        evidence: list[dict[str, Any]],
+        snapshot_references: list[dict[str, Any]] | None = None,
+        observed_at: datetime | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Atomically persist an Observation and complete its running Run.
+
+        Cancellation wins when requested before the locked completion boundary.
+        The Observation graph and terminal Run transition share one commit, so
+        neither can become authoritative without the other.
+        """
+
+        if result not in {"observed", "content_unchanged_reparse"}:
+            raise SourceAcquisitionError("invalid_run_result")
+        now = now or utcnow()
+        row = self._locked_run(run_id)
+        self._assert_worker_lease(row, worker_id, now)
+        if row.cancellation_requested_at is not None:
+            self._set_terminal(row, status="cancelled", result="none", now=now)
+            self.db.commit()
+            return {"run": self._shape(row), "observation": None}
+
+        from app.flowhub.source_acquisition.observations import SourceObservationService
+
+        try:
+            observation = SourceObservationService(self.db)._stage_observation(
+                run=row,
+                resource_identity=resource_identity,
+                provenance=provenance,
+                evidence=evidence,
+                snapshot_references=snapshot_references,
+                observed_at=observed_at or now,
+            )
+            self._set_terminal(row, status="succeeded", result=result, now=now)
+            row.failure_code = None
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+        return {
+            "run": self._shape(row),
+            "observation": SourceObservationService(self.db).observation(observation.id),
+        }
+
     def fail_run(
         self, run_id: str, *, worker_id: str, failure_code: str, now: datetime | None = None
     ) -> dict[str, Any]:

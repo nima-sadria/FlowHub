@@ -11,11 +11,21 @@ from app.flowhub.source_acquisition.models import (
     SourceSchemaDriftRecord,
 )
 from app.flowhub.source_acquisition.observations import SourceObservationService
+from app.flowhub.source_acquisition.execution import (
+    AcquisitionExecutionResult,
+    ProviderAcquisitionError,
+    ProviderCapture,
+    SourceAcquisitionExecutor,
+)
 from app.flowhub.source_acquisition.schema_assessment import SourceSchemaAssessmentService
 from app.flowhub.source_acquisition.service import SourceAcquisitionService
 
 __all__ = [
     "AcquisitionRun",
+    "AcquisitionExecutionResult",
+    "ProviderAcquisitionError",
+    "ProviderCapture",
+    "SourceAcquisitionExecutor",
     "SourceAcquisitionService",
     "SourceObservation",
     "SourceObservationEvidence",

@@ -226,6 +226,35 @@ drift handling over persisted Observations. Do not add provider execution,
 resource binding runtime, SSRF protection, scheduling, UI, or browser work in
 that phase.
 
+## Stage 9 completed: acquisition execution integration
+
+Stage 9 adds one authoritative `SourceAcquisitionExecutor` that claims a
+durable Run before provider execution, sends Nextcloud/WebDAV reads only through
+`SourceHttpClient`, validates the captured workbook before persistence, and
+atomically commits the immutable Observation/evidence graph with the terminal
+successful Run transition. Security, timeout, cancellation, ownership, and
+provider failures retain stable codes and create no Observation.
+
+The existing spreadsheet read path now consumes the executor's validated
+in-memory capture and updates the legacy `dl_source_snapshots` projection without
+performing a second download. Exact retained intent replays the authoritative
+Run; retries remain linked Runs and create separate Observations. Identical
+capture/parse contracts reuse the previous Observation with `not_modified`,
+while an identical capture under a changed parse contract creates a new
+Observation with `content_unchanged_reparse`.
+
+Schema assessment is invoked after the Observation transaction commits. It is
+therefore unable to corrupt the authoritative Run/Observation pair; when no
+Mapping exists it records `no_mapping`, and missing schema evidence remains a
+distinct failed assessment rather than fabricated health. No callable API,
+scheduler, Source UI, migration, or provider type was added in Stage 9.
+
+Operational follow-up for Stage 10: production deployments that intentionally
+use private-address Source targets must supply the deployment-owned
+`SourceHttpPolicy.allowed_private_networks`; the default remains fail-closed.
+PostgreSQL execution was not claimed because no disposable
+`FLOWHUB_TEST_POSTGRES_URL` was configured for this stage.
+
 ## Stage 7 completed: schema assessment and structural drift
 
 Stage 7 adds `FLOWHUB_027`, the provider-neutral

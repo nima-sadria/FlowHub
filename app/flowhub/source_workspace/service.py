@@ -2197,6 +2197,7 @@ class SourceWorkspaceService:
             triggered_by_id=user.id,
             manual=manual,
             capture_raw_worksheets=True,
+            source_profile_id=source.id,
         )
 
     @staticmethod

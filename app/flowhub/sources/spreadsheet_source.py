@@ -13,9 +13,11 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
+from app.connectors.common.source_http import SourceHttpClient
 from app.flowhub.data_layer.models import (
     DlSourceReadLock,
     DlSourceReadReservation,
@@ -23,10 +25,13 @@ from app.flowhub.data_layer.models import (
 )
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.integrations.errors import IntegrationError
-from app.flowhub.integrations.nextcloud import NextcloudClient
 from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_source_price_rows
 from app.flowhub.security.upstream_errors import UpstreamServiceError, normalize_upstream_error
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.source_acquisition.execution import SourceAcquisitionExecutor
+from app.flowhub.source_acquisition.nextcloud_provider import NextcloudWebDavAcquisitionProvider
+from app.flowhub.source_workspace.models import SourceProfile
+from app.flowhub.unified_workspace.domain import checksum
 
 SOURCE_ID = "nextcloud:primary"
 SOURCE_TYPE = "nextcloud_spreadsheet"
@@ -67,10 +72,11 @@ class SourceImportResult:
 
 
 class SpreadsheetSourceReadService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, *, source_http_client: SourceHttpClient | None = None) -> None:
         self.db = db
         self.config = AppConfigService(db)
         self.integration = IntegrationPlatformService(db)
+        self.source_http_client = source_http_client or SourceHttpClient()
 
     async def read_nextcloud_spreadsheet(
         self,
@@ -79,6 +85,8 @@ class SpreadsheetSourceReadService:
         triggered_by_id: str | int | None = None,
         manual: bool,
         capture_raw_worksheets: bool = False,
+        source_profile_id: str | None = None,
+        idempotency_key: str | None = None,
     ) -> SourceImportResult:
         spreadsheet_path = self._required_config("nextcloud.spreadsheet_path")
         mapping = None if capture_raw_worksheets else self.mapping()
@@ -93,9 +101,19 @@ class SpreadsheetSourceReadService:
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
                 {"code": exc.code, "message": str(exc)},
             ) from exc
-        client = NextcloudClient.from_config(self.config)
-        if client is None:
+        username = str(self.config.get("nextcloud.username") or "").strip()
+        password = str(self.config.get("nextcloud.password") or "")
+        normalized = normalize_nextcloud_url(
+            self.config.get("nextcloud.url") or "",
+            username,
+        )
+        if not username or not password:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nextcloud source credentials are incomplete.")
+        source_profile = self._acquisition_source(
+            source_profile_id=source_profile_id,
+            triggered_by_id=triggered_by_id,
+            worksheet=worksheet,
+        )
         reservation_user_id = str(triggered_by_id if triggered_by_id is not None else triggered_by)
         reservation = self.reserve_read_slot(reservation_user_id, manual=manual)
         policy_state = self.read_policy_state()
@@ -117,8 +135,77 @@ class SpreadsheetSourceReadService:
             },
         )
         try:
-            content, file_meta = await client.download_file(spreadsheet_path)
-            workbook = load_workbook_bytes(content)
+            validated: dict[str, Any] = {}
+
+            def validate_capture(content: bytes) -> dict[str, object]:
+                workbook = load_workbook_bytes(content)
+                validated["workbook"] = workbook
+                headers = self._assessment_headers(workbook, source_profile)
+                return {"schema_headers": headers} if headers is not None else {}
+
+            capture_contract = checksum(
+                {
+                    "parser": "openpyxl-v1",
+                    "source_version": source_profile.version,
+                    "worksheet_mode": source_profile.worksheet_mode,
+                    "worksheet_name": source_profile.worksheet_name,
+                    "data_start_row": source_profile.data_start_row,
+                    "capture_raw_worksheets": capture_raw_worksheets,
+                }
+            )
+            provider = NextcloudWebDavAcquisitionProvider(
+                webdav_files_root_url=normalized["webdav_files_root_url"],
+                spreadsheet_path=spreadsheet_path,
+                username=normalized["username"],
+                app_password=password,
+                capture_contract=capture_contract,
+                validator=validate_capture,
+            )
+            execution = await SourceAcquisitionExecutor(
+                self.db, http_client=self.source_http_client
+            ).request_and_execute(
+                source_id=source_profile.id,
+                provider=provider,
+                worker_id=f"inline:{triggered_by}",
+                lease_seconds=60,
+                trigger_kind="manual" if manual else "system",
+                resource_scope=f"webdav:{spreadsheet_path}",
+                idempotency_key=idempotency_key or f"read:{uuid.uuid4()}",
+                actor_user_id=(
+                    int(triggered_by_id)
+                    if triggered_by_id is not None and str(triggered_by_id).isdigit()
+                    else None
+                ),
+                request_payload={
+                    "operation": "acquire",
+                    "capture_contract": capture_contract,
+                },
+            )
+            if execution.run["status"] != "succeeded" or execution.capture is None:
+                code = str(execution.run.get("failureCode") or execution.run["status"])
+                raise HTTPException(
+                    status.HTTP_502_BAD_GATEWAY,
+                    {"code": code, "message": "Source acquisition failed."},
+                )
+            content = execution.capture.content
+            if content is None:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {"code": "raw_capture_unavailable", "message": "Source capture cannot be replayed."},
+                )
+            workbook = validated.get("workbook") or load_workbook_bytes(content)
+            file_meta = {
+                "etag": execution.capture.provenance.get("provider_change_token"),
+                "last_modified": next(
+                    (
+                        item.get("metadata", {}).get("last_modified")
+                        for item in execution.capture.evidence
+                        if item.get("kind") == "capture_manifest"
+                    ),
+                    None,
+                ),
+                "content_length": str(len(content)),
+            }
             raw_worksheets = (
                 {
                     sheet.title: [list(row) for row in sheet.iter_rows(values_only=True)]
@@ -275,6 +362,84 @@ class SpreadsheetSourceReadService:
                 severity="error",
             )
             raise
+
+    def _acquisition_source(
+        self,
+        *,
+        source_profile_id: str | None,
+        triggered_by_id: str | int | None,
+        worksheet: dict[str, str],
+    ) -> SourceProfile:
+        source = self.db.get(SourceProfile, source_profile_id) if source_profile_id else None
+        if source is None:
+            source = (
+                self.db.query(SourceProfile)
+                .filter(SourceProfile.external_source_id == SOURCE_ID)
+                .one_or_none()
+            )
+        if source is not None:
+            if source.external_source_id != SOURCE_ID or source.status != "active":
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {"code": "source_profile_invalid", "message": "Source profile is not active Nextcloud."},
+                )
+            return source
+        if triggered_by_id is None or not str(triggered_by_id).isdigit():
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {"code": "source_profile_required", "message": "Source profile is required."},
+            )
+        source = SourceProfile(
+            id=str(uuid.uuid4()),
+            name="Nextcloud",
+            source_kind="external",
+            external_source_id=SOURCE_ID,
+            worksheet_mode=worksheet["mode"],
+            worksheet_name=worksheet["name"] or None,
+            data_start_row=2,
+            status="active",
+            version=1,
+            owner_user_id=int(triggered_by_id),
+        )
+        try:
+            self.db.add(source)
+            self.db.commit()
+            return source
+        except IntegrityError:
+            self.db.rollback()
+            existing = (
+                self.db.query(SourceProfile)
+                .filter(SourceProfile.external_source_id == SOURCE_ID)
+                .one_or_none()
+            )
+            if existing is None or existing.status != "active":
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {"code": "source_profile_conflict", "message": "Source profile could not be established."},
+                )
+            return existing
+
+    @staticmethod
+    def _assessment_headers(workbook: Any, source: SourceProfile) -> list[str] | None:
+        if source.worksheet_mode != "selected" or not source.worksheet_name:
+            return None
+        if source.worksheet_name not in workbook.sheetnames:
+            raise ValueError("Selected worksheet was not found.")
+        row_number = max(1, int(source.data_start_row) - 1)
+        values = next(
+            workbook[source.worksheet_name].iter_rows(
+                min_row=row_number,
+                max_row=row_number,
+                values_only=True,
+            ),
+            None,
+        )
+        if values is None:
+            raise ValueError("Worksheet header row was not found.")
+        headers = ["" if value is None else str(value) for value in values]
+        while headers and headers[-1] == "":
+            headers.pop()
+        return headers or None
 
     def manual_read_response(self, result: SourceImportResult) -> dict:
         return {

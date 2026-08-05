@@ -25,6 +25,7 @@ from app.flowhub.unified_workspace.domain import checksum, utcnow
 
 _IDENTIFIER = re.compile(r"^[a-z][a-z0-9_]{0,79}$")
 _SENSITIVE_KEY = re.compile(r"password|secret|token|authorization|cookie", re.IGNORECASE)
+_SAFE_NON_SECRET_TOKEN_KEYS = {"provider_change_token", "change_token_kind"}
 _MAX_METADATA_BYTES = 16 * 1024
 
 
@@ -53,6 +54,57 @@ class SourceObservationService:
         run = self._run_or_error(acquisition_run_id)
         if run.status != "succeeded":
             raise SourceAcquisitionError("observation_run_not_succeeded")
+        try:
+            row = self._stage_observation(
+                run=run,
+                resource_identity=resource_identity,
+                provenance=provenance,
+                evidence=evidence,
+                snapshot_references=snapshot_references,
+                observed_at=observed_at or run.terminal_at or utcnow(),
+            )
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            existing = (
+                self.db.query(SourceObservation)
+                .filter(SourceObservation.acquisition_run_id == run.id)
+                .one_or_none()
+            )
+            if existing is not None:
+                self._assert_exact_replay(
+                    existing,
+                    resource_identity_hash=checksum(
+                        {"resource_identity": self._text(resource_identity, "resource_identity", 240)}
+                    ),
+                    provenance=self._metadata(provenance, "provenance"),
+                    evidence=[self._prepare_evidence(item) for item in evidence],
+                    snapshots=[
+                        self._prepare_snapshot_reference(item)
+                        for item in (snapshot_references or [])
+                    ],
+                )
+                return self.observation(existing.id)
+            raise SourceAcquisitionError("observation_create_conflict")
+        return self.observation(row.id)
+
+    def _stage_observation(
+        self,
+        *,
+        run: AcquisitionRun,
+        resource_identity: str,
+        provenance: dict[str, Any],
+        evidence: list[dict[str, Any]],
+        snapshot_references: list[dict[str, Any]] | None,
+        observed_at: datetime,
+    ) -> SourceObservation:
+        """Add an Observation graph to the current transaction without committing.
+
+        The acquisition orchestrator uses this only while holding the Run row
+        lock, then transitions that Run to succeeded in the same transaction.
+        Public callers continue to use ``record_observation``.
+        """
+
         resource_identity = self._text(resource_identity, "resource_identity", 240)
         provenance = self._metadata(provenance, "provenance")
         prepared_evidence = [self._prepare_evidence(item) for item in evidence]
@@ -61,9 +113,7 @@ class SourceObservationService:
         prepared_snapshots = [
             self._prepare_snapshot_reference(item) for item in (snapshot_references or [])
         ]
-        observed_at = observed_at or run.terminal_at or utcnow()
         resource_identity_hash = checksum({"resource_identity": resource_identity})
-
         existing = (
             self.db.query(SourceObservation)
             .filter(SourceObservation.acquisition_run_id == run.id)
@@ -77,7 +127,7 @@ class SourceObservationService:
                 evidence=prepared_evidence,
                 snapshots=prepared_snapshots,
             )
-            return self.observation(existing.id)
+            return existing
 
         version = self._next_version(run.source_id, run.resource_scope, observed_at)
         core = {
@@ -102,55 +152,37 @@ class SourceObservationService:
             checksum=checksum(core),
             created_at=observed_at,
         )
-        try:
-            self.db.add(row)
-            previous_checksum: str | None = None
-            for position, item in enumerate(prepared_evidence, start=1):
-                evidence_checksum = checksum(
-                    {
-                        "observation_checksum": row.checksum,
-                        "sequence_number": position,
-                        "kind": item["kind"],
-                        "reference": item["reference"],
-                        "metadata": item["metadata"],
-                        "previous_evidence_checksum": previous_checksum,
-                    }
-                )
-                self.db.add(
-                    SourceObservationEvidence(
-                        id=str(uuid.uuid4()),
-                        observation_id=row.id,
-                        sequence_number=position,
-                        evidence_kind=item["kind"],
-                        evidence_reference=item["reference"],
-                        previous_evidence_checksum=previous_checksum,
-                        evidence_checksum=evidence_checksum,
-                        metadata_json=item["metadata"],
-                        recorded_at=observed_at,
-                    )
-                )
-                previous_checksum = evidence_checksum
-            for item in prepared_snapshots:
-                self._add_snapshot_reference(row.id, item, linked_at=observed_at)
-            self.db.commit()
-        except IntegrityError:
-            self.db.rollback()
-            existing = (
-                self.db.query(SourceObservation)
-                .filter(SourceObservation.acquisition_run_id == run.id)
-                .one_or_none()
+        self.db.add(row)
+        previous_checksum: str | None = None
+        for position, item in enumerate(prepared_evidence, start=1):
+            evidence_checksum = checksum(
+                {
+                    "observation_checksum": row.checksum,
+                    "sequence_number": position,
+                    "kind": item["kind"],
+                    "reference": item["reference"],
+                    "metadata": item["metadata"],
+                    "previous_evidence_checksum": previous_checksum,
+                }
             )
-            if existing is not None:
-                self._assert_exact_replay(
-                    existing,
-                    resource_identity_hash=resource_identity_hash,
-                    provenance=provenance,
-                    evidence=prepared_evidence,
-                    snapshots=prepared_snapshots,
+            self.db.add(
+                SourceObservationEvidence(
+                    id=str(uuid.uuid4()),
+                    observation_id=row.id,
+                    sequence_number=position,
+                    evidence_kind=item["kind"],
+                    evidence_reference=item["reference"],
+                    previous_evidence_checksum=previous_checksum,
+                    evidence_checksum=evidence_checksum,
+                    metadata_json=item["metadata"],
+                    recorded_at=observed_at,
                 )
-                return self.observation(existing.id)
-            raise SourceAcquisitionError("observation_create_conflict")
-        return self.observation(row.id)
+            )
+            previous_checksum = evidence_checksum
+        for item in prepared_snapshots:
+            self._add_snapshot_reference(row.id, item, linked_at=observed_at)
+        self.db.flush()
+        return row
 
     def append_evidence(
         self, observation_id: str, *, evidence: dict[str, Any], recorded_at: datetime | None = None
@@ -390,7 +422,11 @@ class SourceObservationService:
     def _assert_safe_metadata(cls, value: object) -> None:
         if isinstance(value, dict):
             for key, child in value.items():
-                if _SENSITIVE_KEY.search(str(key)):
+                normalized_key = str(key).strip().lower()
+                if (
+                    _SENSITIVE_KEY.search(normalized_key)
+                    and normalized_key not in _SAFE_NON_SECRET_TOKEN_KEYS
+                ):
                     raise SourceAcquisitionError("provenance_sensitive_field")
                 cls._assert_safe_metadata(child)
         elif isinstance(value, list):

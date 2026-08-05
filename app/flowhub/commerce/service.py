@@ -570,6 +570,12 @@ class CommerceHubService:
             triggered_by=actor,
             triggered_by_id=actor_id,
             manual=True,
+            source_profile_id=(
+                self.db.query(SourceProfile)
+                .filter(SourceProfile.external_source_id == source_id)
+                .with_entities(SourceProfile.id)
+                .scalar()
+            ),
         )
         return reader.manual_read_response(result)
 
