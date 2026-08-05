@@ -8,13 +8,16 @@ import Badge from '../components/Badge'
 import Icon from '../components/Icon'
 import Empty from '../components/Empty'
 import Spinner from '../components/loading/Spinner'
+import { useNavigate, useSearchParams } from 'react-router'
 import { pricingMatrixApi } from '../features/pricingMatrix/api'
+import PricingErrorPanel from '../features/pricingMatrix/PricingErrorPanel'
 import {
   channelStatusPresentation,
   classifyPricingError,
   derivePolicyChannelIds,
   formatExactInteger,
   lifecycleEventPresentation,
+  PRICING_ERROR_PRESENTATION,
   rateModeLabelKey,
   roundModeLabelKey,
   roundOrderLabelKey,
@@ -77,35 +80,6 @@ function LoadingBlock({ testId }: { testId: string }) {
   )
 }
 
-const ERROR_PRESENTATION: Record<PricingErrorState['kind'], { testId: string; variant: 'warning' | 'error'; titleKey: string; messageKey: string }> = {
-  permission_denied: { testId: 'pricing-permission-denied', variant: 'warning', titleKey: 'pricing:state.permissionDenied.title', messageKey: 'pricing:state.permissionDenied.message' },
-  validation_error: { testId: 'pricing-validation-error', variant: 'warning', titleKey: 'pricing:state.validationError.title', messageKey: 'pricing:state.validationError.message' },
-  contract_mismatch: { testId: 'pricing-contract-mismatch', variant: 'error', titleKey: 'pricing:state.contractMismatch.title', messageKey: 'pricing:state.contractMismatch.message' },
-  unavailable: { testId: 'pricing-unavailable', variant: 'error', titleKey: 'pricing:state.unavailable.title', messageKey: 'pricing:state.unavailable.message' },
-}
-
-function PricingErrorPanel({ state, onRetry }: { state: PricingErrorState; onRetry?: () => void }) {
-  const preset = ERROR_PRESENTATION[state.kind]
-  const message = state.kind === 'unavailable' && typeof state.status === 'number'
-    ? translate('pricing:state.unavailable.messageWithStatus', { status: state.status })
-    : translate(preset.messageKey)
-  return (
-    <div className="space-y-3">
-      <Alert
-        data-testid={preset.testId}
-        variant={preset.variant}
-        title={translate(preset.titleKey)}
-        message={message}
-      />
-      {onRetry && state.kind !== 'permission_denied' && (
-        <button type="button" className="fh-button-secondary" onClick={onRetry}>
-          {translate('pricing:state.retry')}
-        </button>
-      )}
-    </div>
-  )
-}
-
 function DefinitionRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5 py-1.5">
@@ -160,13 +134,24 @@ function PolicyRulesTable({ rules }: { rules: readonly PolicyRuleView[] }) {
 }
 
 function PolicyDetail({ policy }: { policy: PolicyRevision }) {
+  const navigate = useNavigate()
   return (
     <div className="fh-card p-4 space-y-4" data-testid="pricing-policy-detail">
-      <div>
-        <h3 className="fh-text-body font-semibold text-text-base">{policy.name}</h3>
-        <p className="fh-text-caption text-wp-muted">
-          {translate('pricing:policyDetail.title')} · <bdi dir="ltr">#{policy.revisionNumber}</bdi>
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="fh-text-body font-semibold text-text-base">{policy.name}</h3>
+          <p className="fh-text-caption text-wp-muted">
+            {translate('pricing:policyDetail.title')} · <bdi dir="ltr">#{policy.revisionNumber}</bdi>
+          </p>
+        </div>
+        <button
+          type="button"
+          className="fh-button-secondary"
+          data-testid="pricing-create-next-revision"
+          onClick={() => navigate(`/settings/pricing/policies/${encodeURIComponent(policy.id)}/new-revision`)}
+        >
+          {translate('pricing:policyEditor.createNextRevisionAction')}
+        </button>
       </div>
       <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
         <DefinitionRow label={translate('pricing:policies.col.currency')}>{policy.computationCurrency}</DefinitionRow>
@@ -286,7 +271,7 @@ function UnitsTable({ channelIds, channels }: { channelIds: readonly string[]; c
                     {unit?.status === 'ready'
                       ? <StatusBadge presentation={unitStatusPresentation(unit.data.status)} testId={`pricing-unit-status-${id}`} />
                       : unit?.status === 'error'
-                        ? <Badge variant="error">{translate(ERROR_PRESENTATION[unit.error.kind].titleKey)}</Badge>
+                        ? <Badge variant="error">{translate(PRICING_ERROR_PRESENTATION[unit.error.kind].titleKey)}</Badge>
                         : <span className="fh-text-caption text-wp-muted">…</span>}
                   </td>
                   <td>{unit?.status === 'ready' && unit.data.status === 'resolved' ? <bdi dir="ltr">{unit.data.canonicalCurrency}</bdi> : '—'}</td>
@@ -324,6 +309,8 @@ function Section({ title, description, children }: { title: string; description?
 
 export default function PricingMatrix() {
   useTranslation()
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [policies, setPolicies] = useState<Load<readonly PolicySummary[]>>(LOADING)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detail, setDetail] = useState<Load<PolicyRevision> | null>(null)
@@ -343,6 +330,19 @@ export default function PricingMatrix() {
   }, [])
 
   useEffect(() => { void loadPolicies() }, [loadPolicies])
+
+  // Lands here after "Create policy revision" so the newly created immutable
+  // revision is selected and visible without a manual search. Guarded so it
+  // runs at most once per `revision` param value.
+  useEffect(() => {
+    if (policies.status !== 'ready') return
+    const revisionParam = searchParams.get('revision')
+    if (!revisionParam) return
+    if (policies.data.some(policy => policy.id === revisionParam)) setSelectedId(revisionParam)
+    const next = new URLSearchParams(searchParams)
+    next.delete('revision')
+    setSearchParams(next, { replace: true })
+  }, [policies, searchParams, setSearchParams])
 
   useEffect(() => {
     if (!selectedId) {
@@ -394,8 +394,23 @@ export default function PricingMatrix() {
     <PageShell>
       <div className="space-y-6" data-testid="pricing-page">
         <header className="space-y-2">
-          <h1 className="text-[20px] font-bold text-text-base">{translate('pricing:title')}</h1>
-          <p className="fh-text-body text-wp-muted">{translate('pricing:subtitle')}</p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-[20px] font-bold text-text-base">{translate('pricing:title')}</h1>
+              <p className="fh-text-body text-wp-muted">{translate('pricing:subtitle')}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="fh-button-secondary" onClick={() => navigate('/settings/pricing/policies/new')}>
+                <Icon name="add" aria-hidden="true" /> {translate('pricing:policyEditor.createAction')}
+              </button>
+              <button type="button" className="fh-button-secondary" onClick={() => navigate('/settings/pricing/product-groups/new')}>
+                <Icon name="add" aria-hidden="true" /> {translate('pricing:productGroupEditor.createAction')}
+              </button>
+              <button type="button" className="fh-button-secondary" onClick={() => navigate('/settings/pricing/units/new')}>
+                <Icon name="add" aria-hidden="true" /> {translate('pricing:unitEditor.createAction')}
+              </button>
+            </div>
+          </div>
           <Alert variant="info" title={translate('pricing:title')} message={translate('pricing:readOnlyNote')} />
         </header>
 

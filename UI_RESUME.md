@@ -1,4 +1,4 @@
-# FlowHub UI continuation handover — Pricing Matrix (Claude UI Phases 1–2)
+# FlowHub UI continuation handover — Pricing Matrix (Claude UI Stages 1–3)
 
 ## Read this first
 
@@ -7,8 +7,10 @@ records the state of the Claude UI work for the Pricing Matrix:
 
 - **Stage 1** (commit `30334ca`) — contract-boundary correction + callable-endpoint
   mapping and client scaffolding.
-- **Stage 2** — read-only Pricing Matrix surfaces built on the callable contract,
-  after merging Codex's PM-1…PM-7 answers from `main`.
+- **Stage 2** (commit `8ae5424`) — read-only Pricing Matrix surfaces built on the
+  callable contract, after merging Codex's PM-1…PM-7 answers from `main`.
+- **Stage 3** — editable configuration for Policy Revisions, Product Group
+  Revisions, and Unit Declarations, on the same callable contract.
 
 - **Do not** treat this file as a backend contract. The callable contract is
   `FRONTEND_CONTRACT.md` at the repository root.
@@ -244,23 +246,160 @@ unchanged):
 - `i18n:validate` not run — its pre-existing non-zero exit (two legacy hardcoded
   strings) is unrelated; the `pricing` namespace has complete EN + FA keys.
 
+## UI Stage 3 — delivered (editable configuration)
+
+Three new editor pages, each creating an **immutable revision** (never editing
+in place), on the callable contract only:
+
+1. **Policy Revision editor** (`pages/PricingPolicyEditor.tsx`) —
+   `/settings/pricing/policies/new` and
+   `/settings/pricing/policies/:revisionId/new-revision` (prefills from
+   `getPolicy`, reuses the existing `policy_id`). Full form for name, currency,
+   round order, quote-age/count, timezone, and a repeatable rules editor
+   (channel from `commerce.getChannels()`, target = channel-default / product /
+   product-group-revision from `listProductGroups()`, rate/round/surcharge
+   fields). Client validation: exact-integer format (never floating point),
+   product_ref XOR product_group_revision_id, duplicate
+   `(channel, target)` scope detection — all via
+   `features/pricingMatrix/validation.ts`. Submits `POST /policies`.
+2. **Product Group Revision editor** (`pages/PricingProductGroupEditor.tsx`) —
+   `/settings/pricing/product-groups/new` and
+   `/settings/pricing/product-groups/:revisionId/new-revision`. Name + a
+   dynamic list of canonical product identifiers (direct identifier-entry —
+   see limitation below), duplicate-member detection, reuses the existing
+   `product_group_id`. Submits `POST /product-groups`.
+3. **Unit Declaration editor** (`pages/PricingUnitEditor.tsx`) —
+   `/settings/pricing/units/new`. Scope = **Source or Channel only** (Global
+   excluded — see PM-8 below); reference from `commerce.getSources()` /
+   `commerce.getChannels()`; currency from a fixed supported list; IRR forces
+   an explicit RIAL/TOMAN choice with no default; a non-IRR currency
+   auto-fills its matching unit (a fixed enumerated pair, not inference from a
+   price value) and unsupported pairs are rejected before submit. Shows the
+   current resolved/unresolved state via `GET /units/...` before editing.
+   Submits `PUT /units/{scope}/{scopeReference}`.
+
+Shared building blocks (new): `features/pricingMatrix/validation.ts`
+(exact-integer format, currency/unit pairs, rule-target/duplicate detection,
+member-duplicate detection), `features/pricingMatrix/useDirtyGuard.ts`
+(`beforeunload` + confirm-on-cancel, mirrors `SourceConfiguration.tsx`'s
+pattern), `features/pricingMatrix/PricingErrorPanel.tsx` (now the single
+source of error presentation, reused by the Stage 2 page too).
+
+### Immutable-revision UX
+
+Every editor states explicitly, near the top, that submitting **creates a new
+immutable revision** — never an in-place edit. The optional `policy_id` /
+`product_group_id` field is disabled and pre-filled (not editable) on the
+"create next revision" route, with copy explaining that the backend creates a
+new revision reusing that identity. No edit/patch/delete/archive action is
+exposed anywhere, matching the callable contract having none.
+
+### Error taxonomy (extended from Stage 2)
+
+`classifyPricingError` / `PRICING_ERROR_PRESENTATION` (in `presentation.ts`)
+now distinguish: `unauthenticated` (401), `permission_denied` (403),
+`not_found` (404), `stale_state` (409 — shown as "this changed since you
+loaded it," never silently retried), `validation_error` (422),
+`contract_mismatch` (unknown enum/shape), `unavailable` (5xx/network). Stage
+2's `PricingMatrix.tsx` was refactored to use this shared module instead of
+its own local copy (behavior-preserving; its 8 tests still pass unchanged).
+
+### Financial safety
+
+Every monetary/version/id integer that could exceed JS safe-integer range
+(`rate_value`, `*_minor` fields, `headVersion`, `canonicalFactor`) is typed
+`ExactInteger` (`string | number`) and only ever displayed or round-tripped as
+text — inputs are validated against `-?(0|[1-9][0-9]*)` and never parsed to
+`Number` before submission. No price or currency-conversion arithmetic is
+performed client-side anywhere in these editors.
+
+### Duplicate-submit / re-entrancy fix
+
+While building the duplicate-submit-prevention test, found and fixed a real
+bug: guarding re-entrant submits with `if (saving) return` (React state) is
+insufficient — two synchronous clicks in the same tick both read `saving` as
+`false` before the first `setSaving(true)` flushes. All three editors now use
+a `useRef` lock (`submitLock.current`) set/cleared synchronously around the
+request, which is what the test caught and required.
+
+### Contract limitations documented, not worked around
+
+- **PM-8 (Global unit scope):** no authoritative scope reference exists in the
+  current UI for `scope=global`, and `FRONTEND_CONTRACT.md` does not document
+  one. The Unit editor offers **Source and Channel only**; Global is not
+  guessed at. Filed in `PRICING_UI_CONTRACT.md`.
+- **PM-9 (No product lookup API):** `product_ref` (policy rules) and
+  `canonical_product_ids` (product groups) have no documented or discoverable
+  Pricing-Matrix-scoped search/lookup endpoint. Both editors use **direct
+  identifier-entry** (the operator types the canonical id) instead of
+  inventing a search API. Filed in `PRICING_UI_CONTRACT.md`.
+
+### Files added / changed (Stage 3)
+
+- `frontend/src/features/pricingMatrix/validation.ts` — new.
+- `frontend/src/features/pricingMatrix/validation.test.ts` — new (14 tests).
+- `frontend/src/features/pricingMatrix/useDirtyGuard.ts` — new.
+- `frontend/src/features/pricingMatrix/PricingErrorPanel.tsx` — new (shared).
+- `frontend/src/features/pricingMatrix/presentation.ts` — extended error
+  taxonomy (`PricingErrorKind`, `PRICING_ERROR_PRESENTATION`); `types.ts`
+  unchanged in Stage 3 (already PM-4/5/6-synced in Stage 2).
+- `frontend/src/features/pricingMatrix/index.ts` — re-export `validation.ts`.
+- `frontend/src/pages/PricingPolicyEditor.tsx` + `.test.tsx` — new (11 tests).
+- `frontend/src/pages/PricingProductGroupEditor.tsx` + `.test.tsx` — new (7 tests).
+- `frontend/src/pages/PricingUnitEditor.tsx` + `.test.tsx` — new (9 tests).
+- `frontend/src/pages/PricingMatrix.tsx` — refactored to shared error panel;
+  added "Create policy revision" / "Create product group revision" / "Declare
+  unit" entry points and a `?revision=` param to auto-select a newly created
+  policy on return; corrected `readOnlyNote` copy (authoring is now possible).
+  Uses `useNavigate`/`useSearchParams`, so its test now wraps in `MemoryRouter`.
+- `frontend/src/pages/PricingMatrix.test.tsx` — updated for the `MemoryRouter`
+  wrap and corrected `readOnlyNote` text (still 8 tests, all passing).
+- `frontend/src/i18n/locales/{en,fa}/pricing.json` — editor + new error-state strings.
+- `frontend/src/App.tsx` — 5 new lazy routes, gated `workspace.admin`.
+- `docs/architecture/PRICING_UI_CONTRACT.md` — Open Questions PM-8, PM-9.
+- `UI_RESUME.md` — this section.
+
+## Verification (Stage 2 + 3)
+
+Run in the `FlowHub-Claude-UI` worktree (`package-lock.json` unchanged):
+
+- **Targeted Stage 3 tests** — `validation.test.ts` (14) +
+  `PricingPolicyEditor.test.tsx` (11) + `PricingProductGroupEditor.test.tsx` (7) +
+  `PricingUnitEditor.test.tsx` (9): **41 passed**.
+- **TypeScript build** — `npx tsc -b`: **passed** (exit 0).
+- **Full frontend unit suite** — `npx vitest run`: **73 files, 553 tests
+  passed**, 0 failures (up from 69/512 in Stage 2 — the +4 files/+41 tests are
+  exactly the new Stage 3 test files). Stage 2's `PricingMatrix.test.tsx`
+  (8 tests) still passes unchanged after the `MemoryRouter` wrap.
+- **Production build** — `npm run build` (`tsc -b` + `vite build`): **passed**;
+  each new editor page bundles as its own lazy chunk
+  (`PricingPolicyEditor` ~18 kB, similarly for the other two).
+- `i18n:validate` not run — its pre-existing non-zero exit (two legacy
+  hardcoded strings) is unrelated; the `pricing` namespace has complete EN + FA
+  keys for every new string.
+- Browser verification: **not performed** (out of scope for this stage per
+  instruction).
+
 ## Not done (by design)
 
-- No mutations (activate/deactivate/create/edit), no preview/apply/diagnostics/
-  source-acquisition, no `allowed_actions` gating.
-- No `ServiceContext` registration for the pricing client.
-- No nav entry in `SettingsNav` (route reachable at `/settings/pricing`; nav
-  wiring deferred to avoid touching shared nav + its tests).
-- Not pushed; Codex `main` untouched.
+- No Channel activation/deactivation UI, no lifecycle CAS/conflict-resolution
+  UI, no Preview/Dry Run/Apply, no Source Acquisition, no Diagnostics, no
+  schema-drift UI, no automatic currency conversion.
+- No `ServiceContext` registration for the pricing client (used directly by
+  pages, matching Stage 2).
+- No nav entry in `SettingsNav` (routes reachable directly; nav wiring
+  deferred to avoid touching shared nav + its tests).
+- No Global unit scope (PM-8) and no product-search integration (PM-9) — both
+  documented limitations, not silent gaps.
+- Not merged again beyond the Stage-2 sync, not pushed; Codex `main` untouched
+  (verify current `main` HEAD in the final report — it may have advanced with
+  Source Acquisition backend work unrelated to this contract).
 
 ## Exact next recommended UI phase
 
-**UI Stage 3** — once Codex exposes the future evidence endpoints in
-`FRONTEND_CONTRACT.md` (Workspace Pricing Preview, Apply Result, Diagnostics,
-Source Acquisition, `allowed_actions`), extend beyond read-only. Nearer-term
-follow-ups that stay on the current callable contract, if the Owner wants them:
-a `SettingsNav` entry for `/settings/pricing`; mutation surfaces
-(activate/deactivate with the head-version/409 refetch flow behind
-`workspace.admin`); and policy/product-group authoring (`createPolicy` /
-`createProductGroup`). Do not implement preview, apply, diagnostics, or
-source-acquisition UI until those contracts become callable.
+**UI Stage 4** — per Owner's stage plan (6 total). Do not begin without an
+explicit instruction. Candidates that stay within the callable contract:
+Channel activation/deactivation UI (head-version/409 refetch flow, behind
+`workspace.admin`); a `SettingsNav` entry. Do not implement Preview, Apply,
+Diagnostics, or Source Acquisition UI until those contracts become callable in
+`FRONTEND_CONTRACT.md`.

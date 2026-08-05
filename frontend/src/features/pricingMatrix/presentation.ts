@@ -255,7 +255,10 @@ export function validateUnitDeclaration(value: unknown): UnitDeclaration {
 // ---------------------------------------------------------------------------
 
 export type PricingErrorKind =
+  | 'unauthenticated'
   | 'permission_denied'
+  | 'not_found'
+  | 'stale_state'
   | 'validation_error'
   | 'contract_mismatch'
   | 'unavailable'
@@ -267,16 +270,40 @@ export interface PricingErrorState {
 }
 
 /**
- * Map any thrown error into a distinct read-only state. Configuration/auth
- * faults (403), request validation (422), contract mismatches, and transport
- * failures are never collapsed into a single "error".
+ * Map any thrown error into a distinct state. Auth (401/403), a missing
+ * reference (404), an unexpected lifecycle/head conflict (409 — never
+ * silently retried), request validation (422), contract mismatches, and
+ * transport failures are never collapsed into a single "error".
  */
 export function classifyPricingError(error: unknown): PricingErrorState {
   if (error instanceof ContractMismatchError) return { kind: 'contract_mismatch', detail: error.detail }
   if (error instanceof ApiError) {
+    if (error.status === 401) return { kind: 'unauthenticated', status: 401 }
     if (error.status === 403) return { kind: 'permission_denied', status: 403 }
+    if (error.status === 404) return { kind: 'not_found', status: 404, detail: error.code }
+    if (error.status === 409) return { kind: 'stale_state', status: 409, detail: error.code }
     if (error.status === 422) return { kind: 'validation_error', status: 422, detail: error.code }
     return { kind: 'unavailable', status: error.status, detail: error.code }
   }
   return { kind: 'unavailable' }
+}
+
+/** Centralized label/tone mapping for every {@link PricingErrorKind} — one place to change copy or tone. */
+export interface PricingErrorPresentation {
+  readonly testId: string
+  readonly variant: 'warning' | 'error'
+  readonly titleKey: string
+  readonly messageKey: string
+  /** Whether a generic "retry the same request" action makes sense for this kind. */
+  readonly retryable: boolean
+}
+
+export const PRICING_ERROR_PRESENTATION: Record<PricingErrorKind, PricingErrorPresentation> = {
+  unauthenticated: { testId: 'pricing-unauthenticated', variant: 'warning', titleKey: 'pricing:state.unauthenticated.title', messageKey: 'pricing:state.unauthenticated.message', retryable: false },
+  permission_denied: { testId: 'pricing-permission-denied', variant: 'warning', titleKey: 'pricing:state.permissionDenied.title', messageKey: 'pricing:state.permissionDenied.message', retryable: false },
+  not_found: { testId: 'pricing-not-found', variant: 'warning', titleKey: 'pricing:state.notFound.title', messageKey: 'pricing:state.notFound.message', retryable: false },
+  stale_state: { testId: 'pricing-stale-state', variant: 'warning', titleKey: 'pricing:state.staleState.title', messageKey: 'pricing:state.staleState.message', retryable: false },
+  validation_error: { testId: 'pricing-validation-error', variant: 'warning', titleKey: 'pricing:state.validationError.title', messageKey: 'pricing:state.validationError.message', retryable: false },
+  contract_mismatch: { testId: 'pricing-contract-mismatch', variant: 'error', titleKey: 'pricing:state.contractMismatch.title', messageKey: 'pricing:state.contractMismatch.message', retryable: false },
+  unavailable: { testId: 'pricing-unavailable', variant: 'error', titleKey: 'pricing:state.unavailable.title', messageKey: 'pricing:state.unavailable.message', retryable: true },
 }

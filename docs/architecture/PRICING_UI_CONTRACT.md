@@ -724,3 +724,27 @@ unilaterally, and it does not invent behavior to paper over them.
   `unresolved`/`resolved`; activation lifecycle exposes `active`/`inactive`).
   Which contract/endpoint owns the composed per-channel precondition projection
   the future preview/apply UI will read, and when does it become callable?
+
+- **PM-8 — Authoritative scope reference for `global` unit declarations.**
+  `FRONTEND_CONTRACT.md`'s `GET/PUT /units/{scope}/{scopeReference}` documents
+  `scope: global | source | channel`, but gives no example or convention for
+  what `scopeReference` should be when `scope=global` (a fixed literal? an
+  account/workspace identifier? omitted?). UI Stage 3's Unit Declaration editor
+  has an authoritative reference for `source` (`CommerceSource.id`) and
+  `channel` (`CommerceChannel.id`) via the existing Commerce Hub data, but has
+  no equivalent authoritative source for a `global` reference, and declines to
+  invent one. The editor therefore offers only Source and Channel scopes.
+  Please document the intended `global` scope reference convention (or confirm
+  none is needed, e.g. an empty/omitted path segment) so a future UI phase can
+  add it without guessing.
+
+- **PM-9 — No authoritative product-identifier lookup for Pricing Matrix.**
+  `POST /policies` rules take an optional `product_ref`, and
+  `POST /product-groups` takes `canonical_product_ids`, but `FRONTEND_CONTRACT.md`
+  does not document (and no existing frontend service cleanly exposes) a
+  Pricing-Matrix-scoped product search/lookup API to resolve a human-entered
+  product name to its canonical identifier. UI Stage 3 therefore uses direct
+  identifier-entry (the operator types the canonical product id) for both
+  fields rather than inventing a product search API, per instruction. See
+  `UI_RESUME.md` for the UI-side note. If a canonical product lookup exists or
+  is planned, document its route here so a future phase can integrate it.

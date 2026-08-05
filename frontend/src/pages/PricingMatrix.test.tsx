@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
+import { MemoryRouter } from 'react-router'
 import PricingMatrix from './PricingMatrix'
 import { changeLocale } from '../i18n'
 
@@ -74,7 +75,13 @@ afterEach(async () => {
 })
 
 async function renderPage() {
-  await act(async () => { root.render(<PricingMatrix />) })
+  await act(async () => {
+    root.render(
+      <MemoryRouter initialEntries={['/settings/pricing']}>
+        <PricingMatrix />
+      </MemoryRouter>,
+    )
+  })
   await act(async () => { await Promise.resolve() })
   return container
 }
@@ -90,7 +97,7 @@ describe('PricingMatrix (read-only surfaces)', () => {
     vi.stubGlobal('fetch', vi.fn(async input => defaultResponder()(input as RequestInfo | URL)))
     const c = await renderPage()
     expect(c.querySelector('[data-testid="pricing-page"]')).not.toBeNull()
-    expect(c.textContent).toContain('This is a read-only view')
+    expect(c.textContent).toContain('Channel activation, pricing preview, and apply are not available')
     expect(c.querySelector('[data-testid="pricing-policy-row-rev-1"]')?.textContent).toContain('Retail EUR')
   })
 

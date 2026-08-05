@@ -37,6 +37,9 @@ const NotFound = lazy(() => import('./pages/NotFound'))
 const Orders = lazy(() => import('./pages/Orders'))
 const RateLimits = lazy(() => import('./pages/RateLimits'))
 const PricingMatrix = lazy(() => import('./pages/PricingMatrix'))
+const PricingPolicyEditor = lazy(() => import('./pages/PricingPolicyEditor'))
+const PricingProductGroupEditor = lazy(() => import('./pages/PricingProductGroupEditor'))
+const PricingUnitEditor = lazy(() => import('./pages/PricingUnitEditor'))
 const Settings = lazy(() => import('./pages/Settings'))
 const ExchangeRates = lazy(() => import('./pages/ExchangeRates'))
 const Setup = lazy(() => import('./pages/Setup'))
@@ -205,6 +208,11 @@ function SetupGate() {
           <Route path="/settings" element={<RequirePermission permission="can_view_settings"><Settings /></RequirePermission>} />
           <Route path="/settings/advanced" element={<RequirePermission permission="can_view_settings"><AdvancedSettings /></RequirePermission>} />
           <Route path="/settings/pricing" element={<RequirePermission permission="can_view_settings"><PricingMatrix /></RequirePermission>} />
+          <Route path="/settings/pricing/policies/new" element={<RequirePermission permission={WORKSPACE_PERMISSION.admin}><PricingPolicyEditor /></RequirePermission>} />
+          <Route path="/settings/pricing/policies/:revisionId/new-revision" element={<RequirePermission permission={WORKSPACE_PERMISSION.admin}><PricingPolicyEditor /></RequirePermission>} />
+          <Route path="/settings/pricing/product-groups/new" element={<RequirePermission permission={WORKSPACE_PERMISSION.admin}><PricingProductGroupEditor /></RequirePermission>} />
+          <Route path="/settings/pricing/product-groups/:revisionId/new-revision" element={<RequirePermission permission={WORKSPACE_PERMISSION.admin}><PricingProductGroupEditor /></RequirePermission>} />
+          <Route path="/settings/pricing/units/new" element={<RequirePermission permission={WORKSPACE_PERMISSION.admin}><PricingUnitEditor /></RequirePermission>} />
           <Route path="/settings/exchange-rates" element={<RequirePermission permission="can_access_site"><ExchangeRates /></RequirePermission>} />
           <Route path="/settings/users" element={<RequirePermission permission="can_view_settings" adminOnly><UserManagement /></RequirePermission>} />
           <Route path="/settings/rate-limits" element={<RequirePermission permission="can_view_settings"><RateLimits /></RequirePermission>} />
