@@ -1,4 +1,4 @@
-# FlowHub UI continuation handover — Pricing Matrix (Claude UI Stages 1–3)
+# FlowHub UI continuation handover — Pricing Matrix (Claude UI Stages 1–4)
 
 ## Read this first
 
@@ -9,8 +9,10 @@ records the state of the Claude UI work for the Pricing Matrix:
   mapping and client scaffolding.
 - **Stage 2** (commit `8ae5424`) — read-only Pricing Matrix surfaces built on the
   callable contract, after merging Codex's PM-1…PM-7 answers from `main`.
-- **Stage 3** — editable configuration for Policy Revisions, Product Group
-  Revisions, and Unit Declarations, on the same callable contract.
+- **Stage 3** (commit `001ec5c`) — editable configuration for Policy Revisions,
+  Product Group Revisions, and Unit Declarations, on the same callable contract.
+- **Stage 4** — Channel Policy Lifecycle mutations (activate/deactivate) with
+  `headVersion` optimistic concurrency and 409 conflict handling.
 
 - **Do not** treat this file as a backend contract. The callable contract is
   `FRONTEND_CONTRACT.md` at the repository root.
@@ -380,26 +382,100 @@ Run in the `FlowHub-Claude-UI` worktree (`package-lock.json` unchanged):
 - Browser verification: **not performed** (out of scope for this stage per
   instruction).
 
+## Verification (Stage 4)
+
+- **Targeted tests** — `PricingMatrix.test.tsx` (now 15 tests: the original
+  8 Stage 2/3 tests + 7 new "channel lifecycle actions" tests): **15 passed**.
+- **TypeScript build** — `npx tsc -b`: **passed** (exit 0).
+- **Full frontend unit suite** — `npx vitest run`: **73 files, 560 tests
+  passed**, 0 failures (up from 553 in Stage 3 — the +7 tests are exactly the
+  new Stage 4 tests; no file count change since they were added to the
+  existing `PricingMatrix.test.tsx`).
+- **Production build** — `npm run build`: **passed**.
+- Browser verification: **not performed** (excluded per instruction).
+- Confirmed before starting: `main` had not advanced the pricing contract
+  (`FRONTEND_CONTRACT.md` / `app/flowhub/pricing_matrix/`) since the Stage 2
+  sync at `6eb5610` — no merge was needed for this stage.
+
+## UI Stage 4 — delivered (channel policy lifecycle mutations)
+
+Activate/deactivate added directly to the existing Channel Policy Lifecycle
+card in `pages/PricingMatrix.tsx` (no new route, no new page — extends the
+Stage 2 read-only card in place):
+
+- **Activate:** `POST /channels/{channelId}/activate` with
+  `{ policy_revision_id: <the currently selected/viewed policy's own revision
+  id>, expected_head_version, reason }`. The policy revision is the one
+  already on screen — no separate policy picker was introduced.
+- **Deactivate:** `POST /channels/{channelId}/deactivate` with
+  `{ expected_head_version, reason }`.
+- **`expected_head_version`** is sent **exactly as received** from the last
+  `ChannelPolicyHead` fetch (`ExactInteger`, PM-4) — never recomputed or
+  incremented client-side.
+- **409 (`pricing_policy_head_conflict`) handling:** on conflict the code
+  refetches `GET .../head` and `GET .../lifecycle-events` for that channel
+  (`refreshChannelEvidence`), shows the existing `stale_state` presentation
+  ("This changed since you loaded it… reload before trying again"), and keeps
+  the action form open with the reason text intact. **The mutation itself is
+  never resubmitted automatically** — the user must review the refreshed Head
+  and click Activate/Deactivate again explicitly.
+- **Permission gating:** the inline Activate/Deactivate buttons only render
+  when `effectiveHasPerm(user, WORKSPACE_PERMISSION.admin)` is true. A
+  non-admin viewer still sees the full read-only card (status, head fields,
+  lifecycle events) — nothing is hidden beyond the mutation controls. This is
+  a UX convenience only; the backend enforces `workspace.admin` independently
+  (verified by the distinct-403 test), so client-side gating is not relied on
+  for security.
+- **Re-entrancy:** a `useRef`-based per-channel lock (`actionSubmitLock`)
+  prevents a duplicate POST from two synchronous clicks, matching the
+  Stage 3 fix.
+- **Form-state preservation:** on any failure (403/404/409/422/5xx/network)
+  the reason text and open form are preserved — only a fresh error panel is
+  shown via the existing `PricingErrorPanel`.
+- **No hardcoded colors / reused presentation:** the Active/Inactive badge
+  still uses Stage 2's `channelStatusPresentation` → `Badge` variant; errors
+  use the existing `PRICING_ERROR_PRESENTATION` map (unchanged in Stage 4).
+
+### Files changed (Stage 4)
+
+- `frontend/src/pages/PricingMatrix.tsx` — added `ChannelLifecycleActions`,
+  extended `ChannelLifecycleCard` with `canAdminister`/`action`/handlers,
+  added `channelActions` state, `refreshChannelEvidence`,
+  `openChannelAction`/`changeChannelActionReason`/`cancelChannelAction`/
+  `submitChannelAction` to the page component.
+- `frontend/src/pages/PricingMatrix.test.tsx` — added `AuthContext.Provider`
+  wrapping (now required: the page calls `useAuth()` for permission gating)
+  and a new "channel lifecycle actions" describe block (7 tests). The
+  existing 8 Stage 2/3 tests needed the same `AuthContext.Provider` wrap to
+  keep passing — no behavioral change, just the added auth context the page
+  now reads.
+- `frontend/src/i18n/locales/{en,fa}/pricing.json` — 5 new
+  `channels.actions.*` keys (reuses existing `editor.cancel`/`editor.saving`/
+  `state.staleState.*`/`state.permissionDenied.*`/`state.unavailable.*` —
+  no duplicate error strings were added).
+
 ## Not done (by design)
 
-- No Channel activation/deactivation UI, no lifecycle CAS/conflict-resolution
-  UI, no Preview/Dry Run/Apply, no Source Acquisition, no Diagnostics, no
+- No lifecycle CAS **conflict-resolution UI** beyond "refetch + notify +
+  require explicit retry" (no diff/merge view of what changed — out of scope
+  per instruction).
+- No Preview/Dry Run/Apply, no Source Acquisition, no Diagnostics, no
   schema-drift UI, no automatic currency conversion.
 - No `ServiceContext` registration for the pricing client (used directly by
-  pages, matching Stage 2).
+  pages, matching Stages 2–3).
 - No nav entry in `SettingsNav` (routes reachable directly; nav wiring
   deferred to avoid touching shared nav + its tests).
 - No Global unit scope (PM-8) and no product-search integration (PM-9) — both
   documented limitations, not silent gaps.
-- Not merged again beyond the Stage-2 sync, not pushed; Codex `main` untouched
-  (verify current `main` HEAD in the final report — it may have advanced with
-  Source Acquisition backend work unrelated to this contract).
+- Not merged again beyond the Stage-2 sync (Stage 3/4 confirmed no pricing-contract
+  changes landed on `main` since — see verification in the final report each
+  time), not pushed; Codex `main` untouched.
+- Browser verification: **not performed** (excluded per instruction).
 
 ## Exact next recommended UI phase
 
-**UI Stage 4** — per Owner's stage plan (6 total). Do not begin without an
-explicit instruction. Candidates that stay within the callable contract:
-Channel activation/deactivation UI (head-version/409 refetch flow, behind
-`workspace.admin`); a `SettingsNav` entry. Do not implement Preview, Apply,
-Diagnostics, or Source Acquisition UI until those contracts become callable in
-`FRONTEND_CONTRACT.md`.
+**UI Stage 5** — per Owner's stage plan (6 total). Do not begin without an
+explicit instruction. Candidates that stay within the callable contract: a
+`SettingsNav` entry for `/settings/pricing`; policy/product-group revision
+browsing UX polish. Do not implement Preview, Apply, Diagnostics, or Source
+Acquisition UI until those contracts become callable in `FRONTEND_CONTRACT.md`.

@@ -9,6 +9,9 @@ import Icon from '../components/Icon'
 import Empty from '../components/Empty'
 import Spinner from '../components/loading/Spinner'
 import { useNavigate, useSearchParams } from 'react-router'
+import { useAuth } from '../auth'
+import { effectiveHasPerm } from '../utils/permissions'
+import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 import { pricingMatrixApi } from '../features/pricingMatrix/api'
 import PricingErrorPanel from '../features/pricingMatrix/PricingErrorPanel'
 import {
@@ -38,6 +41,17 @@ import type {
   PolicySummary,
   UnitDeclaration,
 } from '../features/pricingMatrix/types'
+
+type LifecycleActionMode = 'activate' | 'deactivate'
+
+interface ChannelActionState {
+  readonly mode: LifecycleActionMode | null
+  readonly reason: string
+  readonly submitting: boolean
+  readonly error: PricingErrorState | null
+}
+
+const IDLE_ACTION: ChannelActionState = { mode: null, reason: '', submitting: false, error: null }
 
 type Load<T> =
   | { readonly status: 'loading' }
@@ -215,7 +229,95 @@ function LifecycleEvents({ channelId, events }: { channelId: string; events: rea
   )
 }
 
-function ChannelLifecycleCard({ channelId, state }: { channelId: string; state: ChannelState }) {
+function ChannelLifecycleActions({
+  channelId,
+  head,
+  action,
+  onOpen,
+  onReasonChange,
+  onCancel,
+  onSubmit,
+}: {
+  channelId: string
+  head: ChannelPolicyHead
+  action: ChannelActionState
+  onOpen: (mode: LifecycleActionMode) => void
+  onReasonChange: (value: string) => void
+  onCancel: () => void
+  onSubmit: () => void
+}) {
+  const reasonId = `pricing-channel-${channelId}-reason`
+  if (!action.mode) {
+    return (
+      <div className="mt-3">
+        {head.status === 'inactive' ? (
+          <button type="button" className="fh-button-secondary" data-testid={`pricing-channel-activate-${channelId}`} onClick={() => onOpen('activate')}>
+            {translate('pricing:channels.actions.activateAction')}
+          </button>
+        ) : (
+          <button type="button" className="fh-button-secondary" data-testid={`pricing-channel-deactivate-${channelId}`} onClick={() => onOpen('deactivate')}>
+            {translate('pricing:channels.actions.deactivateAction')}
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-3 space-y-3 rounded-[var(--fh-radius-md)] border border-border p-3" data-testid={`pricing-channel-action-form-${channelId}`}>
+      <div className="fh-field">
+        <label className="fh-label" htmlFor={reasonId}>{translate('pricing:channels.actions.reasonLabel')}</label>
+        <input
+          id={reasonId}
+          className={['fh-input', action.error?.kind === 'validation_error' && !action.reason ? 'fh-input-error' : ''].join(' ')}
+          value={action.reason}
+          onChange={event => onReasonChange(event.target.value)}
+          disabled={action.submitting}
+          data-testid={`pricing-channel-reason-${channelId}`}
+        />
+      </div>
+
+      {action.error && <PricingErrorPanel state={action.error} />}
+
+      <div className="flex gap-2">
+        <button type="button" className="fh-button-secondary" onClick={onCancel} disabled={action.submitting}>
+          {translate('pricing:editor.cancel')}
+        </button>
+        <button
+          type="button"
+          className="fh-button-primary"
+          onClick={onSubmit}
+          disabled={action.submitting || !action.reason.trim()}
+          data-testid={`pricing-channel-${action.mode}-confirm-${channelId}`}
+        >
+          {action.submitting
+            ? translate('pricing:editor.saving')
+            : translate(action.mode === 'activate' ? 'pricing:channels.actions.confirmActivate' : 'pricing:channels.actions.confirmDeactivate')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ChannelLifecycleCard({
+  channelId,
+  state,
+  canAdminister,
+  action,
+  onOpen,
+  onReasonChange,
+  onCancel,
+  onSubmit,
+}: {
+  channelId: string
+  state: ChannelState
+  canAdminister: boolean
+  action: ChannelActionState
+  onOpen: (mode: LifecycleActionMode) => void
+  onReasonChange: (value: string) => void
+  onCancel: () => void
+  onSubmit: () => void
+}) {
   return (
     <article className="fh-card p-4" data-testid={`pricing-channel-card-${channelId}`}>
       <header className="mb-3 flex items-center justify-between gap-2">
@@ -235,6 +337,18 @@ function ChannelLifecycleCard({ channelId, state }: { channelId: string; state: 
           <DefinitionRow label={translate('pricing:channels.head.channelConfig')}>{noneOr(state.head.data.channelConfigRevisionId)}</DefinitionRow>
           <DefinitionRow label={translate('pricing:channels.head.effectiveActivation')}>{noneOr(state.head.data.effectiveActivationId)}</DefinitionRow>
         </dl>
+      )}
+
+      {canAdminister && state.head.status === 'ready' && (
+        <ChannelLifecycleActions
+          channelId={channelId}
+          head={state.head.data}
+          action={action}
+          onOpen={onOpen}
+          onReasonChange={onReasonChange}
+          onCancel={onCancel}
+          onSubmit={onSubmit}
+        />
       )}
 
       {state.events.status === 'ready' && <LifecycleEvents channelId={channelId} events={state.events.data} />}
@@ -311,12 +425,18 @@ export default function PricingMatrix() {
   useTranslation()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const { user } = useAuth()
+  const canAdministerChannels = effectiveHasPerm(user, WORKSPACE_PERMISSION.admin)
   const [policies, setPolicies] = useState<Load<readonly PolicySummary[]>>(LOADING)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detail, setDetail] = useState<Load<PolicyRevision> | null>(null)
   const [channelIds, setChannelIds] = useState<readonly string[]>([])
   const [channels, setChannels] = useState<Record<string, ChannelState>>({})
+  const [channelActions, setChannelActions] = useState<Record<string, ChannelActionState>>({})
   const selectionToken = useRef(0)
+  // Guards re-entrancy per channel: two synchronous clicks both run before
+  // React flushes the first `submitting: true` state update.
+  const actionSubmitLock = useRef<Set<string>>(new Set())
 
   const loadPolicies = useCallback(async () => {
     setPolicies(LOADING)
@@ -389,6 +509,78 @@ export default function PricingMatrix() {
       }))
     })()
   }, [selectedId])
+
+  const refreshChannelEvidence = useCallback(async (channelId: string) => {
+    const [head, events] = await Promise.all([
+      pricingMatrixApi.getChannelHead(channelId).then(validateChannelHead).then(ready<ChannelPolicyHead>, (e: unknown) => failed<ChannelPolicyHead>(e)),
+      pricingMatrixApi.listChannelLifecycleEvents(channelId)
+        .then(response => {
+          if (!Array.isArray(response.items)) throw new Error('events_not_array')
+          return response.items.map(validateLifecycleEvent)
+        })
+        .then(ready<readonly LifecycleEvent[]>, (e: unknown) => failed<readonly LifecycleEvent[]>(e)),
+    ])
+    setChannels(prev => ({ ...prev, [channelId]: { ...prev[channelId], head, events } }))
+  }, [])
+
+  const openChannelAction = useCallback((channelId: string, mode: LifecycleActionMode) => {
+    setChannelActions(prev => ({ ...prev, [channelId]: { mode, reason: '', submitting: false, error: null } }))
+  }, [])
+
+  const changeChannelActionReason = useCallback((channelId: string, value: string) => {
+    setChannelActions(prev => ({ ...prev, [channelId]: { ...(prev[channelId] ?? IDLE_ACTION), reason: value } }))
+  }, [])
+
+  const cancelChannelAction = useCallback((channelId: string) => {
+    setChannelActions(prev => ({ ...prev, [channelId]: IDLE_ACTION }))
+  }, [])
+
+  const submitChannelAction = useCallback(async (channelId: string) => {
+    if (actionSubmitLock.current.has(channelId)) return
+    const current = channelActions[channelId]
+    const channelState = channels[channelId]
+    if (!current?.mode || !current.reason.trim()) return
+    if (channelState?.head.status !== 'ready') return
+    if (!detail || detail.status !== 'ready') return
+
+    actionSubmitLock.current.add(channelId)
+    setChannelActions(prev => ({ ...prev, [channelId]: { ...current, submitting: true, error: null } }))
+
+    try {
+      const headVersion = channelState.head.data.headVersion
+      const response = current.mode === 'activate'
+        ? await pricingMatrixApi.activateChannel(channelId, {
+          policy_revision_id: detail.data.id,
+          expected_head_version: headVersion,
+          reason: current.reason.trim(),
+        })
+        : await pricingMatrixApi.deactivateChannel(channelId, {
+          expected_head_version: headVersion,
+          reason: current.reason.trim(),
+        })
+      const nextHead = validateChannelHead(response)
+      setChannels(prev => ({ ...prev, [channelId]: { ...prev[channelId], head: ready(nextHead) } }))
+      // Lifecycle Events changed as a side effect of this mutation; refetch so the timeline stays authoritative.
+      const eventsResponse = await pricingMatrixApi.listChannelLifecycleEvents(channelId)
+      if (!Array.isArray(eventsResponse.items)) throw new Error('events_not_array')
+      setChannels(prev => ({ ...prev, [channelId]: { ...prev[channelId], events: ready(eventsResponse.items.map(validateLifecycleEvent)) } }))
+      setChannelActions(prev => ({ ...prev, [channelId]: IDLE_ACTION }))
+    } catch (error) {
+      const classified = classifyPricingError(error)
+      if (classified.kind === 'stale_state') {
+        // A 409 means the Head changed since it was loaded. Never retry the
+        // mutation automatically — only refresh the evidence the user must
+        // review before deciding to retry explicitly.
+        await refreshChannelEvidence(channelId)
+      }
+      // The reason text is intentionally preserved (from `current`) so the
+      // user does not have to retype it after a permission/validation/
+      // conflict/network failure.
+      setChannelActions(prev => ({ ...prev, [channelId]: { ...current, submitting: false, error: classified } }))
+    } finally {
+      actionSubmitLock.current.delete(channelId)
+    }
+  }, [channelActions, channels, detail, refreshChannelEvidence])
 
   return (
     <PageShell>
@@ -469,7 +661,17 @@ export default function PricingMatrix() {
           {selectedId && channelIds.length > 0 && (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {channelIds.map(id => (
-                <ChannelLifecycleCard key={id} channelId={id} state={channels[id] ?? { head: LOADING, unit: LOADING, events: LOADING }} />
+                <ChannelLifecycleCard
+                  key={id}
+                  channelId={id}
+                  state={channels[id] ?? { head: LOADING, unit: LOADING, events: LOADING }}
+                  canAdminister={canAdministerChannels}
+                  action={channelActions[id] ?? IDLE_ACTION}
+                  onOpen={mode => openChannelAction(id, mode)}
+                  onReasonChange={value => changeChannelActionReason(id, value)}
+                  onCancel={() => cancelChannelAction(id)}
+                  onSubmit={() => { void submitChannelAction(id) }}
+                />
               ))}
             </div>
           )}
