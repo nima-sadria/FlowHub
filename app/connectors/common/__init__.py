@@ -6,6 +6,7 @@ from .errors import ConnectorError, ConnectorErrorCode
 from .health import HealthResult, HealthStatus
 from .rate_limit import RateLimitConfig
 from .retry import RetryConfig
+from .source_http import SourceHttpClient, SourceHttpError, SourceHttpPolicy, SourceHttpResponse
 from .test_result import ConnectionTestResult
 from .types import ConnectorCapabilities, ConnectorID, ConnectorType
 
@@ -23,4 +24,8 @@ __all__ = [
     "RateLimitConfig",
     "RetryConfig",
     "SourceConnector",
+    "SourceHttpClient",
+    "SourceHttpError",
+    "SourceHttpPolicy",
+    "SourceHttpResponse",
 ]

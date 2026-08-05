@@ -271,6 +271,29 @@ The Stage 7 files are:
 PostgreSQL execution remains pending unless `FLOWHUB_TEST_POSTGRES_URL` is
 actually configured.
 
+## Stage 8 completed: Source acquisition network-security boundary
+
+`app.connectors.common.source_http` is the provider-neutral, injectable
+egress boundary for future Source acquisition stages. It accepts HTTPS by
+default; HTTP requires an explicit deployment-owned host allow-list. URL
+userinfo and unsupported schemes are rejected. Literal IPs and every DNS
+answer are validated fail-closed, including loopback, private networks unless
+explicitly allow-listed, link-local, multicast, unspecified, reserved, CGNAT,
+and IPv4-mapped IPv6 destinations.
+
+The boundary resolves once before each request, sends to the validated address
+while retaining Host/SNI, disables automatic redirects, revalidates every
+redirect, strips Authorization and Cookie across origins, and bounds redirects,
+headers, decoded response bytes, and total/connect/read time. Errors are stable
+codes only and `redact_url` masks secret-bearing query values and URL userinfo.
+
+This phase intentionally does not attach the boundary to a provider Run or the
+legacy Nextcloud connector: provider execution and Source stage wiring belong
+to Stage 9. Therefore Stage 8 proves that unsafe requests are blocked before
+the boundary sends them, but it does not yet create Run failure/Observation
+integration records. Do not claim runtime provider acquisition is hardened
+until Stage 9 wires every Source adapter through this boundary.
+
 ## Temporary TODOs
 
 There are no temporary `TODO`/`FIXME` comments in code. The remaining work is represented by the phases below, not by placeholder implementation.
