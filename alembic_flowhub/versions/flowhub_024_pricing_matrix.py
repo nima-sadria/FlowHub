@@ -131,6 +131,11 @@ def upgrade() -> None:
     op.create_index(
         "ix_pm_rule_scope", "pm_rule_entries", ["policy_revision_id", "channel_id", "product_ref"]
     )
+    op.create_index(
+        "ix_pm_rule_entries_product_group_revision_id",
+        "pm_rule_entries",
+        ["product_group_revision_id"],
+    )
 
     op.create_table(
         "pm_channel_config_revisions",
@@ -191,6 +196,16 @@ def upgrade() -> None:
         "pm_policy_lifecycle_events",
         ["effective_activation_id"],
     )
+    op.create_index(
+        "ix_pm_policy_lifecycle_events_event_kind",
+        "pm_policy_lifecycle_events",
+        ["event_kind"],
+    )
+    op.create_index(
+        "ix_pm_policy_lifecycle_events_policy_revision_id",
+        "pm_policy_lifecycle_events",
+        ["policy_revision_id"],
+    )
 
     op.create_table(
         "pm_channel_policy_heads",
@@ -208,7 +223,13 @@ def upgrade() -> None:
         sa.text(
             """
             INSERT INTO pm_channel_policy_heads (channel_id, head_version, updated_at)
-            SELECT id, 0, CURRENT_TIMESTAMP FROM uw_channels
+            SELECT channel.id, 0, CURRENT_TIMESTAMP
+            FROM uw_channels AS channel
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM pm_channel_policy_heads AS head
+                WHERE head.channel_id = channel.id
+            )
             """
         )
     )
@@ -269,18 +290,12 @@ def upgrade() -> None:
     )
     op.create_index("ix_pm_attention_signals_source", "pm_attention_signals", ["source_id"])
     op.create_index("ix_pm_attention_signals_channel", "pm_attention_signals", ["channel_id"])
+    op.create_index("ix_pm_attention_signals_outcome_code", "pm_attention_signals", ["outcome_code"])
+    op.create_index("ix_pm_attention_signals_status", "pm_attention_signals", ["status"])
 
 
 def downgrade() -> None:
-    for table in (
-        "pm_attention_signals",
-        "pm_workspace_bindings",
-        "pm_channel_policy_heads",
-        "pm_policy_lifecycle_events",
-        "pm_channel_config_revisions",
-        "pm_rule_entries",
-        "pm_product_group_members",
-        "pm_product_group_revisions",
-        "pm_policy_revisions",
-    ):
-        op.drop_table(table)
+    raise NotImplementedError(
+        "FLOWHUB_024 is forward-only: downgrading would destroy immutable Pricing Matrix "
+        "policy, activation, and Workspace binding audit records. Restore a verified backup instead."
+    )

@@ -71,12 +71,12 @@ def test_webhook_identity_migration_downgrade_and_reupgrade(tmp_path, monkeypatc
     database_path = tmp_path / "roundtrip-023.sqlite"
     database_url = f"sqlite:///{database_path}"
     monkeypatch.setenv("FLOWHUB_DATABASE_URL", database_url)
-    command.upgrade(_config(), "head")
+    command.upgrade(_config(), "FLOWHUB_023")
     command.downgrade(_config(), "FLOWHUB_022")
     engine = sa.create_engine(database_url)
     assert "webhook_provider_event_identities" not in sa.inspect(engine).get_table_names()
 
-    command.upgrade(_config(), "head")
+    command.upgrade(_config(), "FLOWHUB_023")
 
     assert "webhook_provider_event_identities" in sa.inspect(engine).get_table_names()
     engine.dispose()
