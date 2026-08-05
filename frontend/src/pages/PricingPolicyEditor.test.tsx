@@ -256,3 +256,62 @@ describe('PricingPolicyEditor', () => {
     expect((c.querySelector('[data-testid="pricing-policy-editor-rule-0-rate-value"]') as HTMLInputElement).value).toBe(bigValue)
   })
 })
+
+// -- UI Stage 5: RTL, responsive, theme, accessibility, keyboard ---------------
+
+describe('PricingPolicyEditor — RTL, responsive, and accessibility (UI Stage 5)', () => {
+  it('sets document direction to rtl and renders Persian labels', async () => {
+    await changeLocale('fa')
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    expect(document.documentElement.dir).toBe('rtl')
+    expect(c.querySelector('label[for="policy-name"]')?.textContent).toBeTruthy()
+  })
+
+  it('lays out the top-level fields as a responsive two-column grid from tablet up', async () => {
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    const grid = c.querySelector('#policy-name')?.closest('.fh-form-grid')
+    expect(grid?.className).toContain('md:grid-cols-2')
+  })
+
+  it('keeps the submit action bar wrappable instead of clipped', async () => {
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    const actions = c.querySelector('[data-testid="pricing-policy-editor-actions"]')
+    expect(actions?.className).toContain('flex-wrap')
+  })
+
+  it('associates every top-level and rule-level error with its field via aria-describedby', async () => {
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    const addRule = c.querySelector('[data-testid="pricing-policy-editor-add-rule"]') as HTMLButtonElement
+    await act(async () => { addRule.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    await settle()
+    setValue(c.querySelector('[data-testid="pricing-policy-editor-rule-0-rate-value"]'), 'not-a-number')
+    await settle()
+
+    const rateValueInput = c.querySelector('[data-testid="pricing-policy-editor-rule-0-rate-value"]') as HTMLInputElement
+    expect(rateValueInput.getAttribute('aria-invalid')).toBe('true')
+    const describedBy = rateValueInput.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    expect(c.querySelector(`[id="${describedBy}"]`)?.textContent).toBeTruthy()
+  })
+
+  it('preserves a very long English policy name without clipping it', async () => {
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    const longName = 'Retail Configuration '.repeat(15).trim()
+    setValue(c.querySelector('#policy-name'), longName)
+    expect((c.querySelector('#policy-name') as HTMLInputElement).value).toBe(longName)
+  })
+
+  it('preserves a very long Persian policy name without clipping it', async () => {
+    await changeLocale('fa')
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    const longName = 'سیاست قیمت‌گذاری خرده‌فروشی برای کانال‌های متعدد و بازنگری‌های آینده '.repeat(3).trim()
+    setValue(c.querySelector('#policy-name'), longName)
+    expect((c.querySelector('#policy-name') as HTMLInputElement).value).toBe(longName)
+  })
+})

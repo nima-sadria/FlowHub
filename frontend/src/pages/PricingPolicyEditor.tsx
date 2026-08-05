@@ -362,7 +362,7 @@ export default function PricingPolicyEditor() {
           />
         </header>
 
-        <div className="fh-card p-4 fh-form-grid">
+        <div className="fh-card p-4 fh-form-grid md:grid-cols-2">
           <div className="fh-field">
             <label className="fh-label" htmlFor="policy-name">{translate('pricing:policyEditor.field.name')}</label>
             <input id="policy-name" className={['fh-input', errors.name ? 'fh-input-error' : ''].join(' ')} value={form.name} onChange={event => updateField('name', event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'policy-name-error' : undefined} />
@@ -384,8 +384,8 @@ export default function PricingPolicyEditor() {
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="policy-currency">{translate('pricing:policyEditor.field.currency')}</label>
-            <input id="policy-currency" className={['fh-input', errors.computationCurrency ? 'fh-input-error' : ''].join(' ')} value={form.computationCurrency} onChange={event => updateField('computationCurrency', event.target.value.toUpperCase())} aria-invalid={Boolean(errors.computationCurrency)} />
-            {errors.computationCurrency && <p className="fh-field-error">{errors.computationCurrency}</p>}
+            <input id="policy-currency" className={['fh-input', errors.computationCurrency ? 'fh-input-error' : ''].join(' ')} value={form.computationCurrency} onChange={event => updateField('computationCurrency', event.target.value.toUpperCase())} aria-invalid={Boolean(errors.computationCurrency)} aria-describedby={errors.computationCurrency ? 'policy-currency-error' : undefined} />
+            {errors.computationCurrency && <p id="policy-currency-error" className="fh-field-error">{errors.computationCurrency}</p>}
           </div>
 
           <div className="fh-field">
@@ -397,20 +397,20 @@ export default function PricingPolicyEditor() {
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="policy-quote-age">{translate('pricing:policyEditor.field.maxQuoteAgeDays')}</label>
-            <input id="policy-quote-age" className={['fh-input', errors.maxQuoteAgeDays ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" value={form.maxQuoteAgeDays} onChange={event => updateField('maxQuoteAgeDays', event.target.value)} aria-invalid={Boolean(errors.maxQuoteAgeDays)} />
-            {errors.maxQuoteAgeDays && <p className="fh-field-error">{errors.maxQuoteAgeDays}</p>}
+            <input id="policy-quote-age" className={['fh-input', errors.maxQuoteAgeDays ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" value={form.maxQuoteAgeDays} onChange={event => updateField('maxQuoteAgeDays', event.target.value)} aria-invalid={Boolean(errors.maxQuoteAgeDays)} aria-describedby={errors.maxQuoteAgeDays ? 'policy-quote-age-error' : undefined} />
+            {errors.maxQuoteAgeDays && <p id="policy-quote-age-error" className="fh-field-error">{errors.maxQuoteAgeDays}</p>}
           </div>
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="policy-min-quotes">{translate('pricing:policyEditor.field.minQuoteCount')}</label>
-            <input id="policy-min-quotes" className={['fh-input', errors.minQuoteCount ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" value={form.minQuoteCount} onChange={event => updateField('minQuoteCount', event.target.value)} aria-invalid={Boolean(errors.minQuoteCount)} />
-            {errors.minQuoteCount && <p className="fh-field-error">{errors.minQuoteCount}</p>}
+            <input id="policy-min-quotes" className={['fh-input', errors.minQuoteCount ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" value={form.minQuoteCount} onChange={event => updateField('minQuoteCount', event.target.value)} aria-invalid={Boolean(errors.minQuoteCount)} aria-describedby={errors.minQuoteCount ? 'policy-min-quotes-error' : undefined} />
+            {errors.minQuoteCount && <p id="policy-min-quotes-error" className="fh-field-error">{errors.minQuoteCount}</p>}
           </div>
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="policy-timezone">{translate('pricing:policyEditor.field.timezone')}</label>
-            <input id="policy-timezone" className={['fh-input', errors.evaluationTimezone ? 'fh-input-error' : ''].join(' ')} value={form.evaluationTimezone} onChange={event => updateField('evaluationTimezone', event.target.value)} aria-invalid={Boolean(errors.evaluationTimezone)} />
-            {errors.evaluationTimezone && <p className="fh-field-error">{errors.evaluationTimezone}</p>}
+            <input id="policy-timezone" className={['fh-input', errors.evaluationTimezone ? 'fh-input-error' : ''].join(' ')} value={form.evaluationTimezone} onChange={event => updateField('evaluationTimezone', event.target.value)} aria-invalid={Boolean(errors.evaluationTimezone)} aria-describedby={errors.evaluationTimezone ? 'policy-timezone-error' : undefined} />
+            {errors.evaluationTimezone && <p id="policy-timezone-error" className="fh-field-error">{errors.evaluationTimezone}</p>}
           </div>
         </div>
 
@@ -430,7 +430,7 @@ export default function PricingPolicyEditor() {
               return (
                 <div key={rule.key} className="rounded-[var(--fh-radius-md)] border border-border p-3" data-testid={`pricing-policy-editor-rule-${index}`}>
                   <div className="flex items-start justify-between gap-2">
-                    <div className="fh-form-grid flex-1">
+                    <div className="fh-form-grid flex-1 md:grid-cols-2">
                       <div className="fh-field">
                         <label className="fh-label" htmlFor={`rule-${rule.key}-channel`}>{translate('pricing:policyEditor.rule.channel')}</label>
                         <select
@@ -439,11 +439,16 @@ export default function PricingPolicyEditor() {
                           value={rule.channelId}
                           onChange={event => updateRule(rule.key, { channelId: event.target.value })}
                           data-testid={`pricing-policy-editor-rule-${index}-channel`}
+                          aria-invalid={Boolean(ruleErrors?.channelId || ruleErrors?.duplicate)}
+                          aria-describedby={[
+                            ruleErrors?.channelId ? `rule-${rule.key}-channel-error` : null,
+                            ruleErrors?.duplicate ? `rule-${rule.key}-duplicate-error` : null,
+                          ].filter(Boolean).join(' ') || undefined}
                         >
                           <option value="">—</option>
                           {channelOptions.map(id => <option key={id} value={id}>{id}</option>)}
                         </select>
-                        {ruleErrors?.channelId && <p className="fh-field-error">{ruleErrors.channelId}</p>}
+                        {ruleErrors?.channelId && <p id={`rule-${rule.key}-channel-error`} className="fh-field-error">{ruleErrors.channelId}</p>}
                       </div>
 
                       <div className="fh-field">
@@ -454,6 +459,8 @@ export default function PricingPolicyEditor() {
                           value={rule.targetKind}
                           onChange={event => updateRule(rule.key, { targetKind: event.target.value as TargetKind })}
                           data-testid={`pricing-policy-editor-rule-${index}-target-kind`}
+                          aria-invalid={Boolean(ruleErrors?.target)}
+                          aria-describedby={ruleErrors?.target ? `rule-${rule.key}-target-error` : undefined}
                         >
                           <option value="none">{translate('pricing:policyEditor.rule.targetKind.none')}</option>
                           <option value="product">{translate('pricing:policyEditor.rule.targetKind.product')}</option>
@@ -488,14 +495,14 @@ export default function PricingPolicyEditor() {
 
                       <div className="fh-field">
                         <label className="fh-label" htmlFor={`rule-${rule.key}-rate-value`}>{translate('pricing:policyEditor.rule.rateValue')}</label>
-                        <input id={`rule-${rule.key}-rate-value`} className={['fh-input', ruleErrors?.rateValue ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" dir="ltr" value={rule.rateValue} onChange={event => updateRule(rule.key, { rateValue: event.target.value })} data-testid={`pricing-policy-editor-rule-${index}-rate-value`} />
-                        {ruleErrors?.rateValue && <p className="fh-field-error">{ruleErrors.rateValue}</p>}
+                        <input id={`rule-${rule.key}-rate-value`} className={['fh-input', ruleErrors?.rateValue ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" dir="ltr" value={rule.rateValue} onChange={event => updateRule(rule.key, { rateValue: event.target.value })} data-testid={`pricing-policy-editor-rule-${index}-rate-value`} aria-invalid={Boolean(ruleErrors?.rateValue)} aria-describedby={ruleErrors?.rateValue ? `rule-${rule.key}-rate-value-error` : undefined} />
+                        {ruleErrors?.rateValue && <p id={`rule-${rule.key}-rate-value-error`} className="fh-field-error">{ruleErrors.rateValue}</p>}
                       </div>
 
                       <div className="fh-field">
                         <label className="fh-label" htmlFor={`rule-${rule.key}-fixed-addend`}>{translate('pricing:policyEditor.rule.fixedAddendMinor')}</label>
-                        <input id={`rule-${rule.key}-fixed-addend`} className={['fh-input', ruleErrors?.fixedAddendMinor ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" dir="ltr" value={rule.fixedAddendMinor} onChange={event => updateRule(rule.key, { fixedAddendMinor: event.target.value })} />
-                        {ruleErrors?.fixedAddendMinor && <p className="fh-field-error">{ruleErrors.fixedAddendMinor}</p>}
+                        <input id={`rule-${rule.key}-fixed-addend`} className={['fh-input', ruleErrors?.fixedAddendMinor ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" dir="ltr" value={rule.fixedAddendMinor} onChange={event => updateRule(rule.key, { fixedAddendMinor: event.target.value })} aria-invalid={Boolean(ruleErrors?.fixedAddendMinor)} aria-describedby={ruleErrors?.fixedAddendMinor ? `rule-${rule.key}-fixed-addend-error` : undefined} />
+                        {ruleErrors?.fixedAddendMinor && <p id={`rule-${rule.key}-fixed-addend-error`} className="fh-field-error">{ruleErrors.fixedAddendMinor}</p>}
                       </div>
 
                       <div className="fh-field">
@@ -507,22 +514,22 @@ export default function PricingPolicyEditor() {
 
                       <div className="fh-field">
                         <label className="fh-label" htmlFor={`rule-${rule.key}-round-step`}>{translate('pricing:policyEditor.rule.roundStepMinor')}</label>
-                        <input id={`rule-${rule.key}-round-step`} className={['fh-input', ruleErrors?.roundStepMinor ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" dir="ltr" value={rule.roundStepMinor} onChange={event => updateRule(rule.key, { roundStepMinor: event.target.value })} />
-                        {ruleErrors?.roundStepMinor && <p className="fh-field-error">{ruleErrors.roundStepMinor}</p>}
+                        <input id={`rule-${rule.key}-round-step`} className={['fh-input', ruleErrors?.roundStepMinor ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" dir="ltr" value={rule.roundStepMinor} onChange={event => updateRule(rule.key, { roundStepMinor: event.target.value })} aria-invalid={Boolean(ruleErrors?.roundStepMinor)} aria-describedby={ruleErrors?.roundStepMinor ? `rule-${rule.key}-round-step-error` : undefined} />
+                        {ruleErrors?.roundStepMinor && <p id={`rule-${rule.key}-round-step-error`} className="fh-field-error">{ruleErrors.roundStepMinor}</p>}
                       </div>
 
                       <div className="fh-field">
                         <label className="fh-label" htmlFor={`rule-${rule.key}-surcharge`}>{translate('pricing:policyEditor.rule.surchargeMinor')}</label>
-                        <input id={`rule-${rule.key}-surcharge`} className={['fh-input', ruleErrors?.surchargeMinor ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" dir="ltr" value={rule.surchargeMinor} onChange={event => updateRule(rule.key, { surchargeMinor: event.target.value })} />
-                        {ruleErrors?.surchargeMinor && <p className="fh-field-error">{ruleErrors.surchargeMinor}</p>}
+                        <input id={`rule-${rule.key}-surcharge`} className={['fh-input', ruleErrors?.surchargeMinor ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" dir="ltr" value={rule.surchargeMinor} onChange={event => updateRule(rule.key, { surchargeMinor: event.target.value })} aria-invalid={Boolean(ruleErrors?.surchargeMinor)} aria-describedby={ruleErrors?.surchargeMinor ? `rule-${rule.key}-surcharge-error` : undefined} />
+                        {ruleErrors?.surchargeMinor && <p id={`rule-${rule.key}-surcharge-error`} className="fh-field-error">{ruleErrors.surchargeMinor}</p>}
                       </div>
                     </div>
                     <button type="button" className="fh-button-secondary" onClick={() => removeRule(rule.key)} aria-label={translate('pricing:policyEditor.removeRule')}>
                       <Icon name="delete" aria-hidden="true" />
                     </button>
                   </div>
-                  {ruleErrors?.target && <p className="fh-field-error mt-2" data-testid={`pricing-policy-editor-rule-${index}-target-error`}>{ruleErrors.target}</p>}
-                  {ruleErrors?.duplicate && <p className="fh-field-error mt-2" data-testid={`pricing-policy-editor-rule-${index}-duplicate-error`}>{ruleErrors.duplicate}</p>}
+                  {ruleErrors?.target && <p id={`rule-${rule.key}-target-error`} className="fh-field-error mt-2" data-testid={`pricing-policy-editor-rule-${index}-target-error`}>{ruleErrors.target}</p>}
+                  {ruleErrors?.duplicate && <p id={`rule-${rule.key}-duplicate-error`} className="fh-field-error mt-2" data-testid={`pricing-policy-editor-rule-${index}-duplicate-error`}>{ruleErrors.duplicate}</p>}
                 </div>
               )
             })}
@@ -535,9 +542,9 @@ export default function PricingPolicyEditor() {
 
         {submitError && <PricingErrorPanel state={submitError} />}
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2" data-testid="pricing-policy-editor-actions">
           {dirty && <span className="fh-text-body-sm font-medium text-wp-yellow">{translate('pricing:editor.unsavedChanges')}</span>}
-          <div className="ms-auto flex gap-2">
+          <div className="ms-auto flex flex-wrap gap-2">
             <button type="button" className="fh-button-secondary" onClick={handleCancel}>{translate('pricing:editor.cancel')}</button>
             <button type="submit" className="fh-button-primary" disabled={saving || hasErrors(errors)} data-testid="pricing-policy-editor-submit">
               {saving ? translate('pricing:editor.saving') : translate('pricing:editor.submit')}

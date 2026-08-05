@@ -1,4 +1,4 @@
-# FlowHub UI continuation handover — Pricing Matrix (Claude UI Stages 1–4)
+# FlowHub UI continuation handover — Pricing Matrix (Claude UI Stages 1–5)
 
 ## Read this first
 
@@ -11,8 +11,11 @@ records the state of the Claude UI work for the Pricing Matrix:
   callable contract, after merging Codex's PM-1…PM-7 answers from `main`.
 - **Stage 3** (commit `001ec5c`) — editable configuration for Policy Revisions,
   Product Group Revisions, and Unit Declarations, on the same callable contract.
-- **Stage 4** — Channel Policy Lifecycle mutations (activate/deactivate) with
-  `headVersion` optimistic concurrency and 409 conflict handling.
+- **Stage 4** (commit `7421a93`) — Channel Policy Lifecycle mutations
+  (activate/deactivate) with `headVersion` optimistic concurrency and 409
+  conflict handling.
+- **Stage 5** — RTL, responsive (mobile/tablet/desktop), light/dark theme, and
+  accessibility hardening across all four Pricing pages.
 
 - **Do not** treat this file as a backend contract. The callable contract is
   `FRONTEND_CONTRACT.md` at the repository root.
@@ -454,6 +457,115 @@ Stage 2 read-only card in place):
   `state.staleState.*`/`state.permissionDenied.*`/`state.unavailable.*` —
   no duplicate error strings were added).
 
+## UI Stage 5 — delivered (RTL, responsive, theme, accessibility)
+
+Since browser verification is excluded, "verification" here means: (1) an
+in-code audit of all four Pricing pages against the requirement list, fixing
+every real gap found, and (2) jsdom-based automated tests that exercise the
+same DOM properties a manual check would (document direction, class presence,
+ARIA linkage, focus target) — not visual/pixel review.
+
+### Real gaps found and fixed
+
+- **Responsive grids inconsistent with the rest of the app.** All three
+  editors' `fh-form-grid` containers (top-level fields in all three, plus the
+  per-rule field grid in the Policy editor) were bare `fh-form-grid` —
+  single-column at every breakpoint. Fixed to `fh-form-grid md:grid-cols-2`,
+  matching the established convention already used in `CommerceHub.tsx`.
+- **Long text could overflow instead of wrap.** The policy-list row (name +
+  revision badge) and the channel-lifecycle-card header (channel id + status
+  badge) had no `min-w-0`/`break-words` on the text sibling in a
+  `justify-between` flex row — a long English or Persian name would not wrap
+  and could overflow the row. Fixed both, following the `min-w-0` convention
+  already used in `CommerceHub.tsx`.
+- **Action bars not wrap-safe.** All three editors' submit/cancel bar, and the
+  channel lifecycle action form's Cancel/Confirm row, used bare `flex
+  items-center justify-between gap-2` with no `flex-wrap` — on a narrow
+  viewport with longer (esp. Persian) button labels this could force
+  horizontal overflow instead of wrapping to a second line. Fixed to
+  `flex flex-wrap …`, matching the sticky action bar pattern already
+  established in `SourceConfiguration.tsx` (`flex flex-wrap items-center
+  gap-2`).
+- **Inconsistent/missing `aria-describedby`.** Only one field
+  (`policy-name`) had a proper `id`/`aria-describedby` pairing from its error
+  message back to its own field; every other field across all three editors
+  had `aria-invalid` (or nothing at all, in the Unit editor) but no announced
+  link to its error text. Fixed every field in all three editors — including
+  the two row-level rule errors (`target`/`duplicate`), which are now
+  associated with the most relevant control (target-kind select, channel
+  select) rather than left floating. The channel lifecycle action form's
+  reason field and its error region got the same treatment.
+- **No focus management on the lifecycle action reveal.** Opening "Activate"/
+  "Deactivate" showed the reason field but never moved focus there, so
+  keyboard/screen-reader users had to tab-hunt for it. Added a
+  `ref.current?.focus()` on open, matching the lightweight
+  `ref.current?.focus()` pattern already used in `Setup.tsx` and
+  `SourceCenter.tsx` (not a full focus-trap — that pattern is reserved in this
+  codebase for actual `role="dialog"` modals, which the Pricing pages don't
+  have).
+
+### Confirmed already compliant (no change needed)
+
+- No hardcoded `left`/`right`/`ml-`/`mr-`/`pl-`/`pr-` classes anywhere in the
+  four pages — already using logical properties (`gap`, `ms-auto`, flex
+  direction-awareness). No hardcoded hex/rgb colors or inline color styles
+  anywhere (now locked in by `pages/pricingThemeCompliance.test.ts`).
+- `.fh-button-secondary`/`.fh-button-primary` (`min-height: 44px`) and
+  `.fh-input`/`.fh-select` (`min-height: 46px`, `width: 100%`) already meet the
+  44×44 CSS px touch-target minimum by reuse of the shared design system — no
+  page-level sizing overrides exist.
+- Both data tables (`PolicyRulesTable`, `UnitsTable`) were already wrapped in
+  `overflow-x-auto` since Stage 2 — confirmed still present, not clipped.
+- No custom dropdowns/listboxes exist (only native `<select>`) and no
+  dialogs/modals/overlays exist anywhere in the Pricing feature — both "no
+  clipped dropdowns" and "no clipped dialogs" are satisfied by construction,
+  confirmed by a source grep for `fixed `/`absolute `/`role="dialog"`/`<dialog`
+  (no matches).
+- IDs, channel identifiers, revision numbers, and monetary values were already
+  wrapped in `<bdi dir="ltr">` since Stage 2/3 for bidirectional isolation —
+  confirmed still present and exercised under `dir="rtl"` in new tests.
+
+### Files changed (Stage 5)
+
+- `frontend/src/pages/PricingMatrix.tsx` — responsive/wrap fixes (policy row,
+  channel card header, lifecycle action button row), full `aria-describedby`
+  wiring on the reason field, focus-on-open for the lifecycle action form.
+- `frontend/src/pages/PricingPolicyEditor.tsx` — `md:grid-cols-2` on both
+  form grids, full `aria-describedby` wiring on every top-level and rule field
+  (including the two row-level rule errors), `flex-wrap` on the action bar.
+- `frontend/src/pages/PricingProductGroupEditor.tsx` — `md:grid-cols-2`,
+  `aria-describedby` on name + member fields, `flex-wrap` on the action bar.
+- `frontend/src/pages/PricingUnitEditor.tsx` — `md:grid-cols-2`,
+  `aria-describedby` on every field, `flex-wrap` on the action bar.
+- `frontend/src/pages/pricingThemeCompliance.test.ts` — new; static source
+  guard (via the same `import.meta.glob('./*.tsx', { query: '?raw' })` raw-read
+  pattern as the existing `pages/layoutRules.test.ts` and
+  `mojibakeGuard.test.ts`) asserting none of the four Pricing pages contain a
+  hardcoded hex/rgb color or inline color style.
+- `frontend/src/pages/PricingMatrix.test.tsx`,
+  `PricingPolicyEditor.test.tsx`, `PricingProductGroupEditor.test.tsx`,
+  `PricingUnitEditor.test.tsx` — added a "RTL, responsive, and accessibility
+  (UI Stage 5)" describe block to each (24 new tests total): document
+  direction under Persian, `<bdi dir="ltr">` isolation, long English/Persian
+  text preserved without truncation, responsive grid/action-bar classes
+  present, table `overflow-x-auto` wrapping, `aria-describedby` linkage,
+  label/control `id` pairing, and focus landing in the reason field on open.
+
+## Verification (Stage 5)
+
+- **Targeted tests** — the four `Pricing*.test.tsx` files plus
+  `pricingThemeCompliance.test.ts`: **66 tests passed** (23 + 17 + 12 + 13 + 1).
+- **TypeScript build** — `npx tsc -b`: **passed** (exit 0).
+- **Full frontend unit suite** — `npx vitest run`: **74 files, 584 tests
+  passed**, 0 failures (up from 560 in Stage 4 — +24 Stage 5 tests, no
+  regressions in the pre-existing 560).
+- **Production build** — `npm run build`: **passed**.
+- Browser verification: **not performed** (excluded per instruction; the
+  audit above is a code-level review plus jsdom-testable properties, not a
+  visual/pixel check).
+- Confirmed before starting: `main` had not advanced the pricing contract
+  since the Stage 2 sync — no merge needed.
+
 ## Not done (by design)
 
 - No lifecycle CAS **conflict-resolution UI** beyond "refetch + notify +
@@ -467,15 +579,19 @@ Stage 2 read-only card in place):
   deferred to avoid touching shared nav + its tests).
 - No Global unit scope (PM-8) and no product-search integration (PM-9) — both
   documented limitations, not silent gaps.
-- Not merged again beyond the Stage-2 sync (Stage 3/4 confirmed no pricing-contract
-  changes landed on `main` since — see verification in the final report each
-  time), not pushed; Codex `main` untouched.
-- Browser verification: **not performed** (excluded per instruction).
+- No actual browser/visual verification at any breakpoint or theme — Stage 5
+  fixed and tested every DOM-observable property jsdom can see, but real
+  layout, wrapping, and contrast can only be confirmed in a browser.
+- Not merged again beyond the Stage-2 sync (Stage 3/4/5 all confirmed no
+  pricing-contract changes landed on `main` since), not pushed; Codex `main`
+  untouched.
 
 ## Exact next recommended UI phase
 
-**UI Stage 5** — per Owner's stage plan (6 total). Do not begin without an
-explicit instruction. Candidates that stay within the callable contract: a
-`SettingsNav` entry for `/settings/pricing`; policy/product-group revision
-browsing UX polish. Do not implement Preview, Apply, Diagnostics, or Source
-Acquisition UI until those contracts become callable in `FRONTEND_CONTRACT.md`.
+**UI Stage 6** — per Owner's stage plan (6 total, final). Do not begin without
+an explicit instruction. Likely scope: real browser/visual verification of
+Stages 1–5 across EN/FA, light/dark, and mobile/tablet/desktop (now explicitly
+in scope once permitted); a `SettingsNav` entry for `/settings/pricing`; final
+release/documentation polish. Do not implement Preview, Apply, Diagnostics, or
+Source Acquisition UI until those contracts become callable in
+`FRONTEND_CONTRACT.md`.

@@ -186,7 +186,7 @@ export default function PricingUnitEditor() {
           <Alert variant="warning" title={translate('pricing:unitEditor.title')} message={translate('pricing:unitEditor.explanation')} />
         </header>
 
-        <div className="fh-card p-4 fh-form-grid">
+        <div className="fh-card p-4 fh-form-grid md:grid-cols-2">
           <div className="fh-field">
             <label className="fh-label" htmlFor="unit-scope">{translate('pricing:unitEditor.field.scope')}</label>
             <select id="unit-scope" className="fh-select" value={scope} onChange={event => setScope(event.target.value as Exclude<UnitScope, 'global'>)} data-testid="pricing-unit-editor-scope">
@@ -206,39 +206,41 @@ export default function PricingUnitEditor() {
               value={scopeReference}
               onChange={event => setScopeReference(event.target.value)}
               data-testid="pricing-unit-editor-scope-reference"
+              aria-invalid={Boolean(errors.scopeReference)}
+              aria-describedby={errors.scopeReference ? 'unit-scope-reference-error' : undefined}
             >
               <option value="">—</option>
               {options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
             </select>
-            {errors.scopeReference && <p className="fh-field-error">{errors.scopeReference}</p>}
+            {errors.scopeReference && <p id="unit-scope-reference-error" className="fh-field-error">{errors.scopeReference}</p>}
           </div>
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="unit-currency">{translate('pricing:unitEditor.field.currency')}</label>
-            <select id="unit-currency" className={['fh-select', errors.currency ? 'fh-input-error' : ''].join(' ')} value={currency} onChange={event => handleCurrencyChange(event.target.value)} data-testid="pricing-unit-editor-currency">
+            <select id="unit-currency" className={['fh-select', errors.currency ? 'fh-input-error' : ''].join(' ')} value={currency} onChange={event => handleCurrencyChange(event.target.value)} data-testid="pricing-unit-editor-currency" aria-invalid={Boolean(errors.currency)} aria-describedby={errors.currency ? 'unit-currency-error' : undefined}>
               <option value="">—</option>
               {SUPPORTED_CURRENCIES.map(code => <option key={code} value={code}><bdi dir="ltr">{code}</bdi></option>)}
             </select>
-            {errors.currency && <p className="fh-field-error">{errors.currency}</p>}
+            {errors.currency && <p id="unit-currency-error" className="fh-field-error">{errors.currency}</p>}
           </div>
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="unit-unit">{translate('pricing:unitEditor.field.unit')}</label>
             {currency === 'IRR' ? (
-              <select id="unit-unit" className={['fh-select', errors.unit ? 'fh-input-error' : ''].join(' ')} value={unit} onChange={event => setUnit(event.target.value)} data-testid="pricing-unit-editor-unit">
+              <select id="unit-unit" className={['fh-select', errors.unit ? 'fh-input-error' : ''].join(' ')} value={unit} onChange={event => setUnit(event.target.value)} data-testid="pricing-unit-editor-unit" aria-invalid={Boolean(errors.unit)} aria-describedby={errors.unit ? 'unit-unit-error' : undefined}>
                 <option value="">{translate('pricing:unitEditor.field.unitChooseIrr')}</option>
                 {IRR_UNITS.map(code => <option key={code} value={code}><bdi dir="ltr">{code}</bdi></option>)}
               </select>
             ) : (
               <input id="unit-unit" className="fh-input" value={unit} disabled dir="ltr" data-testid="pricing-unit-editor-unit" />
             )}
-            {errors.unit && <p className="fh-field-error" data-testid="pricing-unit-editor-unit-error">{errors.unit}</p>}
+            {errors.unit && <p id="unit-unit-error" className="fh-field-error" data-testid="pricing-unit-editor-unit-error">{errors.unit}</p>}
           </div>
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="unit-connector-config-version">{translate('pricing:unitEditor.field.connectorConfigVersion')}</label>
-            <input id="unit-connector-config-version" className={['fh-input', errors.connectorConfigVersion ? 'fh-input-error' : ''].join(' ')} dir="ltr" value={connectorConfigVersion} onChange={event => setConnectorConfigVersion(event.target.value)} data-testid="pricing-unit-editor-connector-config-version" />
-            {errors.connectorConfigVersion && <p className="fh-field-error">{errors.connectorConfigVersion}</p>}
+            <input id="unit-connector-config-version" className={['fh-input', errors.connectorConfigVersion ? 'fh-input-error' : ''].join(' ')} dir="ltr" value={connectorConfigVersion} onChange={event => setConnectorConfigVersion(event.target.value)} data-testid="pricing-unit-editor-connector-config-version" aria-invalid={Boolean(errors.connectorConfigVersion)} aria-describedby={errors.connectorConfigVersion ? 'unit-connector-config-version-error' : undefined} />
+            {errors.connectorConfigVersion && <p id="unit-connector-config-version-error" className="fh-field-error">{errors.connectorConfigVersion}</p>}
           </div>
         </div>
 
@@ -258,9 +260,9 @@ export default function PricingUnitEditor() {
 
         {submitError && <PricingErrorPanel state={submitError} />}
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2" data-testid="pricing-unit-editor-actions">
           {dirty && <span className="fh-text-body-sm font-medium text-wp-yellow">{translate('pricing:editor.unsavedChanges')}</span>}
-          <div className="ms-auto flex gap-2">
+          <div className="ms-auto flex flex-wrap gap-2">
             <button type="button" className="fh-button-secondary" onClick={handleCancel}>{translate('pricing:editor.cancel')}</button>
             <button type="submit" className="fh-button-primary" disabled={saving || hasErrors} data-testid="pricing-unit-editor-submit">
               {saving ? translate('pricing:editor.saving') : translate('pricing:editor.submit')}

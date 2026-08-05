@@ -401,3 +401,118 @@ describe('PricingMatrix — channel lifecycle actions (UI Stage 4)', () => {
     expect(c.querySelector(`[data-testid="pricing-channel-activate-confirm-${CHANNEL}"]`)?.textContent).toContain('فعال‌سازی')
   })
 })
+
+// -- UI Stage 5: RTL, responsive, theme, accessibility, keyboard ---------------
+
+describe('PricingMatrix — RTL, responsive, and accessibility (UI Stage 5)', () => {
+  it('sets document direction to rtl in Persian and isolates technical identifiers with <bdi dir="ltr">', async () => {
+    await changeLocale('fa')
+    stubLifecycleFetch({ head: activeHead })
+    const c = await renderPage()
+    await selectPolicy(c)
+
+    expect(document.documentElement.dir).toBe('rtl')
+    const channelHeading = c.querySelector(`[data-testid="pricing-channel-card-${CHANNEL}"] h3`)
+    expect(channelHeading?.querySelector('bdi[dir="ltr"]')?.textContent).toBe(CHANNEL)
+    const revisionBadge = c.querySelector('[data-testid="pricing-policy-detail"] bdi[dir="ltr"]')
+    expect(revisionBadge?.textContent).toContain('#1')
+  })
+
+  it('wraps a very long English policy name instead of clipping it', async () => {
+    const longName = 'Retail Configuration '.repeat(12).trim()
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+      if (url.endsWith('/pricing-matrix/policies') && method === 'GET') return json({ items: [{ ...policySummary, name: longName }] })
+      if (url.includes('/lifecycle-events')) return json(events)
+      if (url.includes('/head')) return json(inactiveHead)
+      if (url.includes('/units/channel/')) return json(unresolvedUnit)
+      if (url.includes('/pricing-matrix/policies/')) return json({ ...policyRevision, name: longName })
+      return new Response('{}', { status: 404 })
+    }))
+    const c = await renderPage()
+    const nameSpan = c.querySelector(`[data-testid="pricing-policy-row-rev-1"] span span`)
+    expect(nameSpan?.textContent).toBe(longName)
+    expect(nameSpan?.className).toContain('break-words')
+    expect(nameSpan?.className).toContain('min-w-0')
+  })
+
+  it('wraps a very long Persian policy name instead of clipping it', async () => {
+    await changeLocale('fa')
+    const longName = 'سیاست قیمت‌گذاری خرده‌فروشی برای کانال‌های متعدد و بازنگری‌های آینده '.repeat(3).trim()
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/pricing-matrix/policies')) return json({ items: [{ ...policySummary, name: longName }] })
+      return new Response('{}', { status: 404 })
+    }))
+    const c = await renderPage()
+    const nameSpan = c.querySelector(`[data-testid="pricing-policy-row-rev-1"] span span`)
+    expect(nameSpan?.textContent).toBe(longName)
+    expect(nameSpan?.className).toContain('break-words')
+  })
+
+  it('keeps the rules and units tables horizontally scrollable instead of clipped', async () => {
+    stubLifecycleFetch({ head: inactiveHead })
+    const c = await renderPage()
+    await selectPolicy(c)
+
+    const rulesTable = c.querySelector('[data-testid="pricing-rules-table"]')
+    expect(rulesTable?.closest('.overflow-x-auto')).not.toBeNull()
+    const unitsTable = c.querySelector('[data-testid="pricing-units-table"]')
+    expect(unitsTable?.closest('.overflow-x-auto')).not.toBeNull()
+  })
+
+  it('keeps the channel lifecycle action button row wrappable instead of clipped on narrow widths', async () => {
+    stubLifecycleFetch({ head: inactiveHead })
+    const c = await renderPage()
+    await selectPolicy(c)
+    const openButton = c.querySelector(`[data-testid="pricing-channel-activate-${CHANNEL}"]`) as HTMLButtonElement
+    await act(async () => { openButton.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    const actionRow = c.querySelector(`[data-testid="pricing-channel-action-form-${CHANNEL}"] .flex.gap-2, [data-testid="pricing-channel-action-form-${CHANNEL}"] .flex.flex-wrap.gap-2`)
+    expect(actionRow?.className).toContain('flex-wrap')
+  })
+
+  it('moves keyboard focus into the reason field when the activate form opens', async () => {
+    stubLifecycleFetch({ head: inactiveHead })
+    const c = await renderPage()
+    await selectPolicy(c)
+    const openButton = c.querySelector(`[data-testid="pricing-channel-activate-${CHANNEL}"]`) as HTMLButtonElement
+    await act(async () => { openButton.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    const reasonInput = c.querySelector(`[data-testid="pricing-channel-reason-${CHANNEL}"]`)
+    expect(document.activeElement).toBe(reasonInput)
+  })
+
+  it('associates every labeled field with a matching id (label/control pairing)', async () => {
+    stubLifecycleFetch({ head: inactiveHead })
+    const c = await renderPage()
+    await selectPolicy(c)
+    // Open the lifecycle action form so its labeled reason field is present.
+    const openButton = c.querySelector(`[data-testid="pricing-channel-activate-${CHANNEL}"]`) as HTMLButtonElement
+    await act(async () => { openButton.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+
+    const labels = Array.from(c.querySelectorAll('label[for]'))
+    expect(labels.length).toBeGreaterThan(0)
+    for (const label of labels) {
+      const forId = label.getAttribute('for')!
+      expect(c.querySelector(`[id="${forId}"]`), `no control found for label "${label.textContent}"`).not.toBeNull()
+    }
+  })
+
+  it('announces the mutation error region distinctly and links it to the reason field', async () => {
+    stubLifecycleFetch({ head: inactiveHead, onActivate: () => json({ detail: { code: 'forbidden' } }, 403) })
+    const c = await renderPage()
+    await selectPolicy(c)
+    const openButton = c.querySelector(`[data-testid="pricing-channel-activate-${CHANNEL}"]`) as HTMLButtonElement
+    await act(async () => { openButton.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    setValue(c.querySelector(`[data-testid="pricing-channel-reason-${CHANNEL}"]`), 'Go live')
+    const confirm = c.querySelector(`[data-testid="pricing-channel-activate-confirm-${CHANNEL}"]`) as HTMLButtonElement
+    await act(async () => { confirm.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    await settle()
+
+    const reasonInput = c.querySelector(`[data-testid="pricing-channel-reason-${CHANNEL}"]`)
+    const describedBy = reasonInput?.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    const errorRegion = c.querySelector(`[id="${describedBy}"]`)
+    expect(errorRegion?.querySelector('[role="alert"], [role="status"]')).not.toBeNull()
+  })
+})

@@ -195,11 +195,11 @@ export default function PricingProductGroupEditor() {
           />
         </header>
 
-        <div className="fh-card p-4 fh-form-grid">
+        <div className="fh-card p-4 fh-form-grid md:grid-cols-2">
           <div className="fh-field">
             <label className="fh-label" htmlFor="group-name">{translate('pricing:productGroupEditor.field.name')}</label>
-            <input id="group-name" className={['fh-input', errors.name ? 'fh-input-error' : ''].join(' ')} value={form.name} onChange={event => setForm(prev => ({ ...prev, name: event.target.value }))} aria-invalid={Boolean(errors.name)} />
-            {errors.name && <p className="fh-field-error">{errors.name}</p>}
+            <input id="group-name" className={['fh-input', errors.name ? 'fh-input-error' : ''].join(' ')} value={form.name} onChange={event => setForm(prev => ({ ...prev, name: event.target.value }))} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'group-name-error' : undefined} />
+            {errors.name && <p id="group-name-error" className="fh-field-error">{errors.name}</p>}
           </div>
 
           <div className="fh-field">
@@ -226,9 +226,10 @@ export default function PricingProductGroupEditor() {
                     onChange={event => updateMember(index, event.target.value)}
                     aria-label={translate('pricing:productGroupEditor.memberPlaceholder')}
                     aria-invalid={Boolean(errors.members[index])}
+                    aria-describedby={errors.members[index] ? `product-group-member-${index}-error` : undefined}
                     data-testid={`pricing-product-group-editor-member-${index}`}
                   />
-                  {errors.members[index] && <p className="fh-field-error" data-testid={`pricing-product-group-editor-member-${index}-error`}>{errors.members[index]}</p>}
+                  {errors.members[index] && <p id={`product-group-member-${index}-error`} className="fh-field-error" data-testid={`pricing-product-group-editor-member-${index}-error`}>{errors.members[index]}</p>}
                 </div>
                 <button type="button" className="fh-button-secondary" onClick={() => removeMember(index)} aria-label={translate('pricing:productGroupEditor.removeMember')}>
                   <Icon name="delete" aria-hidden="true" />
@@ -243,9 +244,9 @@ export default function PricingProductGroupEditor() {
 
         {submitError && <PricingErrorPanel state={submitError} />}
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2" data-testid="pricing-product-group-editor-actions">
           {dirty && <span className="fh-text-body-sm font-medium text-wp-yellow">{translate('pricing:editor.unsavedChanges')}</span>}
-          <div className="ms-auto flex gap-2">
+          <div className="ms-auto flex flex-wrap gap-2">
             <button type="button" className="fh-button-secondary" onClick={handleCancel}>{translate('pricing:editor.cancel')}</button>
             <button type="submit" className="fh-button-primary" disabled={saving || hasErrors(errors)} data-testid="pricing-product-group-editor-submit">
               {saving ? translate('pricing:editor.saving') : translate('pricing:editor.submit')}

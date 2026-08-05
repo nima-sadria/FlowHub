@@ -247,6 +247,15 @@ function ChannelLifecycleActions({
   onSubmit: () => void
 }) {
   const reasonId = `pricing-channel-${channelId}-reason`
+  const errorId = `pricing-channel-${channelId}-action-error`
+  const reasonInputRef = useRef<HTMLInputElement>(null)
+
+  // Moves focus into the reason field when the inline form first opens, so
+  // keyboard users land directly on the next actionable control.
+  useEffect(() => {
+    if (action.mode) reasonInputRef.current?.focus()
+  }, [action.mode])
+
   if (!action.mode) {
     return (
       <div className="mt-3">
@@ -268,18 +277,25 @@ function ChannelLifecycleActions({
       <div className="fh-field">
         <label className="fh-label" htmlFor={reasonId}>{translate('pricing:channels.actions.reasonLabel')}</label>
         <input
+          ref={reasonInputRef}
           id={reasonId}
-          className={['fh-input', action.error?.kind === 'validation_error' && !action.reason ? 'fh-input-error' : ''].join(' ')}
+          className="fh-input"
           value={action.reason}
           onChange={event => onReasonChange(event.target.value)}
           disabled={action.submitting}
+          aria-invalid={Boolean(action.error)}
+          aria-describedby={action.error ? errorId : undefined}
           data-testid={`pricing-channel-reason-${channelId}`}
         />
       </div>
 
-      {action.error && <PricingErrorPanel state={action.error} />}
+      {action.error && (
+        <div id={errorId}>
+          <PricingErrorPanel state={action.error} />
+        </div>
+      )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button type="button" className="fh-button-secondary" onClick={onCancel} disabled={action.submitting}>
           {translate('pricing:editor.cancel')}
         </button>
@@ -320,8 +336,8 @@ function ChannelLifecycleCard({
 }) {
   return (
     <article className="fh-card p-4" data-testid={`pricing-channel-card-${channelId}`}>
-      <header className="mb-3 flex items-center justify-between gap-2">
-        <h3 className="fh-text-body font-semibold text-text-base"><bdi dir="ltr">{channelId}</bdi></h3>
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="min-w-0 break-words fh-text-body font-semibold text-text-base"><bdi dir="ltr">{channelId}</bdi></h3>
         {state.head.status === 'ready' && (
           <StatusBadge presentation={channelStatusPresentation(state.head.data.status)} testId={`pricing-channel-status-${channelId}`} />
         )}
@@ -630,7 +646,7 @@ export default function PricingMatrix() {
                         ].join(' ')}
                       >
                         <span className="flex items-center justify-between gap-2">
-                          <span className="fh-text-body font-medium text-text-base">{policy.name}</span>
+                          <span className="min-w-0 break-words fh-text-body font-medium text-text-base">{policy.name}</span>
                           <Badge variant="neutral"><bdi dir="ltr">#{policy.revisionNumber}</bdi></Badge>
                         </span>
                         <span className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 fh-text-caption text-wp-muted">

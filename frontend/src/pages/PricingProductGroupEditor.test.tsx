@@ -178,3 +178,58 @@ describe('PricingProductGroupEditor', () => {
     expect(c.textContent).toContain('ایجاد بازنگری گروه محصول')
   })
 })
+
+// -- UI Stage 5: RTL, responsive, theme, accessibility, keyboard ---------------
+
+describe('PricingProductGroupEditor — RTL, responsive, and accessibility (UI Stage 5)', () => {
+  it('sets document direction to rtl in Persian', async () => {
+    await changeLocale('fa')
+    stubFetch(() => json({ items: [] }))
+    await renderNew()
+    expect(document.documentElement.dir).toBe('rtl')
+  })
+
+  it('lays out the identity fields as a responsive two-column grid from tablet up', async () => {
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    const grid = c.querySelector('#group-name')?.closest('.fh-form-grid')
+    expect(grid?.className).toContain('md:grid-cols-2')
+  })
+
+  it('keeps the submit action bar wrappable instead of clipped', async () => {
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    const actions = c.querySelector('[data-testid="pricing-product-group-editor-actions"]')
+    expect(actions?.className).toContain('flex-wrap')
+  })
+
+  it('associates the name field and each member field with its error via aria-describedby', async () => {
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    const addMember = c.querySelector('[data-testid="pricing-product-group-editor-add-member"]') as HTMLButtonElement
+    await act(async () => { addMember.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    await settle()
+    setValue(c.querySelector('[data-testid="pricing-product-group-editor-member-0"]'), 'dup')
+    setValue(c.querySelector('[data-testid="pricing-product-group-editor-member-1"]'), 'dup')
+    await settle()
+
+    const member1 = c.querySelector('[data-testid="pricing-product-group-editor-member-1"]') as HTMLInputElement
+    expect(member1.getAttribute('aria-invalid')).toBe('true')
+    const describedBy = member1.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    expect(c.querySelector(`[id="${describedBy}"]`)?.textContent).toBeTruthy()
+  })
+
+  it('preserves a very long English and Persian product group name without clipping', async () => {
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    const longEnglish = 'Mobile Accessories Retail Bundle '.repeat(10).trim()
+    setValue(c.querySelector('#group-name'), longEnglish)
+    expect((c.querySelector('#group-name') as HTMLInputElement).value).toBe(longEnglish)
+
+    await changeLocale('fa')
+    const longPersian = 'بسته‌ی لوازم جانبی موبایل برای فروش خرده‌فروشی '.repeat(3).trim()
+    setValue(c.querySelector('#group-name'), longPersian)
+    expect((c.querySelector('#group-name') as HTMLInputElement).value).toBe(longPersian)
+  })
+})

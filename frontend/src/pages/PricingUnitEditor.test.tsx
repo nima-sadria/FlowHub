@@ -184,3 +184,43 @@ describe('PricingUnitEditor', () => {
     expect(c.textContent).toContain('اعلام واحد ارزی')
   })
 })
+
+// -- UI Stage 5: RTL, responsive, theme, accessibility, keyboard ---------------
+
+describe('PricingUnitEditor — RTL, responsive, and accessibility (UI Stage 5)', () => {
+  it('sets document direction to rtl in Persian', async () => {
+    await changeLocale('fa')
+    stubFetch(() => json({ scope: 'channel', scopeReference: 'woocommerce:primary', status: 'unresolved', currency: null, unit: null }))
+    await renderPage()
+    expect(document.documentElement.dir).toBe('rtl')
+  })
+
+  it('lays out the declaration fields as a responsive two-column grid from tablet up', async () => {
+    stubFetch(() => json({ scope: 'channel', scopeReference: 'woocommerce:primary', status: 'unresolved', currency: null, unit: null }))
+    const c = await renderPage()
+    const grid = c.querySelector('[data-testid="pricing-unit-editor-scope"]')?.closest('.fh-form-grid')
+    expect(grid?.className).toContain('md:grid-cols-2')
+  })
+
+  it('keeps the submit action bar wrappable instead of clipped', async () => {
+    stubFetch(() => json({ scope: 'channel', scopeReference: 'woocommerce:primary', status: 'unresolved', currency: null, unit: null }))
+    const c = await renderPage()
+    const actions = c.querySelector('[data-testid="pricing-unit-editor-actions"]')
+    expect(actions?.className).toContain('flex-wrap')
+  })
+
+  it('associates the scope-reference, currency, unit, and connector-config-version errors with their fields', async () => {
+    stubFetch(() => json({ scope: 'channel', scopeReference: 'woocommerce:primary', status: 'unresolved', currency: null, unit: null }))
+    const c = await renderPage()
+    setValue(c.querySelector('[data-testid="pricing-unit-editor-scope-reference"]'), 'woocommerce:primary')
+    await settle()
+    setValue(c.querySelector('[data-testid="pricing-unit-editor-currency"]'), 'IRR')
+    await settle()
+
+    const unitSelect = c.querySelector('[data-testid="pricing-unit-editor-unit"]') as HTMLSelectElement
+    expect(unitSelect.getAttribute('aria-invalid')).toBe('true')
+    const describedBy = unitSelect.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    expect(c.querySelector(`[id="${describedBy}"]`)?.textContent).toBeTruthy()
+  })
+})
