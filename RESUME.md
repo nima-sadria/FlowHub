@@ -4,7 +4,7 @@
 
 This repository contains substantial **unfinished, unique, uncommitted work** for the Source Architecture and Pricing Matrix initiatives. Do not reset, restore, stash, clean, checkout over, or delete the listed files. The worktree was intentionally preserved for the next Codex session.
 
-Implementation was stopped on 2026-08-05 at the Owner's request. This document is the only stabilization artifact intended to be committed. No feature code is included in the handover commit.
+Implementation resumed for the Workspace Pricing Matrix binding boundary. This document records the current handover state; feature changes remain uncommitted and must be reviewed as one coherent phase before publication.
 
 ## Repository state
 
@@ -30,7 +30,7 @@ The following conditions were verified before this handover was written:
 - No staged files exist.
 - No conflict markers were found.
 - `git diff --check` passed. The only Git output was Windows LF-to-CRLF conversion warnings; no whitespace errors were reported.
-- The interrupted `apply_patch` for Workspace pricing bindings was atomic and did not modify `app/flowhub/pricing_matrix/service.py`. Methods named `bind_workspace_channels`, `verify_workspace_channels`, and `workspace_bindings` are still absent.
+- Workspace binding methods are now present in `app/flowhub/pricing_matrix/service.py`; the Review/Apply integration and regression tests listed below are implemented in the current worktree.
 - No `TODO` or `FIXME` marker was introduced in the new Pricing Matrix files or the touched Source Configuration UI.
 - No source work appears lost.
 
@@ -76,6 +76,13 @@ These files are modified and contain unfinished feature work. Preserve all of th
 ### Backend test stabilization
 
 - `tests/flowhub/api/v2/test_settings_routes.py`
+- `tests/flowhub/api/v2/test_unified_workspace.py`
+- `tests/flowhub/migration/test_exchange_rates_022.py`
+- `tests/flowhub/migration/test_release_compatibility.py`
+- `tests/flowhub/migration/test_tapsishop_webhook_identity_023.py`
+- `tests/flowhub/source_workspace/test_workspace_integration.py`
+- `tests/flowhub/test_no_direct_httpx.py`
+- `tests/flowhub/test_release_terms_guard.py`
 
 The two settings tests in this file were minimally aligned with the unfinished explicit IRR unit contract by sending `currencyUnit: RIAL` and asserting `server.currency_unit`. This was required for the preserved worktree to pass its relevant backend tests; it does not extend product behavior.
 
@@ -158,39 +165,39 @@ Ignored files were inspected but not removed. They include `.env`, virtual envir
 - Source UI observability addendum.
 - Pricing UI contract for backend/frontend coordination.
 
-## Exact point where implementation stopped
+## Current phase status
 
-The next task was **Workspace and Write Pipeline integration for Pricing Matrix bindings**. An attempted patch was interrupted before application, so none of the following methods exist yet.
+The **Workspace and Write Pipeline integration for Pricing Matrix bindings** is implemented in the current worktree:
 
-Resume in this exact order:
+1. Review generation binds only price-changing Channels and stores activation, policy, Channel config, execution-policy snapshot, and frozen evaluation time.
+2. Binding identity and issues participate in the Review response and checksum.
+3. Apply revalidates bindings before job creation, after listing locks, and immediately before Write Pipeline dispatch.
+4. All external writes remain inside the existing `WritePipelineService`.
+5. Regression coverage includes missing activation, stale activation, stale Channel config, per-Channel isolation, and a pre-dispatch race.
 
-1. Add service methods in `app/flowhub/pricing_matrix/service.py` to create, list, and verify Workspace pricing bindings. Suggested responsibilities are `bind_workspace_channels`, `workspace_bindings`, and `verify_workspace_channels`; names may be adjusted to existing conventions, but behavior must follow the ADR.
-2. Integrate binding creation into `UnifiedWorkspaceService.generate_review` only for channels whose review includes price changes.
-3. Pin at least the pricing policy activation, channel configuration revision, policy revision, and `workspace_pricing_evaluated_at` required by the accepted contracts.
-4. Include the binding identity in the review/checksum contract so a review cannot silently change under the same decision.
-5. Revalidate bindings before Apply job creation and again after the existing listing lock is acquired, immediately before execution.
-6. Keep all writes inside the existing `WritePipelineService`. Do not create a Pricing Matrix write path in parallel.
-7. Add focused tests for stale activation, stale channel configuration, missing activation, per-channel blocking, and the race between review and Apply.
+The Pricing Matrix API and persistence contract is complete for policy revisions,
+Product Group revisions, unit declarations, and Channel activation lifecycle.
+`FRONTEND_CONTRACT.md` is the callable backend contract for the frontend team.
 
-Do not resume with UI work or Source Acquisition runtime work before this binding boundary is correct and tested.
+Exact next task: complete Pricing Matrix CAS and concurrency safety (Phase 1B),
+including deterministic stale-write and retry tests. Do not start Source
+Acquisition runtime or Pricing UI until that phase is approved.
 
 ## Temporary TODOs
 
-There are no temporary `TODO`/`FIXME` comments in code. The unfinished boundary is represented by the absent Workspace binding service methods and the phases below, rather than placeholder code.
+There are no temporary `TODO`/`FIXME` comments in code. The remaining work is represented by the phases below, not by placeholder implementation.
 
 ## Remaining blockers
 
-1. Workspace decisions are not yet bound to and revalidated against Pricing Matrix activation/configuration state.
-2. `FLOWHUB_024` has not been applied, downgraded, or tested against a disposable database.
-3. Full backend test suite has not been run after these changes.
-4. Pricing Matrix service/API/migration integration tests are incomplete; only the arithmetic/evaluator/guard/unit core is directly tested.
-5. Browser verification has not been performed.
-6. The new Pricing UI described by `PRICING_UI_CONTRACT.md` has not been implemented.
-7. Source Acquisition runtime described by `SOURCE_ACQUISITION_DESIGN.md` has not been implemented.
-8. The i18n validator exits nonzero because of two pre-existing hardcoded strings:
+1. Pricing Matrix CAS/concurrency and broader persistence tests remain to be completed.
+2. Browser verification has not been performed for this backend phase.
+3. The new Pricing UI described by `PRICING_UI_CONTRACT.md` has not been implemented.
+4. Source Acquisition runtime described by `SOURCE_ACQUISITION_DESIGN.md` has not been implemented.
+5. The i18n validator exits nonzero because of two pre-existing hardcoded strings:
    - `frontend/src/components/SiteFooter.tsx`: `FlowHub v`
    - `frontend/src/pages/ExchangeRates.tsx`: `/ day ·`
-9. Migration rollout gates remain: complete Appendix A from the real translator inventory, add a fixture for every supported legacy formula shape, and resolve or explicitly quarantine the documented 255 broken formulas before activation.
+6. Migration rollout gates remain: complete Appendix A from the real translator inventory, add a fixture for every supported legacy formula shape, and resolve or explicitly quarantine the documented 255 broken formulas before activation.
+7. The full backend suite has one unrelated pre-existing failure in `tests/beta/test_multi_channel_pricing.py`: a validation failure is currently projected as `reconciliation_required` while the test expects `failed`.
 
 ## Required migrations
 
@@ -229,19 +236,22 @@ Before any commit or deployment of the feature:
   - Settings API tests
   - Commerce Hub backend tests
   - Source Workspace service tests
+- Workspace integration suite: 39 passed.
+- Pricing Matrix plus migration suites: 48 passed, 6 skipped.
+- Full backend suite: 3114 passed, 25 skipped, 1 unrelated failure.
+- Frontend full unit suite: 67 files, 485 tests passed.
+- Frontend production build and TypeScript check: passed.
 
 Known test noise: the frontend suite emitted jsdom/Handsontable CSS parse warnings, and backend tests emitted existing FastAPI/Starlette/SQLite/Alembic deprecation warnings. These did not fail the suites.
 
 ## Required tests still pending
 
-1. Full backend test suite.
-2. Pricing Matrix API authorization, validation, lifecycle, concurrency/CAS, and persistence tests.
-3. Alembic `FLOWHUB_023 -> FLOWHUB_024 -> FLOWHUB_023` migration test.
-4. Workspace binding and stale-decision tests at Review, Dry Run, and Apply boundaries.
-5. Write Pipeline fold/projection tests for `pending`, `running`, `applied`, `partially_applied`, `blocked`, `no_changes`, `failed`, and `reconciliation_required`.
-6. Explicit Source/Channel unit migration and unresolved-unit tests.
-7. Frontend tests for all new Pricing UI states after that UI exists.
-8. i18n validation after the two pre-existing hardcoded strings are addressed in a separate scoped change.
+1. Resolve or explicitly accept the unrelated beta multi-channel pricing projection mismatch.
+2. Pricing Matrix CAS/concurrency and persistence tests.
+3. Write Pipeline fold/projection tests for all documented terminal states.
+4. Explicit Source/Channel unit migration and unresolved-unit tests.
+5. Frontend tests for all new Pricing UI states after that UI exists.
+6. i18n validation after the two pre-existing hardcoded strings are addressed in a separate scoped change.
 
 ## Browser verification still pending
 
@@ -279,14 +289,14 @@ These are engineering estimates, not budgets or guarantees:
 
 | Phase | Scope | Expected tokens |
 |---|---|---:|
-| 1 | Complete Workspace/Write Pipeline binding, revalidation, and race-safe tests | 25k-40k |
-| 2 | Finish Pricing Matrix service/API/lifecycle/concurrency and migration tests | 25k-40k |
+| 1 | Workspace/Write Pipeline binding, revalidation, and race-safe tests | completed this phase |
+| 2 | Finish Pricing Matrix CAS/concurrency and migration tests | 20k-35k |
 | 3 | Implement Source Acquisition runs, observations, resource bindings, schema assessment, diagnostics, telemetry, SSRF controls, and retention holds | 45k-75k |
 | 4 | Implement Pricing/Source UI contract in EN/FA, RTL/LTR, light/dark, responsive layouts | 35k-60k |
 | 5 | Translator inventory, Appendix A, legacy fixtures, and broken-formula rollout gates | 10k-15k |
 | 6 | Full regression, browser matrix, cleanup, documentation, commits, and deployment verification | 10k-20k |
 
-Estimated total remaining for release-grade completion: **150k-250k tokens**. A backend-first usable slice through phases 1-2 is approximately **50k-80k tokens**, excluding full Source Acquisition runtime and complete UI.
+Estimated total remaining for release-grade completion: **125k-215k tokens**. The next backend slice is approximately **20k-35k tokens**, excluding Source Acquisition runtime and complete UI.
 
 ## Resume checklist
 
@@ -295,5 +305,5 @@ Estimated total remaining for release-grade completion: **150k-250k tokens**. A 
 3. Confirm `git diff --cached --stat` is empty before making feature commits.
 4. Do not reset, restore, clean, or stash the preserved work.
 5. Re-run the relevant backend and frontend checks if the environment changed.
-6. Resume exactly at Workspace Pricing Matrix binding and Write Pipeline revalidation.
-7. Make feature commits only after the full migration and integration boundary is tested; do not mix this handover commit with feature work.
+6. Resume with Pricing Matrix CAS/concurrency and remaining migration contract tests.
+7. Review the current uncommitted feature set before committing; do not mix unrelated legacy test behavior changes into the Pricing Matrix commit.

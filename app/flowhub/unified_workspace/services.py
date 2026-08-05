@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.data_layer.models import DlProductCache
+from app.flowhub.pricing_matrix.service import PricingMatrixService
 from app.flowhub.product_pricing.service import ProductPricingService
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.source_workspace.models import SourceDataQualityIssue
@@ -124,6 +125,7 @@ class UnifiedWorkspaceService:
         self.config = AppConfigService(db)
         self.commerce = CommerceHubService(db)
         self.pricing = ProductPricingService(db)
+        self.pricing_matrix = PricingMatrixService(db)
         self.connectors = WorkspaceConnectorFactory(self.pricing, self.commerce)
         self.events = DomainEventBus()
         self.events.subscribe(PersistenceAuditSubscriber(db, _id))
@@ -1871,6 +1873,31 @@ class UnifiedWorkspaceService:
                 "CURRENCY_PROFILE_MISSING",
                 "Snapshot Currency Profile is unavailable.",
             )
+        pricing_channel_ids = sorted(
+            {item["change"].channel_id for item in prepared if item["change"].field == "price"}
+        )
+        pricing_binding_payload: list[dict[str, Any]] = []
+        pricing_binding_issues: dict[str, str] = {}
+        if pricing_channel_ids:
+            pricing_evaluated_at = utcnow()
+            binding_result = self.pricing_matrix.bind_workspace_channels(
+                workspace_id=workspace.id,
+                channel_ids=pricing_channel_ids,
+                evaluated_at=pricing_evaluated_at,
+                execution_policy_snapshot=self._pricing_execution_policy_snapshot(
+                    evaluated_at=pricing_evaluated_at
+                ),
+            )
+            pricing_binding_payload = list(binding_result["bindings"])
+            pricing_binding_issues = dict(binding_result["issues"])
+            for item in prepared:
+                if item["change"].field != "price":
+                    continue
+                issue = pricing_binding_issues.get(item["change"].channel_id)
+                if issue and issue not in item["errors"]:
+                    item["errors"].append(issue)
+                    item["eligible"] = False
+            blocking = sum(1 for item in prepared if item["errors"])
         channel_currency_references = sorted(
             f"{item['channel']}:{item['currency']}:{item['unit']}" for item in currency_payload
         )
@@ -1886,6 +1913,8 @@ class UnifiedWorkspaceService:
                 "currency_profile_checksum": currency_profile.checksum,
                 "currency_ruleset": CURRENCY_RULESET_VERSION,
                 "cache": cache_payload,
+                "pricing_bindings": pricing_binding_payload,
+                "pricing_binding_issues": pricing_binding_issues,
                 "ruleset": VALIDATION_VERSION,
             }
         )
@@ -1917,6 +1946,8 @@ class UnifiedWorkspaceService:
                 "eligible": eligible_count,
                 "blocked": blocking,
                 "warnings": warnings,
+                "pricingBindings": pricing_binding_payload,
+                "pricingBindingIssues": pricing_binding_issues,
             },
         )
         self.db.add(review)
@@ -2089,6 +2120,7 @@ class UnifiedWorkspaceService:
             "status": review.status,
             "checksum": review.checksum,
             "summary": review.summary_json,
+            "pricingBindings": self.pricing_matrix.workspace_bindings(review.workspace_id),
             "createdAt": review.created_at,
             "staleReason": review.stale_reason,
             "items": [
@@ -2201,6 +2233,7 @@ class UnifiedWorkspaceService:
                 "APPLY_SELECTION_CHECKSUM_MISMATCH",
                 "The confirmed selection changed; confirm the current selection again.",
             )
+        self._assert_review_fresh(review, user, correlation_id)
         logical_operation_key = checksum(
             {
                 "workspace": workspace.id,
@@ -2342,6 +2375,35 @@ class UnifiedWorkspaceService:
                 apply_job_id=job.id,
             )
             self.db.commit()
+            pricing_issues = self._pricing_binding_issues_for_review(review)
+            if pricing_issues:
+                reason = ";".join(
+                    f"{channel_id}:{issue}"
+                    for channel_id, issue in sorted(pricing_issues.items())
+                )
+                review.status = ReviewState.STALE
+                review.invalidated_at = utcnow()
+                review.stale_reason = f"pricing:{reason}"
+                job.status = ApplyState.STALE
+                job.completed_at = utcnow()
+                job.worker_id = None
+                job.lease_token = None
+                job.lease_expires_at = None
+                self._release_listing_locks(job.id)
+                self._audit(
+                    "apply_blocked_pricing_stale",
+                    user,
+                    correlation_id,
+                    workspace_id=workspace.id,
+                    snapshot_id=snapshot.id,
+                    draft_revision_id=review.draft_revision_id,
+                    review_id=review.id,
+                    apply_job_id=job.id,
+                    apply_result=ApplyState.STALE,
+                    reason=review.stale_reason,
+                )
+                self.db.commit()
+                return self.apply_shape(job.id, user)
             grouped: dict[str, list[ReviewItem]] = defaultdict(list)
             for item in review_items:
                 grouped[item.listing_id].append(item)
@@ -3338,6 +3400,35 @@ class UnifiedWorkspaceService:
             "response_reference": row.record_hash,
         }
 
+    def _pricing_channel_ids_for_review(self, review: Review) -> list[str]:
+        return sorted(
+            {
+                item.channel_id
+                for item in self.reviews.items(review.id)
+                if item.field == "price"
+            }
+        )
+
+    def _pricing_binding_issues_for_review(self, review: Review) -> dict[str, str]:
+        channel_ids = self._pricing_channel_ids_for_review(review)
+        if not channel_ids:
+            return {}
+        return self.pricing_matrix.verify_workspace_channels(
+            workspace_id=review.workspace_id,
+            channel_ids=channel_ids,
+        )
+
+    def _pricing_execution_policy_snapshot(self, *, evaluated_at) -> dict[str, Any]:
+        return {
+            "operationVersion": "unified-workspace-pricing-v1",
+            "schemaVersion": SCHEMA_VERSION,
+            "normalizationVersion": NORMALIZATION_VERSION,
+            "validationRulesetVersion": VALIDATION_VERSION,
+            "currencyRulesetVersion": CURRENCY_RULESET_VERSION,
+            "cacheMaxAgeMinutes": self._cache_max_age_minutes(),
+            "workspacePricingEvaluatedAt": evaluated_at.isoformat(),
+        }
+
     def _assert_review_fresh(self, review: Review, user: FlowHubUser, correlation_id: str) -> None:
         stale_reasons: list[str] = []
         mapping_payload: list[dict[str, Any]] = []
@@ -3439,6 +3530,8 @@ class UnifiedWorkspaceService:
         )
         if current_channel_references != sorted(review.currency_channel_references_json):
             stale_reasons.append("currency_channel_override")
+        for channel_id, issue in sorted(self._pricing_binding_issues_for_review(review).items()):
+            stale_reasons.append(f"pricing:{channel_id}:{issue}")
         # Capability digest includes field write decisions and is checked per captured version above.
         if stale_reasons:
             review.status = ReviewState.STALE

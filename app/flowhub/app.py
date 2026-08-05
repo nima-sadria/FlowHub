@@ -88,6 +88,7 @@ from app.flowhub.api.v2.integrations import router as integrations_router
 from app.flowhub.api.v2.logging import router as logging_router
 from app.flowhub.api.v2.orders import router as orders_router
 from app.flowhub.api.v2.products import router as products_router
+from app.flowhub.api.v2.pricing_matrix import router as pricing_matrix_router
 from app.flowhub.api.v2.read_engine import router as read_engine_router
 from app.flowhub.api.v2.settings_routes import router as settings_router
 from app.flowhub.api.v2.setup import router as setup_router
@@ -223,6 +224,7 @@ app.include_router(integration_platform_router, prefix="/api/v2")
 app.include_router(logging_router, prefix="/api/v2")
 app.include_router(users_router, prefix="/api/v2")
 app.include_router(products_router, prefix="/api/v2")
+app.include_router(pricing_matrix_router, prefix="/api/v2")
 app.include_router(sources_router, prefix="/api/v2")
 app.include_router(workspace_router, prefix="/api/v2")
 app.include_router(write_pipeline_router, prefix="/api/v2")

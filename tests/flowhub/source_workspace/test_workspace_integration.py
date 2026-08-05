@@ -51,6 +51,46 @@ def test_source_product_workspace_groups_listings_and_auto_selects_ready_changes
         user=user,
         correlation_id="materialize",
     )
+    from app.flowhub.pricing_matrix.models import ChannelPricingPolicyHead
+    from app.flowhub.pricing_matrix.service import PricingMatrixService
+
+    pricing = PricingMatrixService(db)
+    pricing.declare_unit(
+        scope="channel",
+        scope_reference="woocommerce:primary",
+        currency="EUR",
+        unit="EUR",
+        user=user,
+    )
+    policy = pricing.create_policy_revision(
+        payload={
+            "name": "Source Workspace Test Policy",
+            "computation_currency": "EUR",
+            "round_order": "surcharge_then_round",
+            "max_quote_age_days": 30,
+            "min_quote_count": 1,
+            "evaluation_timezone": "UTC",
+            "rules": [
+                {
+                    "rate_mode": "percent_bp",
+                    "rate_value": 0,
+                    "round_mode": "floor",
+                    "round_step_minor": 100,
+                    "surcharge_minor": 0,
+                }
+            ],
+        },
+        user=user,
+    )
+    head = db.get(ChannelPricingPolicyHead, "woocommerce:primary")
+    assert head is not None
+    pricing.activate(
+        channel_id="woocommerce:primary",
+        policy_revision_id=policy["id"],
+        expected_head_version=head.head_version,
+        reason="Source Workspace integration test setup",
+        user=user,
+    )
     source_service = SourceWorkspaceService(db)
     sheet = source_service.create_sheet(
         name="Daily prices",

@@ -5,6 +5,7 @@ from pathlib import Path
 import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -13,6 +14,10 @@ def config() -> Config:
     cfg = Config(str(ROOT / "alembic_flowhub.ini"))
     cfg.set_main_option("script_location", str(ROOT / "alembic_flowhub"))
     return cfg
+
+
+def head_revision() -> str:
+    return ScriptDirectory.from_config(config()).get_current_head()
 
 
 def test_previous_revision_upgrades_to_hardened_exchange_rates(tmp_path, monkeypatch):
@@ -78,5 +83,5 @@ def test_exchange_rate_hardening_downgrade_and_reupgrade(tmp_path, monkeypatch):
     with engine.connect() as connection:
         assert connection.execute(
             sa.text("SELECT version_num FROM alembic_version")
-        ).scalar_one() == "FLOWHUB_023"
+        ).scalar_one() == head_revision()
     engine.dispose()

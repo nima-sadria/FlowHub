@@ -17,6 +17,7 @@ os.environ.setdefault("FLOWHUB_JWT_SECRET", "unified-workspace-test-secret-32-by
 from app.flowhub.auth import models as _auth_models  # noqa: F401
 from app.flowhub.data_layer import models as _data_models  # noqa: F401
 from app.flowhub.integration_platform import models as _integration_models  # noqa: F401
+from app.flowhub.pricing_matrix import models as _pricing_matrix_models  # noqa: F401
 from app.flowhub.product_pricing import models as _pricing_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
 from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: F401
@@ -119,6 +120,94 @@ def _seed(db, *, product_type: str = "simple", currency: str = "EUR", unit: str 
         )
     )
     db.commit()
+    _seed_pricing_policy(db)
+
+
+def _seed_pricing_policy(db) -> None:
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.pricing_matrix.models import ChannelPricingPolicyHead
+    from app.flowhub.pricing_matrix.service import PricingMatrixService
+    from app.flowhub.unified_workspace.services import UnifiedWorkspaceService
+
+    user = db.query(FlowHubUser).first()
+    assert user is not None
+    UnifiedWorkspaceService(db)._seed_channels()
+    pricing = PricingMatrixService(db)
+    existing_head = db.get(ChannelPricingPolicyHead, "woocommerce:primary")
+    if existing_head is not None and existing_head.effective_activation_id:
+        return
+    pricing.declare_unit(
+        scope="channel",
+        scope_reference="woocommerce:primary",
+        currency="EUR",
+        unit="EUR",
+        user=user,
+    )
+    policy = pricing.create_policy_revision(
+        payload={
+            "name": "Unified Workspace Test Policy",
+            "computation_currency": "EUR",
+            "round_order": "surcharge_then_round",
+            "max_quote_age_days": 30,
+            "min_quote_count": 1,
+            "evaluation_timezone": "UTC",
+            "rules": [
+                {
+                    "rate_mode": "percent_bp",
+                    "rate_value": 0,
+                    "round_mode": "floor",
+                    "round_step_minor": 100,
+                    "surcharge_minor": 0,
+                }
+            ],
+        },
+        user=user,
+    )
+    pricing.activate(
+        channel_id="woocommerce:primary",
+        policy_revision_id=policy["id"],
+        expected_head_version=0,
+        reason="Unified Workspace integration test setup",
+        user=user,
+    )
+
+
+def _activate_replacement_policy(db) -> None:
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.pricing_matrix.models import ChannelPricingPolicyHead
+    from app.flowhub.pricing_matrix.service import PricingMatrixService
+
+    user = db.query(FlowHubUser).first()
+    head = db.get(ChannelPricingPolicyHead, "woocommerce:primary")
+    assert user is not None and head is not None
+    pricing = PricingMatrixService(db)
+    policy = pricing.create_policy_revision(
+        payload={
+            "name": "Replacement Unified Workspace Test Policy",
+            "computation_currency": "EUR",
+            "round_order": "surcharge_then_round",
+            "max_quote_age_days": 30,
+            "min_quote_count": 1,
+            "evaluation_timezone": "UTC",
+            "rules": [
+                {
+                    "rate_mode": "percent_bp",
+                    "rate_value": 0,
+                    "round_mode": "floor",
+                    "round_step_minor": 100,
+                    "surcharge_minor": 0,
+                }
+            ],
+        },
+        user=user,
+    )
+    pricing.activate(
+        channel_id="woocommerce:primary",
+        policy_revision_id=policy["id"],
+        expected_head_version=head.head_version,
+        reason="Unified Workspace pricing drift test",
+        user=user,
+    )
 
 
 def _create(client, auth_headers):
@@ -185,6 +274,8 @@ def test_manual_workspace_snapshot_grid_draft_and_review_lifecycle(client, auth_
     assert review["items"][0]["current"] == "100"
     assert review["items"][0]["target"] == "125"
     assert review["items"][0]["eligible"] is True
+    assert review["pricingBindings"][0]["channelId"] == "woocommerce:primary"
+    assert review["pricingBindings"][0]["workspacePricingEvaluatedAt"]
 
 
 def test_manual_workspace_supports_grouped_inline_pricing_grid(client, auth_headers, db):
@@ -364,7 +455,14 @@ def test_viewer_cannot_create_workspace(client, db):
     assert response.status_code == 403
 
 
-def _saved_review(client, auth_headers, db, *, second_product: bool = False):
+def _saved_review(
+    client,
+    auth_headers,
+    db,
+    *,
+    second_product: bool = False,
+    deactivate_before_review: bool = False,
+):
     _seed(db)
     if second_product:
         from app.flowhub.data_layer.models import DlProductCache
@@ -419,6 +517,20 @@ def _saved_review(client, auth_headers, db, *, second_product: bool = False):
         json={"expected_version": 0, "metadata": {}, "changes": changes},
     )
     assert revision_response.status_code == 201
+    if deactivate_before_review:
+        from app.flowhub.auth.models import FlowHubUser
+        from app.flowhub.pricing_matrix.models import ChannelPricingPolicyHead
+        from app.flowhub.pricing_matrix.service import PricingMatrixService
+
+        user = db.query(FlowHubUser).first()
+        head = db.get(ChannelPricingPolicyHead, "woocommerce:primary")
+        assert user is not None and head is not None
+        PricingMatrixService(db).deactivate(
+            channel_id="woocommerce:primary",
+            expected_head_version=head.head_version,
+            reason="Unified Workspace missing activation test",
+            user=user,
+        )
     review_response = client.post(
         f"/api/v2/unified-workspaces/{workspace['id']}/reviews",
         headers=auth_headers,
@@ -566,6 +678,173 @@ def test_cache_change_marks_review_stale_and_blocks_apply(client, auth_headers, 
     )
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "STALE_REVIEW"
+
+
+def test_pricing_policy_must_be_activated_before_review(client, auth_headers, db):
+    _workspace, review = _saved_review(
+        client, auth_headers, db, deactivate_before_review=True
+    )
+
+    assert review["status"] == "blocked"
+    assert "policy_not_activated" in review["items"][0]["errors"]
+
+
+def test_pricing_activation_change_marks_review_stale_before_apply(
+    client, auth_headers, db, monkeypatch
+):
+    workspace, review = _saved_review(client, auth_headers, db)
+    item = review["items"][0]
+    confirmed = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [item["id"]]},
+    )
+    assert confirmed.status_code == 200
+    _activate_replacement_policy(db)
+
+    async def forbidden(*_args, **_kwargs):
+        pytest.fail("stale pricing activation reached the Write Pipeline")
+
+    monkeypatch.setattr(
+        "app.flowhub.write_pipeline.service.WritePipelineService.execute_workspace",
+        forbidden,
+    )
+    response = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "pricing-activation-stale"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": confirmed.json()["selectionChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "STALE_REVIEW"
+
+
+def test_pricing_channel_config_change_marks_review_stale_before_apply(
+    client, auth_headers, db, monkeypatch
+):
+    workspace, review = _saved_review(client, auth_headers, db)
+    item = review["items"][0]
+    confirmed = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [item["id"]]},
+    )
+    assert confirmed.status_code == 200
+
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.pricing_matrix.service import PricingMatrixService
+
+    user = db.query(FlowHubUser).first()
+    assert user is not None
+    PricingMatrixService(db).declare_unit(
+        scope="channel",
+        scope_reference="woocommerce:primary",
+        currency="EUR",
+        unit="EUR",
+        connector_config_version="changed-after-review",
+        user=user,
+    )
+
+    async def forbidden(*_args, **_kwargs):
+        pytest.fail("stale pricing channel config reached the Write Pipeline")
+
+    monkeypatch.setattr(
+        "app.flowhub.write_pipeline.service.WritePipelineService.execute_workspace",
+        forbidden,
+    )
+    response = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "pricing-config-stale"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": confirmed.json()["selectionChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "STALE_REVIEW"
+
+
+def test_pricing_binding_failure_isolated_per_channel(db, admin):
+    from app.flowhub.pricing_matrix.service import PricingMatrixService
+    from app.flowhub.unified_workspace.services import UnifiedWorkspaceService
+
+    _seed(db)
+    workspace = UnifiedWorkspaceService(db).create_manual_workspace(
+        name="Pricing Binding Isolation",
+        selections=[{"connector_id": "woocommerce:primary", "product_id": "101"}],
+        user=admin,
+        correlation_id="pricing-binding-isolation",
+    )
+    result = PricingMatrixService(db).bind_workspace_channels(
+        workspace_id=workspace["id"],
+        channel_ids=["snappshop:main", "woocommerce:primary"],
+        evaluated_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        execution_policy_snapshot={"operationVersion": "test"},
+    )
+
+    assert [item["channelId"] for item in result["bindings"]] == ["woocommerce:primary"]
+    assert result["issues"] == {"snappshop:main": "policy_not_activated"}
+
+
+def test_pricing_binding_race_blocks_before_write_pipeline(
+    client, auth_headers, db, monkeypatch
+):
+    workspace, review = _saved_review(client, auth_headers, db)
+    item = review["items"][0]
+    confirmed = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [item["id"]]},
+    )
+    assert confirmed.status_code == 200
+
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.pricing_matrix.models import ChannelPricingPolicyHead
+    from app.flowhub.pricing_matrix.service import PricingMatrixService
+
+    original_verify = PricingMatrixService.verify_workspace_channels
+    calls = 0
+
+    def verify_with_race(self, *, workspace_id, channel_ids):
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            user = self.db.query(FlowHubUser).first()
+            head = self.db.get(ChannelPricingPolicyHead, "woocommerce:primary")
+            assert user is not None and head is not None
+            self.deactivate(
+                channel_id="woocommerce:primary",
+                expected_head_version=head.head_version,
+                reason="Unified Workspace pricing race test",
+                user=user,
+            )
+        return original_verify(self, workspace_id=workspace_id, channel_ids=channel_ids)
+
+    monkeypatch.setattr(PricingMatrixService, "verify_workspace_channels", verify_with_race)
+
+    async def forbidden(*_args, **_kwargs):
+        pytest.fail("pricing binding race reached the Write Pipeline")
+
+    monkeypatch.setattr(
+        "app.flowhub.write_pipeline.service.WritePipelineService.execute_workspace",
+        forbidden,
+    )
+    response = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "pricing-binding-race"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": confirmed.json()["selectionChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert response.status_code == 202
+    assert response.json()["status"] == "stale"
+    assert calls >= 3
 
 
 @pytest.mark.parametrize(

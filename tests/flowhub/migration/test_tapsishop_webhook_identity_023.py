@@ -5,6 +5,7 @@ from pathlib import Path
 import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -13,6 +14,10 @@ def _config() -> Config:
     config = Config(str(ROOT / "alembic_flowhub.ini"))
     config.set_main_option("script_location", str(ROOT / "alembic_flowhub"))
     return config
+
+
+def _head_revision() -> str:
+    return ScriptDirectory.from_config(_config()).get_current_head()
 
 
 def test_existing_receipts_upgrade_with_backfilled_item_identity(tmp_path, monkeypatch):
@@ -58,7 +63,7 @@ def test_existing_receipts_upgrade_with_backfilled_item_identity(tmp_path, monke
             sa.text("SELECT version_num FROM alembic_version")
         ).scalar_one()
     assert identity == ("tapsishop:main", "tapsishop", "legacy-request-1")
-    assert revision == "FLOWHUB_023"
+    assert revision == _head_revision()
     engine.dispose()
 
 
