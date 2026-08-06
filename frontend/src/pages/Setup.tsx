@@ -57,7 +57,6 @@ const ALL_TIMEZONES = [
 
 const CURRENCIES = [
   { value: 'IRR', labelKey: 'settings:setup.irrIranianRial' },
-  { value: 'IRT', labelKey: 'settings:setup.irtIranianToman' },
   { value: 'USD', labelKey: 'settings:setup.usdUsDollar' },
   { value: 'EUR', labelKey: 'settings:setup.eurEuro' },
   { value: 'AED', labelKey: 'settings:setup.aedUaeDirham' },
@@ -418,6 +417,7 @@ function WorkspaceStep({ onNext }: { onNext: () => void }) {
     ALL_TIMEZONES.includes(detectedTimezone) ? detectedTimezone : 'UTC',
   )
   const [currency, setCurrency] = useState('USD')
+  const [currencyUnit, setCurrencyUnit] = useState('USD')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const languageOptions = LANGUAGE_OPTIONS.map(option => ({
@@ -437,6 +437,7 @@ function WorkspaceStep({ onNext }: { onNext: () => void }) {
         domain: domain.trim() || 'localhost',
         timezone,
         currency,
+        currencyUnit,
       }
       const response = await fetch('/api/v2/setup/server-profile', {
         method: 'POST',
@@ -508,17 +509,37 @@ function WorkspaceStep({ onNext }: { onNext: () => void }) {
             label={translate('settings:setup.defaultCurrency')}
             options={currencyOptions}
             value={currency}
-            onChange={setCurrency}
+            onChange={nextCurrency => {
+              setCurrency(nextCurrency)
+              setCurrencyUnit(nextCurrency === 'IRR' ? '' : nextCurrency)
+            }}
             disabled={loading}
             template_variable={translate('settings:setup.searchCurrencies')}
           />
         </div>
+        {currency === 'IRR' && (
+          <div className="mt-3 sm:max-w-[calc(50%-5px)]">
+            <SearchableListbox
+              id="setup-currency-unit"
+              label={translate('settings:settings.displayUnit')}
+              options={[
+                { value: 'RIAL', label: translate('settings:settings.rial') },
+                { value: 'TOMAN', label: translate('settings:settings.toman') },
+              ]}
+              value={currencyUnit}
+              onChange={setCurrencyUnit}
+              disabled={loading}
+              template_variable={translate('settings:settings.selectDisplayUnit')}
+            />
+          </div>
+        )}
         <Actions
           onBack={() => { void saveAndExit() }}
           backLabel={translate('settings:setup.saveAndExit')}
           onNext={() => { void submit() }}
           nextLabel={translate('settings:setup.continueToDatabase')}
           loading={loading}
+          nextDisabled={currency === 'IRR' && !currencyUnit}
         />
       </form>
     </StepSection>

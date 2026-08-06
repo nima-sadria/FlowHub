@@ -169,6 +169,7 @@ const commerce: CommerceService = {
       secrets: {},
       settings_schema: option?.settings_schema ?? [],
       credentials_returned: false as const,
+      currency_profile: { status: 'resolved' as const, currency: 'IRR', unit: 'RIAL' },
     }
   },
   async getChannelConfiguration(channelId) {
@@ -191,6 +192,7 @@ const commerce: CommerceService = {
       settings_schema: option?.settings_schema ?? [],
       webhook_path: provider === 'tapsishop' ? `/api/v2/webhooks/tapsishop/${channelId}` : null,
       credentials_returned: false as const,
+      currency_profile: { status: 'resolved' as const, currency: 'IRR', unit: 'RIAL' },
     }
   },
   async saveSource() {
@@ -519,6 +521,11 @@ async function openNextcloudSourceForm(c: HTMLElement) {
       .find(button => button.textContent === 'Add source')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
   })
+  await act(async () => {
+    const unit = selectByLabel(c, 'Price unit')
+    unit.value = 'RIAL'
+    unit.dispatchEvent(new Event('change', { bubbles: true }))
+  })
 }
 
 function fillNextcloudCredentials(c: HTMLElement, baseUrl = 'https://softpple.business', username: string | null = 'owner') {
@@ -694,7 +701,7 @@ describe('CommerceHub', () => {
     })
     expect(testedPayload?.settings.agent_identifier).toBe('flowhub-agent')
     expect(testedPayload?.secrets.token).toBeUndefined()
-    const vendorSelect = Array.from(c.querySelectorAll('select')).find(select => select.required) as HTMLSelectElement
+    const vendorSelect = selectByLabel(c, 'Vendor / store')
     expect(vendorSelect.value).toBe('vendor-1')
     expect(vendorSelect.textContent).toContain('Primary Vendor')
     expect(c.textContent).toContain('Channel connected successfully')
@@ -749,7 +756,7 @@ describe('CommerceHub', () => {
       await Promise.resolve()
     })
 
-    const vendorSelect = Array.from(c.querySelectorAll('select')).find(select => select.required) as HTMLSelectElement
+    const vendorSelect = selectByLabel(c, 'Vendor / store')
     const save = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Save configuration') as HTMLButtonElement
     expect(vendorSelect.value).toBe('')
     expect(save.disabled).toBe(true)
@@ -1408,6 +1415,11 @@ describe('CommerceHub', () => {
     await act(async () => {
       channelType.value = 'woocommerce:primary'
       channelType.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await act(async () => {
+      const unit = selectByLabel(c, 'Price unit')
+      unit.value = 'RIAL'
+      unit.dispatchEvent(new Event('change', { bubbles: true }))
     })
     act(() => {
       setInputValue(inputByLabel(c, 'Store URL'), 'https://shop.example.test')

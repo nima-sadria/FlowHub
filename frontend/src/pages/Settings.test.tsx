@@ -40,6 +40,7 @@ function services(updateSettings: (patch: Partial<AppSettings>) => void = () => 
         syncIntervalMinutes: 60,
         timezone: 'UTC',
         currency: 'EUR',
+        currencyUnit: 'EUR',
         environment: 'production',
       }),
       updateSettings: async (patch: Partial<AppSettings>) => {
@@ -50,6 +51,7 @@ function services(updateSettings: (patch: Partial<AppSettings>) => void = () => 
           syncIntervalMinutes: patch.syncIntervalMinutes ?? 60,
           timezone: patch.timezone ?? 'UTC',
           currency: patch.currency ?? 'EUR',
+          currencyUnit: patch.currencyUnit ?? 'EUR',
           environment: 'production',
         }
       },
@@ -155,5 +157,21 @@ describe('Settings', () => {
     const currencySelect = Array.from(c.querySelectorAll('select')).find(select => select.querySelector('option[value="USD"]')) as HTMLSelectElement
     const usdOption = Array.from(currencySelect.options).find(option => option.value === 'USD')
     expect(usdOption?.textContent).toBe('USD — US Dollar')
+  })
+
+  it('requires an explicit Rial or Toman display unit for IRR', async () => {
+    const c = await renderPage()
+    const currencySelect = Array.from(c.querySelectorAll('select')).find(select => select.querySelector('option[value="IRR"]')) as HTMLSelectElement
+
+    await act(async () => {
+      currencySelect.value = 'IRR'
+      currencySelect.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+
+    const unitSelect = Array.from(c.querySelectorAll('select')).find(select => select.querySelector('option[value="TOMAN"]')) as HTMLSelectElement
+    const saveButton = Array.from(c.querySelectorAll('button')).find(button => button.textContent?.includes('Save Changes')) as HTMLButtonElement
+    expect(unitSelect.value).toBe('')
+    expect(Array.from(unitSelect.options).map(option => option.value)).toEqual(['', 'RIAL', 'TOMAN'])
+    expect(saveButton.disabled).toBe(true)
   })
 })

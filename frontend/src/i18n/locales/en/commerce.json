@@ -245,5 +245,12 @@
   "type.dataLayer": "Data Layer",
   "type.flowhub": "FlowHub",
   "type.flowhubDataLayer": "FlowHub / Data Layer",
-  "type.source": "Source"
+  "type.source": "Source",
+  "commerceHub.monetaryUnit": "Monetary unit",
+  "commerceHub.monetaryUnitDescription": "Declare how price values are written. FlowHub never infers Rial or Toman from the amount.",
+  "commerceHub.currency": "Currency",
+  "commerceHub.currencyUnit": "Price unit",
+  "commerceHub.selectCurrencyUnit": "Select Rial or Toman",
+  "commerceHub.rial": "Rial",
+  "commerceHub.toman": "Toman"
 }

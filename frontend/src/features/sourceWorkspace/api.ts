@@ -38,6 +38,8 @@ export const sourceWorkspaceApi = {
     worksheet_mode: 'all' | 'selected'
     worksheet_name: string | null
     data_start_row: number
+    currency?: string
+    currency_unit?: string
   }) => apiFetch<SourceProfile>('/api/v2/sources', authFetch, json('POST', payload)),
   createSheet: (name: string) => apiFetch<FlowHubSheetPage>('/api/v2/sheets', authFetch, json('POST', {
     name,

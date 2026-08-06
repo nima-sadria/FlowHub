@@ -25,6 +25,7 @@ export interface ServerProfilePayload {
   environment?: string
   timezone: string
   currency: string
+  currencyUnit: string
 }
 
 export interface AdminPayload {

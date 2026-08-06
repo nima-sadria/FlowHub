@@ -245,5 +245,12 @@
   "type.dataLayer": "لایه داده",
   "type.flowhub": "FlowHub",
   "type.flowhubDataLayer": "FlowHub / لایه داده",
-  "type.source": "منبع"
+  "type.source": "منبع",
+  "commerceHub.monetaryUnit": "واحد پولی",
+  "commerceHub.monetaryUnitDescription": "مشخص کنید قیمت‌ها با چه واحدی نوشته شده‌اند. FlowHub هرگز ریال یا تومان را از روی بزرگی عدد حدس نمی‌زند.",
+  "commerceHub.currency": "ارز",
+  "commerceHub.currencyUnit": "واحد قیمت",
+  "commerceHub.selectCurrencyUnit": "ریال یا تومان را انتخاب کنید",
+  "commerceHub.rial": "ریال",
+  "commerceHub.toman": "تومان"
 }

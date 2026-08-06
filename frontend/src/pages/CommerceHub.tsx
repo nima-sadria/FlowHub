@@ -492,7 +492,7 @@ export function ConfigPanel({
   initialResourceId?: string | null
   headingLevel?: 2 | 3
   onCancel: () => void
-  onSaved: (saved: { kind: FormKind; externalId: string; name: string }) => Promise<void>
+  onSaved: (saved: { kind: FormKind; externalId: string; name: string; currency: string; currencyUnit: string }) => Promise<void>
 }) {
   const { commerce } = useServices()
   const { success, error: notifyError } = useNotification()
@@ -511,6 +511,8 @@ export function ConfigPanel({
   const [enabled, setEnabled] = useState(false)
   const [accessMode, setAccessMode] = useState<'read_only' | 'write_enabled'>('read_only')
   const [description, setDescription] = useState('')
+  const [currency, setCurrency] = useState('IRR')
+  const [currencyUnit, setCurrencyUnit] = useState('')
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [secrets, setSecrets] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -541,6 +543,8 @@ export function ConfigPanel({
     setDisplayName(selected?.name ?? '')
     setEnabled(false)
     setDescription('')
+    setCurrency('IRR')
+    setCurrencyUnit('')
     setSettings(Object.fromEntries((selected?.settings_schema ?? [])
       .filter(field => !field.secret && field.default !== undefined && field.default !== null)
       .map(field => [field.key, String(field.default)])))
@@ -598,6 +602,12 @@ export function ConfigPanel({
         setSecrets({})
         setSecretStatus(configuration.secrets)
         setConfigurationWasConfigured(configuration.configured)
+        setCurrency(configuration.currency_profile?.currency || 'IRR')
+        setCurrencyUnit(
+          configuration.currency_profile?.status === 'resolved'
+            ? configuration.currency_profile.unit || ''
+            : '',
+        )
       })
       .catch(() => {
         if (active) notifyError({
@@ -634,7 +644,9 @@ export function ConfigPanel({
     || (Boolean(settings.url?.trim())
       && hasNextcloudUsername(settings)
       && hasSecret('password'))
-  const canSave = nextcloudSaveReady && (!vendorSelectionRequired || Boolean(settings.vendor_id?.trim()))
+  const canSave = Boolean(currency) && Boolean(currencyUnit)
+    && nextcloudSaveReady
+    && (!vendorSelectionRequired || Boolean(settings.vendor_id?.trim()))
 
   function configurationPayload() {
     return {
@@ -651,6 +663,8 @@ export function ConfigPanel({
           }
         : settings,
       secrets,
+      currency,
+      currency_unit: currencyUnit,
     }
   }
 
@@ -715,7 +729,13 @@ export function ConfigPanel({
               title: translate('commerce:commerceHub.channelConfiguredSuccessfully'),
               description: translate('commerce:commerceHub.theChannelIsReadyToUse'),
             })
-      await onSaved({ kind, externalId: selectedType.id, name: displayName || selectedType.name })
+      await onSaved({
+        kind,
+        externalId: selectedType.id,
+        name: displayName || selectedType.name,
+        currency,
+        currencyUnit,
+      })
     } catch {
       notifyError({
         title: kind === 'source' ? translate('commerce:commerceHub.unableToSaveSourceSettings') : translate('commerce:commerceHub.unableToSaveChannelSettings'),
@@ -979,6 +999,48 @@ export function ConfigPanel({
           </Badge>
         )}
         {selected.placeholder && <Badge variant="neutral">{translate('commerce:commerceHub.notConfigured2')}</Badge>}
+        </div>
+      </div>
+
+      <div className="fh-form-section">
+        <div>
+          <p className="fh-form-section-title">{translate('commerce:commerceHub.monetaryUnit')}</p>
+          <p className="fh-form-section-description">{translate('commerce:commerceHub.monetaryUnitDescription')}</p>
+        </div>
+        <div className="fh-form-grid md:grid-cols-2">
+          <label className="fh-field">
+            <span className="fh-help-text">{translate('commerce:commerceHub.currency')}</span>
+            <select
+              value={currency}
+              onChange={event => {
+                const nextCurrency = event.target.value
+                setCurrency(nextCurrency)
+                setCurrencyUnit(nextCurrency === 'IRR' ? '' : nextCurrency)
+              }}
+              className="fh-select"
+            >
+              {['IRR', 'USD', 'EUR', 'AED', 'JPY'].map(code => (
+                <option key={code} value={code}>{code}</option>
+              ))}
+            </select>
+          </label>
+          <label className="fh-field">
+            <span className="fh-help-text">{translate('commerce:commerceHub.currencyUnit')}</span>
+            {currency === 'IRR' ? (
+              <select
+                value={currencyUnit}
+                onChange={event => setCurrencyUnit(event.target.value)}
+                className="fh-select"
+                required
+              >
+                <option value="">{translate('commerce:commerceHub.selectCurrencyUnit')}</option>
+                <option value="RIAL">{translate('commerce:commerceHub.rial')}</option>
+                <option value="TOMAN">{translate('commerce:commerceHub.toman')}</option>
+              </select>
+            ) : (
+              <input value={currencyUnit} readOnly className="fh-input" />
+            )}
+          </label>
         </div>
       </div>
 
@@ -1415,7 +1477,12 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
     }
   }
 
-  async function managedSourceFor(externalId: string, name: string) {
+  async function managedSourceFor(
+    externalId: string,
+    name: string,
+    currency?: string,
+    currencyUnit?: string,
+  ) {
     const existing = (await sourceWorkspaceApi.listSources()).items.find(
       item => item.sourceKind === 'external' && item.externalSourceId === externalId,
     )
@@ -1427,6 +1494,8 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
       worksheet_mode: 'selected',
       worksheet_name: 'Sheet1',
       data_start_row: 2,
+      currency,
+      currency_unit: currencyUnit,
     })
   }
 
@@ -1470,12 +1539,17 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
     setFormKind('channel')
   }
 
-  async function reloadAfterSave(saved: { kind: FormKind; externalId: string; name: string }) {
+  async function reloadAfterSave(saved: { kind: FormKind; externalId: string; name: string; currency: string; currencyUnit: string }) {
     await loadCommerce()
     setFormKind(null)
     setEditingChannelId(null)
     if (saved.kind === 'source') {
-      const managed = await managedSourceFor(saved.externalId, saved.name)
+      const managed = await managedSourceFor(
+        saved.externalId,
+        saved.name,
+        saved.currency,
+        saved.currencyUnit,
+      )
       navigate(`/sources/${managed.id}`)
     }
   }

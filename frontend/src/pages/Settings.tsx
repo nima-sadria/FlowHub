@@ -32,7 +32,7 @@ const TIMEZONES = [
   'Pacific/Auckland', 'Pacific/Honolulu',
 ]
 
-const CURRENCIES = ['USD', 'EUR', 'IRR', 'IRT', 'AED', 'TRY', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'] as const
+const CURRENCIES = ['USD', 'EUR', 'IRR', 'AED', 'TRY', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'] as const
 
 function currencyLabel(code: string): string {
   return translate(`settings:settings.currencyOption.${code}`, { defaultValue: code })
@@ -77,8 +77,13 @@ export default function Settings() {
   const dirty = Boolean(draft && appSettings && (
     draft.timezone !== appSettings.timezone
     || draft.currency !== appSettings.currency
+    || draft.currencyUnit !== appSettings.currencyUnit
     || draftLanguage !== (language.startsWith('fa') ? 'fa' : 'en')
   ))
+
+  const currencyUnitReady = Boolean(
+    draft && (draft.currency !== 'IRR' || ['RIAL', 'TOMAN'].includes(draft.currencyUnit ?? '')),
+  )
 
   function updateDraft(patch: Partial<AppSettings>) {
     setDraft(d => d ? { ...d, ...patch } : d)
@@ -164,18 +169,38 @@ export default function Settings() {
                   <select
                     className="fh-select"
                     value={draft.currency}
-                    onChange={event => updateDraft({ currency: event.target.value, currencyUnit: event.target.value === 'IRR' ? 'RIAL' : event.target.value })}
+                    onChange={event => updateDraft({
+                      currency: event.target.value,
+                      currencyUnit: event.target.value === 'IRR' ? '' : event.target.value,
+                    })}
                   >
                     {CURRENCIES.map(code => <option key={code} value={code}>{currencyLabel(code)}</option>)}
                   </select>
                 </label>
+
+                {draft.currency === 'IRR' && (
+                  <label className="fh-field mt-4">
+                    <span className="fh-help-text">{translate('settings:settings.displayUnit')}</span>
+                    <select
+                      className="fh-select"
+                      value={draft.currencyUnit ?? ''}
+                      onChange={event => updateDraft({ currencyUnit: event.target.value })}
+                      required
+                    >
+                      <option value="" disabled>{translate('settings:settings.selectDisplayUnit')}</option>
+                      <option value="RIAL">{translate('settings:settings.rial')}</option>
+                      <option value="TOMAN">{translate('settings:settings.toman')}</option>
+                    </select>
+                    <span className="fh-field-hint">{translate('settings:settings.displayUnitDescription')}</span>
+                  </label>
+                )}
 
                 {dirty && (
                   <div className="mt-4 flex items-center justify-between">
                     <span className="fh-text-body-sm font-medium text-wp-yellow">{translate('settings:settings.unsavedChanges')}</span>
                     <div className="fh-actions">
                       <button type="button" onClick={handleReset} className="fh-toolbar-link">{translate('settings:rateLimits.reset')}</button>
-                      <button type="button" onClick={() => void handleSave()} disabled={saving} className="fh-button-primary">
+                      <button type="button" onClick={() => void handleSave()} disabled={saving || !currencyUnitReady} className="fh-button-primary">
                         {saving && <Spinner size="sm" className="text-white" />}
                         {!saving && <Icon name="save" />}
                         {saving ? translate('settings:rateLimits.saving') : translate('settings:rateLimits.saveChanges')}
@@ -191,7 +216,7 @@ export default function Settings() {
             <section className="fh-card fh-card-pad flex flex-wrap items-center justify-between gap-3">
               <ReadOnlyField
                 label={translate('settings:settings.localizationPreview')}
-                value={`${draftLanguage === 'fa' ? translate('settings:language.persian') : translate('settings:language.english')} · ${draft.currency} · ${draft.timezone}`}
+                value={`${draftLanguage === 'fa' ? translate('settings:language.persian') : translate('settings:language.english')} · ${draft.currency === 'IRR' ? draft.currencyUnit || translate('settings:settings.unitUnresolved') : draft.currency} · ${draft.timezone}`}
               />
               <Badge dot variant="success">{translate('settings:settings.ready')}</Badge>
             </section>

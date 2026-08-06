@@ -43,6 +43,7 @@ export interface CommerceChannelConfiguration {
   settings_schema: CommerceTypeOption['settings_schema']
   webhook_path: string | null
   credentials_returned: false
+  currency_profile?: CommerceCurrencyProfile
 }
 
 export interface CommerceSourceConfiguration {
@@ -56,6 +57,18 @@ export interface CommerceSourceConfiguration {
   secrets: Record<string, { status: string; replaced_at: string | null }>
   settings_schema: CommerceTypeOption['settings_schema']
   credentials_returned: false
+  currency_profile?: CommerceCurrencyProfile
+}
+
+export interface CommerceCurrencyProfile {
+  status: 'resolved' | 'unresolved'
+  currency: string | null
+  unit: string | null
+  canonicalCurrency?: string
+  canonicalUnit?: string
+  canonicalFactor?: number
+  currencyProfileId?: string
+  version?: number
 }
 
 export interface CommerceService {
@@ -108,6 +121,8 @@ export interface CommerceConfigPayload {
   description?: string
   settings: Record<string, unknown>
   secrets: Record<string, string>
+  currency: string
+  currency_unit: string
 }
 
 export interface CommerceSettingsResult {

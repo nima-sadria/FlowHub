@@ -14,6 +14,11 @@ export interface SourceProfile {
   sheetId: string | null
   createdAt: string | null
   updatedAt: string | null
+  currencyProfile?: {
+    status: 'resolved' | 'unresolved'
+    currency: string | null
+    unit: string | null
+  }
   legacyMapping?: {
     primaryChannelId: string
     fields: FieldMapping[]
