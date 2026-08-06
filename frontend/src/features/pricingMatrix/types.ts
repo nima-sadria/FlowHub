@@ -162,12 +162,19 @@ export interface UnitDeclarationUnresolved {
 export interface UnitDeclarationResolved {
   readonly scope: UnitScope
   readonly scopeReference: string
-  /** Literal inferred as `resolved` (contract shows only the unresolved example). */
+  /**
+   * Literal `'resolved'` assigned by the validator. UI Stage 6 browser
+   * evidence confirmed the real backend response omits `status` entirely for
+   * a resolved declaration (only the unresolved example carries
+   * `status: "unresolved"`) — this field is a UI-internal normalization, not
+   * something read verbatim off the wire.
+   */
   readonly status: 'resolved'
   readonly canonicalCurrency: string
   readonly canonicalUnit: string
   readonly canonicalFactor: string
   readonly currencyProfileId: string
+  /** ExactInteger on the wire (observed as a JSON number) — formatted to text, never parsed as `number`. */
   readonly version: string
   /** Present only on a channel-scope PUT that created a new config revision. */
   readonly channelConfigRevisionId?: string

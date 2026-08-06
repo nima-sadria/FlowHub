@@ -1,4 +1,4 @@
-# FlowHub UI continuation handover — Pricing Matrix (Claude UI Stages 1–5)
+# FlowHub UI continuation handover — Pricing Matrix (Claude UI Stages 1–6)
 
 ## Read this first
 
@@ -14,8 +14,11 @@ records the state of the Claude UI work for the Pricing Matrix:
 - **Stage 4** (commit `7421a93`) — Channel Policy Lifecycle mutations
   (activate/deactivate) with `headVersion` optimistic concurrency and 409
   conflict handling.
-- **Stage 5** — RTL, responsive (mobile/tablet/desktop), light/dark theme, and
-  accessibility hardening across all four Pricing pages.
+- **Stage 5** (commit `5eb5bd6`) — RTL, responsive (mobile/tablet/desktop),
+  light/dark theme, and accessibility hardening across all four Pricing pages.
+- **Stage 6** — real end-to-end browser verification (frontend + a live local
+  backend on this branch's data), full regression, three real defects found
+  and fixed, and this merge handover.
 
 - **Do not** treat this file as a backend contract. The callable contract is
   `FRONTEND_CONTRACT.md` at the repository root.
@@ -566,6 +569,282 @@ ARIA linkage, focus target) — not visual/pixel review.
 - Confirmed before starting: `main` had not advanced the pricing contract
   since the Stage 2 sync — no merge needed.
 
+## UI Stage 6 — delivered (browser verification, regression, merge handover)
+
+### A. Local application startup used for verification
+
+- **Frontend HEAD verified:** `5eb5bd6` at the start of the stage; `main` was
+  confirmed to have advanced only with unrelated Source Acquisition backend
+  work (`5e37679`…`f86f07d`, none touching `FRONTEND_CONTRACT.md` or
+  `app/flowhub/pricing_matrix/`) — **no merge was performed**, per instruction.
+- **Backend used for verification:** the same worktree's checked-out backend
+  code (this branch's merge at `e2ec982` already carries the Pricing Matrix
+  backend through `main@6eb5610`; nothing backend-side changed since). Run via
+  `uvicorn app.flowhub.app:app` using the Python venv already present in the
+  Codex `main` worktree (`../FlowHub/.venv`) — read-only reuse of an installed
+  interpreter, invoked against **this** worktree's checkout; no backend files
+  were modified.
+- **Database:** a fresh local SQLite DB (`data/flowhub-local.db`, gitignored)
+  migrated with `alembic -c alembic_flowhub.ini upgrade head` from this
+  worktree's own `alembic_flowhub/versions/` (landed at `FLOWHUB_024`, the
+  Pricing Matrix migration — consistent with this branch's contract; the
+  separate legacy `alembic.ini` tree is unrelated/superseded and was not used
+  after an initial false start, which was discarded).
+- **Config:** a local-only `.env` (gitignored, copied from the Codex worktree's
+  own local dev file — explicitly labeled "Local FlowHub development only. Do
+  not use for production", placeholder credentials) plus
+  `FLOWHUB_DATABASE_URL`/`FLOWHUB_JWT_SECRET` exported directly (the app reads
+  these from the process environment, not from `.env`, unlike Alembic's legacy
+  tree which goes through `app.config.get_settings()`).
+- **URLs:** backend `http://127.0.0.1:8000`, frontend (Vite) bound to IPv4
+  explicitly — `http://127.0.0.1:5173` (the default `localhost`/`::1` binding
+  was unreachable from this environment's tooling; `--host 127.0.0.1` fixed
+  it). The dev proxy (`/api` → backend) was confirmed working end-to-end.
+- Completed the real `/setup` wizard (workspace → database check → owner
+  account `local_owner`) and, later, created two more real accounts via
+  `/settings/users` (`verify_operator` role Operator, `verify_viewer` role
+  Viewer) to probe admin gating — see finding below.
+- Both dev servers were stopped at the end of the stage
+  (`uvicorn`/`vite` processes killed). `.env` and `data/*.db` are gitignored
+  local artifacts, confirmed absent from `git status`.
+
+### B–F. Browser verification matrix — what was actually exercised, with real evidence
+
+All of the following were driven through the real UI against the live local
+backend above (not test doubles). Network requests/responses were inspected
+directly in every case a domain error occurred, to distinguish a real backend
+rule from a frontend bug before drawing any conclusion.
+
+**`/settings/pricing`:** loading, empty state (before any policy existed),
+policy list, policy detail (rules table with real exact-integer values),
+channel head display, lifecycle history (grew 0→1→3→4 events across the
+scenarios below), unresolved-unit state (before a unit was declared),
+resolved-unit state (after). Permission-denied/unavailable/contract-mismatch
+states were already covered by the Stage 2/5 automated suite with fabricated
+responses (jsdom); this stage additionally found and fixed one real
+contract-mismatch case the automated suite hadn't caught — see Finding 3.
+
+**Policy Revision editor:** created a real revision ("Retail Verification
+Policy", EUR, one rule targeting `woocommerce:primary` with a `product_ref`
+target). Confirmed: validation errors, a real 404 (`channel_not_found` — the
+callable contract's own precondition, "Referenced Channels… must already
+exist," satisfied by seeding `uw_channels` through the backend's own
+`UnifiedWorkspaceService._seed_channels()` — see note below), failed-submit
+data preservation (rule fields all intact after the 404), and successful
+submit + navigation to the created revision. `product_group_revision_id`
+targeting was not separately re-verified live (identical code path to
+`product_ref`, already covered by Stage 3's automated tests); duplicate rule
+scope is Stage 3 automated-only for the same reason. Dirty-form navigation
+warning and duplicate-submit prevention were not re-driven live (timing- and
+`beforeunload`-dependent; already covered by dedicated Stage 3 tests that are
+more reliable than manual browser timing).
+
+**Product Group Revision editor:** created with two members, reproduced and
+fixed a live duplicate-member validation error, confirmed failed-submit data
+preservation. Full successful-submit was not completed live: the backend
+requires canonical products to exist (`canonical_product_not_found`, a real
+404 matching FRONTEND_CONTRACT.md's "Every supplied canonical product must
+exist") and this fresh dev environment has no synced products — creating one
+would require an unrelated Source-import flow, out of Strict Scope. The
+identical successful-submit code path is already exercised by Stage 3's
+automated tests.
+
+**Unit Declaration editor:** Channel scope — IRR/RIAL, IRR/TOMAN (both
+succeeded; backend canonicalizes both to a RIAL base with `canonicalFactor`,
+e.g. TOMAN → `canonicalUnit: RIAL, canonicalFactor: 10` — confirmed this is
+real backend business logic the UI faithfully displays, not a UI bug), a
+supported non-IRR pair (EUR/EUR and USD/USD, both succeeded — USD canonicalizes
+to CENT/100). "Unsupported pair blocked" and "no magnitude inference" were not
+forced via a raw invalid submission because the UI structurally prevents one:
+non-IRR currencies auto-fill their unit (disabled input, no free-text field),
+and IRR requires an explicit RIAL/TOMAN choice with no pre-selected default —
+confirmed by inspection and already covered by Stage 3's `validation.test.ts`.
+Source scope was not separately exercised (identical code path to Channel
+scope, parameterized only by `scope`/`scopeReference`).
+
+**Channel lifecycle:** activated `woocommerce:primary` for the created policy
+(after first hitting a real, correct `channel_computation_currency_mismatch`
+422 — the unit was declared IRR while the policy is EUR; fixed by declaring
+the unit as EUR — this is exactly the contract's documented precondition,
+not a bug). Confirmed focus moves into the reason field on open, reason
+preserved through the failed 422 attempt, and a successful activation (head
+version 0→1). Deactivated successfully (1→2, via a direct out-of-band API
+call used to engineer the next scenario). **Forced a genuine 409:**
+reactivated the channel out-of-band (server head → 3, status active) while
+the browser's cached state still held head version 1/Active, then clicked
+Deactivate in the UI — got a real `pricing_policy_head_conflict` 409. Verified
+with real evidence: Head version display updated 1→3, Lifecycle Events count
+updated, the distinct "This changed since you loaded it… not automatically
+retried" state rendered, the reason text stayed in the input, and only one
+409 request was sent (no automatic retry). Clicking Deactivate again
+(explicit retry, now with the refreshed head version) succeeded immediately
+(3→4). **Admin gating:** attempted to verify with real non-admin sessions —
+created `verify_operator` (Operator role) and `verify_viewer` (Viewer role)
+via the real `/settings/users` flow. Both are blocked at the **route** level
+(`Access Denied` / no Settings link at all) before ever reaching the Pricing
+page, because in this app's existing role model only `Owner`/`Admin` carry
+`can_view_settings`, and `effectiveHasPerm` treats `is_admin`/`is_super_admin`
+as a blanket bypass for every dotted permission including `workspace.admin`.
+This means no role in the current seed data can view Pricing without also
+being able to administer it — a **pre-existing, global permission-model
+characteristic**, not a Pricing UI defect, and out of Fix Policy scope
+("existing global design issues"). The client-side `canAdminister` gate
+itself is already correctly verified by Stage 4's dedicated automated test
+(`does not expose activate/deactivate controls without workspace.admin`,
+using a mocked non-admin `AuthContext`).
+
+**C. Responsive / RTL:** mobile `390×844`, tablet `768×1024`, desktop
+`1440×900`, each confirmed via `document.documentElement.scrollWidth <=
+clientWidth` (no page-level horizontal overflow) plus targeted
+`getBoundingClientRect()` checks: the rules table stays scrollable within its
+own `.overflow-x-auto` wrapper (648px content in a 324px wrapper at mobile,
+page itself did not overflow); the header's three action buttons wrap onto two
+lines at 390px width instead of overflowing; the lifecycle action form's
+Cancel/Confirm buttons fit without overflow. At tablet width the two-column
+`fh-form-grid` was confirmed active (`grid-template-columns: 335px 335px`) and
+its column order was confirmed to **mirror correctly under RTL** (first field
+renders on the right in `dir="rtl"`, left in `dir="ltr"` — verified by
+comparing the same two fields' `getBoundingClientRect().left` in both
+directions) and at desktop the policies list and detail panel render
+side-by-side (`lg:grid-cols-2`). Persian rendering was confirmed throughout
+(policy detail, rules table headers/enum values, channel lifecycle, unit
+declarations) with identifiers, currency codes, checksums, and numeric values
+staying in unmangled LTR reading order — confirming `<bdi dir="ltr">`
+isolation works in the real browser, not just in jsdom.
+
+**D. Themes:** dark mode toggled via the real UI control
+(`<html class="dark">`). Inspected computed styles of a status badge, an
+`.fh-card`, the page heading, and the rules table: all resolve to CSS-variable
+-driven light-on-dark colors (no hardcoded light-only background or
+dark-only text found), consistent with the Stage 5 static
+`pricingThemeCompliance.test.ts` guard. Focus rings were confirmed **visible**
+in dark mode via a real keyboard `Tab` press (`:focus-visible` matched, a
+distinct `box-shadow` ring appeared) — confirming the app's shared
+`:focus-visible { outline: none; box-shadow: var(--fh-focus-ring) }` rule
+(pre-existing, shared, not Pricing-specific) renders correctly for
+Pricing-page controls too.
+
+**E. Accessibility / keyboard:** focus-into-reason-field-on-open confirmed via
+`document.activeElement` immediately after opening Activate (real click, not
+simulated focus). Confirmed no `tabIndex` overrides exist anywhere in the four
+Pricing pages (`grep` — none found), meaning focus order strictly follows
+DOM/visual order, the correct default. Labels/`aria-describedby`/accessible
+names were verified extensively via the Stage 5/6 automated suite (label
+`for`/`id` pairing, `aria-invalid`/`aria-describedby` linkage, `role="alert"`/
+`role="status"` error regions) — this stage's contribution was live evidence
+that the reason field's error linkage renders correctly for a real 403 (see
+Finding pattern in F) and that no premature "required" errors appear on a
+pristine form in the real browser (see Finding 1). A full manual screen-reader
+pass and a formal WCAG audit were **not** performed — out of scope per
+instruction ("Do not claim a formal WCAG audit unless one is actually
+performed").
+
+**F. Console / network:** the **only** console error found across the entire
+session was the one-time `<bdi>` inside `<option>` hydration warning (Finding
+2, fixed; confirmed via the console message timeline that it occurred exactly
+once, before the fix's HMR update, and never recurred after). Every domain
+error surfaced (404 `channel_not_found`, 404 `canonical_product_not_found`,
+422 `channel_computation_currency_mismatch`, 422 `pricing_policy_not_activated`,
+409 `pricing_policy_head_conflict`) was inspected at the network layer and
+confirmed to map to the correct distinct UI state, with the raw
+`{"detail":{"code":...}}` body **never** shown to the user (only the localized
+state title/message). Repeated `401`s on `/api/v2/exchange-rates/me` were
+inspected and confirmed to be the pre-existing, unrelated,
+already-correctly-working JWT auto-refresh flow (`authFetch` in
+`api/authFetch.ts`) — every 401 was immediately followed by a 200 via
+`/api/auth/refresh`; not a Pricing UI concern. No secret/token values were
+observed in any request URL (the bearer token used to engineer the 409 test
+was read from `localStorage` for test purposes only, never logged or
+displayed in the UI). No duplicate submit requests and no automatic retry
+after 409 were observed in any network trace.
+
+### Findings — 3 real defects found and fixed (Fix Policy: proven by browser evidence)
+
+1. **Validation errors rendered on a pristine, untouched form.** All three
+   editors computed field errors unconditionally from the very first render
+   (an empty form is "invalid" by construction), so "This field is required"
+   appeared before the user had touched anything — reading as a broken form.
+   Root cause: Stage 3 never gated the *display* of errors, only the
+   submit-disabled state. **Fix:** each editor now derives a `displayErrors`
+   view gated on the existing `dirty` flag (`dirty ? errors : <empty>`); the
+   real `errors` object (and therefore `hasErrors`/submit-disabled) is
+   completely unchanged. `PricingUnitEditor`'s `dirty` computation was also
+   widened to include `scopeReference` (previously excluded), so picking a
+   scope alone now correctly starts revealing validation feedback too. Files:
+   `pages/PricingPolicyEditor.tsx`, `pages/PricingProductGroupEditor.tsx`,
+   `pages/PricingUnitEditor.tsx`. Regression tests added to all three
+   (`PricingMatrix.test.tsx` needed no change here — it never had this pattern).
+
+2. **`<bdi>` nested inside `<option>` — invalid HTML, React hydration
+   warning.** `PricingUnitEditor.tsx`'s currency/IRR-unit `<select>` options
+   wrapped their text in `<bdi dir="ltr">`, which browsers cannot render as a
+   child of `<option>` (option content is always plain text). **Fix:** moved
+   `dir="ltr"` onto the `<option>` element itself (a valid HTML attribute)
+   instead of a child `<bdi>`. Confirmed via the browser console timeline
+   that the warning occurred exactly once (before the fix) and never recurred
+   after. No other Pricing file had this pattern (checked by regex).
+
+3. **Unit-declaration validator assumed a `status: "resolved"` literal the
+   backend never sends, and treated `version` as always a string.** The real
+   backend's resolved-declaration response omits `status` entirely (only the
+   unresolved example in FRONTEND_CONTRACT.md carries
+   `status: "unresolved"`) and returns `version` as a JSON number (observed:
+   `"version":1`). `validateUnitDeclaration` required a literal
+   `status === 'resolved'` (throwing `ContractMismatchError` on every real
+   resolved response — reproduced live as "Unsupported pricing response") and
+   used `optionalString` for `version` (silently discarding a numeric value
+   to `''`). **Fix:** treat "resolved" as "anything that isn't the
+   `'unresolved'` marker" (an explicit *unrecognized* status still fails
+   closed), and format `version` with the same `formatExactInteger` helper
+   used for other `ExactInteger` wire values (PM-4) instead of
+   `optionalString`. Files: `features/pricingMatrix/presentation.ts`,
+   `features/pricingMatrix/types.ts` (updated doc comments to record the real
+   observed shape). Regression test added to `presentation.test.ts` using the
+   exact shape observed in the browser (no `status` key, numeric `version`
+   and `canonicalFactor`).
+
+None of the three required backend changes — all were frontend assumptions
+that didn't match the real, already-correct backend response shape, or a
+frontend-only markup/UX defect.
+
+### G. Test and build verification (after all three fixes)
+
+- **Targeted Pricing UI tests:** all `Pricing*.test.tsx` +
+  `pricingThemeCompliance.test.ts` + `features/pricingMatrix/`: **105
+  passed** (100 before the Stage 6 fixes' regression tests were added, +5).
+- **`npx tsc -b`:** passed (exit 0).
+- **Full frontend unit suite:** `npx vitest run` → **74 files, 589 tests
+  passed**, 0 failures (up from 584 pre-fix — the +5 are exactly the new
+  regression tests for Findings 1 and 3).
+- **`npm run build`:** passed.
+- **`npm run i18n:validate`:** fails with the **same two pre-existing,
+  unrelated strings** as every prior stage — not touched, not fixed (out of
+  Fix Policy scope: "unrelated i18n debt"):
+  - `frontend/src/components/SiteFooter.tsx:30` — JSX text `FlowHub v`
+  - `frontend/src/pages/ExchangeRates.tsx:153` — JSX text `/ day ·`
+- **Browser verification matrix:** completed as detailed above (sections
+  A–F), against a real local backend on this branch's own code and a fresh
+  migrated database.
+
+### Remaining frontend blockers (none block merge)
+
+- None of the three fixed defects, nor any other Pricing UI behavior,
+  currently blocks integration. The two i18n pre-existing strings are a known,
+  documented, unrelated blocker for a **clean** `i18n:validate` run — not a
+  Pricing UI blocker.
+- Full "Product Group successful submit" and "unsupported currency/unit pair
+  rejected" were verified by code + automated test but not by a live
+  browser round-trip (see B–F for exact reasons: no synced canonical
+  products in this fresh dev DB; the UI structurally prevents constructing an
+  unsupported pair). Recommended before a production release (not before
+  merge): re-verify Product Group successful-submit once a Source has synced
+  real canonical products.
+- The admin-gating finding (no role in the seed data can view Pricing without
+  `workspace.admin`) is a pre-existing app characteristic to flag to Codex/
+  Owner if a "can view but not administer Pricing" role is ever required — it
+  is not something this branch should fix unilaterally (global permission
+  model, out of Strict Scope).
+
 ## Not done (by design)
 
 - No lifecycle CAS **conflict-resolution UI** beyond "refetch + notify +
@@ -579,19 +858,42 @@ ARIA linkage, focus target) — not visual/pixel review.
   deferred to avoid touching shared nav + its tests).
 - No Global unit scope (PM-8) and no product-search integration (PM-9) — both
   documented limitations, not silent gaps.
-- No actual browser/visual verification at any breakpoint or theme — Stage 5
-  fixed and tested every DOM-observable property jsdom can see, but real
-  layout, wrapping, and contrast can only be confirmed in a browser.
-- Not merged again beyond the Stage-2 sync (Stage 3/4/5 all confirmed no
-  pricing-contract changes landed on `main` since), not pushed; Codex `main`
-  untouched.
+- Not merged again beyond the Stage-2 sync (Stages 3–6 all confirmed no
+  pricing-contract changes landed on `main` since), not pushed, not deployed;
+  Codex `main` untouched (confirmed separate worktree, unchanged HEAD).
 
-## Exact next recommended UI phase
+## Exact merge prerequisites
 
-**UI Stage 6** — per Owner's stage plan (6 total, final). Do not begin without
-an explicit instruction. Likely scope: real browser/visual verification of
-Stages 1–5 across EN/FA, light/dark, and mobile/tablet/desktop (now explicitly
-in scope once permitted); a `SettingsNav` entry for `/settings/pricing`; final
-release/documentation polish. Do not implement Preview, Apply, Diagnostics, or
-Source Acquisition UI until those contracts become callable in
-`FRONTEND_CONTRACT.md`.
+1. Owner review and approval of this branch (`claude/ui-phase-1`,
+   6 commits: `30334ca`, `8ae5424`, `001ec5c`, `7421a93`, `5eb5bd6`, and the
+   Stage 6 commit below) — no commit has been pushed.
+2. Confirm `main` still has not changed `FRONTEND_CONTRACT.md` or the callable
+   Pricing Matrix API between the Stage 6 HEAD check (`f86f07d`) and the
+   actual merge time — re-run the same `git log`/`git diff --stat` check used
+   in every stage's pre-flight before merging.
+3. Merge (not rebase, not squash) `claude/ui-phase-1` into `main`, preserving
+   every stage commit exactly as approved.
+4. After merge, run the full backend suite (Codex-owned) once to confirm no
+   incidental interaction — this branch touched zero backend files across all
+   6 stages, so none is expected, but it's cheap insurance before any
+   deployment.
+5. Do not deploy until Owner explicitly authorizes it — this handover ends at
+   merge-readiness, not release.
+
+## Exact recommended integration sequence
+
+1. Merge `claude/ui-phase-1` → `main` (fast-forward or merge commit, Owner's
+   choice; no rebase/squash per this session's standing instruction).
+2. Add a `SettingsNav` entry for `/settings/pricing` (small, isolated change;
+   deferred across all 6 stages specifically to avoid touching shared nav +
+   its tests before Owner sign-off on the feature itself).
+3. Re-verify Product Group successful-submit against a Source with real
+   synced canonical products (the one browser scenario this stage could not
+   complete end-to-end — see "Remaining frontend blockers").
+4. Flag the admin-gating / role-model observation to Codex or Owner for a
+   decision (not a required fix): whether a "view Pricing but cannot
+   administer channels" role should exist.
+5. Only after Preview, Apply, Diagnostics, or Source Acquisition become
+   callable in `FRONTEND_CONTRACT.md` (per Codex's backend roadmap), begin a
+   new UI phase for those surfaces — never before, and never by inventing
+   endpoints ahead of the contract.

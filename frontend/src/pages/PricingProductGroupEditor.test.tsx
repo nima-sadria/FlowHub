@@ -232,4 +232,12 @@ describe('PricingProductGroupEditor — RTL, responsive, and accessibility (UI S
     setValue(c.querySelector('#group-name'), longPersian)
     expect((c.querySelector('#group-name') as HTMLInputElement).value).toBe(longPersian)
   })
+
+  it('does not show "required" errors on a pristine, untouched form (UI Stage 6 fix)', async () => {
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    expect(c.textContent).not.toContain('This field is required')
+    expect(c.querySelector('#group-name')?.getAttribute('aria-invalid')).toBe('false')
+    expect((c.querySelector('[data-testid="pricing-product-group-editor-submit"]') as HTMLButtonElement).disabled).toBe(true)
+  })
 })

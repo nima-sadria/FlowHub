@@ -104,8 +104,8 @@ export default function PricingUnitEditor() {
   }, [scope, scopeReference])
 
   const dirty = useMemo(
-    () => Boolean(currency || unit || connectorConfigVersion),
-    [currency, unit, connectorConfigVersion],
+    () => Boolean(scopeReference || currency || unit || connectorConfigVersion),
+    [scopeReference, currency, unit, connectorConfigVersion],
   )
   useUnsavedChangesGuard(dirty)
 
@@ -122,6 +122,12 @@ export default function PricingUnitEditor() {
     connectorConfigVersion: !isNonEmpty(connectorConfigVersion) ? translate('pricing:error.required') : undefined,
   }
   const hasErrors = Boolean(errors.scopeReference || errors.currency || errors.unit || errors.connectorConfigVersion)
+  // Show validation text/aria only once the form is dirty — an untouched
+  // fresh form should not read as already invalid. `hasErrors` (submit-
+  // disabled) is computed from the real `errors` above and is unaffected.
+  const displayErrors = dirty
+    ? errors
+    : { scopeReference: undefined, currency: undefined, unit: undefined, connectorConfigVersion: undefined }
 
   function handleCancel() {
     if (!confirmDiscard(dirty)) return
@@ -202,45 +208,45 @@ export default function PricingUnitEditor() {
             </label>
             <select
               id="unit-scope-reference"
-              className={['fh-select', errors.scopeReference ? 'fh-input-error' : ''].join(' ')}
+              className={['fh-select', displayErrors.scopeReference ? 'fh-input-error' : ''].join(' ')}
               value={scopeReference}
               onChange={event => setScopeReference(event.target.value)}
               data-testid="pricing-unit-editor-scope-reference"
-              aria-invalid={Boolean(errors.scopeReference)}
-              aria-describedby={errors.scopeReference ? 'unit-scope-reference-error' : undefined}
+              aria-invalid={Boolean(displayErrors.scopeReference)}
+              aria-describedby={displayErrors.scopeReference ? 'unit-scope-reference-error' : undefined}
             >
               <option value="">—</option>
               {options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
             </select>
-            {errors.scopeReference && <p id="unit-scope-reference-error" className="fh-field-error">{errors.scopeReference}</p>}
+            {displayErrors.scopeReference && <p id="unit-scope-reference-error" className="fh-field-error">{displayErrors.scopeReference}</p>}
           </div>
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="unit-currency">{translate('pricing:unitEditor.field.currency')}</label>
-            <select id="unit-currency" className={['fh-select', errors.currency ? 'fh-input-error' : ''].join(' ')} value={currency} onChange={event => handleCurrencyChange(event.target.value)} data-testid="pricing-unit-editor-currency" aria-invalid={Boolean(errors.currency)} aria-describedby={errors.currency ? 'unit-currency-error' : undefined}>
+            <select id="unit-currency" className={['fh-select', displayErrors.currency ? 'fh-input-error' : ''].join(' ')} value={currency} onChange={event => handleCurrencyChange(event.target.value)} data-testid="pricing-unit-editor-currency" aria-invalid={Boolean(displayErrors.currency)} aria-describedby={displayErrors.currency ? 'unit-currency-error' : undefined}>
               <option value="">—</option>
-              {SUPPORTED_CURRENCIES.map(code => <option key={code} value={code}><bdi dir="ltr">{code}</bdi></option>)}
+              {SUPPORTED_CURRENCIES.map(code => <option key={code} value={code} dir="ltr">{code}</option>)}
             </select>
-            {errors.currency && <p id="unit-currency-error" className="fh-field-error">{errors.currency}</p>}
+            {displayErrors.currency && <p id="unit-currency-error" className="fh-field-error">{displayErrors.currency}</p>}
           </div>
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="unit-unit">{translate('pricing:unitEditor.field.unit')}</label>
             {currency === 'IRR' ? (
-              <select id="unit-unit" className={['fh-select', errors.unit ? 'fh-input-error' : ''].join(' ')} value={unit} onChange={event => setUnit(event.target.value)} data-testid="pricing-unit-editor-unit" aria-invalid={Boolean(errors.unit)} aria-describedby={errors.unit ? 'unit-unit-error' : undefined}>
+              <select id="unit-unit" className={['fh-select', displayErrors.unit ? 'fh-input-error' : ''].join(' ')} value={unit} onChange={event => setUnit(event.target.value)} data-testid="pricing-unit-editor-unit" aria-invalid={Boolean(displayErrors.unit)} aria-describedby={displayErrors.unit ? 'unit-unit-error' : undefined}>
                 <option value="">{translate('pricing:unitEditor.field.unitChooseIrr')}</option>
-                {IRR_UNITS.map(code => <option key={code} value={code}><bdi dir="ltr">{code}</bdi></option>)}
+                {IRR_UNITS.map(code => <option key={code} value={code} dir="ltr">{code}</option>)}
               </select>
             ) : (
               <input id="unit-unit" className="fh-input" value={unit} disabled dir="ltr" data-testid="pricing-unit-editor-unit" />
             )}
-            {errors.unit && <p id="unit-unit-error" className="fh-field-error" data-testid="pricing-unit-editor-unit-error">{errors.unit}</p>}
+            {displayErrors.unit && <p id="unit-unit-error" className="fh-field-error" data-testid="pricing-unit-editor-unit-error">{displayErrors.unit}</p>}
           </div>
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="unit-connector-config-version">{translate('pricing:unitEditor.field.connectorConfigVersion')}</label>
-            <input id="unit-connector-config-version" className={['fh-input', errors.connectorConfigVersion ? 'fh-input-error' : ''].join(' ')} dir="ltr" value={connectorConfigVersion} onChange={event => setConnectorConfigVersion(event.target.value)} data-testid="pricing-unit-editor-connector-config-version" aria-invalid={Boolean(errors.connectorConfigVersion)} aria-describedby={errors.connectorConfigVersion ? 'unit-connector-config-version-error' : undefined} />
-            {errors.connectorConfigVersion && <p id="unit-connector-config-version-error" className="fh-field-error">{errors.connectorConfigVersion}</p>}
+            <input id="unit-connector-config-version" className={['fh-input', displayErrors.connectorConfigVersion ? 'fh-input-error' : ''].join(' ')} dir="ltr" value={connectorConfigVersion} onChange={event => setConnectorConfigVersion(event.target.value)} data-testid="pricing-unit-editor-connector-config-version" aria-invalid={Boolean(displayErrors.connectorConfigVersion)} aria-describedby={displayErrors.connectorConfigVersion ? 'unit-connector-config-version-error' : undefined} />
+            {displayErrors.connectorConfigVersion && <p id="unit-connector-config-version-error" className="fh-field-error">{displayErrors.connectorConfigVersion}</p>}
           </div>
         </div>
 

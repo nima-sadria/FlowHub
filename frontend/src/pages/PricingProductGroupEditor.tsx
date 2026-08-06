@@ -97,6 +97,10 @@ export default function PricingProductGroupEditor() {
   const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(baseline), [form, baseline])
   useUnsavedChangesGuard(dirty)
   const errors = useMemo(() => validateForm(form), [form])
+  // Show validation text/aria only once the form is dirty — an untouched
+  // fresh form should not read as already invalid. The real `errors` (and
+  // submit-disabled) are unaffected.
+  const displayErrors = dirty ? errors : { members: {} }
 
   function updateMember(index: number, value: string) {
     setForm(prev => ({ ...prev, members: prev.members.map((member, i) => (i === index ? value : member)) }))
@@ -198,8 +202,8 @@ export default function PricingProductGroupEditor() {
         <div className="fh-card p-4 fh-form-grid md:grid-cols-2">
           <div className="fh-field">
             <label className="fh-label" htmlFor="group-name">{translate('pricing:productGroupEditor.field.name')}</label>
-            <input id="group-name" className={['fh-input', errors.name ? 'fh-input-error' : ''].join(' ')} value={form.name} onChange={event => setForm(prev => ({ ...prev, name: event.target.value }))} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'group-name-error' : undefined} />
-            {errors.name && <p id="group-name-error" className="fh-field-error">{errors.name}</p>}
+            <input id="group-name" className={['fh-input', displayErrors.name ? 'fh-input-error' : ''].join(' ')} value={form.name} onChange={event => setForm(prev => ({ ...prev, name: event.target.value }))} aria-invalid={Boolean(displayErrors.name)} aria-describedby={displayErrors.name ? 'group-name-error' : undefined} />
+            {displayErrors.name && <p id="group-name-error" className="fh-field-error">{displayErrors.name}</p>}
           </div>
 
           <div className="fh-field">
@@ -219,17 +223,17 @@ export default function PricingProductGroupEditor() {
               <div key={index} className="flex items-start gap-2">
                 <div className="fh-field flex-1">
                   <input
-                    className={['fh-input', errors.members[index] ? 'fh-input-error' : ''].join(' ')}
+                    className={['fh-input', displayErrors.members[index] ? 'fh-input-error' : ''].join(' ')}
                     dir="ltr"
                     placeholder={translate('pricing:productGroupEditor.memberPlaceholder')}
                     value={member}
                     onChange={event => updateMember(index, event.target.value)}
                     aria-label={translate('pricing:productGroupEditor.memberPlaceholder')}
-                    aria-invalid={Boolean(errors.members[index])}
-                    aria-describedby={errors.members[index] ? `product-group-member-${index}-error` : undefined}
+                    aria-invalid={Boolean(displayErrors.members[index])}
+                    aria-describedby={displayErrors.members[index] ? `product-group-member-${index}-error` : undefined}
                     data-testid={`pricing-product-group-editor-member-${index}`}
                   />
-                  {errors.members[index] && <p id={`product-group-member-${index}-error`} className="fh-field-error" data-testid={`pricing-product-group-editor-member-${index}-error`}>{errors.members[index]}</p>}
+                  {displayErrors.members[index] && <p id={`product-group-member-${index}-error`} className="fh-field-error" data-testid={`pricing-product-group-editor-member-${index}-error`}>{displayErrors.members[index]}</p>}
                 </div>
                 <button type="button" className="fh-button-secondary" onClick={() => removeMember(index)} aria-label={translate('pricing:productGroupEditor.removeMember')}>
                   <Icon name="delete" aria-hidden="true" />

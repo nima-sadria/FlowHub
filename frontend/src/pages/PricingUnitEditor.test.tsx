@@ -223,4 +223,12 @@ describe('PricingUnitEditor — RTL, responsive, and accessibility (UI Stage 5)'
     expect(describedBy).toBeTruthy()
     expect(c.querySelector(`[id="${describedBy}"]`)?.textContent).toBeTruthy()
   })
+
+  it('does not show "required" errors on a pristine, untouched form (UI Stage 6 fix)', async () => {
+    stubFetch(() => json({ scope: 'channel', scopeReference: 'woocommerce:primary', status: 'unresolved', currency: null, unit: null }))
+    const c = await renderPage()
+    expect(c.textContent).not.toContain('This field is required')
+    const submit = c.querySelector('[data-testid="pricing-unit-editor-submit"]') as HTMLButtonElement
+    expect(submit.disabled).toBe(true)
+  })
 })

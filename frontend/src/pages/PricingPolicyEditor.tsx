@@ -264,6 +264,11 @@ export default function PricingPolicyEditor() {
   useUnsavedChangesGuard(dirty)
 
   const errors = useMemo(() => validateForm(form), [form])
+  // Validation errors are computed from the very first render (an empty form
+  // is "invalid"), but showing them before the user has touched anything
+  // reads as the form being broken. Gate the visible text/aria on `dirty` —
+  // the real `errors` (and the submit-disabled state) are unaffected.
+  const displayErrors = dirty ? errors : { rules: {} }
 
   const updateField = useCallback(<K extends keyof FormDraft>(key: K, value: FormDraft[K]) => {
     setForm(prev => ({ ...prev, [key]: value }))
@@ -365,8 +370,8 @@ export default function PricingPolicyEditor() {
         <div className="fh-card p-4 fh-form-grid md:grid-cols-2">
           <div className="fh-field">
             <label className="fh-label" htmlFor="policy-name">{translate('pricing:policyEditor.field.name')}</label>
-            <input id="policy-name" className={['fh-input', errors.name ? 'fh-input-error' : ''].join(' ')} value={form.name} onChange={event => updateField('name', event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'policy-name-error' : undefined} />
-            {errors.name && <p id="policy-name-error" className="fh-field-error">{errors.name}</p>}
+            <input id="policy-name" className={['fh-input', displayErrors.name ? 'fh-input-error' : ''].join(' ')} value={form.name} onChange={event => updateField('name', event.target.value)} aria-invalid={Boolean(displayErrors.name)} aria-describedby={displayErrors.name ? 'policy-name-error' : undefined} />
+            {displayErrors.name && <p id="policy-name-error" className="fh-field-error">{displayErrors.name}</p>}
           </div>
 
           <div className="fh-field">
@@ -384,8 +389,8 @@ export default function PricingPolicyEditor() {
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="policy-currency">{translate('pricing:policyEditor.field.currency')}</label>
-            <input id="policy-currency" className={['fh-input', errors.computationCurrency ? 'fh-input-error' : ''].join(' ')} value={form.computationCurrency} onChange={event => updateField('computationCurrency', event.target.value.toUpperCase())} aria-invalid={Boolean(errors.computationCurrency)} aria-describedby={errors.computationCurrency ? 'policy-currency-error' : undefined} />
-            {errors.computationCurrency && <p id="policy-currency-error" className="fh-field-error">{errors.computationCurrency}</p>}
+            <input id="policy-currency" className={['fh-input', displayErrors.computationCurrency ? 'fh-input-error' : ''].join(' ')} value={form.computationCurrency} onChange={event => updateField('computationCurrency', event.target.value.toUpperCase())} aria-invalid={Boolean(displayErrors.computationCurrency)} aria-describedby={displayErrors.computationCurrency ? 'policy-currency-error' : undefined} />
+            {displayErrors.computationCurrency && <p id="policy-currency-error" className="fh-field-error">{displayErrors.computationCurrency}</p>}
           </div>
 
           <div className="fh-field">
@@ -397,20 +402,20 @@ export default function PricingPolicyEditor() {
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="policy-quote-age">{translate('pricing:policyEditor.field.maxQuoteAgeDays')}</label>
-            <input id="policy-quote-age" className={['fh-input', errors.maxQuoteAgeDays ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" value={form.maxQuoteAgeDays} onChange={event => updateField('maxQuoteAgeDays', event.target.value)} aria-invalid={Boolean(errors.maxQuoteAgeDays)} aria-describedby={errors.maxQuoteAgeDays ? 'policy-quote-age-error' : undefined} />
-            {errors.maxQuoteAgeDays && <p id="policy-quote-age-error" className="fh-field-error">{errors.maxQuoteAgeDays}</p>}
+            <input id="policy-quote-age" className={['fh-input', displayErrors.maxQuoteAgeDays ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" value={form.maxQuoteAgeDays} onChange={event => updateField('maxQuoteAgeDays', event.target.value)} aria-invalid={Boolean(displayErrors.maxQuoteAgeDays)} aria-describedby={displayErrors.maxQuoteAgeDays ? 'policy-quote-age-error' : undefined} />
+            {displayErrors.maxQuoteAgeDays && <p id="policy-quote-age-error" className="fh-field-error">{displayErrors.maxQuoteAgeDays}</p>}
           </div>
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="policy-min-quotes">{translate('pricing:policyEditor.field.minQuoteCount')}</label>
-            <input id="policy-min-quotes" className={['fh-input', errors.minQuoteCount ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" value={form.minQuoteCount} onChange={event => updateField('minQuoteCount', event.target.value)} aria-invalid={Boolean(errors.minQuoteCount)} aria-describedby={errors.minQuoteCount ? 'policy-min-quotes-error' : undefined} />
-            {errors.minQuoteCount && <p id="policy-min-quotes-error" className="fh-field-error">{errors.minQuoteCount}</p>}
+            <input id="policy-min-quotes" className={['fh-input', displayErrors.minQuoteCount ? 'fh-input-error' : ''].join(' ')} inputMode="numeric" value={form.minQuoteCount} onChange={event => updateField('minQuoteCount', event.target.value)} aria-invalid={Boolean(displayErrors.minQuoteCount)} aria-describedby={displayErrors.minQuoteCount ? 'policy-min-quotes-error' : undefined} />
+            {displayErrors.minQuoteCount && <p id="policy-min-quotes-error" className="fh-field-error">{displayErrors.minQuoteCount}</p>}
           </div>
 
           <div className="fh-field">
             <label className="fh-label" htmlFor="policy-timezone">{translate('pricing:policyEditor.field.timezone')}</label>
-            <input id="policy-timezone" className={['fh-input', errors.evaluationTimezone ? 'fh-input-error' : ''].join(' ')} value={form.evaluationTimezone} onChange={event => updateField('evaluationTimezone', event.target.value)} aria-invalid={Boolean(errors.evaluationTimezone)} aria-describedby={errors.evaluationTimezone ? 'policy-timezone-error' : undefined} />
-            {errors.evaluationTimezone && <p id="policy-timezone-error" className="fh-field-error">{errors.evaluationTimezone}</p>}
+            <input id="policy-timezone" className={['fh-input', displayErrors.evaluationTimezone ? 'fh-input-error' : ''].join(' ')} value={form.evaluationTimezone} onChange={event => updateField('evaluationTimezone', event.target.value)} aria-invalid={Boolean(displayErrors.evaluationTimezone)} aria-describedby={displayErrors.evaluationTimezone ? 'policy-timezone-error' : undefined} />
+            {displayErrors.evaluationTimezone && <p id="policy-timezone-error" className="fh-field-error">{displayErrors.evaluationTimezone}</p>}
           </div>
         </div>
 
@@ -426,7 +431,7 @@ export default function PricingPolicyEditor() {
 
           <div className="space-y-4">
             {form.rules.map((rule, index) => {
-              const ruleErrors = errors.rules[rule.key]
+              const ruleErrors = displayErrors.rules[rule.key]
               return (
                 <div key={rule.key} className="rounded-[var(--fh-radius-md)] border border-border p-3" data-testid={`pricing-policy-editor-rule-${index}`}>
                   <div className="flex items-start justify-between gap-2">

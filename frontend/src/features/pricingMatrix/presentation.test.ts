@@ -158,6 +158,16 @@ describe('validators fail closed on unknown shapes and enums', () => {
     })
     expect(resolved).toMatchObject({ status: 'resolved', canonicalCurrency: 'IRR', canonicalUnit: 'RIAL', canonicalFactor: '10' })
   })
+  it('treats a resolved response as resolved even without a status field, and formats a numeric version as text (UI Stage 6 browser evidence)', () => {
+    // Real backend response observed in browser verification: no `status`
+    // key at all, and `version`/`canonicalFactor` as JSON numbers.
+    const resolved = validateUnitDeclaration({
+      scope: 'channel', scopeReference: 'woocommerce:primary', currency: 'IRR', unit: 'RIAL',
+      canonicalCurrency: 'IRR', canonicalUnit: 'RIAL', canonicalFactor: 1,
+      currencyProfileId: 'cp-1', version: 1, channelConfigRevisionId: 'cfg-1',
+    })
+    expect(resolved).toMatchObject({ status: 'resolved', canonicalFactor: '1', version: '1' })
+  })
   it('rejects a unit declaration with an unknown status', () => {
     expect(() => validateUnitDeclaration({ scope: 'channel', scopeReference: 'c', status: 'maybe' }))
       .toThrow(ContractMismatchError)

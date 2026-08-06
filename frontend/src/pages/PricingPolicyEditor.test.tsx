@@ -314,4 +314,22 @@ describe('PricingPolicyEditor — RTL, responsive, and accessibility (UI Stage 5
     setValue(c.querySelector('#policy-name'), longName)
     expect((c.querySelector('#policy-name') as HTMLInputElement).value).toBe(longName)
   })
+
+  it('does not show "required" errors on a pristine, untouched form (UI Stage 6 fix)', async () => {
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    expect(c.textContent).not.toContain('This field is required')
+    expect(c.querySelector('#policy-name')?.getAttribute('aria-invalid')).toBe('false')
+    // The submit button still reflects the real (unseen) validation state.
+    expect((c.querySelector('[data-testid="pricing-policy-editor-submit"]') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('reveals errors once the form becomes dirty', async () => {
+    stubFetch(() => json({ items: [] }))
+    const c = await renderNew()
+    setValue(c.querySelector('#policy-currency'), 'EUR')
+    await settle()
+    expect(c.querySelector('#policy-name')?.getAttribute('aria-invalid')).toBe('true')
+    expect(c.textContent).toContain('This field is required')
+  })
 })

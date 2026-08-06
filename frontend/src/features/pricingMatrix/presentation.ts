@@ -229,10 +229,18 @@ export function validateLifecycleEvent(value: unknown): LifecycleEvent {
 export function validateUnitDeclaration(value: unknown): UnitDeclaration {
   if (!isRecord(value)) return mismatch('unit_not_object')
   if (!isUnitScope(value.scope)) return mismatch(`unit.scope:${String(value.scope)}`)
-  if (!isUnitStatus(value.status)) return mismatch(`unit.status:${String(value.status)}`)
   const scopeReference = requireString(value.scopeReference, 'unit.scopeReference')
   if (value.status === 'unresolved') {
     return { scope: value.scope, scopeReference, status: 'unresolved', currency: null, unit: null }
+  }
+  // UI Stage 6 browser evidence: the real backend's resolved response omits
+  // `status` entirely (only the unresolved example in FRONTEND_CONTRACT.md
+  // carries `status: "unresolved"`). Detect "resolved" by the absence of the
+  // unresolved marker rather than requiring a literal `status: "resolved"`
+  // the backend never sends. An explicit, unrecognized status still fails
+  // closed as a contract mismatch.
+  if (value.status !== undefined && !isUnitStatus(value.status)) {
+    return mismatch(`unit.status:${String(value.status)}`)
   }
   const resolved = {
     scope: value.scope,
@@ -242,7 +250,10 @@ export function validateUnitDeclaration(value: unknown): UnitDeclaration {
     canonicalUnit: optionalString(value.canonicalUnit),
     canonicalFactor: formatExactInteger(value.canonicalFactor as ExactInteger | null | undefined),
     currencyProfileId: optionalString(value.currencyProfileId),
-    version: optionalString(value.version),
+    // `version` is an ExactInteger on the wire (observed as a JSON number in
+    // the real response), not always a string — format it the same way as
+    // other exact identifiers instead of silently discarding a number.
+    version: formatExactInteger(value.version as ExactInteger | null | undefined),
     ...(typeof value.channelConfigRevisionId === 'string'
       ? { channelConfigRevisionId: value.channelConfigRevisionId }
       : {}),
