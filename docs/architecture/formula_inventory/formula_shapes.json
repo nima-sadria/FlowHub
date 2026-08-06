@@ -1,0 +1,802 @@
+{
+  "metadata": {
+    "schema_version": "flowhub-formula-inventory-v1",
+    "normalization_version": "flowhub-formula-r1c1-v1",
+    "source_workbook": "Price List.xlsx",
+    "source_workbook_sha256": "a529c3306d6db3923eb55451562c5a1eb4886861c45b390cddfdfc6f70db6a45",
+    "source_workbook_size_bytes": 311657,
+    "worksheet_count": 22,
+    "formula_cell_count": 5997,
+    "broken_ref_formula_cell_count": 255,
+    "broken_formula_cell_count": 256,
+    "unique_exact_formula_count": 3783,
+    "unique_normalized_formula_count": 53,
+    "formula_shape_count": 13
+  },
+  "shapes": [
+    {
+      "shape_id": "A1",
+      "skeleton": "=IF(<REF>=\"\",\"x\",IFERROR(FLOOR((<REF>*(1+<REF>/100)+IF(ISNUMBER(<REF>),<REF>,0))*1000000,50000),\"x\"))",
+      "semantics": "Price target from one basis, a percentage parameter, an optional fixed addend, and floor-to-50000 after scaling by 1000000.",
+      "cell_role": "price_target_candidate",
+      "translation_status": "supported",
+      "validation_feasibility": "replayable",
+      "required_missing_domain_concepts": [],
+      "evidence_confidence": "high",
+      "evidence_notes": "",
+      "cell_count": 2291,
+      "exact_formula_variant_count": 1443,
+      "normalized_formula_variant_count": 14,
+      "input_topology_counts": {
+        "derived_reference": 1525,
+        "single_source": 766
+      },
+      "representative_cells": [
+        {
+          "worksheet": "iPhone",
+          "cell_address": "C5",
+          "exact_formula_text": "=IF(D5=\"\",\"x\",IFERROR(FLOOR((D5*(1+$C$2/100)+IF(ISNUMBER($C$3),$C$3,0))*1000000,50000),\"x\"))"
+        },
+        {
+          "worksheet": "iPhone",
+          "cell_address": "K5",
+          "exact_formula_text": "=IF(D5=\"\",\"x\",IFERROR(FLOOR((D5*(1+$K$2/100)+IF(ISNUMBER($K$3),$K$3,0))*1000000,50000),\"x\"))"
+        },
+        {
+          "worksheet": "iPhone",
+          "cell_address": "C6",
+          "exact_formula_text": "=IF(D6=\"\",\"x\",IFERROR(FLOOR((D6*(1+$C$2/100)+IF(ISNUMBER($C$3),$C$3,0))*1000000,50000),\"x\"))"
+        },
+        {
+          "worksheet": "iPhone",
+          "cell_address": "K6",
+          "exact_formula_text": "=IF(D6=\"\",\"x\",IFERROR(FLOOR((D6*(1+$K$2/100)+IF(ISNUMBER($K$3),$K$3,0))*1000000,50000),\"x\"))"
+        },
+        {
+          "worksheet": "iPhone",
+          "cell_address": "C7",
+          "exact_formula_text": "=IF(D7=\"\",\"x\",IFERROR(FLOOR((D7*(1+$C$2/100)+IF(ISNUMBER($C$3),$C$3,0))*1000000,50000),\"x\"))"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=IF(RC[-2]=\"\",\"x\",IFERROR(FLOOR((RC[-2]*(1+R2C6/100)+IF(ISNUMBER(R3C6),R3C6,0))*1000000,50000),\"x\"))",
+          "cell_count": 246
+        },
+        {
+          "formula": "=IF(RC[-4]=\"\",\"x\",IFERROR(FLOOR((RC[-4]*(1+R2C8/100)+IF(ISNUMBER(R3C8),R3C8,0))*1000000,50000),\"x\"))",
+          "cell_count": 81
+        },
+        {
+          "formula": "=IF(RC[-4]=\"\",\"x\",IFERROR(FLOOR((RC[-4]*(1+R2C9/100)+IF(ISNUMBER(R3C9),R3C9,0))*1000000,50000),\"x\"))",
+          "cell_count": 240
+        },
+        {
+          "formula": "=IF(RC[-5]=\"\",\"x\",IFERROR(FLOOR((RC[-5]*(1+R142C9/100)+IF(ISNUMBER(R3C9),R3C9,0))*1000000,50000),\"x\"))",
+          "cell_count": 18
+        },
+        {
+          "formula": "=IF(RC[-5]=\"\",\"x\",IFERROR(FLOOR((RC[-5]*(1+R2C9/100)+IF(ISNUMBER(R3C9),R3C9,0))*1000000,50000),\"x\"))",
+          "cell_count": 293
+        },
+        {
+          "formula": "=IF(RC[-5]=\"\",\"x\",IFERROR(FLOOR((RC[-5]*(1+R42C9/100)+IF(ISNUMBER(R3C9),R3C9,0))*1000000,50000),\"x\"))",
+          "cell_count": 1
+        },
+        {
+          "formula": "=IF(RC[-7]=\"\",\"x\",IFERROR(FLOOR((RC[-7]*(1+R2C11/100)+IF(ISNUMBER(R3C11),R3C11,0))*1000000,50000),\"x\"))",
+          "cell_count": 222
+        },
+        {
+          "formula": "=IF(RC[-7]=\"\",\"x\",IFERROR(FLOOR((RC[-7]*(1+R36C11/100)+IF(ISNUMBER(R3C11),R3C11,0))*1000000,50000),\"x\"))",
+          "cell_count": 1
+        },
+        {
+          "formula": "=IF(RC[-7]=\"\",\"x\",IFERROR(FLOOR((RC[-7]*(1+R37C11/100)+IF(ISNUMBER(R3C11),R3C11,0))*1000000,50000),\"x\"))",
+          "cell_count": 10
+        },
+        {
+          "formula": "=IF(RC[1]=\"\",\"x\",IFERROR(FLOOR((RC[1]*(1+R18C3/100)+IF(ISNUMBER(R3C3),R3C3,0))*1000000,50000),\"x\"))",
+          "cell_count": 225
+        },
+        {
+          "formula": "=IF(RC[1]=\"\",\"x\",IFERROR(FLOOR((RC[1]*(1+R2C3/100)+IF(ISNUMBER(R3C3),R3C3,0))*1000000,50000),\"x\"))",
+          "cell_count": 874
+        },
+        {
+          "formula": "=IF(RC[1]=\"\",\"x\",IFERROR(FLOOR((RC[1]*(1+R37C3/100)+IF(ISNUMBER(R3C3),R3C3,0))*1000000,50000),\"x\"))",
+          "cell_count": 4
+        },
+        {
+          "formula": "=IF(RC[2]=\"\",\"x\",IFERROR(FLOOR((RC[2]*(1+R2C3/100)+IF(ISNUMBER(R2C6),R2C6,0))*1000000,50000),\"x\"))",
+          "cell_count": 38
+        },
+        {
+          "formula": "=IF(RC[3]=\"\",\"x\",IFERROR(FLOOR((RC[3]*(1+R2C3/100)+IF(ISNUMBER(R2C6),R2C6,0))*1000000,50000),\"x\"))",
+          "cell_count": 38
+        }
+      ]
+    },
+    {
+      "shape_id": "A2",
+      "skeleton": "=IFERROR(MIN(FILTER(<REF>,<REF><>0)),\"❌\")",
+      "semantics": "Minimum non-zero quote across a same-row vendor range.",
+      "cell_role": "basis_selection",
+      "translation_status": "supported",
+      "validation_feasibility": "replayable",
+      "required_missing_domain_concepts": [],
+      "evidence_confidence": "high",
+      "evidence_notes": "",
+      "cell_count": 1840,
+      "exact_formula_variant_count": 860,
+      "normalized_formula_variant_count": 4,
+      "input_topology_counts": {
+        "multi_source": 1840
+      },
+      "representative_cells": [
+        {
+          "worksheet": "Surface",
+          "cell_address": "D4",
+          "exact_formula_text": "=IFERROR(MIN(_xlfn._xlws.FILTER(E4:I4,E4:I4<>0)),\"❌\")"
+        },
+        {
+          "worksheet": "Surface",
+          "cell_address": "D5",
+          "exact_formula_text": "=IFERROR(MIN(_xlfn._xlws.FILTER(E5:I5,E5:I5<>0)),\"❌\")"
+        },
+        {
+          "worksheet": "Surface",
+          "cell_address": "D6",
+          "exact_formula_text": "=IFERROR(MIN(_xlfn._xlws.FILTER(E6:I6,E6:I6<>0)),\"❌\")"
+        },
+        {
+          "worksheet": "Surface",
+          "cell_address": "D7",
+          "exact_formula_text": "=IFERROR(MIN(_xlfn._xlws.FILTER(E7:I7,E7:I7<>0)),\"❌\")"
+        },
+        {
+          "worksheet": "Surface",
+          "cell_address": "D8",
+          "exact_formula_text": "=IFERROR(MIN(_xlfn._xlws.FILTER(E8:I8,E8:I8<>0)),\"❌\")"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=IFERROR(MIN(FILTER(RC[1]:RC[2],RC[1]:RC[2]<>0)),\"❌\")",
+          "cell_count": 168
+        },
+        {
+          "formula": "=IFERROR(MIN(FILTER(RC[1]:RC[3],RC[1]:RC[3]<>0)),\"❌\")",
+          "cell_count": 891
+        },
+        {
+          "formula": "=IFERROR(MIN(FILTER(RC[1]:RC[4],RC[1]:RC[4]<>0)),\"❌\")",
+          "cell_count": 270
+        },
+        {
+          "formula": "=IFERROR(MIN(FILTER(RC[1]:RC[5],RC[1]:RC[5]<>0)),\"❌\")",
+          "cell_count": 511
+        }
+      ]
+    },
+    {
+      "shape_id": "A3",
+      "skeleton": "=IFERROR(FLOOR(<REF>*(1+<REF>/100)*1000,100000),\"❌\")",
+      "semantics": "Price target from a basis and percentage, scaled by 1000 and floored to 100000.",
+      "cell_role": "price_target_candidate",
+      "translation_status": "supported",
+      "validation_feasibility": "replayable",
+      "required_missing_domain_concepts": [],
+      "evidence_confidence": "high",
+      "evidence_notes": "",
+      "cell_count": 663,
+      "exact_formula_variant_count": 296,
+      "normalized_formula_variant_count": 1,
+      "input_topology_counts": {
+        "derived_reference": 663
+      },
+      "representative_cells": [
+        {
+          "worksheet": "Surface",
+          "cell_address": "C4",
+          "exact_formula_text": "=IFERROR(FLOOR(D4*(1+$C$2/100)*1000,100000),\"❌\")"
+        },
+        {
+          "worksheet": "Surface",
+          "cell_address": "C5",
+          "exact_formula_text": "=IFERROR(FLOOR(D5*(1+$C$2/100)*1000,100000),\"❌\")"
+        },
+        {
+          "worksheet": "Surface",
+          "cell_address": "C6",
+          "exact_formula_text": "=IFERROR(FLOOR(D6*(1+$C$2/100)*1000,100000),\"❌\")"
+        },
+        {
+          "worksheet": "Surface",
+          "cell_address": "C7",
+          "exact_formula_text": "=IFERROR(FLOOR(D7*(1+$C$2/100)*1000,100000),\"❌\")"
+        },
+        {
+          "worksheet": "Surface",
+          "cell_address": "C8",
+          "exact_formula_text": "=IFERROR(FLOOR(D8*(1+$C$2/100)*1000,100000),\"❌\")"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=IFERROR(FLOOR(RC[1]*(1+R2C3/100)*1000,100000),\"❌\")",
+          "cell_count": 663
+        }
+      ]
+    },
+    {
+      "shape_id": "A4",
+      "skeleton": "=IFERROR(FLOOR(<REF>*(1+<REF>/100)*1000,100000)+500000,\"❌\")",
+      "semantics": "A3 price target with a fixed 500000 surcharge applied after rounding.",
+      "cell_role": "price_target_candidate",
+      "translation_status": "supported",
+      "validation_feasibility": "replayable",
+      "required_missing_domain_concepts": [],
+      "evidence_confidence": "high",
+      "evidence_notes": "",
+      "cell_count": 90,
+      "exact_formula_variant_count": 90,
+      "normalized_formula_variant_count": 11,
+      "input_topology_counts": {
+        "derived_reference": 90
+      },
+      "representative_cells": [
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "C3",
+          "exact_formula_text": "=IFERROR(FLOOR(D3*(1+$C$2/100)*1000,100000)+500000,\"❌\")"
+        },
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "C4",
+          "exact_formula_text": "=IFERROR(FLOOR(D4*(1+$C$2/100)*1000,100000)+500000,\"❌\")"
+        },
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "C5",
+          "exact_formula_text": "=IFERROR(FLOOR(D5*(1+$C$2/100)*1000,100000)+500000,\"❌\")"
+        },
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "C6",
+          "exact_formula_text": "=IFERROR(FLOOR(D6*(1+$C$2/100)*1000,100000)+500000,\"❌\")"
+        },
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "C8",
+          "exact_formula_text": "=IFERROR(FLOOR(D8*(1+$C$2/100)*1000,100000)+500000,\"❌\")"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=IFERROR(FLOOR(RC[1]*(1+R10C3/100)*1000,100000)+500000,\"❌\")",
+          "cell_count": 9
+        },
+        {
+          "formula": "=IFERROR(FLOOR(RC[1]*(1+R20C3/100)*1000,100000)+500000,\"❌\")",
+          "cell_count": 8
+        },
+        {
+          "formula": "=IFERROR(FLOOR(RC[1]*(1+R29C3/100)*1000,100000)+500000,\"❌\")",
+          "cell_count": 2
+        },
+        {
+          "formula": "=IFERROR(FLOOR(RC[1]*(1+R2C3/100)*1000,100000)+500000,\"❌\")",
+          "cell_count": 6
+        },
+        {
+          "formula": "=IFERROR(FLOOR(RC[1]*(1+R32C3/100)*1000,100000)+500000,\"❌\")",
+          "cell_count": 4
+        },
+        {
+          "formula": "=IFERROR(FLOOR(RC[1]*(1+R37C3/100)*1000,100000)+500000,\"❌\")",
+          "cell_count": 2
+        },
+        {
+          "formula": "=IFERROR(FLOOR(RC[1]*(1+R40C3/100)*1000,100000)+500000,\"❌\")",
+          "cell_count": 7
+        },
+        {
+          "formula": "=IFERROR(FLOOR(RC[1]*(1+R48C3/100)*1000,100000)+500000,\"❌\")",
+          "cell_count": 4
+        },
+        {
+          "formula": "=IFERROR(FLOOR(RC[1]*(1+R53C3/100)*1000,100000)+500000,\"❌\")",
+          "cell_count": 17
+        },
+        {
+          "formula": "=IFERROR(FLOOR(RC[1]*(1+R71C3/100)*1000,100000)+500000,\"❌\")",
+          "cell_count": 2
+        },
+        {
+          "formula": "=IFERROR(FLOOR(RC[1]*(1+R74C3/100)*1000,100000)+500000,\"❌\")",
+          "cell_count": 29
+        }
+      ]
+    },
+    {
+      "shape_id": "A5",
+      "skeleton": "=IFERROR(ROUNDUP(<REF>*(1+<REF>/100),-2),\"❌\")",
+      "semantics": "Price target rounded upward to two negative decimal places after percentage markup.",
+      "cell_role": "price_target_candidate",
+      "translation_status": "supported",
+      "validation_feasibility": "replayable",
+      "required_missing_domain_concepts": [],
+      "evidence_confidence": "high",
+      "evidence_notes": "",
+      "cell_count": 7,
+      "exact_formula_variant_count": 7,
+      "normalized_formula_variant_count": 1,
+      "input_topology_counts": {
+        "derived_reference": 7
+      },
+      "representative_cells": [
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "C106",
+          "exact_formula_text": "=IFERROR(ROUNDUP(D106*(1+$C$74/100),-2),\"❌\")"
+        },
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "C107",
+          "exact_formula_text": "=IFERROR(ROUNDUP(D107*(1+$C$74/100),-2),\"❌\")"
+        },
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "C108",
+          "exact_formula_text": "=IFERROR(ROUNDUP(D108*(1+$C$74/100),-2),\"❌\")"
+        },
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "C109",
+          "exact_formula_text": "=IFERROR(ROUNDUP(D109*(1+$C$74/100),-2),\"❌\")"
+        },
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "C110",
+          "exact_formula_text": "=IFERROR(ROUNDUP(D110*(1+$C$74/100),-2),\"❌\")"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=IFERROR(ROUNDUP(RC[1]*(1+R74C3/100),-2),\"❌\")",
+          "cell_count": 7
+        }
+      ]
+    },
+    {
+      "shape_id": "A6",
+      "skeleton": "=IF(<REF>=\"\",\"x\",IFERROR(FLOOR(<REF>*<REF>,50000)/10,\"x\"))",
+      "semantics": "UGREEN price candidate from one source value and the manually stored G2 multiplier, followed by division by 10 after rounding.",
+      "cell_role": "price_target_candidate",
+      "translation_status": "unknown",
+      "validation_feasibility": "provenance_partial",
+      "required_missing_domain_concepts": [
+        "versioned_manual_pricing_factor",
+        "proven_output_unit_semantics"
+      ],
+      "evidence_confidence": "low",
+      "evidence_notes": "The workbook proves the formula and cached output, but G2 has no label and the business meaning of the post-round /10 is not proven.",
+      "cell_count": 327,
+      "exact_formula_variant_count": 327,
+      "normalized_formula_variant_count": 1,
+      "input_topology_counts": {
+        "manual_reference": 327
+      },
+      "representative_cells": [
+        {
+          "worksheet": "UGREEN",
+          "cell_address": "C3",
+          "exact_formula_text": "=IF(D3=\"\",\"x\",IFERROR(FLOOR($G$2*E3,50000)/10,\"x\"))"
+        },
+        {
+          "worksheet": "UGREEN",
+          "cell_address": "C4",
+          "exact_formula_text": "=IF(D4=\"\",\"x\",IFERROR(FLOOR($G$2*E4,50000)/10,\"x\"))"
+        },
+        {
+          "worksheet": "UGREEN",
+          "cell_address": "C5",
+          "exact_formula_text": "=IF(D5=\"\",\"x\",IFERROR(FLOOR($G$2*E5,50000)/10,\"x\"))"
+        },
+        {
+          "worksheet": "UGREEN",
+          "cell_address": "C6",
+          "exact_formula_text": "=IF(D6=\"\",\"x\",IFERROR(FLOOR($G$2*E6,50000)/10,\"x\"))"
+        },
+        {
+          "worksheet": "UGREEN",
+          "cell_address": "C7",
+          "exact_formula_text": "=IF(D7=\"\",\"x\",IFERROR(FLOOR($G$2*E7,50000)/10,\"x\"))"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=IF(RC[1]=\"\",\"x\",IFERROR(FLOOR(R2C7*RC[2],50000)/10,\"x\"))",
+          "cell_count": 327
+        }
+      ]
+    },
+    {
+      "shape_id": "A7",
+      "skeleton": "=IFERROR(<REF>/<REF>,\"x\")",
+      "semantics": "Derived purchase-to-consumer ratio used as a display metric, not a Channel price target.",
+      "cell_role": "display_metric",
+      "translation_status": "unsupported",
+      "validation_feasibility": "replayable",
+      "required_missing_domain_concepts": [
+        "derived_display_metric"
+      ],
+      "evidence_confidence": "high",
+      "evidence_notes": "",
+      "cell_count": 319,
+      "exact_formula_variant_count": 319,
+      "normalized_formula_variant_count": 1,
+      "input_topology_counts": {
+        "derived_reference": 319
+      },
+      "representative_cells": [
+        {
+          "worksheet": "UGREEN",
+          "cell_address": "G3",
+          "exact_formula_text": "=IFERROR(F3/E3,\"x\")"
+        },
+        {
+          "worksheet": "UGREEN",
+          "cell_address": "G4",
+          "exact_formula_text": "=IFERROR(F4/E4,\"x\")"
+        },
+        {
+          "worksheet": "UGREEN",
+          "cell_address": "G5",
+          "exact_formula_text": "=IFERROR(F5/E5,\"x\")"
+        },
+        {
+          "worksheet": "UGREEN",
+          "cell_address": "G6",
+          "exact_formula_text": "=IFERROR(F6/E6,\"x\")"
+        },
+        {
+          "worksheet": "UGREEN",
+          "cell_address": "G7",
+          "exact_formula_text": "=IFERROR(F7/E7,\"x\")"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=IFERROR(RC[-1]/RC[-2],\"x\")",
+          "cell_count": 319
+        }
+      ]
+    },
+    {
+      "shape_id": "A8",
+      "skeleton": "=<REF>",
+      "semantics": "Same-column copy of manually entered header/vendor metadata.",
+      "cell_role": "metadata_reference",
+      "translation_status": "supported_with_review",
+      "validation_feasibility": "replayable",
+      "required_missing_domain_concepts": [
+        "versioned_manual_metadata"
+      ],
+      "evidence_confidence": "medium",
+      "evidence_notes": "The inspected occurrences copy text labels such as vendor names; they are not price targets.",
+      "cell_count": 25,
+      "exact_formula_variant_count": 11,
+      "normalized_formula_variant_count": 12,
+      "input_topology_counts": {
+        "manual_reference": 25
+      },
+      "representative_cells": [
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "M10",
+          "exact_formula_text": "=M2"
+        },
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "N10",
+          "exact_formula_text": "=N2"
+        },
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "M20",
+          "exact_formula_text": "=M2"
+        },
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "N20",
+          "exact_formula_text": "=N2"
+        },
+        {
+          "worksheet": "Apple Acc",
+          "cell_address": "M29",
+          "exact_formula_text": "=M2"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=R[-103]C",
+          "cell_count": 1
+        },
+        {
+          "formula": "=R[-104]C",
+          "cell_count": 9
+        },
+        {
+          "formula": "=R[-18]C",
+          "cell_count": 2
+        },
+        {
+          "formula": "=R[-27]C",
+          "cell_count": 2
+        },
+        {
+          "formula": "=R[-30]C",
+          "cell_count": 2
+        },
+        {
+          "formula": "=R[-35]C",
+          "cell_count": 2
+        },
+        {
+          "formula": "=R[-38]C",
+          "cell_count": 1
+        },
+        {
+          "formula": "=R[-46]C",
+          "cell_count": 1
+        },
+        {
+          "formula": "=R[-51]C",
+          "cell_count": 1
+        },
+        {
+          "formula": "=R[-72]C",
+          "cell_count": 1
+        },
+        {
+          "formula": "=R[-8]C",
+          "cell_count": 2
+        },
+        {
+          "formula": "=R[-92]C",
+          "cell_count": 1
+        }
+      ]
+    },
+    {
+      "shape_id": "A9",
+      "skeleton": "=IF(<REF>=\"\",\"x\",IFERROR(FLOOR((<REF>*(1+#REF!/100)+IF(ISNUMBER(#REF!),#REF!,0))*1000000,50000),\"x\"))",
+      "semantics": "A1 variant with missing percentage and addend references.",
+      "cell_role": "price_target_candidate",
+      "translation_status": "broken",
+      "validation_feasibility": "comparison_not_possible",
+      "required_missing_domain_concepts": [
+        "missing_channel_pricing_parameters"
+      ],
+      "evidence_confidence": "high",
+      "evidence_notes": "",
+      "cell_count": 254,
+      "exact_formula_variant_count": 254,
+      "normalized_formula_variant_count": 1,
+      "input_topology_counts": {
+        "single_source": 254
+      },
+      "representative_cells": [
+        {
+          "worksheet": "Logitech",
+          "cell_address": "H4",
+          "exact_formula_text": "=IF(D4=\"\",\"x\",IFERROR(FLOOR((D4*(1+#REF!/100)+IF(ISNUMBER(#REF!),#REF!,0))*1000000,50000),\"x\"))"
+        },
+        {
+          "worksheet": "Logitech",
+          "cell_address": "H5",
+          "exact_formula_text": "=IF(D5=\"\",\"x\",IFERROR(FLOOR((D5*(1+#REF!/100)+IF(ISNUMBER(#REF!),#REF!,0))*1000000,50000),\"x\"))"
+        },
+        {
+          "worksheet": "Logitech",
+          "cell_address": "H6",
+          "exact_formula_text": "=IF(D6=\"\",\"x\",IFERROR(FLOOR((D6*(1+#REF!/100)+IF(ISNUMBER(#REF!),#REF!,0))*1000000,50000),\"x\"))"
+        },
+        {
+          "worksheet": "Logitech",
+          "cell_address": "H7",
+          "exact_formula_text": "=IF(D7=\"\",\"x\",IFERROR(FLOOR((D7*(1+#REF!/100)+IF(ISNUMBER(#REF!),#REF!,0))*1000000,50000),\"x\"))"
+        },
+        {
+          "worksheet": "Logitech",
+          "cell_address": "H8",
+          "exact_formula_text": "=IF(D8=\"\",\"x\",IFERROR(FLOOR((D8*(1+#REF!/100)+IF(ISNUMBER(#REF!),#REF!,0))*1000000,50000),\"x\"))"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=IF(RC[-4]=\"\",\"x\",IFERROR(FLOOR((RC[-4]*(1+#REF!/100)+IF(ISNUMBER(#REF!),#REF!,0))*1000000,50000),\"x\"))",
+          "cell_count": 254
+        }
+      ]
+    },
+    {
+      "shape_id": "A10",
+      "skeleton": "=IFERROR(FLOOR((<REF>*(1+<REF>/100)*1000),100000),\"❌\")",
+      "semantics": "Parenthesized syntax variant of A3 with the same evidenced arithmetic.",
+      "cell_role": "price_target_candidate",
+      "translation_status": "supported",
+      "validation_feasibility": "replayable",
+      "required_missing_domain_concepts": [],
+      "evidence_confidence": "high",
+      "evidence_notes": "",
+      "cell_count": 94,
+      "exact_formula_variant_count": 89,
+      "normalized_formula_variant_count": 1,
+      "input_topology_counts": {
+        "derived_reference": 94
+      },
+      "representative_cells": [
+        {
+          "worksheet": "Beats",
+          "cell_address": "C3",
+          "exact_formula_text": "=IFERROR(FLOOR((D3*(1+$C$2/100)*1000),100000),\"❌\")"
+        },
+        {
+          "worksheet": "Beats",
+          "cell_address": "C4",
+          "exact_formula_text": "=IFERROR(FLOOR((D4*(1+$C$2/100)*1000),100000),\"❌\")"
+        },
+        {
+          "worksheet": "Beats",
+          "cell_address": "C5",
+          "exact_formula_text": "=IFERROR(FLOOR((D5*(1+$C$2/100)*1000),100000),\"❌\")"
+        },
+        {
+          "worksheet": "Beats",
+          "cell_address": "C6",
+          "exact_formula_text": "=IFERROR(FLOOR((D6*(1+$C$2/100)*1000),100000),\"❌\")"
+        },
+        {
+          "worksheet": "Beats",
+          "cell_address": "C7",
+          "exact_formula_text": "=IFERROR(FLOOR((D7*(1+$C$2/100)*1000),100000),\"❌\")"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=IFERROR(FLOOR((RC[1]*(1+R2C3/100)*1000),100000),\"❌\")",
+          "cell_count": 94
+        }
+      ]
+    },
+    {
+      "shape_id": "A11",
+      "skeleton": "=IFERROR(FLOOR((<REF>*(1+<REF>/100)*1000)+500000,100000),\"❌\")",
+      "semantics": "Price target with a fixed 500000 amount added before floor-to-100000.",
+      "cell_role": "price_target_candidate",
+      "translation_status": "supported",
+      "validation_feasibility": "replayable",
+      "required_missing_domain_concepts": [],
+      "evidence_confidence": "high",
+      "evidence_notes": "",
+      "cell_count": 85,
+      "exact_formula_variant_count": 85,
+      "normalized_formula_variant_count": 4,
+      "input_topology_counts": {
+        "derived_reference": 85
+      },
+      "representative_cells": [
+        {
+          "worksheet": "Surface Acc",
+          "cell_address": "C4",
+          "exact_formula_text": "=IFERROR(FLOOR((E4*(1+$C$3/100)*1000)+500000,100000),\"❌\")"
+        },
+        {
+          "worksheet": "Surface Acc",
+          "cell_address": "C5",
+          "exact_formula_text": "=IFERROR(FLOOR((E5*(1+$C$3/100)*1000)+500000,100000),\"❌\")"
+        },
+        {
+          "worksheet": "Surface Acc",
+          "cell_address": "C6",
+          "exact_formula_text": "=IFERROR(FLOOR((E6*(1+$C$3/100)*1000)+500000,100000),\"❌\")"
+        },
+        {
+          "worksheet": "Surface Acc",
+          "cell_address": "C7",
+          "exact_formula_text": "=IFERROR(FLOOR((E7*(1+$C$3/100)*1000)+500000,100000),\"❌\")"
+        },
+        {
+          "worksheet": "Surface Acc",
+          "cell_address": "C8",
+          "exact_formula_text": "=IFERROR(FLOOR((E8*(1+$C$3/100)*1000)+500000,100000),\"❌\")"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=IFERROR(FLOOR((RC[1]*(1+R10C3/100)*1000)+500000,100000),\"❌\")",
+          "cell_count": 3
+        },
+        {
+          "formula": "=IFERROR(FLOOR((RC[1]*(1+R14C3/100)*1000)+500000,100000),\"❌\")",
+          "cell_count": 12
+        },
+        {
+          "formula": "=IFERROR(FLOOR((RC[1]*(1+R2C3/100)*1000)+500000,100000),\"❌\")",
+          "cell_count": 7
+        },
+        {
+          "formula": "=IFERROR(FLOOR((RC[2]*(1+R3C3/100)*1000)+500000,100000),\"❌\")",
+          "cell_count": 63
+        }
+      ]
+    },
+    {
+      "shape_id": "A12",
+      "skeleton": "=IFNA(MIN(FILTER(<REF>,<REF><>0)),\"❌\")",
+      "semantics": "One anomalous cross-row minimum formula in Surface Acc!I12, located in a Link column and cached as #VALUE!.",
+      "cell_role": "anomalous_formula",
+      "translation_status": "broken",
+      "validation_feasibility": "comparison_not_possible",
+      "required_missing_domain_concepts": [
+        "misplaced_cross_row_formula_classification"
+      ],
+      "evidence_confidence": "high",
+      "evidence_notes": "Workbook location, references, and cached error prove the anomaly; intended business meaning is not inferred.",
+      "cell_count": 1,
+      "exact_formula_variant_count": 1,
+      "normalized_formula_variant_count": 1,
+      "input_topology_counts": {
+        "multi_source": 1
+      },
+      "representative_cells": [
+        {
+          "worksheet": "Surface Acc",
+          "cell_address": "I12",
+          "exact_formula_text": "=_xlfn.IFNA(MIN(_xlfn._xlws.FILTER(E3:I3,E3:I3<>0)),\"❌\")"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=IFNA(MIN(FILTER(R[-9]C[-4]:R[-9]C,R[-9]C[-4]:R[-9]C<>0)),\"❌\")",
+          "cell_count": 1
+        }
+      ]
+    },
+    {
+      "shape_id": "A13",
+      "skeleton": "=IFERROR(FLOOR((#REF!*(1+<REF>/100)*1000),100000),\"❌\")",
+      "semantics": "A10 variant with a missing price-basis reference.",
+      "cell_role": "price_target_candidate",
+      "translation_status": "broken",
+      "validation_feasibility": "comparison_not_possible",
+      "required_missing_domain_concepts": [
+        "missing_price_basis"
+      ],
+      "evidence_confidence": "high",
+      "evidence_notes": "",
+      "cell_count": 1,
+      "exact_formula_variant_count": 1,
+      "normalized_formula_variant_count": 1,
+      "input_topology_counts": {
+        "derived_reference": 1
+      },
+      "representative_cells": [
+        {
+          "worksheet": "Beats",
+          "cell_address": "C34",
+          "exact_formula_text": "=IFERROR(FLOOR((#REF!*(1+$C$2/100)*1000),100000),\"❌\")"
+        }
+      ],
+      "normalized_formula_variants": [
+        {
+          "formula": "=IFERROR(FLOOR((#REF!*(1+R2C3/100)*1000),100000),\"❌\")",
+          "cell_count": 1
+        }
+      ]
+    }
+  ]
+}

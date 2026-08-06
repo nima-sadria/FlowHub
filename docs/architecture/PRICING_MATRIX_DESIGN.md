@@ -1531,42 +1531,54 @@ configuration for a problem that has nothing to do with it.
 
 ## Appendix A: Formula Shape Inventory
 
-The translator allowlist. Each shape requires a fixture with input values, the
-workbook's own output, and the expected FlowHub output. Where they differ, the
-difference must be explained before migration proceeds.
+The translator allowlist is backed by the cell-level inventory under
+`docs/architecture/formula_inventory/`. The source snapshot is `Price
+List.xlsx` with SHA-256
+`a529c3306d6db3923eb55451562c5a1eb4886861c45b390cddfdfc6f70db6a45`.
+It contains 5,997 formula cells across 20 formula-bearing worksheets (22 total),
+53 normalized R1C1 formulas, and the 13 verified syntax/semantic shapes below.
 
-Shapes confirmed by the audit:
+Each supported shape still requires a fixture with input values, the workbook's
+stored output, and the expected FlowHub output. `Supported` here means the
+workbook semantics fit the declared model; it does not waive the fixture gate.
 
-| #   | Workbook shape                                                         | Model                                                                    |
-| --- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| A1  | `IF(D="","x",IFERROR(FLOOR((D*(1+$C$2/100)+$C$3)*1000000,50000),"x"))` | `percent_bp`, `fixed_addend`, `floor`, step 50000, `quote_scale` 1000000 |
-| A2  | `IFERROR(MIN(FILTER(E:I,E:I<>0)),"❌")`                                | Layer 3 basis selection, `strategy = min`, `exclude_zero`                |
-| A3  | `FLOOR(D*(1+$C$2/100)*1000,100000)`                                    | as A1, `fixed_addend = 0`, step 100000, `quote_scale` 1000               |
-| A4  | `FLOOR(...)+500000`                                                    | `surcharge_minor = 500000`, `round_then_surcharge`                       |
-| A5  | `ROUNDUP(D*(1+$C$74/100),-2)`                                          | `round_mode = ceil`, step derived from the negative digit argument       |
-| A6  | `FLOOR($G$2*E,50000)/10`                                               | **Quarantined.** See note.                                               |
-| A7  | `IFERROR(F/E,"x")`                                                     | Derived display metric, **not** a price target                           |
-| A8  | `=M2`                                                                  | Plain cross-reference; resolved at migration, not modeled                |
-| A9  | `#REF!` variants                                                       | Structurally impossible in the model. Reported, never translated.        |
+| # | Cells | Workbook shape | Model / disposition |
+| --- | ---: | --- | --- |
+| A1 | 2,291 | `IF(D="","x",IFERROR(FLOOR((D*(1+rate/100)+IF(ISNUMBER(addend),addend,0))*1000000,50000),"x"))` | `percent_bp`, optional fixed addend, `floor`, step 50,000, scale 1,000,000. |
+| A2 | 1,840 | `IFERROR(MIN(FILTER(vendors,vendors<>0)),"❌")` | Layer 3 `min` basis selection with zero exclusion. |
+| A3 | 663 | `IFERROR(FLOOR(D*(1+rate/100)*1000,100000),"❌")` | Percentage rule, `floor`, step 100,000, scale 1,000. |
+| A4 | 90 | `IFERROR(FLOOR(...,100000)+500000,"❌")` | `surcharge_minor = 500000`, `round_then_surcharge`. |
+| A5 | 7 | `IFERROR(ROUNDUP(D*(1+rate/100),-2),"❌")` | `round_mode = ceil`; step derived from `-2`. |
+| A6 | 327 | `IF(D="","x",IFERROR(FLOOR($G$2*E,50000)/10,"x"))` | **Quarantined.** Arithmetic proven; `G2` meaning and post-round `/10` semantics unproven. |
+| A7 | 319 | `IFERROR(F/E,"x")` | Derived display ratio, **not** a price target. |
+| A8 | 25 | `=M2` / `=N2` variants | Manual metadata copy; retained for provenance, not modeled as pricing. |
+| A9 | 254 | A1 with broken rate/addend references | **Broken.** Missing Channel pricing parameters; never translated. |
+| A10 | 94 | `IFERROR(FLOOR((D*(1+rate/100)*1000),100000),"❌")` | Parenthesized syntax variant of A3 with the same model. |
+| A11 | 85 | `IFERROR(FLOOR((D*(1+rate/100)*1000)+500000,100000),"❌")` | Fixed amount before rounding: `surcharge_then_round`. |
+| A12 | 1 | `IFNA(MIN(FILTER(E3:I3,E3:I3<>0)),"❌")` at `Surface Acc!I12` | **Broken/anomalous.** Cross-row formula in Link column, cached `#VALUE!`; meaning not inferred. |
+| A13 | 1 | A10 with a broken basis reference at `Beats!C34` | **Broken.** Missing price basis; never translated. |
 
 ### Note on A6
 
 The `/10` occurs **after** the rounding, so it cannot be a Source input scale —
-an input scale applies before any computation. The likely meaning is an outbound
-conversion from Rial to Toman, which in this model is
-`Channel.currency_unit = TOMAN` and outbound conversion, not a rule parameter.
+an input scale applies before any computation. In the audited UGREEN worksheet,
+`E` is labelled purchase, `C` is labelled website, and the manually stored
+`G2 = 1.28` has no label. The workbook proves the arithmetic and cached result;
+it does not prove whether `G2` is markup, an external market value, or another
+business input, and it does not prove the business meaning of `/10`.
 
-That reading is plausible but unproven. Until a fixture with real inputs and the
-workbook's own output confirms it, **A6 is quarantined and not translated**.
-Products depending on it produce `legacy_formula_unmigrated`.
+Until versioned input provenance and an owner-approved fixture establish those
+meanings, **A6 is quarantined and not translated**. Products depending on it
+produce `legacy_formula_unmigrated`.
 
 An earlier revision mapped the `/10` onto the Source unit. That was inference,
 not evidence, and inference in a migration table becomes a silent factor-of-ten
 error across a vendor's entire catalogue.
 
-The remaining shapes are enumerated by the translator inventory pass against the
-production workbook. Any shape not present in this appendix after that pass is
-quarantined rather than guessed.
+The inventory reconciles all documented totals: 5,997 formula cells, 13 shapes,
+and 255 formula cells containing `#REF!` (A9 plus A13). It also discovered the
+separate A12 `#VALUE!` anomaly, so the complete broken-formula total is 256.
+Any future shape absent from this appendix is quarantined rather than guessed.
 
 `IFERROR(..., "x")` and `IFERROR(..., "❌")` do not map to a single outcome. The
 migration report must classify each occurrence against the precedence table
