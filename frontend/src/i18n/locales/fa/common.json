@@ -26,6 +26,7 @@
   "field.price": "قیمت",
   "field.status": "وضعیت",
   "field.stock": "موجودی",
+  "footer.version": "نسخهٔ {{version}} FlowHub",
   "labels.channel": "کانال",
   "localProductService.canonicalBusinessPrice": "قیمت مرجع کسب‌وکار",
   "localSourceService.connectedSuccessfully12ProductsFound": "اتصال موفق بود. ۱۲ محصول یافت شد.",

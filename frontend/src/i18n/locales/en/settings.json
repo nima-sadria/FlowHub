@@ -28,6 +28,7 @@
   "exchangeRates.reconciling": "Synchronizing...",
   "exchangeRates.refreshComplete": "Exchange rates refreshed",
   "exchangeRates.refreshesPerDay": "Refreshes per day",
+  "exchangeRates.refreshesSummary": "{{value}} / day · {{interval}}",
   "exchangeRates.refreshFailed": "Exchange-rate refresh failed",
   "exchangeRates.refreshing": "Refreshing...",
   "exchangeRates.remainingSafe": "Remaining safe requests",

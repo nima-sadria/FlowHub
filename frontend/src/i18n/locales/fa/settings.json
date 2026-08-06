@@ -28,6 +28,7 @@
   "exchangeRates.reconciling": "در حال همگام‌سازی...",
   "exchangeRates.refreshComplete": "نرخ‌ها بازخوانی شدند",
   "exchangeRates.refreshesPerDay": "بازخوانی در روز",
+  "exchangeRates.refreshesSummary": "{{value}} بار در روز · {{interval}}",
   "exchangeRates.refreshFailed": "بازخوانی نرخ ارز ناموفق بود",
   "exchangeRates.refreshing": "در حال بازخوانی...",
   "exchangeRates.remainingSafe": "درخواست‌های امن باقی‌مانده",

@@ -26,6 +26,7 @@
   "field.price": "Price",
   "field.status": "Status",
   "field.stock": "Stock",
+  "footer.version": "FlowHub v{{version}}",
   "labels.channel": "Channel",
   "localProductService.canonicalBusinessPrice": "Canonical/business price",
   "localSourceService.connectedSuccessfully12ProductsFound": "Connected successfully. 12 products found.",
