@@ -43,6 +43,10 @@ ALLOWED_RELEASE_TERM_PATHS = {
     "docs/releases/FLOWHUB_V1.3_BETA.md",
 }
 INTERNAL_TERM_PATTERNS = {
+    "RESUME.md": (r"placeholder", r"beta"),
+    "app/flowhub/unified_workspace/services.py": (
+        r"is_legacy_placeholder",
+    ),
     "CHANGELOG.md": (r"FlowHub v1\.3 Beta",),
     "README.md": (r"v1\.3 Beta", r"FLOWHUB_V1\.3_BETA"),
     "docs/i18n/INTERNATIONALIZATION.md": (r"placeholders?",),
@@ -105,13 +109,16 @@ INTERNAL_TERM_PATTERNS = {
         r"\bplaceholder=",
         r"sourceConfiguration\.(previousSampleRow|nextSampleRow|samplePosition)",
     ),
+    "frontend/src/pages/sourceConfiguration/WorksheetRuleEditor.tsx": (r"placeholder=",),
     # These path-exact patterns cover the user-facing Source Preview sample
     # navigation catalog only; they do not exempt unrelated release terms.
     "frontend/src/i18n/locales/en/sources.json": (
         r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",
+        r"sourceConfiguration\.smartInputPlaceholder",
     ),
     "frontend/src/i18n/locales/fa/sources.json": (
         r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",
+        r"sourceConfiguration\.smartInputPlaceholder",
     ),
     "locales/en/flowhub.po": (
         r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",

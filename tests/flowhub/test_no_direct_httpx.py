@@ -35,6 +35,7 @@ _ADAPTERS_FILE = _FLOWHUB_DIR / "connections" / "adapters.py"
 _MARKETPLACE_CONNECTOR_FILES = {
     (_FLOWHUB_DIR / "channels" / "snappshop.py").resolve(),
     (_FLOWHUB_DIR / "channels" / "tapsishop.py").resolve(),
+    (_FLOWHUB_DIR / "channels" / "technolife.py").resolve(),
 }
 
 # Legacy Compatibility service modules that make direct WC/NC HTTP calls.
