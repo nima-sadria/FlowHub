@@ -44,6 +44,13 @@ ALLOWED_RELEASE_TERM_PATHS = {
 }
 INTERNAL_TERM_PATTERNS = {
     "RESUME.md": (r"placeholder", r"beta"),
+    # UI_RESUME.md records verified test and local-development evidence. These
+    # exact phrases do not permit mock routes or production placeholders.
+    "UI_RESUME.md": (
+        r"\bNo mocks, no",
+        r"\bplaceholder credentials\b",
+        r"mocked non-admin `AuthContext`",
+    ),
     "app/flowhub/unified_workspace/services.py": (
         r"is_legacy_placeholder",
     ),
@@ -105,6 +112,12 @@ INTERNAL_TERM_PATTERNS = {
         r"\bplaceholder:\s*integration\?\.placeholder\s*\?\?\s*false",
     ),
     "frontend/src/pages/ExchangeRates.tsx": (r"\bplaceholder=",),
+    # The Pricing Matrix product-group editor uses the standard HTML input
+    # placeholder attribute and a localized key; neither is release residue.
+    "frontend/src/pages/PricingProductGroupEditor.tsx": (
+        r"\bplaceholder=\{translate\('pricing:productGroupEditor\.memberPlaceholder'\)\}",
+        r"\bmemberPlaceholder'\)\}",
+    ),
     "frontend/src/pages/SourceConfiguration.tsx": (
         r"\bplaceholder=",
         r"sourceConfiguration\.(previousSampleRow|nextSampleRow|samplePosition)",
@@ -119,6 +132,15 @@ INTERNAL_TERM_PATTERNS = {
     "frontend/src/i18n/locales/fa/sources.json": (
         r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",
         r"sourceConfiguration\.smartInputPlaceholder",
+    ),
+    "frontend/src/i18n/locales/en/pricing.json": (
+        r'"productGroupEditor\.memberPlaceholder":',
+    ),
+    "frontend/src/i18n/locales/fa/pricing.json": (
+        r'"productGroupEditor\.memberPlaceholder":',
+    ),
+    "frontend/src/features/pricingMatrix/api.ts": (
+        r"\bnone is a mock or a placeholder\b",
     ),
     "locales/en/flowhub.po": (
         r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",
