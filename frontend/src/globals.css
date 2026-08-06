@@ -3737,6 +3737,48 @@ select,
     accent-color: var(--fh-brand-500);
   }
 
+  .fh-worksheet-picker {
+    padding: 12px;
+    border: 1px solid var(--fh-ui-border);
+    border-radius: var(--fh-radius-xl);
+  }
+
+  .fh-worksheet-picker-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .fh-worksheet-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .fh-worksheet-picker-item {
+    min-width: 0;
+    min-height: 44px;
+    padding: 5px 10px;
+    cursor: pointer;
+    background: var(--fh-ui-card);
+    border: 1px solid var(--fh-ui-border);
+    border-radius: var(--fh-radius-md);
+    transition: background-color 150ms ease, border-color 150ms ease;
+  }
+
+  .fh-worksheet-picker-item:hover {
+    background: var(--fh-ui-surface-subtle);
+    border-color: var(--fh-ui-border-emphasis);
+  }
+
+  .fh-worksheet-picker-item[data-selected="true"] {
+    background: color-mix(in srgb, var(--fh-brand-500) 6%, var(--fh-ui-card));
+    border-color: color-mix(in srgb, var(--fh-brand-500) 55%, var(--fh-ui-border));
+  }
+
   .fh-field-error {
     color: var(--fh-error-600);
     font-size: 12px;

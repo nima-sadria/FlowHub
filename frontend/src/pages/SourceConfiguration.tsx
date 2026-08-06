@@ -880,15 +880,18 @@ export default function SourceConfiguration() {
             <input className="fh-input mt-1" type="number" min="1" value={dataStartRow} onChange={event => setDataStartRow(Number(event.target.value))} />
           </label>
         </div>
-        {worksheetMode === 'selected' && <fieldset className="rounded-xl border border-border p-4">
+        {worksheetMode === 'selected' && <fieldset className="fh-worksheet-picker">
           <legend className="px-2 font-medium text-text-base">{translate('sources:sourceConfiguration.chooseParticipatingWorksheets')}</legend>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <button className="fh-button-secondary" type="button" disabled={detectingWorksheets} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
+          <div className="fh-worksheet-picker-toolbar">
+            <button className="fh-button-secondary fh-button-sm" type="button" disabled={detectingWorksheets} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
             {detectedWorksheets.length > 0 && <><button className="fh-button-secondary fh-button-sm" type="button" onClick={() => setSelectedWorksheetNames(detectedWorksheets.map(item => item.name))}>{translate('sources:sourceConfiguration.selectAll')}</button><button className="fh-button-secondary fh-button-sm" type="button" onClick={() => setSelectedWorksheetNames([])}>{translate('sources:sourceConfiguration.clearAll')}</button></>}
             {detectedWorksheets.length === 0 && <label className="fh-field-label min-w-[260px]">{translate('sources:sourceConfiguration.worksheet')}<input className="fh-input mt-1" value={worksheetName} onChange={event => { setWorksheetName(event.target.value); setSelectedWorksheetNames(event.target.value.trim() ? [event.target.value.trim()] : []) }} /></label>}
           </div>
-          {detectedWorksheets.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {detectedWorksheets.map(item => <label className="fh-inline-check rounded-lg border border-border p-3" key={item.name}><input type="checkbox" checked={selectedWorksheetNames.includes(item.name)} onChange={event => setSelectedWorksheetNames(current => event.target.checked ? [...new Set([...current, item.name])] : current.filter(name => name !== item.name))} /><span><strong className="block text-text-base">{item.name}</strong><small className="fh-text-caption">{translate('sources:sourceConfiguration.worksheetRowCount', { count: item.rowCount })}</small></span></label>)}
+          {detectedWorksheets.length > 0 && <div className="fh-worksheet-picker-grid" data-testid="worksheet-picker-grid">
+            {detectedWorksheets.map(item => {
+              const selected = selectedWorksheetNames.includes(item.name)
+              return <label className="fh-inline-check fh-worksheet-picker-item" data-selected={selected} key={item.name}><input type="checkbox" checked={selected} onChange={event => setSelectedWorksheetNames(current => event.target.checked ? [...new Set([...current, item.name])] : current.filter(name => name !== item.name))} /><span className="min-w-0"><strong className="block truncate text-text-base">{item.name}</strong><small className="fh-text-caption block truncate">{translate('sources:sourceConfiguration.worksheetRowCount', { count: item.rowCount })}</small></span></label>
+            })}
           </div>}
           {selectedWorksheetNames.length === 0 && <p className="fh-alert-warning mt-3" role="alert">{translate('sources:sourceConfiguration.selectAtLeastOneWorksheet')}</p>}
         </fieldset>}

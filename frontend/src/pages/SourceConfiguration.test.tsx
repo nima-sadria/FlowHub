@@ -701,6 +701,10 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(worksheetCheckbox('تهران').checked).toBe(true)
     expect(worksheetCheckbox('شیراز').checked).toBe(true)
     expect(worksheetCheckbox('یادداشت‌ها').checked).toBe(false)
+    const worksheetGrid = container.querySelector('[data-testid="worksheet-picker-grid"]') as HTMLElement
+    expect(worksheetGrid.classList.contains('fh-worksheet-picker-grid')).toBe(true)
+    expect(worksheetGrid.querySelectorAll('.fh-worksheet-picker-item')).toHaveLength(3)
+    expect(worksheetGrid.querySelectorAll('[data-selected="true"]')).toHaveLength(2)
 
     await previewThenSave()
     const calls = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls
