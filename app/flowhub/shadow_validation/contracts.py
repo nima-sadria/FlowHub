@@ -28,14 +28,14 @@ class ComparisonConfidence(StrEnum):
 
 class ComparisonPrimaryClassification(StrEnum):
     NOT_POSSIBLE = "comparison_not_possible"
+    EXACT_MATCH = "exact_match"
+    ACCEPTED_EXPECTED_ROUNDING = "accepted_expected_rounding"
+    ACCEPTED_DOCUMENTED_SEMANTIC_DIFFERENCE = "accepted_documented_semantic_difference"
+    REVIEW_REQUIRED = "review_required"
+    CRITICAL_DIVERGENCE = "critical_divergence"
     CONTRACT_UNAVAILABLE = "comparison_contract_unavailable"
-    LEGACY_OUTPUT_UNAVAILABLE = "comparison_legacy_output_unavailable"
-    MATRIX_OUTPUT_UNAVAILABLE = "comparison_matrix_output_unavailable"
+    OUTPUT_UNAVAILABLE = "comparison_output_unavailable"
     CONTEXT_MISMATCH = "comparison_context_mismatch"
-    EFFECTIVE_VALUE_DIVERGENCE = "comparison_effective_value_divergence"
-    CANDIDATE_VALUE_DIVERGENCE = "comparison_candidate_value_divergence"
-    DERIVATION_DIVERGENCE = "comparison_derivation_divergence"
-    MATCH = "comparison_match"
 
 
 class ShadowValidationReasonCode(StrEnum):
@@ -46,7 +46,12 @@ class ShadowValidationReasonCode(StrEnum):
     OUTPUT_UNAVAILABLE = "comparison_output_unavailable"
     CONTEXT_MISMATCH = ComparisonPrimaryClassification.CONTEXT_MISMATCH.value
     VALUE_DIVERGENCE = "comparison_value_divergence"
-    DERIVATION_DIVERGENCE = ComparisonPrimaryClassification.DERIVATION_DIVERGENCE.value
+    CRITICAL = "critical_divergence"
+    REVIEW_REQUIRED = ComparisonPrimaryClassification.REVIEW_REQUIRED.value
+    ACCEPTED_EXPECTED_ROUNDING = ComparisonPrimaryClassification.ACCEPTED_EXPECTED_ROUNDING.value
+    ACCEPTED_DOCUMENTED_SEMANTIC_DIFFERENCE = (
+        ComparisonPrimaryClassification.ACCEPTED_DOCUMENTED_SEMANTIC_DIFFERENCE.value
+    )
     COVERAGE_INCOMPLETE = "comparison_coverage_incomplete"
     EVIDENCE_EXPIRED = "comparison_evidence_expired"
     SCOPE_INVALIDATED = "comparison_scope_invalidated"

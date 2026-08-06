@@ -100,7 +100,7 @@ def db():
         equality_rule_json={"method": "exact"},
         required_trace_components_json=[],
         acceptance_effect=contracts.ShapeAcceptanceEffect.MAY_COUNT.value,
-        classification_mapping_json={"comparison_match": "comparison_match"},
+        classification_mapping_json={"output_context_divergence": "review_required"},
         is_current=True,
     )
     capture = LegacyFormulaCapture(
@@ -207,7 +207,7 @@ def _comparison(session, fixture: ShadowValidationFixture) -> ShadowValidationCo
         translator_version="t-1",
         required_output_lanes=contracts.OutputLane.CANDIDATE.value,
         confidence=contracts.ComparisonConfidence.VERIFIED.value,
-        primary_classification=contracts.ComparisonPrimaryClassification.MATCH.value,
+        primary_classification=contracts.ComparisonPrimaryClassification.EXACT_MATCH.value,
         secondary_classifications_json=[],
         legacy_vs_package_context_json={},
         legacy_output_json={},
