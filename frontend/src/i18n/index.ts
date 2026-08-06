@@ -1,7 +1,7 @@
 import i18n, { type TOptions } from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
-export const namespaces = ['common', 'navigation', 'authentication', 'dashboard', 'products', 'orders', 'sources', 'commerce', 'workspace', 'flowhubSheet', 'dataQuality', 'activity', 'diagnostics', 'settings', 'validation', 'errors', 'notifications'] as const
+export const namespaces = ['common', 'navigation', 'authentication', 'dashboard', 'products', 'orders', 'sources', 'commerce', 'workspace', 'flowhubSheet', 'dataQuality', 'activity', 'diagnostics', 'settings', 'pricing', 'validation', 'errors', 'notifications'] as const
 export type FlowHubLocale = 'en' | 'fa'
 export const LOCALE_STORAGE_KEY = 'flowhub.locale'
 export const DEFAULT_LOCALE: FlowHubLocale = 'en'
