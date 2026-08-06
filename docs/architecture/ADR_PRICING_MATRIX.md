@@ -4,7 +4,8 @@
 **Date:** 2026-08-05
 **Decider:** FlowHub Owner
 **Related:** `ADR-SOURCE-001`, `PRICING_MATRIX_DESIGN.md`,
-`SOURCE_CENTRIC_PRICING_WORKSPACE.md`, `UNIFIED_MULTI_CHANNEL_WORKSPACE.md`
+`PRICING_UI_CONTRACT.md`, `SOURCE_CENTRIC_PRICING_WORKSPACE.md`,
+`UNIFIED_MULTI_CHANNEL_WORKSPACE.md`
 **Detailed design:** `PRICING_MATRIX_DESIGN.md`
 
 ## Context
@@ -80,6 +81,14 @@ re-evaluated after migration.
    `computation_currency`, so no second conversion and no second rounding exist.
 10. Apply is per Channel. A blocked Channel never blocks a healthy one, and
     partial application is always explicit in Workspace status.
+11. Every safety-relevant domain state exposed by the interface contract remains
+    distinguishable in the UI. The interface never collapses states with
+    different operational meaning into one result.
+12. The interface never displays a computed price derived from an undeclared
+    unit and never silently rounds or approximates an exact value.
+13. Evidence for a blocked or rejected pricing result is reachable from that
+    result, including excluded quotes, the guard and its reference, the resolved
+    rule entry, and any applicable schema diff.
 
 ## Options Considered
 

@@ -3,6 +3,8 @@
 **Status:** Accepted baseline, implementation pending
 **Decision:** `ADR-SOURCE-001`
 **Last updated:** 2026-08-05
+**Related:** `ADR_SOURCE_UI_OBSERVABILITY_ADDENDUM.md`,
+`PRICING_UI_CONTRACT.md`
 
 ## Purpose
 
@@ -561,6 +563,43 @@ Execution Policy, operation identity, and provider capability snapshot.
 | `capture_normalize` | required | no | required | Byte parse or native-grid canonicalization. |
 | `worksheet_header_valid` | tabular providers | no | required | Parse-contract validity, not Mapping compatibility. |
 | `persist_observation` | required | no | no | Atomic internal persistence after all hard checks. |
+
+### Stage Outcome and Evidence Freshness
+
+Stage execution and evidence freshness are separate contracts. A Stage result is
+immutable evidence about one execution; freshness is a current projection over
+that evidence and the applicable policy.
+
+```text
+execution_status:
+  not_run | pending | running | passed | failed | skipped | not_applicable
+
+freshness:
+  current | stale | unknown
+```
+
+| Execution status | Meaning |
+| --- | --- |
+| `not_run` | No comparable execution evidence exists for this plan and cohort. |
+| `pending` | The Stage is planned but has not started. |
+| `running` | The Stage is currently executing. |
+| `passed` | The Stage completed and satisfied its typed contract. |
+| `failed` | The Stage ran and returned a typed failure reason. |
+| `skipped` | The Stage was applicable but an earlier gate prevented execution. |
+| `not_applicable` | Provider capabilities or this plan make the Stage irrelevant. |
+
+`skipped` is not `failed`, and `not_applicable` is not `skipped`. If a required
+Stage fails, later applicable Stages in that plan are `skipped`; provider-inert
+Stages are `not_applicable`.
+
+`stale` is never an execution status and never rewrites a historical `passed`
+or `failed` result. It means the latest comparable evidence is older than the
+current freshness policy. Config, Binding, or Execution Policy changes start a
+new comparison cohort, whose current projection is `not_run` with freshness
+`unknown` until new evidence exists.
+
+API responses expose both fields. UI presentation may map them to the existing
+FlowHub diagnostic tokens, but it must preserve their distinct meanings.
 
 ### Supplemental Diagnostic Stages
 

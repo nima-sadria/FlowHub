@@ -2,7 +2,7 @@
 
 **Status:** Proposed baseline, implementation pending
 **Related:** `ADR-SOURCE-001`, `SOURCE_ACQUISITION_DESIGN.md`,
-`UNIFIED_MULTI_CHANNEL_WORKSPACE.md`
+`PRICING_UI_CONTRACT.md`, `UNIFIED_MULTI_CHANNEL_WORKSPACE.md`
 **Supersession:** pending `ADR-PRICING-001`
 **Date:** 2026-08-05
 **Revision:** 13
