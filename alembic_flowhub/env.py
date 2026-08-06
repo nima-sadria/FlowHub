@@ -36,6 +36,7 @@ from app.flowhub.auth import models as _auth_models  # noqa: E402, F401
 from app.flowhub.data_layer import models as _data_layer_models  # noqa: E402, F401
 from app.flowhub.database import FlowHubBase  # noqa: E402
 from app.flowhub.exchange_rates import models as _exchange_rate_models  # noqa: E402, F401
+from app.flowhub.formula_translator import models as _formula_translator_models  # noqa: E402, F401
 from app.flowhub.integration_platform import (  # noqa: E402
     models as _integration_platform_models,  # noqa: E402, F401
 )
