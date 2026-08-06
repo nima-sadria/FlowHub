@@ -1,3 +1,61 @@
+# FlowHub RC1 release handover
+
+## RC1 status -- 2026-08-06
+
+This section supersedes the older continuation notes below. The older material
+is retained as implementation history, not as the current release state.
+
+### Candidate
+
+- Candidate branch: `main`
+- Candidate before this documentation update: `e39ce0fed8e0bcceee251e2b8d1ab1839a4a6ae9`
+- Merge baseline: `f17c7768585c7071a16c7ef3722943d50ec6c473`
+- Rollback reference: `df928cc7a3cff50b0055bcf7cb94117034ff8986` (`origin/main`)
+- Push/deployment status: neither has been performed.
+
+### Verified evidence
+
+- Backend at the Stage 10B baseline: `3201 passed, 26 skipped, 0 failed`.
+- Migration suite: `34 passed, 7 skipped`; the linear head is
+  `FLOWHUB_027` (`022 -> 023 -> 024 -> 025 -> 026 -> 027`).
+- Frontend after the RC1 i18n correction: `74` files and `590` tests passed;
+  TypeScript and production build passed.
+- i18n validation: `2429` messages, with `0` missing keys, `0` placeholder
+  mismatches, `0` unapproved hardcoded strings, and `0` critical Persian
+  leakage values.
+- Final targeted release guards, Pricing Matrix backend, and Source
+  Acquisition integration: `58 passed`.
+
+### Browser evidence
+
+Claude UI Stage 6 performed authenticated Pricing Matrix browser verification
+on frontend commit `21664cb8b7ccb72c39685097d8a0ebab2af80b0a` and backend
+commit `f86f07d`. The later integration commits did not change the callable
+Pricing contract. A direct Stage 10C browser run against the final merged
+build could not be completed because the isolated Codex browser could not
+connect to the locally started Vite server (`ERR_CONNECTION_REFUSED`), despite
+the frontend production build succeeding. Treat a fresh authenticated browser
+sanity run on the deployment-equivalent environment as a release gate before
+public deployment.
+
+### Release gates
+
+| Item | Classification | Required resolution |
+|---|---|---|
+| PostgreSQL migration/persistence verification | **BLOCKING RELEASE** | FlowHub documentation identifies PostgreSQL as canonical production persistence. Configure an isolated `FLOWHUB_TEST_POSTGRES_URL` and run PostgreSQL migration plus targeted persistence tests. |
+| Final authenticated browser sanity on final merged build | **BLOCKING RELEASE** | Verify Pricing routes, EN/FA, RTL/LTR, light/dark, and a mobile viewport against the final merged commits. |
+| Private Nextcloud network | **DEPLOYMENT PREREQUISITE** | Keep `SourceHttpPolicy.allowed_private_networks` fail-closed in source. Deployment must inject the narrowly scoped private CIDR outside source control; credentials and network ranges must never be committed. |
+| Pricing formula migration activation | **BLOCKING FEATURE ACTIVATION** | Complete Appendix A from the real translator inventory, add fixtures for every supported formula shape, and resolve or explicitly quarantine the 255 broken formulas. Automatic conversion/activation remains disabled. |
+| Root `node_modules/` | **NON-BLOCKING LOCAL ARTIFACT** | It is an untracked Vite cache from an incorrect root `npx` invocation, contains no tracked source, and is reproducible. Removal was blocked by the local execution policy; it must remain unstaged and must not be pushed. |
+
+### RC1 verdict and next action
+
+**NOT READY.** Do not push or deploy this candidate until the two blocking
+release gates above have evidence. Once they pass, confirm `git status` still
+contains only the disposable root `node_modules/` cache, then push `main` and
+deploy from the resulting `origin/main` commit. Rebuild/restart any review
+service after that push and verify its revision before sharing a live URL.
+
 # FlowHub continuation handover
 
 ## Read this first
