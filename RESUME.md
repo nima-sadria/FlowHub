@@ -57,6 +57,46 @@ contains only the disposable root `node_modules/` cache, then push `main` and
 deploy from the resulting `origin/main` commit. Rebuild/restart any review
 service after that push and verify its revision before sharing a live URL.
 
+## Pricing Formula Migration Phase A -- Channel Pricing Authority
+
+Phase A is complete in the commit following this handover update. It adds the
+cutover safety foundation only; it does not translate formulas, enable Shadow
+Validation, create Frozen Evaluation Packages, or expose cutover controls.
+
+- Migration head: `FLOWHUB_028` (forward-only).
+- Every persisted Channel has one authority head and an append-only event
+  lineage. Existing Channels are seeded deterministically as
+  `legacy_formula_engine`; a Pricing Matrix policy activation never changes
+  pricing authority implicitly.
+- Valid transitions are `legacy_formula_engine -> migration_locked ->
+  pricing_matrix`, with controlled rollback through `migration_locked`.
+- `WritePipelineService` is the final enforcement boundary. Every price intent
+  carries the closed, durable origin (`legacy_formula_engine` or
+  `pricing_matrix`) plus the authority event/version observed by its caller.
+  A stale, locked, or non-authoritative origin is rejected before provider
+  dispatch and produces append-only rejection evidence.
+- Matrix Review bindings pin the authority event/version and revalidate it at
+  Apply boundaries. Legacy compatibility writes continue through the same
+  pipeline, carry `legacy_formula_engine`, and remain permitted only while
+  that authority is current.
+- No authority-management API or UI was added. `FRONTEND_CONTRACT.md` remains
+  unchanged and authoritative for callable APIs.
+
+### Verification
+
+- Focused authority, migration, Workspace, Write Pipeline, and legacy
+  regression tests passed.
+- Full backend suite: `3220 passed, 26 skipped`.
+- PostgreSQL-specific tests remain skipped unless an isolated
+  `FLOWHUB_TEST_POSTGRES_URL` is configured; no PostgreSQL claim is implied.
+
+### Next pricing migration phase
+
+Implement the Frozen Evaluation Package foundation: pin multi-source
+Observations, versioned manual inputs, derived-reference provenance, FX/unit
+context, formula-shape metadata, and translator version. Do not start formula
+translation or Shadow Validation until that immutable evidence package exists.
+
 # FlowHub continuation handover
 
 ## Read this first

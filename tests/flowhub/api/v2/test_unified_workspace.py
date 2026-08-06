@@ -125,6 +125,8 @@ def _seed(db, *, product_type: str = "simple", currency: str = "EUR", unit: str 
 
 def _seed_pricing_policy(db) -> None:
     from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.pricing_authority.contracts import PricingAuthority
+    from app.flowhub.pricing_authority.service import ChannelPricingAuthorityService
     from app.flowhub.pricing_matrix.models import ChannelPricingPolicyHead
     from app.flowhub.pricing_matrix.service import PricingMatrixService
     from app.flowhub.unified_workspace.services import UnifiedWorkspaceService
@@ -168,6 +170,22 @@ def _seed_pricing_policy(db) -> None:
         policy_revision_id=policy["id"],
         expected_head_version=0,
         reason="Unified Workspace integration test setup",
+        user=user,
+    )
+    authority = ChannelPricingAuthorityService(db)
+    legacy = authority.snapshot("woocommerce:primary")
+    locked = authority.transition(
+        channel_id="woocommerce:primary",
+        new_authority=PricingAuthority.MIGRATION_LOCKED,
+        expected_head_version=legacy.head_version,
+        reason="Unified Workspace Matrix test setup",
+        user=user,
+    )
+    authority.transition(
+        channel_id="woocommerce:primary",
+        new_authority=PricingAuthority.PRICING_MATRIX,
+        expected_head_version=locked.head_version,
+        reason="Unified Workspace Matrix test setup",
         user=user,
     )
 

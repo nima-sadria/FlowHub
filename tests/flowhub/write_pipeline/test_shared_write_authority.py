@@ -42,7 +42,23 @@ def test_all_active_workflows_use_the_provider_neutral_attempt_model() -> None:
     assert 'source_workflow="product_pricing"' in pipeline
     assert "ProviderWriteAttempt(" in pipeline
     assert "ProviderWriteAttemptEvent(" in pipeline
+    assert "pricing_origin=" in pipeline
     assert "ApplyAttempt(" not in pipeline
+
+
+def test_shared_pipeline_enforces_pricing_authority_at_final_dispatch_boundary() -> None:
+    pipeline = (ROOT / "app/flowhub/write_pipeline/service.py").read_text(
+        encoding="utf-8"
+    )
+    dispatch_start = pipeline.index("    async def execute_workspace(")
+    dispatch_end = pipeline.index("    def _record_transport_reports(", dispatch_start)
+    dispatch_body = pipeline[dispatch_start:dispatch_end]
+    assert "_filter_authorized_price_intents(" in dispatch_body
+    assert "await connector.apply_updates(" in dispatch_body
+    assert dispatch_body.index("_filter_authorized_price_intents(") < dispatch_body.index(
+        "await connector.apply_updates("
+    )
+    assert "PricingAuthorityWriteRejection" not in pipeline  # audit is centralized in authority service
 
 
 def test_legacy_execute_is_only_a_compatibility_facade() -> None:

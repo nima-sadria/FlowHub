@@ -21,6 +21,9 @@ from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.data_layer.telemetry_service import ConnectorTelemetryService
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.service import IntegrationPlatformService
+from app.flowhub.pricing_authority.contracts import PricingAuthority, PricingOrigin
+from app.flowhub.pricing_authority.errors import PricingAuthorityError
+from app.flowhub.pricing_authority.service import ChannelPricingAuthorityService
 from app.flowhub.rate_limit.service import RateLimitService
 from app.flowhub.security.redaction import redact_sensitive
 from app.flowhub.setup.service import AppConfigService
@@ -415,6 +418,8 @@ class WritePipelineService:
         self, batch: WriteBatch, user: FlowHubUser, correlation_id: str
     ) -> WorkspaceWriteBatchCommand:
         """Adapt approved legacy rows to immutable provider-neutral intents."""
+        self._ensure_authority_channel(batch.channel_id)
+        authority = ChannelPricingAuthorityService(self.db).snapshot(batch.channel_id)
         intents: list[WorkspaceWriteIntent] = []
         for item in batch.items:
             listing_id = self._legacy_listing_id(item, batch.channel_id)
@@ -466,6 +471,10 @@ class WritePipelineService:
                     currency_digest=sha256(item.currency.encode()).hexdigest(),
                     idempotency_key=idempotency_key,
                     payload_hash=payload_hash,
+                    pricing_origin=PricingOrigin.LEGACY_FORMULA_ENGINE,
+                    expected_pricing_authority=PricingAuthority.LEGACY_FORMULA_ENGINE,
+                    pricing_authority_event_id=authority.event_id,
+                    pricing_authority_head_version=authority.head_version,
                 )
             )
         return WorkspaceWriteBatchCommand(
@@ -478,7 +487,17 @@ class WritePipelineService:
             requested_by=user.username,
             intents=tuple(intents),
             source_workflow="legacy_write_pipeline",
+            pricing_origin=PricingOrigin.LEGACY_FORMULA_ENGINE,
         )
+
+    def _ensure_authority_channel(self, channel_id: str) -> None:
+        """Materialize the canonical Channel row before attaching write authority."""
+        from app.flowhub.unified_workspace.models import WorkspaceChannel
+        from app.flowhub.unified_workspace.services import UnifiedWorkspaceService
+
+        if self.db.get(WorkspaceChannel, channel_id) is None:
+            UnifiedWorkspaceService(self.db)._seed_channels()
+            self.db.flush()
 
     async def execute_workspace(
         self,
@@ -547,6 +566,9 @@ class WritePipelineService:
                 provider_idempotency_key=intent.idempotency_key,
                 attempt_number=1,
                 correlation_id=command.correlation_id,
+                pricing_origin=(intent.pricing_origin.value if intent.pricing_origin else None),
+                pricing_authority_event_id=intent.pricing_authority_event_id,
+                pricing_authority_head_version=intent.pricing_authority_head_version,
             )
             self.db.add(attempt)
             self.db.flush()
@@ -601,7 +623,12 @@ class WritePipelineService:
                         for intent in pending_intents
                     ]
                 else:
-                    for intent in pending_intents:
+                    self._assert_workspace_fence(command)
+                    dispatchable_intents, rejected_results = self._filter_authorized_price_intents(
+                        command, pending_intents, attempts
+                    )
+                    channel_results.extend(rejected_results)
+                    for intent in dispatchable_intents:
                         self.db.add(
                             ProviderWriteAttemptEvent(
                                 id=f"pwe_{uuid.uuid4().hex[:28]}",
@@ -611,20 +638,23 @@ class WritePipelineService:
                             )
                         )
                     self.db.commit()
-                    try:
-                        channel_results = await connector.apply_updates(
-                            pending_intents, requested_by=command.requested_by
-                        )
-                    except Exception as exc:
-                        channel_results = [
-                            WorkspaceWriteResult(
-                                listing_id=intent.listing_id,
-                                outcome=WriteOutcome.RECONCILIATION_REQUIRED,
-                                error_category="provider_unknown",
-                                error_message=str(exc),
+                    if dispatchable_intents:
+                        try:
+                            channel_results.extend(
+                                await connector.apply_updates(
+                                    dispatchable_intents, requested_by=command.requested_by
+                                )
                             )
-                            for intent in pending_intents
-                        ]
+                        except Exception as exc:
+                            channel_results.extend(
+                                WorkspaceWriteResult(
+                                    listing_id=intent.listing_id,
+                                    outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                                    error_category="provider_unknown",
+                                    error_message=str(exc),
+                                )
+                                for intent in dispatchable_intents
+                            )
             if prior_intents or reconcile_only:
                 verify_intents = intents if reconcile_only else prior_intents
                 channel_results.extend(
@@ -661,6 +691,70 @@ class WritePipelineService:
                 results.append(result)
             self.db.commit()
         return results
+
+    def _filter_authorized_price_intents(
+        self,
+        command: WorkspaceWriteBatchCommand,
+        intents: list[WorkspaceWriteIntent],
+        attempts: dict[str, ProviderWriteAttempt],
+    ) -> tuple[list[WorkspaceWriteIntent], list[WorkspaceWriteResult]]:
+        """Enforce pricing authority at the final boundary before provider I/O."""
+        service = ChannelPricingAuthorityService(self.db)
+        allowed: list[WorkspaceWriteIntent] = []
+        rejected: list[WorkspaceWriteResult] = []
+        for intent in intents:
+            if intent.target_price is None:
+                allowed.append(intent)
+                continue
+            code = self._pricing_authority_issue(command, intent, service)
+            if code is None:
+                allowed.append(intent)
+                continue
+            origin = intent.pricing_origin or command.pricing_origin
+            service.record_write_rejection(
+                channel_id=intent.channel_id,
+                listing_id=intent.listing_id,
+                operation_id=intent.apply_job_id,
+                origin=origin,
+                expected_event_id=intent.pricing_authority_event_id,
+                expected_head_version=intent.pricing_authority_head_version,
+                reason_code=code,
+                correlation_id=command.correlation_id,
+            )
+            rejected.append(
+                WorkspaceWriteResult(
+                    listing_id=intent.listing_id,
+                    outcome=WriteOutcome.FAILED,
+                    error_category="pricing_authority",
+                    error_message=code,
+                )
+            )
+        return allowed, rejected
+
+    @staticmethod
+    def _pricing_authority_issue(
+        command: WorkspaceWriteBatchCommand,
+        intent: WorkspaceWriteIntent,
+        service: ChannelPricingAuthorityService,
+    ) -> str | None:
+        if (
+            command.pricing_origin is None
+            or intent.pricing_origin is None
+            or command.pricing_origin != intent.pricing_origin
+            or intent.expected_pricing_authority is None
+            or intent.expected_pricing_authority.value != intent.pricing_origin.value
+        ):
+            return "pricing_origin_not_authorized"
+        try:
+            service.assert_write_authorized(
+                channel_id=intent.channel_id,
+                origin=intent.pricing_origin,
+                expected_event_id=intent.pricing_authority_event_id,
+                expected_head_version=intent.pricing_authority_head_version,
+            )
+        except PricingAuthorityError as exc:
+            return exc.code
+        return None
 
     def _record_transport_reports(
         self,
@@ -767,6 +861,8 @@ class WritePipelineService:
         provider_key = sha256(
             f"product-pricing:{item.operation_id}:{item.id}:{payload_hash}".encode()
         ).hexdigest()
+        self._ensure_authority_channel(item.channel_id)
+        authority = ChannelPricingAuthorityService(self.db).snapshot(item.channel_id)
         intent = WorkspaceWriteIntent(
             apply_job_id=item.operation_id,
             apply_item_ids=(str(item.id),),
@@ -800,6 +896,10 @@ class WritePipelineService:
             currency_digest=sha256(item.currency.encode()).hexdigest(),
             idempotency_key=provider_key,
             payload_hash=payload_hash,
+            pricing_origin=PricingOrigin.LEGACY_FORMULA_ENGINE,
+            expected_pricing_authority=PricingAuthority.LEGACY_FORMULA_ENGINE,
+            pricing_authority_event_id=authority.event_id,
+            pricing_authority_head_version=authority.head_version,
         )
         command = WorkspaceWriteBatchCommand(
             workspace_id=intent.workspace_id,
@@ -811,6 +911,7 @@ class WritePipelineService:
             requested_by=user.username,
             intents=(intent,),
             source_workflow="product_pricing",
+            pricing_origin=PricingOrigin.LEGACY_FORMULA_ENGINE,
         )
         try:
             results = await self.execute_workspace(command, user)

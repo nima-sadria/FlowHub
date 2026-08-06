@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from app.flowhub.pricing_authority.contracts import PricingAuthority, PricingOrigin
+
 
 class WriteOutcome(StrEnum):
     PENDING = "pending"
@@ -48,6 +50,10 @@ class WorkspaceWriteIntent:
     currency_digest: str
     idempotency_key: str
     payload_hash: str
+    pricing_origin: PricingOrigin | None = None
+    expected_pricing_authority: PricingAuthority | None = None
+    pricing_authority_event_id: str | None = None
+    pricing_authority_head_version: int | None = None
 
     def normalized_payload(self) -> dict[str, Any]:
         return {
@@ -79,6 +85,12 @@ class WorkspaceWriteIntent:
             "currency_digest": self.currency_digest,
             "idempotency_key": self.idempotency_key,
             "payload_hash": self.payload_hash,
+            "pricing_origin": self.pricing_origin.value if self.pricing_origin else None,
+            "expected_pricing_authority": (
+                self.expected_pricing_authority.value if self.expected_pricing_authority else None
+            ),
+            "pricing_authority_event_id": self.pricing_authority_event_id,
+            "pricing_authority_head_version": self.pricing_authority_head_version,
         }
 
     @classmethod
@@ -145,6 +157,26 @@ class WorkspaceWriteIntent:
             currency_digest=str(payload["currency_digest"]),
             idempotency_key=str(payload["idempotency_key"]),
             payload_hash=str(payload["payload_hash"]),
+            pricing_origin=(
+                PricingOrigin(str(payload["pricing_origin"]))
+                if payload.get("pricing_origin") is not None
+                else None
+            ),
+            expected_pricing_authority=(
+                PricingAuthority(str(payload["expected_pricing_authority"]))
+                if payload.get("expected_pricing_authority") is not None
+                else None
+            ),
+            pricing_authority_event_id=(
+                str(payload["pricing_authority_event_id"])
+                if payload.get("pricing_authority_event_id") is not None
+                else None
+            ),
+            pricing_authority_head_version=(
+                int(payload["pricing_authority_head_version"])
+                if payload.get("pricing_authority_head_version") is not None
+                else None
+            ),
         )
 
 
@@ -166,6 +198,7 @@ class WorkspaceWriteBatchCommand:
     # Compatibility callers (legacy Write Pipeline and Product Pricing) use the
     # same provider-neutral engine while retaining their source-workflow label.
     source_workflow: str = "unified_workspace"
+    pricing_origin: PricingOrigin | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -20,6 +20,11 @@ PRICING_TABLES = {
     "pm_workspace_bindings",
     "pm_attention_signals",
 }
+POST_024_BINDING_COLUMNS = {
+    "pricing_authority_event_id",
+    "pricing_authority_head_version",
+    "expected_pricing_authority",
+}
 
 
 def _config() -> Config:
@@ -74,8 +79,13 @@ def test_clean_install_reaches_pricing_matrix_head_with_model_parity(
 
         for table_name, table in _pricing_metadata().items():
             actual_columns = {column["name"]: column for column in inspector.get_columns(table_name)}
-            assert set(actual_columns) == {column.name for column in table.columns}
+            expected_columns = {column.name for column in table.columns}
+            if table_name == "pm_workspace_bindings":
+                expected_columns -= POST_024_BINDING_COLUMNS
+            assert set(actual_columns) == expected_columns
             for expected in table.columns:
+                if expected.name not in expected_columns:
+                    continue
                 assert actual_columns[expected.name]["nullable"] is expected.nullable
 
             actual_indexes = {tuple(index["column_names"]) for index in inspector.get_indexes(table_name)}

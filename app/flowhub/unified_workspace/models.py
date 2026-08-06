@@ -733,3 +733,9 @@ def _reject_immutable_change(
 for _model in _IMMUTABLE_MODELS:
     event.listen(_model, "before_update", _reject_immutable_change)
     event.listen(_model, "before_delete", _reject_immutable_change)
+
+
+# Channel pricing authority is part of the persisted Channel contract.  Import
+# it here so metadata-based test databases include its tables whenever they
+# include Unified Workspace channels.
+from app.flowhub.pricing_authority import models as _pricing_authority_models  # noqa: E402,F401

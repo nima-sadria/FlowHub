@@ -91,6 +91,25 @@ def test_source_product_workspace_groups_listings_and_auto_selects_ready_changes
         reason="Source Workspace integration test setup",
         user=user,
     )
+    from app.flowhub.pricing_authority.contracts import PricingAuthority
+    from app.flowhub.pricing_authority.service import ChannelPricingAuthorityService
+
+    authority = ChannelPricingAuthorityService(db)
+    legacy = authority.snapshot("woocommerce:primary")
+    locked = authority.transition(
+        channel_id="woocommerce:primary",
+        new_authority=PricingAuthority.MIGRATION_LOCKED,
+        expected_head_version=legacy.head_version,
+        reason="Source Workspace Matrix test setup",
+        user=user,
+    )
+    authority.transition(
+        channel_id="woocommerce:primary",
+        new_authority=PricingAuthority.PRICING_MATRIX,
+        expected_head_version=locked.head_version,
+        reason="Source Workspace Matrix test setup",
+        user=user,
+    )
     source_service = SourceWorkspaceService(db)
     sheet = source_service.create_sheet(
         name="Daily prices",

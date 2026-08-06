@@ -167,6 +167,9 @@ class ProviderWriteAttempt(FlowHubBase):
     provider_idempotency_key: Mapped[str] = mapped_column(String(120), nullable=False)
     attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
     correlation_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    pricing_origin: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    pricing_authority_event_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    pricing_authority_head_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
 
 

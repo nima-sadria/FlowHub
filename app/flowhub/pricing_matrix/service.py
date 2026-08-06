@@ -20,6 +20,9 @@ from app.flowhub.pricing_matrix.contracts import (
     RoundOrder,
 )
 from app.flowhub.pricing_matrix.errors import PricingMatrixError
+from app.flowhub.pricing_authority.contracts import PricingAuthority, PricingOrigin
+from app.flowhub.pricing_authority.errors import PricingAuthorityError
+from app.flowhub.pricing_authority.service import ChannelPricingAuthorityService
 from app.flowhub.pricing_matrix.models import (
     ChannelPricingPolicyHead,
     ProductGroupMember,
@@ -571,6 +574,16 @@ class PricingMatrixService:
             if latest_config.id != event.channel_config_revision_id:
                 issues[channel_id] = "channel_config_outdated"
                 continue
+            try:
+                authority = ChannelPricingAuthorityService(self.db).assert_write_authorized(
+                    channel_id=channel_id,
+                    origin=PricingOrigin.PRICING_MATRIX,
+                    expected_event_id=None,
+                    expected_head_version=None,
+                )
+            except PricingAuthorityError as exc:
+                issues[channel_id] = exc.code
+                continue
             binding = WorkspacePricingBinding(
                 id=_id(),
                 workspace_id=workspace_id,
@@ -578,6 +591,9 @@ class PricingMatrixService:
                 policy_revision_id=event.policy_revision_id,
                 pricing_policy_activation_id=event.id,
                 channel_config_revision_id=latest_config.id,
+                pricing_authority_event_id=authority.event_id,
+                pricing_authority_head_version=authority.head_version,
+                expected_pricing_authority=PricingAuthority.PRICING_MATRIX.value,
                 execution_policy_snapshot_json=dict(execution_policy_snapshot),
                 workspace_pricing_evaluated_at=evaluated_at,
             )
@@ -630,6 +646,21 @@ class PricingMatrixService:
             return "channel_unit_unresolved"
         if latest_config.id != binding.channel_config_revision_id:
             return "channel_config_outdated"
+        if (
+            binding.pricing_authority_event_id is None
+            or binding.pricing_authority_head_version is None
+            or binding.expected_pricing_authority != PricingAuthority.PRICING_MATRIX.value
+        ):
+            return "pricing_authority_binding_missing"
+        try:
+            ChannelPricingAuthorityService(self.db).assert_write_authorized(
+                channel_id=binding.channel_id,
+                origin=PricingOrigin.PRICING_MATRIX,
+                expected_event_id=binding.pricing_authority_event_id,
+                expected_head_version=binding.pricing_authority_head_version,
+            )
+        except PricingAuthorityError as exc:
+            return exc.code
         return None
 
     def _latest_channel_config(
@@ -651,6 +682,9 @@ class PricingMatrixService:
             "policyRevisionId": binding.policy_revision_id,
             "pricingPolicyActivationId": binding.pricing_policy_activation_id,
             "channelConfigRevisionId": binding.channel_config_revision_id,
+            "pricingAuthorityEventId": binding.pricing_authority_event_id,
+            "pricingAuthorityHeadVersion": binding.pricing_authority_head_version,
+            "expectedPricingAuthority": binding.expected_pricing_authority,
             "executionPolicySnapshot": binding.execution_policy_snapshot_json,
             "workspacePricingEvaluatedAt": (
                 binding.workspace_pricing_evaluated_at.isoformat()

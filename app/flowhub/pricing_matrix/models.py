@@ -217,6 +217,9 @@ class WorkspacePricingBinding(FlowHubBase):
     channel_config_revision_id: Mapped[str] = mapped_column(
         ForeignKey("pm_channel_config_revisions.id", ondelete="RESTRICT"), nullable=False
     )
+    pricing_authority_event_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    pricing_authority_head_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    expected_pricing_authority: Mapped[str | None] = mapped_column(String(40), nullable=True)
     execution_policy_snapshot_json: Mapped[dict[str, Any]] = mapped_column(
         JSON, nullable=False, default=dict
     )

@@ -19,6 +19,9 @@ from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.data_layer.models import DlProductCache
 from app.flowhub.pricing_matrix.service import PricingMatrixService
+from app.flowhub.pricing_authority.service import ChannelPricingAuthorityService
+from app.flowhub.pricing_matrix.models import WorkspacePricingBinding
+from app.flowhub.pricing_authority.contracts import PricingAuthority, PricingOrigin
 from app.flowhub.product_pricing.service import ProductPricingService
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.source_workspace.models import SourceDataQualityIssue
@@ -126,6 +129,7 @@ class UnifiedWorkspaceService:
         self.commerce = CommerceHubService(db)
         self.pricing = ProductPricingService(db)
         self.pricing_matrix = PricingMatrixService(db)
+        self.pricing_authority = ChannelPricingAuthorityService(db)
         self.connectors = WorkspaceConnectorFactory(self.pricing, self.commerce)
         self.events = DomainEventBus()
         self.events.subscribe(PersistenceAuditSubscriber(db, _id))
@@ -150,6 +154,11 @@ class UnifiedWorkspaceService:
         """
 
         self.db.add(snapshot)
+        self.db.flush()
+        for channel_id in sorted(
+            row.id for row in self.db.query(WorkspaceChannel).order_by(WorkspaceChannel.id).all()
+        ):
+            self.pricing_authority.ensure_channel_head(channel_id)
         self.db.flush()
         persisted_snapshot_id = (
             self.db.query(WorkspaceSnapshot.id)
@@ -2443,6 +2452,7 @@ class UnifiedWorkspaceService:
                     intents=intents,
                     fencing_token=job.fencing_token,
                     lease_token=lease_token,
+                    pricing_origin=PricingOrigin.PRICING_MATRIX,
                 ),
                 user,
             )
@@ -2618,6 +2628,7 @@ class UnifiedWorkspaceService:
                 intents=intents,
                 fencing_token=job.fencing_token,
                 lease_token=lease_token,
+                pricing_origin=PricingOrigin.PRICING_MATRIX,
             ),
             user,
             reconcile_only=True,
@@ -3918,6 +3929,27 @@ class UnifiedWorkspaceService:
         review = self.db.get(Review, job.review_id)
         if review is None:
             raise WorkspaceDomainError("Apply Review state is unavailable.")
+        authority_event_id = None
+        authority_head_version = None
+        expected_authority = None
+        pricing_origin = None
+        if price_item is not None:
+            binding = (
+                self.db.query(WorkspacePricingBinding)
+                .filter_by(workspace_id=job.workspace_id, channel_id=listing.channel_id)
+                .one_or_none()
+            )
+            if (
+                binding is None
+                or binding.pricing_authority_event_id is None
+                or binding.pricing_authority_head_version is None
+                or binding.expected_pricing_authority != PricingAuthority.PRICING_MATRIX.value
+            ):
+                raise WorkspaceDomainError("Pricing authority binding is unavailable.")
+            authority_event_id = binding.pricing_authority_event_id
+            authority_head_version = binding.pricing_authority_head_version
+            expected_authority = PricingAuthority.PRICING_MATRIX
+            pricing_origin = PricingOrigin.PRICING_MATRIX
         return WorkspaceWriteIntent(
             apply_job_id=job.id,
             apply_item_ids=job_item_ids,
@@ -3951,6 +3983,10 @@ class UnifiedWorkspaceService:
                 {"logical_operation": job.logical_operation_key, "listing": listing.id}
             ),
             payload_hash=checksum(payload),
+            pricing_origin=pricing_origin,
+            expected_pricing_authority=expected_authority,
+            pricing_authority_event_id=authority_event_id,
+            pricing_authority_head_version=authority_head_version,
         )
 
     def _record_listing_success(
