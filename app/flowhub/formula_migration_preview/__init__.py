@@ -7,12 +7,16 @@ from .contracts import (
     DependencyManifest,
     FormulaInventoryCell,
     FormulaMigrationCellDecision,
+    FormulaMigrationPreviewEvidenceProjection,
+    FormulaMigrationPreviewProjection,
+    FormulaMigrationProjectionReason,
     FormulaMigrationInputCell,
     FormulaMigrationPreviewBatch,
     FormulaMigrationReviewAction,
     PreviewBatchState,
 )
 from .service import FormulaMigrationPreviewService, PreviewInput, ReviewDecisionRecord
+from .projection import FormulaMigrationPreviewProjectionService
 from .models import (
     FormulaMigrationPreviewBatch as PreviewBatchModel,
     FormulaMigrationPreviewCell as PreviewCellModel,
@@ -25,7 +29,11 @@ __all__ = [
     "FormulaInventoryCell",
     "FormulaMigrationCellDecision",
     "FormulaMigrationInputCell",
+    "FormulaMigrationPreviewEvidenceProjection",
+    "FormulaMigrationPreviewProjection",
+    "FormulaMigrationProjectionReason",
     "FormulaMigrationPreviewBatch",
+    "FormulaMigrationPreviewProjectionService",
     "FormulaMigrationPreviewService",
     "PreviewInput",
     "ReviewDecisionRecord",
