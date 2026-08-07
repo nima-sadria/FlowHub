@@ -32,11 +32,20 @@ class TestCreateAdminHelp:
 
 
 class TestCreateAdminMissingEnv:
-    def test_exits_1_when_no_db_url(self, monkeypatch):
+    def test_exits_1_when_no_db_url(self, monkeypatch, tmp_path):
         monkeypatch.delenv("FLOWHUB_DATABASE_URL", raising=False)
+        missing_env = tmp_path / "missing.env"
+        assert not missing_env.exists()
         result = runner.invoke(
             app,
-            ["create-admin", "--username", "admin", "--secret-stdin"],
+            [
+                "create-admin",
+                "--username",
+                "admin",
+                "--secret-stdin",
+                "--env-file",
+                str(missing_env),
+            ],
             input="valid-secret\n",
             catch_exceptions=False,
         )

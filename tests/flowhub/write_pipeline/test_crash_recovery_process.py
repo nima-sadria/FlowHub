@@ -58,8 +58,36 @@ def _crash_worker(url: str, schema: str, batch_id: str, mode: str) -> None:
             return None
 
     class FakeConnector:
+        def __init__(self, *args, **kwargs):
+            self.channel_id = "woocommerce:primary"
+            pass
+
         def capabilities(self):
-            return SimpleNamespace(channel_id="woocommerce:primary")
+            from app.flowhub.unified_workspace.domain import ChannelCapabilities
+
+            return ChannelCapabilities(
+                channel_id="woocommerce:primary",
+                read_price=True,
+                write_price=True,
+                read_stock=False,
+                write_stock=False,
+                read_status=True,
+                write_status=False,
+                supports_bulk_update=False,
+                supports_partial_update=True,
+                supports_multiple_listings=False,
+                supports_variations=False,
+                requires_stock_management=False,
+                maximum_batch_size=1,
+                rate_limit_per_minute=None,
+                health_state="configured",
+                primary_identifier_type="woocommerce_product_id",
+                supported_statuses=("draft", "publish"),
+                currency="EUR",
+                unit="EUR",
+                write_available=True,
+                version="integration-fake-v1",
+            )
 
         async def apply_updates(self, updates, *, requested_by):
             if mode == "pre_dispatch":
@@ -98,6 +126,9 @@ def _crash_worker(url: str, schema: str, batch_id: str, mode: str) -> None:
     class FakeFactory:
         def __init__(self, *args, **kwargs):
             self.connector = FakeConnector()
+
+        def implemented(self):
+            return (self.connector,)
 
         def get(self, channel_id):
             return self.connector

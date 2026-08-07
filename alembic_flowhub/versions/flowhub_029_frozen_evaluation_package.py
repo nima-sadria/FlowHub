@@ -129,7 +129,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["observation_id"], ["saq_observations.id"], ondelete="RESTRICT"),
     )
     op.create_index(
-        "ix_pev_package_source_observation_pins_frozen_evaluation_package_id",
+        "ix_pev_pkg_src_obs_pins_fep_id",
         "pev_package_source_observation_pins",
         ["frozen_evaluation_package_id"],
     )
