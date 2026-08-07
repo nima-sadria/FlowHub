@@ -6,7 +6,13 @@ import ipaddress
 import httpx
 import pytest
 
-from app.connectors.common.source_http import SourceHttpClient, SourceHttpError, SourceHttpPolicy, redact_url
+from app.connectors.common.source_http import (
+    SourceHttpClient,
+    SourceHttpError,
+    SourceHttpPolicy,
+    parse_trusted_private_networks,
+    redact_url,
+)
 
 
 async def _resolve_public(_host: str, _port: int) -> list[str]:
@@ -48,6 +54,21 @@ def test_dns_mixed_answers_fail_closed_and_private_allowlist_is_explicit() -> No
     asyncio.run(scenario())
 
 
+def test_trusted_private_networks_are_explicit_and_never_allow_loopback_or_link_local() -> None:
+    async def scenario() -> None:
+        networks = parse_trusted_private_networks('["10.0.0.0/8", "127.0.0.0/8", "169.254.0.0/16"]')
+        client = SourceHttpClient(resolver=lambda _h, _p: _single("10.2.3.4")).with_allowed_private_networks(networks)
+        await client.preflight("https://nextcloud.internal/workbook.xlsx")
+        for address in ("127.0.0.1", "169.254.169.254"):
+            blocked = SourceHttpClient(resolver=lambda _h, _p, address=address: _single(address)).with_allowed_private_networks(networks)
+            with pytest.raises(SourceHttpError, match="unsafe_destination"):
+                await blocked.preflight("https://nextcloud.internal/workbook.xlsx")
+        unrelated = SourceHttpClient(resolver=lambda _h, _p: _single("10.2.3.4"))
+        with pytest.raises(SourceHttpError, match="unsafe_destination"):
+            await unrelated.preflight("https://arbitrary-source.internal/data")
+    asyncio.run(scenario())
+
+
 async def _single(value: str) -> list[str]:
     return [value]
 
@@ -84,6 +105,20 @@ def test_redirect_is_revalidated_and_cross_origin_auth_is_stripped() -> None:
         result = await SourceHttpClient(resolver=_resolve_public, client_factory=factory).request("GET", "https://origin.test/a", basic_auth=("u", "secret"))
         assert result.content == b"ok"
         assert "authorization" not in holder["client"].requests[1].headers
+    asyncio.run(scenario())
+
+
+def test_redirect_to_untrusted_private_destination_is_rejected() -> None:
+    responses = [_Response(302, {"location": "https://private.internal/workbook.xlsx"})]
+    async def resolver(host: str, _port: int) -> list[str]:
+        return ["93.184.216.34"] if host == "origin.test" else ["192.168.1.20"]
+    async def scenario() -> None:
+        client = SourceHttpClient(
+            resolver=resolver,
+            client_factory=lambda **kwargs: _Client(responses, **kwargs),
+        )
+        with pytest.raises(SourceHttpError, match="unsafe_destination"):
+            await client.request("GET", "https://origin.test/workbook.xlsx")
     asyncio.run(scenario())
 
 

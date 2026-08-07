@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
-from app.connectors.common.source_http import SourceHttpClient
+from app.connectors.common.source_http import SourceHttpClient, parse_trusted_private_networks
 from app.flowhub.data_layer.models import (
     DlSourceReadLock,
     DlSourceReadReservation,
@@ -115,15 +115,18 @@ class SpreadsheetSourceReadService:
             worksheet=worksheet,
         )
         reservation_user_id = str(triggered_by_id if triggered_by_id is not None else triggered_by)
-        reservation = self.reserve_read_slot(reservation_user_id, manual=manual)
-        policy_state = self.read_policy_state()
+        quota_source_id = source_profile.id
+        reservation = self.reserve_read_slot(
+            reservation_user_id, manual=manual, source_id=quota_source_id
+        )
+        policy_state = self.read_policy_state(source_id=quota_source_id)
 
         self._record_event(
             "source_read_started",
             "Source read started.",
             triggered_by,
             {
-                "source_id": SOURCE_ID,
+                "source_id": quota_source_id,
                 "source_type": SOURCE_TYPE,
                 "spreadsheet_path": spreadsheet_path,
                 "worksheet_mode": worksheet["mode"],
@@ -162,7 +165,7 @@ class SpreadsheetSourceReadService:
                 validator=validate_capture,
             )
             execution = await SourceAcquisitionExecutor(
-                self.db, http_client=self.source_http_client
+                self.db, http_client=self._nextcloud_http_client()
             ).request_and_execute(
                 source_id=source_profile.id,
                 provider=provider,
@@ -254,7 +257,7 @@ class SpreadsheetSourceReadService:
                 "Source read completed.",
                 triggered_by,
                 {
-                    "source_id": SOURCE_ID,
+                    "source_id": quota_source_id,
                     "source_type": SOURCE_TYPE,
                     "spreadsheet_path": spreadsheet_path,
                     "worksheets": list(workbook.sheetnames),
@@ -269,9 +272,11 @@ class SpreadsheetSourceReadService:
                 },
             )
             if reservation:
-                policy_state = self.finalize_read_reservation(reservation.id, "succeeded", stats=stats)
+                policy_state = self.finalize_read_reservation(
+                    reservation.id, "succeeded", stats=stats, source_id=quota_source_id
+                )
             return SourceImportResult(
-                source_id=SOURCE_ID,
+                source_id=quota_source_id,
                 source_type=SOURCE_TYPE,
                 spreadsheet_path=spreadsheet_path,
                 rows=rows,
@@ -284,7 +289,9 @@ class SpreadsheetSourceReadService:
         except IntegrationError as exc:
             safe_error = normalize_upstream_error(exc, source="nextcloud")
             if reservation:
-                self.finalize_read_reservation(reservation.id, "failed", error_code="INTEGRATION_ERROR")
+                self.finalize_read_reservation(
+                    reservation.id, "failed", error_code="INTEGRATION_ERROR", source_id=quota_source_id
+                )
             self.config.set_many(
                 {
                     _LAST_READ_AT_KEY: _iso(datetime.now(timezone.utc).replace(tzinfo=None)),
@@ -297,7 +304,7 @@ class SpreadsheetSourceReadService:
                 "Source read failed.",
                 triggered_by,
                 {
-                    "source_id": SOURCE_ID,
+                    "source_id": quota_source_id,
                     "source_type": SOURCE_TYPE,
                     "spreadsheet_path": spreadsheet_path,
                     "error": safe_error["message"],
@@ -312,7 +319,9 @@ class SpreadsheetSourceReadService:
         except ValueError as exc:
             safe_message = str(exc)
             if reservation:
-                self.finalize_read_reservation(reservation.id, "failed", error_code="SOURCE_VALIDATION_ERROR")
+                self.finalize_read_reservation(
+                    reservation.id, "failed", error_code="SOURCE_VALIDATION_ERROR", source_id=quota_source_id
+                )
             self.config.set_many(
                 {
                     _LAST_READ_AT_KEY: _iso(datetime.now(timezone.utc).replace(tzinfo=None)),
@@ -325,7 +334,7 @@ class SpreadsheetSourceReadService:
                 "Source read failed.",
                 triggered_by,
                 {
-                    "source_id": SOURCE_ID,
+                    "source_id": quota_source_id,
                     "source_type": SOURCE_TYPE,
                     "spreadsheet_path": spreadsheet_path,
                     "error": safe_message,
@@ -338,7 +347,9 @@ class SpreadsheetSourceReadService:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, safe_message) from exc
         except Exception as exc:
             if reservation:
-                self.finalize_read_reservation(reservation.id, "failed", error_code=type(exc).__name__[:120])
+                self.finalize_read_reservation(
+                    reservation.id, "failed", error_code=type(exc).__name__[:120], source_id=quota_source_id
+                )
             self.config.set_many(
                 {
                     _LAST_READ_AT_KEY: _iso(datetime.now(timezone.utc).replace(tzinfo=None)),
@@ -351,7 +362,7 @@ class SpreadsheetSourceReadService:
                 "Source read failed.",
                 triggered_by,
                 {
-                    "source_id": SOURCE_ID,
+                    "source_id": quota_source_id,
                     "source_type": SOURCE_TYPE,
                     "spreadsheet_path": spreadsheet_path,
                     "error": _safe_error_message(exc),
@@ -483,29 +494,29 @@ class SpreadsheetSourceReadService:
             "name": str(self.config.get("nextcloud.worksheet_name") or "").strip(),
         }
 
-    def read_status(self) -> dict:
+    def read_status(self, *, source_id: str | None = None) -> dict:
         return {
-            **self.read_policy_state(),
+            **self.read_policy_state(source_id=source_id),
             "last_read_status": self.config.get(_LAST_READ_STATUS_KEY),
             "last_row_count": _int_or_none(self.config.get(_LAST_READ_ROWS_KEY)),
             "last_warning_count": _int_or_none(self.config.get(_LAST_READ_WARNINGS_KEY)),
             "last_error_count": _int_or_none(self.config.get(_LAST_READ_ERRORS_KEY)),
         }
 
-    def read_policy_state(self, *, now: datetime | None = None) -> dict:
+    def read_policy_state(self, *, source_id: str | None = None, now: datetime | None = None) -> dict:
+        source_id = self._quota_source_id(source_id, required=False)
         now = now or datetime.now(timezone.utc).replace(tzinfo=None)
         policy = self.read_policy()
-        legacy_history = _recent_history(self.config.get(_HISTORY_KEY), now)
-        reservations = (
+        reservations = [] if source_id is None else (
             self.db.query(DlSourceReadReservation)
-            .filter(DlSourceReadReservation.source_id == SOURCE_ID)
+            .filter(DlSourceReadReservation.source_id == source_id)
             .filter(DlSourceReadReservation.reserved_at >= now - timedelta(hours=24))
             .all()
         )
         max_reads = int(policy["max_reads_per_24h"])
-        used = len(legacy_history) + len(reservations) if policy["enabled"] else 0
+        used = len(reservations) if policy["enabled"] else 0
         reset_at = None
-        timestamps = legacy_history + [row.reserved_at for row in reservations]
+        timestamps = [row.reserved_at for row in reservations]
         if timestamps:
             reset_at = _iso(min(timestamps) + timedelta(hours=24))
         return {
@@ -518,21 +529,24 @@ class SpreadsheetSourceReadService:
             "last_read_at": self.config.get(_LAST_READ_AT_KEY),
         }
 
-    def check_read_allowed(self, *, manual: bool) -> dict:
-        state = self.read_policy_state()
+    def check_read_allowed(self, *, manual: bool, source_id: str | None = None) -> dict:
+        state = self.read_policy_state(source_id=source_id)
         if manual and not state["manual_read_allowed"]:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Manual source read is disabled by source read policy.")
         if state["enabled"] and state["reads_remaining"] <= 0:
             raise _source_read_limit_exception(state)
         return state
 
-    def reserve_read_slot(self, user_id: str, *, manual: bool) -> DlSourceReadReservation:
+    def reserve_read_slot(
+        self, user_id: str, *, manual: bool, source_id: str | None = None
+    ) -> DlSourceReadReservation:
         """Reserve atomically before outbound access.
 
         Every committed reservation consumes the rolling quota, including a
         failed outbound attempt. Configuration validation happens before this
         method, so local validation failures do not consume a slot.
         """
+        source_id = self._quota_source_id(source_id)
         policy = self.read_policy()
         if manual and not policy["manual_read_allowed"]:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Manual source read is disabled by source read policy.")
@@ -544,7 +558,7 @@ class SpreadsheetSourceReadService:
             self.db.execute(text("BEGIN IMMEDIATE"))
             self.db.execute(
                 text("INSERT OR IGNORE INTO dl_source_read_locks (source_id, updated_at) VALUES (:source_id, :updated_at)"),
-                {"source_id": SOURCE_ID, "updated_at": now},
+                {"source_id": source_id, "updated_at": now},
             )
         elif dialect == "postgresql":
             self.db.execute(
@@ -552,28 +566,28 @@ class SpreadsheetSourceReadService:
                     "INSERT INTO dl_source_read_locks (source_id, updated_at) VALUES (:source_id, :updated_at) "
                     "ON CONFLICT (source_id) DO NOTHING"
                 ),
-                {"source_id": SOURCE_ID, "updated_at": now},
+                {"source_id": source_id, "updated_at": now},
             )
         elif dialect in {"mysql", "mariadb"}:
             self.db.execute(
                 text("INSERT IGNORE INTO dl_source_read_locks (source_id, updated_at) VALUES (:source_id, :updated_at)"),
-                {"source_id": SOURCE_ID, "updated_at": now},
+                {"source_id": source_id, "updated_at": now},
             )
         else:
-            if self.db.get(DlSourceReadLock, SOURCE_ID) is None:
-                self.db.add(DlSourceReadLock(source_id=SOURCE_ID, updated_at=now))
+            if self.db.get(DlSourceReadLock, source_id) is None:
+                self.db.add(DlSourceReadLock(source_id=source_id, updated_at=now))
                 self.db.flush()
 
         lock = (
             self.db.query(DlSourceReadLock)
-            .filter(DlSourceReadLock.source_id == SOURCE_ID)
+            .filter(DlSourceReadLock.source_id == source_id)
             .with_for_update()
             .one()
         )
         lock.updated_at = now
         self.db.flush()
 
-        state = self.read_policy_state(now=now)
+        state = self.read_policy_state(source_id=source_id, now=now)
         if state["enabled"] and state["reads_remaining"] <= 0:
             error = _source_read_limit_exception(state, now=now)
             self.db.rollback()
@@ -581,7 +595,7 @@ class SpreadsheetSourceReadService:
 
         reservation = DlSourceReadReservation(
             id=f"srr_{uuid.uuid4().hex[:20]}",
-            source_id=SOURCE_ID,
+            source_id=source_id,
             user_id=str(user_id),
             reserved_at=now,
             status="reserved",
@@ -593,7 +607,7 @@ class SpreadsheetSourceReadService:
             "source_read_reserved",
             "Source read quota slot reserved before outbound access.",
             str(user_id),
-            {"source_id": SOURCE_ID, "reservation_id": reservation.id, "reservation_status": "reserved"},
+            {"source_id": source_id, "reservation_id": reservation.id, "reservation_status": "reserved"},
         )
         return reservation
 
@@ -604,11 +618,14 @@ class SpreadsheetSourceReadService:
         *,
         stats: dict | None = None,
         error_code: str | None = None,
+        source_id: str | None = None,
     ) -> dict:
         self.db.rollback()
         reservation = self.db.get(DlSourceReadReservation, reservation_id)
         if reservation is None:
             raise RuntimeError("Source read reservation is missing.")
+        if source_id is not None and reservation.source_id != source_id:
+            raise RuntimeError("Source read reservation belongs to another Source profile.")
         if reservation.status == "reserved":
             reservation.status = final_status
             reservation.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -636,14 +653,40 @@ class SpreadsheetSourceReadService:
             "Source read reservation finalized.",
             reservation.user_id,
             {
-                "source_id": SOURCE_ID,
+                "source_id": reservation.source_id,
                 "reservation_id": reservation.id,
                 "reservation_status": final_status,
                 "error_code": error_code,
             },
             severity="error" if final_status == "failed" else "info",
         )
-        return self.read_policy_state(now=reservation.completed_at or datetime.now(timezone.utc).replace(tzinfo=None))
+        return self.read_policy_state(
+            source_id=reservation.source_id,
+            now=reservation.completed_at or datetime.now(timezone.utc).replace(tzinfo=None),
+        )
+
+    def _quota_source_id(self, source_id: str | None, *, required: bool = True) -> str | None:
+        if source_id:
+            return source_id
+        profile_id = (
+            self.db.query(SourceProfile.id)
+            .filter(SourceProfile.external_source_id == SOURCE_ID)
+            .scalar()
+        )
+        if profile_id:
+            return str(profile_id)
+        if not required:
+            return None
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {"code": "source_profile_required", "message": "Source profile is required."},
+        )
+
+    def _nextcloud_http_client(self) -> SourceHttpClient:
+        networks = parse_trusted_private_networks(
+            self.config.get("nextcloud.trusted_private_networks")
+        )
+        return self.source_http_client.with_allowed_private_networks(networks)
 
     def _required_config(self, key: str) -> str:
         value = self.config.get(key)

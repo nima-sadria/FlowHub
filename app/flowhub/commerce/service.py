@@ -44,6 +44,11 @@ from app.flowhub.channels.technolife import (
     TechnolifeConnector,
 )
 from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
+from app.connectors.common.source_http import (
+    SourceHttpClient,
+    SourceHttpError,
+    parse_trusted_private_networks,
+)
 from app.flowhub.config.values import parse_config_bool
 from app.flowhub.data_layer.health_service import ConnectorHealthService
 from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
@@ -57,6 +62,7 @@ from app.flowhub.pricing_matrix.service import PricingMatrixService
 from app.flowhub.read_engine.manual import ManualReadService
 from app.flowhub.read_engine.service import IncrementalReadEngine
 from app.flowhub.security.upstream_errors import UpstreamServiceError, normalize_upstream_error
+from app.flowhub.source_acquisition.nextcloud_provider import NextcloudWebDavAcquisitionProvider
 from app.flowhub.source_workspace.models import SourceProfile
 from app.flowhub.sources.spreadsheet_source import (
     SpreadsheetSourceReadService,
@@ -1743,6 +1749,32 @@ class CommerceHubService:
                         error_class="spreadsheet_unsupported",
                     )
                 spreadsheet_found = True
+                provider = NextcloudWebDavAcquisitionProvider(
+                    webdav_files_root_url=normalized_webdav_url,
+                    spreadsheet_path=spreadsheet_path,
+                    username=normalized["username"],
+                    app_password=values["password"],
+                    capture_contract="connection-preflight",
+                )
+                try:
+                    await SourceHttpClient().with_allowed_private_networks(
+                        parse_trusted_private_networks(
+                            self.integration.config.get("nextcloud.trusted_private_networks")
+                        )
+                    ).preflight(provider.resource_url)
+                except SourceHttpError as exc:
+                    return self._nextcloud_test_failure(
+                        started,
+                        checked_at,
+                        "The configured source destination is blocked by the Source network safety policy.",
+                        normalized_base_url=normalized["server_root_url"],
+                        normalized_webdav_url=normalized_webdav_url,
+                        webdav_reachable=True,
+                        spreadsheet_found=True,
+                        external=True,
+                        error_class=exc.code,
+                        code=exc.code,
+                    )
             latency_ms = round((monotonic() - started) * 1000, 2)
             message = (
                 "Connection successful. Spreadsheet found."

@@ -43,7 +43,7 @@ class NextcloudWebDavAcquisitionProvider:
             headers["If-None-Match"] = self._previous_change_token
         response = await http_client.request(
             "GET",
-            f"{self._root}{quote(self._path, safe='/')}",
+            self.resource_url,
             headers=headers,
             basic_auth=(self._username, self._app_password),
         )
@@ -117,6 +117,10 @@ class NextcloudWebDavAcquisitionProvider:
             ],
             observed_at=utcnow(),
         )
+
+    @property
+    def resource_url(self) -> str:
+        return f"{self._root}{quote(self._path, safe='/')}"
 
     @staticmethod
     def _clean_path(path: str) -> str:

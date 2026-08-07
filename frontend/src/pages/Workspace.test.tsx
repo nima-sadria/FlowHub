@@ -63,6 +63,19 @@ describe('Workspace source-driven preview', () => {
     expect(container.textContent).not.toContain('raw limiter exception')
   })
 
+  it('explains when Source network safety blocks acquisition', async () => {
+    await renderWorkspaceWithPreviewError(new ApiError(
+      502,
+      'Source acquisition failed.',
+      'unsafe_destination',
+    ))
+
+    await click('Start Preview')
+
+    expect(container.textContent).toContain('configured source destination is blocked by the Source network safety policy')
+    expect(container.textContent).not.toContain('Source acquisition failed.')
+  })
+
   it('guides cache-empty preview failures to the WooCommerce Channel refresh action', async () => {
     await renderWorkspaceWithPreviewError(new ApiError(
       409,

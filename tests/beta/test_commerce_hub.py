@@ -752,6 +752,9 @@ def test_nextcloud_webdav_browse_rejects_path_traversal(client, auth_headers, mo
 def test_nextcloud_test_connection_with_root_url_uses_webdav_and_checks_spreadsheet_path(client, auth_headers, monkeypatch):
     calls: list[str] = []
 
+    async def fake_preflight(*_args):
+        return None
+
     async def fake_browse(self, path="/"):
         calls.append(f"browse:{path}")
         return {"path": "/", "directories": [], "files": [], "read_only": True, "write_blocked": True}
@@ -762,6 +765,7 @@ def test_nextcloud_test_connection_with_root_url_uses_webdav_and_checks_spreadsh
 
     monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fake_browse)
     monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.get_resource_info", fake_info)
+    monkeypatch.setattr("app.connectors.common.source_http.SourceHttpClient.preflight", fake_preflight)
 
     save = client.put(
         "/api/v2/commerce/sources/nextcloud:primary/settings",
@@ -834,12 +838,53 @@ def test_nextcloud_test_connection_with_webdav_url_succeeds_without_spreadsheet_
     assert calls == ["browse:/"]
 
 
+def test_nextcloud_test_connection_does_not_claim_ready_when_acquisition_policy_blocks(client, auth_headers, monkeypatch):
+    from app.connectors.common.source_http import SourceHttpError
+
+    async def fake_browse(self, path="/"):
+        return {"path": path, "directories": [], "files": [], "read_only": True, "write_blocked": True}
+
+    async def fake_info(self, path):
+        return {"name": "prices.xlsx", "path": path, "type": "file", "extension": ".xlsx", "supported": True}
+
+    async def blocked_preflight(*_args):
+        raise SourceHttpError("unsafe_destination")
+
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fake_browse)
+    monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.get_resource_info", fake_info)
+    monkeypatch.setattr("app.connectors.common.source_http.SourceHttpClient.preflight", blocked_preflight)
+
+    response = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/test",
+        headers=auth_headers,
+        json={
+            "settings": {
+                "url": "https://nextcloud.internal",
+                "username": "woo",
+                "spreadsheet_path": "/prices.xlsx",
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"] is False
+    assert data["code"] == "unsafe_destination"
+    assert data["webdav_reachable"] is True
+    assert data["spreadsheet_found"] is True
+    assert "network safety policy" in data["message"]
+
+
 def test_nextcloud_test_connection_uses_draft_credentials_without_persisting_them(
     client, auth_headers, db, monkeypatch
 ):
     from app.flowhub.setup.service import AppConfigService
 
     observed: dict[str, str] = {}
+
+    async def fake_preflight(*_args):
+        return None
 
     async def fake_browse(self, path="/"):
         observed.update(
@@ -854,6 +899,7 @@ def test_nextcloud_test_connection_uses_draft_credentials_without_persisting_the
 
     monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fake_browse)
     monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.get_resource_info", fake_info)
+    monkeypatch.setattr("app.connectors.common.source_http.SourceHttpClient.preflight", fake_preflight)
 
     stored = client.put(
         "/api/v2/commerce/sources/nextcloud:primary/settings",
@@ -1368,7 +1414,9 @@ def test_concurrent_source_reads_cannot_exceed_atomic_quota(tmp_path):
         session = Session()
         try:
             barrier.wait()
-            SpreadsheetSourceReadService(session).reserve_read_slot(actor, manual=True)
+            SpreadsheetSourceReadService(session).reserve_read_slot(
+                actor, manual=True, source_id="source-profile-primary"
+            )
             return 200
         except HTTPException as exc:
             return exc.status_code
@@ -1383,6 +1431,28 @@ def test_concurrent_source_reads_cannot_exceed_atomic_quota(tmp_path):
     assert check_session.query(DlSourceReadReservation).count() == 1
     check_session.close()
     engine.dispose()
+
+
+def test_source_profile_read_quotas_are_independent_and_shared(db):
+    from fastapi import HTTPException
+
+    from app.flowhub.setup.service import AppConfigService
+    from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
+
+    AppConfigService(db).set(
+        "nextcloud.source_read_policy",
+        '{"enabled":true,"max_reads_per_24h":10,"manual_read_allowed":true}',
+        updated_by="test",
+    )
+    reader = SpreadsheetSourceReadService(db)
+    for index in range(10):
+        reader.reserve_read_slot(f"owner-{index}", manual=False, source_id="source-profile-a")
+    assert reader.read_policy_state(source_id="source-profile-a")["reads_used_last_24h"] == 10
+    with pytest.raises(HTTPException) as limited:
+        reader.reserve_read_slot("owner-over-limit", manual=True, source_id="source-profile-a")
+    assert limited.value.status_code == 429
+    reader.reserve_read_slot("owner-b", manual=True, source_id="source-profile-b")
+    assert reader.read_policy_state(source_id="source-profile-b")["reads_used_last_24h"] == 1
 
 
 def test_duplicate_rows_are_errors_and_manual_read_counts_reconcile(client, auth_headers, monkeypatch):

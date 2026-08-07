@@ -10,8 +10,9 @@ from __future__ import annotations
 import asyncio
 import base64
 import ipaddress
+import json
 import socket
-from dataclasses import dataclass, field
+from dataclasses import dataclass, replace
 from typing import Awaitable, Callable, Mapping
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
@@ -88,6 +89,21 @@ class SourceHttpClient:
         self.policy = policy or SourceHttpPolicy()
         self._resolver = resolver
         self._client_factory = client_factory
+
+    def with_allowed_private_networks(
+        self, networks: tuple[ipaddress._BaseNetwork, ...]
+    ) -> "SourceHttpClient":
+        """Return a client with a caller-scoped private CIDR allowance."""
+        return SourceHttpClient(
+            policy=replace(self.policy, allowed_private_networks=networks),
+            resolver=self._resolver,
+            client_factory=self._client_factory,
+        )
+
+    async def preflight(self, url: str) -> None:
+        """Validate one outbound destination without sending a request."""
+        deadline = asyncio.get_running_loop().time() + self.policy.total_timeout_seconds
+        await self._validated_target(url, deadline)
 
     async def request(
         self,
@@ -237,3 +253,24 @@ class SourceHttpClient:
         if remaining <= 0:
             raise SourceHttpError("total_timeout")
         return remaining
+
+
+def parse_trusted_private_networks(value: str | None) -> tuple[ipaddress._BaseNetwork, ...]:
+    """Parse explicit trusted private CIDRs, failing closed on bad input."""
+    if not value:
+        return ()
+    try:
+        raw = json.loads(value)
+    except (TypeError, ValueError):
+        return ()
+    if not isinstance(raw, list):
+        return ()
+    networks: list[ipaddress._BaseNetwork] = []
+    for item in raw:
+        if not isinstance(item, str):
+            return ()
+        try:
+            networks.append(ipaddress.ip_network(item.strip(), strict=True))
+        except ValueError:
+            return ()
+    return tuple(networks)

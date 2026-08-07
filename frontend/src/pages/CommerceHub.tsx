@@ -693,7 +693,9 @@ export function ConfigPanel({
         if (!verification.ok) {
           const failure = {
             title: translate('commerce:commerceHub.unableToConnectToTheSource'),
-            description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+            description: (verification as { code?: string }).code === 'unsafe_destination'
+              ? translate('errors:codes.unsafe_destination')
+              : translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
           }
           setConnectionFeedback({ variant: 'error', title: failure.title, message: failure.description })
           notifyError(failure)
@@ -790,7 +792,9 @@ export function ConfigPanel({
       else {
         const failure = {
           title: kind === 'source' ? translate('commerce:commerceHub.unableToConnectToTheSource') : translate('commerce:commerceHub.unableToConnectToTheChannel'),
-          description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+          description: kind === 'source' && (result as { code?: string }).code === 'unsafe_destination'
+            ? translate('errors:codes.unsafe_destination')
+            : translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
         }
         if (kind === 'source') {
           setConnectionFeedback({ variant: 'error', title: failure.title, message: failure.description })
@@ -1371,7 +1375,9 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
       })
       else notifyError({
         title: translate('commerce:commerceHub.unableToConnectToTheSource'),
-        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+        description: (result as { code?: string }).code === 'unsafe_destination'
+          ? translate('errors:codes.unsafe_destination')
+          : translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
       })
       await loadCommerce()
     } catch {
