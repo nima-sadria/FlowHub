@@ -604,7 +604,8 @@ describe('CommerceHub', () => {
     const sources = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
 
     expect(sources.textContent).not.toContain('Refresh cache')
-    expect(Array.from(sources.querySelectorAll('button')).filter(button => button.textContent === 'Read now')).toHaveLength(1)
+    expect(Array.from(sources.querySelectorAll('button')).filter(button => button.textContent === 'Read now')).toHaveLength(0)
+    expect(Array.from(sources.querySelectorAll('button')).filter(button => button.textContent === 'Edit Connection')).toHaveLength(1)
   })
 
   it('shows Settings for configured marketplaces and no Configure action for planned channels', async () => {
@@ -948,10 +949,10 @@ describe('CommerceHub', () => {
     const testButtons = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Test connection')
     expect(testButtons).toHaveLength(1)
     const readButtons = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Read now')
-    expect(readButtons).toHaveLength(1)
-    const settingsButtons = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Settings')
-    expect(settingsButtons).toHaveLength(1)
-    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Set up columns')).toHaveLength(1)
+    expect(readButtons).toHaveLength(0)
+    const editConnectionButtons = Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Edit Connection')
+    expect(editConnectionButtons).toHaveLength(1)
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure Data')).toHaveLength(1)
     expect(c.textContent).toContain('Nextcloud')
     expect(c.textContent).toContain('CSV')
     expect(c.textContent).toContain('Google Sheets')
@@ -1068,12 +1069,12 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Source type')
     expect(c.textContent).toContain('App password / token')
     expect(c.textContent).toContain('Columns for each Channel')
-    expect(c.textContent).toContain('choose product ID, price, stock, and status columns separately for every Channel')
-    expect(c.textContent).toContain('Read Policy')
+    expect(c.textContent).toContain('Column mapping and read limits now live on the Data Sheet page.')
+    expect(c.textContent).not.toContain('Read Policy')
     expect(c.textContent).not.toContain('snapp-secret-value')
   })
 
-  it('saves connector read settings without persisting a second global Source mapping', async () => {
+  it('saves connector worksheet settings without persisting a second global Source mapping', async () => {
     const captured: { payload: Parameters<CommerceService['saveSource']>[1] | null } = { payload: null }
     const savingCommerce: CommerceService = {
       ...commerce,
@@ -1107,7 +1108,6 @@ describe('CommerceHub', () => {
     await act(async () => {
       inputByLabel(c, 'Selected worksheet').dispatchEvent(new MouseEvent('click', { bubbles: true }))
       setInputValue(inputByLabel(c, 'Worksheet name'), 'Prices')
-      setInputValue(inputByLabel(c, 'Max reads per 24 hours'), '5')
     })
     await act(async () => {
       Array.from(c.querySelectorAll('button'))
@@ -1121,11 +1121,6 @@ describe('CommerceHub', () => {
     expect(captured.payload.settings).not.toHaveProperty('source_mapping')
     expect(captured.payload.settings.worksheet_mode).toBe('selected')
     expect(captured.payload.settings.worksheet_name).toBe('Prices')
-    expect(captured.payload.settings.source_read_policy).toMatchObject({
-      enabled: true,
-      max_reads_per_24h: 5,
-      manual_read_allowed: true,
-    })
     expect(c.textContent).toContain('Source configured successfully')
     expect(c.textContent).toContain('The source is ready to use.')
     expect(c.querySelector('[data-notification-type="success"] .fh-notification-icon [data-icon="success"]')).not.toBeNull()
@@ -1133,7 +1128,7 @@ describe('CommerceHub', () => {
 
   it('opens a saved Source connection in the editable settings form', async () => {
     const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
-    const settings = resourceAction(c, 'Nextcloud', 'Settings')
+    const settings = resourceAction(c, 'Nextcloud', 'Edit Connection')
 
     await act(async () => {
       settings.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -1321,36 +1316,19 @@ describe('CommerceHub', () => {
   it('renders visible centralized icons with labels on source workflow actions', async () => {
     const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
 
-    const configure = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Settings')
-    const configureColumns = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Set up columns')
+    const configure = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Edit Connection')
+    const configureColumns = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Configure Data')
     const test = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection')
-    const read = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Read now')
     const add = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add source')
 
     expect(configure?.querySelector('[data-icon="settings"]')).not.toBeNull()
     expect(configureColumns?.querySelector('[data-icon="workspace"]')).not.toBeNull()
     expect(test?.querySelector('[data-icon="testConnection"]')).not.toBeNull()
-    expect(read?.querySelector('[data-icon="sync"]')).not.toBeNull()
     expect(add?.querySelector('[data-icon="add"]')).not.toBeNull()
-    expect(configure?.textContent).toContain('Settings')
-    expect(configureColumns?.textContent).toContain('Set up columns')
+    expect(configure?.textContent).toContain('Edit Connection')
+    expect(configureColumns?.textContent).toContain('Configure Data')
     expect(test?.textContent).toContain('Test connection')
-    expect(read?.textContent).toContain('Read now')
     expect(add?.textContent).toContain('Add source')
-  })
-
-  it('runs Read now for Nextcloud and renders the read result', async () => {
-    const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
-
-    await act(async () => {
-      Array.from(c.querySelectorAll('button'))
-        .find(button => button.textContent === 'Read now')
-        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-      await Promise.resolve()
-    })
-
-    expect(c.textContent).toContain('Source refreshed successfully')
-    expect(c.textContent).toContain('1 row loaded.')
   })
 
   it('keeps channel management controls admin-only', async () => {

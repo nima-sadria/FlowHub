@@ -143,8 +143,6 @@ export default function SourceCenter() {
   const [pendingImpact, setPendingImpact] = useState<SourceLifecycleImpact | null>(null)
   const [checkingImpact, setCheckingImpact] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [testingSourceId, setTestingSourceId] = useState<string | null>(null)
-  const [readingSourceId, setReadingSourceId] = useState<string | null>(null)
   const removalOverlayRef = useRef<HTMLDivElement | null>(null)
   const removalCancelRef = useRef<HTMLButtonElement | null>(null)
   const removalTriggerRef = useRef<HTMLButtonElement | null>(null)
@@ -359,65 +357,6 @@ export default function SourceCenter() {
     }
   }
 
-  async function reloadIntegrations() {
-    const result = await commerce.getSources()
-    setIntegrations(result.items)
-  }
-
-  async function testSourceConnection(sourceId: string) {
-    if (!canManageConnectors) return
-    setTestingSourceId(sourceId)
-    try {
-      const result = await commerce.testSource(sourceId)
-      if (result.ok) {
-        notify.success({
-          title: translate('commerce:commerceHub.sourceConnectedSuccessfully'),
-          description: translate('commerce:commerceHub.theSourceIsReadyToUse'),
-        })
-      } else {
-        notify.error({
-          title: translate('commerce:commerceHub.unableToConnectToTheSource'),
-          description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
-        })
-      }
-      await reloadIntegrations()
-    } catch {
-      notify.error({
-        title: translate('commerce:commerceHub.unableToConnectToTheSource'),
-        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
-      })
-    } finally {
-      setTestingSourceId(null)
-    }
-  }
-
-  async function readSourceNow(sourceId: string) {
-    if (!canManageConnectors) return
-    setReadingSourceId(sourceId)
-    try {
-      const result = await commerce.readSource(sourceId)
-      if (result.ok) {
-        notify.success({
-          title: translate('commerce:commerceHub.sourceRefreshedSuccessfully'),
-          description: translate('commerce:commerceHub.rowsLoaded', { count: result.rows_read }),
-        })
-      } else {
-        notify.error({
-          title: translate('commerce:commerceHub.unableToRefreshTheSource'),
-          description: translate('commerce:commerceHub.pleaseTryAgain'),
-        })
-      }
-      await reloadIntegrations()
-    } catch {
-      notify.error({
-        title: translate('commerce:commerceHub.unableToRefreshTheSource'),
-        description: translate('commerce:commerceHub.pleaseTryAgain'),
-      })
-    } finally {
-      setReadingSourceId(null)
-    }
-  }
-
   async function removeSource() {
     if (!pendingDelete) return
     setDeleting(true)
@@ -465,28 +404,6 @@ export default function SourceCenter() {
       setPendingDelete(null)
     } finally {
       if (impactRequestRef.current === requestId) setCheckingImpact(false)
-    }
-  }
-
-  function openPrimary(card: SourceCardModel, setup = false) {
-    if (
-      setup
-      && card.integration?.implemented
-      && !card.integration.placeholder
-      && card.integration.credential_status !== 'configured'
-    ) {
-      navigate(`/commerce?tab=sources&resource=${encodeURIComponent(card.integration.id)}`)
-      return
-    }
-    if (card.profile) {
-      if (setup) navigate(`/sources/${card.profile.id}`)
-      else if (!sourceIsEnabled(card.profile)) navigate(`/sources/${card.profile.id}`)
-      else if (card.profile.sheetId && card.profile.mappingVersion > 0) navigate(`/sheets/${card.profile.sheetId}`)
-      else navigate(`/sources/${card.profile.id}`)
-      return
-    }
-    if (card.integration?.implemented && !card.integration.placeholder) {
-      navigate(`/commerce?tab=sources&resource=${encodeURIComponent(card.integration.id)}`)
     }
   }
 
@@ -626,7 +543,6 @@ export default function SourceCenter() {
             const source = card.profile
             const integration = card.integration
             const state = operationalState(resource.tier)
-            const canSetup = Boolean(source ? canEditSources : canManageConnectors)
             const showDelete = Boolean(state === 'connected' && canManageSources && source?.status === 'active')
             const updatedAt = cardUpdatedAt(card)
             const worksheetsEnabled = worksheetsEnabledCount(card)
@@ -664,17 +580,25 @@ export default function SourceCenter() {
                   : []),
                 ...(readStatus ? [{ label: translate('sources:sourceCenter.readsRemaining'), value: readStatus.reads_remaining }] : []),
               ]
-            const actions: OperationalResourceAction[] = state === 'setupRequired'
-              ? canSetup ? [{ label: translate('common:action.setupNow'), icon: 'settings', primary: true, onClick: () => openPrimary(card, true) }] : []
-              : state === 'comingSoon' ? [] : [
-                { label: translate('common:action.open'), icon: 'preview', onClick: () => openPrimary(card) },
+            const setupDestination = integration?.implemented && !integration.placeholder && integration.credential_status !== 'configured'
+              ? `/commerce?tab=sources&resource=${encodeURIComponent(integration.id)}`
+              : source
+                ? `/sources/${source.id}`
+                : integration?.implemented && !integration.placeholder
+                  ? `/commerce?tab=sources&resource=${encodeURIComponent(integration.id)}`
+                  : null
+            const canSetup = Boolean(source ? canEditSources : canManageConnectors)
+            const actions: OperationalResourceAction[] = state === 'comingSoon' ? [] : state === 'setupRequired'
+              ? (setupDestination && canSetup
+                  ? [{ label: translate('sources:sourceCenter.setupSource'), icon: 'settings' as const, primary: true, onClick: () => navigate(setupDestination) }]
+                  : [])
+              : [
                 ...(integration && canManageConnectors
-                  ? [{ label: testingSourceId === integration.id ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection'), icon: 'testConnection' as const, disabled: testingSourceId === integration.id, onClick: () => void testSourceConnection(integration.id) }]
+                  ? [{ label: translate('sources:sourceCenter.editSource'), icon: 'settings' as const, onClick: () => navigate(`/commerce?tab=sources&resource=${encodeURIComponent(integration.id)}`) }]
                   : []),
-                ...(integration && canManageConnectors && (readStatus?.manual_read_allowed ?? integration.read_policy?.manual_read_allowed)
-                  ? [{ label: readingSourceId === integration.id ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow'), icon: 'refresh' as const, disabled: readingSourceId === integration.id, onClick: () => void readSourceNow(integration.id) }]
+                ...(source && canEditSources
+                  ? [{ label: translate('sources:sourceCenter.editDataSheet'), icon: 'preview' as const, primary: true, onClick: () => navigate(`/sources/${source.id}`) }]
                   : []),
-                ...(source ? [{ label: translate('common:action.mapping'), icon: 'settings' as const, onClick: () => navigate(`/sources/${source.id}`) }] : []),
                 ...(canViewActivity ? [{ label: translate('common:action.viewActivity'), icon: 'preview' as const, onClick: () => navigate(`/activity?source=${encodeURIComponent(integration?.id ?? source?.id ?? card.id)}`) }] : []),
                 ...(canViewDiagnostics ? [{ label: translate('common:action.diagnostics'), icon: 'diagnostics' as const, onClick: () => navigate(`/diagnostics#source-${integration?.id ?? source?.id ?? card.id}`) }] : []),
               ]

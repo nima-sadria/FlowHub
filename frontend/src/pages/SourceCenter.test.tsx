@@ -322,13 +322,13 @@ describe('SourceCenter safe lifecycle', () => {
 
     const unfinishedCard = container.querySelector('[data-source-card="nextcloud-draft"]')
     expect(unfinishedCard?.textContent).toContain('Setup required')
-    expect(unfinishedCard?.textContent).toContain('Setup now')
+    expect(unfinishedCard?.textContent).toContain('Setup Source')
     expect(container.querySelector('[data-source-card="integration:nextcloud:primary"]')).toBeNull()
     expect(container.querySelector('[data-source-card="integration:gsheets:price-list"]')?.textContent).toContain('Coming Soon')
     expect(container.querySelector('.fh-kpi-card-value')?.textContent).toBe('0')
   })
 
-  it('routes Setup now to connection settings when an external Source credential set is incomplete', async () => {
+  it('routes Setup Source to connection settings when an external Source credential set is incomplete', async () => {
     const incompleteNextcloud: SourceProfile = {
       ...source,
       id: 'nextcloud-draft',
@@ -346,7 +346,7 @@ describe('SourceCenter safe lifecycle', () => {
 
     await render()
     const setup = Array.from(container.querySelectorAll('[data-source-card="nextcloud-draft"] button'))
-      .find(item => item.textContent?.trim() === 'Setup now') as HTMLButtonElement
+      .find(item => item.textContent?.trim() === 'Setup Source') as HTMLButtonElement
     await act(async () => setup.click())
 
     expect(container.querySelector('[data-testid="location-probe"]')?.textContent)

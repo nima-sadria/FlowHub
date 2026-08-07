@@ -30,9 +30,9 @@ import {
 
 type Tab = 'sources' | 'channels'
 type FormKind = 'source' | 'channel'
-type ReadPolicyDraft = { enabled: boolean; max_reads_per_24h: number; manual_read_allowed: boolean }
+export type ReadPolicyDraft = { enabled: boolean; max_reads_per_24h: number; manual_read_allowed: boolean }
 
-const DEFAULT_READ_POLICY: ReadPolicyDraft = {
+export const DEFAULT_READ_POLICY: ReadPolicyDraft = {
   enabled: true,
   max_reads_per_24h: 10,
   manual_read_allowed: true,
@@ -92,15 +92,13 @@ function RelationshipMap({ map }: { map: CommerceRelationshipMap | null }) {
   )
 }
 
-function SourceCard({ source, badge, onTest, onRead, onEdit, onConfigure, testing, reading, canManage }: {
+function SourceCard({ source, badge, onTest, onEdit, onConfigure, testing, canManage }: {
   source: CommerceSource
   badge: ResourceBadge
   onTest: (sourceId: string) => void
-  onRead: (sourceId: string) => void
   onEdit: (sourceId: string) => void
   onConfigure: (sourceId: string) => void
   testing: boolean
-  reading: boolean
   canManage: boolean
 }) {
   const canUseNextcloudActions = canManage && source.provider === 'nextcloud' && !source.placeholder
@@ -145,12 +143,12 @@ function SourceCard({ source, badge, onTest, onRead, onEdit, onConfigure, testin
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              aria-label={translate('commerce:commerceHub.sourceSettings')}
+              aria-label={translate('commerce:commerceHub.editConnection')}
               onClick={() => onEdit(source.id)}
               className="fh-button-secondary fh-button-sm"
             >
               <Icon name="settings" />
-              {translate('commerce:commerceHub.settings')}
+              {translate('commerce:commerceHub.editConnection')}
             </button>
             <button
               type="button"
@@ -158,25 +156,16 @@ function SourceCard({ source, badge, onTest, onRead, onEdit, onConfigure, testin
               className="fh-button-secondary fh-button-sm"
             >
               <Icon name="workspace" />
-              {translate('sources:sourceCenter.configureColumns')}
+              {translate('commerce:commerceHub.configureData')}
             </button>
             <button
               onClick={() => onTest(source.id)}
-              disabled={testing || reading}
+              disabled={testing}
               className="fh-button-secondary fh-button-sm"
             >
               {testing && <Spinner size="sm" />}
               {!testing && <Icon name="testConnection" />}
               {testing ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection')}
-            </button>
-            <button
-              onClick={() => onRead(source.id)}
-              disabled={testing || reading || source.read_policy?.manual_read_allowed === false}
-              className="fh-button-secondary fh-button-sm"
-            >
-              {reading && <Spinner size="sm" />}
-              {!reading && <Icon name="sync" />}
-              {reading ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow')}
             </button>
           </div>
         )}
@@ -486,6 +475,7 @@ export function ConfigPanel({
   headingLevel = 3,
   onCancel,
   onSaved,
+  onConfigureData,
 }: {
   kind: FormKind
   types: CommerceTypeOption[]
@@ -493,6 +483,7 @@ export function ConfigPanel({
   headingLevel?: 2 | 3
   onCancel: () => void
   onSaved: (saved: { kind: FormKind; externalId: string; name: string; currency: string; currencyUnit: string }) => Promise<void>
+  onConfigureData?: (externalId: string) => void
 }) {
   const { commerce } = useServices()
   const { success, error: notifyError } = useNotification()
@@ -1165,86 +1156,56 @@ export function ConfigPanel({
 
           <div className="fh-form-section">
             <div>
-              <p className="fh-form-section-title">{translate('sources:sourceConfiguration.channelMappings')}</p>
-              <p className="fh-form-section-description">{translate('sources:sourceConfiguration.mappingConfiguredAfterConnection')}</p>
+              <p className="fh-form-section-title">{translate('commerce:commerceHub.worksheet')}</p>
+              <p className="fh-form-section-description">{translate('commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet')}</p>
+            </div>
+            <div className="flex flex-col gap-2 fh-text-body">
+              <label className="fh-inline-check">
+                <input
+                  type="radio"
+                  name="worksheet_mode"
+                  checked={worksheetMode === "all"}
+                  onChange={() => setWorksheetMode("all")}
+                />
+                {translate('commerce:commerceHub.allWorksheets')}
+              </label>
+              <label className="fh-inline-check">
+                <input
+                  type="radio"
+                  name="worksheet_mode"
+                  checked={worksheetMode === "selected"}
+                  onChange={() => setWorksheetMode("selected")}
+                />
+                {translate('commerce:commerceHub.selectedWorksheet')}
+              </label>
+              <label className="fh-field">
+                <span className="fh-help-text">{translate('commerce:commerceHub.worksheetName')}</span>
+                <input
+                  value={worksheetName}
+                  onChange={event => setWorksheetName(event.target.value)}
+                  disabled={worksheetMode !== "selected"}
+                  className="fh-input"
+                />
+              </label>
             </div>
           </div>
 
-          <div className="fh-form-grid md:grid-cols-2">
-            <div className="fh-form-section">
-              <div>
-                <p className="fh-form-section-title">{translate('commerce:commerceHub.worksheet')}</p>
-                <p className="fh-form-section-description">{translate('commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet')}</p>
-              </div>
-              <div className="flex flex-col gap-2 fh-text-body">
-                <label className="fh-inline-check">
-                  <input
-                    type="radio"
-                    name="worksheet_mode"
-                    checked={worksheetMode === "all"}
-                    onChange={() => setWorksheetMode("all")}
-                  />
-                  {translate('commerce:commerceHub.allWorksheets')}
-                </label>
-                <label className="fh-inline-check">
-                  <input
-                    type="radio"
-                    name="worksheet_mode"
-                    checked={worksheetMode === "selected"}
-                    onChange={() => setWorksheetMode("selected")}
-                  />
-                  {translate('commerce:commerceHub.selectedWorksheet')}
-                </label>
-                <label className="fh-field">
-                  <span className="fh-help-text">{translate('commerce:commerceHub.worksheetName')}</span>
-                  <input
-                    value={worksheetName}
-                    onChange={event => setWorksheetName(event.target.value)}
-                    disabled={worksheetMode !== "selected"}
-                    className="fh-input"
-                  />
-                </label>
-              </div>
+          <div className="fh-form-section">
+            <div>
+              <p className="fh-form-section-title">{translate('sources:sourceConfiguration.channelMappings')}</p>
+              <p className="fh-form-section-description">{translate('commerce:commerceHub.worksheetsMappingMovedToDataSheet')}</p>
             </div>
-
-            <div className="fh-form-section">
-              <div>
-                <p className="fh-form-section-title">{translate('commerce:commerceHub.readPolicy')}</p>
-                <p className="fh-form-section-description">{translate('commerce:commerceHub.theseControlsOnlyAffectSourceReadPolicy')}</p>
-              </div>
-              <div className="flex flex-col gap-3">
-                <label className="fh-inline-check">
-                  <input
-                    type="checkbox"
-                    checked={readPolicy.enabled}
-                    onChange={event => setReadPolicy(current => ({ ...current, enabled: event.target.checked }))}
-                  />
-                  {translate('commerce:commerceHub.limitSourceReads')}
-                </label>
-                <label className="fh-inline-check">
-                  <input
-                    type="checkbox"
-                    checked={readPolicy.manual_read_allowed}
-                    onChange={event => setReadPolicy(current => ({ ...current, manual_read_allowed: event.target.checked }))}
-                  />
-                  {translate('commerce:commerceHub.manualReadNowAllowed')}
-                </label>
-                <label className="fh-field">
-                  <span className="fh-help-text">{translate('commerce:commerceHub.maxReadsPer24Hours')}</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={1000}
-                    value={readPolicy.max_reads_per_24h}
-                    onChange={event => setReadPolicy(current => ({
-                      ...current,
-                      max_reads_per_24h: Number(event.target.value || DEFAULT_READ_POLICY.max_reads_per_24h),
-                    }))}
-                    className="fh-input"
-                  />
-                </label>
-              </div>
-            </div>
+            {initialResourceId && onConfigureData ? (
+              <button
+                type="button"
+                className="fh-button-secondary px-4 w-fit"
+                onClick={() => onConfigureData(selectedType.id)}
+              >
+                <Icon name="workspace" /> {translate('commerce:commerceHub.configureData')} <Icon name="next" />
+              </button>
+            ) : (
+              <p className="fh-text-caption">{translate('commerce:commerceHub.saveConnectionBeforeConfiguringData')}</p>
+            )}
           </div>
         </div>
       )}
@@ -1290,7 +1251,6 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
   const [map, setMap] = useState<CommerceRelationshipMap | null>(null)
   const [loading, setLoading] = useState(true)
   const [testingId, setTestingId] = useState<string | null>(null)
-  const [readingId, setReadingId] = useState<string | null>(null)
   const [refreshingId, setRefreshingId] = useState<string | null>(null)
   const [refreshResults, setRefreshResults] = useState<Record<string, ChannelCacheRefreshResult>>({})
   const [formKind, setFormKind] = useState<FormKind | null>(null)
@@ -1453,36 +1413,6 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
     }
   }
 
-  async function handleSourceRead(sourceId: string) {
-    if (!canManageCommerce) {
-      notifyError(translate('commerce:commerceHub.adminPermissionRequired'))
-      return
-    }
-    setReadingId(sourceId)
-    try {
-      const result = await commerce.readSource(sourceId)
-      if (result.ok) {
-        success({
-          title: translate('commerce:commerceHub.sourceRefreshedSuccessfully'),
-          description: translate('commerce:commerceHub.rowsLoaded', { count: result.rows_read }),
-        })
-      } else {
-        notifyError({
-          title: translate('commerce:commerceHub.unableToRefreshTheSource'),
-          description: translate('commerce:commerceHub.pleaseTryAgain'),
-        })
-      }
-      await loadCommerce()
-    } catch {
-      notifyError({
-        title: translate('commerce:commerceHub.unableToRefreshTheSource'),
-        description: translate('commerce:commerceHub.pleaseTryAgain'),
-      })
-    } finally {
-      setReadingId(null)
-    }
-  }
-
   async function managedSourceFor(
     externalId: string,
     name: string,
@@ -1592,6 +1522,9 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
           </div>
       ) : tab === "sources" ? (
         <section>
+          <button type="button" className="fh-button-secondary fh-button-sm mb-4" onClick={() => navigate('/sources')}>
+            <Icon name="previous" /> {translate('sources:sourceConfiguration.backToSources')}
+          </button>
           <div className="fh-page-toolbar mb-4">
             <div>
               <h2 className="fh-section-title">{translate('commerce:commerceHub.sources2')}</h2>
@@ -1614,6 +1547,7 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
                 initialResourceId={editingSourceId}
                 onCancel={() => { setFormKind(null); setEditingSourceId(null); setSearchParams({ tab: 'sources' }) }}
                 onSaved={reloadAfterSave}
+                onConfigureData={id => void handleSourceConfigure(id)}
               />
             </div>
           )}
@@ -1626,11 +1560,9 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
                 source={resource.item}
                 badge={resource.badge}
                 onTest={(id) => void handleSourceTest(id)}
-                onRead={(id) => void handleSourceRead(id)}
                 onEdit={handleSourceEdit}
                 onConfigure={handleSourceConfigure}
                 testing={testingId === resource.id}
-                reading={readingId === resource.id}
                 canManage={canManageCommerce}
               />
               )}

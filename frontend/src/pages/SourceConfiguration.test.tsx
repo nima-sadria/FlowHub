@@ -221,10 +221,60 @@ describe('SourceConfiguration per-Channel mappings', () => {
     })
 
     await renderPage(adminAuth)
-    await act(async () => button('Source settings').click())
+    await act(async () => button('Manage Connection').click())
 
     expect(container.querySelector('[data-testid="location-probe"]')?.textContent)
       .toBe('/commerce?tab=sources&resource=nextcloud%3Aprimary')
+  })
+
+  it('runs Read Now for an external Source and renders the read result', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
+      ...source,
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+    })
+    const readSource = vi.fn().mockResolvedValue({
+      ok: true,
+      rows_read: 1,
+      valid_rows: 1,
+      warning_rows: 0,
+      error_rows: 0,
+      last_read_at: '2026-08-07T00:00:00Z',
+      remaining_reads_today: 9,
+      reads_used_last_24h: 1,
+    })
+    const getSourceConfiguration = vi.fn().mockResolvedValue({
+      source_id: 'nextcloud:primary',
+      provider: 'nextcloud',
+      display_name: 'Nextcloud',
+      configured: true,
+      enabled: true,
+      access_mode: 'read_only',
+      settings: {},
+      secrets: {},
+      settings_schema: [],
+      credentials_returned: false,
+    })
+    const services = {
+      commerce: { readSource, getSourceConfiguration } as unknown as CommerceService,
+      health: {},
+      products: {},
+      sources: {},
+      workspace: {},
+      settings: {},
+      activity: {},
+      writePipeline: {},
+    } as Services
+
+    await renderPage(editorAuth, '/sources/source-1', services)
+    await act(async () => {
+      button('Read now').click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(readSource).toHaveBeenCalledWith('nextcloud:primary')
+    expect(container.textContent).toContain('Source refreshed successfully')
   })
 
   it('reports a valid external connection without requiring a spreadsheet path', async () => {
@@ -248,8 +298,20 @@ describe('SourceConfiguration per-Channel mappings', () => {
       webdav_reachable: true,
       spreadsheet_found: null,
     })
+    const getSourceConfiguration = vi.fn().mockResolvedValue({
+      source_id: 'nextcloud:primary',
+      provider: 'nextcloud',
+      display_name: 'Nextcloud',
+      configured: true,
+      enabled: true,
+      access_mode: 'read_only',
+      settings: {},
+      secrets: {},
+      settings_schema: [],
+      credentials_returned: false,
+    })
     const services = {
-      commerce: { testSource } as unknown as CommerceService,
+      commerce: { testSource, getSourceConfiguration } as unknown as CommerceService,
       health: {},
       products: {},
       sources: {},
@@ -261,7 +323,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
 
     await renderPage(editorAuth, '/sources/source-1', services)
     await act(async () => {
-      button('Test connection').click()
+      button('Validate Configuration').click()
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -674,7 +736,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     })
     const actionBar = container.querySelector('[data-testid="source-configuration-actions"]') as HTMLElement
     expect(actionBar.textContent).toContain('Unsaved changes')
-    await act(async () => button('Close').click())
+    await act(async () => button('Back to Sources').click())
     expect(confirm).toHaveBeenCalledWith('Close without saving your column changes?')
   })
 

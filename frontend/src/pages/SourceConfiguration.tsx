@@ -36,7 +36,8 @@ import { effectiveHasPerm } from '../utils/permissions'
 import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 import { useOptionalServices } from '../services/ServiceContext'
 import type { CommerceTypeOption } from '../services/types'
-import { ConfigPanel } from './CommerceHub'
+import type { CommerceSourceConfiguration } from '../services/commerce/CommerceService'
+import { ConfigPanel, DEFAULT_READ_POLICY, type ReadPolicyDraft } from './CommerceHub'
 
 interface PendingWorksheetCopy {
   intent: WorksheetCopyIntent
@@ -233,6 +234,10 @@ export default function SourceConfiguration() {
   const [channelTypes, setChannelTypes] = useState<CommerceTypeOption[]>([])
   const [channelSetupLoading, setChannelSetupLoading] = useState(false)
   const [channelSetupError, setChannelSetupError] = useState(false)
+  const [externalConfig, setExternalConfig] = useState<CommerceSourceConfiguration | null>(null)
+  const [readPolicy, setReadPolicy] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
+  const [readPolicyBaseline, setReadPolicyBaseline] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
+  const [reading, setReading] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -314,6 +319,25 @@ export default function SourceConfiguration() {
     })
     return () => { active = false }
   }, [reloadToken, sourceId])
+
+  useEffect(() => {
+    if (!source || source.sourceKind !== 'external' || !source.externalSourceId || !commerce) {
+      setExternalConfig(null)
+      return
+    }
+    let active = true
+    commerce.getSourceConfiguration(source.externalSourceId).then(configuration => {
+      if (!active) return
+      setExternalConfig(configuration)
+      const loadedPolicy = configuration.settings.source_read_policy
+      const policy = loadedPolicy && typeof loadedPolicy === 'object' && !Array.isArray(loadedPolicy)
+        ? { ...DEFAULT_READ_POLICY, ...(loadedPolicy as Partial<ReadPolicyDraft>) }
+        : DEFAULT_READ_POLICY
+      setReadPolicy(policy)
+      setReadPolicyBaseline(policy)
+    }).catch(() => {})
+    return () => { active = false }
+  }, [commerce, source?.externalSourceId, source?.sourceKind, reloadToken])
 
   const configurationFingerprint = useMemo(() => JSON.stringify({
     sourceFields,
@@ -546,7 +570,7 @@ export default function SourceConfiguration() {
     setPendingCopy(null)
   }
 
-  async function testConnection() {
+  async function validateConfiguration() {
     setConnectionChecking(true)
     try {
       if (source?.sourceKind === 'external' && source.externalSourceId && commerce) {
@@ -580,6 +604,32 @@ export default function SourceConfiguration() {
   function closeConfiguration() {
     if (dirty && !window.confirm(translate('sources:sourceConfiguration.discardUnsavedChanges'))) return
     navigate('/sources')
+  }
+
+  async function readNow() {
+    if (!source?.externalSourceId || !commerce) return
+    setReading(true)
+    try {
+      const result = await commerce.readSource(source.externalSourceId)
+      if (result.ok) {
+        notify.success({
+          title: translate('commerce:commerceHub.sourceRefreshedSuccessfully'),
+          description: translate('commerce:commerceHub.rowsLoaded', { count: result.rows_read }),
+        })
+      } else {
+        notify.error({
+          title: translate('commerce:commerceHub.unableToRefreshTheSource'),
+          description: translate('commerce:commerceHub.pleaseTryAgain'),
+        })
+      }
+    } catch {
+      notify.error({
+        title: translate('commerce:commerceHub.unableToRefreshTheSource'),
+        description: translate('commerce:commerceHub.pleaseTryAgain'),
+      })
+    } finally {
+      setReading(false)
+    }
   }
 
   async function detectWorksheets() {
@@ -669,6 +719,29 @@ export default function SourceConfiguration() {
     }
   }
 
+  async function saveReadPolicy() {
+    if (!source?.externalSourceId || !commerce || !externalConfig) return
+    if (JSON.stringify(readPolicy) === JSON.stringify(readPolicyBaseline)) return
+    try {
+      await commerce.saveSource(source.externalSourceId, {
+        display_name: externalConfig.display_name,
+        enabled: externalConfig.enabled,
+        access_mode: externalConfig.access_mode,
+        description: '',
+        settings: { ...externalConfig.settings, source_read_policy: readPolicy },
+        secrets: {},
+        currency: externalConfig.currency_profile?.currency || 'IRR',
+        currency_unit: externalConfig.currency_profile?.status === 'resolved' ? externalConfig.currency_profile.unit || '' : '',
+      })
+      setReadPolicyBaseline(readPolicy)
+    } catch {
+      notify.error({
+        title: translate('sources:sourceConfiguration.readPolicyNotSaved'),
+        description: translate('sources:sourceConfiguration.tryAgain'),
+      })
+    }
+  }
+
   async function save() {
     if (!canEditSource) return
     if (!source) return
@@ -677,6 +750,7 @@ export default function SourceConfiguration() {
     setSaving(true)
     try {
       await sourceWorkspaceApi.saveMapping(source.id, payload)
+      await saveReadPolicy()
       notify.success({
         title: translate('sources:sourceConfiguration.sourceMappingSaved'),
         description: translate('sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated'),
@@ -814,6 +888,7 @@ export default function SourceConfiguration() {
           ['connection', 'sources:sourceConfiguration.detail.connection'],
           ['data-mapping', 'sources:sourceConfiguration.detail.dataMapping'],
           ['normalization', 'sources:sourceConfiguration.detail.normalization'],
+          ...(source.sourceKind === 'external' && source.externalSourceId ? [['read-policy', 'sources:sourceConfiguration.section.readPolicy']] : []),
           ['validation', 'sources:sourceConfiguration.detail.validation'],
           ['snapshots', 'sources:sourceConfiguration.detail.snapshots'],
           ['activity', 'sources:sourceConfiguration.detail.activity'],
@@ -833,8 +908,8 @@ export default function SourceConfiguration() {
             </div>
           </div>
           <div className="fh-actions">
-            {canManageCommerce && source.sourceKind === 'external' && source.externalSourceId && <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => navigate(`/commerce?tab=sources&resource=${encodeURIComponent(source.externalSourceId as string)}`)}><Icon name="settings" /> {translate('commerce:commerceHub.sourceSettings')}</button>}
-            {canEditSource && <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>}
+            {canManageCommerce && source.sourceKind === 'external' && source.externalSourceId && <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => navigate(`/commerce?tab=sources&resource=${encodeURIComponent(source.externalSourceId as string)}`)}><Icon name="settings" /> {translate('sources:sourceConfiguration.manageConnection')}</button>}
+            {canEditSource && <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.validateConfiguration')}</button>}
           </div>
         </div>
         <dl className="grid gap-x-6 gap-y-3 border-t border-border p-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -915,6 +990,47 @@ export default function SourceConfiguration() {
           </div>
         </ConfigurationSection>
       </div>
+
+      {source.sourceKind === 'external' && source.externalSourceId && (
+        <div className="mt-3">
+          <ConfigurationSection id="read-policy" title={translate('sources:sourceConfiguration.section.readPolicy')} description={translate('sources:sourceConfiguration.section.readPolicyHelp')}>
+            <div className="flex flex-col gap-3">
+              <label className="fh-inline-check">
+                <input
+                  type="checkbox"
+                  checked={readPolicy.enabled}
+                  onChange={event => setReadPolicy(current => ({ ...current, enabled: event.target.checked }))}
+                />
+                {translate('commerce:commerceHub.limitSourceReads')}
+              </label>
+              <label className="fh-inline-check">
+                <input
+                  type="checkbox"
+                  checked={readPolicy.manual_read_allowed}
+                  onChange={event => setReadPolicy(current => ({ ...current, manual_read_allowed: event.target.checked }))}
+                />
+                {translate('commerce:commerceHub.manualReadNowAllowed')}
+              </label>
+              <label className="fh-field max-w-xs">
+                <span className="fh-help-text">{translate('commerce:commerceHub.maxReadsPer24Hours')}</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={readPolicy.max_reads_per_24h}
+                  onChange={event => setReadPolicy(current => ({
+                    ...current,
+                    max_reads_per_24h: Number(event.target.value || DEFAULT_READ_POLICY.max_reads_per_24h),
+                  }))}
+                  className="fh-input"
+                />
+              </label>
+              <p className="fh-text-caption">{translate('sources:sourceConfiguration.readPolicyAcquisitionHelp')}</p>
+              <p className="fh-text-caption">{translate('sources:sourceConfiguration.readPolicyQuotaScope')}</p>
+            </div>
+          </ConfigurationSection>
+        </div>
+      )}
 
       {channelProfilesUnavailable && (
         <div className="fh-alert-warning mt-5 flex flex-wrap items-center justify-between gap-3" role="status">
@@ -1141,9 +1257,12 @@ export default function SourceConfiguration() {
         <Badge variant={dirty ? 'warning' : 'success'}>{dirty ? translate('sources:sourceConfiguration.unsavedChanges') : translate('sources:sourceConfiguration.allChangesSaved')}</Badge>
         <span className="fh-text-caption hidden sm:inline">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
         <div className="order-last grid w-full grid-cols-2 gap-2 sm:order-none sm:ms-auto sm:flex sm:w-auto sm:flex-wrap">
-          {canEditSource && <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={connectionChecking} onClick={() => void testConnection()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.testConnection')}</button>}
+          {canEditSource && <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={connectionChecking} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.validateConfiguration')}</button>}
+          {canEditSource && source.sourceKind === 'external' && source.externalSourceId && readPolicy.manual_read_allowed && (
+            <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={reading} onClick={() => void readNow()}><Icon name="refresh" /> {reading ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow')}</button>
+          )}
           {canEditSource && <button className="fh-button-primary fh-button-sm order-first col-span-2 w-full sm:order-none sm:w-auto" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
-          <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" onClick={closeConfiguration}><Icon name="close" /> {translate('sources:sourceConfiguration.close')}</button>
+          <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" onClick={closeConfiguration}><Icon name="previous" /> {translate('sources:sourceConfiguration.backToSources')}</button>
         </div>
       </div>
 
