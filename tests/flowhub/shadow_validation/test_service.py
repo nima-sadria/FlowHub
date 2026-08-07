@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 import pytest
 import sqlalchemy as sa
@@ -14,16 +15,28 @@ from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.database import FlowHubBase
 from app.flowhub.exchange_rates import models as _exchange_rates_models  # noqa: F401
 from app.flowhub.pricing_authority.models import ChannelPricingAuthorityEvent
+from app.flowhub.pricing_authority.models import ChannelPricingAuthorityHead
 from app.flowhub.pricing_authority import models as _pricing_authority_models  # noqa: F401
 from app.flowhub.pricing_evaluation.models import (
     DerivedValueEvaluation,
     FrozenEvaluationPackage,
+    ManualInputDecision,
+    ManualInputRevision,
     PackagePriceOverride,
+    PackageManualInputPin,
 )
 from app.flowhub.pricing_evaluation.contracts import EffectiveOutputSource
+from app.flowhub.pricing_evaluation.contracts import ManualInputDecisionKind
 from app.flowhub.pricing_matrix import models as _pricing_matrix_models  # noqa: F401
 from app.flowhub.shadow_validation import contracts
-from app.flowhub.shadow_validation.contracts import ComparisonConfidence, ComparisonPrimaryClassification
+from app.flowhub.shadow_validation.contracts import (
+    ComparisonConfidence,
+    ComparisonPrimaryClassification,
+    ShadowValidationWindowState,
+    ValidationWindowEventKind,
+    WindowReadinessReason,
+    WindowReadinessState,
+)
 from app.flowhub.shadow_validation.errors import (
     REASON_AUTHORITY_MISMATCH,
     REASON_CONTRACT_UNAPPROVED,
@@ -35,15 +48,26 @@ from app.flowhub.shadow_validation.errors import (
 from app.flowhub.shadow_validation.models import (
     LegacyFormulaCapture,
     ShapeComparisonContract,
+    ShadowValidationWindowHead,
+    ShadowValidationWindowEvent,
     ShadowValidationWindow,
+    ShadowReadinessDecision,
     ShadowValidationComparison,
 )
-from app.flowhub.shadow_validation.service import ShadowValidationComparisonAssemblyService
+from app.flowhub.shadow_validation.service import (
+    ShadowValidationComparisonAssemblyService,
+    ShadowValidationReadinessService,
+)
 from app.flowhub.source_acquisition import models as _source_acquisition_models  # noqa: F401
 from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: F401
 from app.flowhub.unified_workspace.domain import utcnow
 from app.flowhub.unified_workspace.models import WorkspaceChannel
-from app.flowhub.pricing_matrix.models import PricingPolicyRevision
+from app.flowhub.pricing_matrix.models import (
+    ChannelPricingPolicyHead,
+    PricingChannelConfigRevision,
+    PricingPolicyLifecycleEvent,
+    PricingPolicyRevision,
+)
 
 
 @dataclass

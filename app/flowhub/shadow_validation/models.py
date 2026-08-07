@@ -131,7 +131,10 @@ class ShadowValidationWindowEvent(FlowHubBase):
     __tablename__ = "sv_validation_window_events"
     __table_args__ = (
         CheckConstraint(f"event_kind IN ({_EVENT_KINDS})", name="ck_sv_window_event_kind"),
-        CheckConstraint(f"reason_code IN ({_REASON_CODES})", name="ck_sv_window_event_reason"),
+        CheckConstraint(
+            f"reason_code IS NULL OR reason_code IN ({_REASON_CODES})",
+            name="ck_sv_window_event_reason",
+        ),
         CheckConstraint("expected_head_version >= 0", name="ck_sv_window_event_head"),
         CheckConstraint("head_version_snapshot >= 0", name="ck_sv_window_event_snapshot"),
         Index("ix_sv_window_event_channel", "channel_id"),
@@ -154,7 +157,7 @@ class ShadowValidationWindowEvent(FlowHubBase):
     )
     actor_reference: Mapped[str] = mapped_column(String(160), nullable=False, default="")
     event_kind: Mapped[str] = mapped_column(String(20), nullable=False)
-    reason_code: Mapped[str] = mapped_column(String(80), nullable=False)
+    reason_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
     reason_payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     expected_head_version: Mapped[int] = mapped_column(Integer, nullable=False)
     head_version_snapshot: Mapped[int] = mapped_column(Integer, nullable=False)
