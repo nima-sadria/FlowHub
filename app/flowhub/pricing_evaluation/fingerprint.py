@@ -11,6 +11,7 @@ codebase) and additionally binds in the fingerprint itself.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 from app.flowhub.unified_workspace.domain import checksum
 
@@ -28,13 +29,18 @@ def compute_dependency_fingerprint(
     product_metadata_fingerprint: str | None,
     arithmetic_version: str,
     pricing_policy_revision_id: str | None,
-    source_pins: Sequence[tuple[str, str, str]],
-    manual_input_pins: Sequence[tuple[str, str]],
+    source_pins: Sequence[tuple[Any, ...]],
+    manual_input_pins: Sequence[tuple[Any, ...]],
     derived_definition_ids: Sequence[str],
 ) -> str:
-    """``source_pins`` items are ``(source_role, observation_id, observation_checksum)``.
-    ``manual_input_pins`` items are ``(manual_input_revision_id, manual_input_decision_id)``.
-    Both are sorted internally so caller ordering never affects the result."""
+    # Source pins are ordered and include source binding evidence:
+    #   (source_position, source_role, source_id, resource_binding_revision_id,
+    #    observation_id, observation_checksum, currency, unit,
+    #    scale_numerator, scale_denominator)
+    # manual_input_pins items are
+    #   (manual_input_revision_id, decision_id, key, value_numerator, value_denominator).
+    # Source pin ordering is preserved because multi-source membership order is part
+    # of manifest closure. Manual input pins are sorted for stable canonical input.
 
     payload = {
         "channel_id": channel_id,
@@ -48,7 +54,7 @@ def compute_dependency_fingerprint(
         "product_metadata_fingerprint": product_metadata_fingerprint,
         "arithmetic_version": arithmetic_version,
         "pricing_policy_revision_id": pricing_policy_revision_id,
-        "source_pins": sorted(source_pins),
+        "source_pins": list(source_pins),
         "manual_input_pins": sorted(manual_input_pins),
         "derived_definition_ids": sorted(derived_definition_ids),
     }

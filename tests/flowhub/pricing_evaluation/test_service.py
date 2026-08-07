@@ -45,6 +45,12 @@ from app.flowhub.unified_workspace.models import WorkspaceChannel
 
 NOW = datetime(2026, 8, 7, 12, 0, 0)
 
+_DEFAULT_SOURCE_BINDING_CONTEXT = {
+    "currency": "USD",
+    "unit": "USD",
+    "scale": {"numerator": 1, "denominator": 1},
+}
+
 
 @pytest.fixture()
 def db():
@@ -138,6 +144,37 @@ def _candidate(observation: SourceObservation) -> ObservationCandidate:
     )
 
 
+def _source_requirement(
+    *args: object,
+    resource_binding_revision_id: str = "binding-1",
+    schema_unit_context: dict[str, object] | None = None,
+    **kwargs: object,
+) -> SourceRequirement:
+    if args:
+        source_role = args[0]
+        source_id = args[1]
+        mode = kwargs.pop("mode") if "mode" in kwargs else args[2]
+        candidates = kwargs.pop("candidates") if "candidates" in kwargs else args[3]
+        value = kwargs.pop("value") if "value" in kwargs else args[4]
+    else:
+        source_role = kwargs.pop("source_role")
+        source_id = kwargs.pop("source_id")
+        mode = kwargs.pop("mode")
+        candidates = kwargs.pop("candidates")
+        value = kwargs.pop("value")
+
+    return SourceRequirement(
+        source_role=source_role,
+        source_id=source_id,
+        mode=mode,
+        candidates=candidates,
+        value=value,
+        resource_binding_revision_id=resource_binding_revision_id,
+        schema_unit_context=dict(schema_unit_context or _DEFAULT_SOURCE_BINDING_CONTEXT),
+        **kwargs,
+    )
+
+
 def _base_kwargs(**overrides):
     kwargs = dict(
         channel_id="woocommerce:primary",
@@ -167,7 +204,7 @@ def test_deterministic_single_source_package(db):
     result = service.create_package(
         **_base_kwargs(),
         source_requirements=(
-            SourceRequirement(
+            _source_requirement(
                 source_role="primary_vendor",
                 source_id="src-vendor-a",
                 mode=ObservationSelectionMode.LAST_APPROVED,
@@ -191,8 +228,8 @@ def test_multi_source_package_pins_exactly_one_observation_per_role(db):
     result = service.create_package(
         **_base_kwargs(),
         source_requirements=(
-            SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs_a),), Fraction(100_000)),
-            SourceRequirement("vendor_b", "src-vendor-b", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs_b),), Fraction(120_000)),
+            _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs_a),), Fraction(100_000)),
+            _source_requirement("vendor_b", "src-vendor-b", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs_b),), Fraction(120_000)),
         ),
         created_by_user=user,
         now=NOW,
@@ -208,7 +245,94 @@ def test_missing_source_fails_closed_and_creates_no_package(db):
         service.create_package(
             **_base_kwargs(),
             source_requirements=(
-                SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (), Fraction(1)),
+                _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (), Fraction(1)),
+            ),
+            created_by_user=user,
+            now=NOW,
+        )
+    assert session.query(FrozenEvaluationPackage).count() == 0
+
+
+def test_duplicate_source_role_fails_closed(db):
+    session, user = db
+    obs = _observation(session, source_id="src-vendor-a", observed_at=NOW - timedelta(hours=1), value_suffix="dup-role")
+    service = FrozenEvaluationPackageService(session)
+    with pytest.raises(DependencyResolutionError, match="source_role_duplicate"):
+        service.create_package(
+            **_base_kwargs(),
+            source_requirements=(
+                _source_requirement(
+                    "vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(100_000)
+                ),
+                _source_requirement(
+                    "vendor_a", "src-vendor-b", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(120_000),
+                    resource_binding_revision_id="binding-2",
+                ),
+            ),
+            created_by_user=user,
+            now=NOW,
+        )
+    assert session.query(FrozenEvaluationPackage).count() == 0
+
+
+def test_source_binding_revision_missing_fails_closed(db):
+    session, user = db
+    obs = _observation(session, source_id="src-vendor-a", observed_at=NOW - timedelta(hours=1), value_suffix="binding-missing")
+    service = FrozenEvaluationPackageService(session)
+    with pytest.raises(DependencyResolutionError, match="source_binding_revision_missing"):
+        service.create_package(
+            **_base_kwargs(),
+            source_requirements=(
+                _source_requirement(
+                    "vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(100_000),
+                    resource_binding_revision_id=None,
+                ),
+            ),
+            created_by_user=user,
+            now=NOW,
+        )
+    assert session.query(FrozenEvaluationPackage).count() == 0
+
+
+@pytest.mark.parametrize(
+    ("label", "context", "reason"),
+    [
+        (
+            "missing_currency",
+            {"unit": "USD", "scale": {"numerator": 1, "denominator": 1}},
+            "source_currency_unresolved",
+        ),
+        (
+            "missing_unit",
+            {"currency": "USD", "scale": {"numerator": 1, "denominator": 1}},
+            "source_unit_unresolved",
+        ),
+        (
+            "missing_scale",
+            {"currency": "USD", "unit": "USD"},
+            "source_scale_unresolved",
+        ),
+        (
+            "invalid_scale",
+            {"currency": "USD", "unit": "USD", "scale": {"numerator": 0, "denominator": -1}},
+            "source_scale_unresolved",
+        ),
+    ],
+)
+def test_source_binding_context_fails_closed_when_not_resolved(db, label, context, reason):
+    session, user = db
+    obs = _observation(
+        session, source_id="src-vendor-a", observed_at=NOW - timedelta(hours=1), value_suffix=f"unresolved-{label}"
+    )
+    service = FrozenEvaluationPackageService(session)
+    with pytest.raises(DependencyResolutionError, match=reason):
+        service.create_package(
+            **_base_kwargs(),
+            source_requirements=(
+                _source_requirement(
+                    "vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(100_000),
+                    schema_unit_context=context,
+                ),
             ),
             created_by_user=user,
             now=NOW,
@@ -224,7 +348,7 @@ def test_stale_source_fails_closed(db):
         service.create_package(
             **_base_kwargs(),
             source_requirements=(
-                SourceRequirement(
+                _source_requirement(
                     "vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),),
                     Fraction(1), freshness_max_age=timedelta(days=7), require_fresh=True,
                 ),
@@ -244,8 +368,8 @@ def test_cross_source_skew_violation_fails_closed(db):
         service.create_package(
             **_base_kwargs(),
             source_requirements=(
-                SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs_a),), Fraction(1)),
-                SourceRequirement("vendor_b", "src-vendor-b", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs_b),), Fraction(1)),
+                _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs_a),), Fraction(1)),
+                _source_requirement("vendor_b", "src-vendor-b", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs_b),), Fraction(1)),
             ),
             cross_source_skew_tolerance=timedelta(hours=6),
             created_by_user=user,
@@ -261,7 +385,7 @@ def test_aligned_business_cycle_selection(db):
     result = service.create_package(
         **_base_kwargs(),
         source_requirements=(
-            SourceRequirement(
+            _source_requirement(
                 "vendor_a", "src-vendor-a", ObservationSelectionMode.ALIGNED_BUSINESS_CYCLE,
                 (ObservationCandidate(obs.id, obs.checksum, obs.observed_at, business_cycle_identity="2026-W31"),),
                 Fraction(1), business_cycle_identity="2026-W31",
@@ -280,7 +404,7 @@ def test_explicit_observation_selection(db):
     result = service.create_package(
         **_base_kwargs(),
         source_requirements=(
-            SourceRequirement(
+            _source_requirement(
                 "vendor_a", "src-vendor-a", ObservationSelectionMode.EXPLICIT_OBSERVATION,
                 (_candidate(obs),), Fraction(1), explicit_observation_id=obs.id,
             ),
@@ -328,7 +452,7 @@ def test_manual_approved_selection_is_pinned(db):
     result = service.create_package(
         **_base_kwargs(),
         source_requirements=(
-            SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(100_000)),
+            _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(100_000)),
         ),
         manual_input_requirements=(
             ManualInputRequirement(manual_input_revision_id=revision.id, key="ref_price", value=Fraction(100_000)),
@@ -361,7 +485,7 @@ def test_manual_ambiguity_fails_closed(db):
         service.create_package(
             **_base_kwargs(),
             source_requirements=(
-                SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
+                _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
             ),
             manual_input_requirements=(
                 ManualInputRequirement(manual_input_revision_id=revision.id, key="ref_price", value=Fraction(1)),
@@ -388,7 +512,7 @@ def test_revoked_manual_input_fails_closed(db):
         service.create_package(
             **_base_kwargs(),
             source_requirements=(
-                SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
+                _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
             ),
             manual_input_requirements=(
                 ManualInputRequirement(manual_input_revision_id=revision.id, key="ref_price", value=Fraction(1)),
@@ -415,10 +539,74 @@ def test_expired_manual_input_fails_closed(db):
         service.create_package(
             **_base_kwargs(),
             source_requirements=(
-                SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
+                _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
             ),
             manual_input_requirements=(
                 ManualInputRequirement(manual_input_revision_id=revision.id, key="ref_price", value=Fraction(1)),
+            ),
+            created_by_user=user,
+            now=NOW,
+        )
+
+
+def test_manual_input_duplicate_key_fails_closed(db):
+    session, user = db
+    obs = _observation(session, source_id="src-vendor-a", observed_at=NOW - timedelta(hours=1), value_suffix="manual-duplicate-key")
+    revision, _decision = _manual_input(session, user, decision_kind=ManualInputDecisionKind.APPROVED)
+    service = FrozenEvaluationPackageService(session)
+    with pytest.raises(DependencyResolutionError, match="manual_input_key_duplicate"):
+        service.create_package(
+            **_base_kwargs(),
+            source_requirements=(
+                _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
+            ),
+            manual_input_requirements=(
+                ManualInputRequirement(manual_input_revision_id=revision.id, key="dup", value=Fraction(1)),
+                ManualInputRequirement(manual_input_revision_id=revision.id, key="dup", value=Fraction(2)),
+            ),
+            created_by_user=user,
+            now=NOW,
+        )
+    assert session.query(FrozenEvaluationPackage).count() == 0
+
+
+def test_manual_metadata_requires_currency_and_unit(db):
+    session, user = db
+    obs = _observation(session, source_id="src-vendor-a", observed_at=NOW - timedelta(hours=1), value_suffix="manual-metadata")
+    revision = ManualInputRevision(
+        id=str(uuid.uuid4()),
+        kind=ManualInputKind.MANUAL_METADATA.value,
+        channel_id="woocommerce:primary",
+        product_ref="SKU-1",
+        revision_number=1,
+        value_json={"value": "{}", "metadata_key": "x"},
+        currency="USD",
+        unit=None,
+        checksum=str(uuid.uuid4()),
+        created_by_user_id=user.id,
+    )
+    session.add(revision)
+    session.flush()
+    session.add(
+        ManualInputDecision(
+            id=str(uuid.uuid4()),
+            manual_input_revision_id=revision.id,
+            decision=ManualInputDecisionKind.APPROVED.value,
+            actor_user_id=user.id,
+            reason="approved",
+        )
+    )
+    session.commit()
+
+    service = FrozenEvaluationPackageService(session)
+    with pytest.raises(DependencyResolutionError, match="manual_input_scope_mismatch"):
+        service.create_package(
+            **_base_kwargs(),
+            source_requirements=(
+                _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
+            ),
+            manual_input_requirements=(
+                ManualInputRequirement(manual_input_revision_id=revision.id, key="manual_metadata", value=Fraction(1)),
             ),
             created_by_user=user,
             now=NOW,
@@ -436,7 +624,7 @@ def test_override_preserves_candidate_override_and_effective_output_separately(d
     result = service.create_package(
         **_base_kwargs(),
         source_requirements=(
-            SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(100_000)),
+            _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(100_000)),
         ),
         calculated_candidate=Fraction(110_000),
         override=OverrideRequest(override_value=Fraction(99_000), manual_input_decision_id=decision.id),
@@ -458,7 +646,7 @@ def test_no_override_still_records_the_calculated_candidate_as_effective(db):
     result = service.create_package(
         **_base_kwargs(),
         source_requirements=(
-            SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(100_000)),
+            _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(100_000)),
         ),
         calculated_candidate=Fraction(110_000),
         created_by_user=user,
@@ -491,7 +679,7 @@ def test_derived_values_are_evaluated_and_persisted_in_order(db):
     result = service.create_package(
         **_base_kwargs(),
         source_requirements=(
-            SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(100_000)),
+            _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(100_000)),
         ),
         derived_definitions=(step1, step2),
         created_by_user=user,
@@ -521,7 +709,7 @@ def test_cross_package_derived_dependency_is_rejected(db):
         service.create_package(
             **_base_kwargs(),
             source_requirements=(
-                SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
+                _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
             ),
             derived_definitions=(foreign_ref_definition,),
             created_by_user=user,
@@ -540,7 +728,7 @@ def test_fx_unit_config_pins_are_persisted(db):
     result = service.create_package(
         **_base_kwargs(currency_unit_registry_version="unit-registry-v7"),
         source_requirements=(
-            SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
+            _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
         ),
         created_by_user=user,
         now=NOW,
@@ -556,7 +744,7 @@ def test_immutability_rejects_update_and_delete(db):
     result = service.create_package(
         **_base_kwargs(),
         source_requirements=(
-            SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
+            _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
         ),
         created_by_user=user,
         now=NOW,
@@ -575,7 +763,7 @@ def test_channel_isolation_a_blocked_channel_does_not_affect_another(db):
         service.create_package(
             **_base_kwargs(channel_id="snappshop:primary"),
             source_requirements=(
-                SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (), Fraction(1)),
+                _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (), Fraction(1)),
             ),
             created_by_user=user,
             now=NOW,
@@ -583,7 +771,7 @@ def test_channel_isolation_a_blocked_channel_does_not_affect_another(db):
     result = service.create_package(
         **_base_kwargs(channel_id="woocommerce:primary"),
         source_requirements=(
-            SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs_ok),), Fraction(1)),
+            _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs_ok),), Fraction(1)),
         ),
         created_by_user=user,
         now=NOW,
@@ -598,7 +786,7 @@ def test_replay_determinism_same_inputs_produce_the_same_fingerprint(db):
     kwargs = dict(
         **_base_kwargs(),
         source_requirements=(
-            SourceRequirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
+            _source_requirement("vendor_a", "src-vendor-a", ObservationSelectionMode.LAST_APPROVED, (_candidate(obs),), Fraction(1)),
         ),
         created_by_user=user,
         now=NOW,

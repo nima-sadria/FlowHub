@@ -21,6 +21,7 @@ from app.flowhub.pricing_evaluation.contracts import (
     PRICING_EVALUATION_ARITHMETIC_VERSION,
     DependencyRefKind,
     EffectiveOutputSource,
+    ManualInputKind,
     ManualInputDecisionKind,
     ObservationSelectionMode,
     SkewResult,
@@ -35,8 +36,14 @@ from app.flowhub.pricing_evaluation.errors import (
     REASON_CHANNEL_NOT_FOUND,
     REASON_CROSS_SOURCE_SKEW_VIOLATION,
     REASON_DERIVED_DEPENDENCY_MISSING,
+    REASON_MANUAL_INPUT_KEY_DUPLICATE,
     REASON_MANUAL_INPUT_MISSING,
     REASON_MANUAL_INPUT_SCOPE_MISMATCH,
+    REASON_SOURCE_BINDING_REVISION_MISSING,
+    REASON_SOURCE_CURRENCY_UNRESOLVED,
+    REASON_SOURCE_ROLE_DUPLICATE,
+    REASON_SOURCE_SCALE_UNRESOLVED,
+    REASON_SOURCE_UNIT_UNRESOLVED,
     DependencyResolutionError,
     DerivedValueError,
 )
@@ -91,6 +98,50 @@ class SourceRequirement:
     require_fresh: bool = True
     selection_policy_version: str | None = None
     schema_unit_context: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class _SourceBindingContext:
+    currency: str
+    unit: str
+    scale_numerator: int
+    scale_denominator: int
+
+
+def _coerce_non_empty_str(*, value: Any, reason: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise DependencyResolutionError(reason)
+    return value.strip()
+
+
+def _coerce_positive_int(*, value: Any, reason: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise DependencyResolutionError(reason)
+    return int(value)
+
+
+def _extract_source_binding_context(context: dict[str, Any]) -> _SourceBindingContext:
+    currency = _coerce_non_empty_str(
+        value=context.get("currency"), reason=REASON_SOURCE_CURRENCY_UNRESOLVED
+    )
+    unit = _coerce_non_empty_str(
+        value=context.get("unit"), reason=REASON_SOURCE_UNIT_UNRESOLVED
+    )
+    scale = context.get("scale")
+    if not isinstance(scale, dict):
+        raise DependencyResolutionError(REASON_SOURCE_SCALE_UNRESOLVED)
+    numerator = _coerce_positive_int(
+        value=scale.get("numerator"), reason=REASON_SOURCE_SCALE_UNRESOLVED
+    )
+    denominator = _coerce_positive_int(
+        value=scale.get("denominator"), reason=REASON_SOURCE_SCALE_UNRESOLVED
+    )
+    return _SourceBindingContext(
+        currency=currency.upper(),
+        unit=unit.upper(),
+        scale_numerator=numerator,
+        scale_denominator=denominator,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,9 +226,16 @@ class FrozenEvaluationPackageService:
             raise DependencyResolutionError(REASON_CHANNEL_NOT_FOUND)
 
         # -- B. Multi-source Observation selection -----------------------------
-        selected_by_role: dict[str, tuple[SourceRequirement, SelectionResult]] = {}
+        selected_by_role: dict[str, tuple[SourceRequirement, SelectionResult, _SourceBindingContext]] = {}
+        source_ordered_picks: list[tuple[int, str]] = []
         observed_at_by_role: dict[str, datetime] = {}
-        for requirement in source_requirements:
+        for position, requirement in enumerate(source_requirements):
+            if requirement.source_role in selected_by_role:
+                raise DependencyResolutionError(REASON_SOURCE_ROLE_DUPLICATE)
+
+            binding_context = _extract_source_binding_context(requirement.schema_unit_context)
+            if requirement.resource_binding_revision_id is None:
+                raise DependencyResolutionError(REASON_SOURCE_BINDING_REVISION_MISSING)
             result = select_observation(
                 mode=requirement.mode,
                 candidates=requirement.candidates,
@@ -189,7 +247,8 @@ class FrozenEvaluationPackageService:
                 freshness_max_age=requirement.freshness_max_age,
                 require_fresh=requirement.require_fresh,
             )
-            selected_by_role[requirement.source_role] = (requirement, result)
+            selected_by_role[requirement.source_role] = (requirement, result, binding_context)
+            source_ordered_picks.append((position, requirement.source_role))
             observed_at_by_role[requirement.source_role] = result.candidate.observed_at
 
         skew_result = evaluate_cross_source_skew(
@@ -201,10 +260,19 @@ class FrozenEvaluationPackageService:
         # -- C. Manual inputs ----------------------------------------------------
         manual_decisions: dict[str, ManualInputDecision] = {}
         manual_values: dict[str, Fraction] = {}
+        manual_input_keys: set[str] = set()
         for req in manual_input_requirements:
+            if req.key in manual_input_keys:
+                raise DependencyResolutionError(REASON_MANUAL_INPUT_KEY_DUPLICATE)
+            manual_input_keys.add(req.key)
+
             revision = self.db.get(ManualInputRevision, req.manual_input_revision_id)
             if revision is None:
                 raise DependencyResolutionError(REASON_MANUAL_INPUT_MISSING)
+            if revision.kind == ManualInputKind.MANUAL_METADATA.value and (
+                revision.currency is None or revision.unit is None
+            ):
+                raise DependencyResolutionError(REASON_MANUAL_INPUT_SCOPE_MISMATCH)
             if revision.channel_id is not None and revision.channel_id != channel_id:
                 raise DependencyResolutionError(REASON_MANUAL_INPUT_SCOPE_MISMATCH)
             if revision.product_ref is not None and revision.product_ref != product_ref:
@@ -218,8 +286,9 @@ class FrozenEvaluationPackageService:
                 package_id = _id()
 
                 source_pin_rows: list[PackageSourceObservationPin] = []
-                source_pin_tuples: list[tuple[str, str, str]] = []
-                for role, (requirement, result) in sorted(selected_by_role.items()):
+                source_pin_tuples: list[tuple[int, str, str, str, str, str, str, str, int, int]] = []
+                for position, role in sorted(source_ordered_picks):
+                    requirement, result, binding_context = selected_by_role[role]
                     pin = PackageSourceObservationPin(
                         id=_id(),
                         frozen_evaluation_package_id=package_id,
@@ -240,12 +309,23 @@ class FrozenEvaluationPackageService:
                     )
                     source_pin_rows.append(pin)
                     source_pin_tuples.append(
-                        (role, result.candidate.observation_id, result.candidate.checksum)
+                        (
+                            position,
+                            role,
+                            requirement.source_id,
+                            requirement.resource_binding_revision_id,
+                            result.candidate.observation_id,
+                            result.candidate.checksum,
+                            binding_context.currency,
+                            binding_context.unit,
+                            binding_context.scale_numerator,
+                            binding_context.scale_denominator,
+                        )
                     )
                 self.db.add_all(source_pin_rows)
 
                 manual_pin_rows: list[PackageManualInputPin] = []
-                manual_pin_tuples: list[tuple[str, str]] = []
+                manual_pin_tuples: list[tuple[str, str, str, int, int]] = []
                 for req in manual_input_requirements:
                     decision = manual_decisions[req.manual_input_revision_id]
                     manual_pin_rows.append(
@@ -256,7 +336,15 @@ class FrozenEvaluationPackageService:
                             manual_input_decision_id=decision.id,
                         )
                     )
-                    manual_pin_tuples.append((req.manual_input_revision_id, decision.id))
+                    manual_pin_tuples.append(
+                        (
+                            req.manual_input_revision_id,
+                            decision.id,
+                            req.key,
+                            req.value.numerator,
+                            req.value.denominator,
+                        )
+                    )
                 self.db.add_all(manual_pin_rows)
 
                 # -- E. Derived values --------------------------------------------
@@ -265,8 +353,8 @@ class FrozenEvaluationPackageService:
                 order = topological_order(draft_by_key)
 
                 leaf_values: dict[str, Fraction] = {}
-                for role, (_requirement, _result) in selected_by_role.items():
-                    leaf_values[role] = selected_by_role[role][0].value
+                for role, (requirement, _result, _binding_context) in selected_by_role.items():
+                    leaf_values[role] = requirement.value
                 leaf_values.update(manual_values)
 
                 key_to_definition_id: dict[str, str] = {}

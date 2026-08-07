@@ -22,33 +22,147 @@ _BASE_KWARGS = dict(
 )
 
 
-def test_fingerprint_is_stable_for_identical_inputs_regardless_of_pin_ordering():
+_SOURCE_PIN_A = (
+    0,
+    "vendor_a",
+    "src-a",
+    "bind-a",
+    "obs-1",
+    "cs-1",
+    "USD",
+    "USD",
+    1_000_000,
+    1,
+)
+
+_SOURCE_PIN_B = (
+    1,
+    "vendor_b",
+    "src-b",
+    "bind-b",
+    "obs-2",
+    "cs-2",
+    "USD",
+    "USD",
+    1_000,
+    1,
+)
+
+_SOURCE_PIN_A_ALT = (
+    1,
+    "vendor_a",
+    "src-a",
+    "bind-a",
+    "obs-1",
+    "cs-1",
+    "USD",
+    "USD",
+    1_000_000,
+    1,
+)
+
+
+def test_fingerprint_is_stable_for_identical_inputs_in_the_same_manifest_order():
     a = compute_dependency_fingerprint(
         **_BASE_KWARGS,
-        source_pins=[("vendor_a", "obs-1", "cs-1"), ("vendor_b", "obs-2", "cs-2")],
-        manual_input_pins=[("mir-1", "mid-1")],
+        source_pins=[_SOURCE_PIN_A, _SOURCE_PIN_B],
+        manual_input_pins=[("mir-1", "mid-1", "ref_price", 100_000, 1)],
         derived_definition_ids=["def-1", "def-2"],
     )
     b = compute_dependency_fingerprint(
         **_BASE_KWARGS,
-        source_pins=[("vendor_b", "obs-2", "cs-2"), ("vendor_a", "obs-1", "cs-1")],
-        manual_input_pins=[("mir-1", "mid-1")],
+        source_pins=[_SOURCE_PIN_A, _SOURCE_PIN_B],
+        manual_input_pins=[("mir-1", "mid-1", "ref_price", 100_000, 1)],
         derived_definition_ids=["def-2", "def-1"],
     )
     assert a == b
 
 
+def test_fingerprint_is_order_sensitive_for_multi_source_memberships():
+    a = compute_dependency_fingerprint(
+        **_BASE_KWARGS,
+        source_pins=[_SOURCE_PIN_A, _SOURCE_PIN_B],
+        manual_input_pins=[("mir-1", "mid-1", "ref_price", 100_000, 1)],
+        derived_definition_ids=[],
+    )
+    b = compute_dependency_fingerprint(
+        **_BASE_KWARGS,
+        source_pins=[_SOURCE_PIN_B, _SOURCE_PIN_A_ALT],
+        manual_input_pins=[("mir-1", "mid-1", "ref_price", 100_000, 1)],
+        derived_definition_ids=[],
+    )
+    assert a != b
+
+
 def test_fingerprint_changes_when_an_observation_pin_changes():
     a = compute_dependency_fingerprint(
         **_BASE_KWARGS,
-        source_pins=[("vendor_a", "obs-1", "cs-1")],
+        source_pins=[_SOURCE_PIN_A],
+        manual_input_pins=[("mir-1", "mid-1", "ref_price", 100_000, 1)],
+        derived_definition_ids=[],
+    )
+    b = compute_dependency_fingerprint(
+        **_BASE_KWARGS,
+        source_pins=[
+            (
+                0,
+                "vendor_a",
+                "src-a",
+                "bind-a",
+                "obs-1",
+                "cs-1-different-checksum",
+                "USD",
+                "USD",
+                1_000_000,
+                1,
+            )
+        ],
+        manual_input_pins=[("mir-1", "mid-1", "ref_price", 100_000, 1)],
+        derived_definition_ids=[],
+    )
+    assert a != b
+
+
+def test_fingerprint_changes_when_source_binding_revision_changes():
+    a = compute_dependency_fingerprint(
+        **_BASE_KWARGS,
+        source_pins=[_SOURCE_PIN_A],
         manual_input_pins=[],
         derived_definition_ids=[],
     )
     b = compute_dependency_fingerprint(
         **_BASE_KWARGS,
-        source_pins=[("vendor_a", "obs-1", "cs-1-different-checksum")],
+        source_pins=[
+            (
+                0,
+                "vendor_a",
+                "src-a",
+                "bind-a2",
+                "obs-1",
+                "cs-1",
+                "USD",
+                "USD",
+                1_000_000,
+                1,
+            )
+        ],
         manual_input_pins=[],
+        derived_definition_ids=[],
+    )
+    assert a != b
+
+
+def test_fingerprint_changes_when_manual_input_value_changes():
+    a = compute_dependency_fingerprint(
+        **_BASE_KWARGS,
+        source_pins=[],
+        manual_input_pins=[("mir-1", "mid-1", "ref_price", 100_000, 1)],
+        derived_definition_ids=[],
+    )
+    b = compute_dependency_fingerprint(
+        **_BASE_KWARGS,
+        source_pins=[],
+        manual_input_pins=[("mir-1", "mid-1", "ref_price", 100_001, 1)],
         derived_definition_ids=[],
     )
     assert a != b
