@@ -574,6 +574,24 @@ Required browser matrix:
 - LF-to-CRLF warnings are present on Windows but `git diff --check` is clean. Avoid broad line-ending rewrites.
 - All listed modified and untracked files contain unique work. Deleting them would lose work.
 
+## Phase C closure snapshot
+
+- Pricing Migration Foundation phase statuses:
+  - Phase C2 complete (`3c13a93`).
+  - Phase C3 complete (`c6c5325`).
+  - Phase C4 complete (`62cff43`).
+  - Phase C5 completed (test hardening and closure): transaction boundaries, CAS/finality, race and replay safety, and deterministic invalidation behavior.
+- `FLOWHUB_030` is the active migration target for Shadow Validation table + versioned head/state model.
+- Test baselines captured:
+  - Shadow Validation: 54 passed.
+- Pricing Evaluation focused: 70 passed.
+- Pricing Authority focused: 11 passed.
+  - Migration 028→030: 5 passed.
+  - Full backend (`tests/flowhub`, `PYTHONPATH=.` + `--import-mode=importlib`): 2061 passed, 26 skipped, 1 failed.
+- Remaining work after C5:
+  - Continue remaining Pricing Migration phases per product roadmap.
+  - Resolve unrelated legacy release-compatibility migration fixture issue in `test_release_compatibility` before claiming full-suite green.
+
 ## Remaining phases and token estimate
 
 These are engineering estimates, not budgets or guarantees:

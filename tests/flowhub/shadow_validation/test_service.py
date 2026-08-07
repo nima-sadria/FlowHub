@@ -111,6 +111,12 @@ def db():
         reason="seed",
         request_metadata_json={},
     )
+    authority_head = ChannelPricingAuthorityHead(
+        channel_id=channel.id,
+        current_authority="legacy_formula_engine",
+        effective_event_id=authority_event.id,
+        head_version=0,
+    )
     policy_revision = PricingPolicyRevision(
         id="policy-revision-1",
         policy_id="policy-1",
@@ -221,6 +227,12 @@ def db():
         required_distinct_matches=1,
         configuration_checksum="window-checksum-1",
     )
+    window_head = ShadowValidationWindowHead(
+        channel_id=channel.id,
+        current_window_id=window.id,
+        current_state=ShadowValidationWindowState.COLLECTING.value,
+        head_version=0,
+    )
     override = PackagePriceOverride(
         id="override-1",
         frozen_evaluation_package_id=fep.id,
@@ -253,6 +265,8 @@ def db():
             window,
             override,
             derived_evaluation,
+            authority_head,
+            window_head,
         )
     )
     session.commit()
@@ -522,6 +536,8 @@ def test_assemble_rejects_authority_mismatch(db):
     session.commit()
     session.add(authority_event_2)
     session.commit()
+    validation_head = session.query(ShadowValidationWindowHead).filter_by(channel_id=fixture.channel_id).one()
+    validation_head.current_window_id = authority_event_2.id
 
     with pytest.raises(ShadowValidationError) as exc:
         _build_service(session).assemble(
@@ -566,6 +582,8 @@ def test_assemble_rejects_policy_mismatch(db):
     )
     session.add_all((second_revision, mismatch_window))
     session.commit()
+    validation_head = session.query(ShadowValidationWindowHead).filter_by(channel_id=fixture.channel_id).one()
+    validation_head.current_window_id = mismatch_window.id
 
     with pytest.raises(ShadowValidationError) as exc:
         _build_service(session).assemble(

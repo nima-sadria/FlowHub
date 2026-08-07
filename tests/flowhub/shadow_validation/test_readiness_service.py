@@ -379,6 +379,66 @@ def _add_comparison(
     )
 
 
+def _add_channel_comparison(
+    session: sa.orm.Session,
+    *,
+    channel_id: str,
+    window_id: str,
+    contract_id: str,
+    package_id: str,
+    capture_id: str,
+    comparison_id: str,
+    classification: str,
+    confidence: str = ComparisonConfidence.VERIFIED.value,
+    created_at=None,
+) -> ShadowValidationComparison:
+    contract = session.get(ShapeComparisonContract, contract_id)
+    package = session.get(FrozenEvaluationPackage, package_id)
+    capture = session.get(LegacyFormulaCapture, capture_id)
+    if contract is None or package is None or capture is None:
+        raise AssertionError("missing channel comparison fixture")
+
+    return ShadowValidationComparison(
+        id=comparison_id,
+        channel_id=channel_id,
+        validation_window_id=window_id,
+        frozen_evaluation_package_id=package_id,
+        legacy_formula_capture_id=capture_id,
+        shape_id=contract.shape_id,
+        comparison_contract_id=contract_id,
+        stable_rule_identity=json.dumps(contract.stable_rule_identity_json, sort_keys=True),
+        comparison_contract_revision=contract.contract_revision,
+        comparison_contract_revision_checksum=contract.contract_checksum,
+        comparison_algorithm_version="shadow-validation-comparison-v1",
+        comparison_identity_checksum=compute_comparison_identity_checksum(
+            channel_id=channel_id,
+            stable_rule_identity=json.dumps(contract.stable_rule_identity_json, sort_keys=True),
+            frozen_evaluation_package_id=package.id,
+            frozen_evaluation_package_checksum=package.checksum,
+            legacy_formula_capture_id=capture.id,
+            legacy_formula_capture_checksum=capture.capture_checksum,
+            comparison_contract_id=contract.id,
+            comparison_contract_checksum=contract.contract_checksum,
+            comparison_algorithm_version="shadow-validation-comparison-v1",
+        ),
+        frozen_evaluation_package_checksum=package.checksum,
+        legacy_capture_checksum=capture.capture_checksum,
+        translator_version=package.translator_version,
+        required_output_lanes="both",
+        confidence=confidence,
+        primary_classification=classification,
+        secondary_classifications_json=[],
+        legacy_vs_package_context_json={},
+        legacy_output_json={},
+        package_output_json={},
+        findings_json=[],
+        actor_user_id=None,
+        reason_code=None,
+        correlation_id=f"cmp-{comparison_id}",
+        created_at=created_at or utcnow(),
+    )
+
+
 def _replace_active_window(
     session: sa.orm.Session,
     fixture: ReadinessFixture,
@@ -1036,3 +1096,499 @@ def test_seal_window_keeps_decisions_append_only_and_links_events(db: ReadinessF
     assert events[1].event_kind == ValidationWindowEventKind.INVALIDATED.value
     assert events[1].predecessor_event_id == events[0].id
     assert fixture.session.query(ShadowReadinessDecision).count() == 2
+
+
+def test_seal_window_duplicate_requests_are_append_only_for_identical_projection(db: ReadinessFixture):
+    fixture = db
+    fixture.session.add(
+        _add_comparison(
+            fixture.session,
+            fixture,
+            contract_id=fixture.contract_id,
+            package_id=fixture.package_id,
+            capture_id=fixture.capture_id,
+            comparison_id="comparison-duplicate-stable",
+            classification=ComparisonPrimaryClassification.EXACT_MATCH.value,
+            confidence=ComparisonConfidence.VERIFIED.value,
+        )
+    )
+    fixture.session.commit()
+    service = _service(fixture.session)
+
+    first = service.seal_window(channel_id=fixture.channel_id, expected_head_version=0, correlation_id="dup-1")
+    second = service.seal_window(
+        channel_id=fixture.channel_id,
+        expected_head_version=1,
+        correlation_id="dup-2",
+    )
+
+    decisions = fixture.session.query(ShadowReadinessDecision).filter_by(channel_id=fixture.channel_id).all()
+    assert len(decisions) == 2
+    assert decisions[0].decision == decisions[1].decision == WindowReadinessState.READY.value
+    assert decisions[0].id != decisions[1].id
+    assert not first.cas_conflict
+    assert not second.cas_conflict
+
+
+def test_seal_window_rejects_stale_projection_when_state_changes_mid_call(db: ReadinessFixture, monkeypatch):
+    fixture = db
+    fixture.session.add(
+        _add_comparison(
+            fixture.session,
+            fixture,
+            contract_id=fixture.contract_id,
+            package_id=fixture.package_id,
+            capture_id=fixture.capture_id,
+            comparison_id="comparison-ongoing",
+            classification=ComparisonPrimaryClassification.EXACT_MATCH.value,
+        )
+    )
+    fixture.session.commit()
+
+    service = _service(fixture.session)
+    original_snapshot = service._snapshot
+    call_count = {"value": 0}
+
+    def snapshot_race(*, channel_id: str, now=None):
+        call_count["value"] += 1
+        snapshot = original_snapshot(channel_id=channel_id, now=now)
+        if call_count["value"] != 2:
+            return snapshot
+
+        base_package = fixture.session.get(FrozenEvaluationPackage, fixture.package_id)
+        if base_package is None:
+            raise AssertionError("base package missing")
+        fixture.session.add(
+            FrozenEvaluationPackage(
+                id="fep-race",
+                channel_id=fixture.channel_id,
+                product_ref="sku-shadow",
+                workspace_pricing_evaluated_at=utcnow(),
+                formula_shape_id=base_package.formula_shape_id,
+                translator_version=base_package.translator_version,
+                currency_unit_registry_version=base_package.currency_unit_registry_version,
+                arithmetic_version=base_package.arithmetic_version,
+                dependency_fingerprint=base_package.dependency_fingerprint,
+                checksum="fep-race-checksum",
+                pricing_policy_revision_id=base_package.pricing_policy_revision_id,
+                channel_config_revision_id=base_package.channel_config_revision_id,
+            )
+        )
+        fixture.session.flush()
+        return original_snapshot(channel_id=channel_id, now=now)
+
+    monkeypatch.setattr(service, "_snapshot", snapshot_race)
+    result = service.seal_window(channel_id=fixture.channel_id, expected_head_version=0, correlation_id="race")
+
+    assert result.cas_conflict
+    assert result.decision is None
+    assert result.transition is None
+    assert result.reason_code == WindowReadinessReason.CAS_CONFLICT.value
+    assert fixture.session.query(ShadowValidationWindowEvent).count() == 0
+    assert fixture.session.query(ShadowReadinessDecision).count() == 0
+
+
+def test_seal_window_decision_persistence_failure_rolls_back_side_effects(db: ReadinessFixture, monkeypatch):
+    fixture = db
+    fixture.session.add(
+        _add_comparison(
+            fixture.session,
+            fixture,
+            contract_id=fixture.contract_id,
+            package_id=fixture.package_id,
+            capture_id=fixture.capture_id,
+            comparison_id="comparison-flush-failure",
+            classification=ComparisonPrimaryClassification.EXACT_MATCH.value,
+        )
+    )
+    fixture.session.commit()
+
+    service = _service(fixture.session)
+
+    original_flush = service.db.flush
+    flush_calls = {"value": 0}
+
+    def failing_flush():
+        flush_calls["value"] += 1
+        if flush_calls["value"] == 1:
+            raise RuntimeError("flush failed")
+        return original_flush()
+
+    monkeypatch.setattr(service.db, "flush", failing_flush)
+    with pytest.raises(RuntimeError, match="flush failed"):
+        service.seal_window(channel_id=fixture.channel_id, expected_head_version=0)
+
+    assert fixture.session.query(ShadowValidationWindowEvent).count() == 0
+    assert fixture.session.query(ShadowReadinessDecision).count() == 0
+    head = fixture.session.get(ShadowValidationWindowHead, fixture.channel_id)
+    assert head is not None and head.head_version == 0
+    assert head.current_state == ShadowValidationWindowState.COLLECTING.value
+
+
+def test_seal_window_event_persistence_failure_rolls_back_side_effects(db: ReadinessFixture, monkeypatch):
+    fixture = db
+    fixture.session.add(
+        _add_comparison(
+            fixture.session,
+            fixture,
+            contract_id=fixture.contract_id,
+            package_id=fixture.package_id,
+            capture_id=fixture.capture_id,
+            comparison_id="comparison-event-failure",
+            classification=ComparisonPrimaryClassification.EXACT_MATCH.value,
+        )
+    )
+    fixture.session.commit()
+
+    service = _service(fixture.session)
+    original_add = service.db.add
+
+    def failing_add(entity):
+        if isinstance(entity, ShadowValidationWindowEvent):
+            raise RuntimeError("event failed")
+        return original_add(entity)
+
+    monkeypatch.setattr(service.db, "add", failing_add)
+    with pytest.raises(RuntimeError, match="event failed"):
+        service.seal_window(channel_id=fixture.channel_id, expected_head_version=0)
+
+    assert fixture.session.query(ShadowValidationWindowEvent).count() == 0
+    assert fixture.session.query(ShadowReadinessDecision).count() == 0
+    head = fixture.session.get(ShadowValidationWindowHead, fixture.channel_id)
+    assert head is not None and head.head_version == 0
+
+
+def test_seal_window_rejects_projection_if_new_inconsistent_comparison_arrives_during_seal(
+    db: ReadinessFixture, monkeypatch
+):
+    fixture = db
+    fixture.session.add(
+        _add_comparison(
+            fixture.session,
+            fixture,
+            contract_id=fixture.contract_id,
+            package_id=fixture.package_id,
+            capture_id=fixture.capture_id,
+            comparison_id="comparison-seal-stability",
+            classification=ComparisonPrimaryClassification.EXACT_MATCH.value,
+        )
+    )
+    fixture.session.commit()
+
+    service = _service(fixture.session)
+    original_snapshot = service._snapshot
+    call_count = {"value": 0}
+
+    def snapshot_race(*, channel_id: str, now=None):
+        call_count["value"] += 1
+        snapshot = original_snapshot(channel_id=channel_id, now=now)
+        if call_count["value"] != 2:
+            return snapshot
+
+        window = _get_window(fixture.session, fixture)
+        if window is None:
+            raise AssertionError("base window missing")
+        package = fixture.session.get(FrozenEvaluationPackage, fixture.package_id)
+        if package is None:
+            raise AssertionError("base package missing")
+        racer_package = FrozenEvaluationPackage(
+            id="fep-seal-race",
+            channel_id=fixture.channel_id,
+            product_ref="sku-shadow",
+            workspace_pricing_evaluated_at=utcnow(),
+            formula_shape_id=package.formula_shape_id,
+            translator_version=package.translator_version,
+            currency_unit_registry_version=package.currency_unit_registry_version,
+            arithmetic_version=package.arithmetic_version,
+            dependency_fingerprint=package.dependency_fingerprint,
+            checksum="fep-seal-race-checksum",
+            pricing_policy_revision_id=package.pricing_policy_revision_id,
+            channel_config_revision_id=package.channel_config_revision_id,
+        )
+        racer_capture = LegacyFormulaCapture(
+            id="capture-seal-race",
+            channel_id=fixture.channel_id,
+            frozen_evaluation_package_id=racer_package.id,
+            legacy_formula_engine="legacy-engine",
+            legacy_formula_engine_version="1",
+            formula_shape_id=package.formula_shape_id,
+            formula_rule_identity="rule-seal-race",
+            workbook_identity="ws-1",
+            workbook_revision="r-1",
+            input_manifest_checksum="input-checksum-race",
+            pricing_authority_event_id=window.pricing_authority_event_id,
+            pricing_authority_head_version=window.pricing_authority_head_version,
+            captured_at=utcnow(),
+            candidate_numerator=100,
+            candidate_denominator=10,
+            effective_numerator=100,
+            effective_denominator=10,
+            candidate_currency="USD",
+            candidate_unit="USD",
+            effective_currency="USD",
+            effective_unit="USD",
+            output_context_json={"trace_components": ["component-a", "component-b"]},
+            capture_checksum="capture-seal-race-checksum",
+        )
+        fixture.session.add_all((racer_package, racer_capture))
+        fixture.session.add(
+            _add_channel_comparison(
+                fixture.session,
+                channel_id=fixture.channel_id,
+                window_id=window.id,
+                contract_id=fixture.contract_id,
+                package_id=racer_package.id,
+                capture_id=racer_capture.id,
+                comparison_id="comparison-seal-race-blocking",
+                classification=ComparisonPrimaryClassification.CRITICAL_DIVERGENCE.value,
+            )
+        )
+        fixture.session.flush()
+        return original_snapshot(channel_id=channel_id, now=now)
+
+    monkeypatch.setattr(service, "_snapshot", snapshot_race)
+    result = service.seal_window(channel_id=fixture.channel_id, expected_head_version=0, correlation_id="seal-race")
+
+    assert result.cas_conflict
+    assert result.decision is None
+    assert result.transition is None
+    assert result.reason_code == WindowReadinessReason.CAS_CONFLICT.value
+    assert fixture.session.query(ShadowValidationWindowEvent).count() == 0
+    assert fixture.session.query(ShadowReadinessDecision).count() == 0
+
+
+def test_historical_readiness_evidence_remains_readable_after_invalidation(db: ReadinessFixture):
+    fixture = db
+    fixture.session.add(
+        _add_comparison(
+            fixture.session,
+            fixture,
+            contract_id=fixture.contract_id,
+            package_id=fixture.package_id,
+            capture_id=fixture.capture_id,
+            comparison_id="comparison-history",
+            classification=ComparisonPrimaryClassification.EXACT_MATCH.value,
+        )
+    )
+    fixture.session.commit()
+
+    service = _service(fixture.session)
+    first = service.seal_window(channel_id=fixture.channel_id, expected_head_version=0)
+    assert first.decision is not None
+    first_decision_id = first.decision.id
+
+    fixture.authority_head.effective_event_id = "authority-event-2"
+    fixture.authority_head.head_version = 1
+    fixture.session.commit()
+
+    second = service.seal_window(channel_id=fixture.channel_id, expected_head_version=1)
+    assert second.decision is not None
+    assert second.transition == ValidationWindowEventKind.INVALIDATED.value
+
+    decisions = (
+        fixture.session.query(ShadowReadinessDecision)
+        .filter_by(channel_id=fixture.channel_id)
+        .order_by(ShadowReadinessDecision.created_at.asc())
+        .all()
+    )
+    assert len(decisions) == 2
+    assert decisions[0].id == first_decision_id
+    assert decisions[0].decision == WindowReadinessState.READY.value
+    assert decisions[0].reason_code is None
+    assert decisions[1].decision == WindowReadinessState.NOT_READY.value
+    assert decisions[1].reason_code == WindowReadinessReason.SCOPE_INVALIDATED.value
+
+
+def test_seal_window_head_update_failure_rolls_back_side_effects(db: ReadinessFixture, monkeypatch):
+    fixture = db
+    fixture.session.add(
+        _add_comparison(
+            fixture.session,
+            fixture,
+            contract_id=fixture.contract_id,
+            package_id=fixture.package_id,
+            capture_id=fixture.capture_id,
+            comparison_id="comparison-head-update-failure",
+            classification=ComparisonPrimaryClassification.EXACT_MATCH.value,
+        )
+    )
+    fixture.session.commit()
+
+    service = _service(fixture.session)
+    monkeypatch.setattr(service, "_advance_head", lambda **_: 0)
+
+    result = service.seal_window(channel_id=fixture.channel_id, expected_head_version=0)
+
+    assert result.cas_conflict
+    assert result.decision is None
+    assert result.transition is None
+    assert fixture.session.query(ShadowValidationWindowEvent).count() == 0
+    assert fixture.session.query(ShadowReadinessDecision).count() == 0
+    head = fixture.session.get(ShadowValidationWindowHead, fixture.channel_id)
+    assert head is not None and head.head_version == 0
+
+
+def _build_second_channel_payload(
+    session: sa.orm.Session,
+    *,
+    channel_id: str,
+    policy_revision_id: str,
+) -> tuple[str, str, str]:
+    channel = WorkspaceChannel(
+        id=channel_id,
+        connector_type="test",
+        name=f"Shadow Channel {channel_id}",
+        implementation_state="implemented",
+        capabilities_json={},
+        capability_version="v1",
+        enabled=True,
+    )
+    authority_event = ChannelPricingAuthorityEvent(
+        id=f"authority-event-{channel_id}",
+        channel_id=channel_id,
+        new_authority="legacy_formula_engine",
+        expected_head_version=0,
+        actor_reference="seed",
+        reason="seed",
+        request_metadata_json={},
+    )
+    authority_head = ChannelPricingAuthorityHead(
+        channel_id=channel_id,
+        current_authority="legacy_formula_engine",
+        effective_event_id=authority_event.id,
+        head_version=0,
+    )
+    policy_activation = PricingPolicyLifecycleEvent(
+        id=f"policy-activation-{channel_id}",
+        channel_id=channel_id,
+        event_kind="activate",
+        actor_user_id=1001,
+        reason="seed",
+        policy_revision_id=policy_revision_id,
+        channel_config_revision_id="cfg-2",
+        effective_activation_id=f"policy-activation-{channel_id}",
+    )
+    policy_head = ChannelPricingPolicyHead(
+        channel_id=channel_id,
+        current_event_id=policy_activation.id,
+        effective_activation_id=policy_activation.id,
+        head_version=0,
+    )
+    package = FrozenEvaluationPackage(
+        id=f"fep-{channel_id}",
+        channel_id=channel_id,
+        product_ref="sku-shadow",
+        workspace_pricing_evaluated_at=utcnow(),
+        formula_shape_id="A1",
+        translator_version="translator-v1",
+        currency_unit_registry_version="v1",
+        arithmetic_version="arith-v1",
+        dependency_fingerprint="dep-1",
+        checksum=f"fep-checksum-{channel_id}",
+        pricing_policy_revision_id=policy_revision_id,
+        channel_config_revision_id=policy_activation.channel_config_revision_id,
+    )
+    capture = LegacyFormulaCapture(
+        id=f"capture-{channel_id}",
+        channel_id=channel_id,
+        frozen_evaluation_package_id=package.id,
+        legacy_formula_engine="legacy-engine",
+        legacy_formula_engine_version="1",
+        formula_shape_id="A1",
+        formula_rule_identity="rule-1",
+        workbook_identity="ws-1",
+        workbook_revision="r-1",
+        input_manifest_checksum="input-checksum-1",
+        pricing_authority_event_id=authority_event.id,
+        pricing_authority_head_version=0,
+        captured_at=utcnow(),
+        candidate_numerator=100,
+        candidate_denominator=10,
+        effective_numerator=100,
+        effective_denominator=10,
+        candidate_currency="USD",
+        candidate_unit="USD",
+        effective_currency="USD",
+        effective_unit="USD",
+        output_context_json={"trace_components": ["component-a", "component-b"]},
+        capture_checksum=f"capture-checksum-{channel_id}",
+    )
+    window = ShadowValidationWindow(
+        id=f"window-{channel_id}",
+        channel_id=channel_id,
+        scope_manifest_checksum="scope-checksum-1",
+        formula_inventory_checksum="formula-inventory-1",
+        acceptance_policy_revision="policy-accept",
+        pricing_policy_revision_id=policy_revision_id,
+        pricing_policy_activation_id=policy_activation.id,
+        pricing_authority_event_id=authority_event.id,
+        pricing_authority_head_version=0,
+        head_version_snapshot=0,
+        opened_at=utcnow(),
+        closes_at=None,
+        required_distinct_matches=1,
+        configuration_checksum=f"window-checksum-{channel_id}",
+    )
+    window_head = ShadowValidationWindowHead(
+        channel_id=channel_id,
+        current_window_id=window.id,
+        current_state=ShadowValidationWindowState.COLLECTING.value,
+        head_version=0,
+    )
+    session.add_all(
+        (
+            channel,
+            authority_event,
+            authority_head,
+            policy_activation,
+            policy_head,
+            package,
+            capture,
+            window,
+            window_head,
+        )
+    )
+    session.flush()
+    return channel.id, package.id, capture.id
+
+
+def test_seal_window_transactions_remain_isolated_between_channels(db: ReadinessFixture):
+    fixture = db
+    channel_id_b, package_id_b, capture_id_b = _build_second_channel_payload(
+        fixture.session,
+        channel_id="channel-shadow-2",
+        policy_revision_id=fixture.policy_revision_id,
+    )
+    fixture.session.add(
+        _add_comparison(
+            fixture.session,
+            fixture,
+            contract_id=fixture.contract_id,
+            package_id=fixture.package_id,
+            capture_id=fixture.capture_id,
+            comparison_id="comparison-isolation-main",
+            classification=ComparisonPrimaryClassification.EXACT_MATCH.value,
+        )
+    )
+    fixture.session.add(
+        _add_channel_comparison(
+            fixture.session,
+            channel_id=channel_id_b,
+            window_id=f"window-{channel_id_b}",
+            contract_id=fixture.contract_id,
+            package_id=package_id_b,
+            capture_id=capture_id_b,
+            comparison_id="comparison-b",
+            classification=ComparisonPrimaryClassification.EXACT_MATCH.value,
+        )
+    )
+    fixture.session.commit()
+
+    _service(fixture.session).seal_window(channel_id=fixture.channel_id, expected_head_version=0, correlation_id="ch1")
+    result_b = _service(fixture.session).seal_window(channel_id=channel_id_b, expected_head_version=0, correlation_id="ch2")
+
+    assert result_b.transition == ValidationWindowEventKind.ACCEPTED.value
+    assert fixture.session.query(ShadowReadinessDecision).filter_by(channel_id=fixture.channel_id).count() == 1
+    assert fixture.session.query(ShadowReadinessDecision).filter_by(channel_id=channel_id_b).count() == 1
+    assert fixture.session.query(ShadowValidationWindowHead).filter_by(channel_id=fixture.channel_id).one().head_version == 1
+    assert fixture.session.query(ShadowValidationWindowHead).filter_by(channel_id=channel_id_b).one().head_version == 1

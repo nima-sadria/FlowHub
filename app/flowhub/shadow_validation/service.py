@@ -153,6 +153,7 @@ class ShadowValidationComparisonAssemblyService:
         frozen_evaluation_package_id: str,
         legacy_formula_capture_id: str,
         comparison_contract_id: str | None = None,
+        expected_head_version: int = 0,
         actor_user: FlowHubUser | None = None,
         comparison_algorithm_version: str = COMPARISON_ALGORITHM_VERSION,
         correlation_id: str = "",
@@ -181,6 +182,11 @@ class ShadowValidationComparisonAssemblyService:
             raise ShadowValidationError(REASON_CONTRACT_UNAPPROVED)
 
         output_lanes = self._normalize_output_lanes(contract.required_output_lanes_json)
+        self._validate_collection_head(
+            channel_id=window.channel_id,
+            validation_window_id=window.id,
+            expected_head_version=expected_head_version,
+        )
         self._validate_authority_and_policy(window, fep, capture)
 
         confidence, provenance_reason_code = self._assess_provenance(window, fep, capture, contract)
@@ -270,7 +276,18 @@ class ShadowValidationComparisonAssemblyService:
             created_at=now,
         )
 
-        self.db.add(comparison)
+        try:
+            with self.db.begin_nested():
+                self._validate_collection_head(
+                    channel_id=window.channel_id,
+                    validation_window_id=window.id,
+                    expected_head_version=expected_head_version,
+                )
+                self.db.add(comparison)
+                self.db.flush()
+        except Exception:
+            self.db.rollback()
+            raise
         self.db.commit()
 
         if confidence == ComparisonConfidence.VERIFIED.value and primary == ComparisonPrimaryClassification.EXACT_MATCH.value:
@@ -575,6 +592,29 @@ class ShadowValidationComparisonAssemblyService:
             raise ShadowValidationError(f"{field}_invalid")
         return normalized
 
+    def _validate_collection_head(
+        self,
+        *,
+        channel_id: str,
+        validation_window_id: str,
+        expected_head_version: int,
+    ) -> ShadowValidationWindowHead:
+        head = (
+            self.db.query(ShadowValidationWindowHead)
+            .filter_by(channel_id=channel_id)
+            .with_for_update()
+            .one_or_none()
+        )
+        if head is None:
+            raise ShadowValidationError(REASON_WINDOW_NOT_FOUND)
+        if head.current_window_id != validation_window_id:
+            raise ShadowValidationError(ShadowValidationReasonCode.CAS_CONFLICT.value)
+        if head.current_state != ShadowValidationWindowState.COLLECTING.value:
+            raise ShadowValidationError(ShadowValidationReasonCode.CAS_CONFLICT.value)
+        if head.head_version != expected_head_version:
+            raise ShadowValidationError(ShadowValidationReasonCode.CAS_CONFLICT.value)
+        return head
+
 
 @dataclass(frozen=True, slots=True)
 class ShadowValidationReadinessProjection:
@@ -636,7 +676,7 @@ class ShadowValidationReadinessService:
         correlation_id: str = "",
         now: datetime | None = None,
     ) -> ShadowValidationReadinessSealResult:
-        projection = self._snapshot(channel_id=channel_id, now=now)
+        now = now or utcnow()
         head = self.db.get(ShadowValidationWindowHead, channel_id)
         if head is None:
             raise ShadowValidationError("shadow_validation_window_head_not_found")
@@ -647,31 +687,37 @@ class ShadowValidationReadinessService:
                 reason_code=WindowReadinessReason.CAS_CONFLICT.value,
                 cas_conflict=True,
             )
+        pre_projection = self._snapshot(channel_id=channel_id, now=now)
+        pre_transition = self._projected_transition(
+            projection=pre_projection,
+            current_state=head.current_state,
+        )
 
-        transition = None
-        event_kind = None
-        if (
-            projection.decision == WindowReadinessState.READY.value
-            and head.current_state == ShadowValidationWindowState.COLLECTING.value
-        ):
-            transition = ShadowValidationWindowState.ACCEPTED.value
-            event_kind = ValidationWindowEventKind.ACCEPTED.value
-        elif (
-            head.current_state == ShadowValidationWindowState.ACCEPTED.value
-            and projection.reason_code is not None
-        ):
-            transition = ShadowValidationWindowState.INVALIDATED.value
-            event_kind = ValidationWindowEventKind.INVALIDATED.value
-        elif (
-            head.current_state == ShadowValidationWindowState.COLLECTING.value
-            and projection.decision == WindowReadinessState.NOT_READY.value
-            and projection.is_expired
-        ):
-            transition = ShadowValidationWindowState.CLOSED.value
-            event_kind = ValidationWindowEventKind.CLOSED.value
+        projection = pre_projection
+        transition = pre_transition
 
         try:
             with self.db.begin_nested():
+                current_head = (
+                    self.db.query(ShadowValidationWindowHead)
+                    .filter(ShadowValidationWindowHead.channel_id == channel_id)
+                    .with_for_update()
+                    .one_or_none()
+                )
+                if current_head is None or current_head.head_version != expected_head_version:
+                    raise ShadowValidationError(ShadowValidationReasonCode.CAS_CONFLICT.value)
+
+                current_projection = self._snapshot(channel_id=channel_id, now=now)
+                if current_projection != pre_projection:
+                    raise ShadowValidationError(ShadowValidationReasonCode.CAS_CONFLICT.value)
+
+                transition = self._projected_transition(
+                    projection=current_projection,
+                    current_state=current_head.current_state,
+                )
+                if transition != pre_transition:
+                    raise ShadowValidationError(ShadowValidationReasonCode.CAS_CONFLICT.value)
+
                 previous_event = (
                     self.db.query(ShadowValidationWindowEvent)
                     .filter(ShadowValidationWindowEvent.channel_id == channel_id)
@@ -684,20 +730,10 @@ class ShadowValidationReadinessService:
                     .scalar()
                 )
                 if transition is not None:
-                    updated = (
-                        self.db.query(ShadowValidationWindowHead)
-                        .filter(
-                            ShadowValidationWindowHead.channel_id == channel_id,
-                            ShadowValidationWindowHead.head_version == expected_head_version,
-                        )
-                        .update(
-                            {
-                                ShadowValidationWindowHead.current_state: transition,
-                                ShadowValidationWindowHead.head_version: expected_head_version + 1,
-                                ShadowValidationWindowHead.updated_at: utcnow(),
-                            },
-                            synchronize_session=False,
-                        )
+                    updated = self._advance_head(
+                        channel_id=channel_id,
+                        expected_head_version=expected_head_version,
+                        target_state=transition,
                     )
                     if updated != 1:
                         raise ShadowValidationError(ShadowValidationReasonCode.CAS_CONFLICT.value)
@@ -709,38 +745,54 @@ class ShadowValidationReadinessService:
                             validation_window_id=projection.validation_window_id,
                             actor_user_id=actor_user.id if actor_user is not None else None,
                             actor_reference=actor_user.username if actor_user is not None else "system",
-                            event_kind=event_kind,
+                            event_kind=self._projected_event_kind(transition),
                             predecessor_event_id=previous_event,
-                            reason_code=projection.reason_code,
+                            reason_code=current_projection.reason_code,
                             reason_payload_json={
-                                "decision": projection.decision,
-                                "reason": projection.reason_code,
+                                "decision": current_projection.decision,
+                                "reason": current_projection.reason_code,
                             },
                             expected_head_version=expected_head_version,
                             head_version_snapshot=expected_head_version,
                             correlation_id=correlation_id,
-                            configuration_checksum=projection.configuration_checksum,
+                            configuration_checksum=current_projection.configuration_checksum,
                         )
                     )
 
                 decision = ShadowReadinessDecision(
                     id=str(uuid.uuid4()),
-                    validation_window_id=projection.validation_window_id,
-                    channel_id=projection.channel_id,
-                    decision=projection.decision,
-                    reason_code=projection.reason_code,
-                    compared_count=projection.compared_count,
-                    aggregate_checksum=projection.aggregate_checksum,
-                    required_comparison_count=projection.required_comparison_count,
-                    comparison_ids_json=projection.comparison_ids_json,
-                    authority_event_id=(self.db.get(ShadowValidationWindow, projection.validation_window_id).pricing_authority_event_id if projection.validation_window_id else None),
-                    authority_head_version=projection.head_version_snapshot,
-                    scope_manifest_checksum=projection.readiness_payload["scopeManifestChecksum"],
-                    readiness_payload_json=projection.readiness_payload,
+                    validation_window_id=current_projection.validation_window_id,
+                    channel_id=current_projection.channel_id,
+                    decision=current_projection.decision,
+                    reason_code=current_projection.reason_code,
+                    compared_count=current_projection.compared_count,
+                    aggregate_checksum=current_projection.aggregate_checksum,
+                    required_comparison_count=current_projection.required_comparison_count,
+                    comparison_ids_json=current_projection.comparison_ids_json,
+                    authority_event_id=(
+                        self.db.get(ShadowValidationWindow, current_projection.validation_window_id).pricing_authority_event_id
+                        if current_projection.validation_window_id
+                        else None
+                    ),
+                    authority_head_version=current_projection.head_version_snapshot,
+                    scope_manifest_checksum=current_projection.readiness_payload["scopeManifestChecksum"],
+                    readiness_payload_json=current_projection.readiness_payload,
                     created_at=utcnow(),
                 )
                 self.db.add(decision)
                 self.db.flush()
+                projection = current_projection
+        except ShadowValidationError as exc:
+            if str(exc) == ShadowValidationReasonCode.CAS_CONFLICT.value:
+                self.db.rollback()
+                return ShadowValidationReadinessSealResult(
+                    decision=None,
+                    transition=None,
+                    reason_code=WindowReadinessReason.CAS_CONFLICT.value,
+                    cas_conflict=True,
+                )
+            self.db.rollback()
+            raise
         except Exception:
             self.db.rollback()
             raise
@@ -751,6 +803,60 @@ class ShadowValidationReadinessService:
             transition=transition,
             reason_code=projection.reason_code,
             cas_conflict=False,
+        )
+
+    def _projected_transition(
+        self,
+        *,
+        projection: ShadowValidationReadinessProjection,
+        current_state: str,
+    ) -> str | None:
+        if (
+            projection.decision == WindowReadinessState.READY.value
+            and current_state == ShadowValidationWindowState.COLLECTING.value
+        ):
+            return ShadowValidationWindowState.ACCEPTED.value
+        if (
+            current_state == ShadowValidationWindowState.ACCEPTED.value
+            and projection.reason_code is not None
+        ):
+            return ShadowValidationWindowState.INVALIDATED.value
+        if (
+            current_state == ShadowValidationWindowState.COLLECTING.value
+            and projection.decision == WindowReadinessState.NOT_READY.value
+            and projection.is_expired
+        ):
+            return ShadowValidationWindowState.CLOSED.value
+        return None
+
+    def _projected_event_kind(self, transition: str | None) -> str | None:
+        return {
+            ShadowValidationWindowState.ACCEPTED.value: ValidationWindowEventKind.ACCEPTED.value,
+            ShadowValidationWindowState.INVALIDATED.value: ValidationWindowEventKind.INVALIDATED.value,
+            ShadowValidationWindowState.CLOSED.value: ValidationWindowEventKind.CLOSED.value,
+        }.get(transition)
+
+    def _advance_head(
+        self,
+        *,
+        channel_id: str,
+        expected_head_version: int,
+        target_state: str,
+    ) -> int:
+        return (
+            self.db.query(ShadowValidationWindowHead)
+            .filter(
+                ShadowValidationWindowHead.channel_id == channel_id,
+                ShadowValidationWindowHead.head_version == expected_head_version,
+            )
+            .update(
+                {
+                    ShadowValidationWindowHead.current_state: target_state,
+                    ShadowValidationWindowHead.head_version: expected_head_version + 1,
+                    ShadowValidationWindowHead.updated_at: utcnow(),
+                },
+                synchronize_session=False,
+            )
         )
 
     def _snapshot(
