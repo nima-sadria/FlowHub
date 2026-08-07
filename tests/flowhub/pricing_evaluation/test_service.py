@@ -418,7 +418,14 @@ def test_explicit_observation_selection(db):
 # -- Manual inputs ----------------------------------------------------------------
 
 
-def _manual_input(session, user, *, decision_kind: ManualInputDecisionKind, effective_at=None) -> tuple[ManualInputRevision, ManualInputDecision]:
+def _manual_input(
+    session,
+    user,
+    *,
+    decision_kind: ManualInputDecisionKind,
+    effective_at=None,
+    created_at=None,
+) -> tuple[ManualInputRevision, ManualInputDecision]:
     revision = ManualInputRevision(
         id=str(uuid.uuid4()),
         kind=ManualInputKind.REFERENCE_PRICE.value,
@@ -438,6 +445,7 @@ def _manual_input(session, user, *, decision_kind: ManualInputDecisionKind, effe
         actor_user_id=user.id,
         reason="test",
         effective_at=effective_at,
+        created_at=created_at or NOW - timedelta(hours=1),
     )
     session.add(decision)
     session.commit()
