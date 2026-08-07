@@ -1051,30 +1051,6 @@ export function ConfigPanel({
             || CHANNEL_VISIBLE_FIELDS[selected.provider].has(field.key))
           .map(renderConnectionField)}
       </div>
-      {kind === 'source' && !selected.placeholder && (
-        <div className="mt-4 border-t border-border pt-4" data-source-connection-actions>
-          <div className="fh-actions justify-end">
-            <button type="button" onClick={() => void testConnection()} disabled={testing || !canTest} className="fh-button-secondary px-4">
-              {testing && <Spinner size="sm" />}
-              {!testing && <Icon name="testConnection" />}
-              {testing ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection')}
-            </button>
-            <button type="submit" disabled={saving || !canSave} className="fh-button-primary px-4">
-              {saving && <Spinner size="sm" />}
-              {!saving && <Icon name="save" />}
-              {saving ? translate('commerce:commerceHub.saving') : translate('commerce:commerceHub.saveConnection')}
-            </button>
-          </div>
-          {connectionFeedback && (
-            <Alert
-              className="mt-4"
-              variant={connectionFeedback.variant}
-              title={connectionFeedback.title}
-              message={connectionFeedback.message}
-            />
-          )}
-        </div>
-      )}
       </div>
 
       {kind === "channel" && selected.provider === "snappshop" && (
@@ -1208,6 +1184,14 @@ export function ConfigPanel({
             )}
           </div>
         </div>
+      )}
+
+      {connectionFeedback && (
+        <Alert
+          variant={connectionFeedback.variant}
+          title={connectionFeedback.title}
+          message={connectionFeedback.message}
+        />
       )}
 
       <div className="fh-panel-footer">
@@ -1551,23 +1535,25 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
               />
             </div>
           )}
-          <div className="grid gap-5">
-            <ResourceSectionList
-              resources={sourceResources}
-              className="grid grid-cols-1 gap-4 lg:grid-cols-2"
-              renderItem={resource => (
-              <SourceCard
-                source={resource.item}
-                badge={resource.badge}
-                onTest={(id) => void handleSourceTest(id)}
-                onEdit={handleSourceEdit}
-                onConfigure={handleSourceConfigure}
-                testing={testingId === resource.id}
-                canManage={canManageCommerce}
+          {!(formKind === 'source' && editingSourceId) && (
+            <div className="grid gap-5">
+              <ResourceSectionList
+                resources={sourceResources}
+                className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2"
+                renderItem={resource => (
+                <SourceCard
+                  source={resource.item}
+                  badge={resource.badge}
+                  onTest={(id) => void handleSourceTest(id)}
+                  onEdit={handleSourceEdit}
+                  onConfigure={handleSourceConfigure}
+                  testing={testingId === resource.id}
+                  canManage={canManageCommerce}
+                />
+                )}
               />
-              )}
-            />
-          </div>
+            </div>
+          )}
         </section>
       ) : (
         <section>
@@ -1599,7 +1585,7 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
           <div className="grid gap-5">
             <ResourceSectionList
               resources={channelResources}
-              className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+              className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2"
               renderItem={resource => (
               <ChannelCard
                 channel={resource.item}

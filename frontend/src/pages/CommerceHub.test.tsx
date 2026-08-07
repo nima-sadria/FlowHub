@@ -1143,7 +1143,7 @@ describe('CommerceHub', () => {
     expect(inputByLabel(c, 'Username').name).toBe('commerce.source.nextcloud.username')
     expect(inputByLabel(c, 'Username').autocomplete).toBe('username')
     expect(c.textContent).toContain('Connection Settings')
-    expect(c.textContent).toContain('Save connection')
+    expect(c.textContent).toContain('Save configuration')
   })
 
   it('verifies the unsaved Source credentials entered in Connection Settings', async () => {
@@ -1158,9 +1158,7 @@ describe('CommerceHub', () => {
     const c = await renderPage(adminUser, verifyingCommerce, ['/commerce?tab=sources'])
     await openNextcloudSourceForm(c)
     fillNextcloudCredentials(c, 'https://draft.example.test', 'draft-user')
-    const actions = c.querySelector<HTMLElement>('[data-source-connection-actions]')
-    const testButton = Array.from(actions?.querySelectorAll('button') ?? [])
-      .find(button => button.textContent === 'Test connection')
+    const testButton = Array.from(c.querySelectorAll('button')).find(item => item.textContent === 'Test connection')
 
     await act(async () => {
       testButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -1172,9 +1170,9 @@ describe('CommerceHub', () => {
       username: 'draft-user',
     })
     expect(captured.payload?.secrets).toEqual({ password: 'app-password-value' })
-    expect(actions?.textContent).toContain('Connection details verified')
-    expect(actions?.textContent).toContain('These connection details are valid. Save them to continue.')
-    expect(actions?.querySelector('.fh-alert-success')).not.toBeNull()
+    expect(c.textContent).toContain('Connection details verified')
+    expect(c.textContent).toContain('These connection details are valid. Save them to continue.')
+    expect(c.querySelector('.fh-alert-success')).not.toBeNull()
   })
 
   it('reopens an incomplete Nextcloud connection and lets the stored credentials be corrected before file selection', async () => {
@@ -1202,9 +1200,8 @@ describe('CommerceHub', () => {
     expect(inputByLabel(c, 'Nextcloud server URL').value).toBe('https://wrong.example.test')
     expect(inputByLabel(c, 'Username').value).toBe('wrong-user')
     expect(c.textContent).toContain('Configured; leave blank to keep unchanged.')
-    const actions = c.querySelector<HTMLElement>('[data-source-connection-actions]')
-    const save = Array.from(actions?.querySelectorAll('button') ?? [])
-      .find(button => button.textContent === 'Save connection') as HTMLButtonElement
+    const save = Array.from(c.querySelectorAll('button'))
+      .find(item => item.textContent === 'Save configuration') as HTMLButtonElement
     expect(save.disabled).toBe(false)
 
     const browse = Array.from(c.querySelectorAll('button'))
@@ -1217,6 +1214,23 @@ describe('CommerceHub', () => {
 
     expect(c.textContent).toContain('/prices.xlsx')
     expect(save.disabled).toBe(false)
+  })
+
+  it('hides the source card list while a specific source is being edited, and shows exactly one Test connection and one Save action', async () => {
+    const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources&resource=nextcloud%3Aprimary'])
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    expect(c.textContent).toContain('Configure Nextcloud')
+    expect(c.querySelector('[data-resource-section]')).toBeNull()
+    expect(Array.from(c.querySelectorAll('button')).filter(item => item.textContent === 'Edit Connection')).toHaveLength(0)
+    expect(Array.from(c.querySelectorAll('button')).filter(item => item.textContent === 'Configure Data')).toHaveLength(0)
+    expect(Array.from(c.querySelectorAll('button')).filter(item => item.textContent === 'Test connection')).toHaveLength(1)
+    expect(Array.from(c.querySelectorAll('button')).filter(item => item.textContent === 'Save configuration')).toHaveLength(1)
+    expect(Array.from(c.querySelectorAll('button')).filter(item => item.textContent === 'Save connection')).toHaveLength(0)
+
+    const cancel = Array.from(c.querySelectorAll('button')).find(item => item.textContent === 'Close') as HTMLButtonElement
+    await act(async () => { cancel.click(); await Promise.resolve() })
+    expect(c.querySelector('[data-resource-section]')).not.toBeNull()
   })
 
   it('saves verified Nextcloud credentials before a spreadsheet is selected', async () => {
@@ -1255,9 +1269,8 @@ describe('CommerceHub', () => {
     const c = await renderPage(adminUser, savingCommerce, ['/commerce?tab=sources'])
     await openNextcloudSourceForm(c)
     fillNextcloudCredentials(c)
-    const actions = c.querySelector<HTMLElement>('[data-source-connection-actions]')
-    const save = Array.from(actions?.querySelectorAll('button') ?? [])
-      .find(button => button.textContent === 'Save connection') as HTMLButtonElement
+    const save = Array.from(c.querySelectorAll('button'))
+      .find(item => item.textContent === 'Save configuration') as HTMLButtonElement
 
     expect(save.disabled).toBe(false)
     await act(async () => {
@@ -1297,9 +1310,8 @@ describe('CommerceHub', () => {
     await openNextcloudSourceForm(c)
     fillNextcloudCredentials(c)
     await selectNextcloudSpreadsheet(c)
-    const actions = c.querySelector<HTMLElement>('[data-source-connection-actions]')
-    const saveButton = Array.from(actions?.querySelectorAll('button') ?? [])
-      .find(button => button.textContent === 'Save connection')
+    const saveButton = Array.from(c.querySelectorAll('button'))
+      .find(item => item.textContent === 'Save configuration')
 
     await act(async () => {
       saveButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -1308,9 +1320,9 @@ describe('CommerceHub', () => {
 
     expect(testCalls).toBe(1)
     expect(saveCalls).toBe(0)
-    expect(actions?.textContent).toContain('Unable to connect to the source')
-    expect(actions?.textContent).toContain('Please verify your credentials and try again.')
-    expect(actions?.querySelector('.fh-alert-danger')).not.toBeNull()
+    expect(c.textContent).toContain('Unable to connect to the source')
+    expect(c.textContent).toContain('Please verify your credentials and try again.')
+    expect(c.querySelector('.fh-alert-danger')).not.toBeNull()
   })
 
   it('renders visible centralized icons with labels on source workflow actions', async () => {

@@ -1344,7 +1344,7 @@ button.fh-inline-status {
   display: grid;
   width: 100%;
   box-sizing: border-box;
-  align-items: stretch;
+  align-items: start;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
   padding: 24px 0;
@@ -1353,7 +1353,6 @@ button.fh-inline-status {
 .fh-source-card {
   display: flex;
   flex-direction: column;
-  height: 100%;
   min-width: 0;
   gap: 14px;
   padding: 16px;
@@ -1523,7 +1522,7 @@ button.fh-inline-status {
   display: grid;
   width: 100%;
   box-sizing: border-box;
-  align-items: stretch;
+  align-items: start;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
   padding: 24px 0;

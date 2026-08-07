@@ -54,7 +54,7 @@ export default function OperationalResourceCard({
 
   return (
     <article
-      className={`fh-source-card h-full min-h-[286px] ${comingSoon ? 'opacity-60' : ''}`}
+      className={`fh-source-card min-h-[286px] ${comingSoon ? 'opacity-60' : ''}`}
       data-source-card={resourceType === 'source' ? resourceId : undefined}
       data-channel-card={resourceType === 'channel' ? resourceId : undefined}
       aria-disabled={comingSoon || undefined}
