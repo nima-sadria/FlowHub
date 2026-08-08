@@ -128,7 +128,7 @@ def test_commerce_sources_do_not_list_marketplace_channels(client, auth_headers)
 
     assert response.status_code == 200
     names = {item["name"] for item in response.json()["items"]}
-    assert {"Nextcloud", "Excel", "Google Sheets", "ERP / API Import"}.issubset(names)
+    assert {"Nextcloud", "Excel / CSV", "Google Sheets", "ERP / API Import"}.issubset(names)
     assert "Snapp Shop" not in names
     assert "Tapsi Shop" not in names
 
@@ -144,7 +144,8 @@ def test_commerce_type_routes_mark_future_placeholders_read_only(client, auth_he
     channel_types = {item["provider"]: item for item in channel_response.json()["items"]}
 
     assert source_types["nextcloud"]["implemented"] is True
-    assert source_types["csv"]["placeholder"] is True
+    assert source_types["csv"]["implemented"] is True
+    assert source_types["csv"]["placeholder"] is False
     assert source_types["csv"]["read_only"] is True
     assert channel_types["woocommerce"]["implemented"] is True
     assert channel_types["snappshop"]["implemented"] is True

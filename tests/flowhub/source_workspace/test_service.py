@@ -1197,6 +1197,11 @@ def test_csv_import_preserves_original_bytes_and_metadata() -> None:
     assert base64.b64decode(encoded) == original
     assert imported["total"] == 2
     assert imported["columns"][0]["name"] == "نام"
+    profile = service.get_source(imported["sourceId"], user)
+    assert profile["sourceKind"] == "imported_sheet"
+    assert profile["sheetId"] == imported["id"]
+    worksheets = asyncio.run(service.list_source_worksheets(imported["sourceId"], user))
+    assert worksheets["items"] == [{"name": "Sheet1", "rowCount": 2}]
 
 
 def test_special_source_values_are_conservative_and_distinct() -> None:

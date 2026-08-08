@@ -353,6 +353,51 @@ describe('SourceCenter safe lifecycle', () => {
       .toBe('/commerce?tab=sources&resource=nextcloud%3Aprimary')
   })
 
+  it('exposes the implemented Excel / CSV import once, outside Coming Soon, and routes setup to the existing import wizard', async () => {
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [commerceSource('csv:import', 'Excel / CSV', { configured: false })],
+    })
+
+    await render()
+
+    const card = container.querySelector('[data-source-card="integration:csv:import"]') as HTMLElement
+    expect(card.textContent).toContain('Excel / CSV')
+    expect(card.textContent).not.toContain('Coming Soon')
+    expect(container.querySelector('[data-resource-section="comingSoon"]')).toBeNull()
+    const setup = Array.from(card.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Setup Source') as HTMLButtonElement
+    await act(async () => setup.click())
+    expect(container.querySelector('[data-testid="location-probe"]')?.textContent).toBe('/sources/import')
+  })
+
+  it('uses the same available Excel / CSV setup path from Add source without listing unavailable providers as available', async () => {
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [
+        commerceSource('csv:import', 'Excel / CSV', { configured: false }),
+        commerceSource('gsheets:price-list', 'Google Sheets', { placeholder: true }),
+        commerceSource('erp:api-import', 'ERP / API Import', { placeholder: true }),
+      ],
+    })
+
+    await render()
+
+    expect(container.querySelectorAll('[data-source-card="integration:csv:import"]')).toHaveLength(1)
+    expect(container.querySelector('[data-source-card="integration:gsheets:price-list"]')?.textContent).toContain('Coming Soon')
+    expect(container.querySelector('[data-source-card="integration:erp:api-import"]')?.textContent).toContain('Coming Soon')
+    expect(container.querySelector('[data-resource-section="setupRequired"]')?.textContent).toContain('Available Sources')
+    const add = Array.from(container.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Add source') as HTMLButtonElement
+    await act(async () => add.click())
+    const importAction = Array.from(container.querySelectorAll('[role="dialog"] button')).find(item => item.textContent?.includes('Import your spreadsheet')) as HTMLButtonElement
+    expect(importAction).toBeTruthy()
+    expect(container.querySelector('[role="dialog"]')?.textContent).not.toContain('Google Sheets')
+    expect(container.querySelector('[role="dialog"]')?.textContent).not.toContain('ERP / API Import')
+    await act(async () => importAction.click())
+    expect(container.querySelector('[data-testid="location-probe"]')?.textContent).toBe('/sources/import')
+  })
+
   it('shows an actionable onboarding state when only future integrations are available', async () => {
     vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [] })
     vi.mocked(commerce.getSources).mockResolvedValueOnce({

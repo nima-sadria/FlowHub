@@ -70,14 +70,16 @@ export function ManagementResourceSections<T>({
   resources,
   renderItem,
   className = 'space-y-3',
+  setupRequiredLabel,
 }: {
   resources: ResourceCollection<T>
   renderItem: (item: OrderedResource<T>) => ReactNode
   className?: string
+  setupRequiredLabel?: string
 }) {
   const groups = [
     { key: 'connected', label: translate('common:status.connected'), items: resources.ordered.filter(item => item.tier === 'configured') },
-    { key: 'setupRequired', label: translate('common:status.setupRequired'), items: resources.ordered.filter(item => item.tier === 'attention' || item.tier === 'disabled') },
+    { key: 'setupRequired', label: setupRequiredLabel ?? translate('common:status.setupRequired'), items: resources.ordered.filter(item => item.tier === 'attention' || item.tier === 'disabled') },
     { key: 'comingSoon', label: translate('common:resourceGroup.comingSoon'), items: resources.ordered.filter(item => item.tier === 'comingSoon') },
   ] as const
 

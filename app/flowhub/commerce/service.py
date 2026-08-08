@@ -146,16 +146,18 @@ _SOURCES = [
     {
         "id": "csv:import",
         "provider": "csv",
-        "name": "Excel",
+        "name": "Excel / CSV",
         "type": "Source",
-        "status": "future",
-        "implemented": False,
-        "placeholder": True,
+        # This is a local, managed-sheet import rather than an external
+        # connector.  Its setup is /sources/import, not Commerce Hub.
+        "status": "current",
+        "implemented": True,
+        "placeholder": False,
         "credential_status": "not_required",
         "last_health_check": None,
         "data_role": "File import input",
         "action_label": "Manage",
-        "action_href": "/commerce?tab=sources",
+        "action_href": "/sources/import",
     },
     {
         "id": "gsheets:price-list",

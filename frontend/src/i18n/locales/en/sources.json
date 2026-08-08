@@ -3,6 +3,7 @@
   "sourceCenter.adjustSearchOrFilters": "Adjust your search or clear the current filters.",
   "sourceCenter.advanced": "Advanced",
   "sourceCenter.allHealthStates": "All health states",
+  "sourceCenter.availableSources": "Available Sources",
   "sourceCenter.archived": "Archived",
   "sourceCenter.archiveImpact": "This Source has protected history, so it will be archived instead of deleted. Historical Snapshots, revisions, Apply results, and Audit records remain unchanged.",
   "sourceCenter.archiveSource": "Archive Source",

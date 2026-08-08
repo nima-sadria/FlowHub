@@ -120,6 +120,19 @@ function sourceNeedsOperationalAttention(source: CommerceSource | null): boolean
     || ['failed', 'partial_failed', 'completed_with_errors'].includes(source.read_status?.last_read_status ?? '')
 }
 
+/** Keep the card action aligned with the actual provider setup boundary. */
+function setupDestinationFor(card: SourceCardModel): string | null {
+  if (card.integration?.id === 'csv:import') return '/sources/import'
+  if (card.integration?.implemented && !card.integration.placeholder && card.integration.credential_status !== 'configured') {
+    return `/commerce?tab=sources&resource=${encodeURIComponent(card.integration.id)}`
+  }
+  if (card.profile) return `/sources/${card.profile.id}`
+  if (card.integration?.implemented && !card.integration.placeholder) {
+    return `/commerce?tab=sources&resource=${encodeURIComponent(card.integration.id)}`
+  }
+  return null
+}
+
 export default function SourceCenter() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -538,7 +551,7 @@ export default function SourceCenter() {
         </div>
       ) : visibleCards.length === 0 ? null : (
         <div data-testid="source-card-groups">
-          <ManagementResourceSections resources={prepareResourceCollection(visibleCards.map(resource => resource.item), sourceCardSignals)} className="fh-sources-grid" renderItem={resource => {
+          <ManagementResourceSections resources={prepareResourceCollection(visibleCards.map(resource => resource.item), sourceCardSignals)} className="fh-sources-grid" setupRequiredLabel={translate('sources:sourceCenter.availableSources')} renderItem={resource => {
             const card = resource.item
             const source = card.profile
             const integration = card.integration
@@ -580,13 +593,7 @@ export default function SourceCenter() {
                   : []),
                 ...(readStatus ? [{ label: translate('sources:sourceCenter.readsRemaining'), value: readStatus.reads_remaining }] : []),
               ]
-            const setupDestination = integration?.implemented && !integration.placeholder && integration.credential_status !== 'configured'
-              ? `/commerce?tab=sources&resource=${encodeURIComponent(integration.id)}`
-              : source
-                ? `/sources/${source.id}`
-                : integration?.implemented && !integration.placeholder
-                  ? `/commerce?tab=sources&resource=${encodeURIComponent(integration.id)}`
-                  : null
+            const setupDestination = setupDestinationFor(card)
             const canSetup = Boolean(source ? canEditSources : canManageConnectors)
             const actions: OperationalResourceAction[] = state === 'comingSoon' ? [] : state === 'setupRequired'
               ? (setupDestination && canSetup
