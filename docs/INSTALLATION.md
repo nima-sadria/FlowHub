@@ -1,5 +1,10 @@
 # Installation Guide
 
+> The canonical Ubuntu deployment server does not use this installer target.
+> Its only checkout is `/home/nima/Projects/FlowHub`; `/opt/FlowHub` is
+> retired. Use the [Operations Runbook](../OPERATIONS_RUNBOOK.md) for normal
+> deployment updates and runtime verification.
+
 ## Supported Host
 
 - Ubuntu Server 24.04 LTS supported

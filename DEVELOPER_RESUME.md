@@ -4,7 +4,9 @@ This file is the shortest safe continuation guide for a new Codex thread.
 
 ## Repository
 
-- Canonical repository: `C:\Users\nima\Documents\GitHub\FlowHub`
+- Deployment authority: [Authoritative Ubuntu Deployment Topology](OPERATIONS_RUNBOOK.md).
+  The deployment-server checkout is `/home/nima/Projects/FlowHub`; `/opt/FlowHub`
+  is retired. Any Windows clone is development-only, not a deployment checkout.
 - Current branch: `main`
 - Current verified head: `9a75d145e89980e9e42a59d8d38f08162cea7ae4`
 - `origin/main` matches `main`
@@ -50,6 +52,8 @@ Do not modify the Claude worktree unless the task is explicitly UI integration a
 
 - Host: `192.168.100.80`
 - Project path: `/home/nima/Projects/FlowHub`
+- Normal updates use `flowhub` as user `nima`; see the Operations Runbook for
+  canonical runtime, database, proxy, and deployed-version identity rules.
 - PostgreSQL test container: `flowhub-postgres-test`
 - PostgreSQL test URL: `postgresql+psycopg://flowhub_test:flowhub_test_password@127.0.0.1:54329/flowhub_test`
 

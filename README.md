@@ -112,10 +112,10 @@ cd FlowHub
 sudo ./installer/install.sh
 ```
 
-The installer uses `/opt/FlowHub`, creates the environment and generated
-secrets, builds the Compose stack, runs database migrations, installs the
-Docker-backed `flowhub` management command, starts services, and verifies
-`/api/health`. It then directs the operator to the Setup Wizard.
+For the canonical Ubuntu deployment server, do not use an installer-created
+`/opt/FlowHub` checkout. `/home/nima/Projects/FlowHub` is the only canonical
+checkout there; use the [Operations Runbook](OPERATIONS_RUNBOOK.md) for its
+update and runtime-identity procedure.
 
 See the [Installation Guide](docs/INSTALLATION.md) for prerequisites, existing
 installation handling, trusted proxies, the management CLI, and external
@@ -194,16 +194,19 @@ For an integrated local runtime, use the Docker Compose procedure above.
 
 ## Upgrade
 
+On the canonical Ubuntu deployment server, `/home/nima/Projects/FlowHub` is
+the only FlowHub checkout. `/opt/FlowHub` is retired: do not use it, do not
+use `sudo git`, and do not create an alternate deployment checkout. Follow the
+[Operations Runbook](OPERATIONS_RUNBOOK.md):
+
 ```bash
-cd /opt/FlowHub
-git pull
-sudo ./installer/install.sh --upgrade
+cd /home/nima/Projects/FlowHub
+flowhub
 ```
 
-Upgrade preserves `.env`, generated secrets, database data, uploads, logs,
-backups, and Docker volumes while rebuilding images, running migrations,
-restarting services, and checking health. Read the [Upgrade
-Guide](docs/UPGRADE.md) and create a backup before major upgrades.
+The normal update preserves `.env`, PostgreSQL data, uploads, logs, backups,
+and Docker volumes while rebuilding images, running migrations, restarting
+services, and checking health. Create a backup before major upgrades.
 
 ## Health checks
 
@@ -212,8 +215,7 @@ Replace `8085` if `FLOWHUB_PORT` is customized:
 ```bash
 curl -fsS http://localhost:8085/api/health
 flowhub health
-docker compose -f /opt/FlowHub/docker-compose.yml \
-  --env-file /opt/FlowHub/.env ps
+cd /home/nima/Projects/FlowHub && docker compose ps
 ```
 
 The public health endpoint is `GET /api/health`. Authenticated operational
@@ -225,12 +227,6 @@ On an installer-managed host:
 
 ```bash
 flowhub uninstall
-```
-
-The direct installer action is also available from `/opt/FlowHub`:
-
-```bash
-sudo ./installer/install.sh --uninstall
 ```
 
 Uninstall is destructive and requires confirmation. Review backup and data
