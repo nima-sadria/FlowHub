@@ -58,6 +58,9 @@ export default function SourceImportWizard() {
   }
 
   return <PageShell>
+    <button type="button" className="fh-button-secondary fh-button-sm mb-4" onClick={() => navigate('/sources')}>
+      <Icon name="previous" /> {translate('sources:sourceConfiguration.backToSources')}
+    </button>
     <div className="fh-page-header"><div><h1 className="fh-page-title">{translate('sources:sourceCenter.importSpreadsheet')}</h1><p className="fh-page-subtitle">{translate('sources:sourceImportWizard.previewAnXlsxOrCsvThenCreate')}</p></div></div>
     <section className="fh-card fh-card-pad space-y-5">
       <label className="block rounded-xl border border-dashed border-border p-8 text-center"><Icon name="upload" className="mx-auto mb-3 h-8 w-8" /><span className="block font-medium text-text-base">{translate('sources:sourceImportWizard.chooseXlsxOrCsv')}</span><span className="fh-text-caption block">{translate('sources:sourceImportWizard.theOriginalFileIsReadOnlyAnd')}</span><input className="mt-4" type="file" accept=".xlsx,.csv" disabled={busy} onChange={event => { const selected = event.target.files?.[0]; if (selected) void inspect(selected) }} /></label>

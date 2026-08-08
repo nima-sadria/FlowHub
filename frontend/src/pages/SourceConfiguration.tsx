@@ -44,8 +44,19 @@ interface PendingWorksheetCopy {
   destinationWorksheetNames: string[]
 }
 
-function ConfigurationSection({ id, title, description, defaultOpen = false, children }: { id?: string; title: string; description?: string; defaultOpen?: boolean; children: ReactNode }) {
+interface SectionOpenSignal {
+  ids: string[] | 'all'
+  open: boolean
+  token: number
+}
+
+function ConfigurationSection({ id, title, description, defaultOpen = false, openSignal, unsaved, children }: { id?: string; title: string; description?: string; defaultOpen?: boolean; openSignal?: SectionOpenSignal | null; unsaved?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(defaultOpen)
+  const applies = Boolean(openSignal && (openSignal.ids === 'all' || (id && openSignal.ids.includes(id))))
+  useEffect(() => {
+    if (applies && openSignal) setOpen(openSignal.open)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSignal?.token])
   return <details id={id} className="fh-card group scroll-mt-4" open={open} onToggle={event => {
     const next = event.currentTarget.open
     if (next !== open) setOpen(next)
@@ -53,6 +64,8 @@ function ConfigurationSection({ id, title, description, defaultOpen = false, chi
     <summary className="fh-panel-header cursor-pointer list-none" title={description}>
       <div className="flex items-center gap-2">
         <h2 className="fh-section-title">{title}</h2>
+        {unsaved && <span aria-hidden="true" className="fh-status-dot fh-status-dot-warning" title={translate('sources:sourceConfiguration.unsavedChanges')} />}
+        {unsaved && <span className="sr-only">{translate('sources:sourceConfiguration.unsavedChanges')}</span>}
         {description && <span className="fh-help-icon" aria-label={description} role="img">i</span>}
       </div>
       <Icon name="next" className="transition-transform group-open:rotate-90" />
@@ -118,6 +131,11 @@ function fieldDisplayName(field: string): string {
 }
 
 const WOOCOMMERCE_CONNECTOR_TYPE = 'woocommerce'
+
+const DATA_MAPPING_SECTION_IDS = ['worksheet-rules', 'workbook', 'channel-columns', 'channel-columns-pw', 'worksheet-columns']
+const SECTION_GROUPS: Record<string, string[]> = {
+  'data-mapping': DATA_MAPPING_SECTION_IDS,
+}
 
 function isFieldFilled(field: FieldMapping | undefined): boolean {
   return Boolean(field && field.referenceType !== 'disabled' && field.referenceValue?.trim())
@@ -238,6 +256,8 @@ export default function SourceConfiguration() {
   const [readPolicy, setReadPolicy] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
   const [readPolicyBaseline, setReadPolicyBaseline] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
   const [reading, setReading] = useState(false)
+  const [activeNavId, setActiveNavId] = useState('overview')
+  const [sectionSignal, setSectionSignal] = useState<SectionOpenSignal | null>(null)
 
   useEffect(() => {
     let active = true
@@ -339,6 +359,25 @@ export default function SourceConfiguration() {
     return () => { active = false }
   }, [commerce, source?.externalSourceId, source?.sourceKind, reloadToken])
 
+  const hasReadPolicySection = Boolean(source && source.sourceKind === 'external' && source.externalSourceId)
+
+  useEffect(() => {
+    if (loading || !source || typeof IntersectionObserver === 'undefined') return
+    const ids = ['overview', 'connection', 'data-mapping', 'normalization', ...(hasReadPolicySection ? ['read-policy'] : []), 'validation', 'snapshots', 'activity', 'diagnostics']
+    const elements = ids
+      .map(id => document.getElementById(id))
+      .filter((element): element is HTMLElement => element !== null)
+    if (elements.length === 0) return
+    const observer = new IntersectionObserver(entries => {
+      const visible = entries
+        .filter(entry => entry.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+      if (visible[0]?.target.id) setActiveNavId(visible[0].target.id)
+    }, { rootMargin: '-112px 0px -65% 0px', threshold: [0, 1] })
+    elements.forEach(element => observer.observe(element))
+    return () => observer.disconnect()
+  }, [loading, source, hasReadPolicySection])
+
   const configurationFingerprint = useMemo(() => JSON.stringify({
     sourceFields,
     channelFields,
@@ -355,6 +394,7 @@ export default function SourceConfiguration() {
     valuePolicy,
   }), [channelEnabled, channelFields, channelWorksheets, configuredChannelIds, dataStartRow, duplicateProductPolicy, selectedWorksheetNames, sourceFields, valuePolicy, worksheetMode, worksheetName, worksheetRuleMode, worksheetRules])
   const dirty = baselineFingerprint !== null && baselineFingerprint !== configurationFingerprint
+  const readPolicyDirty = JSON.stringify(readPolicy) !== JSON.stringify(readPolicyBaseline)
 
   useEffect(() => {
     if (source && baselineFingerprint === null) setBaselineFingerprint(configurationFingerprint)
@@ -604,6 +644,20 @@ export default function SourceConfiguration() {
   function closeConfiguration() {
     if (dirty && !window.confirm(translate('sources:sourceConfiguration.discardUnsavedChanges'))) return
     navigate('/sources')
+  }
+
+  function goToSection(id: string) {
+    setActiveNavId(id)
+    setSectionSignal({ ids: SECTION_GROUPS[id] ?? [id], open: true, token: Date.now() })
+    document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }
+
+  function expandAllSections() {
+    setSectionSignal({ ids: 'all', open: true, token: Date.now() })
+  }
+
+  function collapseAllSections() {
+    setSectionSignal({ ids: 'all', open: false, token: Date.now() })
   }
 
   async function readNow() {
@@ -882,19 +936,40 @@ export default function SourceConfiguration() {
         )}
       </div>
 
-      <nav className="no-scrollbar mb-5 flex snap-x gap-2 overflow-x-auto pb-1" aria-label={translate('sources:sourceConfiguration.sourceName')}>
-        {[
-          ['overview', 'sources:sourceConfiguration.detail.overview'],
-          ['connection', 'sources:sourceConfiguration.detail.connection'],
-          ['data-mapping', 'sources:sourceConfiguration.detail.dataMapping'],
-          ['normalization', 'sources:sourceConfiguration.detail.normalization'],
-          ...(source.sourceKind === 'external' && source.externalSourceId ? [['read-policy', 'sources:sourceConfiguration.section.readPolicy']] : []),
-          ['validation', 'sources:sourceConfiguration.detail.validation'],
-          ['snapshots', 'sources:sourceConfiguration.detail.snapshots'],
-          ['activity', 'sources:sourceConfiguration.detail.activity'],
-          ['diagnostics', 'sources:sourceConfiguration.detail.diagnostics'],
-        ].map(([id, label]) => <a className="fh-button-secondary fh-button-sm snap-start whitespace-nowrap" href={`#${id}`} key={id}>{translate(label)}</a>)}
-      </nav>
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <nav className="no-scrollbar flex snap-x flex-1 gap-2 overflow-x-auto pb-1" aria-label={translate('sources:sourceConfiguration.sourceName')}>
+          {[
+            ['overview', 'sources:sourceConfiguration.detail.overview', false],
+            ['connection', 'sources:sourceConfiguration.detail.connection', false],
+            ['data-mapping', 'sources:sourceConfiguration.detail.dataMapping', dirty],
+            ['normalization', 'sources:sourceConfiguration.detail.normalization', dirty],
+            ...(hasReadPolicySection ? [['read-policy', 'sources:sourceConfiguration.section.readPolicy', readPolicyDirty]] : []),
+            ['validation', 'sources:sourceConfiguration.detail.validation', false],
+            ['snapshots', 'sources:sourceConfiguration.detail.snapshots', false],
+            ['activity', 'sources:sourceConfiguration.detail.activity', false],
+            ['diagnostics', 'sources:sourceConfiguration.detail.diagnostics', false],
+          ].map(([id, label, unsaved]) => {
+            const active = activeNavId === id
+            return (
+              <button
+                type="button"
+                className={`${active ? 'fh-button-primary' : 'fh-button-secondary'} fh-button-sm snap-start whitespace-nowrap`}
+                aria-current={active ? 'true' : undefined}
+                onClick={() => goToSection(id as string)}
+                key={id as string}
+              >
+                {translate(label as string)}
+                {unsaved && <span aria-hidden="true" className="fh-status-dot fh-status-dot-warning ms-1" />}
+                {unsaved && <span className="sr-only">{translate('sources:sourceConfiguration.unsavedChanges')}</span>}
+              </button>
+            )
+          })}
+        </nav>
+        <div className="flex shrink-0 gap-2">
+          <button type="button" className="fh-button-secondary fh-button-sm whitespace-nowrap" onClick={expandAllSections}>{translate('sources:sourceConfiguration.expandAll')}</button>
+          <button type="button" className="fh-button-secondary fh-button-sm whitespace-nowrap" onClick={collapseAllSections}>{translate('sources:sourceConfiguration.collapseAll')}</button>
+        </div>
+      </div>
 
       {!canEditSource && <div className="fh-alert fh-alert-info mb-5" role="status"><Icon name="info" /><span>{translate('sources:sourceConfiguration.readOnlyPermission')}</span></div>}
 
@@ -928,7 +1003,7 @@ export default function SourceConfiguration() {
       )}
 
       <fieldset className="min-w-0" id="data-mapping" disabled={!canEditSource}>
-      <ConfigurationSection title={translate('sources:sourceConfiguration.worksheetRules')} description={translate('sources:sourceConfiguration.worksheetRulesSectionHelp')}>
+      <ConfigurationSection id="worksheet-rules" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.worksheetRules')} description={translate('sources:sourceConfiguration.worksheetRulesSectionHelp')}>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'shared' ? 'border-accent bg-accent/5' : 'border-border'}`} title={translate('sources:sourceConfiguration.sharedWorksheetRulesHelp')}>
             <span className="flex items-center gap-2 font-medium text-text-base"><input type="radio" name="worksheet-rule-mode" value="shared" checked={worksheetRuleMode === 'shared'} onChange={() => changeWorksheetRuleMode('shared')} />{translate('sources:sourceConfiguration.sharedWorksheetRules')}</span>
@@ -940,7 +1015,7 @@ export default function SourceConfiguration() {
       </ConfigurationSection>
 
       <div className={`mt-3 ${worksheetRuleMode === 'per_worksheet' ? 'hidden' : ''}`}>
-        <ConfigurationSection title={translate('sources:sourceConfiguration.section.workbook')} description={translate('sources:sourceConfiguration.section.workbookHelp')}>
+        <ConfigurationSection id="workbook" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.section.workbook')} description={translate('sources:sourceConfiguration.section.workbookHelp')}>
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
           <label className="fh-field-label">
@@ -993,7 +1068,7 @@ export default function SourceConfiguration() {
 
       {source.sourceKind === 'external' && source.externalSourceId && (
         <div className="mt-3">
-          <ConfigurationSection id="read-policy" title={translate('sources:sourceConfiguration.section.readPolicy')} description={translate('sources:sourceConfiguration.section.readPolicyHelp')}>
+          <ConfigurationSection id="read-policy" openSignal={sectionSignal} unsaved={readPolicyDirty} title={translate('sources:sourceConfiguration.section.readPolicy')} description={translate('sources:sourceConfiguration.section.readPolicyHelp')}>
             <div className="flex flex-col gap-3">
               <label className="fh-inline-check">
                 <input
@@ -1012,7 +1087,7 @@ export default function SourceConfiguration() {
                 {translate('commerce:commerceHub.manualReadNowAllowed')}
               </label>
               <label className="fh-field max-w-xs">
-                <span className="fh-help-text">{translate('commerce:commerceHub.maxReadsPer24Hours')}</span>
+                <span className="fh-help-text">{translate('sources:sourceConfiguration.maxAcquisitionsPer24Hours')}</span>
                 <input
                   type="number"
                   min={1}
@@ -1042,7 +1117,7 @@ export default function SourceConfiguration() {
       )}
 
       <div className={`mt-5 space-y-3 ${worksheetRuleMode === 'per_worksheet' ? 'hidden' : ''}`}>
-        <ConfigurationSection title={translate('sources:sourceConfiguration.section.channelColumns')} description={translate('sources:sourceConfiguration.section.channelColumnsHelp')}>
+        <ConfigurationSection id="channel-columns" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.section.channelColumns')} description={translate('sources:sourceConfiguration.section.channelColumnsHelp')}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <p className="fh-text-caption">{translate('sources:sourceConfiguration.mappingConfiguredAfterConnection')}</p>
             {canManageCommerce && <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => void openChannelSetup()}><Icon name="add" /> {translate('commerce:commerceHub.addChannel')}</button>}
@@ -1091,7 +1166,7 @@ export default function SourceConfiguration() {
             </table>
           </div>
         </ConfigurationSection>
-        <ConfigurationSection id="normalization" title={translate('sources:sourceConfiguration.section.valueHandling')} description={translate('sources:sourceConfiguration.section.valueHandlingHelp')}>
+        <ConfigurationSection id="normalization" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.section.valueHandling')} description={translate('sources:sourceConfiguration.section.valueHandlingHelp')}>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Object.entries(POLICY_OPTIONS).map(([key, options]) => (
               <label className="fh-field-label capitalize" key={key}>
@@ -1107,6 +1182,9 @@ export default function SourceConfiguration() {
 
       {worksheetRuleMode === 'per_worksheet' && <div className="mt-5 space-y-3">
         <ConfigurationSection
+          id="channel-columns-pw"
+          openSignal={sectionSignal}
+          unsaved={dirty}
           title={translate('sources:sourceConfiguration.section.channelColumns')}
           description={translate('sources:sourceConfiguration.section.channelColumnsHelp')}
           defaultOpen
@@ -1137,7 +1215,7 @@ export default function SourceConfiguration() {
             }} />
           </div>
         </ConfigurationSection>
-        <ConfigurationSection title={translate('sources:sourceConfiguration.section.worksheetColumns')} description={translate('sources:sourceConfiguration.section.worksheetColumnsHelp')}>
+        <ConfigurationSection id="worksheet-columns" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.section.worksheetColumns')} description={translate('sources:sourceConfiguration.section.worksheetColumnsHelp')}>
           <div className="space-y-4" aria-label={translate('sources:sourceConfiguration.separateWorksheetRules')}>
         <div className="flex flex-wrap items-end gap-3">
           <button className="fh-button-secondary" type="button" disabled={detectingWorksheets} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>

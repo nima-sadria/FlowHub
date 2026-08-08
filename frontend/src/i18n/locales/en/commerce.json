@@ -185,6 +185,8 @@
   "commerceHub.selectedWorksheet": "Selected worksheet",
   "commerceHub.selectVendor": "Select vendor",
   "commerceHub.settings": "Settings",
+  "commerceHub.spreadsheetResourceGenericHelp": "Enter the file path or identifier this connector reads from.",
+  "commerceHub.spreadsheetResourcePlaceholder": "e.g. /Documents/prices.xlsx",
   "commerceHub.setupReasonCredentials": "Credentials or required channel configuration are incomplete.",
   "commerceHub.setupReasonDisabled": "This Channel is disabled. Review its settings before using it again.",
   "commerceHub.setupState": "Setup state:",

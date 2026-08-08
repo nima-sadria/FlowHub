@@ -17,6 +17,40 @@ import type { CommerceService } from '../services/commerce/CommerceService'
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 
+class FakeIntersectionObserver {
+  readonly root = null
+  readonly rootMargin = '0px'
+  readonly thresholds = [0]
+  callback: IntersectionObserverCallback
+  observed: Element[] = []
+  constructor(callback: IntersectionObserverCallback) {
+    this.callback = callback
+    ioInstances.push(this)
+  }
+  observe(target: Element) { this.observed.push(target) }
+  unobserve() {}
+  disconnect() {}
+  takeRecords() { return [] }
+}
+let ioInstances: FakeIntersectionObserver[] = []
+;(globalThis as typeof globalThis & { IntersectionObserver: typeof IntersectionObserver }).IntersectionObserver =
+  FakeIntersectionObserver as unknown as typeof IntersectionObserver
+
+function fireIntersection(id: string, isIntersecting: boolean, top = 0) {
+  const target = document.getElementById(id)
+  if (!target) throw new Error(`no element with id ${id}`)
+  const instance = ioInstances[ioInstances.length - 1]
+  instance.callback([{
+    boundingClientRect: { top } as DOMRectReadOnly,
+    intersectionRatio: isIntersecting ? 1 : 0,
+    intersectionRect: {} as DOMRectReadOnly,
+    isIntersecting,
+    rootBounds: null,
+    target,
+    time: 0,
+  }], instance as unknown as IntersectionObserver)
+}
+
 const channels: SourceChannel[] = [
   { channelId: 'woocommerce:primary', name: 'WooCommerce Primary', connectorType: 'woocommerce', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
   { channelId: 'snappshop:main', name: 'SnappShop Main', connectorType: 'snappshop', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
@@ -154,6 +188,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
+    ioInstances = []
     vi.spyOn(sourceWorkspaceApi, 'source').mockResolvedValue(source)
     vi.spyOn(sourceWorkspaceApi, 'channels').mockResolvedValue({ items: channels })
     vi.spyOn(sourceWorkspaceApi, 'saveMapping').mockResolvedValue(mapping)
@@ -346,6 +381,89 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(actionRow.className).not.toContain('overflow-x-auto')
     expect(primary.className).toContain('col-span-2')
     expect(Array.from(actionRow.querySelectorAll('button')).every(item => item.className.includes('fh-button-sm'))).toBe(true)
+  })
+
+  it('opens the target accordion, scrolls to it, and marks the clicked tab active', async () => {
+    await renderPage()
+
+    const normalizationSection = container.querySelector('#normalization') as HTMLDetailsElement
+    expect(normalizationSection.open).toBe(false)
+    const scrollSpy = vi.fn()
+    normalizationSection.scrollIntoView = scrollSpy
+
+    const nav = container.querySelector('nav') as HTMLElement
+    const overviewTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Overview')) as HTMLButtonElement
+    const normalizationTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Normalization')) as HTMLButtonElement
+    expect(overviewTab.getAttribute('aria-current')).toBe('true')
+    expect(normalizationTab.getAttribute('aria-current')).toBeNull()
+
+    await act(async () => { normalizationTab.click(); await Promise.resolve() })
+
+    expect(normalizationSection.open).toBe(true)
+    expect(scrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
+    expect(normalizationTab.getAttribute('aria-current')).toBe('true')
+    expect(overviewTab.getAttribute('aria-current')).toBeNull()
+  })
+
+  it('opens every accordion inside Data mapping when that tab is clicked', async () => {
+    await renderPage()
+
+    const workbook = container.querySelector('#workbook') as HTMLDetailsElement
+    const channelColumns = container.querySelector('#channel-columns') as HTMLDetailsElement
+    expect(workbook.open).toBe(false)
+    expect(channelColumns.open).toBe(false)
+
+    const nav = container.querySelector('nav') as HTMLElement
+    const dataMappingTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Data mapping')) as HTMLButtonElement
+    await act(async () => { dataMappingTab.click(); await Promise.resolve() })
+
+    expect(workbook.open).toBe(true)
+    expect(channelColumns.open).toBe(true)
+  })
+
+  it('updates the active tab as sections scroll into view (scroll-spy)', async () => {
+    await renderPage()
+
+    const nav = container.querySelector('nav') as HTMLElement
+    const validationTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Validation')) as HTMLButtonElement
+    expect(validationTab.getAttribute('aria-current')).toBeNull()
+
+    await act(async () => { fireIntersection('validation', true); await Promise.resolve() })
+
+    expect(validationTab.getAttribute('aria-current')).toBe('true')
+    expect(validationTab.className).toContain('fh-button-primary')
+  })
+
+  it('expands and collapses every accordion with the bulk controls', async () => {
+    await renderPage()
+
+    const detailsElements = () => Array.from(container.querySelectorAll('fieldset#data-mapping details')) as HTMLDetailsElement[]
+    expect(detailsElements().some(item => item.open)).toBe(false)
+
+    const expandAll = Array.from(container.querySelectorAll('button')).find(item => item.textContent === 'Expand all') as HTMLButtonElement
+    await act(async () => { expandAll.click(); await Promise.resolve() })
+    expect(detailsElements().every(item => item.open)).toBe(true)
+
+    const collapseAll = Array.from(container.querySelectorAll('button')).find(item => item.textContent === 'Collapse all') as HTMLButtonElement
+    await act(async () => { collapseAll.click(); await Promise.resolve() })
+    expect(detailsElements().every(item => item.open)).toBe(false)
+  })
+
+  it('flags the Data mapping and Normalization tabs as unsaved once the mapping changes', async () => {
+    await renderPage()
+
+    const nav = container.querySelector('nav') as HTMLElement
+    const dataMappingTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Data mapping')) as HTMLButtonElement
+    expect(dataMappingTab.querySelector('.fh-status-dot')).toBeNull()
+
+    const dataStartInput = Array.from(container.querySelectorAll('label')).find(label => label.textContent?.includes('Data starts at row'))?.querySelector('input') as HTMLInputElement
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(dataStartInput, '3')
+      dataStartInput.dispatchEvent(new Event('input', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(dataMappingTab.querySelector('.fh-status-dot')).not.toBeNull()
   })
 
   it('keeps the mapping workflow inside one full-width grid item', async () => {

@@ -1074,6 +1074,50 @@ describe('CommerceHub', () => {
     expect(c.textContent).not.toContain('snapp-secret-value')
   })
 
+  it('gives any spreadsheet-backed source connector the same resource, worksheet, and Configure Data UX as Nextcloud', async () => {
+    const spreadsheetCommerce: CommerceService = {
+      ...commerce,
+      async getSourceTypes() {
+        return {
+          items: [
+            typeOption('nextcloud:primary', 'nextcloud', 'Nextcloud', 'Source', false, [
+              { key: 'url', label: 'Nextcloud URL', required: true, secret: false },
+              { key: 'username', label: 'Username', required: true, secret: false },
+              { key: 'password', label: 'Password', required: true, secret: true },
+              { key: 'spreadsheet_path', label: 'Spreadsheet path', required: true, secret: false },
+            ]),
+            typeOption('gsheets:test', 'gsheets', 'Test Sheets', 'Source', false, [
+              { key: 'auth_token', label: 'Auth token', required: true, secret: true },
+              { key: 'spreadsheet_path', label: 'Spreadsheet path', required: true, secret: false },
+            ]),
+          ],
+        }
+      },
+    }
+    const c = await renderPage(adminUser, spreadsheetCommerce, ['/commerce?tab=sources'])
+    const add = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Add source')
+    await act(async () => { add?.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+
+    const typeSelect = selectByLabel(c, 'Source type')
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(typeSelect, 'gsheets:test')
+      typeSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+
+    expect(c.textContent).toContain('Auth token')
+    expect(Array.from(c.querySelectorAll('label')).some(label => label.textContent?.includes('Spreadsheet path'))).toBe(false)
+
+    const genericPathInput = Array.from(c.querySelectorAll('label'))
+      .find(label => label.textContent?.includes('Selected file'))
+      ?.querySelector('input') as HTMLInputElement
+    expect(genericPathInput).toBeTruthy()
+    expect(Array.from(c.querySelectorAll('button')).some(button => button.textContent === 'Browse Nextcloud')).toBe(false)
+    expect(c.textContent).toContain('Worksheet')
+    expect(c.textContent).toContain('All worksheets')
+    expect(c.textContent).toContain('Selected worksheet')
+    expect(c.textContent).toContain('Save the connection first, then configure worksheets, mapping, and read limits on the Data Sheet page.')
+  })
+
   it('saves connector worksheet settings without persisting a second global Source mapping', async () => {
     const captured: { payload: Parameters<CommerceService['saveSource']>[1] | null } = { payload: null }
     const savingCommerce: CommerceService = {

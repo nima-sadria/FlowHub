@@ -616,6 +616,10 @@ export function ConfigPanel({
 
   if (!selected) return null
   const selectedType = selected
+  // Any source connector whose settings schema exposes a spreadsheet_path field gets the
+  // same file-selection + worksheet + Configure Data treatment, not just Nextcloud —
+  // this keeps Nextcloud, and any future spreadsheet-backed connector, on one shared UX.
+  const hasSpreadsheetResource = kind === 'source' && selected.settings_schema.some(field => field.key === 'spreadsheet_path')
 
   const configuredSecret = (key: string) => secretStatus[key]?.status === 'configured'
   const hasSecret = (key: string) => Boolean(secrets[key]?.trim()) || configuredSecret(key)
@@ -645,7 +649,7 @@ export function ConfigPanel({
       enabled: selectedType.placeholder ? false : enabled,
       access_mode: accessMode,
       description,
-      settings: kind === 'source' && selectedType.provider === 'nextcloud'
+      settings: hasSpreadsheetResource
         ? {
             ...settings,
             source_read_policy: readPolicy,
@@ -695,8 +699,7 @@ export function ConfigPanel({
       }
       if (kind === 'source') await commerce.saveSource(selectedType.id, payload)
       else await commerce.saveChannel(selectedType.id, payload)
-      const nextcloudNeedsSpreadsheet = kind === 'source'
-        && selectedType.provider === 'nextcloud'
+      const nextcloudNeedsSpreadsheet = hasSpreadsheetResource
         && !settings.spreadsheet_path?.trim()
       success(kind === 'source'
         ? nextcloudNeedsSpreadsheet
@@ -1046,7 +1049,7 @@ export function ConfigPanel({
         </div>
       <div className="fh-form-grid md:grid-cols-2">
         {selected.settings_schema
-          .filter(field => !(kind === "source" && selected.provider === "nextcloud" && field.key === "spreadsheet_path"))
+          .filter(field => !(hasSpreadsheetResource && field.key === "spreadsheet_path"))
           .filter(field => !CHANNEL_VISIBLE_FIELDS[selected.provider]
             || CHANNEL_VISIBLE_FIELDS[selected.provider].has(field.key))
           .map(renderConnectionField)}
@@ -1108,26 +1111,42 @@ export function ConfigPanel({
         </div>
       )}
 
-      {kind === "source" && selected.provider === "nextcloud" && (
+      {hasSpreadsheetResource && (
         <div className="fh-stack">
           <div className="fh-form-section">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="fh-form-section-title">{translate('commerce:commerceHub.nextcloudSpreadsheetFile')}</p>
-                <p className="fh-form-section-description">{translate('commerce:commerceHub.useWebdavWithYourAppPasswordPublic')}</p>
-                <p className="mt-3 fh-help-text">{translate('commerce:commerceHub.selectedFile')}</p>
-                <div className="mt-1 min-h-10 rounded-md border border-border bg-bg-subtle px-3 py-2 fh-text-body">
-                  {settings.spreadsheet_path || "No spreadsheet file selected"}
+            {selected.provider === "nextcloud" ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="fh-form-section-title">{translate('commerce:commerceHub.nextcloudSpreadsheetFile')}</p>
+                  <p className="fh-form-section-description">{translate('commerce:commerceHub.useWebdavWithYourAppPasswordPublic')}</p>
+                  <p className="mt-3 fh-help-text">{translate('commerce:commerceHub.selectedFile')}</p>
+                  <div className="mt-1 min-h-10 rounded-md border border-border bg-bg-subtle px-3 py-2 fh-text-body">
+                    {settings.spreadsheet_path || "No spreadsheet file selected"}
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => void browseNextcloud('/')}
+                  className="fh-button-secondary px-4"
+                >
+                  {translate('commerce:commerceHub.browseNextcloud')}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => void browseNextcloud('/')}
-                className="fh-button-secondary px-4"
-              >
-                {translate('commerce:commerceHub.browseNextcloud')}
-              </button>
-            </div>
+            ) : (
+              <div>
+                <p className="fh-form-section-title">{translate('commerce:commerceHub.selectedFile')}</p>
+                <p className="fh-form-section-description">{translate('commerce:commerceHub.spreadsheetResourceGenericHelp')}</p>
+                <label className="fh-field mt-3">
+                  <span className="fh-help-text">{translate('commerce:commerceHub.selectedFile')}</span>
+                  <input
+                    value={settings.spreadsheet_path ?? ''}
+                    onChange={event => setSettings(current => ({ ...current, spreadsheet_path: event.target.value }))}
+                    placeholder={translate('commerce:commerceHub.spreadsheetResourcePlaceholder')}
+                    className="fh-input"
+                  />
+                </label>
+              </div>
+            )}
           </div>
 
           <div className="fh-form-section">

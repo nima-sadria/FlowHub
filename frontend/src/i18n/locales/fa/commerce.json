@@ -185,6 +185,8 @@
   "commerceHub.selectedWorksheet": "برگه انتخاب‌شده",
   "commerceHub.selectVendor": "انتخاب فروشنده",
   "commerceHub.settings": "تنظیمات",
+  "commerceHub.spreadsheetResourceGenericHelp": "مسیر فایل یا شناسه‌ای که این رابط از آن می‌خواند وارد کنید.",
+  "commerceHub.spreadsheetResourcePlaceholder": "مثلاً /Documents/prices.xlsx",
   "commerceHub.setupReasonCredentials": "اطلاعات ورود یا پیکربندی لازم کانال کامل نیست.",
   "commerceHub.setupReasonDisabled": "این کانال غیرفعال است. پیش از استفاده دوباره، تنظیمات آن را بررسی کنید.",
   "commerceHub.setupState": "وضعیت راه‌اندازی:",
