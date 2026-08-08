@@ -31,6 +31,8 @@ describe('SecretField', () => {
         revealLabel="Show entered secret"
         concealLabel="Hide entered secret"
         copyLabel="Copy entered secret"
+        placeholder="Type your password"
+        configuredPlaceholder="Configured — type a new password to replace"
       />,
     ))
     return { root, onChange }
@@ -41,7 +43,7 @@ describe('SecretField', () => {
     const input = container.querySelector('input') as HTMLInputElement
     expect(input.value).toBe('')
     expect(input.getAttribute('value')).toBe('')
-    expect(container.querySelector('[aria-hidden="true"]')?.textContent).toContain('••••••••')
+    expect(input.placeholder).toBe('Configured — type a new password to replace')
     expect(container.textContent).toContain('Configured; leave blank to keep unchanged.')
     expect(Array.from(container.querySelectorAll('button')).every(button => button.disabled)).toBe(true)
     act(() => root.unmount())

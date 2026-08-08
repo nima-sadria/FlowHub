@@ -12,16 +12,12 @@ interface SecretFieldProps {
   revealLabel: string
   concealLabel: string
   copyLabel: string
+  placeholder: string
+  configuredPlaceholder?: string
   error?: string
 }
 
-/**
- * A write-only credential field.
- *
- * Stored secrets are represented only by `configured`; their value is never
- * placed in the DOM. Reveal and copy operate exclusively on a replacement
- * value typed during the current form session.
- */
+/** A write-only credential field; stored secrets are never placed in the DOM. */
 export default function SecretField({
   label,
   value,
@@ -33,11 +29,14 @@ export default function SecretField({
   revealLabel,
   concealLabel,
   copyLabel,
+  placeholder,
+  configuredPlaceholder,
   error,
 }: SecretFieldProps) {
   const id = useId()
   const [revealed, setRevealed] = useState(false)
   const hasLocalValue = value.length > 0
+  const emptyPlaceholder = configured ? (configuredPlaceholder || placeholder) : placeholder
 
   async function copyLocalValue() {
     if (!hasLocalValue) return
@@ -56,18 +55,11 @@ export default function SecretField({
           disabled={disabled}
           onChange={event => onChange(event.target.value)}
           className="fh-input pe-20"
+          placeholder={emptyPlaceholder}
           autoComplete="new-password"
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : configured ? `${id}-configured` : undefined}
         />
-        {configured && !hasLocalValue && (
-          <span
-            className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-text-muted"
-            aria-hidden="true"
-          >
-            ••••••••
-          </span>
-        )}
         <div className="absolute inset-y-0 end-2 flex items-center gap-1">
           <button
             type="button"

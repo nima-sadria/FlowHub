@@ -217,6 +217,36 @@ class TestUpdateSettings:
 
 # -- POST /api/v2/settings/woocommerce ----------------------------------------
 
+class TestSourceNetworkPolicy:
+    def test_admin_can_save_narrow_private_nextcloud_network(self, client, auth_headers, db):
+        r = client.put(
+            "/api/v2/settings/advanced/source-network-policy",
+            headers=auth_headers,
+            json={"trusted_private_networks": ["192.168.100.11/32"]},
+        )
+        assert r.status_code == 200
+        assert r.json()["trusted_private_networks"] == ["192.168.100.11/32"]
+        from app.flowhub.setup.service import AppConfigService
+        assert AppConfigService(db).get("nextcloud.trusted_private_networks") == '["192.168.100.11/32"]'
+
+    def test_viewer_cannot_save_network_policy(self, client, viewer_headers):
+        r = client.put(
+            "/api/v2/settings/advanced/source-network-policy",
+            headers=viewer_headers,
+            json={"trusted_private_networks": ["192.168.100.11/32"]},
+        )
+        assert r.status_code == 403
+
+    @pytest.mark.parametrize("networks", [["192.168.0.0/16"], ["8.8.8.8/32"], ["not-a-cidr"]])
+    def test_rejects_broad_public_or_invalid_networks(self, client, auth_headers, networks):
+        r = client.put(
+            "/api/v2/settings/advanced/source-network-policy",
+            headers=auth_headers,
+            json={"trusted_private_networks": networks},
+        )
+        assert r.status_code == 422
+
+
 class TestUpdateWooCommerce:
     def test_saves_credentials(self, client, auth_headers, db):
         r = client.post("/api/v2/settings/woocommerce", headers=auth_headers,

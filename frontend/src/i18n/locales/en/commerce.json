@@ -76,6 +76,8 @@
   "commerceHub.configureData": "Configure Data",
   "commerceHub.configured": "Configured",
   "commerceHub.configuredLeaveBlankToKeepUnchanged": "Configured; leave blank to keep unchanged.",
+  "commerceHub.passwordConfiguredPlaceholder": "Configured — type a new password to replace",
+  "commerceHub.passwordPlaceholder": "Type your password",
   "commerceHub.connectedChannels": "Connected Channels",
   "commerceHub.connectionSettings": "Connection Settings",
   "commerceHub.connectionDetailsVerified": "Connection details verified",

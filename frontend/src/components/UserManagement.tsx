@@ -153,6 +153,7 @@ export default function UserManagement() {
               required
               onChange={setPassword}
               configuredHint={translate('settings:users.passwordConfigured')}
+              placeholder={translate('settings:users.passwordPlaceholder')}
               revealLabel={translate('settings:users.showPassword')}
               concealLabel={translate('settings:users.hidePassword')}
               copyLabel={translate('settings:users.copyPassword')}
@@ -226,7 +227,7 @@ export default function UserManagement() {
       {passwordTarget && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="password-dialog-title">
         <form className="fh-card w-full max-w-lg p-5" onSubmit={event => { event.preventDefault(); void updateUser(passwordTarget, { password: replacementPassword }) }}>
           <h3 className="fh-section-title" id="password-dialog-title">{translate('settings:users.changePasswordFor', { username: passwordTarget.username })}</h3>
-          <div className="my-4"><SecretField label={translate('settings:users.newPassword')} value={replacementPassword} required onChange={setReplacementPassword} configuredHint="" revealLabel={translate('settings:users.showPassword')} concealLabel={translate('settings:users.hidePassword')} copyLabel={translate('settings:users.copyPassword')} /></div>
+          <div className="my-4"><SecretField label={translate('settings:users.newPassword')} value={replacementPassword} required onChange={setReplacementPassword} configuredHint="" placeholder={translate('settings:users.passwordPlaceholder')} revealLabel={translate('settings:users.showPassword')} concealLabel={translate('settings:users.hidePassword')} copyLabel={translate('settings:users.copyPassword')} /></div>
           <div className="flex justify-end gap-2"><button className="fh-button-secondary" type="button" onClick={() => setPasswordTarget(null)}>{translate('settings:users.cancel')}</button><button className="fh-button-primary" type="submit" disabled={replacementPassword.length < 8 || busyId === passwordTarget.id}>{translate('settings:users.savePassword')}</button></div>
         </form>
       </div>}

@@ -9,6 +9,8 @@ connection validation is handled by future diagnostics/refresh flows.
 
 from __future__ import annotations
 
+import ipaddress
+import json
 import re
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -117,6 +119,33 @@ class RateLimitSettingsPatch(BaseModel):
         if not (1 <= value <= 1000):
             raise ValueError("Rate limit must be between 1 and 1000 requests per minute")
         return value
+
+
+class SourceNetworkPolicyPatch(BaseModel):
+    """Explicit private-network exceptions for the Nextcloud source only."""
+
+    trusted_private_networks: list[str]
+
+    @field_validator("trusted_private_networks")
+    @classmethod
+    def _validate_trusted_networks(cls, value: list[str]) -> list[str]:
+        if len(value) > 32:
+            raise ValueError("At most 32 trusted private networks may be configured.")
+        normalized: list[str] = []
+        for raw_network in value:
+            try:
+                network = ipaddress.ip_network(raw_network.strip(), strict=True)
+            except ValueError as exc:
+                raise ValueError(f"Invalid CIDR: {raw_network}") from exc
+            if not network.is_private:
+                raise ValueError("Only private-network CIDRs may be trusted.")
+            minimum_prefix = 24 if network.version == 4 else 64
+            if network.prefixlen < minimum_prefix:
+                raise ValueError(
+                    f"{network} is too broad. Use /{minimum_prefix} or a narrower network."
+                )
+            normalized.append(str(network))
+        return sorted(set(normalized))
 
 
 class WooCommerceCredentials(BaseModel):
@@ -247,6 +276,49 @@ async def update_rate_limits(
         "scheduler_started": False,
         "automatic_sync": False,
         "runtime_write_blocked": True,
+    }
+
+
+@router.get("/advanced/source-network-policy")
+async def get_source_network_policy(
+    _: FlowHubUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    raw_value = AppConfigService(db).get("nextcloud.trusted_private_networks") or "[]"
+    try:
+        configured = json.loads(raw_value)
+    except (TypeError, ValueError):
+        configured = []
+    networks = configured if isinstance(configured, list) and all(isinstance(item, str) for item in configured) else []
+    return {
+        "trusted_private_networks": networks,
+        "scope": "nextcloud",
+        "requires_restart": False,
+    }
+
+
+@router.put("/advanced/source-network-policy")
+async def update_source_network_policy(
+    body: SourceNetworkPolicyPatch,
+    current_user: FlowHubUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    AppConfigService(db).set(
+        "nextcloud.trusted_private_networks",
+        json.dumps(body.trusted_private_networks),
+        updated_by=current_user.username,
+    )
+    create_audit_event(
+        db,
+        username=current_user.username,
+        event="nextcloud_trusted_private_networks_changed",
+        ip_address="local-settings",
+    )
+    return {
+        "ok": True,
+        "trusted_private_networks": body.trusted_private_networks,
+        "scope": "nextcloud",
+        "requires_restart": False,
     }
 
 

@@ -860,6 +860,8 @@ export function ConfigPanel({
             setConnectionFeedback(null)
           }}
           configuredHint={translate('commerce:commerceHub.configuredLeaveBlankToKeepUnchanged')}
+          placeholder={translate('commerce:commerceHub.passwordPlaceholder')}
+          configuredPlaceholder={translate('commerce:commerceHub.passwordConfiguredPlaceholder')}
           revealLabel={translate('commerce:commerceHub.showEnteredSecret', { defaultValue: 'Show entered secret' })}
           concealLabel={translate('commerce:commerceHub.hideEnteredSecret', { defaultValue: 'Hide entered secret' })}
           copyLabel={translate('commerce:commerceHub.copyEnteredSecret', { defaultValue: 'Copy entered secret' })}
