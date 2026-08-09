@@ -138,9 +138,9 @@ def _crash_worker(url: str, schema: str, batch_id: str, mode: str) -> None:
 
     pipeline_module.RateLimitService = FakeLimiter
     # execute_workspace imports the factory lazily from this module.
-    import app.flowhub.unified_workspace.connectors as connectors_module
+    import app.flowhub.channels.gateway as gateway_module
 
-    connectors_module.WorkspaceConnectorFactory = FakeFactory
+    gateway_module.WorkspaceConnectorFactory = FakeFactory
     service = WritePipelineService(db)
     service._assert_batch_hash_matches = lambda batch: None
     service._assert_channel_write_enabled = lambda batch: None

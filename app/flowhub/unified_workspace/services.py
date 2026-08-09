@@ -26,8 +26,8 @@ from app.flowhub.product_pricing.service import ProductPricingService
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.source_workspace.models import SourceDataQualityIssue
 from app.flowhub.source_workspace.service import SourceWorkspaceService
+from app.flowhub.channels.gateway import WorkspaceConnectorFactory
 from app.flowhub.unified_workspace.authorization import has_workspace_permission
-from app.flowhub.unified_workspace.connectors import WorkspaceConnectorFactory
 from app.flowhub.unified_workspace.domain import (
     ApplyState,
     ChannelCapabilities,

@@ -329,10 +329,10 @@ async def test_final_dispatch_boundary_blocks_stale_matrix_writer_and_records_au
         async def acquire(self, *args, **kwargs):
             return None
 
-    import app.flowhub.unified_workspace.connectors as connectors_module
+    import app.flowhub.channels.gateway as gateway_module
     import app.flowhub.write_pipeline.service as pipeline_module
 
-    monkeypatch.setattr(connectors_module, "WorkspaceConnectorFactory", FakeFactory)
+    monkeypatch.setattr(gateway_module, "WorkspaceConnectorFactory", FakeFactory)
     monkeypatch.setattr(pipeline_module, "RateLimitService", FakeRateLimitService)
     command = WorkspaceWriteBatchCommand(
         workspace_id="workspace-1",
@@ -413,10 +413,10 @@ async def test_authorized_matrix_write_records_origin_before_provider_dispatch(d
         async def acquire(self, *args, **kwargs):
             return None
 
-    import app.flowhub.unified_workspace.connectors as connectors_module
+    import app.flowhub.channels.gateway as gateway_module
     import app.flowhub.write_pipeline.service as pipeline_module
 
-    monkeypatch.setattr(connectors_module, "WorkspaceConnectorFactory", FakeFactory)
+    monkeypatch.setattr(gateway_module, "WorkspaceConnectorFactory", FakeFactory)
     monkeypatch.setattr(pipeline_module, "RateLimitService", FakeRateLimitService)
     intent = _intent(
         origin=PricingOrigin.PRICING_MATRIX,

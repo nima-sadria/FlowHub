@@ -19,6 +19,16 @@ The internal marketplace contract lives in `app/flowhub/channels`.
 
 Existing WooCommerce write behavior remains in the protected Write Pipeline. The marketplace abstraction does not add a generic write endpoint and does not relax channel access modes.
 
+## Channel Gateway
+
+`app/flowhub/channels/gateway.py` (`WorkspaceConnectorFactory`) is the single
+channel-resolution boundary between the Write Pipeline and the per-channel
+provider connectors implemented in `app/flowhub/unified_workspace/connectors.py`.
+`WritePipelineService.execute_workspace`, the sole provider-dispatch authority,
+resolves every channel_id through this gateway. It holds no provider logic of
+its own; an unresolvable channel_id fails closed with `WorkspaceDomainError`
+rather than falling back to a default channel.
+
 ## Multi-Channel Product Pricing
 
 The Products workflow exposes a protected single-product channel price editor

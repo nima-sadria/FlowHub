@@ -20,13 +20,13 @@ from app.flowhub.channels.contracts import (
     ConnectorErrorCategory,
     RetryMetadata,
 )
+from app.flowhub.channels.gateway import WorkspaceConnectorFactory
 from app.flowhub.unified_workspace.connectors import (
     ListingUpdate,
     SnappShopWorkspaceConnector,
     TapsiShopWorkspaceConnector,
     TechnolifeWorkspaceConnector,
     WooCommerceWorkspaceConnector,
-    WorkspaceConnectorFactory,
 )
 from app.flowhub.unified_workspace.domain import WorkspaceDomainError
 from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome

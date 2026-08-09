@@ -507,9 +507,9 @@ class WritePipelineService:
         reconcile_only: bool = False,
     ) -> list[WorkspaceWriteResult]:
         """Sole provider-dispatch authority for immutable Workspace intents."""
+        from app.flowhub.channels.gateway import WorkspaceConnectorFactory
         from app.flowhub.commerce.service import CommerceHubService
         from app.flowhub.product_pricing.service import ProductPricingService
-        from app.flowhub.unified_workspace.connectors import WorkspaceConnectorFactory
 
         factory = WorkspaceConnectorFactory(
             ProductPricingService(self.db), CommerceHubService(self.db)
