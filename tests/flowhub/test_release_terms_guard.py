@@ -65,6 +65,15 @@ INTERNAL_TERM_PATTERNS = {
     "docs/exchange-rates.md": (r"Automated tests use fake adapters",),
     "docs/releases/FLOWHUB_V1.3_BETA.md": (r"Beta",),
     "docs/roadmap/NEXT.md": (r"FlowHub v1\.3 Beta",),
+    # These architecture diagrams document real, evidence-based findings —
+    # dead/unmounted stub API routers (dryrun.py, changesets.py, etc.) and the
+    # stub app/flowhub/audit/logger.py module — per CAPABILITY_REGISTRY.md's
+    # cross-cutting finding and audit_governance notes. "stub" here is the
+    # accurate technical term for existing legacy/dead code, not release
+    # residue. This path-exact allowance covers only these two diagram files
+    # and only the word "stub"; it does not permit any other release term.
+    "docs/draw/00-flowhub-master.drawio": (r"stub",),
+    "docs/draw/50-capability-maturity.drawio": (r"stub",),
     "app/flowhub/commerce/service.py": (
         r'"placeholder":\s*(True|False|bool\(meta\["placeholder"\]\))',
         r'\bplaceholder\s*=\s*bool\(meta\["placeholder"\]\)',
