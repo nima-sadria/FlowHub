@@ -23,4 +23,5 @@ jobs:
             tests/flowhub/test_no_direct_httpx.py \
             tests/flowhub/write_pipeline/test_shared_write_authority.py \
             tests/flowhub/test_release_terms_guard.py \
-            tests/flowhub/channels/test_gateway.py
+            tests/flowhub/channels/test_gateway.py \
+            tests/flowhub/test_planned_routers_unmounted.py
