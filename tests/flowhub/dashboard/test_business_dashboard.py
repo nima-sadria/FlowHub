@@ -46,6 +46,16 @@ def test_empty_dashboard_reports_truthful_zero_state() -> None:
     assert metrics["ordersToday"] == 0
     assert metrics["revenueToday"] == []
 
+    business_observability = summary["businessObservability"]
+    assert business_observability["writePipelinePartialFailureRate30d"] == 0.0
+    assert business_observability["openBlockingByDomain"] == {
+        "source_acquisition": 0,
+        "pricing": 0,
+        "channels": 0,
+        "write_pipeline": 0,
+    }
+    assert business_observability["oldestUnresolvedBlockingEventAgeSeconds"] is None
+
 
 def test_order_and_revenue_metrics_use_persisted_records_and_keep_currencies_separate() -> None:
     now = datetime(2026, 7, 17, 12)

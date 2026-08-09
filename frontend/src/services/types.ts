@@ -705,8 +705,9 @@ export interface CommerceTypeOption {
 
 // -- Activity ------------------------------------------------------------------
 
-export type ActivityEventKind = 'user_action' | 'system_log'
+export type ActivityEventKind = 'user_action' | 'system_log' | 'business_event'
 export type ActivityLevel = 'critical' | 'error' | 'warning' | 'success' | 'info' | 'debug'
+export type BusinessEventStatus = 'open' | 'acknowledged' | 'resolved'
 
 export interface ActivityEvent {
   id: string
@@ -718,4 +719,28 @@ export interface ActivityEvent {
   action: string
   detail: string | null
   repeatCount?: number
+  // Present only for kind === 'business_event' rows (Business Observability v1).
+  businessEventId?: string
+  businessImpact?: string
+  status?: BusinessEventStatus
+  recommendedAction?: string | null
+  actionUrl?: string | null
+  retryable?: boolean
+}
+
+// -- Business Observability ------------------------------------------------------------------
+
+export interface BusinessEventLifecycleTransition {
+  id: number
+  fromStatus: BusinessEventStatus | null
+  toStatus: BusinessEventStatus
+  actor: string
+  occurredAt: Date
+  note: string | null
+}
+
+export interface BusinessObservabilityKpis {
+  openBlockingByDomain: Record<string, number>
+  writePipelinePartialFailureRate30d: number
+  oldestUnresolvedBlockingEventAgeSeconds: number | null
 }

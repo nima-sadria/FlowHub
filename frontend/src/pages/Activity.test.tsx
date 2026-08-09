@@ -66,6 +66,34 @@ describe('Activity business history', () => {
     expect(getEvents.mock.calls[0][0].includeDebug).toBe(false)
   })
 
+  it('renders Business Observability fields on a business event row', async () => {
+    const businessEvent: ActivityEvent = {
+      id: 'business:evt-1',
+      timestamp: new Date(),
+      kind: 'business_event',
+      level: 'error',
+      category: 'apply',
+      actor: 'Write Pipeline',
+      action: 'write_batch_partially_failed',
+      detail: '2 of 5 items failed',
+      businessEventId: 'evt-1',
+      businessImpact: 'partial_failure',
+      status: 'open',
+      recommendedAction: 'Review the failed items in this batch and retry them.',
+      actionUrl: '/workspace',
+      retryable: true,
+    }
+    getEvents.mockResolvedValueOnce({ items: [businessEvent], total: 1, page: 1, pageSize: 30 })
+
+    await render()
+
+    expect(container.textContent).toContain('Write Pipeline')
+    expect(container.textContent).toContain('Open')
+    expect(container.textContent).toContain('Review the failed items in this batch and retry them.')
+    const link = container.querySelector('a[href="/workspace"]')
+    expect(link).toBeTruthy()
+  })
+
   it('reads a user filter from navigation and exposes categorized filters', async () => {
     await render('/activity?user=operator')
     expect(getEvents.mock.calls[0][0].username).toBe('operator')

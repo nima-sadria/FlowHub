@@ -12,6 +12,12 @@ interface RawEvent {
   actor: string
   action: string
   detail: string | null
+  businessEventId?: string
+  businessImpact?: string
+  status?: string
+  recommendedAction?: string | null
+  actionUrl?: string | null
+  retryable?: boolean
 }
 
 interface RawPage {
@@ -31,6 +37,12 @@ function mapEvent(r: RawEvent): ActivityEvent {
     actor: r.actor,
     action: r.action,
     detail: r.detail,
+    businessEventId: r.businessEventId,
+    businessImpact: r.businessImpact,
+    status: r.status as ActivityEvent['status'],
+    recommendedAction: r.recommendedAction,
+    actionUrl: r.actionUrl,
+    retryable: r.retryable,
   }
 }
 

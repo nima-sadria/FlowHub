@@ -29,6 +29,7 @@
   "dashboard.blockingQualifier_one": "{{value}} مسدودکننده",
   "dashboard.blockingQualifier_other": "{{value}} مسدودکننده",
   "dashboard.businessDataUnavailable": "داده‌های کسب‌وکار در دسترس نیست",
+  "dashboard.businessEventsOpen": "رویدادهای کسب‌وکار باز",
   "dashboard.businessDataUnavailableExplanation": "فلوهاب نتوانست خلاصه فعلی کسب‌وکار را بارگیری کند. هیچ مقداری تخمین زده نشده است.",
   "dashboard.businessOverview": "نمای کسب‌وکار",
   "dashboard.businessOverviewDescription": "ببینید چه اتفاقی افتاده، چه چیزی نیازمند توجه است و گام بعدی چیست.",
@@ -118,7 +119,9 @@
   "dashboard.nothingReadyForApply": "موردی آماده اعمال نیست",
   "dashboard.nothingReadyForReview": "موردی آماده بازبینی نیست",
   "dashboard.notReadYet": "هنوز خوانده نشده",
+  "dashboard.noOpenBusinessEvents": "هیچ‌کدام",
   "dashboard.noWarnings": "هیچ هشداری وجود ندارد",
+  "dashboard.oldestOpenBusinessEvent": "قدیمی‌ترین رویداد باز",
   "dashboard.openActivity": "مشاهده فعالیت‌ها",
   "dashboard.openDataQuality": "مشاهده کیفیت داده",
   "dashboard.openDiagnostics": "باز کردن عیب‌یابی",
@@ -222,5 +225,6 @@
   "dashboard.warningsEmptyExplanation": "هیچ هشدار فعلی نیازمند بررسی فروشنده نیست.",
   "dashboard.warningsExplanation_one": "{{value}} هشدار باید پیش از انتشار بررسی شود.",
   "dashboard.warningsExplanation_other": "{{value}} هشدار باید پیش از انتشار بررسی شوند.",
-  "dashboard.warningsMeaning": "هشدارها مانع ادامه کار نمی‌شوند، اما ممکن است به تصمیم فروشنده نیاز داشته باشند."
+  "dashboard.warningsMeaning": "هشدارها مانع ادامه کار نمی‌شوند، اما ممکن است به تصمیم فروشنده نیاز داشته باشند.",
+  "dashboard.writeBatchSuccessRate": "نرخ موفقیت نوشتن (۳۰ روز)"
 }

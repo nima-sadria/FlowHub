@@ -29,6 +29,7 @@
   "dashboard.blockingQualifier_one": "{{value}} blocking",
   "dashboard.blockingQualifier_other": "{{value}} blocking",
   "dashboard.businessDataUnavailable": "Business data unavailable",
+  "dashboard.businessEventsOpen": "Open business events",
   "dashboard.businessDataUnavailableExplanation": "FlowHub could not load the current business summary. No values are being estimated.",
   "dashboard.businessOverview": "Business overview",
   "dashboard.businessOverviewDescription": "See what happened, what needs attention, and what to do next.",
@@ -118,7 +119,9 @@
   "dashboard.nothingReadyForApply": "Nothing ready for Apply",
   "dashboard.nothingReadyForReview": "Nothing ready for Review",
   "dashboard.notReadYet": "Not read yet",
+  "dashboard.noOpenBusinessEvents": "None",
   "dashboard.noWarnings": "No warnings",
+  "dashboard.oldestOpenBusinessEvent": "Oldest open event",
   "dashboard.openActivity": "Open Activity",
   "dashboard.openDataQuality": "Open Data Quality",
   "dashboard.openDiagnostics": "Open Diagnostics",
@@ -222,5 +225,6 @@
   "dashboard.warningsEmptyExplanation": "No current warning requires seller review.",
   "dashboard.warningsExplanation_one": "{{value}} warning should be reviewed before publishing.",
   "dashboard.warningsExplanation_other": "{{value}} warnings should be reviewed before publishing.",
-  "dashboard.warningsMeaning": "Warnings allow work to continue but may require a seller decision."
+  "dashboard.warningsMeaning": "Warnings allow work to continue but may require a seller decision.",
+  "dashboard.writeBatchSuccessRate": "Write success rate (30d)"
 }

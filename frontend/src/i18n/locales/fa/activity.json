@@ -48,11 +48,16 @@
   "activity.loading": "در حال بارگذاری...",
   "activity.loadMoreRemaining": "بارگذاری بیشتر ({{value1}} باقی‌مانده)",
   "activity.noActivityYet": "هنوز فعالیتی ثبت نشده است",
+  "activity.openScreen": "باز کردن",
   "activity.orderSyncs": "همگام‌سازی سفارش‌ها",
   "activity.permissionChanges": "تغییرات دسترسی",
   "activity.productChanges": "تغییرات محصول",
+  "activity.recommendedAction": "اقدام پیشنهادی",
   "activity.routineSystemActivity": "فعالیت‌های تکراری سیستم",
   "activity.search": "جست‌وجو",
+  "activity.statusAcknowledged": "تأیید شده",
+  "activity.statusOpen": "باز",
+  "activity.statusResolved": "برطرف شده",
   "activity.severity": "شدت",
   "activity.showRoutineSystemEvents": "نمایش رویدادهای تکراری و اشکال‌زدایی",
   "activity.source": "منبع",
@@ -102,5 +107,10 @@
   "event.user_permissions_changed": "دسترسی‌های کاربر تغییر کرد",
   "event.user_role_changed": "نقش کاربر تغییر کرد",
   "event.woocommerce_connected": "ووکامرس متصل شد",
-  "event.worksheet_enabled": "کاربرگ فعال شد"
+  "event.worksheet_enabled": "کاربرگ فعال شد",
+  "event.write_batch_applied": "دسته نوشتن اعمال شد",
+  "event.write_batch_failed": "دسته نوشتن ناموفق بود",
+  "event.write_batch_partially_failed": "دسته نوشتن تا حدی ناموفق بود",
+  "event.write_batch_reconciliation_required": "دسته نوشتن نیاز به تطبیق دارد",
+  "event.write_dry_run_rejected": "اجرای آزمایشی رد شد"
 }

@@ -48,11 +48,16 @@
   "activity.loading": "Loading...",
   "activity.loadMoreRemaining": "Load more ({{value1}} remaining)",
   "activity.noActivityYet": "No activity yet",
+  "activity.openScreen": "Open",
   "activity.orderSyncs": "Order syncs",
   "activity.permissionChanges": "Permission changes",
   "activity.productChanges": "Product changes",
+  "activity.recommendedAction": "Recommended action",
   "activity.routineSystemActivity": "Routine system activity",
   "activity.search": "Search",
+  "activity.statusAcknowledged": "Acknowledged",
+  "activity.statusOpen": "Open",
+  "activity.statusResolved": "Resolved",
   "activity.severity": "Severity",
   "activity.showRoutineSystemEvents": "Show routine and debug events",
   "activity.source": "Source",
@@ -102,5 +107,10 @@
   "event.user_permissions_changed": "User permissions changed",
   "event.user_role_changed": "User role changed",
   "event.woocommerce_connected": "WooCommerce connected",
-  "event.worksheet_enabled": "Worksheet enabled"
+  "event.worksheet_enabled": "Worksheet enabled",
+  "event.write_batch_applied": "Write batch applied",
+  "event.write_batch_failed": "Write batch failed",
+  "event.write_batch_partially_failed": "Write batch partially failed",
+  "event.write_batch_reconciliation_required": "Write batch requires reconciliation",
+  "event.write_dry_run_rejected": "Dry Run rejected"
 }

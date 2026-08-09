@@ -77,6 +77,7 @@ from fastapi.staticfiles import StaticFiles
 from app.connectors.common.errors import ConnectorError
 from app.flowhub.api.health import router as health_router
 from app.flowhub.api.v2.activity import router as activity_router
+from app.flowhub.api.v2.business_observability import router as business_observability_router
 from app.flowhub.api.v2.commerce import router as commerce_router
 from app.flowhub.api.v2.config import router as config_router
 from app.flowhub.api.v2.dashboard import router as dashboard_router
@@ -232,6 +233,7 @@ app.include_router(settings_router, prefix="/api/v2")
 app.include_router(commerce_router, prefix="/api/v2")
 app.include_router(config_router, prefix="/api/v2")
 app.include_router(activity_router, prefix="/api/v2")
+app.include_router(business_observability_router, prefix="/api/v2")
 app.include_router(dashboard_router, prefix="/api/v2")
 app.include_router(diagnostics_router, prefix="/api/v2")
 app.include_router(exchange_rates_router, prefix="/api/v2")

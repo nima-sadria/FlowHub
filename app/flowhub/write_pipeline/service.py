@@ -18,6 +18,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
+from app.flowhub.business_observability.service import BusinessObservabilityService
 from app.flowhub.data_layer.telemetry_service import ConnectorTelemetryService
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.service import IntegrationPlatformService
@@ -394,6 +395,13 @@ class WritePipelineService:
             },
             correlation_id=correlation_id,
             commit=False,
+        )
+        self._emit_batch_business_event(
+            batch,
+            success_count=success_count,
+            failure_count=failure_count,
+            reconciliation_count=reconciliation_count,
+            correlation_id=correlation_id,
         )
         self.db.commit()
         self.db.refresh(batch)
@@ -1179,6 +1187,21 @@ class WritePipelineService:
                 "execution_attempted": False,
             },
         )
+        BusinessObservabilityService(self.db).emit_event(
+            domain="write_pipeline",
+            event_type="write_dry_run_rejected",
+            severity="warning",
+            business_impact="blocking",
+            reason_code=reason,
+            reason_message=f"Dry Run request rejected: {reason}",
+            primary_scope_type="batch",
+            primary_scope_id=preview_id,
+            primary_scope_label=f"Preview {preview_id}",
+            recommended_action="Review the Dry Run request and retry.",
+            retryable=True,
+            action_route_key="workspace.home",
+            producer="write_pipeline.service._record_preview_rejection",
+        )
 
     def _batch_hash_from_row(self, batch: WriteBatch) -> str:
         parts = [batch.channel_id, batch.operation_type]
@@ -1229,6 +1252,71 @@ class WritePipelineService:
             self.db.commit()
             self.db.refresh(event)
         return event
+
+    # Write Pipeline batch-outcome -> Business Observability mapping (Business
+    # Observability v1, Write Pipeline producer). One event per completed
+    # batch execution, covering the full outcome including full success -
+    # unlike the Channels producer, which only reports failing items.
+    _BATCH_STATUS_BUSINESS_EVENT: dict[str, tuple[str, str, str, str, bool]] = {
+        # status -> (event_type, severity, business_impact, recommended_action, retryable)
+        "applied": ("write_batch_applied", "info", "none", "", False),
+        "reconciliation_required": (
+            "write_batch_reconciliation_required",
+            "warning",
+            "blocking",
+            "Review items awaiting reconciliation before relying on their applied state.",
+            True,
+        ),
+        "partially_failed": (
+            "write_batch_partially_failed",
+            "error",
+            "partial_failure",
+            "Review the failed items in this batch and retry them.",
+            True,
+        ),
+        "failed": (
+            "write_batch_failed",
+            "critical",
+            "critical_business_failure",
+            "Review this batch's failure details and retry the write.",
+            True,
+        ),
+    }
+
+    def _emit_batch_business_event(
+        self,
+        batch: WriteBatch,
+        *,
+        success_count: int,
+        failure_count: int,
+        reconciliation_count: int,
+        correlation_id: str,
+    ) -> None:
+        mapping = self._BATCH_STATUS_BUSINESS_EVENT.get(batch.status)
+        if mapping is None:
+            return
+        event_type, severity, business_impact, recommended_action, retryable = mapping
+        BusinessObservabilityService(self.db).emit_event(
+            domain="write_pipeline",
+            event_type=event_type,
+            severity=severity,
+            business_impact=business_impact,
+            reason_code=batch.status,
+            reason_message=(
+                f"{success_count} applied, {failure_count} failed, "
+                f"{reconciliation_count} requiring reconciliation."
+            ),
+            primary_scope_type="batch",
+            primary_scope_id=batch.id,
+            primary_scope_label=f"Write batch {batch.id}",
+            secondary_scopes=[("channel", batch.channel_id, batch.channel_type)],
+            recommended_action=recommended_action,
+            retryable=retryable,
+            action_route_key="workspace.home",
+            correlation_id=correlation_id,
+            producer="write_pipeline.service.execute_workspace",
+            commit=False,
+        )
 
     def _batch_shape(self, row: WriteBatch) -> WritePipelineBatchShape:
         return WritePipelineBatchShape(

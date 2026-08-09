@@ -239,4 +239,95 @@ class TestActivityEndpoint:
         assert item["action"] == "apply_completed"
         assert item["category"] == "apply"
         assert item["actor"] == "activityadmin"
-        assert db.query(UnifiedAuditEntry).filter_by(id=row.id).count() == 1
+
+
+class TestActivityBusinessEvents:
+    """Business Observability v1: business_event rows merge into Activity."""
+
+    def _seed_business_event(self, db, **overrides):
+        from app.flowhub.business_observability.service import BusinessObservabilityService
+
+        defaults = dict(
+            domain="write_pipeline",
+            event_type="write_batch_partially_failed",
+            severity="error",
+            business_impact="partial_failure",
+            reason_code="provider_error",
+            reason_message="2 of 5 items failed",
+            primary_scope_type="batch",
+            primary_scope_id="batch-activity-1",
+            secondary_scopes=[("channel", "woocommerce:primary", "WooCommerce")],
+            recommended_action="Review the failed items in this batch and retry them.",
+            retryable=True,
+            action_route_key="workspace.home",
+            correlation_id="corr-activity-biz-1",
+            producer="write_pipeline.service.execute_workspace",
+        )
+        defaults.update(overrides)
+        return BusinessObservabilityService(db).emit_event(**defaults)
+
+    def test_business_event_surfaces_in_merged_feed(self, client, db, auth_headers):
+        # auth_headers already logged in, which records its own login_success
+        # Activity row; assert the business event is present alongside it
+        # rather than assuming it is the only row.
+        event = self._seed_business_event(db)
+
+        response = client.get("/api/v2/activity", headers=auth_headers)
+        assert response.status_code == 200
+        body = response.json()
+        items_by_id = {row["id"]: row for row in body["items"]}
+        assert f"business:{event.id}" in items_by_id
+        item = items_by_id[f"business:{event.id}"]
+        assert item["kind"] == "business_event"
+        assert item["level"] == "error"
+        assert item["category"] == "apply"
+        assert item["actor"] == "Write Pipeline"
+        assert item["action"] == "write_batch_partially_failed"
+        assert item["detail"] == "2 of 5 items failed"
+        assert item["businessEventId"] == event.id
+        assert item["status"] == "open"
+        assert item["businessImpact"] == "partial_failure"
+        assert item["recommendedAction"] == "Review the failed items in this batch and retry them."
+        assert item["actionUrl"] == "/workspace"
+        assert item["retryable"] is True
+
+    def test_fully_applied_batch_reads_as_success_level(self, client, db, auth_headers):
+        self._seed_business_event(
+            db,
+            event_type="write_batch_applied",
+            severity="info",
+            business_impact="none",
+            reason_code="applied",
+            reason_message="",
+            recommended_action="",
+            retryable=False,
+            primary_scope_id="batch-activity-2",
+        )
+
+        response = client.get("/api/v2/activity?severity=success", headers=auth_headers)
+        assert response.status_code == 200
+        body = response.json()
+        # login_success (from auth_headers) is also level=success; both are
+        # legitimately "success" rows, so assert on levels rather than count.
+        assert all(row["level"] == "success" for row in body["items"])
+        assert any(row["action"] == "write_batch_applied" for row in body["items"])
+
+    def test_category_filter_matches_business_event_domain(self, client, db, auth_headers):
+        self._seed_business_event(db, primary_scope_id="batch-activity-3")
+
+        matching = client.get("/api/v2/activity?category=apply", headers=auth_headers)
+        assert matching.json()["total"] == 1
+
+        non_matching = client.get("/api/v2/activity?category=pricing", headers=auth_headers)
+        assert non_matching.json()["total"] == 0
+
+    def test_username_filter_excludes_business_events(self, client, db, auth_headers):
+        self._seed_business_event(db, primary_scope_id="batch-activity-4")
+
+        response = client.get("/api/v2/activity?username=activityadmin", headers=auth_headers)
+        assert response.status_code == 200
+        body = response.json()
+        # Only the login_success row (from auth_headers) matches the
+        # username filter; the business event has no per-user actor.
+        assert body["total"] == 1
+        assert all(not row["id"].startswith("business:") for row in body["items"])

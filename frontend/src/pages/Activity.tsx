@@ -112,7 +112,14 @@ function groupRoutineEvents(events: ActivityEvent[]): ActivityEvent[] {
   return result
 }
 
+const BUSINESS_EVENT_STATUS_VARIANT: Record<string, 'warning' | 'info' | 'success'> = {
+  open: 'warning',
+  acknowledged: 'info',
+  resolved: 'success',
+}
+
 function EventRow({ event }: { event: ActivityEvent }) {
+  const isBusinessEvent = event.kind === 'business_event'
   return (
     <article className="flex items-start gap-3 border-b border-border py-3 last:border-0">
       <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-bg-subtle" aria-hidden="true">
@@ -125,6 +132,26 @@ function EventRow({ event }: { event: ActivityEvent }) {
         </p>
         <p className="fh-text-caption truncate">{event.actor}</p>
         {event.repeatCount && event.repeatCount > 1 && <p className="fh-text-caption mt-1">{translate('activity:activity.groupedRoutineSummary', { count: event.repeatCount })}</p>}
+        {isBusinessEvent && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {event.status && (
+              <Badge dot variant={BUSINESS_EVENT_STATUS_VARIANT[event.status] ?? 'neutral'}>
+                {translate(`activity:activity.status${event.status.charAt(0).toUpperCase()}${event.status.slice(1)}`)}
+              </Badge>
+            )}
+            {event.actionUrl && (
+              <a className="fh-text-caption font-medium text-primary underline" href={event.actionUrl}>
+                {translate('activity:activity.openScreen')}
+              </a>
+            )}
+          </div>
+        )}
+        {isBusinessEvent && event.recommendedAction && (
+          <p className="fh-text-caption mt-1">
+            <span className="font-medium">{translate('activity:activity.recommendedAction')}: </span>
+            {event.recommendedAction}
+          </p>
+        )}
         {event.detail && <details className="mt-2"><summary className="cursor-pointer fh-text-caption">{translate('activity:activity.technicalDetails')}</summary><p className="mt-2 break-all rounded bg-bg-subtle p-2 text-xs" dir="ltr">{event.detail}</p></details>}
       </div>
       <time className="fh-text-caption shrink-0 whitespace-nowrap" dateTime={event.timestamp.toISOString()}>

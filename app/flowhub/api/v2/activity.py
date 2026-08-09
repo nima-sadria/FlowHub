@@ -17,11 +17,68 @@ from sqlalchemy import String, case, cast, or_
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubLoginAudit, FlowHubUser
+from app.flowhub.business_observability.contracts import BusinessEventShape
+from app.flowhub.business_observability.service import BusinessObservabilityService
 from app.flowhub.database import get_db
 from app.flowhub.unified_workspace.authorization import require_workspace_permission
 from app.flowhub.unified_workspace.models import UnifiedAuditEntry
 
 router = APIRouter(prefix="/activity", tags=["activity"])
+
+# Business Observability domain -> Activity category, so a business event
+# lands in the same filter bucket an operator would already use to find
+# related work (e.g. a Channels business event next to "channel_connected").
+_BUSINESS_EVENT_CATEGORY: dict[str, str] = {
+    "source_acquisition": "sources",
+    "pricing": "pricing",
+    "channels": "channels",
+    "write_pipeline": "apply",
+}
+_BUSINESS_EVENT_DOMAIN_ACTOR: dict[str, str] = {
+    "source_acquisition": "Source Acquisition",
+    "pricing": "Pricing",
+    "channels": "Channels",
+    "write_pipeline": "Write Pipeline",
+}
+
+
+def _business_event_level(shape: BusinessEventShape) -> str:
+    """Map the Business Event severity/impact axes onto ActivityLevel.
+
+    Business Observability keeps severity and business impact as separate
+    concepts (Owner decision); Activity's ``level`` is a single presentation
+    field, so this collapses the two the same way the rest of Activity
+    already collapses UnifiedAuditEntry's free-text event_type.
+    """
+
+    if shape.severity == "critical":
+        return "critical"
+    if shape.severity == "error":
+        return "error"
+    if shape.severity in ("warning", "degraded"):
+        return "warning"
+    if shape.businessImpact == "none":
+        return "success"
+    return "info"
+
+
+def _map_business_event(shape: BusinessEventShape) -> dict[str, str | None]:
+    return {
+        "id": f"business:{shape.id}",
+        "timestamp": shape.occurredAt.isoformat() + "Z",
+        "kind": "business_event",
+        "level": _business_event_level(shape),
+        "category": _BUSINESS_EVENT_CATEGORY.get(shape.domain, "system"),
+        "actor": _BUSINESS_EVENT_DOMAIN_ACTOR.get(shape.domain, shape.domain),
+        "action": shape.eventType,
+        "detail": shape.reasonMessage or shape.reasonCode,
+        "businessEventId": shape.id,
+        "businessImpact": shape.businessImpact,
+        "status": shape.status,
+        "recommendedAction": shape.recommendedAction or None,
+        "actionUrl": shape.actionUrl,
+        "retryable": shape.retryable,
+    }
 
 # Event -> (kind, level, category) mapping. Categories are presentation
 # metadata only; the append-only audit rows remain unchanged.
@@ -264,7 +321,50 @@ async def list_activity(
     if severity:
         unified_query = unified_query.filter(severity == _UNIFIED_LEVEL)
 
-    total = login_query.count() + unified_query.count()
+    # Business Observability events (Business Observability v1). The
+    # projected `status`/`level` fields cannot be filtered in SQL (see
+    # BusinessObservabilityService.list_events), so business events are
+    # fetched up to a generous bound and filtered in Python, mirroring the
+    # same field semantics applied to the two SQL-backed sources above.
+    # Business events have no per-user actor, so a username filter excludes
+    # them entirely rather than matching nothing field-by-field.
+    business_shapes: list[BusinessEventShape] = (
+        [] if username else BusinessObservabilityService(db).list_events(limit=1000)
+    )
+    if search:
+        needle = search.strip().lower()
+        business_shapes = [
+            shape
+            for shape in business_shapes
+            if needle in shape.eventType.lower()
+            or needle in shape.reasonMessage.lower()
+            or needle in shape.reasonCode.lower()
+            or needle in shape.correlationId.lower()
+        ]
+    if dateFrom:
+        business_shapes = [shape for shape in business_shapes if shape.occurredAt >= dateFrom]
+    if dateTo:
+        business_shapes = [shape for shape in business_shapes if shape.occurredAt <= dateTo]
+    if channel:
+        needle = channel.lower()
+        business_shapes = [
+            shape
+            for shape in business_shapes
+            if needle in shape.primaryScope.scopeId.lower()
+            or any(needle in scope.scopeId.lower() for scope in shape.secondaryScopes)
+        ]
+    if category:
+        business_shapes = [
+            shape
+            for shape in business_shapes
+            if _BUSINESS_EVENT_CATEGORY.get(shape.domain) == category
+        ]
+    if severity:
+        business_shapes = [
+            shape for shape in business_shapes if _business_event_level(shape) == severity
+        ]
+
+    total = login_query.count() + unified_query.count() + len(business_shapes)
     fetch_limit = offset + per_page
     login_rows: list[FlowHubLoginAudit] = (
         login_query
@@ -281,6 +381,7 @@ async def list_activity(
     )
     merged = [_map_login_event(row) for row in login_rows]
     merged.extend(_map_unified_event(row, actor) for row, actor in unified_rows)
+    merged.extend(_map_business_event(shape) for shape in business_shapes[:fetch_limit])
     merged.sort(key=lambda item: item["timestamp"] or "", reverse=True)
 
     return {

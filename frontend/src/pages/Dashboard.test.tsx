@@ -109,6 +109,11 @@ function businessSummaryFixture() {
       updatesAppliedYesterday: 12,
       revenueToday: [{ currency: 'IRR', amount: 15_000_000 }],
     },
+    businessObservability: {
+      openBlockingByDomain: { source_acquisition: 0, pricing: 0, channels: 0, write_pipeline: 2 },
+      writePipelinePartialFailureRate30d: 0.25,
+      oldestUnresolvedBlockingEventAgeSeconds: 3_600,
+    },
   }
 }
 
@@ -214,7 +219,7 @@ describe('Dashboard', () => {
 
     const strip = container.querySelector('.fh-status-strip')
     expect(strip).not.toBeNull()
-    expect(strip?.querySelectorAll('.fh-status-strip-cell')).toHaveLength(4)
+    expect(strip?.querySelectorAll('.fh-status-strip-cell')).toHaveLength(7)
     expect(strip?.querySelector('.fh-status-strip-footer')).not.toBeNull()
     expect(strip?.querySelector('.fh-status-strip-badges')).not.toBeNull()
     expect(strip?.querySelectorAll('.fh-status-strip-badge')).toHaveLength(3)
@@ -223,6 +228,15 @@ describe('Dashboard', () => {
     expect(strip?.querySelector('[data-status-metric="blocking"] .fh-status-strip-value')?.getAttribute('data-state')).toBe('error')
     expect(strip?.querySelector('[data-status-metric="warnings"] .fh-status-strip-value')?.getAttribute('data-state')).toBe('warning')
     expect(strip?.querySelector('[data-status-metric="freshness"] .fh-status-strip-value')?.getAttribute('data-state')).toBe('neutral')
+
+    // Business Observability v1 KPIs (Owner-approved set): open blocking
+    // events by domain, Write Pipeline 30-day partial-failure rate, and the
+    // oldest unresolved blocking event's age.
+    expect(strip?.querySelector('[data-status-metric="business-events-open"] .fh-status-strip-value')?.textContent).toBe('2')
+    expect(strip?.querySelector('[data-status-metric="business-events-open"] .fh-status-strip-value')?.getAttribute('data-state')).toBe('error')
+    expect(strip?.querySelector('[data-status-metric="write-batch-success-rate"] .fh-status-strip-value')?.textContent).toBe('75%')
+    expect(strip?.querySelector('[data-status-metric="write-batch-success-rate"] .fh-status-strip-value')?.getAttribute('data-state')).toBe('warning')
+    expect(strip?.querySelector('[data-status-metric="oldest-open-business-event"] .fh-status-strip-value')?.getAttribute('data-state')).toBe('warning')
   })
 
   it('keeps revenue currencies separate and shows the Last 30 days chart header', async () => {

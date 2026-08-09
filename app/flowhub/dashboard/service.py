@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import and_, distinct, func, or_
 from sqlalchemy.orm import Session
 
+from app.flowhub.business_observability.service import BusinessObservabilityService
 from app.flowhub.orders.models import ChannelOrderRecord
 from app.flowhub.unified_workspace.models import (
     ApplyJob,
@@ -143,6 +144,7 @@ class DashboardService:
         revenue_today = _revenue_in_window(self.db, order_time, today, tomorrow)
         updates_today = _updates_in_window(self.db, today, tomorrow)
         updates_yesterday = _updates_in_window(self.db, yesterday, today)
+        business_event_kpis = BusinessObservabilityService(self.db).kpis(now=current)
 
         return {
             "generatedAt": current.isoformat(),
@@ -161,6 +163,15 @@ class DashboardService:
                 "updatesAppliedToday": updates_today,
                 "updatesAppliedYesterday": updates_yesterday,
                 "revenueToday": revenue_today,
+            },
+            "businessObservability": {
+                "writePipelinePartialFailureRate30d": (
+                    business_event_kpis.writePipelinePartialFailureRate30d
+                ),
+                "openBlockingByDomain": business_event_kpis.openBlockingByDomain,
+                "oldestUnresolvedBlockingEventAgeSeconds": (
+                    business_event_kpis.oldestUnresolvedBlockingEventAgeSeconds
+                ),
             },
         }
 

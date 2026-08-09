@@ -57,9 +57,16 @@ interface DashboardBusinessMetrics {
   revenueToday: RevenueAmount[]
 }
 
+interface DashboardBusinessObservability {
+  openBlockingByDomain: Record<string, number>
+  writePipelinePartialFailureRate30d: number
+  oldestUnresolvedBlockingEventAgeSeconds: number | null
+}
+
 interface DashboardBusinessSummary {
   generatedAt: string
   metrics: DashboardBusinessMetrics
+  businessObservability: DashboardBusinessObservability
 }
 
 interface HealthRow {
@@ -318,6 +325,16 @@ export default function Dashboard() {
   const channelBlocking = (counts?.Error ?? 0) + (counts?.['Unable to check'] ?? 0)
   const metrics = businessSummary?.metrics
   const metricsUnavailable = businessError || !metrics
+  const businessObservability = businessSummary?.businessObservability
+  const openBusinessEventsCount = businessObservability
+    ? Object.values(businessObservability.openBlockingByDomain).reduce((total, count) => total + count, 0)
+    : 0
+  const writeBatchSuccessRate = businessObservability
+    ? 1 - businessObservability.writePipelinePartialFailureRate30d
+    : null
+  const oldestOpenBusinessEventAt = businessObservability?.oldestUnresolvedBlockingEventAgeSeconds != null
+    ? new Date(Date.now() - businessObservability.oldestUnresolvedBlockingEventAgeSeconds * 1000)
+    : null
 
   const todayLabel = useMemo(() => {
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en'
@@ -562,6 +579,24 @@ export default function Dashboard() {
           label={translate('dashboard:dashboard.sourceFreshness')}
           value={freshnessValue}
           state={freshnessState}
+        />
+        <StatusMetric
+          id="business-events-open"
+          label={translate('dashboard:dashboard.businessEventsOpen')}
+          value={formatNumber(openBusinessEventsCount)}
+          state={openBusinessEventsCount > 0 ? 'error' : 'neutral'}
+        />
+        <StatusMetric
+          id="write-batch-success-rate"
+          label={translate('dashboard:dashboard.writeBatchSuccessRate')}
+          value={writeBatchSuccessRate === null ? translate('common:status.notRead') : formatPercent(writeBatchSuccessRate, { maximumFractionDigits: 1 })}
+          state={writeBatchSuccessRate !== null && writeBatchSuccessRate < 1 ? 'warning' : 'neutral'}
+        />
+        <StatusMetric
+          id="oldest-open-business-event"
+          label={translate('dashboard:dashboard.oldestOpenBusinessEvent')}
+          value={oldestOpenBusinessEventAt === null ? translate('dashboard:dashboard.noOpenBusinessEvents') : compactRelTime(oldestOpenBusinessEventAt)}
+          state={oldestOpenBusinessEventAt === null ? 'neutral' : 'warning'}
         />
         <div className="fh-status-strip-footer">
           <span className="fh-status-strip-footer-label">
