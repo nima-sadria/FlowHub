@@ -10,6 +10,7 @@ import type { WritePipelineService } from './writePipeline/WritePipelineService'
 import type { OrderService } from './orders/OrderService'
 import type { UnifiedWorkspaceService } from './unifiedWorkspace/UnifiedWorkspaceService'
 import type { ExchangeRateService } from './exchangeRates/ExchangeRateService'
+import type { BusinessEventService } from './businessEvents/BusinessEventService'
 
 export interface Services {
   health: HealthService
@@ -23,6 +24,7 @@ export interface Services {
   orders?: OrderService
   unifiedWorkspace?: UnifiedWorkspaceService
   exchangeRates?: ExchangeRateService
+  businessEvents?: BusinessEventService
 }
 
 const ServiceContext = createContext<Services | null>(null)

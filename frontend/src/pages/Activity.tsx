@@ -11,7 +11,8 @@ import { translate } from '../i18n'
 import { formatRelativeTime } from '../i18n/format'
 import { inputHint } from '../utils/inputHint'
 import { useServices } from '../services/ServiceContext'
-import type { ActivityEvent, ActivityLevel } from '../services/types'
+import type { ActivityEvent, ActivityLevel, BusinessEventLifecycleTransition } from '../services/types'
+import type { BusinessEventLifecycleResult } from '../services/businessEvents/BusinessEventService'
 
 const LEVEL_STYLES: Record<ActivityLevel, {
   variant: 'info' | 'success' | 'warning' | 'danger'
@@ -118,7 +119,107 @@ const BUSINESS_EVENT_STATUS_VARIANT: Record<string, 'warning' | 'info' | 'succes
   resolved: 'success',
 }
 
-function EventRow({ event }: { event: ActivityEvent }) {
+function statusLabel(status: string): string {
+  return translate(`activity:activity.status${status.charAt(0).toUpperCase()}${status.slice(1)}`)
+}
+
+function BusinessEventLifecycle({ event, onLifecycleChange }: {
+  event: ActivityEvent
+  onLifecycleChange: (eventId: string, result: BusinessEventLifecycleResult) => void
+}) {
+  const { businessEvents } = useServices()
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [history, setHistory] = useState<BusinessEventLifecycleTransition[] | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionError, setActionError] = useState(false)
+
+  const eventId = event.businessEventId
+  if (!eventId || !businessEvents) return null
+
+  async function toggleHistory() {
+    const next = !historyOpen
+    setHistoryOpen(next)
+    if (next && history === null) {
+      setHistoryLoading(true)
+      try {
+        setHistory(await businessEvents!.getLifecycle(eventId!))
+      } catch {
+        setHistory([])
+      } finally {
+        setHistoryLoading(false)
+      }
+    }
+  }
+
+  async function runAction(action: (id: string, note?: string) => Promise<BusinessEventLifecycleResult>) {
+    setActionLoading(true)
+    setActionError(false)
+    try {
+      const result = await action(eventId!)
+      onLifecycleChange(eventId!, result)
+      setHistory(null)
+      if (historyOpen) setHistoryOpen(false)
+    } catch {
+      setActionError(true)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {event.status === 'open' && (
+          <button
+            type="button"
+            className="fh-button-secondary fh-button-sm"
+            disabled={actionLoading}
+            onClick={() => void runAction((id, note) => businessEvents!.acknowledge(id, note))}
+          >
+            {translate('activity:activity.acknowledge')}
+          </button>
+        )}
+        {(event.status === 'open' || event.status === 'acknowledged') && (
+          <button
+            type="button"
+            className="fh-button-secondary fh-button-sm"
+            disabled={actionLoading}
+            onClick={() => void runAction((id, note) => businessEvents!.resolve(id, note))}
+          >
+            {translate('activity:activity.resolve')}
+          </button>
+        )}
+        <button type="button" className="fh-text-caption font-medium underline" onClick={() => void toggleHistory()}>
+          {translate('activity:activity.viewHistory')}
+        </button>
+      </div>
+      {actionError && <p className="fh-text-caption mt-1 text-(--fh-error-500)">{translate('activity:activity.lifecycleActionFailed')}</p>}
+      {historyOpen && (
+        <div className="mt-2 rounded bg-bg-subtle p-2">
+          {historyLoading ? (
+            <p className="fh-text-caption">{translate('activity:activity.loading')}</p>
+          ) : !history || history.length === 0 ? (
+            <p className="fh-text-caption">{translate('activity:activity.noLifecycleHistory')}</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {history.map(transition => (
+                <li key={transition.id} className="fh-text-caption">
+                  {statusLabel(transition.toStatus)} — {transition.actor} · {formatRelativeTime(transition.occurredAt)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EventRow({ event, onLifecycleChange }: {
+  event: ActivityEvent
+  onLifecycleChange: (eventId: string, result: BusinessEventLifecycleResult) => void
+}) {
   const isBusinessEvent = event.kind === 'business_event'
   return (
     <article className="flex items-start gap-3 border-b border-border py-3 last:border-0">
@@ -136,7 +237,7 @@ function EventRow({ event }: { event: ActivityEvent }) {
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {event.status && (
               <Badge dot variant={BUSINESS_EVENT_STATUS_VARIANT[event.status] ?? 'neutral'}>
-                {translate(`activity:activity.status${event.status.charAt(0).toUpperCase()}${event.status.slice(1)}`)}
+                {statusLabel(event.status)}
               </Badge>
             )}
             {event.actionUrl && (
@@ -152,6 +253,7 @@ function EventRow({ event }: { event: ActivityEvent }) {
             {event.recommendedAction}
           </p>
         )}
+        {isBusinessEvent && <BusinessEventLifecycle event={event} onLifecycleChange={onLifecycleChange} />}
         {event.detail && <details className="mt-2"><summary className="cursor-pointer fh-text-caption">{translate('activity:activity.technicalDetails')}</summary><p className="mt-2 break-all rounded bg-bg-subtle p-2 text-xs" dir="ltr">{event.detail}</p></details>}
       </div>
       <time className="fh-text-caption shrink-0 whitespace-nowrap" dateTime={event.timestamp.toISOString()}>
@@ -263,6 +365,12 @@ export default function Activity() {
   const routineEvents = displayedEvents.filter(event => event.action === 'token_refreshed' || event.level === 'debug')
   const hasMore = events.length < total
 
+  function handleLifecycleChange(eventId: string, result: BusinessEventLifecycleResult) {
+    setEvents(previous => previous.map(event => event.businessEventId === eventId
+      ? { ...event, status: result.status }
+      : event))
+  }
+
   function updateFilter<Key extends keyof ActivityFilters>(key: Key, value: ActivityFilters[Key]) {
     setFilters(current => ({ ...current, [key]: value }))
   }
@@ -369,8 +477,8 @@ export default function Activity() {
           {loading ? <div className="flex flex-col gap-3 py-4"><SkeletonCard /><SkeletonCard /></div>
             : displayedEvents.length === 0 ? <Empty title={translate('activity:activity.noActivityYet')} description={translate('activity:activity.eventsWillAppearHereAsTheSystem')} />
               : <>
-                {importantEvents.length > 0 && <section>{importantEvents.map(event => <EventRow key={event.id} event={event} />)}</section>}
-                {routineEvents.length > 0 && <details className="mt-3"><summary className="cursor-pointer fh-section-title">{translate('activity:activity.routineSystemActivity')} ({routineEvents.length})</summary>{routineEvents.map(event => <EventRow key={event.id} event={event} />)}</details>}
+                {importantEvents.length > 0 && <section>{importantEvents.map(event => <EventRow key={event.id} event={event} onLifecycleChange={handleLifecycleChange} />)}</section>}
+                {routineEvents.length > 0 && <details className="mt-3"><summary className="cursor-pointer fh-section-title">{translate('activity:activity.routineSystemActivity')} ({routineEvents.length})</summary>{routineEvents.map(event => <EventRow key={event.id} event={event} onLifecycleChange={handleLifecycleChange} />)}</details>}
               </>}
         </div>
         {!loading && hasMore && <div className="fh-panel-footer !justify-start"><button onClick={loadMore} disabled={loadingMore} className="fh-button-secondary w-full"><Icon name="download" />{loadingMore ? translate('activity:activity.loading') : translate('activity:activity.loadMoreRemaining', { value1: total - events.length })}</button></div>}

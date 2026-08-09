@@ -365,6 +365,9 @@ class WritePipelineService:
                 correlation_id=correlation_id,
                 commit=False,
             )
+            self._emit_channel_write_business_event(
+                item, event_type, result, batch, correlation_id=correlation_id
+            )
         batch.executed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         batch.status = (
             "applied"
@@ -737,7 +740,47 @@ class WritePipelineService:
                     error_message=code,
                 )
             )
+            self._emit_pricing_authority_business_event(
+                intent, reason_code=code, correlation_id=command.correlation_id
+            )
         return allowed, rejected
+
+    def _emit_pricing_authority_business_event(
+        self, intent: WorkspaceWriteIntent, *, reason_code: str, correlation_id: str
+    ) -> None:
+        """Pricing domain producer (Business Observability v1, Phase 2).
+
+        Fires when the final pre-dispatch pricing-authority boundary
+        (``_pricing_authority_issue``) rejects a price write - the
+        "Pricing apply blocked" case from the master diagram's worked
+        example. Distinct from the Channels producer below: this is a
+        pricing-policy rejection, not a provider/connector failure.
+        """
+
+        BusinessObservabilityService(self.db).emit_event(
+            domain="pricing",
+            event_type="pricing_apply_blocked",
+            severity="error",
+            business_impact="blocking",
+            reason_code=reason_code,
+            reason_message=f"Pricing apply blocked: {reason_code}",
+            primary_scope_type="channel",
+            primary_scope_id=intent.channel_id,
+            secondary_scopes=[
+                ("product", intent.listing_id, intent.sku),
+                ("review", intent.review_id, None),
+                ("workspace", intent.workspace_id, None),
+            ],
+            recommended_action=(
+                "Review the pricing approval for this channel before retrying the write."
+            ),
+            retryable=True,
+            action_route_key="workspace.review",
+            action_route_params={"workspace_id": intent.workspace_id},
+            correlation_id=correlation_id,
+            producer="write_pipeline.service._filter_authorized_price_intents",
+            commit=False,
+        )
 
     @staticmethod
     def _pricing_authority_issue(
@@ -1282,6 +1325,75 @@ class WritePipelineService:
             True,
         ),
     }
+
+    # item outcome -> Channels business event mapping (Business Observability
+    # v1, Phase 2). Only non-success outcomes are reported here - unlike the
+    # Write Pipeline producer, a per-item success event would add volume
+    # without giving an operator anything new to act on.
+    _ITEM_CHANNEL_BUSINESS_EVENT: dict[str, tuple[str, str, str, str, bool]] = {
+        # event_type -> (business event_type, severity, business_impact, recommended_action, retryable)
+        "item_failed": (
+            "channel_write_failed",
+            "error",
+            "partial_failure",
+            "Retry this item once the destination channel issue is resolved.",
+            True,
+        ),
+        "item_reconciliation_required": (
+            "channel_write_reconciliation_required",
+            "warning",
+            "blocking",
+            "Verify this item's applied state on the channel before relying on it.",
+            False,
+        ),
+    }
+
+    def _emit_channel_write_business_event(
+        self,
+        item: WriteItem,
+        event_type: str,
+        result: WorkspaceWriteResult | None,
+        batch: WriteBatch,
+        *,
+        correlation_id: str,
+    ) -> None:
+        """Channels domain producer (Business Observability v1, Phase 2).
+
+        Every channel connector's write outcome already funnels through this
+        one loop (the confirmed single external-write dispatch authority),
+        so this reports uniformly across all four marketplace providers
+        without needing each connector to adopt a shared error type itself.
+        Pricing-authority rejections are intentionally excluded here - they
+        already emit a Pricing domain event in
+        ``_emit_pricing_authority_business_event`` and would otherwise be
+        double-reported under two domains for the same root cause.
+        """
+
+        mapping = self._ITEM_CHANNEL_BUSINESS_EVENT.get(event_type)
+        if mapping is None:
+            return
+        if result is not None and result.error_category == "pricing_authority":
+            return
+        business_event_type, severity, business_impact, recommended_action, retryable = mapping
+        BusinessObservabilityService(self.db).emit_event(
+            domain="channels",
+            event_type=business_event_type,
+            severity=severity,
+            business_impact=business_impact,
+            reason_code=item.error_code or "unknown",
+            reason_message=item.error_message or "",
+            primary_scope_type="channel",
+            primary_scope_id=batch.channel_id,
+            primary_scope_label=batch.channel_type,
+            secondary_scopes=[("product", item.channel_product_id, item.sku)],
+            recommended_action=recommended_action,
+            retryable=retryable,
+            action_route_key="channel.detail",
+            action_route_params={"channel_id": batch.channel_id},
+            correlation_id=correlation_id,
+            producer="write_pipeline.service.execute (channel result)",
+            commit=False,
+        )
 
     def _emit_batch_business_event(
         self,

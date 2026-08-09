@@ -16,6 +16,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.flowhub.business_observability.service import BusinessObservabilityService
 from app.flowhub.source_acquisition.errors import SourceAcquisitionError
 from app.flowhub.source_acquisition.models import (
     ACTIVE_RUN_STATUSES,
@@ -393,6 +394,8 @@ class SourceAcquisitionService:
             raise SourceAcquisitionError("cancellation_requested")
         self._set_terminal(row, status=status, result=result, now=now)
         row.failure_code = failure_code
+        if status == "failed":
+            self._emit_run_failed_business_event(row, reason_code=failure_code or "unknown")
         self.db.commit()
         return self._shape(row)
 
@@ -411,10 +414,58 @@ class SourceAcquisitionService:
         if row.lease_expires_at is None or row.lease_expires_at <= now:
             self._set_terminal(row, status="abandoned", result="none", now=now)
             row.failure_code = "worker_lease_expired"
+            self._emit_run_abandoned_business_event(row)
             self.db.commit()
             raise SourceAcquisitionError("lease_expired")
         if row.worker_id != self._worker_id(worker_id):
             raise SourceAcquisitionError("worker_ownership_conflict")
+
+    # Source Acquisition domain producer (Business Observability v1, Phase 2).
+    # Hooked at the two points a Run reaches a non-success terminal state:
+    # an explicit worker-reported failure, and a lease expiring before the
+    # worker finished (a stalled/crashed worker). Successful and cancelled
+    # runs are intentionally not reported - Business Observability surfaces
+    # what needs operator attention, not a full run history.
+
+    def _emit_run_failed_business_event(self, row: AcquisitionRun, *, reason_code: str) -> None:
+        BusinessObservabilityService(self.db).emit_event(
+            domain="source_acquisition",
+            event_type="source_read_failed",
+            severity="error",
+            business_impact="degraded",
+            reason_code=reason_code,
+            reason_message=f"Source read failed: {reason_code}",
+            primary_scope_type="source",
+            primary_scope_id=row.source_id,
+            secondary_scopes=[("batch", row.id, None)],
+            recommended_action="Review the source connection and retry the read.",
+            retryable=True,
+            action_route_key="source.detail",
+            action_route_params={"source_id": row.source_id},
+            correlation_id=row.correlation_id,
+            producer="source_acquisition.service._terminal_by_worker",
+            commit=False,
+        )
+
+    def _emit_run_abandoned_business_event(self, row: AcquisitionRun) -> None:
+        BusinessObservabilityService(self.db).emit_event(
+            domain="source_acquisition",
+            event_type="source_run_abandoned",
+            severity="error",
+            business_impact="degraded",
+            reason_code="worker_lease_expired",
+            reason_message="Source read abandoned: worker lease expired before completion.",
+            primary_scope_type="source",
+            primary_scope_id=row.source_id,
+            secondary_scopes=[("batch", row.id, None)],
+            recommended_action="Review the source connection and retry the read.",
+            retryable=True,
+            action_route_key="source.detail",
+            action_route_params={"source_id": row.source_id},
+            correlation_id=row.correlation_id,
+            producer="source_acquisition.service._assert_worker_lease",
+            commit=False,
+        )
 
     def _locked_run(self, run_id: str) -> AcquisitionRun:
         row = self.db.query(AcquisitionRun).filter(AcquisitionRun.id == run_id).with_for_update().one_or_none()

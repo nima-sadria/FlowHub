@@ -19,6 +19,7 @@ import { ApiWritePipelineService } from './services/writePipeline/ApiWritePipeli
 import { ApiOrderService } from './services/orders/ApiOrderService'
 import { ApiUnifiedWorkspaceService } from './services/unifiedWorkspace/ApiUnifiedWorkspaceService'
 import { ApiExchangeRateService } from './services/exchangeRates/ApiExchangeRateService'
+import { ApiBusinessEventService } from './services/businessEvents/ApiBusinessEventService'
 import AppShell from './components/AppShell'
 import Products from './pages/Products'
 import { WORKSPACE_PERMISSION } from './utils/workspacePermissions'
@@ -63,6 +64,7 @@ const realServices = {
   orders: new ApiOrderService(),
   unifiedWorkspace: new ApiUnifiedWorkspaceService(),
   exchangeRates: new ApiExchangeRateService(),
+  businessEvents: new ApiBusinessEventService(),
 }
 
 function MaintenanceOverlay({ message }: { message?: string }) {

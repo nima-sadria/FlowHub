@@ -18,6 +18,9 @@ describe('Activity business history', () => {
   let root: ReturnType<typeof createRoot>
   const getEvents = vi.fn()
   const getChannels = vi.fn()
+  const acknowledge = vi.fn()
+  const resolve = vi.fn()
+  const getLifecycle = vi.fn()
 
   beforeEach(async () => {
     await changeLocale('en')
@@ -38,6 +41,9 @@ describe('Activity business history', () => {
     container.remove()
     getEvents.mockReset()
     getChannels.mockReset()
+    acknowledge.mockReset()
+    resolve.mockReset()
+    getLifecycle.mockReset()
     await changeLocale('en')
   })
 
@@ -45,6 +51,7 @@ describe('Activity business history', () => {
     const services = {
       activity: { getEvents },
       commerce: { getChannels },
+      businessEvents: { acknowledge, resolve, getLifecycle },
       health: {}, products: {}, sources: {}, workspace: {}, settings: {},
       writePipeline: {}, orders: {},
     } as unknown as Services
@@ -92,6 +99,111 @@ describe('Activity business history', () => {
     expect(container.textContent).toContain('Review the failed items in this batch and retry them.')
     const link = container.querySelector('a[href="/workspace"]')
     expect(link).toBeTruthy()
+  })
+
+  function openBusinessEvent(overrides: Partial<ActivityEvent> = {}): ActivityEvent {
+    return {
+      id: 'business:evt-1',
+      timestamp: new Date(),
+      kind: 'business_event',
+      level: 'error',
+      category: 'apply',
+      actor: 'Write Pipeline',
+      action: 'write_batch_partially_failed',
+      detail: '2 of 5 items failed',
+      businessEventId: 'evt-1',
+      businessImpact: 'partial_failure',
+      status: 'open',
+      recommendedAction: 'Review the failed items in this batch and retry them.',
+      actionUrl: '/workspace',
+      retryable: true,
+      ...overrides,
+    }
+  }
+
+  it('acknowledging an open business event calls the service and updates the badge', async () => {
+    getEvents.mockResolvedValueOnce({ items: [openBusinessEvent()], total: 1, page: 1, pageSize: 30 })
+    acknowledge.mockResolvedValue({
+      status: 'acknowledged',
+      acknowledgedAt: new Date(),
+      acknowledgedBy: 'owner',
+      resolvedAt: null,
+      resolvedBy: null,
+    })
+
+    await render()
+
+    const acknowledgeButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Acknowledge') as HTMLButtonElement
+    expect(acknowledgeButton).toBeTruthy()
+    await act(async () => {
+      acknowledgeButton.click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(acknowledge).toHaveBeenCalledWith('evt-1', undefined)
+    expect(container.textContent).toContain('Acknowledged')
+    // Once acknowledged, "Acknowledge" is no longer an available action.
+    expect(Array.from(container.querySelectorAll('button')).some(button => button.textContent === 'Acknowledge')).toBe(false)
+    expect(Array.from(container.querySelectorAll('button')).some(button => button.textContent === 'Resolve')).toBe(true)
+  })
+
+  it('resolving a business event calls the service and hides both lifecycle actions', async () => {
+    getEvents.mockResolvedValueOnce({ items: [openBusinessEvent()], total: 1, page: 1, pageSize: 30 })
+    resolve.mockResolvedValue({
+      status: 'resolved',
+      acknowledgedAt: null,
+      acknowledgedBy: null,
+      resolvedAt: new Date(),
+      resolvedBy: 'owner',
+    })
+
+    await render()
+
+    const resolveButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Resolve') as HTMLButtonElement
+    await act(async () => {
+      resolveButton.click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(resolve).toHaveBeenCalledWith('evt-1', undefined)
+    expect(container.textContent).toContain('Resolved')
+    expect(Array.from(container.querySelectorAll('button')).some(button => ['Acknowledge', 'Resolve'].includes(button.textContent ?? ''))).toBe(false)
+  })
+
+  it('a resolved business event no longer shows lifecycle action buttons', async () => {
+    getEvents.mockResolvedValueOnce({
+      items: [openBusinessEvent({ status: 'resolved' })],
+      total: 1,
+      page: 1,
+      pageSize: 30,
+    })
+
+    await render()
+
+    expect(container.textContent).toContain('Resolved')
+    expect(Array.from(container.querySelectorAll('button')).some(button => ['Acknowledge', 'Resolve'].includes(button.textContent ?? ''))).toBe(false)
+  })
+
+  it('viewing history fetches and displays the lifecycle transition log', async () => {
+    getEvents.mockResolvedValueOnce({ items: [openBusinessEvent()], total: 1, page: 1, pageSize: 30 })
+    getLifecycle.mockResolvedValue([
+      { id: 1, fromStatus: null, toStatus: 'acknowledged', actor: 'owner', occurredAt: new Date(), note: null },
+    ])
+
+    await render()
+
+    const historyButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'View history') as HTMLButtonElement
+    await act(async () => {
+      historyButton.click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(getLifecycle).toHaveBeenCalledWith('evt-1')
+    expect(container.textContent).toContain('Acknowledged')
+    expect(container.textContent).toContain('owner')
   })
 
   it('reads a user filter from navigation and exposes categorized filters', async () => {
