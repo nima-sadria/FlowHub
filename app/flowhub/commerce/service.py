@@ -552,6 +552,9 @@ class CommerceHubService:
             normalized["username"],
             values["password"],
             webdav_files_root_url=normalized["webdav_files_root_url"],
+            trusted_private_networks=parse_trusted_private_networks(
+                self.integration.config.get("nextcloud.trusted_private_networks")
+            ),
         )
         try:
             result = await client.browse_directory(path)
@@ -1705,6 +1708,9 @@ class CommerceHubService:
             normalized["username"],
             values["password"],
             webdav_files_root_url=normalized_webdav_url,
+            trusted_private_networks=parse_trusted_private_networks(
+                self.integration.config.get("nextcloud.trusted_private_networks")
+            ),
         )
         try:
             await client.browse_directory("/")

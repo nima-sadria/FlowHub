@@ -4,6 +4,9 @@ THIS IS THE ONLY MODULE PERMITTED TO MAKE WebDAV CALLS.
 No other FlowHub module may call PROPFIND, GET on DAV URLs, or
 access remote.php/dav directly.
 
+All outbound requests go through SourceHttpClient - the shared SSRF-safe
+HTTP boundary. No direct httpx usage is permitted in this module.
+
 Supported operations (read-only):
   - propfind_path()   - list a folder or get single-resource metadata
   - get_file()        - download file bytes
@@ -11,19 +14,20 @@ Supported operations (read-only):
 """
 from __future__ import annotations
 
-import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Any
 
-import httpx
-
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
+from app.connectors.common.source_http import SourceHttpClient, SourceHttpError, SourceHttpPolicy
 from app.connectors.sources.nextcloud.auth import NextcloudCredentials
 from app.flowhub.rate_limit import acquire_connector_rate_limit
 
 _DAV = "DAV:"
-_TIMEOUT = httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=10.0)
+# Matches the previous httpx.Timeout(connect=10.0, read=60.0, ...) profile;
+# total is read + connect plus a small buffer so legitimate slow responses
+# are not cut off earlier than before.
+_POLICY = SourceHttpPolicy(connect_timeout_seconds=10.0, read_timeout_seconds=60.0, total_timeout_seconds=75.0)
 
 # Base path for WebDAV file access on Nextcloud
 _DAV_PATH = "/remote.php/dav/files/{username}"
@@ -48,6 +52,29 @@ def _dav_base(creds: NextcloudCredentials) -> str:
 
 def _auth(creds: NextcloudCredentials) -> tuple[str, str]:
     return (creds.username, creds.password)
+
+
+def _client(creds: NextcloudCredentials) -> SourceHttpClient:
+    return SourceHttpClient(policy=_POLICY).with_allowed_private_networks(creds.trusted_private_networks)
+
+
+def _map_transport_error(exc: SourceHttpError) -> ConnectorError:
+    """Map a SourceHttpClient boundary failure onto the existing WebDAV error taxonomy."""
+    if "timeout" in exc.code:
+        return ConnectorError(
+            code=ConnectorErrorCode.TIMEOUT,
+            message="WebDAV request timed out",
+            provider="nextcloud",
+            retryable=True,
+            raw=exc.code,
+        )
+    return ConnectorError(
+        code=ConnectorErrorCode.NETWORK,
+        message="WebDAV connection failed.",
+        provider="nextcloud",
+        retryable=True,
+        raw=exc.code,
+    )
 
 
 def _map_http_error(status: int, provider: str = "nextcloud") -> ConnectorError:
@@ -88,10 +115,10 @@ def _map_http_error(status: int, provider: str = "nextcloud") -> ConnectorError:
     )
 
 
-def _parse_propfind(xml_text: str) -> list[DavResource]:
+def _parse_propfind(xml_content: bytes | str) -> list[DavResource]:
     """Parse a WebDAV PROPFIND multistatus response into DavResource objects."""
     try:
-        root = ET.fromstring(xml_text)
+        root = ET.fromstring(xml_content)
     except ET.ParseError as exc:
         raise ConnectorError(
             code=ConnectorErrorCode.PROVIDER_ERROR,
@@ -140,36 +167,21 @@ async def propfind_path(
         "<d:getcontentlength/><d:getcontenttype/>"
         "</d:prop></d:propfind>"
     )
-    t0 = time.monotonic()
     try:
         await acquire_connector_rate_limit("nextcloud:primary", "read")
-        async with httpx.AsyncClient(auth=_auth(creds), follow_redirects=True) as client:
-            r = await client.request(
-                "PROPFIND",
-                url,
-                content=body.encode("utf-8"),
-                headers={"Depth": depth, "Content-Type": "application/xml; charset=utf-8"},
-                timeout=_TIMEOUT,
-            )
-    except httpx.TimeoutException as exc:
-        raise ConnectorError(
-            code=ConnectorErrorCode.TIMEOUT,
-            message="WebDAV PROPFIND timed out",
-            provider="nextcloud",
-            retryable=True,
-        ) from exc
-    except httpx.ConnectError as exc:
-        raise ConnectorError(
-            code=ConnectorErrorCode.NETWORK,
-            message="WebDAV connection failed.",
-            provider="nextcloud",
-            retryable=True,
-        ) from exc
+        response = await _client(creds).request(
+            "PROPFIND",
+            url,
+            content=body.encode("utf-8"),
+            headers={"Depth": depth, "Content-Type": "application/xml; charset=utf-8"},
+            basic_auth=_auth(creds),
+        )
+    except SourceHttpError as exc:
+        raise _map_transport_error(exc) from exc
 
-    _ = time.monotonic() - t0  # latency available for future observability
-    if r.status_code not in (207, 200):
-        raise _map_http_error(r.status_code)
-    return _parse_propfind(r.text)
+    if response.status_code not in (207, 200):
+        raise _map_http_error(response.status_code)
+    return _parse_propfind(response.content)
 
 
 async def get_file(creds: NextcloudCredentials, path: str) -> tuple[bytes, dict]:
@@ -177,33 +189,20 @@ async def get_file(creds: NextcloudCredentials, path: str) -> tuple[bytes, dict]
     url = _dav_base(creds) + path
     try:
         await acquire_connector_rate_limit("nextcloud:primary", "read")
-        async with httpx.AsyncClient(auth=_auth(creds), follow_redirects=True) as client:
-            r = await client.get(url, timeout=_TIMEOUT)
-    except httpx.TimeoutException as exc:
-        raise ConnectorError(
-            code=ConnectorErrorCode.TIMEOUT,
-            message="WebDAV GET timed out",
-            provider="nextcloud",
-            retryable=True,
-        ) from exc
-    except httpx.ConnectError as exc:
-        raise ConnectorError(
-            code=ConnectorErrorCode.NETWORK,
-            message="WebDAV connection failed.",
-            provider="nextcloud",
-            retryable=True,
-        ) from exc
+        response = await _client(creds).request("GET", url, basic_auth=_auth(creds))
+    except SourceHttpError as exc:
+        raise _map_transport_error(exc) from exc
 
-    if r.status_code != 200:
-        raise _map_http_error(r.status_code)
+    if response.status_code != 200:
+        raise _map_http_error(response.status_code)
 
     meta = {
-        "etag": r.headers.get("etag", "").strip('"'),
-        "last_modified": r.headers.get("last-modified", ""),
-        "content_type": r.headers.get("content-type", ""),
-        "content_length": r.headers.get("content-length", ""),
+        "etag": response.headers.get("etag", "").strip('"'),
+        "last_modified": response.headers.get("last-modified", ""),
+        "content_type": response.headers.get("content-type", ""),
+        "content_length": response.headers.get("content-length", ""),
     }
-    return r.content, meta
+    return response.content, meta
 
 
 async def head_file(creds: NextcloudCredentials, path: str) -> dict:
@@ -215,18 +214,17 @@ async def head_file(creds: NextcloudCredentials, path: str) -> dict:
     url = _dav_base(creds) + path
     try:
         await acquire_connector_rate_limit("nextcloud:primary", "read")
-        async with httpx.AsyncClient(auth=_auth(creds), follow_redirects=True) as client:
-            r = await client.head(url, timeout=_TIMEOUT)
-    except (httpx.TimeoutException, httpx.ConnectError):
+        response = await _client(creds).request("HEAD", url, basic_auth=_auth(creds))
+    except SourceHttpError:
         return {"etag": None, "last_modified": None, "content_length": None}
 
-    if r.status_code != 200:
+    if response.status_code != 200:
         return {"etag": None, "last_modified": None, "content_length": None}
 
     return {
-        "etag": r.headers.get("etag", "").strip('"') or None,
-        "last_modified": r.headers.get("last-modified") or None,
-        "content_length": r.headers.get("content-length") or None,
+        "etag": response.headers.get("etag", "").strip('"') or None,
+        "last_modified": response.headers.get("last-modified") or None,
+        "content_length": response.headers.get("content-length") or None,
     }
 
 

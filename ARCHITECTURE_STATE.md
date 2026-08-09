@@ -131,3 +131,17 @@ Source Acquisition is split into durable, isolated domain steps:
 - Deployment owns private-network configuration, secrets, and environment-specific allow-lists.
 - Review/Apply safety remains server-side.
 - Pricing activation remains separate from pricing UI availability.
+
+## Dormant subsystems
+
+- `app/a2/` is QUARANTINED / LEGACY-CANDIDATE. It is unreachable from every
+  live entry point in this repository (not imported by `app/main.py`, not
+  referenced by any `app/flowhub` module, no CLI or script entry point).
+  Git history shows it entering only via the initial "WooPrice Beta →
+  FlowHub" import commit, with no feature development since. It provisions
+  its own Postgres database (`docker-compose.a2.yml`, `flowhub_a2`, its own
+  volume) and its own migration line (`alembic_a2/`), which this repository
+  cannot confirm is empty or unused in every deployed environment. Do not
+  delete, move, migrate, or modify `app/a2`, `alembic_a2`, its database,
+  volume, or compose configuration until that deployed-data check is
+  confirmed separately by an operator.

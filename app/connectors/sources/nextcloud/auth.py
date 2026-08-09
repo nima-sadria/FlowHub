@@ -5,6 +5,7 @@ modules import from this file - they never receive raw credential dicts.
 """
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import dataclass
 
 from app.connectors.common.auth import AuthConfig
@@ -17,6 +18,10 @@ class NextcloudCredentials:
     username: str
     password: str
     webdav_files_root_url: str | None = None
+    # Operator-configured private-network allowlist for the SourceHttpClient
+    # SSRF boundary. Empty by default: no private/loopback/link-local
+    # destination is reachable unless explicitly trusted.
+    trusted_private_networks: tuple[ipaddress._BaseNetwork, ...] = ()
 
 
 def extract_credentials(auth: AuthConfig) -> NextcloudCredentials:
@@ -52,4 +57,5 @@ def extract_credentials(auth: AuthConfig) -> NextcloudCredentials:
         username=username,
         password=password,
         webdav_files_root_url=auth.get("webdav_files_root_url", "") or None,
+        trusted_private_networks=auth.get("trusted_private_networks") or (),
     )

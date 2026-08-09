@@ -287,7 +287,7 @@ def test_get_metadata_delegates_to_webdav():
 # -- Isolation check -----------------------------------------------------------
 
 def test_no_direct_httpx_import_in_connector():
-    """connector.py must not import httpx - only webdav.py and ocs.py may do so."""
+    """connector.py must not import httpx - only SourceHttpClient may reach the network."""
     import ast
     import pathlib
 
@@ -307,3 +307,51 @@ def test_no_direct_httpx_import_in_connector():
                 assert "httpx" not in (name or ""), (
                     "connector.py must not import httpx directly - use webdav.py/ocs.py"
                 )
+
+
+def test_no_direct_httpx_import_in_webdav_or_ocs():
+    """Source Gateway boundary guard: webdav.py and ocs.py must route every
+
+    outbound call through app.connectors.common.source_http.SourceHttpClient
+    (the SSRF-safe boundary), never raw httpx. This is the automated
+    enforcement for the Nextcloud source-provider boundary - if a future
+    change reintroduces a direct httpx.AsyncClient() call here, this test
+    fails the build instead of silently reopening the SSRF gap.
+    """
+    import ast
+    import pathlib
+
+    package_dir = (
+        pathlib.Path(__file__).resolve().parents[3]
+        / "app" / "connectors" / "sources" / "nextcloud"
+    )
+    for filename in ("webdav.py", "ocs.py"):
+        src = (package_dir / filename).read_text()
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                names = (
+                    [alias.name for alias in node.names]
+                    if isinstance(node, ast.Import)
+                    else ([node.module] if node.module else [])
+                )
+                for name in names:
+                    assert "httpx" not in (name or ""), (
+                        f"{filename} must not import httpx directly - "
+                        "use app.connectors.common.source_http.SourceHttpClient"
+                    )
+
+
+def test_webdav_and_ocs_use_source_http_client():
+    """Positive check: webdav.py and ocs.py must reference SourceHttpClient."""
+    import pathlib
+
+    package_dir = (
+        pathlib.Path(__file__).resolve().parents[3]
+        / "app" / "connectors" / "sources" / "nextcloud"
+    )
+    for filename in ("webdav.py", "ocs.py"):
+        src = (package_dir / filename).read_text()
+        assert "SourceHttpClient" in src, (
+            f"{filename} must route outbound requests through SourceHttpClient"
+        )

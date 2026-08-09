@@ -56,17 +56,28 @@ def _to_integration_error(exc: ConnectorError, endpoint: str) -> IntegrationErro
 class NextcloudClient:
     """Async read-only Nextcloud / WebDAV client backed by the connector framework."""
 
-    def __init__(self, url: str, username: str, password: str, *, webdav_files_root_url: str | None = None) -> None:
+    def __init__(
+        self,
+        url: str,
+        username: str,
+        password: str,
+        *,
+        webdav_files_root_url: str | None = None,
+        trusted_private_networks: tuple = (),
+    ) -> None:
         self._creds = NextcloudCredentials(
             url=url.rstrip("/"),
             username=username,
             password=password,
             webdav_files_root_url=webdav_files_root_url if webdav_files_root_url else None,
+            trusted_private_networks=trusted_private_networks,
         )
 
     @classmethod
     def from_config(cls, config: "AppConfigService") -> "NextcloudClient | None":
         """Build from AppConfigService.  Returns None if not fully configured."""
+        from app.connectors.common.source_http import parse_trusted_private_networks
+
         url = config.get("nextcloud.url")
         username = config.get("nextcloud.username")
         password = config.get("nextcloud.password")
@@ -84,6 +95,9 @@ class NextcloudClient:
             normalized["username"],
             password,
             webdav_files_root_url=normalized["webdav_files_root_url"],
+            trusted_private_networks=parse_trusted_private_networks(
+                config.get("nextcloud.trusted_private_networks")
+            ),
         )
 
     def _webdav_base_url(self) -> str:
@@ -278,6 +292,7 @@ class NextcloudClient:
                 "username": self._creds.username,
                 "password": self._creds.password,
                 "webdav_files_root_url": self._creds.webdav_files_root_url or "",
+                "trusted_private_networks": self._creds.trusted_private_networks,
             },
         )
         t0 = time.monotonic()

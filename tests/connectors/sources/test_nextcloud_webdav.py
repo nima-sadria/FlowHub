@@ -1,14 +1,15 @@
 """Tests for the Nextcloud WebDAV client (webdav.py).
 
-All HTTP calls are mocked - no real Nextcloud required.
+All HTTP calls are mocked at the SourceHttpClient boundary - no real
+Nextcloud required, and no raw httpx call sites exist in webdav.py to mock.
 """
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
-import httpx
 import pytest
 
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
+from app.connectors.common.source_http import SourceHttpError, SourceHttpResponse
 from app.connectors.sources.nextcloud.auth import NextcloudCredentials
 from app.connectors.sources.nextcloud.webdav import (
     DavResource,
@@ -25,13 +26,24 @@ _CREDS = NextcloudCredentials(
 
 # -- Helpers -------------------------------------------------------------------
 
-def _mock_response(status: int, text: str = "", content: bytes = b"") -> MagicMock:
-    r = MagicMock()
-    r.status_code = status
-    r.text = text
-    r.content = content
-    r.headers = {}
-    return r
+def _mock_response(status: int, content: bytes = b"", headers: dict | None = None) -> SourceHttpResponse:
+    return SourceHttpResponse(status_code=status, headers=headers or {}, content=content, url="https://cloud.example.com/")
+
+
+class _ClientPatch:
+    """Context manager wiring SourceHttpClient(...).with_allowed_private_networks(...).request to a fake."""
+
+    def __init__(self, request_mock: AsyncMock) -> None:
+        self._request_mock = request_mock
+        self._patcher = patch("app.connectors.sources.nextcloud.webdav.SourceHttpClient")
+
+    def __enter__(self):
+        mock_cls = self._patcher.start()
+        mock_cls.return_value.with_allowed_private_networks.return_value.request = self._request_mock
+        return mock_cls
+
+    def __exit__(self, *exc) -> None:
+        self._patcher.stop()
 
 
 _PROPFIND_207 = """\
@@ -67,14 +79,11 @@ _PROPFIND_207 = """\
 # -- propfind_path tests -------------------------------------------------------
 
 def test_propfind_returns_resources():
-    mock_resp = _mock_response(207, text=_PROPFIND_207)
+    mock_resp = _mock_response(207, content=_PROPFIND_207.encode("utf-8"))
+    request_mock = AsyncMock(return_value=mock_resp)
 
     async def _run():
-        with patch("httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
-            instance.request = AsyncMock(return_value=mock_resp)
+        with _ClientPatch(request_mock):
             return await propfind_path(_CREDS, "/docs/")
 
     resources = asyncio.run(_run())
@@ -90,7 +99,8 @@ def test_propfind_returns_resources():
 
 
 def test_propfind_root_uses_custom_webdav_files_root_url():
-    mock_resp = _mock_response(207, text=_PROPFIND_207)
+    mock_resp = _mock_response(207, content=_PROPFIND_207.encode("utf-8"))
+    request_mock = AsyncMock(return_value=mock_resp)
     creds = NextcloudCredentials(
         url="https://example.com/nextcloud",
         username="alice",
@@ -99,19 +109,16 @@ def test_propfind_root_uses_custom_webdav_files_root_url():
     )
 
     async def _run():
-        with patch("httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
-            instance.request = AsyncMock(return_value=mock_resp)
+        with _ClientPatch(request_mock):
             await propfind_path(creds, "/")
-            return instance.request.call_args.args[1]
+            return request_mock.call_args.args[1]
 
     assert asyncio.run(_run()) == "https://example.com/nextcloud/remote.php/dav/files/alice/"
 
 
 def test_propfind_folder_uses_custom_webdav_files_root_url():
-    mock_resp = _mock_response(207, text=_PROPFIND_207)
+    mock_resp = _mock_response(207, content=_PROPFIND_207.encode("utf-8"))
+    request_mock = AsyncMock(return_value=mock_resp)
     creds = NextcloudCredentials(
         url="https://example.com/nextcloud",
         username="alice",
@@ -120,26 +127,19 @@ def test_propfind_folder_uses_custom_webdav_files_root_url():
     )
 
     async def _run():
-        with patch("httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
-            instance.request = AsyncMock(return_value=mock_resp)
+        with _ClientPatch(request_mock):
             await propfind_path(creds, "/folder/")
-            return instance.request.call_args.args[1]
+            return request_mock.call_args.args[1]
 
     assert asyncio.run(_run()) == "https://example.com/nextcloud/remote.php/dav/files/alice/folder/"
 
 
 def test_propfind_401_raises_auth_error():
     mock_resp = _mock_response(401)
+    request_mock = AsyncMock(return_value=mock_resp)
 
     async def _run():
-        with patch("httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
-            instance.request = AsyncMock(return_value=mock_resp)
+        with _ClientPatch(request_mock):
             return await propfind_path(_CREDS, "/")
 
     with pytest.raises(ConnectorError) as exc_info:
@@ -150,13 +150,10 @@ def test_propfind_401_raises_auth_error():
 
 def test_propfind_404_raises_not_found():
     mock_resp = _mock_response(404)
+    request_mock = AsyncMock(return_value=mock_resp)
 
     async def _run():
-        with patch("httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
-            instance.request = AsyncMock(return_value=mock_resp)
+        with _ClientPatch(request_mock):
             return await propfind_path(_CREDS, "/missing/")
 
     with pytest.raises(ConnectorError) as exc_info:
@@ -165,12 +162,10 @@ def test_propfind_404_raises_not_found():
 
 
 def test_propfind_timeout_raises_retryable():
+    request_mock = AsyncMock(side_effect=SourceHttpError("total_timeout"))
+
     async def _run():
-        with patch("httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
-            instance.request = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
+        with _ClientPatch(request_mock):
             return await propfind_path(_CREDS, "/")
 
     with pytest.raises(ConnectorError) as exc_info:
@@ -180,12 +175,10 @@ def test_propfind_timeout_raises_retryable():
 
 
 def test_propfind_connect_error_raises_network():
+    request_mock = AsyncMock(side_effect=SourceHttpError("connection_failed"))
+
     async def _run():
-        with patch("httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
-            instance.request = AsyncMock(side_effect=httpx.ConnectError("refused"))
+        with _ClientPatch(request_mock):
             return await propfind_path(_CREDS, "/")
 
     with pytest.raises(ConnectorError) as exc_info:
@@ -194,23 +187,37 @@ def test_propfind_connect_error_raises_network():
     assert exc_info.value.retryable is True
 
 
+def test_propfind_unsafe_destination_raises_network():
+    """A SourceHttpClient SSRF-policy rejection surfaces as a NETWORK error, not a silent pass-through."""
+    request_mock = AsyncMock(side_effect=SourceHttpError("unsafe_destination"))
+
+    async def _run():
+        with _ClientPatch(request_mock):
+            return await propfind_path(_CREDS, "/")
+
+    with pytest.raises(ConnectorError) as exc_info:
+        asyncio.run(_run())
+    assert exc_info.value.code == ConnectorErrorCode.NETWORK
+    assert exc_info.value.raw == "unsafe_destination"
+
+
 # -- get_file tests ------------------------------------------------------------
 
 def test_get_file_returns_bytes_and_meta():
     content = b"PK test_double xlsx bytes"
-    mock_resp = _mock_response(200, content=content)
-    mock_resp.headers = {
-        "etag": '"abc"',
-        "last-modified": "Mon, 01 Jan 2024 00:00:00 GMT",
-        "content-type": "application/vnd.ms-excel",
-    }
+    mock_resp = _mock_response(
+        200,
+        content=content,
+        headers={
+            "etag": '"abc"',
+            "last-modified": "Mon, 01 Jan 2024 00:00:00 GMT",
+            "content-type": "application/vnd.ms-excel",
+        },
+    )
+    request_mock = AsyncMock(return_value=mock_resp)
 
     async def _run():
-        with patch("httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
-            instance.get = AsyncMock(return_value=mock_resp)
+        with _ClientPatch(request_mock):
             return await get_file(_CREDS, "/docs/prices.xlsx")
 
     data, meta = asyncio.run(_run())
@@ -221,13 +228,10 @@ def test_get_file_returns_bytes_and_meta():
 
 def test_get_file_403_raises_permission():
     mock_resp = _mock_response(403)
+    request_mock = AsyncMock(return_value=mock_resp)
 
     async def _run():
-        with patch("httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
-            instance.get = AsyncMock(return_value=mock_resp)
+        with _ClientPatch(request_mock):
             return await get_file(_CREDS, "/restricted/file.xlsx")
 
     with pytest.raises(ConnectorError) as exc_info:
@@ -257,17 +261,39 @@ _PROPFIND_SINGLE = """\
 
 
 def test_get_metadata_returns_dict():
-    mock_resp = _mock_response(207, text=_PROPFIND_SINGLE)
+    mock_resp = _mock_response(207, content=_PROPFIND_SINGLE.encode("utf-8"))
+    request_mock = AsyncMock(return_value=mock_resp)
 
     async def _run():
-        with patch("httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
-            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
-            instance.request = AsyncMock(return_value=mock_resp)
+        with _ClientPatch(request_mock):
             return await get_metadata(_CREDS, "/docs/prices.xlsx")
 
     meta = asyncio.run(_run())
     assert meta["etag"] == "etag99"
     assert meta["is_collection"] is False
     assert meta["content_length"] == 9876
+
+
+# -- trusted_private_networks threading -----------------------------------------
+
+def test_propfind_threads_trusted_private_networks_into_client():
+    """creds.trusted_private_networks must reach SourceHttpClient.with_allowed_private_networks."""
+    import ipaddress
+
+    mock_resp = _mock_response(207, content=_PROPFIND_207.encode("utf-8"))
+    request_mock = AsyncMock(return_value=mock_resp)
+    networks = (ipaddress.ip_network("10.0.0.0/8"),)
+    creds = NextcloudCredentials(
+        url="https://cloud.example.com",
+        username="alice",
+        password="secret",
+        trusted_private_networks=networks,
+    )
+
+    async def _run():
+        with patch("app.connectors.sources.nextcloud.webdav.SourceHttpClient") as mock_cls:
+            mock_cls.return_value.with_allowed_private_networks.return_value.request = request_mock
+            await propfind_path(creds, "/")
+            return mock_cls.return_value.with_allowed_private_networks.call_args.args[0]
+
+    assert asyncio.run(_run()) == networks
