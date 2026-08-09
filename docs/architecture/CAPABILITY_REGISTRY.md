@@ -100,7 +100,7 @@ this order:
    [`app/flowhub/app.py`](../../app/flowhub/app.py) (lines 219–243) against
    the router *files present* in `app/flowhub/api/v2/`. A file existing in
    that directory is **not** evidence of a live endpoint — several are
-   unmounted stubs (see [Cross-cutting finding](#cross-cutting-finding-seven-dead-stub-routers) below).
+   unmounted stubs (see [Cross-cutting finding](#cross-cutting-finding-ten-dead-stub-routers) below).
 4. For **backend surface**, opened each module and distinguished real
    service logic (multi-hundred-line files with working methods) from
    stub classes (methods that `raise NotImplementedError` or docstrings
@@ -165,19 +165,17 @@ for this draft, the entry is marked `NEEDS_VERIFICATION` rather than guessed.
   `tests/flowhub/source_workspace/` (7 files),
   `SourceCenter.test.tsx`, `SourceConfiguration.test.tsx`
 - **evidence:** directory listings above; `app/flowhub/app.py` lines 96,
-  228, 243 (`include_router` calls); `CURRENT_ARCHITECTURE.md` "Current
-  Sources shown in Commerce Hub: Nextcloud, CSV, Google Sheets, ERP / API
-  Import"
-- **notes:** The diagram's `source_gateway` node ("Unified Source
-  Contract / Adapters") is explicitly `TARGET / PROPOSED — ⚠ VERIFY`
-  (`v1`, `v2`, `v3` verify-items in the diagram ask whether this
-  abstraction already exists). Current code has a per-provider shape
-  (`nextcloud_provider.py`) rather than a confirmed formal multi-provider
-  adapter interface spanning CSV/Google Sheets/ERP — **NEEDS_VERIFICATION**,
-  do not read this as "Source Gateway is done." Static evidence alone
+  228, 243 (`include_router` calls); `CURRENT_ARCHITECTURE.md` current
+  Nextcloud and CSV/Excel Sources, with Google Sheets and ERP/API explicitly
+  retained as planned placeholders
+- **notes:** The diagram's Source Boundary is `CURRENT / CONFIRMED` for
+  `SourceHttpClient` and for Nextcloud's `SourceConnector` implementation.
+  The unified multi-provider Source Gateway contract spanning CSV/Excel and
+  future providers remains **NEEDS_VERIFICATION**; repository evidence must
+  not upgrade that target. Static evidence alone
   (mounted routers, populated backend modules, present tests) would have
   supported `IMPLEMENTED`/`OPERATIONAL`; the Owner-approved
-  `PARTIAL`/`BASELINE` reflects that this evidence is unread at runtime
+  `PARTIAL`/`BASELINE` reflects that this evidence is unverified at runtime
   and the source-adapter abstraction gap above is unresolved, not that
   the underlying code was found broken.
 
@@ -287,22 +285,13 @@ for this draft, the entry is marked `NEEDS_VERIFICATION` rather than guessed.
   `test_tapsishop_connector.py`, `test_technolife_connector.py`,
   `Channels.test.tsx`, `CommerceHub.test.tsx`
 - **evidence:** listings above; `app.py:232`; `CURRENT_ARCHITECTURE.md`
-  "Current Channels shown in Commerce Hub: WooCommerce... Snapp Shop...
-  Tapsi Shop... Digikala, Technolife, Shopify: future Channel placeholders"
-- **notes:** the diagram's `channel_gateway` node ("Unified Write
-  Contract / Adapters") is `TARGET / PROPOSED — ⚠ VERIFY` (`v4`–`v6`).
-  The existing Phase 4.2 seed already names
-  `app/flowhub/channels/gateway.py` (`WorkspaceConnectorFactory`) as an
-  `internal_only` capability — a gateway-shaped module exists today, but
-  whether it satisfies the diagram's *target* Channel Gateway concept for
-  every current and future channel (including the CURRENT_ARCHITECTURE.md
-  "future Channel placeholders": Digikala, Technolife-as-placeholder,
-  Shopify) is **NEEDS_VERIFICATION** — do not treat as fully resolved.
-  Also note `CURRENT_ARCHITECTURE.md` lists Technolife inconsistently
-  (both as an implemented-style channel provider name and under "future
-  Channel placeholders") — flagged as a **documentation inconsistency**,
-  not resolved by this draft. That inconsistency is itself part of why
-  the Owner-approved status is `PARTIAL`/`BASELINE` rather than this
+  current WooCommerce, SnappShop, TapsiShop, and Technolife Channels, with
+  Digikala and Shopify explicitly retained as future placeholders
+- **notes:** the diagram confirms `WorkspaceConnectorFactory` as the
+  canonical Channel Gateway for the current four providers. The same
+  contract for future providers remains **NEEDS_VERIFICATION** and is not
+  inferred from filenames or placeholder registry entries. The
+  Owner-approved status remains `PARTIAL`/`BASELINE` rather than this
   draft's original `IMPLEMENTED`/`OPERATIONAL` estimate: a per-channel
   adapter existing in code for four marketplaces is not the same as the
   channel domain being verified-mature across all of them.
@@ -341,7 +330,7 @@ for this draft, the entry is marked `NEEDS_VERIFICATION` rather than guessed.
   architecture decision naming this exact flow)
 - **notes:** **Do not confuse with** `app/flowhub/api/v2/dryrun.py` and
   `changesets.py` — these are separate, unimplemented stub routers (see
-  [cross-cutting finding](#cross-cutting-finding-seven-dead-stub-routers)
+  [cross-cutting finding](#cross-cutting-finding-ten-dead-stub-routers)
   below) for a differently-scoped, unbuilt "Dry Run Engine" / "Change Set
   Engine" (B6 phase). The real, live Dry Run + Approval flow described
   here lives entirely inside `write_pipeline`, not those files.
@@ -441,22 +430,20 @@ for this draft, the entry is marked `NEEDS_VERIFICATION` rather than guessed.
 - **UI surface:** `frontend/src/pages/Settings.tsx`,
   `AdvancedSettings.tsx`, `UserManagement.tsx`, `RateLimits.tsx`
 - **test surface:** `tests/flowhub/users/` (1), `backup/` (5),
-  `feature_flags/` (1), `runtime_config/` (5), `security/` (2);
-  `tests/flowhub/rate_limit/` — **no test files found**; frontend:
+  `feature_flags/` (1), `runtime_config/` (5), `security/` (2),
+  `tests/flowhub/api/v2/test_settings_routes.py`; frontend:
   `Settings.test.tsx`, `AdvancedSettings.test.tsx`,
   `UserManagement.test.tsx`, `RateLimits.test.tsx`
 - **evidence:** `app.py:78-102,219-243` (router import/mount lists,
   compared against `ls app/flowhub/api/v2/`); stub file headers in
   `flags.py`, `backup.py`, `rules.py`, `safety.py`
-- **notes:** grep confirms `rate_limit` is referenced only inside
-  `diagnostics.py` and `settings_routes.py` — there is no dedicated
-  `rate_limit` API router at all, mounted or not. **How `RateLimits.tsx`
-  actually gets its data (which mounted route it calls) was not traced in
-  this draft — NEEDS_VERIFICATION.** Backup/feature-flags/rate-limiting
-  have real backend service modules with partial test coverage but their
-  *named* API surfaces are dead stubs; whether their UI pages call some
-  *other* mounted route, or are calling nothing live, is the open
-  question this PARTIAL status is meant to flag for Owner review.
+- **notes:** Rate Limits parity is confirmed: `RateLimits.tsx` calls
+  `ApiSettingsService`, which uses the mounted
+  `GET/POST /api/v2/settings/rate-limits` routes backed by
+  `RateLimitService`; backend authorization and frontend behavior have
+  regression coverage. Backup and feature-flag service modules remain
+  separate from their intentionally unmounted TARGET router stubs. This
+  confirmation does not change the Owner-approved domain maturity.
 
 #### `audit_governance` — Audit & Governance
 
@@ -560,9 +547,9 @@ for this draft, the entry is marked `NEEDS_VERIFICATION` rather than guessed.
 
 ---
 
-## Cross-cutting finding: seven dead stub routers
+## Cross-cutting finding: ten dead stub routers
 
-While tracing API surface for the entries above, seven files under
+While tracing API surface for the entries above, ten files under
 `app/flowhub/api/v2/` were found to define an `APIRouter` with a
 docstring naming a future build phase, but are **not imported anywhere in
 `app/flowhub/app.py`** (verified against both the import block,
@@ -577,6 +564,9 @@ docstring naming a future build phase, but are **not imported anywhere in
 | `safety.py` | `/safety` | "Implementation begins in B5." |
 | `flags.py` | `/flags` | "Implementation begins in B11." |
 | `backup.py` | `/backup` | "Implementation begins in B13." |
+| `ai.py` | `/ai` | TARGET stub; no routes |
+| `plugins.py` | `/plugins` | TARGET stub; no routes |
+| `scheduler.py` | `/scheduler` | TARGET stub; no routes |
 
 None of these have live endpoints today, regardless of what their
 filenames suggest. This is exactly the failure mode the task instructions
@@ -584,64 +574,59 @@ warned against ("do not infer implementation from filenames only") and is
 recorded here as a standing caveat for anyone reading `ls
 app/flowhub/api/v2/` and assuming coverage.
 
-`ai.py`, `plugins.py`, and `scheduler.py` also exist in that directory
-and were **not traced in this draft** — their mount status is
-**NEEDS_VERIFICATION**, not asserted either way here.
+The architecture diagrams confirm all ten as intentionally unmounted planned
+surfaces. Their existence is not permission to mount or implement them.
 
 ---
 
-## Open verification items
+## Remaining verification and Owner-decision items
 
-Consolidated list of every item this draft flagged as needing
-runtime/Owner/test verification beyond what static repository reading
-could settle, per the governance rule above. Items 1–4 and 6 are detailed
-in the capability entries above; item 5 is newly added at the Owner's
-request and was verified only to the shallow depth noted below.
+Consolidated list of items still needing runtime or Owner verification beyond
+what repository reading and executable tests could settle, per the governance
+rule above.
 
-1. **Seven unmounted/stub API routers** (`dryrun.py`, `changesets.py`,
-   `execution.py`, `rules.py`, `safety.py`, `flags.py`, `backup.py`) —
-   see [Cross-cutting finding](#cross-cutting-finding-seven-dead-stub-routers)
-   above. Verify: are these scheduled for a specific build phase, or
-   dead weight to remove? `ai.py`/`plugins.py`/`scheduler.py` mount
-   status is also unconfirmed.
+1. **Ten unmounted/stub API routers** (`dryrun.py`, `changesets.py`,
+   `execution.py`, `rules.py`, `safety.py`, `flags.py`, `backup.py`,
+   `ai.py`, `plugins.py`, `scheduler.py`) — mount status and zero-route
+   state are confirmed. Their disposition remains an Owner decision; they
+   must not be mounted merely because the files exist.
 2. **`app/flowhub/audit/logger.py` disposition** — see `audit_governance`
    entry above. `AuditLogger.log()` raises `NotImplementedError` and has
    zero references anywhere else in `app/`, while a separate, real audit
    trail (`create_audit_event` + `FlowHubLoginAudit`/`UnifiedAuditEntry`)
    already does the job. Verify: delete the stub, or is B10 still planned
    to supersede the working path?
-3. **`RateLimits.tsx` API mapping** — see `administration` entry above.
-   `rate_limit` is referenced only inside `diagnostics.py` and
-   `settings_routes.py`; there is no dedicated, mounted rate-limit
-   router. Verify: which mounted route the page actually calls, and
-   whether `tests/flowhub/rate_limit/` (confirmed absent by direct `ls`)
-   should exist.
-4. **`product_channel_price_editor` UI parity** — see
+3. **`product_channel_price_editor` UI parity** — see
    `pricing_intelligence` entry above and the original Phase 4.2 seed row
    in Appendix A. Backend/API confirmed real; dedicated frontend surface
    still not found. Verify with Owner whether this is scheduled,
    intentionally API-only, or a real gap.
-5. **Legacy `app/main.py` and `app/services/*` runtime status** — per
-   `CURRENT_ARCHITECTURE.md`: *"Legacy `app/main.py` and `app/services/*`
-   modules are retained only for historical compatibility and are not
-   imported by the active FlowHub Docker runtime."* Shallow verification
-   for this draft: `app/main.py` exists; `app/services/` exists and
-   contains `auth.py`, `nextcloud.py`, `product_cache.py`,
-   `woocommerce.py`; `Dockerfile:36` launches `uvicorn
-   app.flowhub.app:app`, **not** `app.main`, corroborating the claim at
-   the entrypoint level. **Not verified**: whether any currently-active
-   code path (CLI commands, tests, migration tooling, or `app.flowhub.*`
-   modules) still imports from `app.main` or `app.services` despite the
-   documented intent — a full import-graph check was out of scope for
-   this draft's time budget. Verify before treating these modules as
-   fully inert.
-6. **Business Observability contract coverage** — see
-   `business_observability` entry above. No code implements the
-   diagram's structured business-event contract; Dashboard/Activity/
-   Diagnostics provide informal, inconsistent partial coverage per the
-   Owner's `PARTIAL` correction. Verify: what would the minimum viable
-   structured-event contract look like, and which existing surface (if
-   any) is closest to adaptable.
+4. **Legacy deployment state** — active import and entrypoint reachability
+   from FlowHub, CLI, canonical migrations, Docker, workers, and installer
+   paths is now confirmed absent and enforced by
+   `tests/flowhub/test_no_direct_httpx.py`. The deployed database state of
+   quarantined `app/a2` remains an external operational verification item;
+   no legacy files are approved for deletion.
+
+5. **Business Observability contract coverage** — see
+   `business_observability` entry above. The structured contract remains
+   TARGET / PROPOSED; Dashboard, Activity, and Diagnostics provide the
+   Owner-approved partial informal coverage. Defining or implementing the
+   target requires an Owner decision.
+
+## Resolved verification evidence
+
+- **Rate Limits API mapping:** `RateLimits.tsx` → `ApiSettingsService` →
+  mounted `GET/POST /api/v2/settings/rate-limits` → `RateLimitService`, with
+  backend authorization and frontend regression tests.
+- **Legacy active reachability:** no active runtime, deployment, CLI, worker,
+  canonical migration, or installer boundary imports or launches
+  `app.main`, `app.services`, or `app.a2`; the architecture guard enforces
+  this quarantine.
+- **Shadow Validation migration:** forward-only revision `FLOWHUB_030` creates
+  the `sv_*` persistence schema and is followed by active head
+  `FLOWHUB_031`; executable migration tests cover creation and downgrade
+  rejection. C5 orchestration remains TARGET / PROPOSED.
 
 ---
 

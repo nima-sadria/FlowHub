@@ -134,7 +134,10 @@ Terminology:
 Current Sources shown in Commerce Hub:
 
 - Nextcloud
-- CSV
+- CSV / Excel file import
+
+Planned Source placeholders shown in Commerce Hub:
+
 - Google Sheets
 - ERP / API Import
 
@@ -146,7 +149,9 @@ Current Channels shown in Commerce Hub:
 - Tapsi Shop: implemented marketplace Channel with product, price/stock update,
   webhook ingestion, order receipt processing, and reconciliation support
   through protected backend APIs.
-- Digikala, Technolife, Shopify: future Channel placeholders.
+- Technolife: implemented marketplace Channel with catalog, price/stock update,
+  cache refresh, and reconciliation support through protected backend APIs.
+- Digikala and Shopify: future Channel placeholders.
 
 Commerce Hub relationship map:
 
@@ -173,13 +178,12 @@ WooCommerce
 ```
 
 Commerce Hub provides Source and Channel configuration and health surfaces. The
-protected Write Pipeline is the only external WooCommerce write path: it
-supports manual price updates for simple products and variations after
-Workspace Preview, row selection, Dry Run, and Approval. The Products
-multi-channel price editor is the protected marketplace price write path for
-capability-enabled channels and requires no-write Dry Run, explicit Approval,
-and Apply. Commerce Hub itself does not write to Sources, does not write stock,
-and does not perform Apply.
+protected Write Pipeline is the single external catalog-write authority for the
+current Channel connectors. It resolves WooCommerce, SnappShop, TapsiShop, and
+Technolife through `WorkspaceConnectorFactory`, performs no-write Dry Run,
+requires explicit Approval, and owns Apply and verification. Commerce Hub
+itself does not write to Sources, does not write stock, and does not perform
+Apply.
 
 ## Unified Logging Platform
 
@@ -199,7 +203,8 @@ Deferred in the first release:
 - Stock writes
 - Source or spreadsheet writes
 - Automatic pricing and automatic Apply
-- Additional marketplace channels beyond WooCommerce, SnappShop, and TapsiShop
+- Additional marketplace channels beyond WooCommerce, SnappShop, TapsiShop,
+  and Technolife
 
 Connector communication for WooCommerce and Nextcloud is isolated to connector
 and integration layers. Active FLOWHUB v2 API routes must not directly call external
@@ -246,7 +251,8 @@ installer to `/opt/FlowHub`.
 
 ## Planned
 
-- Additional connectors: Shopify, Magento, ERP, CSV, Google Sheets, custom APIs.
+- Planned diagram providers: Google Sheets and ERP/API Sources; Digikala and
+  Shopify Channels. Any other provider requires a separate Owner decision.
 - Live logging tail.
 - Scheduler execution only after separate approval.
 - Additional write channels only after separate architecture, audit, and Owner approval.
