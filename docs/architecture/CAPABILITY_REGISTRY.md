@@ -243,21 +243,18 @@ for this draft, the entry is marked `NEEDS_VERIFICATION` rather than guessed.
   `PricingProductGroupEditor.test.tsx`, `PricingUnitEditor.test.tsx`,
   `Products.test.tsx`
 - **evidence:** module/test listings above; `app.py:226,227`
-- **notes:** **Carries forward, unresolved, the exact gap the original
-  Phase 4.2 seed row flagged**: `product_channel_price_editor`
-  (backend `app/flowhub/product_pricing/service.py`, API
-  `products.py` `/{product_id}/channel-prices`) had *"no dedicated
-  frontend surface found under `frontend/src/pages`"* per the prior
-  approved draft. This re-verification did not find a page dedicated to
-  that specific sub-feature either (Products.tsx / PricingMatrix.tsx cover
-  overlapping but not obviously identical ground) — still
-  **NEEDS_VERIFICATION / NEEDS OWNER REVIEW**, not re-resolved here. The
-  Owner-approved `PARTIAL`/`FOUNDATION` (down from this draft's original
-  `IMPLEMENTED`/`ADVANCED` static-evidence estimate) reflects that a rich
-  formula/policy engine existing in code is not the same as the business
-  having verified pricing behavior is correct and mature end-to-end —
-  particularly given the unresolved channel-price-editor UI question
-  directly above.
+- **notes:** The former `product_channel_price_editor` UI finding is resolved
+  by current repository evidence. `Products.tsx` creates or restores a catalog
+  Unified Workspace and embeds `DensePricingWorkspace`, which renders editable
+  per-Listing channel price cells and submits Draft to Review to selected Apply
+  through `/api/v2/unified-workspaces`. The legacy
+  `/{product_id}/channel-prices` API remains a real protected compatibility
+  facade over `ProductPricingService` and `WritePipelineService`, but the
+  current frontend has no caller for it. It is therefore a duplicate legacy
+  API surface, not a missing operator UI. Preserve it until an Owner makes a
+  compatibility-removal decision. The Owner-approved `PARTIAL`/`FOUNDATION`
+  classification remains unchanged: this correction resolves a stale parity
+  finding, not a maturity upgrade.
 
 #### `channel_management` — Channel Management
 
@@ -596,11 +593,11 @@ rule above.
    trail (`create_audit_event` + `FlowHubLoginAudit`/`UnifiedAuditEntry`)
    already does the job. Verify: delete the stub, or is B10 still planned
    to supersede the working path?
-3. **`product_channel_price_editor` UI parity** — see
-   `pricing_intelligence` entry above and the original Phase 4.2 seed row
-   in Appendix A. Backend/API confirmed real; dedicated frontend surface
-   still not found. Verify with Owner whether this is scheduled,
-   intentionally API-only, or a real gap.
+3. **Legacy Product Channel Price API removal** — the old
+   `/{product_id}/channel-prices` compatibility facade has no current frontend
+   caller. Operator editing is provided by Products through Unified Workspace.
+   An Owner must decide the public/API compatibility window before removal; this
+   is not a UI-parity gap.
 4. **Legacy deployment state** — active import and entrypoint reachability
    from FlowHub, CLI, canonical migrations, Docker, workers, and installer
    paths is now confirmed absent and enforced by
@@ -627,6 +624,10 @@ rule above.
   the `sv_*` persistence schema and is followed by active head
   `FLOWHUB_031`; executable migration tests cover creation and downgrade
   rejection. C5 orchestration remains TARGET / PROPOSED.
+- **Product Channel Price operator parity:** `Products.tsx` through catalog
+  Unified Workspace and `DensePricingWorkspace` provides the current editable
+  multi-channel price path. The older Product Pricing API remains a tested,
+  UI-unreferenced compatibility facade and is not an operator UI gap.
 
 ---
 

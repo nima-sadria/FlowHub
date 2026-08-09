@@ -31,11 +31,15 @@ rather than falling back to a default channel.
 
 ## Multi-Channel Product Pricing
 
-The Products workflow exposes a protected single-product channel price editor
-through FlowHub backend APIs only. The frontend never calls WooCommerce,
-SnappShop, or TapsiShop APIs directly.
+The legacy Product Pricing compatibility API exposes a protected
+single-product channel price workflow through FlowHub backend APIs only. The
+current operator workflow is `Products.tsx` through catalog Unified Workspace
+and `DensePricingWorkspace`, which supports editable per-Listing channel price
+cells followed by Draft, Review, and selected Apply. The frontend never calls
+WooCommerce, SnappShop, or TapsiShop APIs directly.
 
-The editor loads canonical/business price data separately from channel values.
+The compatibility API loads canonical/business price data separately from
+channel values.
 Each channel row reports connection state, read/write capability, current
 synchronized value, proposed value, unit, normalized value, freshness, stale
 token, validation state, and pending change state. Channel columns are driven by
