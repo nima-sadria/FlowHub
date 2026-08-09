@@ -17,6 +17,8 @@ from app.flowhub.auth import models as _auth_models  # noqa: F401
 from app.flowhub.data_layer import models as _data_layer_models  # noqa: F401
 from app.flowhub.integration_platform import models as _integration_platform_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
+from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: F401
+from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
 from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: F401
 
 
@@ -305,22 +307,39 @@ async def test_authorized_admin_reuses_shared_snapshot_with_owned_preview(
 def test_source_read_limit_returns_structured_429_and_retry_after(
     client, auth_headers, configured_db
 ):
+    from app.flowhub.auth.models import FlowHubUser
     from app.flowhub.data_layer.models import DlSourceReadReservation
     from app.flowhub.setup.service import AppConfigService
+    from app.flowhub.source_workspace.models import SourceProfile
 
     _cache_product(configured_db, "101", "Test Product", "SKU-101", "100.00")
     AppConfigService(configured_db).set(
         "nextcloud.source_read_policy",
         '{"enabled": true, "manual_read_allowed": true, "max_reads_per_24h": 1}',
     )
-    configured_db.add(DlSourceReadReservation(
-        id="srr_existing",
-        source_id="nextcloud:primary",
-        user_id="existing",
-        reserved_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
-        completed_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
-        status="succeeded",
-    ))
+    owner = configured_db.query(FlowHubUser).one()
+    source = SourceProfile(
+        id="source-nextcloud-primary",
+        name="Nextcloud",
+        source_kind="external",
+        external_source_id="nextcloud:primary",
+        worksheet_mode="all",
+        data_start_row=2,
+        status="active",
+        version=1,
+        owner_user_id=owner.id,
+    )
+    configured_db.add_all([
+        source,
+        DlSourceReadReservation(
+            id="srr_existing",
+            source_id=source.id,
+            user_id="existing",
+            reserved_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
+            completed_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
+            status="succeeded",
+        ),
+    ])
     configured_db.commit()
 
     response = client.post("/api/v2/workspace/preview", headers=auth_headers)
