@@ -1,0 +1,26 @@
+name: FlowHub architecture guard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  architecture-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: python -m pip install --upgrade pip
+      - run: pip install -r requirements.txt pytest
+      - name: Architecture guard tests
+        run: |
+          python -m pytest -q -ra --strict-markers --tb=short \
+            tests/flowhub/test_no_direct_httpx.py \
+            tests/flowhub/write_pipeline/test_shared_write_authority.py \
+            tests/flowhub/test_release_terms_guard.py \
+            tests/flowhub/channels/test_gateway.py

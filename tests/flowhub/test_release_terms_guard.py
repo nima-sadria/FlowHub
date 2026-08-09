@@ -44,6 +44,10 @@ ALLOWED_RELEASE_TERM_PATHS = {
 }
 INTERNAL_TERM_PATTERNS = {
     "RESUME.md": (r"placeholder", r"beta"),
+    # ARCHITECTURE_STATE.md's Dormant Subsystems note quotes the pre-rename
+    # project name from git history ("WooPrice Beta -> FlowHub"). This is a
+    # historical citation, not a release-state label.
+    "ARCHITECTURE_STATE.md": (r"WooPrice Beta",),
     # UI_RESUME.md records verified test and local-development evidence. These
     # exact phrases do not permit mock routes or production placeholders.
     "UI_RESUME.md": (
@@ -76,11 +80,33 @@ INTERNAL_TERM_PATTERNS = {
     "app/flowhub/integration_platform/registry.py": (
         r'\("placeholder",\s*"capability_detection"\)',
     ),
+    # SecretField is the shared write-only credential input. `placeholder`
+    # and `configuredPlaceholder` are the standard HTML input-placeholder
+    # prop pair, not release residue.
+    "frontend/src/components/SecretField.tsx": (
+        r"\bplaceholder\b",
+        r"\bconfiguredPlaceholder\b",
+        r"\bemptyPlaceholder\b",
+    ),
+    # UserManagement passes its password prompt text through SecretField's
+    # typed placeholder prop; same standard HTML input placeholder, sourced
+    # from a translation key.
+    "frontend/src/components/UserManagement.tsx": (
+        r"placeholder=\{translate\('settings:users\.passwordPlaceholder'\)\}",
+    ),
+    # Sample CIDR hint text for the trusted-private-networks textarea
+    # (standard HTML input placeholder), not release residue.
+    "frontend/src/pages/AdvancedSettings.tsx": (
+        r'placeholder="192\.168\.100\.11/32"',
+    ),
     "frontend/src/pages/CommerceHub.tsx": (
         r'\bsource\.placeholder\b',
         r'\bchannel\.placeholder\b',
         r'\bselected\.placeholder\b',
         r'\bselectedType\.placeholder\b',
+        r"placeholder=\{translate\('commerce:commerceHub\.passwordPlaceholder'\)\}",
+        r"configuredPlaceholder=\{translate\('commerce:commerceHub\.passwordConfiguredPlaceholder'\)\}",
+        r"placeholder=\{translate\('commerce:commerceHub\.spreadsheetResourcePlaceholder'\)\}",
     ),
     # Channels.tsx reads the same typed `placeholder: boolean` channel field
     # (services/types.ts) as CommerceHub.tsx to gate coming-soon entries. This
@@ -139,23 +165,60 @@ INTERNAL_TERM_PATTERNS = {
     "frontend/src/i18n/locales/fa/pricing.json": (
         r'"productGroupEditor\.memberPlaceholder":',
     ),
+    # Standard HTML input-placeholder translation values for the credential
+    # and spreadsheet-path fields on the Commerce Hub and Users settings;
+    # not release residue.
+    "frontend/src/i18n/locales/en/commerce.json": (
+        r'"commerceHub\.passwordConfiguredPlaceholder":',
+        r'"commerceHub\.passwordPlaceholder":',
+        r'"commerceHub\.spreadsheetResourcePlaceholder":',
+    ),
+    "frontend/src/i18n/locales/fa/commerce.json": (
+        r'"commerceHub\.spreadsheetResourcePlaceholder":',
+    ),
+    "frontend/src/i18n/locales/en/settings.json": (
+        r'"users\.passwordPlaceholder":',
+    ),
     "frontend/src/features/pricingMatrix/api.ts": (
         r"\bnone is a mock or a placeholder\b",
     ),
+    # These msgctxt lines are the compiled-catalog form of translation keys
+    # already exempted on their JSON source (memberPlaceholder,
+    # smartInputPlaceholder) or above (Commerce Hub / Users password and
+    # spreadsheet-path placeholders). Same standard HTML input placeholders,
+    # not release residue.
     "locales/en/flowhub.po": (
         r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",
         r"(Next|Previous) sample row",
         r"Sample \{\{current\}\} of \{\{total\}\}",
+        r'msgctxt "pricing:productGroupEditor\.memberPlaceholder"',
+        r'msgctxt "commerce:commerceHub\.passwordConfiguredPlaceholder"',
+        r'msgctxt "commerce:commerceHub\.passwordPlaceholder"',
+        r'msgctxt "settings:users\.passwordPlaceholder"',
+        r'msgctxt "commerce:commerceHub\.spreadsheetResourcePlaceholder"',
+        r'msgctxt "sources:sourceConfiguration\.smartInputPlaceholder"',
     ),
     "locales/fa/flowhub.po": (
         r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",
         r"(Next|Previous) sample row",
         r"Sample \{\{current\}\} of \{\{total\}\}",
+        r'msgctxt "pricing:productGroupEditor\.memberPlaceholder"',
+        r'msgctxt "commerce:commerceHub\.passwordConfiguredPlaceholder"',
+        r'msgctxt "commerce:commerceHub\.passwordPlaceholder"',
+        r'msgctxt "settings:users\.passwordPlaceholder"',
+        r'msgctxt "commerce:commerceHub\.spreadsheetResourcePlaceholder"',
+        r'msgctxt "sources:sourceConfiguration\.smartInputPlaceholder"',
     ),
     "locales/flowhub.pot": (
         r"sourceConfiguration\.(nextSampleRow|previousSampleRow|samplePosition)",
         r"(Next|Previous) sample row",
         r"Sample \{\{current\}\} of \{\{total\}\}",
+        r'msgctxt "pricing:productGroupEditor\.memberPlaceholder"',
+        r'msgctxt "commerce:commerceHub\.passwordConfiguredPlaceholder"',
+        r'msgctxt "commerce:commerceHub\.passwordPlaceholder"',
+        r'msgctxt "settings:users\.passwordPlaceholder"',
+        r'msgctxt "commerce:commerceHub\.spreadsheetResourcePlaceholder"',
+        r'msgctxt "sources:sourceConfiguration\.smartInputPlaceholder"',
     ),
     "frontend/src/services/types.ts": (
         r'\bplaceholder:\s*boolean\b',
