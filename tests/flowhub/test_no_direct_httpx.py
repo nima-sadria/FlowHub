@@ -16,6 +16,11 @@ TEST 2 - test_legacy_services_not_imported_by_FLOWHUB()
   in app/flowhub/. These legacy files make direct WC/NC httpx calls and are used
   only by app/main.py (legacy compatibility app on legacy port 8000).
 
+TEST 3 - test_active_runtime_excludes_legacy_architectures()
+  Scans active FlowHub, CLI, and canonical migration Python roots plus production
+  entrypoint files. Neither app/main.py + app/services nor app/a2 may become
+  reachable from a current runtime or deployment boundary.
+
 ------------------------------------------------------------------------------
 Out-of-scope (legitimately use httpx for non-FLOWHUB purposes):
   app/connectors/         - the connector layer itself (httpx is expected here)
@@ -45,6 +50,25 @@ _LEGACY_SERVICES = [
     "app.services.nextcloud",
     "app.services.auth",
 ]
+
+_ACTIVE_RUNTIME_DIRS = (
+    _FLOWHUB_DIR,
+    _REPO_ROOT / "cli",
+    _REPO_ROOT / "alembic_flowhub",
+)
+_ACTIVE_ENTRYPOINT_FILES = (
+    _REPO_ROOT / "Dockerfile",
+    _REPO_ROOT / "docker-compose.yml",
+    _REPO_ROOT / "docker-compose.a2.yml",
+    _REPO_ROOT / "installer" / "templates" / "docker-compose.template.yml",
+    _REPO_ROOT / "installer" / "install.sh",
+    _REPO_ROOT / "scripts" / "flowhub-helper",
+)
+_LEGACY_ARCHITECTURE_PREFIXES = (
+    "app.main",
+    "app.services",
+    "app.a2",
+)
 
 
 def _collect_python_files(root: pathlib.Path) -> list[pathlib.Path]:
@@ -91,7 +115,12 @@ def _imported_modules(path: pathlib.Path) -> set[str]:
         elif isinstance(node, ast.ImportFrom):
             if node.module:
                 modules.add(node.module)
+                modules.update(f"{node.module}.{alias.name}" for alias in node.names)
     return modules
+
+
+def _matches_module_prefix(module: str, prefix: str) -> bool:
+    return module == prefix or module.startswith(f"{prefix}.")
 
 
 # -- TEST 1 --------------------------------------------------------------------
@@ -148,5 +177,38 @@ def test_legacy_services_not_imported_by_FLOWHUB():
         "These modules make direct httpx WC/NC calls and must remain isolated to app/main.py.\n"
         "flowhub must use app/connectors/ or app/flowhub/integrations/ instead.\n"
         "Violations:\n"
+        + "\n".join(f"  {v}" for v in sorted(violations))
+    )
+
+
+def test_active_runtime_excludes_legacy_architectures():
+    """Current runtime imports and deployment entrypoints keep legacy code inert."""
+    violations: list[str] = []
+
+    for runtime_dir in _ACTIVE_RUNTIME_DIRS:
+        for py_file in _collect_python_files(runtime_dir):
+            imported = _imported_modules(py_file)
+            for legacy_prefix in _LEGACY_ARCHITECTURE_PREFIXES:
+                if any(_matches_module_prefix(module, legacy_prefix) for module in imported):
+                    rel = py_file.relative_to(_REPO_ROOT)
+                    violations.append(f"{rel} imports {legacy_prefix}")
+
+    forbidden_entrypoint_tokens = (
+        "app.main",
+        "app/main.py",
+        "app.services",
+        "app/services",
+        "app.a2",
+        "app/a2",
+    )
+    for entrypoint_file in _ACTIVE_ENTRYPOINT_FILES:
+        source = entrypoint_file.read_text(encoding="utf-8")
+        for token in forbidden_entrypoint_tokens:
+            if token in source:
+                rel = entrypoint_file.relative_to(_REPO_ROOT)
+                violations.append(f"{rel} references {token}")
+
+    assert violations == [], (
+        "Legacy architectures are reachable from active runtime or deployment boundaries:\n"
         + "\n".join(f"  {v}" for v in sorted(violations))
     )
