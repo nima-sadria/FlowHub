@@ -1,19 +1,33 @@
-# Capability Registry (Phase 4.2 — design only)
+# Capability Registry
 
-**Status:** Design only — not implemented, not wired to any code or CI
-**Scope:** Phase 4.2 of Architecture Guard bring-up. Builds on the stable
-Source Gateway ([`app/connectors/common/source_http.py`](../../app/connectors/common/source_http.py))
-and Channel Gateway ([`app/flowhub/channels/gateway.py`](../../app/flowhub/channels/gateway.py))
-boundaries and the target design drawn in
-[`docs/draw/business-architecture.drawio`](../draw/business-architecture.drawio)
-(`capability_registry`, `architecture_guard`, `parity_check` nodes).
+**Status:** Draft — documentation only. Not implemented, not wired to any
+code or CI. Nothing in this file is imported by application code, referenced
+by any test, or run in CI.
 
-This document is the schema and a small illustrative seed set. Nothing here
-is imported by application code, referenced by any test, or run in CI. It
-does not modify runtime behavior and does not merge with, replace, or extend
+This file now contains two registries at two different granularities,
+produced in two phases. Both are preserved:
+
+1. **Part A — Domain-Level Capability Registry (v1 draft, this update).**
+   Ten Owner/Admin/Operator-facing domain capabilities, matched to the
+   `business_capabilities` row and the ten capability nodes drawn in
+   [`docs/draw/00-flowhub-master.drawio`](../draw/00-flowhub-master.drawio)
+   (`source_providers`/`workspace`/`pricing`/`channel_providers`/`approval`/`X`
+   (Write Pipeline) as Core, plus the `cross` cutting-capabilities box —
+   `admin`, `audit`, `diagnostics`, `business_observability_capability` — as
+   Supporting). This is the "first real draft" requested; see Methodology
+   below for how each entry was verified.
+2. **Part B — Fine-grained illustrative seed (Phase 4.2, original).**
+   The original per-feature schema and four-row seed set from the first
+   version of this document, preserved unchanged below in
+   [Appendix A](#appendix-a-phase-42-fine-grained-registry-original). It
+   answers a narrower question ("does this one named feature have
+   Backend+API+UI+Test") than Part A ("does this whole domain exist and
+   how mature is it"). Both are legitimate views; this draft does not
+   collapse them into one schema.
+
+Neither part modifies, replaces, or is consumed by
 `MarketplaceConnectorRegistry` (`app/flowhub/channels/registry.py`), which
-answers a different question — "can this connector do X at runtime" — not
-"does this domain feature have Backend + API + UI + Tests."
+answers a different, runtime question ("can this connector do X").
 
 ## Principle
 
@@ -25,20 +39,622 @@ Quoting the `capability_principle` node in the target-architecture diagram:
 
 ## Non-goals
 
-- **No reflection, no auto-discovery.** The registry is never populated by
-  scanning routes, walking the frontend router, or introspecting modules.
-  Every entry is a hand-written line reviewed by a human.
-- **Not a CI gate yet.** Phase 4.2 defines the shape only. A future phase
-  may add a check that declared refs exist; this document does not.
-- **Not a runtime capability system.** It does not gate behavior, does not
-  get imported by `app/flowhub/`, and is not a dependency of any request
-  path. It is closer in spirit to `ARCHITECTURE_STATE.md` than to code.
-- **Small and enumerable, on purpose.** The set of Owner/Admin/Operator-
-  facing capabilities in FlowHub today is finite and short. If this list
-  grows into the hundreds, that is a signal the granularity is wrong, not
-  a reason to automate population of it.
+- **No reflection, no auto-discovery.** Every entry below is hand-written
+  and reviewed, not produced by scanning routes or walking the router.
+- **Not a CI gate.** This document defines shape and current-state evidence
+  only. No check enforces it.
+- **Not a runtime capability system.** Not imported by `app/flowhub/`, not a
+  dependency of any request path.
+- **Not a claim of completeness for the diagram's TARGET architecture.**
+  Every diagram node reproduced in this file that is marked
+  `TARGET / PROPOSED — ⚠ VERIFY` is reproduced *as a target*, not
+  reclassified as implemented because a same-named module exists.
 
-## Schema
+## Governance rule: status and maturity are Owner/Architecture decisions
+
+> **Business status and maturity are Owner/Architecture decisions.
+> Repository evidence may confirm or downgrade confidence, but must not
+> silently upgrade capability maturity.**
+
+Repository inspection (reading code, checking router mounts, counting
+test files) is **implementation evidence only**. It can support a
+downgrade — e.g. finding a stub `raise NotImplementedError` is sufficient
+on its own to justify `PARTIAL` or `NOT_IMPLEMENTED` — but it cannot, by
+itself, justify marking something `IMPLEMENTED` at business-capability
+grain. A capability being *technically wired end-to-end in the code* is
+necessary but not sufficient for that call: whether it is trustworthy
+enough for the business to rely on, whether it has been exercised at
+runtime rather than only read statically, and how mature the surrounding
+workflow really is are Owner/Architecture judgments, not something an
+automated read of the repository is entitled to assert.
+
+Practically, this means:
+
+- `IMPLEMENTED` is reserved for capabilities the Owner/Architecture has
+  affirmatively signed off on at this grain. An AI-run repository scan
+  should default to `IMPLEMENTED_UNVERIFIED` when its evidence is purely
+  static (code exists, routes are mounted, tests exist) and no runtime or
+  Owner verification has actually taken place.
+- `PARTIAL` is the safe default whenever evidence is mixed (some real
+  modules, some stubs; some mounted routes, some dead ones) rather than
+  rounding up to `IMPLEMENTED` because *most* of the surface looks real.
+- The **status and maturity values in this registry are the
+  Owner-approved classifications** as of the most recent correction, not
+  the AI's original static-evidence estimates. Where those two diverge,
+  each entry below records both: the Owner-approved value (authoritative)
+  and, in its `notes`, what the static evidence alone would have
+  suggested and why that isn't sufficient on its own.
+
+## Methodology (research-first, evidence-based)
+
+Every `status` below was set only after direct repository verification, in
+this order:
+
+1. Read [`docs/draw/00-flowhub-master.drawio`](../draw/00-flowhub-master.drawio)
+   for the target shape and the capabilities it names.
+2. Read [`docs/architecture/CURRENT_ARCHITECTURE.md`](CURRENT_ARCHITECTURE.md),
+   [`docs/architecture/BU5_INTEGRATIONS.md`](BU5_INTEGRATIONS.md), and the
+   prior version of this file for previously-approved decisions.
+3. For **API surface**, checked which routers are actually mounted by
+   reading `app.include_router(...)` calls in
+   [`app/flowhub/app.py`](../../app/flowhub/app.py) (lines 219–243) against
+   the router *files present* in `app/flowhub/api/v2/`. A file existing in
+   that directory is **not** evidence of a live endpoint — several are
+   unmounted stubs (see [Cross-cutting finding](#cross-cutting-finding-seven-dead-stub-routers) below).
+4. For **backend surface**, opened each module and distinguished real
+   service logic (multi-hundred-line files with working methods) from
+   stub classes (methods that `raise NotImplementedError` or docstrings
+   reading "Implementation begins in B__").
+5. For **UI surface**, matched pages under `frontend/src/pages/` to the
+   API calls they actually make (e.g. `Workspace.tsx` calling
+   `writePipeline.approve(...)`), not just filename similarity.
+6. For **test surface**, listed files under the matching `tests/flowhub/*`
+   and `frontend/src/pages/*.test.tsx` directories; an empty or missing
+   test directory is recorded as a gap, not silently omitted.
+
+Where a step above could not be completed inside the 60-minute time budget
+for this draft, the entry is marked `NEEDS_VERIFICATION` rather than guessed.
+
+## Schema (Part A)
+
+| Field | Meaning |
+| --- | --- |
+| `id` | Stable snake_case identifier. |
+| `name` | Human-readable capability name. |
+| `domain` | The business/architecture domain the capability belongs to. |
+| `classification` | `Core` or `Supporting`, per the task's requested split. |
+| `audience` | `Operator-facing`, `Admin-facing`, `Internal-only`, or `Hybrid`. |
+| `status` | `IMPLEMENTED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `PLANNED`, `NOT_IMPLEMENTED`. |
+| `maturity` | `FOUNDATION` → `BASELINE` → `OPERATIONAL` → `ADVANCED` → `INTELLIGENT`. |
+| `backend surface` | Real backend modules found. |
+| `API surface` | Mounted router(s) and confirmed live endpoints. |
+| `UI surface` | Frontend pages that actually call the above. |
+| `test surface` | Test files found (backend + frontend). |
+| `evidence` | Exact file paths / grep results this entry is based on. |
+| `notes` | Caveats, open questions, distinctions from same-named stub code. |
+
+---
+
+## Part A — Domain-Level Capability Registry (v1 draft)
+
+### Core Capabilities
+
+#### `sources` — Sources
+
+- **domain:** Sources
+- **classification:** Core
+- **audience:** Hybrid — Commerce Hub source list is read by any signed-in
+  user (`app/flowhub/api/v2/commerce.py` `list_sources`/`list_source_types`
+  use `get_current_user`, not an admin check); source *configuration* is
+  admin-gated per `settings_routes.py` / `sources.py` (`require_admin`
+  usage confirmed by import, exact per-route gating **NEEDS_VERIFICATION**).
+- **status:** PARTIAL — Owner-approved classification (overrides this
+  draft's original static-evidence estimate of `IMPLEMENTED`)
+- **maturity:** BASELINE — Owner-approved classification (overrides
+  original estimate of `OPERATIONAL`)
+- **backend surface:** `app/flowhub/sources/spreadsheet_source.py`;
+  `app/flowhub/source_acquisition/{service.py,execution.py,errors.py,
+  models.py,nextcloud_provider.py,observations.py,schema_assessment.py}`
+- **API surface:** `app/flowhub/api/v2/sources.py` (mounted,
+  `app.py:228`), `app/flowhub/api/v2/source_workspace.py` (mounted,
+  `app.py:243`)
+- **UI surface:** `frontend/src/pages/SourceCenter.tsx`,
+  `SourceConfiguration.tsx`, `SourceImportWizard.tsx`,
+  `frontend/src/pages/sourceConfiguration/`
+- **test surface:** `tests/flowhub/source_acquisition/` (7 files),
+  `tests/flowhub/source_workspace/` (7 files),
+  `SourceCenter.test.tsx`, `SourceConfiguration.test.tsx`
+- **evidence:** directory listings above; `app/flowhub/app.py` lines 96,
+  228, 243 (`include_router` calls); `CURRENT_ARCHITECTURE.md` "Current
+  Sources shown in Commerce Hub: Nextcloud, CSV, Google Sheets, ERP / API
+  Import"
+- **notes:** The diagram's `source_gateway` node ("Unified Source
+  Contract / Adapters") is explicitly `TARGET / PROPOSED — ⚠ VERIFY`
+  (`v1`, `v2`, `v3` verify-items in the diagram ask whether this
+  abstraction already exists). Current code has a per-provider shape
+  (`nextcloud_provider.py`) rather than a confirmed formal multi-provider
+  adapter interface spanning CSV/Google Sheets/ERP — **NEEDS_VERIFICATION**,
+  do not read this as "Source Gateway is done." Static evidence alone
+  (mounted routers, populated backend modules, present tests) would have
+  supported `IMPLEMENTED`/`OPERATIONAL`; the Owner-approved
+  `PARTIAL`/`BASELINE` reflects that this evidence is unread at runtime
+  and the source-adapter abstraction gap above is unresolved, not that
+  the underlying code was found broken.
+
+#### `workspace` — Workspace
+
+- **domain:** Workspace
+- **classification:** Core
+- **audience:** Operator-facing
+- **status:** IMPLEMENTED_UNVERIFIED — Owner-approved classification
+  (overrides original estimate of `IMPLEMENTED`; static code reading is
+  not runtime/Owner verification)
+- **maturity:** OPERATIONAL — Owner-approved, unchanged from original
+  estimate
+- **backend surface:** `app/flowhub/workspace/{preview_store.py,
+  price_workflow.py}`; `app/flowhub/unified_workspace/{authorization.py,
+  connectors.py,domain.py,events.py,listing_guard.py,models.py,
+  repositories.py,services.py}` (`services.py` is 4,429 lines — substantial,
+  not a stub); `app/flowhub/source_workspace/`
+- **API surface:** `app/flowhub/api/v2/workspace.py` (mounted,
+  `app.py:229`), `unified_workspace.py` (mounted, `app.py:242`),
+  `source_workspace.py` (mounted, `app.py:243`)
+- **UI surface:** `frontend/src/pages/Workspace.tsx`,
+  `UnifiedWorkspace.tsx` — `Workspace.tsx` implements a real phase state
+  machine (`idle → previewing → preview_ready → dry_running →
+  dry_run_ready → approving → approved → applying → result/error`,
+  `Workspace.tsx:74`)
+- **test surface:** `tests/flowhub/workspace/` (2 files),
+  `tests/flowhub/unified_workspace/` (4 files), `Workspace.test.tsx`,
+  `UnifiedWorkspace.test.tsx`
+- **evidence:** `Workspace.tsx:74,184,333-347`; module line counts above;
+  `app.py:229,242,243`
+- **notes:** Workspace is the UI host for both the Review & Approval and
+  Write Pipeline capabilities below (same phase machine, same page) —
+  recorded here as the read/preview surface; approve/execute behavior is
+  attributed to its own capability entries per the task's requested split.
+
+#### `pricing_intelligence` — Pricing Intelligence
+
+- **domain:** Pricing Intelligence
+- **classification:** Core
+- **audience:** Hybrid (operator-facing editors; admin-adjacent policy
+  configuration — exact per-route gating not individually verified for
+  every pricing endpoint, **NEEDS_VERIFICATION**)
+- **status:** PARTIAL — Owner-approved classification (overrides original
+  estimate of `IMPLEMENTED`)
+- **maturity:** FOUNDATION — Owner-approved classification (overrides
+  original estimate of `ADVANCED`)
+- **backend surface:** `app/flowhub/pricing_matrix/{arithmetic.py,
+  contracts.py,errors.py,evaluator.py,guards.py,models.py,service.py,
+  units.py}`; `app/flowhub/pricing_authority/{contracts.py,errors.py,
+  models.py,service.py}`; `app/flowhub/pricing_evaluation/`;
+  `app/flowhub/product_pricing/{models.py,service.py}`;
+  `app/flowhub/formula_migration_preview/`; `app/flowhub/formula_translator/`
+- **API surface:** `app/flowhub/api/v2/pricing_matrix.py` (mounted,
+  `app.py:227`), `app/flowhub/api/v2/products.py` (mounted, `app.py:226`,
+  includes `/{product_id}/channel-prices` per prior registry finding)
+- **UI surface:** `frontend/src/pages/PricingMatrix.tsx`,
+  `PricingPolicyEditor.tsx`, `PricingProductGroupEditor.tsx`,
+  `PricingUnitEditor.tsx`, `Products.tsx`
+- **test surface:** `tests/flowhub/pricing_matrix/` (5 files),
+  `tests/flowhub/pricing_authority/` (2 files),
+  `tests/flowhub/pricing_evaluation/`, `tests/flowhub/formula_migration_preview/`,
+  `tests/flowhub/formula_translator/`, `tests/beta/test_multi_channel_pricing.py`,
+  plus `PricingMatrix.test.tsx`, `PricingPolicyEditor.test.tsx`,
+  `PricingProductGroupEditor.test.tsx`, `PricingUnitEditor.test.tsx`,
+  `Products.test.tsx`
+- **evidence:** module/test listings above; `app.py:226,227`
+- **notes:** **Carries forward, unresolved, the exact gap the original
+  Phase 4.2 seed row flagged**: `product_channel_price_editor`
+  (backend `app/flowhub/product_pricing/service.py`, API
+  `products.py` `/{product_id}/channel-prices`) had *"no dedicated
+  frontend surface found under `frontend/src/pages`"* per the prior
+  approved draft. This re-verification did not find a page dedicated to
+  that specific sub-feature either (Products.tsx / PricingMatrix.tsx cover
+  overlapping but not obviously identical ground) — still
+  **NEEDS_VERIFICATION / NEEDS OWNER REVIEW**, not re-resolved here. The
+  Owner-approved `PARTIAL`/`FOUNDATION` (down from this draft's original
+  `IMPLEMENTED`/`ADVANCED` static-evidence estimate) reflects that a rich
+  formula/policy engine existing in code is not the same as the business
+  having verified pricing behavior is correct and mature end-to-end —
+  particularly given the unresolved channel-price-editor UI question
+  directly above.
+
+#### `channel_management` — Channel Management
+
+- **domain:** Channel Management
+- **classification:** Core
+- **audience:** Hybrid — Commerce Hub channel list readable by any
+  signed-in user; channel credential/config writes require admin
+  (`commerce.py` `_require_admin` helper present, used selectively)
+- **status:** PARTIAL — Owner-approved classification (overrides original
+  estimate of `IMPLEMENTED`)
+- **maturity:** BASELINE — Owner-approved classification (overrides
+  original estimate of `OPERATIONAL`)
+- **backend surface:** `app/flowhub/channels/{gateway.py,marketplace.py,
+  marketplace_product_sync.py,registry.py,snappshop.py,
+  snappshop_product_sync.py,tapsishop.py,technolife.py,woocommerce.py,
+  write_validation.py}`; `app/flowhub/commerce/service.py`
+- **API surface:** `app/flowhub/api/v2/commerce.py` (mounted,
+  `app.py:232`) — confirmed live routes include `GET /commerce/sources`,
+  `GET /commerce/source-types`
+- **UI surface:** `frontend/src/pages/Channels.tsx`, `ChannelDetail.tsx`,
+  `CommerceHub.tsx`
+- **test surface:** `tests/flowhub/channels/` (2 files),
+  `tests/test_marketplace_connectors.py`, `test_marketplace_product_sync.py`,
+  `test_snappshop_connector.py`, `test_snappshop_product_sync.py`,
+  `test_tapsishop_connector.py`, `test_technolife_connector.py`,
+  `Channels.test.tsx`, `CommerceHub.test.tsx`
+- **evidence:** listings above; `app.py:232`; `CURRENT_ARCHITECTURE.md`
+  "Current Channels shown in Commerce Hub: WooCommerce... Snapp Shop...
+  Tapsi Shop... Digikala, Technolife, Shopify: future Channel placeholders"
+- **notes:** the diagram's `channel_gateway` node ("Unified Write
+  Contract / Adapters") is `TARGET / PROPOSED — ⚠ VERIFY` (`v4`–`v6`).
+  The existing Phase 4.2 seed already names
+  `app/flowhub/channels/gateway.py` (`WorkspaceConnectorFactory`) as an
+  `internal_only` capability — a gateway-shaped module exists today, but
+  whether it satisfies the diagram's *target* Channel Gateway concept for
+  every current and future channel (including the CURRENT_ARCHITECTURE.md
+  "future Channel placeholders": Digikala, Technolife-as-placeholder,
+  Shopify) is **NEEDS_VERIFICATION** — do not treat as fully resolved.
+  Also note `CURRENT_ARCHITECTURE.md` lists Technolife inconsistently
+  (both as an implemented-style channel provider name and under "future
+  Channel placeholders") — flagged as a **documentation inconsistency**,
+  not resolved by this draft. That inconsistency is itself part of why
+  the Owner-approved status is `PARTIAL`/`BASELINE` rather than this
+  draft's original `IMPLEMENTED`/`OPERATIONAL` estimate: a per-channel
+  adapter existing in code for four marketplaces is not the same as the
+  channel domain being verified-mature across all of them.
+
+#### `review_approval` — Review & Approval
+
+- **domain:** Review & Approval
+- **classification:** Core
+- **audience:** Operator-facing
+- **status:** IMPLEMENTED_UNVERIFIED — Owner-approved classification
+  (overrides original estimate of `IMPLEMENTED`). All evidence below is
+  static code reading (source, route decorators, UI callback wiring); no
+  runtime exercise of the dry-run→approve flow was performed, so per the
+  governance rule above this must not be marked fully `IMPLEMENTED`.
+- **maturity:** OPERATIONAL — unchanged from original estimate; not
+  explicitly overridden
+- **backend surface:** `app/flowhub/write_pipeline/contracts.py`
+  (`WritePipelineDryRunRequest`, `WritePipelineApprovalRequest`),
+  `app/flowhub/write_pipeline/service.py` (1,383 lines)
+- **API surface:** `app/flowhub/api/v2/write_pipeline.py` (mounted,
+  `app.py:230`) — confirmed live routes: `POST /write-pipeline/dry-run`,
+  `GET /write-pipeline/batches/{batch_id}`,
+  `POST /write-pipeline/batches/{batch_id}/approve`
+- **UI surface:** `frontend/src/pages/Workspace.tsx` — `approveDryRun`
+  callback at `Workspace.tsx:333` calls `writePipeline.approve(batch.id,
+  'Approved from Workspace')` (`Workspace.tsx:338-339`); phase labels
+  include `workspace:workspace.steps.approve` (`Workspace.tsx:189`)
+- **test surface:** `tests/flowhub/write_pipeline/` (3 files),
+  `Workspace.test.tsx`
+- **evidence:** `app/flowhub/api/v2/write_pipeline.py:27,36,45`
+  (`@router.post("/dry-run"...)`, `@router.get("/batches/{batch_id}"...)`,
+  `@router.post("/batches/{batch_id}/approve"...)`); `app.py:230`;
+  `BU5_INTEGRATIONS.md:24` — "Manual WooCommerce price execution... is
+  available only through Preview, Row Selection, Dry Run, Approval,
+  Manual Execute, Read-back Verification, and Audit" (prior approved
+  architecture decision naming this exact flow)
+- **notes:** **Do not confuse with** `app/flowhub/api/v2/dryrun.py` and
+  `changesets.py` — these are separate, unimplemented stub routers (see
+  [cross-cutting finding](#cross-cutting-finding-seven-dead-stub-routers)
+  below) for a differently-scoped, unbuilt "Dry Run Engine" / "Change Set
+  Engine" (B6 phase). The real, live Dry Run + Approval flow described
+  here lives entirely inside `write_pipeline`, not those files.
+
+#### `write_pipeline` — Write Pipeline
+
+- **domain:** Write Pipeline
+- **classification:** Core
+- **audience:** Operator-facing (execution gated behind
+  `require_write_operation_available`, `app/flowhub/maintenance.py`)
+- **status:** IMPLEMENTED_UNVERIFIED — Owner-approved classification
+  (overrides original estimate of `IMPLEMENTED`), for the same reason as
+  Review & Approval directly above: static code/route/UI evidence only,
+  no runtime verification performed.
+- **maturity:** OPERATIONAL — unchanged from original estimate; not
+  explicitly overridden
+- **backend surface:** `app/flowhub/write_pipeline/{adapters.py,
+  contracts.py,models.py,registry.py,service.py,workspace_contracts.py}`;
+  `app/flowhub/maintenance.py` (`require_write_operation_available`)
+- **API surface:** `app/flowhub/api/v2/write_pipeline.py` (mounted,
+  `app.py:230`) — confirmed live routes: `POST
+  /write-pipeline/batches/{batch_id}/execute`, `GET
+  /write-pipeline/batches/{batch_id}/events`
+- **UI surface:** `frontend/src/pages/Workspace.tsx` (`applying → result`
+  phases), `frontend/src/pages/Products.tsx` (multi-channel price write
+  path per `CURRENT_ARCHITECTURE.md`)
+- **test surface:** `tests/flowhub/write_pipeline/` (3 files),
+  `Workspace.test.tsx`, `Products.test.tsx`
+- **evidence:** `app/flowhub/api/v2/write_pipeline.py:55,64`; `app.py:230`;
+  `CURRENT_ARCHITECTURE.md` "the protected Write Pipeline is the only
+  external WooCommerce write path... requires no-write Dry Run, explicit
+  Approval, and Apply"
+- **notes:** `CURRENT_ARCHITECTURE.md`'s Safety Model section explicitly
+  scopes out stock writes, source writes, and automatic pricing/Apply for
+  this capability — these are **prior-approved exclusions**, not gaps to
+  flag. `execution.py` (the stub `/api/v2/execution` router) is unrelated
+  dead code, not this capability's implementation — see cross-cutting
+  finding.
+
+### Supporting Capabilities
+
+#### `diagnostics` — Diagnostics
+
+- **domain:** Diagnostics
+- **classification:** Supporting
+- **audience:** Hybrid — base `channelHealth` read is shared by
+  Dashboard + Diagnostics; explicit provider probes are
+  "administrator-only" per `CURRENT_ARCHITECTURE.md`
+- **status:** IMPLEMENTED_UNVERIFIED — Owner-approved classification
+  (overrides original estimate of `IMPLEMENTED`; endpoint/text evidence
+  is static, not a confirmed runtime check of live diagnostic output)
+- **maturity:** OPERATIONAL — Owner-approved, unchanged from original
+  estimate
+- **backend surface:** `app/flowhub/diagnostics/{channel_health.py,
+  repair.py,report.py,runner.py,semantics.py}`
+- **API surface:** `app/flowhub/api/v2/diagnostics.py` (mounted,
+  `app.py:236`) — `GET /diagnostics/status`, `GET
+  /diagnostics/channels/health`, `POST
+  /diagnostics/channels/health/refresh` (all named explicitly in
+  `CURRENT_ARCHITECTURE.md`)
+- **UI surface:** `frontend/src/pages/Diagnostics.tsx`, `DataQuality.tsx`
+- **test surface:** `tests/flowhub/diagnostics/` (6 files),
+  `Diagnostics.test.tsx`, `DataQuality.test.tsx`
+- **evidence:** `app.py:236`; `CURRENT_ARCHITECTURE.md` "Health And
+  Diagnostics" section
+- **notes:** the diagram's proposed **Architecture Health** feature
+  (Phase 4.3 of this document's own history — see
+  [Appendix A](#appendix-a-phase-42-fine-grained-registry-original)),
+  which would surface capability-registry violations through Diagnostics,
+  is a documented future design, not part of current Diagnostics. Do not
+  count it toward this entry's maturity.
+
+#### `administration` — Administration
+
+- **domain:** Administration
+- **classification:** Supporting
+- **audience:** Admin-facing
+- **status:** PARTIAL — not separately corrected by the Owner; this
+  draft's original evidence-based estimate already landed here and is
+  consistent with the governance rule above (mixed real/stub evidence →
+  `PARTIAL`, not rounded up)
+- **maturity:** BASELINE — not separately corrected; same reasoning
+- **backend surface:** `app/flowhub/security/{redaction.py,
+  upstream_errors.py}`; `app/flowhub/users/{models.py,repository.py,
+  service.py}`; `app/flowhub/runtime_config/{record.py,service.py}`;
+  `app/flowhub/feature_flags/{defaults.py,evaluator.py,models.py}`;
+  `app/flowhub/rate_limit/{limiter.py,service.py}`;
+  `app/flowhub/backup/{manifest.py,service.py}` — all real service code
+- **API surface:** **Split.** `app/flowhub/api/v2/settings_routes.py`
+  (mounted, `app.py:231`) and `users.py` (mounted, `app.py:225`) and
+  `config.py` (mounted, `app.py:233`) are real and live. But
+  `app/flowhub/api/v2/flags.py`, `backup.py`, `rules.py`, `safety.py` are
+  **present in the tree and never imported or mounted in `app.py`**
+  (confirmed: absent from both the router-import block at `app.py:78-102`
+  and the `include_router` block at `app.py:219-243`) — each is a stub
+  router with a "# Endpoints implemented in B__" comment and zero routes.
+- **UI surface:** `frontend/src/pages/Settings.tsx`,
+  `AdvancedSettings.tsx`, `UserManagement.tsx`, `RateLimits.tsx`
+- **test surface:** `tests/flowhub/users/` (1), `backup/` (5),
+  `feature_flags/` (1), `runtime_config/` (5), `security/` (2);
+  `tests/flowhub/rate_limit/` — **no test files found**; frontend:
+  `Settings.test.tsx`, `AdvancedSettings.test.tsx`,
+  `UserManagement.test.tsx`, `RateLimits.test.tsx`
+- **evidence:** `app.py:78-102,219-243` (router import/mount lists,
+  compared against `ls app/flowhub/api/v2/`); stub file headers in
+  `flags.py`, `backup.py`, `rules.py`, `safety.py`
+- **notes:** grep confirms `rate_limit` is referenced only inside
+  `diagnostics.py` and `settings_routes.py` — there is no dedicated
+  `rate_limit` API router at all, mounted or not. **How `RateLimits.tsx`
+  actually gets its data (which mounted route it calls) was not traced in
+  this draft — NEEDS_VERIFICATION.** Backup/feature-flags/rate-limiting
+  have real backend service modules with partial test coverage but their
+  *named* API surfaces are dead stubs; whether their UI pages call some
+  *other* mounted route, or are calling nothing live, is the open
+  question this PARTIAL status is meant to flag for Owner review.
+
+#### `audit_governance` — Audit & Governance
+
+- **domain:** Audit & Governance
+- **classification:** Supporting
+- **audience:** Hybrid — `activity.py` uses
+  `require_workspace_permission`, a broader gate than admin-only; exact
+  role set **NEEDS_VERIFICATION**
+- **status:** PARTIAL — not separately corrected by the Owner; consistent
+  with the governance rule (a real working surface plus a dead-stub
+  module both named for this capability → `PARTIAL`, not `IMPLEMENTED`)
+- **maturity:** BASELINE — not separately corrected; same reasoning
+- **backend surface:** **Two distinct code paths, not one:**
+  1. Real: `app/flowhub/auth/repository.py` (`create_audit_event`, used
+     by `settings_routes.py`), `FlowHubLoginAudit` model
+     (`app/flowhub/auth/models.py`), `UnifiedAuditEntry` model
+     (`app/flowhub/unified_workspace/models.py`).
+  2. Stub, dead code: `app/flowhub/audit/logger.py` — `AuditLogger.log()`
+     literally `raise NotImplementedError("Implementation begins in
+     B10.")`; docstring claims it "writes structured audit events to
+     `FLOWHUB_STORAGE_PATH/logs/audit.log`" and "every security-relevant
+     event is recorded" — none of that is true yet. Grep confirms
+     `AuditLogger`/`from app.flowhub.audit` has **zero references**
+     anywhere else in `app/`.
+- **API surface:** `app/flowhub/api/v2/activity.py` (mounted,
+  `app.py:234`) — `GET /api/v2/activity`, real, BU5-scoped, backed by
+  `FlowHubLoginAudit` + `UnifiedAuditEntry`
+- **UI surface:** `frontend/src/pages/Activity.tsx`
+- **test surface:** `Activity.test.tsx`; `tests/flowhub/audit/` — **no
+  test files found** (directory absent/empty)
+- **evidence:** `app/flowhub/audit/logger.py:23-28`; grep for
+  `AuditLogger|from app.flowhub.audit` across `app/` returning only
+  `audit/logger.py` itself; `app.py:234`; `activity.py:1-10` docstring
+  "Paginated audit event log. Backed by the flowhub_login_audit table."
+- **notes:** the operator-facing surface (Activity page) genuinely works.
+  But the module whose name matches this capability
+  (`app/flowhub/audit/`) is entirely unimplemented and unused — a
+  filename-only read would have wrongly credited this capability with a
+  dedicated audit-logging subsystem. **Owner should clarify** whether
+  `app/flowhub/audit/logger.py` is (a) superseded by `create_audit_event`
+  and should be deleted, or (b) still planned (per its B10 marker) and
+  should eventually replace/supplement it.
+
+#### `business_observability` — Business Observability
+
+- **domain:** Business Observability
+- **classification:** Supporting
+- **audience:** Hybrid (diagram: "Owner / Admin / Operator")
+- **status:** PARTIAL — Owner-approved classification (overrides this
+  draft's original estimate of `NOT_IMPLEMENTED`). Reason (Owner):
+  Dashboard/Activity/Audit surfaces provide *partial* business
+  visibility today, but the target structured business-event contract
+  (status + impact + reason + affected scope + recommended action +
+  correlation) does not yet exist consistently — so the capability is
+  not simply absent, it is unevenly and informally covered.
+- **maturity:** FOUNDATION — Owner-approved, unchanged from original
+  estimate
+- **backend surface:** no dedicated `business_event`/structured-contract
+  code found (see evidence below); partial, informal coverage exists via
+  `app/flowhub/audit/`-adjacent and dashboard/activity code cited in the
+  `audit_governance` and `diagnostics` entries above
+- **API surface:** no dedicated endpoint implementing the structured
+  contract; `GET /api/v2/activity` (see `audit_governance`) and dashboard
+  endpoints carry informal, non-contractual business-relevant data
+- **UI surface:** no dedicated UI implementing the structured contract;
+  `Activity.tsx` and `Dashboard.tsx` surface related but non-conformant
+  information
+- **test surface:** none found for a structured business-event contract
+  specifically
+- **evidence:** `docs/draw/00-flowhub-master.drawio` nodes
+  `business_observability_group`, `business_observability_capability`,
+  `business_observability_layer`, `business_event_contract`,
+  `business_observability_rule` — every one explicitly labeled
+  `TARGET / PROPOSED — ⚠ VERIFY`; grep for
+  `business.observability|business_event|BusinessEvent` (case-insensitive)
+  across `app/` and `frontend/src` returned **zero matches** in either
+  tree
+- **notes:** this draft's original static-evidence read found **zero**
+  code matches for `business_event`/`BusinessEvent`/"business
+  observability" anywhere in `app/` or `frontend/src` and concluded
+  `NOT_IMPLEMENTED`. The Owner's `PARTIAL` correction does not dispute
+  that evidence — it reframes the question: the *contract-shaped*
+  capability (structured business events) is indeed absent, but the
+  *business outcome* the capability exists to serve (an operator being
+  able to see what happened and what to do about it) is partially met
+  today through Dashboard/Activity/Diagnostics, informally and
+  inconsistently. This is the clearest example in this registry of why
+  repository evidence alone cannot set business-capability status: code
+  absence proved one thing (no contract exists); it could not by itself
+  determine whether the business need is nonetheless partly served
+  elsewhere. The diagram proposes a "Structured Business Event Contract"
+  (capability/domain, status, business impact, reason, affected scope,
+  recommended operator action, timestamp/correlation reference) that is
+  explicitly distinct from the existing, already-implemented Unified
+  Logging Platform (`CURRENT_ARCHITECTURE.md` "Unified Logging Platform"
+  section — structured *technical* logs, correlation IDs, redaction).
+  The diagram itself draws this distinction via its "Separate
+  Observability Layers" box (Technical Observability vs. Business
+  Observability) — do not treat Unified Logging Platform as satisfying
+  this capability.
+
+---
+
+## Cross-cutting finding: seven dead stub routers
+
+While tracing API surface for the entries above, seven files under
+`app/flowhub/api/v2/` were found to define an `APIRouter` with a
+docstring naming a future build phase, but are **not imported anywhere in
+`app/flowhub/app.py`** (verified against both the import block,
+`app.py:78-102`, and the `include_router` block, `app.py:219-243`):
+
+| File | Prefix | Docstring phase marker |
+| --- | --- | --- |
+| `dryrun.py` | `/dryrun` | "Implementation begins in B6." |
+| `changesets.py` | `/changesets` | "Implementation begins in B6." |
+| `execution.py` | `/execution` | "Implementation begins in B7." |
+| `rules.py` | `/rules` | "Implementation begins in B5." |
+| `safety.py` | `/safety` | "Implementation begins in B5." |
+| `flags.py` | `/flags` | "Implementation begins in B11." |
+| `backup.py` | `/backup` | "Implementation begins in B13." |
+
+None of these have live endpoints today, regardless of what their
+filenames suggest. This is exactly the failure mode the task instructions
+warned against ("do not infer implementation from filenames only") and is
+recorded here as a standing caveat for anyone reading `ls
+app/flowhub/api/v2/` and assuming coverage.
+
+`ai.py`, `plugins.py`, and `scheduler.py` also exist in that directory
+and were **not traced in this draft** — their mount status is
+**NEEDS_VERIFICATION**, not asserted either way here.
+
+---
+
+## Open verification items
+
+Consolidated list of every item this draft flagged as needing
+runtime/Owner/test verification beyond what static repository reading
+could settle, per the governance rule above. Items 1–4 and 6 are detailed
+in the capability entries above; item 5 is newly added at the Owner's
+request and was verified only to the shallow depth noted below.
+
+1. **Seven unmounted/stub API routers** (`dryrun.py`, `changesets.py`,
+   `execution.py`, `rules.py`, `safety.py`, `flags.py`, `backup.py`) —
+   see [Cross-cutting finding](#cross-cutting-finding-seven-dead-stub-routers)
+   above. Verify: are these scheduled for a specific build phase, or
+   dead weight to remove? `ai.py`/`plugins.py`/`scheduler.py` mount
+   status is also unconfirmed.
+2. **`app/flowhub/audit/logger.py` disposition** — see `audit_governance`
+   entry above. `AuditLogger.log()` raises `NotImplementedError` and has
+   zero references anywhere else in `app/`, while a separate, real audit
+   trail (`create_audit_event` + `FlowHubLoginAudit`/`UnifiedAuditEntry`)
+   already does the job. Verify: delete the stub, or is B10 still planned
+   to supersede the working path?
+3. **`RateLimits.tsx` API mapping** — see `administration` entry above.
+   `rate_limit` is referenced only inside `diagnostics.py` and
+   `settings_routes.py`; there is no dedicated, mounted rate-limit
+   router. Verify: which mounted route the page actually calls, and
+   whether `tests/flowhub/rate_limit/` (confirmed absent by direct `ls`)
+   should exist.
+4. **`product_channel_price_editor` UI parity** — see
+   `pricing_intelligence` entry above and the original Phase 4.2 seed row
+   in Appendix A. Backend/API confirmed real; dedicated frontend surface
+   still not found. Verify with Owner whether this is scheduled,
+   intentionally API-only, or a real gap.
+5. **Legacy `app/main.py` and `app/services/*` runtime status** — per
+   `CURRENT_ARCHITECTURE.md`: *"Legacy `app/main.py` and `app/services/*`
+   modules are retained only for historical compatibility and are not
+   imported by the active FlowHub Docker runtime."* Shallow verification
+   for this draft: `app/main.py` exists; `app/services/` exists and
+   contains `auth.py`, `nextcloud.py`, `product_cache.py`,
+   `woocommerce.py`; `Dockerfile:36` launches `uvicorn
+   app.flowhub.app:app`, **not** `app.main`, corroborating the claim at
+   the entrypoint level. **Not verified**: whether any currently-active
+   code path (CLI commands, tests, migration tooling, or `app.flowhub.*`
+   modules) still imports from `app.main` or `app.services` despite the
+   documented intent — a full import-graph check was out of scope for
+   this draft's time budget. Verify before treating these modules as
+   fully inert.
+6. **Business Observability contract coverage** — see
+   `business_observability` entry above. No code implements the
+   diagram's structured business-event contract; Dashboard/Activity/
+   Diagnostics provide informal, inconsistent partial coverage per the
+   Owner's `PARTIAL` correction. Verify: what would the minimum viable
+   structured-event contract look like, and which existing surface (if
+   any) is closest to adaptable.
+
+---
+
+## Appendix A: Phase 4.2 fine-grained registry (original)
+
+Everything below this line is preserved unchanged from the original
+version of this document (the "design only" Phase 4.2 draft). It defines
+a different, narrower-granularity schema (per named feature rather than
+per domain) and its own four-row illustrative seed set. It is kept intact
+rather than merged into Part A above, per the instruction to treat prior
+approved architecture decisions as evidence to build on, not overwrite.
+
+### Schema
 
 | Field | Type | Meaning |
 | --- | --- | --- |
@@ -51,7 +667,7 @@ Quoting the `capability_principle` node in the target-architecture diagram:
 | `test_ref` | path reference(s) | Test(s) exercising the capability. |
 | `exemption_reason` | string, nullable | Required when `status = operator_facing` and `api_ref` or `ui_ref` is null. Free text, one line, human-written. |
 
-## Status rules
+### Status rules
 
 **`operator_facing`** — an Owner, Admin, or Operator directly interacts with
 this capability (configures it, reviews it, approves it, reads its output).
@@ -68,10 +684,10 @@ The rule is deliberately asymmetric: `internal_only` is a narrow, named
 exclusion list (matching the diagram's principle text verbatim), not a
 default anyone can reach for. Changing an entry's `status`, or adding an
 `exemption_reason`, is a human-reviewed edit — this design does not attempt
-to make that judgment mechanically (see [[Phase 4.3 design]] below on why
+to make that judgment mechanically (see Phase 4.3 design below on why
 that stays a warning surface, not a CI-blocking one).
 
-## Illustrative seed set
+### Illustrative seed set
 
 Four entries, each verified against the current tree at the time this
 document was written. This is not a claim of completeness — it exists to
@@ -88,9 +704,11 @@ show the schema handling one fully-covered case, one honest gap, and two
 The second row is intentionally left as a real, currently-true gap rather
 than a clean example — it is the exact shape of finding the future
 Architecture Health surface (Phase 4.3/4.4) is meant to raise: not a CI
-failure, a question for a human.
+failure, a question for a human. **This draft's Part A above independently
+re-found the same gap** (see `pricing_intelligence` notes) — it remains
+unresolved.
 
-## Where this would live if promoted
+### Where this would live if promoted
 
 Not decided here — that is an implementation question for a later phase,
 not a design-only one. Candidates worth weighing then: a single file (keeps
@@ -101,7 +719,7 @@ enough that the question doesn't matter yet.
 
 ---
 
-## Phase 4.3 design (not implemented): Architecture Health
+### Phase 4.3 design (not implemented): Architecture Health
 
 Matches the diagram's `architecture_health` node: *"Exposes existing
 violations to Owner/Admin through FlowHub Diagnostics."*
@@ -124,7 +742,7 @@ violations to Owner/Admin through FlowHub Diagnostics."*
   an existing diagnostics endpoint/report or need a new one — not decided
   here.
 
-## Phase 4.4 design (not implemented): Diagnostics integration
+### Phase 4.4 design (not implemented): Diagnostics integration
 
 - Wires the Phase 4.3 report into whatever Diagnostics already exposes to
   Owner/Admin (UI page, CLI, or existing report endpoint — to be determined

@@ -1,0 +1,576 @@
+<mxfile host="65bd71144e">
+  <diagram id="0eAi6zaEBniwKyYpksFR" name="Page-1">
+    <mxGraphModel dx="2077" dy="1898" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="4000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="context" value="External Context" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=10;fillColor=#fff7ed;strokeColor=#f97316;strokeWidth=2;fontStyle=1;fontSize=16;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="1720" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="actors" value="Actors" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=7;fillColor=#f5f3ff;strokeColor=#a78bfa;strokeWidth=1.5;fontStyle=1;fontSize=14;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="90" y="75" width="680" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="services" value="External Services" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=7;fillColor=#fff7ed;strokeColor=#f97316;strokeWidth=1.5;fontStyle=1;fontSize=14;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="75" width="680" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="U" value="Users" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.5;fontSize=14;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="190" y="125" width="190" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="O" value="Operators / Admins" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.5;fontSize=14;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="480" y="125" width="190" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="IA" value="Identity &amp; Access" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#f97316;strokeWidth=1.5;fontSize=14;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="125" width="190" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="ES" value="External Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#f97316;strokeWidth=1.5;fontSize=14;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="125" width="190" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="flowhub" value="FlowHub — Target Architecture Proposal" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=12;fillColor=#f8fafc;strokeColor=#4f46e5;strokeWidth=3;fontStyle=1;fontSize=20;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="40" y="270" width="1720" height="3600" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_current" value="CURRENT / VERIFIED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontStyle=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="80" y="315" width="170" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_target" value="TARGET / PROPOSED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#4f46e5;strokeWidth=2;dashed=1;fontStyle=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="270" y="315" width="170" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_verify" value="⚠ VERIFY" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#d97706;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=11;fontColor=#92400e;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="460" y="315" width="120" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="flow_label" value="Many Sources → ONE Source Boundary → FlowHub Core → ONE Channel Gateway → Many Channels" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;fontColor=#3730a3;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="600" y="315" width="560" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="source_providers" value="SOURCE PROVIDERS&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal;color:#78350f&quot;&gt;Capability: Sources — Core / Operator-facing — PARTIAL / BASELINE (Owner-approved)&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=8;fillColor=#fff7ed;strokeColor=#f97316;strokeWidth=2;fontStyle=1;fontSize=15;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="380" y="375" width="780" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="NC" value="Nextcloud" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;strokeWidth=1.5;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="405" y="435" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="EC" value="Excel / CSV" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;strokeWidth=1.5;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="555" y="435" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="GS" value="Google Sheets&lt;br&gt;(planned)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;strokeWidth=1.5;dashed=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="705" y="430" width="130" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="ERP" value="ERP / API&lt;br&gt;(planned)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;strokeWidth=1.5;dashed=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="855" y="430" width="130" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="future_sources" value="Future Providers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;strokeWidth=1.5;dashed=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1005" y="435" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="source_gateway" value="SOURCE BOUNDARY — CURRENT / CONFIRMED&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;SourceHttpClient: SSRF protection • private-network policy • trusted-network allowlist • redirect validation • response limits&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px;font-weight:normal&quot;&gt;Nextcloud (SourceConnector contract): WebDAV • OCS • acquisition reads&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:bold;color:#92400e&quot;&gt;Unified multi-provider Source Gateway contract (CSV/Sheets/ERP): ⚠ VERIFY&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#4f46e5;strokeWidth=3;dashed=0;fontStyle=1;fontSize=18;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="520" y="570" width="500" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="acquisition" value="Acquisition / Validation / Mapping" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfeff;strokeColor=#0891b2;strokeWidth=2.5;fontStyle=1;fontSize=16;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="540" y="725" width="460" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="canonical" value="Canonical Data Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#4f46e5;strokeWidth=2.5;fontStyle=1;fontSize=16;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="540" y="830" width="460" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="workspace" value="Unified Workspace&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;Workspace — IMPLEMENTED_UNVERIFIED / OPERATIONAL (Owner-approved)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#4f46e5;strokeWidth=2.5;fontStyle=1;fontSize=16;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="540" y="935" width="460" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="pricing" value="Pricing Intelligence&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;Pricing Intelligence — PARTIAL / FOUNDATION (Owner-approved)&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:8px;font-weight:normal;color:#92400e&quot;&gt;Shadow Validation: C1–C4 CONFIRMED • C5 orchestration TARGET / PROPOSED • OWNER DECISION: proceed now? • sv_* migration: ⚠ VERIFY&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#4f46e5;strokeWidth=2.5;fontStyle=1;fontSize=16;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="540" y="1040" width="460" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="approval" value="Review &amp; Approval&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;Review &amp; Approval — IMPLEMENTED_UNVERIFIED / OPERATIONAL (Owner-approved)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#4f46e5;strokeWidth=2.5;fontStyle=1;fontSize=16;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="540" y="1145" width="460" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="channel_gateway" value="CHANNEL GATEWAY — CURRENT / CONFIRMED&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;app.flowhub.channels.gateway.WorkspaceConnectorFactory&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px;font-weight:normal&quot;&gt;WritePipelineService → Channel Gateway → WorkspaceChannelConnector → Channel Providers&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:bold;color:#92400e&quot;&gt;Same contract for future channels (Digikala, Shopify): ⚠ VERIFY&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#4f46e5;strokeWidth=3;dashed=0;fontStyle=1;fontSize=18;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="520" y="1250" width="500" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="X" value="Write Pipeline — single external-write dispatch authority&lt;br&gt;&lt;font style=&quot;font-size:11px;font-weight:normal&quot;&gt;Write Pipeline — IMPLEMENTED_UNVERIFIED / OPERATIONAL (Owner-approved) • Channel Rules placement: ⚠ VERIFY&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfeff;strokeColor=#0891b2;strokeWidth=2.5;fontStyle=1;fontSize=16;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="540" y="1415" width="460" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="channel_providers" value="CHANNEL PROVIDERS&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal;color:#7f1d1d&quot;&gt;Capability: Channel Management — Core / Operator-facing — PARTIAL / BASELINE (Owner-approved)&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=8;fillColor=#fef2f2;strokeColor=#ef4444;strokeWidth=2;fontStyle=1;fontSize=15;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="380" y="1525" width="780" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="WC" value="WooCommerce" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;strokeWidth=1.5;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="405" y="1575" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="SS" value="SnappShop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;strokeWidth=1.5;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="555" y="1575" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="TS" value="TapsiShop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;strokeWidth=1.5;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="705" y="1575" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="TL" value="Technolife" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;strokeWidth=1.5;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="855" y="1575" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="future_channels" value="Future Channels" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;strokeWidth=1.5;dashed=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1005" y="1575" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="intent" value="TARGET INTENT&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;New Source Provider → Source Adapter → Source Gateway → Core&lt;br&gt;New Commerce Channel → Channel Adapter → Channel Gateway → Core&lt;br&gt;No provider-specific business logic in FlowHub Core&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#4f46e5;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="400" y="1690" width="740" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cross" value="Cross-Cutting Capabilities&lt;br&gt;&lt;font style=&quot;font-size:11px;font-weight:normal&quot;&gt;Applies across FlowHub&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=10;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=14;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="80" y="725" width="270" height="495" as="geometry" />
+        </mxCell>
+        <mxCell id="security" value="Security" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.2;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="120" y="815" width="190" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="admin" value="Administration&lt;br&gt;&lt;font style=&quot;font-size:8px;font-weight:normal&quot;&gt;PARTIAL / BASELINE (Owner-approved)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.2;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="120" y="895" width="190" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="audit" value="Audit &amp; Governance&lt;br&gt;&lt;font style=&quot;font-size:8px;font-weight:normal&quot;&gt;PARTIAL / BASELINE (Owner-approved)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.2;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="120" y="975" width="190" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="diagnostics" value="Diagnostics&lt;br&gt;&lt;font style=&quot;font-size:8px;font-weight:normal&quot;&gt;IMPLEMENTED_UNVERIFIED / OPERATIONAL&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.2;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="120" y="1055" width="190" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="business_observability_capability" value="Business Observability&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;PARTIAL / FOUNDATION (Owner-approved)&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:8px;font-weight:normal&quot;&gt;Existing: Dashboard, Activity (partial, informal). Structured event contract: TARGET/PROPOSED&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:8px;font-weight:normal;color:#78350f&quot;&gt;OWNER DECISION: minimum viable contract and closest adaptable surface remain open.&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#d97706;strokeWidth=1.3;dashed=1;fontStyle=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="120" y="1120" width="190" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="technical" value="Technical Foundation" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=9;fillColor=#eff6ff;strokeColor=#2563eb;strokeWidth=1.5;fontStyle=1;fontSize=14;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1235" width="650" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="frontend" value="Frontend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2563eb;strokeWidth=1.2;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="110" y="1305" width="120" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="API Layer&lt;br&gt;app.flowhub.app" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2563eb;strokeWidth=1.2;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="260" y="1305" width="150" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="backend" value="Backend Domain Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2563eb;strokeWidth=1.5;fontStyle=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="450" y="1305" width="180" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="postgres" value="PostgreSQL" style="shape=cylinder;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#2563eb;strokeWidth=1.2;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="650" y="1305" width="70" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="workers" value="Background Workers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;strokeWidth=1.2;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="450" y="1390" width="180" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="operator_surfaces" value="Operator-Facing Capability Surfaces&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;TARGET / PROPOSED — technical implementation of cross-cutting capabilities&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=9;fillColor=#eef2ff;strokeColor=#4f46e5;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=15;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="400" y="1790" width="740" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="surface_ui_map" value="UI → Frontend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#2563eb;strokeWidth=1;dashed=1;fontStyle=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="590" y="1840" width="150" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="surface_api_map" value="API → API Layer&lt;br&gt;app.flowhub.app" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#2563eb;strokeWidth=1;dashed=1;fontStyle=1;fontSize=10;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="770" y="1840" width="150" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="surface_backend_map" value="Backend → Backend&lt;br&gt;Domain Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#2563eb;strokeWidth=1;dashed=1;fontStyle=1;fontSize=10;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="950" y="1840" width="170" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="admin_surface_label" value="Administration" style="text;html=1;align=left;verticalAlign=middle;fontStyle=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="425" y="1900" width="145" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="admin_ui" value="Administration UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4f46e5;strokeWidth=1.2;dashed=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="590" y="1900" width="150" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="admin_api" value="Administration API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4f46e5;strokeWidth=1.2;dashed=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="770" y="1900" width="150" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="admin_backend" value="Administration Backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4f46e5;strokeWidth=1.2;dashed=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="950" y="1900" width="170" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="audit_surface_label" value="Audit &amp; Governance" style="text;html=1;align=left;verticalAlign=middle;fontStyle=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="425" y="1965" width="145" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="audit_ui" value="Audit &amp; Governance UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4f46e5;strokeWidth=1.2;dashed=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="590" y="1965" width="150" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="audit_api" value="Audit &amp; Governance API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4f46e5;strokeWidth=1.2;dashed=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="770" y="1965" width="150" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="audit_backend" value="Audit &amp; Governance Backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4f46e5;strokeWidth=1.2;dashed=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="950" y="1965" width="170" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="diagnostics_surface_label" value="Diagnostics" style="text;html=1;align=left;verticalAlign=middle;fontStyle=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="425" y="2030" width="145" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="diagnostics_ui" value="Diagnostics UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4f46e5;strokeWidth=1.2;dashed=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="590" y="2030" width="150" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="diagnostics_api" value="Diagnostics API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4f46e5;strokeWidth=1.2;dashed=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="770" y="2030" width="150" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="diagnostics_backend" value="Diagnostics Backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4f46e5;strokeWidth=1.2;dashed=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="950" y="2030" width="170" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="capability_principle" value="ARCHITECTURE PRINCIPLE&lt;br&gt;&lt;font style=&quot;font-size:14px;font-weight:bold&quot;&gt;Every Owner/Admin/Operator-facing capability must maintain coherent Backend ↔ API ↔ UI ↔ Test coverage.&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px;font-weight:normal&quot;&gt;Excludes internal-only transaction, locking, CAS, migration engine, and worker internals.&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#4f46e5;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="400" y="2110" width="740" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="architecture_guard_group" value="Capability Parity Guard — future scope&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;TARGET / PROPOSED — ⚠ VERIFY — governance/supporting architecture&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=9;fillColor=#fffbeb;strokeColor=#d97706;strokeWidth=2;dashed=1;fontStyle=1;fontSize=16;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="400" y="2220" width="740" height="500" as="geometry" />
+        </mxCell>
+        <mxCell id="capability_registry" value="Capability Registry document — CURRENT / CONFIRMED&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;Part A: 10 Owner-approved domain capabilities • Appendix A: preserved fine-grained Phase 4.2 schema&lt;br&gt;Governance: repository evidence may confirm or downgrade, never silently upgrade • CI / Diagnostics wiring: TARGET / PROPOSED&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.5;dashed=0;fontStyle=1;fontSize=13;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="560" y="2280" width="420" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="architecture_guard" value="Capability Parity Guard (engine)&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;TARGET / PROPOSED — ⚠ VERIFY — distinct from the confirmed CI foundation at right&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#d97706;strokeWidth=2;dashed=1;fontStyle=1;fontSize=14;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="560" y="2360" width="420" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="parity_check" value="Parity Check&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;Backend ✓ &amp;nbsp;&amp;nbsp; API ✓ &amp;nbsp;&amp;nbsp; UI ✓ &amp;nbsp;&amp;nbsp; Tests ✓&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;TARGET / PROPOSED — ⚠ VERIFY&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#d97706;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=14;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="540" y="2440" width="460" height="92" as="geometry" />
+        </mxCell>
+        <mxCell id="architecture_violation" value="ARCHITECTURE VIOLATION&lt;br&gt;&lt;font style=&quot;font-size:11px;font-weight:normal&quot;&gt;Backend ✓ &amp;nbsp; API ✓ &amp;nbsp; UI ✗&lt;br&gt;→ VIOLATION: Missing operator UI surface&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;TARGET / PROPOSED — ⚠ VERIFY&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:8px;font-weight:normal;color:#991b1b&quot;&gt;OWNER DECISION: API-only by design, scheduled UI, or real gap?&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#ef4444;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=13;fontColor=#991b1b;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="440" y="2560" width="300" height="92" as="geometry" />
+        </mxCell>
+        <mxCell id="ci_gate" value="Capability-Parity CI Gate&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;Would block merge when a new operator-facing capability violates the contract&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;TARGET / PROPOSED — would extend the confirmed CI foundation at right&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#d97706;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=12;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="440" y="2670" width="300" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="architecture_health" value="Architecture Health&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;Exposes existing violations to Owner/Admin through FlowHub Diagnostics&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;TARGET / PROPOSED — ⚠ VERIFY&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#d97706;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=12;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="800" y="2670" width="300" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="business_observability_group" value="Business Observability&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;TARGET / PROPOSED — ⚠ VERIFY — cross-cutting supporting architecture&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=9;fillColor=#f0fdf4;strokeColor=#d97706;strokeWidth=2;dashed=1;fontStyle=1;fontSize=16;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="400" y="2820" width="740" height="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="business_capabilities" value="Business Capabilities" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.5;fontStyle=1;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="445" y="2880" width="300" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="structured_business_events" value="Structured Business Events" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.5;fontStyle=1;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="445" y="2950" width="300" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="business_observability" value="Business Observability&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;Translates outcomes and failures into operator-understandable events&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#d97706;strokeWidth=2;dashed=1;fontStyle=1;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="445" y="3020" width="300" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="activity_diagnostics" value="Activity / Diagnostics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.5;fontStyle=1;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="445" y="3110" width="300" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="business_observers" value="Owner / Admin / Operator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.5;fontStyle=1;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="445" y="3180" width="300" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="observability_layers" value="Separate Observability Layers" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=8;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.2;fontStyle=1;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="785" y="2880" width="320" height="345" as="geometry" />
+        </mxCell>
+        <mxCell id="technical_observability" value="Technical Diagnostics&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal;color:#1e3a8a&quot;&gt;primarily Admin / Internal&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;Logs • Exceptions • HTTP failures&lt;br&gt;Worker health • Infrastructure health • Metrics&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#2563eb;strokeWidth=1.3;fontStyle=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="810" y="2935" width="270" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="business_observability_layer" value="Business Diagnostics&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal;color:#78350f&quot;&gt;Operator-facing&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;Business events • Business status&lt;br&gt;Business impact • Affected scope&lt;br&gt;Required / recommended operator action&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#d97706;strokeWidth=1.3;dashed=1;fontStyle=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="810" y="3075" width="270" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="layers_feed_note" value="Both layers may feed Activity / Diagnostics while remaining conceptually distinct." style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontColor=#475569;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="810" y="3225" width="270" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="business_event_contract" value="STRUCTURED BUSINESS EVENT CONTRACT&lt;br&gt;&lt;font style=&quot;font-size:11px;font-weight:normal&quot;&gt;Capability / domain &amp;nbsp; • &amp;nbsp; Status &amp;nbsp; • &amp;nbsp; Business impact &amp;nbsp; • &amp;nbsp; Reason&lt;br&gt;Affected scope &amp;nbsp; • &amp;nbsp; Recommended operator action &amp;nbsp; • &amp;nbsp; Timestamp / correlation reference&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#16a34a;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="430" y="3290" width="680" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="source_event_example" value="SOURCE EXAMPLE&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;Source acquisition failed&lt;br&gt;→ Source data is stale&lt;br&gt;→ Reason&lt;br&gt;→ Affected source&lt;br&gt;→ Review Source&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfeff;strokeColor=#0891b2;strokeWidth=1.2;fontStyle=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="430" y="3420" width="210" height="155" as="geometry" />
+        </mxCell>
+        <mxCell id="pricing_event_example" value="PRICING EXAMPLE&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;Pricing apply blocked&lt;br&gt;→ Products not updated&lt;br&gt;→ Reason&lt;br&gt;→ Affected products/channels&lt;br&gt;→ Review Approval&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#4f46e5;strokeWidth=1.2;fontStyle=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="665" y="3420" width="210" height="155" as="geometry" />
+        </mxCell>
+        <mxCell id="channel_event_example" value="CHANNEL EXAMPLE&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;Channel write failed&lt;br&gt;→ Destination is out of sync&lt;br&gt;→ Reason&lt;br&gt;→ Affected channel/products&lt;br&gt;→ Retry / Review&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#ef4444;strokeWidth=1.2;fontStyle=1;fontSize=11;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="900" y="3420" width="210" height="155" as="geometry" />
+        </mxCell>
+        <mxCell id="business_observability_rule" value="ARCHITECTURE RULE&lt;br&gt;&lt;font style=&quot;font-size:13px;font-weight:bold&quot;&gt;Every operator-relevant business capability must emit structured business events containing status, impact, reason, affected scope, and recommended operator action.&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;TARGET / PROPOSED — ⚠ VERIFY&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#d97706;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="430" y="3600" width="680" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="business_correlation" value="Business-event correlation reference links operator-facing outcomes to supporting technical logs without merging the two observability models." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1;dashed=1;fontSize=10;fontColor=#475569;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="430" y="3740" width="680" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="verify_band" value="✓ CONFIRMED / ⚠ VERIFY — Target Architecture Decisions (updated with repository evidence)" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=10;fillColor=#fffbeb;strokeColor=#d97706;strokeWidth=2;dashed=1;fontStyle=1;fontSize=15;fontColor=#92400e;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1370" y="350" width="550" height="2200" as="geometry" />
+        </mxCell>
+        <mxCell id="v1" value="✓ CONFIRMED — SourceHttpClient is the network/security boundary (SSRF protection, private-network allowlist, redirect validation, response limits) for Nextcloud WebDAV/OCS/acquisition reads. A single unified multi-provider Source Gateway abstraction beyond Nextcloud remains ⚠ VERIFY." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="400" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v2" value="✓ CONFIRMED (Nextcloud only) — NextcloudConnector implements the SourceConnector contract (app/connectors/sources/nextcloud/connector.py:30 → app/connectors/common/base.py:11). Same contract for CSV/Excel or other providers: ⚠ VERIFY." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="515" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v3" value="⚠ VERIFY — Correct placement of Acquisition, Validation and Mapping relative to Source Gateway." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="630" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v4" value="✓ CONFIRMED — app.flowhub.channels.gateway.WorkspaceConnectorFactory is the canonical Channel Gateway: WritePipelineService → Channel Gateway → WorkspaceChannelConnector → Channel Providers." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="745" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v5" value="✓ CONFIRMED — WritePipelineService remains the single external-write dispatch authority; it calls INTO the Channel Gateway and does not act as the gateway itself." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="860" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v6" value="✓ CONFIRMED (current 4) — WooCommerce, SnappShop, TapsiShop, Technolife all implement WorkspaceChannelConnector via the Channel Gateway. Same contract for future channels (Digikala, Shopify): ⚠ VERIFY." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="975" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v7" value="⚠ VERIFY — Correct placement of Channel Rules relative to Channel Gateway and Write Pipeline." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="1090" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v8" value="⚠ VERIFY — Whether Orders use the same Channel Gateway or require a separate inbound channel contract." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="1205" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v9" value="⚠ VERIFY — Transaction, idempotency, CAS and failure boundaries across both gateways." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="1320" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v10" value="⚠ VERIFY — Which existing modules would need migration versus reuse." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="1435" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v11" value="✓ CONFIRMED — Real backend modules: app/flowhub/diagnostics/{channel_health.py, repair.py, report.py, runner.py, semantics.py}." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="1550" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v12" value="✓ CONFIRMED — app/flowhub/api/v2/diagnostics.py mounted (app.py:236): GET /diagnostics/status, GET /diagnostics/channels/health, POST /diagnostics/channels/health/refresh." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="1665" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v13" value="✓ CONFIRMED — frontend/src/pages/Diagnostics.tsx, DataQuality.tsx exist, both tested." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="1780" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v14" value="⚠ VERIFY — Backend ↔ API ↔ UI capability parity." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="1895" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v15" value="⚠ CONFIRMED GAP — Ten API v2 feature routers are defined but unmounted: Dry Run, Change Set, Execution, Rule, Safety Policy, Feature Flags, Backup, AI Foundation, Plugin System, Scheduler. These surfaces remain TARGET / PROPOSED, never current implementation. OWNER DECISION: scheduled build phases or remove now?" style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="2010" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v16" value="⚠ CONFIRMED GAP — app/flowhub/audit/logger.py (AuditLogger.log()) raises NotImplementedError, zero references elsewhere in app/. Real audit trail exists separately via create_audit_event + FlowHubLoginAudit/UnifiedAuditEntry (Activity page, real and mounted). Owner: delete the stub, or is B10 still planned?" style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="2125" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v17" value="✓ CONFIRMED — Backend, API, and UI are all real, mounted, and tested for Diagnostics (see v11–v13); no stub-router gap found here." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="400" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v18" value="✓ CONFIRMED — CAPABILITY_REGISTRY.md now has the two-part structure: Part A 10-domain Owner-approved registry plus Appendix A preserved fine-grained Phase 4.2 schema. Governance rule: repository evidence may confirm or downgrade, never silently upgrade. CI / Diagnostics wiring remains TARGET / PROPOSED." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="515" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v19" value="✓ CONFIRMED — test_no_direct_httpx, test_shared_write_authority, test_release_terms_guard, test_gateway all exist and now run in CI (see confirmed Architecture Guard CI flow below)." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="630" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v20" value="✓ CONFIRMED — NO. CI enforces the 4 foundational guards only (HTTP boundary, write authority, release terms, gateway completeness). Capability/domain parity (Backend↔API↔UI↔Test) is not CI-enforced; remains TARGET/PROPOSED." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="745" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v21" value="⚠ VERIFY — Whether Diagnostics can expose architecture-health violations." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="860" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v22" value="✓ CONFIRMED — NO structured business-event model exists in code (zero matches for business_event/BusinessEvent across app/ and frontend/src). Dashboard, Activity, and Audit give partial, informal coverage today (Owner-approved: PARTIAL / FOUNDATION)." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="975" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v23" value="⚠ VERIFY — Current Source business-event coverage." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="1090" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v24" value="⚠ VERIFY — Current Pricing business-event coverage." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="1205" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v25" value="⚠ VERIFY — Current Workspace/Review business-event coverage." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="1320" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v26" value="⚠ VERIFY — Current Write Pipeline business-event coverage." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="1435" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v27" value="⚠ VERIFY — Current Channel business-event coverage." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="1550" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v28" value="✓ CONFIRMED — frontend/src/pages/Activity.tsx exists, real, tested; backed by GET /api/v2/activity (mounted, app.py:234)." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="1665" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v29" value="✓ CONFIRMED — see v13 (Diagnostics.tsx, DataQuality.tsx, both tested)." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1;dashed=0;fontSize=11;fontColor=#14532d;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="1780" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v30" value="⚠ VERIFY — Business event persistence/history." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="1895" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v31" value="⚠ VERIFY — Correlation between business events and technical logs." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="2010" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="v32" value="⚠ VERIFY — Pricing Intelligence Shadow Validation: C1–C4 are CONFIRMED complete; C5 controlled orchestration is TARGET / PROPOSED. Whether sv_* persistence has a planned Alembic migration remains open." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#d97706;strokeWidth=1;dashed=1;fontSize=11;fontColor=#78350f;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1665" y="2125" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="e_context_source" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=3;strokeColor=#374151;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="context" target="source_providers">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_providers_source_gateway" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=3;strokeColor=#374151;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="source_providers" target="source_gateway">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_source_gateway_acquisition" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=3;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="source_gateway" target="acquisition">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_acquisition_canonical" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=3;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="acquisition" target="canonical">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_canonical_workspace" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=3;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="canonical" target="workspace">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_workspace_pricing" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=3;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="workspace" target="pricing">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pricing_approval" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=3;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="pricing" target="approval">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_approval_channel_gateway" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=3;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="approval" target="channel_gateway">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_channel_gateway_pipeline" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=3;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="channel_gateway" target="X">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pipeline_channels" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=3;strokeColor=#374151;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="X" target="channel_providers">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_frontend_api" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=1.3;strokeColor=#2563eb;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="frontend" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_api_backend" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=1.3;strokeColor=#2563eb;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="api" target="backend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_backend_postgres" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=1.3;strokeColor=#2563eb;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="backend" target="postgres">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_workers_backend" value="" style="endArrow=open;html=1;rounded=1;dashed=1;strokeWidth=1.1;strokeColor=#2563eb;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="workers" target="backend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_workers_postgres" value="" style="endArrow=open;html=1;rounded=1;dashed=1;strokeWidth=1.1;strokeColor=#2563eb;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="workers" target="postgres">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_admin_ui_api" value="" style="startArrow=open;endArrow=open;startFill=0;endFill=0;html=1;rounded=0;strokeWidth=1.5;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="admin_ui" target="admin_api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_admin_api_backend" value="" style="startArrow=open;endArrow=open;startFill=0;endFill=0;html=1;rounded=0;strokeWidth=1.5;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="admin_api" target="admin_backend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_audit_ui_api" value="" style="startArrow=open;endArrow=open;startFill=0;endFill=0;html=1;rounded=0;strokeWidth=1.5;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="audit_ui" target="audit_api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_audit_api_backend" value="" style="startArrow=open;endArrow=open;startFill=0;endFill=0;html=1;rounded=0;strokeWidth=1.5;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="audit_api" target="audit_backend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_diagnostics_ui_api" value="" style="startArrow=open;endArrow=open;startFill=0;endFill=0;html=1;rounded=0;strokeWidth=1.5;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="diagnostics_ui" target="diagnostics_api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_diagnostics_api_backend" value="" style="startArrow=open;endArrow=open;startFill=0;endFill=0;html=1;rounded=0;strokeWidth=1.5;strokeColor=#4f46e5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="diagnostics_api" target="diagnostics_backend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_capability_admin_surface" value="technical implementation surface" style="endArrow=open;html=1;rounded=1;dashed=1;strokeWidth=1;strokeColor=#16a34a;fontSize=9;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="admin" target="admin_surface_label">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="355" y="918" />
+              <mxPoint x="355" y="1924" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_capability_audit_surface" value="" style="endArrow=open;html=1;rounded=1;dashed=1;strokeWidth=1;strokeColor=#16a34a;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="audit" target="audit_surface_label">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="365" y="998" />
+              <mxPoint x="365" y="1989" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_capability_diagnostics_surface" value="" style="endArrow=open;html=1;rounded=1;dashed=1;strokeWidth=1;strokeColor=#16a34a;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="diagnostics" target="diagnostics_surface_label">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="375" y="1078" />
+              <mxPoint x="375" y="2054" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_registry_guard" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#d97706;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="capability_registry" target="architecture_guard">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_guard_parity" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#d97706;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="architecture_guard" target="parity_check">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_parity_violation" value="if incomplete" style="endArrow=block;html=1;rounded=1;dashed=1;strokeWidth=1.5;strokeColor=#ef4444;fontSize=10;fontColor=#991b1b;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="parity_check" target="architecture_violation">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_guard_ci" value="output" style="endArrow=block;html=1;rounded=1;strokeWidth=1.5;strokeColor=#d97706;fontSize=9;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="architecture_guard" target="ci_gate">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="2392" />
+              <mxPoint x="420" y="2702" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_guard_health" value="output" style="endArrow=block;html=1;rounded=1;strokeWidth=1.5;strokeColor=#d97706;fontSize=9;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="architecture_guard" target="architecture_health">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1120" y="2392" />
+              <mxPoint x="1120" y="2702" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_business_capability_detail" value="technical implementation surface" style="endArrow=open;html=1;rounded=1;dashed=1;strokeWidth=1;strokeColor=#16a34a;fontSize=9;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="business_observability_capability" target="business_observability_group">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="370" y="1153" />
+              <mxPoint x="370" y="2860" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_capabilities_events" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#16a34a;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="business_capabilities" target="structured_business_events">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_events_business_observability" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#16a34a;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="structured_business_events" target="business_observability">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_business_observability_activity" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#16a34a;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="business_observability" target="activity_diagnostics">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_activity_observers" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#16a34a;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="activity_diagnostics" target="business_observers">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_technical_observability_activity" value="may feed" style="endArrow=open;html=1;rounded=1;dashed=1;strokeWidth=1.2;strokeColor=#2563eb;fontSize=9;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="technical_observability" target="activity_diagnostics">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="770" y="2995" />
+              <mxPoint x="770" y="3136" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_event_contract" value="event contract" style="endArrow=open;html=1;rounded=1;dashed=1;strokeWidth=1;strokeColor=#16a34a;fontSize=9;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="structured_business_events" target="business_event_contract">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="2976" />
+              <mxPoint x="420" y="3342" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_source_contract" value="confirmed integration" style="endArrow=open;html=1;rounded=1;dashed=0;strokeWidth=1.1;strokeColor=#0891b2;fontSize=10;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="source_gateway" target="backend">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="65" y="623" />
+              <mxPoint x="65" y="1500" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_channel_contract" value="confirmed integration" style="endArrow=open;html=1;rounded=1;dashed=0;strokeWidth=1.1;strokeColor=#0891b2;fontSize=10;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="channel_gateway" target="backend">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="515" y="1215" />
+              <mxPoint x="50" y="1215" />
+              <mxPoint x="50" y="1500" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_actors_workspace" value="" style="endArrow=open;html=1;rounded=1;dashed=1;strokeWidth=1.3;strokeColor=#16a34a;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="actors" target="workspace">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360" y="245" />
+              <mxPoint x="360" y="964" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_services_flowhub" value="auth / integration" style="endArrow=open;html=1;rounded=1;dashed=1;strokeWidth=1.3;strokeColor=#f97316;fontSize=10;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="services" target="flowhub">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_violation" value="ARCHITECTURE VIOLATION" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#ef4444;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=10;fontColor=#991b1b;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="315" width="170" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_colors" value="Color Semantics: Indigo = Core  |  Cyan = Processing  |  Green = Governance / Observability  |  Orange = External  |  Red = Commerce boundary" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#475569;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="80" y="355" width="1080" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="dash_legend" value="Maturity by border:&lt;br&gt;Solid = CURRENT / CONFIRMED&lt;br&gt;Purple/Indigo dashed = TARGET / PROPOSED&lt;br&gt;Orange dashed = ⚠ VERIFY&lt;br&gt;Red/Pink dashed = Architecture violation" style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=6;fillColor=#ffffff;strokeColor=#94a3b8;strokeWidth=1;fontSize=10;fontColor=#334155;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="280" width="210" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ci_reference_note" value="See 50-capability-maturity.drawio for the full Owner-approved Capability Maturity assessment (10 domains)." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=9;fontColor=#475569;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="2175" width="210" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ci_pr_push" value="PR / Push" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.5;fontStyle=1;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="2225" width="210" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="ci_guard_confirmed" value="Architecture Guard CI&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;CURRENT / CONFIRMED&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;Enforces:&lt;br&gt;• Direct HTTP/network boundary&lt;br&gt;• Shared write authority&lt;br&gt;• Release-term policy&lt;br&gt;• Channel Gateway resolution/completeness&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:8px;font-weight:normal;color:#475569&quot;&gt;.github/workflows/flowhub-architecture-guard.yml&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=2;fontStyle=1;fontSize=13;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="2310" width="210" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="ci_pass_fail" value="PASS / FAIL → merge decision" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;strokeWidth=1.5;fontStyle=1;fontSize=12;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="2570" width="210" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ci_push_guard" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#16a34a;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="ci_pr_push" target="ci_guard_confirmed">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ci_guard_result" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#16a34a;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="ci_guard_confirmed" target="ci_pass_fail">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legacy_architecture" value="LEGACY ARCHITECTURE — visually secondary&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;not part of the active FlowHub business flow&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=8;fillColor=#f8fafc;strokeColor=#94a3b8;strokeWidth=1.5;dashed=1;fontStyle=1;fontSize=13;fontColor=#475569;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1370" y="2600" width="550" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="legacy_a2" value="app/a2&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;QUARANTINED / LEGACY-CANDIDATE&lt;br&gt;Runtime code reachability: not found&lt;br&gt;Deployed database state: requires operational verification&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=6;fillColor=#ffffff;strokeColor=#94a3b8;strokeWidth=1;dashed=1;fontSize=11;fontColor=#475569;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="2650" width="240" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="legacy_main" value="app/main.py + app/services&lt;br&gt;&lt;font style=&quot;font-size:10px;font-weight:normal&quot;&gt;LEGACY / REACHABILITY VERIFY&lt;br&gt;Canonical Docker runtime uses app.flowhub.app (Dockerfile)&lt;br&gt;Full import-graph check not yet performed&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=6;fillColor=#ffffff;strokeColor=#94a3b8;strokeWidth=1;dashed=1;fontSize=11;fontColor=#475569;fontFamily=Trebuchet MS,Verdana,Arial,sans-serif;" vertex="1" parent="1">
+          <mxGeometry x="1655" y="2650" width="240" height="150" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
