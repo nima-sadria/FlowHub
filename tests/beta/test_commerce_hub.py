@@ -277,6 +277,131 @@ def test_woocommerce_connection_test_performs_read_only_api_call_without_secret_
     assert request_calls[0]["params"]["per_page"] == 1
     assert request_calls[0]["params"]["_fields"] == "id"
     assert request_calls[0]["auth"] == ("ck_live_secret", "cs_live_secret")
+    channel_state = client.get(
+        "/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers
+    ).json()
+    assert channel_state["health"]["status"] == "healthy"
+    assert channel_state["last_health_check"]
+    assert channel_state["credentials_verified"] is True
+
+
+def test_woocommerce_configuration_rejects_non_absolute_store_url(client, auth_headers):
+    response = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"url": "store.example.test"},
+            "secrets": {"key": "ck_secret", "secret": "cs_secret"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "WooCommerce Store URL must be an absolute HTTP or HTTPS URL."
+    assert "ck_secret" not in response.text
+    assert "cs_secret" not in response.text
+
+
+def test_woocommerce_connection_test_maps_legacy_invalid_url_without_external_call(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(db).set_many(
+        {
+            "woocommerce.url": "store.example.test",
+            "woocommerce.key": "ck_legacy_secret",
+            "woocommerce.secret": "cs_legacy_secret",
+        }
+    )
+
+    async def fail_ping(_credentials):
+        raise AssertionError("invalid URLs must not reach the external client")
+
+    monkeypatch.setattr("app.flowhub.commerce.service.ping_woocommerce", fail_ping)
+
+    response = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/test",
+        headers=auth_headers,
+        json={},
+    )
+
+    assert response.status_code == 200
+    assert "ck_legacy_secret" not in response.text
+    assert "cs_legacy_secret" not in response.text
+    data = response.json()
+    assert data["ok"] is False
+    assert data["code"] == "CHANNEL_INVALID_URL"
+    assert data["external_call_performed"] is False
+    assert data["message"] == "WooCommerce Store URL must be an absolute HTTP or HTTPS URL."
+    channel_state = client.get(
+        "/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers
+    ).json()
+    assert channel_state["health"]["status"] == "unhealthy"
+    assert channel_state["health"]["error_code"] == "invalid_url"
+    assert channel_state["last_health_check"]
+
+
+def test_woocommerce_connection_test_maps_httpx_configuration_error_without_500(
+    client, auth_headers, monkeypatch
+):
+    import httpx
+
+    save = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"url": "https://store.example.test"},
+            "secrets": {"key": "ck_safe_secret", "secret": "cs_safe_secret"},
+        },
+    )
+    assert save.status_code == 200
+
+    async def fake_acquire(_connector_id, _operation):
+        return None
+
+    class FailingAsyncClient:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def get(self, *_args, **_kwargs):
+            raise httpx.UnsupportedProtocol("Request URL includes sensitive configuration")
+
+    monkeypatch.setattr(
+        "app.connectors.destinations.woocommerce.rest_client.acquire_connector_rate_limit",
+        fake_acquire,
+    )
+    monkeypatch.setattr(
+        "app.connectors.destinations.woocommerce.rest_client.httpx.AsyncClient",
+        FailingAsyncClient,
+    )
+
+    response = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/test",
+        headers=auth_headers,
+        json={},
+    )
+
+    assert response.status_code == 200
+    assert "sensitive configuration" not in response.text
+    assert "ck_safe_secret" not in response.text
+    assert "cs_safe_secret" not in response.text
+    data = response.json()
+    assert data["ok"] is False
+    assert data["code"] == "CHANNEL_UPSTREAM_ERROR"
+    assert data["external_call_performed"] is True
+    channel_state = client.get(
+        "/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers
+    ).json()
+    assert channel_state["health"]["status"] == "unhealthy"
+    assert channel_state["last_health_check"]
 
 
 def test_snappshop_connection_test_performs_vendor_probe_without_secret_leakage(client, auth_headers, monkeypatch):
@@ -346,6 +471,12 @@ def test_snappshop_connection_test_performs_vendor_probe_without_secret_leakage(
     assert request_calls[0]["headers"]["Authorization"] == "Bearer snapp-secret-value"
     assert request_calls[0]["headers"]["User-Agent"] == "flowhub-agent"
     assert len(request_calls) == 1
+    channel_state = client.get(
+        "/api/v2/commerce/channels/snappshop:main", headers=auth_headers
+    ).json()
+    assert channel_state["health"]["status"] == "healthy"
+    assert channel_state["last_health_check"]
+    assert channel_state["credentials_verified"] is True
 
 
 def test_placeholder_connection_test_does_not_call_external_system(client, auth_headers, monkeypatch):
@@ -456,6 +587,12 @@ def test_tapsishop_connection_test_performs_vendor_probe_without_secret_leakage(
                 },
         "json": None,
     }]
+    channel_state = client.get(
+        "/api/v2/commerce/channels/tapsishop:main", headers=auth_headers
+    ).json()
+    assert channel_state["health"]["status"] == "healthy"
+    assert channel_state["last_health_check"]
+    assert channel_state["credentials_verified"] is True
 
 
 def test_source_placeholder_connection_test_does_not_call_external_system(client, auth_headers):
@@ -2238,6 +2375,59 @@ def test_technolife_configuration_requires_and_masks_both_documented_secrets(
     assert configuration["secrets"]["api_key"]["status"] == "configured"
     assert configuration["secrets"]["encryption_secret"]["status"] == "configured"
     assert configuration["credentials_returned"] is False
+
+
+def test_technolife_connection_test_persists_verified_health(
+    client, auth_headers, monkeypatch
+):
+    import base64
+
+    from app.flowhub.channels.contracts import ChannelHealth
+
+    encryption_secret = base64.b64encode(b"0123456789abcdef").decode("ascii")
+    save = client.put(
+        "/api/v2/commerce/channels/technolife:main/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {},
+            "secrets": {
+                "api_key": "technolife-api-key",
+                "encryption_secret": encryption_secret,
+            },
+        },
+    )
+    assert save.status_code == 200
+
+    async def healthy_connection(_self):
+        return ChannelHealth(
+            status="healthy",
+            checked_at="2026-08-10T12:00:00Z",
+            latency_ms=14.5,
+        )
+
+    monkeypatch.setattr(
+        "app.flowhub.channels.technolife.TechnolifeConnector.test_connection",
+        healthy_connection,
+    )
+
+    response = client.post(
+        "/api/v2/commerce/channels/technolife:main/test",
+        headers=auth_headers,
+        json={},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert "technolife-api-key" not in response.text
+    assert encryption_secret not in response.text
+    channel_state = client.get(
+        "/api/v2/commerce/channels/technolife:main", headers=auth_headers
+    ).json()
+    assert channel_state["health"]["status"] == "healthy"
+    assert channel_state["health"]["latency_ms"] == 14.5
+    assert channel_state["last_health_check"]
+    assert channel_state["credentials_verified"] is True
 
 
 def test_snappshop_unsaved_credentials_can_test_and_return_vendor_choices(client, auth_headers, monkeypatch):

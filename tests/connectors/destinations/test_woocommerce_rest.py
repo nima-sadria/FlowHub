@@ -196,6 +196,24 @@ def test_ping_403_raises_permission():
     assert exc_info.value.code == ConnectorErrorCode.PERMISSION
 
 
+def test_ping_maps_request_configuration_error_to_safe_connector_error():
+    async def _run():
+        with patch("httpx.AsyncClient") as MockClient:
+            instance = AsyncMock()
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=instance)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
+            instance.get = AsyncMock(
+                side_effect=httpx.UnsupportedProtocol("unsafe request configuration detail")
+            )
+            return await ping(_CREDS)
+
+    with pytest.raises(ConnectorError) as exc_info:
+        asyncio.run(_run())
+    assert exc_info.value.code == ConnectorErrorCode.NETWORK
+    assert exc_info.value.retryable is False
+    assert "unsafe request configuration detail" not in str(exc_info.value)
+
+
 def test_ping_transport_report_counts_provider_retry_attempts():
     limited = _mock_json_response(429, {})
     limited.headers = {"Retry-After": "0"}

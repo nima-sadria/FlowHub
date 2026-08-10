@@ -36,6 +36,17 @@ function DetailField({ label, value }: { label: string; value: string | number }
   )
 }
 
+export function channelConnectionEvidence(
+  channel: Pick<CommerceChannel, 'enabled' | 'credential_status' | 'health'>,
+): 'healthy' | 'warning' | 'configured' | 'setupRequired' {
+  if (!channel.enabled || channel.credential_status !== 'configured') return 'setupRequired'
+  if (channel.health.status === 'healthy') return 'healthy'
+  if (['degraded', 'error', 'failed', 'partial_failed', 'unhealthy'].includes(channel.health.status)) {
+    return 'warning'
+  }
+  return 'configured'
+}
+
 export default function ChannelDetail() {
   const { channelId = '' } = useParams()
   const navigate = useNavigate()
@@ -133,6 +144,14 @@ export default function ChannelDetail() {
   const accessModeLabel = accessMode === 'write_enabled'
     ? translate('commerce:commerceHub.writeEnabled2')
     : translate('commerce:commerceHub.readOnly2')
+  const connectionEvidence = channelConnectionEvidence(channel)
+  const connectionBadgeLabel = connectionEvidence === 'healthy'
+    ? translate('common:status.healthy')
+    : connectionEvidence === 'warning'
+      ? translate('common:resourceBadge.warning')
+      : connectionEvidence === 'configured'
+        ? translate('common:status.configured')
+        : translate('common:status.setupRequired')
   const healthWarning = ['degraded', 'error', 'failed', 'partial_failed', 'unhealthy'].includes(channel.health.status)
   const displayName = formatChannelDisplayName(channel.id)
 
@@ -172,8 +191,8 @@ export default function ChannelDetail() {
         <section className="fh-card fh-card-pad" id="overview">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="fh-section-title">{translate('commerce:commerceHub.channelDetails.overview')}</h2>
-            <Badge dot variant={channel.credential_status === 'configured' ? 'success' : 'warning'}>
-              {channel.credential_status === 'configured' ? translate('common:status.connected') : translate('common:status.setupRequired')}
+            <Badge dot variant={connectionEvidence === 'healthy' ? 'success' : connectionEvidence === 'warning' || connectionEvidence === 'setupRequired' ? 'warning' : 'neutral'}>
+              {connectionBadgeLabel}
             </Badge>
           </div>
           <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -129,6 +129,12 @@ async def _get(
             provider="woocommerce",
             retryable=True,
         ) from exc
+    except (httpx.RequestError, httpx.InvalidURL) as exc:
+        raise ConnectorError(
+            code=ConnectorErrorCode.NETWORK,
+            message="WooCommerce request configuration is invalid.",
+            provider="woocommerce",
+        ) from exc
 
     if r.status_code != 200:
         raise _map_http_error(r.status_code)
@@ -228,6 +234,19 @@ async def _get_raw(
             await asyncio.sleep(sleep_for)
             total_slept += sleep_for
             continue
+        except (httpx.RequestError, httpx.InvalidURL) as exc:
+            if transport is not None:
+                transport.record_request(
+                    stage=stage,
+                    duration_ms=(time.perf_counter() - request_started) * 1000,
+                    retry=attempt > 0,
+                    failed=True,
+                )
+            raise ConnectorError(
+                code=ConnectorErrorCode.NETWORK,
+                message="WooCommerce request configuration is invalid.",
+                provider="woocommerce",
+            ) from exc
 
         if transport is not None:
             transport.record_request(

@@ -652,6 +652,7 @@ export interface CommerceChannel {
   status: string
   implemented: boolean
   placeholder: boolean
+  enabled: boolean
   read_only: boolean
   write_blocked: boolean
   runtime_write_blocked: boolean

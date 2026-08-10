@@ -264,14 +264,17 @@ class CommerceHubService:
         if placeholder:
             return self._placeholder_connection_result()
         if str(meta["provider"]) == "woocommerce":
-            return await self._test_woocommerce_channel_connection(configured)
-        if str(meta["provider"]) == "snappshop":
-            return await self._test_snappshop_channel_connection(configured, body)
-        if str(meta["provider"]) == "tapsishop":
-            return await self._test_tapsishop_channel_connection(configured, body)
-        if str(meta["provider"]) == "technolife":
-            return await self._test_technolife_channel_connection(configured, body)
-        return self._unsupported_connection_result()
+            result = await self._test_woocommerce_channel_connection(configured, body)
+        elif str(meta["provider"]) == "snappshop":
+            result = await self._test_snappshop_channel_connection(configured, body)
+        elif str(meta["provider"]) == "tapsishop":
+            result = await self._test_tapsishop_channel_connection(configured, body)
+        elif str(meta["provider"]) == "technolife":
+            result = await self._test_technolife_channel_connection(configured, body)
+        else:
+            return self._unsupported_connection_result()
+        self._record_channel_test_health(meta, result)
+        return result
 
     async def refresh_channel_cache(
         self,
@@ -1240,6 +1243,9 @@ class CommerceHubService:
         settings = body.get("settings") if isinstance(body.get("settings"), dict) else {}
         secrets = body.get("secrets") if isinstance(body.get("secrets"), dict) else {}
         provider = str(meta["provider"])
+        if provider == "woocommerce":
+            values = self._woocommerce_values(body)
+            return bool(values["url"] and values["key"] and values["secret"])
         if provider == "snappshop":
             return bool(str(settings.get("agent_identifier") or self.integration.config.get("snappshop.agent_identifier") or "").strip()) and bool(
                 str(secrets.get("token") or self.integration.config.get("snappshop.token") or "").strip()
@@ -1260,6 +1266,14 @@ class CommerceHubService:
 
     def _validate_channel_configuration(self, meta: dict, body: dict) -> None:
         provider = str(meta["provider"])
+        if provider == "woocommerce":
+            url = self._woocommerce_values(body)["url"]
+            if url:
+                try:
+                    self._normalize_woocommerce_url(url)
+                except ValueError as exc:
+                    raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+            return
         if provider not in {"snappshop", "tapsishop", "technolife"}:
             return
         settings, secrets = self._connector_values(provider, body)
@@ -1383,8 +1397,25 @@ class CommerceHubService:
                 {"code": "SNAPPSHOP_VENDOR_INACTIVE", "message": "The selected SnappShop vendor is inactive."},
             )
 
-    async def _test_woocommerce_channel_connection(self, configured: bool) -> dict:
-        creds = self._woocommerce_credentials()
+    async def _test_woocommerce_channel_connection(
+        self, configured: bool, body: dict | None = None
+    ) -> dict:
+        try:
+            creds = self._woocommerce_credentials(body)
+        except ValueError as exc:
+            return {
+                **self._connection_base(),
+                "ok": False,
+                "connected": False,
+                "authenticated": False,
+                "status": "error",
+                "http_status": None,
+                "latency_ms": None,
+                "checked_at": self._checked_at(),
+                "message": str(exc),
+                "code": "CHANNEL_INVALID_URL",
+                "external_call_performed": False,
+            }
         if not configured or creds is None:
             return {
                 **self._connection_base(),
@@ -1435,14 +1466,62 @@ class CommerceHubService:
                 "message": safe_error["message"],
                 "code": safe_error["code"],
             }
-
-    def _woocommerce_credentials(self) -> WooCommerceCredentials | None:
-        url = self.integration.config.get("woocommerce.url")
-        key = self.integration.config.get("woocommerce.key")
-        secret = self.integration.config.get("woocommerce.secret")
+    def _woocommerce_credentials(self, body: dict | None = None) -> WooCommerceCredentials | None:
+        values = self._woocommerce_values(body)
+        url = values["url"]
+        key = values["key"]
+        secret = values["secret"]
         if not url or not key or not secret:
             return None
-        return WooCommerceCredentials(url=url.rstrip("/"), key=key, secret=secret)
+        return WooCommerceCredentials(url=self._normalize_woocommerce_url(url), key=key, secret=secret)
+
+    def _woocommerce_values(self, body: dict | None = None) -> dict[str, str]:
+        settings = body.get("settings") if isinstance(body, dict) and isinstance(body.get("settings"), dict) else {}
+        secrets = body.get("secrets") if isinstance(body, dict) and isinstance(body.get("secrets"), dict) else {}
+        return {
+            "url": str(settings.get("url") or self.integration.config.get("woocommerce.url") or "").strip(),
+            "key": str(secrets.get("key") or self.integration.config.get("woocommerce.key") or "").strip(),
+            "secret": str(secrets.get("secret") or self.integration.config.get("woocommerce.secret") or "").strip(),
+        }
+
+    def _normalize_woocommerce_url(self, value: str) -> str:
+        message = "WooCommerce Store URL must be an absolute HTTP or HTTPS URL."
+        url = str(value or "").strip().rstrip("/")
+        try:
+            parsed = urlparse(url)
+            hostname = parsed.hostname
+            parsed.port
+        except ValueError as exc:
+            raise ValueError(message) from exc
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc or not hostname:
+            raise ValueError(message)
+        return url
+
+    def _record_channel_test_health(self, meta: dict, result: dict) -> None:
+        if not result.get("external_call_performed") and result.get("code") != "CHANNEL_INVALID_URL":
+            return
+        ok = bool(result.get("ok"))
+        result_status = str(result.get("status") or "")
+        code = str(result.get("code") or "")
+        http_status = result.get("http_status")
+        if ok:
+            error_class = None
+        elif result_status == "authentication_failed" or result.get("authenticated") is False and http_status in {401, 403}:
+            error_class = "authentication_failed"
+        elif code == "CHANNEL_INVALID_URL":
+            error_class = "invalid_url"
+        elif http_status == 429:
+            error_class = "rate_limited"
+        else:
+            error_class = "connection_failed"
+        ConnectorHealthService(self.db).upsert(
+            connector_id=str(meta["id"]),
+            connector_type=str(meta["provider"]),
+            status="healthy" if ok else "unhealthy",
+            latency_ms=result.get("latency_ms"),
+            detail=str(result.get("message") or "")[:500],
+            error_class=error_class,
+        )
 
     async def _test_snappshop_channel_connection(self, configured: bool, body: dict | None = None) -> dict:
         connector = self._snappshop_connector(body)

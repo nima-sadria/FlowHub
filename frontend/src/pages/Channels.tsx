@@ -6,7 +6,7 @@ import Empty from '../components/Empty'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
 import { ManagementResourceSections } from '../components/ResourceOrdering'
-import OperationalResourceCard, { type OperationalResourceAction, type OperationalResourceState } from '../components/OperationalResourceCard'
+import OperationalResourceCard, { type OperationalResourceAction } from '../components/OperationalResourceCard'
 import {
   prepareResourceCollection,
   type ResourceBadge,
@@ -35,14 +35,16 @@ function matchesFilter(tier: ResourceTier, filter: ChannelFilter): boolean {
 }
 
 function channelBadgeTone(badge: ResourceBadge): BadgeVariant {
-  if (badge === 'healthy' || badge === 'configured') return 'success'
-  if (badge === 'warning') return 'warning'
+  if (badge === 'healthy') return 'success'
+  if (badge === 'warning' || badge === 'disabled') return 'warning'
   return 'neutral'
 }
 
 function channelBadgeLabel(badge: ResourceBadge): string {
-  if (badge === 'healthy' || badge === 'configured') return translate('common:status.connected')
-  if (badge === 'warning' || badge === 'disabled') return translate('common:status.setupRequired')
+  if (badge === 'healthy') return translate('common:status.healthy')
+  if (badge === 'configured') return translate('common:status.configured')
+  if (badge === 'warning') return translate('common:resourceBadge.warning')
+  if (badge === 'disabled') return translate('common:status.setupRequired')
   return translate('common:resourceBadge.comingSoon')
 }
 
@@ -50,17 +52,14 @@ function channelLifecycleSignals(channel: CommerceChannel): ResourceOrderingSign
   return {
     id: channel.id,
     displayName: formatChannelDisplayName(channel.id),
-    enabled: channel.status !== 'disabled' && channel.status !== 'inactive',
+    status: channel.status,
+    healthStatus: channel.health.status === 'unknown' ? null : channel.health.status,
+    credentialStatus: channel.credential_status,
+    enabled: channel.enabled,
     configured: channel.credential_status === 'configured',
     implemented: channel.implemented,
     placeholder: channel.placeholder,
   }
-}
-
-function operationalState(tier: ResourceTier): OperationalResourceState {
-  if (tier === 'configured') return 'connected'
-  if (tier === 'comingSoon') return 'comingSoon'
-  return 'setupRequired'
 }
 
 function channelNeedsOperationalAttention(channel: CommerceChannel): boolean {
@@ -117,12 +116,12 @@ export default function Channels() {
     [channelResources],
   )
   const connectedChannelsCount = useMemo(
-    () => channelResources.ordered.filter(resource => resource.tier === 'configured').length,
+    () => channelResources.ordered.filter(resource => resource.badge === 'healthy').length,
     [channelResources],
   )
   const healthyListingsTotal = useMemo(
     () => channelResources.ordered
-      .filter(resource => resource.tier === 'configured')
+      .filter(resource => resource.badge === 'healthy')
       .reduce((sum, resource) => sum + (resource.item.cached_products || 0), 0),
     [channelResources],
   )
@@ -405,7 +404,11 @@ export default function Channels() {
       ) : (
         <ManagementResourceSections resources={prepareResourceCollection(visibleChannels.map(resource => resource.item), channelLifecycleSignals)} className="fh-sources-grid fh-channels-grid" renderItem={resource => {
           const channel = resource.item
-          const state = operationalState(resource.tier)
+          const state = resource.tier === 'comingSoon'
+            ? 'comingSoon'
+            : channel.enabled && channel.credential_status === 'configured'
+              ? 'connected'
+              : 'setupRequired'
           const supportsProductCache = ['woocommerce', 'snappshop', 'tapsishop', 'technolife'].includes(channel.provider) && !channel.placeholder
           const lastActivityAt = channel.last_cache_refresh ?? channel.last_health_check
           const accessMode = channel.read_only || channel.write_blocked
@@ -414,7 +417,7 @@ export default function Channels() {
           const capabilities = channel.capabilities_summary.length > 0
             ? formatCapabilityList(channel.capabilities_summary.slice(0, 3))
             : translate('common:status.unavailable')
-          const setupReason = channel.status === 'disabled' || channel.status === 'inactive'
+          const setupReason = !channel.enabled || channel.status === 'disabled' || channel.status === 'inactive'
             ? translate('commerce:commerceHub.setupReasonDisabled')
             : translate('commerce:commerceHub.setupReasonCredentials')
           const facts = state === 'comingSoon' ? [] : state === 'setupRequired'

@@ -370,6 +370,7 @@ function channel(id: string, name: string, placeholder: boolean) {
     status: placeholder ? 'not_configured' : 'configured',
     implemented: !placeholder,
     placeholder,
+    enabled: !placeholder,
     read_only: true,
     write_blocked: true,
     runtime_write_blocked: true,

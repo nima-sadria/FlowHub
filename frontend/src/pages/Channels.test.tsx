@@ -10,6 +10,7 @@ import type { CommerceChannel, CommerceTypeOption } from '../services/types'
 import type { CommerceService } from '../services/commerce/CommerceService'
 import type { OrderService } from '../services/orders/OrderService'
 import { changeLocale } from '../i18n'
+import { channelConnectionEvidence } from './ChannelDetail'
 import Channels from './Channels'
 
 const admin: AuthContextValue = { user: { username: 'admin', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: fetch }
@@ -24,6 +25,7 @@ function channel(overrides: Partial<CommerceChannel> = {}): CommerceChannel {
     status: 'active',
     implemented: true,
     placeholder: false,
+    enabled: true,
     read_only: false,
     write_blocked: false,
     runtime_write_blocked: false,
@@ -60,7 +62,7 @@ describe('Channels page', () => {
       items: [
         channel(),
         channel({ id: 'snappshop:main', provider: 'snappshop', name: 'SnappShop Store', health: { status: 'degraded', message: '', latency_ms: null, error_code: null }, cached_products: 1876 }),
-        channel({ id: 'digikala:pos', provider: 'digikala', name: 'Digikala POS', status: 'disabled', cached_products: 512 }),
+        channel({ id: 'digikala:pos', provider: 'digikala', name: 'Digikala POS', status: 'disabled', enabled: false, cached_products: 512 }),
       ],
       relationship_map: { nodes: [], example: [], runtime_write_blocked: true, read_only: true },
     })
@@ -123,15 +125,15 @@ describe('Channels page', () => {
     await render()
 
     expect(container.textContent).toContain('Connected Channels')
-    expect(container.querySelector('.fh-kpi-card-value')?.textContent).toContain('2')
-    expect(container.textContent).toContain('4,294')
+    expect(container.querySelector('.fh-kpi-card-value')?.textContent).toContain('1')
+    expect(container.textContent).toContain('2,418')
     expect(container.textContent).toContain('Orders Today')
     expect(container.textContent).toContain('72')
     expect(getOrders).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 1 }))
 
     expect(container.querySelectorAll('[data-channel-card]')).toHaveLength(3)
-    expect(container.querySelector('[data-channel-card="woocommerce:primary"]')?.textContent).toContain('Connected')
-    expect(container.querySelector('[data-channel-card="snappshop:main"]')?.textContent).toContain('Connected')
+    expect(container.querySelector('[data-channel-card="woocommerce:primary"]')?.textContent).toContain('Healthy')
+    expect(container.querySelector('[data-channel-card="snappshop:main"]')?.textContent).toContain('Warning')
     expect(container.querySelector('[data-channel-card="snappshop:main"]')?.textContent).toContain('needs attention')
     expect(container.querySelector('[data-channel-card="digikala:pos"]')?.textContent).toContain('Setup required')
   })
@@ -193,6 +195,41 @@ describe('Channels page', () => {
     expect(card.textContent).not.toContain('Refresh cache')
   })
 
+  it('does not display a backend-disabled configured channel as connected', async () => {
+    getChannels.mockResolvedValueOnce({
+      items: [channel({ enabled: false, status: 'configured', credential_status: 'configured' })],
+      relationship_map: { nodes: [], example: [], runtime_write_blocked: true, read_only: true },
+    })
+
+    await render()
+
+    const card = container.querySelector('[data-channel-card="woocommerce:primary"]') as HTMLElement
+    expect(container.querySelector('.fh-kpi-card-value')?.textContent).toBe('0')
+    expect(card.textContent).toContain('Setup required')
+    expect(card.textContent).not.toContain('Connected')
+    expect(Array.from(card.querySelectorAll('button')).map(button => button.textContent?.trim())).toEqual(['Setup now'])
+  })
+
+  it('distinguishes configured metadata from verified healthy evidence', async () => {
+    getChannels.mockResolvedValueOnce({
+      items: [channel({
+        status: 'configured',
+        health: { status: 'unknown', message: 'No health check has been recorded.', latency_ms: null, error_code: null },
+        last_health_check: null,
+      })],
+      relationship_map: { nodes: [], example: [], runtime_write_blocked: true, read_only: true },
+    })
+
+    await render()
+
+    const card = container.querySelector('[data-channel-card="woocommerce:primary"]') as HTMLElement
+    expect(container.querySelector('.fh-kpi-card-value')?.textContent).toBe('0')
+    expect(card.textContent).toContain('Configured')
+    expect(card.textContent).not.toContain('Healthy')
+    expect(card.textContent).not.toContain('Connected')
+    expect(Array.from(card.querySelectorAll('button')).map(button => button.textContent?.trim())).toContain('Test connection')
+  })
+
   it('opens Add Channel on the canonical page without rendering a second card collection', async () => {
     await render()
 
@@ -251,5 +288,14 @@ describe('Channels page', () => {
     await act(async () => { retry.click(); await Promise.resolve(); await Promise.resolve() })
 
     expect(container.querySelector('[data-channel-card="woocommerce:primary"]')).not.toBeNull()
+  })
+})
+
+describe('Channel detail connection evidence', () => {
+  it('requires enabled healthy evidence before presenting a healthy connection', () => {
+    expect(channelConnectionEvidence(channel({ enabled: true, health: { status: 'healthy', message: '', latency_ms: 1, error_code: null } }))).toBe('healthy')
+    expect(channelConnectionEvidence(channel({ enabled: true, status: 'configured', health: { status: 'unknown', message: '', latency_ms: null, error_code: null } }))).toBe('configured')
+    expect(channelConnectionEvidence(channel({ enabled: true, health: { status: 'unhealthy', message: '', latency_ms: null, error_code: 'network' } }))).toBe('warning')
+    expect(channelConnectionEvidence(channel({ enabled: false, credential_status: 'configured', health: { status: 'healthy', message: '', latency_ms: 1, error_code: null } }))).toBe('setupRequired')
   })
 })
