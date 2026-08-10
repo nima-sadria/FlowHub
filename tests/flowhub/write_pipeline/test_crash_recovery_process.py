@@ -173,12 +173,14 @@ def postgres_recovery_db():
     engine = _worker_engine(url, schema)
     # Importing all model modules registers the complete metadata graph.
     import app.flowhub.auth.models  # noqa: F401
+    import app.flowhub.business_observability.models  # noqa: F401
     import app.flowhub.data_layer.models  # noqa: F401
     import app.flowhub.integration_platform.models  # noqa: F401
     import app.flowhub.product_pricing.models  # noqa: F401
     import app.flowhub.setup.models  # noqa: F401
     import app.flowhub.unified_workspace.models  # noqa: F401
     import app.flowhub.write_pipeline.models  # noqa: F401
+    assert "bo_business_events" in FlowHubBase.metadata.tables
     FlowHubBase.metadata.create_all(engine)
     with engine.begin() as connection:
         connection.execute(sa.text("CREATE TABLE fake_provider_counter (id INTEGER PRIMARY KEY, writes INTEGER NOT NULL, verifications INTEGER NOT NULL)"))
