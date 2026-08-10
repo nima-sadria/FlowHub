@@ -32,6 +32,9 @@ function forgetWorkspaceId() {
 }
 
 function bootstrapFailure(error: unknown): string {
+  if (error instanceof ApiError && error.code === 'CATALOG_SCOPE_EMPTY') {
+    return translate('products:products.noEligibleCachedProducts')
+  }
   if (error instanceof ApiError) {
     return translate('products:products.inlinePricingUnavailableHttp', { status: error.status })
   }
@@ -61,6 +64,7 @@ export default function Products() {
   const [workspace, setWorkspace] = useState<UnifiedWorkspaceResource | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [catalogScopeEmpty, setCatalogScopeEmpty] = useState(false)
   const [cachedProducts, setCachedProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [catalogConfigured, setCatalogConfigured] = useState<boolean | undefined>(undefined)
@@ -97,6 +101,7 @@ export default function Products() {
     const requestGeneration = ++generation.current
     setLoading(true)
     setError(null)
+    setCatalogScopeEmpty(false)
     setWorkspace(null)
     try {
       if (!unifiedWorkspace) throw new Error('catalog_workspace_unavailable')
@@ -124,6 +129,7 @@ export default function Products() {
     } catch (cause) {
       if (requestGeneration !== generation.current) return
       forgetWorkspaceId()
+      setCatalogScopeEmpty(cause instanceof ApiError && cause.code === 'CATALOG_SCOPE_EMPTY')
       setError(bootstrapFailure(cause))
     } finally {
       if (requestGeneration === generation.current) setLoading(false)
@@ -158,12 +164,16 @@ export default function Products() {
     return <PageShell><div><h1 className="fh-page-title">{translate('products:products.products')}</h1><p className="fh-page-subtitle">{translate('products:products.productCatalog')}</p></div><div className="fh-card"><Empty title={translate('products:products.noProductConnectorConfigured')} description={translate('products:products.connectAProductSourceFromSourcesTo')} action={{ label: translate('products:products.openSources'), onClick: () => navigate('/sources') }} /></div></PageShell>
   }
 
+  if (!catalogLoading && catalogScopeEmpty && catalogConfigured === true && cachedProducts.length === 0) {
+    return <PageShell><div><h1 className="fh-page-title">{translate('products:products.products')}</h1><p className="fh-page-subtitle">{translate('products:products.productCatalog')}</p></div><div className="fh-card"><Empty title={translate('products:products.noCachedProductsForInlinePricing')} description={translate('products:products.refreshProductCacheInChannels')} action={{ label: translate('products:products.openChannels'), onClick: () => navigate('/channels') }} /></div></PageShell>
+  }
+
   if (loading && !error) {
     return <PageShell><PricingWorkspaceStartup /></PageShell>
   }
 
   return <PageShell>
-    <div className="fh-page-header"><div><h1 className="fh-page-title">{translate('products:products.products')}</h1><p className="fh-page-subtitle">{translate('products:products.cachedProductsReadOnly')}</p></div><button type="button" className="fh-button-secondary" onClick={retry}><Icon name="refresh" /> {translate('products:products.retryInlinePricing')}</button></div>
+    <div className="fh-page-header"><div><h1 className="fh-page-title">{translate('products:products.products')}</h1><p className="fh-page-subtitle">{translate('products:products.cachedProductsReadOnly')}</p></div>{catalogScopeEmpty ? <button type="button" className="fh-button-secondary" onClick={() => navigate('/channels')}>{translate('products:products.openChannels')}</button> : <button type="button" className="fh-button-secondary" onClick={retry}><Icon name="refresh" /> {translate('products:products.retryInlinePricing')}</button>}</div>
     <div className="fh-alert fh-alert-warning" role="alert"><Icon name="alert" /><span>{error ?? translate('products:products.inlinePricingUnavailable')}</span></div>
     <div className="fh-card mt-3 overflow-hidden">
       <div className="overflow-x-auto"><table className="fh-table min-w-[760px]"><thead><tr><th>{translate('products:column.product')}</th><th>{translate('products:column.sku')}</th><th>{translate('products:column.type')}</th><th>{translate('products:column.categories')}</th><th className="text-end">{translate('products:column.current')}</th></tr></thead><tbody>{cachedProducts.length ? cachedProducts.map(product => <CachedProductRow key={`${product.connectorId ?? ''}:${product.id}`} product={product} />) : <tr><td colSpan={5}><Empty title={translate('products:products.noProductsFound')} description={translate('products:products.retryInlinePricing')} /></td></tr>}</tbody></table></div>

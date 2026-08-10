@@ -125,6 +125,39 @@ describe('Products inline pricing entry', () => {
     expect(createCatalog).toHaveBeenCalledTimes(2)
   })
 
+  it('turns an empty catalog scope into an actionable product-cache state', async () => {
+    const createCatalog = vi.fn().mockRejectedValue(new ApiError(
+      422,
+      'No cached products match the requested catalog scope.',
+      'CATALOG_SCOPE_EMPTY',
+    ))
+    const getProducts = vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 50, configured: true }))
+    await renderProducts(servicesFor({ createCatalog, getProducts }))
+    await waitFor(() => container.textContent?.includes('No products cached for inline pricing') === true)
+
+    expect(container.textContent).toContain('Open Channels and refresh the product cache, then return here.')
+    expect(container.textContent).not.toContain('HTTP 422')
+    expect(container.textContent).not.toContain('Retry inline pricing')
+    await click('Open Channels')
+    await waitFor(() => container.querySelector('[data-channels-route]') !== null)
+  })
+
+  it('keeps ineligible cached rows read-only without presenting the expected empty scope as HTTP 422', async () => {
+    const createCatalog = vi.fn().mockRejectedValue(new ApiError(
+      422,
+      'No cached products match the requested catalog scope.',
+      'CATALOG_SCOPE_EMPTY',
+    ))
+    const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
+    await renderProducts(servicesFor({ createCatalog, getProducts }))
+    await waitFor(() => container.textContent?.includes('No cached products are currently eligible for inline pricing.') === true)
+
+    expect(container.textContent).toContain('Cached Product')
+    expect(container.textContent).toContain('Open Channels')
+    expect(container.textContent).not.toContain('HTTP 422')
+    expect(container.querySelector('[data-product-id="101"] input')).toBeNull()
+  })
+
   it('uses q in the real cached-product API fallback', async () => {
     const createCatalog = vi.fn().mockRejectedValue(new ApiError(502, 'unavailable'))
     const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
@@ -142,7 +175,7 @@ describe('Products inline pricing entry', () => {
 
 async function renderProducts(services: Services, initialPath = '/products') {
   await act(async () => {
-    root.render(<StrictMode><MemoryRouter initialEntries={[initialPath]}><NotificationProvider><ServiceProvider services={services}><Routes><Route path="/products" element={<Products />} /></Routes></ServiceProvider></NotificationProvider></MemoryRouter></StrictMode>)
+    root.render(<StrictMode><MemoryRouter initialEntries={[initialPath]}><NotificationProvider><ServiceProvider services={services}><Routes><Route path="/products" element={<Products />} /><Route path="/channels" element={<span data-channels-route>Channels route</span>} /></Routes></ServiceProvider></NotificationProvider></MemoryRouter></StrictMode>)
     await Promise.resolve()
   })
 }
