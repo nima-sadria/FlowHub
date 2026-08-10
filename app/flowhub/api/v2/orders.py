@@ -14,7 +14,7 @@ from app.flowhub.channels.woocommerce import build_woocommerce_order_connector
 from app.flowhub.database import get_db
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.orders.models import OrderSyncCheckpoint
-from app.flowhub.orders.service import OrderSyncService
+from app.flowhub.orders.service import OrderSyncService, resolve_order_sync_settings
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -131,9 +131,7 @@ async def synchronize_channel_orders(
             status.HTTP_409_CONFLICT,
             "Manual order synchronization is not available for this channel.",
         )
-    settings = {
-        item.key: item.value_json for item in channel.settings if item.configured
-    }
+    settings = resolve_order_sync_settings(service.db, channel)
     url = str(settings.get("url") or "").strip()
     key = str(settings.get("key") or "").strip()
     secret = str(settings.get("secret") or "").strip()

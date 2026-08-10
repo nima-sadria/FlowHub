@@ -22,6 +22,7 @@ from app.flowhub.channels.contracts import (
     PageNumberPagination,
     PaginatedResult,
 )
+from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.orders.models import (
     ChannelInventoryEffectRecord,
     ChannelInvoiceRecord,
@@ -33,6 +34,7 @@ from app.flowhub.orders.models import (
     OrderSyncCheckpoint,
 )
 from app.flowhub.security.redaction import redact_sensitive
+from app.flowhub.setup.service import AppConfigService
 from app.flowhub.webhooks.models import WebhookProcessingAttempt, WebhookReceipt
 
 SNAPPSHOP_STATUS_MAP = {
@@ -63,6 +65,46 @@ WOOCOMMERCE_STATUS_MAP = {
 }
 LOCK_TTL_SECONDS = 15 * 60
 CHANNEL_LEASE_SOURCE = "__channel_lease__"
+
+_ORDER_SYNC_SECRET_CONFIG_KEYS: dict[str, dict[str, str]] = {
+    "woocommerce": {
+        "key": "woocommerce.key",
+        "secret": "woocommerce.secret",
+    },
+    "snappshop": {"token": "snappshop.token"},
+    "tapsishop": {
+        "token": "tapsishop.token",
+        "webhook_token": "tapsishop.webhook_token",
+    },
+    "technolife": {
+        "api_key": "technolife.api_key",
+        "encryption_secret": "technolife.encryption_secret",
+    },
+}
+
+
+def resolve_order_sync_settings(
+    db: Session,
+    channel: IntegrationConnectorInstance,
+) -> dict[str, Any]:
+    """Resolve configured order settings without storing secrets in IP metadata."""
+
+    resolved: dict[str, Any] = {}
+    secret_config_keys = _ORDER_SYNC_SECRET_CONFIG_KEYS.get(
+        channel.connector_type, {}
+    )
+    config: AppConfigService | None = None
+    for setting in channel.settings:
+        if not setting.configured:
+            continue
+        value = setting.value_json
+        app_config_key = secret_config_keys.get(setting.key)
+        if setting.secret and value in (None, "") and app_config_key:
+            config = config or AppConfigService(db)
+            value = config.get(app_config_key)
+        if value not in (None, ""):
+            resolved[setting.key] = value
+    return resolved
 
 
 @dataclass(frozen=True)

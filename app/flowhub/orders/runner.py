@@ -37,9 +37,13 @@ from app.flowhub.integration_platform.models import (
     IntegrationConnectorInstance,
     IntegrationConnectorSetting,
 )
-from app.flowhub.orders.service import LOCK_TTL_SECONDS, OrderSyncResult, OrderSyncService
+from app.flowhub.orders.service import (
+    LOCK_TTL_SECONDS,
+    OrderSyncResult,
+    OrderSyncService,
+    resolve_order_sync_settings,
+)
 from app.flowhub.security.redaction import redact_sensitive
-from app.flowhub.setup.service import AppConfigService
 
 LOGGER = logging.getLogger("flowhub.orders.runner")
 RUNNER_EVENT_NAME = "order_sync_runner_heartbeat"
@@ -145,7 +149,8 @@ class OrderSyncRunner:
         }):
             return []
 
-        settings = _settings(channel)
+        with self.session_factory() as db:
+            settings = resolve_order_sync_settings(db, channel)
         results: list[dict[str, Any]] = []
         if channel.connector_type == "woocommerce":
             connector = self._woocommerce_connector(channel.id, settings)
@@ -359,14 +364,8 @@ class OrderSyncRunner:
     def _technolife_connector(
         self, channel_id: str, settings: dict[str, Any]
     ) -> TechnolifeConnector | None:
-        with self.session_factory() as db:
-            config_store = AppConfigService(db)
-            secrets = {
-                "api_key": config_store.get("technolife.api_key"),
-                "encryption_secret": config_store.get("technolife.encryption_secret"),
-            }
         try:
-            config = TechnolifeConfig.from_values(settings=settings, secrets=secrets)
+            config = TechnolifeConfig.from_values(settings=settings, secrets=settings)
         except (TypeError, ValueError):
             self._record_event(
                 channel_id,
@@ -449,10 +448,6 @@ async def main_async() -> None:
 
 def main() -> None:
     asyncio.run(main_async())
-
-
-def _settings(channel: IntegrationConnectorInstance) -> dict[str, Any]:
-    return {item.key: item.value_json for item in channel.settings if item.configured}
 
 
 def _upsert_setting(db: Session, channel_id: str, key: str, value: Any, *, secret: bool) -> None:

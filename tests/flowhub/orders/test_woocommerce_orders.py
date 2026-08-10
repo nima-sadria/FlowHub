@@ -177,12 +177,21 @@ async def test_manual_sync_is_read_only_and_operator_authorized(
             IntegrationConnectorSetting(
                 connector_id="woocommerce:test",
                 key=key,
-                value_json=value,
+                value_json=None if key in {"key", "secret"} else value,
                 configured=True,
                 secret=key in {"key", "secret"},
             )
         )
     db.commit()
+    from app.flowhub.setup.service import AppConfigService
+
+    AppConfigService(db).set_many(
+        {
+            "woocommerce.key": "test-key",
+            "woocommerce.secret": "test-secret",
+        },
+        updated_by="test",
+    )
     order = _connector()._normalize(_raw_order())
 
     class FakeReadOnlyConnector:
@@ -193,17 +202,25 @@ async def test_manual_sync_is_read_only_and_operator_authorized(
             self.calls += 1
             return PaginatedResult(items=[order], pagination=pagination)
 
+    resolved_settings: dict[str, object] = {}
+
+    def build_fake_connector(**kwargs: object) -> FakeReadOnlyConnector:
+        settings = kwargs["settings"]
+        assert isinstance(settings, dict)
+        resolved_settings.update(settings)
+        return FakeReadOnlyConnector(
+            channel_id=kwargs["channel_id"],
+            credentials=WooCommerceCredentials(
+                url=str(settings["url"]),
+                key=str(settings["key"]),
+                secret=str(settings["secret"]),
+            ),
+        )
+
     monkeypatch.setattr(
         orders_api,
         "build_woocommerce_order_connector",
-        lambda **kwargs: FakeReadOnlyConnector(
-            channel_id=kwargs["channel_id"],
-            credentials=WooCommerceCredentials(
-                url=str(kwargs["settings"]["url"]),
-                key=str(kwargs["settings"]["key"]),
-                secret=str(kwargs["settings"]["secret"]),
-            ),
-        ),
+        build_fake_connector,
     )
     operator = FlowHubUser(
         id=20,
@@ -222,6 +239,22 @@ async def test_manual_sync_is_read_only_and_operator_authorized(
     assert result["providerMutationPerformed"] is False
     assert result["canonicalInventoryMutated"] is False
     assert result["productPricesWritten"] is False
+    assert resolved_settings == {
+        "url": "https://woocommerce.example.invalid",
+        "key": "test-key",
+        "secret": "test-secret",
+    }
+    assert db.query(ChannelInventoryEffectRecord).count() == 0
+    masked_settings = (
+        db.query(IntegrationConnectorSetting)
+        .filter(
+            IntegrationConnectorSetting.connector_id == "woocommerce:test",
+            IntegrationConnectorSetting.key.in_(("key", "secret")),
+        )
+        .all()
+    )
+    assert len(masked_settings) == 2
+    assert all(item.value_json is None for item in masked_settings)
 
     viewer = FlowHubUser(
         id=21,

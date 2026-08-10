@@ -20,6 +20,7 @@ from app.flowhub.channels.contracts import (
 )
 from app.flowhub.integration_platform import models as _integration_models
 from app.flowhub.orders import models as _order_models
+from app.flowhub.setup import models as _setup_models  # noqa: F401
 from app.flowhub.webhooks import models as _webhook_models
 
 
@@ -203,6 +204,7 @@ async def test_runner_reconciles_woocommerce_through_read_only_shared_service(
     session_factory, monkeypatch
 ):
     from app.flowhub.orders.runner import OrderSyncRunner
+    from app.flowhub.setup.service import AppConfigService
 
     with session_factory() as db:
         _seed_channel(
@@ -212,16 +214,29 @@ async def test_runner_reconciles_woocommerce_through_read_only_shared_service(
             enabled=True,
             settings={
                 "url": "https://woocommerce.example.invalid",
-                "key": "test-key",
-                "secret": "test-secret",
+                "key": None,
+                "secret": None,
             },
+        )
+        AppConfigService(db).set_many(
+            {
+                "woocommerce.key": "test-key",
+                "woocommerce.secret": "test-secret",
+            },
+            updated_by="test",
         )
 
     connector = RunnerWooConnector("woocommerce:primary")
+    resolved_settings = {}
+
+    def build_connector(self, channel_id, settings):
+        resolved_settings.update(settings)
+        return connector
+
     monkeypatch.setattr(
         OrderSyncRunner,
         "_woocommerce_connector",
-        lambda self, channel_id, settings: connector,
+        build_connector,
     )
     runner = OrderSyncRunner(
         session_factory, settings=_settings(), runner_id="runner-woo-read"
@@ -231,6 +246,11 @@ async def test_runner_reconciles_woocommerce_through_read_only_shared_service(
 
     assert connector.read_calls == 1
     assert result["results"][0]["source"] == "reconciliation"
+    assert resolved_settings == {
+        "url": "https://woocommerce.example.invalid",
+        "key": "test-key",
+        "secret": "test-secret",
+    }
     with session_factory() as db:
         assert (
             db.query(_order_models.ChannelOrderRecord)
@@ -239,6 +259,19 @@ async def test_runner_reconciles_woocommerce_through_read_only_shared_service(
             == 1
         )
         assert db.query(_order_models.ChannelInventoryEffectRecord).count() == 0
+        masked_settings = (
+            db.query(_integration_models.IntegrationConnectorSetting)
+            .filter(
+                _integration_models.IntegrationConnectorSetting.connector_id
+                == "woocommerce:primary",
+                _integration_models.IntegrationConnectorSetting.key.in_(
+                    ("key", "secret")
+                ),
+            )
+            .all()
+        )
+        assert len(masked_settings) == 2
+        assert all(item.value_json is None for item in masked_settings)
 
 
 @pytest.mark.asyncio
