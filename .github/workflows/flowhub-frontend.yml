@@ -15,7 +15,7 @@ jobs:
       # build; production builds still fail closed without a purchased key.
       VITE_HANDSONTABLE_LICENSE_KEY: non-commercial-and-evaluation
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: actions/setup-node@v4
