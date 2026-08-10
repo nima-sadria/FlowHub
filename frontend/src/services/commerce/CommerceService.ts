@@ -4,6 +4,8 @@ export interface ConnectionCheckResult {
   ok: boolean
   status: string
   message: string
+  code?: string
+  error_class?: string
   external_call_performed: boolean
   read_only: boolean
   runtime_write_blocked: boolean
@@ -13,6 +15,7 @@ export interface ConnectionCheckResult {
   normalized_base_url?: string
   normalized_webdav_url?: string
   checked_at?: string
+  latency_ms?: number | null
   vendors?: CommerceVendor[]
   vendor_information?: CommerceVendor
   suggested_vendor_id?: string | null
@@ -50,7 +53,16 @@ export interface CommerceSourceConfiguration {
   source_id: string
   provider: string
   display_name: string
+  description?: string | null
   configured: boolean
+  connection_configured?: boolean
+  last_test?: {
+    status: string
+    message: string
+    error_code: string | null
+    latency_ms: number | null
+    checked_at: string | null
+  }
   enabled: boolean
   access_mode: 'read_only'
   settings: Record<string, unknown>
@@ -121,13 +133,15 @@ export interface CommerceConfigPayload {
   description?: string
   settings: Record<string, unknown>
   secrets: Record<string, string>
-  currency: string
-  currency_unit: string
+  currency?: string
+  currency_unit?: string
 }
 
 export interface CommerceSettingsResult {
   settings: Record<string, unknown>
   secrets: Record<string, { status: string; replaced_at: string | null }>
+  configured?: boolean
+  connection_configured?: boolean
   read_only: boolean
   runtime_write_blocked: boolean
   write_blocked: boolean

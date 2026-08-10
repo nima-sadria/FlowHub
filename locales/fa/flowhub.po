@@ -8,7 +8,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "x-generator: FlowHub deterministic i18n extractor\n"
 
-#: frontend/src/pages/CommerceHub.tsx:1086
+#: frontend/src/pages/CommerceHub.tsx:1358
 msgctxt "commerce:commerceHub.alternateTitle"
 msgid " ({{title}})"
 msgstr " ({{title}})"
@@ -21,7 +21,7 @@ msgctxt "sources:sourceCenter.columnSetupVersion"
 msgid " · Column setup v"
 msgstr " · نسخه تنظیم ستون‌ها "
 
-#: frontend/src/pages/CommerceHub.tsx:1086
+#: frontend/src/pages/CommerceHub.tsx:1358
 msgctxt "commerce:commerceHub.inactive"
 msgid "- Inactive"
 msgstr "— غیرفعال"
@@ -154,12 +154,12 @@ msgctxt "authentication:access.accessDenied"
 msgid "Access Denied"
 msgstr "دسترسی مجاز نیست"
 
-#: frontend/src/pages/ChannelDetail.tsx:180 frontend/src/pages/Channels.tsx:422 frontend/src/pages/Channels.tsx:425 frontend/src/pages/CommerceHub.tsx:970
+#: frontend/src/pages/ChannelDetail.tsx:199 frontend/src/pages/Channels.tsx:425 frontend/src/pages/Channels.tsx:428 frontend/src/pages/CommerceHub.tsx:1190
 msgctxt "commerce:commerceHub.accessMode"
 msgid "Access mode"
 msgstr "حالت دسترسی"
 
-#: frontend/src/pages/ChannelDetail.tsx:220
+#: frontend/src/pages/ChannelDetail.tsx:239
 msgctxt "commerce:commerceHub.channelDetails.accessMode"
 msgid "Access mode"
 msgstr "حالت دسترسی"
@@ -188,6 +188,15 @@ msgstr "حساب‌های دارای سابقه کسب‌وکار محافظت�
 msgctxt "settings:users.description"
 msgid "Accounts, roles, and permissions."
 msgstr "حساب‌ها، نقش‌ها و دسترسی‌ها."
+
+#: frontend/src/pages/Activity.tsx:180
+msgctxt "activity:activity.acknowledge"
+msgid "Acknowledge"
+msgstr "تأیید"
+
+msgctxt "activity:activity.statusAcknowledged"
+msgid "Acknowledged"
+msgstr "تأیید شده"
 
 msgctxt "dashboard:dashboard.totalProductsAcrossChannels"
 msgid "Across connected Channels"
@@ -231,7 +240,7 @@ msgctxt "pricing:eventKind.activate"
 msgid "Activated"
 msgstr "فعال‌شده"
 
-#: frontend/src/components/ResourceOrdering.tsx:12 frontend/src/pages/Channels.tsx:371 frontend/src/pages/SourceCenter.tsx:437
+#: frontend/src/components/ResourceOrdering.tsx:12 frontend/src/pages/Channels.tsx:370 frontend/src/pages/SourceCenter.tsx:437
 msgctxt "common:resourceGroup.active"
 msgid "Active"
 msgstr "فعال"
@@ -262,12 +271,12 @@ msgctxt "pricing:channels.head.policyRevision"
 msgid "Active policy revision"
 msgstr "بازنگری سیاست فعال"
 
-#: frontend/src/pages/Activity.tsx:269
+#: frontend/src/pages/Activity.tsx:404
 msgctxt "activity:activity.activity"
 msgid "Activity"
 msgstr "فعالیت‌ها"
 
-#: frontend/src/pages/ChannelDetail.tsx:239
+#: frontend/src/pages/ChannelDetail.tsx:258
 msgctxt "commerce:commerceHub.channelDetails.activity"
 msgid "Activity"
 msgstr "فعالیت"
@@ -285,7 +294,7 @@ msgctxt "sources:sourceConfiguration.detail.activity"
 msgid "Activity"
 msgstr "فعالیت"
 
-#: frontend/src/pages/Activity.tsx:328
+#: frontend/src/pages/Activity.tsx:463
 msgctxt "activity:activity.loadFailed"
 msgid "Activity could not be loaded. Try again."
 msgstr "فعالیت‌ها بارگیری نشدند. دوباره تلاش کنید."
@@ -315,7 +324,7 @@ msgctxt "sources:sourceConfiguration.addAtLeastOneWorksheet"
 msgid "Add and enable at least one worksheet before saving."
 msgstr "پیش از ذخیره، دست‌کم یک برگه را اضافه و فعال کنید."
 
-#: frontend/src/pages/Channels.tsx:308 frontend/src/pages/Channels.tsx:404 frontend/src/pages/Channels.tsx:473 frontend/src/pages/CommerceHub.tsx:1589 frontend/src/pages/CommerceHub.tsx:927 frontend/src/pages/SourceConfiguration.tsx:1123 frontend/src/pages/SourceConfiguration.tsx:1347
+#: frontend/src/pages/Channels.tsx:307 frontend/src/pages/Channels.tsx:403 frontend/src/pages/Channels.tsx:476 frontend/src/pages/CommerceHub.tsx:1146 frontend/src/pages/CommerceHub.tsx:1962 frontend/src/pages/SourceConfiguration.tsx:1123 frontend/src/pages/SourceConfiguration.tsx:1347
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.addChannel"
 msgid "Add channel"
@@ -331,7 +340,7 @@ msgctxt "pricing:policyEditor.addRule"
 msgid "Add rule"
 msgstr "افزودن قاعده"
 
-#: frontend/src/pages/CommerceHub.tsx:1541 frontend/src/pages/CommerceHub.tsx:927
+#: frontend/src/pages/CommerceHub.tsx:1146 frontend/src/pages/CommerceHub.tsx:1914
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.addSource"
 msgid "Add source"
@@ -372,7 +381,7 @@ msgctxt "settings:users.role.admin"
 msgid "Admin"
 msgstr "ادمین"
 
-#: frontend/src/pages/Channels.tsx:238 frontend/src/pages/Channels.tsx:271 frontend/src/pages/CommerceHub.tsx:1330 frontend/src/pages/CommerceHub.tsx:1360 frontend/src/pages/CommerceHub.tsx:1390 frontend/src/pages/CommerceHub.tsx:1445 frontend/src/pages/CommerceHub.tsx:1457 frontend/src/pages/CommerceHub.tsx:1474 frontend/src/pages/CommerceHub.tsx:1544 frontend/src/pages/CommerceHub.tsx:1592
+#: frontend/src/pages/Channels.tsx:237 frontend/src/pages/Channels.tsx:270 frontend/src/pages/CommerceHub.tsx:1705 frontend/src/pages/CommerceHub.tsx:1733 frontend/src/pages/CommerceHub.tsx:1763 frontend/src/pages/CommerceHub.tsx:1818 frontend/src/pages/CommerceHub.tsx:1830 frontend/src/pages/CommerceHub.tsx:1847 frontend/src/pages/CommerceHub.tsx:1917 frontend/src/pages/CommerceHub.tsx:1965
 msgctxt "commerce:commerceHub.adminPermissionRequired"
 msgid "Admin permission required"
 msgstr "دسترسی ادمین لازم است"
@@ -459,7 +468,7 @@ msgctxt "workspace:workspace.allApprovedUpdatesHaveBeenCompleted"
 msgid "All approved updates have been completed."
 msgstr "همه به‌روزرسانی‌های تأییدشده تکمیل شدند."
 
-#: frontend/src/pages/Activity.tsx:316
+#: frontend/src/pages/Activity.tsx:451
 msgctxt "activity:activity.allCategories"
 msgid "All categories"
 msgstr "همه دسته‌ها"
@@ -469,12 +478,12 @@ msgctxt "sources:sourceConfiguration.allChangesSaved"
 msgid "All changes saved"
 msgstr "همه تغییرات ذخیره شده‌اند"
 
-#: frontend/src/pages/Activity.tsx:298 frontend/src/pages/Activity.tsx:300
+#: frontend/src/pages/Activity.tsx:433 frontend/src/pages/Activity.tsx:435
 msgctxt "activity:activity.allChannels"
 msgid "All channels"
 msgstr "همه کانال‌ها"
 
-#: frontend/src/pages/Dashboard.tsx:415 frontend/src/pages/Dashboard.tsx:424
+#: frontend/src/pages/Dashboard.tsx:432 frontend/src/pages/Dashboard.tsx:441
 msgctxt "dashboard:dashboard.allClear"
 msgid "All clear"
 msgstr "موردی باقی نمانده"
@@ -483,7 +492,7 @@ msgctxt "dashboard:dashboard.allSourcesReady"
 msgid "All configured Sources are ready."
 msgstr "همه منابع پیکربندی‌شده آماده‌اند."
 
-#: frontend/src/pages/Channels.tsx:368 frontend/src/pages/Channels.tsx:370
+#: frontend/src/pages/Channels.tsx:367 frontend/src/pages/Channels.tsx:369
 msgctxt "commerce:commerceHub.allHealthStates"
 msgid "All health states"
 msgstr "همه وضعیت‌ها"
@@ -493,7 +502,7 @@ msgctxt "sources:sourceCenter.allHealthStates"
 msgid "All health states"
 msgstr "همه وضعیت‌ها"
 
-#: frontend/src/pages/Dashboard.tsx:403
+#: frontend/src/pages/Dashboard.tsx:420
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "dashboard:dashboard.allInStock"
 msgid "All in stock"
@@ -527,7 +536,7 @@ msgctxt "dataQuality:dataQuality.allSeverities"
 msgid "All severities"
 msgstr "همه سطح‌ها"
 
-#: frontend/src/pages/Activity.tsx:290 frontend/src/pages/Activity.tsx:292
+#: frontend/src/pages/Activity.tsx:425 frontend/src/pages/Activity.tsx:427
 msgctxt "activity:activity.allStatuses"
 msgid "All statuses"
 msgstr "همه وضعیت‌ها"
@@ -550,12 +559,12 @@ msgctxt "navigation:sidebar.allSystemsOperational"
 msgid "All systems operational"
 msgstr "همه سامانه‌ها فعال‌اند"
 
-#: frontend/src/pages/Activity.tsx:306 frontend/src/pages/Activity.tsx:308
+#: frontend/src/pages/Activity.tsx:441 frontend/src/pages/Activity.tsx:443
 msgctxt "activity:activity.allUsers"
 msgid "All users"
 msgstr "همه کاربران"
 
-#: frontend/src/pages/CommerceHub.tsx:1167
+#: frontend/src/pages/CommerceHub.tsx:1463
 msgctxt "commerce:commerceHub.allWorksheets"
 msgid "All worksheets"
 msgstr "همه برگه‌ها"
@@ -648,7 +657,7 @@ msgctxt "workspace:sourceCentricWorkspace.apply"
 msgid "Apply"
 msgstr "اعمال"
 
-#: frontend/src/pages/Dashboard.tsx:525
+#: frontend/src/pages/Dashboard.tsx:542
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "dashboard:dashboard.applyReady"
 msgid "Apply Ready"
@@ -832,7 +841,7 @@ msgctxt "diagnostics:diagnostics.availableNow"
 msgid "Available now"
 msgstr "اکنون در دسترس"
 
-#: frontend/src/pages/Dashboard.tsx:414
+#: frontend/src/pages/Dashboard.tsx:431
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.awaitingReview"
 msgid "Awaiting review"
@@ -843,7 +852,7 @@ msgctxt "settings:setup.back"
 msgid "Back"
 msgstr "بازگشت"
 
-#: frontend/src/pages/ChannelDetail.tsx:122
+#: frontend/src/pages/ChannelDetail.tsx:133
 msgctxt "commerce:commerceHub.channelDetails.backToChannels"
 msgid "Back to Channels"
 msgstr "بازگشت به کانال‌ها"
@@ -853,7 +862,7 @@ msgctxt "workspace:densePricing.backToGrid"
 msgid "Back to Grid"
 msgstr "بازگشت به جدول"
 
-#: frontend/src/pages/CommerceHub.tsx:1531 frontend/src/pages/SourceConfiguration.tsx:1343 frontend/src/pages/SourceConfiguration.tsx:886 frontend/src/pages/SourceImportWizard.tsx:62
+#: frontend/src/pages/CommerceHub.tsx:1904 frontend/src/pages/SourceConfiguration.tsx:1343 frontend/src/pages/SourceConfiguration.tsx:886 frontend/src/pages/SourceImportWizard.tsx:62
 msgctxt "sources:sourceConfiguration.backToSources"
 msgid "Back to Sources"
 msgstr "بازگشت به منابع"
@@ -924,7 +933,7 @@ msgctxt "workspace:workspace.blocked"
 msgid "Blocked:"
 msgstr "مسدود:"
 
-#: frontend/src/pages/Dashboard.tsx:550
+#: frontend/src/pages/Dashboard.tsx:567
 msgctxt "dashboard:dashboard.blocking"
 msgid "Blocking"
 msgstr "مسدودکننده"
@@ -951,7 +960,7 @@ msgctxt "sources:sourceCenter.bringAnExistingXlsxOrCsvFile"
 msgid "Bring an existing XLSX or CSV file into FlowHub without changing the original."
 msgstr "یک فایل XLSX یا CSV موجود را بدون تغییر فایل اصلی به FlowHub بیاورید."
 
-#: frontend/src/pages/CommerceHub.tsx:1134 frontend/src/pages/CommerceHub.tsx:414
+#: frontend/src/pages/CommerceHub.tsx:1413 frontend/src/pages/CommerceHub.tsx:508
 msgctxt "commerce:commerceHub.browseNextcloud"
 msgid "Browse Nextcloud"
 msgstr "مرور Nextcloud"
@@ -1028,17 +1037,17 @@ msgctxt "workspace:workspace.csvAndGoogleSheetsAreNotAvailable"
 msgid "CSV and Google Sheets are not available in 1.0.0."
 msgstr "CSV و Google Sheets در نسخه 1.0.0 در دسترس نیستند."
 
-#: frontend/src/pages/Products.tsx:166
+#: frontend/src/pages/Products.tsx:176
 msgctxt "products:products.cachedProductsReadOnly"
 msgid "Cached products are shown read-only until inline pricing is available."
 msgstr "محصولات ذخیره‌شده در کش تا آماده‌شدن ویرایش قیمت، فقط‌خواندنی نمایش داده می‌شوند."
 
-#: frontend/src/pages/ChannelDetail.tsx:181 frontend/src/pages/Channels.tsx:428 frontend/src/pages/CommerceHub.tsx:233
+#: frontend/src/pages/ChannelDetail.tsx:200 frontend/src/pages/Channels.tsx:431 frontend/src/pages/CommerceHub.tsx:233
 msgctxt "commerce:commerceHub.cachedProducts"
 msgid "Cached products:"
 msgstr "محصولات ذخیره‌شده در کش:"
 
-#: frontend/src/pages/ChannelDetail.tsx:182 frontend/src/pages/Channels.tsx:430 frontend/src/pages/CommerceHub.tsx:234
+#: frontend/src/pages/ChannelDetail.tsx:201 frontend/src/pages/Channels.tsx:433 frontend/src/pages/CommerceHub.tsx:234
 msgctxt "commerce:commerceHub.cachedVariations"
 msgid "Cached variations:"
 msgstr "تنوع‌های ذخیره‌شده در کش:"
@@ -1116,12 +1125,12 @@ msgctxt "products:products.canonicalBusinessPrice"
 msgid "Canonical/business price"
 msgstr "قیمت مرجع کسب‌وکار"
 
-#: frontend/src/pages/Channels.tsx:429
+#: frontend/src/pages/Channels.tsx:432
 msgctxt "commerce:commerceHub.channelCapabilitiesLabel"
 msgid "Capabilities"
 msgstr "قابلیت‌ها"
 
-#: frontend/src/pages/ChannelDetail.tsx:210
+#: frontend/src/pages/ChannelDetail.tsx:229
 msgctxt "commerce:commerceHub.channelDetails.capabilities"
 msgid "Capabilities"
 msgstr "قابلیت‌ها"
@@ -1144,12 +1153,12 @@ msgctxt "diagnostics:message.capabilityApplyProtections"
 msgid "Capability advertised; FlowHub Apply protections still apply."
 msgstr "قابلیت اعلام شده است؛ حفاظت‌های اعمال FlowHub همچنان برقرارند."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:429 frontend/src/pages/Products.tsx:169
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:429 frontend/src/pages/Products.tsx:179
 msgctxt "products:column.categories"
 msgid "Categories"
 msgstr "دسته‌بندی‌ها"
 
-#: frontend/src/pages/Activity.tsx:316
+#: frontend/src/pages/Activity.tsx:451
 msgctxt "activity:activity.category"
 msgid "Category"
 msgstr "دسته"
@@ -1340,13 +1349,13 @@ msgctxt "diagnostics:message.channelConfigurationIncomplete"
 msgid "Channel configuration is incomplete."
 msgstr "پیکربندی کانال کامل نیست."
 
-#: frontend/src/pages/CommerceHub.tsx:725
+#: frontend/src/pages/CommerceHub.tsx:850
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelConfiguredSuccessfully"
 msgid "Channel configured successfully"
 msgstr "کانال با موفقیت پیکربندی شد"
 
-#: frontend/src/pages/ChannelDetail.tsx:85 frontend/src/pages/Channels.tsx:247 frontend/src/pages/CommerceHub.tsx:1368 frontend/src/pages/CommerceHub.tsx:782
+#: frontend/src/pages/ChannelDetail.tsx:96 frontend/src/pages/Channels.tsx:246 frontend/src/pages/CommerceHub.tsx:1741 frontend/src/pages/CommerceHub.tsx:997
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelConnectedSuccessfully"
 msgid "Channel connected successfully"
@@ -1369,13 +1378,13 @@ msgctxt "pricing:policyEditor.rule.targetKind.none"
 msgid "Channel default (no product or group)"
 msgstr "پیش‌فرض کانال (بدون محصول یا گروه)"
 
-#: frontend/src/pages/ChannelDetail.tsx:120 frontend/src/pages/Channels.tsx:483
+#: frontend/src/pages/ChannelDetail.tsx:131 frontend/src/pages/Channels.tsx:486
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelDetails.loadFailed"
 msgid "Channel details could not be loaded. The channel may be unavailable or you may not have access."
 msgstr "جزئیات کانال بارگذاری نشد. ممکن است کانال در دسترس نباشد یا شما دسترسی لازم را نداشته باشید."
 
-#: frontend/src/pages/ChannelDetail.tsx:119
+#: frontend/src/pages/ChannelDetail.tsx:130
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelDetails.loadFailedTitle"
 msgid "Channel details unavailable"
@@ -1396,7 +1405,7 @@ msgctxt "diagnostics:message.channelDoesNotUseWebhooks"
 msgid "Channel does not use webhooks."
 msgstr "این کانال از وب‌هوک استفاده نمی‌کند."
 
-#: frontend/src/pages/Dashboard.tsx:654
+#: frontend/src/pages/Dashboard.tsx:689
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dashboard:dashboard.channelHealth"
 msgid "Channel health"
@@ -1407,7 +1416,7 @@ msgctxt "diagnostics:message.channelHealthDerived"
 msgid "Channel health is derived from the unified diagnostics source."
 msgstr "سلامت کانال از منبع یکپارچه عیب‌یابی تعیین می‌شود."
 
-#: frontend/src/pages/Dashboard.tsx:663
+#: frontend/src/pages/Dashboard.tsx:698
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dashboard:dashboard.channelHealthUnavailable"
 msgid "Channel health unavailable"
@@ -1455,13 +1464,13 @@ msgctxt "dashboard:dashboard.channelReadiness"
 msgid "Channel readiness"
 msgstr "آمادگی کانال‌ها"
 
-#: frontend/src/pages/CommerceHub.tsx:721
+#: frontend/src/pages/CommerceHub.tsx:846
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelSettingsUpdatedSuccessfully"
 msgid "Channel settings updated successfully"
 msgstr "تنظیمات کانال با موفقیت به‌روزرسانی شد"
 
-#: frontend/src/pages/CommerceHub.tsx:947
+#: frontend/src/pages/CommerceHub.tsx:1167
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelType"
 msgid "Channel type"
@@ -1481,7 +1490,7 @@ msgctxt "activity:category.channels"
 msgid "Channels"
 msgstr "کانال‌ها"
 
-#: frontend/src/pages/ChannelDetail.tsx:145 frontend/src/pages/Channels.tsx:303 frontend/src/pages/CommerceHub.tsx:1519 frontend/src/pages/CommerceHub.tsx:1583
+#: frontend/src/pages/ChannelDetail.tsx:164 frontend/src/pages/Channels.tsx:302 frontend/src/pages/CommerceHub.tsx:1892 frontend/src/pages/CommerceHub.tsx:1956
 msgctxt "commerce:commerceHub.channels2"
 msgid "Channels"
 msgstr "کانال‌ها"
@@ -1502,7 +1511,7 @@ msgctxt "workspace:sourceCentricWorkspace.channels"
 msgid "Channels"
 msgstr "کانال‌ها"
 
-#: frontend/src/pages/ChannelDetail.tsx:166 frontend/src/pages/Channels.tsx:396
+#: frontend/src/pages/ChannelDetail.tsx:185 frontend/src/pages/Channels.tsx:395
 msgctxt "commerce:commerceHub.partialLoadDescription"
 msgid "Channels are available, but FlowHub could not load one supporting metric. Retry or open Diagnostics for details."
 msgstr "کانال‌ها در دسترس هستند، اما FlowHub نتوانست یکی از شاخص‌های کمکی را بارگذاری کند. دوباره تلاش کنید یا جزئیات را در عیب‌یابی ببینید."
@@ -1516,7 +1525,7 @@ msgctxt "sources:sourceConfiguration.channelsNotConfigured"
 msgid "Channels not configured"
 msgstr "کانال‌های تنظیم‌نشده"
 
-#: frontend/src/pages/Channels.tsx:315
+#: frontend/src/pages/Channels.tsx:314
 msgctxt "commerce:commerceHub.channelOperationalFlowHelp"
 msgid "Channels observe external state and execute approved changes. Write-enabled never bypasses preview, validation, dry run, approval, and execution controls."
 msgstr "کانال‌ها وضعیت بیرونی را مشاهده و تغییرات تأییدشده را اجرا می‌کنند. فعال‌بودن نوشتن هرگز پیش‌نمایش، اعتبارسنجی، اجرای آزمایشی، تأیید و اجرای نهایی را دور نمی‌زند."
@@ -1560,6 +1569,7 @@ msgctxt "sources:sourceConfiguration.showsWhichRowsTheSavedMappingCurrently"
 msgid "Check which file rows FlowHub recognizes as products before opening a Workspace."
 msgstr "پیش از بازکردن فضای کاری، بررسی کنید کدام ردیف‌های فایل به‌عنوان محصول شناخته می‌شوند."
 
+#: frontend/src/pages/CommerceHub.tsx:1303
 msgctxt "commerce:commerceHub.checkedPrefix"
 msgid "Checked"
 msgstr "بررسی‌شده"
@@ -1732,7 +1742,7 @@ msgctxt "sources:sourceConfiguration.channelMappingsAreIndependent"
 msgid "Choose where this Channel's product ID, price, stock, and status are read from. FlowHub never copies these choices to another Channel unless you ask it to."
 msgstr "مشخص کنید شناسه محصول، قیمت، موجودی و وضعیت این کانال از کدام ستون فایل خوانده شود. این انتخاب‌ها بدون درخواست شما برای کانال دیگری کپی نمی‌شوند."
 
-#: frontend/src/pages/CommerceHub.tsx:1157
+#: frontend/src/pages/CommerceHub.tsx:1447
 msgctxt "commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet"
 msgid "Choose whether FlowHub should read every worksheet or a single named worksheet."
 msgstr "انتخاب کنید FlowHub همه برگه‌ها را بخواند یا فقط یک برگه مشخص را."
@@ -1767,7 +1777,7 @@ msgctxt "sources:sourceCenter.clearFilters"
 msgid "Clear filters"
 msgstr "پاک کردن فیلترها"
 
-#: frontend/src/pages/Channels.tsx:365
+#: frontend/src/pages/Channels.tsx:364
 msgctxt "commerce:commerceHub.clearSearch"
 msgid "Clear search"
 msgstr "پاک کردن جستجو"
@@ -1795,7 +1805,7 @@ msgctxt "settings:setup.click"
 msgid "Click"
 msgstr "کلیک کنید"
 
-#: frontend/src/pages/Channels.tsx:486 frontend/src/pages/CommerceHub.tsx:419 frontend/src/pages/CommerceHub.tsx:935 frontend/src/pages/SourceCenter.tsx:673
+#: frontend/src/pages/Channels.tsx:489 frontend/src/pages/CommerceHub.tsx:1154 frontend/src/pages/CommerceHub.tsx:513 frontend/src/pages/SourceCenter.tsx:673
 msgctxt "commerce:commerceHub.close"
 msgid "Close"
 msgstr "بستن"
@@ -1854,7 +1864,7 @@ msgctxt "sources:sourceConfiguration.columnLetter"
 msgid "Column letter"
 msgstr "حرف ستون"
 
-#: frontend/src/pages/CommerceHub.tsx:1193
+#: frontend/src/pages/CommerceHub.tsx:1494
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "commerce:commerceHub.worksheetsMappingMovedToDataSheet"
 msgid "Column mapping and read limits now live on the Data Sheet page."
@@ -1899,7 +1909,7 @@ msgctxt "orders:orders.columns"
 msgid "Columns"
 msgstr "ستون‌ها"
 
-#: frontend/src/pages/CommerceHub.tsx:1192 frontend/src/pages/SourceConfiguration.tsx:1125 frontend/src/pages/SourceConfiguration.tsx:1192
+#: frontend/src/pages/CommerceHub.tsx:1493 frontend/src/pages/SourceConfiguration.tsx:1125 frontend/src/pages/SourceConfiguration.tsx:1192
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.channelMappings"
 msgid "Columns for each Channel"
@@ -1924,12 +1934,12 @@ msgctxt "sources:sourceConfiguration.copyPreview"
 msgid "Columns to copy"
 msgstr "ستون‌هایی که کپی می‌شوند"
 
-#: frontend/src/components/ResourceOrdering.tsx:22 frontend/src/pages/Channels.tsx:46 frontend/src/pages/SourceCenter.tsx:104
+#: frontend/src/components/ResourceOrdering.tsx:22 frontend/src/pages/Channels.tsx:48 frontend/src/pages/SourceCenter.tsx:104
 msgctxt "common:resourceBadge.comingSoon"
 msgid "Coming Soon"
 msgstr "به‌زودی"
 
-#: frontend/src/components/ResourceOrdering.tsx:14 frontend/src/components/ResourceOrdering.tsx:83 frontend/src/pages/Channels.tsx:374 frontend/src/pages/SourceCenter.tsx:440
+#: frontend/src/components/ResourceOrdering.tsx:14 frontend/src/components/ResourceOrdering.tsx:83 frontend/src/pages/Channels.tsx:373 frontend/src/pages/SourceCenter.tsx:440
 msgctxt "common:resourceGroup.comingSoon"
 msgid "Coming Soon"
 msgstr "به‌زودی"
@@ -1942,7 +1952,7 @@ msgctxt "navigation:sidebar.commerce"
 msgid "Commerce"
 msgstr "تجارت"
 
-#: frontend/src/pages/CommerceHub.tsx:1502
+#: frontend/src/pages/CommerceHub.tsx:1875
 msgctxt "commerce:commerceHub.commerceHub"
 msgid "Commerce Hub"
 msgstr "مرکز تجارت"
@@ -2022,7 +2032,7 @@ msgctxt "sources:sourceCenter.configure"
 msgid "Configure"
 msgstr "پیکربندی"
 
-#: frontend/src/pages/CommerceHub.tsx:1201 frontend/src/pages/CommerceHub.tsx:159
+#: frontend/src/pages/CommerceHub.tsx:1511 frontend/src/pages/CommerceHub.tsx:159
 msgctxt "commerce:commerceHub.configureData"
 msgid "Configure Data"
 msgstr "پیکربندی داده"
@@ -2052,13 +2062,18 @@ msgctxt "diagnostics:message.configureBeforeReachability"
 msgid "Configure the channel before checking reachability."
 msgstr "پیش از بررسی دسترسی، کانال را پیکربندی کنید."
 
-#: frontend/src/pages/CommerceHub.tsx:927
+#: frontend/src/pages/CommerceHub.tsx:1146
 msgctxt "commerce:commerceHub.configure2"
 msgid "Configure {{value1}}"
 msgstr "پیکربندی {{value1}}"
 
-#: frontend/src/pages/CommerceHub.tsx:1105 frontend/src/pages/CommerceHub.tsx:227 frontend/src/pages/CommerceHub.tsx:228
+#: frontend/src/pages/CommerceHub.tsx:1377 frontend/src/pages/CommerceHub.tsx:227 frontend/src/pages/CommerceHub.tsx:228
 msgctxt "commerce:commerceHub.configured"
+msgid "Configured"
+msgstr "پیکربندی‌شده"
+
+#: frontend/src/pages/CommerceHub.tsx:1277
+msgctxt "commerce:commerceHub.connectionConfigured"
 msgid "Configured"
 msgstr "پیکربندی‌شده"
 
@@ -2067,11 +2082,12 @@ msgctxt "common:resourceBadge.configured"
 msgid "Configured"
 msgstr "پیکربندی‌شده"
 
+#: frontend/src/pages/ChannelDetail.tsx:153 frontend/src/pages/Channels.tsx:45
 msgctxt "common:status.configured"
 msgid "Configured"
 msgstr "پیکربندی‌شده"
 
-#: frontend/src/pages/CommerceHub.tsx:864
+#: frontend/src/pages/CommerceHub.tsx:1083
 msgctxt "commerce:commerceHub.passwordConfiguredPlaceholder"
 msgid "Configured — type a new password to replace"
 msgstr ""
@@ -2080,7 +2096,7 @@ msgctxt "diagnostics:message.configuredWithoutRecentSync"
 msgid "Configured, but no recent product or order synchronization has been recorded."
 msgstr "کانال پیکربندی شده است، اما همگام‌سازی اخیر محصول یا سفارش ثبت نشده است."
 
-#: frontend/src/pages/CommerceHub.tsx:862
+#: frontend/src/pages/CommerceHub.tsx:1081
 msgctxt "commerce:commerceHub.configuredLeaveBlankToKeepUnchanged"
 msgid "Configured; leave blank to keep unchanged."
 msgstr "پیکربندی شده است؛ برای حفظ مقدار فعلی، خالی بگذارید."
@@ -2145,7 +2161,7 @@ msgctxt "dashboard:dashboard.addSourceToBuildCatalog"
 msgid "Connect a Source to build your product catalog."
 msgstr "برای ساخت فهرست محصولات، یک منبع متصل کنید."
 
-#: frontend/src/pages/Products.tsx:158
+#: frontend/src/pages/Products.tsx:164
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "products:products.connectAProductSourceFromSourcesTo"
 msgid "Connect a product source from Sources to browse products."
@@ -2157,7 +2173,7 @@ msgctxt "workspace:workspace.connectAProductSourceFromSourcesTo"
 msgid "Connect a product source from Sources to use Workspace."
 msgstr "برای استفاده از فضای کاری، یک منبع محصول را از بخش منابع متصل کنید."
 
-#: frontend/src/components/ResourceOrdering.tsx:81 frontend/src/pages/ChannelDetail.tsx:176 frontend/src/pages/Channels.tsx:44 frontend/src/pages/SourceCenter.tsx:102
+#: frontend/src/components/ResourceOrdering.tsx:81 frontend/src/pages/SourceCenter.tsx:102
 msgctxt "common:status.connected"
 msgid "Connected"
 msgstr "متصل"
@@ -2167,7 +2183,7 @@ msgctxt "settings:setup.connected"
 msgid "Connected"
 msgstr "متصل"
 
-#: frontend/src/pages/Channels.tsx:321
+#: frontend/src/pages/Channels.tsx:320
 msgctxt "commerce:commerceHub.connectedChannels"
 msgid "Connected Channels"
 msgstr "کانال‌های متصل"
@@ -2185,7 +2201,7 @@ msgctxt "common:localSourceService.connectedSuccessfully12ProductsFound"
 msgid "Connected successfully. 12 products found."
 msgstr "اتصال موفق بود. ۱۲ محصول یافت شد."
 
-#: frontend/src/pages/Channels.tsx:459
+#: frontend/src/pages/Channels.tsx:462
 msgctxt "commerce:commerceHub.channelOperationalIssue"
 msgid "Connected, but the latest health or synchronization result needs attention."
 msgstr "کانال متصل است، اما آخرین نتیجه سلامت یا همگام‌سازی نیازمند توجه است."
@@ -2207,7 +2223,7 @@ msgctxt "sources:sourceConfiguration.section.connection"
 msgid "Connection"
 msgstr "اتصال"
 
-#: frontend/src/pages/CommerceHub.tsx:1049
+#: frontend/src/pages/CommerceHub.tsx:1271
 msgctxt "commerce:commerceHub.connectionSettings"
 msgid "Connection Settings"
 msgstr "تنظیمات اتصال"
@@ -2222,7 +2238,7 @@ msgctxt "sources:sourceCenter.setupReasonConnection"
 msgid "Connection details or credentials are incomplete."
 msgstr "جزئیات اتصال یا اطلاعات ورود کامل نیست."
 
-#: frontend/src/pages/CommerceHub.tsx:772
+#: frontend/src/pages/CommerceHub.tsx:987
 msgctxt "commerce:commerceHub.connectionDetailsVerified"
 msgid "Connection details verified"
 msgstr "اطلاعات اتصال تأیید شد"
@@ -2233,6 +2249,11 @@ msgctxt "sources:sourceConfiguration.selectSpreadsheetBeforeWorksheetDetection"
 msgid "Connection is valid. Select a spreadsheet file in Source settings before detecting worksheets."
 msgstr "اتصال معتبر است. پیش از شناسایی برگه‌ها، در تنظیمات منبع یک فایل صفحه‌گسترده انتخاب کنید."
 
+#: frontend/src/pages/CommerceHub.tsx:897
+msgctxt "commerce:commerceHub.connectionSettingsSaved"
+msgid "Connection settings saved"
+msgstr "تنظیمات اتصال ذخیره شد"
+
 msgctxt "diagnostics:diagnostics.sourceSummaryHint"
 msgid "Connection status for spreadsheet and import Sources."
 msgstr "وضعیت اتصال منابع صفحه‌گسترده و ورودی‌ها."
@@ -2242,7 +2263,15 @@ msgctxt "settings:exchangeRates.testSucceeded"
 msgid "Connection succeeded"
 msgstr "اتصال موفق بود"
 
-#: frontend/src/pages/ChannelDetail.tsx:200
+msgctxt "commerce:commerceHub.connectionTestSuccessful"
+msgid "Connection successful."
+msgstr "اتصال با موفقیت برقرار شد."
+
+msgctxt "commerce:commerceHub.connectionTestSuccessfulSpreadsheet"
+msgid "Connection successful. Spreadsheet found."
+msgstr "اتصال با موفقیت برقرار شد و فایل صفحه‌گسترده پیدا شد."
+
+#: frontend/src/pages/ChannelDetail.tsx:219
 msgctxt "commerce:commerceHub.channelDetails.connectionTest"
 msgid "Connection test"
 msgstr "آزمایش اتصال"
@@ -2335,7 +2364,7 @@ msgctxt "settings:users.copyPassword"
 msgid "Copy entered password"
 msgstr "کپی رمز واردشده"
 
-#: frontend/src/pages/CommerceHub.tsx:867
+#: frontend/src/pages/CommerceHub.tsx:1086
 msgctxt "commerce:commerceHub.copyEnteredSecret"
 msgid "Copy entered secret"
 msgstr "کپی مقدار واردشده"
@@ -2395,6 +2424,11 @@ msgstr "تکمیل راه‌اندازی ممکن نشد (HTTP {{status}})"
 msgctxt "pricing:editor.loadFailed"
 msgid "Could not load the existing revision to prefill this form."
 msgstr "بازنگری موجود برای پرکردن این فرم بارگذاری نشد."
+
+#: frontend/src/pages/Activity.tsx:197
+msgctxt "activity:activity.lifecycleActionFailed"
+msgid "Could not update this event. Try again."
+msgstr "این رویداد به‌روزرسانی نشد. دوباره تلاش کنید."
 
 #: frontend/src/pages/PricingPolicyEditor.tsx:555 frontend/src/pages/PricingProductGroupEditor.tsx:256 frontend/src/pages/PricingUnitEditor.tsx:274
 msgctxt "pricing:editor.submit"
@@ -2527,7 +2561,7 @@ msgctxt "diagnostics:reason.credentials_verified"
 msgid "Credential verification passed."
 msgstr "اطلاعات ورود با موفقیت تأیید شد."
 
-#: frontend/src/pages/ChannelDetail.tsx:188
+#: frontend/src/pages/ChannelDetail.tsx:207
 msgctxt "commerce:commerceHub.channelDetails.credentials"
 msgid "Credentials"
 msgstr "اطلاعات ورود"
@@ -2544,17 +2578,17 @@ msgctxt "diagnostics:reason.credentials_incomplete"
 msgid "Credentials are not fully configured."
 msgstr "اطلاعات ورود به‌طور کامل پیکربندی نشده است."
 
-#: frontend/src/pages/ChannelDetail.tsx:189
+#: frontend/src/pages/ChannelDetail.tsx:208
 msgctxt "commerce:commerceHub.channelDetails.credentialsProtected"
 msgid "Credentials are stored server-side and are never returned to this page."
 msgstr "اطلاعات ورود در سمت سرور نگهداری می‌شود و هرگز به این صفحه بازگردانده نمی‌شود."
 
-#: frontend/src/pages/CommerceHub.tsx:930
+#: frontend/src/pages/CommerceHub.tsx:1149
 msgctxt "commerce:commerceHub.credentialsAreStoredServerSideAndNever"
 msgid "Credentials are stored server-side and never returned to this form."
 msgstr "اطلاعات ورود در سمت سرور نگهداری می‌شود و هرگز به این فرم بازگردانده نمی‌شود."
 
-#: frontend/src/pages/Channels.tsx:419
+#: frontend/src/pages/Channels.tsx:422
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.setupReasonCredentials"
 msgid "Credentials or required channel configuration are incomplete."
@@ -2564,7 +2598,7 @@ msgctxt "activity:activity.critical"
 msgid "Critical"
 msgstr "بحرانی"
 
-#: frontend/src/pages/CommerceHub.tsx:1012
+#: frontend/src/pages/CommerceHub.tsx:1232 frontend/src/pages/CommerceHub.tsx:1545
 msgctxt "commerce:commerceHub.currency"
 msgid "Currency"
 msgstr "ارز"
@@ -2603,7 +2637,7 @@ msgctxt "common:status.current"
 msgid "Current"
 msgstr "فعلی"
 
-#: frontend/src/pages/Products.tsx:169
+#: frontend/src/pages/Products.tsx:179
 #. Current is the latest verified or cached Channel value.
 msgctxt "products:column.current"
 msgid "Current"
@@ -2649,7 +2683,7 @@ msgctxt "sources:sourceConfiguration.valueType.dash"
 msgid "Dash"
 msgstr "خط تیره"
 
-#: frontend/src/pages/Dashboard.tsx:487
+#: frontend/src/pages/Dashboard.tsx:504
 msgctxt "dashboard:dashboard.dashboard"
 msgid "Dashboard"
 msgstr "داشبورد"
@@ -2675,7 +2709,7 @@ msgctxt "commerce:type.dataLayer"
 msgid "Data Layer"
 msgstr "لایه داده"
 
-#: frontend/src/pages/Channels.tsx:313 frontend/src/pages/Channels.tsx:314
+#: frontend/src/pages/Channels.tsx:312 frontend/src/pages/Channels.tsx:313
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelOperationalFlow"
 msgid "Data Layer → Workspace → Change Pipeline → Channel"
@@ -2780,7 +2814,7 @@ msgctxt "pricing:unitEditor.title"
 msgid "Declare currency unit"
 msgstr "اعلام واحد ارزی"
 
-#: frontend/src/pages/CommerceHub.tsx:1008
+#: frontend/src/pages/CommerceHub.tsx:1228 frontend/src/pages/CommerceHub.tsx:1534
 msgctxt "commerce:commerceHub.monetaryUnitDescription"
 msgid "Declare how price values are written. FlowHub never infers Rial or Toman from the amount."
 msgstr "مشخص کنید قیمت‌ها با چه واحدی نوشته شده‌اند. FlowHub هرگز ریال یا تومان را از روی بزرگی عدد حدس نمی‌زند."
@@ -2812,7 +2846,7 @@ msgctxt "commerce:commerceHub.defaultsAreSuitableForNormalSnappshopAccounts"
 msgid "Defaults are suitable for normal SnappShop accounts."
 msgstr "مقادیر پیش‌فرض برای حساب‌های عادی اسنپ شاپ مناسب‌اند."
 
-#: frontend/src/pages/CommerceHub.tsx:943
+#: frontend/src/pages/CommerceHub.tsx:1163
 msgctxt "commerce:commerceHub.defineTheConnectorTypeDisplayNameAnd"
 msgid "Define the connector type, display name, and local FlowHub state."
 msgstr "نوع اتصال‌دهنده، نام نمایشی و وضعیت محلی آن در FlowHub را مشخص کنید."
@@ -2866,7 +2900,7 @@ msgctxt "workspace:workspace.denseValidationRowsRemainScrollableButNow"
 msgid "Dense validation rows remain scrollable, but now use the shared table surface and spacing."
 msgstr "ردیف‌های فشرده اعتبارسنجی همچنان پیمایش‌پذیرند، اما اکنون از سطح و فاصله‌گذاری یکپارچه جدول استفاده می‌کنند."
 
-#: frontend/src/pages/CommerceHub.tsx:965
+#: frontend/src/pages/CommerceHub.tsx:1185
 msgctxt "commerce:commerceHub.descriptionOptional"
 msgid "Description optional"
 msgstr "توضیحات (اختیاری)"
@@ -2910,12 +2944,12 @@ msgctxt "activity:category.diagnostics"
 msgid "Diagnostics"
 msgstr "عیب‌یابی"
 
-#: frontend/src/pages/ChannelDetail.tsx:244
+#: frontend/src/pages/ChannelDetail.tsx:263
 msgctxt "commerce:commerceHub.channelDetails.diagnostics"
 msgid "Diagnostics"
 msgstr "عیب‌یابی"
 
-#: frontend/src/pages/ChannelDetail.tsx:124 frontend/src/pages/ChannelDetail.tsx:245 frontend/src/pages/Channels.tsx:399 frontend/src/pages/Channels.tsx:439 frontend/src/pages/SourceCenter.tsx:530 frontend/src/pages/SourceCenter.tsx:610 frontend/src/pages/SourceConfiguration.tsx:1330 frontend/src/pages/SourceConfiguration.tsx:895
+#: frontend/src/pages/ChannelDetail.tsx:135 frontend/src/pages/ChannelDetail.tsx:264 frontend/src/pages/Channels.tsx:398 frontend/src/pages/Channels.tsx:442 frontend/src/pages/SourceCenter.tsx:530 frontend/src/pages/SourceCenter.tsx:610 frontend/src/pages/SourceConfiguration.tsx:1330 frontend/src/pages/SourceConfiguration.tsx:895
 msgctxt "common:action.diagnostics"
 msgid "Diagnostics"
 msgstr "عیب‌یابی"
@@ -2970,7 +3004,7 @@ msgctxt "common:resourceBadge.disabled"
 msgid "Disabled"
 msgstr "غیرفعال"
 
-#: frontend/src/components/ResourceOrdering.tsx:13 frontend/src/pages/Channels.tsx:373 frontend/src/pages/SourceCenter.tsx:439
+#: frontend/src/components/ResourceOrdering.tsx:13 frontend/src/pages/Channels.tsx:372 frontend/src/pages/SourceCenter.tsx:439
 msgctxt "common:resourceGroup.disabled"
 msgid "Disabled"
 msgstr "غیرفعال"
@@ -3013,7 +3047,7 @@ msgctxt "pricing:editor.discardUnsavedChanges"
 msgid "Discard your unsaved changes?"
 msgstr "تغییرات ذخیره‌نشده کنار گذاشته شوند؟"
 
-#: frontend/src/pages/CommerceHub.tsx:961
+#: frontend/src/pages/CommerceHub.tsx:1181
 msgctxt "commerce:commerceHub.displayName"
 msgid "Display name"
 msgstr "نام نمایشی"
@@ -3060,6 +3094,10 @@ msgstr "اجرای آزمایشی"
 msgctxt "workspace:workspace.steps.dryRun"
 msgid "Dry Run"
 msgstr "اجرای آزمایشی"
+
+msgctxt "activity:event.write_dry_run_rejected"
+msgid "Dry Run rejected"
+msgstr "اجرای آزمایشی رد شد"
 
 #: frontend/src/pages/Workspace.tsx:324
 msgctxt "workspace:workspace.dryRunCompletedSuccessfully"
@@ -3218,7 +3256,7 @@ msgctxt "commerce:commerceHub.fields.tokenRefreshEnabled"
 msgid "Enable token refresh"
 msgstr "فعال‌سازی نوسازی توکن"
 
-#: frontend/src/pages/CommerceHub.tsx:989
+#: frontend/src/pages/CommerceHub.tsx:1209
 msgctxt "commerce:commerceHub.enabled"
 msgid "Enabled"
 msgstr "فعال"
@@ -3242,7 +3280,6 @@ msgctxt "settings:language.english"
 msgid "English"
 msgstr "انگلیسی"
 
-#: frontend/src/pages/CommerceHub.tsx:819
 msgctxt "commerce:commerceHub.validation.nextcloudCredentialsRequired"
 msgid "Enter Nextcloud server URL, Username, and App password / token before browsing Nextcloud."
 msgstr "پیش از مرور Nextcloud، نشانی اینترنتی سرور، نام کاربری و رمز برنامه یا توکن را وارد کنید."
@@ -3276,12 +3313,12 @@ msgctxt "pricing:productGroupEditor.membersDescription"
 msgid "Enter each canonical product identifier directly. There is no product search integrated in this release."
 msgstr "هر شناسه‌ی متعارف محصول را مستقیماً وارد کنید. جست‌وجوی محصول در این نسخه یکپارچه نشده است."
 
-#: frontend/src/pages/CommerceHub.tsx:1050
+#: frontend/src/pages/CommerceHub.tsx:1272
 msgctxt "commerce:commerceHub.enterTheCredentialsRequiredToVerifyThis"
 msgid "Enter the credentials required to verify this connection."
 msgstr "اطلاعات ورود لازم برای بررسی این اتصال را وارد کنید."
 
-#: frontend/src/pages/CommerceHub.tsx:1140
+#: frontend/src/pages/CommerceHub.tsx:1425
 msgctxt "commerce:commerceHub.spreadsheetResourceGenericHelp"
 msgid "Enter the file path or identifier this connector reads from."
 msgstr "مسیر فایل یا شناسه‌ای که این رابط از آن می‌خواند وارد کنید."
@@ -3345,7 +3382,7 @@ msgctxt "pricing:policyEditor.field.timezone"
 msgid "Evaluation timezone"
 msgstr "منطقه‌ی زمانی ارزیابی"
 
-#: frontend/src/pages/Activity.tsx:343
+#: frontend/src/pages/Activity.tsx:478
 msgctxt "activity:activity.eventsWillAppearHereAsTheSystem"
 msgid "Events will appear here as the system runs."
 msgstr "رویدادها هنگام اجرای سیستم در اینجا نمایش داده می‌شوند."
@@ -3433,7 +3470,7 @@ msgctxt "sources:sourceConfiguration.explicitZero"
 msgid "Explicit zero"
 msgstr "صفر صریح"
 
-#: frontend/src/pages/Activity.tsx:273
+#: frontend/src/pages/Activity.tsx:408
 msgctxt "activity:activity.export"
 msgid "Export"
 msgstr "خروجی"
@@ -3527,7 +3564,7 @@ msgctxt "workspace:unifiedWorkspace.filterServerData"
 msgid "Filter server data"
 msgstr "فیلتر داده‌های سرور"
 
-#: frontend/src/pages/Activity.tsx:314
+#: frontend/src/pages/Activity.tsx:449
 msgctxt "activity:activity.filters"
 msgid "Filters"
 msgstr "فیلترها"
@@ -3758,7 +3795,7 @@ msgctxt "products:column.freshness"
 msgid "Freshness"
 msgstr "تازگی"
 
-#: frontend/src/pages/Activity.tsx:317
+#: frontend/src/pages/Activity.tsx:452
 msgctxt "activity:activity.fromDate"
 msgid "From date"
 msgstr "از تاریخ"
@@ -3793,7 +3830,7 @@ msgctxt "settings:settings.currencyOption.GBP"
 msgid "GBP — British Pound"
 msgstr "GBP — پوند بریتانیا"
 
-#: frontend/src/pages/CommerceHub.tsx:942
+#: frontend/src/pages/CommerceHub.tsx:1162
 msgctxt "commerce:commerceHub.general"
 msgid "General"
 msgstr "عمومی"
@@ -3845,12 +3882,12 @@ msgctxt "pricing:channels.head.headVersion"
 msgid "Head version"
 msgstr "نسخه‌ی سر"
 
-#: frontend/src/pages/ChannelDetail.tsx:228
+#: frontend/src/pages/ChannelDetail.tsx:247
 msgctxt "commerce:commerceHub.channelDetails.health"
 msgid "Health"
 msgstr "سلامت"
 
-#: frontend/src/pages/Channels.tsx:426
+#: frontend/src/pages/Channels.tsx:429
 msgctxt "commerce:commerceHub.channelHealthLabel"
 msgid "Health"
 msgstr "سلامت"
@@ -3882,7 +3919,7 @@ msgctxt "common:resourceBadge.healthy"
 msgid "Healthy"
 msgstr "سالم"
 
-#: frontend/src/pages/Dashboard.tsx:693
+#: frontend/src/pages/ChannelDetail.tsx:149 frontend/src/pages/Channels.tsx:44 frontend/src/pages/Dashboard.tsx:728
 msgctxt "common:status.healthy"
 msgid "Healthy"
 msgstr "سالم"
@@ -3895,7 +3932,7 @@ msgctxt "sources:sourceCenter.healthy"
 msgid "Healthy"
 msgstr "به‌روز"
 
-#: frontend/src/pages/Channels.tsx:328
+#: frontend/src/pages/Channels.tsx:327
 msgctxt "commerce:commerceHub.healthyListings"
 msgid "Healthy Listings"
 msgstr "فهرست‌های سالم"
@@ -3905,7 +3942,7 @@ msgctxt "diagnostics:diagnostics.healthyServices"
 msgid "Healthy Services"
 msgstr "سرویس‌های سالم"
 
-#: frontend/src/pages/CommerceHub.tsx:866
+#: frontend/src/pages/CommerceHub.tsx:1085
 msgctxt "commerce:commerceHub.hideEnteredSecret"
 msgid "Hide entered secret"
 msgstr "پنهان‌کردن مقدار واردشده"
@@ -4010,7 +4047,7 @@ msgctxt "activity:activity.importantActivity"
 msgid "Important activity"
 msgstr "فعالیت‌های مهم"
 
-#: frontend/src/pages/Activity.tsx:270
+#: frontend/src/pages/Activity.tsx:405
 msgctxt "activity:activity.businessHistoryDescription"
 msgid "Important seller and operational events, with routine system noise kept out of the way."
 msgstr "رویدادهای مهم فروش و عملیات، بدون شلوغی رویدادهای تکراری سیستم."
@@ -4087,17 +4124,17 @@ msgctxt "settings:rateLimits.inheritedByEverySourceAndChannel"
 msgid "Inherited by every Source and Channel"
 msgstr "برای همه منابع و کانال‌ها اعمال می‌شود"
 
-#: frontend/src/pages/Products.tsx:36
+#: frontend/src/pages/Products.tsx:39
 msgctxt "products:products.inlinePricingUnavailableHttp"
 msgid "Inline pricing is unavailable (HTTP {{status}}). Cached products remain visible without editing."
 msgstr "ویرایش مستقیم قیمت در دسترس نیست (HTTP {{status}}). محصولات ذخیره‌شده در کش بدون امکان ویرایش نمایش داده می‌شوند."
 
-#: frontend/src/pages/Products.tsx:167 frontend/src/pages/Products.tsx:38
+#: frontend/src/pages/Products.tsx:177 frontend/src/pages/Products.tsx:41
 msgctxt "products:products.inlinePricingUnavailable"
 msgid "Inline pricing is unavailable. Cached products remain visible without editing."
 msgstr "ویرایش مستقیم قیمت در دسترس نیست. محصولات ذخیره‌شده در کش بدون امکان ویرایش نمایش داده می‌شوند."
 
-#: frontend/src/pages/CommerceHub.tsx:1536
+#: frontend/src/pages/CommerceHub.tsx:1909
 msgctxt "commerce:commerceHub.inputSystemsThatFeedFlowhubDataLayer"
 msgid "Input systems that feed FlowHub / Data Layer."
 msgstr "سامانه‌های ورودی که داده را به FlowHub و لایه داده می‌رسانند."
@@ -4201,7 +4238,7 @@ msgctxt "workspace:workspace.largePriceChanges"
 msgid "Large price changes"
 msgstr "تغییرات بزرگ قیمت"
 
-#: frontend/src/pages/Dashboard.tsx:157
+#: frontend/src/pages/Dashboard.tsx:164
 msgctxt "dashboard:dashboard.last30Days"
 msgid "Last 30 days"
 msgstr "۳۰ روز گذشته"
@@ -4215,7 +4252,7 @@ msgctxt "products:column.lastSync"
 msgid "Last Sync"
 msgstr "آخرین همگام‌سازی"
 
-#: frontend/src/pages/ChannelDetail.tsx:183 frontend/src/pages/Channels.tsx:427
+#: frontend/src/pages/ChannelDetail.tsx:202 frontend/src/pages/Channels.tsx:430
 msgctxt "commerce:commerceHub.channelLastActivity"
 msgid "Last activity"
 msgstr "آخرین فعالیت"
@@ -4248,12 +4285,17 @@ msgctxt "diagnostics:diagnostics.lastChecked"
 msgid "Last checked:"
 msgstr "آخرین بررسی:"
 
+#: frontend/src/pages/CommerceHub.tsx:1295
+msgctxt "commerce:commerceHub.lastConnectionTest"
+msgid "Last connection test"
+msgstr "آخرین آزمایش اتصال"
+
 #: frontend/src/pages/ExchangeRates.tsx:176
 msgctxt "settings:exchangeRates.lastError"
 msgid "Last error"
 msgstr "آخرین خطا"
 
-#: frontend/src/pages/ChannelDetail.tsx:232 frontend/src/pages/CommerceHub.tsx:130 frontend/src/pages/CommerceHub.tsx:209 frontend/src/pages/CommerceHub.tsx:222
+#: frontend/src/pages/ChannelDetail.tsx:251 frontend/src/pages/CommerceHub.tsx:130 frontend/src/pages/CommerceHub.tsx:209 frontend/src/pages/CommerceHub.tsx:222
 msgctxt "commerce:commerceHub.lastHealthCheck"
 msgid "Last health check:"
 msgstr "آخرین بررسی سلامت:"
@@ -4353,7 +4395,7 @@ msgctxt "diagnostics:diagnostics.lastAt"
 msgid "Last {{date}}"
 msgstr "آخرین {{date}}"
 
-#: frontend/src/pages/ChannelDetail.tsx:234
+#: frontend/src/pages/ChannelDetail.tsx:253
 msgctxt "commerce:commerceHub.channelDetails.latency"
 msgid "Latency"
 msgstr "زمان پاسخ"
@@ -4368,7 +4410,7 @@ msgctxt "workspace:sourceCentricWorkspace.latestChannelCache"
 msgid "Latest Channel Cache"
 msgstr "آخرین کش کانال"
 
-#: frontend/src/pages/ChannelDetail.tsx:233 frontend/src/pages/CommerceHub.tsx:241
+#: frontend/src/pages/ChannelDetail.tsx:252 frontend/src/pages/CommerceHub.tsx:241
 msgctxt "commerce:commerceHub.latestResult"
 msgid "Latest result:"
 msgstr "آخرین نتیجه:"
@@ -4447,12 +4489,12 @@ msgctxt "workspace:sourceCentricWorkspace.listingsAcross"
 msgid "Listings across"
 msgstr "لیست محصولات در"
 
-#: frontend/src/pages/Dashboard.tsx:489
+#: frontend/src/pages/Dashboard.tsx:506
 msgctxt "dashboard:dashboard.liveCommerceOverview"
 msgid "Live commerce overview"
 msgstr "نمای زنده فروش"
 
-#: frontend/src/pages/Activity.tsx:349
+#: frontend/src/pages/Activity.tsx:484
 msgctxt "activity:activity.loadMoreRemaining"
 msgid "Load more ({{value1}} remaining)"
 msgstr "بارگذاری بیشتر ({{value1}} باقی‌مانده)"
@@ -4466,7 +4508,7 @@ msgctxt "common:spinner.loading"
 msgid "Loading"
 msgstr "در حال بارگذاری"
 
-#: frontend/src/components/Topbar.tsx:79 frontend/src/pages/Dashboard.tsx:347 frontend/src/pages/Dashboard.tsx:351 frontend/src/pages/Diagnostics.tsx:108 frontend/src/pages/Diagnostics.tsx:118
+#: frontend/src/components/Topbar.tsx:79 frontend/src/pages/Dashboard.tsx:364 frontend/src/pages/Dashboard.tsx:368 frontend/src/pages/Diagnostics.tsx:108 frontend/src/pages/Diagnostics.tsx:118
 msgctxt "common:status.loading"
 msgid "Loading"
 msgstr "در حال بارگذاری"
@@ -4481,7 +4523,7 @@ msgctxt "dashboard:dashboard.loadingChannelSummary"
 msgid "Loading Channel readiness."
 msgstr "در حال بارگذاری آمادگی کانال‌ها."
 
-#: frontend/src/pages/Channels.tsx:403 frontend/src/pages/CommerceHub.tsx:1526
+#: frontend/src/pages/Channels.tsx:402 frontend/src/pages/CommerceHub.tsx:1899
 msgctxt "commerce:commerceHub.loadingCommerceHub"
 msgid "Loading Commerce Hub"
 msgstr "در حال بارگذاری مرکز تجارت"
@@ -4517,7 +4559,7 @@ msgctxt "common:app.loadingWorkspaceGrid"
 msgid "Loading Workspace Grid..."
 msgstr "در حال بارگذاری جدول فضای کاری..."
 
-#: frontend/src/pages/ChannelDetail.tsx:112 frontend/src/pages/Channels.tsx:479 frontend/src/pages/CommerceHub.tsx:917 frontend/src/pages/SourceConfiguration.tsx:1349
+#: frontend/src/pages/ChannelDetail.tsx:123 frontend/src/pages/Channels.tsx:482 frontend/src/pages/CommerceHub.tsx:1136 frontend/src/pages/SourceConfiguration.tsx:1349
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.loadingChannelConfiguration"
 msgid "Loading channel configuration"
@@ -4538,7 +4580,7 @@ msgctxt "diagnostics:diagnostics.loadingConnectors"
 msgid "Loading connectors"
 msgstr "در حال بارگذاری اتصال‌دهنده‌ها"
 
-#: frontend/src/pages/CommerceHub.tsx:425
+#: frontend/src/pages/CommerceHub.tsx:519
 msgctxt "commerce:commerceHub.loadingFiles"
 msgid "Loading files"
 msgstr "در حال بارگذاری فایل‌ها"
@@ -4576,7 +4618,7 @@ msgctxt "settings:setup.loadingSetupStatus"
 msgid "Loading setup status..."
 msgstr "در حال بارگذاری وضعیت راه‌اندازی..."
 
-#: frontend/src/pages/CommerceHub.tsx:917
+#: frontend/src/pages/CommerceHub.tsx:1136
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.loadingSourceConfiguration"
 msgid "Loading source configuration"
@@ -4596,12 +4638,12 @@ msgctxt "settings:users.loading"
 msgid "Loading users..."
 msgstr "در حال بارگذاری کاربران..."
 
-#: frontend/src/pages/Activity.tsx:339 frontend/src/pages/Activity.tsx:349
+#: frontend/src/pages/Activity.tsx:201 frontend/src/pages/Activity.tsx:474 frontend/src/pages/Activity.tsx:484
 msgctxt "activity:activity.loading"
 msgid "Loading..."
 msgstr "در حال بارگذاری..."
 
-#: frontend/src/App.tsx:100 frontend/src/App.tsx:117 frontend/src/App.tsx:128 frontend/src/App.tsx:165
+#: frontend/src/App.tsx:102 frontend/src/App.tsx:119 frontend/src/App.tsx:130 frontend/src/App.tsx:167
 msgctxt "common:app.loading"
 msgid "Loading..."
 msgstr "در حال بارگذاری..."
@@ -4657,7 +4699,7 @@ msgctxt "navigation:sidebar.main"
 msgid "Main"
 msgstr "اصلی"
 
-#: frontend/src/App.tsx:80
+#: frontend/src/App.tsx:82
 msgctxt "common:app.maintenanceMode"
 msgid "Maintenance Mode"
 msgstr "حالت نگهداری"
@@ -4680,7 +4722,7 @@ msgctxt "sources:sourceCenter.operationalSubtitle"
 msgid "Manage business data sources that feed FlowHub."
 msgstr "منابع اطلاعات کسب‌وکار که داده را وارد FlowHub می‌کنند مدیریت کنید."
 
-#: frontend/src/pages/CommerceHub.tsx:1584
+#: frontend/src/pages/CommerceHub.tsx:1957
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "commerce:commerceHub.commerceSystemsThatReceiveCatalogVisibilityFrom"
 msgid "Manage connected sales channels and listing health."
@@ -4695,7 +4737,7 @@ msgctxt "sources:sourceCenter.manageProductDataSourcesSubtitle"
 msgid "Manage product data sources and worksheet freshness."
 msgstr "منابع داده محصول و تازگی کاربرگ‌ها را مدیریت کنید."
 
-#: frontend/src/pages/Channels.tsx:304 frontend/src/pages/Channels.tsx:404
+#: frontend/src/pages/Channels.tsx:303 frontend/src/pages/Channels.tsx:403
 msgctxt "commerce:commerceHub.channelOperationalSubtitle"
 msgid "Manage sales channels connected to FlowHub."
 msgstr "کانال‌های فروش متصل به FlowHub را مدیریت کنید."
@@ -4800,7 +4842,7 @@ msgctxt "common:status.missing"
 msgid "Missing"
 msgstr "بدون داده"
 
-#: frontend/src/pages/CommerceHub.tsx:1007
+#: frontend/src/pages/CommerceHub.tsx:1227 frontend/src/pages/CommerceHub.tsx:1533
 msgctxt "commerce:commerceHub.monetaryUnit"
 msgid "Monetary unit"
 msgstr "واحد پولی"
@@ -4867,7 +4909,7 @@ msgctxt "authentication:login.contactOwner"
 msgid "Need access? Contact your workspace Owner."
 msgstr "برای دسترسی با مالک فضای کاری خود تماس بگیرید."
 
-#: frontend/src/pages/Channels.tsx:335
+#: frontend/src/pages/Channels.tsx:334
 msgctxt "commerce:commerceHub.needsAttentionKpi"
 msgid "Needs Attention"
 msgstr "نیازمند رسیدگی"
@@ -4889,7 +4931,7 @@ msgctxt "sources:sourceConfiguration.worksheetStatus.needsColumns"
 msgid "Needs column settings"
 msgstr "نیازمند تنظیم ستون‌ها"
 
-#: frontend/src/pages/Channels.tsx:372
+#: frontend/src/pages/Channels.tsx:371
 #. Review is the immutable validation result required before Apply.
 msgctxt "commerce:commerceHub.needsReview"
 msgid "Needs review"
@@ -4996,6 +5038,11 @@ msgctxt "dashboard:dashboard.recommendedAction"
 msgid "Next step"
 msgstr "گام بعدی"
 
+#: frontend/src/pages/CommerceHub.tsx:442
+msgctxt "commerce:commerceHub.connectionError.permissionDenied"
+msgid "Nextcloud accepted the credentials but denied access to the requested WebDAV path."
+msgstr "Nextcloud اعتبارنامه را پذیرفت، اما دسترسی به مسیر WebDAV درخواستی را رد کرد."
+
 msgctxt "activity:action.nextcloud_configured"
 msgid "Nextcloud configured"
 msgstr "نکست‌کلاد پیکربندی شد"
@@ -5009,12 +5056,23 @@ msgctxt "settings:settings.advancedNetworkTitle"
 msgid "Nextcloud private-network exceptions"
 msgstr ""
 
+#: frontend/src/pages/CommerceHub.tsx:441
+msgctxt "commerce:commerceHub.connectionError.authenticationRejected"
+msgid "Nextcloud rejected the username or app password."
+msgstr "Nextcloud نام کاربری یا رمز برنامه را نپذیرفت."
+
+#: frontend/src/pages/CommerceHub.tsx:449 frontend/src/pages/CommerceHub.tsx:471
+#. Review is the immutable validation result required before Apply.
+msgctxt "commerce:commerceHub.connectionError.unknown"
+msgid "Nextcloud returned an unexpected connection error. Review the server URL and try again."
+msgstr "Nextcloud خطای اتصال غیرمنتظره‌ای برگرداند. نشانی سرور را بررسی و دوباره تلاش کنید."
+
 #: frontend/src/pages/CommerceHub.tsx:295
 msgctxt "commerce:commerceHub.fields.nextcloudServerUrl"
 msgid "Nextcloud server URL"
 msgstr "نشانی اینترنتی سرور Nextcloud"
 
-#: frontend/src/pages/CommerceHub.tsx:1122
+#: frontend/src/pages/CommerceHub.tsx:1400
 msgctxt "commerce:commerceHub.nextcloudSpreadsheetFile"
 msgid "Nextcloud spreadsheet file"
 msgstr "فایل صفحه‌گسترده Nextcloud"
@@ -5084,7 +5142,7 @@ msgctxt "dashboard:dashboard.noActiveSources"
 msgid "No active Sources"
 msgstr "هیچ منبع فعالی نیست"
 
-#: frontend/src/pages/Activity.tsx:343
+#: frontend/src/pages/Activity.tsx:478
 msgctxt "activity:activity.noActivityYet"
 msgid "No activity yet"
 msgstr "هنوز فعالیتی ثبت نشده است"
@@ -5092,6 +5150,12 @@ msgstr "هنوز فعالیتی ثبت نشده است"
 msgctxt "dashboard:dashboard.noBlockingIssues"
 msgid "No blocking issues"
 msgstr "هیچ مشکل مسدودکننده‌ای وجود ندارد"
+
+#: frontend/src/pages/Products.tsx:36
+#. Channel means an external sales destination such as WooCommerce.
+msgctxt "products:products.noEligibleCachedProducts"
+msgid "No cached products are currently eligible for inline pricing. Refresh the product cache or verify the Channel configuration."
+msgstr "در حال حاضر هیچ محصول ذخیره‌شده‌ای برای قیمت‌گذاری مستقیم واجد شرایط نیست. حافظه نهان محصولات را تازه‌سازی کنید یا پیکربندی کانال را بررسی کنید."
 
 #: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:866
 msgctxt "products:products.noChange"
@@ -5118,7 +5182,7 @@ msgctxt "diagnostics:diagnostics.noChannelHealthData"
 msgid "No channel health data"
 msgstr "اطلاعات سلامت کانال وجود ندارد"
 
-#: frontend/src/pages/Channels.tsx:404
+#: frontend/src/pages/Channels.tsx:403
 msgctxt "commerce:commerceHub.noChannelsFound"
 msgid "No channels found"
 msgstr "کانالی یافت نشد"
@@ -5141,7 +5205,7 @@ msgctxt "diagnostics:diagnostics.noConnectorsConfigured"
 msgid "No connectors configured"
 msgstr "اتصال‌دهنده‌ای پیکربندی نشده است"
 
-#: frontend/src/pages/ChannelDetail.tsx:196
+#: frontend/src/pages/ChannelDetail.tsx:215
 msgctxt "commerce:commerceHub.channelDetails.noCredentialMetadata"
 msgid "No credential metadata is available."
 msgstr "اطلاعاتی درباره وضعیت ورود در دسترس نیست."
@@ -5183,7 +5247,7 @@ msgctxt "dashboard:dashboard.outOfStockEmptyExplanation"
 msgid "No enabled Listing is currently recorded with zero stock."
 msgstr "در حال حاضر هیچ آگهی فعالی با موجودی صفر ثبت نشده است."
 
-#: frontend/src/pages/Dashboard.tsx:628
+#: frontend/src/pages/Dashboard.tsx:663
 msgctxt "dashboard:dashboard.noEventsYet"
 msgid "No events yet"
 msgstr "هنوز رویدادی ثبت نشده است"
@@ -5208,6 +5272,11 @@ msgstr "هنوز بررسی سلامتی ثبت نشده است."
 msgctxt "dataQuality:dataQuality.failedDescription"
 msgid "No healthy result was assumed. Check the Source connection and try again."
 msgstr "نتیجه سالم فرض نشد. اتصال منبع را بررسی و دوباره تلاش کنید."
+
+#: frontend/src/pages/Activity.tsx:203
+msgctxt "activity:activity.noLifecycleHistory"
+msgid "No history yet."
+msgstr "هنوز تاریخچه‌ای وجود ندارد."
 
 msgctxt "diagnostics:message.noImmediateAction"
 msgid "No immediate action required."
@@ -5252,7 +5321,7 @@ msgctxt "dashboard:dashboard.noOrdersToday"
 msgid "No orders today"
 msgstr "امروز سفارشی ثبت نشده است"
 
-#: frontend/src/pages/Dashboard.tsx:604
+#: frontend/src/pages/Dashboard.tsx:639
 msgctxt "dashboard:dashboard.noOrdersYet"
 msgid "No orders yet"
 msgstr "هنوز سفارشی ثبت نشده است"
@@ -5274,7 +5343,7 @@ msgctxt "diagnostics:message.noProcessedWebhookReceipt"
 msgid "No processed webhook receipt yet."
 msgstr "هنوز وب‌هوک پردازش‌شده‌ای وجود ندارد."
 
-#: frontend/src/pages/Products.tsx:158
+#: frontend/src/pages/Products.tsx:164
 msgctxt "products:products.noProductConnectorConfigured"
 msgid "No product connector configured"
 msgstr "اتصال‌دهنده محصولی پیکربندی نشده است"
@@ -5295,7 +5364,12 @@ msgctxt "dashboard:dashboard.catalogIsEmpty"
 msgid "No products are currently available for daily work."
 msgstr "در حال حاضر محصولی برای کار روزانه در دسترس نیست."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:462 frontend/src/pages/Products.tsx:169
+#: frontend/src/pages/Products.tsx:168
+msgctxt "products:products.noCachedProductsForInlinePricing"
+msgid "No products cached for inline pricing"
+msgstr "محصولی برای قیمت‌گذاری مستقیم در حافظه نهان نیست"
+
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:462 frontend/src/pages/Products.tsx:179
 msgctxt "products:products.noProductsFound"
 msgid "No products found"
 msgstr "محصولی پیدا نشد"
@@ -5316,7 +5390,7 @@ msgctxt "diagnostics:diagnostics.noQueueDelay"
 msgid "No queued request is delaying the next action."
 msgstr "هیچ درخواست صف‌شده‌ای اقدام بعدی را به تأخیر نمی‌اندازد."
 
-#: frontend/src/pages/ChannelDetail.tsx:183 frontend/src/pages/Channels.tsx:427 frontend/src/pages/Channels.tsx:453
+#: frontend/src/pages/ChannelDetail.tsx:202 frontend/src/pages/Channels.tsx:430 frontend/src/pages/Channels.tsx:456
 msgctxt "commerce:commerceHub.noRecentActivity"
 msgid "No recent activity"
 msgstr "فعالیت تازه‌ای ثبت نشده"
@@ -5362,7 +5436,12 @@ msgctxt "dashboard:dashboard.noSourcesYet"
 msgid "No sources yet"
 msgstr "هنوز منبعی اضافه نشده است"
 
-#: frontend/src/pages/CommerceHub.tsx:461
+#: frontend/src/pages/CommerceHub.tsx:1404
+msgctxt "commerce:commerceHub.noSpreadsheetFileSelected"
+msgid "No spreadsheet file selected"
+msgstr "هیچ فایل صفحه‌گسترده‌ای انتخاب نشده است"
+
+#: frontend/src/pages/CommerceHub.tsx:555
 msgctxt "commerce:commerceHub.noSpreadsheetFilesInThisFolder"
 msgid "No spreadsheet files in this folder."
 msgstr "در این پوشه فایل صفحه‌گسترده‌ای وجود ندارد."
@@ -5429,6 +5508,11 @@ msgctxt "common:status.none"
 msgid "None"
 msgstr "هیچ‌کدام"
 
+#: frontend/src/pages/Dashboard.tsx:598
+msgctxt "dashboard:dashboard.noOpenBusinessEvents"
+msgid "None"
+msgstr "هیچ‌کدام"
+
 msgctxt "sources:sourceConfiguration.detail.normalization"
 msgid "Normalization"
 msgstr "نرمال‌سازی"
@@ -5449,7 +5533,7 @@ msgctxt "diagnostics:state.not_applicable"
 msgid "Not applicable"
 msgstr "کاربرد ندارد"
 
-#: frontend/src/pages/ChannelDetail.tsx:232 frontend/src/pages/CommerceHub.tsx:130 frontend/src/pages/CommerceHub.tsx:209 frontend/src/pages/CommerceHub.tsx:222
+#: frontend/src/pages/ChannelDetail.tsx:251 frontend/src/pages/CommerceHub.tsx:130 frontend/src/pages/CommerceHub.tsx:209 frontend/src/pages/CommerceHub.tsx:222
 msgctxt "commerce:commerceHub.notChecked"
 msgid "Not checked"
 msgstr "بررسی‌نشده"
@@ -5468,7 +5552,12 @@ msgctxt "diagnostics:state.not_checked"
 msgid "Not checked yet"
 msgstr "هنوز بررسی نشده"
 
-#: frontend/src/pages/CommerceHub.tsx:1001 frontend/src/pages/CommerceHub.tsx:1105 frontend/src/pages/CommerceHub.tsx:227 frontend/src/pages/CommerceHub.tsx:228
+#: frontend/src/pages/CommerceHub.tsx:1280
+msgctxt "commerce:commerceHub.connectionNotConfigured"
+msgid "Not configured"
+msgstr "پیکربندی‌نشده"
+
+#: frontend/src/pages/CommerceHub.tsx:1221 frontend/src/pages/CommerceHub.tsx:1377 frontend/src/pages/CommerceHub.tsx:227 frontend/src/pages/CommerceHub.tsx:228
 msgctxt "commerce:commerceHub.notConfigured2"
 msgid "Not configured"
 msgstr "پیکربندی‌نشده"
@@ -5487,7 +5576,7 @@ msgctxt "sources:sourceConfiguration.notConfigured"
 msgid "Not configured"
 msgstr "پیکربندی‌نشده"
 
-#: frontend/src/pages/Dashboard.tsx:592
+#: frontend/src/pages/Dashboard.tsx:627
 msgctxt "dashboard:dashboard.notEnoughOrderData"
 msgid "Not enough order data"
 msgstr "داده سفارش کافی نیست"
@@ -5506,7 +5595,7 @@ msgctxt "commerce:commerceHub.notRead"
 msgid "Not read"
 msgstr "خوانده‌نشده"
 
-#: frontend/src/pages/Dashboard.tsx:102
+#: frontend/src/pages/Dashboard.tsx:109 frontend/src/pages/Dashboard.tsx:592
 msgctxt "common:status.notRead"
 msgid "Not read"
 msgstr "خوانده نشده"
@@ -5538,6 +5627,11 @@ msgstr "اجرا نشده"
 msgctxt "pricing:channels.value.none"
 msgid "Not set"
 msgstr "تنظیم‌نشده"
+
+#: frontend/src/pages/CommerceHub.tsx:1307
+msgctxt "commerce:commerceHub.notTested"
+msgid "Not tested"
+msgstr "آزمایش نشده"
 
 #. Current is the latest verified or cached Channel value.
 msgctxt "dashboard:dashboard.blockingIssuesEmptyExplanation"
@@ -5571,6 +5665,11 @@ msgstr "آفلاین"
 msgctxt "sources:sourceConfiguration.legacyMappingDetected"
 msgid "Older column setup found"
 msgstr "تنظیم قدیمی ستون‌ها پیدا شد"
+
+#: frontend/src/pages/Dashboard.tsx:597
+msgctxt "dashboard:dashboard.oldestOpenBusinessEvent"
+msgid "Oldest open event"
+msgstr "قدیمی‌ترین رویداد باز"
 
 #: frontend/src/pages/AdvancedSettings.tsx:100 frontend/src/pages/AdvancedSettings.tsx:63
 msgctxt "settings:settings.advancedNetworkValidationHint"
@@ -5616,7 +5715,16 @@ msgctxt "workspace:densePricing.confirmApplyScope"
 msgid "Only {{count}} checksum-bound, Reviewed field changes will enter the shared Write Pipeline."
 msgstr "فقط {{count}} تغییر فیلد بازبینی‌شده و متصل به چک‌سام انتخاب، وارد خط نوشتن مشترک می‌شود."
 
-#: frontend/src/pages/Channels.tsx:435
+#: frontend/src/pages/Activity.tsx:245
+msgctxt "activity:activity.openScreen"
+msgid "Open"
+msgstr "باز کردن"
+
+msgctxt "activity:activity.statusOpen"
+msgid "Open"
+msgstr "باز"
+
+#: frontend/src/pages/Channels.tsx:438
 msgctxt "common:action.open"
 msgid "Open"
 msgstr "باز کردن"
@@ -5629,6 +5737,16 @@ msgstr "باز کردن"
 msgctxt "dashboard:dashboard.openActivity"
 msgid "Open Activity"
 msgstr "مشاهده فعالیت‌ها"
+
+#: frontend/src/pages/Products.tsx:168 frontend/src/pages/Products.tsx:176
+msgctxt "products:products.openChannels"
+msgid "Open Channels"
+msgstr "باز کردن کانال‌ها"
+
+#: frontend/src/pages/Products.tsx:168
+msgctxt "products:products.refreshProductCacheInChannels"
+msgid "Open Channels and refresh the product cache, then return here."
+msgstr "بخش کانال‌ها را باز کنید و حافظه نهان محصولات را تازه‌سازی کنید، سپس به این صفحه برگردید."
 
 msgctxt "dashboard:dashboard.openDataQuality"
 msgid "Open Data Quality"
@@ -5678,7 +5796,7 @@ msgctxt "diagnostics:diagnostics.openSources"
 msgid "Open Sources"
 msgstr "بازکردن منابع"
 
-#: frontend/src/pages/Products.tsx:158
+#: frontend/src/pages/Products.tsx:164
 msgctxt "products:products.openSources"
 msgid "Open Sources"
 msgstr "بازکردن منابع"
@@ -5697,7 +5815,12 @@ msgctxt "sources:sourceConfiguration.openWorkspace"
 msgid "Open Workspace"
 msgstr "بازکردن فضای کاری"
 
-#: frontend/src/pages/ChannelDetail.tsx:157
+#: frontend/src/pages/Dashboard.tsx:585
+msgctxt "dashboard:dashboard.businessEventsOpen"
+msgid "Open business events"
+msgstr "رویدادهای کسب‌وکار باز"
+
+#: frontend/src/pages/ChannelDetail.tsx:176
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.openChannel"
 msgid "Open channel"
@@ -5720,7 +5843,7 @@ msgctxt "products:products.operation"
 msgid "Operation"
 msgstr "عملیات"
 
-#: frontend/src/pages/Dashboard.tsx:481
+#: frontend/src/pages/Dashboard.tsx:498
 msgctxt "common:status.operational"
 msgid "Operational"
 msgstr "عملیاتی"
@@ -5806,7 +5929,7 @@ msgctxt "activity:event.order_synchronized"
 msgid "Order synchronized"
 msgstr "سفارش همگام شد"
 
-#: frontend/src/pages/Activity.tsx:356
+#: frontend/src/pages/Activity.tsx:491
 msgctxt "activity:activity.orderSyncs"
 msgid "Order syncs"
 msgstr "همگام‌سازی سفارش‌ها"
@@ -5824,12 +5947,12 @@ msgctxt "orders:orders.orders"
 msgid "Orders"
 msgstr "سفارش‌ها"
 
-#: frontend/src/pages/Channels.tsx:346
+#: frontend/src/pages/Channels.tsx:345
 msgctxt "commerce:commerceHub.ordersToday"
 msgid "Orders Today"
 msgstr "سفارش‌های امروز"
 
-#: frontend/src/pages/Dashboard.tsx:532
+#: frontend/src/pages/Dashboard.tsx:549
 msgctxt "dashboard:dashboard.ordersTodayLabel"
 msgid "Orders Today"
 msgstr "سفارش‌های امروز"
@@ -5838,12 +5961,12 @@ msgctxt "dashboard:dashboard.ordersAndRevenueToday"
 msgid "Orders and revenue today"
 msgstr "سفارش‌ها و درآمد امروز"
 
-#: frontend/src/pages/Dashboard.tsx:605
+#: frontend/src/pages/Dashboard.tsx:640
 msgctxt "dashboard:dashboard.ordersAppearAfterSync"
 msgid "Orders appear here once Channels synchronize."
 msgstr "پس از همگام‌سازی کانال‌ها، سفارش‌ها اینجا نمایش داده می‌شوند."
 
-#: frontend/src/pages/Dashboard.tsx:223 frontend/src/pages/Dashboard.tsx:597
+#: frontend/src/pages/Dashboard.tsx:230 frontend/src/pages/Dashboard.tsx:632
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dashboard:dashboard.ordersByChannel"
 msgid "Orders by channel"
@@ -5896,7 +6019,7 @@ msgctxt "settings:rateLimits.overrides"
 msgid "Overrides"
 msgstr "استثناها"
 
-#: frontend/src/pages/ChannelDetail.tsx:174
+#: frontend/src/pages/ChannelDetail.tsx:193
 msgctxt "commerce:commerceHub.channelDetails.overview"
 msgid "Overview"
 msgstr "نمای کلی"
@@ -5999,7 +6122,7 @@ msgctxt "pricing:rateMode.percent_bp"
 msgid "Percent (basis points)"
 msgstr "درصد (نقطه‌ی پایه)"
 
-#: frontend/src/pages/Activity.tsx:358
+#: frontend/src/pages/Activity.tsx:493
 msgctxt "activity:activity.permissionChanges"
 msgid "Permission changes"
 msgstr "تغییرات دسترسی"
@@ -6018,7 +6141,7 @@ msgctxt "common:status.planned"
 msgid "Planned"
 msgstr "برنامه‌ریزی‌شده"
 
-#: frontend/src/pages/CommerceHub.tsx:998
+#: frontend/src/pages/CommerceHub.tsx:1218
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.plannedChannel"
 msgid "Planned channel"
@@ -6029,13 +6152,13 @@ msgctxt "commerce:capability.plannedChannelUnavailableIn1_0_0"
 msgid "Planned channel unavailable"
 msgstr "کانال برنامه‌ریزی‌شده در دسترس نیست"
 
-#: frontend/src/pages/CommerceHub.tsx:998
+#: frontend/src/pages/CommerceHub.tsx:1218
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.plannedSource"
 msgid "Planned source"
 msgstr "منبع برنامه‌ریزی‌شده"
 
-#: frontend/src/pages/CommerceHub.tsx:738
+#: frontend/src/pages/CommerceHub.tsx:863 frontend/src/pages/CommerceHub.tsx:905 frontend/src/pages/CommerceHub.tsx:943
 #. Review is the immutable validation result required before Apply.
 msgctxt "commerce:commerceHub.pleaseReviewYourChangesAndTryAgain"
 msgid "Please review your changes and try again."
@@ -6050,7 +6173,7 @@ msgctxt "errors:codes.AUTHENTICATION_REQUIRED"
 msgid "Please sign in to continue."
 msgstr "برای ادامه وارد شوید."
 
-#: frontend/src/pages/Channels.tsx:285 frontend/src/pages/Channels.tsx:292 frontend/src/pages/Channels.tsx:484 frontend/src/pages/CommerceHub.tsx:1315 frontend/src/pages/CommerceHub.tsx:1407 frontend/src/pages/CommerceHub.tsx:1414 frontend/src/pages/CommerceHub.tsx:608 frontend/src/pages/SourceConfiguration.tsx:676 frontend/src/pages/SourceConfiguration.tsx:682
+#: frontend/src/pages/Channels.tsx:284 frontend/src/pages/Channels.tsx:291 frontend/src/pages/Channels.tsx:487 frontend/src/pages/CommerceHub.tsx:1690 frontend/src/pages/CommerceHub.tsx:1780 frontend/src/pages/CommerceHub.tsx:1787 frontend/src/pages/CommerceHub.tsx:730 frontend/src/pages/SourceConfiguration.tsx:676 frontend/src/pages/SourceConfiguration.tsx:682
 msgctxt "commerce:commerceHub.pleaseTryAgain"
 msgid "Please try again."
 msgstr "دوباره تلاش کنید."
@@ -6075,7 +6198,7 @@ msgctxt "sources:sourceConfiguration.tryAgain"
 msgid "Please try again."
 msgstr "لطفاً دوباره تلاش کنید."
 
-#: frontend/src/pages/ChannelDetail.tsx:91 frontend/src/pages/ChannelDetail.tsx:98 frontend/src/pages/Channels.tsx:255 frontend/src/pages/Channels.tsx:262 frontend/src/pages/CommerceHub.tsx:1345 frontend/src/pages/CommerceHub.tsx:1351 frontend/src/pages/CommerceHub.tsx:1375 frontend/src/pages/CommerceHub.tsx:1381 frontend/src/pages/CommerceHub.tsx:682 frontend/src/pages/CommerceHub.tsx:693 frontend/src/pages/CommerceHub.tsx:791 frontend/src/pages/CommerceHub.tsx:801 frontend/src/pages/SourceConfiguration.tsx:621
+#: frontend/src/pages/ChannelDetail.tsx:102 frontend/src/pages/ChannelDetail.tsx:109 frontend/src/pages/Channels.tsx:254 frontend/src/pages/Channels.tsx:261 frontend/src/pages/CommerceHub.tsx:1006 frontend/src/pages/CommerceHub.tsx:1018 frontend/src/pages/CommerceHub.tsx:1748 frontend/src/pages/CommerceHub.tsx:1754 frontend/src/pages/SourceConfiguration.tsx:621
 msgctxt "commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain"
 msgid "Please verify your credentials and try again."
 msgstr "اطلاعات ورود را بررسی کرده و دوباره تلاش کنید."
@@ -6251,7 +6374,7 @@ msgctxt "workspace:unifiedWorkspace.priceRange"
 msgid "Price range"
 msgstr "محدوده قیمت"
 
-#: frontend/src/pages/CommerceHub.tsx:1028
+#: frontend/src/pages/CommerceHub.tsx:1248 frontend/src/pages/CommerceHub.tsx:1561
 msgctxt "commerce:commerceHub.currencyUnit"
 msgid "Price unit"
 msgstr "واحد قیمت"
@@ -6300,12 +6423,12 @@ msgctxt "settings:settings.pricingUnit"
 msgid "Pricing unit"
 msgstr "واحد قیمت‌گذاری"
 
-#: frontend/src/pages/Dashboard.tsx:568
+#: frontend/src/pages/Dashboard.tsx:603
 msgctxt "dashboard:dashboard.pricingWorkflow"
 msgid "Pricing workflow"
 msgstr "فرایند قیمت‌گذاری"
 
-#: frontend/src/pages/Products.tsx:109
+#: frontend/src/pages/Products.tsx:114
 msgctxt "products:products.pricingWorkspace"
 msgid "Pricing workspace"
 msgstr "فضای کاری قیمت‌گذاری"
@@ -6326,7 +6449,7 @@ msgctxt "dataQuality:dataQuality.product"
 msgid "Product"
 msgstr "محصول"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:450 frontend/src/pages/Products.tsx:169
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:450 frontend/src/pages/Products.tsx:179
 msgctxt "products:column.product"
 msgid "Product"
 msgstr "محصول"
@@ -6359,17 +6482,17 @@ msgctxt "diagnostics:dimension.productCache"
 msgid "Product cache"
 msgstr "کش محصولات"
 
-#: frontend/src/pages/Channels.tsx:279 frontend/src/pages/CommerceHub.tsx:1399
+#: frontend/src/pages/Channels.tsx:278 frontend/src/pages/CommerceHub.tsx:1772
 msgctxt "commerce:commerceHub.productCacheRefreshedSuccessfully"
 msgid "Product cache refreshed successfully"
 msgstr "کش محصولات با موفقیت به‌روزرسانی شد"
 
-#: frontend/src/pages/Products.tsx:158
+#: frontend/src/pages/Products.tsx:164 frontend/src/pages/Products.tsx:168
 msgctxt "products:products.productCatalog"
 msgid "Product catalog"
 msgstr "فهرست محصولات"
 
-#: frontend/src/pages/Activity.tsx:355
+#: frontend/src/pages/Activity.tsx:490
 msgctxt "activity:activity.productChanges"
 msgid "Product changes"
 msgstr "تغییرات محصول"
@@ -6529,7 +6652,7 @@ msgctxt "navigation:topbar.products"
 msgid "Products"
 msgstr "محصولات"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:348 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:19 frontend/src/pages/Products.tsx:158 frontend/src/pages/Products.tsx:166
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:348 frontend/src/features/sourceWorkspace/PricingWorkspaceStartup.tsx:19 frontend/src/pages/Products.tsx:164 frontend/src/pages/Products.tsx:168 frontend/src/pages/Products.tsx:176
 msgctxt "products:products.products"
 msgid "Products"
 msgstr "محصولات"
@@ -6539,7 +6662,7 @@ msgctxt "sources:sourceCenter.productsImported"
 msgid "Products Imported"
 msgstr "محصولات واردشده"
 
-#: frontend/src/pages/Dashboard.tsx:511
+#: frontend/src/pages/Dashboard.tsx:528
 msgctxt "dashboard:dashboard.productsReady"
 msgid "Products Ready"
 msgstr "محصولات آماده"
@@ -6747,7 +6870,7 @@ msgctxt "commerce:commerceHub.readNow"
 msgid "Read now"
 msgstr "اکنون بخوان"
 
-#: frontend/src/pages/ChannelDetail.tsx:135 frontend/src/pages/Channels.tsx:412 frontend/src/pages/CommerceHub.tsx:972
+#: frontend/src/pages/ChannelDetail.tsx:146 frontend/src/pages/Channels.tsx:415 frontend/src/pages/CommerceHub.tsx:1192
 msgctxt "commerce:commerceHub.readOnly2"
 msgid "Read only"
 msgstr "فقط‌خواندنی"
@@ -6823,7 +6946,7 @@ msgctxt "commerce:commerceHub.readsRemaining"
 msgid "Reads remaining:"
 msgstr "خواندن باقی‌مانده:"
 
-#: frontend/src/pages/Dashboard.tsx:423 frontend/src/pages/SourceConfiguration.tsx:1290 frontend/src/pages/SourceConfiguration.tsx:993
+#: frontend/src/pages/Dashboard.tsx:440 frontend/src/pages/SourceConfiguration.tsx:1290 frontend/src/pages/SourceConfiguration.tsx:993
 msgctxt "common:status.ready"
 msgid "Ready"
 msgstr "آماده"
@@ -6901,7 +7024,7 @@ msgctxt "dashboard:dashboard.activityListMeaning"
 msgid "Recent actions that may require seller follow-up."
 msgstr "اقدام‌های اخیر که ممکن است به پیگیری فروشنده نیاز داشته باشند."
 
-#: frontend/src/pages/Dashboard.tsx:615
+#: frontend/src/pages/Dashboard.tsx:650
 msgctxt "dashboard:dashboard.recentActivity"
 msgid "Recent activity"
 msgstr "فعالیت‌های اخیر"
@@ -6926,6 +7049,11 @@ msgstr "شناسایی"
 msgctxt "sources:sourceCenter.recommended"
 msgid "Recommended"
 msgstr "پیشنهادی"
+
+#: frontend/src/pages/Activity.tsx:252
+msgctxt "activity:activity.recommendedAction"
+msgid "Recommended action"
+msgstr "اقدام پیشنهادی"
 
 msgctxt "dataQuality:dataQuality.recommendedAction"
 msgid "Recommended action:"
@@ -7001,7 +7129,7 @@ msgctxt "diagnostics:diagnostics.refresh"
 msgid "Refresh"
 msgstr "تازه‌سازی"
 
-#: frontend/src/pages/Channels.tsx:437 frontend/src/pages/CommerceHub.tsx:284
+#: frontend/src/pages/Channels.tsx:440 frontend/src/pages/CommerceHub.tsx:284
 msgctxt "commerce:commerceHub.refreshCache"
 msgid "Refresh cache"
 msgstr "به‌روزرسانی کش"
@@ -7039,7 +7167,7 @@ msgctxt "settings:exchangeRates.refreshesPerDay"
 msgid "Refreshes per day"
 msgstr "بازخوانی در روز"
 
-#: frontend/src/pages/Channels.tsx:437 frontend/src/pages/CommerceHub.tsx:284
+#: frontend/src/pages/Channels.tsx:440 frontend/src/pages/CommerceHub.tsx:284
 msgctxt "commerce:commerceHub.refreshing"
 msgid "Refreshing"
 msgstr "در حال به‌روزرسانی"
@@ -7058,7 +7186,7 @@ msgctxt "settings:settings.regionalDefaultsUsedAcrossSellerWorkflows"
 msgid "Regional defaults used across seller workflows."
 msgstr "این تنظیمات در همه فرایندهای فروش استفاده می‌شود."
 
-#: frontend/src/pages/CommerceHub.tsx:1098
+#: frontend/src/pages/CommerceHub.tsx:1370
 msgctxt "commerce:commerceHub.registerThisUrlInTapsishopTheWebhook"
 msgid "Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token."
 msgstr "این نشانی اینترنتی را در تپ‌سی شاپ ثبت کنید. اطلاعات ورود webhook جدا از توکن API خروجی نگهداری می‌شود."
@@ -7161,10 +7289,19 @@ msgctxt "products:products.resetRowChanges"
 msgid "Reset row changes"
 msgstr "بازنشانی تغییرات ردیف"
 
+#: frontend/src/pages/Activity.tsx:190
+msgctxt "activity:activity.resolve"
+msgid "Resolve"
+msgstr "برطرف شد"
+
 #: frontend/src/pages/DataQuality.tsx:190
 msgctxt "dataQuality:dataQuality.resolveIssuesBlockingReliableCommerceData"
 msgid "Resolve issues blocking reliable commerce data."
 msgstr "مشکلاتی که مانع قابل‌اعتماد بودن داده‌های فروش می‌شوند را برطرف کنید."
+
+msgctxt "activity:activity.statusResolved"
+msgid "Resolved"
+msgstr "برطرف شده"
 
 #: frontend/src/pages/PricingUnitEditor.tsx:260
 msgctxt "pricing:unitStatus.resolved"
@@ -7188,7 +7325,7 @@ msgctxt "workspace:densePricing.resultingValue"
 msgid "Resulting value"
 msgstr "مقدار نهایی"
 
-#: frontend/src/pages/Activity.tsx:330 frontend/src/pages/ChannelDetail.tsx:123 frontend/src/pages/ChannelDetail.tsx:167 frontend/src/pages/Channels.tsx:386 frontend/src/pages/Channels.tsx:398 frontend/src/pages/Channels.tsx:494 frontend/src/pages/Orders.tsx:352 frontend/src/pages/Orders.tsx:404 frontend/src/pages/Settings.tsx:145 frontend/src/pages/SourceCenter.tsx:517 frontend/src/pages/SourceCenter.tsx:529 frontend/src/pages/SourceConfiguration.tsx:1114 frontend/src/pages/SourceConfiguration.tsx:1349 frontend/src/pages/SourceConfiguration.tsx:890
+#: frontend/src/pages/Activity.tsx:465 frontend/src/pages/ChannelDetail.tsx:134 frontend/src/pages/ChannelDetail.tsx:186 frontend/src/pages/Channels.tsx:385 frontend/src/pages/Channels.tsx:397 frontend/src/pages/Channels.tsx:497 frontend/src/pages/Orders.tsx:352 frontend/src/pages/Orders.tsx:404 frontend/src/pages/Settings.tsx:145 frontend/src/pages/SourceCenter.tsx:517 frontend/src/pages/SourceCenter.tsx:529 frontend/src/pages/SourceConfiguration.tsx:1114 frontend/src/pages/SourceConfiguration.tsx:1349 frontend/src/pages/SourceConfiguration.tsx:890
 msgctxt "common:action.retry"
 msgid "Retry"
 msgstr "تلاش دوباره"
@@ -7216,7 +7353,7 @@ msgctxt "orders:orders.retryFailed"
 msgid "Retry failed"
 msgstr "تلاش دوباره برای موارد ناموفق"
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:338 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:372 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:373 frontend/src/pages/Products.tsx:166 frontend/src/pages/Products.tsx:169
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:338 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:372 frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:373 frontend/src/pages/Products.tsx:176 frontend/src/pages/Products.tsx:179
 msgctxt "products:products.retryInlinePricing"
 msgid "Retry inline pricing"
 msgstr "تلاش دوباره برای ویرایش قیمت‌ها"
@@ -7247,22 +7384,22 @@ msgctxt "common:notFound.returnToDashboard"
 msgid "Return to Dashboard"
 msgstr "بازگشت به داشبورد"
 
-#: frontend/src/pages/Dashboard.tsx:593
+#: frontend/src/pages/Dashboard.tsx:628
 msgctxt "dashboard:dashboard.revenueAppearsAfterSync"
 msgid "Revenue appears here once orders synchronize."
 msgstr "پس از همگام‌سازی سفارش‌ها، درآمد اینجا نمایش داده می‌شود."
 
-#: frontend/src/pages/Dashboard.tsx:349
+#: frontend/src/pages/Dashboard.tsx:366
 msgctxt "dashboard:dashboard.revenueUnavailable"
 msgid "Revenue is unavailable"
 msgstr "درآمد در دسترس نیست"
 
-#: frontend/src/pages/Dashboard.tsx:544
+#: frontend/src/pages/Dashboard.tsx:561
 msgctxt "dashboard:dashboard.revenueToday"
 msgid "Revenue today"
 msgstr "درآمد امروز"
 
-#: frontend/src/pages/Dashboard.tsx:190 frontend/src/pages/Dashboard.tsx:585
+#: frontend/src/pages/Dashboard.tsx:197 frontend/src/pages/Dashboard.tsx:620
 msgctxt "dashboard:dashboard.revenueTrend"
 msgid "Revenue trend"
 msgstr "روند درآمد"
@@ -7272,7 +7409,7 @@ msgctxt "activity:category.review"
 msgid "Review"
 msgstr "بازبینی"
 
-#: frontend/src/pages/Channels.tsx:340
+#: frontend/src/pages/Channels.tsx:339
 #. Review is the immutable validation result required before Apply.
 msgctxt "commerce:commerceHub.reviewCaption"
 msgid "Review"
@@ -7311,7 +7448,7 @@ msgctxt "dashboard:dashboard.reviewChannelHealth"
 msgid "Review Channel health before publishing."
 msgstr "پیش از انتشار، سلامت کانال‌ها را بررسی کنید."
 
-#: frontend/src/pages/Dashboard.tsx:518
+#: frontend/src/pages/Dashboard.tsx:535
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.reviewRequired"
 msgid "Review Required"
@@ -7474,7 +7611,7 @@ msgctxt "dashboard:dashboard.reviewWarnings"
 msgid "Review warnings before publishing affected products."
 msgstr "پیش از انتشار محصولات درگیر، هشدارها را بررسی کنید."
 
-#: frontend/src/pages/Dashboard.tsx:497
+#: frontend/src/pages/Dashboard.tsx:514
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.reviewChangesButton"
 msgid "Review {{value}} change"
@@ -7507,7 +7644,7 @@ msgctxt "commerce:commerceHub.fields.revokeCurrentToken"
 msgid "Revoke current token after refresh"
 msgstr "ابطال توکن فعلی پس از نوسازی"
 
-#: frontend/src/pages/CommerceHub.tsx:1037
+#: frontend/src/pages/CommerceHub.tsx:1257 frontend/src/pages/CommerceHub.tsx:1570
 msgctxt "commerce:commerceHub.rial"
 msgid "Rial"
 msgstr "ریال"
@@ -7566,7 +7703,7 @@ msgctxt "pricing:policyEditor.field.roundOrder"
 msgid "Rounding order"
 msgstr "ترتیب گِردکردن"
 
-#: frontend/src/pages/Activity.tsx:346
+#: frontend/src/pages/Activity.tsx:481
 msgctxt "activity:activity.routineSystemActivity"
 msgid "Routine system activity"
 msgstr "فعالیت‌های تکراری سیستم"
@@ -7611,7 +7748,7 @@ msgctxt "orders:orders.runReadOnlySync"
 msgid "Run a read-only synchronization to import marketplace orders."
 msgstr "برای دریافت سفارش‌های بازارگاه، همگام‌سازی فقط‌خواندنی را اجرا کنید."
 
-#: frontend/src/pages/ChannelDetail.tsx:201
+#: frontend/src/pages/ChannelDetail.tsx:220
 msgctxt "commerce:commerceHub.channelDetails.connectionHelp"
 msgid "Run an explicit provider check without changing external business data."
 msgstr "بدون تغییر داده‌های کسب‌وکار در سیستم بیرونی، اتصال ارائه‌دهنده را صریحاً بررسی کنید."
@@ -7646,7 +7783,7 @@ msgctxt "common:status.running"
 msgid "Running"
 msgstr "در حال اجرا"
 
-#: frontend/src/pages/Products.tsx:169
+#: frontend/src/pages/Products.tsx:179
 msgctxt "products:column.sku"
 msgid "SKU"
 msgstr "شناسه کالا"
@@ -7679,6 +7816,16 @@ msgctxt "settings:rateLimits.saveChanges"
 msgid "Save Changes"
 msgstr "ذخیره تغییرات"
 
+#: frontend/src/pages/CommerceHub.tsx:1036
+msgctxt "commerce:commerceHub.validation.saveConnectionBeforeBrowsing"
+msgid "Save Connection Settings before browsing Nextcloud."
+msgstr "پیش از مرور Nextcloud، تنظیمات اتصال را ذخیره کنید."
+
+#: frontend/src/pages/CommerceHub.tsx:1418
+msgctxt "commerce:commerceHub.lockedUntilConnectionSaved"
+msgid "Save Connection Settings to unlock Nextcloud file selection."
+msgstr "برای فعال شدن انتخاب فایل Nextcloud، تنظیمات اتصال را ذخیره کنید."
+
 #: frontend/src/pages/UnifiedWorkspace.tsx:205
 #. Draft is a saved immutable revision of proposed changes.
 msgctxt "workspace:unifiedWorkspace.saveDraft"
@@ -7695,16 +7842,22 @@ msgctxt "settings:setup.saveAndExit"
 msgid "Save and exit"
 msgstr "ذخیره و خروج"
 
+#: frontend/src/pages/CommerceHub.tsx:1503
+msgctxt "commerce:commerceHub.saveAndOpenDataSheet"
+msgid "Save and open Data Sheet"
+msgstr "ذخیره و باز کردن شیت داده"
+
 #: frontend/src/pages/SourceConfiguration.tsx:1342
 msgctxt "sources:sourceConfiguration.saveMappingRevision"
 msgid "Save column setup"
 msgstr "ذخیره تنظیم ستون‌ها"
 
-#: frontend/src/pages/CommerceHub.tsx:1227
+#: frontend/src/pages/CommerceHub.tsx:1602
 msgctxt "commerce:commerceHub.saveConfiguration"
 msgid "Save configuration"
 msgstr "ذخیره پیکربندی"
 
+#: frontend/src/pages/CommerceHub.tsx:1319
 msgctxt "commerce:commerceHub.saveConnection"
 msgid "Save connection"
 msgstr "ذخیره اتصال"
@@ -7723,13 +7876,13 @@ msgctxt "dataQuality:issue.SHEET_REVISION_REQUIRED.action"
 msgid "Save the Sheet, then run the Data Quality check again."
 msgstr "برگه را ذخیره و سپس بررسی کیفیت داده را دوباره اجرا کنید."
 
-#: frontend/src/pages/CommerceHub.tsx:1467
+#: frontend/src/pages/CommerceHub.tsx:1840
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.tryAgainAfterSavingConnection"
 msgid "Save the Source connection, then open its Channel columns again."
 msgstr "اتصال منبع را ذخیره کنید، سپس ستون‌های هر کانال را دوباره باز کنید."
 
-#: frontend/src/pages/CommerceHub.tsx:1204
+#: frontend/src/pages/CommerceHub.tsx:1514
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "commerce:commerceHub.saveConnectionBeforeConfiguringData"
 msgid "Save the connection first, then configure worksheets, mapping, and read limits on the Data Sheet page."
@@ -7741,6 +7894,11 @@ msgctxt "sources:sourceConfiguration.mappingConfiguredAfterConnection"
 msgid "Save the connection first. Then choose product ID, price, stock, and status columns separately for every Channel on the Source page."
 msgstr "ابتدا اتصال را ذخیره کنید. سپس ستون‌های شناسه محصول، قیمت، موجودی و وضعیت را در صفحه منبع برای هر کانال جداگانه انتخاب کنید."
 
+#: frontend/src/pages/CommerceHub.tsx:445
+msgctxt "commerce:commerceHub.connectionError.notConfigured"
+msgid "Save the required Nextcloud connection settings before testing."
+msgstr "پیش از آزمایش، تنظیمات اتصال لازم Nextcloud را ذخیره کنید."
+
 msgctxt "sources:sourceConfiguration.saveAValidMappingAndSheetRevision"
 msgid "Save valid column choices and a Sheet version first."
 msgstr "ابتدا انتخاب ستون‌های معتبر و یک نسخه از برگه را ذخیره کنید."
@@ -7750,13 +7908,18 @@ msgctxt "products:products.savedViews"
 msgid "Saved Views"
 msgstr "نماهای ذخیره‌شده"
 
+#: frontend/src/pages/CommerceHub.tsx:1080
+msgctxt "commerce:commerceHub.savedCredentialLeaveUnchanged"
+msgid "Saved credential ✓ — leave blank to keep unchanged."
+msgstr "اعتبارنامه ذخیره‌شده ✓ — برای حفظ آن این فیلد را خالی بگذارید."
+
 #: frontend/src/pages/SourceConfiguration.tsx:1322
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "sources:sourceConfiguration.detail.snapshotsHelp"
 msgid "Saved mapping revisions and Workspace Snapshots are immutable audit references. They are created only through the existing save and Workspace flows."
 msgstr "نسخه‌های ذخیره‌شده نگاشت و اسنپ‌شات‌های فضای کاری، مراجع تغییرناپذیر ممیزی هستند. آن‌ها فقط از مسیرهای فعلی ذخیره و فضای کاری ایجاد می‌شوند."
 
-#: frontend/src/pages/CommerceHub.tsx:1078
+#: frontend/src/pages/CommerceHub.tsx:1350
 msgctxt "commerce:commerceHub.savedVendor"
 msgid "Saved vendor ("
 msgstr "فروشنده ذخیره‌شده ("
@@ -7766,7 +7929,7 @@ msgctxt "orders:orders.savedViews"
 msgid "Saved views"
 msgstr "نماهای ذخیره‌شده"
 
-#: frontend/src/pages/CommerceHub.tsx:1227
+#: frontend/src/pages/CommerceHub.tsx:1319 frontend/src/pages/CommerceHub.tsx:1602
 msgctxt "commerce:commerceHub.saving"
 msgid "Saving"
 msgstr "در حال ذخیره"
@@ -7839,7 +8002,7 @@ msgctxt "workspace:unifiedWorkspace.scrollableWorkspaceGrid"
 msgid "Scrollable Workspace Grid"
 msgstr "گرید پیمایش‌پذیر فضای کاری"
 
-#: frontend/src/components/Topbar.tsx:232 frontend/src/pages/Activity.tsx:285 frontend/src/pages/Activity.tsx:286
+#: frontend/src/components/Topbar.tsx:232 frontend/src/pages/Activity.tsx:420 frontend/src/pages/Activity.tsx:421
 msgctxt "activity:activity.search"
 msgid "Search"
 msgstr "جست‌وجو"
@@ -7859,7 +8022,7 @@ msgctxt "settings:exchangeRates.searchHint"
 msgid "Search by name or symbol"
 msgstr "جستجو بر اساس نام یا نماد"
 
-#: frontend/src/pages/Channels.tsx:362 frontend/src/pages/Channels.tsx:363
+#: frontend/src/pages/Channels.tsx:361 frontend/src/pages/Channels.tsx:362
 msgctxt "commerce:commerceHub.searchChannels"
 msgid "Search channels"
 msgstr "جست‌وجوی کانال‌ها"
@@ -7943,7 +8106,7 @@ msgctxt "workspace:sourceCentricWorkspace.select"
 msgid "Select"
 msgstr "انتخاب"
 
-#: frontend/src/pages/CommerceHub.tsx:1036
+#: frontend/src/pages/CommerceHub.tsx:1256 frontend/src/pages/CommerceHub.tsx:1569
 msgctxt "commerce:commerceHub.selectCurrencyUnit"
 msgid "Select Rial or Toman"
 msgstr "ریال یا تومان را انتخاب کنید"
@@ -7958,6 +8121,11 @@ msgstr "ریال یا تومان را انتخاب کنید"
 msgctxt "sources:sourceConfiguration.selectChannel"
 msgid "Select a Channel"
 msgstr "انتخاب کانال"
+
+#: frontend/src/pages/CommerceHub.tsx:1450
+msgctxt "commerce:commerceHub.lockedUntilSpreadsheetSelected"
+msgid "Select a Nextcloud spreadsheet file to unlock Worksheet settings."
+msgstr "برای فعال شدن تنظیمات برگه، یک فایل صفحه‌گسترده Nextcloud انتخاب کنید."
 
 #: frontend/src/pages/PricingMatrix.tsx:663
 #. Channel means an external sales destination such as WooCommerce.
@@ -7979,7 +8147,15 @@ msgctxt "diagnostics:reason.vendor_not_selected"
 msgid "Select a seller before synchronizing products."
 msgstr "پیش از همگام‌سازی محصولات، یک فروشنده انتخاب کنید."
 
-#: frontend/src/pages/CommerceHub.tsx:708
+msgctxt "commerce:commerceHub.lockedUntilWorksheetConfigured"
+msgid "Select a spreadsheet and configure Worksheet before declaring its monetary unit."
+msgstr "پیش از تعیین واحد پولی، فایل و تنظیمات برگه را انتخاب کنید."
+
+msgctxt "commerce:commerceHub.saveSourceSetupBeforeDataSheet"
+msgid "Select a spreadsheet and configure Worksheet. FlowHub will save those settings before opening the Data Sheet."
+msgstr "یک فایل صفحه‌گسترده انتخاب و برگه را پیکربندی کنید. FlowHub این تنظیمات را پیش از باز کردن شیت داده ذخیره می‌کند."
+
+#: frontend/src/pages/CommerceHub.tsx:833
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.selectSpreadsheetToFinishSourceSetup"
 msgid "Select a spreadsheet file to finish setting up this source."
@@ -8031,7 +8207,7 @@ msgctxt "products:products.pricingWorkspaceHint"
 msgid "Select the products you want to update, then edit all Channel targets together in one safe workspace."
 msgstr "محصولات موردنظر برای به‌روزرسانی را انتخاب کنید، سپس همه اهداف کانال را در یک فضای کاری امن با هم ویرایش کنید."
 
-#: frontend/src/pages/CommerceHub.tsx:1076
+#: frontend/src/pages/CommerceHub.tsx:1348
 msgctxt "commerce:commerceHub.selectVendor"
 msgid "Select vendor"
 msgstr "انتخاب فروشنده"
@@ -8077,12 +8253,12 @@ msgctxt "workspace:sourceCentricWorkspace.selectedChanges"
 msgid "Selected changes"
 msgstr "تغییرات انتخاب‌شده"
 
-#: frontend/src/pages/CommerceHub.tsx:1124 frontend/src/pages/CommerceHub.tsx:1139 frontend/src/pages/CommerceHub.tsx:1142
+#: frontend/src/pages/CommerceHub.tsx:1402 frontend/src/pages/CommerceHub.tsx:1424 frontend/src/pages/CommerceHub.tsx:1427
 msgctxt "commerce:commerceHub.selectedFile"
 msgid "Selected file"
 msgstr "فایل انتخاب‌شده"
 
-#: frontend/src/pages/CommerceHub.tsx:1176
+#: frontend/src/pages/CommerceHub.tsx:1472
 msgctxt "commerce:commerceHub.selectedWorksheet"
 msgid "Selected worksheet"
 msgstr "برگه انتخاب‌شده"
@@ -8161,7 +8337,7 @@ msgctxt "commerce:commerceHub.settings"
 msgid "Settings"
 msgstr "تنظیمات"
 
-#: frontend/src/pages/ChannelDetail.tsx:152 frontend/src/pages/Channels.tsx:440 frontend/src/pages/Channels.tsx:473
+#: frontend/src/pages/ChannelDetail.tsx:171 frontend/src/pages/Channels.tsx:443 frontend/src/pages/Channels.tsx:476
 msgctxt "common:action.settings"
 msgid "Settings"
 msgstr "تنظیمات"
@@ -8219,7 +8395,7 @@ msgctxt "settings:setup.setupIsReadyToBeFinalizedConnector"
 msgid "Setup is ready to be finalized. Connector configuration is available from Settings after sign-in."
 msgstr "راه‌اندازی آماده نهایی‌شدن است. پیکربندی اتصال‌دهنده پس از ورود از تنظیمات دردسترس خواهد بود."
 
-#: frontend/src/pages/Channels.tsx:433 frontend/src/pages/SourceConfiguration.tsx:1158
+#: frontend/src/pages/Channels.tsx:436 frontend/src/pages/SourceConfiguration.tsx:1158
 msgctxt "common:action.setupNow"
 msgid "Setup now"
 msgstr "راه‌اندازی اکنون"
@@ -8229,7 +8405,7 @@ msgctxt "settings:setup.setupProgress"
 msgid "Setup progress"
 msgstr "پیشرفت راه‌اندازی"
 
-#: frontend/src/components/ResourceOrdering.tsx:82 frontend/src/pages/ChannelDetail.tsx:176 frontend/src/pages/Channels.tsx:45 frontend/src/pages/SourceCenter.tsx:103 frontend/src/pages/SourceConfiguration.tsx:1149 frontend/src/pages/SourceConfiguration.tsx:1151 frontend/src/pages/SourceConfiguration.tsx:1159
+#: frontend/src/components/ResourceOrdering.tsx:82 frontend/src/pages/ChannelDetail.tsx:154 frontend/src/pages/Channels.tsx:47 frontend/src/pages/SourceCenter.tsx:103 frontend/src/pages/SourceConfiguration.tsx:1149 frontend/src/pages/SourceConfiguration.tsx:1151 frontend/src/pages/SourceConfiguration.tsx:1159
 msgctxt "common:status.setupRequired"
 msgid "Setup required"
 msgstr "نیازمند راه‌اندازی"
@@ -8281,7 +8457,7 @@ msgctxt "orders:orders.showAllOrders"
 msgid "Show all orders"
 msgstr "نمایش همه سفارش‌ها"
 
-#: frontend/src/pages/CommerceHub.tsx:865
+#: frontend/src/pages/CommerceHub.tsx:1084
 msgctxt "commerce:commerceHub.showEnteredSecret"
 msgid "Show entered secret"
 msgstr "نمایش مقدار واردشده"
@@ -8296,7 +8472,7 @@ msgctxt "settings:users.showPassword"
 msgid "Show password"
 msgstr "نمایش رمز عبور"
 
-#: frontend/src/pages/Activity.tsx:320
+#: frontend/src/pages/Activity.tsx:455
 msgctxt "activity:activity.showRoutineSystemEvents"
 msgid "Show routine and debug events"
 msgstr "نمایش رویدادهای تکراری و اشکال‌زدایی"
@@ -8322,7 +8498,7 @@ msgctxt "authentication:login.signInToFlowhub"
 msgid "Sign in to FlowHub"
 msgstr "ورود به FlowHub"
 
-#: frontend/src/App.tsx:88
+#: frontend/src/App.tsx:90
 msgctxt "common:app.signOut"
 msgid "Sign out"
 msgstr "خروج"
@@ -8396,7 +8572,7 @@ msgctxt "sources:sourceConfiguration.detail.snapshots"
 msgid "Snapshots"
 msgstr "اسنپ‌شات‌ها"
 
-#: frontend/src/pages/Channels.tsx:395
+#: frontend/src/pages/Channels.tsx:394
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.partialLoadTitle"
 msgid "Some Channel information is unavailable"
@@ -8432,7 +8608,7 @@ msgctxt "flowhubSheet:flowHubSheet.sortSheetByColumn"
 msgid "Sort Sheet by column"
 msgstr "مرتب‌سازی برگه بر اساس ستون"
 
-#: frontend/src/pages/Activity.tsx:319
+#: frontend/src/pages/Activity.tsx:454
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "activity:activity.source"
 msgid "Source"
@@ -8555,19 +8731,19 @@ msgctxt "navigation:topbar.sourceConfiguration"
 msgid "Source column setup"
 msgstr "تنظیم ستون‌های منبع"
 
-#: frontend/src/pages/CommerceHub.tsx:1466 frontend/src/pages/SourceConfiguration.tsx:879
+#: frontend/src/pages/CommerceHub.tsx:1839 frontend/src/pages/SourceConfiguration.tsx:879
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourceConfigurationUnavailable"
 msgid "Source configuration unavailable"
 msgstr "پیکربندی منبع در دسترس نیست"
 
-#: frontend/src/pages/CommerceHub.tsx:716
+#: frontend/src/pages/CommerceHub.tsx:841
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceConfiguredSuccessfully"
 msgid "Source configured successfully"
 msgstr "منبع با موفقیت پیکربندی شد"
 
-#: frontend/src/pages/CommerceHub.tsx:1338 frontend/src/pages/CommerceHub.tsx:778
+#: frontend/src/pages/CommerceHub.tsx:1713 frontend/src/pages/CommerceHub.tsx:993
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceConnectedSuccessfully"
 msgid "Source connected successfully"
@@ -8585,7 +8761,7 @@ msgctxt "diagnostics:diagnostics.sourceConnectionReady"
 msgid "Source connection is ready."
 msgstr "اتصال منبع آماده است."
 
-#: frontend/src/pages/CommerceHub.tsx:707
+#: frontend/src/pages/CommerceHub.tsx:832
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceConnectionSaved"
 msgid "Source connection saved"
@@ -8614,7 +8790,7 @@ msgctxt "sources:sourceCenter.sourceDeleted"
 msgid "Source deleted"
 msgstr "منبع حذف شد"
 
-#: frontend/src/pages/Dashboard.tsx:562
+#: frontend/src/pages/Dashboard.tsx:579
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dashboard:dashboard.sourceFreshness"
 msgid "Source freshness"
@@ -8681,7 +8857,7 @@ msgctxt "commerce:commerceHub.sourceRefreshedSuccessfully"
 msgid "Source refreshed successfully"
 msgstr "منبع با موفقیت به‌روزرسانی شد"
 
-#: frontend/src/pages/Activity.tsx:357
+#: frontend/src/pages/Activity.tsx:492
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "activity:activity.sourceRefreshes"
 msgid "Source refreshes"
@@ -8692,13 +8868,13 @@ msgctxt "commerce:commerceHub.sourceSettings"
 msgid "Source settings"
 msgstr "تنظیمات منبع"
 
-#: frontend/src/pages/CommerceHub.tsx:712
+#: frontend/src/pages/CommerceHub.tsx:837 frontend/src/pages/CommerceHub.tsx:928
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceSettingsUpdatedSuccessfully"
 msgid "Source settings updated successfully"
 msgstr "تنظیمات منبع با موفقیت به‌روزرسانی شد"
 
-#: frontend/src/pages/CommerceHub.tsx:947
+#: frontend/src/pages/CommerceHub.tsx:1167
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceType"
 msgid "Source type"
@@ -8738,7 +8914,7 @@ msgctxt "activity:category.sources"
 msgid "Sources"
 msgstr "منابع"
 
-#: frontend/src/pages/CommerceHub.tsx:1519 frontend/src/pages/CommerceHub.tsx:1535
+#: frontend/src/pages/CommerceHub.tsx:1892 frontend/src/pages/CommerceHub.tsx:1908
 msgctxt "commerce:commerceHub.sources2"
 msgid "Sources"
 msgstr "منابع"
@@ -8796,7 +8972,7 @@ msgctxt "pricing:policyEditor.rule.targetKind.product"
 msgid "Specific product"
 msgstr "محصول مشخص"
 
-#: frontend/src/pages/CommerceHub.tsx:457
+#: frontend/src/pages/CommerceHub.tsx:551
 msgctxt "commerce:commerceHub.spreadsheet"
 msgid "Spreadsheet"
 msgstr "صفحه‌گسترده"
@@ -8884,6 +9060,11 @@ msgstr "وضعیت:"
 msgctxt "settings:setup.step2"
 msgid "Step"
 msgstr "مرحله"
+
+#: frontend/src/pages/CommerceHub.tsx:1161 frontend/src/pages/CommerceHub.tsx:1270 frontend/src/pages/CommerceHub.tsx:1397 frontend/src/pages/CommerceHub.tsx:1445 frontend/src/pages/CommerceHub.tsx:1492 frontend/src/pages/CommerceHub.tsx:1532
+msgctxt "commerce:commerceHub.setupStep"
+msgid "Step {{step}}"
+msgstr "مرحله {{step}}"
 
 #: frontend/src/pages/Setup.tsx:881
 msgctxt "settings:setup.stepOf"
@@ -8977,7 +9158,7 @@ msgctxt "commerce:commerceHub.fields.storeUrl"
 msgid "Store URL"
 msgstr "نشانی اینترنتی فروشگاه"
 
-#: frontend/src/pages/CommerceHub.tsx:1110
+#: frontend/src/pages/CommerceHub.tsx:1382
 msgctxt "commerce:commerceHub.storeNumber"
 msgid "Store number:"
 msgstr "شماره فروشگاه:"
@@ -9093,7 +9274,7 @@ msgctxt "settings:exchangeRates.reconciling"
 msgid "Synchronizing..."
 msgstr "در حال همگام‌سازی..."
 
-#: frontend/src/pages/Activity.tsx:76
+#: frontend/src/pages/Activity.tsx:77
 msgctxt "activity:category.system"
 msgid "System"
 msgstr "سیستم"
@@ -9172,7 +9353,7 @@ msgctxt "commerce:commerceHub.fields.tapsishopWebhookToken"
 msgid "TapsiShop webhook token"
 msgstr "توکن وب‌هوک تپسی‌شاپ"
 
-#: frontend/src/pages/CommerceHub.tsx:1099
+#: frontend/src/pages/CommerceHub.tsx:1371
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "commerce:commerceHub.tapsishopWriteSafety"
 msgid "TapsiShop writes require Write-enabled mode and the Dry Run, Review, Approval, Apply workflow. Variations, listing creation, categories, attributes, discounts, and courier review are unavailable because the supplied API reference does not define them unambiguously."
@@ -9190,7 +9371,7 @@ msgctxt "pricing:rules.col.target"
 msgid "Target"
 msgstr "هدف"
 
-#: frontend/src/pages/Activity.tsx:128
+#: frontend/src/pages/Activity.tsx:257
 msgctxt "activity:activity.technicalDetails"
 msgid "Technical details"
 msgstr "جزئیات فنی"
@@ -9236,7 +9417,7 @@ msgctxt "sources:sourceConfiguration.mapSourceProductIdentityFirstThenEach"
 msgid "Tell FlowHub where product rows begin and which file columns belong to each sales Channel."
 msgstr "مشخص کنید ردیف‌های محصول از کجا شروع می‌شوند و اطلاعات هر کانال از کدام ستون‌های فایل خوانده شود."
 
-#: frontend/src/pages/ChannelDetail.tsx:204 frontend/src/pages/Channels.tsx:436 frontend/src/pages/CommerceHub.tsx:1222 frontend/src/pages/CommerceHub.tsx:168 frontend/src/pages/CommerceHub.tsx:273
+#: frontend/src/pages/ChannelDetail.tsx:223 frontend/src/pages/Channels.tsx:439 frontend/src/pages/CommerceHub.tsx:1314 frontend/src/pages/CommerceHub.tsx:1596 frontend/src/pages/CommerceHub.tsx:168 frontend/src/pages/CommerceHub.tsx:273
 msgctxt "commerce:commerceHub.testConnection"
 msgid "Test connection"
 msgstr "آزمایش اتصال"
@@ -9255,17 +9436,17 @@ msgctxt "sources:sourceConfiguration.testConnection"
 msgid "Test connection"
 msgstr "آزمایش اتصال"
 
-#: frontend/src/pages/CommerceHub.tsx:1076
+#: frontend/src/pages/CommerceHub.tsx:1348
 msgctxt "commerce:commerceHub.testConnectionToLoadVendors"
 msgid "Test connection to load vendors"
 msgstr "آزمایش اتصال برای بارگذاری فروشندگان"
 
-#: frontend/src/pages/CommerceHub.tsx:1065
+#: frontend/src/pages/CommerceHub.tsx:1337
 msgctxt "commerce:commerceHub.testTheConnectionToLoadStoresAvailable"
 msgid "Test the connection to load stores available to these credentials."
 msgstr "اتصال را آزمایش کنید تا فروشگاه‌های در دسترس این اطلاعات ورود بارگذاری شوند."
 
-#: frontend/src/pages/ChannelDetail.tsx:204 frontend/src/pages/Channels.tsx:436 frontend/src/pages/CommerceHub.tsx:1222 frontend/src/pages/CommerceHub.tsx:168 frontend/src/pages/CommerceHub.tsx:273
+#: frontend/src/pages/ChannelDetail.tsx:223 frontend/src/pages/Channels.tsx:439 frontend/src/pages/CommerceHub.tsx:1314 frontend/src/pages/CommerceHub.tsx:1596 frontend/src/pages/CommerceHub.tsx:168 frontend/src/pages/CommerceHub.tsx:273
 msgctxt "commerce:commerceHub.testing"
 msgid "Testing"
 msgstr "در حال آزمایش"
@@ -9297,6 +9478,21 @@ msgctxt "dataQuality:issue.SHEET_REVISION_REQUIRED.summary"
 msgid "The FlowHub Sheet has not been saved yet."
 msgstr "برگه FlowHub هنوز ذخیره نشده است."
 
+#: frontend/src/pages/CommerceHub.tsx:444
+msgctxt "commerce:commerceHub.connectionError.invalidWebdavPath"
+msgid "The Nextcloud WebDAV path is invalid."
+msgstr "مسیر WebDAV در Nextcloud نامعتبر است."
+
+#: frontend/src/pages/CommerceHub.tsx:443
+msgctxt "commerce:commerceHub.connectionError.invalidUrl"
+msgid "The Nextcloud server URL is invalid."
+msgstr "نشانی سرور Nextcloud نامعتبر است."
+
+#: frontend/src/pages/CommerceHub.tsx:448
+msgctxt "commerce:commerceHub.connectionError.unreachable"
+msgid "The Nextcloud server could not be reached from FlowHub."
+msgstr "سرور Nextcloud از FlowHub قابل دسترسی نیست."
+
 #: frontend/src/pages/AdvancedSettings.tsx:58
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "settings:settings.advancedNetworkSavedDescription"
@@ -9313,6 +9509,12 @@ msgctxt "errors:codes.SOURCE_READ_LIMIT_REACHED"
 msgid "The Source read limit was reached. Try again after the allowance resets."
 msgstr "حد مجاز خواندن منبع پر شده است. پس از بازنشانی سهمیه دوباره تلاش کنید."
 
+#: frontend/src/pages/CommerceHub.tsx:929
+#. Source means the spreadsheet or managed sheet supplying product targets.
+msgctxt "commerce:commerceHub.openingDataSheet"
+msgid "The Source setup was saved. Opening the Data Sheet."
+msgstr "راه‌اندازی منبع ذخیره شد. شیت داده در حال باز شدن است."
+
 #: frontend/src/pages/SourceCenter.tsx:387
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.protectedHistoryPreserved"
@@ -9324,7 +9526,7 @@ msgctxt "workspace:unifiedWorkspace.theUnifiedWorkspaceServiceIsNotConfigured"
 msgid "The Unified Workspace service is not configured."
 msgstr "سرویس فضای کاری یکپارچه پیکربندی نشده است."
 
-#: frontend/src/pages/Channels.tsx:250 frontend/src/pages/CommerceHub.tsx:1371 frontend/src/pages/CommerceHub.tsx:726
+#: frontend/src/pages/Channels.tsx:249 frontend/src/pages/CommerceHub.tsx:1744 frontend/src/pages/CommerceHub.tsx:851
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.theChannelIsReadyToUse"
 msgid "The channel is ready to use."
@@ -9335,7 +9537,7 @@ msgctxt "settings:exchangeRates.nearLimitConfirm"
 msgid "The configured safe request budget is nearly exhausted. Continue with a manual refresh?"
 msgstr "بودجه امن درخواست تقریباً مصرف شده است. بازخوانی دستی ادامه پیدا کند؟"
 
-#: frontend/src/pages/CommerceHub.tsx:1344 frontend/src/pages/CommerceHub.tsx:692 frontend/src/pages/CommerceHub.tsx:790
+#: frontend/src/pages/CommerceHub.tsx:439
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "errors:codes.unsafe_destination"
 msgid "The configured source destination is blocked by the Source network safety policy."
@@ -9345,6 +9547,11 @@ msgstr "مقصد منبع پیکربندی‌شده توسط سیاست ایمن
 msgctxt "errors:codes.SELECTION_CHECKSUM_MISMATCH"
 msgid "The confirmed selection changed. Review and confirm it again."
 msgstr "انتخاب تأییدشده تغییر کرده است. دوباره آن را بازبینی و تأیید کنید."
+
+#: frontend/src/pages/CommerceHub.tsx:898
+msgctxt "commerce:commerceHub.connectionSettingsSavedDescription"
+msgid "The connection is saved. You can now choose a Nextcloud spreadsheet file."
+msgstr "اتصال ذخیره شد. اکنون می‌توانید فایل صفحه‌گسترده Nextcloud را انتخاب کنید."
 
 msgctxt "diagnostics:reason.credential_verification_inconclusive"
 msgid "The credential check ran but did not produce a conclusive result."
@@ -9362,6 +9569,11 @@ msgstr "صف پیام‌های ناموفق عمداً غیرفعال شده ا�
 msgctxt "settings:setup.existingOwnerUsed"
 msgid "The existing privileged account will be used for this workspace."
 msgstr "حساب دارای دسترسی فعلی برای این فضای کاری استفاده می‌شود."
+
+#: frontend/src/pages/CommerceHub.tsx:440
+msgctxt "commerce:commerceHub.connectionError.timeout"
+msgid "The external service did not respond in time."
+msgstr "سرویس خارجی در زمان مقرر پاسخ نداد."
 
 msgctxt "dataQuality:issue.FORMULA_ERROR.summary"
 msgid "The formula could not be calculated."
@@ -9413,7 +9625,7 @@ msgctxt "diagnostics:reason.polling_not_successful"
 msgid "The latest order polling run did not succeed."
 msgstr "آخرین پایش دوره‌ای سفارش‌ها موفق نبود."
 
-#: frontend/src/pages/Channels.tsx:280 frontend/src/pages/CommerceHub.tsx:1402
+#: frontend/src/pages/Channels.tsx:279 frontend/src/pages/CommerceHub.tsx:1775
 msgctxt "commerce:commerceHub.theLatestProductInformationHasBeenLoaded"
 msgid "The latest product information has been loaded."
 msgstr "جدیدترین اطلاعات محصولات بارگذاری شد."
@@ -9515,6 +9727,16 @@ msgctxt "dataQuality:issue.DUPLICATE_SOURCE_PRODUCT.summary"
 msgid "The same Source Product appears in more than one worksheet."
 msgstr "یک منبع محصول در بیش از یک برگه پیدا شد."
 
+#: frontend/src/pages/CommerceHub.tsx:447
+msgctxt "commerce:commerceHub.connectionError.resourceNotFound"
+msgid "The selected Nextcloud spreadsheet file was not found."
+msgstr "فایل صفحه‌گسترده انتخاب‌شده در Nextcloud پیدا نشد."
+
+#: frontend/src/pages/CommerceHub.tsx:446
+msgctxt "commerce:commerceHub.connectionError.spreadsheetUnsupported"
+msgid "The selected file must be a supported .xlsx spreadsheet."
+msgstr "فایل انتخاب‌شده باید یک صفحه‌گسترده پشتیبانی‌شده با پسوند .xlsx باشد."
+
 #: frontend/src/pages/PricingMatrix.tsx:675
 #. Target is the proposed value that may be applied after Review.
 msgctxt "pricing:channels.empty"
@@ -9527,7 +9749,7 @@ msgctxt "pricing:units.empty"
 msgid "The selected policy does not target any channels."
 msgstr "سیاست انتخاب‌شده هیچ کانالی را هدف نمی‌گیرد."
 
-#: frontend/src/pages/CommerceHub.tsx:717
+#: frontend/src/pages/CommerceHub.tsx:842
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.theSourceIsReadyToUse"
 msgid "The source is ready to use."
@@ -9559,7 +9781,7 @@ msgctxt "dashboard:dashboard.productsMeaning"
 msgid "These are the products FlowHub can show for review and publishing."
 msgstr "این‌ها محصولاتی هستند که FlowHub می‌تواند برای بازبینی و انتشار نمایش دهد."
 
-#: frontend/src/pages/CommerceHub.tsx:773
+#: frontend/src/pages/CommerceHub.tsx:988
 msgctxt "commerce:commerceHub.connectionDetailsVerifiedDescription"
 msgid "These connection details are valid. Save them to continue."
 msgstr "این اطلاعات اتصال معتبر است. برای ادامه آن را ذخیره کنید."
@@ -9599,7 +9821,7 @@ msgctxt "diagnostics:reason.channel_disabled"
 msgid "This Channel is disabled."
 msgstr "این کانال غیرفعال است."
 
-#: frontend/src/pages/Channels.tsx:418
+#: frontend/src/pages/Channels.tsx:421
 #. Review is the immutable validation result required before Apply.
 msgctxt "commerce:commerceHub.setupReasonDisabled"
 msgid "This Channel is disabled. Review its settings before using it again."
@@ -9773,7 +9995,7 @@ msgctxt "settings:settings.timezone"
 msgid "Timezone"
 msgstr "منطقه زمانی"
 
-#: frontend/src/pages/Activity.tsx:318
+#: frontend/src/pages/Activity.tsx:453
 msgctxt "activity:activity.toDate"
 msgid "To date"
 msgstr "تا تاریخ"
@@ -9783,7 +10005,7 @@ msgctxt "orders:orders.dateTo"
 msgid "To date"
 msgstr "تا تاریخ"
 
-#: frontend/src/pages/Activity.tsx:338 frontend/src/pages/Activity.tsx:353
+#: frontend/src/pages/Activity.tsx:473 frontend/src/pages/Activity.tsx:488
 msgctxt "activity:activity.today"
 msgid "Today"
 msgstr "امروز"
@@ -9810,7 +10032,7 @@ msgctxt "diagnostics:reason.token_refresh_healthy"
 msgid "Token refresh is operating normally."
 msgstr "تازه‌سازی توکن به‌طور عادی کار می‌کند."
 
-#: frontend/src/pages/CommerceHub.tsx:1038
+#: frontend/src/pages/CommerceHub.tsx:1258 frontend/src/pages/CommerceHub.tsx:1571
 msgctxt "commerce:commerceHub.toman"
 msgid "Toman"
 msgstr "تومان"
@@ -9883,7 +10105,7 @@ msgctxt "flowhubSheet:flowHubSheet.tryAgain"
 msgid "Try again."
 msgstr "دوباره تلاش کنید."
 
-#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:436 frontend/src/pages/Products.tsx:169
+#: frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx:436 frontend/src/pages/Products.tsx:179
 msgctxt "products:column.type"
 msgid "Type"
 msgstr "نوع"
@@ -9893,7 +10115,7 @@ msgctxt "workspace:gridModel.type"
 msgid "Type"
 msgstr "نوع"
 
-#: frontend/src/pages/CommerceHub.tsx:863
+#: frontend/src/pages/CommerceHub.tsx:1082
 msgctxt "commerce:commerceHub.passwordPlaceholder"
 msgid "Type your password"
 msgstr ""
@@ -9938,13 +10160,13 @@ msgctxt "diagnostics:diagnostics.requestTimedOut"
 msgid "Unable to check diagnostics. Request timed out."
 msgstr "بررسی بخش عیب‌یابی ممکن نیست؛ مهلت درخواست پایان یافت."
 
-#: frontend/src/pages/ChannelDetail.tsx:90 frontend/src/pages/ChannelDetail.tsx:97 frontend/src/pages/Channels.tsx:254 frontend/src/pages/Channels.tsx:261 frontend/src/pages/CommerceHub.tsx:1374 frontend/src/pages/CommerceHub.tsx:1380 frontend/src/pages/CommerceHub.tsx:788 frontend/src/pages/CommerceHub.tsx:800
+#: frontend/src/pages/ChannelDetail.tsx:101 frontend/src/pages/ChannelDetail.tsx:108 frontend/src/pages/Channels.tsx:253 frontend/src/pages/Channels.tsx:260 frontend/src/pages/CommerceHub.tsx:1003 frontend/src/pages/CommerceHub.tsx:1015 frontend/src/pages/CommerceHub.tsx:1747 frontend/src/pages/CommerceHub.tsx:1753
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.unableToConnectToTheChannel"
 msgid "Unable to connect to the channel"
 msgstr "اتصال به کانال ممکن نشد"
 
-#: frontend/src/pages/CommerceHub.tsx:1342 frontend/src/pages/CommerceHub.tsx:1350 frontend/src/pages/CommerceHub.tsx:681 frontend/src/pages/CommerceHub.tsx:690 frontend/src/pages/CommerceHub.tsx:788 frontend/src/pages/CommerceHub.tsx:800
+#: frontend/src/pages/CommerceHub.tsx:1003 frontend/src/pages/CommerceHub.tsx:1015 frontend/src/pages/CommerceHub.tsx:1717 frontend/src/pages/CommerceHub.tsx:1723
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.unableToConnectToTheSource"
 msgid "Unable to connect to the source"
@@ -9968,12 +10190,12 @@ msgctxt "products:products.unableToLoadChannelPrices"
 msgid "Unable to load Channel prices."
 msgstr "بارگذاری قیمت‌های کانال ممکن نیست."
 
-#: frontend/src/pages/Channels.tsx:384 frontend/src/pages/Channels.tsx:483 frontend/src/pages/CommerceHub.tsx:1314 frontend/src/pages/SourceConfiguration.tsx:1349
+#: frontend/src/pages/Channels.tsx:383 frontend/src/pages/Channels.tsx:486 frontend/src/pages/CommerceHub.tsx:1689 frontend/src/pages/SourceConfiguration.tsx:1349
 msgctxt "commerce:commerceHub.unableToLoadCommerceHub"
 msgid "Unable to load Commerce Hub"
 msgstr "بارگذاری مرکز تجارت ممکن نشد"
 
-#: frontend/src/pages/CommerceHub.tsx:607
+#: frontend/src/pages/CommerceHub.tsx:729
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.unableToLoadChannelSettings"
 msgid "Unable to load channel settings"
@@ -9999,7 +10221,7 @@ msgctxt "settings:settings.advancedNetworkLoadFailed"
 msgid "Unable to load source network policy"
 msgstr ""
 
-#: frontend/src/pages/CommerceHub.tsx:606
+#: frontend/src/pages/CommerceHub.tsx:728
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.unableToLoadSourceSettings"
 msgid "Unable to load source settings"
@@ -10010,7 +10232,7 @@ msgctxt "settings:users.loadFailed"
 msgid "Unable to load users."
 msgstr "بارگذاری کاربران ممکن نیست."
 
-#: frontend/src/pages/Channels.tsx:284 frontend/src/pages/Channels.tsx:291 frontend/src/pages/CommerceHub.tsx:1406 frontend/src/pages/CommerceHub.tsx:1413
+#: frontend/src/pages/Channels.tsx:283 frontend/src/pages/Channels.tsx:290 frontend/src/pages/CommerceHub.tsx:1779 frontend/src/pages/CommerceHub.tsx:1786
 msgctxt "commerce:commerceHub.unableToRefreshTheProductCache"
 msgid "Unable to refresh the product cache"
 msgstr "به‌روزرسانی کش محصولات ممکن نشد"
@@ -10021,7 +10243,7 @@ msgctxt "commerce:commerceHub.unableToRefreshTheSource"
 msgid "Unable to refresh the source"
 msgstr "به‌روزرسانی منبع ممکن نشد"
 
-#: frontend/src/pages/CommerceHub.tsx:737
+#: frontend/src/pages/CommerceHub.tsx:862
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.unableToSaveChannelSettings"
 msgid "Unable to save channel settings"
@@ -10043,7 +10265,7 @@ msgctxt "settings:settings.advancedNetworkSaveFailed"
 msgid "Unable to save source network policy"
 msgstr ""
 
-#: frontend/src/pages/CommerceHub.tsx:737
+#: frontend/src/pages/CommerceHub.tsx:862 frontend/src/pages/CommerceHub.tsx:908 frontend/src/pages/CommerceHub.tsx:940
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.unableToSaveSourceSettings"
 msgid "Unable to save source settings"
@@ -10074,7 +10296,7 @@ msgctxt "products:products.unableToValidateChannelPrices"
 msgid "Unable to validate Channel prices."
 msgstr "اعتبارسنجی قیمت‌های کانال ممکن نیست."
 
-#: frontend/src/components/Topbar.tsx:80 frontend/src/pages/ChannelDetail.tsx:214 frontend/src/pages/ChannelDetail.tsx:234 frontend/src/pages/Channels.tsx:416 frontend/src/pages/Diagnostics.tsx:293
+#: frontend/src/components/Topbar.tsx:80 frontend/src/pages/ChannelDetail.tsx:233 frontend/src/pages/ChannelDetail.tsx:253 frontend/src/pages/Channels.tsx:419 frontend/src/pages/Diagnostics.tsx:293
 msgctxt "common:status.unavailable"
 msgid "Unavailable"
 msgstr "دردسترس نیست"
@@ -10224,7 +10446,12 @@ msgctxt "sources:sourceConfiguration.unsavedChanges"
 msgid "Unsaved changes"
 msgstr "تغییرات ذخیره‌نشده"
 
-#: frontend/src/pages/CommerceHub.tsx:457
+#: frontend/src/pages/CommerceHub.tsx:1279
+msgctxt "commerce:commerceHub.connectionHasUnsavedChanges"
+msgid "Unsaved connection changes"
+msgstr "تغییرات ذخیره‌نشده اتصال"
+
+#: frontend/src/pages/CommerceHub.tsx:551
 msgctxt "commerce:commerceHub.unsupported"
 msgid "Unsupported"
 msgstr "پشتیبانی‌نشده"
@@ -10237,7 +10464,7 @@ msgctxt "dataQuality:category.unsupported_product"
 msgid "Unsupported product"
 msgstr "محصول پشتیبانی‌نشده"
 
-#: frontend/src/pages/CommerceHub.tsx:431
+#: frontend/src/pages/CommerceHub.tsx:525
 msgctxt "commerce:commerceHub.upOneFolder"
 msgid "Up one folder"
 msgstr "یک پوشه بالاتر"
@@ -10286,7 +10513,7 @@ msgctxt "sources:sourceConfiguration.useSourceWorksheet"
 msgid "Use Source worksheet"
 msgstr "استفاده از برگه منبع"
 
-#: frontend/src/pages/CommerceHub.tsx:1123
+#: frontend/src/pages/CommerceHub.tsx:1401
 msgctxt "commerce:commerceHub.useWebdavWithYourAppPasswordPublic"
 msgid "Use WebDAV with your app password. Public share links are not required."
 msgstr "از WebDAV همراه با رمز برنامه استفاده کنید. نیازی به پیوند اشتراک‌گذاری عمومی نیست."
@@ -10473,12 +10700,12 @@ msgctxt "workspace:workspace.variationRowsRequireCachedParentProductMetadata"
 msgid "Variation rows require cached parent product metadata."
 msgstr "ردیف‌های تنوع به فراداده محصول والد در کش نیاز دارند."
 
-#: frontend/src/pages/CommerceHub.tsx:1064
+#: frontend/src/pages/CommerceHub.tsx:1336
 msgctxt "commerce:commerceHub.vendor"
 msgid "Vendor"
 msgstr "فروشنده"
 
-#: frontend/src/pages/CommerceHub.tsx:1068
+#: frontend/src/pages/CommerceHub.tsx:1340
 msgctxt "commerce:commerceHub.vendorStore"
 msgid "Vendor / store"
 msgstr "فروشنده / فروشگاه"
@@ -10488,7 +10715,7 @@ msgctxt "commerce:commerceHub.fields.tapsishopVendorId"
 msgid "Vendor / store ID"
 msgstr "شناسه فروشنده / فروشگاه"
 
-#: frontend/src/pages/CommerceHub.tsx:1109
+#: frontend/src/pages/CommerceHub.tsx:1381
 msgctxt "commerce:commerceHub.vendorId"
 msgid "Vendor ID:"
 msgstr "شناسه فروشنده:"
@@ -10549,7 +10776,7 @@ msgctxt "dashboard:dashboard.viewProducts"
 msgid "View Products"
 msgstr "مشاهده محصولات"
 
-#: frontend/src/pages/ChannelDetail.tsx:240 frontend/src/pages/Channels.tsx:438 frontend/src/pages/SourceCenter.tsx:609 frontend/src/pages/SourceConfiguration.tsx:1326
+#: frontend/src/pages/ChannelDetail.tsx:259 frontend/src/pages/Channels.tsx:441 frontend/src/pages/SourceCenter.tsx:609 frontend/src/pages/SourceConfiguration.tsx:1326
 msgctxt "common:action.viewActivity"
 msgid "View activity"
 msgstr "مشاهده فعالیت"
@@ -10559,7 +10786,7 @@ msgctxt "settings:users.viewActivity"
 msgid "View activity"
 msgstr "مشاهده فعالیت"
 
-#: frontend/src/pages/Dashboard.tsx:622
+#: frontend/src/pages/Dashboard.tsx:657
 msgctxt "dashboard:dashboard.viewAll"
 msgid "View all"
 msgstr "مشاهده همه"
@@ -10573,6 +10800,11 @@ msgstr "مشاهده جزئیات"
 msgctxt "orders:orders.viewFailed"
 msgid "View failed"
 msgstr "مشاهده موارد ناموفق"
+
+#: frontend/src/pages/Activity.tsx:194
+msgctxt "activity:activity.viewHistory"
+msgid "View history"
+msgstr "مشاهده تاریخچه"
 
 #: frontend/src/pages/PricingPolicyEditor.tsx:345 frontend/src/pages/PricingUnitEditor.tsx:179
 msgctxt "pricing:editor.viewInPricingMatrix"
@@ -10639,12 +10871,12 @@ msgctxt "activity:activity.warning"
 msgid "Warning"
 msgstr "هشدار"
 
-#: frontend/src/components/ResourceOrdering.tsx:20
+#: frontend/src/components/ResourceOrdering.tsx:20 frontend/src/pages/ChannelDetail.tsx:151 frontend/src/pages/Channels.tsx:46
 msgctxt "common:resourceBadge.warning"
 msgid "Warning"
 msgstr "هشدار"
 
-#: frontend/src/pages/Dashboard.tsx:693 frontend/src/pages/Workspace.tsx:82
+#: frontend/src/pages/Dashboard.tsx:728 frontend/src/pages/Workspace.tsx:82
 msgctxt "common:status.warning"
 msgid "Warning"
 msgstr "هشدار"
@@ -10658,7 +10890,7 @@ msgctxt "workspace:statusDisplay.warning"
 msgid "Warning"
 msgstr "هشدار"
 
-#: frontend/src/pages/Dashboard.tsx:556
+#: frontend/src/pages/Dashboard.tsx:573
 msgctxt "dashboard:dashboard.warnings"
 msgid "Warnings"
 msgstr "هشدارها"
@@ -10694,12 +10926,12 @@ msgctxt "commerce:capability.webhook"
 msgid "Webhook"
 msgstr "وب‌هوک"
 
-#: frontend/src/pages/CommerceHub.tsx:1102
+#: frontend/src/pages/CommerceHub.tsx:1374
 msgctxt "commerce:commerceHub.webhookUrl"
 msgid "Webhook URL"
 msgstr "نشانی اینترنتی webhook"
 
-#: frontend/src/pages/CommerceHub.tsx:1105
+#: frontend/src/pages/CommerceHub.tsx:1377
 msgctxt "commerce:commerceHub.webhookCredential"
 msgid "Webhook credential:"
 msgstr "اطلاعات ورود webhook:"
@@ -10746,7 +10978,7 @@ msgctxt "diagnostics:reason.webhook_processing_healthy"
 msgid "Webhook receipts are being processed normally."
 msgstr "وب‌هوک‌های دریافتی به‌طور عادی پردازش می‌شوند."
 
-#: frontend/src/pages/CommerceHub.tsx:1097
+#: frontend/src/pages/CommerceHub.tsx:1369
 msgctxt "commerce:commerceHub.webhookRegistration"
 msgid "Webhook registration"
 msgstr "ثبت webhook"
@@ -10800,7 +11032,7 @@ msgctxt "workspace:workspace.workflowGuardrails"
 msgid "Workflow Guardrails"
 msgstr "محدودیت‌های ایمنی فرایند"
 
-#: frontend/src/pages/CommerceHub.tsx:1156
+#: frontend/src/pages/CommerceHub.tsx:1446
 msgctxt "commerce:commerceHub.worksheet"
 msgid "Worksheet"
 msgstr "برگه"
@@ -10824,7 +11056,7 @@ msgctxt "activity:event.worksheet_enabled"
 msgid "Worksheet enabled"
 msgstr "کاربرگ فعال شد"
 
-#: frontend/src/pages/CommerceHub.tsx:1179
+#: frontend/src/pages/CommerceHub.tsx:1475
 msgctxt "commerce:commerceHub.worksheetName"
 msgid "Worksheet name"
 msgstr "نام برگه"
@@ -10931,6 +11163,23 @@ msgctxt "settings:rateLimits.writeRequestsMinute"
 msgid "Write Requests / Minute"
 msgstr "درخواست‌های نوشتن در دقیقه"
 
+msgctxt "activity:event.write_batch_applied"
+msgid "Write batch applied"
+msgstr "دسته نوشتن اعمال شد"
+
+msgctxt "activity:event.write_batch_failed"
+msgid "Write batch failed"
+msgstr "دسته نوشتن ناموفق بود"
+
+msgctxt "activity:event.write_batch_partially_failed"
+msgid "Write batch partially failed"
+msgstr "دسته نوشتن تا حدی ناموفق بود"
+
+#. Reconciliation verifies an uncertain external write without blindly redispatching it.
+msgctxt "activity:event.write_batch_reconciliation_required"
+msgid "Write batch requires reconciliation"
+msgstr "دسته نوشتن نیاز به تطبیق دارد"
+
 msgctxt "diagnostics:dimension.writeCapability"
 msgid "Write capability"
 msgstr "قابلیت نوشتن"
@@ -10939,7 +11188,7 @@ msgctxt "settings:rateLimits.writeDelay"
 msgid "Write delay"
 msgstr "تأخیر نوشتن"
 
-#: frontend/src/pages/ChannelDetail.tsx:134 frontend/src/pages/Channels.tsx:413 frontend/src/pages/CommerceHub.tsx:63 frontend/src/pages/CommerceHub.tsx:974
+#: frontend/src/pages/ChannelDetail.tsx:145 frontend/src/pages/Channels.tsx:416 frontend/src/pages/CommerceHub.tsx:1194 frontend/src/pages/CommerceHub.tsx:63
 msgctxt "commerce:commerceHub.writeEnabled2"
 msgid "Write enabled"
 msgstr "نوشتن فعال"
@@ -10954,7 +11203,12 @@ msgctxt "validation:rateLimits.writeRequestsRange"
 msgid "Write requests per minute must be between {{min}} and {{max}}."
 msgstr "تعداد درخواست‌های نوشتن در دقیقه باید بین {{min}} و {{max}} باشد."
 
-#: frontend/src/pages/ChannelDetail.tsx:223
+#: frontend/src/pages/Dashboard.tsx:591
+msgctxt "dashboard:dashboard.writeBatchSuccessRate"
+msgid "Write success rate (30d)"
+msgstr "نرخ موفقیت نوشتن (۳۰ روز)"
+
+#: frontend/src/pages/ChannelDetail.tsx:242
 msgctxt "commerce:commerceHub.channelDetails.writeSafety"
 msgid "Write-enabled does not mean automatic writing. Every change still goes through Workspace → Preview → Validation → Dry Run → Approval → Execution."
 msgstr "فعال‌بودن نوشتن به معنی نوشتن خودکار نیست. هر تغییر همچنان از فضای کاری ← پیش‌نمایش ← اعتبارسنجی ← اجرای آزمایشی ← تأیید ← اجرا عبور می‌کند."
@@ -11026,7 +11280,7 @@ msgctxt "settings:rateLimits.yourChangesHaveBeenApplied"
 msgid "Your changes have been applied."
 msgstr "تغییرات شما اعمال شد."
 
-#: frontend/src/pages/CommerceHub.tsx:713 frontend/src/pages/CommerceHub.tsx:722
+#: frontend/src/pages/CommerceHub.tsx:838 frontend/src/pages/CommerceHub.tsx:847
 msgctxt "commerce:commerceHub.yourChangesHaveBeenSaved"
 msgid "Your changes have been saved."
 msgstr "تغییرات شما ذخیره شد."
@@ -11081,7 +11335,7 @@ msgctxt "sources:sourceImportWizard.columns"
 msgid "columns"
 msgstr "ستون"
 
-#: frontend/src/pages/CommerceHub.tsx:1146
+#: frontend/src/pages/CommerceHub.tsx:1431
 msgctxt "commerce:commerceHub.spreadsheetResourcePlaceholder"
 msgid "e.g. /Documents/prices.xlsx"
 msgstr "مثلاً /Documents/prices.xlsx"
@@ -11104,6 +11358,11 @@ msgstr "تغییر بازبینی‌شده و صراحتاً انتخاب‌شد
 msgctxt "workspace:workspace.forWoocommerce"
 msgid "for WooCommerce."
 msgstr "برای ووکامرس."
+
+#: frontend/src/pages/CommerceHub.tsx:1293
+msgctxt "commerce:commerceHub.nextcloudWebdavExample"
+msgid "https://yourdomain.com/remote.php/dav/files/your-username"
+msgstr "https://yourdomain.com/remote.php/dav/files/your-username"
 
 #: frontend/src/pages/SourceConfiguration.tsx:1313
 msgctxt "sources:sourceConfiguration.ignored"
@@ -11275,7 +11534,7 @@ msgid_plural "{{count}} affected products"
 msgstr[0] "{{count}} محصول درگیر"
 msgstr[1] "{{count}} محصول درگیر"
 
-#: frontend/src/pages/Channels.tsx:378
+#: frontend/src/pages/Channels.tsx:377
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelsCount"
 msgid "{{count}} channel"
@@ -11394,7 +11653,7 @@ msgid_plural "{{count}} sources"
 msgstr[0] "{{count}} منبع"
 msgstr[1] "{{count}} منبع"
 
-#: frontend/src/pages/Activity.tsx:127
+#: frontend/src/pages/Activity.tsx:235
 msgctxt "activity:activity.groupedRoutineSummary"
 msgid "{{count}} successful routine event"
 msgid_plural "{{count}} successful routine events"
@@ -11540,12 +11799,12 @@ msgctxt "workspace:sourceCentricWorkspace.eligibleChangesWereAutomaticallySelect
 msgid "{{value1}} eligible changes were automatically selected. Blocked items remain excluded."
 msgstr "{{value1}} تغییر واجد شرایط به‌طور خودکار انتخاب شد. موارد مسدود همچنان کنار گذاشته می‌شوند."
 
-#: frontend/src/pages/Activity.tsx:339
+#: frontend/src/pages/Activity.tsx:474
 msgctxt "activity:activity.events"
 msgid "{{value1}} events"
 msgstr "{{value1}} رویداد"
 
-#: frontend/src/pages/ChannelDetail.tsx:86 frontend/src/pages/Channels.tsx:249 frontend/src/pages/CommerceHub.tsx:1339 frontend/src/pages/CommerceHub.tsx:1370 frontend/src/pages/CommerceHub.tsx:779 frontend/src/pages/CommerceHub.tsx:783
+#: frontend/src/pages/ChannelDetail.tsx:97 frontend/src/pages/Channels.tsx:248 frontend/src/pages/CommerceHub.tsx:1714 frontend/src/pages/CommerceHub.tsx:1743 frontend/src/pages/CommerceHub.tsx:994 frontend/src/pages/CommerceHub.tsx:998
 msgctxt "commerce:commerceHub.isReadyToUse"
 msgid "{{value1}} is ready to use."
 msgstr "{{value1}} آماده استفاده است."
@@ -11555,7 +11814,7 @@ msgctxt "orders:orders.orders2"
 msgid "{{value1}} orders"
 msgstr "{{value1}} سفارش"
 
-#: frontend/src/pages/CommerceHub.tsx:1401
+#: frontend/src/pages/CommerceHub.tsx:1774
 msgctxt "commerce:commerceHub.productsWereCachedFromPageS"
 msgid "{{value1}} products were cached from {{value2}} page(s)."
 msgstr "{{value1}} محصول از {{value2}} صفحه در کش ذخیره شد."
@@ -11564,7 +11823,7 @@ msgctxt "workspace:sourceCentricWorkspace.unsavedEdits"
 msgid "{{value1}} unsaved edits"
 msgstr "{{value1}} ویرایش ذخیره‌نشده"
 
-#: frontend/src/pages/Dashboard.tsx:462
+#: frontend/src/pages/Dashboard.tsx:479
 msgctxt "dashboard:dashboard.products"
 msgid "{{value1}} · {{value2}} products"
 msgstr "{{value1}} · {{value2}} محصول"
@@ -11619,7 +11878,7 @@ msgid_plural "{{value}} affected products"
 msgstr[0] "{{value}} محصول درگیر"
 msgstr[1] "{{value}} محصول درگیر"
 
-#: frontend/src/pages/Dashboard.tsx:578
+#: frontend/src/pages/Dashboard.tsx:613
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "dashboard:dashboard.applyStageCount"
 msgid "{{value}} apply"
@@ -11627,14 +11886,14 @@ msgid_plural "{{value}} apply"
 msgstr[0] "{{value}} آماده اعمال"
 msgstr[1] "{{value}} آماده اعمال"
 
-#: frontend/src/pages/Dashboard.tsx:478
+#: frontend/src/pages/Dashboard.tsx:495
 msgctxt "dashboard:dashboard.blockingCountBadge"
 msgid "{{value}} blocking"
 msgid_plural "{{value}} blocking"
 msgstr[0] "{{value}} مسدودکننده"
 msgstr[1] "{{value}} مسدودکننده"
 
-#: frontend/src/pages/Dashboard.tsx:412
+#: frontend/src/pages/Dashboard.tsx:429
 msgctxt "dashboard:dashboard.blockingQualifier"
 msgid "{{value}} blocking"
 msgid_plural "{{value}} blocking"
@@ -11662,7 +11921,7 @@ msgid_plural "{{value}} channel listings affected"
 msgstr[0] "{{value}} فهرست کانال تحت‌تأثیر"
 msgstr[1] "{{value}} فهرست کانال تحت‌تأثیر"
 
-#: frontend/src/pages/Dashboard.tsx:575
+#: frontend/src/pages/Dashboard.tsx:610
 msgctxt "dashboard:dashboard.dryRunStageCount"
 msgid "{{value}} dry run"
 msgid_plural "{{value}} dry run"
@@ -11708,7 +11967,7 @@ msgid_plural "{{value}} orders"
 msgstr[0] "{{value}} سفارش"
 msgstr[1] "{{value}} سفارش"
 
-#: frontend/src/pages/Dashboard.tsx:402
+#: frontend/src/pages/Dashboard.tsx:419
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "dashboard:dashboard.outOfStockCount"
 msgid "{{value}} out of stock"
@@ -11754,7 +12013,7 @@ msgid_plural "{{value}} products are recorded as out of stock."
 msgstr[0] "{{value}} محصول به‌عنوان ناموجود ثبت شده است."
 msgstr[1] "{{value}} محصول به‌عنوان ناموجود ثبت شده‌اند."
 
-#: frontend/src/pages/Dashboard.tsx:572
+#: frontend/src/pages/Dashboard.tsx:607
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.reviewStageCount"
 msgid "{{value}} review"
@@ -11778,7 +12037,7 @@ msgid_plural "{{value}} updates are waiting for completion or reconciliation."
 msgstr[0] "{{value}} به‌روزرسانی در انتظار تکمیل یا تطبیق است."
 msgstr[1] "{{value}} به‌روزرسانی در انتظار تکمیل یا تطبیق‌اند."
 
-#: frontend/src/pages/Dashboard.tsx:480
+#: frontend/src/pages/Dashboard.tsx:497
 msgctxt "dashboard:dashboard.warningCountBadge"
 msgid "{{value}} warning"
 msgid_plural "{{value}} warnings"
