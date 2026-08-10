@@ -161,6 +161,7 @@ def test_commerce_type_routes_mark_future_placeholders_read_only(client, auth_he
     assert channel_types["technolife"]["read_only"] is True
     assert channel_types["technolife"]["write_blocked"] is True
     for provider in ("digikala", "shopify"):
+        assert channel_types[provider]["implemented"] is False
         assert channel_types[provider]["placeholder"] is True
         assert channel_types[provider]["read_only"] is True
         assert channel_types[provider]["write_blocked"] is True
@@ -976,7 +977,29 @@ def test_nextcloud_test_connection_with_webdav_url_succeeds_without_spreadsheet_
     assert calls == ["browse:/"]
 
 
-def test_nextcloud_test_connection_does_not_claim_ready_when_acquisition_policy_blocks(client, auth_headers, monkeypatch):
+@pytest.mark.parametrize(
+    ("source_error", "expected_code", "expected_message"),
+    [
+        (
+            "unsafe_destination",
+            "unsafe_destination",
+            "network safety policy",
+        ),
+        (
+            "connect_timeout",
+            "timeout",
+            "did not respond in time",
+        ),
+    ],
+)
+def test_nextcloud_test_connection_reports_acquisition_preflight_failures(
+    client,
+    auth_headers,
+    monkeypatch,
+    source_error,
+    expected_code,
+    expected_message,
+):
     from app.connectors.common.source_http import SourceHttpError
 
     async def fake_browse(self, path="/"):
@@ -986,7 +1009,7 @@ def test_nextcloud_test_connection_does_not_claim_ready_when_acquisition_policy_
         return {"name": "prices.xlsx", "path": path, "type": "file", "extension": ".xlsx", "supported": True}
 
     async def blocked_preflight(*_args):
-        raise SourceHttpError("unsafe_destination")
+        raise SourceHttpError(source_error)
 
     monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory", fake_browse)
     monkeypatch.setattr("app.flowhub.integrations.nextcloud.NextcloudClient.get_resource_info", fake_info)
@@ -1008,10 +1031,10 @@ def test_nextcloud_test_connection_does_not_claim_ready_when_acquisition_policy_
     assert response.status_code == 200
     data = response.json()
     assert data["ok"] is False
-    assert data["code"] == "unsafe_destination"
+    assert data["code"] == expected_code
     assert data["webdav_reachable"] is True
     assert data["spreadsheet_found"] is True
-    assert "network safety policy" in data["message"]
+    assert expected_message in data["message"]
 
 
 def test_nextcloud_test_connection_uses_draft_credentials_without_persisting_them(
@@ -1081,6 +1104,36 @@ def test_nextcloud_test_connection_uses_draft_credentials_without_persisting_the
     assert config.get("nextcloud.username") == "stored-user"
     assert config.get("nextcloud.password") == "stored-password"
 
+    from app.flowhub.data_layer.models import DlConnectorHealth
+
+    assert (
+        db.query(DlConnectorHealth)
+        .filter(DlConnectorHealth.connector_id == "nextcloud:primary")
+        .one_or_none()
+        is None
+    )
+
+    stored_test = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/test",
+        headers=auth_headers,
+        json={},
+    )
+    assert stored_test.status_code == 200
+    assert stored_test.json()["ok"] is True
+    health = (
+        db.query(DlConnectorHealth)
+        .filter(DlConnectorHealth.connector_id == "nextcloud:primary")
+        .one()
+    )
+    assert health.status == "healthy"
+
+    reopened = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+    assert reopened.status_code == 200
+    assert reopened.json()["last_test"]["status"] == "healthy"
+
 
 def test_nextcloud_test_connection_rejects_stored_public_share_url(client, auth_headers, db, monkeypatch):
     from app.flowhub.setup.service import AppConfigService
@@ -1107,6 +1160,8 @@ def test_nextcloud_test_connection_rejects_stored_public_share_url(client, auth_
     assert data["status"] == "error"
     assert data["webdav_reachable"] is False
     assert data["spreadsheet_found"] is None
+    assert data["code"] == "PUBLIC_SHARE_NOT_SUPPORTED"
+    assert data["error_class"] == "invalid_url"
     assert data["message"] == "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL."
 
 
@@ -1261,12 +1316,241 @@ def test_nextcloud_source_configuration_returns_editable_values_without_secrets(
     assert response.status_code == 200
     data = response.json()
     assert data["configured"] is False
+    assert data["connection_configured"] is True
     assert data["settings"]["url"] == "https://softpple.business"
     assert data["settings"]["username"] == "wrong-user"
     assert data["settings"].get("spreadsheet_path") in (None, "")
     assert data["secrets"]["password"]["status"] == "configured"
     assert data["credentials_returned"] is False
+    assert data["last_test"] == {
+        "status": "unknown",
+        "message": "No health check has been recorded.",
+        "latency_ms": None,
+        "error_code": None,
+        "checked_at": None,
+    }
     assert "wrong-secret" not in response.text
+
+
+def test_nextcloud_source_save_with_blank_secret_preserves_stored_credential(
+    client, auth_headers, db
+):
+    from app.flowhub.setup.service import AppConfigService
+
+    first = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "Original catalog",
+            "description": "Daily owner workbook",
+            "enabled": True,
+            "settings": {
+                "url": "https://stored.example.test",
+                "username": "stored-user",
+            },
+            "secrets": {"password": "stored-app-password"},
+        },
+    )
+    assert first.status_code == 200
+    assert first.json()["connection_configured"] is True
+    assert first.json()["configured"] is False
+    assert first.json()["credentials_returned"] is False
+
+    edited = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "Edited catalog",
+            "description": "",
+            "enabled": True,
+            "settings": {
+                "url": "https://edited.example.test",
+                "username": "edited-user",
+            },
+            "secrets": {"password": ""},
+        },
+    )
+
+    assert edited.status_code == 200
+    assert "stored-app-password" not in edited.text
+    assert edited.json()["connection_configured"] is True
+    config = AppConfigService(db)
+    assert config.get("nextcloud.password") == "stored-app-password"
+
+    reopened = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+    assert reopened.status_code == 200
+    data = reopened.json()
+    assert data["display_name"] == "Edited catalog"
+    assert data["settings"]["url"] == "https://edited.example.test"
+    assert data["settings"]["username"] == "edited-user"
+    assert data["settings"]["description"] == ""
+    assert data["secrets"]["password"]["status"] == "configured"
+    assert data["connection_configured"] is True
+    assert data["enabled"] is True
+    assert data["credentials_returned"] is False
+    assert "stored-app-password" not in reopened.text
+
+
+def test_nextcloud_source_replaces_secret_only_when_settings_are_saved(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.setup.service import AppConfigService
+
+    async def fake_browse(self, path="/"):
+        return {"path": path, "directories": [], "files": [], "read_only": True, "write_blocked": True}
+
+    monkeypatch.setattr(
+        "app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory",
+        fake_browse,
+    )
+    stored = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://stored.example.test",
+                "username": "stored-user",
+            },
+            "secrets": {"password": "stored-app-password"},
+        },
+    )
+    assert stored.status_code == 200
+
+    draft = {
+        "enabled": True,
+        "settings": {
+            "url": "https://draft.example.test",
+            "username": "draft-user",
+        },
+        "secrets": {"password": "replacement-app-password"},
+    }
+    tested = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/test",
+        headers=auth_headers,
+        json=draft,
+    )
+    assert tested.status_code == 200
+    assert tested.json()["ok"] is True
+    config = AppConfigService(db)
+    assert config.get("nextcloud.password") == "stored-app-password"
+
+    saved = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json=draft,
+    )
+    assert saved.status_code == 200
+    assert saved.json()["connection_configured"] is True
+    assert config.get("nextcloud.password") == "replacement-app-password"
+    assert "replacement-app-password" not in saved.text
+
+    reopened = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+    assert reopened.status_code == 200
+    assert reopened.json()["last_test"] == {
+        "status": "unknown",
+        "message": "No health check has been recorded.",
+        "latency_ms": None,
+        "error_code": None,
+        "checked_at": None,
+    }
+
+
+def test_nextcloud_test_connection_returns_stable_safe_failure_codes(
+    client, auth_headers, monkeypatch
+):
+    from app.flowhub.integrations.errors import IntegrationError
+
+    saved = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://stored.example.test",
+                "username": "stored-user",
+            },
+            "secrets": {"password": "stored-app-password"},
+        },
+    )
+    assert saved.status_code == 200
+
+    async def unexpected_browse(self, path="/"):
+        raise RuntimeError("implementation detail")
+
+    monkeypatch.setattr(
+        "app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory",
+        unexpected_browse,
+    )
+    unexpected = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/test",
+        headers=auth_headers,
+        json={},
+    )
+    assert unexpected.status_code == 200
+    assert unexpected.json()["code"] == "connection_failed"
+    assert unexpected.json()["error_class"] == "connection_failed"
+    assert "RuntimeError" not in unexpected.text
+
+    cases = (
+        ("authentication_failed", 401, "Authentication failed."),
+        ("permission_denied", 403, "Nextcloud rejected access to the WebDAV path."),
+        ("resource_not_found", 404, "The configured WebDAV path was not found."),
+        ("timeout", None, "The Nextcloud server did not respond in time."),
+        (
+            "unsafe_destination",
+            None,
+            "The configured source destination is blocked by the Source network safety policy.",
+        ),
+        ("dns_resolution_failed", None, "The Nextcloud server hostname could not be resolved."),
+        ("tls_error", None, "A secure connection to the Nextcloud server could not be established."),
+        ("network_unreachable", None, "The Nextcloud server could not be reached."),
+    )
+    for code, http_status, message in cases:
+        async def fail_browse(self, path="/", *, failure_code=code, failure_status=http_status):
+            raise IntegrationError(
+                "Nextcloud",
+                "/redacted-webdav-path",
+                "redacted upstream failure",
+                status_code=failure_status,
+                code=failure_code,
+            )
+
+        monkeypatch.setattr(
+            "app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory",
+            fail_browse,
+        )
+        response = client.post(
+            "/api/v2/commerce/sources/nextcloud:primary/test",
+            headers=auth_headers,
+            json={},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ok"] is False
+        assert data["code"] == code
+        assert data["error_class"] == code
+        assert data["message"] == message
+        assert "stored-app-password" not in response.text
+
+    configuration = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+    assert configuration.status_code == 200
+    last_test = configuration.json()["last_test"]
+    assert last_test["status"] == "unhealthy"
+    assert last_test["message"] == "The Nextcloud server could not be reached."
+    assert last_test["error_code"] == "network_unreachable"
+    assert last_test["latency_ms"] is not None
+    assert last_test["checked_at"]
 
 
 def test_nextcloud_test_connection_missing_spreadsheet_fails_clearly(client, auth_headers, monkeypatch):

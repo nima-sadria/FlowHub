@@ -422,6 +422,7 @@ class IntegrationPlatformService:
                 connector_id="woocommerce:primary",
                 name="WooCommerce",
                 values=wc_values,
+                preserve_existing_enabled=True,
             )
         nc_values = {
             "url": self.config.get("nextcloud.url"),
@@ -435,6 +436,7 @@ class IntegrationPlatformService:
                 connector_id="nextcloud:primary",
                 name="Nextcloud Spreadsheet",
                 values=nc_values,
+                preserve_existing_enabled=True,
             )
 
     def ensure_connector_from_settings(
@@ -444,6 +446,7 @@ class IntegrationPlatformService:
         connector_id: str,
         name: str,
         values: dict[str, object | None],
+        preserve_existing_enabled: bool = False,
     ) -> IntegrationConnectorInstance:
         definition = self.get_registry_definition(connector_type)
         values = self._normalize_connector_settings(connector_type, values, reject_invalid=False) or {}
@@ -471,7 +474,8 @@ class IntegrationPlatformService:
                 commit=False,
             )
         else:
-            row.enabled = self._required_settings_configured(definition, values)
+            if not preserve_existing_enabled:
+                row.enabled = self._required_settings_configured(definition, values)
             row.updated_at = now
         self._upsert_settings(
             row,

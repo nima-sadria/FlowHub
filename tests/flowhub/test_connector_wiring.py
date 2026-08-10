@@ -133,6 +133,39 @@ def test_nc_test_connection_uses_connector():
     assert latency == 42
 
 
+@pytest.mark.parametrize(
+    ("raw_code", "expected"),
+    [
+        ("unsafe_destination", "unsafe_destination"),
+        ("unsafe_redirect", "unsafe_destination"),
+        ("dns_resolution_failed", "dns_resolution_failed"),
+        ("tls_error", "tls_error"),
+        ("connection_failed", "network_unreachable"),
+    ],
+)
+def test_nc_webdav_transport_failure_keeps_safe_stable_code(raw_code, expected):
+    async def _run():
+        nc = _nc()
+        with patch(
+            "app.flowhub.integrations.nextcloud.propfind_path",
+            new=AsyncMock(
+                side_effect=ConnectorError(
+                    code=ConnectorErrorCode.NETWORK,
+                    message="WebDAV connection failed.",
+                    provider="nextcloud",
+                    retryable=True,
+                    raw=raw_code,
+                )
+            ),
+        ):
+            await nc.browse_directory("/")
+
+    with pytest.raises(IntegrationError) as exc_info:
+        asyncio.run(_run())
+    assert exc_info.value.code == expected
+    assert raw_code not in exc_info.value.message
+
+
 def test_active_FLOWHUB_v2_routes_do_not_import_live_clients_or_httpx():
     forbidden = {
         "app.flowhub.integrations.woocommerce",

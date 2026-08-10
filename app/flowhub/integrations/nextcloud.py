@@ -38,17 +38,34 @@ def _to_integration_error(exc: ConnectorError, endpoint: str) -> IntegrationErro
     code = exc.code
     if code == ConnectorErrorCode.AUTH_FAILED:
         msg = "Authentication failed - check username and app password"
+        stable_code = "authentication_failed"
     elif code == ConnectorErrorCode.PERMISSION:
         msg = "Access denied - check WebDAV permissions"
+        stable_code = "permission_denied"
     elif code == ConnectorErrorCode.NOT_FOUND:
         msg = f"File not found: {endpoint}"
+        stable_code = "resource_not_found"
     elif code == ConnectorErrorCode.TIMEOUT:
         msg = "Connection timed out"
+        stable_code = "timeout"
     elif code == ConnectorErrorCode.NETWORK:
         msg = "Could not connect to Nextcloud - check URL and network"
+        stable_code = {
+            "unsafe_destination": "unsafe_destination",
+            "unsafe_redirect": "unsafe_destination",
+            "dns_resolution_failed": "dns_resolution_failed",
+            "tls_error": "tls_error",
+        }.get(str(exc.raw or ""), "network_unreachable")
     else:
         msg = "Nextcloud returned an invalid or unavailable response."
-    return IntegrationError(_PROVIDER, endpoint, msg, status_code=exc.http_status)
+        stable_code = "connection_failed"
+    return IntegrationError(
+        _PROVIDER,
+        endpoint,
+        msg,
+        status_code=exc.http_status,
+        code=stable_code,
+    )
 
 
 # -- Client --------------------------------------------------------------------

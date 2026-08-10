@@ -600,6 +600,11 @@ class CommerceHubService:
         provider = str(meta["provider"])
         if registry.get_definition(provider) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source settings are not available.")
+        previous_nextcloud_identity = (
+            self._nextcloud_configuration_identity({}, allow_stored=True)
+            if provider == "nextcloud"
+            else None
+        )
         if provider == "nextcloud":
             self._validate_nextcloud_source_body(body)
         self._ensure_instance(meta)
@@ -610,14 +615,26 @@ class CommerceHubService:
         currency_profile = self._save_currency_declaration(
             scope="source", scope_reference=source_id, body=body, user=user
         )
+        if provider == "nextcloud" and previous_nextcloud_identity != (
+            self._nextcloud_configuration_identity({}, allow_stored=True)
+        ):
+            self._clear_source_health(source_id)
+        instance = self.db.get(IntegrationConnectorInstance, source_id)
         return {
             **result,
             "source_id": source_id,
+            "configured": self._instance_configured(instance),
+            "connection_configured": (
+                self._nextcloud_connection_configured(instance)
+                if provider == "nextcloud"
+                else self._instance_configured(instance)
+            ),
             "access_mode": ACCESS_MODE_READ_ONLY,
             "read_only": True,
             "runtime_write_blocked": True,
             "write_blocked": True,
             "write_pipeline_eligible": False,
+            "credentials_returned": False,
             "currency_profile": currency_profile,
         }
 
@@ -751,6 +768,7 @@ class CommerceHubService:
         if meta["provider"] == "nextcloud":
             self.integration.bootstrap_from_app_config()
         instance = self.db.get(IntegrationConnectorInstance, source_id)
+        health = self._health(source_id)
         settings: dict[str, object] = {
             item.key: item.default
             for item in definition.settings_schema
@@ -773,12 +791,21 @@ class CommerceHubService:
             "provider": meta["provider"],
             "display_name": instance.name if instance else meta["name"],
             "configured": self._instance_configured(instance),
+            "connection_configured": (
+                self._nextcloud_connection_configured(instance)
+                if meta["provider"] == "nextcloud"
+                else self._instance_configured(instance)
+            ),
             "enabled": bool(instance and instance.enabled),
             "access_mode": ACCESS_MODE_READ_ONLY,
             "settings": settings,
             "secrets": secret_status,
             "settings_schema": [item.model_dump() for item in definition.settings_schema],
             "credentials_returned": False,
+            "last_test": {
+                **self._health_contract(health),
+                "checked_at": self._iso(health.checked_at) if health else None,
+            },
             "currency_profile": PricingMatrixService(self.db).unit_declaration(
                 "source", source_id
             ),
@@ -1183,9 +1210,8 @@ class CommerceHubService:
         access_mode = body.get("access_mode", body.get("accessMode")) if isinstance(body, dict) else None
         if access_mode not in (None, ""):
             settings["access_mode"] = access_mode
-        description = str(body.get("description") or "").strip() if isinstance(body, dict) else ""
-        if description:
-            settings["description"] = description
+        if isinstance(body, dict) and "description" in body:
+            settings["description"] = str(body.get("description") or "").strip()
         return {
             "settings": settings,
             "secrets": body.get("secrets") if isinstance(body, dict) else None,
@@ -1726,7 +1752,9 @@ class CommerceHubService:
         return TechnolifeConnector(channel_id="technolife:main", config=config)
 
     async def _test_nextcloud_source_connection(self, body: dict | None = None) -> dict:
-        values = self._nextcloud_values(body or {}, allow_stored=True)
+        request_body = body or {}
+        values = self._nextcloud_values(request_body, allow_stored=True)
+        record_health = self._nextcloud_test_matches_stored_configuration(request_body)
         if not values["url"] or not values["password"]:
             return {
                 **self._connection_base(),
@@ -1738,6 +1766,8 @@ class CommerceHubService:
                 "latency_ms": None,
                 "checked_at": self._checked_at(),
                 "message": "Nextcloud is not configured. No external call was performed.",
+                "code": "not_configured",
+                "error_class": "not_configured",
                 "webdav_reachable": False,
                 "spreadsheet_found": None,
                 "normalized_base_url": "",
@@ -1763,6 +1793,7 @@ class CommerceHubService:
                 external=False,
                 error_class="invalid_url",
                 code=str(detail.get("code") or "INVALID_NEXTCLOUD_URL"),
+                record_health=record_health,
             )
         if not normalized["username"]:
             return {
@@ -1775,6 +1806,8 @@ class CommerceHubService:
                 "latency_ms": None,
                 "checked_at": checked_at,
                 "message": "Nextcloud is not configured. No external call was performed.",
+                "code": "not_configured",
+                "error_class": "not_configured",
                 "webdav_reachable": False,
                 "spreadsheet_found": None,
                 "normalized_base_url": normalized["server_root_url"],
@@ -1799,6 +1832,21 @@ class CommerceHubService:
                 try:
                     item = await client.get_resource_info(spreadsheet_path)
                 except IntegrationError as exc:
+                    error_class = self._nextcloud_error_class(exc)
+                    if error_class != "resource_not_found":
+                        return self._nextcloud_test_failure(
+                            started,
+                            checked_at,
+                            self._safe_nextcloud_error_message(exc),
+                            normalized_base_url=normalized["server_root_url"],
+                            normalized_webdav_url=normalized_webdav_url,
+                            webdav_reachable=True,
+                            spreadsheet_found=None,
+                            external=True,
+                            http_status=exc.status_code,
+                            error_class=error_class,
+                            record_health=record_health,
+                        )
                     return self._nextcloud_test_failure(
                         started,
                         checked_at,
@@ -1809,7 +1857,8 @@ class CommerceHubService:
                         spreadsheet_found=False,
                         external=True,
                         http_status=exc.status_code,
-                        error_class="spreadsheet_not_found",
+                        error_class="resource_not_found",
+                        record_health=record_health,
                     )
                 if item["type"] != "file":
                     return self._nextcloud_test_failure(
@@ -1821,7 +1870,8 @@ class CommerceHubService:
                         webdav_reachable=True,
                         spreadsheet_found=False,
                         external=True,
-                        error_class="spreadsheet_invalid",
+                        error_class="invalid_webdav_path",
+                        record_health=record_health,
                     )
                 if item.get("supported") is not True:
                     return self._nextcloud_test_failure(
@@ -1834,6 +1884,7 @@ class CommerceHubService:
                         spreadsheet_found=False,
                         external=True,
                         error_class="spreadsheet_unsupported",
+                        record_health=record_health,
                     )
                 spreadsheet_found = True
                 provider = NextcloudWebDavAcquisitionProvider(
@@ -1850,17 +1901,21 @@ class CommerceHubService:
                         )
                     ).preflight(provider.resource_url)
                 except SourceHttpError as exc:
+                    safety_code, safety_message = self._nextcloud_source_http_failure(
+                        exc
+                    )
                     return self._nextcloud_test_failure(
                         started,
                         checked_at,
-                        "The configured source destination is blocked by the Source network safety policy.",
+                        safety_message,
                         normalized_base_url=normalized["server_root_url"],
                         normalized_webdav_url=normalized_webdav_url,
                         webdav_reachable=True,
                         spreadsheet_found=True,
                         external=True,
-                        error_class=exc.code,
-                        code=exc.code,
+                        error_class=safety_code,
+                        code=safety_code,
+                        record_health=record_health,
                     )
             latency_ms = round((monotonic() - started) * 1000, 2)
             message = (
@@ -1868,7 +1923,10 @@ class CommerceHubService:
                 if spreadsheet_found is True
                 else "Connection successful. Select a spreadsheet file to enable preview."
             )
-            self._record_source_health("nextcloud:primary", "healthy", latency_ms, message, None)
+            if record_health:
+                self._record_source_health(
+                    "nextcloud:primary", "healthy", latency_ms, message, None
+                )
             return {
                 **self._connection_base(),
                 "ok": True,
@@ -1897,6 +1955,7 @@ class CommerceHubService:
                 external=True,
                 http_status=exc.status_code,
                 error_class=self._nextcloud_error_class(exc),
+                record_health=record_health,
             )
         except HTTPException:
             raise
@@ -1910,7 +1969,8 @@ class CommerceHubService:
                 webdav_reachable=False,
                 spreadsheet_found=None,
                 external=True,
-                error_class=type(exc).__name__,
+                error_class="connection_failed",
+                record_health=record_health,
             )
 
     def _nextcloud_test_failure(
@@ -1927,9 +1987,19 @@ class CommerceHubService:
         http_status: int | None = None,
         error_class: str | None = None,
         code: str | None = None,
+        record_health: bool = False,
     ) -> dict:
         latency_ms = round((monotonic() - started) * 1000, 2)
-        self._record_source_health("nextcloud:primary", "unhealthy", latency_ms, message, error_class or "connection_failed")
+        stable_error_class = error_class or "connection_failed"
+        response_code = code or stable_error_class
+        if record_health:
+            self._record_source_health(
+                "nextcloud:primary",
+                "unhealthy",
+                latency_ms,
+                message,
+                stable_error_class,
+            )
         return {
             **self._connection_base(),
             "ok": False,
@@ -1940,7 +2010,8 @@ class CommerceHubService:
             "latency_ms": latency_ms,
             "checked_at": checked_at,
             "message": message,
-            **({"code": code} if code else {}),
+            "code": response_code,
+            "error_class": stable_error_class,
             "webdav_reachable": webdav_reachable,
             "spreadsheet_found": spreadsheet_found,
             "normalized_base_url": normalized_base_url,
@@ -1965,20 +2036,119 @@ class CommerceHubService:
             error_class=error_class,
         )
 
+    def _clear_source_health(self, source_id: str) -> None:
+        health = self._health(source_id)
+        if health is None:
+            return
+        self.db.delete(health)
+        self.db.commit()
+
     def _safe_nextcloud_error_message(self, exc: IntegrationError) -> str:
-        return str(normalize_upstream_error(exc, source="nextcloud")["message"])
+        code = self._nextcloud_error_class(exc)
+        messages = {
+            "authentication_failed": "Authentication failed.",
+            "permission_denied": "Nextcloud rejected access to the WebDAV path.",
+            "resource_not_found": "The configured WebDAV path was not found.",
+            "invalid_webdav_path": "The configured WebDAV path is invalid.",
+            "timeout": "The Nextcloud server did not respond in time.",
+            "unsafe_destination": "The configured source destination is blocked by the Source network safety policy.",
+            "dns_resolution_failed": "The Nextcloud server hostname could not be resolved.",
+            "tls_error": "A secure connection to the Nextcloud server could not be established.",
+            "network_unreachable": "The Nextcloud server could not be reached.",
+        }
+        return messages.get(
+            code,
+            str(normalize_upstream_error(exc, source="nextcloud")["message"]),
+        )
+
+    def _nextcloud_source_http_failure(
+        self, exc: SourceHttpError
+    ) -> tuple[str, str]:
+        raw_code = str(exc.code or "").strip().lower()
+        if raw_code in {"unsafe_destination", "unsafe_redirect"}:
+            return (
+                "unsafe_destination",
+                "The configured source destination is blocked by the Source network safety policy.",
+            )
+        if raw_code in {
+            "timeout",
+            "total_timeout",
+            "connect_timeout",
+            "read_timeout",
+        }:
+            return "timeout", "The Nextcloud server did not respond in time."
+        if raw_code == "dns_resolution_failed":
+            return (
+                "dns_resolution_failed",
+                "The Nextcloud server hostname could not be resolved.",
+            )
+        if raw_code == "tls_error":
+            return (
+                "tls_error",
+                "A secure connection to the Nextcloud server could not be established.",
+            )
+        if raw_code in {"invalid_url", "credentials_in_url", "unsupported_scheme"}:
+            return "invalid_webdav_path", "The configured WebDAV path is invalid."
+        return "network_unreachable", "The Nextcloud server could not be reached."
 
     def _nextcloud_error_class(self, exc: IntegrationError) -> str:
+        code = str(getattr(exc, "code", "") or "").strip().lower()
+        if code in {
+            "authentication_failed",
+            "permission_denied",
+            "resource_not_found",
+            "invalid_webdav_path",
+            "timeout",
+            "unsafe_destination",
+            "dns_resolution_failed",
+            "tls_error",
+            "network_unreachable",
+        }:
+            return code
         message = (exc.message or "").lower()
         if "authentication failed" in message or "access denied" in message:
             return "authentication_failed"
         if "not found" in message:
-            return "webdav_not_found"
+            return "resource_not_found"
+        if "invalid nextcloud path" in message or "invalid webdav path" in message:
+            return "invalid_webdav_path"
         if "timed out" in message:
             return "timeout"
         if "could not connect" in message or "connection" in message:
-            return "network"
+            return "network_unreachable"
         return "connection_failed"
+
+    def _nextcloud_configuration_identity(
+        self, body: dict, *, allow_stored: bool
+    ) -> tuple[str, str, str, str, str] | None:
+        """Return an internal-only identity for the values exercised by Test."""
+        values = self._nextcloud_values(body, allow_stored=allow_stored)
+        if not values["url"] or not values["password"]:
+            return None
+        try:
+            normalized = self._normalize_nextcloud_url(
+                values["url"], values["username"]
+            )
+        except HTTPException:
+            return (
+                values["url"],
+                "",
+                values["username"],
+                values["password"],
+                values["spreadsheet_path"],
+            )
+        return (
+            normalized["server_root_url"],
+            normalized["webdav_files_root_url"],
+            normalized["username"],
+            values["password"],
+            values["spreadsheet_path"],
+        )
+
+    def _nextcloud_test_matches_stored_configuration(self, body: dict) -> bool:
+        stored = self._nextcloud_configuration_identity({}, allow_stored=True)
+        candidate = self._nextcloud_configuration_identity(body, allow_stored=True)
+        return stored is not None and candidate == stored
 
     def _nextcloud_values(self, body: dict, *, allow_stored: bool) -> dict[str, str]:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
@@ -2262,6 +2432,18 @@ class CommerceHubService:
         else:
             required = set()
         return bool(required) and all(settings.get(key) and settings[key].configured for key in required)
+
+    def _nextcloud_connection_configured(
+        self, instance: IntegrationConnectorInstance | None
+    ) -> bool:
+        """Return persisted Step-2 state without requiring a spreadsheet selection."""
+        if instance is None or instance.connector_type != "nextcloud":
+            return False
+        settings = {item.key: item for item in instance.settings}
+        return all(
+            settings.get(key) is not None and settings[key].configured
+            for key in ("url", "username", "password")
+        )
 
     def _secret_status(self, instance: IntegrationConnectorInstance | None) -> dict:
         if instance is None:

@@ -17,11 +17,13 @@ class IntegrationError(Exception):
         endpoint: str,
         message: str,
         status_code: int | None = None,
+        code: str | None = None,
     ) -> None:
         self.provider = provider
         self.endpoint = endpoint
         self.message = message
         self.status_code = status_code
+        self.code = code
         super().__init__(f"[{provider}] {message}")
 
     @property
