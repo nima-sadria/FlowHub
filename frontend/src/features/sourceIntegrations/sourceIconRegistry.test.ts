@@ -34,12 +34,13 @@ describe('Source icon registry', () => {
     expect(sourceIconPath('woo_commerce')).toBe(SOURCE_ICON_ASSETS.woocommerce)
   })
 
-  it('falls back for recognized channel types with no matching local brand asset', () => {
-    // Shopify is a recognized future channel type but static/logos/brands/
-    // has no matching file for it; per policy this must fall back rather
-    // than invent or hotlink a logo.
-    expect(sourceIconPath('shopify:primary')).toBe(SOURCE_ICON_FALLBACK)
-    expect(SOURCE_ICON_ASSETS).not.toHaveProperty('shopify')
+  it('resolves Shopify identifiers through the canonical local registry', () => {
+    expect(sourceIconPath('shopify:primary')).toBe(SOURCE_ICON_ASSETS.shopify)
+    expect(sourceIconPath({ provider: 'Shopify:future' })).toBe(SOURCE_ICON_ASSETS.shopify)
+    expect(SOURCE_ICON_ASSETS.shopify).toBe('/static/logos/brands/shopify.webp')
+  })
+
+  it('falls back for identities without a matching local brand asset', () => {
     // "woo" alone is not a real FlowHub provider/channel identity value
     // (only an unrelated error-message substring check), so it must not
     // resolve to the WooCommerce asset.

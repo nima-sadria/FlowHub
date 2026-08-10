@@ -39,6 +39,7 @@ export const SOURCE_ICON_ASSETS = Object.freeze({
   noon: `${BRANDS_DIR}/noon.webp`,
   odoo: `${BRANDS_DIR}/odoo.webp`,
   onlyoffice: `${BRANDS_DIR}/onlyoffice.webp`,
+  shopify: `${BRANDS_DIR}/shopify.webp`,
   snappshop: `${BRANDS_DIR}/snapp-shop.webp`,
   tapsishop: `${BRANDS_DIR}/tapsi-shop.webp`,
   technolife: `${BRANDS_DIR}/technolife.webp`,
@@ -47,11 +48,6 @@ export const SOURCE_ICON_ASSETS = Object.freeze({
   whatsapp: `${BRANDS_DIR}/whatsapp.webp`,
   woocommerce: `${BRANDS_DIR}/woocommerce.webp`,
   zoomit: `${BRANDS_DIR}/zoomit.webp`,
-  // NOTE: "shopify" is a recognized future channel type (see
-  // features/unifiedWorkspace/channelDisplayName.ts) with no matching file
-  // in static/logos/brands/. Deliberately absent here rather than pointed
-  // at an invented asset; sourceIconPath() falls back to
-  // SOURCE_ICON_FALLBACK for it today.
 })
 
 export interface SourceIconIdentity {
@@ -85,6 +81,7 @@ const SOURCE_ICON_ALIASES: Readonly<Record<string, keyof typeof SOURCE_ICON_ASSE
   office: 'microsoftOffice',
   onlyoffice: 'onlyoffice',
   onlyoffice_spreadsheet: 'onlyoffice',
+  shopify: 'shopify',
   snapp_shop: 'snappshop',
   snappshop: 'snappshop',
   spreadsheet_import: 'microsoftOffice',
