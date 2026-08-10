@@ -7,7 +7,10 @@ mkdirSync(screenshotRoot, { recursive: true })
 
 const mockLogo = readFileSync(path.resolve('public', 'flowhub-logo.png'))
 const nextcloudLogo = readFileSync(path.resolve('..', 'static', 'logos', 'brands', 'nextcloud.webp'))
-const microsoftOfficeLogo = readFileSync(path.resolve('..', 'static', 'logos', 'brands', 'microsoft-office.webp'))
+// The Microsoft Office family (excel/xlsx/imported_sheet/...) resolves to the
+// Excel mark in sourceIconRegistry.ts — no dedicated "Microsoft Office" asset
+// exists in static/logos/brands/.
+const microsoftOfficeLogo = readFileSync(path.resolve('..', 'static', 'logos', 'brands', 'excel.webp'))
 
 const overviewViewports = [
   { width: 1280, height: 720 },
@@ -307,12 +310,8 @@ async function installStrictMockApi(page: Page, audit: TrafficAudit, locale: 'en
       await route.fulfill({ status: 200, contentType: 'image/webp', body: nextcloudLogo })
       return
     }
-    if (url.pathname === '/static/logos/brands/microsoft-office.webp') {
+    if (url.pathname === '/static/logos/brands/excel.webp') {
       await route.fulfill({ status: 200, contentType: 'image/webp', body: microsoftOfficeLogo })
-      return
-    }
-    if (url.pathname.startsWith('/static/win11-icon/brand/')) {
-      await route.continue()
       return
     }
     if (url.pathname.startsWith('/static/')) {
