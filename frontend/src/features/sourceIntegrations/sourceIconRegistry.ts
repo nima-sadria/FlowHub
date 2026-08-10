@@ -15,7 +15,7 @@
 //
 // If a provider has no matching file in static/logos/brands/, it is
 // intentionally absent from SOURCE_ICON_ASSETS below so lookups fall through
-// to SOURCE_ICON_FALLBACK — never a placeholder or a remote logo.
+// to SOURCE_ICON_FALLBACK — never an invented icon or a remote logo.
 
 const BRANDS_DIR = '/static/logos/brands'
 
