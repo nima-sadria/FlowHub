@@ -3427,6 +3427,12 @@ select,
     border-radius: var(--fh-radius-full);
   }
 
+  .fh-icon-button-sm:disabled,
+  .fh-icon-button-sm[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
   .fh-icon-button-danger {
     color: var(--fh-error-600);
     border-color: rgba(240, 68, 56, 0.2);

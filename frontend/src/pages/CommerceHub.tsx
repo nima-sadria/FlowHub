@@ -1186,6 +1186,8 @@ export function ConfigPanel({
           revealLabel={translate('commerce:commerceHub.showEnteredSecret', { defaultValue: 'Show entered secret' })}
           concealLabel={translate('commerce:commerceHub.hideEnteredSecret', { defaultValue: 'Hide entered secret' })}
           copyLabel={translate('commerce:commerceHub.copyEnteredSecret', { defaultValue: 'Copy entered secret' })}
+          copiedLabel={translate('commerce:commerceHub.enteredSecretCopied', { defaultValue: 'Entered secret copied.' })}
+          emptySecretHint={translate('commerce:commerceHub.savedSecretHiddenHint', { defaultValue: 'Saved secret is hidden for security — type a new one to reveal or copy it.' })}
         />
       )
     }

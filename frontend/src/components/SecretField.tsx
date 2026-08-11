@@ -1,4 +1,5 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
+import { useNotification } from '../notifications/NotificationProvider'
 import Icon from './Icon'
 
 interface SecretFieldProps {
@@ -12,6 +13,8 @@ interface SecretFieldProps {
   revealLabel: string
   concealLabel: string
   copyLabel: string
+  copiedLabel: string
+  emptySecretHint: string
   placeholder: string
   configuredMask?: string
   error?: string
@@ -29,18 +32,28 @@ export default function SecretField({
   revealLabel,
   concealLabel,
   copyLabel,
+  copiedLabel,
+  emptySecretHint,
   placeholder,
   configuredMask = '••••••••••••',
   error,
 }: SecretFieldProps) {
   const id = useId()
+  const { success } = useNotification()
   const [revealed, setRevealed] = useState(false)
+  const [focused, setFocused] = useState(false)
   const hasLocalValue = value.length > 0
-  const showConfiguredMask = configured && !hasLocalValue
+  const showsSaved = configured && !hasLocalValue
+  const showConfiguredMask = showsSaved && !focused
+
+  useEffect(() => {
+    if (!hasLocalValue) setRevealed(false)
+  }, [hasLocalValue])
 
   async function copyLocalValue() {
     if (!hasLocalValue) return
     await navigator.clipboard.writeText(value)
+    success(copiedLabel)
   }
 
   return (
@@ -54,8 +67,10 @@ export default function SecretField({
           required={required && !configured}
           disabled={disabled}
           onChange={event => onChange(event.target.value)}
-          className={`fh-input pe-20 ${showConfiguredMask ? 'placeholder:text-transparent' : ''}`}
-          placeholder={placeholder}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          className="fh-input pe-20"
+          placeholder={showConfiguredMask ? '' : placeholder}
           autoComplete="new-password"
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : configured ? `${id}-configured` : undefined}
@@ -63,7 +78,7 @@ export default function SecretField({
         {showConfiguredMask && (
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 start-3 flex items-center font-mono tracking-wider text-text-base"
+            className="pointer-events-none absolute inset-y-0 start-3 flex items-center font-mono tracking-wider text-text-muted"
             data-testid="configured-secret-mask"
           >
             {configuredMask}
@@ -75,7 +90,7 @@ export default function SecretField({
             className="fh-icon-button-sm"
             disabled={disabled || !hasLocalValue}
             aria-label={revealed ? concealLabel : revealLabel}
-            title={revealed ? concealLabel : revealLabel}
+            title={showsSaved ? emptySecretHint : (revealed ? concealLabel : revealLabel)}
             onClick={() => setRevealed(current => !current)}
           >
             <Icon name="preview" />
@@ -85,7 +100,7 @@ export default function SecretField({
             className="fh-icon-button-sm"
             disabled={disabled || !hasLocalValue}
             aria-label={copyLabel}
-            title={copyLabel}
+            title={showsSaved ? emptySecretHint : copyLabel}
             onClick={() => void copyLocalValue()}
           >
             <Icon name="copy" />
