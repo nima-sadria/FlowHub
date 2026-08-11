@@ -31,4 +31,20 @@ describe('formatChannelDisplayName', () => {
     expect(formatChannelDisplayName('')).toBe('Channel')
     expect(formatChannelDisplayName('shopify:primary', { displayName: 'Shopify Production' })).toBe('Shopify Production')
   })
+
+  it('treats legacy Persian system defaults as locale labels but preserves Owner custom names', async () => {
+    expect(formatChannelDisplayName('woocommerce:primary', { displayName: 'ووکامرس' })).toBe('WooCommerce')
+    expect(formatChannelDisplayName('snappshop:main', { displayName: 'اسنپ شاپ' })).toBe('SnappShop')
+    expect(formatChannelDisplayName('tapsishop:main', { displayName: 'تپ‌سی شاپ' })).toBe('TapsiShop')
+    expect(formatChannelDisplayName('technolife:main', { displayName: 'تکنولایف' })).toBe('Technolife')
+    expect(formatChannelDisplayName('snappshop:main', {
+      displayName: 'اسنپ شاپ',
+      displayNameCustom: true,
+    })).toBe('اسنپ شاپ')
+    expect(formatChannelDisplayName('snappshop:main', { displayName: 'فروشگاه تهران' })).toBe('فروشگاه تهران')
+
+    await changeLocale('fa')
+    expect(formatChannelDisplayName('snappshop:main', { displayName: 'SnappShop' })).toBe('اسنپ شاپ')
+    expect(formatChannelDisplayName('snappshop:main', { displayName: 'فروشگاه تهران' })).toBe('فروشگاه تهران')
+  })
 })

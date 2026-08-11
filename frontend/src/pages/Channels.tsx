@@ -26,12 +26,31 @@ import { ConfigPanel } from './CommerceHub'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { resourceQaFixtureState, withConnectedChannelFixture } from '../dev/resourceQaFixtures'
 
-type ChannelFilter = 'all' | 'active' | 'attention' | 'disabled' | 'comingSoon'
+type ChannelFilter = 'all' | 'active' | 'connected' | 'healthy' | 'attention' | 'disabled' | 'comingSoon'
 
-function matchesFilter(tier: ResourceTier, filter: ChannelFilter): boolean {
+function channelDisplayName(channel: CommerceChannel): string {
+  return formatChannelDisplayName(channel.id, {
+    displayName: channel.display_name_custom ? channel.name : undefined,
+    displayNameCustom: channel.display_name_custom,
+  })
+}
+
+function matchesFilter(
+  resource: { tier: ResourceTier; badge: ResourceBadge; item: CommerceChannel },
+  filter: ChannelFilter,
+): boolean {
   if (filter === 'all') return true
-  if (filter === 'active') return tier === 'configured' || tier === 'attention'
-  return tier === filter
+  if (filter === 'connected') {
+    return resource.item.implemented
+      && resource.item.enabled
+      && resource.item.credential_status === 'configured'
+  }
+  if (filter === 'active') return resource.badge === 'healthy'
+    || resource.badge === 'configured'
+    || resource.badge === 'warning'
+  if (filter === 'healthy') return resource.badge === 'healthy'
+  if (filter === 'attention') return resource.tier === 'attention' || resource.tier === 'disabled'
+  return resource.tier === filter
 }
 
 function channelBadgeTone(badge: ResourceBadge): BadgeVariant {
@@ -51,7 +70,7 @@ function channelBadgeLabel(badge: ResourceBadge): string {
 function channelLifecycleSignals(channel: CommerceChannel): ResourceOrderingSignals {
   return {
     id: channel.id,
-    displayName: formatChannelDisplayName(channel.id),
+    displayName: channelDisplayName(channel),
     status: channel.status,
     healthStatus: channel.health.status === 'unknown' ? null : channel.health.status,
     credentialStatus: channel.credential_status,
@@ -106,7 +125,7 @@ export default function Channels() {
   const visibleChannels = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase()
     return channelResources.ordered
-      .filter(resource => matchesFilter(resource.tier, filter))
+      .filter(resource => matchesFilter(resource, filter))
       .filter(resource => !normalizedQuery
         || resource.displayName.toLocaleLowerCase().includes(normalizedQuery)
         || resource.item.provider.toLocaleLowerCase().includes(normalizedQuery))
@@ -116,7 +135,9 @@ export default function Channels() {
     [channelResources],
   )
   const connectedChannelsCount = useMemo(
-    () => channelResources.ordered.filter(resource => resource.badge === 'healthy').length,
+    () => channelResources.ordered.filter(resource => resource.item.implemented
+      && resource.item.enabled
+      && resource.item.credential_status === 'configured').length,
     [channelResources],
   )
   const healthyListingsTotal = useMemo(
@@ -245,7 +266,7 @@ export default function Channels() {
         notify.success({
           title: translate('commerce:commerceHub.channelConnectedSuccessfully'),
           description: channel
-            ? translate('commerce:commerceHub.isReadyToUse', { value1: formatChannelDisplayName(channel.id) })
+            ? translate('commerce:commerceHub.isReadyToUse', { value1: channelDisplayName(channel) })
             : translate('commerce:commerceHub.theChannelIsReadyToUse'),
         })
       } else {
@@ -315,38 +336,61 @@ export default function Channels() {
       </section>
 
       <div className="fh-channels-kpi-row">
-        <div className="fh-kpi-card">
+        <button
+          type="button"
+          className="fh-kpi-card fh-kpi-card-action"
+          data-channel-kpi="connected"
+          onClick={() => { setQuery(''); setFilter('connected') }}
+        >
           <div className="fh-kpi-card-head">
             <span className="fh-kpi-card-label">{translate('commerce:commerceHub.connectedChannels')}</span>
             <span className="fh-kpi-card-icon"><Icon name="channels" size="sm" /></span>
           </div>
           <div className="fh-kpi-card-value">{connectedChannelsCount}</div>
-        </div>
-        <div className="fh-kpi-card">
+        </button>
+        <button
+          type="button"
+          className="fh-kpi-card fh-kpi-card-action"
+          data-channel-kpi="healthy-listings"
+          onClick={() => { setQuery(''); setFilter('healthy') }}
+        >
           <div className="fh-kpi-card-head">
             <span className="fh-kpi-card-label">{translate('commerce:commerceHub.healthyListings')}</span>
             <span className="fh-kpi-card-icon"><Icon name="channels" size="sm" /></span>
           </div>
           <div className="fh-kpi-card-value">{formatNumber(healthyListingsTotal)}</div>
-        </div>
-        <div className="fh-kpi-card">
+        </button>
+        <button
+          type="button"
+          className="fh-kpi-card fh-kpi-card-action"
+          data-channel-kpi="attention"
+          onClick={() => { setQuery(''); setFilter('attention') }}
+        >
           <div className="fh-kpi-card-head">
             <span className="fh-kpi-card-label">{translate('commerce:commerceHub.needsAttentionKpi')}</span>
             <span className="fh-kpi-card-icon"><Icon name="channels" size="sm" /></span>
           </div>
           <div className="fh-kpi-card-value">
             {needsAttentionCount}
-            {needsAttentionCount > 0 && <span className="fh-kpi-card-trend fh-kpi-card-trend-danger">{translate('commerce:commerceHub.reviewCaption')}</span>}
+              {needsAttentionCount > 0 && <span className="fh-kpi-card-trend fh-kpi-card-trend-danger">{translate('commerce:commerceHub.reviewCaption')}</span>}
           </div>
-        </div>
+        </button>
         {orders && (
-          <div className="fh-kpi-card">
+          <button
+            type="button"
+            className="fh-kpi-card fh-kpi-card-action"
+            data-channel-kpi="orders-today"
+            onClick={() => {
+              const today = todayIsoDate()
+              navigate(`/orders?dateFrom=${today}&dateTo=${today}`)
+            }}
+          >
             <div className="fh-kpi-card-head">
               <span className="fh-kpi-card-label">{translate('commerce:commerceHub.ordersToday')}</span>
               <span className="fh-kpi-card-icon"><Icon name="channels" size="sm" /></span>
             </div>
             <div className="fh-kpi-card-value">{ordersToday !== null ? formatNumber(ordersToday) : '—'}</div>
-          </div>
+          </button>
         )}
       </div>
 
@@ -368,6 +412,8 @@ export default function Channels() {
           <select value={filter} onChange={event => setFilter(event.target.value as ChannelFilter)}>
             <option value="all">{translate('commerce:commerceHub.allHealthStates')}</option>
             <option value="active">{translate('common:resourceGroup.active')}</option>
+            <option value="connected">{translate('commerce:commerceHub.connectedChannels')}</option>
+            <option value="healthy">{translate('common:status.healthy')}</option>
             <option value="attention">{translate('commerce:commerceHub.needsReview')}</option>
             <option value="disabled">{translate('common:resourceGroup.disabled')}</option>
             <option value="comingSoon">{translate('common:resourceGroup.comingSoon')}</option>
@@ -447,7 +493,7 @@ export default function Channels() {
               resourceId={channel.id}
               resourceType="channel"
               provider={channel.provider}
-              name={formatChannelDisplayName(channel.id)}
+              name={channelDisplayName(channel)}
               description={formatStatus(channel.provider)}
               state={state}
               statusLabel={channelBadgeLabel(resource.badge)}

@@ -14,6 +14,7 @@ export interface OrderSyncStatus {
   channelId: string
   connectorType: string
   displayName: string
+  displayNameCustom?: boolean
   enabled: boolean
   state: 'never_run' | 'ready' | 'disabled' | 'error'
   lastRunAt: string | null

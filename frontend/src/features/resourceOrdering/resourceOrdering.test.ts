@@ -163,6 +163,40 @@ describe('resource signal adapters', () => {
     expect(diagnosticChannelSignals(diagnostic).displayName).toBe('SnappShop')
   })
 
+  it('uses resolved Source names verbatim and Workspace custom-name provenance', () => {
+    const sourceBase = {
+      channelId: 'snappshop:main',
+      connectorType: 'snappshop',
+      capabilityVersion: '1',
+      capabilities: {},
+      enabled: true,
+      implementationState: 'implemented',
+      available: true,
+    }
+    expect(sourceChannelSignals({
+      ...sourceBase,
+      name: 'SnappShop',
+      displayNameCustom: false,
+    }).displayName).toBe('SnappShop')
+    expect(sourceChannelSignals({
+      ...sourceBase,
+      name: 'اسنپ شاپ',
+      displayNameCustom: true,
+    }).displayName).toBe('اسنپ شاپ')
+    expect(sourceChannelSignals({
+      ...sourceBase,
+      name: '',
+    }).displayName).toBe('SnappShop')
+
+    const workspace = {
+      channelId: 'woocommerce:primary',
+      displayName: 'ووکامرس',
+      displayNameCustom: true,
+      healthState: 'healthy',
+    } as WorkspaceChannelDefinition
+    expect(workspaceChannelSignals(workspace).displayName).toBe('ووکامرس')
+  })
+
   it('recognizes configured product channels without overriding other connection states', () => {
     const base = {
       channelId: 'woocommerce:primary',

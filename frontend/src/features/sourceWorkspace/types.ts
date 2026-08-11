@@ -102,6 +102,7 @@ export interface DataQualitySummary {
 export interface SourceChannel {
   channelId: string
   name: string
+  displayNameCustom?: boolean
   connectorType: string
   capabilityVersion: string
   capabilities: Record<string, unknown>

@@ -270,14 +270,16 @@ export function legacySourceSignals(source: Source): ResourceOrderingSignals {
 }
 
 export function commerceSourceSignals(source: CommerceSource): ResourceOrderingSignals {
+  const configurationState = source.configuration_state
+    ?? (source.credential_status === 'configured' ? 'configured' : 'not_configured')
   return {
     id: source.id,
     displayName: source.name,
     status: source.status,
-    healthStatus: source.health?.status,
+    healthStatus: source.health?.status === 'unknown' ? undefined : source.health?.status,
     credentialStatus: source.credential_status,
-    activityStatuses: [source.read_status?.last_read_status],
-    configured: source.credential_status === 'configured',
+    activityStatuses: [configurationState, source.read_status?.last_read_status],
+    configured: configurationState === 'configured',
     implemented: source.implemented,
     placeholder: source.placeholder,
   }
@@ -325,7 +327,7 @@ export function sourceChannelSignals(channel: SourceChannel): ResourceOrderingSi
   const implementationState = normalizeState(channel.implementationState)
   return {
     id: channel.channelId,
-    displayName: channel.name,
+    displayName: channel.name.trim() || formatChannelDisplayName(channel.channelId),
     enabled: channel.enabled,
     available: channel.available,
     configured: channel.configured ?? channel.available,
@@ -343,6 +345,7 @@ export function workspaceChannelSignals(channel: WorkspaceChannelDefinition): Re
     id: channel.channelId,
     displayName: formatChannelDisplayName(channel.channelId, {
       displayName: channel.displayName,
+      displayNameCustom: channel.displayNameCustom,
       instanceLabel: channel.instanceLabel,
     }),
     status: channel.healthState,

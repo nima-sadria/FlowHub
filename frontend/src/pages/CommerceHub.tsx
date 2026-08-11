@@ -92,6 +92,24 @@ function RelationshipMap({ map }: { map: CommerceRelationshipMap | null }) {
   )
 }
 
+function persistedSourceSetupState(source: CommerceSource): 'not_configured' | 'setup_required' | 'configured' {
+  if (source.configuration_state === 'configured') return 'configured'
+  if (source.configuration_state === 'setup_required') return 'setup_required'
+  if (source.configuration_state === 'not_configured') return 'not_configured'
+  return source.credential_status === 'configured' ? 'configured' : 'not_configured'
+}
+
+function SourceSetupBadge({ source, fallback }: { source: CommerceSource; fallback: ResourceBadge }) {
+  if (source.placeholder || !source.implemented) return <ResourceStateBadge badge={fallback} />
+  const state = persistedSourceSetupState(source)
+  const presentation = state === 'configured'
+    ? { label: translate('commerce:commerceHub.sourceStatus.configured'), variant: 'success' as const }
+    : state === 'setup_required'
+      ? { label: translate('commerce:commerceHub.sourceStatus.connectedSetupRequired'), variant: 'info' as const }
+      : { label: translate('commerce:commerceHub.sourceStatus.addNow'), variant: 'warning' as const }
+  return <Badge variant={presentation.variant}>{presentation.label}</Badge>
+}
+
 function SourceCard({ source, badge, onTest, onEdit, onConfigure, testing, canManage }: {
   source: CommerceSource
   badge: ResourceBadge
@@ -102,16 +120,22 @@ function SourceCard({ source, badge, onTest, onEdit, onConfigure, testing, canMa
   canManage: boolean
 }) {
   const canUseNextcloudActions = canManage && source.provider === 'nextcloud' && !source.placeholder
+  const canOpenDataSheet = source.configuration_state === 'configured'
+  const canTestSavedConnection = source.connection_configured === true
   const readStatus = source.read_status
   return (
-    <div className="fh-card fh-card-pad flex flex-col gap-3" title={formatDataRole(source.data_role)}>
+    <div
+      className="fh-card fh-card-pad flex flex-col gap-3"
+      data-source-id={source.id}
+      title={formatDataRole(source.data_role)}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <BrandIcon identity={{ provider: source.provider, sourceType: source.type }} label={source.name} size={44} />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="fh-section-title">{source.name}</h3>
-              <ResourceStateBadge badge={badge} />
+              <SourceSetupBadge source={source} fallback={badge} />
             </div>
           </div>
         </div>
@@ -150,23 +174,27 @@ function SourceCard({ source, badge, onTest, onEdit, onConfigure, testing, canMa
               <Icon name="settings" />
               {translate('commerce:commerceHub.editConnection')}
             </button>
-            <button
-              type="button"
-              onClick={() => onConfigure(source.id)}
-              className="fh-button-secondary fh-button-sm"
-            >
-              <Icon name="workspace" />
-              {translate('commerce:commerceHub.configureData')}
-            </button>
-            <button
-              onClick={() => onTest(source.id)}
-              disabled={testing}
-              className="fh-button-secondary fh-button-sm"
-            >
-              {testing && <Spinner size="sm" />}
-              {!testing && <Icon name="testConnection" />}
-              {testing ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection')}
-            </button>
+            {canOpenDataSheet && (
+              <button
+                type="button"
+                onClick={() => onConfigure(source.id)}
+                className="fh-button-secondary fh-button-sm"
+              >
+                <Icon name="workspace" />
+                {translate('commerce:commerceHub.configureData')}
+              </button>
+            )}
+            {canTestSavedConnection && (
+              <button
+                onClick={() => onTest(source.id)}
+                disabled={testing}
+                className="fh-button-secondary fh-button-sm"
+              >
+                {testing && <Spinner size="sm" />}
+                {!testing && <Icon name="testConnection" />}
+                {testing ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection')}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -193,10 +221,10 @@ function ChannelCard({ channel, badge, onTest, onRefresh, onConfigure, testing, 
     <div className="fh-card fh-card-pad flex flex-col gap-3" title={formatCapabilityList(channel.capabilities_summary)}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <BrandIcon identity={{ provider: channel.provider }} label={localizedChannelName(channel.id, channel.name)} size={44} />
+          <BrandIcon identity={{ provider: channel.provider }} label={localizedChannelName(channel.id, channel.name, channel.display_name_custom)} size={44} />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="fh-section-title">{localizedChannelName(channel.id, channel.name)}</h3>
+              <h3 className="fh-section-title">{localizedChannelName(channel.id, channel.name, channel.display_name_custom)}</h3>
               <ResourceStateBadge badge={badge} />
             </div>
           </div>
@@ -747,7 +775,10 @@ export function ConfigPanel({
   const hasSecret = (key: string) => Boolean(secrets[key]?.trim()) || configuredSecret(key)
   const isNextcloudSource = kind === 'source' && selected.provider === 'nextcloud'
   const nextcloudConnectionReady = Boolean(nextcloudConnectionSnapshot(settings, hasSecret('password')))
-  const nextcloudConnectionSaved = Boolean(
+  const persistedNextcloudConnectionConfigured = Boolean(
+    savedNextcloudConnection && configuredSecret('password')
+  )
+  const nextcloudConnectionMatchesDraft = Boolean(
     savedNextcloudConnection
       && savedNextcloudConnection.url === String(settings.url ?? '').trim()
       && savedNextcloudConnection.username === String(settings.username || webdavUsernameFromUrl(String(settings.url ?? ''))).trim()
@@ -755,7 +786,7 @@ export function ConfigPanel({
       && !secrets.password?.trim(),
   )
   const spreadsheetSelected = Boolean(settings.spreadsheet_path?.trim())
-  const nextcloudTestTargetSaved = nextcloudConnectionSaved
+  const nextcloudTestTargetSaved = nextcloudConnectionMatchesDraft
     && savedNextcloudSpreadsheetPath === String(settings.spreadsheet_path ?? '').trim()
   const worksheetSelected = spreadsheetSelected
     && (worksheetMode === 'all' || Boolean(worksheetName.trim()))
@@ -780,7 +811,13 @@ export function ConfigPanel({
     && nextcloudConnectionReady
     && !nextcloudUrlError
   const canSave = Boolean(currency) && Boolean(currencyUnit)
-    && (!isNextcloudSource || (nextcloudConnectionSaved && spreadsheetSelected && worksheetSelected))
+    && (!isNextcloudSource || (
+      persistedNextcloudConnectionConfigured
+      && nextcloudConnectionReady
+      && !nextcloudUrlError
+      && spreadsheetSelected
+      && worksheetSelected
+    ))
     && (!vendorSelectionRequired || Boolean(settings.vendor_id?.trim()))
 
   function configurationPayload({
@@ -822,8 +859,32 @@ export function ConfigPanel({
     setSaving(true)
     try {
       const payload = configurationPayload()
-      if (kind === 'source') await commerce.saveSource(selectedType.id, payload)
-      else await commerce.saveChannel(selectedType.id, payload)
+      const sourceResult = kind === 'source'
+        ? await commerce.saveSource(selectedType.id, payload)
+        : null
+      if (kind === 'channel') await commerce.saveChannel(selectedType.id, payload)
+
+      if (sourceResult?.configuration_state && sourceResult.configuration_state !== 'configured') {
+        const nextSecretStatus = { ...secretStatus, ...sourceResult.secrets }
+        setSecretStatus(nextSecretStatus)
+        setSecrets({})
+        setConfigurationWasConfigured(false)
+        if (isNextcloudSource) {
+          const passwordConfigured = nextSecretStatus.password?.status === 'configured'
+          setSavedNextcloudConnection(
+            sourceResult.connection_configured === false
+              ? null
+              : nextcloudConnectionSnapshot(settings, passwordConfigured),
+          )
+          setSavedNextcloudSpreadsheetPath(String(settings.spreadsheet_path ?? '').trim())
+          setLastTestEvidence(undefined)
+        }
+        success({
+          title: translate('commerce:commerceHub.sourceSettingsUpdatedSuccessfully'),
+          description: translate('commerce:commerceHub.yourChangesHaveBeenSaved'),
+        })
+        return
+      }
       const nextcloudNeedsSpreadsheet = hasSpreadsheetResource
         && !settings.spreadsheet_path?.trim()
       success(kind === 'source'
@@ -916,7 +977,13 @@ export function ConfigPanel({
   }
 
   async function saveNextcloudSetupAndOpenDataSheet() {
-    if (!isNextcloudSource || !nextcloudConnectionSaved || !worksheetSelected) return
+    if (
+      !isNextcloudSource
+      || !persistedNextcloudConnectionConfigured
+      || !nextcloudConnectionReady
+      || nextcloudUrlError
+      || !worksheetSelected
+    ) return
     setSaving(true)
     try {
       const result = await commerce.saveSource(selectedType.id, configurationPayload())
@@ -1033,7 +1100,7 @@ export function ConfigPanel({
       notifyError(nextcloudUrlError)
       return
     }
-    if (!nextcloudConnectionSaved) {
+    if (!persistedNextcloudConnectionConfigured || !savedNextcloudConnection) {
       const message = translate('commerce:commerceHub.validation.saveConnectionBeforeBrowsing')
       setPickerError(message)
       notifyError(message)
@@ -1043,10 +1110,20 @@ export function ConfigPanel({
     setPickerLoading(true)
     setPickerError(null)
     try {
+      // When connection fields have unsaved edits, browse the persisted target.
+      // This keeps completed setup editable without forwarding a stored secret
+      // to a draft URL that the Owner has not saved yet.
+      const browseSettings = nextcloudConnectionMatchesDraft
+        ? settings
+        : {
+            ...settings,
+            url: savedNextcloudConnection.url,
+            username: savedNextcloudConnection.username,
+          }
       const result = await commerce.browseNextcloud(selectedType.id, {
         path,
-        settings,
-        secrets,
+        settings: browseSettings,
+        secrets: nextcloudConnectionMatchesDraft ? secrets : {},
       })
       setPickerData(result)
     } catch (error) {
@@ -1273,8 +1350,8 @@ export function ConfigPanel({
             <p className="fh-form-section-description">{translate('commerce:commerceHub.enterTheCredentialsRequiredToVerifyThis')}</p>
           </div>
           {isNextcloudSource && (
-            <Badge variant={nextcloudConnectionSaved ? 'success' : 'neutral'}>
-              {nextcloudConnectionSaved
+            <Badge variant={nextcloudConnectionMatchesDraft ? 'success' : 'neutral'}>
+              {nextcloudConnectionMatchesDraft
                 ? translate('commerce:commerceHub.connectionConfigured')
                 : savedNextcloudConnection
                   ? translate('commerce:commerceHub.connectionHasUnsavedChanges')
@@ -1389,32 +1466,35 @@ export function ConfigPanel({
       {hasSpreadsheetResource && (
         <div className="fh-stack">
           <div
-            className={["fh-form-section", isNextcloudSource && !nextcloudConnectionSaved ? "opacity-70" : ''].join(' ')}
-            aria-disabled={isNextcloudSource && !nextcloudConnectionSaved}
+            className={["fh-form-section", isNextcloudSource && !persistedNextcloudConnectionConfigured ? "opacity-70" : ''].join(' ')}
+            aria-disabled={isNextcloudSource && !persistedNextcloudConnectionConfigured}
             data-setup-step="spreadsheet"
           >
             {selected.provider === "nextcloud" ? (
               <div>
                 <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 3 })}</p>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                  <p className="fh-form-section-title">{translate('commerce:commerceHub.nextcloudSpreadsheetFile')}</p>
-                  <p className="fh-form-section-description">{translate('commerce:commerceHub.useWebdavWithYourAppPasswordPublic')}</p>
-                  <p className="mt-3 fh-help-text">{translate('commerce:commerceHub.selectedFile')}</p>
-                  <div className="mt-1 min-h-10 rounded-md border border-border bg-bg-subtle px-3 py-2 fh-text-body">
-                    {settings.spreadsheet_path || translate('commerce:commerceHub.noSpreadsheetFileSelected')}
-                  </div>
+                <p className="fh-form-section-title">{translate('commerce:commerceHub.nextcloudSpreadsheetFile')}</p>
+                <p className="fh-form-section-description">{translate('commerce:commerceHub.useWebdavWithYourAppPasswordPublic')}</p>
+                <div
+                  className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end"
+                  data-testid="nextcloud-file-control-row"
+                >
+                  <div className="fh-field min-w-0">
+                    <span className="fh-help-text">{translate('commerce:commerceHub.selectedFile')}</span>
+                    <div className="min-h-10 rounded-md border border-border bg-bg-subtle px-3 py-2 fh-text-body">
+                      {settings.spreadsheet_path || translate('commerce:commerceHub.noSpreadsheetFileSelected')}
+                    </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => void browseNextcloud('/')}
-                    disabled={!nextcloudConnectionSaved}
-                    className="fh-button-secondary px-4"
+                    disabled={!persistedNextcloudConnectionConfigured}
+                    className="fh-button-secondary w-full px-4 md:w-auto"
                   >
                     {translate('commerce:commerceHub.browseNextcloud')}
                   </button>
                 </div>
-                {!nextcloudConnectionSaved && (
+                {!persistedNextcloudConnectionConfigured && (
                   <p className="mt-3 fh-text-caption" role="note">
                     <Icon name="info" /> {translate('commerce:commerceHub.lockedUntilConnectionSaved')}
                   </p>
@@ -1438,8 +1518,8 @@ export function ConfigPanel({
           </div>
 
           <div
-            className={["fh-form-section", isNextcloudSource && (!nextcloudConnectionSaved || !spreadsheetSelected) ? "opacity-70" : ''].join(' ')}
-            aria-disabled={isNextcloudSource && (!nextcloudConnectionSaved || !spreadsheetSelected)}
+            className={["fh-form-section", isNextcloudSource && (!persistedNextcloudConnectionConfigured || !spreadsheetSelected) ? "opacity-70" : ''].join(' ')}
+            aria-disabled={isNextcloudSource && (!persistedNextcloudConnectionConfigured || !spreadsheetSelected)}
             data-setup-step="worksheet"
           >
             <div>
@@ -1447,12 +1527,12 @@ export function ConfigPanel({
               <p className="fh-form-section-title">{translate('commerce:commerceHub.worksheet')}</p>
               <p className="fh-form-section-description">{translate('commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet')}</p>
             </div>
-            {isNextcloudSource && (!nextcloudConnectionSaved || !spreadsheetSelected) && (
+            {isNextcloudSource && (!persistedNextcloudConnectionConfigured || !spreadsheetSelected) && (
               <p className="fh-text-caption" role="note"><Icon name="info" /> {translate('commerce:commerceHub.lockedUntilSpreadsheetSelected')}</p>
             )}
             <fieldset
               className="flex flex-col gap-2 fh-text-body"
-              disabled={isNextcloudSource && (!nextcloudConnectionSaved || !spreadsheetSelected)}
+              disabled={isNextcloudSource && (!persistedNextcloudConnectionConfigured || !spreadsheetSelected)}
             >
               <label className="fh-inline-check">
                 <input
@@ -1485,8 +1565,8 @@ export function ConfigPanel({
           </div>
 
           <div
-            className={["fh-form-section", isNextcloudSource && (!nextcloudConnectionSaved || !worksheetSelected) ? "opacity-70" : ''].join(' ')}
-            aria-disabled={isNextcloudSource && (!nextcloudConnectionSaved || !worksheetSelected)}
+            className={["fh-form-section", isNextcloudSource && (!persistedNextcloudConnectionConfigured || !worksheetSelected) ? "opacity-70" : ''].join(' ')}
+            aria-disabled={isNextcloudSource && (!persistedNextcloudConnectionConfigured || !worksheetSelected)}
             data-setup-step="data-sheet"
           >
             <div>
@@ -1498,7 +1578,11 @@ export function ConfigPanel({
               <button
                 type="button"
                 className="fh-button-secondary px-4 w-fit"
-                disabled={saving || !nextcloudConnectionSaved || !worksheetSelected}
+                disabled={saving
+                  || !persistedNextcloudConnectionConfigured
+                  || !nextcloudConnectionReady
+                  || Boolean(nextcloudUrlError)
+                  || !worksheetSelected}
                 onClick={() => void saveNextcloudSetupAndOpenDataSheet()}
               >
                 <Icon name="workspace" /> {translate('commerce:commerceHub.saveAndOpenDataSheet')} <Icon name="next" />
@@ -1514,9 +1598,9 @@ export function ConfigPanel({
             ) : (
               <p className="fh-text-caption">{translate('commerce:commerceHub.saveConnectionBeforeConfiguringData')}</p>
             )}
-            {isNextcloudSource && (!nextcloudConnectionSaved || !worksheetSelected) && (
+            {isNextcloudSource && (!persistedNextcloudConnectionConfigured || !worksheetSelected) && (
               <p className="fh-text-caption" role="note"><Icon name="info" /> {translate(
-                nextcloudConnectionSaved
+                persistedNextcloudConnectionConfigured
                   ? 'commerce:commerceHub.saveSourceSetupBeforeDataSheet'
                   : 'commerce:commerceHub.lockedUntilConnectionSaved',
               )}</p>
@@ -1525,8 +1609,8 @@ export function ConfigPanel({
 
           {isNextcloudSource && (
             <div
-              className={["fh-form-section", (!nextcloudConnectionSaved || !worksheetSelected) ? "opacity-70" : ''].join(' ')}
-              aria-disabled={!nextcloudConnectionSaved || !worksheetSelected}
+              className={["fh-form-section", (!persistedNextcloudConnectionConfigured || !worksheetSelected) ? "opacity-70" : ''].join(' ')}
+              aria-disabled={!persistedNextcloudConnectionConfigured || !worksheetSelected}
               data-setup-step="monetary-unit"
             >
               <div>
@@ -1534,14 +1618,14 @@ export function ConfigPanel({
                 <p className="fh-form-section-title">{translate('commerce:commerceHub.monetaryUnit')}</p>
                 <p className="fh-form-section-description">{translate('commerce:commerceHub.monetaryUnitDescription')}</p>
               </div>
-              {(!nextcloudConnectionSaved || !worksheetSelected) && (
+              {(!persistedNextcloudConnectionConfigured || !worksheetSelected) && (
                 <p className="fh-text-caption" role="note"><Icon name="info" /> {translate(
-                  nextcloudConnectionSaved
+                  persistedNextcloudConnectionConfigured
                     ? 'commerce:commerceHub.lockedUntilWorksheetConfigured'
                     : 'commerce:commerceHub.lockedUntilConnectionSaved',
                 )}</p>
               )}
-              <fieldset className="fh-form-grid md:grid-cols-2" disabled={!nextcloudConnectionSaved || !worksheetSelected}>
+              <fieldset className="fh-form-grid md:grid-cols-2" disabled={!persistedNextcloudConnectionConfigured || !worksheetSelected}>
                 <label className="fh-field">
                   <span className="fh-help-text">{translate('commerce:commerceHub.currency')}</span>
                   <select
@@ -1741,7 +1825,7 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
       if (result.ok) success({
         title: translate('commerce:commerceHub.channelConnectedSuccessfully'),
         description: channel
-          ? translate('commerce:commerceHub.isReadyToUse', { value1: localizedChannelName(channel.id, channel.name) })
+          ? translate('commerce:commerceHub.isReadyToUse', { value1: localizedChannelName(channel.id, channel.name, channel.display_name_custom) })
           : translate('commerce:commerceHub.theChannelIsReadyToUse'),
       })
       else notifyError({
@@ -1832,6 +1916,10 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
       return
     }
     const source = sources.find(item => item.id === sourceId)
+    if (!source || source.configuration_state !== 'configured') {
+      handleSourceEdit(sourceId)
+      return
+    }
     try {
       const managed = await managedSourceFor(sourceId, source?.name || sourceId)
       navigate(`/sources/${managed.id}`)

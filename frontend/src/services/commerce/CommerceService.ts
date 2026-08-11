@@ -36,6 +36,7 @@ export interface CommerceChannelConfiguration {
   channel_id: string
   provider: string
   display_name: string
+  display_name_custom?: boolean
   configured: boolean
   enabled: boolean
   access_mode: 'read_only' | 'write_enabled'
@@ -56,6 +57,7 @@ export interface CommerceSourceConfiguration {
   description?: string | null
   configured: boolean
   connection_configured?: boolean
+  configuration_state?: 'not_configured' | 'setup_required' | 'configured' | string
   last_test?: {
     status: string
     message: string
@@ -142,6 +144,7 @@ export interface CommerceSettingsResult {
   secrets: Record<string, { status: string; replaced_at: string | null }>
   configured?: boolean
   connection_configured?: boolean
+  configuration_state?: 'not_configured' | 'setup_required' | 'configured' | string
   read_only: boolean
   runtime_write_blocked: boolean
   write_blocked: boolean

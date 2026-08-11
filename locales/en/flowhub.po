@@ -8,7 +8,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "x-generator: FlowHub deterministic i18n extractor\n"
 
-#: frontend/src/pages/CommerceHub.tsx:1358
+#: frontend/src/pages/CommerceHub.tsx:1436
 msgctxt "commerce:commerceHub.alternateTitle"
 msgid " ({{title}})"
 msgstr " ({{title}})"
@@ -21,7 +21,7 @@ msgctxt "sources:sourceCenter.columnSetupVersion"
 msgid " · Column setup v"
 msgstr " · Column setup v"
 
-#: frontend/src/pages/CommerceHub.tsx:1358
+#: frontend/src/pages/CommerceHub.tsx:1436
 msgctxt "commerce:commerceHub.inactive"
 msgid "- Inactive"
 msgstr "- Inactive"
@@ -49,7 +49,7 @@ msgctxt "dataQuality:issue.WOOCOMMERCE_LISTING_CARDINALITY.summary"
 msgid "A Source Product can map to at most one WooCommerce Listing."
 msgstr "A Source Product can map to at most one WooCommerce Listing."
 
-#: frontend/src/pages/Diagnostics.tsx:254
+#: frontend/src/pages/Diagnostics.tsx:262
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceResultPendingDescription"
 msgid "A conclusive Source connection result is not available yet."
@@ -115,12 +115,12 @@ msgctxt "settings:settings.currencyOption.AED"
 msgid "AED — UAE Dirham"
 msgstr "AED — UAE Dirham"
 
-#: frontend/src/pages/CommerceHub.tsx:227
+#: frontend/src/pages/CommerceHub.tsx:255
 msgctxt "commerce:commerceHub.apiCredentials"
 msgid "API credentials:"
 msgstr "API credentials:"
 
-#: frontend/src/pages/CommerceHub.tsx:321
+#: frontend/src/pages/CommerceHub.tsx:349
 msgctxt "commerce:commerceHub.fields.apiKeyToken"
 msgid "API key/token"
 msgstr "API key/token"
@@ -154,17 +154,17 @@ msgctxt "authentication:access.accessDenied"
 msgid "Access Denied"
 msgstr "Access Denied"
 
-#: frontend/src/pages/ChannelDetail.tsx:199 frontend/src/pages/Channels.tsx:425 frontend/src/pages/Channels.tsx:428 frontend/src/pages/CommerceHub.tsx:1190
+#: frontend/src/pages/ChannelDetail.tsx:202 frontend/src/pages/Channels.tsx:471 frontend/src/pages/Channels.tsx:474 frontend/src/pages/CommerceHub.tsx:1268
 msgctxt "commerce:commerceHub.accessMode"
 msgid "Access mode"
 msgstr "Access mode"
 
-#: frontend/src/pages/ChannelDetail.tsx:239
+#: frontend/src/pages/ChannelDetail.tsx:242
 msgctxt "commerce:commerceHub.channelDetails.accessMode"
 msgid "Access mode"
 msgstr "Access mode"
 
-#: frontend/src/pages/Diagnostics.tsx:356
+#: frontend/src/pages/Diagnostics.tsx:456
 msgctxt "diagnostics:diagnostics.accessMode"
 msgid "Access mode"
 msgstr "Access mode"
@@ -189,7 +189,7 @@ msgctxt "settings:users.description"
 msgid "Accounts, roles, and permissions."
 msgstr "Accounts, roles, and permissions."
 
-#: frontend/src/pages/Activity.tsx:180
+#: frontend/src/pages/Activity.tsx:181
 msgctxt "activity:activity.acknowledge"
 msgid "Acknowledge"
 msgstr "Acknowledge"
@@ -207,7 +207,7 @@ msgctxt "common:action.actions"
 msgid "Actions"
 msgstr "Actions"
 
-#: frontend/src/pages/Orders.tsx:391
+#: frontend/src/pages/Orders.tsx:406
 msgctxt "orders:orders.actions"
 msgid "Actions"
 msgstr "Actions"
@@ -240,7 +240,7 @@ msgctxt "pricing:eventKind.activate"
 msgid "Activated"
 msgstr "Activated"
 
-#: frontend/src/components/ResourceOrdering.tsx:12 frontend/src/pages/Channels.tsx:370 frontend/src/pages/SourceCenter.tsx:437
+#: frontend/src/components/ResourceOrdering.tsx:12 frontend/src/pages/Channels.tsx:414 frontend/src/pages/SourceCenter.tsx:475
 msgctxt "common:resourceGroup.active"
 msgid "Active"
 msgstr "Active"
@@ -271,12 +271,12 @@ msgctxt "pricing:channels.head.policyRevision"
 msgid "Active policy revision"
 msgstr "Active policy revision"
 
-#: frontend/src/pages/Activity.tsx:404
+#: frontend/src/pages/Activity.tsx:413
 msgctxt "activity:activity.activity"
 msgid "Activity"
 msgstr "Activity"
 
-#: frontend/src/pages/ChannelDetail.tsx:258
+#: frontend/src/pages/ChannelDetail.tsx:261
 msgctxt "commerce:commerceHub.channelDetails.activity"
 msgid "Activity"
 msgstr "Activity"
@@ -294,7 +294,7 @@ msgctxt "sources:sourceConfiguration.detail.activity"
 msgid "Activity"
 msgstr "Activity"
 
-#: frontend/src/pages/Activity.tsx:463
+#: frontend/src/pages/Activity.tsx:472
 msgctxt "activity:activity.loadFailed"
 msgid "Activity could not be loaded. Try again."
 msgstr "Activity could not be loaded. Try again."
@@ -324,11 +324,16 @@ msgctxt "sources:sourceConfiguration.addAtLeastOneWorksheet"
 msgid "Add and enable at least one worksheet before saving."
 msgstr "Add and enable at least one worksheet before saving."
 
-#: frontend/src/pages/Channels.tsx:307 frontend/src/pages/Channels.tsx:403 frontend/src/pages/Channels.tsx:476 frontend/src/pages/CommerceHub.tsx:1146 frontend/src/pages/CommerceHub.tsx:1962 frontend/src/pages/SourceConfiguration.tsx:1123 frontend/src/pages/SourceConfiguration.tsx:1347
+#: frontend/src/pages/Channels.tsx:328 frontend/src/pages/Channels.tsx:449 frontend/src/pages/Channels.tsx:522 frontend/src/pages/CommerceHub.tsx:1224 frontend/src/pages/CommerceHub.tsx:2051 frontend/src/pages/SourceConfiguration.tsx:1123 frontend/src/pages/SourceConfiguration.tsx:1347
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.addChannel"
 msgid "Add channel"
 msgstr "Add channel"
+
+#: frontend/src/pages/CommerceHub.tsx:109 frontend/src/pages/SourceCenter.tsx:140
+msgctxt "commerce:commerceHub.sourceStatus.addNow"
+msgid "Add now"
+msgstr "Add now"
 
 #: frontend/src/pages/PricingProductGroupEditor.tsx:245
 msgctxt "pricing:productGroupEditor.addMember"
@@ -340,13 +345,13 @@ msgctxt "pricing:policyEditor.addRule"
 msgid "Add rule"
 msgstr "Add rule"
 
-#: frontend/src/pages/CommerceHub.tsx:1146 frontend/src/pages/CommerceHub.tsx:1914
+#: frontend/src/pages/CommerceHub.tsx:1224 frontend/src/pages/CommerceHub.tsx:2003
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.addSource"
 msgid "Add source"
 msgstr "Add source"
 
-#: frontend/src/pages/SourceCenter.tsx:452 frontend/src/pages/SourceCenter.tsx:539 frontend/src/pages/SourceCenter.tsx:672
+#: frontend/src/pages/SourceCenter.tsx:490 frontend/src/pages/SourceCenter.tsx:577 frontend/src/pages/SourceCenter.tsx:711
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sources.addSource"
 msgid "Add source"
@@ -367,7 +372,7 @@ msgctxt "settings:rateLimits.operationalLimitsDescription"
 msgid "Adjust only when sustained usage requires more capacity."
 msgstr "Adjust only when sustained usage requires more capacity."
 
-#: frontend/src/pages/SourceCenter.tsx:548
+#: frontend/src/pages/SourceCenter.tsx:586
 #. Current is the latest verified or cached Channel value.
 msgctxt "sources:sourceCenter.adjustSearchOrFilters"
 msgid "Adjust your search or clear the current filters."
@@ -381,7 +386,7 @@ msgctxt "settings:users.role.admin"
 msgid "Admin"
 msgstr "Admin"
 
-#: frontend/src/pages/Channels.tsx:237 frontend/src/pages/Channels.tsx:270 frontend/src/pages/CommerceHub.tsx:1705 frontend/src/pages/CommerceHub.tsx:1733 frontend/src/pages/CommerceHub.tsx:1763 frontend/src/pages/CommerceHub.tsx:1818 frontend/src/pages/CommerceHub.tsx:1830 frontend/src/pages/CommerceHub.tsx:1847 frontend/src/pages/CommerceHub.tsx:1917 frontend/src/pages/CommerceHub.tsx:1965
+#: frontend/src/pages/Channels.tsx:258 frontend/src/pages/Channels.tsx:291 frontend/src/pages/CommerceHub.tsx:1790 frontend/src/pages/CommerceHub.tsx:1818 frontend/src/pages/CommerceHub.tsx:1848 frontend/src/pages/CommerceHub.tsx:1903 frontend/src/pages/CommerceHub.tsx:1915 frontend/src/pages/CommerceHub.tsx:1936 frontend/src/pages/CommerceHub.tsx:2006 frontend/src/pages/CommerceHub.tsx:2054
 msgctxt "commerce:commerceHub.adminPermissionRequired"
 msgid "Admin permission required"
 msgstr "Admin permission required"
@@ -431,7 +436,7 @@ msgctxt "products:products.allCategories"
 msgid "All Categories"
 msgstr "All Categories"
 
-#: frontend/src/pages/Orders.tsx:318 frontend/src/pages/Orders.tsx:320 frontend/src/pages/UnifiedWorkspace.tsx:282
+#: frontend/src/pages/Orders.tsx:333 frontend/src/pages/Orders.tsx:335 frontend/src/pages/UnifiedWorkspace.tsx:282
 msgctxt "common:selector.allChannels"
 msgid "All Channels"
 msgstr "All Channels"
@@ -468,7 +473,7 @@ msgctxt "workspace:workspace.allApprovedUpdatesHaveBeenCompleted"
 msgid "All approved updates have been completed."
 msgstr "All approved updates have been completed."
 
-#: frontend/src/pages/Activity.tsx:451
+#: frontend/src/pages/Activity.tsx:460
 msgctxt "activity:activity.allCategories"
 msgid "All categories"
 msgstr "All categories"
@@ -478,12 +483,12 @@ msgctxt "sources:sourceConfiguration.allChangesSaved"
 msgid "All changes saved"
 msgstr "All changes saved"
 
-#: frontend/src/pages/Activity.tsx:433 frontend/src/pages/Activity.tsx:435
+#: frontend/src/pages/Activity.tsx:442 frontend/src/pages/Activity.tsx:444
 msgctxt "activity:activity.allChannels"
 msgid "All channels"
 msgstr "All channels"
 
-#: frontend/src/pages/Dashboard.tsx:432 frontend/src/pages/Dashboard.tsx:441
+#: frontend/src/pages/Dashboard.tsx:435 frontend/src/pages/Dashboard.tsx:444
 msgctxt "dashboard:dashboard.allClear"
 msgid "All clear"
 msgstr "All clear"
@@ -492,28 +497,28 @@ msgctxt "dashboard:dashboard.allSourcesReady"
 msgid "All configured Sources are ready."
 msgstr "All configured Sources are ready."
 
-#: frontend/src/pages/Channels.tsx:367 frontend/src/pages/Channels.tsx:369
+#: frontend/src/pages/Channels.tsx:411 frontend/src/pages/Channels.tsx:413
 msgctxt "commerce:commerceHub.allHealthStates"
 msgid "All health states"
 msgstr "All health states"
 
-#: frontend/src/pages/SourceCenter.tsx:436 frontend/src/pages/SourceCenter.tsx:503
+#: frontend/src/pages/SourceCenter.tsx:474 frontend/src/pages/SourceCenter.tsx:541
 msgctxt "sources:sourceCenter.allHealthStates"
 msgid "All health states"
 msgstr "All health states"
 
-#: frontend/src/pages/Dashboard.tsx:420
+#: frontend/src/pages/Dashboard.tsx:423
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "dashboard:dashboard.allInStock"
 msgid "All in stock"
 msgstr "All in stock"
 
-#: frontend/src/pages/Orders.tsx:310 frontend/src/pages/Orders.tsx:312
+#: frontend/src/pages/Orders.tsx:325 frontend/src/pages/Orders.tsx:327
 msgctxt "orders:orders.allOrderStates"
 msgid "All order states"
 msgstr "All order states"
 
-#: frontend/src/pages/Orders.tsx:271
+#: frontend/src/pages/Orders.tsx:286
 msgctxt "orders:orders.allSynchronized"
 msgid "All orders are synchronized"
 msgstr "All orders are synchronized"
@@ -536,7 +541,7 @@ msgctxt "dataQuality:dataQuality.allSeverities"
 msgid "All severities"
 msgstr "All severities"
 
-#: frontend/src/pages/Activity.tsx:425 frontend/src/pages/Activity.tsx:427
+#: frontend/src/pages/Activity.tsx:434 frontend/src/pages/Activity.tsx:436
 msgctxt "activity:activity.allStatuses"
 msgid "All statuses"
 msgstr "All statuses"
@@ -559,12 +564,12 @@ msgctxt "navigation:sidebar.allSystemsOperational"
 msgid "All systems operational"
 msgstr "All systems operational"
 
-#: frontend/src/pages/Activity.tsx:441 frontend/src/pages/Activity.tsx:443
+#: frontend/src/pages/Activity.tsx:450 frontend/src/pages/Activity.tsx:452
 msgctxt "activity:activity.allUsers"
 msgid "All users"
 msgstr "All users"
 
-#: frontend/src/pages/CommerceHub.tsx:1463
+#: frontend/src/pages/CommerceHub.tsx:1544
 msgctxt "commerce:commerceHub.allWorksheets"
 msgid "All worksheets"
 msgstr "All worksheets"
@@ -590,7 +595,7 @@ msgctxt "dashboard:dashboard.activeSourceHasNoRead"
 msgid "An active Source has not been read yet."
 msgstr "An active Source has not been read yet."
 
-#: frontend/src/pages/SourceCenter.tsx:719
+#: frontend/src/pages/SourceCenter.tsx:758
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.activeWorkspacePreventsRemoval"
 msgid "An active Workspace uses this Source. Close or finish it before trying again."
@@ -606,7 +611,7 @@ msgctxt "common:errorBoundary.anUnexpectedErrorOccurredOnThisPage"
 msgid "An unexpected error occurred on this page."
 msgstr "An unexpected error occurred on this page."
 
-#: frontend/src/pages/CommerceHub.tsx:296
+#: frontend/src/pages/CommerceHub.tsx:324
 msgctxt "commerce:commerceHub.fields.appPasswordToken"
 msgid "App password / token"
 msgstr "App password / token"
@@ -657,7 +662,7 @@ msgctxt "workspace:sourceCentricWorkspace.apply"
 msgid "Apply"
 msgstr "Apply"
 
-#: frontend/src/pages/Dashboard.tsx:542
+#: frontend/src/pages/Dashboard.tsx:545
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "dashboard:dashboard.applyReady"
 msgid "Apply Ready"
@@ -761,7 +766,7 @@ msgctxt "workspace:workspace.steps.approve"
 msgid "Approve"
 msgstr "Approve"
 
-#: frontend/src/pages/SourceCenter.tsx:714 frontend/src/pages/SourceCenter.tsx:725
+#: frontend/src/pages/SourceCenter.tsx:753 frontend/src/pages/SourceCenter.tsx:764
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.archiveSource"
 msgid "Archive Source"
@@ -832,7 +837,7 @@ msgctxt "products:products.availabilityStatus"
 msgid "Availability Status"
 msgstr "Availability Status"
 
-#: frontend/src/pages/SourceCenter.tsx:554
+#: frontend/src/pages/SourceCenter.tsx:592
 msgctxt "sources:sourceCenter.availableSources"
 msgid "Available Sources"
 msgstr "Available Sources"
@@ -841,7 +846,7 @@ msgctxt "diagnostics:diagnostics.availableNow"
 msgid "Available now"
 msgstr "Available now"
 
-#: frontend/src/pages/Dashboard.tsx:431
+#: frontend/src/pages/Dashboard.tsx:434
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.awaitingReview"
 msgid "Awaiting review"
@@ -862,7 +867,7 @@ msgctxt "workspace:densePricing.backToGrid"
 msgid "Back to Grid"
 msgstr "Back to Grid"
 
-#: frontend/src/pages/CommerceHub.tsx:1904 frontend/src/pages/SourceConfiguration.tsx:1343 frontend/src/pages/SourceConfiguration.tsx:886 frontend/src/pages/SourceImportWizard.tsx:62
+#: frontend/src/pages/CommerceHub.tsx:1993 frontend/src/pages/SourceConfiguration.tsx:1343 frontend/src/pages/SourceConfiguration.tsx:886 frontend/src/pages/SourceImportWizard.tsx:62
 msgctxt "sources:sourceConfiguration.backToSources"
 msgid "Back to Sources"
 msgstr "Back to Sources"
@@ -879,7 +884,7 @@ msgctxt "settings:settings.backendUnavailable"
 msgid "Backend unavailable"
 msgstr "Backend unavailable"
 
-#: frontend/src/pages/Diagnostics.tsx:481 frontend/src/pages/Diagnostics.tsx:725
+#: frontend/src/pages/Diagnostics.tsx:634 frontend/src/pages/Diagnostics.tsx:920
 msgctxt "diagnostics:diagnostics.backgroundJobs"
 msgid "Background jobs"
 msgstr "Background jobs"
@@ -933,7 +938,7 @@ msgctxt "workspace:workspace.blocked"
 msgid "Blocked:"
 msgstr "Blocked:"
 
-#: frontend/src/pages/Dashboard.tsx:567
+#: frontend/src/pages/Dashboard.tsx:570
 msgctxt "dashboard:dashboard.blocking"
 msgid "Blocking"
 msgstr "Blocking"
@@ -955,12 +960,12 @@ msgctxt "sources:sourceConfiguration.brand"
 msgid "Brand"
 msgstr "Brand"
 
-#: frontend/src/pages/SourceCenter.tsx:687
+#: frontend/src/pages/SourceCenter.tsx:726
 msgctxt "sources:sourceCenter.bringAnExistingXlsxOrCsvFile"
 msgid "Bring an existing XLSX or CSV file into FlowHub without changing the original."
 msgstr "Bring an existing XLSX or CSV file into FlowHub without changing the original."
 
-#: frontend/src/pages/CommerceHub.tsx:1413 frontend/src/pages/CommerceHub.tsx:508
+#: frontend/src/pages/CommerceHub.tsx:1494 frontend/src/pages/CommerceHub.tsx:536
 msgctxt "commerce:commerceHub.browseNextcloud"
 msgid "Browse Nextcloud"
 msgstr "Browse Nextcloud"
@@ -1042,12 +1047,12 @@ msgctxt "products:products.cachedProductsReadOnly"
 msgid "Cached products are shown read-only until inline pricing is available."
 msgstr "Cached products are shown read-only until inline pricing is available."
 
-#: frontend/src/pages/ChannelDetail.tsx:200 frontend/src/pages/Channels.tsx:431 frontend/src/pages/CommerceHub.tsx:233
+#: frontend/src/pages/ChannelDetail.tsx:203 frontend/src/pages/Channels.tsx:477 frontend/src/pages/CommerceHub.tsx:261
 msgctxt "commerce:commerceHub.cachedProducts"
 msgid "Cached products:"
 msgstr "Cached products:"
 
-#: frontend/src/pages/ChannelDetail.tsx:201 frontend/src/pages/Channels.tsx:433 frontend/src/pages/CommerceHub.tsx:234
+#: frontend/src/pages/ChannelDetail.tsx:204 frontend/src/pages/Channels.tsx:479 frontend/src/pages/CommerceHub.tsx:262
 msgctxt "commerce:commerceHub.cachedVariations"
 msgid "Cached variations:"
 msgstr "Cached variations:"
@@ -1058,7 +1063,7 @@ msgctxt "sources:sourceConfiguration.calculatedInWorkspace"
 msgid "Calculated after Channel comparison"
 msgstr "Calculated after Channel comparison"
 
-#: frontend/src/pages/SourceCenter.tsx:724 frontend/src/pages/SourceConfiguration.tsx:1349 frontend/src/pages/SourceConfiguration.tsx:1359 frontend/src/pages/SourceConfiguration.tsx:1372
+#: frontend/src/pages/SourceCenter.tsx:763 frontend/src/pages/SourceConfiguration.tsx:1349 frontend/src/pages/SourceConfiguration.tsx:1359 frontend/src/pages/SourceConfiguration.tsx:1372
 msgctxt "common:action.cancel"
 msgid "Cancel"
 msgstr "Cancel"
@@ -1086,7 +1091,7 @@ msgctxt "common:status.cancelled"
 msgid "Cancelled"
 msgstr "Cancelled"
 
-#: frontend/src/pages/SourceCenter.tsx:712
+#: frontend/src/pages/SourceCenter.tsx:751
 msgctxt "sources:sourceCenter.cannotDeleteActiveWorkspace"
 msgid "Cannot delete — active Workspace exists"
 msgstr "Cannot delete — active Workspace exists"
@@ -1125,12 +1130,12 @@ msgctxt "products:products.canonicalBusinessPrice"
 msgid "Canonical/business price"
 msgstr "Canonical/business price"
 
-#: frontend/src/pages/Channels.tsx:432
+#: frontend/src/pages/Channels.tsx:478
 msgctxt "commerce:commerceHub.channelCapabilitiesLabel"
 msgid "Capabilities"
 msgstr "Capabilities"
 
-#: frontend/src/pages/ChannelDetail.tsx:229
+#: frontend/src/pages/ChannelDetail.tsx:232
 msgctxt "commerce:commerceHub.channelDetails.capabilities"
 msgid "Capabilities"
 msgstr "Capabilities"
@@ -1139,7 +1144,7 @@ msgctxt "diagnostics:diagnostics.checkGroups.capabilities"
 msgid "Capabilities"
 msgstr "Capabilities"
 
-#: frontend/src/pages/CommerceHub.tsx:224
+#: frontend/src/pages/CommerceHub.tsx:252
 msgctxt "commerce:commerceHub.capabilities"
 msgid "Capabilities:"
 msgstr "Capabilities:"
@@ -1158,7 +1163,7 @@ msgctxt "products:column.categories"
 msgid "Categories"
 msgstr "Categories"
 
-#: frontend/src/pages/Activity.tsx:451
+#: frontend/src/pages/Activity.tsx:460
 msgctxt "activity:activity.category"
 msgid "Category"
 msgstr "Category"
@@ -1193,7 +1198,7 @@ msgctxt "dataQuality:dataQuality.trendSinceLastRead"
 msgid "Change since last read"
 msgstr "Change since last read"
 
-#: frontend/src/pages/Orders.tsx:259
+#: frontend/src/pages/Orders.tsx:274
 msgctxt "orders:orders.adjustFilters"
 msgid "Change the search or filters to see other orders."
 msgstr "Change the search or filters to see other orders."
@@ -1241,7 +1246,7 @@ msgctxt "commerce:type.channel"
 msgid "Channel"
 msgstr "Channel"
 
-#: frontend/src/features/unifiedWorkspace/channelDisplayName.ts:33
+#: frontend/src/features/unifiedWorkspace/channelDisplayName.ts:47
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "common:labels.channel"
 msgid "Channel"
@@ -1253,7 +1258,7 @@ msgctxt "dataQuality:dataQuality.channel"
 msgid "Channel"
 msgstr "Channel"
 
-#: frontend/src/pages/Orders.tsx:383
+#: frontend/src/pages/Orders.tsx:398
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "orders:orders.channel"
 msgid "Channel"
@@ -1299,7 +1304,7 @@ msgctxt "workspace:unifiedWorkspace.channel"
 msgid "Channel"
 msgstr "Channel"
 
-#: frontend/src/pages/Diagnostics.tsx:668
+#: frontend/src/pages/Diagnostics.tsx:863
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:diagnostics.channelChecks"
 msgid "Channel Checks"
@@ -1349,13 +1354,13 @@ msgctxt "diagnostics:message.channelConfigurationIncomplete"
 msgid "Channel configuration is incomplete."
 msgstr "Channel configuration is incomplete."
 
-#: frontend/src/pages/CommerceHub.tsx:850
+#: frontend/src/pages/CommerceHub.tsx:911
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelConfiguredSuccessfully"
 msgid "Channel configured successfully"
 msgstr "Channel configured successfully"
 
-#: frontend/src/pages/ChannelDetail.tsx:96 frontend/src/pages/Channels.tsx:246 frontend/src/pages/CommerceHub.tsx:1741 frontend/src/pages/CommerceHub.tsx:997
+#: frontend/src/pages/ChannelDetail.tsx:96 frontend/src/pages/Channels.tsx:267 frontend/src/pages/CommerceHub.tsx:1065 frontend/src/pages/CommerceHub.tsx:1826
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelConnectedSuccessfully"
 msgid "Channel connected successfully"
@@ -1378,7 +1383,7 @@ msgctxt "pricing:policyEditor.rule.targetKind.none"
 msgid "Channel default (no product or group)"
 msgstr "Channel default (no product or group)"
 
-#: frontend/src/pages/ChannelDetail.tsx:131 frontend/src/pages/Channels.tsx:486
+#: frontend/src/pages/ChannelDetail.tsx:131 frontend/src/pages/Channels.tsx:532
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelDetails.loadFailed"
 msgid "Channel details could not be loaded. The channel may be unavailable or you may not have access."
@@ -1405,7 +1410,7 @@ msgctxt "diagnostics:message.channelDoesNotUseWebhooks"
 msgid "Channel does not use webhooks."
 msgstr "Channel does not use webhooks."
 
-#: frontend/src/pages/Dashboard.tsx:689
+#: frontend/src/pages/Dashboard.tsx:692
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dashboard:dashboard.channelHealth"
 msgid "Channel health"
@@ -1416,7 +1421,7 @@ msgctxt "diagnostics:message.channelHealthDerived"
 msgid "Channel health is derived from the unified diagnostics source."
 msgstr "Channel health is derived from the unified diagnostics source."
 
-#: frontend/src/pages/Dashboard.tsx:698
+#: frontend/src/pages/Dashboard.tsx:701
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dashboard:dashboard.channelHealthUnavailable"
 msgid "Channel health unavailable"
@@ -1464,13 +1469,13 @@ msgctxt "dashboard:dashboard.channelReadiness"
 msgid "Channel readiness"
 msgstr "Channel readiness"
 
-#: frontend/src/pages/CommerceHub.tsx:846
+#: frontend/src/pages/CommerceHub.tsx:907
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelSettingsUpdatedSuccessfully"
 msgid "Channel settings updated successfully"
 msgstr "Channel settings updated successfully"
 
-#: frontend/src/pages/CommerceHub.tsx:1167
+#: frontend/src/pages/CommerceHub.tsx:1245
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelType"
 msgid "Channel type"
@@ -1490,7 +1495,7 @@ msgctxt "activity:category.channels"
 msgid "Channels"
 msgstr "Channels"
 
-#: frontend/src/pages/ChannelDetail.tsx:164 frontend/src/pages/Channels.tsx:302 frontend/src/pages/CommerceHub.tsx:1892 frontend/src/pages/CommerceHub.tsx:1956
+#: frontend/src/pages/ChannelDetail.tsx:167 frontend/src/pages/Channels.tsx:323 frontend/src/pages/CommerceHub.tsx:1981 frontend/src/pages/CommerceHub.tsx:2045
 msgctxt "commerce:commerceHub.channels2"
 msgid "Channels"
 msgstr "Channels"
@@ -1511,7 +1516,7 @@ msgctxt "workspace:sourceCentricWorkspace.channels"
 msgid "Channels"
 msgstr "Channels"
 
-#: frontend/src/pages/ChannelDetail.tsx:185 frontend/src/pages/Channels.tsx:395
+#: frontend/src/pages/ChannelDetail.tsx:188 frontend/src/pages/Channels.tsx:441
 msgctxt "commerce:commerceHub.partialLoadDescription"
 msgid "Channels are available, but FlowHub could not load one supporting metric. Retry or open Diagnostics for details."
 msgstr "Channels are available, but FlowHub could not load one supporting metric. Retry or open Diagnostics for details."
@@ -1525,7 +1530,7 @@ msgctxt "sources:sourceConfiguration.channelsNotConfigured"
 msgid "Channels not configured"
 msgstr "Channels not configured"
 
-#: frontend/src/pages/Channels.tsx:314
+#: frontend/src/pages/Channels.tsx:335
 msgctxt "commerce:commerceHub.channelOperationalFlowHelp"
 msgid "Channels observe external state and execute approved changes. Write-enabled never bypasses preview, validation, dry run, approval, and execution controls."
 msgstr "Channels observe external state and execute approved changes. Write-enabled never bypasses preview, validation, dry run, approval, and execution controls."
@@ -1548,7 +1553,7 @@ msgctxt "settings:setup.checkDatabase"
 msgid "Check Database"
 msgstr "Check Database"
 
-#: frontend/src/pages/SourceCenter.tsx:366
+#: frontend/src/pages/SourceCenter.tsx:404
 msgctxt "sources:sourceCenter.sheetCreationRecovery"
 msgid "Check Sources before trying again; the request may have completed."
 msgstr "Check Sources before trying again; the request may have completed."
@@ -1569,7 +1574,7 @@ msgctxt "sources:sourceConfiguration.showsWhichRowsTheSavedMappingCurrently"
 msgid "Check which file rows FlowHub recognizes as products before opening a Workspace."
 msgstr "Check which file rows FlowHub recognizes as products before opening a Workspace."
 
-#: frontend/src/pages/CommerceHub.tsx:1303
+#: frontend/src/pages/CommerceHub.tsx:1381
 msgctxt "commerce:commerceHub.checkedPrefix"
 msgid "Checked"
 msgstr "Checked"
@@ -1592,7 +1597,7 @@ msgctxt "sources:sourceConfiguration.checkingConnection"
 msgid "Checking connection..."
 msgstr "Checking connection..."
 
-#: frontend/src/pages/SourceCenter.tsx:710 frontend/src/pages/SourceCenter.tsx:725
+#: frontend/src/pages/SourceCenter.tsx:749 frontend/src/pages/SourceCenter.tsx:764
 msgctxt "sources:sourceCenter.checkingHistory"
 msgid "Checking protected history..."
 msgstr "Checking protected history..."
@@ -1702,7 +1707,7 @@ msgctxt "sources:sourceConfiguration.productColumnsHelp"
 msgid "Choose the column that names each product. Rows without the required product identity are treated as headings or decorative rows."
 msgstr "Choose the column that names each product. Rows without the required product identity are treated as headings or decorative rows."
 
-#: frontend/src/pages/SourceCenter.tsx:576
+#: frontend/src/pages/SourceCenter.tsx:615
 msgctxt "sources:sourceCenter.setupReasonMapping"
 msgid "Choose the incoming fields and map them to canonical business fields."
 msgstr "Choose the incoming fields and map them to canonical business fields."
@@ -1742,7 +1747,7 @@ msgctxt "sources:sourceConfiguration.channelMappingsAreIndependent"
 msgid "Choose where this Channel's product ID, price, stock, and status are read from. FlowHub never copies these choices to another Channel unless you ask it to."
 msgstr "Choose where this Channel's product ID, price, stock, and status are read from. FlowHub never copies these choices to another Channel unless you ask it to."
 
-#: frontend/src/pages/CommerceHub.tsx:1447
+#: frontend/src/pages/CommerceHub.tsx:1528
 msgctxt "commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet"
 msgid "Choose whether FlowHub should read every worksheet or a single named worksheet."
 msgstr "Choose whether FlowHub should read every worksheet or a single named worksheet."
@@ -1772,17 +1777,17 @@ msgctxt "sources:sourceConfiguration.clearMapping"
 msgid "Clear column choices"
 msgstr "Clear column choices"
 
-#: frontend/src/pages/SourceCenter.tsx:549
+#: frontend/src/pages/SourceCenter.tsx:587
 msgctxt "sources:sourceCenter.clearFilters"
 msgid "Clear filters"
 msgstr "Clear filters"
 
-#: frontend/src/pages/Channels.tsx:364
+#: frontend/src/pages/Channels.tsx:408
 msgctxt "commerce:commerceHub.clearSearch"
 msgid "Clear search"
 msgstr "Clear search"
 
-#: frontend/src/pages/Orders.tsx:307
+#: frontend/src/pages/Orders.tsx:322
 msgctxt "orders:orders.clearSearch"
 msgid "Clear search"
 msgstr "Clear search"
@@ -1792,7 +1797,7 @@ msgctxt "products:products.clearSearch"
 msgid "Clear search"
 msgstr "Clear search"
 
-#: frontend/src/pages/SourceCenter.tsx:500
+#: frontend/src/pages/SourceCenter.tsx:538
 msgctxt "sources:sourceCenter.clearSearch"
 msgid "Clear search"
 msgstr "Clear search"
@@ -1805,7 +1810,7 @@ msgctxt "settings:setup.click"
 msgid "Click"
 msgstr "Click"
 
-#: frontend/src/pages/Channels.tsx:489 frontend/src/pages/CommerceHub.tsx:1154 frontend/src/pages/CommerceHub.tsx:513 frontend/src/pages/SourceCenter.tsx:673
+#: frontend/src/pages/Channels.tsx:535 frontend/src/pages/CommerceHub.tsx:1232 frontend/src/pages/CommerceHub.tsx:541 frontend/src/pages/SourceCenter.tsx:712
 msgctxt "commerce:commerceHub.close"
 msgid "Close"
 msgstr "Close"
@@ -1864,7 +1869,7 @@ msgctxt "sources:sourceConfiguration.columnLetter"
 msgid "Column letter"
 msgstr "Column letter"
 
-#: frontend/src/pages/CommerceHub.tsx:1494
+#: frontend/src/pages/CommerceHub.tsx:1575
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "commerce:commerceHub.worksheetsMappingMovedToDataSheet"
 msgid "Column mapping and read limits now live on the Data Sheet page."
@@ -1904,12 +1909,12 @@ msgctxt "sources:sourceImportWizard.column"
 msgid "Column {{value1}}"
 msgstr "Column {{value1}}"
 
-#: frontend/src/pages/Orders.tsx:359
+#: frontend/src/pages/Orders.tsx:374
 msgctxt "orders:orders.columns"
 msgid "Columns"
 msgstr "Columns"
 
-#: frontend/src/pages/CommerceHub.tsx:1493 frontend/src/pages/SourceConfiguration.tsx:1125 frontend/src/pages/SourceConfiguration.tsx:1192
+#: frontend/src/pages/CommerceHub.tsx:1574 frontend/src/pages/SourceConfiguration.tsx:1125 frontend/src/pages/SourceConfiguration.tsx:1192
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceConfiguration.channelMappings"
 msgid "Columns for each Channel"
@@ -1934,12 +1939,12 @@ msgctxt "sources:sourceConfiguration.copyPreview"
 msgid "Columns to copy"
 msgstr "Columns to copy"
 
-#: frontend/src/components/ResourceOrdering.tsx:22 frontend/src/pages/Channels.tsx:48 frontend/src/pages/SourceCenter.tsx:104
+#: frontend/src/components/ResourceOrdering.tsx:22 frontend/src/pages/Channels.tsx:67 frontend/src/pages/SourceCenter.tsx:111
 msgctxt "common:resourceBadge.comingSoon"
 msgid "Coming Soon"
 msgstr "Coming Soon"
 
-#: frontend/src/components/ResourceOrdering.tsx:14 frontend/src/components/ResourceOrdering.tsx:83 frontend/src/pages/Channels.tsx:373 frontend/src/pages/SourceCenter.tsx:440
+#: frontend/src/components/ResourceOrdering.tsx:14 frontend/src/components/ResourceOrdering.tsx:83 frontend/src/pages/Channels.tsx:419 frontend/src/pages/SourceCenter.tsx:478
 msgctxt "common:resourceGroup.comingSoon"
 msgid "Coming Soon"
 msgstr "Coming Soon"
@@ -1952,7 +1957,7 @@ msgctxt "navigation:sidebar.commerce"
 msgid "Commerce"
 msgstr "Commerce"
 
-#: frontend/src/pages/CommerceHub.tsx:1875
+#: frontend/src/pages/CommerceHub.tsx:1964
 msgctxt "commerce:commerceHub.commerceHub"
 msgid "Commerce Hub"
 msgstr "Commerce Hub"
@@ -2023,7 +2028,7 @@ msgctxt "diagnostics:dimension.configuration"
 msgid "Configuration"
 msgstr "Configuration"
 
-#: frontend/src/pages/CommerceHub.tsx:262
+#: frontend/src/pages/CommerceHub.tsx:290
 msgctxt "commerce:commerceHub.configure"
 msgid "Configure"
 msgstr "Configure"
@@ -2032,7 +2037,7 @@ msgctxt "sources:sourceCenter.configure"
 msgid "Configure"
 msgstr "Configure"
 
-#: frontend/src/pages/CommerceHub.tsx:1511 frontend/src/pages/CommerceHub.tsx:159
+#: frontend/src/pages/CommerceHub.tsx:1596 frontend/src/pages/CommerceHub.tsx:184
 msgctxt "commerce:commerceHub.configureData"
 msgid "Configure Data"
 msgstr "Configure Data"
@@ -2062,18 +2067,23 @@ msgctxt "diagnostics:message.configureBeforeReachability"
 msgid "Configure the channel before checking reachability."
 msgstr "Configure the channel before checking reachability."
 
-#: frontend/src/pages/CommerceHub.tsx:1146
+#: frontend/src/pages/CommerceHub.tsx:1224
 msgctxt "commerce:commerceHub.configure2"
 msgid "Configure {{value1}}"
 msgstr "Configure {{value1}}"
 
-#: frontend/src/pages/CommerceHub.tsx:1377 frontend/src/pages/CommerceHub.tsx:227 frontend/src/pages/CommerceHub.tsx:228
+#: frontend/src/pages/CommerceHub.tsx:1455 frontend/src/pages/CommerceHub.tsx:255 frontend/src/pages/CommerceHub.tsx:256
 msgctxt "commerce:commerceHub.configured"
 msgid "Configured"
 msgstr "Configured"
 
-#: frontend/src/pages/CommerceHub.tsx:1277
+#: frontend/src/pages/CommerceHub.tsx:1355
 msgctxt "commerce:commerceHub.connectionConfigured"
+msgid "Configured"
+msgstr "Configured"
+
+#: frontend/src/pages/CommerceHub.tsx:106 frontend/src/pages/SourceCenter.tsx:129
+msgctxt "commerce:commerceHub.sourceStatus.configured"
 msgid "Configured"
 msgstr "Configured"
 
@@ -2082,12 +2092,12 @@ msgctxt "common:resourceBadge.configured"
 msgid "Configured"
 msgstr "Configured"
 
-#: frontend/src/pages/ChannelDetail.tsx:153 frontend/src/pages/Channels.tsx:45
+#: frontend/src/pages/ChannelDetail.tsx:153 frontend/src/pages/Channels.tsx:64
 msgctxt "common:status.configured"
 msgid "Configured"
 msgstr "Configured"
 
-#: frontend/src/pages/CommerceHub.tsx:1083
+#: frontend/src/pages/CommerceHub.tsx:1161
 msgctxt "commerce:commerceHub.passwordConfiguredPlaceholder"
 msgid "Configured — type a new password to replace"
 msgstr "Configured — type a new password to replace"
@@ -2096,7 +2106,7 @@ msgctxt "diagnostics:message.configuredWithoutRecentSync"
 msgid "Configured, but no recent product or order synchronization has been recorded."
 msgstr "Configured, but no recent product or order synchronization has been recorded."
 
-#: frontend/src/pages/CommerceHub.tsx:1081
+#: frontend/src/pages/CommerceHub.tsx:1159
 msgctxt "commerce:commerceHub.configuredLeaveBlankToKeepUnchanged"
 msgid "Configured; leave blank to keep unchanged."
 msgstr "Configured; leave blank to keep unchanged."
@@ -2173,7 +2183,7 @@ msgctxt "workspace:workspace.connectAProductSourceFromSourcesTo"
 msgid "Connect a product source from Sources to use Workspace."
 msgstr "Connect a product source from Sources to use Workspace."
 
-#: frontend/src/components/ResourceOrdering.tsx:81 frontend/src/pages/SourceCenter.tsx:102
+#: frontend/src/components/ResourceOrdering.tsx:81 frontend/src/pages/SourceCenter.tsx:109
 msgctxt "common:status.connected"
 msgid "Connected"
 msgstr "Connected"
@@ -2183,12 +2193,12 @@ msgctxt "settings:setup.connected"
 msgid "Connected"
 msgstr "Connected"
 
-#: frontend/src/pages/Channels.tsx:320
+#: frontend/src/pages/Channels.tsx:346 frontend/src/pages/Channels.tsx:415
 msgctxt "commerce:commerceHub.connectedChannels"
 msgid "Connected Channels"
 msgstr "Connected Channels"
 
-#: frontend/src/pages/SourceCenter.tsx:465
+#: frontend/src/pages/SourceCenter.tsx:503
 msgctxt "sources:sourceCenter.connectedSources"
 msgid "Connected Sources"
 msgstr "Connected Sources"
@@ -2201,7 +2211,12 @@ msgctxt "common:localSourceService.connectedSuccessfully12ProductsFound"
 msgid "Connected successfully. 12 products found."
 msgstr "Connected successfully. 12 products found."
 
-#: frontend/src/pages/Channels.tsx:462
+#: frontend/src/pages/CommerceHub.tsx:108 frontend/src/pages/SourceCenter.tsx:135
+msgctxt "commerce:commerceHub.sourceStatus.connectedSetupRequired"
+msgid "Connected • Setup required"
+msgstr "Connected • Setup required"
+
+#: frontend/src/pages/Channels.tsx:508
 msgctxt "commerce:commerceHub.channelOperationalIssue"
 msgid "Connected, but the latest health or synchronization result needs attention."
 msgstr "Connected, but the latest health or synchronization result needs attention."
@@ -2223,7 +2238,7 @@ msgctxt "sources:sourceConfiguration.section.connection"
 msgid "Connection"
 msgstr "Connection"
 
-#: frontend/src/pages/CommerceHub.tsx:1271
+#: frontend/src/pages/CommerceHub.tsx:1349
 msgctxt "commerce:commerceHub.connectionSettings"
 msgid "Connection Settings"
 msgstr "Connection Settings"
@@ -2233,12 +2248,12 @@ msgctxt "sources:sourceConfiguration.connectionCheckFailed"
 msgid "Connection check failed"
 msgstr "Connection check failed"
 
-#: frontend/src/pages/SourceCenter.tsx:575
+#: frontend/src/pages/SourceCenter.tsx:614
 msgctxt "sources:sourceCenter.setupReasonConnection"
 msgid "Connection details or credentials are incomplete."
 msgstr "Connection details or credentials are incomplete."
 
-#: frontend/src/pages/CommerceHub.tsx:987
+#: frontend/src/pages/CommerceHub.tsx:1055
 msgctxt "commerce:commerceHub.connectionDetailsVerified"
 msgid "Connection details verified"
 msgstr "Connection details verified"
@@ -2249,7 +2264,7 @@ msgctxt "sources:sourceConfiguration.selectSpreadsheetBeforeWorksheetDetection"
 msgid "Connection is valid. Select a spreadsheet file in Source settings before detecting worksheets."
 msgstr "Connection is valid. Select a spreadsheet file in Source settings before detecting worksheets."
 
-#: frontend/src/pages/CommerceHub.tsx:897
+#: frontend/src/pages/CommerceHub.tsx:958
 msgctxt "commerce:commerceHub.connectionSettingsSaved"
 msgid "Connection settings saved"
 msgstr "Connection settings saved"
@@ -2263,6 +2278,7 @@ msgctxt "settings:exchangeRates.testSucceeded"
 msgid "Connection succeeded"
 msgstr "Connection succeeded"
 
+#: frontend/src/pages/Diagnostics.tsx:735 frontend/src/pages/Diagnostics.tsx:768
 msgctxt "commerce:commerceHub.connectionTestSuccessful"
 msgid "Connection successful."
 msgstr "Connection successful."
@@ -2271,7 +2287,7 @@ msgctxt "commerce:commerceHub.connectionTestSuccessfulSpreadsheet"
 msgid "Connection successful. Spreadsheet found."
 msgstr "Connection successful. Spreadsheet found."
 
-#: frontend/src/pages/ChannelDetail.tsx:219
+#: frontend/src/pages/ChannelDetail.tsx:222
 msgctxt "commerce:commerceHub.channelDetails.connectionTest"
 msgid "Connection test"
 msgstr "Connection test"
@@ -2290,7 +2306,7 @@ msgctxt "dashboard:dashboard.connections"
 msgid "Connections"
 msgstr "Connections"
 
-#: frontend/src/pages/Diagnostics.tsx:468
+#: frontend/src/pages/Diagnostics.tsx:621
 msgctxt "diagnostics:diagnostics.connector"
 msgid "Connector"
 msgstr "Connector"
@@ -2308,12 +2324,12 @@ msgctxt "diagnostics:diagnostics.connectors"
 msgid "Connectors"
 msgstr "Connectors"
 
-#: frontend/src/pages/CommerceHub.tsx:298
+#: frontend/src/pages/CommerceHub.tsx:326
 msgctxt "commerce:commerceHub.fields.consumerKey"
 msgid "Consumer Key"
 msgstr "Consumer Key"
 
-#: frontend/src/pages/CommerceHub.tsx:299
+#: frontend/src/pages/CommerceHub.tsx:327
 msgctxt "commerce:commerceHub.fields.consumerSecret"
 msgid "Consumer Secret"
 msgstr "Consumer Secret"
@@ -2364,7 +2380,7 @@ msgctxt "settings:users.copyPassword"
 msgid "Copy entered password"
 msgstr "Copy entered password"
 
-#: frontend/src/pages/CommerceHub.tsx:1086
+#: frontend/src/pages/CommerceHub.tsx:1164
 msgctxt "commerce:commerceHub.copyEnteredSecret"
 msgid "Copy entered secret"
 msgstr "Copy entered secret"
@@ -2425,7 +2441,7 @@ msgctxt "pricing:editor.loadFailed"
 msgid "Could not load the existing revision to prefill this form."
 msgstr "Could not load the existing revision to prefill this form."
 
-#: frontend/src/pages/Activity.tsx:197
+#: frontend/src/pages/Activity.tsx:198
 msgctxt "activity:activity.lifecycleActionFailed"
 msgid "Could not update this event. Try again."
 msgstr "Could not update this event. Try again."
@@ -2440,7 +2456,7 @@ msgctxt "sources:sourceImportWizard.createFlowhubSheet"
 msgid "Create FlowHub Sheet"
 msgstr "Create FlowHub Sheet"
 
-#: frontend/src/pages/SourceCenter.tsx:682
+#: frontend/src/pages/SourceCenter.tsx:721
 msgctxt "sources:sourceCenter.createSheet"
 msgid "Create Sheet"
 msgstr "Create Sheet"
@@ -2513,7 +2529,7 @@ msgctxt "settings:users.create"
 msgid "Create user"
 msgstr "Create user"
 
-#: frontend/src/pages/Orders.tsx:389
+#: frontend/src/pages/Orders.tsx:404
 msgctxt "orders:orders.created"
 msgid "Created"
 msgstr "Created"
@@ -2531,12 +2547,12 @@ msgctxt "products:products.creating"
 msgid "Creating..."
 msgstr "Creating..."
 
-#: frontend/src/pages/SourceCenter.tsx:682
+#: frontend/src/pages/SourceCenter.tsx:721
 msgctxt "sources:sourceCenter.creating"
 msgid "Creating..."
 msgstr "Creating..."
 
-#: frontend/src/pages/CommerceHub.tsx:129 frontend/src/pages/CommerceHub.tsx:215
+#: frontend/src/pages/CommerceHub.tsx:153 frontend/src/pages/CommerceHub.tsx:243
 msgctxt "commerce:commerceHub.credentialStatus"
 msgid "Credential status:"
 msgstr "Credential status:"
@@ -2561,7 +2577,7 @@ msgctxt "diagnostics:reason.credentials_verified"
 msgid "Credential verification passed."
 msgstr "Credential verification passed."
 
-#: frontend/src/pages/ChannelDetail.tsx:207
+#: frontend/src/pages/ChannelDetail.tsx:210
 msgctxt "commerce:commerceHub.channelDetails.credentials"
 msgid "Credentials"
 msgstr "Credentials"
@@ -2578,17 +2594,17 @@ msgctxt "diagnostics:reason.credentials_incomplete"
 msgid "Credentials are not fully configured."
 msgstr "Credentials are not fully configured."
 
-#: frontend/src/pages/ChannelDetail.tsx:208
+#: frontend/src/pages/ChannelDetail.tsx:211
 msgctxt "commerce:commerceHub.channelDetails.credentialsProtected"
 msgid "Credentials are stored server-side and are never returned to this page."
 msgstr "Credentials are stored server-side and are never returned to this page."
 
-#: frontend/src/pages/CommerceHub.tsx:1149
+#: frontend/src/pages/CommerceHub.tsx:1227
 msgctxt "commerce:commerceHub.credentialsAreStoredServerSideAndNever"
 msgid "Credentials are stored server-side and never returned to this form."
 msgstr "Credentials are stored server-side and never returned to this form."
 
-#: frontend/src/pages/Channels.tsx:422
+#: frontend/src/pages/Channels.tsx:468
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.setupReasonCredentials"
 msgid "Credentials or required channel configuration are incomplete."
@@ -2598,7 +2614,7 @@ msgctxt "activity:activity.critical"
 msgid "Critical"
 msgstr "Critical"
 
-#: frontend/src/pages/CommerceHub.tsx:1232 frontend/src/pages/CommerceHub.tsx:1545
+#: frontend/src/pages/CommerceHub.tsx:1310 frontend/src/pages/CommerceHub.tsx:1630
 msgctxt "commerce:commerceHub.currency"
 msgid "Currency"
 msgstr "Currency"
@@ -2670,7 +2686,7 @@ msgctxt "diagnostics:diagnostics.currentStatus"
 msgid "Current status"
 msgstr "Current status"
 
-#: frontend/src/pages/Orders.tsx:384
+#: frontend/src/pages/Orders.tsx:399
 msgctxt "orders:orders.customer"
 msgid "Customer"
 msgstr "Customer"
@@ -2683,7 +2699,7 @@ msgctxt "sources:sourceConfiguration.valueType.dash"
 msgid "Dash"
 msgstr "Dash"
 
-#: frontend/src/pages/Dashboard.tsx:504
+#: frontend/src/pages/Dashboard.tsx:507
 msgctxt "dashboard:dashboard.dashboard"
 msgid "Dashboard"
 msgstr "Dashboard"
@@ -2709,7 +2725,7 @@ msgctxt "commerce:type.dataLayer"
 msgid "Data Layer"
 msgstr "Data Layer"
 
-#: frontend/src/pages/Channels.tsx:312 frontend/src/pages/Channels.tsx:313
+#: frontend/src/pages/Channels.tsx:333 frontend/src/pages/Channels.tsx:334
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelOperationalFlow"
 msgid "Data Layer → Workspace → Change Pipeline → Channel"
@@ -2741,7 +2757,7 @@ msgctxt "dashboard:dashboard.dataFreshness"
 msgid "Data freshness"
 msgstr "Data freshness"
 
-#: frontend/src/pages/SourceCenter.tsx:590
+#: frontend/src/pages/SourceCenter.tsx:629
 msgctxt "sources:sourceCenter.dataFreshness"
 msgid "Data freshness"
 msgstr "Data freshness"
@@ -2756,7 +2772,7 @@ msgctxt "sources:sourceConfiguration.detail.dataMapping"
 msgid "Data mapping"
 msgstr "Data mapping"
 
-#: frontend/src/pages/CommerceHub.tsx:131
+#: frontend/src/pages/CommerceHub.tsx:155
 msgctxt "commerce:commerceHub.dataRole"
 msgid "Data role:"
 msgstr "Data role:"
@@ -2814,7 +2830,7 @@ msgctxt "pricing:unitEditor.title"
 msgid "Declare currency unit"
 msgstr "Declare currency unit"
 
-#: frontend/src/pages/CommerceHub.tsx:1228 frontend/src/pages/CommerceHub.tsx:1534
+#: frontend/src/pages/CommerceHub.tsx:1306 frontend/src/pages/CommerceHub.tsx:1619
 msgctxt "commerce:commerceHub.monetaryUnitDescription"
 msgid "Declare how price values are written. FlowHub never infers Rial or Toman from the amount."
 msgstr "Declare how price values are written. FlowHub never infers Rial or Toman from the amount."
@@ -2846,7 +2862,7 @@ msgctxt "commerce:commerceHub.defaultsAreSuitableForNormalSnappshopAccounts"
 msgid "Defaults are suitable for normal SnappShop accounts."
 msgstr "Defaults are suitable for normal SnappShop accounts."
 
-#: frontend/src/pages/CommerceHub.tsx:1163
+#: frontend/src/pages/CommerceHub.tsx:1241
 msgctxt "commerce:commerceHub.defineTheConnectorTypeDisplayNameAnd"
 msgid "Define the connector type, display name, and local FlowHub state."
 msgstr "Define the connector type, display name, and local FlowHub state."
@@ -2864,18 +2880,18 @@ msgctxt "settings:users.delete"
 msgid "Delete"
 msgstr "Delete"
 
-#: frontend/src/pages/SourceCenter.tsx:656 frontend/src/pages/SourceCenter.tsx:706 frontend/src/pages/SourceCenter.tsx:725
+#: frontend/src/pages/SourceCenter.tsx:695 frontend/src/pages/SourceCenter.tsx:745 frontend/src/pages/SourceCenter.tsx:764
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.deleteSource"
 msgid "Delete Source"
 msgstr "Delete Source"
 
-#: frontend/src/pages/SourceCenter.tsx:636
+#: frontend/src/pages/SourceCenter.tsx:675
 msgctxt "sources:sourceCenter.deleteOrArchive"
 msgid "Delete or archive safely"
 msgstr "Delete or archive safely"
 
-#: frontend/src/pages/SourceCenter.tsx:715
+#: frontend/src/pages/SourceCenter.tsx:754
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.deleteUnusedSource"
 msgid "Delete unused Source"
@@ -2900,7 +2916,7 @@ msgctxt "workspace:workspace.denseValidationRowsRemainScrollableButNow"
 msgid "Dense validation rows remain scrollable, but now use the shared table surface and spacing."
 msgstr "Dense validation rows remain scrollable, but now use the shared table surface and spacing."
 
-#: frontend/src/pages/CommerceHub.tsx:1185
+#: frontend/src/pages/CommerceHub.tsx:1263
 msgctxt "commerce:commerceHub.descriptionOptional"
 msgid "Description optional"
 msgstr "Description optional"
@@ -2914,7 +2930,7 @@ msgctxt "dashboard:dashboard.channelListMeaning"
 msgid "Destinations requiring seller attention appear first."
 msgstr "Destinations requiring seller attention appear first."
 
-#: frontend/src/pages/CommerceHub.tsx:127 frontend/src/pages/CommerceHub.tsx:213
+#: frontend/src/pages/CommerceHub.tsx:151 frontend/src/pages/CommerceHub.tsx:241
 msgctxt "commerce:commerceHub.details"
 msgid "Details"
 msgstr "Details"
@@ -2944,12 +2960,12 @@ msgctxt "activity:category.diagnostics"
 msgid "Diagnostics"
 msgstr "Diagnostics"
 
-#: frontend/src/pages/ChannelDetail.tsx:263
+#: frontend/src/pages/ChannelDetail.tsx:266
 msgctxt "commerce:commerceHub.channelDetails.diagnostics"
 msgid "Diagnostics"
 msgstr "Diagnostics"
 
-#: frontend/src/pages/ChannelDetail.tsx:135 frontend/src/pages/ChannelDetail.tsx:264 frontend/src/pages/Channels.tsx:398 frontend/src/pages/Channels.tsx:442 frontend/src/pages/SourceCenter.tsx:530 frontend/src/pages/SourceCenter.tsx:610 frontend/src/pages/SourceConfiguration.tsx:1330 frontend/src/pages/SourceConfiguration.tsx:895
+#: frontend/src/pages/ChannelDetail.tsx:135 frontend/src/pages/ChannelDetail.tsx:267 frontend/src/pages/Channels.tsx:444 frontend/src/pages/Channels.tsx:488 frontend/src/pages/SourceCenter.tsx:568 frontend/src/pages/SourceCenter.tsx:649 frontend/src/pages/SourceConfiguration.tsx:1330 frontend/src/pages/SourceConfiguration.tsx:895
 msgctxt "common:action.diagnostics"
 msgid "Diagnostics"
 msgstr "Diagnostics"
@@ -2958,7 +2974,7 @@ msgctxt "dashboard:dashboard.diagnostics2"
 msgid "Diagnostics"
 msgstr "Diagnostics"
 
-#: frontend/src/pages/Diagnostics.tsx:731
+#: frontend/src/pages/Diagnostics.tsx:926
 msgctxt "diagnostics:diagnostics.diagnostics"
 msgid "Diagnostics"
 msgstr "Diagnostics"
@@ -2976,12 +2992,12 @@ msgctxt "sources:sourceConfiguration.detail.diagnostics"
 msgid "Diagnostics"
 msgstr "Diagnostics"
 
-#: frontend/src/pages/Diagnostics.tsx:546
+#: frontend/src/pages/Diagnostics.tsx:705
 msgctxt "diagnostics:diagnostics.unavailableHttp"
 msgid "Diagnostics unavailable (HTTP {{status}})"
 msgstr "Diagnostics unavailable (HTTP {{status}})"
 
-#: frontend/src/pages/Diagnostics.tsx:541 frontend/src/pages/Diagnostics.tsx:577
+#: frontend/src/pages/Diagnostics.tsx:699
 msgctxt "diagnostics:diagnostics.diagnosticsUpdated"
 msgid "Diagnostics updated"
 msgstr "Diagnostics updated"
@@ -3004,12 +3020,12 @@ msgctxt "common:resourceBadge.disabled"
 msgid "Disabled"
 msgstr "Disabled"
 
-#: frontend/src/components/ResourceOrdering.tsx:13 frontend/src/pages/Channels.tsx:372 frontend/src/pages/SourceCenter.tsx:439
+#: frontend/src/components/ResourceOrdering.tsx:13 frontend/src/pages/Channels.tsx:418 frontend/src/pages/SourceCenter.tsx:477
 msgctxt "common:resourceGroup.disabled"
 msgid "Disabled"
 msgstr "Disabled"
 
-#: frontend/src/pages/Diagnostics.tsx:198 frontend/src/pages/Orders.tsx:265
+#: frontend/src/pages/Diagnostics.tsx:206 frontend/src/pages/Orders.tsx:280
 msgctxt "common:status.disabled"
 msgid "Disabled"
 msgstr "Disabled"
@@ -3047,7 +3063,7 @@ msgctxt "pricing:editor.discardUnsavedChanges"
 msgid "Discard your unsaved changes?"
 msgstr "Discard your unsaved changes?"
 
-#: frontend/src/pages/CommerceHub.tsx:1181
+#: frontend/src/pages/CommerceHub.tsx:1259
 msgctxt "commerce:commerceHub.displayName"
 msgid "Display name"
 msgstr "Display name"
@@ -3138,17 +3154,17 @@ msgctxt "settings:users.edit"
 msgid "Edit"
 msgstr "Edit"
 
-#: frontend/src/pages/CommerceHub.tsx:146 frontend/src/pages/CommerceHub.tsx:151
+#: frontend/src/pages/CommerceHub.tsx:170 frontend/src/pages/CommerceHub.tsx:175
 msgctxt "commerce:commerceHub.editConnection"
 msgid "Edit Connection"
 msgstr "Edit Connection"
 
-#: frontend/src/pages/SourceCenter.tsx:607
+#: frontend/src/pages/SourceCenter.tsx:646
 msgctxt "sources:sourceCenter.editDataSheet"
 msgid "Edit Data Sheet"
 msgstr "Edit Data Sheet"
 
-#: frontend/src/pages/SourceCenter.tsx:604
+#: frontend/src/pages/SourceCenter.tsx:643
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.editSource"
 msgid "Edit Source"
@@ -3240,7 +3256,7 @@ msgctxt "sources:sourceConfiguration.enableSelected"
 msgid "Enable selected"
 msgstr "Enable selected"
 
-#: frontend/src/pages/Orders.tsx:254
+#: frontend/src/pages/Orders.tsx:269
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "orders:orders.enableChannelToSync"
 msgid "Enable the Channel before reading orders."
@@ -3251,12 +3267,12 @@ msgctxt "diagnostics:message.enableChannelForMonitoring"
 msgid "Enable the channel when it should be monitored."
 msgstr "Enable the channel when it should be monitored."
 
-#: frontend/src/pages/CommerceHub.tsx:305
+#: frontend/src/pages/CommerceHub.tsx:333
 msgctxt "commerce:commerceHub.fields.tokenRefreshEnabled"
 msgid "Enable token refresh"
 msgstr "Enable token refresh"
 
-#: frontend/src/pages/CommerceHub.tsx:1209
+#: frontend/src/pages/CommerceHub.tsx:1287
 msgctxt "commerce:commerceHub.enabled"
 msgid "Enabled"
 msgstr "Enabled"
@@ -3313,12 +3329,12 @@ msgctxt "pricing:productGroupEditor.membersDescription"
 msgid "Enter each canonical product identifier directly. There is no product search integrated in this release."
 msgstr "Enter each canonical product identifier directly. There is no product search integrated in this release."
 
-#: frontend/src/pages/CommerceHub.tsx:1272
+#: frontend/src/pages/CommerceHub.tsx:1350
 msgctxt "commerce:commerceHub.enterTheCredentialsRequiredToVerifyThis"
 msgid "Enter the credentials required to verify this connection."
 msgstr "Enter the credentials required to verify this connection."
 
-#: frontend/src/pages/CommerceHub.tsx:1425
+#: frontend/src/pages/CommerceHub.tsx:1506
 msgctxt "commerce:commerceHub.spreadsheetResourceGenericHelp"
 msgid "Enter the file path or identifier this connector reads from."
 msgstr "Enter the file path or identifier this connector reads from."
@@ -3354,7 +3370,7 @@ msgctxt "workspace:statusDisplay.error"
 msgid "Error"
 msgstr "Error"
 
-#: frontend/src/pages/Diagnostics.tsx:355
+#: frontend/src/pages/Diagnostics.tsx:455
 msgctxt "diagnostics:diagnostics.errorCategory"
 msgid "Error category:"
 msgstr "Error category:"
@@ -3382,7 +3398,7 @@ msgctxt "pricing:policyEditor.field.timezone"
 msgid "Evaluation timezone"
 msgstr "Evaluation timezone"
 
-#: frontend/src/pages/Activity.tsx:478
+#: frontend/src/pages/Activity.tsx:487
 msgctxt "activity:activity.eventsWillAppearHereAsTheSystem"
 msgid "Events will appear here as the system runs."
 msgstr "Events will appear here as the system runs."
@@ -3400,12 +3416,12 @@ msgctxt "dashboard:dashboard.everythingSynchronized"
 msgid "Everything synchronized"
 msgstr "Everything synchronized"
 
-#: frontend/src/pages/Diagnostics.tsx:342
+#: frontend/src/pages/Diagnostics.tsx:442
 msgctxt "diagnostics:diagnostics.evidenceRecorded"
 msgid "Evidence recorded"
 msgstr "Evidence recorded"
 
-#: frontend/src/pages/Diagnostics.tsx:343
+#: frontend/src/pages/Diagnostics.tsx:443
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.evidenceSource"
 msgid "Evidence source"
@@ -3457,7 +3473,7 @@ msgctxt "sources:sourceConfiguration.expandAll"
 msgid "Expand all"
 msgstr "Expand all"
 
-#: frontend/src/pages/Diagnostics.tsx:316 frontend/src/pages/Diagnostics.tsx:465
+#: frontend/src/pages/Diagnostics.tsx:416 frontend/src/pages/Diagnostics.tsx:618
 msgctxt "diagnostics:diagnostics.expandDetails"
 msgid "Expand details"
 msgstr "Expand details"
@@ -3470,7 +3486,7 @@ msgctxt "sources:sourceConfiguration.explicitZero"
 msgid "Explicit zero"
 msgstr "Explicit zero"
 
-#: frontend/src/pages/Activity.tsx:408
+#: frontend/src/pages/Activity.tsx:417
 msgctxt "activity:activity.export"
 msgid "Export"
 msgstr "Export"
@@ -3484,7 +3500,7 @@ msgctxt "sources:sourceConfiguration.externalListingId"
 msgid "External Listing ID"
 msgstr "External Listing ID"
 
-#: frontend/src/pages/SourceCenter.tsx:86
+#: frontend/src/pages/SourceCenter.tsx:93
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.externalSourceDescription"
 msgid "External spreadsheet Source"
@@ -3564,12 +3580,12 @@ msgctxt "workspace:unifiedWorkspace.filterServerData"
 msgid "Filter server data"
 msgstr "Filter server data"
 
-#: frontend/src/pages/Activity.tsx:449
+#: frontend/src/pages/Activity.tsx:458
 msgctxt "activity:activity.filters"
 msgid "Filters"
 msgstr "Filters"
 
-#: frontend/src/pages/Orders.tsx:332
+#: frontend/src/pages/Orders.tsx:347
 msgctxt "orders:orders.filters"
 msgid "Filters"
 msgstr "Filters"
@@ -3588,7 +3604,7 @@ msgctxt "orders:orders.finalAmount"
 msgid "Final amount"
 msgstr "Final amount"
 
-#: frontend/src/pages/Orders.tsx:85
+#: frontend/src/pages/Orders.tsx:89
 msgctxt "orders:orders.finalPrice"
 msgid "Final price"
 msgstr "Final price"
@@ -3669,7 +3685,7 @@ msgctxt "navigation:topbar.flowhubSheet"
 msgid "FlowHub Sheet"
 msgstr "FlowHub Sheet"
 
-#: frontend/src/pages/SourceCenter.tsx:680 frontend/src/pages/SourceConfiguration.tsx:992
+#: frontend/src/pages/SourceCenter.tsx:719 frontend/src/pages/SourceConfiguration.tsx:992
 msgctxt "sources:sourceCenter.flowhubSheet"
 msgid "FlowHub Sheet"
 msgstr "FlowHub Sheet"
@@ -3696,6 +3712,11 @@ msgctxt "settings:setup.flowhubAlreadyHasAnOwnerOrAdministrator"
 msgid "FlowHub already has an owner or administrator account. Continue to finish setup."
 msgstr "FlowHub already has an owner or administrator account. Continue to finish setup."
 
+#: frontend/src/pages/Diagnostics.tsx:318
+msgctxt "diagnostics:diagnostics.connectionTestResult.unsafeDestination"
+msgid "FlowHub blocked this destination under its trusted-network security policy."
+msgstr "FlowHub blocked this destination under its trusted-network security policy."
+
 #: frontend/src/pages/Settings.tsx:194
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "settings:settings.displayUnitDescription"
@@ -3717,7 +3738,7 @@ msgctxt "sources:sourceConfiguration.loadFailureDescription"
 msgid "FlowHub could not load this Source configuration."
 msgstr "FlowHub could not load this Source configuration."
 
-#: frontend/src/pages/SourceCenter.tsx:527
+#: frontend/src/pages/SourceCenter.tsx:565
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.partialLoadDescription"
 msgid "FlowHub could not reach one Source service. Available cards are shown; retry or open Diagnostics for details."
@@ -3727,7 +3748,7 @@ msgctxt "sources:sourceCenter.removalImpactUnavailable"
 msgid "FlowHub could not verify the removal impact. Nothing was changed."
 msgstr "FlowHub could not verify the removal impact. Nothing was changed."
 
-#: frontend/src/pages/SourceCenter.tsx:720
+#: frontend/src/pages/SourceCenter.tsx:759
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "sources:sourceCenter.safeRemovalImpact"
 msgid "FlowHub deletes only an unused Source. If it has saved revisions, Snapshots, Workspaces, Apply results, or Audit history, it will be archived instead. Active Workspaces block removal."
@@ -3760,12 +3781,12 @@ msgctxt "settings:setup.finishDescription"
 msgid "FlowHub will lock the public setup endpoints after completion. Source and channel connections remain available after sign-in."
 msgstr "FlowHub will lock the public setup endpoints after completion. Source and channel connections remain available after sign-in."
 
-#: frontend/src/pages/SourceCenter.tsx:361
+#: frontend/src/pages/SourceCenter.tsx:399
 msgctxt "sources:sourceCenter.defaultPricingSheetName"
 msgid "FlowSheet"
 msgstr "FlowSheet"
 
-#: frontend/src/pages/SourceCenter.tsx:694
+#: frontend/src/pages/SourceCenter.tsx:733
 msgctxt "sources:sourceCenter.forWorkflowsThatRemainManagedOutsideFlowhub"
 msgid "For workflows that remain managed outside FlowHub. Sources are read once per Workspace Snapshot."
 msgstr "For workflows that remain managed outside FlowHub. Sources are read once per Workspace Snapshot."
@@ -3795,12 +3816,12 @@ msgctxt "products:column.freshness"
 msgid "Freshness"
 msgstr "Freshness"
 
-#: frontend/src/pages/Activity.tsx:452
+#: frontend/src/pages/Activity.tsx:461
 msgctxt "activity:activity.fromDate"
 msgid "From date"
 msgstr "From date"
 
-#: frontend/src/pages/Orders.tsx:336
+#: frontend/src/pages/Orders.tsx:351
 msgctxt "orders:orders.dateFrom"
 msgid "From date"
 msgstr "From date"
@@ -3809,7 +3830,7 @@ msgctxt "common:status.fulfilled"
 msgid "Fulfilled"
 msgstr "Fulfilled"
 
-#: frontend/src/pages/Orders.tsx:387
+#: frontend/src/pages/Orders.tsx:402
 msgctxt "orders:orders.fulfillment"
 msgid "Fulfillment"
 msgstr "Fulfillment"
@@ -3830,7 +3851,7 @@ msgctxt "settings:settings.currencyOption.GBP"
 msgid "GBP — British Pound"
 msgstr "GBP — British Pound"
 
-#: frontend/src/pages/CommerceHub.tsx:1162
+#: frontend/src/pages/CommerceHub.tsx:1240
 msgctxt "commerce:commerceHub.general"
 msgid "General"
 msgstr "General"
@@ -3882,22 +3903,22 @@ msgctxt "pricing:channels.head.headVersion"
 msgid "Head version"
 msgstr "Head version"
 
-#: frontend/src/pages/ChannelDetail.tsx:247
+#: frontend/src/pages/ChannelDetail.tsx:250
 msgctxt "commerce:commerceHub.channelDetails.health"
 msgid "Health"
 msgstr "Health"
 
-#: frontend/src/pages/Channels.tsx:429
+#: frontend/src/pages/Channels.tsx:475
 msgctxt "commerce:commerceHub.channelHealthLabel"
 msgid "Health"
 msgstr "Health"
 
-#: frontend/src/pages/SourceCenter.tsx:584
+#: frontend/src/pages/SourceCenter.tsx:623
 msgctxt "sources:sourceCenter.healthLabel"
 msgid "Health"
 msgstr "Health"
 
-#: frontend/src/pages/CommerceHub.tsx:223
+#: frontend/src/pages/CommerceHub.tsx:251
 msgctxt "commerce:commerceHub.health"
 msgid "Health:"
 msgstr "Health:"
@@ -3919,7 +3940,7 @@ msgctxt "common:resourceBadge.healthy"
 msgid "Healthy"
 msgstr "Healthy"
 
-#: frontend/src/pages/ChannelDetail.tsx:149 frontend/src/pages/Channels.tsx:44 frontend/src/pages/Dashboard.tsx:728
+#: frontend/src/pages/ChannelDetail.tsx:149 frontend/src/pages/Channels.tsx:416 frontend/src/pages/Channels.tsx:63 frontend/src/pages/Dashboard.tsx:731
 msgctxt "common:status.healthy"
 msgid "Healthy"
 msgstr "Healthy"
@@ -3932,17 +3953,17 @@ msgctxt "sources:sourceCenter.healthy"
 msgid "Healthy"
 msgstr "Healthy"
 
-#: frontend/src/pages/Channels.tsx:327
+#: frontend/src/pages/Channels.tsx:358
 msgctxt "commerce:commerceHub.healthyListings"
 msgid "Healthy Listings"
 msgstr "Healthy Listings"
 
-#: frontend/src/pages/Diagnostics.tsx:662
+#: frontend/src/pages/Diagnostics.tsx:857
 msgctxt "diagnostics:diagnostics.healthyServices"
 msgid "Healthy Services"
 msgstr "Healthy Services"
 
-#: frontend/src/pages/CommerceHub.tsx:1085
+#: frontend/src/pages/CommerceHub.tsx:1163
 msgctxt "commerce:commerceHub.hideEnteredSecret"
 msgid "Hide entered secret"
 msgstr "Hide entered secret"
@@ -4033,12 +4054,12 @@ msgctxt "sources:sourceImportWizard.importPreviewFailed"
 msgid "Import preview failed"
 msgstr "Import preview failed"
 
-#: frontend/src/pages/SourceCenter.tsx:688 frontend/src/pages/SourceImportWizard.tsx:64
+#: frontend/src/pages/SourceCenter.tsx:727 frontend/src/pages/SourceImportWizard.tsx:64
 msgctxt "sources:sourceCenter.importSpreadsheet"
 msgid "Import spreadsheet"
 msgstr "Import spreadsheet"
 
-#: frontend/src/pages/SourceCenter.tsx:686
+#: frontend/src/pages/SourceCenter.tsx:725
 msgctxt "sources:sourceCenter.importYourSpreadsheet"
 msgid "Import your spreadsheet"
 msgstr "Import your spreadsheet"
@@ -4047,7 +4068,7 @@ msgctxt "activity:activity.importantActivity"
 msgid "Important activity"
 msgstr "Important activity"
 
-#: frontend/src/pages/Activity.tsx:405
+#: frontend/src/pages/Activity.tsx:414
 msgctxt "activity:activity.businessHistoryDescription"
 msgid "Important seller and operational events, with routine system noise kept out of the way."
 msgstr "Important seller and operational events, with routine system noise kept out of the way."
@@ -4134,7 +4155,7 @@ msgctxt "products:products.inlinePricingUnavailable"
 msgid "Inline pricing is unavailable. Cached products remain visible without editing."
 msgstr "Inline pricing is unavailable. Cached products remain visible without editing."
 
-#: frontend/src/pages/CommerceHub.tsx:1909
+#: frontend/src/pages/CommerceHub.tsx:1998
 msgctxt "commerce:commerceHub.inputSystemsThatFeedFlowhubDataLayer"
 msgid "Input systems that feed FlowHub / Data Layer."
 msgstr "Input systems that feed FlowHub / Data Layer."
@@ -4186,7 +4207,7 @@ msgctxt "dataQuality:dataQuality.issueList"
 msgid "Issue list"
 msgstr "Issue list"
 
-#: frontend/src/pages/Orders.tsx:82
+#: frontend/src/pages/Orders.tsx:86
 msgctxt "orders:orders.items"
 msgid "Items"
 msgstr "Items"
@@ -4199,7 +4220,7 @@ msgctxt "settings:settings.currencyOption.JPY"
 msgid "JPY — Japanese Yen"
 msgstr "JPY — Japanese Yen"
 
-#: frontend/src/pages/SourceCenter.tsx:693
+#: frontend/src/pages/SourceCenter.tsx:732
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.keepAnExternalSourceLinked"
 msgid "Keep an external Source linked"
@@ -4252,12 +4273,12 @@ msgctxt "products:column.lastSync"
 msgid "Last Sync"
 msgstr "Last Sync"
 
-#: frontend/src/pages/ChannelDetail.tsx:202 frontend/src/pages/Channels.tsx:430
+#: frontend/src/pages/ChannelDetail.tsx:205 frontend/src/pages/Channels.tsx:476
 msgctxt "commerce:commerceHub.channelLastActivity"
 msgid "Last activity"
 msgstr "Last activity"
 
-#: frontend/src/pages/CommerceHub.tsx:235
+#: frontend/src/pages/CommerceHub.tsx:263
 msgctxt "commerce:commerceHub.lastCacheRefresh"
 msgid "Last cache refresh:"
 msgstr "Last cache refresh:"
@@ -4276,7 +4297,7 @@ msgctxt "diagnostics:diagnostics.lastCheckedAt"
 msgid "Last checked {{date}}"
 msgstr "Last checked {{date}}"
 
-#: frontend/src/pages/Diagnostics.tsx:657
+#: frontend/src/pages/Diagnostics.tsx:852
 msgctxt "diagnostics:diagnostics.lastChecked2"
 msgid "Last checked {{value1}}"
 msgstr "Last checked {{value1}}"
@@ -4285,7 +4306,7 @@ msgctxt "diagnostics:diagnostics.lastChecked"
 msgid "Last checked:"
 msgstr "Last checked:"
 
-#: frontend/src/pages/CommerceHub.tsx:1295
+#: frontend/src/pages/CommerceHub.tsx:1373
 msgctxt "commerce:commerceHub.lastConnectionTest"
 msgid "Last connection test"
 msgstr "Last connection test"
@@ -4295,7 +4316,7 @@ msgctxt "settings:exchangeRates.lastError"
 msgid "Last error"
 msgstr "Last error"
 
-#: frontend/src/pages/ChannelDetail.tsx:251 frontend/src/pages/CommerceHub.tsx:130 frontend/src/pages/CommerceHub.tsx:209 frontend/src/pages/CommerceHub.tsx:222
+#: frontend/src/pages/ChannelDetail.tsx:254 frontend/src/pages/CommerceHub.tsx:154 frontend/src/pages/CommerceHub.tsx:237 frontend/src/pages/CommerceHub.tsx:250
 msgctxt "commerce:commerceHub.lastHealthCheck"
 msgid "Last health check:"
 msgstr "Last health check:"
@@ -4312,17 +4333,17 @@ msgctxt "diagnostics:dimension.lastProductSync"
 msgid "Last product synchronization"
 msgstr "Last product synchronization"
 
-#: frontend/src/pages/CommerceHub.tsx:134
+#: frontend/src/pages/CommerceHub.tsx:158
 msgctxt "commerce:commerceHub.lastReadStatus"
 msgid "Last read status:"
 msgstr "Last read status:"
 
-#: frontend/src/pages/CommerceHub.tsx:123
+#: frontend/src/pages/CommerceHub.tsx:147
 msgctxt "commerce:commerceHub.lastRead"
 msgid "Last read:"
 msgstr "Last read:"
 
-#: frontend/src/pages/CommerceHub.tsx:135
+#: frontend/src/pages/CommerceHub.tsx:159
 msgctxt "commerce:commerceHub.lastRowCount"
 msgid "Last row count:"
 msgstr "Last row count:"
@@ -4331,7 +4352,7 @@ msgctxt "diagnostics:diagnostics.lastSuccess"
 msgid "Last success:"
 msgstr "Last success:"
 
-#: frontend/src/pages/Diagnostics.tsx:450
+#: frontend/src/pages/Diagnostics.tsx:581
 msgctxt "diagnostics:diagnostics.lastSuccessfulCheck"
 msgid "Last successful check"
 msgstr "Last successful check"
@@ -4348,7 +4369,7 @@ msgctxt "diagnostics:staleContext.productSync"
 msgid "Last successful product sync was {{last}}. Expected freshness: within {{hours}} hours."
 msgstr "Last successful product sync was {{last}}. Expected freshness: within {{hours}} hours."
 
-#: frontend/src/pages/SourceCenter.tsx:585
+#: frontend/src/pages/SourceCenter.tsx:624
 msgctxt "sources:sourceCenter.lastSuccessfulRead"
 msgid "Last successful read"
 msgstr "Last successful read"
@@ -4358,7 +4379,7 @@ msgctxt "settings:exchangeRates.lastRefresh"
 msgid "Last successful refresh"
 msgstr "Last successful refresh"
 
-#: frontend/src/pages/Diagnostics.tsx:402 frontend/src/pages/Diagnostics.tsx:454 frontend/src/pages/Diagnostics.tsx:487
+#: frontend/src/pages/Diagnostics.tsx:506 frontend/src/pages/Diagnostics.tsx:585 frontend/src/pages/Diagnostics.tsx:640
 msgctxt "diagnostics:diagnostics.lastSuccessfulActivity"
 msgid "Last successful sync or read"
 msgstr "Last successful sync or read"
@@ -4371,12 +4392,12 @@ msgctxt "orders:orders.lastSuccessfulSync"
 msgid "Last successful synchronization:"
 msgstr "Last successful synchronization:"
 
-#: frontend/src/pages/Diagnostics.tsx:398
+#: frontend/src/pages/Diagnostics.tsx:502
 msgctxt "diagnostics:diagnostics.lastSuccessfulVerification"
 msgid "Last successful verification"
 msgstr "Last successful verification"
 
-#: frontend/src/pages/Orders.tsx:286
+#: frontend/src/pages/Orders.tsx:301
 msgctxt "orders:orders.lastSynchronized"
 msgid "Last synchronized"
 msgstr "Last synchronized"
@@ -4395,12 +4416,12 @@ msgctxt "diagnostics:diagnostics.lastAt"
 msgid "Last {{date}}"
 msgstr "Last {{date}}"
 
-#: frontend/src/pages/ChannelDetail.tsx:253
+#: frontend/src/pages/ChannelDetail.tsx:256
 msgctxt "commerce:commerceHub.channelDetails.latency"
 msgid "Latency"
 msgstr "Latency"
 
-#: frontend/src/pages/Diagnostics.tsx:354
+#: frontend/src/pages/Diagnostics.tsx:454
 msgctxt "diagnostics:diagnostics.latency"
 msgid "Latency:"
 msgstr "Latency:"
@@ -4410,7 +4431,7 @@ msgctxt "workspace:sourceCentricWorkspace.latestChannelCache"
 msgid "Latest Channel Cache"
 msgstr "Latest Channel Cache"
 
-#: frontend/src/pages/ChannelDetail.tsx:252 frontend/src/pages/CommerceHub.tsx:241
+#: frontend/src/pages/ChannelDetail.tsx:255 frontend/src/pages/CommerceHub.tsx:269
 msgctxt "commerce:commerceHub.latestResult"
 msgid "Latest result:"
 msgstr "Latest result:"
@@ -4420,7 +4441,7 @@ msgctxt "dashboard:dashboard.latestSuccessfulSourceRead"
 msgid "Latest successful Source read."
 msgstr "Latest successful Source read."
 
-#: frontend/src/pages/Diagnostics.tsx:542 frontend/src/pages/Diagnostics.tsx:578
+#: frontend/src/pages/Diagnostics.tsx:700
 msgctxt "diagnostics:diagnostics.latestSystemStatusHasBeenLoaded"
 msgid "Latest system status has been loaded."
 msgstr "Latest system status has been loaded."
@@ -4489,12 +4510,12 @@ msgctxt "workspace:sourceCentricWorkspace.listingsAcross"
 msgid "Listings across"
 msgstr "Listings across"
 
-#: frontend/src/pages/Dashboard.tsx:506
+#: frontend/src/pages/Dashboard.tsx:509
 msgctxt "dashboard:dashboard.liveCommerceOverview"
 msgid "Live commerce overview"
 msgstr "Live commerce overview"
 
-#: frontend/src/pages/Activity.tsx:484
+#: frontend/src/pages/Activity.tsx:493
 msgctxt "activity:activity.loadMoreRemaining"
 msgid "Load more ({{value1}} remaining)"
 msgstr "Load more ({{value1}} remaining)"
@@ -4508,12 +4529,12 @@ msgctxt "common:spinner.loading"
 msgid "Loading"
 msgstr "Loading"
 
-#: frontend/src/components/Topbar.tsx:79 frontend/src/pages/Dashboard.tsx:364 frontend/src/pages/Dashboard.tsx:368 frontend/src/pages/Diagnostics.tsx:108 frontend/src/pages/Diagnostics.tsx:118
+#: frontend/src/components/Topbar.tsx:79 frontend/src/pages/Dashboard.tsx:367 frontend/src/pages/Dashboard.tsx:371 frontend/src/pages/Diagnostics.tsx:113 frontend/src/pages/Diagnostics.tsx:123
 msgctxt "common:status.loading"
 msgid "Loading"
 msgstr "Loading"
 
-#: frontend/src/pages/Diagnostics.tsx:738
+#: frontend/src/pages/Diagnostics.tsx:933
 msgctxt "diagnostics:diagnostics.loading"
 msgid "Loading"
 msgstr "Loading"
@@ -4523,7 +4544,7 @@ msgctxt "dashboard:dashboard.loadingChannelSummary"
 msgid "Loading Channel readiness."
 msgstr "Loading Channel readiness."
 
-#: frontend/src/pages/Channels.tsx:402 frontend/src/pages/CommerceHub.tsx:1899
+#: frontend/src/pages/Channels.tsx:448 frontend/src/pages/CommerceHub.tsx:1988
 msgctxt "commerce:commerceHub.loadingCommerceHub"
 msgid "Loading Commerce Hub"
 msgstr "Loading Commerce Hub"
@@ -4550,7 +4571,7 @@ msgctxt "dashboard:dashboard.loadingSourceSummary"
 msgid "Loading Source readiness."
 msgstr "Loading Source readiness."
 
-#: frontend/src/pages/SourceCenter.tsx:544
+#: frontend/src/pages/SourceCenter.tsx:582
 msgctxt "sources:sourceCenter.loadingSources"
 msgid "Loading Sources..."
 msgstr "Loading Sources..."
@@ -4559,13 +4580,13 @@ msgctxt "common:app.loadingWorkspaceGrid"
 msgid "Loading Workspace Grid..."
 msgstr "Loading Workspace Grid..."
 
-#: frontend/src/pages/ChannelDetail.tsx:123 frontend/src/pages/Channels.tsx:482 frontend/src/pages/CommerceHub.tsx:1136 frontend/src/pages/SourceConfiguration.tsx:1349
+#: frontend/src/pages/ChannelDetail.tsx:123 frontend/src/pages/Channels.tsx:528 frontend/src/pages/CommerceHub.tsx:1214 frontend/src/pages/SourceConfiguration.tsx:1349
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.loadingChannelConfiguration"
 msgid "Loading channel configuration"
 msgstr "Loading channel configuration"
 
-#: frontend/src/pages/Diagnostics.tsx:752
+#: frontend/src/pages/Diagnostics.tsx:947
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:diagnostics.loadingChannelHealth"
 msgid "Loading channel health"
@@ -4580,7 +4601,7 @@ msgctxt "diagnostics:diagnostics.loadingConnectors"
 msgid "Loading connectors"
 msgstr "Loading connectors"
 
-#: frontend/src/pages/CommerceHub.tsx:519
+#: frontend/src/pages/CommerceHub.tsx:547
 msgctxt "commerce:commerceHub.loadingFiles"
 msgid "Loading files"
 msgstr "Loading files"
@@ -4595,7 +4616,7 @@ msgctxt "settings:rateLimits.loadingOperationalLimits"
 msgid "Loading operational limits"
 msgstr "Loading operational limits"
 
-#: frontend/src/pages/Orders.tsx:432
+#: frontend/src/pages/Orders.tsx:447
 msgctxt "orders:orders.loadingOrderDetail"
 msgid "Loading order detail..."
 msgstr "Loading order detail..."
@@ -4618,7 +4639,7 @@ msgctxt "settings:setup.loadingSetupStatus"
 msgid "Loading setup status..."
 msgstr "Loading setup status..."
 
-#: frontend/src/pages/CommerceHub.tsx:1136
+#: frontend/src/pages/CommerceHub.tsx:1214
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.loadingSourceConfiguration"
 msgid "Loading source configuration"
@@ -4638,7 +4659,7 @@ msgctxt "settings:users.loading"
 msgid "Loading users..."
 msgstr "Loading users..."
 
-#: frontend/src/pages/Activity.tsx:201 frontend/src/pages/Activity.tsx:474 frontend/src/pages/Activity.tsx:484
+#: frontend/src/pages/Activity.tsx:202 frontend/src/pages/Activity.tsx:483 frontend/src/pages/Activity.tsx:493
 msgctxt "activity:activity.loading"
 msgid "Loading..."
 msgstr "Loading..."
@@ -4648,7 +4669,7 @@ msgctxt "common:app.loading"
 msgid "Loading..."
 msgstr "Loading..."
 
-#: frontend/src/pages/Orders.tsx:356
+#: frontend/src/pages/Orders.tsx:371
 msgctxt "orders:orders.loading"
 msgid "Loading..."
 msgstr "Loading..."
@@ -4717,18 +4738,18 @@ msgctxt "dashboard:dashboard.manageSources"
 msgid "Manage Sources"
 msgstr "Manage Sources"
 
-#: frontend/src/pages/SourceCenter.tsx:448
+#: frontend/src/pages/SourceCenter.tsx:486
 msgctxt "sources:sourceCenter.operationalSubtitle"
 msgid "Manage business data sources that feed FlowHub."
 msgstr "Manage business data sources that feed FlowHub."
 
-#: frontend/src/pages/CommerceHub.tsx:1957
+#: frontend/src/pages/CommerceHub.tsx:2046
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "commerce:commerceHub.commerceSystemsThatReceiveCatalogVisibilityFrom"
 msgid "Manage connected sales channels and listing health."
 msgstr "Manage connected sales channels and listing health."
 
-#: frontend/src/pages/SourceCenter.tsx:695
+#: frontend/src/pages/SourceCenter.tsx:734
 msgctxt "sources:sourceCenter.manageExternalSources"
 msgid "Manage external Sources"
 msgstr "Manage external Sources"
@@ -4737,7 +4758,7 @@ msgctxt "sources:sourceCenter.manageProductDataSourcesSubtitle"
 msgid "Manage product data sources and worksheet freshness."
 msgstr "Manage product data sources and worksheet freshness."
 
-#: frontend/src/pages/Channels.tsx:303 frontend/src/pages/Channels.tsx:403
+#: frontend/src/pages/Channels.tsx:324 frontend/src/pages/Channels.tsx:449
 msgctxt "commerce:commerceHub.channelOperationalSubtitle"
 msgid "Manage sales channels connected to FlowHub."
 msgstr "Manage sales channels connected to FlowHub."
@@ -4779,13 +4800,13 @@ msgctxt "workspace:gridModel.mapping"
 msgid "Mapping"
 msgstr "Mapping"
 
-#: frontend/src/pages/SourceCenter.tsx:570
+#: frontend/src/pages/SourceCenter.tsx:609
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "sources:sourceCenter.mappingReady"
 msgid "Mapping ready"
 msgstr "Mapping ready"
 
-#: frontend/src/pages/SourceCenter.tsx:571
+#: frontend/src/pages/SourceCenter.tsx:610
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "sources:sourceCenter.mappingRequired"
 msgid "Mapping required"
@@ -4842,7 +4863,7 @@ msgctxt "common:status.missing"
 msgid "Missing"
 msgstr "Missing"
 
-#: frontend/src/pages/CommerceHub.tsx:1227 frontend/src/pages/CommerceHub.tsx:1533
+#: frontend/src/pages/CommerceHub.tsx:1305 frontend/src/pages/CommerceHub.tsx:1618
 msgctxt "commerce:commerceHub.monetaryUnit"
 msgid "Monetary unit"
 msgstr "Monetary unit"
@@ -4869,7 +4890,7 @@ msgctxt "pricing:rateMode.multiplier_ppm"
 msgid "Multiplier (ppm)"
 msgstr "Multiplier (ppm)"
 
-#: frontend/src/pages/Orders.tsx:85
+#: frontend/src/pages/Orders.tsx:89
 msgctxt "orders:orders.name"
 msgid "Name"
 msgstr "Name"
@@ -4909,12 +4930,12 @@ msgctxt "authentication:login.contactOwner"
 msgid "Need access? Contact your workspace Owner."
 msgstr "Need access? Contact your workspace Owner."
 
-#: frontend/src/pages/Channels.tsx:334
+#: frontend/src/pages/Channels.tsx:370
 msgctxt "commerce:commerceHub.needsAttentionKpi"
 msgid "Needs Attention"
 msgstr "Needs Attention"
 
-#: frontend/src/pages/SourceCenter.tsx:472
+#: frontend/src/pages/SourceCenter.tsx:510
 msgctxt "sources:sourceCenter.needsAttentionKpi"
 msgid "Needs Attention"
 msgstr "Needs Attention"
@@ -4931,13 +4952,13 @@ msgctxt "sources:sourceConfiguration.worksheetStatus.needsColumns"
 msgid "Needs column settings"
 msgstr "Needs column settings"
 
-#: frontend/src/pages/Channels.tsx:371
+#: frontend/src/pages/Channels.tsx:417
 #. Review is the immutable validation result required before Apply.
 msgctxt "commerce:commerceHub.needsReview"
 msgid "Needs review"
 msgstr "Needs review"
 
-#: frontend/src/pages/SourceCenter.tsx:438
+#: frontend/src/pages/SourceCenter.tsx:476
 #. Review is the immutable validation result required before Apply.
 msgctxt "sources:sourceCenter.needsReview"
 msgid "Needs review"
@@ -4981,7 +5002,7 @@ msgctxt "products:products.neverSynced"
 msgid "Never synced"
 msgstr "Never synced"
 
-#: frontend/src/pages/Diagnostics.tsx:399
+#: frontend/src/pages/Diagnostics.tsx:503
 msgctxt "diagnostics:diagnostics.neverVerified"
 msgid "Never verified"
 msgstr "Never verified"
@@ -5000,7 +5021,7 @@ msgctxt "settings:users.newPassword"
 msgid "New password"
 msgstr "New password"
 
-#: frontend/src/pages/Orders.tsx:424 frontend/src/pages/Orders.tsx:429
+#: frontend/src/pages/Orders.tsx:439 frontend/src/pages/Orders.tsx:444
 msgctxt "common:pagination.next"
 msgid "Next"
 msgstr "Next"
@@ -5015,7 +5036,7 @@ msgctxt "workspace:sourceCentricWorkspace.next"
 msgid "Next"
 msgstr "Next"
 
-#: frontend/src/pages/Diagnostics.tsx:357
+#: frontend/src/pages/Diagnostics.tsx:457
 msgctxt "diagnostics:diagnostics.nextAction"
 msgid "Next action:"
 msgstr "Next action:"
@@ -5038,7 +5059,7 @@ msgctxt "dashboard:dashboard.recommendedAction"
 msgid "Next step"
 msgstr "Next step"
 
-#: frontend/src/pages/CommerceHub.tsx:442
+#: frontend/src/pages/CommerceHub.tsx:470
 msgctxt "commerce:commerceHub.connectionError.permissionDenied"
 msgid "Nextcloud accepted the credentials but denied access to the requested WebDAV path."
 msgstr "Nextcloud accepted the credentials but denied access to the requested WebDAV path."
@@ -5056,28 +5077,28 @@ msgctxt "settings:settings.advancedNetworkTitle"
 msgid "Nextcloud private-network exceptions"
 msgstr "Nextcloud private-network exceptions"
 
-#: frontend/src/pages/CommerceHub.tsx:441
+#: frontend/src/pages/CommerceHub.tsx:469
 msgctxt "commerce:commerceHub.connectionError.authenticationRejected"
 msgid "Nextcloud rejected the username or app password."
 msgstr "Nextcloud rejected the username or app password."
 
-#: frontend/src/pages/CommerceHub.tsx:449 frontend/src/pages/CommerceHub.tsx:471
+#: frontend/src/pages/CommerceHub.tsx:477 frontend/src/pages/CommerceHub.tsx:499
 #. Review is the immutable validation result required before Apply.
 msgctxt "commerce:commerceHub.connectionError.unknown"
 msgid "Nextcloud returned an unexpected connection error. Review the server URL and try again."
 msgstr "Nextcloud returned an unexpected connection error. Review the server URL and try again."
 
-#: frontend/src/pages/CommerceHub.tsx:295
+#: frontend/src/pages/CommerceHub.tsx:323
 msgctxt "commerce:commerceHub.fields.nextcloudServerUrl"
 msgid "Nextcloud server URL"
 msgstr "Nextcloud server URL"
 
-#: frontend/src/pages/CommerceHub.tsx:1400
+#: frontend/src/pages/CommerceHub.tsx:1476
 msgctxt "commerce:commerceHub.nextcloudSpreadsheetFile"
 msgid "Nextcloud spreadsheet file"
 msgstr "Nextcloud spreadsheet file"
 
-#: frontend/src/pages/CommerceHub.tsx:219
+#: frontend/src/pages/CommerceHub.tsx:247
 msgctxt "commerce:commerceHub.no"
 msgid "No"
 msgstr "No"
@@ -5142,7 +5163,7 @@ msgctxt "dashboard:dashboard.noActiveSources"
 msgid "No active Sources"
 msgstr "No active Sources"
 
-#: frontend/src/pages/Activity.tsx:478
+#: frontend/src/pages/Activity.tsx:487
 msgctxt "activity:activity.noActivityYet"
 msgid "No activity yet"
 msgstr "No activity yet"
@@ -5176,13 +5197,13 @@ msgctxt "workspace:workspace.noChangesHaveBeenApplied"
 msgid "No changes have been applied."
 msgstr "No changes have been applied."
 
-#: frontend/src/pages/Diagnostics.tsx:754 frontend/src/pages/Diagnostics.tsx:777
+#: frontend/src/pages/Diagnostics.tsx:949 frontend/src/pages/Diagnostics.tsx:972
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "diagnostics:diagnostics.noChannelHealthData"
 msgid "No channel health data"
 msgstr "No channel health data"
 
-#: frontend/src/pages/Channels.tsx:403
+#: frontend/src/pages/Channels.tsx:449
 msgctxt "commerce:commerceHub.noChannelsFound"
 msgid "No channels found"
 msgstr "No channels found"
@@ -5195,7 +5216,7 @@ msgctxt "dataQuality:dataQuality.neverCheckedTitle"
 msgid "No check has been run yet"
 msgstr "No check has been run yet"
 
-#: frontend/src/pages/Diagnostics.tsx:223
+#: frontend/src/pages/Diagnostics.tsx:231
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceNotCheckedDescription"
 msgid "No connection check has been recorded for this Source."
@@ -5205,7 +5226,7 @@ msgctxt "diagnostics:diagnostics.noConnectorsConfigured"
 msgid "No connectors configured"
 msgstr "No connectors configured"
 
-#: frontend/src/pages/ChannelDetail.tsx:215
+#: frontend/src/pages/ChannelDetail.tsx:218
 msgctxt "commerce:commerceHub.channelDetails.noCredentialMetadata"
 msgid "No credential metadata is available."
 msgstr "No credential metadata is available."
@@ -5247,7 +5268,7 @@ msgctxt "dashboard:dashboard.outOfStockEmptyExplanation"
 msgid "No enabled Listing is currently recorded with zero stock."
 msgstr "No enabled Listing is currently recorded with zero stock."
 
-#: frontend/src/pages/Dashboard.tsx:663
+#: frontend/src/pages/Dashboard.tsx:666
 msgctxt "dashboard:dashboard.noEventsYet"
 msgid "No events yet"
 msgstr "No events yet"
@@ -5273,7 +5294,7 @@ msgctxt "dataQuality:dataQuality.failedDescription"
 msgid "No healthy result was assumed. Check the Source connection and try again."
 msgstr "No healthy result was assumed. Check the Source connection and try again."
 
-#: frontend/src/pages/Activity.tsx:203
+#: frontend/src/pages/Activity.tsx:204
 msgctxt "activity:activity.noLifecycleHistory"
 msgid "No history yet."
 msgstr "No history yet."
@@ -5292,7 +5313,7 @@ msgctxt "pricing:channels.events.empty"
 msgid "No lifecycle events recorded for this channel."
 msgstr "No lifecycle events recorded for this channel."
 
-#: frontend/src/pages/SourceCenter.tsx:537
+#: frontend/src/pages/SourceCenter.tsx:575
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.noManagedSourceYetCreateAFlowhub"
 msgid "No managed Source yet. Create a FlowHub Sheet or import a spreadsheet."
@@ -5312,7 +5333,7 @@ msgctxt "diagnostics:message.noPollingCheckpoint"
 msgid "No order event polling checkpoint has run."
 msgstr "No order event polling checkpoint has run."
 
-#: frontend/src/pages/Orders.tsx:259
+#: frontend/src/pages/Orders.tsx:274
 msgctxt "orders:orders.noMatchingOrders"
 msgid "No orders match these filters"
 msgstr "No orders match these filters"
@@ -5321,7 +5342,7 @@ msgctxt "dashboard:dashboard.noOrdersToday"
 msgid "No orders today"
 msgstr "No orders today"
 
-#: frontend/src/pages/Dashboard.tsx:639
+#: frontend/src/pages/Dashboard.tsx:642
 msgctxt "dashboard:dashboard.noOrdersYet"
 msgid "No orders yet"
 msgstr "No orders yet"
@@ -5390,7 +5411,7 @@ msgctxt "diagnostics:diagnostics.noQueueDelay"
 msgid "No queued request is delaying the next action."
 msgstr "No queued request is delaying the next action."
 
-#: frontend/src/pages/ChannelDetail.tsx:202 frontend/src/pages/Channels.tsx:430 frontend/src/pages/Channels.tsx:456
+#: frontend/src/pages/ChannelDetail.tsx:205 frontend/src/pages/Channels.tsx:476 frontend/src/pages/Channels.tsx:502
 msgctxt "commerce:commerceHub.noRecentActivity"
 msgid "No recent activity"
 msgstr "No recent activity"
@@ -5412,7 +5433,7 @@ msgctxt "sources:sourceConfiguration.noPreviewRows"
 msgid "No rows match this preview filter"
 msgstr "No rows match this preview filter"
 
-#: frontend/src/pages/Orders.tsx:328
+#: frontend/src/pages/Orders.tsx:343
 msgctxt "orders:orders.noSavedViewsYet"
 msgid "No saved views yet"
 msgstr "No saved views yet"
@@ -5422,12 +5443,12 @@ msgctxt "dashboard:dashboard.readyForApplyEmptyExplanation"
 msgid "No selected, current Review is waiting for Apply."
 msgstr "No selected, current Review is waiting for Apply."
 
-#: frontend/src/pages/Orders.tsx:92
+#: frontend/src/pages/Orders.tsx:96
 msgctxt "orders:orders.noShipmentData"
 msgid "No shipment data"
 msgstr "No shipment data"
 
-#: frontend/src/pages/SourceCenter.tsx:547
+#: frontend/src/pages/SourceCenter.tsx:585
 msgctxt "sources:sourceCenter.noSourcesFound"
 msgid "No sources found"
 msgstr "No sources found"
@@ -5436,17 +5457,17 @@ msgctxt "dashboard:dashboard.noSourcesYet"
 msgid "No sources yet"
 msgstr "No sources yet"
 
-#: frontend/src/pages/CommerceHub.tsx:1404
+#: frontend/src/pages/CommerceHub.tsx:1485
 msgctxt "commerce:commerceHub.noSpreadsheetFileSelected"
 msgid "No spreadsheet file selected"
 msgstr "No spreadsheet file selected"
 
-#: frontend/src/pages/CommerceHub.tsx:555
+#: frontend/src/pages/CommerceHub.tsx:583
 msgctxt "commerce:commerceHub.noSpreadsheetFilesInThisFolder"
 msgid "No spreadsheet files in this folder."
 msgstr "No spreadsheet files in this folder."
 
-#: frontend/src/pages/Diagnostics.tsx:403 frontend/src/pages/Diagnostics.tsx:455 frontend/src/pages/Diagnostics.tsx:488
+#: frontend/src/pages/Diagnostics.tsx:507 frontend/src/pages/Diagnostics.tsx:586 frontend/src/pages/Diagnostics.tsx:641
 msgctxt "diagnostics:diagnostics.noSuccessfulActivity"
 msgid "No successful activity recorded"
 msgstr "No successful activity recorded"
@@ -5503,12 +5524,12 @@ msgctxt "diagnostics:message.noWebhookReceipt"
 msgid "No webhook receipt has been accepted yet."
 msgstr "No webhook receipt has been accepted yet."
 
-#: frontend/src/pages/Diagnostics.tsx:355
+#: frontend/src/pages/Diagnostics.tsx:455
 msgctxt "common:status.none"
 msgid "None"
 msgstr "None"
 
-#: frontend/src/pages/Dashboard.tsx:598
+#: frontend/src/pages/Dashboard.tsx:601
 msgctxt "dashboard:dashboard.noOpenBusinessEvents"
 msgid "None"
 msgstr "None"
@@ -5533,7 +5554,7 @@ msgctxt "diagnostics:state.not_applicable"
 msgid "Not applicable"
 msgstr "Not applicable"
 
-#: frontend/src/pages/ChannelDetail.tsx:251 frontend/src/pages/CommerceHub.tsx:130 frontend/src/pages/CommerceHub.tsx:209 frontend/src/pages/CommerceHub.tsx:222
+#: frontend/src/pages/ChannelDetail.tsx:254 frontend/src/pages/CommerceHub.tsx:154 frontend/src/pages/CommerceHub.tsx:237 frontend/src/pages/CommerceHub.tsx:250
 msgctxt "commerce:commerceHub.notChecked"
 msgid "Not checked"
 msgstr "Not checked"
@@ -5543,7 +5564,7 @@ msgctxt "settings:setup.notChecked"
 msgid "Not checked"
 msgstr "Not checked"
 
-#: frontend/src/pages/Diagnostics.tsx:222 frontend/src/pages/Diagnostics.tsx:253 frontend/src/pages/Diagnostics.tsx:451 frontend/src/pages/Diagnostics.tsx:484 frontend/src/pages/Diagnostics.tsx:710 frontend/src/pages/Diagnostics.tsx:725
+#: frontend/src/pages/Diagnostics.tsx:230 frontend/src/pages/Diagnostics.tsx:261 frontend/src/pages/Diagnostics.tsx:582 frontend/src/pages/Diagnostics.tsx:637 frontend/src/pages/Diagnostics.tsx:905 frontend/src/pages/Diagnostics.tsx:920
 msgctxt "diagnostics:diagnostics.notCheckedYet"
 msgid "Not checked yet"
 msgstr "Not checked yet"
@@ -5552,12 +5573,12 @@ msgctxt "diagnostics:state.not_checked"
 msgid "Not checked yet"
 msgstr "Not checked yet"
 
-#: frontend/src/pages/CommerceHub.tsx:1280
+#: frontend/src/pages/CommerceHub.tsx:1358
 msgctxt "commerce:commerceHub.connectionNotConfigured"
 msgid "Not configured"
 msgstr "Not configured"
 
-#: frontend/src/pages/CommerceHub.tsx:1221 frontend/src/pages/CommerceHub.tsx:1377 frontend/src/pages/CommerceHub.tsx:227 frontend/src/pages/CommerceHub.tsx:228
+#: frontend/src/pages/CommerceHub.tsx:1299 frontend/src/pages/CommerceHub.tsx:1455 frontend/src/pages/CommerceHub.tsx:255 frontend/src/pages/CommerceHub.tsx:256
 msgctxt "commerce:commerceHub.notConfigured2"
 msgid "Not configured"
 msgstr "Not configured"
@@ -5576,7 +5597,7 @@ msgctxt "sources:sourceConfiguration.notConfigured"
 msgid "Not configured"
 msgstr "Not configured"
 
-#: frontend/src/pages/Dashboard.tsx:627
+#: frontend/src/pages/Dashboard.tsx:630
 msgctxt "dashboard:dashboard.notEnoughOrderData"
 msgid "Not enough order data"
 msgstr "Not enough order data"
@@ -5590,12 +5611,12 @@ msgctxt "dataQuality:dataQuality.unmapped"
 msgid "Not linked"
 msgstr "Not linked"
 
-#: frontend/src/pages/CommerceHub.tsx:123 frontend/src/pages/CommerceHub.tsx:134
+#: frontend/src/pages/CommerceHub.tsx:147 frontend/src/pages/CommerceHub.tsx:158
 msgctxt "commerce:commerceHub.notRead"
 msgid "Not read"
 msgstr "Not read"
 
-#: frontend/src/pages/Dashboard.tsx:109 frontend/src/pages/Dashboard.tsx:592
+#: frontend/src/pages/Dashboard.tsx:109 frontend/src/pages/Dashboard.tsx:595
 msgctxt "common:status.notRead"
 msgid "Not read"
 msgstr "Not read"
@@ -5604,12 +5625,12 @@ msgctxt "dashboard:dashboard.notReadYet"
 msgid "Not read yet"
 msgstr "Not read yet"
 
-#: frontend/src/pages/SourceCenter.tsx:585 frontend/src/pages/SourceCenter.tsx:590
+#: frontend/src/pages/SourceCenter.tsx:624 frontend/src/pages/SourceCenter.tsx:629
 msgctxt "sources:sourceCenter.notReadYet"
 msgid "Not read yet"
 msgstr "Not read yet"
 
-#: frontend/src/pages/CommerceHub.tsx:235
+#: frontend/src/pages/CommerceHub.tsx:263
 msgctxt "commerce:commerceHub.notRefreshed"
 msgid "Not refreshed"
 msgstr "Not refreshed"
@@ -5618,7 +5639,7 @@ msgctxt "common:status.notRequired"
 msgid "Not required"
 msgstr "Not required"
 
-#: frontend/src/pages/Orders.tsx:266
+#: frontend/src/pages/Orders.tsx:281
 msgctxt "common:status.notRun"
 msgid "Not run"
 msgstr "Not run"
@@ -5628,7 +5649,7 @@ msgctxt "pricing:channels.value.none"
 msgid "Not set"
 msgstr "Not set"
 
-#: frontend/src/pages/CommerceHub.tsx:1307
+#: frontend/src/pages/CommerceHub.tsx:1385
 msgctxt "commerce:commerceHub.notTested"
 msgid "Not tested"
 msgstr "Not tested"
@@ -5666,7 +5687,7 @@ msgctxt "sources:sourceConfiguration.legacyMappingDetected"
 msgid "Older column setup found"
 msgstr "Older column setup found"
 
-#: frontend/src/pages/Dashboard.tsx:597
+#: frontend/src/pages/Dashboard.tsx:600
 msgctxt "dashboard:dashboard.oldestOpenBusinessEvent"
 msgid "Oldest open event"
 msgstr "Oldest open event"
@@ -5715,7 +5736,7 @@ msgctxt "workspace:densePricing.confirmApplyScope"
 msgid "Only {{count}} checksum-bound, Reviewed field changes will enter the shared Write Pipeline."
 msgstr "Only {{count}} checksum-bound, Reviewed field changes will enter the shared Write Pipeline."
 
-#: frontend/src/pages/Activity.tsx:245
+#: frontend/src/pages/Activity.tsx:246
 msgctxt "activity:activity.openScreen"
 msgid "Open"
 msgstr "Open"
@@ -5724,7 +5745,7 @@ msgctxt "activity:activity.statusOpen"
 msgid "Open"
 msgstr "Open"
 
-#: frontend/src/pages/Channels.tsx:438
+#: frontend/src/pages/Channels.tsx:484
 msgctxt "common:action.open"
 msgid "Open"
 msgstr "Open"
@@ -5791,7 +5812,7 @@ msgctxt "dashboard:dashboard.openSources"
 msgid "Open Sources"
 msgstr "Open Sources"
 
-#: frontend/src/pages/Diagnostics.tsx:460
+#: frontend/src/pages/Diagnostics.tsx:612
 msgctxt "diagnostics:diagnostics.openSources"
 msgid "Open Sources"
 msgstr "Open Sources"
@@ -5815,12 +5836,12 @@ msgctxt "sources:sourceConfiguration.openWorkspace"
 msgid "Open Workspace"
 msgstr "Open Workspace"
 
-#: frontend/src/pages/Dashboard.tsx:585
+#: frontend/src/pages/Dashboard.tsx:588
 msgctxt "dashboard:dashboard.businessEventsOpen"
 msgid "Open business events"
 msgstr "Open business events"
 
-#: frontend/src/pages/ChannelDetail.tsx:176
+#: frontend/src/pages/ChannelDetail.tsx:179
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.openChannel"
 msgid "Open channel"
@@ -5843,7 +5864,7 @@ msgctxt "products:products.operation"
 msgid "Operation"
 msgstr "Operation"
 
-#: frontend/src/pages/Dashboard.tsx:498
+#: frontend/src/pages/Dashboard.tsx:501
 msgctxt "common:status.operational"
 msgid "Operational"
 msgstr "Operational"
@@ -5865,12 +5886,12 @@ msgctxt "products:priceEditor.optional"
 msgid "Optional"
 msgstr "Optional"
 
-#: frontend/src/pages/Orders.tsx:371 frontend/src/pages/Orders.tsx:382
+#: frontend/src/pages/Orders.tsx:386 frontend/src/pages/Orders.tsx:397
 msgctxt "orders:orders.order"
 msgid "Order"
 msgstr "Order"
 
-#: frontend/src/pages/Orders.tsx:202
+#: frontend/src/pages/Orders.tsx:217
 msgctxt "orders:orders.orderDetailFailed"
 msgid "Order details could not be loaded. Try again."
 msgstr "Order details could not be loaded. Try again."
@@ -5897,17 +5918,17 @@ msgctxt "commerce:capability.orderRead"
 msgid "Order read"
 msgstr "Order read"
 
-#: frontend/src/pages/Orders.tsx:438
+#: frontend/src/pages/Orders.tsx:453
 msgctxt "orders:orders.orderSynchronization"
 msgid "Order synchronization"
 msgstr "Order synchronization"
 
-#: frontend/src/pages/Orders.tsx:256 frontend/src/pages/Orders.tsx:269
+#: frontend/src/pages/Orders.tsx:271 frontend/src/pages/Orders.tsx:284
 msgctxt "orders:orders.syncNeverRun"
 msgid "Order synchronization has not run yet"
 msgstr "Order synchronization has not run yet"
 
-#: frontend/src/pages/Orders.tsx:254 frontend/src/pages/Orders.tsx:270
+#: frontend/src/pages/Orders.tsx:269 frontend/src/pages/Orders.tsx:285
 msgctxt "orders:orders.syncDisabled"
 msgid "Order synchronization is disabled"
 msgstr "Order synchronization is disabled"
@@ -5929,7 +5950,7 @@ msgctxt "activity:event.order_synchronized"
 msgid "Order synchronized"
 msgstr "Order synchronized"
 
-#: frontend/src/pages/Activity.tsx:491
+#: frontend/src/pages/Activity.tsx:500
 msgctxt "activity:activity.orderSyncs"
 msgid "Order syncs"
 msgstr "Order syncs"
@@ -5942,17 +5963,17 @@ msgctxt "navigation:sidebar.orders"
 msgid "Orders"
 msgstr "Orders"
 
-#: frontend/src/pages/Orders.tsx:277 frontend/src/pages/Orders.tsx:296
+#: frontend/src/pages/Orders.tsx:292 frontend/src/pages/Orders.tsx:311
 msgctxt "orders:orders.orders"
 msgid "Orders"
 msgstr "Orders"
 
-#: frontend/src/pages/Channels.tsx:345
+#: frontend/src/pages/Channels.tsx:389
 msgctxt "commerce:commerceHub.ordersToday"
 msgid "Orders Today"
 msgstr "Orders Today"
 
-#: frontend/src/pages/Dashboard.tsx:549
+#: frontend/src/pages/Dashboard.tsx:552
 msgctxt "dashboard:dashboard.ordersTodayLabel"
 msgid "Orders Today"
 msgstr "Orders Today"
@@ -5961,18 +5982,18 @@ msgctxt "dashboard:dashboard.ordersAndRevenueToday"
 msgid "Orders and revenue today"
 msgstr "Orders and revenue today"
 
-#: frontend/src/pages/Dashboard.tsx:640
+#: frontend/src/pages/Dashboard.tsx:643
 msgctxt "dashboard:dashboard.ordersAppearAfterSync"
 msgid "Orders appear here once Channels synchronize."
 msgstr "Orders appear here once Channels synchronize."
 
-#: frontend/src/pages/Dashboard.tsx:230 frontend/src/pages/Dashboard.tsx:632
+#: frontend/src/pages/Dashboard.tsx:230 frontend/src/pages/Dashboard.tsx:635
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "dashboard:dashboard.ordersByChannel"
 msgid "Orders by channel"
 msgstr "Orders by channel"
 
-#: frontend/src/pages/Orders.tsx:146
+#: frontend/src/pages/Orders.tsx:151
 msgctxt "orders:orders.loadFailed"
 msgid "Orders could not be loaded. Retry without changing any marketplace data."
 msgstr "Orders could not be loaded. Retry without changing any marketplace data."
@@ -6010,7 +6031,7 @@ msgctxt "products:column.outbound"
 msgid "Outbound"
 msgstr "Outbound"
 
-#: frontend/src/pages/Diagnostics.tsx:655
+#: frontend/src/pages/Diagnostics.tsx:850
 msgctxt "diagnostics:diagnostics.overallState"
 msgid "Overall State"
 msgstr "Overall State"
@@ -6019,7 +6040,7 @@ msgctxt "settings:rateLimits.overrides"
 msgid "Overrides"
 msgstr "Overrides"
 
-#: frontend/src/pages/ChannelDetail.tsx:193
+#: frontend/src/pages/ChannelDetail.tsx:196
 msgctxt "commerce:commerceHub.channelDetails.overview"
 msgid "Overview"
 msgstr "Overview"
@@ -6093,7 +6114,7 @@ msgctxt "settings:setup.passwordsDoNotMatch"
 msgid "Passwords do not match."
 msgstr "Passwords do not match."
 
-#: frontend/src/pages/Orders.tsx:386
+#: frontend/src/pages/Orders.tsx:401
 msgctxt "orders:orders.payment"
 msgid "Payment"
 msgstr "Payment"
@@ -6122,7 +6143,7 @@ msgctxt "pricing:rateMode.percent_bp"
 msgid "Percent (basis points)"
 msgstr "Percent (basis points)"
 
-#: frontend/src/pages/Activity.tsx:493
+#: frontend/src/pages/Activity.tsx:502
 msgctxt "activity:activity.permissionChanges"
 msgid "Permission changes"
 msgstr "Permission changes"
@@ -6141,7 +6162,7 @@ msgctxt "common:status.planned"
 msgid "Planned"
 msgstr "Planned"
 
-#: frontend/src/pages/CommerceHub.tsx:1218
+#: frontend/src/pages/CommerceHub.tsx:1296
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.plannedChannel"
 msgid "Planned channel"
@@ -6152,13 +6173,13 @@ msgctxt "commerce:capability.plannedChannelUnavailableIn1_0_0"
 msgid "Planned channel unavailable"
 msgstr "Planned channel unavailable"
 
-#: frontend/src/pages/CommerceHub.tsx:1218
+#: frontend/src/pages/CommerceHub.tsx:1296
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.plannedSource"
 msgid "Planned source"
 msgstr "Planned source"
 
-#: frontend/src/pages/CommerceHub.tsx:863 frontend/src/pages/CommerceHub.tsx:905 frontend/src/pages/CommerceHub.tsx:943
+#: frontend/src/pages/CommerceHub.tsx:1011 frontend/src/pages/CommerceHub.tsx:924 frontend/src/pages/CommerceHub.tsx:966
 #. Review is the immutable validation result required before Apply.
 msgctxt "commerce:commerceHub.pleaseReviewYourChangesAndTryAgain"
 msgid "Please review your changes and try again."
@@ -6173,12 +6194,12 @@ msgctxt "errors:codes.AUTHENTICATION_REQUIRED"
 msgid "Please sign in to continue."
 msgstr "Please sign in to continue."
 
-#: frontend/src/pages/Channels.tsx:284 frontend/src/pages/Channels.tsx:291 frontend/src/pages/Channels.tsx:487 frontend/src/pages/CommerceHub.tsx:1690 frontend/src/pages/CommerceHub.tsx:1780 frontend/src/pages/CommerceHub.tsx:1787 frontend/src/pages/CommerceHub.tsx:730 frontend/src/pages/SourceConfiguration.tsx:676 frontend/src/pages/SourceConfiguration.tsx:682
+#: frontend/src/pages/Channels.tsx:305 frontend/src/pages/Channels.tsx:312 frontend/src/pages/Channels.tsx:533 frontend/src/pages/CommerceHub.tsx:1775 frontend/src/pages/CommerceHub.tsx:1865 frontend/src/pages/CommerceHub.tsx:1872 frontend/src/pages/CommerceHub.tsx:758 frontend/src/pages/SourceConfiguration.tsx:676 frontend/src/pages/SourceConfiguration.tsx:682
 msgctxt "commerce:commerceHub.pleaseTryAgain"
 msgid "Please try again."
 msgstr "Please try again."
 
-#: frontend/src/pages/Diagnostics.tsx:553 frontend/src/pages/Diagnostics.tsx:583
+#: frontend/src/pages/Diagnostics.tsx:712
 msgctxt "diagnostics:diagnostics.pleaseTryAgain"
 msgid "Please try again."
 msgstr "Please try again."
@@ -6198,7 +6219,7 @@ msgctxt "sources:sourceConfiguration.tryAgain"
 msgid "Please try again."
 msgstr "Please try again."
 
-#: frontend/src/pages/ChannelDetail.tsx:102 frontend/src/pages/ChannelDetail.tsx:109 frontend/src/pages/Channels.tsx:254 frontend/src/pages/Channels.tsx:261 frontend/src/pages/CommerceHub.tsx:1006 frontend/src/pages/CommerceHub.tsx:1018 frontend/src/pages/CommerceHub.tsx:1748 frontend/src/pages/CommerceHub.tsx:1754 frontend/src/pages/SourceConfiguration.tsx:621
+#: frontend/src/pages/ChannelDetail.tsx:102 frontend/src/pages/ChannelDetail.tsx:109 frontend/src/pages/Channels.tsx:275 frontend/src/pages/Channels.tsx:282 frontend/src/pages/CommerceHub.tsx:1074 frontend/src/pages/CommerceHub.tsx:1086 frontend/src/pages/CommerceHub.tsx:1833 frontend/src/pages/CommerceHub.tsx:1839 frontend/src/pages/SourceConfiguration.tsx:621
 msgctxt "commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain"
 msgid "Please verify your credentials and try again."
 msgstr "Please verify your credentials and try again."
@@ -6311,7 +6332,7 @@ msgctxt "sources:sourceConfiguration.previewShowsIndependentChannelValues"
 msgid "Preview the identifier and target values resolved independently for every Channel."
 msgstr "Preview the identifier and target values resolved independently for every Channel."
 
-#: frontend/src/pages/Orders.tsx:424 frontend/src/pages/Orders.tsx:425
+#: frontend/src/pages/Orders.tsx:439 frontend/src/pages/Orders.tsx:440
 msgctxt "common:pagination.previous"
 msgid "Previous"
 msgstr "Previous"
@@ -6374,7 +6395,7 @@ msgctxt "workspace:unifiedWorkspace.priceRange"
 msgid "Price range"
 msgstr "Price range"
 
-#: frontend/src/pages/CommerceHub.tsx:1248 frontend/src/pages/CommerceHub.tsx:1561
+#: frontend/src/pages/CommerceHub.tsx:1326 frontend/src/pages/CommerceHub.tsx:1646
 msgctxt "commerce:commerceHub.currencyUnit"
 msgid "Price unit"
 msgstr "Price unit"
@@ -6423,7 +6444,7 @@ msgctxt "settings:settings.pricingUnit"
 msgid "Pricing unit"
 msgstr "Pricing unit"
 
-#: frontend/src/pages/Dashboard.tsx:603
+#: frontend/src/pages/Dashboard.tsx:606
 msgctxt "dashboard:dashboard.pricingWorkflow"
 msgid "Pricing workflow"
 msgstr "Pricing workflow"
@@ -6482,7 +6503,7 @@ msgctxt "diagnostics:dimension.productCache"
 msgid "Product cache"
 msgstr "Product cache"
 
-#: frontend/src/pages/Channels.tsx:278 frontend/src/pages/CommerceHub.tsx:1772
+#: frontend/src/pages/Channels.tsx:299 frontend/src/pages/CommerceHub.tsx:1857
 msgctxt "commerce:commerceHub.productCacheRefreshedSuccessfully"
 msgid "Product cache refreshed successfully"
 msgstr "Product cache refreshed successfully"
@@ -6492,7 +6513,7 @@ msgctxt "products:products.productCatalog"
 msgid "Product catalog"
 msgstr "Product catalog"
 
-#: frontend/src/pages/Activity.tsx:490
+#: frontend/src/pages/Activity.tsx:499
 msgctxt "activity:activity.productChanges"
 msgid "Product changes"
 msgstr "Product changes"
@@ -6657,12 +6678,12 @@ msgctxt "products:products.products"
 msgid "Products"
 msgstr "Products"
 
-#: frontend/src/pages/SourceCenter.tsx:482
+#: frontend/src/pages/SourceCenter.tsx:520
 msgctxt "sources:sourceCenter.productsImported"
 msgid "Products Imported"
 msgstr "Products Imported"
 
-#: frontend/src/pages/Dashboard.tsx:528
+#: frontend/src/pages/Dashboard.tsx:531
 msgctxt "dashboard:dashboard.productsReady"
 msgid "Products Ready"
 msgstr "Products Ready"
@@ -6736,7 +6757,7 @@ msgctxt "settings:exchangeRates.providerUsage"
 msgid "Provider daily usage"
 msgstr "Provider daily usage"
 
-#: frontend/src/pages/Orders.tsx:85
+#: frontend/src/pages/Orders.tsx:89
 msgctxt "orders:orders.providerItem"
 msgid "Provider item"
 msgstr "Provider item"
@@ -6763,7 +6784,7 @@ msgctxt "settings:exchangeRates.providerStatus"
 msgid "Provider status"
 msgstr "Provider status"
 
-#: frontend/src/pages/CommerceHub.tsx:339 frontend/src/pages/CommerceHub.tsx:342
+#: frontend/src/pages/CommerceHub.tsx:367 frontend/src/pages/CommerceHub.tsx:370
 msgctxt "commerce:commerceHub.validation.publicShareUnsupported"
 msgid "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL."
 msgstr "Public share links are not supported. Use the Nextcloud root URL or your personal WebDAV files URL."
@@ -6776,7 +6797,7 @@ msgctxt "dashboard:dashboard.publishingUpdates"
 msgid "Publishing updates"
 msgstr "Publishing updates"
 
-#: frontend/src/pages/Orders.tsx:85
+#: frontend/src/pages/Orders.tsx:89
 msgctxt "orders:orders.qty"
 msgid "Qty"
 msgstr "Qty"
@@ -6835,7 +6856,7 @@ msgctxt "diagnostics:diagnostics.rateDataUnavailable"
 msgid "Rate-limit data has not been reported yet."
 msgstr "Rate-limit data has not been reported yet."
 
-#: frontend/src/pages/Diagnostics.tsx:738
+#: frontend/src/pages/Diagnostics.tsx:933
 msgctxt "diagnostics:diagnostics.reCheck"
 msgid "Re-check"
 msgstr "Re-check"
@@ -6870,7 +6891,7 @@ msgctxt "commerce:commerceHub.readNow"
 msgid "Read now"
 msgstr "Read now"
 
-#: frontend/src/pages/ChannelDetail.tsx:146 frontend/src/pages/Channels.tsx:415 frontend/src/pages/CommerceHub.tsx:1192
+#: frontend/src/pages/ChannelDetail.tsx:146 frontend/src/pages/Channels.tsx:461 frontend/src/pages/CommerceHub.tsx:1270
 msgctxt "commerce:commerceHub.readOnly2"
 msgid "Read only"
 msgstr "Read only"
@@ -6936,17 +6957,17 @@ msgctxt "commerce:commerceHub.reading"
 msgid "Reading"
 msgstr "Reading"
 
-#: frontend/src/pages/SourceCenter.tsx:594
+#: frontend/src/pages/SourceCenter.tsx:633
 msgctxt "sources:sourceCenter.readsRemaining"
 msgid "Reads remaining"
 msgstr "Reads remaining"
 
-#: frontend/src/pages/CommerceHub.tsx:133
+#: frontend/src/pages/CommerceHub.tsx:157
 msgctxt "commerce:commerceHub.readsRemaining"
 msgid "Reads remaining:"
 msgstr "Reads remaining:"
 
-#: frontend/src/pages/Dashboard.tsx:440 frontend/src/pages/SourceConfiguration.tsx:1290 frontend/src/pages/SourceConfiguration.tsx:993
+#: frontend/src/pages/Dashboard.tsx:443 frontend/src/pages/SourceConfiguration.tsx:1290 frontend/src/pages/SourceConfiguration.tsx:993
 msgctxt "common:status.ready"
 msgid "Ready"
 msgstr "Ready"
@@ -7024,12 +7045,12 @@ msgctxt "dashboard:dashboard.activityListMeaning"
 msgid "Recent actions that may require seller follow-up."
 msgstr "Recent actions that may require seller follow-up."
 
-#: frontend/src/pages/Dashboard.tsx:650
+#: frontend/src/pages/Dashboard.tsx:653
 msgctxt "dashboard:dashboard.recentActivity"
 msgid "Recent activity"
 msgstr "Recent activity"
 
-#: frontend/src/pages/Diagnostics.tsx:775
+#: frontend/src/pages/Diagnostics.tsx:970
 msgctxt "diagnostics:diagnostics.recentChecks"
 msgid "Recent checks"
 msgstr "Recent checks"
@@ -7050,7 +7071,7 @@ msgctxt "sources:sourceCenter.recommended"
 msgid "Recommended"
 msgstr "Recommended"
 
-#: frontend/src/pages/Activity.tsx:252
+#: frontend/src/pages/Activity.tsx:253
 msgctxt "activity:activity.recommendedAction"
 msgid "Recommended action"
 msgstr "Recommended action"
@@ -7063,7 +7084,7 @@ msgctxt "dataQuality:dataQuality.recommendedActions"
 msgid "Recommended actions"
 msgstr "Recommended actions"
 
-#: frontend/src/pages/SourceCenter.tsx:538 frontend/src/pages/SourceCenter.tsx:681
+#: frontend/src/pages/SourceCenter.tsx:576 frontend/src/pages/SourceCenter.tsx:720
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "sources:sourceCenter.recommendedForEasierMappingSafeFormulasAnd"
 msgid "Recommended for easier column setup, safe formulas, and multi-channel pricing."
@@ -7073,7 +7094,7 @@ msgctxt "sources:sourceCenter.recommendedMigrationPath"
 msgid "Recommended migration path"
 msgstr "Recommended migration path"
 
-#: frontend/src/pages/Diagnostics.tsx:405
+#: frontend/src/pages/Diagnostics.tsx:509
 msgctxt "diagnostics:diagnostics.recommendedNextAction"
 msgid "Recommended next action"
 msgstr "Recommended next action"
@@ -7103,7 +7124,7 @@ msgctxt "dashboard:dashboard.ordersTodayExplanation"
 msgid "Recorded revenue: {{revenue}}. {{trend}}."
 msgstr "Recorded revenue: {{revenue}}. {{trend}}."
 
-#: frontend/src/pages/SourceCenter.tsx:587
+#: frontend/src/pages/SourceCenter.tsx:626
 msgctxt "sources:sourceCenter.recordsImported"
 msgid "Records imported"
 msgstr "Records imported"
@@ -7129,7 +7150,7 @@ msgctxt "diagnostics:diagnostics.refresh"
 msgid "Refresh"
 msgstr "Refresh"
 
-#: frontend/src/pages/Channels.tsx:440 frontend/src/pages/CommerceHub.tsx:284
+#: frontend/src/pages/Channels.tsx:486 frontend/src/pages/CommerceHub.tsx:312
 msgctxt "commerce:commerceHub.refreshCache"
 msgid "Refresh cache"
 msgstr "Refresh cache"
@@ -7147,7 +7168,7 @@ msgctxt "diagnostics:action.refresh_products"
 msgid "Refresh products"
 msgstr "Refresh products"
 
-#: frontend/src/pages/CommerceHub.tsx:236
+#: frontend/src/pages/CommerceHub.tsx:264
 msgctxt "commerce:commerceHub.refreshStatus"
 msgid "Refresh status:"
 msgstr "Refresh status:"
@@ -7157,7 +7178,7 @@ msgctxt "dataQuality:issue.LISTING_CACHE_UNAVAILABLE.action"
 msgid "Refresh the Channel Cache before creating a Workspace."
 msgstr "Refresh the Channel Cache before creating a Workspace."
 
-#: frontend/src/pages/CommerceHub.tsx:306
+#: frontend/src/pages/CommerceHub.tsx:334
 msgctxt "commerce:commerceHub.fields.tokenRefreshName"
 msgid "Refreshed token name"
 msgstr "Refreshed token name"
@@ -7167,7 +7188,7 @@ msgctxt "settings:exchangeRates.refreshesPerDay"
 msgid "Refreshes per day"
 msgstr "Refreshes per day"
 
-#: frontend/src/pages/Channels.tsx:440 frontend/src/pages/CommerceHub.tsx:284
+#: frontend/src/pages/Channels.tsx:486 frontend/src/pages/CommerceHub.tsx:312
 msgctxt "commerce:commerceHub.refreshing"
 msgid "Refreshing"
 msgstr "Refreshing"
@@ -7186,7 +7207,7 @@ msgctxt "settings:settings.regionalDefaultsUsedAcrossSellerWorkflows"
 msgid "Regional defaults used across seller workflows."
 msgstr "Regional defaults used across seller workflows."
 
-#: frontend/src/pages/CommerceHub.tsx:1370
+#: frontend/src/pages/CommerceHub.tsx:1448
 msgctxt "commerce:commerceHub.registerThisUrlInTapsishopTheWebhook"
 msgid "Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token."
 msgstr "Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token."
@@ -7211,7 +7232,7 @@ msgctxt "sources:sourceConfiguration.removeWorksheetRule"
 msgid "Remove worksheet rule"
 msgstr "Remove worksheet rule"
 
-#: frontend/src/pages/SourceCenter.tsx:707
+#: frontend/src/pages/SourceCenter.tsx:746
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.confirmSourceRemoval"
 msgid "Remove “{{source}}”?"
@@ -7235,7 +7256,7 @@ msgctxt "diagnostics:diagnostics.requestDuration"
 msgid "Request duration"
 msgstr "Request duration"
 
-#: frontend/src/pages/CommerceHub.tsx:303
+#: frontend/src/pages/CommerceHub.tsx:331
 msgctxt "commerce:commerceHub.fields.requestTimeout"
 msgid "Request timeout (seconds)"
 msgstr "Request timeout (seconds)"
@@ -7289,7 +7310,7 @@ msgctxt "products:products.resetRowChanges"
 msgid "Reset row changes"
 msgstr "Reset row changes"
 
-#: frontend/src/pages/Activity.tsx:190
+#: frontend/src/pages/Activity.tsx:191
 msgctxt "activity:activity.resolve"
 msgid "Resolve"
 msgstr "Resolve"
@@ -7325,7 +7346,7 @@ msgctxt "workspace:densePricing.resultingValue"
 msgid "Resulting value"
 msgstr "Resulting value"
 
-#: frontend/src/pages/Activity.tsx:465 frontend/src/pages/ChannelDetail.tsx:134 frontend/src/pages/ChannelDetail.tsx:186 frontend/src/pages/Channels.tsx:385 frontend/src/pages/Channels.tsx:397 frontend/src/pages/Channels.tsx:497 frontend/src/pages/Orders.tsx:352 frontend/src/pages/Orders.tsx:404 frontend/src/pages/Settings.tsx:145 frontend/src/pages/SourceCenter.tsx:517 frontend/src/pages/SourceCenter.tsx:529 frontend/src/pages/SourceConfiguration.tsx:1114 frontend/src/pages/SourceConfiguration.tsx:1349 frontend/src/pages/SourceConfiguration.tsx:890
+#: frontend/src/pages/Activity.tsx:474 frontend/src/pages/ChannelDetail.tsx:134 frontend/src/pages/ChannelDetail.tsx:189 frontend/src/pages/Channels.tsx:431 frontend/src/pages/Channels.tsx:443 frontend/src/pages/Channels.tsx:543 frontend/src/pages/Orders.tsx:367 frontend/src/pages/Orders.tsx:419 frontend/src/pages/Settings.tsx:145 frontend/src/pages/SourceCenter.tsx:555 frontend/src/pages/SourceCenter.tsx:567 frontend/src/pages/SourceConfiguration.tsx:1114 frontend/src/pages/SourceConfiguration.tsx:1349 frontend/src/pages/SourceConfiguration.tsx:890
 msgctxt "common:action.retry"
 msgid "Retry"
 msgstr "Retry"
@@ -7348,7 +7369,7 @@ msgctxt "settings:setup.retryDatabaseCheck"
 msgid "Retry database check"
 msgstr "Retry database check"
 
-#: frontend/src/pages/Orders.tsx:291
+#: frontend/src/pages/Orders.tsx:306
 msgctxt "orders:orders.retryFailed"
 msgid "Retry failed"
 msgstr "Retry failed"
@@ -7358,7 +7379,7 @@ msgctxt "products:products.retryInlinePricing"
 msgid "Retry inline pricing"
 msgstr "Retry inline pricing"
 
-#: frontend/src/pages/Orders.tsx:414
+#: frontend/src/pages/Orders.tsx:429
 msgctxt "orders:orders.retrySync"
 msgid "Retry sync"
 msgstr "Retry sync"
@@ -7384,22 +7405,22 @@ msgctxt "common:notFound.returnToDashboard"
 msgid "Return to Dashboard"
 msgstr "Return to Dashboard"
 
-#: frontend/src/pages/Dashboard.tsx:628
+#: frontend/src/pages/Dashboard.tsx:631
 msgctxt "dashboard:dashboard.revenueAppearsAfterSync"
 msgid "Revenue appears here once orders synchronize."
 msgstr "Revenue appears here once orders synchronize."
 
-#: frontend/src/pages/Dashboard.tsx:366
+#: frontend/src/pages/Dashboard.tsx:369
 msgctxt "dashboard:dashboard.revenueUnavailable"
 msgid "Revenue is unavailable"
 msgstr "Revenue is unavailable"
 
-#: frontend/src/pages/Dashboard.tsx:561
+#: frontend/src/pages/Dashboard.tsx:564
 msgctxt "dashboard:dashboard.revenueToday"
 msgid "Revenue today"
 msgstr "Revenue today"
 
-#: frontend/src/pages/Dashboard.tsx:197 frontend/src/pages/Dashboard.tsx:620
+#: frontend/src/pages/Dashboard.tsx:197 frontend/src/pages/Dashboard.tsx:623
 msgctxt "dashboard:dashboard.revenueTrend"
 msgid "Revenue trend"
 msgstr "Revenue trend"
@@ -7409,7 +7430,7 @@ msgctxt "activity:category.review"
 msgid "Review"
 msgstr "Review"
 
-#: frontend/src/pages/Channels.tsx:339
+#: frontend/src/pages/Channels.tsx:375
 #. Review is the immutable validation result required before Apply.
 msgctxt "commerce:commerceHub.reviewCaption"
 msgid "Review"
@@ -7420,7 +7441,7 @@ msgctxt "settings:setup.review"
 msgid "Review"
 msgstr "Review"
 
-#: frontend/src/pages/SourceCenter.tsx:477
+#: frontend/src/pages/SourceCenter.tsx:515
 #. Review is the immutable validation result required before Apply.
 msgctxt "sources:sourceCenter.reviewCaption"
 msgid "Review"
@@ -7448,7 +7469,7 @@ msgctxt "dashboard:dashboard.reviewChannelHealth"
 msgid "Review Channel health before publishing."
 msgstr "Review Channel health before publishing."
 
-#: frontend/src/pages/Dashboard.tsx:535
+#: frontend/src/pages/Dashboard.tsx:538
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.reviewRequired"
 msgid "Review Required"
@@ -7554,7 +7575,7 @@ msgctxt "settings:setup.reviewSetup"
 msgid "Review setup"
 msgstr "Review setup"
 
-#: frontend/src/pages/Orders.tsx:258
+#: frontend/src/pages/Orders.tsx:273
 #. Review is the immutable validation result required before Apply.
 msgctxt "orders:orders.retryReadOnlySync"
 msgid "Review the Channel connection, then retry the read-only synchronization."
@@ -7611,7 +7632,7 @@ msgctxt "dashboard:dashboard.reviewWarnings"
 msgid "Review warnings before publishing affected products."
 msgstr "Review warnings before publishing affected products."
 
-#: frontend/src/pages/Dashboard.tsx:514
+#: frontend/src/pages/Dashboard.tsx:517
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.reviewChangesButton"
 msgid "Review {{value}} change"
@@ -7638,13 +7659,13 @@ msgctxt "flowhubSheet:flowHubSheet.revisionIsImmutableAndReadyForSnapshot"
 msgid "Revision {{value1}} is immutable and ready for Snapshot creation."
 msgstr "Revision {{value1}} is immutable and ready for Snapshot creation."
 
-#: frontend/src/pages/CommerceHub.tsx:307
+#: frontend/src/pages/CommerceHub.tsx:335
 #. Current is the latest verified or cached Channel value.
 msgctxt "commerce:commerceHub.fields.revokeCurrentToken"
 msgid "Revoke current token after refresh"
 msgstr "Revoke current token after refresh"
 
-#: frontend/src/pages/CommerceHub.tsx:1257 frontend/src/pages/CommerceHub.tsx:1570
+#: frontend/src/pages/CommerceHub.tsx:1335 frontend/src/pages/CommerceHub.tsx:1655
 msgctxt "commerce:commerceHub.rial"
 msgid "Rial"
 msgstr "Rial"
@@ -7703,7 +7724,7 @@ msgctxt "pricing:policyEditor.field.roundOrder"
 msgid "Rounding order"
 msgstr "Rounding order"
 
-#: frontend/src/pages/Activity.tsx:481
+#: frontend/src/pages/Activity.tsx:490
 msgctxt "activity:activity.routineSystemActivity"
 msgid "Routine system activity"
 msgstr "Routine system activity"
@@ -7723,7 +7744,7 @@ msgctxt "flowhubSheet:flowHubSheet.rowColumn"
 msgid "Row {{row}}, {{column}}"
 msgstr "Row {{row}}, {{column}}"
 
-#: frontend/src/pages/Orders.tsx:344
+#: frontend/src/pages/Orders.tsx:359
 msgctxt "common:pagination.rowsPerPage"
 msgid "Rows per page"
 msgstr "Rows per page"
@@ -7743,12 +7764,12 @@ msgctxt "dataQuality:dataQuality.neverCheckedDescription"
 msgid "Run a check to validate Source rows, column choices, and independent Channel targets."
 msgstr "Run a check to validate Source rows, column choices, and independent Channel targets."
 
-#: frontend/src/pages/Orders.tsx:256
+#: frontend/src/pages/Orders.tsx:271
 msgctxt "orders:orders.runReadOnlySync"
 msgid "Run a read-only synchronization to import marketplace orders."
 msgstr "Run a read-only synchronization to import marketplace orders."
 
-#: frontend/src/pages/ChannelDetail.tsx:220
+#: frontend/src/pages/ChannelDetail.tsx:223
 msgctxt "commerce:commerceHub.channelDetails.connectionHelp"
 msgid "Run an explicit provider check without changing external business data."
 msgstr "Run an explicit provider check without changing external business data."
@@ -7816,12 +7837,12 @@ msgctxt "settings:rateLimits.saveChanges"
 msgid "Save Changes"
 msgstr "Save Changes"
 
-#: frontend/src/pages/CommerceHub.tsx:1036
+#: frontend/src/pages/CommerceHub.tsx:1104
 msgctxt "commerce:commerceHub.validation.saveConnectionBeforeBrowsing"
 msgid "Save Connection Settings before browsing Nextcloud."
 msgstr "Save Connection Settings before browsing Nextcloud."
 
-#: frontend/src/pages/CommerceHub.tsx:1418
+#: frontend/src/pages/CommerceHub.tsx:1499
 msgctxt "commerce:commerceHub.lockedUntilConnectionSaved"
 msgid "Save Connection Settings to unlock Nextcloud file selection."
 msgstr "Save Connection Settings to unlock Nextcloud file selection."
@@ -7842,7 +7863,7 @@ msgctxt "settings:setup.saveAndExit"
 msgid "Save and exit"
 msgstr "Save and exit"
 
-#: frontend/src/pages/CommerceHub.tsx:1503
+#: frontend/src/pages/CommerceHub.tsx:1588
 msgctxt "commerce:commerceHub.saveAndOpenDataSheet"
 msgid "Save and open Data Sheet"
 msgstr "Save and open Data Sheet"
@@ -7852,12 +7873,12 @@ msgctxt "sources:sourceConfiguration.saveMappingRevision"
 msgid "Save column setup"
 msgstr "Save column setup"
 
-#: frontend/src/pages/CommerceHub.tsx:1602
+#: frontend/src/pages/CommerceHub.tsx:1687
 msgctxt "commerce:commerceHub.saveConfiguration"
 msgid "Save configuration"
 msgstr "Save configuration"
 
-#: frontend/src/pages/CommerceHub.tsx:1319
+#: frontend/src/pages/CommerceHub.tsx:1397
 msgctxt "commerce:commerceHub.saveConnection"
 msgid "Save connection"
 msgstr "Save connection"
@@ -7876,13 +7897,13 @@ msgctxt "dataQuality:issue.SHEET_REVISION_REQUIRED.action"
 msgid "Save the Sheet, then run the Data Quality check again."
 msgstr "Save the Sheet, then run the Data Quality check again."
 
-#: frontend/src/pages/CommerceHub.tsx:1840
+#: frontend/src/pages/CommerceHub.tsx:1929
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.tryAgainAfterSavingConnection"
 msgid "Save the Source connection, then open its Channel columns again."
 msgstr "Save the Source connection, then open its Channel columns again."
 
-#: frontend/src/pages/CommerceHub.tsx:1514
+#: frontend/src/pages/CommerceHub.tsx:1599
 #. Mapping links Source fields and products to Channel Listing identities.
 msgctxt "commerce:commerceHub.saveConnectionBeforeConfiguringData"
 msgid "Save the connection first, then configure worksheets, mapping, and read limits on the Data Sheet page."
@@ -7894,10 +7915,20 @@ msgctxt "sources:sourceConfiguration.mappingConfiguredAfterConnection"
 msgid "Save the connection first. Then choose product ID, price, stock, and status columns separately for every Channel on the Source page."
 msgstr "Save the connection first. Then choose product ID, price, stock, and status columns separately for every Channel on the Source page."
 
-#: frontend/src/pages/CommerceHub.tsx:445
+#: frontend/src/pages/CommerceHub.tsx:473
 msgctxt "commerce:commerceHub.connectionError.notConfigured"
 msgid "Save the required Nextcloud connection settings before testing."
 msgstr "Save the required Nextcloud connection settings before testing."
+
+#: frontend/src/pages/Diagnostics.tsx:330
+msgctxt "diagnostics:diagnostics.connectionTestResult.notConfigured"
+msgid "Save the required connection settings before testing."
+msgstr "Save the required connection settings before testing."
+
+#: frontend/src/pages/Diagnostics.tsx:290
+msgctxt "diagnostics:diagnostics.connectionTestCredentialsRequired"
+msgid "Save the required credentials before testing this connection."
+msgstr "Save the required credentials before testing this connection."
 
 msgctxt "sources:sourceConfiguration.saveAValidMappingAndSheetRevision"
 msgid "Save valid column choices and a Sheet version first."
@@ -7908,7 +7939,7 @@ msgctxt "products:products.savedViews"
 msgid "Saved Views"
 msgstr "Saved Views"
 
-#: frontend/src/pages/CommerceHub.tsx:1080
+#: frontend/src/pages/CommerceHub.tsx:1158
 msgctxt "commerce:commerceHub.savedCredentialLeaveUnchanged"
 msgid "Saved credential ✓ — leave blank to keep unchanged."
 msgstr "Saved credential ✓ — leave blank to keep unchanged."
@@ -7919,17 +7950,17 @@ msgctxt "sources:sourceConfiguration.detail.snapshotsHelp"
 msgid "Saved mapping revisions and Workspace Snapshots are immutable audit references. They are created only through the existing save and Workspace flows."
 msgstr "Saved mapping revisions and Workspace Snapshots are immutable audit references. They are created only through the existing save and Workspace flows."
 
-#: frontend/src/pages/CommerceHub.tsx:1350
+#: frontend/src/pages/CommerceHub.tsx:1428
 msgctxt "commerce:commerceHub.savedVendor"
 msgid "Saved vendor ("
 msgstr "Saved vendor ("
 
-#: frontend/src/pages/Orders.tsx:327
+#: frontend/src/pages/Orders.tsx:342
 msgctxt "orders:orders.savedViews"
 msgid "Saved views"
 msgstr "Saved views"
 
-#: frontend/src/pages/CommerceHub.tsx:1319 frontend/src/pages/CommerceHub.tsx:1602
+#: frontend/src/pages/CommerceHub.tsx:1397 frontend/src/pages/CommerceHub.tsx:1687
 msgctxt "commerce:commerceHub.saving"
 msgid "Saving"
 msgstr "Saving"
@@ -8002,7 +8033,7 @@ msgctxt "workspace:unifiedWorkspace.scrollableWorkspaceGrid"
 msgid "Scrollable Workspace Grid"
 msgstr "Scrollable Workspace Grid"
 
-#: frontend/src/components/Topbar.tsx:232 frontend/src/pages/Activity.tsx:420 frontend/src/pages/Activity.tsx:421
+#: frontend/src/components/Topbar.tsx:232 frontend/src/pages/Activity.tsx:429 frontend/src/pages/Activity.tsx:430
 msgctxt "activity:activity.search"
 msgid "Search"
 msgstr "Search"
@@ -8022,7 +8053,7 @@ msgctxt "settings:exchangeRates.searchHint"
 msgid "Search by name or symbol"
 msgstr "Search by name or symbol"
 
-#: frontend/src/pages/Channels.tsx:361 frontend/src/pages/Channels.tsx:362
+#: frontend/src/pages/Channels.tsx:405 frontend/src/pages/Channels.tsx:406
 msgctxt "commerce:commerceHub.searchChannels"
 msgid "Search channels"
 msgstr "Search channels"
@@ -8041,7 +8072,7 @@ msgctxt "products:products.searchNameOrSku"
 msgid "Search name or SKU..."
 msgstr "Search name or SKU..."
 
-#: frontend/src/pages/Orders.tsx:304 frontend/src/pages/Orders.tsx:305
+#: frontend/src/pages/Orders.tsx:319 frontend/src/pages/Orders.tsx:320
 msgctxt "orders:orders.searchOrders"
 msgid "Search orders"
 msgstr "Search orders"
@@ -8061,7 +8092,7 @@ msgctxt "settings:exchangeRates.search"
 msgid "Search rates"
 msgstr "Search rates"
 
-#: frontend/src/pages/SourceCenter.tsx:497 frontend/src/pages/SourceCenter.tsx:498
+#: frontend/src/pages/SourceCenter.tsx:535 frontend/src/pages/SourceCenter.tsx:536
 msgctxt "sources:sourceCenter.searchSources"
 msgid "Search sources"
 msgstr "Search sources"
@@ -8106,7 +8137,7 @@ msgctxt "workspace:sourceCentricWorkspace.select"
 msgid "Select"
 msgstr "Select"
 
-#: frontend/src/pages/CommerceHub.tsx:1256 frontend/src/pages/CommerceHub.tsx:1569
+#: frontend/src/pages/CommerceHub.tsx:1334 frontend/src/pages/CommerceHub.tsx:1654
 msgctxt "commerce:commerceHub.selectCurrencyUnit"
 msgid "Select Rial or Toman"
 msgstr "Select Rial or Toman"
@@ -8122,7 +8153,7 @@ msgctxt "sources:sourceConfiguration.selectChannel"
 msgid "Select a Channel"
 msgstr "Select a Channel"
 
-#: frontend/src/pages/CommerceHub.tsx:1450
+#: frontend/src/pages/CommerceHub.tsx:1531
 msgctxt "commerce:commerceHub.lockedUntilSpreadsheetSelected"
 msgid "Select a Nextcloud spreadsheet file to unlock Worksheet settings."
 msgstr "Select a Nextcloud spreadsheet file to unlock Worksheet settings."
@@ -8155,7 +8186,7 @@ msgctxt "commerce:commerceHub.saveSourceSetupBeforeDataSheet"
 msgid "Select a spreadsheet and configure Worksheet. FlowHub will save those settings before opening the Data Sheet."
 msgstr "Select a spreadsheet and configure Worksheet. FlowHub will save those settings before opening the Data Sheet."
 
-#: frontend/src/pages/CommerceHub.tsx:833
+#: frontend/src/pages/CommerceHub.tsx:894
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.selectSpreadsheetToFinishSourceSetup"
 msgid "Select a spreadsheet file to finish setting up this source."
@@ -8207,7 +8238,7 @@ msgctxt "products:products.pricingWorkspaceHint"
 msgid "Select the products you want to update, then edit all Channel targets together in one safe workspace."
 msgstr "Select the products you want to update, then edit all Channel targets together in one safe workspace."
 
-#: frontend/src/pages/CommerceHub.tsx:1348
+#: frontend/src/pages/CommerceHub.tsx:1426
 msgctxt "commerce:commerceHub.selectVendor"
 msgid "Select vendor"
 msgstr "Select vendor"
@@ -8253,12 +8284,12 @@ msgctxt "workspace:sourceCentricWorkspace.selectedChanges"
 msgid "Selected changes"
 msgstr "Selected changes"
 
-#: frontend/src/pages/CommerceHub.tsx:1402 frontend/src/pages/CommerceHub.tsx:1424 frontend/src/pages/CommerceHub.tsx:1427
+#: frontend/src/pages/CommerceHub.tsx:1483 frontend/src/pages/CommerceHub.tsx:1505 frontend/src/pages/CommerceHub.tsx:1508
 msgctxt "commerce:commerceHub.selectedFile"
 msgid "Selected file"
 msgstr "Selected file"
 
-#: frontend/src/pages/CommerceHub.tsx:1472
+#: frontend/src/pages/CommerceHub.tsx:1553
 msgctxt "commerce:commerceHub.selectedWorksheet"
 msgid "Selected worksheet"
 msgstr "Selected worksheet"
@@ -8277,7 +8308,7 @@ msgctxt "workspace:sourceCentricWorkspace.selectionWasNotSaved"
 msgid "Selection was not saved"
 msgstr "Selection was not saved"
 
-#: frontend/src/pages/CommerceHub.tsx:320
+#: frontend/src/pages/CommerceHub.tsx:348
 msgctxt "commerce:commerceHub.fields.sellerStoreId"
 msgid "Seller/store ID"
 msgstr "Seller/store ID"
@@ -8332,12 +8363,12 @@ msgctxt "settings:setup.setUpWorkspace"
 msgid "Set up your workspace"
 msgstr "Set up your workspace"
 
-#: frontend/src/pages/CommerceHub.tsx:262
+#: frontend/src/pages/CommerceHub.tsx:290
 msgctxt "commerce:commerceHub.settings"
 msgid "Settings"
 msgstr "Settings"
 
-#: frontend/src/pages/ChannelDetail.tsx:171 frontend/src/pages/Channels.tsx:443 frontend/src/pages/Channels.tsx:476
+#: frontend/src/pages/ChannelDetail.tsx:174 frontend/src/pages/Channels.tsx:489 frontend/src/pages/Channels.tsx:522
 msgctxt "common:action.settings"
 msgid "Settings"
 msgstr "Settings"
@@ -8368,7 +8399,7 @@ msgctxt "settings:rateLimits.settingsSavedSuccessfully"
 msgid "Settings saved successfully"
 msgstr "Settings saved successfully"
 
-#: frontend/src/pages/SourceCenter.tsx:600
+#: frontend/src/pages/SourceCenter.tsx:639
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.setupSource"
 msgid "Setup Source"
@@ -8395,7 +8426,7 @@ msgctxt "settings:setup.setupIsReadyToBeFinalizedConnector"
 msgid "Setup is ready to be finalized. Connector configuration is available from Settings after sign-in."
 msgstr "Setup is ready to be finalized. Connector configuration is available from Settings after sign-in."
 
-#: frontend/src/pages/Channels.tsx:436 frontend/src/pages/SourceConfiguration.tsx:1158
+#: frontend/src/pages/Channels.tsx:482 frontend/src/pages/SourceConfiguration.tsx:1158
 msgctxt "common:action.setupNow"
 msgid "Setup now"
 msgstr "Setup now"
@@ -8405,12 +8436,12 @@ msgctxt "settings:setup.setupProgress"
 msgid "Setup progress"
 msgstr "Setup progress"
 
-#: frontend/src/components/ResourceOrdering.tsx:82 frontend/src/pages/ChannelDetail.tsx:154 frontend/src/pages/Channels.tsx:47 frontend/src/pages/SourceCenter.tsx:103 frontend/src/pages/SourceConfiguration.tsx:1149 frontend/src/pages/SourceConfiguration.tsx:1151 frontend/src/pages/SourceConfiguration.tsx:1159
+#: frontend/src/components/ResourceOrdering.tsx:82 frontend/src/pages/ChannelDetail.tsx:154 frontend/src/pages/Channels.tsx:66 frontend/src/pages/SourceCenter.tsx:110 frontend/src/pages/SourceConfiguration.tsx:1149 frontend/src/pages/SourceConfiguration.tsx:1151 frontend/src/pages/SourceConfiguration.tsx:1159
 msgctxt "common:status.setupRequired"
 msgid "Setup required"
 msgstr "Setup required"
 
-#: frontend/src/pages/CommerceHub.tsx:218
+#: frontend/src/pages/CommerceHub.tsx:246
 msgctxt "commerce:commerceHub.setupState"
 msgid "Setup state:"
 msgstr "Setup state:"
@@ -8424,7 +8455,7 @@ msgctxt "dataQuality:dataQuality.severity"
 msgid "Severity"
 msgstr "Severity"
 
-#: frontend/src/pages/SourceCenter.tsx:365
+#: frontend/src/pages/SourceCenter.tsx:403
 msgctxt "sources:sourceCenter.sheetCreationFailed"
 msgid "Sheet could not be created"
 msgstr "Sheet could not be created"
@@ -8443,7 +8474,7 @@ msgctxt "flowhubSheet:flowHubSheet.sheetWasNotSaved"
 msgid "Sheet was not saved"
 msgstr "Sheet was not saved"
 
-#: frontend/src/pages/Orders.tsx:91
+#: frontend/src/pages/Orders.tsx:95
 msgctxt "orders:orders.shipments"
 msgid "Shipments"
 msgstr "Shipments"
@@ -8452,12 +8483,12 @@ msgctxt "common:channelType.shopify"
 msgid "Shopify"
 msgstr "Shopify"
 
-#: frontend/src/pages/Orders.tsx:442
+#: frontend/src/pages/Orders.tsx:457
 msgctxt "orders:orders.showAllOrders"
 msgid "Show all orders"
 msgstr "Show all orders"
 
-#: frontend/src/pages/CommerceHub.tsx:1084
+#: frontend/src/pages/CommerceHub.tsx:1162
 msgctxt "commerce:commerceHub.showEnteredSecret"
 msgid "Show entered secret"
 msgstr "Show entered secret"
@@ -8472,7 +8503,7 @@ msgctxt "settings:users.showPassword"
 msgid "Show password"
 msgstr "Show password"
 
-#: frontend/src/pages/Activity.tsx:455
+#: frontend/src/pages/Activity.tsx:464
 msgctxt "activity:activity.showRoutineSystemEvents"
 msgid "Show routine and debug events"
 msgstr "Show routine and debug events"
@@ -8572,13 +8603,13 @@ msgctxt "sources:sourceConfiguration.detail.snapshots"
 msgid "Snapshots"
 msgstr "Snapshots"
 
-#: frontend/src/pages/Channels.tsx:394
+#: frontend/src/pages/Channels.tsx:440
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.partialLoadTitle"
 msgid "Some Channel information is unavailable"
 msgstr "Some Channel information is unavailable"
 
-#: frontend/src/pages/SourceCenter.tsx:526
+#: frontend/src/pages/SourceCenter.tsx:564
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.partialLoadTitle"
 msgid "Some Source information is unavailable"
@@ -8594,7 +8625,7 @@ msgctxt "flowhubSheet:flowHubSheet.sort"
 msgid "Sort"
 msgstr "Sort"
 
-#: frontend/src/pages/Orders.tsx:368
+#: frontend/src/pages/Orders.tsx:383
 msgctxt "orders:orders.sort"
 msgid "Sort"
 msgstr "Sort"
@@ -8608,7 +8639,7 @@ msgctxt "flowhubSheet:flowHubSheet.sortSheetByColumn"
 msgid "Sort Sheet by column"
 msgstr "Sort Sheet by column"
 
-#: frontend/src/pages/Activity.tsx:454
+#: frontend/src/pages/Activity.tsx:463
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "activity:activity.source"
 msgid "Source"
@@ -8646,7 +8677,7 @@ msgctxt "pricing:unitEditor.field.scopeReferenceSource"
 msgid "Source"
 msgstr "Source"
 
-#: frontend/src/pages/Diagnostics.tsx:674
+#: frontend/src/pages/Diagnostics.tsx:869
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceChecks"
 msgid "Source Checks"
@@ -8720,7 +8751,7 @@ msgctxt "activity:action.source_archived"
 msgid "Source archived"
 msgstr "Source archived"
 
-#: frontend/src/pages/SourceCenter.tsx:384
+#: frontend/src/pages/SourceCenter.tsx:422
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.sourceArchived"
 msgid "Source archived"
@@ -8731,19 +8762,19 @@ msgctxt "navigation:topbar.sourceConfiguration"
 msgid "Source column setup"
 msgstr "Source column setup"
 
-#: frontend/src/pages/CommerceHub.tsx:1839 frontend/src/pages/SourceConfiguration.tsx:879
+#: frontend/src/pages/CommerceHub.tsx:1928 frontend/src/pages/SourceConfiguration.tsx:879
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceConfiguration.sourceConfigurationUnavailable"
 msgid "Source configuration unavailable"
 msgstr "Source configuration unavailable"
 
-#: frontend/src/pages/CommerceHub.tsx:841
+#: frontend/src/pages/CommerceHub.tsx:902
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceConfiguredSuccessfully"
 msgid "Source configured successfully"
 msgstr "Source configured successfully"
 
-#: frontend/src/pages/CommerceHub.tsx:1713 frontend/src/pages/CommerceHub.tsx:993
+#: frontend/src/pages/CommerceHub.tsx:1061 frontend/src/pages/CommerceHub.tsx:1798
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceConnectedSuccessfully"
 msgid "Source connected successfully"
@@ -8755,13 +8786,13 @@ msgctxt "sources:sourceConfiguration.connectionReady"
 msgid "Source connection is ready"
 msgstr "Source connection is ready"
 
-#: frontend/src/pages/Diagnostics.tsx:245
+#: frontend/src/pages/Diagnostics.tsx:253
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceConnectionReady"
 msgid "Source connection is ready."
 msgstr "Source connection is ready."
 
-#: frontend/src/pages/CommerceHub.tsx:832
+#: frontend/src/pages/CommerceHub.tsx:893
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceConnectionSaved"
 msgid "Source connection saved"
@@ -8773,7 +8804,7 @@ msgctxt "workspace:workspace.sourceConnectorRequired"
 msgid "Source connector required"
 msgstr "Source connector required"
 
-#: frontend/src/pages/SourceCenter.tsx:392 frontend/src/pages/SourceCenter.tsx:414
+#: frontend/src/pages/SourceCenter.tsx:430 frontend/src/pages/SourceCenter.tsx:452
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.sourceCouldNotBeRemoved"
 msgid "Source could not be removed"
@@ -8784,13 +8815,13 @@ msgctxt "activity:action.source_deleted"
 msgid "Source deleted"
 msgstr "Source deleted"
 
-#: frontend/src/pages/SourceCenter.tsx:383
+#: frontend/src/pages/SourceCenter.tsx:421
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.sourceDeleted"
 msgid "Source deleted"
 msgstr "Source deleted"
 
-#: frontend/src/pages/Dashboard.tsx:579
+#: frontend/src/pages/Dashboard.tsx:582
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "dashboard:dashboard.sourceFreshness"
 msgid "Source freshness"
@@ -8824,7 +8855,7 @@ msgctxt "sources:sourceConfiguration.sourceNotFound"
 msgid "Source not found"
 msgstr "Source not found"
 
-#: frontend/src/pages/SourceCenter.tsx:677
+#: frontend/src/pages/SourceCenter.tsx:716
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.sourceOptions"
 msgid "Source options"
@@ -8857,7 +8888,7 @@ msgctxt "commerce:commerceHub.sourceRefreshedSuccessfully"
 msgid "Source refreshed successfully"
 msgstr "Source refreshed successfully"
 
-#: frontend/src/pages/Activity.tsx:492
+#: frontend/src/pages/Activity.tsx:501
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "activity:activity.sourceRefreshes"
 msgid "Source refreshes"
@@ -8868,19 +8899,19 @@ msgctxt "commerce:commerceHub.sourceSettings"
 msgid "Source settings"
 msgstr "Source settings"
 
-#: frontend/src/pages/CommerceHub.tsx:837 frontend/src/pages/CommerceHub.tsx:928
+#: frontend/src/pages/CommerceHub.tsx:883 frontend/src/pages/CommerceHub.tsx:898 frontend/src/pages/CommerceHub.tsx:996
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceSettingsUpdatedSuccessfully"
 msgid "Source settings updated successfully"
 msgstr "Source settings updated successfully"
 
-#: frontend/src/pages/CommerceHub.tsx:1167
+#: frontend/src/pages/CommerceHub.tsx:1245
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.sourceType"
 msgid "Source type"
 msgstr "Source type"
 
-#: frontend/src/pages/SourceCenter.tsx:579 frontend/src/pages/SourceCenter.tsx:583
+#: frontend/src/pages/SourceCenter.tsx:618 frontend/src/pages/SourceCenter.tsx:622
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.sourceTypeLabel"
 msgid "Source type"
@@ -8898,7 +8929,7 @@ msgctxt "sources:sourceConfiguration.copyFromWorksheet"
 msgid "Source worksheet: {{worksheet}}"
 msgstr "Source worksheet: {{worksheet}}"
 
-#: frontend/src/pages/SourceCenter.tsx:457 frontend/src/pages/SourceCenter.tsx:458
+#: frontend/src/pages/SourceCenter.tsx:495 frontend/src/pages/SourceCenter.tsx:496
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.operationalFlow"
 msgid "Source → Import → Normalization → Validation → Data Layer"
@@ -8914,7 +8945,7 @@ msgctxt "activity:category.sources"
 msgid "Sources"
 msgstr "Sources"
 
-#: frontend/src/pages/CommerceHub.tsx:1892 frontend/src/pages/CommerceHub.tsx:1908
+#: frontend/src/pages/CommerceHub.tsx:1981 frontend/src/pages/CommerceHub.tsx:1997
 msgctxt "commerce:commerceHub.sources2"
 msgid "Sources"
 msgstr "Sources"
@@ -8935,7 +8966,7 @@ msgctxt "navigation:topbar.sources"
 msgid "Sources"
 msgstr "Sources"
 
-#: frontend/src/pages/SourceCenter.tsx:447
+#: frontend/src/pages/SourceCenter.tsx:485
 msgctxt "sources:sourceCenter.sources"
 msgid "Sources"
 msgstr "Sources"
@@ -8945,12 +8976,12 @@ msgctxt "dataQuality:dataQuality.sourcesChecked"
 msgid "Sources checked"
 msgstr "Sources checked"
 
-#: frontend/src/pages/SourceCenter.tsx:515
+#: frontend/src/pages/SourceCenter.tsx:553
 msgctxt "sources:sourceCenter.loadFailed"
 msgid "Sources could not be loaded. Try again."
 msgstr "Sources could not be loaded. Try again."
 
-#: frontend/src/pages/SourceCenter.tsx:459
+#: frontend/src/pages/SourceCenter.tsx:497
 msgctxt "sources:sourceCenter.operationalFlowHelp"
 msgid "Sources provide desired-state candidates. FlowHub validates them before they enter the canonical Data Layer."
 msgstr "Sources provide desired-state candidates. FlowHub validates them before they enter the canonical Data Layer."
@@ -8972,7 +9003,7 @@ msgctxt "pricing:policyEditor.rule.targetKind.product"
 msgid "Specific product"
 msgstr "Specific product"
 
-#: frontend/src/pages/CommerceHub.tsx:551
+#: frontend/src/pages/CommerceHub.tsx:579
 msgctxt "commerce:commerceHub.spreadsheet"
 msgid "Spreadsheet"
 msgstr "Spreadsheet"
@@ -9013,7 +9044,7 @@ msgctxt "common:field.status"
 msgid "Status"
 msgstr "Status"
 
-#: frontend/src/pages/Orders.tsx:385 frontend/src/pages/Orders.tsx:85
+#: frontend/src/pages/Orders.tsx:400 frontend/src/pages/Orders.tsx:89
 msgctxt "orders:orders.status"
 msgid "Status"
 msgstr "Status"
@@ -9048,7 +9079,7 @@ msgctxt "commerce:capability.statusWrite"
 msgid "Status write"
 msgstr "Status write"
 
-#: frontend/src/pages/Diagnostics.tsx:469
+#: frontend/src/pages/Diagnostics.tsx:622
 msgctxt "diagnostics:diagnostics.status"
 msgid "Status:"
 msgstr "Status:"
@@ -9061,7 +9092,7 @@ msgctxt "settings:setup.step2"
 msgid "Step"
 msgstr "Step"
 
-#: frontend/src/pages/CommerceHub.tsx:1161 frontend/src/pages/CommerceHub.tsx:1270 frontend/src/pages/CommerceHub.tsx:1397 frontend/src/pages/CommerceHub.tsx:1445 frontend/src/pages/CommerceHub.tsx:1492 frontend/src/pages/CommerceHub.tsx:1532
+#: frontend/src/pages/CommerceHub.tsx:1239 frontend/src/pages/CommerceHub.tsx:1348 frontend/src/pages/CommerceHub.tsx:1475 frontend/src/pages/CommerceHub.tsx:1526 frontend/src/pages/CommerceHub.tsx:1573 frontend/src/pages/CommerceHub.tsx:1617
 msgctxt "commerce:commerceHub.setupStep"
 msgid "Step {{step}}"
 msgstr "Step {{step}}"
@@ -9153,17 +9184,17 @@ msgctxt "sources:sourceConfiguration.blockDuplicates"
 msgid "Stop and ask me to fix duplicates"
 msgstr "Stop and ask me to fix duplicates"
 
-#: frontend/src/pages/CommerceHub.tsx:297
+#: frontend/src/pages/CommerceHub.tsx:325
 msgctxt "commerce:commerceHub.fields.storeUrl"
 msgid "Store URL"
 msgstr "Store URL"
 
-#: frontend/src/pages/CommerceHub.tsx:1382
+#: frontend/src/pages/CommerceHub.tsx:1460
 msgctxt "commerce:commerceHub.storeNumber"
 msgid "Store number:"
 msgstr "Store number:"
 
-#: frontend/src/pages/SourceCenter.tsx:80
+#: frontend/src/pages/SourceCenter.tsx:87
 msgctxt "sources:sourceCenter.erpApiImportDescription"
 msgid "Structured business data from an ERP system or external API."
 msgstr "Structured business data from an ERP system or external API."
@@ -9222,12 +9253,12 @@ msgctxt "navigation:topbar.switchToLightMode"
 msgid "Switch to light mode"
 msgstr "Switch to light mode"
 
-#: frontend/src/pages/Orders.tsx:390
+#: frontend/src/pages/Orders.tsx:405
 msgctxt "orders:orders.sync"
 msgid "Sync"
 msgstr "Sync"
 
-#: frontend/src/pages/Orders.tsx:264 frontend/src/pages/Orders.tsx:290
+#: frontend/src/pages/Orders.tsx:279 frontend/src/pages/Orders.tsx:305
 msgctxt "orders:orders.syncError"
 msgid "Sync error"
 msgstr "Sync error"
@@ -9236,12 +9267,12 @@ msgctxt "settings:settings.syncIntervalMinutes"
 msgid "Sync interval (minutes)"
 msgstr "Sync interval (minutes)"
 
-#: frontend/src/pages/Orders.tsx:443
+#: frontend/src/pages/Orders.tsx:458
 msgctxt "orders:orders.syncNow"
 msgid "Sync now"
 msgstr "Sync now"
 
-#: frontend/src/pages/Orders.tsx:279 frontend/src/pages/Orders.tsx:379
+#: frontend/src/pages/Orders.tsx:294 frontend/src/pages/Orders.tsx:394
 msgctxt "orders:orders.syncOrders"
 msgid "Sync orders"
 msgstr "Sync orders"
@@ -9250,7 +9281,7 @@ msgctxt "orders:orders.syncState"
 msgid "Sync state"
 msgstr "Sync state"
 
-#: frontend/src/pages/Orders.tsx:267 frontend/src/pages/Orders.tsx:405
+#: frontend/src/pages/Orders.tsx:282 frontend/src/pages/Orders.tsx:420
 msgctxt "orders:orders.synced"
 msgid "Synced"
 msgstr "Synced"
@@ -9264,7 +9295,7 @@ msgctxt "settings:exchangeRates.synchronizeUsage"
 msgid "Synchronize usage"
 msgstr "Synchronize usage"
 
-#: frontend/src/pages/Orders.tsx:279
+#: frontend/src/pages/Orders.tsx:294
 msgctxt "orders:orders.syncing"
 msgid "Synchronizing..."
 msgstr "Synchronizing..."
@@ -9274,7 +9305,7 @@ msgctxt "settings:exchangeRates.reconciling"
 msgid "Synchronizing..."
 msgstr "Synchronizing..."
 
-#: frontend/src/pages/Activity.tsx:77
+#: frontend/src/pages/Activity.tsx:78
 msgctxt "activity:category.system"
 msgid "System"
 msgstr "System"
@@ -9292,12 +9323,12 @@ msgctxt "activity:activity.systemEventsAndUserActions"
 msgid "System events and user actions"
 msgstr "System events and user actions"
 
-#: frontend/src/pages/Diagnostics.tsx:750
+#: frontend/src/pages/Diagnostics.tsx:945
 msgctxt "diagnostics:diagnostics.systemHealth"
 msgid "System health"
 msgstr "System health"
 
-#: frontend/src/pages/Diagnostics.tsx:733
+#: frontend/src/pages/Diagnostics.tsx:928
 msgctxt "diagnostics:diagnostics.systemHealthAndIntegrationChecks"
 msgid "System health and integration checks."
 msgstr "System health and integration checks."
@@ -9338,22 +9369,22 @@ msgctxt "common:channelType.tapsishop"
 msgid "TapsiShop"
 msgstr "TapsiShop"
 
-#: frontend/src/pages/CommerceHub.tsx:302
+#: frontend/src/pages/CommerceHub.tsx:330
 msgctxt "commerce:commerceHub.fields.tapsishopBaseUrl"
 msgid "TapsiShop API URL"
 msgstr "TapsiShop API URL"
 
-#: frontend/src/pages/CommerceHub.tsx:308
+#: frontend/src/pages/CommerceHub.tsx:336
 msgctxt "commerce:commerceHub.fields.tapsishopAuthorizationToken"
 msgid "TapsiShop authorization token"
 msgstr "TapsiShop authorization token"
 
-#: frontend/src/pages/CommerceHub.tsx:309
+#: frontend/src/pages/CommerceHub.tsx:337
 msgctxt "commerce:commerceHub.fields.tapsishopWebhookToken"
 msgid "TapsiShop webhook token"
 msgstr "TapsiShop webhook token"
 
-#: frontend/src/pages/CommerceHub.tsx:1371
+#: frontend/src/pages/CommerceHub.tsx:1449
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "commerce:commerceHub.tapsishopWriteSafety"
 msgid "TapsiShop writes require Write-enabled mode and the Dry Run, Review, Approval, Apply workflow. Variations, listing creation, categories, attributes, discounts, and courier review are unavailable because the supplied API reference does not define them unambiguously."
@@ -9371,7 +9402,7 @@ msgctxt "pricing:rules.col.target"
 msgid "Target"
 msgstr "Target"
 
-#: frontend/src/pages/Activity.tsx:257
+#: frontend/src/pages/Activity.tsx:258
 msgctxt "activity:activity.technicalDetails"
 msgid "Technical details"
 msgstr "Technical details"
@@ -9402,12 +9433,12 @@ msgctxt "common:channelType.technolife"
 msgid "Technolife"
 msgstr "Technolife"
 
-#: frontend/src/pages/CommerceHub.tsx:315
+#: frontend/src/pages/CommerceHub.tsx:343
 msgctxt "commerce:commerceHub.fields.technolifeApiKey"
 msgid "Technolife API key"
 msgstr "Technolife API key"
 
-#: frontend/src/pages/CommerceHub.tsx:316
+#: frontend/src/pages/CommerceHub.tsx:344
 msgctxt "commerce:commerceHub.fields.technolifeEncryptionSecret"
 msgid "Technolife encryption secret"
 msgstr "Technolife encryption secret"
@@ -9417,12 +9448,12 @@ msgctxt "sources:sourceConfiguration.mapSourceProductIdentityFirstThenEach"
 msgid "Tell FlowHub where product rows begin and which file columns belong to each sales Channel."
 msgstr "Tell FlowHub where product rows begin and which file columns belong to each sales Channel."
 
-#: frontend/src/pages/ChannelDetail.tsx:223 frontend/src/pages/Channels.tsx:439 frontend/src/pages/CommerceHub.tsx:1314 frontend/src/pages/CommerceHub.tsx:1596 frontend/src/pages/CommerceHub.tsx:168 frontend/src/pages/CommerceHub.tsx:273
+#: frontend/src/pages/ChannelDetail.tsx:226 frontend/src/pages/Channels.tsx:485 frontend/src/pages/CommerceHub.tsx:1392 frontend/src/pages/CommerceHub.tsx:1681 frontend/src/pages/CommerceHub.tsx:195 frontend/src/pages/CommerceHub.tsx:301
 msgctxt "commerce:commerceHub.testConnection"
 msgid "Test connection"
 msgstr "Test connection"
 
-#: frontend/src/pages/Diagnostics.tsx:426
+#: frontend/src/pages/Diagnostics.tsx:534 frontend/src/pages/Diagnostics.tsx:602
 msgctxt "diagnostics:diagnostics.testConnection"
 msgid "Test connection"
 msgstr "Test connection"
@@ -9436,17 +9467,17 @@ msgctxt "sources:sourceConfiguration.testConnection"
 msgid "Test connection"
 msgstr "Test connection"
 
-#: frontend/src/pages/CommerceHub.tsx:1348
+#: frontend/src/pages/CommerceHub.tsx:1426
 msgctxt "commerce:commerceHub.testConnectionToLoadVendors"
 msgid "Test connection to load vendors"
 msgstr "Test connection to load vendors"
 
-#: frontend/src/pages/CommerceHub.tsx:1337
+#: frontend/src/pages/CommerceHub.tsx:1415
 msgctxt "commerce:commerceHub.testTheConnectionToLoadStoresAvailable"
 msgid "Test the connection to load stores available to these credentials."
 msgstr "Test the connection to load stores available to these credentials."
 
-#: frontend/src/pages/ChannelDetail.tsx:223 frontend/src/pages/Channels.tsx:439 frontend/src/pages/CommerceHub.tsx:1314 frontend/src/pages/CommerceHub.tsx:1596 frontend/src/pages/CommerceHub.tsx:168 frontend/src/pages/CommerceHub.tsx:273
+#: frontend/src/pages/ChannelDetail.tsx:226 frontend/src/pages/Channels.tsx:485 frontend/src/pages/CommerceHub.tsx:1392 frontend/src/pages/CommerceHub.tsx:1681 frontend/src/pages/CommerceHub.tsx:195 frontend/src/pages/CommerceHub.tsx:301
 msgctxt "commerce:commerceHub.testing"
 msgid "Testing"
 msgstr "Testing"
@@ -9478,17 +9509,17 @@ msgctxt "dataQuality:issue.SHEET_REVISION_REQUIRED.summary"
 msgid "The FlowHub Sheet has not been saved yet."
 msgstr "The FlowHub Sheet has not been saved yet."
 
-#: frontend/src/pages/CommerceHub.tsx:444
+#: frontend/src/pages/CommerceHub.tsx:472
 msgctxt "commerce:commerceHub.connectionError.invalidWebdavPath"
 msgid "The Nextcloud WebDAV path is invalid."
 msgstr "The Nextcloud WebDAV path is invalid."
 
-#: frontend/src/pages/CommerceHub.tsx:443
+#: frontend/src/pages/CommerceHub.tsx:471
 msgctxt "commerce:commerceHub.connectionError.invalidUrl"
 msgid "The Nextcloud server URL is invalid."
 msgstr "The Nextcloud server URL is invalid."
 
-#: frontend/src/pages/CommerceHub.tsx:448
+#: frontend/src/pages/CommerceHub.tsx:476
 msgctxt "commerce:commerceHub.connectionError.unreachable"
 msgid "The Nextcloud server could not be reached from FlowHub."
 msgstr "The Nextcloud server could not be reached from FlowHub."
@@ -9509,13 +9540,13 @@ msgctxt "errors:codes.SOURCE_READ_LIMIT_REACHED"
 msgid "The Source read limit was reached. Try again after the allowance resets."
 msgstr "The Source read limit was reached. Try again after the allowance resets."
 
-#: frontend/src/pages/CommerceHub.tsx:929
+#: frontend/src/pages/CommerceHub.tsx:997
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.openingDataSheet"
 msgid "The Source setup was saved. Opening the Data Sheet."
 msgstr "The Source setup was saved. Opening the Data Sheet."
 
-#: frontend/src/pages/SourceCenter.tsx:387
+#: frontend/src/pages/SourceCenter.tsx:425
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.protectedHistoryPreserved"
 msgid "The Source was archived. Saved history remains available and unchanged."
@@ -9526,18 +9557,28 @@ msgctxt "workspace:unifiedWorkspace.theUnifiedWorkspaceServiceIsNotConfigured"
 msgid "The Unified Workspace service is not configured."
 msgstr "The Unified Workspace service is not configured."
 
-#: frontend/src/pages/Channels.tsx:249 frontend/src/pages/CommerceHub.tsx:1744 frontend/src/pages/CommerceHub.tsx:851
+#: frontend/src/pages/Channels.tsx:270 frontend/src/pages/CommerceHub.tsx:1829 frontend/src/pages/CommerceHub.tsx:912
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.theChannelIsReadyToUse"
 msgid "The channel is ready to use."
 msgstr "The channel is ready to use."
+
+#: frontend/src/pages/Diagnostics.tsx:336
+msgctxt "diagnostics:diagnostics.connectionTestResult.invalidPath"
+msgid "The configured remote path is invalid."
+msgstr "The configured remote path is invalid."
 
 #: frontend/src/pages/ExchangeRates.tsx:100
 msgctxt "settings:exchangeRates.nearLimitConfirm"
 msgid "The configured safe request budget is nearly exhausted. Continue with a manual refresh?"
 msgstr "The configured safe request budget is nearly exhausted. Continue with a manual refresh?"
 
-#: frontend/src/pages/CommerceHub.tsx:439
+#: frontend/src/pages/Diagnostics.tsx:333
+msgctxt "diagnostics:diagnostics.connectionTestResult.invalidUrl"
+msgid "The configured server URL is invalid."
+msgstr "The configured server URL is invalid."
+
+#: frontend/src/pages/CommerceHub.tsx:467
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "errors:codes.unsafe_destination"
 msgid "The configured source destination is blocked by the Source network safety policy."
@@ -9548,10 +9589,16 @@ msgctxt "errors:codes.SELECTION_CHECKSUM_MISMATCH"
 msgid "The confirmed selection changed. Review and confirm it again."
 msgstr "The confirmed selection changed. Review and confirm it again."
 
-#: frontend/src/pages/CommerceHub.tsx:898
+#: frontend/src/pages/CommerceHub.tsx:959
 msgctxt "commerce:commerceHub.connectionSettingsSavedDescription"
 msgid "The connection is saved. You can now choose a Nextcloud spreadsheet file."
 msgstr "The connection is saved. You can now choose a Nextcloud spreadsheet file."
+
+#: frontend/src/pages/Diagnostics.tsx:353
+#. Review is the immutable validation result required before Apply.
+msgctxt "diagnostics:diagnostics.connectionTestResult.failed"
+msgid "The connection test failed. Review the saved configuration and try again."
+msgstr "The connection test failed. Review the saved configuration and try again."
 
 msgctxt "diagnostics:reason.credential_verification_inconclusive"
 msgid "The credential check ran but did not produce a conclusive result."
@@ -9570,10 +9617,30 @@ msgctxt "settings:setup.existingOwnerUsed"
 msgid "The existing privileged account will be used for this workspace."
 msgstr "The existing privileged account will be used for this workspace."
 
-#: frontend/src/pages/CommerceHub.tsx:440
+#: frontend/src/pages/Diagnostics.tsx:348
+msgctxt "diagnostics:diagnostics.connectionTestResult.unreachable"
+msgid "The external service could not be reached from FlowHub."
+msgstr "The external service could not be reached from FlowHub."
+
+#: frontend/src/pages/Diagnostics.tsx:327
+msgctxt "diagnostics:diagnostics.connectionTestResult.permissionDenied"
+msgid "The external service denied access for the saved credentials."
+msgstr "The external service denied access for the saved credentials."
+
+#: frontend/src/pages/CommerceHub.tsx:468
 msgctxt "commerce:commerceHub.connectionError.timeout"
 msgid "The external service did not respond in time."
 msgstr "The external service did not respond in time."
+
+#: frontend/src/pages/Diagnostics.tsx:321
+msgctxt "diagnostics:diagnostics.connectionTestResult.timeout"
+msgid "The external service did not respond in time."
+msgstr "The external service did not respond in time."
+
+#: frontend/src/pages/Diagnostics.tsx:342
+msgctxt "diagnostics:diagnostics.connectionTestResult.rateLimited"
+msgid "The external service rate limit prevented this connection test."
+msgstr "The external service rate limit prevented this connection test."
 
 msgctxt "dataQuality:issue.FORMULA_ERROR.summary"
 msgid "The formula could not be calculated."
@@ -9588,7 +9655,7 @@ msgctxt "dataQuality:dataQuality.healthyDescription"
 msgid "The last check found no blocking issues or warnings in the selected data."
 msgstr "The last check found no blocking issues or warnings in the selected data."
 
-#: frontend/src/pages/Orders.tsx:258 frontend/src/pages/Orders.tsx:268
+#: frontend/src/pages/Orders.tsx:273 frontend/src/pages/Orders.tsx:283
 msgctxt "orders:orders.lastSyncFailed"
 msgid "The last order synchronization failed"
 msgstr "The last order synchronization failed"
@@ -9609,13 +9676,13 @@ msgctxt "diagnostics:reason.external_api_healthy"
 msgid "The latest API health check succeeded."
 msgstr "The latest API health check succeeded."
 
-#: frontend/src/pages/Diagnostics.tsx:213
+#: frontend/src/pages/Diagnostics.tsx:221
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceConnectionError"
 msgid "The latest Source connection check failed."
 msgstr "The latest Source connection check failed."
 
-#: frontend/src/pages/Diagnostics.tsx:235
+#: frontend/src/pages/Diagnostics.tsx:243
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceNeedsAttention"
 msgid "The latest Source connection check needs attention."
@@ -9625,7 +9692,7 @@ msgctxt "diagnostics:reason.polling_not_successful"
 msgid "The latest order polling run did not succeed."
 msgstr "The latest order polling run did not succeed."
 
-#: frontend/src/pages/Channels.tsx:279 frontend/src/pages/CommerceHub.tsx:1775
+#: frontend/src/pages/Channels.tsx:300 frontend/src/pages/CommerceHub.tsx:1860
 msgctxt "commerce:commerceHub.theLatestProductInformationHasBeenLoaded"
 msgid "The latest product information has been loaded."
 msgstr "The latest product information has been loaded."
@@ -9703,7 +9770,7 @@ msgctxt "dataQuality:issue.MISSING_SOURCE_IDENTITY.summary"
 msgid "The product name is required before this row can be used."
 msgstr "The product name is required before this row can be used."
 
-#: frontend/src/pages/Orders.tsx:216 frontend/src/pages/Orders.tsx:230
+#: frontend/src/pages/Orders.tsx:231 frontend/src/pages/Orders.tsx:245
 msgctxt "orders:orders.syncFailed"
 msgid "The read-only order synchronization failed. No marketplace data was changed."
 msgstr "The read-only order synchronization failed. No marketplace data was changed."
@@ -9717,6 +9784,11 @@ msgctxt "errors:codes.UNKNOWN"
 msgid "The request could not be completed."
 msgstr "The request could not be completed."
 
+#: frontend/src/pages/Diagnostics.tsx:339
+msgctxt "diagnostics:diagnostics.connectionTestResult.resourceNotFound"
+msgid "The requested remote resource was not found."
+msgstr "The requested remote resource was not found."
+
 #. Listing means one independently identifiable product record in a sales Channel.
 msgctxt "dataQuality:issue.DUPLICATE_LISTING_ROW.summary"
 msgid "The same Listing appears more than once in this Source revision."
@@ -9727,12 +9799,27 @@ msgctxt "dataQuality:issue.DUPLICATE_SOURCE_PRODUCT.summary"
 msgid "The same Source Product appears in more than one worksheet."
 msgstr "The same Source Product appears in more than one worksheet."
 
-#: frontend/src/pages/CommerceHub.tsx:447
+#: frontend/src/pages/Diagnostics.tsx:351
+msgctxt "diagnostics:diagnostics.connectionTestResult.invalidConfiguration"
+msgid "The saved connection configuration is invalid."
+msgstr "The saved connection configuration is invalid."
+
+#: frontend/src/pages/Diagnostics.tsx:304
+msgctxt "diagnostics:diagnostics.connectionTestResult.success"
+msgid "The saved connection was verified successfully."
+msgstr "The saved connection was verified successfully."
+
+#: frontend/src/pages/Diagnostics.tsx:324
+msgctxt "diagnostics:diagnostics.connectionTestResult.authenticationRejected"
+msgid "The saved credentials were rejected."
+msgstr "The saved credentials were rejected."
+
+#: frontend/src/pages/CommerceHub.tsx:475
 msgctxt "commerce:commerceHub.connectionError.resourceNotFound"
 msgid "The selected Nextcloud spreadsheet file was not found."
 msgstr "The selected Nextcloud spreadsheet file was not found."
 
-#: frontend/src/pages/CommerceHub.tsx:446
+#: frontend/src/pages/CommerceHub.tsx:474
 msgctxt "commerce:commerceHub.connectionError.spreadsheetUnsupported"
 msgid "The selected file must be a supported .xlsx spreadsheet."
 msgstr "The selected file must be a supported .xlsx spreadsheet."
@@ -9749,7 +9836,7 @@ msgctxt "pricing:units.empty"
 msgid "The selected policy does not target any channels."
 msgstr "The selected policy does not target any channels."
 
-#: frontend/src/pages/CommerceHub.tsx:842
+#: frontend/src/pages/CommerceHub.tsx:903
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.theSourceIsReadyToUse"
 msgid "The source is ready to use."
@@ -9765,7 +9852,7 @@ msgctxt "pricing:unitEditor.success.message"
 msgid "The unit declaration for this scope was saved."
 msgstr "The unit declaration for this scope was saved."
 
-#: frontend/src/pages/SourceCenter.tsx:386
+#: frontend/src/pages/SourceCenter.tsx:424
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.unusedSourceDeletedSafely"
 msgid "The unused Source was deleted and the action was recorded."
@@ -9781,7 +9868,7 @@ msgctxt "dashboard:dashboard.productsMeaning"
 msgid "These are the products FlowHub can show for review and publishing."
 msgstr "These are the products FlowHub can show for review and publishing."
 
-#: frontend/src/pages/CommerceHub.tsx:988
+#: frontend/src/pages/CommerceHub.tsx:1056
 msgctxt "commerce:commerceHub.connectionDetailsVerifiedDescription"
 msgid "These connection details are valid. Save them to continue."
 msgstr "These connection details are valid. Save them to continue."
@@ -9821,7 +9908,7 @@ msgctxt "diagnostics:reason.channel_disabled"
 msgid "This Channel is disabled."
 msgstr "This Channel is disabled."
 
-#: frontend/src/pages/Channels.tsx:421
+#: frontend/src/pages/Channels.tsx:467
 #. Review is the immutable validation result required before Apply.
 msgctxt "commerce:commerceHub.setupReasonDisabled"
 msgid "This Channel is disabled. Review its settings before using it again."
@@ -9832,19 +9919,19 @@ msgctxt "errors:codes.STALE_REVIEW"
 msgid "This Review is stale. Generate a new Review before Apply."
 msgstr "This Review is stale. Generate a new Review before Apply."
 
-#: frontend/src/pages/SourceCenter.tsx:717
+#: frontend/src/pages/SourceCenter.tsx:756
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "sources:sourceCenter.archiveImpact"
 msgid "This Source has protected history, so it will be archived instead of deleted. Historical Snapshots, revisions, Apply results, and Audit records remain unchanged."
 msgstr "This Source has protected history, so it will be archived instead of deleted. Historical Snapshots, revisions, Apply results, and Audit records remain unchanged."
 
-#: frontend/src/pages/Diagnostics.tsx:199
+#: frontend/src/pages/Diagnostics.tsx:207
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "diagnostics:diagnostics.sourceDisabledDescription"
 msgid "This Source is disabled. Enable it before running a connection check."
 msgstr "This Source is disabled. Enable it before running a connection check."
 
-#: frontend/src/pages/SourceCenter.tsx:573
+#: frontend/src/pages/SourceCenter.tsx:612
 #. Review is the immutable validation result required before Apply.
 msgctxt "sources:sourceCenter.setupReasonDisabled"
 msgid "This Source is disabled. Review its configuration before using it again."
@@ -9890,9 +9977,19 @@ msgctxt "sources:sourceConfiguration.lastWorksheetWinsWarning"
 msgid "This choice replaces an earlier row only when you explicitly arrange the worksheet order."
 msgstr "This choice replaces an earlier row only when you explicitly arrange the worksheet order."
 
+#: frontend/src/pages/Diagnostics.tsx:345
+msgctxt "diagnostics:diagnostics.connectionTestResult.unsupported"
+msgid "This connector does not provide a connection test."
+msgstr "This connector does not provide a connection test."
+
 msgctxt "diagnostics:reason.external_api_probe_not_applicable"
 msgid "This connector does not provide a separate API health probe."
 msgstr "This connector does not provide a separate API health probe."
+
+#: frontend/src/pages/Diagnostics.tsx:285
+msgctxt "diagnostics:diagnostics.connectionTestUnsupported"
+msgid "This connector does not support a connection test."
+msgstr "This connector does not support a connection test."
 
 #: frontend/src/pages/PricingUnitEditor.tsx:192
 msgctxt "pricing:unitEditor.explanation"
@@ -9981,7 +10078,7 @@ msgctxt "diagnostics:diagnostics.throttleEvents"
 msgid "Throttle events"
 msgstr "Throttle events"
 
-#: frontend/src/pages/Orders.tsx:95
+#: frontend/src/pages/Orders.tsx:99
 msgctxt "orders:orders.timeline"
 msgid "Timeline"
 msgstr "Timeline"
@@ -9995,17 +10092,17 @@ msgctxt "settings:settings.timezone"
 msgid "Timezone"
 msgstr "Timezone"
 
-#: frontend/src/pages/Activity.tsx:453
+#: frontend/src/pages/Activity.tsx:462
 msgctxt "activity:activity.toDate"
 msgid "To date"
 msgstr "To date"
 
-#: frontend/src/pages/Orders.tsx:340
+#: frontend/src/pages/Orders.tsx:355
 msgctxt "orders:orders.dateTo"
 msgid "To date"
 msgstr "To date"
 
-#: frontend/src/pages/Activity.tsx:473 frontend/src/pages/Activity.tsx:488
+#: frontend/src/pages/Activity.tsx:482 frontend/src/pages/Activity.tsx:497
 msgctxt "activity:activity.today"
 msgid "Today"
 msgstr "Today"
@@ -10032,7 +10129,7 @@ msgctxt "diagnostics:reason.token_refresh_healthy"
 msgid "Token refresh is operating normally."
 msgstr "Token refresh is operating normally."
 
-#: frontend/src/pages/CommerceHub.tsx:1258 frontend/src/pages/CommerceHub.tsx:1571
+#: frontend/src/pages/CommerceHub.tsx:1336 frontend/src/pages/CommerceHub.tsx:1656
 msgctxt "commerce:commerceHub.toman"
 msgid "Toman"
 msgstr "Toman"
@@ -10047,7 +10144,7 @@ msgctxt "authentication:login.tooManyAttempts"
 msgid "Too many login attempts. Please wait a moment and try again."
 msgstr "Too many login attempts. Please wait a moment and try again."
 
-#: frontend/src/pages/Orders.tsx:388
+#: frontend/src/pages/Orders.tsx:403
 msgctxt "orders:orders.total"
 msgid "Total"
 msgstr "Total"
@@ -10115,7 +10212,7 @@ msgctxt "workspace:gridModel.type"
 msgid "Type"
 msgstr "Type"
 
-#: frontend/src/pages/CommerceHub.tsx:1082
+#: frontend/src/pages/CommerceHub.tsx:1160
 msgctxt "commerce:commerceHub.passwordPlaceholder"
 msgid "Type your password"
 msgstr "Type your password"
@@ -10150,23 +10247,23 @@ msgctxt "diagnostics:diagnostics.unableToCheck"
 msgid "Unable to check"
 msgstr "Unable to check"
 
-#: frontend/src/pages/Diagnostics.tsx:549
+#: frontend/src/pages/Diagnostics.tsx:708
 msgctxt "diagnostics:diagnostics.unavailableMessage"
 msgid "Unable to check diagnostics."
 msgstr "Unable to check diagnostics."
 
-#: frontend/src/pages/Diagnostics.tsx:548
+#: frontend/src/pages/Diagnostics.tsx:707
 msgctxt "diagnostics:diagnostics.requestTimedOut"
 msgid "Unable to check diagnostics. Request timed out."
 msgstr "Unable to check diagnostics. Request timed out."
 
-#: frontend/src/pages/ChannelDetail.tsx:101 frontend/src/pages/ChannelDetail.tsx:108 frontend/src/pages/Channels.tsx:253 frontend/src/pages/Channels.tsx:260 frontend/src/pages/CommerceHub.tsx:1003 frontend/src/pages/CommerceHub.tsx:1015 frontend/src/pages/CommerceHub.tsx:1747 frontend/src/pages/CommerceHub.tsx:1753
+#: frontend/src/pages/ChannelDetail.tsx:101 frontend/src/pages/ChannelDetail.tsx:108 frontend/src/pages/Channels.tsx:274 frontend/src/pages/Channels.tsx:281 frontend/src/pages/CommerceHub.tsx:1071 frontend/src/pages/CommerceHub.tsx:1083 frontend/src/pages/CommerceHub.tsx:1832 frontend/src/pages/CommerceHub.tsx:1838 frontend/src/pages/Diagnostics.tsx:736 frontend/src/pages/Diagnostics.tsx:744
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.unableToConnectToTheChannel"
 msgid "Unable to connect to the channel"
 msgstr "Unable to connect to the channel"
 
-#: frontend/src/pages/CommerceHub.tsx:1003 frontend/src/pages/CommerceHub.tsx:1015 frontend/src/pages/CommerceHub.tsx:1717 frontend/src/pages/CommerceHub.tsx:1723
+#: frontend/src/pages/CommerceHub.tsx:1071 frontend/src/pages/CommerceHub.tsx:1083 frontend/src/pages/CommerceHub.tsx:1802 frontend/src/pages/CommerceHub.tsx:1808 frontend/src/pages/Diagnostics.tsx:769 frontend/src/pages/Diagnostics.tsx:777
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.unableToConnectToTheSource"
 msgid "Unable to connect to the source"
@@ -10190,12 +10287,12 @@ msgctxt "products:products.unableToLoadChannelPrices"
 msgid "Unable to load Channel prices."
 msgstr "Unable to load Channel prices."
 
-#: frontend/src/pages/Channels.tsx:383 frontend/src/pages/Channels.tsx:486 frontend/src/pages/CommerceHub.tsx:1689 frontend/src/pages/SourceConfiguration.tsx:1349
+#: frontend/src/pages/Channels.tsx:429 frontend/src/pages/Channels.tsx:532 frontend/src/pages/CommerceHub.tsx:1774 frontend/src/pages/SourceConfiguration.tsx:1349
 msgctxt "commerce:commerceHub.unableToLoadCommerceHub"
 msgid "Unable to load Commerce Hub"
 msgstr "Unable to load Commerce Hub"
 
-#: frontend/src/pages/CommerceHub.tsx:729
+#: frontend/src/pages/CommerceHub.tsx:757
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.unableToLoadChannelSettings"
 msgid "Unable to load channel settings"
@@ -10221,7 +10318,7 @@ msgctxt "settings:settings.advancedNetworkLoadFailed"
 msgid "Unable to load source network policy"
 msgstr "Unable to load source network policy"
 
-#: frontend/src/pages/CommerceHub.tsx:728
+#: frontend/src/pages/CommerceHub.tsx:756
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.unableToLoadSourceSettings"
 msgid "Unable to load source settings"
@@ -10232,7 +10329,7 @@ msgctxt "settings:users.loadFailed"
 msgid "Unable to load users."
 msgstr "Unable to load users."
 
-#: frontend/src/pages/Channels.tsx:283 frontend/src/pages/Channels.tsx:290 frontend/src/pages/CommerceHub.tsx:1779 frontend/src/pages/CommerceHub.tsx:1786
+#: frontend/src/pages/Channels.tsx:304 frontend/src/pages/Channels.tsx:311 frontend/src/pages/CommerceHub.tsx:1864 frontend/src/pages/CommerceHub.tsx:1871
 msgctxt "commerce:commerceHub.unableToRefreshTheProductCache"
 msgid "Unable to refresh the product cache"
 msgstr "Unable to refresh the product cache"
@@ -10243,7 +10340,7 @@ msgctxt "commerce:commerceHub.unableToRefreshTheSource"
 msgid "Unable to refresh the source"
 msgstr "Unable to refresh the source"
 
-#: frontend/src/pages/CommerceHub.tsx:862
+#: frontend/src/pages/CommerceHub.tsx:923
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.unableToSaveChannelSettings"
 msgid "Unable to save channel settings"
@@ -10265,7 +10362,7 @@ msgctxt "settings:settings.advancedNetworkSaveFailed"
 msgid "Unable to save source network policy"
 msgstr "Unable to save source network policy"
 
-#: frontend/src/pages/CommerceHub.tsx:862 frontend/src/pages/CommerceHub.tsx:908 frontend/src/pages/CommerceHub.tsx:940
+#: frontend/src/pages/CommerceHub.tsx:1008 frontend/src/pages/CommerceHub.tsx:923 frontend/src/pages/CommerceHub.tsx:969
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "commerce:commerceHub.unableToSaveSourceSettings"
 msgid "Unable to save source settings"
@@ -10286,7 +10383,7 @@ msgctxt "settings:exchangeRates.usageSyncFailed"
 msgid "Unable to synchronize provider usage"
 msgstr "Unable to synchronize provider usage"
 
-#: frontend/src/pages/Diagnostics.tsx:552 frontend/src/pages/Diagnostics.tsx:582
+#: frontend/src/pages/Diagnostics.tsx:711
 msgctxt "diagnostics:diagnostics.unableToUpdateDiagnostics"
 msgid "Unable to update diagnostics"
 msgstr "Unable to update diagnostics"
@@ -10296,7 +10393,7 @@ msgctxt "products:products.unableToValidateChannelPrices"
 msgid "Unable to validate Channel prices."
 msgstr "Unable to validate Channel prices."
 
-#: frontend/src/components/Topbar.tsx:80 frontend/src/pages/ChannelDetail.tsx:233 frontend/src/pages/ChannelDetail.tsx:253 frontend/src/pages/Channels.tsx:419 frontend/src/pages/Diagnostics.tsx:293
+#: frontend/src/components/Topbar.tsx:80 frontend/src/pages/ChannelDetail.tsx:236 frontend/src/pages/ChannelDetail.tsx:256 frontend/src/pages/Channels.tsx:465 frontend/src/pages/Diagnostics.tsx:393
 msgctxt "common:status.unavailable"
 msgid "Unavailable"
 msgstr "Unavailable"
@@ -10366,7 +10463,7 @@ msgctxt "workspace:unifiedWorkspace.unifiedMultiChannelProductEditor"
 msgid "Unified multi-channel product editor"
 msgstr "Unified multi-channel product editor"
 
-#: frontend/src/pages/Orders.tsx:277
+#: frontend/src/pages/Orders.tsx:292
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "orders:orders.businessSubtitle"
 msgid "Unified orders across every connected channel."
@@ -10405,7 +10502,7 @@ msgctxt "pricing:policyDetail.unitRegistryVersion"
 msgid "Unit registry version"
 msgstr "Unit registry version"
 
-#: frontend/src/features/unifiedWorkspace/statusDisplay.ts:34 frontend/src/pages/Diagnostics.tsx:468
+#: frontend/src/features/unifiedWorkspace/statusDisplay.ts:34 frontend/src/pages/Diagnostics.tsx:621
 msgctxt "common:status.unknown"
 msgid "Unknown"
 msgstr "Unknown"
@@ -10446,12 +10543,12 @@ msgctxt "sources:sourceConfiguration.unsavedChanges"
 msgid "Unsaved changes"
 msgstr "Unsaved changes"
 
-#: frontend/src/pages/CommerceHub.tsx:1279
+#: frontend/src/pages/CommerceHub.tsx:1357
 msgctxt "commerce:commerceHub.connectionHasUnsavedChanges"
 msgid "Unsaved connection changes"
 msgstr "Unsaved connection changes"
 
-#: frontend/src/pages/CommerceHub.tsx:551
+#: frontend/src/pages/CommerceHub.tsx:579
 msgctxt "commerce:commerceHub.unsupported"
 msgid "Unsupported"
 msgstr "Unsupported"
@@ -10464,7 +10561,7 @@ msgctxt "dataQuality:category.unsupported_product"
 msgid "Unsupported product"
 msgstr "Unsupported product"
 
-#: frontend/src/pages/CommerceHub.tsx:525
+#: frontend/src/pages/CommerceHub.tsx:553
 msgctxt "commerce:commerceHub.upOneFolder"
 msgid "Up one folder"
 msgstr "Up one folder"
@@ -10493,7 +10590,7 @@ msgctxt "pricing:channels.head.updated"
 msgid "Updated"
 msgstr "Updated"
 
-#: frontend/src/pages/SourceCenter.tsx:623
+#: frontend/src/pages/SourceCenter.tsx:662
 msgctxt "sources:sourceCenter.updatedPrefix"
 msgid "Updated"
 msgstr "Updated"
@@ -10513,7 +10610,7 @@ msgctxt "sources:sourceConfiguration.useSourceWorksheet"
 msgid "Use Source worksheet"
 msgstr "Use Source worksheet"
 
-#: frontend/src/pages/CommerceHub.tsx:1401
+#: frontend/src/pages/CommerceHub.tsx:1477
 msgctxt "commerce:commerceHub.useWebdavWithYourAppPasswordPublic"
 msgid "Use WebDAV with your app password. Public share links are not required."
 msgstr "Use WebDAV with your app password. Public share links are not required."
@@ -10526,7 +10623,7 @@ msgctxt "sources:sourceConfiguration.useEvaluatedResult"
 msgid "Use evaluated result"
 msgstr "Use evaluated result"
 
-#: frontend/src/pages/CommerceHub.tsx:347 frontend/src/pages/CommerceHub.tsx:350 frontend/src/pages/CommerceHub.tsx:353
+#: frontend/src/pages/CommerceHub.tsx:375 frontend/src/pages/CommerceHub.tsx:378 frontend/src/pages/CommerceHub.tsx:381
 msgctxt "commerce:commerceHub.validation.useNextcloudRootOrWebdav"
 msgid "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings."
 msgstr "Use the Nextcloud root URL or the WebDAV files URL shown in Nextcloud Files settings."
@@ -10664,7 +10761,7 @@ msgctxt "products:column.validation"
 msgid "Validation"
 msgstr "Validation"
 
-#: frontend/src/pages/SourceCenter.tsx:580 frontend/src/pages/SourceCenter.tsx:589
+#: frontend/src/pages/SourceCenter.tsx:619 frontend/src/pages/SourceCenter.tsx:628
 msgctxt "sources:sourceCenter.validationStatus"
 msgid "Validation"
 msgstr "Validation"
@@ -10700,27 +10797,27 @@ msgctxt "workspace:workspace.variationRowsRequireCachedParentProductMetadata"
 msgid "Variation rows require cached parent product metadata."
 msgstr "Variation rows require cached parent product metadata."
 
-#: frontend/src/pages/CommerceHub.tsx:1336
+#: frontend/src/pages/CommerceHub.tsx:1414
 msgctxt "commerce:commerceHub.vendor"
 msgid "Vendor"
 msgstr "Vendor"
 
-#: frontend/src/pages/CommerceHub.tsx:1340
+#: frontend/src/pages/CommerceHub.tsx:1418
 msgctxt "commerce:commerceHub.vendorStore"
 msgid "Vendor / store"
 msgstr "Vendor / store"
 
-#: frontend/src/pages/CommerceHub.tsx:304
+#: frontend/src/pages/CommerceHub.tsx:332
 msgctxt "commerce:commerceHub.fields.tapsishopVendorId"
 msgid "Vendor / store ID"
 msgstr "Vendor / store ID"
 
-#: frontend/src/pages/CommerceHub.tsx:1381
+#: frontend/src/pages/CommerceHub.tsx:1459
 msgctxt "commerce:commerceHub.vendorId"
 msgid "Vendor ID:"
 msgstr "Vendor ID:"
 
-#: frontend/src/pages/CommerceHub.tsx:219
+#: frontend/src/pages/CommerceHub.tsx:247
 msgctxt "commerce:commerceHub.vendorSelected"
 msgid "Vendor selected:"
 msgstr "Vendor selected:"
@@ -10776,7 +10873,7 @@ msgctxt "dashboard:dashboard.viewProducts"
 msgid "View Products"
 msgstr "View Products"
 
-#: frontend/src/pages/ChannelDetail.tsx:259 frontend/src/pages/Channels.tsx:441 frontend/src/pages/SourceCenter.tsx:609 frontend/src/pages/SourceConfiguration.tsx:1326
+#: frontend/src/pages/ChannelDetail.tsx:262 frontend/src/pages/Channels.tsx:487 frontend/src/pages/SourceCenter.tsx:648 frontend/src/pages/SourceConfiguration.tsx:1326
 msgctxt "common:action.viewActivity"
 msgid "View activity"
 msgstr "View activity"
@@ -10786,22 +10883,22 @@ msgctxt "settings:users.viewActivity"
 msgid "View activity"
 msgstr "View activity"
 
-#: frontend/src/pages/Dashboard.tsx:657
+#: frontend/src/pages/Dashboard.tsx:660
 msgctxt "dashboard:dashboard.viewAll"
 msgid "View all"
 msgstr "View all"
 
-#: frontend/src/pages/Orders.tsx:413
+#: frontend/src/pages/Orders.tsx:428
 msgctxt "orders:orders.viewDetails"
 msgid "View details"
 msgstr "View details"
 
-#: frontend/src/pages/Orders.tsx:442
+#: frontend/src/pages/Orders.tsx:457
 msgctxt "orders:orders.viewFailed"
 msgid "View failed"
 msgstr "View failed"
 
-#: frontend/src/pages/Activity.tsx:194
+#: frontend/src/pages/Activity.tsx:195
 msgctxt "activity:activity.viewHistory"
 msgid "View history"
 msgstr "View history"
@@ -10871,12 +10968,12 @@ msgctxt "activity:activity.warning"
 msgid "Warning"
 msgstr "Warning"
 
-#: frontend/src/components/ResourceOrdering.tsx:20 frontend/src/pages/ChannelDetail.tsx:151 frontend/src/pages/Channels.tsx:46
+#: frontend/src/components/ResourceOrdering.tsx:20 frontend/src/pages/ChannelDetail.tsx:151 frontend/src/pages/Channels.tsx:65
 msgctxt "common:resourceBadge.warning"
 msgid "Warning"
 msgstr "Warning"
 
-#: frontend/src/pages/Dashboard.tsx:728 frontend/src/pages/Workspace.tsx:82
+#: frontend/src/pages/Dashboard.tsx:731 frontend/src/pages/Workspace.tsx:82
 msgctxt "common:status.warning"
 msgid "Warning"
 msgstr "Warning"
@@ -10890,7 +10987,7 @@ msgctxt "workspace:statusDisplay.warning"
 msgid "Warning"
 msgstr "Warning"
 
-#: frontend/src/pages/Dashboard.tsx:573
+#: frontend/src/pages/Dashboard.tsx:576
 msgctxt "dashboard:dashboard.warnings"
 msgid "Warnings"
 msgstr "Warnings"
@@ -10917,7 +11014,7 @@ msgctxt "diagnostics:diagnostics.summaryHint"
 msgid "Warnings and errors are shown first so you know where to act."
 msgstr "Warnings and errors are shown first so you know where to act."
 
-#: frontend/src/pages/CommerceHub.tsx:375
+#: frontend/src/pages/CommerceHub.tsx:403
 msgctxt "commerce:commerceHub.validation.webdavUsernameMismatch"
 msgid "WebDAV URL username does not match configured username."
 msgstr "WebDAV URL username does not match configured username."
@@ -10926,17 +11023,17 @@ msgctxt "commerce:capability.webhook"
 msgid "Webhook"
 msgstr "Webhook"
 
-#: frontend/src/pages/CommerceHub.tsx:1374
+#: frontend/src/pages/CommerceHub.tsx:1452
 msgctxt "commerce:commerceHub.webhookUrl"
 msgid "Webhook URL"
 msgstr "Webhook URL"
 
-#: frontend/src/pages/CommerceHub.tsx:1377
+#: frontend/src/pages/CommerceHub.tsx:1455
 msgctxt "commerce:commerceHub.webhookCredential"
 msgid "Webhook credential:"
 msgstr "Webhook credential:"
 
-#: frontend/src/pages/CommerceHub.tsx:228
+#: frontend/src/pages/CommerceHub.tsx:256
 msgctxt "commerce:commerceHub.webhookCredentials"
 msgid "Webhook credentials:"
 msgstr "Webhook credentials:"
@@ -10978,7 +11075,7 @@ msgctxt "diagnostics:reason.webhook_processing_healthy"
 msgid "Webhook receipts are being processed normally."
 msgstr "Webhook receipts are being processed normally."
 
-#: frontend/src/pages/CommerceHub.tsx:1369
+#: frontend/src/pages/CommerceHub.tsx:1447
 msgctxt "commerce:commerceHub.webhookRegistration"
 msgid "Webhook registration"
 msgstr "Webhook registration"
@@ -11032,7 +11129,7 @@ msgctxt "workspace:workspace.workflowGuardrails"
 msgid "Workflow Guardrails"
 msgstr "Workflow Guardrails"
 
-#: frontend/src/pages/CommerceHub.tsx:1446
+#: frontend/src/pages/CommerceHub.tsx:1527
 msgctxt "commerce:commerceHub.worksheet"
 msgid "Worksheet"
 msgstr "Worksheet"
@@ -11042,7 +11139,7 @@ msgctxt "dataQuality:dataQuality.worksheet"
 msgid "Worksheet"
 msgstr "Worksheet"
 
-#: frontend/src/pages/SourceCenter.tsx:592 frontend/src/pages/SourceConfiguration.tsx:1038 frontend/src/pages/SourceConfiguration.tsx:1286 frontend/src/pages/SourceImportWizard.tsx:68
+#: frontend/src/pages/SourceCenter.tsx:631 frontend/src/pages/SourceConfiguration.tsx:1038 frontend/src/pages/SourceConfiguration.tsx:1286 frontend/src/pages/SourceImportWizard.tsx:68
 msgctxt "sources:sourceConfiguration.worksheet"
 msgid "Worksheet"
 msgstr "Worksheet"
@@ -11056,7 +11153,7 @@ msgctxt "activity:event.worksheet_enabled"
 msgid "Worksheet enabled"
 msgstr "Worksheet enabled"
 
-#: frontend/src/pages/CommerceHub.tsx:1475
+#: frontend/src/pages/CommerceHub.tsx:1556
 msgctxt "commerce:commerceHub.worksheetName"
 msgid "Worksheet name"
 msgstr "Worksheet name"
@@ -11188,7 +11285,7 @@ msgctxt "settings:rateLimits.writeDelay"
 msgid "Write delay"
 msgstr "Write delay"
 
-#: frontend/src/pages/ChannelDetail.tsx:145 frontend/src/pages/Channels.tsx:416 frontend/src/pages/CommerceHub.tsx:1194 frontend/src/pages/CommerceHub.tsx:63
+#: frontend/src/pages/ChannelDetail.tsx:145 frontend/src/pages/Channels.tsx:462 frontend/src/pages/CommerceHub.tsx:1272 frontend/src/pages/CommerceHub.tsx:63
 msgctxt "commerce:commerceHub.writeEnabled2"
 msgid "Write enabled"
 msgstr "Write enabled"
@@ -11203,12 +11300,12 @@ msgctxt "validation:rateLimits.writeRequestsRange"
 msgid "Write requests per minute must be between {{min}} and {{max}}."
 msgstr "Write requests per minute must be between {{min}} and {{max}}."
 
-#: frontend/src/pages/Dashboard.tsx:591
+#: frontend/src/pages/Dashboard.tsx:594
 msgctxt "dashboard:dashboard.writeBatchSuccessRate"
 msgid "Write success rate (30d)"
 msgstr "Write success rate (30d)"
 
-#: frontend/src/pages/ChannelDetail.tsx:242
+#: frontend/src/pages/ChannelDetail.tsx:245
 msgctxt "commerce:commerceHub.channelDetails.writeSafety"
 msgid "Write-enabled does not mean automatic writing. Every change still goes through Workspace → Preview → Validation → Dry Run → Approval → Execution."
 msgstr "Write-enabled does not mean automatic writing. Every change still goes through Workspace → Preview → Validation → Dry Run → Approval → Execution."
@@ -11222,7 +11319,7 @@ msgctxt "sources:sourceConfiguration.valueType.x"
 msgid "X marker"
 msgstr "X marker"
 
-#: frontend/src/pages/CommerceHub.tsx:219
+#: frontend/src/pages/CommerceHub.tsx:247
 msgctxt "commerce:commerceHub.yes"
 msgid "Yes"
 msgstr "Yes"
@@ -11280,7 +11377,7 @@ msgctxt "settings:rateLimits.yourChangesHaveBeenApplied"
 msgid "Your changes have been applied."
 msgstr "Your changes have been applied."
 
-#: frontend/src/pages/CommerceHub.tsx:838 frontend/src/pages/CommerceHub.tsx:847
+#: frontend/src/pages/CommerceHub.tsx:884 frontend/src/pages/CommerceHub.tsx:899 frontend/src/pages/CommerceHub.tsx:908
 msgctxt "commerce:commerceHub.yourChangesHaveBeenSaved"
 msgid "Your changes have been saved."
 msgstr "Your changes have been saved."
@@ -11325,7 +11422,7 @@ msgctxt "activity:activity.by"
 msgid "by"
 msgstr "by"
 
-#: frontend/src/pages/CommerceHub.tsx:243
+#: frontend/src/pages/CommerceHub.tsx:271
 msgctxt "commerce:commerceHub.cached"
 msgid "cached"
 msgstr "cached"
@@ -11335,7 +11432,7 @@ msgctxt "sources:sourceImportWizard.columns"
 msgid "columns"
 msgstr "columns"
 
-#: frontend/src/pages/CommerceHub.tsx:1431
+#: frontend/src/pages/CommerceHub.tsx:1512
 msgctxt "commerce:commerceHub.spreadsheetResourcePlaceholder"
 msgid "e.g. /Documents/prices.xlsx"
 msgstr "e.g. /Documents/prices.xlsx"
@@ -11359,7 +11456,7 @@ msgctxt "workspace:workspace.forWoocommerce"
 msgid "for WooCommerce."
 msgstr "for WooCommerce."
 
-#: frontend/src/pages/CommerceHub.tsx:1293
+#: frontend/src/pages/CommerceHub.tsx:1371
 msgctxt "commerce:commerceHub.nextcloudWebdavExample"
 msgid "https://yourdomain.com/remote.php/dav/files/your-username"
 msgstr "https://yourdomain.com/remote.php/dav/files/your-username"
@@ -11391,7 +11488,7 @@ msgctxt "workspace:sourceCentricWorkspace.of"
 msgid "of"
 msgstr "of"
 
-#: frontend/src/pages/CommerceHub.tsx:243
+#: frontend/src/pages/CommerceHub.tsx:271
 msgctxt "commerce:commerceHub.pageS"
 msgid "page(s),"
 msgstr "page(s),"
@@ -11405,7 +11502,7 @@ msgctxt "workspace:workspace.priceChange"
 msgid "price change"
 msgstr "price change"
 
-#: frontend/src/pages/CommerceHub.tsx:243
+#: frontend/src/pages/CommerceHub.tsx:271
 msgctxt "commerce:commerceHub.received"
 msgid "received,"
 msgstr "received,"
@@ -11534,7 +11631,7 @@ msgid_plural "{{count}} affected products"
 msgstr[0] "{{count}} affected product"
 msgstr[1] "{{count}} affected products"
 
-#: frontend/src/pages/Channels.tsx:377
+#: frontend/src/pages/Channels.tsx:423
 #. Channel means an external sales destination such as WooCommerce.
 msgctxt "commerce:commerceHub.channelsCount"
 msgid "{{count}} channel"
@@ -11622,7 +11719,7 @@ msgctxt "products:products.productsSelected"
 msgid "{{count}} products selected"
 msgstr "{{count}} products selected"
 
-#: frontend/src/pages/SourceCenter.tsx:721
+#: frontend/src/pages/SourceCenter.tsx:760
 msgctxt "sources:sourceCenter.protectedRecords"
 msgid "{{count}} protected historical records will remain available."
 msgstr "{{count}} protected historical records will remain available."
@@ -11645,7 +11742,7 @@ msgid_plural "{{count}} rows loaded."
 msgstr[0] "{{count}} row loaded."
 msgstr[1] "{{count}} rows loaded."
 
-#: frontend/src/pages/SourceCenter.tsx:509
+#: frontend/src/pages/SourceCenter.tsx:547
 #. Source means the spreadsheet or managed sheet supplying product targets.
 msgctxt "sources:sourceCenter.sourcesCount"
 msgid "{{count}} source"
@@ -11653,7 +11750,7 @@ msgid_plural "{{count}} sources"
 msgstr[0] "{{count}} source"
 msgstr[1] "{{count}} sources"
 
-#: frontend/src/pages/Activity.tsx:235
+#: frontend/src/pages/Activity.tsx:236
 msgctxt "activity:activity.groupedRoutineSummary"
 msgid "{{count}} successful routine event"
 msgid_plural "{{count}} successful routine events"
@@ -11674,7 +11771,7 @@ msgid_plural "{{count}} worksheets detected."
 msgstr[0] "{{count}} worksheet detected."
 msgstr[1] "{{count}} worksheets detected."
 
-#: frontend/src/pages/SourceCenter.tsx:592
+#: frontend/src/pages/SourceCenter.tsx:631
 msgctxt "sources:sourceCenter.worksheetsEnabledCount"
 msgid "{{count}} worksheet enabled"
 msgid_plural "{{count}} worksheets enabled"
@@ -11731,7 +11828,7 @@ msgctxt "sources:sourceConfiguration.conflictingColumnMapping"
 msgid "{{first}} and {{second}} use the same column. Confirm that this is intentional."
 msgstr "{{first}} and {{second}} use the same column. Confirm that this is intentional."
 
-#: frontend/src/pages/Orders.tsx:423
+#: frontend/src/pages/Orders.tsx:438
 msgctxt "orders:orders.rangeOfTotal"
 msgid "{{from}}–{{to}} of {{total}}"
 msgstr "{{from}}–{{to}} of {{total}}"
@@ -11764,7 +11861,7 @@ msgctxt "dashboard:dashboard.readyChannelValue"
 msgid "{{ready}} of {{total}} ready"
 msgstr "{{ready}} of {{total}} ready"
 
-#: frontend/src/pages/Diagnostics.tsx:669 frontend/src/pages/Diagnostics.tsx:675
+#: frontend/src/pages/Diagnostics.tsx:864 frontend/src/pages/Diagnostics.tsx:870
 msgctxt "diagnostics:diagnostics.readyCountOfTotal"
 msgid "{{ready}} of {{total}} ready"
 msgstr "{{ready}} of {{total}} ready"
@@ -11799,22 +11896,22 @@ msgctxt "workspace:sourceCentricWorkspace.eligibleChangesWereAutomaticallySelect
 msgid "{{value1}} eligible changes were automatically selected. Blocked items remain excluded."
 msgstr "{{value1}} eligible changes were automatically selected. Blocked items remain excluded."
 
-#: frontend/src/pages/Activity.tsx:474
+#: frontend/src/pages/Activity.tsx:483
 msgctxt "activity:activity.events"
 msgid "{{value1}} events"
 msgstr "{{value1}} events"
 
-#: frontend/src/pages/ChannelDetail.tsx:97 frontend/src/pages/Channels.tsx:248 frontend/src/pages/CommerceHub.tsx:1714 frontend/src/pages/CommerceHub.tsx:1743 frontend/src/pages/CommerceHub.tsx:994 frontend/src/pages/CommerceHub.tsx:998
+#: frontend/src/pages/ChannelDetail.tsx:97 frontend/src/pages/Channels.tsx:269 frontend/src/pages/CommerceHub.tsx:1062 frontend/src/pages/CommerceHub.tsx:1066 frontend/src/pages/CommerceHub.tsx:1799 frontend/src/pages/CommerceHub.tsx:1828
 msgctxt "commerce:commerceHub.isReadyToUse"
 msgid "{{value1}} is ready to use."
 msgstr "{{value1}} is ready to use."
 
-#: frontend/src/pages/Orders.tsx:356
+#: frontend/src/pages/Orders.tsx:371
 msgctxt "orders:orders.orders2"
 msgid "{{value1}} orders"
 msgstr "{{value1}} orders"
 
-#: frontend/src/pages/CommerceHub.tsx:1774
+#: frontend/src/pages/CommerceHub.tsx:1859
 msgctxt "commerce:commerceHub.productsWereCachedFromPageS"
 msgid "{{value1}} products were cached from {{value2}} page(s)."
 msgstr "{{value1}} products were cached from {{value2}} page(s)."
@@ -11823,7 +11920,7 @@ msgctxt "workspace:sourceCentricWorkspace.unsavedEdits"
 msgid "{{value1}} unsaved edits"
 msgstr "{{value1}} unsaved edits"
 
-#: frontend/src/pages/Dashboard.tsx:479
+#: frontend/src/pages/Dashboard.tsx:482
 msgctxt "dashboard:dashboard.products"
 msgid "{{value1}} · {{value2}} products"
 msgstr "{{value1}} · {{value2}} products"
@@ -11878,7 +11975,7 @@ msgid_plural "{{value}} affected products"
 msgstr[0] "{{value}} affected product"
 msgstr[1] "{{value}} affected products"
 
-#: frontend/src/pages/Dashboard.tsx:613
+#: frontend/src/pages/Dashboard.tsx:616
 #. Apply means executing an approved change against a sales Channel.
 msgctxt "dashboard:dashboard.applyStageCount"
 msgid "{{value}} apply"
@@ -11886,14 +11983,14 @@ msgid_plural "{{value}} apply"
 msgstr[0] "{{value}} apply"
 msgstr[1] "{{value}} apply"
 
-#: frontend/src/pages/Dashboard.tsx:495
+#: frontend/src/pages/Dashboard.tsx:498
 msgctxt "dashboard:dashboard.blockingCountBadge"
 msgid "{{value}} blocking"
 msgid_plural "{{value}} blocking"
 msgstr[0] "{{value}} blocking"
 msgstr[1] "{{value}} blocking"
 
-#: frontend/src/pages/Dashboard.tsx:429
+#: frontend/src/pages/Dashboard.tsx:432
 msgctxt "dashboard:dashboard.blockingQualifier"
 msgid "{{value}} blocking"
 msgid_plural "{{value}} blocking"
@@ -11921,7 +12018,7 @@ msgid_plural "{{value}} channel listings affected"
 msgstr[0] "{{value}} channel listing affected"
 msgstr[1] "{{value}} channel listings affected"
 
-#: frontend/src/pages/Dashboard.tsx:610
+#: frontend/src/pages/Dashboard.tsx:613
 msgctxt "dashboard:dashboard.dryRunStageCount"
 msgid "{{value}} dry run"
 msgid_plural "{{value}} dry run"
@@ -11952,7 +12049,7 @@ msgid_plural "{{value}} more than yesterday"
 msgstr[0] "{{value}} more than yesterday"
 msgstr[1] "{{value}} more than yesterday"
 
-#: frontend/src/pages/Diagnostics.tsx:295
+#: frontend/src/pages/Diagnostics.tsx:395
 msgctxt "diagnostics:units.milliseconds"
 msgid "{{value}} ms"
 msgstr "{{value}} ms"
@@ -11967,7 +12064,7 @@ msgid_plural "{{value}} orders"
 msgstr[0] "{{value}} order"
 msgstr[1] "{{value}} orders"
 
-#: frontend/src/pages/Dashboard.tsx:419
+#: frontend/src/pages/Dashboard.tsx:422
 #. Stock means the sellable inventory value supported by a Channel.
 msgctxt "dashboard:dashboard.outOfStockCount"
 msgid "{{value}} out of stock"
@@ -12013,7 +12110,7 @@ msgid_plural "{{value}} products are recorded as out of stock."
 msgstr[0] "{{value}} product is recorded as out of stock."
 msgstr[1] "{{value}} products are recorded as out of stock."
 
-#: frontend/src/pages/Dashboard.tsx:607
+#: frontend/src/pages/Dashboard.tsx:610
 #. Review is the immutable validation result required before Apply.
 msgctxt "dashboard:dashboard.reviewStageCount"
 msgid "{{value}} review"
@@ -12021,7 +12118,7 @@ msgid_plural "{{value}} review"
 msgstr[0] "{{value}} review"
 msgstr[1] "{{value}} review"
 
-#: frontend/src/pages/Diagnostics.tsx:296
+#: frontend/src/pages/Diagnostics.tsx:396
 msgctxt "diagnostics:units.seconds"
 msgid "{{value}} seconds"
 msgstr "{{value}} seconds"
@@ -12037,7 +12134,7 @@ msgid_plural "{{value}} updates are waiting for completion or reconciliation."
 msgstr[0] "{{value}} update is waiting for completion or reconciliation."
 msgstr[1] "{{value}} updates are waiting for completion or reconciliation."
 
-#: frontend/src/pages/Dashboard.tsx:497
+#: frontend/src/pages/Dashboard.tsx:500
 msgctxt "dashboard:dashboard.warningCountBadge"
 msgid "{{value}} warning"
 msgid_plural "{{value}} warnings"
@@ -12059,7 +12156,7 @@ msgctxt "workspace:densePricing.cellValueStatus"
 msgid "{{value}}; status {{status}}"
 msgstr "{{value}}; status {{status}}"
 
-#: frontend/src/pages/SourceCenter.tsx:565
+#: frontend/src/pages/SourceCenter.tsx:604
 msgctxt "sources:sourceCenter.validationSummary"
 msgid "{{warnings}} warnings · {{errors}} errors"
 msgstr "{{warnings}} warnings · {{errors}} errors"

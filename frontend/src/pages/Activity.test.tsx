@@ -73,6 +73,23 @@ describe('Activity business history', () => {
     expect(getEvents.mock.calls[0][0].includeDebug).toBe(false)
   })
 
+  it('uses English system channel names and preserves Owner custom names in filters', async () => {
+    getChannels.mockResolvedValueOnce({
+      items: [
+        { id: 'snappshop:main', provider: 'snappshop', name: 'اسنپ شاپ' },
+        { id: 'snappshop:tehran', provider: 'snappshop', name: 'فروشگاه تهران', display_name_custom: true },
+      ],
+      relationship_map: { nodes: [], example: [], runtime_write_blocked: true, read_only: true },
+    })
+
+    await render()
+
+    const channelOptions = Array.from(container.querySelectorAll('select option')).map(option => option.textContent)
+    expect(channelOptions).toContain('SnappShop')
+    expect(channelOptions).toContain('فروشگاه تهران')
+    expect(channelOptions).not.toContain('اسنپ شاپ')
+  })
+
   it('renders Business Observability fields on a business event row', async () => {
     const businessEvent: ActivityEvent = {
       id: 'business:evt-1',

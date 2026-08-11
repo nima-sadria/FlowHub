@@ -44,6 +44,8 @@ export interface ChannelHealthDimension extends DiagnosticEvidence {
 export interface ChannelHealthItem extends DiagnosticEvidence {
   channelId: string
   channelType: string
+  displayName?: string | null
+  displayNameCustom?: boolean
   enabled: boolean
   accessMode: string
   status: ChannelHealthLevel
@@ -55,6 +57,8 @@ export interface ChannelHealthItem extends DiagnosticEvidence {
   lastSuccessfulSyncOrRead?: string | null
   lastErrorCategory: string | null
   capabilityState: Record<string, boolean>
+  connectionTestSupported: boolean
+  credentialsConfigured: boolean
   nextRecommendedAction: string
   dimensions: Record<string, ChannelHealthDimension>
   lastProductRead: string | null
@@ -615,6 +619,8 @@ export interface CommerceSource {
   implemented: boolean
   placeholder: boolean
   credential_status: string
+  connection_configured?: boolean
+  configuration_state?: 'not_configured' | 'setup_required' | 'configured' | string
   last_health_check: string | null
   data_role: string
   action_label: string
@@ -648,6 +654,7 @@ export interface CommerceChannel {
   id: string
   provider: string
   name: string
+  display_name_custom?: boolean
   type: 'Channel'
   status: string
   implemented: boolean

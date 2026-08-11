@@ -31,6 +31,22 @@ describe('Unified Workspace grid model', () => {
     expect(definition.records[0][key('snappshop:main', 'price', 'current')]).toBeNull()
   })
 
+  it('localizes system aliases but preserves an Owner exact-alias custom channel name', () => {
+    const systemAlias = buildGridDefinition([ROW], [{
+      ...CHANNELS[0],
+      displayName: 'ووکامرس',
+      displayNameCustom: false,
+    }], ['woocommerce:primary'])
+    const ownerAlias = buildGridDefinition([ROW], [{
+      ...CHANNELS[1],
+      displayName: 'اسنپ شاپ',
+      displayNameCustom: true,
+    }], ['snappshop:main'])
+
+    expect(systemAlias.nestedHeaders[0][1]).toEqual({ label: 'WooCommerce', colspan: 7 })
+    expect(ownerAlias.nestedHeaders[0][1]).toEqual({ label: 'اسنپ شاپ', colspan: 7 })
+  })
+
   it('creates explicit currency/unit Draft edits only for the row Channel', () => {
     const definition = buildGridDefinition([ROW], CHANNELS, ['woocommerce:primary'])
     const prop = key('woocommerce:primary', 'price', 'target')

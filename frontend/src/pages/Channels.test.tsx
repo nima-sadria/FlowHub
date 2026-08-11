@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../auth'
 import { NotificationProvider } from '../notifications/NotificationProvider'
@@ -15,6 +15,16 @@ import Channels from './Channels'
 
 const admin: AuthContextValue = { user: { username: 'admin', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: fetch }
 const viewer: AuthContextValue = { ...admin, user: { username: 'viewer', role: 'viewer', is_admin: false, is_super_admin: false, permissions: { can_access_site: true } } }
+
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="location-probe">{location.pathname}{location.search}</output>
+}
+
+function setInputValue(input: HTMLInputElement, value: string) {
+  Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(input, value)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+}
 
 function channel(overrides: Partial<CommerceChannel> = {}): CommerceChannel {
   return {
@@ -51,6 +61,7 @@ describe('Channels page', () => {
   let getOrders: ReturnType<typeof vi.fn>
   let getChannelTypes: ReturnType<typeof vi.fn>
   let getChannelConfiguration: ReturnType<typeof vi.fn>
+  let saveChannel: ReturnType<typeof vi.fn>
   let services: Services
 
   beforeEach(async () => {
@@ -71,13 +82,17 @@ describe('Channels page', () => {
     const channelTypes: CommerceTypeOption[] = ['woocommerce:primary', 'snappshop:main', 'digikala:pos'].map(id => ({
       id,
       provider: id.split(':')[0],
-      name: id === 'woocommerce:primary' ? 'WooCommerce EU' : id === 'snappshop:main' ? 'SnappShop Store' : 'Digikala POS',
+      name: id === 'woocommerce:primary' ? 'WooCommerce EU' : id === 'snappshop:main' ? 'SnappShop Store' : 'Digikala',
       type: 'Channel',
       implemented: true,
       placeholder: false,
       read_only: false,
       runtime_write_blocked: false,
-      settings_schema: [],
+      settings_schema: id === 'woocommerce:primary' ? [
+        { key: 'url', label: 'Store URL', required: true, secret: false },
+        { key: 'key', label: 'Consumer key', required: true, secret: true },
+        { key: 'secret', label: 'Consumer secret', required: true, secret: true },
+      ] : [],
     }))
     getChannelTypes = vi.fn().mockResolvedValue({ items: channelTypes })
     getChannelConfiguration = vi.fn().mockImplementation(async (channelId: string) => ({
@@ -87,16 +102,31 @@ describe('Channels page', () => {
       configured: channelId !== 'digikala:pos',
       enabled: channelId !== 'digikala:pos',
       access_mode: 'read_only' as const,
-      settings: {},
-      secrets: {},
+      settings: channelId === 'woocommerce:primary' ? { url: 'https://shop.example.test' } : {},
+      secrets: channelId === 'woocommerce:primary' ? {
+        key: { status: 'configured', replaced_at: '2026-08-10T10:00:00Z' },
+        secret: { status: 'configured', replaced_at: '2026-08-10T10:00:00Z' },
+      } : {},
       token_configured: false,
       webhook_token_configured: false,
-      settings_schema: [],
+      settings_schema: channelTypes.find(item => item.id === channelId)?.settings_schema ?? [],
       webhook_path: null,
       credentials_returned: false as const,
+      currency_profile: { status: 'resolved' as const, currency: 'IRR', unit: 'RIAL' },
     }))
+    saveChannel = vi.fn().mockResolvedValue({
+      settings: { url: 'https://shop.example.test' },
+      secrets: {
+        key: { status: 'configured', replaced_at: '2026-08-10T10:00:00Z' },
+        secret: { status: 'configured', replaced_at: '2026-08-10T10:00:00Z' },
+      },
+      configured: true,
+      read_only: true,
+      runtime_write_blocked: true,
+      write_blocked: true,
+    })
     services = {
-      commerce: { getChannels, getChannelTypes, getChannelConfiguration, testChannel, refreshChannelCache: vi.fn() } as unknown as CommerceService,
+      commerce: { getChannels, getChannelTypes, getChannelConfiguration, saveChannel, testChannel, refreshChannelCache: vi.fn() } as unknown as CommerceService,
       orders: { getOrders } as unknown as OrderService,
       health: {} as Services['health'],
       products: {} as Services['products'],
@@ -116,7 +146,7 @@ describe('Channels page', () => {
 
   async function render(auth = admin, initialEntry = '/channels') {
     await act(async () => {
-      root.render(<main><AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter initialEntries={[initialEntry]}><ServiceProvider services={services}><Channels /></ServiceProvider></MemoryRouter></NotificationProvider></AuthContext.Provider></main>)
+      root.render(<main><AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter initialEntries={[initialEntry]}><LocationProbe /><ServiceProvider services={services}><Channels /></ServiceProvider></MemoryRouter></NotificationProvider></AuthContext.Provider></main>)
       await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
     })
   }
@@ -125,7 +155,8 @@ describe('Channels page', () => {
     await render()
 
     expect(container.textContent).toContain('Connected Channels')
-    expect(container.querySelector('.fh-kpi-card-value')?.textContent).toContain('1')
+    expect(container.querySelector('[data-channel-kpi="connected"] .fh-kpi-card-value')?.textContent).toBe('2')
+    expect(container.querySelector('[data-channel-kpi="healthy-listings"] .fh-kpi-card-value')?.textContent).toBe('2,418')
     expect(container.textContent).toContain('2,418')
     expect(container.textContent).toContain('Orders Today')
     expect(container.textContent).toContain('72')
@@ -136,6 +167,56 @@ describe('Channels page', () => {
     expect(container.querySelector('[data-channel-card="snappshop:main"]')?.textContent).toContain('Warning')
     expect(container.querySelector('[data-channel-card="snappshop:main"]')?.textContent).toContain('needs attention')
     expect(container.querySelector('[data-channel-card="digikala:pos"]')?.textContent).toContain('Setup required')
+  })
+
+  it('drills channel KPIs into the records behind each number', async () => {
+    await render()
+
+    await act(async () => {
+      (container.querySelector('[data-channel-kpi="connected"]') as HTMLButtonElement).click()
+    })
+    expect(Array.from(container.querySelectorAll('[data-channel-card]')).map(item => item.getAttribute('data-channel-card')))
+      .toEqual(['woocommerce:primary', 'snappshop:main'])
+
+    await act(async () => {
+      (container.querySelector('[data-channel-kpi="healthy-listings"]') as HTMLButtonElement).click()
+    })
+    expect(Array.from(container.querySelectorAll('[data-channel-card]')).map(item => item.getAttribute('data-channel-card')))
+      .toEqual(['woocommerce:primary'])
+
+    await act(async () => {
+      (container.querySelector('[data-channel-kpi="attention"]') as HTMLButtonElement).click()
+    })
+    expect(Array.from(container.querySelectorAll('[data-channel-card]')).map(item => item.getAttribute('data-channel-card')))
+      .toEqual(['snappshop:main', 'digikala:pos'])
+
+    await act(async () => {
+      (container.querySelector('[data-channel-kpi="orders-today"]') as HTMLButtonElement).click()
+    })
+    const today = new Date().toISOString().slice(0, 10)
+    expect(container.querySelector('[data-testid="location-probe"]')?.textContent)
+      .toBe(`/orders?dateFrom=${today}&dateTo=${today}`)
+  })
+
+  it('uses English for legacy system defaults while preserving a custom Persian channel name', async () => {
+    getChannels.mockResolvedValueOnce({
+      items: [
+        channel({ name: 'ووکامرس' }),
+        channel({ id: 'snappshop:main', provider: 'snappshop', name: 'اسنپ شاپ' }),
+        channel({ id: 'tapsishop:main', provider: 'tapsishop', name: 'تپ‌سی شاپ' }),
+        channel({ id: 'technolife:main', provider: 'technolife', name: 'تکنولایف' }),
+        channel({ id: 'snappshop:tehran', provider: 'snappshop', name: 'فروشگاه تهران', display_name_custom: true }),
+      ],
+      relationship_map: { nodes: [], example: [], runtime_write_blocked: true, read_only: true },
+    })
+
+    await render()
+
+    expect(container.querySelector('[data-channel-card="woocommerce:primary"]')?.textContent).toContain('WooCommerce')
+    expect(container.querySelector('[data-channel-card="snappshop:main"]')?.textContent).toContain('SnappShop')
+    expect(container.querySelector('[data-channel-card="tapsishop:main"]')?.textContent).toContain('TapsiShop')
+    expect(container.querySelector('[data-channel-card="technolife:main"]')?.textContent).toContain('Technolife')
+    expect(container.querySelector('[data-channel-card="snappshop:tehran"]')?.textContent).toContain('فروشگاه تهران')
   })
 
   it('excludes Coming Soon placeholders from the Connected Channels KPI', async () => {
@@ -204,7 +285,8 @@ describe('Channels page', () => {
     await render()
 
     const card = container.querySelector('[data-channel-card="woocommerce:primary"]') as HTMLElement
-    expect(container.querySelector('.fh-kpi-card-value')?.textContent).toBe('0')
+    expect(container.querySelector('[data-channel-kpi="connected"] .fh-kpi-card-value')?.textContent).toBe('0')
+    expect(container.querySelector('[data-channel-kpi="healthy-listings"] .fh-kpi-card-value')?.textContent).toBe('0')
     expect(card.textContent).toContain('Setup required')
     expect(card.textContent).not.toContain('Connected')
     expect(Array.from(card.querySelectorAll('button')).map(button => button.textContent?.trim())).toEqual(['Setup now'])
@@ -223,7 +305,8 @@ describe('Channels page', () => {
     await render()
 
     const card = container.querySelector('[data-channel-card="woocommerce:primary"]') as HTMLElement
-    expect(container.querySelector('.fh-kpi-card-value')?.textContent).toBe('0')
+    expect(container.querySelector('[data-channel-kpi="connected"] .fh-kpi-card-value')?.textContent).toBe('1')
+    expect(container.querySelector('[data-channel-kpi="healthy-listings"] .fh-kpi-card-value')?.textContent).toBe('0')
     expect(card.textContent).toContain('Configured')
     expect(card.textContent).not.toContain('Healthy')
     expect(card.textContent).not.toContain('Connected')
@@ -260,6 +343,55 @@ describe('Channels page', () => {
     await act(async () => { settings.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
     expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Configure WooCommerce')
     expect(container.querySelectorAll('[data-channel-card]')).toHaveLength(3)
+  })
+
+  it('shows configured channel secrets as write-only and preserves them when Save submits blanks', async () => {
+    await render()
+    const card = container.querySelector('[data-channel-card="woocommerce:primary"]') as HTMLElement
+    const settings = Array.from(card.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Settings') as HTMLButtonElement
+    await act(async () => { settings.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
+
+    const dialog = container.querySelector('[role="dialog"]') as HTMLElement
+    const secretInputs = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="password"]'))
+    expect(secretInputs).toHaveLength(2)
+    expect(secretInputs.every(input => input.value === '')).toBe(true)
+    expect(secretInputs.every(input => input.placeholder === 'Configured — type a new password to replace')).toBe(true)
+    expect(dialog.textContent?.match(/Configured; leave blank to keep unchanged\./g)).toHaveLength(2)
+
+    const test = Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Test connection') as HTMLButtonElement
+    await act(async () => { test.click(); await Promise.resolve(); await Promise.resolve() })
+    expect(testChannel).toHaveBeenLastCalledWith('woocommerce:primary', expect.objectContaining({ secrets: {} }))
+    expect(saveChannel).not.toHaveBeenCalled()
+
+    const save = Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Save configuration') as HTMLButtonElement
+    await act(async () => { save.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
+    expect(saveChannel).toHaveBeenCalledWith('woocommerce:primary', expect.objectContaining({ secrets: {} }))
+  })
+
+  it('tests a draft replacement without persisting it until Save', async () => {
+    await render()
+    const card = container.querySelector('[data-channel-card="woocommerce:primary"]') as HTMLElement
+    const settings = Array.from(card.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Settings') as HTMLButtonElement
+    await act(async () => { settings.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
+
+    const dialog = container.querySelector('[role="dialog"]') as HTMLElement
+    const keyInput = dialog.querySelector<HTMLInputElement>('input[type="password"]') as HTMLInputElement
+    await act(async () => setInputValue(keyInput, 'replacement-key'))
+    const test = Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Test connection') as HTMLButtonElement
+    await act(async () => { test.click(); await Promise.resolve(); await Promise.resolve() })
+
+    expect(testChannel).toHaveBeenLastCalledWith(
+      'woocommerce:primary',
+      expect.objectContaining({ secrets: { key: 'replacement-key' } }),
+    )
+    expect(saveChannel).not.toHaveBeenCalled()
+
+    const save = Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Save configuration') as HTMLButtonElement
+    await act(async () => { save.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
+    expect(saveChannel).toHaveBeenCalledWith(
+      'woocommerce:primary',
+      expect.objectContaining({ secrets: { key: 'replacement-key' } }),
+    )
   })
 
   it('exposes the isolated development-only partial-failure browser fixture', async () => {

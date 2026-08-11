@@ -47,10 +47,18 @@ function LocationProbe() {
 function commerceSource(
   id: string,
   name: string,
-  options: { placeholder?: boolean; healthy?: boolean; configured?: boolean } = {},
+  options: {
+    placeholder?: boolean
+    healthy?: boolean
+    configured?: boolean
+    connectionConfigured?: boolean
+    configurationState?: CommerceSource['configuration_state']
+    healthStatus?: string
+  } = {},
 ): CommerceSource {
   const placeholder = options.placeholder ?? false
   const configured = options.configured ?? !placeholder
+  const connectionConfigured = options.connectionConfigured ?? configured
   return {
     id,
     provider: id.split(':')[0],
@@ -59,12 +67,14 @@ function commerceSource(
     status: placeholder ? 'future' : configured ? 'configured' : 'not_configured',
     implemented: !placeholder,
     placeholder,
-    credential_status: configured ? 'configured' : 'not_configured',
+    credential_status: connectionConfigured ? 'configured' : 'not_configured',
+    connection_configured: connectionConfigured,
+    configuration_state: options.configurationState ?? (configured ? 'configured' : 'not_configured'),
     last_health_check: options.healthy ? '2026-07-15T10:00:00Z' : null,
     data_role: 'Spreadsheet price input',
     action_label: 'Manage',
     action_href: '/commerce?tab=sources',
-    health: { status: options.healthy ? 'healthy' : 'unknown', message: '', latency_ms: null, error_code: null },
+    health: { status: options.healthStatus ?? (options.healthy ? 'healthy' : 'unknown'), message: '', latency_ms: null, error_code: null },
     read_status: options.healthy ? {
       enabled: true,
       max_reads_per_24h: 10,
@@ -288,7 +298,7 @@ describe('SourceCenter safe lifecycle', () => {
     await render()
 
     expect(container.querySelectorAll('[data-source-card]')).toHaveLength(2)
-    expect(container.querySelector('[data-source-card="source-1"]')?.textContent).toContain('Connected')
+    expect(container.querySelector('[data-source-card="source-1"]')?.textContent).toContain('Configured')
     expect(container.querySelector('[data-source-card="source-1"] [data-source-icon]')?.getAttribute('data-source-icon')?.toLowerCase()).toContain('nextcloud.webp')
     const comingSoonCard = container.querySelector('[data-source-card="integration:gsheets:price-list"]')
     expect(comingSoonCard?.textContent).toContain('Coming Soon')
@@ -297,6 +307,47 @@ describe('SourceCenter safe lifecycle', () => {
     const sections = Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section'))
     expect([...new Set(sections)]).toEqual(['connected', 'comingSoon'])
     expect(container.querySelector('[data-testid="source-card-groups"] .fh-sources-grid')).not.toBeNull()
+  })
+
+  it('shows persisted Source setup states as Add now, connected incomplete, and configured', async () => {
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [
+        commerceSource('nextcloud:empty', 'Empty Source', {
+          configured: false,
+          connectionConfigured: false,
+          configurationState: 'not_configured',
+        }),
+        commerceSource('nextcloud:partial', 'Partial Source', {
+          configured: false,
+          connectionConfigured: true,
+          configurationState: 'setup_required',
+        }),
+        commerceSource('nextcloud:ready', 'Ready Source', {
+          configured: true,
+          connectionConfigured: true,
+          configurationState: 'configured',
+        }),
+        commerceSource('nextcloud:ready-warning', 'Ready Source with warning', {
+          configured: true,
+          connectionConfigured: true,
+          configurationState: 'configured',
+          healthStatus: 'unhealthy',
+        }),
+      ],
+    })
+
+    await render()
+
+    const empty = container.querySelector('[data-source-card="integration:nextcloud:empty"]') as HTMLElement
+    const partial = container.querySelector('[data-source-card="integration:nextcloud:partial"]') as HTMLElement
+    const ready = container.querySelector('[data-source-card="integration:nextcloud:ready"]') as HTMLElement
+    const readyWarning = container.querySelector('[data-source-card="integration:nextcloud:ready-warning"]') as HTMLElement
+    expect(empty.querySelector('.fh-badge-warning')?.textContent).toBe('Add now')
+    expect(partial.querySelector('.fh-badge-info')?.textContent).toBe('Connected • Setup required')
+    expect(ready.querySelector('.fh-badge-success')?.textContent).toBe('Configured')
+    expect(readyWarning.querySelector('.fh-badge-success')?.textContent).toBe('Configured')
   })
 
   it('does not show an unfinished external Source as connected by default', async () => {
@@ -342,6 +393,35 @@ describe('SourceCenter safe lifecycle', () => {
     vi.mocked(commerce.getSources).mockResolvedValueOnce({
       ...emptyCommerceSources,
       items: [commerceSource('nextcloud:primary', 'Nextcloud', { configured: false })],
+    })
+
+    await render()
+    const setup = Array.from(container.querySelectorAll('[data-source-card="nextcloud-draft"] button'))
+      .find(item => item.textContent?.trim() === 'Setup Source') as HTMLButtonElement
+    await act(async () => setup.click())
+
+    expect(container.querySelector('[data-testid="location-probe"]')?.textContent)
+      .toBe('/commerce?tab=sources&resource=nextcloud%3Aprimary')
+  })
+
+  it('routes a connected but incomplete Source back through setup instead of Data Sheet', async () => {
+    const incompleteNextcloud: SourceProfile = {
+      ...source,
+      id: 'nextcloud-draft',
+      name: 'Nextcloud',
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      mappingVersion: 0,
+      sheetId: null,
+    }
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [incompleteNextcloud] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [commerceSource('nextcloud:primary', 'Nextcloud', {
+        configured: false,
+        connectionConfigured: true,
+        configurationState: 'setup_required',
+      })],
     })
 
     await render()

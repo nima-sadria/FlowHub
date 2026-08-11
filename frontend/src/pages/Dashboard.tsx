@@ -221,7 +221,7 @@ function RevenueLineChart({ series }: { series: RevenueSeries[] }) {
   )
 }
 
-function OrdersBarChart({ bars }: { bars: Array<{ channel: string; count: number }> }) {
+function OrdersBarChart({ bars }: { bars: Array<{ channel: string; displayName: string; count: number }> }) {
   const max = Math.max(...bars.map(bar => bar.count), 1)
   return (
     <div
@@ -232,7 +232,7 @@ function OrdersBarChart({ bars }: { bars: Array<{ channel: string; count: number
       {bars.map(bar => (
         <div
           key={bar.channel}
-          title={`${formatChannelDisplayName(bar.channel)}: ${formatNumber(bar.count)}`}
+          title={`${bar.displayName}: ${formatNumber(bar.count)}`}
           className="w-7 rounded bg-accent"
           style={{ height: `${Math.max((bar.count / max) * 150, 6)}px` }}
         />
@@ -308,7 +308,10 @@ export default function Dashboard() {
     () => prepareResourceCollection(channelHealth?.items ?? [], channel => ({
       ...diagnosticChannelSignals(channel),
       // i18n-ignore -- technical connector identity passed to the display-name formatter.
-      displayName: formatChannelDisplayName(channel.channelId || `${channel.channelType}:primary`),
+      displayName: formatChannelDisplayName(
+        channel.channelId || `${channel.channelType}:primary`,
+        { displayName: channel.displayName, displayNameCustom: channel.displayNameCustom },
+      ),
     })),
     [channelHealth],
   )
@@ -399,14 +402,21 @@ export default function Dashboard() {
 
   const ordersByChannel = useMemo(() => {
     const channels = new Map<string, number>()
+    const displayNames = new Map(
+      orderedChannels.ordered.map(channel => [channel.id, channel.displayName]),
+    )
     for (const order of countedOrders) {
       channels.set(order.channelId, (channels.get(order.channelId) ?? 0) + 1)
     }
     return Array.from(channels.entries())
       .sort(([, left], [, right]) => right - left)
       .slice(0, 8)
-      .map(([channel, count]) => ({ channel, count }))
-  }, [countedOrders])
+      .map(([channel, count]) => ({
+        channel,
+        displayName: displayNames.get(channel) ?? formatChannelDisplayName(channel),
+        count,
+      }))
+  }, [countedOrders, orderedChannels])
 
   // -- Primary KPIs --------------------------------------------------------
   const kpiLoading = loading || businessLoading

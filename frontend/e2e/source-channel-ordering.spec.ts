@@ -25,10 +25,10 @@ const channelOrder = [
 ] as const
 
 const channelLifecycleOrder = [
-  'attention:main',
   'snappshop:main',
   'tapsishop:main',
   'woocommerce:primary',
+  'attention:main',
   'disabled:main',
   'digikala:future',
 ] as const
@@ -204,6 +204,7 @@ function commerceChannel(
     read_only: true,
     write_blocked: true,
     runtime_write_blocked: true,
+    enabled: implemented && status !== 'disabled',
     credential_status: implemented && !placeholder ? 'configured' : 'not_configured',
     configuration_state: implemented ? 'configured' : 'not_configured',
     credentials_configured: implemented,
@@ -667,7 +668,7 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
   await page.getByRole('button', { name: 'Channels' }).click()
   await expectGroupedOrder(page, channelLifecycleOrder)
   await expect(page.locator('[data-resource-id="snappshop:main"]')).toContainText('Healthy')
-  await expect(page.locator('[data-resource-id="attention:main"]')).toContainText('Setup required')
+  await expect(page.locator('[data-resource-id="attention:main"]')).toContainText('Warning')
   await expect(page.locator('[data-resource-id="disabled:main"]')).toContainText('Setup required')
   await expect(page.locator('[data-resource-id="digikala:future"]')).toContainText('Coming Soon')
   await page.screenshot({ path: path.join(screenshotRoot, 'en-commerce-channels.png'), fullPage: true })

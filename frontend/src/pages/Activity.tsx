@@ -7,6 +7,7 @@ import Empty from '../components/Empty'
 import Icon, { type IconName } from '../components/Icon'
 import { SkeletonCard } from '../components/loading/Skeleton'
 import PageShell from '../components/PageShell'
+import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { translate } from '../i18n'
 import { formatRelativeTime } from '../i18n/format'
 import { inputHint } from '../utils/inputHint'
@@ -326,7 +327,15 @@ export default function Activity() {
   useEffect(() => {
     let active = true
     commerce.getChannels()
-      .then(result => { if (active) setChannels(result.items.map(item => ({ id: item.id, name: item.name }))) })
+      .then(result => {
+        if (active) setChannels(result.items.map(item => ({
+          id: item.id,
+          name: formatChannelDisplayName(item.id, {
+            displayName: item.display_name_custom ? item.name : undefined,
+            displayNameCustom: item.display_name_custom,
+          }),
+        })))
+      })
       .catch(() => {})
     return () => { active = false }
   }, [commerce])

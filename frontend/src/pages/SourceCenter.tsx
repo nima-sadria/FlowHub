@@ -45,12 +45,18 @@ function sourceIsEnabled(source: SourceProfile): boolean {
   return source.status.trim().toLocaleLowerCase() !== 'disabled'
 }
 
+function sourceConfigurationState(source: CommerceSource): string {
+  return source.configuration_state
+    ?? (source.credential_status === 'configured' ? 'configured' : 'not_configured')
+}
+
 function sourceCardSignals(card: SourceCardModel): ResourceOrderingSignals {
   if (!card.profile && card.integration) {
+    const configurationState = sourceConfigurationState(card.integration)
     return {
       id: card.id,
       displayName: card.displayName,
-      configured: card.integration.credential_status === 'configured',
+      configured: configurationState === 'configured',
       implemented: card.integration.implemented,
       placeholder: card.integration.placeholder,
     }
@@ -68,7 +74,8 @@ function sourceCardSignals(card: SourceCardModel): ResourceOrderingSignals {
     configured: active
       && integrationAvailable
       && source.mappingVersion > 0
-      && (source.sourceKind !== 'external' || integration?.credential_status === 'configured'),
+      && (source.sourceKind !== 'external'
+        || (integration !== null && sourceConfigurationState(integration) === 'configured')),
     implemented: integrationAvailable,
     placeholder: integration?.placeholder ?? false,
   }
@@ -104,6 +111,37 @@ function sourceBadgeLabel(badge: ResourceBadge): string {
   return translate('common:resourceBadge.comingSoon')
 }
 
+function sourceSetupPresentation(
+  card: SourceCardModel,
+  fallbackBadge: ResourceBadge,
+): { label: string; variant: BadgeVariant } {
+  const integration = card.integration
+  if (!integration || integration.placeholder || !integration.implemented) {
+    return {
+      label: sourceBadgeLabel(fallbackBadge),
+      variant: sourceBadgeTone(fallbackBadge),
+    }
+  }
+  const linkedProfileComplete = !card.profile
+    || (sourceIsEnabled(card.profile) && card.profile.mappingVersion > 0)
+  if (sourceConfigurationState(integration) === 'configured' && linkedProfileComplete) {
+    return {
+      label: translate('commerce:commerceHub.sourceStatus.configured'),
+      variant: 'success',
+    }
+  }
+  if (integration.connection_configured || integration.credential_status === 'configured') {
+    return {
+      label: translate('commerce:commerceHub.sourceStatus.connectedSetupRequired'),
+      variant: 'info',
+    }
+  }
+  return {
+    label: translate('commerce:commerceHub.sourceStatus.addNow'),
+    variant: 'warning',
+  }
+}
+
 function cardUpdatedAt(card: SourceCardModel): string | null {
   return card.profile?.updatedAt ?? card.integration?.read_status?.last_read_at ?? null
 }
@@ -123,7 +161,7 @@ function sourceNeedsOperationalAttention(source: CommerceSource | null): boolean
 /** Keep the card action aligned with the actual provider setup boundary. */
 function setupDestinationFor(card: SourceCardModel): string | null {
   if (card.integration?.id === 'csv:import') return '/sources/import'
-  if (card.integration?.implemented && !card.integration.placeholder && card.integration.credential_status !== 'configured') {
+  if (card.integration?.implemented && !card.integration.placeholder && card.integration.configuration_state !== 'configured') {
     return `/commerce?tab=sources&resource=${encodeURIComponent(card.integration.id)}`
   }
   if (card.profile) return `/sources/${card.profile.id}`
@@ -556,6 +594,7 @@ export default function SourceCenter() {
             const source = card.profile
             const integration = card.integration
             const state = operationalState(resource.tier)
+            const statusPresentation = sourceSetupPresentation(card, resource.badge)
             const showDelete = Boolean(state === 'connected' && canManageSources && source?.status === 'active')
             const updatedAt = cardUpdatedAt(card)
             const worksheetsEnabled = worksheetsEnabledCount(card)
@@ -618,8 +657,8 @@ export default function SourceCenter() {
                 name={card.displayName}
                 description={sourceCardDescription(card)}
                 state={state}
-                statusLabel={sourceBadgeLabel(resource.badge)}
-                statusVariant={sourceBadgeTone(resource.badge)}
+                statusLabel={statusPresentation.label}
+                statusVariant={statusPresentation.variant}
                 statusDetail={state === 'connected' && updatedAt ? `${translate('sources:sourceCenter.updatedPrefix')} ${formatRelativeTime(updatedAt)}` : undefined}
                 facts={facts}
                 issue={state === 'setupRequired'

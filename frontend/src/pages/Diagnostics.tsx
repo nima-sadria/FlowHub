@@ -9,7 +9,9 @@ import Icon, { type IconName } from '../components/Icon'
 import PageShell from '../components/PageShell'
 import Badge from '../components/Badge'
 import DiagnosticStateBadge from '../components/DiagnosticStateBadge'
+import BrandIcon from '../components/BrandIcon'
 import type { ChannelHealthItem, ChannelHealthResponse } from '../services/types'
+import type { ConnectionCheckResult } from '../services/commerce/CommerceService'
 import { formatDateTime, formatNumber, formatRelativeTime } from '../i18n/format'
 import { formatDiagnosticDimension, formatDiagnosticMessage, formatStatus } from '../i18n/display'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
@@ -53,6 +55,9 @@ interface ConnectorStatus {
   } | null
   last_checked_at?: string | null
   last_successful_operation?: string | null
+  connection_test_supported?: boolean
+  connection_configured?: boolean
+  credentials_configured?: boolean
 }
 
 interface DiagnosticCheck {
@@ -140,7 +145,10 @@ function SummaryCard({ label, value, detail, status, icon }: SummaryCardProps) {
 }
 
 function channelLabel(channel: ChannelHealthItem): string {
-  return formatChannelDisplayName(channel.channelId || `${channel.channelType}:primary`)
+  return formatChannelDisplayName(
+    channel.channelId || `${channel.channelType}:primary`,
+    { displayName: channel.displayName, displayNameCustom: channel.displayNameCustom },
+  )
 }
 
 function connectorHealth(connector: ConnectorStatus): string | undefined {
@@ -266,6 +274,98 @@ function Field({ label, value }: { label: string; value: string }) {
   )
 }
 
+function connectionTestUnavailableReason({
+  supported,
+  credentialsConfigured,
+}: {
+  supported: boolean
+  credentialsConfigured: boolean
+}): string | null {
+  if (!supported) {
+    return translate('diagnostics:diagnostics.connectionTestUnsupported', {
+      defaultValue: 'This connector does not support a connection test.',
+    })
+  }
+  if (!credentialsConfigured) {
+    return translate('diagnostics:diagnostics.connectionTestCredentialsRequired', {
+      defaultValue: 'Save the required credentials before testing this connection.',
+    })
+  }
+  return null
+}
+
+type ConnectionResultIdentity = Pick<
+  ConnectionCheckResult,
+  'ok' | 'status' | 'code' | 'error_class'
+>
+
+function connectionResultMessage(result: ConnectionResultIdentity): string {
+  if (result.ok) {
+    return translate('diagnostics:diagnostics.connectionTestResult.success')
+  }
+
+  // Provider messages are deliberately excluded from presentation. They can
+  // be English in a Persian session and may contain upstream diagnostics or
+  // credential fragments. Stable structured fields select a localized copy.
+  const identity = [result.status, result.code, result.error_class]
+    .filter((value): value is string => Boolean(value))
+    .join(' ')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s.-]+/g, '_')
+
+  if (/unsafe_destination|ssrf|private_network|trusted_network|blocked_destination/.test(identity)) {
+    return translate('diagnostics:diagnostics.connectionTestResult.unsafeDestination')
+  }
+  if (/timeout|timed_out|deadline|gateway_timeout|http_504/.test(identity)) {
+    return translate('diagnostics:diagnostics.connectionTestResult.timeout')
+  }
+  if (/authentication|auth_failed|unauthorized|invalid_credentials|credential_rejected|authentication_rejected/.test(identity)) {
+    return translate('diagnostics:diagnostics.connectionTestResult.authenticationRejected')
+  }
+  if (/authorization|permission|forbidden|access_denied/.test(identity)) {
+    return translate('diagnostics:diagnostics.connectionTestResult.permissionDenied')
+  }
+  if (/not_configured|required_settings_missing|credentials_missing|configuration_incomplete/.test(identity)) {
+    return translate('diagnostics:diagnostics.connectionTestResult.notConfigured')
+  }
+  if (/invalid_url|malformed_url|channel_invalid_url/.test(identity)) {
+    return translate('diagnostics:diagnostics.connectionTestResult.invalidUrl')
+  }
+  if (/invalid_webdav|invalid_path|malformed_path|webdav_path/.test(identity)) {
+    return translate('diagnostics:diagnostics.connectionTestResult.invalidPath')
+  }
+  if (/resource_not_found|file_not_found|spreadsheet_not_found|missing_resource|http_404/.test(identity)) {
+    return translate('diagnostics:diagnostics.connectionTestResult.resourceNotFound')
+  }
+  if (/rate_limit|too_many_requests|http_429/.test(identity)) {
+    return translate('diagnostics:diagnostics.connectionTestResult.rateLimited')
+  }
+  if (/unsupported|not_implemented/.test(identity)) {
+    return translate('diagnostics:diagnostics.connectionTestResult.unsupported')
+  }
+  if (/unreachable|connection_failed|dns|network|tls|certificate|upstream_unavailable|http_50[23]/.test(identity)) {
+    return translate('diagnostics:diagnostics.connectionTestResult.unreachable')
+  }
+  if (/validation|invalid_configuration|unprocessable|http_422/.test(identity)) {
+    return translate('diagnostics:diagnostics.connectionTestResult.invalidConfiguration')
+  }
+  return translate('diagnostics:diagnostics.connectionTestResult.failed')
+}
+
+function connectionExceptionMessage(error: unknown): string {
+  return connectionResultMessage({
+    ok: false,
+    status: error instanceof Error && error.message === 'request_timeout'
+      ? 'timeout'
+      : error instanceof ApiError
+        ? `http_${error.status}`
+        : 'error',
+    code: error instanceof ApiError ? error.code : undefined,
+    error_class: error instanceof Error ? error.name : undefined,
+  })
+}
+
 const DIAGNOSTIC_GROUPS = [
   {
     key: 'connection',
@@ -383,12 +483,16 @@ function ChannelHealthRow({
     'product_cache_not_checked',
     'product_cache_refresh_failed',
   ].includes(channel.reason_code ?? '')
+  const connectionTestReason = connectionTestUnavailableReason({
+    supported: channel.connectionTestSupported,
+    credentialsConfigured: channel.credentialsConfigured,
+  })
   return (
     <article id={`channel-${channel.channelId}`} className="fh-card p-4" data-testid={`diagnostics-channel-${channel.channelId}`} data-resource-id={channel.channelId}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name="channel" /></span>
+            <BrandIcon identity={channel.channelType} label={displayName} size={36} />
             <h3 className="fh-text-body font-semibold text-text-base">{displayName}</h3>
             <DiagnosticStateBadge evidence={channelEvidence} testId={`diagnostics-channel-status-${channel.channelId}`} />
           </div>
@@ -405,42 +509,69 @@ function ChannelHealthRow({
             <Field label={translate('diagnostics:diagnostics.recommendedNextAction')} value={recommendedAction} />
           </dl>
         </div>
-        {channel.enabled && needsProductRefresh ? (
-          <a
-            href={`/commerce?tab=channels&channel=${encodeURIComponent(channel.channelId)}`}
-            className="fh-button-secondary self-start"
-            data-testid={`diagnostics-channel-action-${channel.channelId}`}
-          >
-            <Icon name="refresh" />
-            {recommendedAction}
-          </a>
-        ) : canRefreshChannel && channel.enabled ? (
-          <button
-            type="button"
-            onClick={() => onRefresh(channel.channelId)}
-            disabled={refreshingChannel !== null}
-            className="fh-button-secondary self-start"
-            data-testid={`diagnostics-channel-action-${channel.channelId}`}
-          >
-            {refreshingChannel === channel.channelId ? <Spinner size="sm" /> : <Icon name="testConnection" />}
-            {translate('diagnostics:diagnostics.testConnection')}
-          </button>
-        ) : null}
+        <div className="flex max-w-sm flex-col items-start gap-2">
+          {channel.enabled && needsProductRefresh && (
+            <a
+              href={`/commerce?tab=channels&channel=${encodeURIComponent(channel.channelId)}`}
+              className="fh-button-secondary self-start"
+              data-testid={`diagnostics-channel-recovery-${channel.channelId}`}
+            >
+              <Icon name="refresh" />
+              {recommendedAction}
+            </a>
+          )}
+          {canRefreshChannel && (
+            <>
+              <button
+                type="button"
+                onClick={() => onRefresh(channel.channelId)}
+                disabled={refreshingChannel !== null || connectionTestReason !== null}
+                className="fh-button-secondary self-start"
+                data-testid={`diagnostics-channel-test-${channel.channelId}`}
+                aria-describedby={connectionTestReason ? `diagnostics-channel-test-reason-${channel.channelId}` : undefined}
+              >
+                {refreshingChannel === channel.channelId ? <Spinner size="sm" /> : <Icon name="testConnection" />}
+                {translate('diagnostics:diagnostics.testConnection')}
+              </button>
+              {connectionTestReason && (
+                <p id={`diagnostics-channel-test-reason-${channel.channelId}`} className="fh-text-caption text-wp-muted">
+                  {connectionTestReason}
+                </p>
+              )}
+            </>
+          )}
+        </div>
       </div>
       <IntegrationDetails channel={channel} />
     </article>
   )
 }
 
-function SourceHealthRow({ connector, displayName }: { connector: ConnectorStatus; displayName: string }) {
+function SourceHealthRow({
+  connector,
+  displayName,
+  canTestConnection,
+  testingSource,
+  onTest,
+}: {
+  connector: ConnectorStatus
+  displayName: string
+  canTestConnection: boolean
+  testingSource: string | null
+  onTest: (sourceId: string) => void
+}) {
   const presentation = sourcePresentation(connector)
   const lastChecked = connectorLastChecked(connector)
+  const connectionTestReason = connectionTestUnavailableReason({
+    supported: connector.connection_test_supported === true,
+    credentialsConfigured: connector.connection_configured === true,
+  })
   return (
     <article id={`source-${connector.id}`} className="fh-card p-4" data-resource-id={connector.id}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name="file" /></span>
+            <BrandIcon identity={connector.connector_type} label={displayName} size={36} />
             <h3 className="fh-text-body font-semibold text-text-base">{displayName}</h3>
             <DiagnosticStateBadge state={presentation.status} testId={`diagnostics-source-status-${connector.id}`} />
           </div>
@@ -456,9 +587,31 @@ function SourceHealthRow({ connector, displayName }: { connector: ConnectorStatu
             />
           </dl>
         </div>
-        <a href="/sources" className="fh-button-secondary self-start">
-          {translate('diagnostics:diagnostics.openSources', { defaultValue: 'Open Sources' })}
-        </a>
+        <div className="flex max-w-sm flex-col items-start gap-2">
+          {canTestConnection && (
+            <>
+              <button
+                type="button"
+                onClick={() => connector.id && onTest(connector.id)}
+                disabled={!connector.id || testingSource !== null || connectionTestReason !== null}
+                className="fh-button-secondary self-start"
+                data-testid={`diagnostics-source-test-${connector.id}`}
+                aria-describedby={connectionTestReason ? `diagnostics-source-test-reason-${connector.id}` : undefined}
+              >
+                {testingSource === connector.id ? <Spinner size="sm" /> : <Icon name="testConnection" />}
+                {translate('diagnostics:diagnostics.testConnection')}
+              </button>
+              {connectionTestReason && (
+                <p id={`diagnostics-source-test-reason-${connector.id}`} className="fh-text-caption text-wp-muted">
+                  {connectionTestReason}
+                </p>
+              )}
+            </>
+          )}
+          <a href="/sources" className="fh-button-secondary self-start">
+            {translate('diagnostics:diagnostics.openSources', { defaultValue: 'Open Sources' })}
+          </a>
+        </div>
       </div>
       <details className="mt-3 border-t border-border pt-3">
         <summary className="cursor-pointer select-none fh-text-body-sm font-medium text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
@@ -499,12 +652,15 @@ interface RecentCheckEntry {
   description: string
   status: DiagnosticState
   lastChecked: string | null
+  brandIdentity?: string
 }
 
 function RecentCheckRow({ entry }: { entry: RecentCheckEntry }) {
   return (
     <div className="flex items-center gap-3 border-b border-border py-3 last:border-0">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name={entry.icon} /></span>
+      {entry.brandIdentity
+        ? <BrandIcon identity={entry.brandIdentity} label={entry.title} size={36} />
+        : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-bg-subtle text-wp-muted" aria-hidden="true"><Icon name={entry.icon} /></span>}
       <div className="min-w-0 flex-1">
         <p className="fh-text-body-sm font-semibold text-text-base">{entry.title}</p>
         <p className="fh-text-caption truncate">{entry.description}</p>
@@ -522,10 +678,11 @@ export default function Diagnostics() {
   const [err, setErr] = useState<string | null>(null)
   const [checkedAt, setCheckedAt] = useState<Date | null>(null)
   const [refreshingChannel, setRefreshingChannel] = useState<string | null>(null)
+  const [testingSource, setTestingSource] = useState<string | null>(null)
 
   const canRefreshChannel = Boolean(user && ['owner', 'super_admin', 'admin'].includes(user.role))
 
-  const runCheck = useCallback(async () => {
+  const runCheck = useCallback(async (announceSuccess = true) => {
     setLoading(true)
     setErr(null)
     try {
@@ -537,10 +694,12 @@ export default function Diagnostics() {
       )
       setDiag(diagnosticsData)
       setCheckedAt(diagnosticsData.checkedAt ? new Date(diagnosticsData.checkedAt) : null)
-      success({
-        title: translate('diagnostics:diagnostics.diagnosticsUpdated'),
-        description: translate('diagnostics:diagnostics.latestSystemStatusHasBeenLoaded'),
-      })
+      if (announceSuccess) {
+        success({
+          title: translate('diagnostics:diagnostics.diagnosticsUpdated'),
+          description: translate('diagnostics:diagnostics.latestSystemStatusHasBeenLoaded'),
+        })
+      }
     } catch (error) {
       const message = error instanceof ApiError
         ? translate('diagnostics:diagnostics.unavailableHttp', { status: error.status })
@@ -561,33 +720,69 @@ export default function Diagnostics() {
     if (!canRefreshChannel) return
     setRefreshingChannel(channelId)
     try {
-      const data = await apiFetch<ChannelHealthResponse>(
-        '/api/v2/diagnostics/channels/health/refresh',
+      const result = await apiFetch<ConnectionCheckResult>(
+        `/api/v2/commerce/channels/${encodeURIComponent(channelId)}/test`,
         authFetch,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ channelId }),
+          body: JSON.stringify({}),
         },
         REQUEST_TIMEOUT_MS,
       )
-      setDiag(current => current ? { ...current, channelHealth: data } : current)
-      setCheckedAt(data.checkedAt ? new Date(data.checkedAt) : null)
-      success({
-        title: translate('diagnostics:diagnostics.diagnosticsUpdated'),
-        description: translate('diagnostics:diagnostics.latestSystemStatusHasBeenLoaded'),
-      })
-    } catch {
+      const notification = {
+        title: result.ok
+          ? translate('commerce:commerceHub.connectionTestSuccessful')
+          : translate('commerce:commerceHub.unableToConnectToTheChannel'),
+        description: connectionResultMessage(result),
+      }
+      if (result.ok) success(notification)
+      else notifyError(notification)
+      await runCheck(false)
+    } catch (error) {
       notifyError({
-        title: translate('diagnostics:diagnostics.unableToUpdateDiagnostics'),
-        description: translate('diagnostics:diagnostics.pleaseTryAgain'),
+        title: translate('commerce:commerceHub.unableToConnectToTheChannel'),
+        description: connectionExceptionMessage(error),
       })
     } finally {
       setRefreshingChannel(null)
     }
-  }, [authFetch, canRefreshChannel, success, notifyError])
+  }, [authFetch, canRefreshChannel, notifyError, runCheck, success])
 
-  useEffect(() => { void runCheck() }, [runCheck])
+  const testSourceConnection = useCallback(async (sourceId: string) => {
+    if (!canRefreshChannel) return
+    setTestingSource(sourceId)
+    try {
+      const result = await apiFetch<ConnectionCheckResult>(
+        `/api/v2/commerce/sources/${encodeURIComponent(sourceId)}/test`,
+        authFetch,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        },
+        REQUEST_TIMEOUT_MS,
+      )
+      const notification = {
+        title: result.ok
+          ? translate('commerce:commerceHub.connectionTestSuccessful')
+          : translate('commerce:commerceHub.unableToConnectToTheSource'),
+        description: connectionResultMessage(result),
+      }
+      if (result.ok) success(notification)
+      else notifyError(notification)
+      await runCheck(false)
+    } catch (error) {
+      notifyError({
+        title: translate('commerce:commerceHub.unableToConnectToTheSource'),
+        description: connectionExceptionMessage(error),
+      })
+    } finally {
+      setTestingSource(null)
+    }
+  }, [authFetch, canRefreshChannel, notifyError, runCheck, success])
+
+  useEffect(() => { void runCheck(false) }, [runCheck])
 
   const connectors = diag?.connectors ?? []
   const sourceConnectors = useMemo(
@@ -719,9 +914,9 @@ export default function Diagnostics() {
     })
     .slice(0, RECENT_CHECKS_LIMIT)
     .map((item): RecentCheckEntry => item.kind === 'channel'
-      ? { key: item.key, icon: 'channel', title: item.displayName, description: diagnosticEvidenceDescription({ ...item.channel, message: item.channel.summary, recommended_action: item.channel.recommended_action ?? item.channel.nextRecommendedAction }), status: item.status, lastChecked: item.lastChecked }
+      ? { key: item.key, icon: 'channel', brandIdentity: item.channel.channelType, title: item.displayName, description: diagnosticEvidenceDescription({ ...item.channel, message: item.channel.summary, recommended_action: item.channel.recommended_action ?? item.channel.nextRecommendedAction }), status: item.status, lastChecked: item.lastChecked }
       : item.kind === 'source'
-        ? { key: item.key, icon: 'file', title: item.displayName, description: sourcePresentation(item.connector).description, status: item.status, lastChecked: item.lastChecked }
+        ? { key: item.key, icon: 'file', brandIdentity: item.connector.connector_type, title: item.displayName, description: sourcePresentation(item.connector).description, status: item.status, lastChecked: item.lastChecked }
         : { key: item.key, icon: 'activity', title: translate('diagnostics:diagnostics.backgroundJobs'), description: item.runner.state ? formatStatus(item.runner.state) : translate('diagnostics:diagnostics.notCheckedYet'), status: item.status, lastChecked: item.lastChecked })
 
   return (
@@ -764,7 +959,7 @@ export default function Diagnostics() {
                 {systemHealthOrder.map(item => item.kind === 'channel'
                   ? <ChannelHealthRow key={item.key} channel={item.channel} displayName={item.displayName} canRefreshChannel={canRefreshChannel} refreshingChannel={refreshingChannel} onRefresh={id => void refreshChannel(id)} />
                   : item.kind === 'source'
-                    ? <SourceHealthRow key={item.key} connector={item.connector} displayName={item.displayName} />
+                    ? <SourceHealthRow key={item.key} connector={item.connector} displayName={item.displayName} canTestConnection={canRefreshChannel} testingSource={testingSource} onTest={id => void testSourceConnection(id)} />
                     : <BackgroundJobsRow key={item.key} runner={item.runner} status={item.status} />)}
               </div>
             </>

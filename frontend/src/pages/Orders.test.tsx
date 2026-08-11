@@ -20,9 +20,61 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount())
   container.remove()
+  window.history.replaceState({}, '', '/')
 })
 
 describe('Orders page', () => {
+  it('applies URL filters when opened from an actionable summary', async () => {
+    const mock = services()
+    let requested: unknown
+    mock.orders!.getOrders = async filter => {
+      requested = filter
+      return { items: [], total: 0, page: 1, pageSize: 25 }
+    }
+    window.history.replaceState({}, '', '/orders?dateFrom=2026-08-10&dateTo=2026-08-10')
+
+    await act(async () => {
+      root.render(<ServiceProvider services={mock}><Orders /></ServiceProvider>)
+    })
+    await flush()
+
+    expect(requested).toMatchObject({ dateFrom: '2026-08-10', dateTo: '2026-08-10' })
+  })
+
+  it('preserves an explicitly custom legacy alias in the Channel filter and order rows', async () => {
+    const mock = services()
+    const base = (await mock.orders!.getOrders({ page: 1, pageSize: 25 })).items[0]!
+    mock.orders!.getOrders = async () => ({
+      items: [{ ...base, channelId: 'woocommerce:primary', connectorType: 'woocommerce' }],
+      total: 1,
+      page: 1,
+      pageSize: 25,
+    })
+    mock.orders!.getSyncStatus = async () => ({
+      items: [{
+        channelId: 'woocommerce:primary',
+        connectorType: 'woocommerce',
+        displayName: 'ووکامرس',
+        displayNameCustom: true,
+        enabled: true,
+        state: 'ready',
+        lastRunAt: null,
+        lastSuccessAt: null,
+        lastFailureAt: null,
+        failureCategory: null,
+      }],
+    })
+
+    await act(async () => {
+      root.render(<ServiceProvider services={mock}><Orders /></ServiceProvider>)
+    })
+    await flush()
+
+    const channelOption = container.querySelector('select option[value="woocommerce:primary"]')
+    expect(channelOption?.textContent).toBe('ووکامرس')
+    expect(container.querySelector('[data-orders-row]')?.textContent).toContain('ووکامرس')
+  })
+
   it('shows normalized channel orders and detail without customer national ID', async () => {
     await act(async () => {
       root.render(

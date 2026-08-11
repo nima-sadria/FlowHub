@@ -51,6 +51,8 @@ function channelHealthFixture(): ChannelHealthResponse {
         lastSuccessfulOperation: new Date().toISOString(),
         lastErrorCategory: null,
         capabilityState: { read_products: true, write_prices: true },
+        connectionTestSupported: true,
+        credentialsConfigured: true,
         nextRecommendedAction: 'No immediate action required.',
         dimensions: {},
         lastProductRead: new Date().toISOString(),
@@ -71,6 +73,8 @@ function channelHealthFixture(): ChannelHealthResponse {
         lastSuccessfulOperation: new Date().toISOString(),
         lastErrorCategory: null,
         capabilityState: { read_products: true, write_prices: true },
+        connectionTestSupported: true,
+        credentialsConfigured: true,
         nextRecommendedAction: 'Review queued webhook receipts.',
         dimensions: {},
         lastProductRead: new Date().toISOString(),
@@ -239,8 +243,15 @@ describe('Dashboard', () => {
     expect(strip?.querySelector('[data-status-metric="oldest-open-business-event"] .fh-status-strip-value')?.getAttribute('data-state')).toBe('warning')
   })
 
-  it('keeps revenue currencies separate and shows the Last 30 days chart header', async () => {
+  it('keeps revenue currencies separate and uses resolved channel names in chart tooltips', async () => {
     const mockServices = services()
+    const health = channelHealthFixture()
+    health.items[1] = {
+      ...health.items[1],
+      displayName: 'فروشگاه تهران',
+      displayNameCustom: true,
+    }
+    vi.mocked(mockServices.health.getChannelHealth).mockResolvedValue(health)
     const order = (
       internalId: number,
       channelId: string,
@@ -288,7 +299,8 @@ describe('Dashboard', () => {
     expect(container.querySelector('[data-revenue-currency="EUR"]')).not.toBeNull()
     expect(container.querySelector('[data-revenue-currency="USD"]')).not.toBeNull()
     expect(container.querySelector('[title^="WooCommerce:"]')).not.toBeNull()
-    expect(container.querySelector('[title^="TapsiShop:"]')).not.toBeNull()
+    expect(container.querySelector('[title^="فروشگاه تهران:"]')).not.toBeNull()
+    expect(container.querySelector('[title^="TapsiShop:"]')).toBeNull()
     expect(container.textContent).toContain('Last 30 days')
     expect(container.textContent).not.toContain('Loaded orders')
   })
@@ -301,6 +313,25 @@ describe('Dashboard', () => {
     expect(rows[0].dataset.healthTone).toBe('success')
     expect(rows[0].textContent).toContain('Healthy')
     expect(container.textContent).toContain('Channel health')
+  })
+
+  it('uses persisted channel display-name metadata in Dashboard health rows', async () => {
+    const mockServices = services()
+    const health = channelHealthFixture()
+    health.items = [
+      { ...health.items[0], displayName: 'ووکامرس', displayNameCustom: false },
+      { ...health.items[1], displayName: 'فروشگاه تهران', displayNameCustom: true },
+    ]
+    vi.mocked(mockServices.health.getChannelHealth).mockResolvedValue(health)
+    vi.mocked(mockServices.sources.getSources).mockResolvedValue([])
+
+    await renderPage(mockServices)
+
+    const systemDefault = container.querySelector('[data-health-row="channel:woocommerce:primary"]')
+    const ownerCustom = container.querySelector('[data-health-row="channel:tapsishop:main"]')
+    expect(systemDefault?.textContent).toContain('WooCommerce')
+    expect(systemDefault?.textContent).not.toContain('ووکامرس')
+    expect(ownerCustom?.textContent).toContain('فروشگاه تهران')
   })
 
   it('shows warning tone and the correct entity icon for attention-tier health rows', async () => {

@@ -43,7 +43,7 @@ function responseFor(input: RequestInfo | URL): Response {
       checkedAt: new Date().toISOString(),
       checks: [{ category: 'database', target: 'flowhub', status: 'pass', severity: 'info' }],
       connectors: [
-        { id: 'nextcloud:primary', name: 'Nextcloud', connector_type: 'nextcloud', enabled: true, status: 'operational', last_checked_at: new Date().toISOString(), last_successful_operation: new Date().toISOString() },
+        { id: 'nextcloud:primary', name: 'Nextcloud', connector_type: 'nextcloud', enabled: true, status: 'operational', last_checked_at: new Date().toISOString(), last_successful_operation: new Date().toISOString(), connection_test_supported: true, connection_configured: true, credentials_configured: true },
         { id: 'woocommerce:primary', name: 'WooCommerce duplicate', connector_type: 'woocommerce', enabled: true, status: 'operational', last_checked_at: new Date().toISOString() },
       ],
       channelHealth: channelHealthPayload(),
@@ -63,6 +63,22 @@ function responseFor(input: RequestInfo | URL): Response {
   }
   if (url.includes('/api/v2/diagnostics/channels/health/refresh')) {
     return new Response(JSON.stringify(channelHealthPayload()), { status: 200 })
+  }
+  if (url.includes('/api/v2/commerce/channels/') && url.includes('/test')) {
+    return new Response(JSON.stringify({
+      ok: true,
+      status: 'connected',
+      message: 'Connected.',
+      external_call_performed: true,
+    }), { status: 200 })
+  }
+  if (url.includes('/api/v2/commerce/sources/nextcloud%3Aprimary/test')) {
+    return new Response(JSON.stringify({
+      ok: true,
+      status: 'connected',
+      message: 'Connected.',
+      external_call_performed: true,
+    }), { status: 200 })
   }
   return new Response('{}', { status: 404 })
 }
@@ -86,6 +102,8 @@ function channelHealthPayload() {
         lastSuccessfulOperation: new Date().toISOString(),
         lastErrorCategory: null,
         capabilityState: { read_products: true, write_prices: true },
+        connectionTestSupported: true,
+        credentialsConfigured: true,
         nextRecommendedAction: 'No immediate action required.',
         dimensions: { credentials: { status: 'Operational', message: 'Credential validation passed.' } },
         lastProductRead: new Date().toISOString(),
@@ -106,6 +124,8 @@ function channelHealthPayload() {
         lastSuccessfulOperation: new Date().toISOString(),
         lastErrorCategory: null,
         capabilityState: { read_products: true, write_prices: true, webhook: true },
+        connectionTestSupported: true,
+        credentialsConfigured: true,
         nextRecommendedAction: 'Review queued webhook receipts.',
         dimensions: { webhookProcessing: { status: 'Warning', message: 'Accepted webhook receipts are waiting for processing.' } },
         lastProductRead: new Date().toISOString(),
@@ -332,14 +352,230 @@ describe('Diagnostics', () => {
     expect(technicalDetails.open).toBe(false)
     expect(c.textContent).not.toContain('About')
 
-    const refresh = Array.from(c.querySelectorAll('button')).find(button => button.textContent?.includes('Test connection'))
+    const refresh = c.querySelector('[data-testid="diagnostics-channel-test-woocommerce:primary"]') as HTMLButtonElement
     await act(async () => {
       refresh?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
     })
 
     const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.map(call => String(call[0]))
-    expect(calls.some(url => url.includes('/api/v2/diagnostics/channels/health/refresh'))).toBe(true)
+    expect(calls.some(url => url.includes('/api/v2/commerce/channels/woocommerce%3Aprimary/test'))).toBe(true)
+  })
+
+  it('uses canonical provider icons and tests the saved Nextcloud connection from Diagnostics', async () => {
+    const c = await renderPage()
+
+    const wooCard = c.querySelector('[data-testid="diagnostics-channel-woocommerce:primary"]')
+    const sourceCard = c.querySelector('[data-resource-id="nextcloud:primary"]')
+    expect(wooCard?.querySelector('[data-brand-icon="/static/logos/brands/woocommerce.webp"]')).not.toBeNull()
+    expect(sourceCard?.querySelector('[data-brand-icon="/static/logos/brands/nextcloud.webp"]')).not.toBeNull()
+
+    const sourceTest = c.querySelector('[data-testid="diagnostics-source-test-nextcloud:primary"]') as HTMLButtonElement
+    expect(sourceTest.disabled).toBe(false)
+    await act(async () => {
+      sourceTest.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.map(call => String(call[0]))
+    expect(calls.some(url => url.includes('/api/v2/commerce/sources/nextcloud%3Aprimary/test'))).toBe(true)
+  })
+
+  it('surfaces an HTTP-200 channel connection failure without a generic success notice', async () => {
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      const url = String(input)
+      if (url.includes('/api/v2/commerce/channels/woocommerce%3Aprimary/test')) {
+        return new Response(JSON.stringify({
+          ok: false,
+          status: 'authentication_rejected',
+          message: 'WooCommerce rejected the credentials; token=owner-secret',
+          external_call_performed: true,
+          read_only: true,
+          runtime_write_blocked: true,
+          write_blocked: true,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const testButton = c.querySelector('[data-testid="diagnostics-channel-test-woocommerce:primary"]') as HTMLButtonElement
+    await act(async () => {
+      testButton.click()
+      await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    })
+
+    const failure = c.querySelector('[data-notification-type="error"]')
+    expect(failure?.textContent).toContain('Unable to connect to the channel')
+    expect(failure?.textContent).toContain('The saved credentials were rejected.')
+    expect(failure?.textContent).not.toContain('WooCommerce rejected the credentials')
+    expect(failure?.textContent).not.toContain('token=')
+    expect(failure?.textContent).not.toContain('owner-secret')
+    expect(c.textContent).not.toContain('Diagnostics updated')
+  })
+
+  it('localizes an HTTP-200 connection failure in Persian without exposing backend text or secrets', async () => {
+    await changeLocale('fa')
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      const url = String(input)
+      if (url.includes('/api/v2/commerce/channels/woocommerce%3Aprimary/test')) {
+        return new Response(JSON.stringify({
+          ok: false,
+          status: 'error',
+          code: 'AUTH_FAILED',
+          error_class: 'authentication',
+          message: 'WooCommerce rejected the credentials; token=owner-secret',
+          external_call_performed: true,
+          read_only: true,
+          runtime_write_blocked: true,
+          write_blocked: true,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const testButton = c.querySelector('[data-testid="diagnostics-channel-test-woocommerce:primary"]') as HTMLButtonElement
+    await act(async () => {
+      testButton.click()
+      await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    })
+
+    const failure = c.querySelector('[data-notification-type="error"]')
+    expect(failure?.textContent).toContain('اتصال به کانال ممکن نشد')
+    expect(failure?.textContent).toContain('اطلاعات ورود ذخیره‌شده پذیرفته نشد.')
+    expect(failure?.textContent).not.toContain('WooCommerce rejected the credentials')
+    expect(failure?.textContent).not.toContain('owner-secret')
+    expect(failure?.textContent).not.toContain('token=')
+  })
+
+  it('surfaces an HTTP-200 Source connection failure without a generic success notice', async () => {
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      const url = String(input)
+      if (url.includes('/api/v2/commerce/sources/nextcloud%3Aprimary/test')) {
+        return new Response(JSON.stringify({
+          ok: false,
+          status: 'resource_not_found',
+          message: 'The configured Nextcloud WebDAV spreadsheet was not found.',
+          external_call_performed: true,
+          read_only: true,
+          runtime_write_blocked: true,
+          write_blocked: true,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const testButton = c.querySelector('[data-testid="diagnostics-source-test-nextcloud:primary"]') as HTMLButtonElement
+    await act(async () => {
+      testButton.click()
+      await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    })
+
+    const failure = c.querySelector('[data-notification-type="error"]')
+    expect(failure?.textContent).toContain('Unable to connect to the source')
+    expect(failure?.textContent).toContain('The requested remote resource was not found.')
+    expect(failure?.textContent).not.toContain('The configured Nextcloud WebDAV spreadsheet was not found.')
+    expect(c.textContent).not.toContain('Diagnostics updated')
+  })
+
+  it('exposes Test connection for every current provider with a real probe', async () => {
+    const health = channelHealthPayload()
+    const woo = health.items[0]
+    const tapsi = health.items[1]
+    const channels = [
+      woo,
+      { ...woo, channelId: 'snappshop:main', channelType: 'snappshop', summary: 'SnappShop is operational.' },
+      tapsi,
+      { ...woo, channelId: 'technolife:main', channelType: 'technolife', summary: 'Technolife is operational.' },
+    ]
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: 'ok',
+          checkedAt: health.checkedAt,
+          checks: [{ category: 'database', status: 'pass' }],
+          connectors: [],
+          channelHealth: { ...health, orderSyncRunner: undefined, items: channels },
+          rateLimiter: null,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    for (const channelId of ['woocommerce:primary', 'snappshop:main', 'tapsishop:main', 'technolife:main']) {
+      const button = c.querySelector(`[data-testid="diagnostics-channel-test-${channelId}"]`) as HTMLButtonElement
+      expect(button).not.toBeNull()
+      expect(button.disabled).toBe(false)
+    }
+    expect(c.querySelector('[data-testid="diagnostics-channel-technolife:main"] [data-brand-icon="/static/logos/brands/technolife.webp"]')).not.toBeNull()
+    expect(c.querySelector('[data-testid="diagnostics-channel-snappshop:main"] [data-brand-icon="/static/logos/brands/snapp-shop.webp"]')).not.toBeNull()
+    expect(c.querySelector('[data-testid="diagnostics-channel-tapsishop:main"] [data-brand-icon="/static/logos/brands/tapsi-shop.webp"]')).not.toBeNull()
+
+    await act(async () => {
+      const button = c.querySelector('[data-testid="diagnostics-channel-test-technolife:main"]') as HTMLButtonElement
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.map(call => String(call[0]))
+    expect(calls.some(url => url.includes('/api/v2/commerce/channels/technolife%3Amain/test'))).toBe(true)
+  })
+
+  it('tests disabled connectors with saved credentials and explains genuinely unavailable actions', async () => {
+    const health = channelHealthPayload()
+    const woo = health.items[0]
+    const channels = [
+      { ...woo, channelId: 'snappshop:main', channelType: 'snappshop', enabled: false, credentialsConfigured: true },
+      { ...woo, channelId: 'tapsishop:main', channelType: 'tapsishop', enabled: true, credentialsConfigured: false },
+      { ...woo, channelId: 'shopify:main', channelType: 'shopify', enabled: true, connectionTestSupported: false, credentialsConfigured: true },
+    ]
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: 'skip',
+          checkedAt: health.checkedAt,
+          checks: [{ category: 'database', status: 'pass' }],
+          connectors: [{
+            id: 'nextcloud:primary', name: 'Nextcloud', connector_type: 'nextcloud', enabled: false,
+            status: 'disabled', connection_test_supported: true, connection_configured: true, credentials_configured: true,
+          }],
+          channelHealth: { ...health, orderSyncRunner: undefined, items: channels },
+          rateLimiter: null,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    expect((c.querySelector('[data-testid="diagnostics-channel-test-snappshop:main"]') as HTMLButtonElement).disabled).toBe(false)
+    expect((c.querySelector('[data-testid="diagnostics-channel-test-tapsishop:main"]') as HTMLButtonElement).disabled).toBe(true)
+    expect((c.querySelector('[data-testid="diagnostics-channel-test-shopify:main"]') as HTMLButtonElement).disabled).toBe(true)
+    expect((c.querySelector('[data-testid="diagnostics-source-test-nextcloud:primary"]') as HTMLButtonElement).disabled).toBe(false)
+    expect(c.textContent).toContain('Save the required credentials before testing this connection.')
+    expect(c.textContent).toContain('This connector does not support a connection test.')
+  })
+
+  it('preserves an Owner-defined channel display name while localizing system defaults', async () => {
+    const health = channelHealthPayload()
+    const channels = [
+      { ...health.items[0], displayName: 'ووکامرس' },
+      { ...health.items[1], displayName: 'فروشگاه تهران' },
+    ]
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: 'ok', checkedAt: health.checkedAt, checks: [{ category: 'database', status: 'pass' }], connectors: [],
+          channelHealth: { ...health, orderSyncRunner: undefined, items: channels }, rateLimiter: null,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    expect(c.querySelector('[data-testid="diagnostics-channel-woocommerce:primary"]')?.textContent).toContain('WooCommerce')
+    expect(c.querySelector('[data-testid="diagnostics-channel-tapsishop:main"]')?.textContent).toContain('فروشگاه تهران')
   })
 
   it('orders the unified System health list with errors and warnings first', async () => {

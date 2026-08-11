@@ -63,10 +63,14 @@ function pageNumbers(current: number, total: number): (number | 'ellipsis')[] {
   return result
 }
 
-function sortValue(order: ChannelOrderListItem, field: SortField): string | number {
+function sortValue(
+  order: ChannelOrderListItem,
+  field: SortField,
+  channelDisplayNames: ReadonlyMap<string, string>,
+): string | number {
   switch (field) {
     case 'order': return order.orderNumber || order.providerOrderId
-    case 'channel': return formatChannelDisplayName(order.channelId)
+    case 'channel': return channelDisplayNames.get(order.channelId) ?? formatChannelDisplayName(order.channelId)
     case 'customer': return order.customerDisplay || ''
     case 'status': return order.normalizedStatus
     case 'total': return order.finalAmount ?? 0
@@ -102,17 +106,18 @@ function OrderDetail({ order }: { order: ChannelOrderDetail }) {
 
 export default function Orders() {
   const { orders } = useServices()
+  const [searchParams] = useState(() => new URLSearchParams(window.location.search))
   const [items, setItems] = useState<ChannelOrderListItem[]>([])
   const [syncStatuses, setSyncStatuses] = useState<OrderSyncStatus[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
-  const [channelId, setChannelId] = useState('')
-  const [orderStatus, setOrderStatus] = useState('')
-  const [search, setSearch] = useState('')
-  const [searchInput, setSearchInput] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [channelId, setChannelId] = useState(() => searchParams.get('channelId') ?? '')
+  const [orderStatus, setOrderStatus] = useState(() => searchParams.get('status') ?? '')
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('search') ?? '')
+  const [dateFrom, setDateFrom] = useState(() => searchParams.get('dateFrom') ?? '')
+  const [dateTo, setDateTo] = useState(() => searchParams.get('dateTo') ?? '')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState('')
@@ -173,19 +178,29 @@ export default function Orders() {
       ?? syncStatuses[0],
     [channelId, syncStatuses],
   )
+  const channelDisplayNames = useMemo(
+    () => new Map(syncStatuses.map(item => [
+      item.channelId,
+      formatChannelDisplayName(item.channelId, {
+        displayName: item.displayName,
+        displayNameCustom: item.displayNameCustom,
+      }),
+    ])),
+    [syncStatuses],
+  )
 
   const visibleItems = useMemo(() => {
     const filtered = showOnlyFailed ? items.filter(order => order.errorState || order.synchronizationState !== 'synced') : items
     if (!sort) return filtered
     const copy = [...filtered]
     copy.sort((a, b) => {
-      const left = sortValue(a, sort.field)
-      const right = sortValue(b, sort.field)
+      const left = sortValue(a, sort.field, channelDisplayNames)
+      const right = sortValue(b, sort.field, channelDisplayNames)
       const compared = typeof left === 'number' && typeof right === 'number' ? left - right : String(left).localeCompare(String(right))
       return sort.direction === 'asc' ? compared : -compared
     })
     return copy
-  }, [items, showOnlyFailed, sort])
+  }, [channelDisplayNames, items, showOnlyFailed, sort])
 
   const filterCount = [dateFrom, dateTo].filter(Boolean).length
   const rangeFrom = total === 0 ? 0 : (page - 1) * pageSize + 1
@@ -318,7 +333,7 @@ export default function Orders() {
           <span className="sr-only">{translate('common:selector.allChannels')}</span>
           <select value={channelId} onChange={event => { setChannelId(event.target.value); setPage(1) }}>
             <option value="">{translate('common:selector.allChannels')}</option>
-            {syncStatuses.map(item => <option key={item.channelId} value={item.channelId}>{formatChannelDisplayName(item.channelId, { displayName: item.displayName })}</option>)}
+            {syncStatuses.map(item => <option key={item.channelId} value={item.channelId}>{channelDisplayNames.get(item.channelId)}</option>)}
           </select>
           <Icon name="chevronDown" size="sm" className="fh-chip-caret" />
         </label>
@@ -392,7 +407,7 @@ export default function Orders() {
               </tr></thead>
               <tbody>{visibleItems.map(order => <tr key={order.internalId} data-orders-row data-order-id={order.internalId}>
                 <td className="sticky left-0 z-10 bg-bg-card"><button className="font-medium text-accent hover:underline" onClick={() => void openDetail(order)}>{order.orderNumber || order.providerOrderId}</button></td>
-                {!hiddenColumns.has('channel') && <td>{formatChannelDisplayName(order.channelId)}</td>}
+                {!hiddenColumns.has('channel') && <td>{channelDisplayNames.get(order.channelId) ?? formatChannelDisplayName(order.channelId)}</td>}
                 {!hiddenColumns.has('customer') && <td>{order.customerDisplay || '—'}</td>}
                 {!hiddenColumns.has('status') && <td data-status-cell><InlineStatus tone={statusTone(order.normalizedStatus)}>{formatStatus(order.normalizedStatus)}</InlineStatus></td>}
                 {!hiddenColumns.has('payment') && <td>{formatStatus(order.paymentStatus)}</td>}

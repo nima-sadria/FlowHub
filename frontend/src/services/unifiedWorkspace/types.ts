@@ -6,6 +6,7 @@ export type WorkspaceCellStatus =
 export interface WorkspaceChannelDefinition {
   channelId: string
   displayName?: string | null
+  displayNameCustom?: boolean
   instanceLabel?: string | null
   readPrice: boolean
   writePrice: boolean

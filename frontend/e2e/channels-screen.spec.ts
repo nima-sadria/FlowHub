@@ -66,6 +66,7 @@ function channelShape(fixture: ChannelFixture) {
     write_blocked: false,
     runtime_write_blocked: false,
     credential_status: 'configured',
+    enabled: fixture.status === 'active',
     last_health_check: fixture.lastHealthCheck,
     health: { status: fixture.healthStatus, message: '', latency_ms: 120, error_code: null },
     capabilities: {},
@@ -129,7 +130,7 @@ async function assertFigmaChannelsHierarchy(page: Page, locale: 'en' | 'fa') {
 
   if (locale === 'en') {
     await expect(page.getByRole('button', { name: 'Add channel' })).toBeVisible()
-    await expect(page.getByText('Connected Channels')).toBeVisible()
+    await expect(page.getByRole('button', { name: /Connected Channels/ })).toBeVisible()
     await expect(page.getByText('Healthy Listings')).toBeVisible()
     await expect(page.getByText('Needs Attention', { exact: true })).toBeVisible()
     await expect(page.getByText('Orders Today')).toBeVisible()
@@ -141,13 +142,13 @@ async function assertFigmaChannelsHierarchy(page: Page, locale: 'en' | 'fa') {
     const grid = page.locator('.fh-channels-grid')
     for (const fixture of CHANNELS) await expect(grid.getByText(CHANNEL_DISPLAY_NAMES.en[fixture.provider], { exact: true }).first()).toBeVisible()
     await expect(grid.locator('[data-channel-card]')).toHaveCount(4)
-    await expect(grid.getByText('Connected', { exact: true }).first()).toBeVisible()
+    await expect(grid.getByText('Healthy', { exact: true }).first()).toBeVisible()
     const setupCard = grid.locator('[data-channel-card="digikala:main"]')
     await expect(setupCard.getByText('Setup required', { exact: true })).toHaveCount(1)
     await expect(setupCard.locator('.fh-badge')).toHaveCount(1)
   } else {
     await expect(page.getByRole('button', { name: 'افزودن کانال' })).toBeVisible()
-    await expect(page.getByText('کانال‌های متصل')).toBeVisible()
+    await expect(page.getByRole('button', { name: /کانال‌های متصل/ })).toBeVisible()
     await expect(page.getByPlaceholder('جست‌وجوی کانال‌ها')).toBeVisible()
     const grid = page.locator('.fh-channels-grid')
     for (const fixture of CHANNELS) await expect(grid.getByText(CHANNEL_DISPLAY_NAMES.fa[fixture.provider], { exact: true }).first()).toBeVisible()

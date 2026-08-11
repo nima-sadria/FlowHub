@@ -126,6 +126,8 @@ function baseChannel(channelId: string, status: DiagnosticState) {
     lastSuccessfulOperation: recentSync,
     lastErrorCategory: null,
     capabilityState: { read_products: true, write_prices: true },
+    connectionTestSupported: true,
+    credentialsConfigured: true,
     nextRecommendedAction: recommendedAction,
     reasonCode,
     reason_code: reasonCode,
@@ -391,7 +393,10 @@ async function installStrictDiagnosticsMocks(page: Page, audit: TrafficAudit) {
     if (/^\/api\/v2\/commerce\/channels\/[^/]+\/test$/.test(url.pathname) && method === 'POST') {
       audit.interceptedActions.push(requestLabel)
       return json(route, {
-        status: 'not_checked',
+        ok: true,
+        connected: true,
+        authenticated: true,
+        status: 'connected',
         message: 'Synthetic local connection test completed without provider I/O.',
         checked_at: checkedAt,
         external_call_performed: false,
@@ -534,12 +539,12 @@ test('diagnostic evidence states are truthful, bilingual, and isolated in real C
     animations: 'disabled',
   })
 
-  const warningRefresh = page.getByTestId('diagnostics-channel-action-snappshop:warning')
+  const warningRefresh = page.getByTestId('diagnostics-channel-recovery-snappshop:warning')
   await expect(warningRefresh).toHaveAttribute('href', /\/commerce\?tab=channels&channel=snappshop%3Awarning$/)
-  const connectionTest = page.getByTestId('diagnostics-channel-action-woocommerce:unchecked')
+  const connectionTest = page.getByTestId('diagnostics-channel-test-woocommerce:unchecked')
   await connectionTest.click()
   await expect.poll(() => audit.interceptedActions.length).toBe(1)
-  expect(audit.interceptedActions[0]).toContain('channel=woocommerce:unchecked')
+  expect(audit.interceptedActions[0]).toContain('/api/v2/commerce/channels/woocommerce%3Aunchecked/test')
 
   await page.evaluate(() => localStorage.setItem('flowhub.locale', 'fa'))
   await page.goto('/diagnostics')

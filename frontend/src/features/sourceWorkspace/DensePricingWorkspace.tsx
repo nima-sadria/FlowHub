@@ -504,12 +504,13 @@ export default function DensePricingWorkspace({
     {reviewOpen && review && <ReviewDialog
       review={review}
       grid={grid}
+      channelById={channelById}
       canApply={review.status === 'ready' && reviewContext !== null && busy === null}
       onApply={() => setConfirming(true)}
       onClose={() => setReviewOpen(false)}
     />}
     {confirming && reviewContext && <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:sourceCentricWorkspace.applyConfirmation')}><div className="fh-card fh-card-pad max-w-lg"><h2 className="fh-page-title">{translate('workspace:sourceCentricWorkspace.confirmSelectedApply')}</h2><p className="fh-text-caption mt-2">{translate('workspace:densePricing.confirmApplyScope', { count: reviewContext.selectedCount })}</p>{/* i18n-ignore: utility classes, not user-facing copy */}<div className="mt-5 flex justify-end gap-2"><button className="fh-button-secondary" type="button" onClick={() => setConfirming(false)}>{translate('workspace:sourceCentricWorkspace.cancel')}</button><button className="fh-button-primary" type="button" onClick={() => void apply()}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.confirmApply')}</button></div></div></div>}
-    {applyResult && <ApplyResults result={applyResult} />}
+    {applyResult && <ApplyResults result={applyResult} channelById={channelById} />}
   </>
   return embedded ? content : <PageShell>{content}</PageShell>
 }
@@ -540,6 +541,7 @@ const ProductGroup = memo(function ProductGroup({
   return (
     <tbody className="fh-products-group" data-product-group data-product-id={product.sourceProductId}>
       {product.children.map((listing, index) => {
+        const channelName = sourceChannelDisplayName(listing.channelId, channelById)
         const changedIdentities = FIELDS
           .map(field => ({ productId: product.sourceProductId, listingId: listing.listingId, channelId: listing.channelId, field }))
           .filter(identity => pricingFieldChange(pricingState, identity))
@@ -559,7 +561,7 @@ const ProductGroup = memo(function ProductGroup({
                 <span className="fh-products-name">{product.name}</span>
               </span>}
             </td>
-            <td className="fh-products-channel-cell">{formatChannelDisplayName(listing.channelId)}</td>
+            <td className="fh-products-channel-cell">{channelName}</td>
             <td className="fh-products-input-cell">
               <TargetInput
                 descriptor={descriptorMap.get(fieldKey(product, listing, 'price'))}
@@ -568,7 +570,7 @@ const ProductGroup = memo(function ProductGroup({
                 inputMode="decimal"
                 ariaLabel={translate('products:products.fieldEditLabel', {
                   product: product.name,
-                  channel: formatChannelDisplayName(listing.channelId),
+                  channel: channelName,
                   field: formatField('price'),
                 })}
                 onCommit={onCommitEdit}
@@ -583,7 +585,7 @@ const ProductGroup = memo(function ProductGroup({
                 narrow
                 ariaLabel={translate('products:products.fieldEditLabel', {
                   product: product.name,
-                  channel: formatChannelDisplayName(listing.channelId),
+                  channel: channelName,
                   field: formatField('stock'),
                 })}
                 onCommit={onCommitEdit}
@@ -596,7 +598,7 @@ const ProductGroup = memo(function ProductGroup({
                 pricingState={pricingState}
                 ariaLabel={translate('products:products.fieldEditLabel', {
                   product: product.name,
-                  channel: formatChannelDisplayName(listing.channelId),
+                  channel: channelName,
                   field: formatField('status'),
                 })}
                 onCommit={onCommitEdit}
@@ -614,7 +616,7 @@ const ProductGroup = memo(function ProductGroup({
                   aria-expanded={rowMenuFor === listing.listingId}
                   aria-label={translate('products:products.rowActions', {
                     product: product.name,
-                    channel: formatChannelDisplayName(listing.channelId),
+                    channel: channelName,
                   })}
                   onClick={() => onToggleRowMenu(rowMenuFor === listing.listingId ? null : listing.listingId)}
                 >
@@ -875,7 +877,7 @@ function BulkEditDialog({ grid, descriptors, channelById, channelFilter, pricing
                 <label className="fh-bulk-radio">
                   <input type="radio" name="bulk-scope" value="selected_channel" checked={scope === 'selected_channel'} disabled={!channelFilter} onChange={() => setScope('selected_channel')} />
                   <span>{channelFilter
-                    ? `${translate('products:products.selectedChannel')} · ${formatChannelDisplayName(channelFilter)}`
+                    ? `${translate('products:products.selectedChannel')} · ${sourceChannelDisplayName(channelFilter, channelById)}`
                     : translate('products:products.selectedChannel')}</span>
                 </label>
               </div>
@@ -930,15 +932,23 @@ function BulkToggle({ checked, onChange, label }: { checked: boolean; onChange: 
   )
 }
 
-function ReviewDialog({ review, grid, canApply, onApply, onClose }: { review: ReviewResource; grid: GroupedWorkspacePage; canApply: boolean; onApply: () => void; onClose: () => void }) {
-  return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:unifiedWorkspace.reviewChanges')}><div className="fh-card max-h-[88vh] w-full max-w-6xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:unifiedWorkspace.reviewChanges')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.reviewSummary', { total: review.summary.total, selected: review.items.filter(item => item.selected).length, blocked: review.summary.blocked })}</p></div><button className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button></div><div className="overflow-x-auto"><table className="fh-table min-w-[900px]"><thead><tr><th>{translate('workspace:gridModel.product')}</th><th>{translate('workspace:unifiedWorkspace.channel')}</th><th>{translate('workspace:densePricing.field')}</th><th>{translate('workspace:densePricing.previousValue')}</th><th>{translate('workspace:gridModel.targetField', { field: '' })}</th><th>{translate('workspace:sourceCentricWorkspace.selected')}</th></tr></thead><tbody>{review.items.map(item => { const product = grid.items.find(row => row.children.some(child => child.listingId === item.listingId)); return <tr key={item.id}><td>{product?.name ?? item.canonicalProductId}</td><td>{formatChannelDisplayName(item.channelId)}</td><td>{formatField(item.field)}</td><td>{item.current ?? '—'}</td><td>{item.target}</td><td>{item.selected ? '✓' : '—'}</td></tr> })}</tbody></table></div><div className="fh-panel-footer"><button className="fh-button-secondary" type="button" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button><button className="fh-button-primary" type="button" data-pricing-apply disabled={!canApply} onClick={onApply}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.apply')}</button></div></div></div>
+function ReviewDialog({ review, grid, channelById, canApply, onApply, onClose }: { review: ReviewResource; grid: GroupedWorkspacePage; channelById: ReadonlyMap<string, SourceChannel>; canApply: boolean; onApply: () => void; onClose: () => void }) {
+  return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:unifiedWorkspace.reviewChanges')}><div className="fh-card max-h-[88vh] w-full max-w-6xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:unifiedWorkspace.reviewChanges')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.reviewSummary', { total: review.summary.total, selected: review.items.filter(item => item.selected).length, blocked: review.summary.blocked })}</p></div><button className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button></div><div className="overflow-x-auto"><table className="fh-table min-w-[900px]"><thead><tr><th>{translate('workspace:gridModel.product')}</th><th>{translate('workspace:unifiedWorkspace.channel')}</th><th>{translate('workspace:densePricing.field')}</th><th>{translate('workspace:densePricing.previousValue')}</th><th>{translate('workspace:gridModel.targetField', { field: '' })}</th><th>{translate('workspace:sourceCentricWorkspace.selected')}</th></tr></thead><tbody>{review.items.map(item => { const product = grid.items.find(row => row.children.some(child => child.listingId === item.listingId)); return <tr key={item.id}><td>{product?.name ?? item.canonicalProductId}</td><td>{sourceChannelDisplayName(item.channelId, channelById)}</td><td>{formatField(item.field)}</td><td>{item.current ?? '—'}</td><td>{item.target}</td><td>{item.selected ? '✓' : '—'}</td></tr> })}</tbody></table></div><div className="fh-panel-footer"><button className="fh-button-secondary" type="button" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button><button className="fh-button-primary" type="button" data-pricing-apply disabled={!canApply} onClick={onApply}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.apply')}</button></div></div></div>
 }
 
-function ApplyResults({ result }: { result: ApplyResource }) {
-  return <section className="fh-card fh-card-pad" aria-label={translate('workspace:sourceCentricWorkspace.applyResults')}><h2 className="fh-section-title">{translate('workspace:sourceCentricWorkspace.applyResultStatus', { status: formatStatus(result.status) })}</h2><p className="fh-text-caption">{translate('workspace:sourceCentricWorkspace.verifiedSuccessIsShownOnlyAfterExact')}</p><div className="mt-3 grid gap-2">{result.items.map(item => <div className="flex items-center gap-2 rounded border border-border p-2" key={item.id}><Icon name={item.status === 'applied' ? 'success' : item.status === 'failed' ? 'error' : 'warning'} /><span>{formatChannelDisplayName(item.channelId)} · {formatField(item.field)}</span><strong className="ms-auto">{formatStatus(item.status)}</strong></div>)}</div></section>
+function ApplyResults({ result, channelById }: { result: ApplyResource; channelById: ReadonlyMap<string, SourceChannel> }) {
+  return <section className="fh-card fh-card-pad" aria-label={translate('workspace:sourceCentricWorkspace.applyResults')}><h2 className="fh-section-title">{translate('workspace:sourceCentricWorkspace.applyResultStatus', { status: formatStatus(result.status) })}</h2><p className="fh-text-caption">{translate('workspace:sourceCentricWorkspace.verifiedSuccessIsShownOnlyAfterExact')}</p><div className="mt-3 grid gap-2">{result.items.map(item => <div className="flex items-center gap-2 rounded border border-border p-2" key={item.id}><Icon name={item.status === 'applied' ? 'success' : item.status === 'failed' ? 'error' : 'warning'} /><span>{sourceChannelDisplayName(item.channelId, channelById)} · {formatField(item.field)}</span><strong className="ms-auto">{formatStatus(item.status)}</strong></div>)}</div></section>
 }
 
 // -- Presentation helpers ----------------------------------------------------
+
+export function sourceChannelDisplayName(
+  channelId: string,
+  channelById: ReadonlyMap<string, SourceChannel>,
+): string {
+  const channel = channelById.get(channelId)
+  return channel?.name.trim() || formatChannelDisplayName(channelId)
+}
 
 function fieldKey(product: GroupedProduct, listing: GroupedListing, field: PricingField): string {
   return pricingFieldKey({ productId: product.sourceProductId, listingId: listing.listingId, channelId: listing.channelId, field })

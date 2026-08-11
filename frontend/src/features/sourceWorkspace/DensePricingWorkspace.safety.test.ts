@@ -13,11 +13,26 @@ import {
   refreshRegisteredPricingState,
   resolveExactReviewSelection,
   setProductListingsSelected,
+  sourceChannelDisplayName,
   validateDescriptorTarget,
 } from './DensePricingWorkspace'
 import type { GroupedWorkspacePage, SourceChannel } from './types'
 
 describe('DensePricingWorkspace safety boundaries', () => {
+  it('uses Commerce-resolved names verbatim for Data Sheet channel labels', () => {
+    const systemName = channel({})
+    const ownerAlias = { ...systemName, name: 'ووکامرس', displayNameCustom: true }
+
+    expect(sourceChannelDisplayName(
+      systemName.channelId,
+      new Map([[systemName.channelId, systemName]]),
+    )).toBe('WooCommerce')
+    expect(sourceChannelDisplayName(
+      ownerAlias.channelId,
+      new Map([[ownerAlias.channelId, ownerAlias]]),
+    )).toBe('ووکامرس')
+  })
+
   it('requires every locally selected field to resolve to exactly one eligible Review item', () => {
     const price = descriptor('price')
     const stock = descriptor('stock')

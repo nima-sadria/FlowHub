@@ -1223,6 +1223,25 @@ button.fh-inline-status {
   border-radius: var(--fh-radius-xl);
 }
 
+.fh-kpi-card-action {
+  width: 100%;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.fh-kpi-card-action:hover {
+  border-color: var(--fh-brand-500);
+  box-shadow: var(--fh-shadow-sm);
+  transform: translateY(-1px);
+}
+
+.fh-kpi-card-action:focus-visible {
+  outline: 2px solid var(--fh-brand-500);
+  outline-offset: 2px;
+}
+
 .fh-kpi-card-head {
   display: flex;
   align-items: center;

@@ -94,7 +94,7 @@ export default function ChannelDetail() {
       if (result.ok) {
         notify.success({
           title: translate('commerce:commerceHub.channelConnectedSuccessfully'),
-          description: translate('commerce:commerceHub.isReadyToUse', { value1: formatChannelDisplayName(channel.id) }),
+          description: translate('commerce:commerceHub.isReadyToUse', { value1: formatChannelDisplayName(channel.id, { displayName: channel.display_name_custom ? channel.name : undefined, displayNameCustom: channel.display_name_custom }) }),
         })
       } else {
         notify.error({
@@ -153,7 +153,10 @@ export default function ChannelDetail() {
         ? translate('common:status.configured')
         : translate('common:status.setupRequired')
   const healthWarning = ['degraded', 'error', 'failed', 'partial_failed', 'unhealthy'].includes(channel.health.status)
-  const displayName = formatChannelDisplayName(channel.id)
+  const displayName = formatChannelDisplayName(channel.id, {
+    displayName: channel.display_name_custom ? channel.name : undefined,
+    displayNameCustom: channel.display_name_custom,
+  })
 
   return (
     <PageShell>
