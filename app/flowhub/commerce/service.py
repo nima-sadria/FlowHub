@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import datetime, timezone
 from time import monotonic
 from urllib.parse import urlparse
@@ -53,7 +54,10 @@ from app.flowhub.config.values import parse_config_bool
 from app.flowhub.data_layer.health_service import ConnectorHealthService
 from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
 from app.flowhub.integration_platform.contracts import ConnectorCapabilities
-from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+from app.flowhub.integration_platform.models import (
+    IntegrationConnectorInstance,
+    IntegrationConnectorSetting,
+)
 from app.flowhub.integration_platform.registry import registry
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.integrations.errors import IntegrationError
@@ -63,7 +67,7 @@ from app.flowhub.read_engine.manual import ManualReadService
 from app.flowhub.read_engine.service import IncrementalReadEngine
 from app.flowhub.security.upstream_errors import UpstreamServiceError, normalize_upstream_error
 from app.flowhub.source_acquisition.nextcloud_provider import NextcloudWebDavAcquisitionProvider
-from app.flowhub.source_workspace.models import SourceProfile
+from app.flowhub.source_workspace.models import SourceMappingRevision, SourceProfile
 from app.flowhub.sources.spreadsheet_source import (
     SpreadsheetSourceReadService,
     normalize_read_policy,
@@ -81,7 +85,7 @@ _CHANNELS = [
     {
         "id": "woocommerce:primary",
         "provider": "woocommerce",
-        "name": "ووکامرس",
+        "name": "WooCommerce",
         "status": "current",
         "implemented": True,
         "placeholder": False,
@@ -89,7 +93,7 @@ _CHANNELS = [
     {
         "id": "snappshop:main",
         "provider": "snappshop",
-        "name": "اسنپ شاپ",
+        "name": "SnappShop",
         "status": "current",
         "implemented": True,
         "placeholder": False,
@@ -97,7 +101,7 @@ _CHANNELS = [
     {
         "id": "tapsishop:main",
         "provider": "tapsishop",
-        "name": "تپ‌سی شاپ",
+        "name": "TapsiShop",
         "status": "current",
         "implemented": True,
         "placeholder": False,
@@ -105,7 +109,7 @@ _CHANNELS = [
     {
         "id": "digikala:main",
         "provider": "digikala",
-        "name": "دیجی‌کالا",
+        "name": "Digikala",
         "status": "future",
         "implemented": False,
         "placeholder": True,
@@ -113,7 +117,7 @@ _CHANNELS = [
     {
         "id": "technolife:main",
         "provider": "technolife",
-        "name": "تکنولایف",
+        "name": "Technolife",
         "status": "current",
         "implemented": True,
         "placeholder": False,
@@ -121,12 +125,26 @@ _CHANNELS = [
     {
         "id": "shopify:main",
         "provider": "shopify",
-        "name": "شاپیفای",
+        "name": "Shopify",
         "status": "future",
         "implemented": False,
         "placeholder": True,
     },
 ]
+
+# These exact values shipped as system defaults before channel names became
+# locale-aware. They are not Owner custom names and must render as the current
+# locale's canonical brand label. Any other persisted value remains custom.
+_CHANNEL_SYSTEM_NAME_ALIASES = {
+    "woocommerce": frozenset({"woocommerce", "ووکامرس"}),
+    "snappshop": frozenset({"snappshop", "snapp shop", "اسنپ شاپ"}),
+    "tapsishop": frozenset({"tapsishop", "tapsi shop", "تپ‌سی شاپ"}),
+    "digikala": frozenset({"digikala", "دیجی‌کالا"}),
+    "technolife": frozenset({"technolife", "تکنولایف"}),
+    "shopify": frozenset({"shopify", "شاپیفای"}),
+}
+_CHANNEL_DISPLAY_NAME_CUSTOM_KEY = "_flowhub_display_name_custom"
+_CHANNEL_IDS = frozenset(str(item["id"]) for item in _CHANNELS)
 
 _SOURCES = [
     {
@@ -260,6 +278,7 @@ class CommerceHubService:
         meta = self._channel_meta(channel_id)
         item = self._channel_contract(meta)
         configured = item["credential_status"] == "configured" or self._has_submitted_credentials(meta, body)
+        record_health = self._channel_test_matches_stored_configuration(meta, body)
         placeholder = bool(meta["placeholder"])
         if placeholder:
             return self._placeholder_connection_result()
@@ -273,7 +292,8 @@ class CommerceHubService:
             result = await self._test_technolife_channel_connection(configured, body)
         else:
             return self._unsupported_connection_result()
-        self._record_channel_test_health(meta, result)
+        if record_health:
+            self._record_channel_test_health(meta, result)
         return result
 
     async def refresh_channel_cache(
@@ -620,14 +640,21 @@ class CommerceHubService:
         ):
             self._clear_source_health(source_id)
         instance = self.db.get(IntegrationConnectorInstance, source_id)
+        connection_configured = (
+            self._nextcloud_connection_configured(instance)
+            if provider == "nextcloud"
+            else self._instance_configured(instance)
+        )
+        setup_configured = self._source_setup_configured(source_id, provider, instance)
         return {
             **result,
             "source_id": source_id,
-            "configured": self._instance_configured(instance),
-            "connection_configured": (
-                self._nextcloud_connection_configured(instance)
-                if provider == "nextcloud"
-                else self._instance_configured(instance)
+            "configured": setup_configured,
+            "connection_configured": connection_configured,
+            "configuration_state": self._source_configuration_state(
+                meta,
+                connection_configured=connection_configured,
+                configured=setup_configured,
             ),
             "access_mode": ACCESS_MODE_READ_ONLY,
             "read_only": True,
@@ -673,7 +700,9 @@ class CommerceHubService:
         self._ensure_instance(meta)
         if provider == "woocommerce":
             self._persist_woocommerce_app_config(body)
-        result = self.integration.update_settings_contract(channel_id, self._settings_body(body))
+        result = self._public_channel_settings_result(
+            self.integration.update_settings_contract(channel_id, self._settings_body(body))
+        )
         self._update_instance_state(meta, body, access_mode=access_mode)
         self.integration.record_event(
             connector_id=channel_id,
@@ -737,7 +766,9 @@ class CommerceHubService:
             self.db.rollback()
             raise
 
-        result = self.integration.get_settings_contract(channel_id)
+        result = self._public_channel_settings_result(
+            self.integration.get_settings_contract(channel_id)
+        )
         instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         effective_access_mode = self._access_mode(instance)
         write_pipeline_eligible = self._write_pipeline_eligible(meta, instance)
@@ -750,6 +781,12 @@ class CommerceHubService:
             "write_blocked": not write_pipeline_eligible,
             "write_pipeline_eligible": write_pipeline_eligible,
         }
+
+    @staticmethod
+    def _public_channel_settings_result(result: dict) -> dict:
+        settings = dict(result.get("settings") or {})
+        settings.pop(_CHANNEL_DISPLAY_NAME_CUSTOM_KEY, None)
+        return {**result, "settings": settings}
 
     def _configuration_changed_fields(self, body: dict) -> list[str]:
         changed = set((body.get("settings") or {}).keys()) if isinstance(body.get("settings"), dict) else set()
@@ -786,15 +823,24 @@ class CommerceHubService:
                     settings[item.key] = self._configuration_setting_value(
                         str(meta["provider"]), item.key, item.value_json
                     )
+        connection_configured = (
+            self._nextcloud_connection_configured(instance)
+            if meta["provider"] == "nextcloud"
+            else self._instance_configured(instance)
+        )
+        setup_configured = self._source_setup_configured(
+            source_id, str(meta["provider"]), instance
+        )
         return {
             "source_id": source_id,
             "provider": meta["provider"],
             "display_name": instance.name if instance else meta["name"],
-            "configured": self._instance_configured(instance),
-            "connection_configured": (
-                self._nextcloud_connection_configured(instance)
-                if meta["provider"] == "nextcloud"
-                else self._instance_configured(instance)
+            "configured": setup_configured,
+            "connection_configured": connection_configured,
+            "configuration_state": self._source_configuration_state(
+                meta,
+                connection_configured=connection_configured,
+                configured=setup_configured,
             ),
             "enabled": bool(instance and instance.enabled),
             "access_mode": ACCESS_MODE_READ_ONLY,
@@ -832,14 +878,16 @@ class CommerceHubService:
                         "status": "configured" if item.configured else "not_configured",
                         "replaced_at": self._iso(item.updated_at),
                     }
-                else:
+                elif item.key != _CHANNEL_DISPLAY_NAME_CUSTOM_KEY:
                     settings[item.key] = self._configuration_setting_value(
                         str(meta["provider"]), item.key, item.value_json
                     )
+        display_name, display_name_custom = self._channel_display_name(meta, instance)
         return {
             "channel_id": channel_id,
             "provider": meta["provider"],
-            "display_name": instance.name if instance else meta["name"],
+            "display_name": display_name,
+            "display_name_custom": display_name_custom,
             "configured": self._instance_configured(instance),
             "enabled": bool(instance and instance.enabled),
             "access_mode": self._access_mode(instance),
@@ -942,12 +990,32 @@ class CommerceHubService:
             instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         health = self._health(str(meta["id"]))
         configured = self._instance_configured(instance)
+        connection_configured = (
+            self._nextcloud_connection_configured(instance)
+            if provider == "nextcloud"
+            else configured
+        )
         secret_status = self._secret_status(instance)
+        setup_configured = self._source_setup_configured(
+            str(meta["id"]), provider, instance
+        )
         read_status = SpreadsheetSourceReadService(self.db).read_status() if provider == "nextcloud" else None
         body = {
             **meta,
             "status": self._status(meta, instance, health),
-            "credential_status": "configured" if configured else "not_configured",
+            # Nextcloud connection credentials are complete before the later
+            # spreadsheet setup is complete. Keep those states distinct so
+            # clients do not have to infer persisted setup from health or UI
+            # draft values.
+            "credential_status": (
+                "configured" if connection_configured else "not_configured"
+            ),
+            "connection_configured": connection_configured,
+            "configuration_state": self._source_configuration_state(
+                meta,
+                connection_configured=connection_configured,
+                configured=setup_configured,
+            ),
             "last_health_check": self._iso(health.checked_at) if health else None,
             "health": self._health_contract(health),
             "runtime_write_blocked": True,
@@ -966,6 +1034,60 @@ class CommerceHubService:
             ] if definition else []
             body["secrets"] = secret_status
         return body
+
+    @staticmethod
+    def _source_configuration_state(
+        meta: dict, *, connection_configured: bool, configured: bool
+    ) -> str:
+        """Describe persisted Source setup without relying on health evidence."""
+        if bool(meta.get("placeholder")) or not connection_configured:
+            return "not_configured"
+        if not configured:
+            return "setup_required"
+        return "configured"
+
+    def _source_setup_configured(
+        self,
+        source_id: str,
+        provider: str,
+        instance: IntegrationConnectorInstance | None,
+    ) -> bool:
+        """Return complete persisted setup state for Source status presentation."""
+        if provider != "nextcloud":
+            return self._instance_configured(instance)
+        if not self._instance_configured(instance):
+            return False
+
+        settings = {item.key: item for item in instance.settings} if instance else {}
+        worksheet_mode = str(
+            settings.get("worksheet_mode").value_json
+            if settings.get("worksheet_mode") is not None
+            else "all"
+        ).strip().lower()
+        if worksheet_mode not in {"all", "selected"}:
+            return False
+        if worksheet_mode == "selected":
+            worksheet_name = settings.get("worksheet_name")
+            if worksheet_name is None or not str(worksheet_name.value_json or "").strip():
+                return False
+
+        currency = PricingMatrixService(self.db).unit_declaration("source", source_id)
+        if currency.get("status") != "resolved":
+            return False
+
+        managed_source = (
+            self.db.query(SourceProfile)
+            .filter_by(external_source_id=source_id, status="active")
+            .one_or_none()
+        )
+        if managed_source is None:
+            return False
+        return (
+            self.db.query(SourceMappingRevision.id)
+            .filter(SourceMappingRevision.source_id == managed_source.id)
+            .first()
+            is not None
+        )
 
     def _channel_contract(self, meta: dict, detail: bool = False) -> dict:
         provider = str(meta["provider"])
@@ -996,10 +1118,12 @@ class CommerceHubService:
             cached_products = len(cache_rows) - cached_variations
         latest_refresh = self._latest_product_refresh(str(meta["id"]))
         configuration_state = self._channel_configuration_state(instance, health, latest_refresh)
+        display_name, display_name_custom = self._channel_display_name(meta, instance)
         body = {
             "id": meta["id"],
             "provider": provider,
-            "name": meta["name"],
+            "name": display_name,
+            "display_name_custom": display_name_custom,
             "type": "Channel",
             "status": self._status(meta, instance, health),
             "implemented": meta["implemented"],
@@ -1041,6 +1165,90 @@ class CommerceHubService:
             ] if definition else []
             body["secrets"] = secret_status
         return body
+
+    @staticmethod
+    def _channel_display_name(
+        meta: dict, instance: IntegrationConnectorInstance | None
+    ) -> tuple[str, bool]:
+        """Return a canonical system label or a persisted Owner custom name."""
+
+        provider = str(meta["provider"])
+        persisted = str(instance.name or "").strip() if instance is not None else ""
+        aliases = _CHANNEL_SYSTEM_NAME_ALIASES.get(provider, frozenset())
+        explicitly_custom = bool(
+            instance
+            and any(
+                setting.key == _CHANNEL_DISPLAY_NAME_CUSTOM_KEY
+                and setting.configured
+                and setting.value_json is True
+                for setting in instance.settings
+            )
+        )
+        custom = bool(persisted) and (
+            explicitly_custom or persisted.casefold() not in aliases
+        )
+        return (persisted, True) if custom else (str(meta["name"]), False)
+
+    @staticmethod
+    def channel_display_name_for_instance(
+        instance: IntegrationConnectorInstance,
+    ) -> tuple[str, bool]:
+        """Resolve one persisted instance for non-Commerce channel surfaces."""
+
+        meta = next(
+            (
+                item
+                for item in _CHANNELS
+                if str(item["provider"]) == instance.connector_type
+            ),
+            None,
+        )
+        if meta is None:
+            definition = registry.get_definition(instance.connector_type)
+            meta = {
+                "provider": instance.connector_type,
+                "name": (
+                    definition.connector.identity.name
+                    if definition is not None
+                    else instance.connector_type
+                ),
+            }
+        return CommerceHubService._channel_display_name(meta, instance)
+
+    @staticmethod
+    def _set_channel_display_name_custom(
+        instance: IntegrationConnectorInstance,
+        *,
+        custom: bool,
+    ) -> None:
+        """Persist explicit Owner-name provenance without a schema migration."""
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        marker = next(
+            (
+                setting
+                for setting in instance.settings
+                if setting.key == _CHANNEL_DISPLAY_NAME_CUSTOM_KEY
+            ),
+            None,
+        )
+        if marker is None:
+            if not custom:
+                return
+            instance.settings.append(
+                IntegrationConnectorSetting(
+                    key=_CHANNEL_DISPLAY_NAME_CUSTOM_KEY,
+                    value_json=custom,
+                    secret=False,
+                    configured=True,
+                    updated_at=now,
+                )
+            )
+            return
+        marker.value_json = custom
+        marker.secret = False
+        marker.configured = True
+        marker.updated_at = now
 
     def _cache_refresh_result(
         self,
@@ -1192,6 +1400,14 @@ class CommerceHubService:
         display_name = str(body.get("display_name") or "").strip() if isinstance(body, dict) else ""
         if display_name:
             row.name = display_name
+            if str(meta.get("id")) in _CHANNEL_IDS:
+                self._set_channel_display_name_custom(
+                    row,
+                    custom=(
+                        display_name.casefold()
+                        != str(meta.get("name") or "").strip().casefold()
+                    ),
+                )
         enabled = body.get("enabled") if isinstance(body, dict) else None
         if enabled is not None:
             row.enabled = bool(enabled) and not bool(meta.get("placeholder"))
@@ -1289,6 +1505,22 @@ class CommerceHubService:
                 ).strip()
             )
         return False
+
+    def _channel_test_matches_stored_configuration(
+        self, meta: dict, body: dict | None
+    ) -> bool:
+        """Persist health only when the probe represents the saved connector."""
+        provider = str(meta["provider"])
+        if provider == "woocommerce":
+            return self._woocommerce_values(body) == self._woocommerce_values({})
+        if provider not in {"snappshop", "tapsishop", "technolife"}:
+            return False
+        tested_settings, tested_secrets = self._connector_values(provider, body)
+        stored_settings, stored_secrets = self._connector_values(provider, {})
+        return (
+            tested_settings == stored_settings
+            and tested_secrets == stored_secrets
+        )
 
     def _validate_channel_configuration(self, meta: dict, body: dict) -> None:
         provider = str(meta["provider"])
@@ -1621,7 +1853,10 @@ class CommerceHubService:
         )
 
     async def _test_tapsishop_channel_connection(self, configured: bool, body: dict | None = None) -> dict:
-        connector = self._tapsishop_connector(body)
+        # A connection test is observational: it must never rotate, revoke, or
+        # persist marketplace credentials. Token refresh remains available to
+        # normal connector operations after explicit configuration Save.
+        connector = self._tapsishop_connector(body, allow_token_refresh=False)
         if not configured or connector is None:
             return {
                 **self._connection_base(),
@@ -1670,7 +1905,9 @@ class CommerceHubService:
             "vendor_information": self._vendor_contract(vendor),
         }
 
-    def _tapsishop_connector(self, body: dict | None = None) -> TapsiShopConnector | None:
+    def _tapsishop_connector(
+        self, body: dict | None = None, *, allow_token_refresh: bool = True
+    ) -> TapsiShopConnector | None:
         settings, secrets = self._connector_values("tapsishop", body)
         try:
             config = TapsiShopConfig.from_values(
@@ -1680,13 +1917,16 @@ class CommerceHubService:
         except (TypeError, ValueError):
             return None
 
+        if not allow_token_refresh and config.refresh_enabled:
+            config = replace(config, refresh_enabled=False)
+
         def update_token(new_token: str) -> None:
             self.integration.config.set("tapsishop.token", new_token, updated_by="tapsishop_refresh")
 
         return TapsiShopConnector(
             channel_id="tapsishop:main",
             config=config,
-            token_updater=update_token,
+            token_updater=update_token if allow_token_refresh else None,
         )
 
     async def _test_technolife_channel_connection(

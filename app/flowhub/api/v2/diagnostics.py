@@ -7,6 +7,7 @@ No live WooCommerce, Nextcloud, or direct httpx call is performed here.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -16,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.flowhub.auth.dependencies import get_current_user
 from app.flowhub.auth.models import FlowHubUser
+from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.data_layer.models import DlSourceSnapshot
 from app.flowhub.database import get_db
 from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
@@ -23,6 +25,7 @@ from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.rate_limit.service import RateLimitService
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
+logger = logging.getLogger(__name__)
 
 
 class DiagnosticRunRequest(BaseModel):
@@ -83,6 +86,7 @@ async def diagnostics_status(
     connectors = [
         {
             **item,
+            **_source_connection_test_metadata(item, db),
             "last_successful_operation": (
                 source_last_reads[item["id"]].isoformat() + "Z"
                 if item["id"] in source_last_reads
@@ -105,6 +109,44 @@ async def diagnostics_status(
         "telemetryContract": telemetry_contract,
         "rateLimiter": rate_limits,
         "external_call_performed": False,
+    }
+
+
+def _source_connection_test_metadata(
+    connector: dict[str, Any], db: Session
+) -> dict[str, Any]:
+    """Expose only persisted readiness metadata for Diagnostics actions."""
+    connector_type = str(connector.get("connector_type") or "")
+    connector_id = str(connector.get("id") or "")
+    if connector_type != "nextcloud":
+        return {
+            "connection_test_supported": False,
+            "connection_configured": False,
+            "credentials_configured": False,
+        }
+
+    try:
+        configuration = CommerceHubService(db).get_source_configuration(connector_id)
+    except Exception as exc:
+        logger.error(
+            "source_connection_test_metadata_unavailable",
+            extra={
+                "connector_id": connector_id,
+                "connector_type": connector_type,
+                "exception_type": type(exc).__name__,
+            },
+        )
+        return {
+            "connection_test_supported": True,
+            "connection_configured": False,
+            "credentials_configured": False,
+        }
+
+    connection_configured = bool(configuration.get("connection_configured"))
+    return {
+        "connection_test_supported": True,
+        "connection_configured": connection_configured,
+        "credentials_configured": connection_configured,
     }
 
 

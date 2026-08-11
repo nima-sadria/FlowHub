@@ -11,6 +11,10 @@ from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.database import FlowHubBase
+from app.flowhub.integration_platform.models import (
+    IntegrationConnectorInstance,
+    IntegrationConnectorSetting,
+)
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.source_workspace.service import SourceWorkspaceService
 from app.flowhub.unified_workspace.models import (
@@ -100,6 +104,39 @@ def test_available_channels_seeds_each_implemented_channel_once_on_empty_databas
     assert technolife[0]["implementationState"] == "implemented"
     assert technolife[0]["enabled"] is True
     assert db.query(WorkspaceChannel).filter_by(id="technolife:main").count() == 1
+
+
+def test_available_channels_uses_commerce_resolved_owner_display_name() -> None:
+    db = _session()
+    db.add(
+        IntegrationConnectorInstance(
+            id="woocommerce:primary",
+            connector_type="woocommerce",
+            name="ووکامرس",
+            enabled=True,
+            read_only=True,
+            status="configured",
+            settings=[
+                IntegrationConnectorSetting(
+                    key="_flowhub_display_name_custom",
+                    value_json=True,
+                    secret=False,
+                    configured=True,
+                )
+            ],
+        )
+    )
+    db.commit()
+
+    item = next(
+        item
+        for item in SourceWorkspaceService(db).available_channels()["items"]
+        if item["channelId"] == "woocommerce:primary"
+    )
+
+    assert item["name"] == "ووکامرس"
+    assert item["displayNameCustom"] is True
+    assert db.get(WorkspaceChannel, "woocommerce:primary").name == "WooCommerce"
 
 
 def test_available_channels_upgrades_an_existing_placeholder_to_implemented() -> None:

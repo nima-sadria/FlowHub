@@ -1272,6 +1272,14 @@ def test_nextcloud_source_settings_allow_credentials_before_spreadsheet_selectio
 ):
     from app.flowhub.setup.service import AppConfigService
 
+    initial = client.get("/api/v2/commerce/sources", headers=auth_headers)
+    assert initial.status_code == 200
+    initial_source = next(
+        item for item in initial.json()["items"] if item["id"] == "nextcloud:primary"
+    )
+    assert initial_source["connection_configured"] is False
+    assert initial_source["configuration_state"] == "not_configured"
+
     response = client.put(
         "/api/v2/commerce/sources/nextcloud:primary/settings",
         headers=auth_headers,
@@ -1292,8 +1300,90 @@ def test_nextcloud_source_settings_allow_credentials_before_spreadsheet_selectio
     detail = client.get("/api/v2/commerce/sources/nextcloud:primary", headers=auth_headers)
     assert detail.status_code == 200
     # The credentials are saved, but the Source remains incomplete until a
-    # spreadsheet is selected.
-    assert detail.json()["credential_status"] == "not_configured"
+    # spreadsheet is selected. These persisted states must remain distinct.
+    assert detail.json()["credential_status"] == "configured"
+    assert detail.json()["connection_configured"] is True
+    assert detail.json()["configuration_state"] == "setup_required"
+
+    completed = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/Reports/prices.xlsx",
+            },
+            "secrets": {"password": ""},
+            "currency": "IRR",
+            "currency_unit": "RIAL",
+        },
+    )
+    assert completed.status_code == 200
+
+    listed_incomplete = client.get("/api/v2/commerce/sources", headers=auth_headers)
+    assert listed_incomplete.status_code == 200
+    incomplete_source = next(
+        item
+        for item in listed_incomplete.json()["items"]
+        if item["id"] == "nextcloud:primary"
+    )
+    assert incomplete_source["configuration_state"] == "setup_required"
+
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.source_workspace.service import SourceWorkspaceService
+
+    user = db.query(FlowHubUser).one()
+    workspace = SourceWorkspaceService(db)
+    managed = workspace.create_source(
+        name="Nextcloud",
+        source_kind="external",
+        external_source_id="nextcloud:primary",
+        worksheet_mode="all",
+        worksheet_name=None,
+        data_start_row=2,
+        user=user,
+        currency="IRR",
+        currency_unit="RIAL",
+    )
+    workspace.save_mapping(
+        source_id=managed["id"],
+        expected_source_version=managed["version"],
+        worksheet_mode="all",
+        worksheet_name=None,
+        data_start_row=2,
+        source_fields=[
+            {
+                "field": "name",
+                "reference_type": "column_letter",
+                "reference_value": "A",
+                "required": True,
+            }
+        ],
+        channel_mappings=[
+            {
+                "channel_id": "woocommerce:primary",
+                "fields": [
+                    {
+                        "field": "external_id",
+                        "reference_type": "column_letter",
+                        "reference_value": "B",
+                    }
+                ],
+            }
+        ],
+        value_policy={},
+        user=user,
+    )
+
+    listed = client.get("/api/v2/commerce/sources", headers=auth_headers)
+    assert listed.status_code == 200
+    configured_source = next(
+        item for item in listed.json()["items"] if item["id"] == "nextcloud:primary"
+    )
+    assert configured_source["connection_configured"] is True
+    assert configured_source["configuration_state"] == "configured"
 
 
 def test_nextcloud_source_configuration_returns_editable_values_without_secrets(client, auth_headers, db):
@@ -2566,6 +2656,270 @@ def test_marketplace_configuration_metadata_is_sanitized_and_blank_secret_keeps_
     assert audit.created_at is not None
     assert secret_value not in str(audit.metadata_json)
     assert secret_value not in audit.message
+
+
+def test_channel_system_names_are_english_but_owner_custom_names_are_preserved(
+    client, auth_headers, db
+):
+    from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+
+    listed = client.get("/api/v2/commerce/channels", headers=auth_headers)
+    assert listed.status_code == 200
+    names = {item["provider"]: item["name"] for item in listed.json()["items"]}
+    assert names["woocommerce"] == "WooCommerce"
+    assert names["snappshop"] == "SnappShop"
+    assert names["tapsishop"] == "TapsiShop"
+    assert names["technolife"] == "Technolife"
+
+    created = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"url": "https://shop.example.test"},
+            "secrets": {"key": "consumer-key", "secret": "consumer-secret"},
+        },
+    )
+    assert created.status_code == 200
+
+    canonical_save = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "WooCommerce",
+            "enabled": True,
+            "settings": {"url": "https://shop.example.test"},
+            "secrets": {"key": "", "secret": ""},
+        },
+    )
+    assert canonical_save.status_code == 200
+    canonical_configuration = client.get(
+        "/api/v2/commerce/channels/woocommerce:primary/configuration",
+        headers=auth_headers,
+    ).json()
+    assert canonical_configuration["display_name"] == "WooCommerce"
+    assert canonical_configuration["display_name_custom"] is False
+
+    # Simulate an instance created before display-name provenance existed.
+    legacy_instance = db.get(IntegrationConnectorInstance, "woocommerce:primary")
+    assert legacy_instance is not None
+    legacy_instance.name = "ووکامرس"
+    db.commit()
+    configuration = client.get(
+        "/api/v2/commerce/channels/woocommerce:primary/configuration",
+        headers=auth_headers,
+    ).json()
+    assert configuration["display_name"] == "WooCommerce"
+    assert configuration["display_name_custom"] is False
+
+    explicitly_saved_alias = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "ووکامرس",
+            "enabled": True,
+            "settings": {"url": "https://shop.example.test"},
+            "secrets": {"key": "", "secret": ""},
+        },
+    )
+    assert explicitly_saved_alias.status_code == 200
+    assert "_flowhub_display_name_custom" not in explicitly_saved_alias.json()["settings"]
+    configuration = client.get(
+        "/api/v2/commerce/channels/woocommerce:primary/configuration",
+        headers=auth_headers,
+    ).json()
+    assert configuration["display_name"] == "ووکامرس"
+    assert configuration["display_name_custom"] is True
+    assert "_flowhub_display_name_custom" not in configuration["settings"]
+    db.expire_all()
+    persisted = db.get(IntegrationConnectorInstance, "woocommerce:primary")
+    assert persisted is not None
+    marker = next(
+        item
+        for item in persisted.settings
+        if item.key == "_flowhub_display_name_custom"
+    )
+    assert marker.value_json is True
+    assert marker.secret is False
+    assert marker.configured is True
+
+    order_sync_status = client.get(
+        "/api/v2/orders/sync-status", headers=auth_headers
+    )
+    assert order_sync_status.status_code == 200
+    woo_order_status = next(
+        item
+        for item in order_sync_status.json()["items"]
+        if item["channelId"] == "woocommerce:primary"
+    )
+    assert woo_order_status["displayName"] == "ووکامرس"
+    assert woo_order_status["displayNameCustom"] is True
+
+    custom_name = "فروشگاه تهران"
+    customized = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={
+            "display_name": custom_name,
+            "enabled": True,
+            "settings": {"url": "https://shop.example.test"},
+            "secrets": {"key": "", "secret": ""},
+        },
+    )
+    assert customized.status_code == 200
+    channel = client.get(
+        "/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers
+    ).json()
+    assert channel["name"] == custom_name
+    assert channel["display_name_custom"] is True
+
+
+def test_channel_draft_credentials_are_tested_but_replaced_only_on_save(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.data_layer.health_service import ConnectorHealthService
+    from app.flowhub.data_layer.models import DlConnectorHealth
+    from app.flowhub.setup.models import FlowHubAppConfig
+
+    saved = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"url": "https://saved.example.test"},
+            "secrets": {"key": "saved-key", "secret": "saved-secret"},
+        },
+    )
+    assert saved.status_code == 200
+    ConnectorHealthService(db).upsert(
+        connector_id="woocommerce:primary",
+        connector_type="woocommerce",
+        status="unhealthy",
+        detail="Saved connector evidence.",
+        error_class="authentication_failed",
+    )
+
+    observed = {}
+
+    async def successful_probe(credentials):
+        observed["url"] = credentials.url
+        observed["key"] = credentials.key
+        observed["secret"] = credentials.secret
+        return {"http_status": 200, "records_checked": 1}
+
+    monkeypatch.setattr(
+        "app.flowhub.commerce.service.ping_woocommerce", successful_probe
+    )
+    tested = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/test",
+        headers=auth_headers,
+        json={
+            "settings": {"url": "https://draft.example.test"},
+            "secrets": {"key": "draft-key", "secret": "draft-secret"},
+        },
+    )
+    assert tested.status_code == 200
+    assert tested.json()["ok"] is True
+    assert observed == {
+        "url": "https://draft.example.test",
+        "key": "draft-key",
+        "secret": "draft-secret",
+    }
+    assert db.get(FlowHubAppConfig, "woocommerce.url").value == "https://saved.example.test"
+    assert db.get(FlowHubAppConfig, "woocommerce.key").value == "saved-key"
+    assert db.get(FlowHubAppConfig, "woocommerce.secret").value == "saved-secret"
+    db.expire_all()
+    health = db.query(DlConnectorHealth).filter_by(
+        connector_id="woocommerce:primary"
+    ).one()
+    assert health.status == "unhealthy"
+    assert health.detail == "Saved connector evidence."
+
+    tested_saved = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/test",
+        headers=auth_headers,
+        json={},
+    )
+    assert tested_saved.status_code == 200
+    assert tested_saved.json()["ok"] is True
+    db.expire_all()
+    health = db.query(DlConnectorHealth).filter_by(
+        connector_id="woocommerce:primary"
+    ).one()
+    assert health.status == "healthy"
+    assert "Connected to WooCommerce" in health.detail
+
+    replaced = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"url": "https://draft.example.test"},
+            "secrets": {"key": "draft-key", "secret": "draft-secret"},
+        },
+    )
+    assert replaced.status_code == 200
+    db.expire_all()
+    assert db.get(FlowHubAppConfig, "woocommerce.key").value == "draft-key"
+    assert db.get(FlowHubAppConfig, "woocommerce.secret").value == "draft-secret"
+
+
+def test_tapsishop_test_connection_never_refreshes_or_replaces_saved_token(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.setup.models import FlowHubAppConfig
+
+    saved = client.put(
+        "/api/v2/commerce/channels/tapsishop:main/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {"token_refresh_enabled": True},
+            "secrets": {"token": "saved-tapsi-token"},
+        },
+    )
+    assert saved.status_code == 200
+
+    requested_urls = []
+
+    class FakeResponse:
+        headers = {}
+
+        def __init__(self, status_code, payload):
+            self.status_code = status_code
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    class FakeAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def request(self, method, url, **kwargs):
+            requested_urls.append(url)
+            if url.endswith("/refresh-token"):
+                return FakeResponse(200, {"success": True, "data": {"token": "rotated-token"}})
+            return FakeResponse(401, {"success": False})
+
+    monkeypatch.setattr(
+        "app.flowhub.channels.tapsishop.httpx.AsyncClient",
+        lambda **kwargs: FakeAsyncClient(),
+    )
+    tested = client.post(
+        "/api/v2/commerce/channels/tapsishop:main/test",
+        headers=auth_headers,
+        json={},
+    )
+
+    assert tested.status_code == 200
+    assert tested.json()["ok"] is False
+    assert all(not url.endswith("/refresh-token") for url in requested_urls)
+    db.expire_all()
+    assert db.get(FlowHubAppConfig, "tapsishop.token").value == "saved-tapsi-token"
 
 
 def test_tapsishop_configuration_reports_separate_secret_states_and_webhook_path(client, auth_headers):

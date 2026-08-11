@@ -9,9 +9,54 @@ from sqlalchemy.orm import Session
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.data_layer.models import DlProductCache
 from app.flowhub.database import FlowHubBase
+from app.flowhub.integration_platform.models import (
+    IntegrationConnectorInstance,
+    IntegrationConnectorSetting,
+)
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.source_workspace.service import SourceWorkspaceService
+from app.flowhub.unified_workspace.models import WorkspaceChannel
 from app.flowhub.unified_workspace.services import UnifiedWorkspaceService
+
+
+def test_workspace_channel_definitions_use_commerce_display_name_metadata() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    FlowHubBase.metadata.create_all(engine)
+    db = Session(engine)
+    db.add(
+        IntegrationConnectorInstance(
+            id="woocommerce:primary",
+            connector_type="woocommerce",
+            name="ووکامرس",
+            enabled=True,
+            read_only=True,
+            status="configured",
+            settings=[
+                IntegrationConnectorSetting(
+                    key="_flowhub_display_name_custom",
+                    value_json=True,
+                    secret=False,
+                    configured=True,
+                )
+            ],
+        )
+    )
+    db.commit()
+    service = UnifiedWorkspaceService(db)
+    service._seed_channels()
+
+    channel = next(
+        item
+        for item in service._channel_definitions()
+        if item["channelId"] == "woocommerce:primary"
+    )
+
+    assert channel["displayName"] == "ووکامرس"
+    assert channel["displayNameCustom"] is True
+    persisted = db.get(WorkspaceChannel, "woocommerce:primary")
+    assert persisted is not None
+    assert "displayName" not in persisted.capabilities_json
+    assert "displayNameCustom" not in persisted.capabilities_json
 
 
 def test_source_product_workspace_groups_listings_and_auto_selects_ready_changes() -> None:

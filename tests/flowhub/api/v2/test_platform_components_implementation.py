@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import pathlib
 import hmac
@@ -16,6 +17,7 @@ from app.flowhub.auth import models as _auth_models  # noqa: F401
 from app.flowhub.data_layer import models as _dl_models  # noqa: F401
 from app.flowhub.integration_platform import models as _ip_models  # noqa: F401
 from app.flowhub.logging_platform import models as _logging_models  # noqa: F401
+from app.flowhub.orders import models as _order_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
 
 
@@ -171,6 +173,99 @@ def test_integration_platform_canonical_contracts_and_write_guard(client, auth_h
         "execution_attempted": False,
         "correlation_id": write.json()["correlation_id"],
     }
+
+
+def test_internal_connector_metadata_is_hidden_from_all_public_setting_contracts(db):
+    from app.flowhub.integration_platform.models import (
+        IntegrationConnectorInstance,
+        IntegrationConnectorSetting,
+    )
+    from app.flowhub.integration_platform.service import IntegrationPlatformService
+
+    connector = IntegrationConnectorInstance(
+        id="woocommerce:internal-metadata",
+        connector_type="woocommerce",
+        name="Owner Store",
+        version="1.0.0",
+        enabled=True,
+        read_only=True,
+        status="configured",
+    )
+    connector.settings.extend([
+        IntegrationConnectorSetting(
+            key="url",
+            value_json="https://store.example.test",
+            secret=False,
+            configured=True,
+        ),
+        IntegrationConnectorSetting(
+            key="_flowhub_display_name_custom",
+            value_json=True,
+            secret=False,
+            configured=True,
+        ),
+    ])
+    db.add(connector)
+    db.commit()
+
+    service = IntegrationPlatformService(db)
+    contract = service.get_settings_contract(connector.id)
+    assert contract["settings"] == {"url": "https://store.example.test"}
+    assert [item.key for item in service.get_settings(connector.id)] == ["url"]
+    assert [item.key for item in service.get_instance(connector.id).settings] == ["url"]
+    summary = next(
+        item for item in service.settings_summary() if item.connector_id == connector.id
+    )
+    assert [item.key for item in summary.settings] == ["url"]
+
+
+def test_order_sync_status_exposes_exact_alias_custom_name_provenance(db):
+    from app.flowhub.api.v2.orders import get_order_sync_status
+    from app.flowhub.integration_platform.models import (
+        IntegrationConnectorInstance,
+        IntegrationConnectorSetting,
+    )
+    from app.flowhub.orders.service import OrderSyncService
+
+    connector = IntegrationConnectorInstance(
+        id="woocommerce:orders-custom",
+        connector_type="woocommerce",
+        name="ووکامرس",
+        version="1.0.0",
+        enabled=True,
+        read_only=True,
+        status="configured",
+    )
+    connector.settings.append(
+        IntegrationConnectorSetting(
+            key="_flowhub_display_name_custom",
+            value_json=True,
+            secret=False,
+            configured=True,
+        )
+    )
+    db.add(connector)
+    technolife = IntegrationConnectorInstance(
+        id="technolife:orders",
+        connector_type="technolife",
+        name="Technolife",
+        version="1.0.0",
+        enabled=True,
+        read_only=True,
+        status="configured",
+    )
+    db.add(technolife)
+    db.commit()
+
+    result = asyncio.run(get_order_sync_status(None, OrderSyncService(db)))
+    item = next(row for row in result["items"] if row["channelId"] == connector.id)
+    assert item["displayName"] == "ووکامرس"
+    assert item["displayNameCustom"] is True
+    technolife_item = next(
+        row for row in result["items"] if row["channelId"] == technolife.id
+    )
+    assert technolife_item["displayName"] == "Technolife"
+    assert technolife_item["displayNameCustom"] is False
 
 
 def test_canonical_nextcloud_connector_rejects_credential_url(client, auth_headers):

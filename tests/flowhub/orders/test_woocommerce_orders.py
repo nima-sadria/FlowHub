@@ -149,6 +149,10 @@ def test_order_list_filters_by_channel_status_search_and_date() -> None:
     assert service.list_orders(normalized_status="cancelled")["total"] == 0
     assert service.list_orders(search="901")["total"] == 1
     assert service.list_orders(date_from="2026-07-18")["total"] == 0
+    assert service.list_orders(date_to="2026-07-16")["total"] == 0
+    assert service.list_orders(date_to="2026-07-17")["total"] == 1
+    assert service.list_orders(date_to="2026-07-17T07:59:59")["total"] == 0
+    assert service.list_orders(date_to="2026-07-17T08:00:00")["total"] == 1
 
 
 @pytest.mark.asyncio

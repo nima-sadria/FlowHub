@@ -39,8 +39,16 @@ from app.flowhub.orders.models import ChannelOrderRecord, OrderSyncCheckpoint
 from app.flowhub.product_pricing.models import ProductPriceOperation, ProductPriceOperationItem
 from app.flowhub.webhooks.models import WebhookDeadLetter, WebhookReceipt
 
-DEFAULT_CHANNEL_IDS = ("woocommerce:primary", "snappshop:main", "tapsishop:main")
+DEFAULT_CHANNEL_IDS = (
+    "woocommerce:primary",
+    "snappshop:main",
+    "tapsishop:main",
+    "technolife:main",
+)
 SOURCE_CONNECTOR_TYPES = frozenset({"nextcloud", "csv", "gsheets", "erp"})
+CONNECTION_TEST_CHANNEL_TYPES = frozenset(
+    {"woocommerce", "snappshop", "tapsishop", "technolife"}
+)
 HEALTH_CACHE_SECONDS = 60
 EXTERNAL_CHECK_TIMEOUT_SECONDS = 8.0
 STALE_SYNC_AFTER = timedelta(hours=24)
@@ -82,6 +90,7 @@ class ChannelHealthReporter:
 
     def _unavailable_channel_shape(self, channel_id: str) -> dict[str, Any]:
         connector_type = channel_id.split(":", 1)[0]
+        definition = registry.get_definition(connector_type)
         unavailable = _dimension(
             DiagnosticState.ERROR,
             "Channel diagnostics could not be generated.",
@@ -94,6 +103,11 @@ class ChannelHealthReporter:
         return {
             "channelId": channel_id,
             "channelType": connector_type,
+            "displayName": (
+                definition.connector.identity.name
+                if definition
+                else connector_type
+            ),
             "enabled": False,
             "accessMode": "read_only",
             "status": "Unable to check",
@@ -109,6 +123,8 @@ class ChannelHealthReporter:
             "lastSuccessfulOperation": None,
             "lastErrorCategory": "diagnostic_unavailable",
             "capabilityState": {},
+            "connectionTestSupported": connector_type in CONNECTION_TEST_CHANNEL_TYPES,
+            "credentialsConfigured": False,
             "nextRecommendedAction": "Retry the diagnostic check.",
             "dimensions": {"configuration": unavailable, "externalApi": unavailable},
             "lastProductRead": None,
@@ -187,7 +203,7 @@ class ChannelHealthReporter:
         credentials_configured = self._credentials_configured(instance)
         capability_state = definition.connector.capabilities.model_dump() if definition else {}
         product_read_supported = bool(capability_state.get("read_products"))
-        external_probe_supported = connector_type in {"woocommerce", "snappshop", "tapsishop"}
+        external_probe_supported = connector_type in CONNECTION_TEST_CHANNEL_TYPES
         webhook = self._webhook_state(channel_id, connector_type, instance)
         polling_policy = self._polling_policy(channel_id)
         order_sync_expected = enabled and configured and self._order_sync_expected(
@@ -277,9 +293,18 @@ class ChannelHealthReporter:
         legacy_status = _legacy_channel_status(state)
         summary = self._state_summary(state, controlling_dimension)
         recommended_action = str(controlling_dimension.get("recommended_action") or "")
+        display_name, display_name_custom = CommerceHubService._channel_display_name(
+            {
+                "provider": connector_type,
+                "name": definition.connector.identity.name if definition else connector_type,
+            },
+            instance,
+        )
         return {
             "channelId": channel_id,
             "channelType": connector_type,
+            "displayName": display_name,
+            "displayNameCustom": display_name_custom,
             "enabled": enabled,
             "accessMode": self._access_mode(instance),
             "status": legacy_status,
@@ -304,6 +329,7 @@ class ChannelHealthReporter:
             "lastSuccessfulSyncOrRead": _iso(_max_dt(product_read, order_sync)),
             "lastErrorCategory": health.error_class if health else None,
             "capabilityState": capability_state,
+            "connectionTestSupported": external_probe_supported,
             "nextRecommendedAction": recommended_action,
             "dimensions": dimensions,
             "lastProductRead": _iso(product_read),
@@ -354,6 +380,7 @@ class ChannelHealthReporter:
             "woocommerce": {"url", "key", "secret"},
             "snappshop": {"token", "agent_identifier", "vendor_id"},
             "tapsishop": {"token"},
+            "technolife": {"api_key", "encryption_secret"},
         }.get(instance.connector_type, set())
         settings = {item.key: item for item in instance.settings}
         return bool(required) and all(settings.get(key) and settings[key].configured for key in required)
@@ -365,6 +392,7 @@ class ChannelHealthReporter:
             "woocommerce": {"url", "key", "secret"},
             "snappshop": {"token", "agent_identifier"},
             "tapsishop": {"token"},
+            "technolife": {"api_key", "encryption_secret"},
         }.get(instance.connector_type, set())
         settings = {item.key: item for item in instance.settings}
         return bool(required) and all(settings.get(key) and settings[key].configured for key in required)

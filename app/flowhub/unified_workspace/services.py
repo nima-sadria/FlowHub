@@ -1176,10 +1176,7 @@ class UnifiedWorkspaceService:
                     "fields": fields,
                 }
             )
-        channels = [
-            self._channel_shape(connector.capabilities())
-            for connector in self.connectors.implemented()
-        ]
+        channels = self._channel_definitions()
         return {
             "items": items,
             "total": total,
@@ -1406,10 +1403,7 @@ class UnifiedWorkspaceService:
                 ),
                 "selected": selected_item_count,
             },
-            "channels": [
-                self._channel_shape(connector.capabilities())
-                for connector in self.connectors.implemented()
-            ],
+            "channels": self._channel_definitions(),
             "draftVersion": draft.version,
             "revisionId": draft.current_revision_id,
             "reviewId": latest_review.id if latest_review else None,
@@ -4274,8 +4268,11 @@ class UnifiedWorkspaceService:
         return canonical_text(first) or None
 
     @staticmethod
-    def _channel_shape(capabilities: ChannelCapabilities) -> dict[str, Any]:
-        return {
+    def _channel_shape(
+        capabilities: ChannelCapabilities,
+        commerce_channel: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        shape = {
             "channelId": capabilities.channel_id,
             "readPrice": capabilities.read_price,
             "writePrice": capabilities.write_price,
@@ -4298,6 +4295,24 @@ class UnifiedWorkspaceService:
             "writeAvailable": capabilities.write_available,
             "version": capabilities.version,
         }
+        if commerce_channel is not None:
+            shape["displayName"] = commerce_channel.get("name")
+            shape["displayNameCustom"] = bool(
+                commerce_channel.get("display_name_custom")
+            )
+        return shape
+
+    def _channel_definitions(self) -> list[dict[str, Any]]:
+        commerce_channels = {
+            item["id"]: item for item in self.commerce.list_channels()["items"]
+        }
+        return [
+            self._channel_shape(
+                connector.capabilities(),
+                commerce_channels.get(connector.channel_id),
+            )
+            for connector in self.connectors.implemented()
+        ]
 
     @staticmethod
     def _revision_shape(revision: DraftRevision) -> dict[str, Any]:

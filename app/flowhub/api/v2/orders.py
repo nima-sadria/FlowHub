@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.flowhub.auth.dependencies import get_current_user
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.channels.woocommerce import build_woocommerce_order_connector
+from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.database import get_db
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.orders.models import OrderSyncCheckpoint
@@ -67,7 +68,7 @@ async def get_order_sync_status(
         service.db.query(IntegrationConnectorInstance)
         .filter(
             IntegrationConnectorInstance.connector_type.in_(
-                ("woocommerce", "snappshop", "tapsishop")
+                ("woocommerce", "snappshop", "tapsishop", "technolife")
             )
         )
         .order_by(IntegrationConnectorInstance.name.asc())
@@ -75,6 +76,9 @@ async def get_order_sync_status(
     )
     items: list[dict[str, Any]] = []
     for row in rows:
+        display_name, display_name_custom = (
+            CommerceHubService.channel_display_name_for_instance(row)
+        )
         checkpoint = (
             service.db.query(OrderSyncCheckpoint)
             .filter_by(channel_id=row.id, source="reconciliation")
@@ -95,7 +99,8 @@ async def get_order_sync_status(
             {
                 "channelId": row.id,
                 "connectorType": row.connector_type,
-                "displayName": row.name,
+                "displayName": display_name,
+                "displayNameCustom": display_name_custom,
                 "enabled": row.enabled,
                 "state": state,
                 "lastRunAt": _iso(checkpoint.last_run_at if checkpoint else None),

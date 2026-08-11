@@ -75,6 +75,10 @@ _SECRET_KEYS = {
     "authorization",
 }
 
+# FlowHub-owned persistence metadata must never become part of connector
+# settings APIs, exports, or Settings-page summaries.
+_INTERNAL_SETTING_KEYS = frozenset({"_flowhub_display_name_custom"})
+
 logger = logging.getLogger(__name__)
 
 
@@ -313,6 +317,8 @@ class IntegrationPlatformService:
         settings: dict[str, object] = {}
         secrets: dict[str, dict[str, str | None]] = {}
         for item in row.settings:
+            if item.key in _INTERNAL_SETTING_KEYS:
+                continue
             if item.secret:
                 secrets[item.key] = {
                     "status": "configured" if item.configured else "not_configured",
@@ -951,7 +957,11 @@ class IntegrationPlatformService:
         )
         return ConnectorInstanceShape(
             connector=descriptor,
-            settings=[self._setting_to_shape(item, row.connector_type) for item in row.settings],
+            settings=[
+                self._setting_to_shape(item, row.connector_type)
+                for item in row.settings
+                if item.key not in _INTERNAL_SETTING_KEYS
+            ],
             created_at=_iso(row.created_at),
             updated_at=_iso(row.updated_at),
         )

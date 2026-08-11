@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from typing import Any
 
@@ -454,9 +454,15 @@ class OrderSyncService:
             )
         parsed_from = _parse_dt(date_from)
         parsed_to = _parse_dt(date_to)
+        date_only_to = _parse_date_only(date_to)
         if parsed_from is not None:
             query = query.filter(ChannelOrderRecord.created_at_provider >= parsed_from)
-        if parsed_to is not None:
+        if date_only_to is not None:
+            query = query.filter(
+                ChannelOrderRecord.created_at_provider
+                < datetime.combine(date_only_to + timedelta(days=1), datetime.min.time())
+            )
+        elif parsed_to is not None:
             query = query.filter(ChannelOrderRecord.created_at_provider <= parsed_to)
         total = query.count()
         rows = (
@@ -1081,6 +1087,19 @@ def _parse_dt(value: str | None) -> datetime | None:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00")).replace(tzinfo=None)
     except ValueError:
         return None
+
+
+def _parse_date_only(value: str | None) -> date | None:
+    """Parse the exact public date-only form without changing datetime bounds."""
+
+    if not value:
+        return None
+    text = str(value).strip()
+    try:
+        parsed = date.fromisoformat(text)
+    except ValueError:
+        return None
+    return parsed if parsed.isoformat() == text else None
 
 
 def _iso(value: datetime | None) -> str | None:

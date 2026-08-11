@@ -146,7 +146,10 @@ class SourceWorkspaceService:
             "items": [
                 {
                     "channelId": item.id,
-                    "name": item.name,
+                    "name": commerce_channels.get(item.id, {}).get("name") or item.name,
+                    "displayNameCustom": bool(
+                        commerce_channels.get(item.id, {}).get("display_name_custom")
+                    ),
                     "connectorType": item.connector_type,
                     "capabilityVersion": item.capability_version,
                     "capabilities": item.capabilities_json,

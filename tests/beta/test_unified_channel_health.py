@@ -274,8 +274,43 @@ def test_all_unconfigured_channels_return_normalized_disabled_health(client, aut
 
     assert response.status_code == 200
     items = response.json()["items"]
-    assert {item["channelId"] for item in items}.issuperset({"woocommerce:primary", "snappshop:main", "tapsishop:main"})
+    assert {item["channelId"] for item in items}.issuperset(
+        {
+            "woocommerce:primary",
+            "snappshop:main",
+            "tapsishop:main",
+            "technolife:main",
+        }
+    )
     assert all(item["status"] == "Disabled" for item in items)
+    assert all(
+        item["connectionTestSupported"] is True
+        for item in items
+        if item["channelId"] in {
+            "woocommerce:primary",
+            "snappshop:main",
+            "tapsishop:main",
+            "technolife:main",
+        }
+    )
+
+
+def test_technolife_diagnostics_exposes_its_real_connection_probe(db):
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+
+    _seed_channel(
+        db,
+        "technolife:main",
+        "technolife",
+        enabled=True,
+        settings={"api_key": None, "encryption_secret": None},
+    )
+
+    item = _item(ChannelHealthReporter(db).report(), "technolife:main")
+
+    assert item["connectionTestSupported"] is True
+    assert item["credentialsConfigured"] is True
+    assert item["dimensions"]["externalApi"]["state"] == "NOT_CHECKED"
 
 
 def test_source_connector_instances_do_not_appear_in_channel_health(db):
@@ -319,6 +354,10 @@ def test_diagnostics_status_reports_last_successful_source_read(client, db, auth
     assert response.status_code == 200
     source = next(item for item in response.json()["connectors"] if item["id"] == "nextcloud:primary")
     assert source["last_successful_operation"].startswith(read_at.isoformat())
+    assert source["connection_test_supported"] is True
+    assert source["connection_configured"] is True
+    assert source["credentials_configured"] is True
+    assert "password" not in json.dumps(source).lower()
 
 
 def test_refresh_reports_external_call_only_when_provider_boundary_was_used(db, monkeypatch):
