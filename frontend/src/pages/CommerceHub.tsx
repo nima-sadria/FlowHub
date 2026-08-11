@@ -790,6 +790,17 @@ export function ConfigPanel({
     && savedNextcloudSpreadsheetPath === String(settings.spreadsheet_path ?? '').trim()
   const worksheetSelected = spreadsheetSelected
     && (worksheetMode === 'all' || Boolean(worksheetName.trim()))
+  const worksheetPolicyDraftValid = worksheetMode === 'all' || Boolean(worksheetName.trim())
+  // Setup gates control first-time progression. Once a Source has completed
+  // setup, stale or intentionally edited upstream drafts must not permanently
+  // lock its downstream policy editors.
+  const completedSourceSetup = isNextcloudSource && configurationWasConfigured
+  const worksheetStepAvailable = !isNextcloudSource
+    || completedSourceSetup
+    || (persistedNextcloudConnectionConfigured && spreadsheetSelected)
+  const downstreamPolicyStepsAvailable = !isNextcloudSource
+    || completedSourceSetup
+    || (persistedNextcloudConnectionConfigured && worksheetSelected)
   const hasLastTestEvidence = Boolean(
     lastTestEvidence
       && (lastTestEvidence.checked_at
@@ -815,8 +826,9 @@ export function ConfigPanel({
       persistedNextcloudConnectionConfigured
       && nextcloudConnectionReady
       && !nextcloudUrlError
-      && spreadsheetSelected
-      && worksheetSelected
+      && (completedSourceSetup
+        ? worksheetPolicyDraftValid
+        : spreadsheetSelected && worksheetSelected)
     ))
     && (!vendorSelectionRequired || Boolean(settings.vendor_id?.trim()))
 
@@ -830,6 +842,11 @@ export function ConfigPanel({
     const connectionSettings = connectionOnly
       ? Object.fromEntries(Object.entries(settings).filter(([key]) => key !== 'spreadsheet_path'))
       : settings
+    const safeSettings = isNextcloudSource
+      && completedSourceSetup
+      && !String(connectionSettings.spreadsheet_path ?? '').trim()
+      ? Object.fromEntries(Object.entries(connectionSettings).filter(([key]) => key !== 'spreadsheet_path'))
+      : connectionSettings
     return {
       display_name: displayName,
       enabled: selectedType.placeholder ? false : enabled,
@@ -837,12 +854,12 @@ export function ConfigPanel({
       description,
       settings: hasSpreadsheetResource && !connectionOnly
         ? {
-            ...connectionSettings,
+            ...safeSettings,
             source_read_policy: readPolicy,
             worksheet_mode: worksheetMode,
             worksheet_name: worksheetName,
           }
-        : connectionSettings,
+        : safeSettings,
       secrets,
       ...(includeCurrency && currency && currencyUnit
         ? { currency, currency_unit: currencyUnit }
@@ -868,7 +885,7 @@ export function ConfigPanel({
         const nextSecretStatus = { ...secretStatus, ...sourceResult.secrets }
         setSecretStatus(nextSecretStatus)
         setSecrets({})
-        setConfigurationWasConfigured(false)
+        setConfigurationWasConfigured(current => current || Boolean(sourceResult.configured))
         if (isNextcloudSource) {
           const passwordConfigured = nextSecretStatus.password?.status === 'configured'
           setSavedNextcloudConnection(
@@ -952,7 +969,7 @@ export function ConfigPanel({
       setSavedNextcloudConnection(snapshot)
       setLastTestEvidence(undefined)
       setSecrets({})
-      setConfigurationWasConfigured(result.configured ?? configurationWasConfigured)
+      setConfigurationWasConfigured(current => current || Boolean(result.configured))
       const feedback = {
         variant: 'success' as const,
         title: translate('commerce:commerceHub.connectionSettingsSaved'),
@@ -978,6 +995,13 @@ export function ConfigPanel({
 
   async function saveNextcloudSetupAndOpenDataSheet() {
     if (
+      completedSourceSetup
+      && (!nextcloudConnectionReady || Boolean(nextcloudUrlError) || !worksheetSelected)
+    ) {
+      onConfigureData?.(selectedType.id)
+      return
+    }
+    if (
       !isNextcloudSource
       || !persistedNextcloudConnectionConfigured
       || !nextcloudConnectionReady
@@ -988,7 +1012,7 @@ export function ConfigPanel({
     try {
       const result = await commerce.saveSource(selectedType.id, configurationPayload())
       setSecretStatus(current => ({ ...current, ...result.secrets }))
-      setConfigurationWasConfigured(result.configured ?? true)
+      setConfigurationWasConfigured(current => current || (result.configured ?? true))
       setSavedNextcloudSpreadsheetPath(String(settings.spreadsheet_path ?? '').trim())
       setLastTestEvidence(undefined)
       setSecrets({})
@@ -1158,7 +1182,7 @@ export function ConfigPanel({
             ? translate('commerce:commerceHub.savedCredentialLeaveUnchanged')
             : translate('commerce:commerceHub.configuredLeaveBlankToKeepUnchanged')}
           placeholder={translate('commerce:commerceHub.passwordPlaceholder')}
-          configuredPlaceholder={translate('commerce:commerceHub.passwordConfiguredPlaceholder')}
+          configuredMask="••••••••••••"
           revealLabel={translate('commerce:commerceHub.showEnteredSecret', { defaultValue: 'Show entered secret' })}
           concealLabel={translate('commerce:commerceHub.hideEnteredSecret', { defaultValue: 'Hide entered secret' })}
           copyLabel={translate('commerce:commerceHub.copyEnteredSecret', { defaultValue: 'Copy entered secret' })}
@@ -1518,8 +1542,8 @@ export function ConfigPanel({
           </div>
 
           <div
-            className={["fh-form-section", isNextcloudSource && (!persistedNextcloudConnectionConfigured || !spreadsheetSelected) ? "opacity-70" : ''].join(' ')}
-            aria-disabled={isNextcloudSource && (!persistedNextcloudConnectionConfigured || !spreadsheetSelected)}
+            className={["fh-form-section", !worksheetStepAvailable ? "opacity-70" : ''].join(' ')}
+            aria-disabled={!worksheetStepAvailable}
             data-setup-step="worksheet"
           >
             <div>
@@ -1527,12 +1551,12 @@ export function ConfigPanel({
               <p className="fh-form-section-title">{translate('commerce:commerceHub.worksheet')}</p>
               <p className="fh-form-section-description">{translate('commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet')}</p>
             </div>
-            {isNextcloudSource && (!persistedNextcloudConnectionConfigured || !spreadsheetSelected) && (
+            {!worksheetStepAvailable && (
               <p className="fh-text-caption" role="note"><Icon name="info" /> {translate('commerce:commerceHub.lockedUntilSpreadsheetSelected')}</p>
             )}
             <fieldset
               className="flex flex-col gap-2 fh-text-body"
-              disabled={isNextcloudSource && (!persistedNextcloudConnectionConfigured || !spreadsheetSelected)}
+              disabled={!worksheetStepAvailable}
             >
               <label className="fh-inline-check">
                 <input
@@ -1565,8 +1589,8 @@ export function ConfigPanel({
           </div>
 
           <div
-            className={["fh-form-section", isNextcloudSource && (!persistedNextcloudConnectionConfigured || !worksheetSelected) ? "opacity-70" : ''].join(' ')}
-            aria-disabled={isNextcloudSource && (!persistedNextcloudConnectionConfigured || !worksheetSelected)}
+            className={["fh-form-section", !downstreamPolicyStepsAvailable ? "opacity-70" : ''].join(' ')}
+            aria-disabled={!downstreamPolicyStepsAvailable}
             data-setup-step="data-sheet"
           >
             <div>
@@ -1579,10 +1603,7 @@ export function ConfigPanel({
                 type="button"
                 className="fh-button-secondary px-4 w-fit"
                 disabled={saving
-                  || !persistedNextcloudConnectionConfigured
-                  || !nextcloudConnectionReady
-                  || Boolean(nextcloudUrlError)
-                  || !worksheetSelected}
+                  || !downstreamPolicyStepsAvailable}
                 onClick={() => void saveNextcloudSetupAndOpenDataSheet()}
               >
                 <Icon name="workspace" /> {translate('commerce:commerceHub.saveAndOpenDataSheet')} <Icon name="next" />
@@ -1598,7 +1619,7 @@ export function ConfigPanel({
             ) : (
               <p className="fh-text-caption">{translate('commerce:commerceHub.saveConnectionBeforeConfiguringData')}</p>
             )}
-            {isNextcloudSource && (!persistedNextcloudConnectionConfigured || !worksheetSelected) && (
+            {isNextcloudSource && !downstreamPolicyStepsAvailable && (
               <p className="fh-text-caption" role="note"><Icon name="info" /> {translate(
                 persistedNextcloudConnectionConfigured
                   ? 'commerce:commerceHub.saveSourceSetupBeforeDataSheet'
@@ -1609,8 +1630,8 @@ export function ConfigPanel({
 
           {isNextcloudSource && (
             <div
-              className={["fh-form-section", (!persistedNextcloudConnectionConfigured || !worksheetSelected) ? "opacity-70" : ''].join(' ')}
-              aria-disabled={!persistedNextcloudConnectionConfigured || !worksheetSelected}
+              className={["fh-form-section", !downstreamPolicyStepsAvailable ? "opacity-70" : ''].join(' ')}
+              aria-disabled={!downstreamPolicyStepsAvailable}
               data-setup-step="monetary-unit"
             >
               <div>
@@ -1618,14 +1639,14 @@ export function ConfigPanel({
                 <p className="fh-form-section-title">{translate('commerce:commerceHub.monetaryUnit')}</p>
                 <p className="fh-form-section-description">{translate('commerce:commerceHub.monetaryUnitDescription')}</p>
               </div>
-              {(!persistedNextcloudConnectionConfigured || !worksheetSelected) && (
+              {!downstreamPolicyStepsAvailable && (
                 <p className="fh-text-caption" role="note"><Icon name="info" /> {translate(
                   persistedNextcloudConnectionConfigured
                     ? 'commerce:commerceHub.lockedUntilWorksheetConfigured'
                     : 'commerce:commerceHub.lockedUntilConnectionSaved',
                 )}</p>
               )}
-              <fieldset className="fh-form-grid md:grid-cols-2" disabled={!persistedNextcloudConnectionConfigured || !worksheetSelected}>
+              <fieldset className="fh-form-grid md:grid-cols-2" disabled={!downstreamPolicyStepsAvailable}>
                 <label className="fh-field">
                   <span className="fh-help-text">{translate('commerce:commerceHub.currency')}</span>
                   <select

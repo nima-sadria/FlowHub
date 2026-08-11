@@ -516,6 +516,119 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).not.toContain('Open Workspace')
   })
 
+  it('keeps saved Worksheet and per-Channel column policies editable after reopening', async () => {
+    await renderPage(editorAuth)
+
+    const mappingFieldset = container.querySelector('fieldset#data-mapping') as HTMLFieldSetElement
+    const worksheetPolicy = Array.from(container.querySelectorAll('label'))
+      .find(label => label.textContent?.includes(translate('sources:sourceConfiguration.worksheetPolicy')))
+      ?.querySelector('select') as HTMLSelectElement
+    const productNameReference = container.querySelector(
+      `[aria-label="${translate('sources:sourceConfiguration.columnReference', { field: translate('sources:sourceConfiguration.sourceProductName') })}"]`,
+    ) as HTMLInputElement
+    const channelPriceReference = container.querySelector(
+      'tr[data-channel-id="woocommerce:primary"] input[aria-label="Price column reference"]',
+    ) as HTMLInputElement
+
+    expect(mappingFieldset.disabled).toBe(false)
+    expect(worksheetPolicy.disabled).toBe(false)
+    expect(worksheetPolicy.value).toBe('selected')
+    expect(productNameReference.disabled).toBe(false)
+    expect(productNameReference.value).toBe('A')
+    expect(channelPriceReference.disabled).toBe(false)
+    expect(channelPriceReference.value).toBe('C')
+  })
+
+  it('requires explicit confirmation and returns safely after archiving a Source with history', async () => {
+    const lifecycle = vi.spyOn(sourceWorkspaceApi, 'sourceLifecycle').mockResolvedValue({
+      sourceId: source.id,
+      sourceName: source.name,
+      sourceVersion: source.version,
+      sourceStatus: 'active',
+      action: 'archive',
+      blockers: {},
+      protectedHistory: { mappingRevisions: 1, sourceObservations: 2 },
+    })
+    const remove = vi.spyOn(sourceWorkspaceApi, 'deleteSource').mockResolvedValue({
+      sourceId: source.id,
+      sourceName: source.name,
+      outcome: 'archived',
+      source: { ...source, status: 'disabled', version: source.version + 1 },
+      impact: {
+        sourceId: source.id,
+        sourceName: source.name,
+        sourceVersion: source.version,
+        sourceStatus: 'active',
+        action: 'archive',
+        blockers: {},
+        protectedHistory: { mappingRevisions: 1, sourceObservations: 2 },
+      },
+    })
+
+    await renderPage(adminAuth)
+    await act(async () => {
+      button('Delete Source').click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const dialog = container.querySelector('[role="dialog"]') as HTMLElement
+    const confirmation = dialog.querySelector('input[name="source-delete-confirmation"]') as HTMLInputElement
+    const archive = Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.includes('Archive Source')) as HTMLButtonElement
+    expect(lifecycle).toHaveBeenCalledWith(source.id)
+    expect(dialog.textContent).toContain(`Remove “${source.name}”?`)
+    expect(dialog.textContent).toContain('protected historical records')
+    expect(archive.disabled).toBe(true)
+
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(confirmation, source.name)
+      confirmation.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    expect(archive.disabled).toBe(false)
+
+    await act(async () => {
+      archive.click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(remove).toHaveBeenCalledWith(source, source.name)
+    expect(container.querySelector('[data-testid="location-probe"]')?.textContent).toBe('/sources')
+  })
+
+  it('keeps the confirmation open and reports a useful Source deletion failure', async () => {
+    vi.spyOn(sourceWorkspaceApi, 'sourceLifecycle').mockResolvedValue({
+      sourceId: source.id,
+      sourceName: source.name,
+      sourceVersion: source.version,
+      sourceStatus: 'active',
+      action: 'delete',
+      blockers: {},
+      protectedHistory: {},
+    })
+    vi.spyOn(sourceWorkspaceApi, 'deleteSource').mockRejectedValue(new ApiError(409, 'Source configuration changed before confirmation.'))
+
+    await renderPage(adminAuth)
+    await act(async () => {
+      button('Delete Source').click()
+      await Promise.resolve()
+    })
+    const dialog = container.querySelector('[role="dialog"]') as HTMLElement
+    const confirmation = dialog.querySelector('input[name="source-delete-confirmation"]') as HTMLInputElement
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(confirmation, source.name)
+      confirmation.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+
+    await act(async () => {
+      Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.includes('Delete Source'))?.click()
+      await Promise.resolve()
+    })
+
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull()
+    expect(container.textContent).toContain('Source could not be removed')
+    expect(container.textContent).toContain('Source configuration changed before confirmation.')
+  })
+
   it.each([
     ['en', 'ltr'],
     ['fa', 'rtl'],

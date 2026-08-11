@@ -10,7 +10,7 @@ import NotificationContainer from '../notifications/NotificationContainer'
 import { ServiceProvider } from '../services/ServiceContext'
 import type { Services } from '../services/ServiceContext'
 import type { CommerceService } from '../services/commerce/CommerceService'
-import CommerceHub, { CommerceHubContent } from './CommerceHub'
+import CommerceHub, { CommerceHubContent, ConfigPanel } from './CommerceHub'
 import { changeLocale, translate } from '../i18n'
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 
@@ -1429,7 +1429,10 @@ describe('CommerceHub', () => {
     expect(inputByLabel(c, 'Description optional').value).toBe('Daily owner workbook')
     expect(inputByLabel(c, 'Nextcloud server URL').value).toBe('https://softpple.business/remote.php/dav/files/woo')
     expect(inputByLabel(c, 'Username').value).toBe('woo')
-    expect((c.querySelector('input[type="password"]') as HTMLInputElement).value).toBe('')
+    const savedCredential = c.querySelector('input[type="password"]') as HTMLInputElement
+    expect(savedCredential.value).toBe('')
+    expect(c.querySelector('[data-testid="configured-secret-mask"]')?.textContent).toBe('••••••••••••')
+    expect(savedCredential.parentElement?.querySelector('button')?.disabled).toBe(true)
     expect(c.textContent).toContain('Saved credential ✓ — leave blank to keep unchanged.')
     expect(c.textContent).not.toContain(savedSecret)
     expect(c.textContent).toContain('/Reports/prices.xlsx')
@@ -1474,6 +1477,84 @@ describe('CommerceHub', () => {
     expect(persistedEvidence).toContain('Healthy')
     expect(persistedEvidence).toContain('Connection successful.')
     expect(persistedEvidence).not.toContain('timed out')
+  })
+
+  it('keeps Worksheet, Data Sheet, and Monetary Policy editable for a persisted configured Source', async () => {
+    const savedPayloads: NonNullable<Parameters<CommerceService['saveSource']>[1]>[] = []
+    const configuredCommerce: CommerceService = {
+      ...commerce,
+      async getSourceConfiguration(sourceId) {
+        const base = await commerce.getSourceConfiguration(sourceId)
+        return {
+          ...base,
+          configured: true,
+          connection_configured: true,
+          configuration_state: 'configured',
+          settings: {
+            url: 'https://softpple.business',
+            username: 'woo',
+            worksheet_mode: 'selected',
+            worksheet_name: 'Prices',
+          },
+          secrets: { password: { status: 'configured', replaced_at: null } },
+          currency_profile: { status: 'resolved', currency: 'IRR', unit: 'RIAL' },
+        }
+      },
+      async saveSource(sourceId, payload) {
+        savedPayloads.push(payload)
+        return commerce.saveSource(sourceId, payload)
+      },
+    }
+    const types = (await configuredCommerce.getSourceTypes()).items
+    const openDataSheet = vi.fn()
+
+    await act(async () => {
+      root.render(
+        <NotificationProvider>
+          <AuthContext.Provider value={authValue(adminUser)}>
+            <MemoryRouter>
+              <ServiceProvider services={{ ...services, commerce: configuredCommerce }}>
+                <ConfigPanel
+                  kind="source"
+                  types={types}
+                  initialResourceId="nextcloud:primary"
+                  onCancel={vi.fn()}
+                  onSaved={vi.fn()}
+                  onConfigureData={openDataSheet}
+                />
+              </ServiceProvider>
+            </MemoryRouter>
+          </AuthContext.Provider>
+        </NotificationProvider>,
+      )
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const worksheet = container.querySelector('[data-setup-step="worksheet"] fieldset') as HTMLFieldSetElement
+    const dataSheet = container.querySelector('[data-setup-step="data-sheet"] button') as HTMLButtonElement
+    const monetary = container.querySelector('[data-setup-step="monetary-unit"] fieldset') as HTMLFieldSetElement
+    expect(worksheet.disabled).toBe(false)
+    expect(dataSheet.disabled).toBe(false)
+    expect(monetary.disabled).toBe(false)
+
+    const currencyUnit = selectByLabel(container, translate('commerce:commerceHub.currencyUnit'))
+    act(() => {
+      currencyUnit.value = 'TOMAN'
+      currencyUnit.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(currencyUnit.value).toBe('TOMAN')
+
+    await act(async () => {
+      Array.from(container.querySelectorAll('button')).find(item => item.textContent === 'Save configuration')?.click()
+      await Promise.resolve()
+    })
+    expect(savedPayloads).toHaveLength(1)
+    expect(savedPayloads[0].currency_unit).toBe('TOMAN')
+    expect(savedPayloads[0].settings).not.toHaveProperty('spreadsheet_path')
+
+    await act(async () => dataSheet.click())
+    expect(openDataSheet).toHaveBeenCalledWith('nextcloud:primary')
   })
 
   it('localizes persisted Nextcloud test evidence instead of rendering backend English', async () => {
@@ -1551,6 +1632,9 @@ describe('CommerceHub', () => {
     expect(savedPayloads[0].settings).not.toHaveProperty('worksheet_name')
     expect(savedPayloads[0].settings).not.toHaveProperty('source_read_policy')
     expect(c.querySelector('[data-testid="nextcloud-last-test"]')?.textContent).toContain('Not tested')
+    expect((c.querySelector('[data-setup-step="worksheet"] fieldset') as HTMLFieldSetElement).disabled).toBe(false)
+    expect((c.querySelector('[data-setup-step="data-sheet"] button') as HTMLButtonElement).disabled).toBe(false)
+    expect((c.querySelector('[data-setup-step="monetary-unit"] fieldset') as HTMLFieldSetElement).disabled).toBe(false)
   })
 
   it('uses a replacement secret for Test without persisting it until Save connection', async () => {

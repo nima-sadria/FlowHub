@@ -28,6 +28,7 @@ interface TrafficAudit {
   interceptedWrites: string[]
   previewRequests: number
   savedMappings: Array<Record<string, unknown>>
+  sourceRemovalRequests?: Array<Record<string, unknown>>
 }
 
 const sourceProfiles = [
@@ -340,6 +341,25 @@ async function installStrictMockApi(page: Page, audit: TrafficAudit, locale: 'en
       audit.previewRequests += 1
       return json(sourcePreview())
     }
+    if (request.method() === 'DELETE' && pathname === '/api/v2/sources/source-logitech') {
+      audit.interceptedWrites.push(`DELETE ${pathname}`)
+      audit.sourceRemovalRequests?.push(request.postDataJSON() as Record<string, unknown>)
+      return json({
+        sourceId: 'source-logitech',
+        sourceName: sourceConfiguration.name,
+        outcome: 'archived',
+        source: { ...sourceConfiguration, status: 'disabled', version: sourceConfiguration.version + 1 },
+        impact: {
+          sourceId: 'source-logitech',
+          sourceName: sourceConfiguration.name,
+          sourceVersion: sourceConfiguration.version,
+          sourceStatus: 'active',
+          action: 'archive',
+          blockers: {},
+          protectedHistory: { mappingRevisions: 7, sourceObservations: 2 },
+        },
+      })
+    }
     if (request.method() !== 'GET') {
       audit.interceptedWrites.push(`${request.method()} ${pathname}`)
       return json({ code: 'MOCK_WRITE_BLOCKED', message: 'All writes are blocked by the isolated Sources redesign fixture.' }, 405)
@@ -376,6 +396,15 @@ async function installStrictMockApi(page: Page, audit: TrafficAudit, locale: 'en
     })
     if (pathname === '/api/v2/commerce/source-types' || pathname === '/api/v2/commerce/channel-types') return json({ items: [] })
     if (pathname === '/api/v2/sources/source-logitech/configuration') return json(sourceConfiguration)
+    if (pathname === '/api/v2/sources/source-logitech/lifecycle') return json({
+      sourceId: 'source-logitech',
+      sourceName: sourceConfiguration.name,
+      sourceVersion: sourceConfiguration.version,
+      sourceStatus: 'active',
+      action: 'archive',
+      blockers: {},
+      protectedHistory: { mappingRevisions: 7, sourceObservations: 2 },
+    })
     if (pathname === '/api/v2/sources/source-flowhub/configuration') return json({ ...sourceProfiles[1], mapping: null, legacyMapping: null })
     if (pathname === '/api/v2/sources/source-archive/configuration') return json({ ...sourceProfiles[2], mapping: null, legacyMapping: null })
     if (pathname === '/api/v2/sources/source-logitech/worksheets') return json({
@@ -486,6 +515,44 @@ test.describe.serial('Sources integrations and per-worksheet Channel rules', () 
     }
 
     expectSafeTraffic(audit)
+  })
+
+  test('Source removal previews archive semantics, requires the exact name, and returns safely', async ({ page }) => {
+    const audit: TrafficAudit = {
+      externalRequests: [],
+      unhandledApiRequests: [],
+      interceptedWrites: [],
+      previewRequests: 0,
+      savedMappings: [],
+      sourceRemovalRequests: [],
+    }
+    await installStrictMockApi(page, audit, 'en')
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/sources/source-logitech')
+
+    const dangerZone = page.getByRole('heading', { name: 'Danger zone' }).locator('..')
+    await dangerZone.scrollIntoViewIfNeeded()
+    await dangerZone.getByRole('button', { name: 'Delete Source', exact: true }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Delete Source' })
+    await expect(dialog).toContainText(`Remove “${sourceConfiguration.name}”?`)
+    await expect(dialog).toContainText('9 protected historical records')
+    const archive = dialog.getByRole('button', { name: 'Archive Source', exact: true })
+    await expect(archive).toBeDisabled()
+    await dialog.locator('input[name="source-delete-confirmation"]').fill('Wrong Source')
+    await expect(archive).toBeDisabled()
+    await dialog.locator('input[name="source-delete-confirmation"]').fill(sourceConfiguration.name)
+    await expect(archive).toBeEnabled()
+    await archive.click()
+
+    await expect(page).toHaveURL(/\/sources$/)
+    expect(audit.sourceRemovalRequests).toEqual([{
+      expected_source_version: sourceConfiguration.version,
+      confirmation_name: sourceConfiguration.name,
+    }])
+    expect(audit.externalRequests).toEqual([])
+    expect(audit.unhandledApiRequests).toEqual([])
+    expect(audit.interceptedWrites).toEqual(['DELETE /api/v2/sources/source-logitech'])
   })
 
   test('Logitech A-J columns remain independent, explicit copies are confirmed, and preview reads once', async ({ page }) => {

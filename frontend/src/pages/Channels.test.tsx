@@ -355,7 +355,11 @@ describe('Channels page', () => {
     const secretInputs = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="password"]'))
     expect(secretInputs).toHaveLength(2)
     expect(secretInputs.every(input => input.value === '')).toBe(true)
-    expect(secretInputs.every(input => input.placeholder === 'Configured — type a new password to replace')).toBe(true)
+    expect(secretInputs.every(input => input.placeholder === 'Type your password')).toBe(true)
+    const configuredMasks = Array.from(dialog.querySelectorAll('[data-testid="configured-secret-mask"]'))
+    expect(configuredMasks).toHaveLength(2)
+    expect(configuredMasks.every(mask => mask.textContent === '••••••••••••')).toBe(true)
+    expect(configuredMasks.every(mask => mask.getAttribute('aria-hidden') === 'true')).toBe(true)
     expect(dialog.textContent?.match(/Configured; leave blank to keep unchanged\./g)).toHaveLength(2)
 
     const test = Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Test connection') as HTMLButtonElement

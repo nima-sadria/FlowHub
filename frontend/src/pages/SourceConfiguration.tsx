@@ -12,6 +12,7 @@ import type {
   ReferenceType,
   SourceChannel,
   SourceMapping,
+  SourceLifecycleImpact,
   SourcePreview,
   SourceProfile,
   SourceWorksheetRule,
@@ -210,6 +211,7 @@ export default function SourceConfiguration() {
   const { user } = useAuth()
   const canCreateWorkspace = effectiveHasPerm(user, WORKSPACE_PERMISSION.create)
   const canEditSource = effectiveHasPerm(user, WORKSPACE_PERMISSION.edit)
+  const canManageSources = effectiveHasPerm(user, WORKSPACE_PERMISSION.admin)
   const canViewActivity = effectiveHasPerm(user, WORKSPACE_PERMISSION.readAudit)
   const canViewDiagnostics = effectiveHasPerm(user, 'can_view_settings')
   const canManageCommerce = user?.is_admin === true
@@ -258,6 +260,11 @@ export default function SourceConfiguration() {
   const [reading, setReading] = useState(false)
   const [activeNavId, setActiveNavId] = useState('overview')
   const [sectionSignal, setSectionSignal] = useState<SectionOpenSignal | null>(null)
+  const [removalOpen, setRemovalOpen] = useState(false)
+  const [removalImpact, setRemovalImpact] = useState<SourceLifecycleImpact | null>(null)
+  const [checkingRemoval, setCheckingRemoval] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmationName, setConfirmationName] = useState('')
 
   useEffect(() => {
     let active = true
@@ -644,6 +651,63 @@ export default function SourceConfiguration() {
   function closeConfiguration() {
     if (dirty && !window.confirm(translate('sources:sourceConfiguration.discardUnsavedChanges'))) return
     navigate('/sources')
+  }
+
+  async function openRemoval() {
+    if (!source || !canManageSources) return
+    setRemovalOpen(true)
+    setRemovalImpact(null)
+    setConfirmationName('')
+    setCheckingRemoval(true)
+    try {
+      const impact = await sourceWorkspaceApi.sourceLifecycle(source.id)
+      if (impact.sourceId === source.id) setRemovalImpact(impact)
+    } catch (error) {
+      notify.error({
+        title: translate('sources:sourceCenter.sourceCouldNotBeRemoved'),
+        description: localizedApiError(error, 'sources:sourceCenter.removalImpactUnavailable'),
+      })
+      setRemovalOpen(false)
+    } finally {
+      setCheckingRemoval(false)
+    }
+  }
+
+  function closeRemoval() {
+    if (deleting) return
+    setRemovalOpen(false)
+    setRemovalImpact(null)
+    setConfirmationName('')
+  }
+
+  async function removeSource() {
+    if (
+      !source
+      || !removalImpact
+      || removalImpact.action === 'blocked'
+      || removalImpact.action === 'none'
+      || confirmationName !== source.name
+    ) return
+    setDeleting(true)
+    try {
+      const result = await sourceWorkspaceApi.deleteSource(source, confirmationName)
+      notify.success({
+        title: result.outcome === 'deleted'
+          ? translate('sources:sourceCenter.sourceDeleted')
+          : translate('sources:sourceCenter.sourceArchived'),
+        description: result.outcome === 'deleted'
+          ? translate('sources:sourceCenter.unusedSourceDeletedSafely')
+          : translate('sources:sourceCenter.protectedHistoryPreserved'),
+      })
+      navigate('/sources', { replace: true })
+    } catch (error) {
+      notify.error({
+        title: translate('sources:sourceCenter.sourceCouldNotBeRemoved'),
+        description: localizedApiError(error, 'sources:sourceCenter.activeWorkspacePreventsRemoval'),
+      })
+    } finally {
+      setDeleting(false)
+    }
   }
 
   function goToSection(id: string) {
@@ -1331,6 +1395,16 @@ export default function SourceConfiguration() {
         </section>
       </div>
 
+      {canManageSources && source.status === 'active' && (
+        <section className="fh-card fh-card-pad mt-5 border-danger/30" aria-labelledby="source-danger-zone-title">
+          <h2 className="fh-section-title" id="source-danger-zone-title">{translate('sources:sourceConfiguration.dangerZone')}</h2>
+          <p className="fh-text-caption mt-2">{translate('sources:sourceConfiguration.deleteSourceHelp')}</p>
+          <button className="fh-button-danger mt-4" type="button" onClick={() => void openRemoval()}>
+            <Icon name="delete" /> {translate('sources:sourceCenter.deleteSource')}
+          </button>
+        </section>
+      )}
+
       <div className="sticky bottom-2 z-30 mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-bg-base/95 p-2 shadow-lg backdrop-blur sm:bottom-3 sm:gap-3 sm:p-3" data-testid="source-configuration-actions">
         <Badge variant={dirty ? 'warning' : 'success'}>{dirty ? translate('sources:sourceConfiguration.unsavedChanges') : translate('sources:sourceConfiguration.allChangesSaved')}</Badge>
         <span className="fh-text-caption hidden sm:inline">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
@@ -1343,6 +1417,59 @@ export default function SourceConfiguration() {
           <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" onClick={closeConfiguration}><Icon name="previous" /> {translate('sources:sourceConfiguration.backToSources')}</button>
         </div>
       </div>
+
+      {removalOpen && source && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="source-delete-title" aria-describedby="source-delete-description">
+          <div className="fh-card fh-card-pad w-full max-w-lg">
+            <h2 className="fh-page-title" id="source-delete-title">{translate('sources:sourceCenter.deleteSource')}</h2>
+            <p className="mt-3 text-text-base" id="source-delete-description">{translate('sources:sourceCenter.confirmSourceRemoval', { source: source.name })}</p>
+            <div className="fh-alert-warning mt-4" role="note" aria-live="polite">
+              <strong>{checkingRemoval
+                ? translate('sources:sourceCenter.checkingHistory')
+                : removalImpact?.action === 'blocked'
+                  ? translate('sources:sourceConfiguration.removalBlocked')
+                  : removalImpact?.action === 'archive'
+                    ? translate('sources:sourceCenter.archiveSource')
+                    : translate('sources:sourceCenter.deleteUnusedSource')}</strong>
+              <p className="mt-1">{removalImpact?.action === 'archive'
+                ? translate('sources:sourceCenter.archiveImpact')
+                : removalImpact?.action === 'blocked'
+                  ? translate('sources:sourceConfiguration.removalBlockedHelp')
+                  : translate('sources:sourceCenter.safeRemovalImpact')}</p>
+              {removalImpact && Object.keys(removalImpact.protectedHistory).length > 0 && (
+                <p className="mt-2 fh-text-caption">{translate('sources:sourceCenter.protectedRecords', {
+                  count: Object.values(removalImpact.protectedHistory).reduce((sum, count) => sum + count, 0),
+                })}</p>
+              )}
+            </div>
+            <label className="fh-field mt-4">
+              <span className="fh-help-text">{translate('sources:sourceConfiguration.typeSourceNameToConfirm', { source: source.name })}</span>
+              <input
+                autoComplete="off"
+                className="fh-input"
+                name="source-delete-confirmation"
+                value={confirmationName}
+                onChange={event => setConfirmationName(event.target.value)}
+              />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <button className="fh-button-secondary" type="button" disabled={deleting} onClick={closeRemoval}>{translate('common:action.cancel')}</button>
+              <button
+                className="fh-button-danger"
+                type="button"
+                disabled={deleting || checkingRemoval || !removalImpact || removalImpact.action === 'blocked' || removalImpact.action === 'none' || confirmationName !== source.name}
+                onClick={() => void removeSource()}
+              >
+                <Icon name="delete" /> {deleting
+                  ? translate('sources:sourceCenter.checkingHistory')
+                  : removalImpact?.action === 'archive'
+                    ? translate('sources:sourceCenter.archiveSource')
+                    : translate('sources:sourceCenter.deleteSource')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {channelSetupId && canManageCommerce && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('commerce:commerceHub.addChannel')}>
         <div className="max-h-[calc(100vh-2rem)] w-full max-w-[45rem] overflow-y-auto">

@@ -13,7 +13,7 @@ interface SecretFieldProps {
   concealLabel: string
   copyLabel: string
   placeholder: string
-  configuredPlaceholder?: string
+  configuredMask?: string
   error?: string
 }
 
@@ -30,13 +30,13 @@ export default function SecretField({
   concealLabel,
   copyLabel,
   placeholder,
-  configuredPlaceholder,
+  configuredMask = '••••••••••••',
   error,
 }: SecretFieldProps) {
   const id = useId()
   const [revealed, setRevealed] = useState(false)
   const hasLocalValue = value.length > 0
-  const emptyPlaceholder = configured ? (configuredPlaceholder || placeholder) : placeholder
+  const showConfiguredMask = configured && !hasLocalValue
 
   async function copyLocalValue() {
     if (!hasLocalValue) return
@@ -54,12 +54,21 @@ export default function SecretField({
           required={required && !configured}
           disabled={disabled}
           onChange={event => onChange(event.target.value)}
-          className="fh-input pe-20"
-          placeholder={emptyPlaceholder}
+          className={`fh-input pe-20 ${showConfiguredMask ? 'placeholder:text-transparent' : ''}`}
+          placeholder={placeholder}
           autoComplete="new-password"
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : configured ? `${id}-configured` : undefined}
         />
+        {showConfiguredMask && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 start-3 flex items-center font-mono tracking-wider text-text-base"
+            data-testid="configured-secret-mask"
+          >
+            {configuredMask}
+          </span>
+        )}
         <div className="absolute inset-y-0 end-2 flex items-center gap-1">
           <button
             type="button"

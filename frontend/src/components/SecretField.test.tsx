@@ -32,7 +32,7 @@ describe('SecretField', () => {
         concealLabel="Hide entered secret"
         copyLabel="Copy entered secret"
         placeholder="Type your password"
-        configuredPlaceholder="Configured — type a new password to replace"
+        configuredMask="••••••••••••"
       />,
     ))
     return { root, onChange }
@@ -43,7 +43,9 @@ describe('SecretField', () => {
     const input = container.querySelector('input') as HTMLInputElement
     expect(input.value).toBe('')
     expect(input.getAttribute('value')).toBe('')
-    expect(input.placeholder).toBe('Configured — type a new password to replace')
+    expect(input.placeholder).toBe('Type your password')
+    expect(container.querySelector('[data-testid="configured-secret-mask"]')?.textContent).toBe('••••••••••••')
+    expect(container.querySelector('[data-testid="configured-secret-mask"]')?.getAttribute('aria-hidden')).toBe('true')
     expect(container.textContent).toContain('Configured; leave blank to keep unchanged.')
     expect(Array.from(container.querySelectorAll('button')).every(button => button.disabled)).toBe(true)
     act(() => root.unmount())
@@ -55,6 +57,7 @@ describe('SecretField', () => {
     const input = container.querySelector('input') as HTMLInputElement
 
     expect(input.type).toBe('password')
+    expect(container.querySelector('[data-testid="configured-secret-mask"]')).toBeNull()
     act(() => reveal.click())
     expect(input.type).toBe('text')
     expect(reveal.getAttribute('aria-label')).toBe('Hide entered secret')
