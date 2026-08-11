@@ -47,6 +47,9 @@ REQUIRED_WORKSPACE_PERSISTENCE_TESTS = (
     "test_postgresql_initial_draft_revision_preserves_snapshot_reference",
     "test_postgresql_restored_draft_revision_preserves_snapshot_reference",
 )
+REQUIRED_SOURCE_LIFECYCLE_TESTS = (
+    "test_postgresql_archives_source_history_and_disables_only_bound_connector",
+)
 
 
 def main() -> int:
@@ -61,6 +64,7 @@ def main() -> int:
         "018": REQUIRED_018_TESTS,
         "019": REQUIRED_019_TESTS,
         "workspace-persistence": REQUIRED_WORKSPACE_PERSISTENCE_TESTS,
+        "source-lifecycle": REQUIRED_SOURCE_LIFECYCLE_TESTS,
         "orders": REQUIRED_ORDER_TESTS,
         "crash": REQUIRED_CRASH_TESTS,
     }.get(group, REQUIRED_017_TESTS)
