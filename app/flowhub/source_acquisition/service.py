@@ -276,8 +276,19 @@ class SourceAcquisitionService:
         parent: AcquisitionRun | None,
         now: datetime | None = None,
     ) -> dict[str, Any]:
-        if self.db.get(SourceProfile, source_id) is None:
+        # Serialize new reads with Source lifecycle changes. A concurrent
+        # archive/delete holds the same row lock and wins before this request
+        # can decide whether new processing is allowed.
+        source = (
+            self.db.query(SourceProfile)
+            .filter(SourceProfile.id == source_id)
+            .with_for_update()
+            .one_or_none()
+        )
+        if source is None:
             raise SourceAcquisitionError("source_not_found")
+        if source.status != "active":
+            raise SourceAcquisitionError("source_archived")
         trigger_kind = self._trigger_kind(trigger_kind)
         resource_scope = self._opaque(resource_scope, "resource_scope")
         idempotency_key = self._optional_opaque(idempotency_key, "idempotency_key")

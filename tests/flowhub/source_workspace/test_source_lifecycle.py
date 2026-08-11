@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections.abc import Iterator
 from decimal import Decimal
 from typing import Any, cast
@@ -13,8 +14,17 @@ from sqlalchemy.pool import StaticPool
 
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.database import FlowHubBase
+from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+from app.flowhub.source_acquisition.errors import SourceAcquisitionError
+from app.flowhub.source_acquisition.models import (
+    AcquisitionRun,
+    SourceObservation,
+    SourceObservationVersionHead,
+)
+from app.flowhub.source_acquisition.service import SourceAcquisitionService
 from app.flowhub.source_workspace.models import FlowHubSheet, SheetRevision, SourceProfile
 from app.flowhub.source_workspace.service import SourceWorkspaceService
+from app.flowhub.unified_workspace.domain import utcnow
 from app.flowhub.unified_workspace.models import (
     CurrencyProfile,
     UnifiedAuditEntry,
@@ -103,6 +113,37 @@ def _workspace_snapshot(
     )
     db.add_all([currency, workspace, snapshot])
     db.commit()
+
+
+def _acquisition_run(
+    db: Session,
+    *,
+    source_id: str,
+    status: str,
+    result: str = "none",
+) -> AcquisitionRun:
+    now = utcnow()
+    run_id = str(uuid.uuid4())
+    row = AcquisitionRun(
+        id=run_id,
+        source_id=source_id,
+        resource_scope="source",
+        trigger_kind="manual",
+        actor_user_id=None,
+        request_fingerprint="f" * 64,
+        correlation_id=run_id,
+        root_run_id=run_id,
+        attempt_number=1,
+        status=status,
+        result=result,
+        queued_at=now,
+        terminal_at=now if status not in {"queued", "running"} else None,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(row)
+    db.commit()
+    return row
 
 
 def test_unused_source_and_empty_internal_sheet_are_deleted_with_immutable_audit() -> None:
@@ -199,6 +240,157 @@ def test_protected_source_is_archived_and_history_remains_readable_but_not_mutab
         asyncio.run(service.snapshot_candidates(str(source["id"]), user))
     assert candidate_error.value.status_code == 409
     assert cast(dict[str, Any], candidate_error.value.detail)["code"] == "SOURCE_ARCHIVED"
+
+    with pytest.raises(SourceAcquisitionError, match="source_archived"):
+        SourceAcquisitionService(db).request_run(
+            source_id=str(source["id"]),
+            trigger_kind="manual",
+        )
+
+
+def test_acquisition_observation_history_causes_archive_and_remains_intact() -> None:
+    db = _session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+    source = _empty_source(service, user, "Observed source")
+    run = _acquisition_run(
+        db,
+        source_id=str(source["id"]),
+        status="succeeded",
+        result="observed",
+    )
+    now = utcnow()
+    observation = SourceObservation(
+        id=str(uuid.uuid4()),
+        acquisition_run_id=run.id,
+        source_id=str(source["id"]),
+        resource_scope="source",
+        resource_identity="/pricing.xlsx",
+        resource_identity_hash="r" * 64,
+        observation_version=1,
+        observed_at=now,
+        provenance_json={"provider": "test"},
+        checksum="o" * 64,
+        created_at=now,
+    )
+    head = SourceObservationVersionHead(
+        source_id=str(source["id"]),
+        resource_scope="source",
+        next_version=2,
+        updated_at=now,
+    )
+    db.add_all([observation, head])
+    db.commit()
+
+    impact = service.source_lifecycle(str(source["id"]), user)
+    assert impact["action"] == "archive"
+    assert impact["protectedHistory"]["acquisitionRuns"] == 1
+    assert impact["protectedHistory"]["sourceObservations"] == 1
+
+    result = service.delete_or_archive_source(
+        source_id=str(source["id"]),
+        expected_source_version=int(source["version"]),
+        confirmation_name=str(source["name"]),
+        user=user,
+    )
+
+    assert result["outcome"] == "archived"
+    assert db.get(AcquisitionRun, run.id) is not None
+    assert db.get(SourceObservation, observation.id) is not None
+    assert db.get(SourceObservationVersionHead, (str(source["id"]), "source")) is not None
+
+
+def test_active_acquisition_blocks_source_lifecycle_change() -> None:
+    db = _session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+    source = _empty_source(service, user, "Reading source")
+    run = _acquisition_run(db, source_id=str(source["id"]), status="queued")
+
+    impact = service.source_lifecycle(str(source["id"]), user)
+    assert impact["action"] == "blocked"
+    assert impact["blockers"] == {"activeAcquisitionRuns": 1}
+
+    with pytest.raises(HTTPException) as blocked:
+        service.delete_or_archive_source(
+            source_id=str(source["id"]),
+            expected_source_version=int(source["version"]),
+            confirmation_name=str(source["name"]),
+            user=user,
+        )
+    assert blocked.value.status_code == 409
+    assert cast(dict[str, Any], blocked.value.detail)["code"] == "SOURCE_ACTIVE_ACQUISITION"
+    assert db.get(AcquisitionRun, run.id) is not None
+    assert db.get(SourceProfile, str(source["id"])).status == "active"
+
+
+def test_source_currency_declarations_are_protected_history() -> None:
+    db = _session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+    source = service.create_source(
+        name="Monetary source",
+        source_kind="flowhub_sheet",
+        external_source_id=None,
+        worksheet_mode="selected",
+        worksheet_name="Sheet1",
+        data_start_row=1,
+        currency="IRR",
+        currency_unit="RIAL",
+        user=user,
+    )
+
+    impact = service.source_lifecycle(str(source["id"]), user)
+
+    assert impact["action"] == "archive"
+    assert impact["protectedHistory"]["currencyProfiles"] == 1
+
+
+def test_external_source_lifecycle_disables_only_its_connector() -> None:
+    db = _session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+    source = service.create_source(
+        name="Temporary Nextcloud",
+        source_kind="external",
+        external_source_id="nextcloud:temporary",
+        worksheet_mode="selected",
+        worksheet_name="Prices",
+        data_start_row=1,
+        user=user,
+    )
+    target = IntegrationConnectorInstance(
+        id="nextcloud:temporary",
+        connector_type="nextcloud",
+        name="Temporary Nextcloud",
+        enabled=True,
+        read_only=True,
+        status="healthy",
+    )
+    unrelated = IntegrationConnectorInstance(
+        id="nextcloud:unrelated",
+        connector_type="nextcloud",
+        name="Unrelated Nextcloud",
+        enabled=True,
+        read_only=True,
+        status="healthy",
+    )
+    db.add_all([target, unrelated])
+    db.commit()
+
+    result = service.delete_or_archive_source(
+        source_id=str(source["id"]),
+        expected_source_version=int(source["version"]),
+        confirmation_name=str(source["name"]),
+        user=user,
+    )
+
+    assert result["outcome"] == "deleted"
+    assert db.get(IntegrationConnectorInstance, target.id).enabled is False
+    assert db.get(IntegrationConnectorInstance, target.id).status == "disabled"
+    assert db.get(IntegrationConnectorInstance, unrelated.id).enabled is True
+    audit = db.query(UnifiedAuditEntry).filter_by(event_type="source_deleted").one()
+    assert audit.metadata_json["connectorDisabled"] is True
 
 
 def test_active_workspace_blocks_source_deletion_or_archival() -> None:

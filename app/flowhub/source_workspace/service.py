@@ -19,8 +19,18 @@ from sqlalchemy import tuple_
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
+from app.flowhub.business_observability.models import BusinessEvent
+from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.pricing_matrix.service import PricingMatrixService
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.source_acquisition.models import (
+    ACTIVE_RUN_STATUSES,
+    AcquisitionRun,
+    SourceMappingSchemaExpectation,
+    SourceObservation,
+    SourceObservationVersionHead,
+    SourceSchemaAssessment,
+)
 from app.flowhub.source_workspace.formula import (
     FORMULA_ENGINE_VERSION,
     FormulaResult,
@@ -71,6 +81,7 @@ from app.flowhub.unified_workspace.models import (
     ApplyJob,
     CanonicalProduct,
     ChannelCache,
+    CurrencyProfile,
     Listing,
     Review,
     UnifiedWorkspace,
@@ -292,21 +303,32 @@ class SourceWorkspaceService:
 
         impact = self._source_lifecycle_impact(source)
         if impact["action"] == "blocked":
+            active_acquisition_count = impact["blockers"].get("activeAcquisitionRuns", 0)
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
                 {
-                    "code": "SOURCE_ACTIVE_WORKSPACE",
-                    "message": "Archive the active Workspace before removing this Source.",
+                    "code": (
+                        "SOURCE_ACTIVE_ACQUISITION"
+                        if active_acquisition_count
+                        else "SOURCE_ACTIVE_WORKSPACE"
+                    ),
+                    "message": (
+                        "Wait for active Source reads to finish before removing this Source."
+                        if active_acquisition_count
+                        else "Archive the active Workspace before removing this Source."
+                    ),
                     "details": impact,
                 },
             )
 
+        connector_disabled = self._disable_external_connector(source)
         source_metadata = {
             "sourceId": source.id,
             "sourceName": source.name,
             "sourceKind": source.source_kind,
             "sourceVersion": source.version,
             "protectedHistory": impact["protectedHistory"],
+            "connectorDisabled": connector_disabled,
         }
         if impact["action"] == "archive":
             source.status = "disabled"
@@ -1883,6 +1905,25 @@ class SourceWorkspaceService:
         active_workspace_count = sum(
             1 for _, workspace in matching_workspaces if workspace.status == "active"
         )
+        acquisition_runs = self.db.query(AcquisitionRun).filter(
+            AcquisitionRun.source_id == source.id
+        )
+        active_acquisition_count = acquisition_runs.filter(
+            AcquisitionRun.status.in_(ACTIVE_RUN_STATUSES)
+        ).count()
+        scan_ids = {
+            scan.id
+            for scan in self.db.query(SourceDataQualityScan)
+            .filter(SourceDataQualityScan.owner_user_id == source.owner_user_id)
+            .all()
+            if scan.source_id == source.id or source.id in scan.source_ids_json
+        }
+        scan_ids.update(
+            scan_id
+            for (scan_id,) in self.db.query(SourceDataQualityScanSource.scan_id)
+            .filter(SourceDataQualityScanSource.source_id == source.id)
+            .all()
+        )
         protected_counts = {
             "mappingRevisions": self.db.query(SourceMappingRevision)
             .filter(SourceMappingRevision.source_id == source.id)
@@ -1892,23 +1933,45 @@ class SourceWorkspaceService:
             "dataQualityIssues": self.db.query(SourceDataQualityIssue)
             .filter(SourceDataQualityIssue.source_id == source.id)
             .count(),
-            "dataQualityScans": sum(
-                1
-                for scan in self.db.query(SourceDataQualityScan)
-                .filter(SourceDataQualityScan.owner_user_id == source.owner_user_id)
-                .all()
-                if scan.source_id == source.id or source.id in scan.source_ids_json
-            ),
+            "dataQualityScans": len(scan_ids),
             "workspaceSnapshots": len(matching_workspaces),
+            "acquisitionRuns": acquisition_runs.count(),
+            "sourceObservationVersionHeads": self.db.query(SourceObservationVersionHead)
+            .filter(SourceObservationVersionHead.source_id == source.id)
+            .count(),
+            "sourceObservations": self.db.query(SourceObservation)
+            .filter(SourceObservation.source_id == source.id)
+            .count(),
+            "mappingSchemaExpectations": self.db.query(SourceMappingSchemaExpectation)
+            .filter(SourceMappingSchemaExpectation.source_id == source.id)
+            .count(),
+            "schemaAssessments": self.db.query(SourceSchemaAssessment)
+            .filter(SourceSchemaAssessment.source_id == source.id)
+            .count(),
+            "businessEvents": self.db.query(BusinessEvent)
+            .filter(
+                BusinessEvent.primary_scope_type == "source",
+                BusinessEvent.primary_scope_id == source.id,
+            )
+            .count(),
+            "currencyProfiles": self.db.query(CurrencyProfile)
+            .filter(
+                CurrencyProfile.scope == "source",
+                CurrencyProfile.scope_reference == source.id,
+            )
+            .count(),
         }
         protected_history = {
             key: count for key, count in protected_counts.items() if count > 0
         }
-        blockers = (
-            {"activeWorkspaces": active_workspace_count}
-            if active_workspace_count > 0
-            else {}
-        )
+        blockers = {
+            key: count
+            for key, count in {
+                "activeWorkspaces": active_workspace_count,
+                "activeAcquisitionRuns": active_acquisition_count,
+            }.items()
+            if count > 0
+        }
         action = (
             "none"
             if source.status != "active"
@@ -1927,6 +1990,24 @@ class SourceWorkspaceService:
             "blockers": blockers,
             "protectedHistory": protected_history,
         }
+
+    def _disable_external_connector(self, source: SourceProfile) -> bool:
+        """Retire only the connector bound to this Source in the same transaction."""
+        if not source.external_source_id:
+            return False
+        connector = (
+            self.db.query(IntegrationConnectorInstance)
+            .filter(IntegrationConnectorInstance.id == source.external_source_id)
+            .with_for_update()
+            .one_or_none()
+        )
+        if connector is None:
+            return False
+        changed = connector.enabled or connector.status != "disabled"
+        connector.enabled = False
+        connector.status = "disabled"
+        connector.updated_at = utcnow()
+        return changed
 
     def _append_source_lifecycle_audit(
         self,

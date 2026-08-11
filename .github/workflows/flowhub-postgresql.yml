@@ -155,6 +155,23 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
+      - name: PostgreSQL Source lifecycle history safety
+        id: postgres-source-lifecycle
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-source-lifecycle-junit.xml \
+            tests/flowhub/source_workspace/test_source_lifecycle_postgres.py \
+            2>&1 | tee postgres-source-lifecycle-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-source-lifecycle-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-source-lifecycle-junit.xml source-lifecycle | tee postgres-source-lifecycle-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-source-lifecycle-junit.xml' | tee postgres-source-lifecycle-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: PostgreSQL Workspace snapshot persistence tests
         id: postgres-workspace-persistence-tests
         run: |
@@ -234,6 +251,9 @@ jobs:
             postgres-019-junit.xml
             postgres-019-output.log
             postgres-019-manifest.log
+            postgres-source-lifecycle-junit.xml
+            postgres-source-lifecycle-output.log
+            postgres-source-lifecycle-manifest.log
             postgres-workspace-persistence-junit.xml
             postgres-workspace-persistence-output.log
             postgres-workspace-persistence-manifest.log
