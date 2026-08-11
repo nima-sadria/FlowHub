@@ -23,7 +23,13 @@ function json(route: Route, body: unknown, status = 200) {
   })
 }
 
-async function installConfiguredSourceMocks(page: Page, audit: TrafficAudit) {
+async function installConfiguredSourceMocks(
+  page: Page,
+  audit: TrafficAudit,
+  options: { spreadsheetPath?: string } = {},
+) {
+  const spreadsheetPath = options.spreadsheetPath ?? '/Reports/prices.xlsx'
+  const setupConfigured = Boolean(spreadsheetPath)
   await page.addInitScript(() => {
     localStorage.setItem('wp_token', 'configured-secret-isolated-token')
     localStorage.setItem('flowhub.locale', 'en')
@@ -68,12 +74,12 @@ async function installConfiguredSourceMocks(page: Page, audit: TrafficAudit) {
         provider: 'nextcloud',
         name: 'Nextcloud',
         type: 'Source',
-        status: 'configured',
+        status: setupConfigured ? 'configured' : 'operational',
         implemented: true,
         placeholder: false,
         credential_status: 'configured',
         connection_configured: true,
-        configuration_state: 'configured',
+        configuration_state: setupConfigured ? 'configured' : 'setup_required',
         last_health_check: '2026-08-11T16:00:00Z',
         data_role: 'Spreadsheet price input',
         action_label: 'Manage',
@@ -112,9 +118,9 @@ async function installConfiguredSourceMocks(page: Page, audit: TrafficAudit) {
         provider: 'nextcloud',
         display_name: 'Nextcloud',
         description: 'Owner workbook',
-        configured: true,
+        configured: setupConfigured,
         connection_configured: true,
-        configuration_state: 'configured',
+        configuration_state: setupConfigured ? 'configured' : 'setup_required',
         last_test: {
           status: 'healthy',
           message: 'Connection successful.',
@@ -127,9 +133,9 @@ async function installConfiguredSourceMocks(page: Page, audit: TrafficAudit) {
         settings: {
           url: 'https://nextcloud.example.test',
           username: 'owner',
-          spreadsheet_path: '/Reports/prices.xlsx',
-          worksheet_mode: 'selected',
-          worksheet_name: 'Prices',
+          ...(spreadsheetPath ? { spreadsheet_path: spreadsheetPath } : {}),
+          worksheet_mode: setupConfigured ? 'selected' : 'all',
+          worksheet_name: setupConfigured ? 'Prices' : '',
         },
         secrets: { password: { status: 'configured', replaced_at: '2026-08-11T15:00:00Z' } },
         settings_schema: settingsSchema,
@@ -193,6 +199,36 @@ test('configured Source secret controls explain and enforce their local-draft-on
   await input.blur()
   await expect(mask).toBeVisible()
 
+  expect(audit.externalRequests).toEqual([])
+  expect(audit.unhandledApiRequests).toEqual([])
+  expect(audit.writes).toEqual([])
+})
+
+test('healthy saved connection unlocks Worksheet and Monetary Policy before spreadsheet selection', async ({ page }) => {
+  const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [], writes: [] }
+  await installConfiguredSourceMocks(page, audit, { spreadsheetPath: '' })
+
+  await page.goto(`/commerce?tab=sources&resource=${encodeURIComponent(sourceId)}`)
+
+  const spreadsheet = page.locator('[data-setup-step="spreadsheet"]')
+  const worksheet = page.locator('[data-setup-step="worksheet"]')
+  const dataSheet = page.locator('[data-setup-step="data-sheet"]')
+  const monetary = page.locator('[data-setup-step="monetary-unit"]')
+
+  await expect(spreadsheet).toHaveAttribute('aria-disabled', 'false')
+  await expect(worksheet).toHaveAttribute('aria-disabled', 'false')
+  await expect(monetary).toHaveAttribute('aria-disabled', 'false')
+  await expect(worksheet.locator('fieldset')).toBeEnabled()
+  await expect(monetary.locator('fieldset')).toBeEnabled()
+  await expect(dataSheet).toHaveAttribute('aria-disabled', 'true')
+  await expect(dataSheet.getByRole('button', { name: /Save and open Data Sheet/ })).toBeDisabled()
+
+  await worksheet.getByLabel('Selected worksheet').check()
+  await worksheet.getByLabel('Worksheet name').fill('Prices')
+  await monetary.getByLabel('Price unit').selectOption('TOMAN')
+
+  await expect(worksheet.getByLabel('Worksheet name')).toHaveValue('Prices')
+  await expect(monetary.getByLabel('Price unit')).toHaveValue('TOMAN')
   expect(audit.externalRequests).toEqual([])
   expect(audit.unhandledApiRequests).toEqual([])
   expect(audit.writes).toEqual([])

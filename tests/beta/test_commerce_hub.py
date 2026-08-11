@@ -1386,6 +1386,79 @@ def test_nextcloud_source_settings_allow_credentials_before_spreadsheet_selectio
     assert configured_source["configuration_state"] == "configured"
 
 
+def test_nextcloud_policies_and_currency_persist_before_later_spreadsheet_selection(
+    client, auth_headers, db
+):
+    from app.flowhub.setup.service import AppConfigService
+
+    policy_save = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "worksheet_mode": "selected",
+                "worksheet_name": "Prices",
+            },
+            "secrets": {"password": "app-password-secret"},
+            "currency": "IRR",
+            "currency_unit": "TOMAN",
+        },
+    )
+
+    assert policy_save.status_code == 200
+    assert "app-password-secret" not in policy_save.text
+    reopened = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+    assert reopened.status_code == 200
+    policy = reopened.json()
+    assert policy["settings"].get("spreadsheet_path") in (None, "")
+    assert policy["settings"]["worksheet_mode"] == "selected"
+    assert policy["settings"]["worksheet_name"] == "Prices"
+    assert policy["currency_profile"]["status"] == "resolved"
+    assert policy["currency_profile"]["currency"] == "IRR"
+    assert policy["currency_profile"]["unit"] == "TOMAN"
+    assert policy["secrets"]["password"]["status"] == "configured"
+    assert policy["credentials_returned"] is False
+
+    file_save = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/Reports/prices.xlsx",
+            },
+            "secrets": {"password": ""},
+        },
+    )
+
+    assert file_save.status_code == 200
+    config = AppConfigService(db)
+    assert config.get("nextcloud.spreadsheet_path") == "/Reports/prices.xlsx"
+    assert config.get("nextcloud.worksheet_mode") == "selected"
+    assert config.get("nextcloud.worksheet_name") == "Prices"
+    after_file = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+    assert after_file.status_code == 200
+    persisted = after_file.json()
+    assert persisted["settings"]["spreadsheet_path"] == "/Reports/prices.xlsx"
+    assert persisted["settings"]["worksheet_mode"] == "selected"
+    assert persisted["settings"]["worksheet_name"] == "Prices"
+    assert persisted["currency_profile"]["currency"] == "IRR"
+    assert persisted["currency_profile"]["unit"] == "TOMAN"
+    assert persisted["secrets"]["password"]["status"] == "configured"
+    assert persisted["credentials_returned"] is False
+
+
 def test_nextcloud_source_configuration_returns_editable_values_without_secrets(client, auth_headers, db):
     from app.flowhub.setup.service import AppConfigService
 
