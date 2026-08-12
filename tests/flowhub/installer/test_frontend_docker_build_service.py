@@ -25,3 +25,13 @@ def test_dockerfile_exposes_license_only_to_frontend_build_stage():
     frontend, runtime = dockerfile.split("# -- Stage 2: Python application", maxsplit=1)
     assert "ARG VITE_HANDSONTABLE_LICENSE_KEY" in frontend
     assert "VITE_HANDSONTABLE_LICENSE_KEY" not in runtime
+
+
+def test_frontend_docker_stage_includes_raw_channel_document_imports():
+    dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+    frontend, _runtime = dockerfile.split("# -- Stage 2: Python application", maxsplit=1)
+
+    # ChannelDocs.tsx imports the repository contracts through
+    # ../../../docs/api/channel/*.md?raw.  The Docker stage runs from
+    # /frontend, so the build context must create that sibling directory.
+    assert "COPY docs/api/channel/*.md /docs/api/channel/" in frontend

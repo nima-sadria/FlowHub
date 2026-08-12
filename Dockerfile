@@ -5,6 +5,10 @@ WORKDIR /frontend
 
 COPY frontend/package*.json ./
 RUN npm ci --silent
+# Channel Docs imports these repository contracts as raw Vite modules.  The
+# frontend build runs from /frontend, so include the explicit parent path the
+# source imports resolve to instead of relying on a host checkout layout.
+COPY docs/api/channel/*.md /docs/api/channel/
 COPY frontend/ ./
 ARG VITE_HANDSONTABLE_LICENSE_KEY
 RUN npm run build
