@@ -73,25 +73,28 @@ describe('Channels page', () => {
       items: [
         channel(),
         channel({ id: 'snappshop:main', provider: 'snappshop', name: 'SnappShop Store', health: { status: 'degraded', message: '', latency_ms: null, error_code: null }, cached_products: 1876 }),
-        channel({ id: 'digikala:pos', provider: 'digikala', name: 'Digikala POS', status: 'disabled', enabled: false, cached_products: 512 }),
+        channel({ id: 'digikala:main', provider: 'digikala', name: 'Digikala', status: 'disabled', enabled: false, read_only: true, write_blocked: true, runtime_write_blocked: true, cached_products: 0 }),
       ],
       relationship_map: { nodes: [], example: [], runtime_write_blocked: true, read_only: true },
     })
     getOrders = vi.fn().mockResolvedValue({ items: [], total: 72, page: 1, pageSize: 1 })
     testChannel = vi.fn().mockResolvedValue({ ok: true })
-    const channelTypes: CommerceTypeOption[] = ['woocommerce:primary', 'snappshop:main', 'digikala:pos'].map(id => ({
+    const channelTypes: CommerceTypeOption[] = ['woocommerce:primary', 'snappshop:main', 'digikala:main'].map(id => ({
       id,
       provider: id.split(':')[0],
       name: id === 'woocommerce:primary' ? 'WooCommerce EU' : id === 'snappshop:main' ? 'SnappShop Store' : 'Digikala',
       type: 'Channel',
       implemented: true,
       placeholder: false,
-      read_only: false,
-      runtime_write_blocked: false,
+      read_only: id === 'digikala:main',
+      runtime_write_blocked: id === 'digikala:main',
       settings_schema: id === 'woocommerce:primary' ? [
         { key: 'url', label: 'Store URL', required: true, secret: false },
         { key: 'key', label: 'Consumer key', required: true, secret: true },
         { key: 'secret', label: 'Consumer secret', required: true, secret: true },
+      ] : id === 'digikala:main' ? [
+        { key: 'access_token', label: 'Access token', required: true, secret: true },
+        { key: 'refresh_token', label: 'Refresh token', required: false, secret: true },
       ] : [],
     }))
     getChannelTypes = vi.fn().mockResolvedValue({ items: channelTypes })
@@ -99,8 +102,8 @@ describe('Channels page', () => {
       channel_id: channelId,
       provider: channelId.split(':')[0],
       display_name: channelTypes.find(item => item.id === channelId)?.name ?? channelId,
-      configured: channelId !== 'digikala:pos',
-      enabled: channelId !== 'digikala:pos',
+      configured: channelId !== 'digikala:main',
+      enabled: channelId !== 'digikala:main',
       access_mode: 'read_only' as const,
       settings: channelId === 'woocommerce:primary' ? { url: 'https://shop.example.test' } : {},
       secrets: channelId === 'woocommerce:primary' ? {
@@ -166,7 +169,7 @@ describe('Channels page', () => {
     expect(container.querySelector('[data-channel-card="woocommerce:primary"]')?.textContent).toContain('Healthy')
     expect(container.querySelector('[data-channel-card="snappshop:main"]')?.textContent).toContain('Warning')
     expect(container.querySelector('[data-channel-card="snappshop:main"]')?.textContent).toContain('needs attention')
-    expect(container.querySelector('[data-channel-card="digikala:pos"]')?.textContent).toContain('Setup required')
+    expect(container.querySelector('[data-channel-card="digikala:main"]')?.textContent).toContain('Setup required')
   })
 
   it('drills channel KPIs into the records behind each number', async () => {
@@ -188,7 +191,7 @@ describe('Channels page', () => {
       (container.querySelector('[data-channel-kpi="attention"]') as HTMLButtonElement).click()
     })
     expect(Array.from(container.querySelectorAll('[data-channel-card]')).map(item => item.getAttribute('data-channel-card')))
-      .toEqual(['snappshop:main', 'digikala:pos'])
+      .toEqual(['snappshop:main', 'digikala:main'])
 
     await act(async () => {
       (container.querySelector('[data-channel-kpi="orders-today"]') as HTMLButtonElement).click()
@@ -268,10 +271,11 @@ describe('Channels page', () => {
   it('offers only the setup workflow on a disabled channel', async () => {
     await render()
 
-    const card = container.querySelector('[data-channel-card="digikala:pos"]') as HTMLElement
+    const card = container.querySelector('[data-channel-card="digikala:main"]') as HTMLElement
     expect(Array.from(card.querySelectorAll('button')).map(button => button.textContent?.trim())).toEqual(['Setup now'])
     expect(card.querySelectorAll('.fh-badge')).toHaveLength(1)
     expect(card.textContent?.match(/Setup required/g) ?? []).toHaveLength(1)
+    expect(card.textContent).toContain('Read only')
     expect(card.textContent).not.toContain('Test connection')
     expect(card.textContent).not.toContain('Refresh cache')
   })
@@ -328,11 +332,19 @@ describe('Channels page', () => {
   it('opens Setup Now and connected Settings in the same canonical dialog', async () => {
     await render()
 
-    const setupCard = container.querySelector('[data-channel-card="digikala:pos"]') as HTMLElement
+    const setupCard = container.querySelector('[data-channel-card="digikala:main"]') as HTMLElement
     const setup = Array.from(setupCard.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Setup now') as HTMLButtonElement
     await act(async () => { setup.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
-    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Configure Digikala — Pos')
-    expect(getChannelConfiguration).toHaveBeenCalledWith('digikala:pos')
+    const dialog = container.querySelector('[role="dialog"]') as HTMLElement
+    expect(dialog.textContent).toContain('Configure Digikala')
+    expect(getChannelConfiguration).toHaveBeenCalledWith('digikala:main')
+    const accessMode = Array.from(dialog.querySelectorAll('label'))
+      .find(label => label.textContent?.includes('Access mode'))
+      ?.querySelector('select') as HTMLSelectElement
+    expect(Array.from(accessMode.options).map(option => option.value)).toEqual(['read_only'])
+    expect(dialog.textContent).toContain('Access token')
+    expect(dialog.textContent).toContain('Refresh token')
+    expect(dialog.querySelectorAll<HTMLInputElement>('input[type="password"]')).toHaveLength(2)
     expect(container.querySelector('main')?.className).toContain('fh-modal-scroll-lock')
 
     const close = Array.from(container.querySelectorAll('[role="dialog"] button')).find(item => item.textContent?.trim() === 'Close') as HTMLButtonElement

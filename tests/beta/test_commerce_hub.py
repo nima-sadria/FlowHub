@@ -133,7 +133,7 @@ def test_commerce_sources_do_not_list_marketplace_channels(client, auth_headers)
     assert "Tapsi Shop" not in names
 
 
-def test_commerce_type_routes_mark_future_placeholders_read_only(client, auth_headers):
+def test_commerce_type_routes_mark_current_and_future_channels_read_only(client, auth_headers):
     source_response = client.get("/api/v2/commerce/source-types", headers=auth_headers)
     channel_response = client.get("/api/v2/commerce/channel-types", headers=auth_headers)
 
@@ -160,7 +160,12 @@ def test_commerce_type_routes_mark_future_placeholders_read_only(client, auth_he
     assert channel_types["technolife"]["placeholder"] is False
     assert channel_types["technolife"]["read_only"] is True
     assert channel_types["technolife"]["write_blocked"] is True
-    for provider in ("digikala", "shopify"):
+    assert channel_types["digikala"]["implemented"] is True
+    assert channel_types["digikala"]["implementation_status"] == "IMPLEMENTED_UNVERIFIED"
+    assert channel_types["digikala"]["placeholder"] is False
+    assert channel_types["digikala"]["read_only"] is True
+    assert channel_types["digikala"]["write_blocked"] is True
+    for provider in ("shopify",):
         assert channel_types[provider]["implemented"] is False
         assert channel_types[provider]["placeholder"] is True
         assert channel_types[provider]["read_only"] is True
@@ -200,6 +205,22 @@ def test_marketplace_registries_are_implemented_and_read_only():
         if field.required and field.secret
     }
     assert required_secrets == {"api_key", "encryption_secret"}
+
+    digikala = registry.get_definition("digikala")
+    assert digikala is not None
+    assert digikala.connector.identity.name == "Digikala"
+    assert digikala.connector.identity.read_only is True
+    assert digikala.connector.capabilities.oauth is True
+    assert digikala.connector.capabilities.read_products is False
+    assert digikala.connector.capabilities.read_orders is False
+    assert digikala.connector.capabilities.write_prices is False
+    assert digikala.connector.capabilities.write_inventory is False
+    assert {field.key for field in digikala.settings_schema} == {
+        "base_url", "request_timeout", "access_token", "refresh_token"
+    }
+    assert {
+        field.key for field in digikala.settings_schema if field.required and field.secret
+    } == {"access_token"}
 
 
 def test_woocommerce_connection_test_performs_read_only_api_call_without_secret_leakage(client, auth_headers, monkeypatch):
@@ -480,7 +501,7 @@ def test_snappshop_connection_test_performs_vendor_probe_without_secret_leakage(
     assert channel_state["credentials_verified"] is True
 
 
-def test_placeholder_connection_test_does_not_call_external_system(client, auth_headers, monkeypatch):
+def test_shopify_placeholder_connection_test_does_not_call_external_system(client, auth_headers, monkeypatch):
     async def fail_acquire(*args, **kwargs):
         raise AssertionError("placeholder channels must not acquire a limiter token")
 
@@ -494,7 +515,7 @@ def test_placeholder_connection_test_does_not_call_external_system(client, auth_
     )
     monkeypatch.setattr("app.connectors.destinations.woocommerce.rest_client.httpx.AsyncClient", FailingAsyncClient)
 
-    response = client.post("/api/v2/commerce/channels/digikala:main/test", headers=auth_headers, json={})
+    response = client.post("/api/v2/commerce/channels/shopify:main/test", headers=auth_headers, json={})
 
     assert response.status_code == 200
     data = response.json()
@@ -3139,6 +3160,317 @@ def test_technolife_connection_test_persists_verified_health(
     assert channel_state["health"]["latency_ms"] == 14.5
     assert channel_state["last_health_check"]
     assert channel_state["credentials_verified"] is True
+
+
+def test_digikala_configuration_masks_tokens_and_write_mode_stays_rejected(
+    client, auth_headers, db
+):
+    write_mode = client.put(
+        "/api/v2/commerce/channels/digikala:main/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "access_mode": "write_enabled",
+            "settings": {},
+            "secrets": {"access_token": "digikala-access-secret"},
+        },
+    )
+    assert write_mode.status_code == 403
+
+    save = client.put(
+        "/api/v2/commerce/channels/digikala:main/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "access_mode": "read_only",
+            "settings": {
+                "base_url": "https://seller.digikala.com/open-api/v1",
+                "request_timeout": 30,
+            },
+            "secrets": {
+                "access_token": "digikala-access-secret",
+                "refresh_token": "digikala-refresh-secret",
+            },
+        },
+    )
+    assert save.status_code == 200
+    assert "digikala-access-secret" not in save.text
+    assert "digikala-refresh-secret" not in save.text
+    assert save.json()["read_only"] is True
+    assert save.json()["write_blocked"] is True
+
+    configuration = client.get(
+        "/api/v2/commerce/channels/digikala:main/configuration",
+        headers=auth_headers,
+    ).json()
+    assert configuration["configured"] is True
+    assert configuration["enabled"] is True
+    assert configuration["access_mode"] == "read_only"
+    assert configuration["access_token_configured"] is True
+    assert configuration["refresh_token_configured"] is True
+    assert configuration["secrets"]["access_token"]["status"] == "configured"
+    assert configuration["secrets"]["refresh_token"]["status"] == "configured"
+    assert configuration["credentials_returned"] is False
+    assert "digikala-access-secret" not in str(configuration)
+    assert "digikala-refresh-secret" not in str(configuration)
+
+    from app.flowhub.integration_platform.models import IntegrationConnectorEvent
+
+    activity_events = (
+        db.query(IntegrationConnectorEvent)
+        .filter_by(connector_id="digikala:main")
+        .all()
+    )
+    assert {event.event_name for event in activity_events} >= {
+        "channel_configuration_changed",
+        "connector_settings_updated",
+    }
+    assert all("digikala-access-secret" not in event.message for event in activity_events)
+    assert all("digikala-refresh-secret" not in event.message for event in activity_events)
+
+
+def test_digikala_connection_test_uses_one_read_only_orders_get_and_persists_health(
+    client, auth_headers, monkeypatch
+):
+    requests: list[dict] = []
+
+    class FakeResponse:
+        status_code = 200
+        content = b"json"
+        headers = {}
+
+        def json(self):
+            return {"status": "ok", "data": {"pager": {}, "items": []}}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def request(self, method, url, *, headers=None, json=None):
+            requests.append(
+                {"method": method, "url": url, "headers": headers, "json": json}
+            )
+            return FakeResponse()
+
+    monkeypatch.setattr(
+        "app.flowhub.channels.digikala.httpx.AsyncClient", FakeAsyncClient
+    )
+    save = client.put(
+        "/api/v2/commerce/channels/digikala:main/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {},
+            "secrets": {
+                "access_token": "digikala-access-secret",
+                "refresh_token": "digikala-refresh-secret",
+            },
+        },
+    )
+    assert save.status_code == 200
+
+    response = client.post(
+        "/api/v2/commerce/channels/digikala:main/test",
+        headers=auth_headers,
+        json={},
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["ok"] is True
+    assert result["connected"] is True
+    assert result["authenticated"] is True
+    assert result["read_only"] is True
+    assert result["write_blocked"] is True
+    assert result["external_call_performed"] is True
+    assert "digikala-access-secret" not in response.text
+    assert "digikala-refresh-secret" not in response.text
+    assert requests == [
+        {
+            "method": "GET",
+            "url": "https://seller.digikala.com/open-api/v1/orders",
+            "headers": {
+                "Authorization": "Bearer digikala-access-secret",
+                "Content-Type": "application/json",
+            },
+            "json": None,
+        }
+    ]
+    channel_state = client.get(
+        "/api/v2/commerce/channels/digikala:main", headers=auth_headers
+    ).json()
+    assert channel_state["implementation_status"] == "IMPLEMENTED_UNVERIFIED"
+    assert channel_state["health"]["status"] == "healthy"
+    assert channel_state["last_health_check"]
+    assert channel_state["credentials_verified"] is True
+    assert channel_state["cached_products"] == 0
+
+
+def test_digikala_connection_failure_returns_redacted_structured_retry_evidence(
+    client, auth_headers, monkeypatch
+):
+    requests: list[dict] = []
+
+    class FakeResponse:
+        status_code = 429
+        content = b"json"
+        headers = {"Retry-After": "7"}
+
+        def json(self):
+            return {
+                "code": "provider-secret-code",
+                "message": "echo digikala-access-secret",
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def request(self, method, url, *, headers=None, json=None):
+            requests.append(
+                {"method": method, "url": url, "headers": headers, "json": json}
+            )
+            return FakeResponse()
+
+    monkeypatch.setattr(
+        "app.flowhub.channels.digikala.httpx.AsyncClient", FakeAsyncClient
+    )
+    save = client.put(
+        "/api/v2/commerce/channels/digikala:main/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {},
+            "secrets": {"access_token": "digikala-access-secret"},
+        },
+    )
+    assert save.status_code == 200
+
+    response = client.post(
+        "/api/v2/commerce/channels/digikala:main/test",
+        headers=auth_headers,
+        json={},
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["ok"] is False
+    assert result["connected"] is False
+    assert result["authenticated"] is True
+    assert result["status"] == "error"
+    assert result["http_status"] == 429
+    assert result["code"] == "DIGIKALA_RATE_LIMIT"
+    assert result["error_class"] == "rate_limit"
+    assert result["retryable"] is True
+    assert result["retry_after_seconds"] == 7
+    assert result["message"] == "Digikala rate limit was reached."
+    assert "digikala-access-secret" not in response.text
+    assert "provider-secret-code" not in response.text
+    assert requests == [
+        {
+            "method": "GET",
+            "url": "https://seller.digikala.com/open-api/v1/orders",
+            "headers": {
+                "Authorization": "Bearer digikala-access-secret",
+                "Content-Type": "application/json",
+            },
+            "json": None,
+        }
+    ]
+    channel_state = client.get(
+        "/api/v2/commerce/channels/digikala:main", headers=auth_headers
+    ).json()
+    assert channel_state["health"]["status"] == "unhealthy"
+    assert channel_state["health"]["error_code"] == "rate_limited"
+
+
+@pytest.mark.asyncio
+async def test_digikala_rotated_tokens_remain_out_of_integration_setting_values(
+    client, auth_headers, db, monkeypatch
+):
+    class FakeResponse:
+        status_code = 200
+        content = b"json"
+        headers = {}
+
+        def json(self):
+            return {
+                "access_token": "digikala-rotated-access-secret",
+                "refresh_token": "digikala-rotated-refresh-secret",
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def request(self, method, url, *, headers=None, json=None):
+            assert method == "POST"
+            assert url == "https://seller.digikala.com/open-api/v1/auth/refresh-token"
+            assert json == {
+                "access_token": "digikala-old-access-secret",
+                "refresh_token": "digikala-old-refresh-secret",
+            }
+            return FakeResponse()
+
+    monkeypatch.setattr(
+        "app.flowhub.channels.digikala.httpx.AsyncClient", FakeAsyncClient
+    )
+    save = client.put(
+        "/api/v2/commerce/channels/digikala:main/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {},
+            "secrets": {
+                "access_token": "digikala-old-access-secret",
+                "refresh_token": "digikala-old-refresh-secret",
+            },
+        },
+    )
+    assert save.status_code == 200
+
+    from app.flowhub.commerce.service import CommerceHubService
+    from app.flowhub.integration_platform.models import IntegrationConnectorSetting
+
+    db.expire_all()
+    connector = CommerceHubService(db)._digikala_connector()
+    assert connector is not None
+    health = await connector.refresh_credentials()
+    assert health.status == "healthy"
+
+    db.expire_all()
+    settings = (
+        db.query(IntegrationConnectorSetting)
+        .filter_by(connector_id="digikala:main")
+        .filter(IntegrationConnectorSetting.key.in_(["access_token", "refresh_token"]))
+        .all()
+    )
+    assert {setting.key for setting in settings} == {"access_token", "refresh_token"}
+    assert all(setting.secret is True for setting in settings)
+    assert all(setting.configured is True for setting in settings)
+    assert all(setting.value_json is None for setting in settings)
+    assert "digikala-old-access-secret" not in str(settings)
+    assert "digikala-old-refresh-secret" not in str(settings)
+    assert "digikala-rotated-access-secret" not in str(settings)
+    assert "digikala-rotated-refresh-secret" not in str(settings)
 
 
 def test_snappshop_unsaved_credentials_can_test_and_return_vendor_choices(client, auth_headers, monkeypatch):

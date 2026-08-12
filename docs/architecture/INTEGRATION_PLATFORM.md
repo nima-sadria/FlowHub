@@ -22,6 +22,11 @@ Current implemented connectors:
 - Nextcloud
 - SnappShop
 - TapsiShop
+- Digikala — `IMPLEMENTED_UNVERIFIED`: documented authentication, safe
+  write-only credential configuration, a read-only `GET /orders` connection
+  probe, and diagnostics are integrated. The supplied documentation omits the
+  endpoint schemas and filter contracts needed for normalized products, orders,
+  cache, or polling; all write operations remain fail-closed.
 
 Commerce Hub Channels:
 
@@ -32,7 +37,6 @@ Commerce Hub Channels:
 
 Planned Channels:
 
-- Digikala
 - Technolife
 
 Future connector types:

@@ -617,6 +617,7 @@ export interface CommerceSource {
   type: 'Source'
   status: string
   implemented: boolean
+  implementation_status?: string | null
   placeholder: boolean
   credential_status: string
   connection_configured?: boolean
@@ -658,6 +659,7 @@ export interface CommerceChannel {
   type: 'Channel'
   status: string
   implemented: boolean
+  implementation_status?: string | null
   placeholder: boolean
   enabled: boolean
   read_only: boolean
@@ -671,6 +673,8 @@ export interface CommerceChannel {
   vendor_accessible?: boolean
   token_configured?: boolean
   webhook_token_configured?: boolean
+  access_token_configured?: boolean
+  refresh_token_configured?: boolean
   last_health_check: string | null
   health: CommerceHealth
   capabilities: Record<string, boolean>
@@ -704,6 +708,7 @@ export interface CommerceTypeOption {
   name: string
   type: 'Source' | 'Channel'
   implemented: boolean
+  implementation_status?: string | null
   placeholder: boolean
   read_only: boolean
   write_blocked?: boolean

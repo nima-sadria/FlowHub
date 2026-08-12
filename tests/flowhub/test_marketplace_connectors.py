@@ -140,3 +140,8 @@ def test_default_registry_keeps_marketplace_capabilities_explicit_and_woocommerc
     assert registry.supports("tapsishop:main", ChannelCapability.ORDERS_WEBHOOK_RECEIVE) is True
     assert registry.supports("tapsishop:main", ChannelCapability.COURIER_READ) is True
     assert registry.supports("tapsishop:main", ChannelCapability.COURIER_REVIEW) is False
+    assert registry.get_definition("digikala:main").implemented is True
+    assert registry.supports("digikala:main", ChannelCapability.CREDENTIALS_REFRESH) is True
+    assert registry.supports("digikala:main", ChannelCapability.PRODUCTS_READ) is False
+    assert registry.supports("digikala:main", ChannelCapability.ORDERS_READ) is False
+    assert registry.supports("digikala:main", ChannelCapability.PRODUCTS_WRITE_PRICE) is False

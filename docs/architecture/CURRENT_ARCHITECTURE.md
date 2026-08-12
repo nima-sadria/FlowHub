@@ -151,7 +151,14 @@ Current Channels shown in Commerce Hub:
   through protected backend APIs.
 - Technolife: implemented marketplace Channel with catalog, price/stock update,
   cache refresh, and reconciliation support through protected backend APIs.
-- Digikala and Shopify: future Channel placeholders.
+- Digikala: `IMPLEMENTED_UNVERIFIED` read-side Channel with write-only bearer
+  credential configuration, documented token rotation, and a real read-only
+  `GET /orders` connection probe. The supplied contract lacks the
+  endpoint-specific field and query schemas needed to normalize product or
+  order data into FlowHub caches, so it has no product-cache refresh, order
+  synchronization, or order mutation capability. It has not yet been verified
+  with Owner credentials.
+- Shopify: future Channel placeholder.
 
 Commerce Hub relationship map:
 
@@ -183,7 +190,9 @@ current Channel connectors. It resolves WooCommerce, SnappShop, TapsiShop, and
 Technolife through `WorkspaceConnectorFactory`, performs no-write Dry Run,
 requires explicit Approval, and owns Apply and verification. Commerce Hub
 itself does not write to Sources, does not write stock, and does not perform
-Apply.
+Apply. Digikala is intentionally not resolved by that gateway: all of its
+provider-documented write groups are `DOCUMENTED_NOT_IMPLEMENTED`, so no
+Digikala operation can enter the Write Pipeline.
 
 ## Unified Logging Platform
 
@@ -203,8 +212,11 @@ Deferred in the first release:
 - Stock writes
 - Source or spreadsheet writes
 - Automatic pricing and automatic Apply
-- Additional marketplace channels beyond WooCommerce, SnappShop, TapsiShop,
-  and Technolife
+- Additional marketplace write channels beyond WooCommerce, SnappShop,
+  TapsiShop, and Technolife
+- Digikala product/order normalization, cache synchronization, and every
+  documented Digikala write group, pending endpoint schemas and a separate
+  Owner decision
 
 Connector communication for WooCommerce and Nextcloud is isolated to connector
 and integration layers. Active FLOWHUB v2 API routes must not directly call external
@@ -215,6 +227,9 @@ Marketplace order synchronization uses a separate `order-sync-runner` process
 with channel-scoped database leases. It polls SnappShop order events, processes
 accepted TapsiShop webhook receipts, and reconciles recent orders without
 performing product price writes, stock writes, or automatic Apply.
+Digikala is deliberately excluded: its supplied documentation does not define
+the order fields or date/status filter contract required for normalized,
+idempotent synchronization, and no order mutation is authorized.
 
 ## CLI
 
@@ -251,8 +266,11 @@ installer to `/opt/FlowHub`.
 
 ## Planned
 
-- Planned diagram providers: Google Sheets and ERP/API Sources; Digikala and
-  Shopify Channels. Any other provider requires a separate Owner decision.
+- Planned diagram providers: Google Sheets and ERP/API Sources; Shopify
+  Channel. Digikala remains `IMPLEMENTED_UNVERIFIED` until an Owner credential
+  succeeds on the read-only connection probe and the resulting evidence is
+  reviewed by the Owner and Diagram Keeper. Any other provider requires a
+  separate Owner decision.
 - Live logging tail.
 - Scheduler execution only after separate approval.
 - Additional write channels only after separate architecture, audit, and Owner approval.

@@ -44,10 +44,11 @@ DEFAULT_CHANNEL_IDS = (
     "snappshop:main",
     "tapsishop:main",
     "technolife:main",
+    "digikala:main",
 )
 SOURCE_CONNECTOR_TYPES = frozenset({"nextcloud", "csv", "gsheets", "erp"})
 CONNECTION_TEST_CHANNEL_TYPES = frozenset(
-    {"woocommerce", "snappshop", "tapsishop", "technolife"}
+    {"woocommerce", "snappshop", "tapsishop", "technolife", "digikala"}
 )
 HEALTH_CACHE_SECONDS = 60
 EXTERNAL_CHECK_TIMEOUT_SECONDS = 8.0
@@ -381,6 +382,7 @@ class ChannelHealthReporter:
             "snappshop": {"token", "agent_identifier", "vendor_id"},
             "tapsishop": {"token"},
             "technolife": {"api_key", "encryption_secret"},
+            "digikala": {"access_token"},
         }.get(instance.connector_type, set())
         settings = {item.key: item for item in instance.settings}
         return bool(required) and all(settings.get(key) and settings[key].configured for key in required)
@@ -393,6 +395,7 @@ class ChannelHealthReporter:
             "snappshop": {"token", "agent_identifier"},
             "tapsishop": {"token"},
             "technolife": {"api_key", "encryption_secret"},
+            "digikala": {"access_token"},
         }.get(instance.connector_type, set())
         settings = {item.key: item for item in instance.settings}
         return bool(required) and all(settings.get(key) and settings[key].configured for key in required)
@@ -1019,7 +1022,7 @@ class ChannelHealthReporter:
         connector_type: str,
         channel_enabled: bool,
     ) -> DiagnosticPresentation:
-        if connector_type != "tapsishop":
+        if connector_type not in {"tapsishop", "digikala"}:
             return _dimension(
                 DiagnosticState.NOT_APPLICABLE,
                 "This authentication method does not require token refresh.",
@@ -1036,6 +1039,41 @@ class ChannelHealthReporter:
                 evidence_source="connector_instance",
             )
         settings = {item.key: item for item in instance.settings} if instance else {}
+        if connector_type == "digikala":
+            refresh_token = settings.get("refresh_token")
+            if not refresh_token or not refresh_token.configured:
+                return _dimension(
+                    DiagnosticState.INFO,
+                    "No Digikala refresh token is configured; the read-only access-token probe remains available.",
+                    reason_code="token_refresh_not_configured",
+                    checked_at=None,
+                    evidence_source="connector_settings",
+                )
+            last_event = (
+                self.db.query(IntegrationConnectorEvent)
+                .filter(
+                    IntegrationConnectorEvent.connector_id
+                    == (instance.id if instance else ""),
+                    IntegrationConnectorEvent.event_name == "digikala_tokens_refreshed",
+                )
+                .order_by(IntegrationConnectorEvent.created_at.desc())
+                .first()
+            )
+            if last_event is None:
+                return _dimension(
+                    DiagnosticState.NOT_CHECKED,
+                    "A Digikala refresh token is configured, but no token refresh has been recorded.",
+                    reason_code="token_refresh_not_checked",
+                    checked_at=None,
+                    evidence_source="connector_events",
+                )
+            return _dimension(
+                DiagnosticState.HEALTHY,
+                "The latest Digikala token refresh completed successfully.",
+                reason_code="token_refresh_healthy",
+                checked_at=_iso(last_event.created_at),
+                evidence_source="connector_events",
+            )
         enabled = parse_config_bool(
             settings["token_refresh_enabled"].value_json
             if settings.get("token_refresh_enabled")

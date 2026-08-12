@@ -96,14 +96,39 @@ def test_unsupported_optional_capabilities_are_not_applicable_and_do_not_lower_h
         assert item["dimensions"][key]["state"] == "NOT_APPLICABLE"
 
 
-def test_unsupported_external_api_probe_is_not_applicable(db):
+def test_digikala_documented_read_only_external_probe_requires_access_token(db):
     _seed_channel(db, "digikala:main", "digikala", settings={})
 
     external = _item(db, "digikala:main")["dimensions"]["externalApi"]
 
-    assert external["state"] == "NOT_APPLICABLE"
-    assert external["reason_code"] == "external_api_probe_not_applicable"
-    assert external["is_actionable"] is False
+    assert external["state"] == "NOT_CHECKED"
+    assert external["reason_code"] == "external_api_not_checked_configuration_incomplete"
+    assert external["is_actionable"] is True
+
+
+def test_digikala_diagnostics_uses_persisted_read_only_probe_evidence(db):
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    _seed_channel(
+        db,
+        "digikala:main",
+        "digikala",
+        settings={"access_token": "configured"},
+    )
+    _seed_health(
+        db,
+        "digikala:main",
+        "healthy",
+        now,
+        last_success_at=now,
+    )
+
+    item = _item(db, "digikala:main")
+
+    assert item["connectionTestSupported"] is True
+    assert item["credentialsConfigured"] is True
+    assert item["dimensions"]["externalApi"]["state"] == "HEALTHY"
+    assert item["dimensions"]["lastProductSync"]["state"] == "NOT_APPLICABLE"
+    assert item["dimensions"]["lastOrderSync"]["state"] == "NOT_APPLICABLE"
 
 
 def test_fresh_and_stale_product_sync_have_evidence_based_states(db):
@@ -243,7 +268,14 @@ def _seed_channel(
             connector_id=channel_id,
             key=key,
             value_json=value,
-            secret=key in {"token", "secret", "key", "webhook_token"},
+            secret=key in {
+                "token",
+                "secret",
+                "key",
+                "webhook_token",
+                "access_token",
+                "refresh_token",
+            },
             configured=True,
             updated_at=now,
         ))

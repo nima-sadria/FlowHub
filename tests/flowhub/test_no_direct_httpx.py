@@ -38,6 +38,7 @@ _FLOWHUB_DIR = _REPO_ROOT / "app" / "flowhub"
 # Permitted FLOWHUB file that uses httpx for non-WC/NC transport (installer / B6 diagnostics)
 _ADAPTERS_FILE = _FLOWHUB_DIR / "connections" / "adapters.py"
 _MARKETPLACE_CONNECTOR_FILES = {
+    (_FLOWHUB_DIR / "channels" / "digikala.py").resolve(),
     (_FLOWHUB_DIR / "channels" / "snappshop.py").resolve(),
     (_FLOWHUB_DIR / "channels" / "tapsishop.py").resolve(),
     (_FLOWHUB_DIR / "channels" / "technolife.py").resolve(),

@@ -116,4 +116,16 @@ def default_marketplace_registry() -> MarketplaceConnectorRegistry:
             implemented=True,
         )
     )
+    registry.register_definition(
+        MarketplaceConnectorDefinition(
+            connector_type="digikala",
+            channel_id="digikala:main",
+            name="Digikala",
+            # The supplied document supports safe token replacement, but does
+            # not supply the endpoint schemas needed to declare normalized
+            # product/order capabilities in FlowHub's marketplace contract.
+            capabilities=frozenset({ChannelCapability.CREDENTIALS_REFRESH}),
+            implemented=True,
+        )
+    )
     return registry

@@ -25,6 +25,7 @@ describe('Source icon registry', () => {
     expect(sourceIconPath('tapsi-shop:main')).toBe(SOURCE_ICON_ASSETS.tapsishop)
     expect(sourceIconPath('technolife:main')).toBe(SOURCE_ICON_ASSETS.technolife)
     expect(sourceIconPath('digikala:main')).toBe(SOURCE_ICON_ASSETS.digikala)
+    expect(SOURCE_ICON_ASSETS.digikala).toBe('/static/logos/brands/digikala.webp')
   })
 
   it('resolves WooCommerce from its exact connector_type/channel_id identifiers', () => {

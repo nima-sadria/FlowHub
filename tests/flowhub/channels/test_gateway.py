@@ -87,11 +87,11 @@ def test_implemented_lists_exactly_the_four_current_channels() -> None:
     }
 
 
-def test_get_fails_closed_for_unknown_channel() -> None:
+def test_digikala_stays_fail_closed_in_the_write_gateway() -> None:
     with pytest.raises(WorkspaceDomainError):
         _factory().get("digikala:main")
 
 
-def test_get_product_pricing_fails_closed_for_unknown_channel() -> None:
+def test_digikala_product_pricing_stays_fail_closed_in_the_write_gateway() -> None:
     with pytest.raises(WorkspaceDomainError):
         _factory().get_product_pricing("digikala:main")

@@ -10,6 +10,7 @@ Key namespace conventions:
   nextcloud.*      - URL, username, password, spreadsheet path
   snappshop.*      - URL, token, agent header, vendor selection
   tapsishop.*      - URL, outbound token, webhook token, refresh policy
+  digikala.*       - Open API URL and bearer/refresh tokens
 """
 
 from __future__ import annotations
@@ -28,6 +29,8 @@ _SECRET_KEYS: frozenset[str] = frozenset({
     "snappshop.token",
     "tapsishop.token",
     "tapsishop.webhook_token",
+    "digikala.access_token",
+    "digikala.refresh_token",
     "exchange_rates.navasan.api_key",
 })
 

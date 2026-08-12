@@ -23,6 +23,11 @@ from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import ping as ping_woocommerce
 from app.connectors.read.woocommerce import WooCommerceProductReadAdapter
 from app.flowhub.auth.models import FlowHubUser
+from app.flowhub.channels.digikala import (
+    DIGIKALA_BASE_URL,
+    DigikalaConfig,
+    DigikalaConnector,
+)
 from app.flowhub.channels.marketplace_product_sync import MarketplaceProductSyncService
 from app.flowhub.channels.snappshop import (
     SNAPPSHOP_BASE_URL,
@@ -110,9 +115,10 @@ _CHANNELS = [
         "id": "digikala:main",
         "provider": "digikala",
         "name": "Digikala",
-        "status": "future",
-        "implemented": False,
-        "placeholder": True,
+        "status": "current",
+        "implemented": True,
+        "placeholder": False,
+        "implementation_status": "IMPLEMENTED_UNVERIFIED",
     },
     {
         "id": "technolife:main",
@@ -290,6 +296,8 @@ class CommerceHubService:
             result = await self._test_tapsishop_channel_connection(configured, body)
         elif str(meta["provider"]) == "technolife":
             result = await self._test_technolife_channel_connection(configured, body)
+        elif str(meta["provider"]) == "digikala":
+            result = await self._test_digikala_channel_connection(configured, body)
         else:
             return self._unsupported_connection_result()
         if record_health:
@@ -683,7 +691,7 @@ class CommerceHubService:
         self._validate_channel_configuration(meta, body)
         if provider == "snappshop":
             await self._validate_snappshop_vendor_selection(body)
-        if provider in {"snappshop", "tapsishop", "technolife"}:
+        if provider in {"snappshop", "tapsishop", "technolife", "digikala"}:
             result = self._update_marketplace_channel_settings(
                 channel_id,
                 meta,
@@ -744,8 +752,10 @@ class CommerceHubService:
                 self._persist_snappshop_app_config(body, commit=False)
             elif provider == "tapsishop":
                 self._persist_tapsishop_app_config(body, commit=False)
-            else:
+            elif provider == "technolife":
                 self._persist_technolife_app_config(body, commit=False)
+            else:
+                self._persist_digikala_app_config(body, commit=False)
             self.integration.stage_settings_contract(channel_id, self._settings_body(body))
             self._update_instance_state(meta, body, access_mode=access_mode, commit=False)
             self.integration.record_event(
@@ -895,6 +905,8 @@ class CommerceHubService:
             "secrets": secret_status,
             "token_configured": secret_status.get("token", {}).get("status") == "configured",
             "webhook_token_configured": secret_status.get("webhook_token", {}).get("status") == "configured",
+            "access_token_configured": secret_status.get("access_token", {}).get("status") == "configured",
+            "refresh_token_configured": secret_status.get("refresh_token", {}).get("status") == "configured",
             "settings_schema": [item.model_dump() for item in definition.settings_schema] if definition else [],
             "webhook_path": f"/api/v2/webhooks/tapsishop/{channel_id}" if meta["provider"] == "tapsishop" else None,
             "credentials_returned": False,
@@ -969,7 +981,7 @@ class CommerceHubService:
                 return _safe_integer_timeout(value)
             if key == "agent_header_name":
                 return str(value or SNAPPSHOP_DEFAULT_AGENT_HEADER)
-        if provider == "technolife" and key == "request_timeout":
+        if provider in {"technolife", "digikala"} and key == "request_timeout":
             return _safe_integer_timeout(value)
         return value
 
@@ -1127,6 +1139,7 @@ class CommerceHubService:
             "type": "Channel",
             "status": self._status(meta, instance, health),
             "implemented": meta["implemented"],
+            "implementation_status": meta.get("implementation_status"),
             "placeholder": meta["placeholder"],
             "enabled": bool(instance and instance.enabled),
             "access_mode": access_mode,
@@ -1142,6 +1155,8 @@ class CommerceHubService:
             "vendor_accessible": bool(configured and health and health.status == "healthy"),
             "token_configured": secret_status.get("token", {}).get("status") == "configured",
             "webhook_token_configured": secret_status.get("webhook_token", {}).get("status") == "configured",
+            "access_token_configured": secret_status.get("access_token", {}).get("status") == "configured",
+            "refresh_token_configured": secret_status.get("refresh_token", {}).get("status") == "configured",
             "last_health_check": self._iso(health.checked_at) if health else None,
             "health": self._health_contract(health),
             "capabilities": capabilities.model_dump(),
@@ -1300,6 +1315,7 @@ class CommerceHubService:
             "snappshop": {"token", "agent_identifier"},
             "tapsishop": {"token"},
             "technolife": {"api_key", "encryption_secret"},
+            "digikala": {"access_token"},
         }.get(instance.connector_type, set())
         return bool(required) and all(settings.get(key) and settings[key].configured for key in required)
 
@@ -1504,6 +1520,14 @@ class CommerceHubService:
                     or ""
                 ).strip()
             )
+        if provider == "digikala":
+            return bool(
+                str(
+                    secrets.get("access_token")
+                    or self.integration.config.get("digikala.access_token")
+                    or ""
+                ).strip()
+            )
         return False
 
     def _channel_test_matches_stored_configuration(
@@ -1513,7 +1537,7 @@ class CommerceHubService:
         provider = str(meta["provider"])
         if provider == "woocommerce":
             return self._woocommerce_values(body) == self._woocommerce_values({})
-        if provider not in {"snappshop", "tapsishop", "technolife"}:
+        if provider not in {"snappshop", "tapsishop", "technolife", "digikala"}:
             return False
         tested_settings, tested_secrets = self._connector_values(provider, body)
         stored_settings, stored_secrets = self._connector_values(provider, {})
@@ -1532,7 +1556,7 @@ class CommerceHubService:
                 except ValueError as exc:
                     raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
             return
-        if provider not in {"snappshop", "tapsishop", "technolife"}:
+        if provider not in {"snappshop", "tapsishop", "technolife", "digikala"}:
             return
         settings, secrets = self._connector_values(provider, body)
         base_url = str(settings.get("base_url") or "").strip()
@@ -1553,8 +1577,10 @@ class CommerceHubService:
                 SnappShopConfig.from_values(settings=settings, secrets=secrets)
             elif provider == "tapsishop":
                 TapsiShopConfig.from_values(settings=settings, secrets=secrets)
-            else:
+            elif provider == "technolife":
                 TechnolifeConfig.from_values(settings=settings, secrets=secrets)
+            else:
+                DigikalaConfig.from_values(settings=settings, secrets=secrets)
         except (TypeError, ValueError) as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
 
@@ -1568,16 +1594,19 @@ class CommerceHubService:
                 "token_refresh_name", "revoke_current_token",
             ),
             "technolife": ("base_url", "request_timeout"),
+            "digikala": ("base_url", "request_timeout"),
         }.get(provider, ())
         secret_keys = {
             "snappshop": ("token",),
             "tapsishop": ("token", "webhook_token"),
             "technolife": ("api_key", "encryption_secret"),
+            "digikala": ("access_token", "refresh_token"),
         }.get(provider, ())
         defaults = {
             "snappshop": {"base_url": SNAPPSHOP_BASE_URL, "agent_header_name": "User-Agent", "request_timeout": 30},
             "tapsishop": {"base_url": TAPSISHOP_BASE_URL, "request_timeout": 30},
             "technolife": {"base_url": TECHNOLIFE_BASE_URL, "request_timeout": 30},
+            "digikala": {"base_url": DIGIKALA_BASE_URL, "request_timeout": 30},
         }.get(provider, {})
         settings = {
             key: submitted_settings[key]
@@ -1595,6 +1624,12 @@ class CommerceHubService:
         elif provider == "technolife":
             settings["base_url"] = str(
                 settings.get("base_url") or TECHNOLIFE_BASE_URL
+            ).strip().rstrip("/")
+            if "request_timeout" not in submitted_settings:
+                settings["request_timeout"] = _safe_integer_timeout(settings.get("request_timeout"))
+        elif provider == "digikala":
+            settings["base_url"] = str(
+                settings.get("base_url") or DIGIKALA_BASE_URL
             ).strip().rstrip("/")
             if "request_timeout" not in submitted_settings:
                 settings["request_timeout"] = _safe_integer_timeout(settings.get("request_timeout"))
@@ -1990,6 +2025,152 @@ class CommerceHubService:
         except (TypeError, ValueError):
             return None
         return TechnolifeConnector(channel_id="technolife:main", config=config)
+
+    async def _test_digikala_channel_connection(
+        self, configured: bool, body: dict | None = None
+    ) -> dict:
+        # This test must remain an observational, authenticated GET /orders.
+        # In particular it may not refresh or replace either submitted/stored
+        # token, because a connection test is not credential rotation.
+        connector = self._digikala_connector(body, allow_token_refresh=False)
+        if not configured or connector is None:
+            return {
+                **self._connection_base(),
+                "ok": False,
+                "connected": False,
+                "authenticated": False,
+                "status": "not_configured",
+                "http_status": None,
+                "latency_ms": None,
+                "checked_at": self._checked_at(),
+                "message": "Digikala is not configured. No external call was performed.",
+                "code": "DIGIKALA_NOT_CONFIGURED",
+                "error_class": "not_configured",
+                "retryable": False,
+                "retry_after_seconds": None,
+                "external_call_performed": False,
+            }
+        started = monotonic()
+        health = await connector.test_connection()
+        latency_ms = health.latency_ms or round((monotonic() - started) * 1000, 2)
+        if health.status != "healthy":
+            error = health.error
+            return {
+                **self._connection_base(),
+                "ok": False,
+                "connected": False,
+                "authenticated": bool(
+                    error
+                    and error.category.value not in {"authentication", "authorization"}
+                ),
+                "status": (
+                    "authentication_failed"
+                    if error and error.category.value == "authentication"
+                    else "error"
+                ),
+                "http_status": error.http_status if error else None,
+                "latency_ms": latency_ms,
+                "checked_at": self._checked_at(),
+                "message": error.message if error else "Digikala connection failed.",
+                # Never surface the provider error body or provider code: it
+                # can contain echoed credentials.  The category and retry
+                # metadata are sufficient structured diagnostic evidence.
+                "code": (
+                    f"DIGIKALA_{error.category.value.upper()}"
+                    if error
+                    else "DIGIKALA_CONNECTION_FAILED"
+                ),
+                "error_class": error.category.value if error else "connection_failed",
+                "retryable": bool(error and error.retry.retryable),
+                "retry_after_seconds": (
+                    error.retry.retry_after_seconds if error else None
+                ),
+                "external_call_performed": True,
+            }
+        return {
+            **self._connection_base(),
+            "ok": True,
+            "connected": True,
+            "authenticated": True,
+            "status": "connected",
+            "http_status": 200,
+            "latency_ms": latency_ms,
+            "checked_at": self._checked_at(),
+            "message": "Connected to Digikala. Read-only orders probe succeeded.",
+            "external_call_performed": True,
+        }
+
+    def _digikala_connector(
+        self,
+        body: dict | None = None,
+        *,
+        allow_token_refresh: bool = True,
+    ) -> DigikalaConnector | None:
+        settings, secrets = self._connector_values("digikala", body)
+        try:
+            config = DigikalaConfig.from_values(settings=settings, secrets=secrets)
+        except (TypeError, ValueError):
+            return None
+        return DigikalaConnector(
+            channel_id="digikala:main",
+            config=config,
+            token_updater=(
+                self._persist_digikala_refreshed_tokens
+                if allow_token_refresh
+                else None
+            ),
+            allow_token_refresh=allow_token_refresh,
+        )
+
+    def _persist_digikala_refreshed_tokens(
+        self, access_token: str, refresh_token: str
+    ) -> None:
+        """Persist rotated tokens securely and update Integration Platform metadata."""
+
+        try:
+            self.integration.config.set_many(
+                {
+                    "digikala.access_token": access_token,
+                    "digikala.refresh_token": refresh_token,
+                },
+                updated_by="digikala_refresh",
+                commit=False,
+            )
+            row = self.db.get(IntegrationConnectorInstance, "digikala:main")
+            if row is not None:
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
+                existing = {setting.key: setting for setting in row.settings}
+                for key in ("access_token", "refresh_token"):
+                    setting = existing.get(key)
+                    if setting is None:
+                        row.settings.append(
+                            IntegrationConnectorSetting(
+                                key=key,
+                                # Integration Platform settings carry only
+                                # write-only secret state.  The rotated value
+                                # itself lives in AppConfig's secret store.
+                                value_json=None,
+                                secret=True,
+                                configured=True,
+                                updated_at=now,
+                            )
+                        )
+                    else:
+                        setting.value_json = None
+                        setting.secret = True
+                        setting.configured = True
+                        setting.updated_at = now
+                self.integration.record_event(
+                    connector_id="digikala:main",
+                    event_name="digikala_tokens_refreshed",
+                    message="Digikala credentials were refreshed; replacement values remain write-only.",
+                    metadata={"secret_values_returned": False},
+                    commit=False,
+                )
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
 
     async def _test_nextcloud_source_connection(self, body: dict | None = None) -> dict:
         request_body = body or {}
@@ -2528,6 +2709,25 @@ class CommerceHubService:
             pairs, updated_by="commerce_hub", commit=commit
         )
 
+    def _persist_digikala_app_config(self, body: dict, *, commit: bool = True) -> None:
+        settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
+        secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
+        pairs: dict[str, str] = {
+            "digikala.base_url": str(
+                settings.get("base_url") or DIGIKALA_BASE_URL
+            ).strip().rstrip("/"),
+            "digikala.request_timeout": str(
+                _safe_integer_timeout(settings.get("request_timeout"))
+            ),
+        }
+        if secrets.get("access_token"):
+            pairs["digikala.access_token"] = str(secrets["access_token"])
+        if secrets.get("refresh_token"):
+            pairs["digikala.refresh_token"] = str(secrets["refresh_token"])
+        self.integration.config.set_many(
+            pairs, updated_by="commerce_hub", commit=commit
+        )
+
     def _persist_nextcloud_app_config(self, body: dict) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
@@ -2612,6 +2812,7 @@ class CommerceHubService:
             "name": meta["name"],
             "type": kind,
             "implemented": bool(meta["implemented"]),
+            "implementation_status": meta.get("implementation_status"),
             "placeholder": bool(meta["placeholder"]),
             "read_only": True,
             "write_blocked": kind == "Channel",
@@ -2659,7 +2860,9 @@ class CommerceHubService:
             required = {"token"}
         elif instance.connector_type == "technolife":
             required = {"api_key", "encryption_secret"}
-        elif instance.connector_type in {"digikala", "shopify"}:
+        elif instance.connector_type == "digikala":
+            required = {"access_token"}
+        elif instance.connector_type == "shopify":
             required = {"api_token"}
         elif instance.connector_type == "nextcloud":
             required = {"url", "username", "password", "spreadsheet_path"}

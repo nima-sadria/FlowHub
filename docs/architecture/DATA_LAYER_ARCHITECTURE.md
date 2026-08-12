@@ -575,7 +575,7 @@ Examples:
 - `woocommerce:primary`
 - `nextcloud:primary`
 - `snappshop:main`
-- `digikala:storefront`
+- `digikala:main`
 - `shopify:us-store`
 - `gsheets:price-list`
 - `csv:import`
@@ -585,8 +585,17 @@ Examples:
 
 1. Add connector implementation under `app/connectors/sources/<provider>/` or `app/connectors/destinations/<provider>/`
 2. Register connector instance in Integration Platform `ip_connector_instances`
-3. Wire connector to Data Layer services: call `ProductReadModelService.upsert()` and `ConnectorHealthService.upsert()` after each fetch
+3. Once the provider has an endpoint-specific normalization contract, wire its
+   approved reads to Data Layer services: call `ProductReadModelService.upsert()`
+   and `ConnectorHealthService.upsert()` after each fetch
 4. No changes needed to `dl_product_cache`, `dl_inventory_cache`, `dl_refresh_jobs`, or `dl_invalidation_events` - they already accept any `connector_id`
+
+Digikala is an intentional exception to the product-read step for now. Its
+repository-supplied API document identifies read endpoints but omits the
+endpoint-specific fields and pagination/filter query contract needed for safe
+product, inventory, or order normalization. FlowHub stores connection-health
+evidence only; it does not create Digikala product or inventory cache rows and
+does not put Digikala orders through the synchronized order model.
 
 ### Connector Status
 
@@ -596,7 +605,7 @@ Examples:
 | Nextcloud | Source | Active (FLOWHUB) |
 | SnappShop | Channel | Active; capability-gated product writes and order synchronization |
 | TapsiShop | Channel | Active; capability-gated product writes, webhook ingestion, and order synchronization |
-| Digikala | Destination | Planned |
+| Digikala | Channel | `IMPLEMENTED_UNVERIFIED` - documented bearer-token configuration and a read-only `GET /orders` health probe; no live Owner-credential verification, normalized cache, order sync, or write capability |
 | Technolife | Destination | Planned |
 | Shopify | Destination | Planned |
 | Google Sheets | Source | Planned |
@@ -607,6 +616,10 @@ Examples:
 ### Multi-Channel Product Browser
 
 When multiple destination connectors are active, the Products page reads from `dl_product_cache` filtered by `channel_id`. Each channel shows its own product/price/inventory state. Unified view across channels is a future aggregation layer.
+
+Digikala contributes no rows to that browser until the Owner supplies the
+endpoint schemas necessary to map product identities, categories, prices,
+inventory, and marketplace status without inference.
 
 ---
 

@@ -269,7 +269,7 @@ for this draft, the entry is marked `NEEDS_VERIFICATION` rather than guessed.
   original estimate of `OPERATIONAL`)
 - **backend surface:** `app/flowhub/channels/{gateway.py,marketplace.py,
   marketplace_product_sync.py,registry.py,snappshop.py,
-  snappshop_product_sync.py,tapsishop.py,technolife.py,woocommerce.py,
+  snappshop_product_sync.py,tapsishop.py,technolife.py,digikala.py,woocommerce.py,
   write_validation.py}`; `app/flowhub/commerce/service.py`
 - **API surface:** `app/flowhub/api/v2/commerce.py` (mounted,
   `app.py:232`) — confirmed live routes include `GET /commerce/sources`,
@@ -280,18 +280,59 @@ for this draft, the entry is marked `NEEDS_VERIFICATION` rather than guessed.
   `tests/test_marketplace_connectors.py`, `test_marketplace_product_sync.py`,
   `test_snappshop_connector.py`, `test_snappshop_product_sync.py`,
   `test_tapsishop_connector.py`, `test_technolife_connector.py`,
+  `test_digikala_connector.py`,
   `Channels.test.tsx`, `CommerceHub.test.tsx`
 - **evidence:** listings above; `app.py:232`; `CURRENT_ARCHITECTURE.md`
-  current WooCommerce, SnappShop, TapsiShop, and Technolife Channels, with
-  Digikala and Shopify explicitly retained as future placeholders
+  current WooCommerce, SnappShop, TapsiShop, and Technolife Channels, plus
+  Digikala's static `IMPLEMENTED_UNVERIFIED` read-side adapter; Shopify remains
+  a future placeholder
 - **notes:** the diagram confirms `WorkspaceConnectorFactory` as the
-  canonical Channel Gateway for the current four providers. The same
-  contract for future providers remains **NEEDS_VERIFICATION** and is not
-  inferred from filenames or placeholder registry entries. The
+  canonical Channel Gateway for the current four write-capable providers.
+  Digikala is registered on the read side but intentionally remains absent
+  from that gateway, because its provider-documented writes are
+  `DOCUMENTED_NOT_IMPLEMENTED`. The same contract for future providers remains
+  **NEEDS_VERIFICATION** and is not inferred from filenames or placeholder
+  registry entries. The
   Owner-approved status remains `PARTIAL`/`BASELINE` rather than this
   draft's original `IMPLEMENTED`/`OPERATIONAL` estimate: a per-channel
   adapter existing in code for four marketplaces is not the same as the
   channel domain being verified-mature across all of them.
+
+#### `digikala_read_side_channel` â€” Digikala Read-side Channel
+
+- **domain:** Channel Management
+- **classification:** Core
+- **audience:** Admin-facing configuration and diagnostic probe; sanitized
+  channel state is visible through the shared Commerce Hub and Diagnostics UI.
+- **status:** `IMPLEMENTED_UNVERIFIED` â€” implementation and static contract
+  tests exist, but no successful live, Owner-credential read has been recorded.
+- **maturity:** FOUNDATION â€” this records no architecture-maturity promotion;
+  live evidence must be reviewed by the Owner and Diagram Keeper first.
+- **backend surface:** `app/flowhub/channels/digikala.py`,
+  `app/flowhub/channels/registry.py`,
+  `app/flowhub/commerce/service.py`, and
+  `app/flowhub/diagnostics/channel_health.py`.
+- **API surface:** shared Commerce Hub configuration and connection-test
+  routes in `app/flowhub/api/v2/commerce.py`; no Digikala-specific write route.
+- **UI surface:** `frontend/src/pages/CommerceHub.tsx`, shared Channels,
+  Diagnostics, Activity, and brand-icon registry surfaces; no standalone
+  Digikala UI.
+- **test surface:** `tests/flowhub/test_digikala_connector.py`, Commerce Hub
+  regression tests, Diagnostics status tests, and Channels/Commerce Hub UI
+  registration tests.
+- **evidence:** `docs/api/channel/digikala-api.md`; it explicitly documents
+  bearer authentication, token/refresh routes, `GET /orders`,
+  `GET /orders/{order_item_id}`, catalog/inventory read routes, a generic list
+  envelope, and broad write groups, but does not supply endpoint-specific
+  field, filter, pagination-query, or write-request schemas.
+- **notes:** Test Connection uses exactly the documented read-only `GET
+  /orders` probe and persists sanitized health evidence. Raw documented reads
+  are not treated as normalized product or order sync: identifiers, prices,
+  inventory, order statuses/dates, line items, quantities, and totals remain
+  unsupported until the missing endpoint schemas are supplied. All product,
+  inventory, package/shipment, promotion, webhook, and order-changing
+  operations are `DOCUMENTED_NOT_IMPLEMENTED`; accepting, fulfilling,
+  cancelling, rejecting, or otherwise mutating an order is prohibited.
 
 #### `review_approval` — Review & Approval
 

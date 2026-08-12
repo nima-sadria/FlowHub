@@ -41,6 +41,7 @@ export const DEFAULT_READ_POLICY: ReadPolicyDraft = {
 const CHANNEL_VISIBLE_FIELDS: Record<string, ReadonlySet<string>> = {
   snappshop: new Set(['token', 'agent_identifier']),
   tapsishop: new Set(['token', 'webhook_token']),
+  digikala: new Set(['access_token', 'refresh_token']),
   technolife: new Set(['api_key', 'encryption_secret']),
 }
 
@@ -215,7 +216,7 @@ function ChannelCard({ channel, badge, onTest, onRefresh, onConfigure, testing, 
 }) {
   const isWooCommerce = channel.provider === 'woocommerce' && !channel.placeholder
   const supportsProductCache = ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider) && !channel.placeholder
-  const isConfigurable = channel.implemented && !channel.placeholder && ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider)
+  const isConfigurable = channel.implemented && !channel.placeholder && ['woocommerce', 'snappshop', 'tapsishop', 'digikala'].includes(channel.provider)
   const isConfigured = channel.credential_status === 'configured'
   return (
     <div className="fh-card fh-card-pad flex flex-col gap-3" title={formatCapabilityList(channel.capabilities_summary)}>
@@ -813,6 +814,8 @@ export function ConfigPanel({
       ? Boolean(settings.agent_identifier?.trim()) && hasSecret('token')
       : selected.provider === 'tapsishop'
         ? hasSecret('token')
+        : selected.provider === 'digikala'
+          ? hasSecret('access_token')
         : selected.provider === 'technolife'
           ? hasSecret('api_key') && hasSecret('encryption_secret')
           : selected.provider === 'woocommerce'

@@ -6,6 +6,8 @@ export interface ConnectionCheckResult {
   message: string
   code?: string
   error_class?: string
+  retryable?: boolean
+  retry_after_seconds?: number | null
   external_call_performed: boolean
   read_only: boolean
   runtime_write_blocked: boolean
@@ -44,6 +46,8 @@ export interface CommerceChannelConfiguration {
   secrets: Record<string, { status: string; replaced_at: string | null }>
   token_configured: boolean
   webhook_token_configured: boolean
+  access_token_configured?: boolean
+  refresh_token_configured?: boolean
   settings_schema: CommerceTypeOption['settings_schema']
   webhook_path: string | null
   credentials_returned: false

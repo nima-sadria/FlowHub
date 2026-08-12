@@ -29,6 +29,86 @@ resolves every channel_id through this gateway. It holds no provider logic of
 its own; an unresolvable channel_id fails closed with `WorkspaceDomainError`
 rather than falling back to a default channel.
 
+## Digikala Channel
+
+**Status: `IMPLEMENTED_UNVERIFIED`.** The Digikala implementation is based
+only on the repository-supplied
+[`digikala-api.md`](../api/channel/digikala-api.md) contract and its static
+contract/regression tests. It has not been exercised with Owner credentials,
+so it must not be represented as operational or verified. A successful live,
+read-only probe is evidence for Owner and Diagram Keeper review; it is not an
+automatic architecture-maturity promotion.
+
+### Implemented boundary
+
+- Canonical provider identifier: `digikala`; display name: `Digikala`.
+- It uses the existing Channel configuration surface, enabled/disabled state,
+  canonical local brand registry, Diagnostics, and ordinary Activity/audit
+  flow; it does not introduce a standalone Digikala UI or persistence model.
+- The connector restricts its base URL to the documented HTTPS API root,
+  `https://seller.digikala.com/open-api/v1`, and sends the documented
+  `Authorization: Bearer <access token>` and `Content-Type: application/json`
+  headers on protected requests.
+- `access_token` is a required write-only secret and `refresh_token` is an
+  optional write-only secret. Sanitized configuration and diagnostics report
+  only whether a credential is configured. A blank secret field preserves the
+  existing stored value.
+- The documented `POST /auth/token` and `POST /auth/refresh-token` operations
+  support token acquisition/rotation. FlowHub does not invent a fixed token
+  lifetime: it replaces both tokens only from a successful provider response.
+- Test Connection is the real, read-only `GET /orders` request documented by
+  the provider. Its sanitized outcome, latency, and error category are stored
+  as normal connector-health evidence and are surfaced through the shared
+  Diagnostics and Commerce Hub configuration flows. A connection test never
+  mutates an order or attempts a token refresh.
+- The connector exposes only contract-safe raw reads: `GET /auth/scopes`,
+  `GET /auth/scopes/{client_code}`, `GET /categories/tree`, `GET
+  /products/seller`, `GET /inventories/{product_variant_id}`, `GET /orders`,
+  and `GET /orders/{order_item_id}`. Authenticated transport is GET-only and
+  endpoint-allowlisted; the only permitted POSTs are the two documented token
+  acquisition/refresh routes. It cannot issue a provider order, product,
+  inventory, promotion, webhook, or token-revoke write.
+
+### Deliberately unsupported normalization
+
+The supplied document gives a generic list envelope (`data.pager` and
+`items`), but does not provide endpoint-specific request parameters or field
+schemas for product identifiers/SKUs, categories, price, inventory, listing
+status, order status, dates, line items, quantities, or totals. It says that
+the allowed pagination parameters must be checked in Swagger; that Swagger
+schema is not part of this repository contract.
+
+FlowHub therefore does **not** infer pagination queries, product mappings, or
+order mappings from the generic envelope. `products.read` and `orders.read`
+are not declared as normalized FlowHub capabilities for Digikala, no Digikala
+rows are written to the normalized product/inventory cache, and no Digikala
+orders are put into the order-sync/reconciliation pipeline. This is a
+capability boundary, not a claim that the provider lacks read endpoints. It
+also means there is no Digikala incremental cursor, date/status filtering, or
+duplicate/idempotency record until the missing order contract is supplied.
+
+### Write authority and documented-but-not-implemented operations
+
+Digikala is intentionally absent from `WorkspaceConnectorFactory` and the
+Write Pipeline. That gateway is the shared execution authority, so its
+fail-closed behavior remains in force for every Digikala write. The following
+provider-documented groups are `DOCUMENTED_NOT_IMPLEMENTED`:
+
+- Product creation and drafts (`/product-creation/*`, `/draft-products/*`),
+  variant/price/activation operations (`/variants/*`), and inventory updates
+  (`/inventories/*`).
+- Packages and shipments (`/packages/*`, `/shipments/*`), promotions and
+  lightning deals (`/promotions/*`, `/lightening-deal/*`), and webhooks
+  (`/webhook/*`).
+- `POST /auth/revoke`.
+
+The supplied document does not define the exact methods, request bodies,
+response schemas, idempotency behavior, or shared FlowHub write-pipeline
+mapping for those groups. They remain disabled pending an Owner decision after
+the missing contract and authority mapping are available. In particular,
+accepting, fulfilling, cancelling, rejecting, or otherwise changing a Digikala
+order is not implemented or authorized.
+
 ## Multi-Channel Product Pricing
 
 The legacy Product Pricing compatibility API exposes a protected
